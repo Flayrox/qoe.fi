@@ -81,7 +81,7 @@
 
   .cursor-card::before {
     content: "";
-    @apply absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 transition-opacity duration-500;
+    @apply absolute inset-0 bg-linear-to-br from-white/10 to-transparent opacity-0 transition-opacity duration-500;
   }
 
   .cursor-card:hover::before {
@@ -109,7 +109,7 @@
   }
 
   .shimmer {
-    @apply relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_2s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent;
+    @apply relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_2s_infinite] before:bg-linear-to-r before:from-transparent before:via-white/10 before:to-transparent;
   }
 }
 

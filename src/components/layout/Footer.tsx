@@ -14,19 +14,19 @@ export const Footer = () => {
           </p>
         </div>
         <div className="flex flex-col gap-4">
-          <h4 className="font-mono text-xs tracking-[0.1em] text-on-surface-variant uppercase mb-2">Legal</h4>
+          <h4 className="font-mono text-xs tracking-widest text-on-surface-variant uppercase mb-2">Legal</h4>
           <Link href="#" className="font-body text-sm text-on-surface-variant hover:text-accent transition-colors">GDPR Compliance</Link>
           <Link href="#" className="font-body text-sm text-on-surface-variant hover:text-accent transition-colors">Privacy Policy</Link>
           <Link href="#" className="font-body text-sm text-on-surface-variant hover:text-accent transition-colors">Terms of Service</Link>
         </div>
         <div className="flex flex-col gap-4">
-          <h4 className="font-mono text-xs tracking-[0.1em] text-on-surface-variant uppercase mb-2">Platform</h4>
+          <h4 className="font-mono text-xs tracking-widest text-on-surface-variant uppercase mb-2">Platform</h4>
           <Link href="#" className="font-body text-sm text-on-surface-variant hover:text-accent transition-colors">Creator Studio</Link>
           <Link href="#" className="font-body text-sm text-on-surface-variant hover:text-accent transition-colors">Reader Experience</Link>
           <Link href="#" className="font-body text-sm text-on-surface-variant hover:text-accent transition-colors">API Docs</Link>
         </div>
         <div className="flex flex-col gap-4">
-          <h4 className="font-mono text-xs tracking-[0.1em] text-on-surface-variant uppercase mb-2">Connect</h4>
+          <h4 className="font-mono text-xs tracking-widest text-on-surface-variant uppercase mb-2">Connect</h4>
           <Link href="#" className="font-body text-sm text-on-surface-variant hover:text-accent transition-colors">Twitter</Link>
           <Link href="#" className="font-body text-sm text-on-surface-variant hover:text-accent transition-colors">Substack</Link>
           <Link href="#" className="font-body text-sm text-on-surface-variant hover:text-accent transition-colors">LinkedIn</Link>
