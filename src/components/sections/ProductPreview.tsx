@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import { Reveal } from "@/components/ui/Reveal";
 import { Bold, Italic, Link, Image as ImageIcon, Type, Heading1, Heading2 } from "lucide-react";
@@ -41,7 +43,7 @@ export const ProductPreview = () => {
         </div>
 
         <Reveal delay={0.8} width="100%">
-          <div className="relative w-full aspect-[16/10] md:aspect-[16/9] bg-white dark:bg-zinc-950 rounded-3xl shadow-2xl border border-outline-variant/20 overflow-hidden group">
+          <div className="relative w-full aspect-16/10 md:aspect-video bg-white dark:bg-zinc-950 rounded-3xl shadow-2xl border border-outline-variant/20 overflow-hidden group">
             {/* Window Chrome */}
             <div className="h-12 bg-surface-container dark:bg-zinc-900/50 border-b border-outline-variant/20 flex items-center px-6 gap-2">
               <div className="w-3 h-3 rounded-full bg-red-400/20" />
@@ -105,7 +107,7 @@ export const ProductPreview = () => {
                       {productPreview.reader.content.substring(1)}
                     </p>
                     <div className="my-12 aspect-video bg-surface-container dark:bg-zinc-900 rounded-2xl overflow-hidden shadow-inner border border-outline-variant/10 group-hover:shadow-lg transition-shadow duration-500">
-                      <div className="w-full h-full bg-gradient-to-br from-primary/5 to-accent/5 flex items-center justify-center">
+                      <div className="w-full h-full bg-linear-to-br from-primary/5 to-accent/5 flex items-center justify-center">
                          <ImageIcon className="w-12 h-12 text-primary/10" />
                       </div>
                     </div>
