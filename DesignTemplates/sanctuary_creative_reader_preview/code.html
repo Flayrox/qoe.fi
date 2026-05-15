@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sanctuary - Product Preview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&amp;family=Newsreader:opsz,wght@6..72,400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error": "#ba1a1a",
+                        "tertiary-container": "#626161",
+                        "secondary-container": "#e1dfdc",
+                        "tertiary-fixed-dim": "#c8c6c6",
+                        "on-tertiary": "#ffffff",
+                        "surface-bright": "#fff8f3",
+                        "outline-variant": "#dcc1bb",
+                        "primary-fixed": "#ffdad3",
+                        "on-surface": "#1e1b17",
+                        "on-primary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "background": "#fff8f3",
+                        "surface": "#fff8f3",
+                        "inverse-on-surface": "#f7efe9",
+                        "inverse-primary": "#ffb4a4",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary": "#5e5e5c",
+                        "surface-container-highest": "#e9e1db",
+                        "on-primary-fixed-variant": "#7d2c1a",
+                        "surface-container": "#f4ece6",
+                        "on-error": "#ffffff",
+                        "on-background": "#1e1b17",
+                        "error-container": "#ffdad6",
+                        "secondary-fixed-dim": "#c8c6c3",
+                        "primary": "#812f1d",
+                        "surface-container-low": "#faf2ec",
+                        "surface-variant": "#e9e1db",
+                        "on-secondary-fixed-variant": "#474744",
+                        "on-secondary-container": "#636360",
+                        "on-secondary": "#ffffff",
+                        "primary-fixed-dim": "#ffb4a4",
+                        "surface-dim": "#e0d9d2",
+                        "on-tertiary-container": "#dfdddc",
+                        "on-surface-variant": "#55423e",
+                        "on-primary-fixed": "#3d0600",
+                        "primary-container": "#a04632",
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "secondary-fixed": "#e4e2de",
+                        "outline": "#89726d",
+                        "inverse-surface": "#33302c",
+                        "on-primary-container": "#ffd4cb",
+                        "on-secondary-fixed": "#1b1c1a",
+                        "tertiary": "#4a4949",
+                        "tertiary-fixed": "#e4e2e1",
+                        "on-tertiary-fixed-variant": "#474747",
+                        "surface-tint": "#9c432f",
+                        "surface-container-high": "#efe7e0"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "section-gap": "80px",
+                        "unit": "8px",
+                        "margin-mobile": "20px",
+                        "margin-desktop": "64px",
+                        "container-max": "1280px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Hanken Grotesk"],
+                        "headline-md": ["Newsreader"],
+                        "display-lg": ["Newsreader"],
+                        "body-md": ["Hanken Grotesk"],
+                        "caption": ["Hanken Grotesk"],
+                        "headline-sm": ["Newsreader"],
+                        "display-lg-mobile": ["Newsreader"],
+                        "body-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "label-md": ["14px", { "lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-md": ["32px", { "lineHeight": "1.3", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "caption": ["12px", { "lineHeight": "1.4", "fontWeight": "500" }],
+                        "headline-sm": ["24px", { "lineHeight": "1.4", "fontWeight": "500" }],
+                        "display-lg-mobile": ["36px", { "lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["20px", { "lineHeight": "1.6", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.3) 100%);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 20px 40px -10px rgba(64, 48, 32, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+        .organic-shape {
+            position: absolute;
+            filter: blur(80px);
+            opacity: 0.4;
+            z-index: -1;
+            border-radius: 50%;
+        }
+        .shape-1 {
+            background: #ffb4a4; /* inverse-primary */
+            width: 500px;
+            height: 500px;
+            top: -100px;
+            left: -100px;
+        }
+        .shape-2 {
+            background: #dcc1bb; /* outline-variant */
+            width: 600px;
+            height: 600px;
+            bottom: -200px;
+            right: -100px;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md antialiased overflow-x-hidden relative min-h-screen">
+<!-- Ambient Background Elements -->
+<div class="organic-shape shape-1"></div>
+<div class="organic-shape shape-2"></div>
+<!-- Top Navigation (Shared Component) -->
+<nav class="fixed top-0 w-full z-50 bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md shadow-sm shadow-[#403020]/5">
+<div class="flex justify-between items-center max-w-[1280px] mx-auto px-16 h-20">
+<div class="flex items-center space-x-8">
+<a class="font-headline-md text-headline-md font-medium text-primary dark:text-inverse-primary tracking-tight" href="#">Sanctuary</a>
+<div class="hidden md:flex space-x-6">
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-on-tertiary-fixed-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-300" href="#">Essays</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-on-tertiary-fixed-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-300" href="#">Library</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-on-tertiary-fixed-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-300" href="#">Voices</a>
+<a class="font-label-md text-label-md text-primary dark:text-inverse-primary border-b-2 border-primary dark:border-inverse-primary pb-1" href="#">About</a>
+</div>
+</div>
+<div class="flex items-center space-x-4">
+<button class="font-label-md text-label-md text-on-surface-variant dark:text-on-tertiary-fixed-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-300">Sign In</button>
+<button class="font-label-md text-label-md bg-primary-container text-on-primary-container px-6 py-2 rounded-full hover:opacity-90 active:scale-95 transition-all duration-200">Subscribe</button>
+</div>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="pt-[160px] pb-section-gap px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto relative">
+<!-- Section Header / Hero -->
+<div class="text-center mb-16 max-w-4xl mx-auto">
+<h1 class="font-display-lg text-[64px] leading-tight font-semibold text-on-surface mb-6 tracking-tight text-primary">Designed for Focus.<br/>Built for Readers.</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto mb-10">Experience the platform from both sides of the page. A distraction-free environment where your words take center stage, cultivating a sanctuary for deep thought.</p>
+<div class="flex flex-col sm:flex-row justify-center items-center gap-4">
+<button class="bg-primary text-on-primary font-label-md text-label-md px-8 py-4 rounded-full hover:bg-primary/90 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0">Start Writing Today</button>
+<button class="bg-surface-container-high text-on-surface font-label-md text-label-md px-8 py-4 rounded-full hover:bg-surface-variant transition-all border border-outline-variant/50">Explore the Library</button>
+</div>
+</div>
+<!-- Core Value Propositions -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24 max-w-5xl mx-auto">
+<div class="text-center p-8 bg-surface-container-lowest/60 backdrop-blur-sm rounded-2xl border border-surface-container-highest shadow-sm">
+<span class="material-symbols-outlined text-primary text-4xl mb-4">edit_document</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-3">Distraction-Free</h3>
+<p class="font-body-md text-on-surface-variant">A minimal editor designed to keep you in the flow state, without notifications or visual clutter.</p>
+</div>
+<div class="text-center p-8 bg-surface-container-lowest/60 backdrop-blur-sm rounded-2xl border border-surface-container-highest shadow-sm">
+<span class="material-symbols-outlined text-primary text-4xl mb-4">menu_book</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-3">Reader-First</h3>
+<p class="font-body-md text-on-surface-variant">Beautiful typography and generous whitespace make reading long-form content a pleasure.</p>
+</div>
+<div class="text-center p-8 bg-surface-container-lowest/60 backdrop-blur-sm rounded-2xl border border-surface-container-highest shadow-sm">
+<span class="material-symbols-outlined text-primary text-4xl mb-4">group</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-3">Curated Community</h3>
+<p class="font-body-md text-on-surface-variant">Connect with readers and writers who value deep thought, nuanced conversation, and quiet.</p>
+</div>
+</div>
+<!-- Product Preview Container -->
+<div class="relative w-full max-w-5xl mx-auto rounded-xl p-2 bg-surface-container-high/30 backdrop-blur-sm border border-surface-container-highest shadow-[0_40px_80px_-20px_rgba(64,48,32,0.1)]">
+<!-- Window Chrome / View Switcher -->
+<div class="flex items-center justify-between px-6 py-4 border-b border-surface-container-highest bg-surface-container-lowest/50 rounded-t-lg">
+<div class="flex space-x-2">
+<div class="w-3 h-3 rounded-full bg-outline-variant"></div>
+<div class="w-3 h-3 rounded-full bg-outline-variant"></div>
+<div class="w-3 h-3 rounded-full bg-outline-variant"></div>
+</div>
+<div class="flex bg-surface-container-highest rounded-full p-1 border border-outline-variant/30">
+<button class="px-6 py-1.5 rounded-full bg-surface-container-lowest text-primary font-label-md text-label-md shadow-sm transition-all duration-200">Creator Mode</button>
+<button class="px-6 py-1.5 rounded-full text-on-surface-variant font-label-md text-label-md hover:text-primary transition-all duration-200">Reader View</button>
+</div>
+<div class="w-12"></div> <!-- Spacer for symmetry -->
+</div>
+<!-- View 1: Creator CMS (Active) -->
+<div class="bg-surface-container-lowest rounded-b-lg overflow-hidden flex min-h-[600px] relative">
+<!-- CMS Sidebar -->
+<aside class="w-64 bg-surface-container-low border-r border-surface-container-highest flex flex-col p-6 hidden md:flex">
+<div class="mb-8">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-[10px]">Current Draft</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mt-2 leading-tight">The Architecture of Silence</h3>
+</div>
+<div class="space-y-6 flex-grow">
+<div>
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-[10px]">Status</span>
+<div class="flex items-center mt-2 space-x-2">
+<span class="w-2 h-2 rounded-full bg-[#f59e0b]"></span>
+<span class="font-body-md text-body-md text-on-surface text-sm">Draft - Auto-saved 2m ago</span>
+</div>
+</div>
+<div>
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-[10px]">Metrics</span>
+<div class="grid grid-cols-2 gap-4 mt-2">
+<div class="bg-surface-container p-3 rounded-lg border border-surface-container-highest">
+<span class="block font-headline-md text-headline-md text-primary text-2xl">1,402</span>
+<span class="font-label-md text-label-md text-on-surface-variant text-[11px]">Words</span>
+</div>
+<div class="bg-surface-container p-3 rounded-lg border border-surface-container-highest">
+<span class="block font-headline-md text-headline-md text-primary text-2xl">6m</span>
+<span class="font-label-md text-label-md text-on-surface-variant text-[11px]">Read Time</span>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-6 border-t border-surface-container-highest">
+<button class="w-full bg-primary text-on-primary font-label-md text-label-md py-3 rounded-lg hover:bg-primary/90 transition-colors">Publish Options</button>
+</div>
+</aside>
+<!-- Editor Canvas -->
+<div class="flex-grow bg-[#fbf9f5] relative px-8 py-12 md:px-20 overflow-y-auto">
+<!-- Floating Toolbar -->
+<div class="absolute top-6 left-1/2 -translate-x-1/2 glass-panel rounded-full px-6 py-3 flex items-center space-x-6 z-10">
+<button class="text-on-surface-variant hover:text-primary transition-colors flex items-center"><span class="material-symbols-outlined text-xl">format_h1</span></button>
+<button class="text-on-surface-variant hover:text-primary transition-colors flex items-center"><span class="material-symbols-outlined text-xl">format_h2</span></button>
+<div class="w-px h-5 bg-outline-variant/50"></div>
+<button class="text-primary flex items-center"><span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">format_bold</span></button>
+<button class="text-on-surface-variant hover:text-primary transition-colors flex items-center"><span class="material-symbols-outlined text-xl">format_italic</span></button>
+<button class="text-on-surface-variant hover:text-primary transition-colors flex items-center"><span class="material-symbols-outlined text-xl">link</span></button>
+<div class="w-px h-5 bg-outline-variant/50"></div>
+<button class="text-on-surface-variant hover:text-primary transition-colors flex items-center"><span class="material-symbols-outlined text-xl">image</span></button>
+</div>
+<!-- Content -->
+<div class="max-w-[720px] mx-auto mt-16">
+<input class="w-full bg-transparent border-none focus:ring-0 font-display-lg text-display-lg text-on-surface mb-8 placeholder:text-on-surface-variant/30 px-0" placeholder="Title" type="text" value="The Architecture of Silence"/>
+<div class="prose max-w-none font-body-md text-body-md text-on-surface-variant leading-relaxed space-y-6 text-[18px]">
+<p><span class="float-left text-7xl leading-none font-headline-md text-primary pr-2 pt-2">I</span>n an era defined by constant notification and algorithmic urgency, the pursuit of quiet has become an act of radical rebellion. We are architecting spaces—both physical and digital—that demand our attention, leaving little room for the slow percolation of deep thought.</p>
+<p>The concept of 'sanctuary' is often misunderstood as mere isolation. Rather, true sanctuary is intentional curation. It is not the absence of noise, but the presence of focus. When we strip away the superfluous—the sidebars, the pop-ups, the endless scrolls—what remains is the raw material of intellect: the word.</p>
+<!-- Image Placeholder in Editor -->
+<div class="my-10 relative group rounded-xl overflow-hidden shadow-sm shadow-[#403020]/5 border border-surface-container-highest">
+<img alt="A serene, minimalist architectural interior featuring smooth curves, warm terracotta hues, and soft natural light casting gentle shadows, embodying a quiet sanctuary space." class="w-full h-auto object-cover aspect-video" data-alt="A serene, minimalist architectural interior featuring smooth curves, warm terracotta hues, and soft natural light casting gentle shadows, embodying a quiet sanctuary space. The composition is highly editorial, resembling a premium lifestyle magazine layout, utilizing a palette of cream, deep charcoal, and rich terracotta. The mood is calm, intellectual, and timeless." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC4SYTXGKT5DrEPNkVXnGjx9KMquag2UG356jnrJ-epGtRn_CamdgSwPgIbL2UcsaLO09F3ushYw7oUJXUM-PdxGqUdIoUTnjq0Kexblh8Y9gkEXIYQvmU4cE5JttM4hAo8j3wpCohPp-hlnKiN-UCdvQstFyyo969h4ClIZknLdwgvAc-ro-Cmdzk8v66KF6uSG8zKUM4pvMx8bkblRwPrN1qL9QIPvGyeiAmPrfFwHHJDwJ-DvCyJsYbwP66aomGVUP6tx3XXmK0"/>
+<div class="absolute inset-0 bg-inverse-surface/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+<button class="bg-surface-container-lowest text-on-surface px-4 py-2 rounded-full font-label-md text-label-md shadow-sm">Replace Image</button>
+</div>
+</div>
+<p>Consider the architecture of a cathedral or an ancient library. The vastness of the space is not empty; it is filled with reverence. The light is deliberate. The acoustics are designed to elevate silence. Our digital environments must strive for this same structural integrity.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer (Shared Component) -->
+<footer class="w-full py-20 bg-surface-container dark:bg-surface-container-high mt-section-gap">
+<div class="flex flex-col md:flex-row justify-between items-start max-w-[1280px] mx-auto px-16">
+<div class="mb-8 md:mb-0">
+<span class="font-headline-sm text-headline-sm text-primary dark:text-inverse-primary block mb-4">Sanctuary</span>
+<p class="font-body-md text-body-md text-on-surface-variant dark:text-on-tertiary-fixed-variant max-w-sm">
+                    © 2024 Sanctuary Media. Crafted for the curious and the calm.
+                </p>
+</div>
+<div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-12">
+<div class="flex flex-col space-y-3">
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-on-tertiary-fixed-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200" href="#">Manifesto</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-on-tertiary-fixed-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200" href="#">Archive</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-on-tertiary-fixed-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200" href="#">Membership</a>
+</div>
+<div class="flex flex-col space-y-3">
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-on-tertiary-fixed-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200" href="#">Privacy</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-on-tertiary-fixed-variant hover:text-primary dark:hover:text-inverse-primary transition-colors duration-200" href="#">Legal</a>
+</div>
+</div>
+</div>
+</footer>
+</body></html>
