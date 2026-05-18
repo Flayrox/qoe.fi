@@ -6,6 +6,7 @@ async function main() {
     where: { email: 'hello@qoe.fi' },
     update: {},
     create: {
+      id: 'cmpb8heeb0000tlxgtrj9n1vy',
       email: 'hello@qoe.fi',
       name: 'Creator',
       articles: {

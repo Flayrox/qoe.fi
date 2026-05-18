@@ -12,7 +12,7 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
+  id        String   @id
   email     String   @unique
   name      String?
   role      String   @default("user")
