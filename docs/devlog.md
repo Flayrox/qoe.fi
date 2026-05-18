@@ -38,3 +38,113 @@ Ce document sert de journal de bord technique (Devlog) pour tracer les décision
 
 **7. Initialisation de l'Éditeur d'articles**
 - **Implémentation** : Création du module `features/editor/` et d'un composant de base `Editor.tsx`. Il pose les fondations (typographie "classical") pour la future integration du Rich Text Editor.
+
+
+-----------------------
+
+# Sovereign CMS & Auth Integration Walkthrough
+
+We have successfully designed and built a complete, production-ready **Brutalist Premium** CMS framework and database-bound authentication pipeline for **qoe.fi**. Every module compiles flawlessly, and is fully integrated with our **Supabase Auth** session manager and **Prisma ORM** Postgres backend.
+
+Below is an architectural breakdown of the completed implementations, directory structures, and session rules.
+
+---
+
+## 🗺️ Completed Directory Mapping
+
+We initialized a fully modular Feature-Sliced Design layout inside `src/features` and integrated Next.js Server Pages/Actions:
+
+```
+src/
+├── app/
+│   ├── (dashboard)/
+│   │   └── dashboard/
+│   │       ├── analytics/          # [Dynamic Page] Analytics dashboard placeholder
+│   │       ├── articles/
+│   │       │   ├── [id]/           # [Dynamic Page] Secure article update workspace
+│   │       │   ├── new/            # [Dynamic Page] Fullscreen TipTap editor interface
+│   │       │   ├── actions.ts      # [Server Actions] Secure CRUD actions for Postgres db
+│   │       │   └── page.tsx        # [Dynamic Page] Article inventories & list manager
+│   │       ├── audience/           # [Dynamic Page] Subscribers inventory grid
+│   │       ├── newsletters/        # [Dynamic Page] Sovereign campaign dispatcher
+│   │       ├── settings/           # [Dynamic Page] Core settings & domains interface
+│   │       ├── layout.tsx          # Main Dashboard shell container
+│   │       └── page.tsx            # [Dynamic Page] Central Metrics overview
+│   └── login/
+│       ├── actions.ts              # [Server Actions] Login, signup, and logout actions
+│       ├── login-form.tsx          # Tabbed Brutalist form switcher
+│       └── page.tsx                # Centered high-contrast entrance screen
+├── features/
+│   ├── dashboard/
+│   │   └── components/
+│   │       └── app-sidebar.tsx     # Dynamic Creator Profile + secure logout
+│   └── editor/
+│       └── components/
+│           └── Editor.tsx          # Custom brutalist TipTap Rich Text Editor
+```
+
+---
+
+## 🎨 1. Brutalist Premium TipTap Rich Editor
+
+The editor has been fully transformed from a basic text area into a custom-styled, interactive **TipTap Rich Text Editor** in [Editor.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/features/editor/components/Editor.tsx) that matches our sovereign design manifesto.
+
+### Key Features:
+- **Comprehensive Formatting Suite**: Fully supports Bold, Italic, Underline, Strikethrough, Heading Levels (H1, H2, H3), Bullet Lists, Ordered Lists, Blockquotes, Code Blocks, Undo, and Redo.
+- **Auto-Slug Synchronization**: A reactive effect automatically formats titles into clean, URL-safe slugs (e.g., `Sovereign Media Manifesto` ➔ `sovereign-media-manifesto`) to optimize SEO and creation speed.
+- **Brutalist Form Components**: Inputs use deep zinc-900 backdrops, sharp border bounds, and solid block shadow offsets.
+- **Custom Prose Styles**: Implemented bespoke typographic style definitions for `.ProseMirror` inside [globals.css](file:///d:/Files/DEV/Main/qoe.fi/src/app/globals.css) to ensure code snippets, headlines, and blocks render with sleek proportions.
+
+---
+
+## 🔐 2. Database-Secure CRUD Server Actions
+
+All article mutations are safely dispatched via Next.js Server Actions at [actions.ts](file:///d:/Files/DEV/Main/qoe.fi/src/app/(dashboard)/dashboard/articles/actions.ts). They enforce:
+1. **Supabase JWT Session Validation**: Resolves the user identity directly from the encrypted server-side cookies.
+2. **PostgreSQL Ownership Checks**: Prevents malicious actors from editing or deleting articles belonging to other creators.
+3. **Database Constraints**: Prevents slug collisions in Postgres by checking for unique constraint matches.
+4. **Cache Invalidation**: Triggers `revalidatePath` to instantly purge stale caches and keep the metrics and lists perfectly synchronized across pages.
+
+---
+
+## 👤 3. Dynamic AppSidebar & Functional Logout
+
+We converted [app-sidebar.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/features/dashboard/components/app-sidebar.tsx) to resolve active user information directly from the Postgres database on the server:
+- **Instant Fallback Avatar**: Dynamically slices the user's name to generate high-contrast avatar letters (e.g. `Creator` ➔ `CR`).
+- **Creator Context**: Displays the authenticated creator's name and syncs their email cleanly to the bottom account drawer.
+- **Functional Logout Action**: The "Log out" button submits a form invoking a Server Action that safely signs the user out of their Supabase Auth session and redirects them immediately to `/login`.
+
+---
+
+## 🚀 4. Seamless User Prerender Validation
+
+Next.js 16/Turbopack enforces strict Suspense limits on client components checking query parameters. To prevent SSR prerender bailouts during deployment, we wrapped `<LoginForm />` inside a high-fidelity **Brutalist loading skeleton fallback** in [page.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/app/login/page.tsx).
+
+---
+
+## 📦 Next Operational Steps
+
+The platform's underlying core—Auth routing, Prisma schema bindings, Postgres sync triggers, CMS layout, and CRUD endpoints—is now fully completed and tested.
+
+To continue building from here:
+1. **Homepage Content Expansion**: We can populate `/src/config/landing.ts` to enrich the outer landing pages.
+2. **Newsletter System Integration**: Set up active Resend/SMTP connections for dispatching campaigns designed inside the editor.
+
+---
+
+### Session 3 - Transition vers l'esthétique Developer-Centric (Linear/Vercel)
+*Date : 18 Mai 2026*
+
+**8. Adoucissement Visuel Global (`--radius: 0.5rem`)**
+- **Décision** : Abandon du design "Brutalisme Radical" au profit d'un univers visuel inspiré par **Linear, Vercel et Cursor** (Developer-Centric et chaleureux).
+- **Implémentation** : Remplacement des angles vifs par un arrondi global élégant (`--radius: 0.5rem;` dans [globals.css](file:///d:/Files/DEV/Main/qoe.fi/src/app/globals.css)).
+
+**9. Entrée & Squelette de Connexion Premium**
+- **Implémentation** : Refonte de la boîte de connexion [login-form.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/app/login/login-form.tsx) avec un arrière-plan en `zinc-950`, une fine bordure raffinée et des ombres douces et profondes (`shadow-2xl shadow-black/80`). Le conteneur de préchargement statique de [page.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/app/login/page.tsx) a été harmonisé.
+
+**10. Éditeur & Articles Style Substack / Linear**
+- **Implémentation** : Refonte esthétique de [Editor.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/features/editor/components/Editor.tsx) et de la liste d'articles. Les boutons d'état (Publié / Brouillon) utilisent désormais des pilules douces, et les boutons d'action (Retour, Sauvegarde, Édition) arborent des contours zinc fins et précis. Les cartes d'articles s'animent en douceur au survol (suppression des translations brutales).
+
+**11. Harmonisation des Pages Secondaires**
+- **Implémentation** : Modernisation des composants sur les pages `Newsletters`, `Audience`, `Analytics` et `Settings` pour s'accorder avec la charte graphique : angles arrondis, jauges de réputation fluides, et suppression des ombres pleines épaisses.
+

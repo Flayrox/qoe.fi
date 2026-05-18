@@ -1,9 +1,18 @@
 import { prisma } from "@/lib/db";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function DashboardPage() {
-  const user = await prisma.user.findFirst({
-    include: { articles: true },
-  });
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  const user = authUser
+    ? await prisma.user.findUnique({
+        where: { id: authUser.id },
+        include: { articles: true },
+      })
+    : null;
 
   return (
     <div className="space-y-6">

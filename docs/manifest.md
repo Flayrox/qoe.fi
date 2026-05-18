@@ -26,9 +26,9 @@ L'exigence visuelle est radicale. Le design doit être clean, moderne, original,
 
 Inspirations directes : Linear, Vercel, Stripe, Cursor, Anthropic, ui.shadcn.com, Lovable. L'esthétique est celle des outils pour développeurs (Developer-Centric), mais rendue chaleureuse pour les écrivains.
 
-Code de conduite UI (Brutalisme Premium) : - Dark mode natif et profond : Des noirs réels ou des gris abyssaux (ex: zinc-950) pour réduire la fatigue oculaire.
+Code de conduite UI : - Dark mode natif et profond : Des noirs réels ou des gris abyssaux (ex: zinc-950) pour réduire la fatigue oculaire.
 
-Bordures et Formes : Des contrastes forts, des bordures nettes (sharp borders) ou très légèrement arrondies (rounded-md/lg maximum, pas de pilules géantes), délimitant clairement les espaces de lecture.
+Bordures et Formes : Des contrastes forts, des bordures nettes très légèrement arrondies (rounded-md/lg maximum, pas de pilules géantes), délimitant clairement les espaces de lecture.
 
 Espace et Respiration : Un usage intensif du "whitespace" (marges et paddings généreux). L'interface doit "respirer". Pas de surcharge d'informations à l'écran.
 
@@ -92,7 +92,7 @@ Application Mobile (Roadmap future) : React Native + Expo. Utilisation du code p
 
 MISSION INITIALE
 
-Confirme que tu as lu, assimilé et validé ce manifeste, l'architecture API-First, l'exigence RGPD et les règles de design Brutalist Premium.
+Confirme que tu as lu, assimilé et validé ce manifeste, l'architecture API-First, l'exigence RGPD et les règles de design.
 
 Une fois ta confirmation donnée, nous commencerons notre première session de code : je te demanderai de structurer l'arborescence initiale (le dossier features) et de configurer le layout principal (sidebar + topbar) du dashboard d'administration en utilisant shadcn/ui.
 Pose moi des questions, conseil moi également.
