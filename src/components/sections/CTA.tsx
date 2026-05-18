@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/Reveal";
 import { landingConfig } from "@/config/landing";
 
