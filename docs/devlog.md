@@ -24,3 +24,17 @@ Ce document sert de journal de bord technique (Devlog) pour tracer les décision
 - **Solution** : Mise à jour de la syntaxe vers `supports-backdrop-filter` en adéquation avec les nouvelles spécifications Tailwind v4.
 
 ---
+
+### Session 2 - Hydratation, Design Brutaliste et Editeur
+*Date : 18 Mai 2026*
+
+**5. Resolution de l'Hydration Error (Sidebar)**
+- **Problème** : Erreur HTML d'imbrication `<button><button>...</button></button>` avec `SidebarMenuButton` et `DropdownMenuTrigger`.
+- **Solution** : Suppression de la prop `asChild` qui posait conflit avec le systeme interne `@base-ui/react` utilisé par les nouveaux composants de navigation shadcn. Remplacement par la prop sémantique `render` (`render={<a href="..." />}`) pour respecter les directives strictes d'imbrication React 19.
+
+**6. Theme "Brutalisme Premium" (globals.css)**
+- **Problème** : Incohérences des variables CSS et gris trop clairs ne correspondant pas a la charte.
+- **Solution** : Nettoyage massif du fichier `globals.css`. Integration de la teinte `zinc-950` et d'un "noir profond" (`#000000`) pour les fonds afin de donner un rendu radical, lisible et ultra premium, propice aux medias independants.
+
+**7. Initialisation de l'Éditeur d'articles**
+- **Implémentation** : Création du module `features/editor/` et d'un composant de base `Editor.tsx`. Il pose les fondations (typographie "classical") pour la future integration du Rich Text Editor.
