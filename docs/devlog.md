@@ -148,3 +148,21 @@ To continue building from here:
 **11. Harmonisation des Pages Secondaires**
 - **Implémentation** : Modernisation des composants sur les pages `Newsletters`, `Audience`, `Analytics` et `Settings` pour s'accorder avec la charte graphique : angles arrondis, jauges de réputation fluides, et suppression des ombres pleines épaisses.
 
+---
+
+### Session 4 - Internationalisation (i18n) & Zéro Hardcoding du Dashboard
+*Date : 18 Mai 2026*
+
+**12. Suppression des Chaînes en Dur (Zéro Hardcoding)**
+- **Problème** : Les libellés, placeholders et textes d'interface de l'espace de connexion et du dashboard étaient codés en dur en français.
+- **Solution** : Création de dictionnaires de traduction structurés sous `src/locales/fr.json` et `src/locales/en.json` couvrant l'authentification, le tableau de bord et la navigation de la barre latérale.
+
+**13. Système de Traduction Hybride Ultra-Performant**
+- **Décision** : Pour préserver des URLs pures côté créateur (ex: `/dashboard` au lieu de `/fr/dashboard`) tout en assurant un SEO d'indexation optimal sur le site public, mise en place d'une détection de langue hybride combinant cookies (`NEXT_LOCALE`) et en-tête navigateur (`Accept-Language`).
+- **Implémentation** : Création d'un utilitaire léger côté serveur `src/lib/i18n.ts` pour charger dynamiquement le dictionnaire à la volée avec zéro coût de performance côté client.
+
+**14. LoginForm Localisé et Sélecteur de Langue Intégration**
+- **Implémentation** : Passage du dictionnaire résolu par le serveur en prop au composant client `LoginForm`. Ajout d'un sélecteur de langue (boutons FR / EN) discret et ultra premium au bas du formulaire qui synchronise instantanément le cookie de langue et recharge la page en toute fluidité.
+- **AppSidebar & Dashboard Localisés** : Mise à jour de `AppSidebar` et de `DashboardPage` pour utiliser dynamiquement les traductions côté serveur, y compris l'injection dynamique de variables de profil comme le nom du créateur et le nombre d'articles.
+
+
