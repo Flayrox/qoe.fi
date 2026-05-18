@@ -18,40 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/db"
 import { logout } from "@/app/login/actions"
-
-// Menu items.
-const items = [
-  {
-    title: "Overview",
-    url: "/dashboard",
-    icon: Home,
-  },
-  {
-    title: "Articles",
-    url: "/dashboard/articles",
-    icon: FileText,
-  },
-  {
-    title: "Newsletters",
-    url: "/dashboard/newsletters",
-    icon: Mail,
-  },
-  {
-    title: "Audience",
-    url: "/dashboard/audience",
-    icon: Users,
-  },
-  {
-    title: "Analytics",
-    url: "/dashboard/analytics",
-    icon: PieChart,
-  },
-  {
-    title: "Settings",
-    url: "/dashboard/settings",
-    icon: Settings,
-  },
-]
+import { getDictionary } from "@/lib/i18n"
 
 export async function AppSidebar() {
   const supabase = await createClient()
@@ -69,6 +36,41 @@ export async function AppSidebar() {
   const userName = user?.name || "Creator"
   const userFallback = userName.slice(0, 2).toUpperCase()
 
+  const dict = await getDictionary()
+
+  const items = [
+    {
+      title: dict.sidebar.nav_overview,
+      url: "/dashboard",
+      icon: Home,
+    },
+    {
+      title: dict.sidebar.nav_articles,
+      url: "/dashboard/articles",
+      icon: FileText,
+    },
+    {
+      title: dict.sidebar.nav_newsletters,
+      url: "/dashboard/newsletters",
+      icon: Mail,
+    },
+    {
+      title: dict.sidebar.nav_audience,
+      url: "/dashboard/audience",
+      icon: Users,
+    },
+    {
+      title: dict.sidebar.nav_analytics,
+      url: "/dashboard/analytics",
+      icon: PieChart,
+    },
+    {
+      title: dict.sidebar.nav_settings,
+      url: "/dashboard/settings",
+      icon: Settings,
+    },
+  ]
+
   return (
     <Sidebar variant="inset">
       <SidebarHeader className="p-4 border-b border-sidebar-border">
@@ -82,7 +84,9 @@ export async function AppSidebar() {
       
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground mt-4">Platform</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground mt-4">
+            {dict.sidebar.platform}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
@@ -113,14 +117,14 @@ export async function AppSidebar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg" side="top" align="end" sideOffset={4}>
                 <DropdownMenuItem>
-                  Profile
+                  {dict.sidebar.user_profile}
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  Billing
+                  {dict.sidebar.user_billing}
                 </DropdownMenuItem>
                 <DropdownMenuItem render={<form action={logout} className="w-full" />}>
                   <button type="submit" className="w-full text-left cursor-pointer bg-transparent border-0 p-0 text-foreground font-sans text-sm">
-                    Log out
+                    {dict.sidebar.user_logout}
                   </button>
                 </DropdownMenuItem>
               </DropdownMenuContent>

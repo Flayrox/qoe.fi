@@ -1,0 +1,53 @@
+{
+  "common": {
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer"
+  },
+  "login": {
+    "title_login": "Connexion",
+    "title_signup": "Créer un compte",
+    "subtitle_login": "Accéder à votre infrastructure",
+    "subtitle_signup": "Rejoindre la souveraineté des médias",
+    "label_name": "Nom complet",
+    "placeholder_name": "Jean Dupont",
+    "label_username": "Nom d'utilisateur (Username)",
+    "placeholder_username": "jeandupont",
+    "label_email": "Adresse email",
+    "placeholder_email": "nom@exemple.com",
+    "label_password": "Mot de passe",
+    "placeholder_password": "••••••••",
+    "button_login": "Se connecter",
+    "button_signup": "S'inscrire",
+    "switch_signup": "Pas encore de compte ? S'inscrire",
+    "switch_login": "Déjà un compte ? Se connecter",
+    "error_missing_fields": "Champs manquants",
+    "error_general": "Une erreur est survenue"
+  },
+  "sidebar": {
+    "platform": "Plateforme",
+    "nav_overview": "Vue d'ensemble",
+    "nav_articles": "Articles",
+    "nav_newsletters": "Newsletters",
+    "nav_audience": "Audience",
+    "nav_analytics": "Analyses",
+    "nav_settings": "Paramètres",
+    "user_profile": "Profil",
+    "user_billing": "Facturation",
+    "user_logout": "Se déconnecter"
+  },
+  "dashboard": {
+    "overview": "Vue d'ensemble",
+    "welcome": "Ravi de vous revoir sur votre tableau de bord de créateur, {name}. Vous avez {count} articles.",
+    "metric_subscribers": "Abonnés totaux",
+    "metric_mrr": "MRR",
+    "metric_read_time": "Temps de lecture moyen",
+    "metric_open_rate": "Taux d'ouverture",
+    "compare_month": "par rapport au mois dernier",
+    "compare_week": "par rapport à la semaine dernière",
+    "compare_newsletter": "par rapport à la dernière newsletter",
+    "analytics_placeholder": "Les graphiques d'analyses apparaîtront ici."
+  }
+}

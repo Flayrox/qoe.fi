@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { LoginForm } from './login-form'
+import { getDictionary } from '@/lib/i18n'
 
 function LoginFormFallback() {
   return (
@@ -12,7 +13,9 @@ function LoginFormFallback() {
   )
 }
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const dict = await getDictionary()
+
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-black px-4 py-12">
       {/* Brand Header */}
@@ -22,7 +25,7 @@ export default function LoginPage() {
       </div>
       
       <Suspense fallback={<LoginFormFallback />}>
-        <LoginForm />
+        <LoginForm t={dict.login} />
       </Suspense>
     </main>
   )
