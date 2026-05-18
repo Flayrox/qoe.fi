@@ -165,4 +165,9 @@ To continue building from here:
 - **Implémentation** : Passage du dictionnaire résolu par le serveur en prop au composant client `LoginForm`. Ajout d'un sélecteur de langue (boutons FR / EN) discret et ultra premium au bas du formulaire qui synchronise instantanément le cookie de langue et recharge la page en toute fluidité.
 - **AppSidebar & Dashboard Localisés** : Mise à jour de `AppSidebar` et de `DashboardPage` pour utiliser dynamiquement les traductions côté serveur, y compris l'injection dynamique de variables de profil comme le nom du créateur et le nombre d'articles.
 
+**15. Refactorisation de l'Identifiant Utilisateur (UUID)**
+- **Problème** : L'ID de l'utilisateur était initialement défini en type `TEXT` avec un générateur `cuid()` par défaut dans `schema.prisma`. Cela empêchait la synchronisation directe depuis la table d'authentification Supabase `auth.users` via un Trigger PostgreSQL, car cette dernière utilise des UUID natifs.
+- **Solution** : Refonte de `User.id` pour utiliser le type natif `@db.Uuid` (sans valeur par défaut, prêt à recevoir l'UUID exact de Supabase). En conséquence, le champ de relation `Article.authorId` a également été mis à jour en `String @db.Uuid` pour préserver l'intégrité référentielle. Une migration de base de données clean `20260518213258_change_id_to_uuid` a été générée et appliquée avec succès.
+
+
 
