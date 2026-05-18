@@ -1,10 +1,16 @@
-export default function DashboardPage() {
+import { prisma } from "@/lib/db";
+
+export default async function DashboardPage() {
+  const user = await prisma.user.findFirst({
+    include: { articles: true },
+  });
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
         <p className="text-muted-foreground mt-2">
-          Welcome back to your creator dashboard.
+          Welcome back to your creator dashboard, {user?.name || "Creator"}. You have {user?.articles.length || 0} articles.
         </p>
       </div>
       
