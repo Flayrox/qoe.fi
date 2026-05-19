@@ -21,12 +21,12 @@ export const BentoFeatures = () => {
     <section className="py-24 px-6 max-w-5xl mx-auto">
       <div className="text-center mb-16">
         <Reveal>
-          <span className="font-mono text-[10px] tracking-[0.2em] text-accent uppercase font-semibold mb-4 block">
+          <span className="font-mono text-[10px] tracking-[0.2em] text-chart-1 uppercase font-semibold mb-4 block">
             {features.tagline}
           </span>
         </Reveal>
         <Reveal delay={0.4}>
-          <h2 className="font-display text-4xl md:text-5xl text-primary dark:text-white font-medium tracking-tight mb-6">
+          <h2 className="font-display text-4xl md:text-5xl text-foreground font-medium tracking-tight mb-6">
             {features.title}
           </h2>
         </Reveal>
@@ -41,16 +41,16 @@ export const BentoFeatures = () => {
               <Reveal key={item.id} delay={0.2 * (index + 1)} width="100%">
                 <Card variant="cursor" className="md:col-span-2 flex flex-col md:flex-row items-center gap-8">
                   <div className="flex-1">
-                    {Icon && <Icon className="text-accent mb-6 w-8 h-8" />}
-                    <h3 className="font-display text-2xl text-primary dark:text-white mb-4">{item.title}</h3>
-                    <p className="font-body text-sm text-on-surface-variant dark:text-zinc-400 leading-relaxed">
+                    {Icon && <Icon className="text-chart-1 mb-6 w-8 h-8" />}
+                    <h3 className="font-display text-2xl text-foreground mb-4">{item.title}</h3>
+                    <p className="font-body text-sm text-muted-foreground leading-relaxed">
                       {item.description}
                     </p>
                   </div>
-                  <div className="flex-1 bg-surface-container dark:bg-zinc-800/30 rounded-xl p-4 border border-outline-variant/10 shadow-inner">
+                  <div className="flex-1 bg-muted/50 rounded-xl p-4 border border-border/20 shadow-inner">
                     <div className="h-2 w-3/4 bg-primary/20 rounded-full mb-2" />
                     <div className="h-2 w-1/2 bg-primary/10 rounded-full mb-4" />
-                    <div className="h-20 w-full bg-white dark:bg-zinc-950 rounded-lg shadow-sm border border-outline-variant/10" />
+                    <div className="h-20 w-full bg-background rounded-lg shadow-sm border border-border/20" />
                   </div>
                 </Card>
               </Reveal>
@@ -60,9 +60,9 @@ export const BentoFeatures = () => {
           return (
             <Reveal key={item.id} delay={0.2 * (index + 1)} width="100%">
               <Card variant="cursor" className="h-full">
-                {Icon && <Icon className="text-accent mb-6 w-8 h-8" />}
-                <h3 className="font-display text-2xl text-primary dark:text-white mb-4">{item.title}</h3>
-                <p className="font-body text-sm text-on-surface-variant dark:text-zinc-400 leading-relaxed">
+                {Icon && <Icon className="text-chart-1 mb-6 w-8 h-8" />}
+                <h3 className="font-display text-2xl text-foreground mb-4">{item.title}</h3>
+                <p className="font-body text-sm text-muted-foreground leading-relaxed">
                   {item.description}
                 </p>
               </Card>

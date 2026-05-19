@@ -169,5 +169,28 @@ To continue building from here:
 - **Problème** : L'ID de l'utilisateur était initialement défini en type `TEXT` avec un générateur `cuid()` par défaut dans `schema.prisma`. Cela empêchait la synchronisation directe depuis la table d'authentification Supabase `auth.users` via un Trigger PostgreSQL, car cette dernière utilise des UUID natifs.
 - **Solution** : Refonte de `User.id` pour utiliser le type natif `@db.Uuid` (sans valeur par défaut, prêt à recevoir l'UUID exact de Supabase). En conséquence, le champ de relation `Article.authorId` a également été mis à jour en `String @db.Uuid` pour préserver l'intégrité référentielle. Une migration de base de données clean `20260518213258_change_id_to_uuid` a été générée et appliquée avec succès.
 
+---
+
+### Session 5 - Tolgee SSR, Middleware Hybride & Résolution des Filles de Sécurité (RLS)
+*Date : 19 Mai 2026*
+
+**16. Sécurisation PostgreSQL & Row Level Security (RLS)**
+- **Problème** : Les tables `public.User` et `public.Article` dans la base de données PostgreSQL de Supabase n'avaient pas de politiques RLS activées, ce qui exposait le contenu utilisateur et les articles à des opérations de lecture/écriture non autorisées.
+- **Solution** : 
+  - Activation stricte de la RLS sur les tables `public.User` et `public.Article`.
+  - Création de politiques de sécurité autorisant l'accès public en lecture (`SELECT`), mais restreignant l'insertion/modification (`INSERT`, `UPDATE`, `DELETE`) aux seuls utilisateurs authentifiés dont l'UUID de session correspond à l'identifiant de la ligne concernée (`auth.uid() = id` pour `User`, et `auth.uid() = authorId` pour `Article`).
+  - Déploiement d'un Trigger Postgres et d'une fonction de synchronisation pour propager automatiquement la création et la modification d'utilisateurs depuis le schéma d'authentification natif `auth.users` vers la table `public.User`.
+
+**17. Système de Traduction Tolgee SSR & Client/Server Integration**
+- **Problème** : Crashs et incohérences d'hydratation Next.js SSR provoqués par les chaînes de traduction Tolgee. Les consoles de log saturent ou bâchent au runtime lors du rendu serveur en tentant de sérialiser les structures internes complexes de React 19 (fibers, symbols).
+- **Solution** :
+  - **Console Sanitizer (`src/tolgee/patch-console.ts`)** : Implémentation d'un intercepteur global de console (`console.log`, `console.error`, `console.warn`) qui sérialise proprement les objets non primitifs, élimine les références circulaires, et protège les runtimes client et serveur des plantages d'hydratation.
+  - **Middleware Hybride (`src/middleware.ts`)** :
+    - Routeur public (Option A) : Redirection du chemin racine `/` vers `/[locale]` (ex: `/fr` ou `/en`) en combinant la détection linguistique (cookie `NEXT_LOCALE`, en-tête `Accept-Language`, configuration par défaut). Les routes sous-jacentes récupèrent le paramètre `locale`.
+    - Routeur privé et auth (Option B) : `/login` et `/dashboard` restent des chemins propres (sans paramètre d'URL), et lisent dynamiquement les préférences linguistiques depuis les cookies de requêtes.
+    - Transmission uniforme de la locale résolue via l'en-tête de requête personnalisé `x-locale` pour que les Server Components puissent instancier le Tolgee correct côté serveur de manière unifiée via `getLanguage()`.
+  - **Intégration du sélecteur interactif (`src/app/login/login-form.tsx`)** : Refonte esthétique avec mise en surbrillance de la langue active via le hook `useTolgee` et rechargement dynamique du layout via `router.refresh()` pour réévaluer le rendu serveur instantanément.
+
+
 
 

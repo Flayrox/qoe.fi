@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { Inter, Newsreader, JetBrains_Mono, Geist } from "next/font/google";
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { TolgeeNextProvider } from "@/tolgee/client";
+import { getTolgee } from "@/tolgee/server";
+import { getLanguage } from "@/tolgee/language";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -28,20 +31,26 @@ export const metadata: Metadata = {
   description: "A sophisticated platform for modern creators. Retain your revenue, automate compliance, and grow your audience within a secure, GDPR-first ecosystem.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLanguage();
+  const tolgee = await getTolgee();
+  const staticData = await tolgee.loadRequired();
+
   return (
-    <html lang="en" className={cn("scroll-smooth", "font-sans", geist.variable)} suppressHydrationWarning>
+    <html lang={locale} className={cn("scroll-smooth", "font-sans", geist.variable)} suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${newsreader.variable} ${jetbrainsMono.variable} antialiased selection:bg-accent selection:text-white transition-colors duration-300`}
+        className={`${inter.variable} ${newsreader.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <TooltipProvider>
-            {children}
-          </TooltipProvider>
+          <TolgeeNextProvider language={locale} staticData={staticData}>
+            <TooltipProvider>
+              {children}
+            </TooltipProvider>
+          </TolgeeNextProvider>
         </ThemeProvider>
       </body>
     </html>
