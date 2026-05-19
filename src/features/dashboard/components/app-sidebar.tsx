@@ -1,4 +1,4 @@
-import { Calendar, Home, Inbox, Search, Settings, FileText, Users, Mail, PieChart } from "lucide-react"
+import { Home, Settings, FileText, Users, Mail, PieChart } from "lucide-react"
 
 import {
   Sidebar,
@@ -13,12 +13,12 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/db"
 import { logout } from "@/app/login/actions"
-import { getDictionary } from "@/lib/i18n"
+import { getTranslate } from "@/tolgee/server"
 
 export async function AppSidebar() {
   const supabase = await createClient()
@@ -36,36 +36,36 @@ export async function AppSidebar() {
   const userName = user?.name || "Creator"
   const userFallback = userName.slice(0, 2).toUpperCase()
 
-  const dict = await getDictionary()
+  const t = await getTranslate()
 
   const items = [
     {
-      title: dict.sidebar.nav_overview,
+      title: t('sidebar.nav_overview'),
       url: "/dashboard",
       icon: Home,
     },
     {
-      title: dict.sidebar.nav_articles,
+      title: t('sidebar.nav_articles'),
       url: "/dashboard/articles",
       icon: FileText,
     },
     {
-      title: dict.sidebar.nav_newsletters,
+      title: t('sidebar.nav_newsletters'),
       url: "/dashboard/newsletters",
       icon: Mail,
     },
     {
-      title: dict.sidebar.nav_audience,
+      title: t('sidebar.nav_audience'),
       url: "/dashboard/audience",
       icon: Users,
     },
     {
-      title: dict.sidebar.nav_analytics,
+      title: t('sidebar.nav_analytics'),
       url: "/dashboard/analytics",
       icon: PieChart,
     },
     {
-      title: dict.sidebar.nav_settings,
+      title: t('sidebar.nav_settings'),
       url: "/dashboard/settings",
       icon: Settings,
     },
@@ -85,7 +85,7 @@ export async function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground mt-4">
-            {dict.sidebar.platform}
+            {t('sidebar.platform')}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -117,14 +117,14 @@ export async function AppSidebar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg" side="top" align="end" sideOffset={4}>
                 <DropdownMenuItem>
-                  {dict.sidebar.user_profile}
+                  {t('sidebar.user_profile')}
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  {dict.sidebar.user_billing}
+                  {t('sidebar.user_billing')}
                 </DropdownMenuItem>
                 <DropdownMenuItem render={<form action={logout} className="w-full" />}>
                   <button type="submit" className="w-full text-left cursor-pointer bg-transparent border-0 p-0 text-foreground font-sans text-sm">
-                    {dict.sidebar.user_logout}
+                    {t('sidebar.user_logout')}
                   </button>
                 </DropdownMenuItem>
               </DropdownMenuContent>

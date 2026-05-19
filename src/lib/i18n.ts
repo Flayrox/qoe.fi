@@ -1,32 +1,15 @@
-import { cookies, headers } from 'next/headers'
+/**
+ * @deprecated This module is replaced by the Tolgee SDK.
+ * Use `getTranslate` from `@/tolgee/server` for Server Components.
+ * Use `useTranslate` from `@tolgee/react` for Client Components.
+ * Use `getLanguage` from `@/tolgee/language` for locale detection.
+ *
+ * This file is kept temporarily for backward compatibility during migration.
+ * It will be removed in a future cleanup pass.
+ */
 
-export type Locale = 'fr' | 'en'
+export { getLanguage as getLocale } from '@/tolgee/language'
+export type { AppLocale as Locale } from '@/tolgee/shared'
 
-export async function getLocale(): Promise<Locale> {
-  try {
-    const cookieStore = await cookies()
-    const localeCookie = cookieStore.get('NEXT_LOCALE')?.value as Locale
-    if (localeCookie === 'fr' || localeCookie === 'en') return localeCookie
-  } catch (e) {
-    // Ignore errors during static generation
-  }
-
-  try {
-    const headersList = await headers()
-    const acceptLanguage = headersList.get('accept-language') || ''
-    if (acceptLanguage.toLowerCase().startsWith('en') || acceptLanguage.toLowerCase().includes('en-')) {
-      return 'en'
-    }
-  } catch (e) {
-    // Ignore errors during static generation
-  }
-
-  return 'fr' // fallback default
-}
-
-export async function getDictionary() {
-  const locale = await getLocale()
-  return locale === 'en'
-    ? import('@/locales/en.json').then((m) => m.default)
-    : import('@/locales/fr.json').then((m) => m.default)
-}
+// Legacy getDictionary is no longer available.
+// Use `const t = await getTranslate()` from `@/tolgee/server` instead.
