@@ -1,34 +1,249 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [vector]
+}
+
+model SystemConfig {
+  key         String   @id
+  value       String   // JSON stringified or plain text
+  description String?
+  updatedAt   DateTime @updatedAt
 }
 
 model User {
-  id        String   @id @db.Uuid
-  email     String   @unique
-  username  String?  @unique
-  name      String?
-  role      String   @default("user")
+  id             String    @id @db.Uuid
+  email          String    @unique
+  username       String?   @unique
+  name           String?
+  role           String    @default("user") // "user", "creator", "superadmin"
+  isCertified    Boolean   @default(false)
+  isShadowbanned Boolean   @default(false)
+  forceStandardTheme Boolean @default(false) // For readers who want pure text, overriding creator themes
+  
+  // Custom Domain & Multi-tenant Config
+  subdomain      String?   @unique
+  customDomain   String?   @unique
+  
+  // Advanced Theming
+  accentColor    String?
+  fontFamily     String?
+  logoUrl        String?
+  heroText       String?
+  headerImageUrl String?
+  footerText     String?
+  themeMode      String?   @default("system")
+  layoutStyle    String?   @default("minimal")
+  
+  // SEO & Metadata
+  seoTitle       String?
+  seoDescription String?
+  allowIndexing  Boolean   @default(true)
+
+  // Monetization & Wallet
+  stripeAccountId    String?
+  stripeEnabled      Boolean  @default(false)
+  supportUrl         String?
+  walletBalanceCents Int      @default(0)
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relationships
+  articles              Article[]       @relation("PrimaryAuthor")
+  coAuthoredArticles    Article[]       @relation("CoAuthors")
+  socialLinks           SocialLink[]
+  categories            Category[]
+  navigation            NavigationItem[]
+  
+  // Creator CRM
+  subscribers           Subscriber[]    @relation("CreatorSubscribers")
+  blockedUsers          BlockedUser[]   @relation("CreatorBlocker")
+  
+  // Reader features
+  following             Follows[]       @relation("ReaderFollowing")
+  followers             Follows[]       @relation("CreatorFollowers")
+  bookmarks             Bookmark[]
+  highlights            Highlight[]
+  mutedWords            MutedWord[]
+  blockedBy             BlockedUser[]   @relation("BlockedReader")
+  
+  sentLetters           Letter[]        @relation("LetterSender")
+  receivedLetters       Letter[]        @relation("LetterRecipient")
+  walletTransactions    WalletTransaction[]
+  
+  // AI Recs
+  embedding Unsupported("vector(1536)")?
+}
+
+model MutedWord {
+  id        String   @id @default(cuid())
+  word      String
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  articles  Article[]
+
+  @@unique([userId, word])
+}
+
+model BlockedUser {
+  id        String   @id @default(cuid())
+  creatorId String   @db.Uuid
+  creator   User     @relation("CreatorBlocker", fields: [creatorId], references: [id], onDelete: Cascade)
+  readerId  String   @db.Uuid
+  reader    User     @relation("BlockedReader", fields: [readerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([creatorId, readerId])
+}
+
+model WalletTransaction {
+  id          String   @id @default(cuid())
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amountCents Int
+  type        String   // "DEPOSIT", "SUBSCRIPTION_PAYMENT", "WITHDRAWAL", "REFUND"
+  createdAt   DateTime @default(now())
+}
+
+model Subscriber {
+  id          String   @id @default(cuid())
+  email       String
+  isActive    Boolean  @default(true)
+  isPremium   Boolean  @default(false)
+  ltvCents    Int      @default(0) // Lifetime value in cents
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  creatorId   String   @db.Uuid
+  creator     User     @relation("CreatorSubscribers", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([email, creatorId])
+}
+
+model Follows {
+  id          String   @id @default(cuid())
+  readerId    String   @db.Uuid
+  reader      User     @relation("ReaderFollowing", fields: [readerId], references: [id], onDelete: Cascade)
+  creatorId   String   @db.Uuid
+  creator     User     @relation("CreatorFollowers", fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([readerId, creatorId])
+}
+
+model Bookmark {
+  id          String   @id @default(cuid())
+  readerId    String   @db.Uuid
+  reader      User     @relation(fields: [readerId], references: [id], onDelete: Cascade)
+  articleId   String
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([readerId, articleId])
+}
+
+model Highlight {
+  id          String   @id @default(cuid())
+  text        String   @db.Text
+  note        String?  @db.Text
+  readerId    String   @db.Uuid
+  reader      User     @relation(fields: [readerId], references: [id], onDelete: Cascade)
+  articleId   String
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
+
+model Letter {
+  id          String   @id @default(cuid())
+  content     String   @db.Text
+  isPublic    Boolean  @default(false) // Curation par le créateur
+  createdAt   DateTime @default(now())
+  
+  senderId    String   @db.Uuid
+  sender      User     @relation("LetterSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId String   @db.Uuid
+  recipient   User     @relation("LetterRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  articleId   String?
+  article     Article? @relation(fields: [articleId], references: [id], onDelete: SetNull)
+}
+
+model SocialLink {
+  id        String   @id @default(cuid())
+  platform  String   
+  url       String
+  order     Int      @default(0)
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String
+  description String?
+  userId      String     @db.Uuid
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  parentId    String?
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryHierarchy")
+  
+  articles    Article[]
+  
+  @@unique([slug, userId])
+}
+
+model NavigationItem {
+  id          String   @id @default(cuid())
+  label       String
+  url         String?  
+  order       Int      @default(0)
+  isExternal  Boolean  @default(false)
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  parentId    String?
+  parent      NavigationItem?  @relation("NavHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    NavigationItem[] @relation("NavHierarchy")
 }
 
 model Article {
-  id          String   @id @default(cuid())
-  title       String
-  slug        String   @unique
-  content     String
-  published   Boolean  @default(false)
-  authorId    String   @db.Uuid
-  author      User     @relation(fields: [authorId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  title          String
+  slug           String   @unique
+  content        String   @db.Text
+  published      Boolean  @default(false)
+  isPremium      Boolean  @default(false)
+  readingTime    Int      @default(5) // en minutes
+  completionRate Float    @default(0.0) // 0.0 to 1.0
+  semanticTags   String[] 
+  isEditorPick   Boolean  @default(false)
+  
+  // L'auteur principal
+  authorId       String   @db.Uuid
+  author         User     @relation("PrimaryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  
+  coAuthors      User[]   @relation("CoAuthors")
+  
+  categoryId     String?
+  category       Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  seoTitle       String?
+  seoDescription String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  bookmarks      Bookmark[]
+  highlights     Highlight[]
+  letters        Letter[]
+
+  embedding Unsupported("vector(1536)")?
 }
