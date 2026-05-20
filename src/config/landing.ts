@@ -1,78 +1,78 @@
 export const landingConfig = {
   hero: {
-    badge: "The European Creator Standard",
-    phrases: ["Focus", "Create", "Publish", "Connect"],
-    titleSuffix: "in a Digital Sanctuary.",
-    description: "Experience the platform where your words take center stage. A distraction-free environment built for deep thought and sustainable growth.",
+    badge: "L'INFRASTRUCTURE SOUVERAINE DES MÉDIAS INDÉPENDANTS",
+    phrases: ["Penser", "Créer", "Diffuser", "Émanciper"],
+    titleSuffix: "dans un sanctuaire numérique.",
+    description: "Reprenez le contrôle de votre attention. Une plateforme sans distraction, conçue pour le temps long, la réflexion profonde et l'indépendance absolue.",
     primaryCta: {
-      text: "Start Writing Today",
-      href: "/signup"
+      text: "Rejoindre le Sanctuaire",
+      href: "/login"
     },
     secondaryCta: {
-      text: "Explore the Sanctuary",
-      href: "/explore"
+      text: "Découvrir les voix",
+      href: "#feed"
     }
   },
   marquee: [
-    "The European", "Nordic Letters", "Berliner Review", "Tech Dispatch", "Milan Design Daily", "Paris Post", "The Athenian", "London Log"
+    "Investigation", "Philosophie", "Design Éthique", "Souveraineté", "Temps Long", "Militantisme", "Émancipation", "Culture Libre"
   ],
   features: {
-    tagline: "The Infrastructure",
-    title: "Built for the modern creator.",
+    tagline: "L'INFRASTRUCTURE",
+    title: "Conçu pour l'indépendance.",
     items: [
       {
-        id: "gdpr",
-        title: "GDPR First",
-        description: "Built-in consent management and EU-based data storage. We handle regulatory complexity.",
+        id: "privacy",
+        title: "Privacy by Design",
+        description: "Zéro cookie toxique, zéro tracking publicitaire. Nous respectons la charge cognitive de vos lecteurs.",
         icon: "ShieldCheck"
       },
       {
-        id: "vat",
-        title: "Automated VAT",
-        description: "Cross-border EU VAT calculation and collection handled automatically for every sale.",
-        icon: "Receipt"
-      },
-      {
-        id: "hosting",
-        title: "Local Hosting",
-        description: "Your content is hosted on premium, carbon-neutral servers located strictly within the EU.",
+        id: "sovereign",
+        title: "Hébergement Souverain",
+        description: "Vos données sont stockées sur des serveurs européens (Hetzner), à l'abri du Cloud Act américain.",
         icon: "Globe"
       },
       {
+        id: "attention",
+        title: "Économie de l'Attention",
+        description: "Pas de scroll infini, pas d'algorithmes de rétention. Uniquement du fond et du temps bien dépensé.",
+        icon: "ZapOff"
+      },
+      {
         id: "editor",
-        title: "Distraction-Free Editor",
-        description: "A minimal interface designed to keep you in the flow state, without notifications or visual clutter.",
+        title: "Éditeur Monastique",
+        description: "Une interface minimale pour rester dans l'état de flow, loin du bruit et de la fureur numérique.",
         icon: "PenTool",
         featured: true
       },
       {
-        id: "audience",
-        title: "Owned Audience",
-        description: "Stop renting your audience. Own your data, your email list, and your relationship with readers.",
+        id: "ownership",
+        title: "Portabilité Totale",
+        description: "Vos abonnés et vos textes vous appartiennent. Exportez tout en un clic, sans processus de rétention.",
         icon: "Users"
       }
     ]
   },
   productPreview: {
-    tagline: "The Experience",
-    title: "Beautiful from both sides.",
+    tagline: "L'EXPÉRIENCE",
+    title: "L'excellence des deux côtés.",
     creator: {
-      title: "The Architecture of Silence",
+      title: "L'Architecture du Silence",
       metrics: [
-        { label: "Words", value: "1.4k" },
-        { label: "Read", value: "6m" }
+        { label: "Mots", value: "1.4k" },
+        { label: "Lecture", value: "6m" }
       ]
     },
     reader: {
-      title: "The Architecture of Silence",
-      content: "In an era defined by constant notification and algorithmic urgency, the pursuit of quiet has become an act of radical rebellion. We are architecting spaces—both physical and digital—that demand our attention, leaving little room for the slow percolation of deep thought."
+      title: "L'Architecture du Silence",
+      content: "À une époque définie par les notifications constantes et l'urgence algorithmique, la quête du calme est devenue un acte de rébellion radicale. Nous architecturons des espaces — tant physiques que numériques — qui exigent notre attention, laissant peu de place à la lente percolation d'une pensée profonde."
     }
   },
   cta: {
-    title: "Ready to claim your sanctuary?",
-    description: "Join an exclusive group of professional creators building sustainable businesses on their own terms.",
-    inputPlaceholder: "Enter your email",
-    buttonText: "Join Early Access",
-    footerText: "Strictly limited spots available for private beta"
+    title: "Prêt à revendiquer votre sanctuaire ?",
+    description: "Rejoignez une communauté de créateurs professionnels bâtissant des médias durables selon leurs propres règles.",
+    inputPlaceholder: "Votre email",
+    buttonText: "Accès Prioritaire",
+    footerText: "Soutenez une infrastructure éthique et indépendante."
   }
 };
