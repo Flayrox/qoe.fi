@@ -215,18 +215,24 @@ export function Editor({
       setError("Title is required")
       return
     }
-    if (!slug.trim()) {
-      setError("Slug is required")
-      return
-    }
-
+    
     try {
       setError(null)
       const htmlContent = editor.getHTML()
+      // Ensure slug is generated if missing
+      let finalSlug = slug;
+      if (!finalSlug) {
+        finalSlug = title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)+/g, "")
+        setSlug(finalSlug);
+      }
+
       await onSave({
         title,
         content: htmlContent,
-        slug,
+        slug: finalSlug,
         published,
         isPremium,
       })

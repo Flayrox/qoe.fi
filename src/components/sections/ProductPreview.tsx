@@ -1,122 +1,158 @@
 "use client";
 
 import React, { useState } from "react";
-import { Reveal } from "@/components/ui/Reveal";
-import { Bold, Italic, Link, Image as ImageIcon, Type, Heading1, Heading2 } from "lucide-react";
-import { landingConfig } from "@/config/landing";
+import { motion, AnimatePresence } from "framer-motion";
+import { useTranslate } from "@tolgee/react";
+import { Type, Eye, Coffee, Accessibility } from "lucide-react";
 
-export const ProductPreview = () => {
-  const [view, setView] = useState<"creator" | "reader">("creator");
-  const { productPreview } = landingConfig;
+interface ProductPreviewProps {
+  config: Record<string, string>;
+}
+
+export const ProductPreview = ({ config }: ProductPreviewProps) => {
+  const { t } = useTranslate();
+  const [fontSize, setFontSize] = useState<"text-base" | "text-lg" | "text-xl">("text-lg");
+  const [readingMode, setReadingMode] = useState<"classic" | "sepia" | "dyslexia">("classic");
+
+  const previewTitle = config["preview_title"] || "L'architecture du silence";
+  const previewContent = config["preview_content"] || "Dans un monde saturé de stimuli, la lecture souveraine n'est pas un acte de consommation, mais une forme de résistance. C'est ici, dans ce Sanctuaire Elfique, que l'esprit retrouve sa trajectoire originelle, loin des algorithmes de capture de l'attention.";
+
+  const getThemeClasses = () => {
+    switch (readingMode) {
+      case "sepia": return "bg-[#f4ecd8] text-[#5b4636] border-[#d3c1a5]";
+      case "dyslexia": return "bg-white text-black font-sans leading-relaxed";
+      default: return "bg-[#fcfbf9] text-emerald-950 border-stone-200/60";
+    }
+  };
 
   return (
-    <section className="py-24 px-6 bg-muted/30">
-      <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-12">
-          <Reveal>
-            <span className="font-mono text-[10px] tracking-[0.2em] text-chart-1 uppercase font-semibold mb-4 block">
-              {productPreview.tagline}
-            </span>
-          </Reveal>
-          <Reveal delay={0.4}>
-            <h2 className="font-display text-4xl md:text-5xl text-foreground font-medium tracking-tight mb-8">
-              {productPreview.title}
-            </h2>
-          </Reveal>
+    <section className="py-32 px-6 bg-black overflow-hidden">
+      <div className="max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           
-          <Reveal delay={0.6}>
-            <div className="flex bg-muted/50 backdrop-blur-md rounded-full p-1 border border-border/30 w-fit mx-auto shadow-sm">
-              <button 
-                onClick={() => setView("creator")}
-                className={`px-8 py-2 rounded-full font-mono text-[10px] uppercase tracking-widest transition-all duration-300 ${view === "creator" ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:text-foreground"}`}
+          {/* Left Side: Controls */}
+          <div className="space-y-12">
+            <div>
+              <motion.span
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                className="font-mono text-[10px] tracking-[0.4em] text-white/40 uppercase font-semibold mb-6 block"
               >
-                Creator Mode
-              </button>
-              <button 
-                onClick={() => setView("reader")}
-                className={`px-8 py-2 rounded-full font-mono text-[10px] uppercase tracking-widest transition-all duration-300 ${view === "reader" ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:text-foreground"}`}
+                {t("preview_tagline", "L'expérience sensorielle")}
+              </motion.span>
+              <motion.h2
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                className="font-classical text-4xl md:text-6xl text-white font-medium tracking-tight mb-8"
               >
-                Reader View
-              </button>
+                {t("preview_main_title", "Un confort de lecture absolu.")}
+              </motion.h2>
+              <p className="font-sans text-white/40 text-lg leading-relaxed">
+                {t("preview_description", "Testez en direct notre interface adaptative. Ajustez la typographie et l'ambiance pour créer votre propre espace de réflexion.")}
+              </p>
             </div>
-          </Reveal>
-        </div>
 
-        <Reveal delay={0.8} width="100%">
-          <div className="relative w-full aspect-16/10 md:aspect-video bg-card rounded-3xl shadow-2xl border border-border/30 overflow-hidden group">
-            {/* Window Chrome */}
-            <div className="h-12 bg-muted/50 border-b border-border/30 flex items-center px-6 gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-400/20" />
-              <div className="w-3 h-3 rounded-full bg-amber-400/20" />
-              <div className="w-3 h-3 rounded-full bg-green-400/20" />
-              <div className="flex-1 flex justify-center">
-                <div className="bg-background/50 px-4 py-1 rounded-md text-[10px] font-classical text-muted-foreground/60 border border-border/20 italic">
-                  qoe.fi/studio/architecture-of-silence
+            {/* Accessibility Controls */}
+            <div className="space-y-8 p-8 rounded-[2rem] bg-neutral-900/40 backdrop-blur-2xl border border-white/5">
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 text-[10px] font-mono text-white/40 uppercase tracking-widest">
+                  <Type className="w-3 h-3" /> {t("preview_control_size", "Taille du texte")}
+                </label>
+                <div className="flex gap-2">
+                  {["text-base", "text-lg", "text-xl"].map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setFontSize(size as any)}
+                      className={`flex-1 py-3 rounded-xl border text-sm transition-all ${
+                        fontSize === size ? "bg-white text-black border-white" : "bg-white/5 text-white/40 border-white/10 hover:border-white/20"
+                      }`}
+                    >
+                      {size === "text-base" ? "A" : size === "text-lg" ? "A+" : "A++"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 text-[10px] font-mono text-white/40 uppercase tracking-widest">
+                  <Eye className="w-3 h-3" /> {t("preview_control_mode", "Mode d'affichage")}
+                </label>
+                <div className="grid grid-cols-1 gap-3">
+                  <button
+                    onClick={() => setReadingMode("classic")}
+                    className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
+                      readingMode === "classic" ? "bg-white/10 border-white/40" : "bg-white/5 border-white/10 hover:border-white/20"
+                    }`}
+                  >
+                    <div className="w-6 h-6 rounded-full bg-[#fcfbf9] border border-stone-200" />
+                    <span className="text-white text-sm font-medium">{t("preview_mode_classic", "Sanctuaire Elfique (Clair)")}</span>
+                  </button>
+                  <button
+                    onClick={() => setReadingMode("sepia")}
+                    className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
+                      readingMode === "sepia" ? "bg-[#f4ecd8]/10 border-[#d3c1a5]/40" : "bg-white/5 border-white/10 hover:border-white/20"
+                    }`}
+                  >
+                    <div className="w-6 h-6 rounded-full bg-[#f4ecd8] border border-[#d3c1a5]" />
+                    <span className="text-white text-sm font-medium">{t("preview_mode_sepia", "Sépia (Reposant)")}</span>
+                  </button>
+                  <button
+                    onClick={() => setReadingMode("dyslexia")}
+                    className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
+                      readingMode === "dyslexia" ? "bg-white/10 border-white/40" : "bg-white/5 border-white/10 hover:border-white/20"
+                    }`}
+                  >
+                    <Accessibility className="w-6 h-6 text-white" />
+                    <span className="text-white text-sm font-medium">{t("preview_mode_dyslexia", "Dyslexia Friendly")}</span>
+                  </button>
                 </div>
               </div>
             </div>
-
-            {/* Editor Content */}
-            <div className="flex h-[calc(100%-3rem)]">
-              {view === "creator" && (
-                <aside className="w-64 bg-muted/30 border-r border-border/20 p-8 hidden md:flex flex-col">
-                  <div className="mb-12">
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-chart-1 mb-2 block">Document</span>
-                    <h4 className="font-display text-xl text-foreground leading-tight">{productPreview.creator.title}</h4>
-                  </div>
-                  <div className="space-y-8 flex-1">
-                    <div>
-                      <span className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/40 mb-3 block">Metrics</span>
-                      <div className="grid grid-cols-2 gap-4">
-                        {productPreview.creator.metrics.map(metric => (
-                          <div key={metric.label} className="bg-card p-3 rounded-xl border border-border/20 shadow-sm">
-                            <span className="block font-display text-lg text-foreground">{metric.value}</span>
-                            <span className="text-[9px] font-mono text-muted-foreground/60 uppercase">{metric.label}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <button className="bg-primary text-primary-foreground font-mono text-[10px] uppercase tracking-widest py-3 rounded-xl shadow-sm hover:opacity-90 transition-opacity">
-                    Publish
-                  </button>
-                </aside>
-              )}
-
-              <main className={`flex-1 bg-background p-8 md:p-16 overflow-y-auto relative ${view === "reader" ? "max-w-3xl mx-auto" : ""}`}>
-                {view === "creator" && (
-                  <div className="absolute top-8 left-1/2 -translate-x-1/2 bg-card/80 backdrop-blur-md rounded-full px-6 py-3 shadow-xl border border-border/20 flex items-center gap-6 z-10 scale-90 md:scale-100">
-                    <Heading1 className="w-4 h-4 text-muted-foreground/40" />
-                    <Heading2 className="w-4 h-4 text-muted-foreground/40" />
-                    <div className="w-px h-4 bg-border/30" />
-                    <Bold className="w-4 h-4 text-foreground" />
-                    <Italic className="w-4 h-4 text-muted-foreground/40" />
-                    <Link className="w-4 h-4 text-muted-foreground/40" />
-                    <div className="w-px h-4 bg-border/30" />
-                    <ImageIcon className="w-4 h-4 text-muted-foreground/40" />
-                  </div>
-                )}
-
-                <div className={`${view === "creator" ? "mt-12" : "mt-0"}`}>
-                  <h1 className="font-display text-4xl md:text-5xl text-foreground mb-12 tracking-tight">
-                    {view === "creator" ? productPreview.creator.title : productPreview.reader.title}
-                  </h1>
-                  <div className="prose dark:prose-invert prose-stone prose-lg">
-                    <p className="font-body text-muted-foreground leading-relaxed mb-8">
-                      <span className="float-left text-6xl font-classical text-chart-1 mr-4 mt-2 italic">I</span>
-                      {productPreview.reader.content.substring(1)}
-                    </p>
-                    <div className="my-12 aspect-video bg-muted rounded-2xl overflow-hidden shadow-inner border border-border/20 group-hover:shadow-lg transition-shadow duration-500">
-                      <div className="w-full h-full bg-linear-to-br from-primary/5 to-chart-1/5 flex items-center justify-center">
-                         <ImageIcon className="w-12 h-12 text-primary/10" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </main>
-            </div>
           </div>
-        </Reveal>
+
+          {/* Right Side: Live Simulation */}
+          <div className="relative">
+             <div className="absolute -inset-4 bg-gradient-to-tr from-emerald-500/10 to-blue-500/10 blur-3xl opacity-50" />
+             <motion.div
+               layout
+               className={`relative aspect-[3/4] md:aspect-square w-full rounded-[3rem] p-12 shadow-[0_0_50px_rgba(0,0,0,0.5)] border-2 transition-colors duration-700 overflow-hidden ${getThemeClasses()}`}
+             >
+               <AnimatePresence mode="wait">
+                 <motion.div
+                   key={readingMode}
+                   initial={{ opacity: 0 }}
+                   animate={{ opacity: 1 }}
+                   exit={{ opacity: 0 }}
+                   className="h-full flex flex-col"
+                 >
+                    <div className="flex items-center justify-between mb-16 opacity-40">
+                      <span className="text-[10px] font-mono uppercase tracking-[0.3em]">Lecture en cours</span>
+                      <Coffee className="w-4 h-4" />
+                    </div>
+
+                    <h1 className={`font-classical leading-tight mb-12 tracking-tight ${fontSize === "text-base" ? "text-3xl" : fontSize === "text-lg" ? "text-4xl" : "text-5xl"}`}>
+                      {previewTitle}
+                    </h1>
+
+                    <div className={`leading-relaxed ${fontSize} ${readingMode === "dyslexia" ? "font-sans font-medium" : "font-classical"}`}>
+                      <p className="mb-8">
+                        {previewContent}
+                      </p>
+                      <p className="opacity-60 italic">
+                        {t("preview_continue", "Continuez à lire pour découvrir l'essence de la souveraineté numérique...")}
+                      </p>
+                    </div>
+
+                    <div className="mt-auto pt-12 flex items-center gap-4 opacity-20">
+                      <div className="h-1 flex-1 bg-current rounded-full" />
+                      <span className="text-[10px] font-mono uppercase">15%</span>
+                    </div>
+                 </motion.div>
+               </AnimatePresence>
+             </motion.div>
+          </div>
+
+        </div>
       </div>
     </section>
   );

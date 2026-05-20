@@ -9,6 +9,7 @@ import { DiscoveryFeed } from "@/components/sections/DiscoveryFeed";
 import { notFound } from "next/navigation";
 import { ALL_LANGUAGES } from "@/tolgee/locales";
 import { prisma } from "@/lib/db";
+import { createClient } from "@/lib/supabase/server";
 
 interface PageProps {
   params: Promise<{ locale: string }>;
@@ -19,6 +20,18 @@ export default async function Home({ params }: PageProps) {
 
   if (!ALL_LANGUAGES.includes(locale as any)) {
     notFound();
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  let mutedWords: string[] = [];
+  if (user) {
+    const userMutedWords = await prisma.mutedWord.findMany({
+      where: { userId: user.id },
+      select: { word: true }
+    });
+    mutedWords = userMutedWords.map(mw => mw.word);
   }
 
   // Fetch articles for standard feed (excluding shadowbanned authors)
@@ -50,15 +63,23 @@ export default async function Home({ params }: PageProps) {
     take: 9,
   });
 
+  // Fetch SystemConfig for landing page content
+  const configs = await prisma.systemConfig.findMany();
+  const configMap = Object.fromEntries(configs.map(c => [c.key, c.value]));
+
   return (
-    <main className="min-h-screen selection:bg-accent selection:text-white">
+    <main className="min-h-screen selection:bg-primary selection:text-primary-foreground overflow-x-hidden">
       <Navbar />
-      <Hero />
+      <Hero config={configMap} />
       <Marquee />
-      <DiscoveryFeed articles={standardArticles} serendiptyArticles={serendipityArticles} />
-      <BentoFeatures />
-      <ProductPreview />
-      <CTA />
+      <DiscoveryFeed 
+        articles={standardArticles} 
+        serendiptyArticles={serendipityArticles} 
+        mutedWords={mutedWords}
+      />
+      <BentoFeatures config={configMap} />
+      <ProductPreview config={configMap} />
+      <CTA config={configMap} />
       <Footer />
     </main>
   );
