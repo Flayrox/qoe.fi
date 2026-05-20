@@ -25,6 +25,7 @@ model User {
   role           String    @default("user") // "user", "creator", "superadmin"
   isCertified    Boolean   @default(false)
   isShadowbanned Boolean   @default(false)
+  isSuspended    Boolean   @default(false)
   forceStandardTheme Boolean @default(false) // For readers who want pure text, overriding creator themes
   
   // Custom Domain & Multi-tenant Config
