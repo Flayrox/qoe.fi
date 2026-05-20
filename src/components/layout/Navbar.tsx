@@ -1,39 +1,50 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { cn } from "@/lib/utils";
+import { useTranslate } from "@tolgee/react";
+import { motion } from "framer-motion";
 
 export const Navbar = () => {
+  const { t } = useTranslate();
+
   return (
-    <nav className="fixed top-6 left-0 right-0 z-50 px-6 pointer-events-none">
-      <div className="max-w-5xl mx-auto glass-panel rounded-full px-8 py-4 flex justify-between items-center pointer-events-auto">
-        <div className="flex items-center gap-12">
-          <Link href="/" className="font-display text-2xl font-medium tracking-tight text-foreground">
-            QOE.FI
+    <motion.nav 
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      className="fixed top-8 left-0 right-0 z-50 px-6"
+    >
+      <div className="max-w-6xl mx-auto flex justify-between items-center p-2 bg-neutral-900/40 backdrop-blur-2xl border border-white/5 rounded-full shadow-2xl">
+        <div className="flex items-center gap-10 pl-6">
+          <Link href="/" className="font-classical text-2xl font-bold tracking-tighter text-white">
+            QOE<span className="text-white/20">.</span>FI
           </Link>
-          <div className="hidden md:flex gap-8 items-center">
-            <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors font-body text-sm font-medium">
-              Platform
+          
+          <div className="hidden lg:flex items-center gap-8">
+            <Link href="#" className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">
+              {t("nav_manifesto", "Manifeste")}
             </Link>
-            <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors font-body text-sm font-medium">
-              Benefits
+            <Link href="#" className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">
+              {t("nav_network", "Le Réseau")}
             </Link>
-            <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors font-body text-sm font-medium">
-              Security
+            <Link href="#" className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">
+              {t("nav_security", "Souveraineté")}
             </Link>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <ThemeToggle />
-          <Link href="/login" className="hidden md:block text-muted-foreground font-mono text-xs tracking-widest uppercase hover:text-foreground transition-colors">
-            Login
+
+        <div className="flex items-center gap-3">
+          <Link href="/login" className="px-6 py-3 text-[10px] font-mono uppercase tracking-[0.2em] text-white/60 hover:text-white transition-all">
+            {t("nav_login", "Connexion")}
           </Link>
-          <Link href="/login" className={cn(buttonVariants({ variant: "default", size: "sm" }), "rounded-full px-6 uppercase tracking-widest text-[10px] font-mono")}>
-            Early Access
+          <Link 
+            href="/login" 
+            className="px-8 py-3 bg-white text-black rounded-full text-[10px] font-mono uppercase tracking-[0.2em] font-bold hover:bg-neutral-200 transition-all shadow-xl"
+          >
+            {t("nav_cta", "Accès Souverain")}
           </Link>
         </div>
       </div>
-    </nav>
+    </motion.nav>
   );
 };
