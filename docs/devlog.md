@@ -194,3 +194,35 @@ To continue building from here:
 
 
 
+
+---
+
+### Session 6 - L'Avènement de l'Écosystème & Le Moteur Économique
+*Date : 19 Mai 2026*
+
+**18. Le Système Multi-Tenant Dynamique (Phase 1)**
+- **Middleware Intelligent** : Réécriture du `src/middleware.ts` pour détecter le header `host`. Les requêtes vers un sous-domaine (ex: `media.localhost:3000`) sont interceptées et redirigées de manière transparente vers `src/app/tenant/[domain]/...`.
+- **Thématisation Avancée** : Ajout de champs dans `User` (`accentColor`, `fontFamily`, `headerImageUrl`, `themeMode`, `layoutStyle`). Les pages du tenant appliquent dynamiquement ces styles via des variables CSS injectées au *runtime*, sans casser le rendu serveur. Trois layouts ont été intégrés : `minimal`, `magazine`, et `brutalist`.
+- **Zéro Hardcoding** : Création d'un composant unifié `TenantHeader.tsx` avec navigation déroulante multi-niveaux alimentée par la base de données (`NavigationItem`), ainsi que des icônes de réseaux sociaux dynamiques (`SocialLink`).
+
+**19. L'Éditeur TipTap : Médias, Auto-Save et Paywall (Phase 2 & 3)**
+- **Upload d'Images Supabase** : Implémentation d'une API Route sécurisée `POST /api/articles/upload` vérifiant la session utilisateur. Intégration de l'extension `@tiptap/extension-image` avec support du "Drag & Drop" (glisser-déposer). Les fichiers atterrissent dans le bucket public `articles-media`.
+- **Auto-Save Silencieux** : Ajout d'une boucle d'auto-sauvegarde avec `use-debounce` (2000ms). L'éditeur sauvegarde le travail en arrière-plan sans interrompre la frappe de l'écrivain.
+- **Le Paywall Custom (L'Arme Fatale)** : Création d'une extension TipTap sur-mesure (`PaywallDivider`) encapsulant un Node React (`ReactNodeViewRenderer`). L'auteur insère la ligne de coupure exacte. Côté lecteur (`PaywallCut.tsx`), le texte s'arrête net, superposé d'un magnifique dégradé appelant à souscrire à un abonnement Stripe.
+
+**20. Le Cockpit Créateur (CRM & Analytics) (Phase 3)**
+- **CRM TanStack** : Implémentation d'une Data Table hautement performante (`@tanstack/react-table`) dans `/dashboard/audience`. Permet au créateur de filtrer ses abonnés et de bloquer (`ShieldBan`) des utilisateurs toxiques.
+- **Analytics Recharts** : Construction de dashboards professionnels (`recharts`) pour suivre le MRR (Monthly Recurring Revenue) et le "Time Well Spent" (temps de lecture), s'alignant sur notre métrique phare plutôt que sur le clic compulsif.
+
+**21. L'Onboarding et le Sanctuaire Lecteur (Phase 4)**
+- **L'Extracteur d'ADN (Onboarding)** : Un flux d'inscription en 3 étapes propulsé par `framer-motion` (`/onboarding`). Le lecteur choisit ses intérêts, tape ses `MutedWords` (mots bannis, pour protéger sa santé mentale), et suit ses premiers créateurs certifiés pour résoudre le *cold start problem*.
+- **Le Sanctuaire Privé** : Création de la `/home` (un feed strictement chronologique des médias suivis, zéro algorithme), de la `/library` (marques-pages), et des `/highlights` (carnet de notes regroupant les passages surlignés).
+- **Accessibilité (Aa)** : Un menu universel superposé au contenu des articles permettant de forcer un thème, de grossir la police, ou d'activer le mode Dyslexie (interception de classe CSS via `localStorage`), primant sur la charte du créateur si le lecteur l'exige.
+
+**22. Le Main Hub et Le God Mode (Phase 5)**
+- **L'Éclateur de Bulle (Serendipity)** : Refonte de `qoe.fi` (`src/app/[locale]/page.tsx`). Le "Discovery Feed" affiche les articles des créateurs. Le toggle "Éclateur de bulle" (animé avec Framer Motion) permet d'injecter des recommandations contraires aux habitudes du lecteur (préparé pour le matching `pgvector` en production).
+- **Le Dashboard Super-Admin** : Architecture B2B protégée dans `app/(admin)/`. Le God Mode donne la main sur la configuration globale (`SystemConfig` / Feature Flags), la santé du système, et le Tribunal (Shadowban, Suspension, et Certification de comptes créateurs).
+
+**23. L'Ingénierie de la Donnée (Prisma V2)**
+- Évolution majeure de `schema.prisma` exécutée avec succès (incluant `postgresqlExtensions = [vector]`).
+- Apparition des modèles : `Subscriber`, `WalletTransaction`, `Follows`, `Bookmark`, `Highlight`, `Letter`, `BlockedUser`. Préparation intégrale du socle pour l'intégration finale de l'API Stripe Connect (walletBalanceCents).

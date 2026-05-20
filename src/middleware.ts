@@ -3,7 +3,9 @@ import { updateSession } from '@/lib/supabase/middleware';
 import { ALL_LANGUAGES, DEFAULT_LANGUAGE } from '@/tolgee/locales';
 
 export async function middleware(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
+  const url = request.nextUrl.clone();
+  const hostname = request.headers.get("host") || "";
+  const pathname = url.pathname;
 
   // 1. Skip assets, API routes, internal Next.js paths
   if (
@@ -14,7 +16,31 @@ export async function middleware(request: NextRequest) {
     return await updateSession(request);
   }
 
-  // 2. Determine locale selection
+  // 2. Multi-tenancy check
+  const currentHost =
+    process.env.NODE_ENV === "production" && process.env.VERCEL === "1"
+      ? hostname.replace(`.qoe.fi`, "")
+      : hostname.replace(`.localhost:3000`, "");
+
+  // Define domains that are not tenants (our main app and admin)
+  const isMainDomain =
+    hostname === "localhost:3000" ||
+    hostname === "qoe.fi" ||
+    hostname === "www.qoe.fi" ||
+    hostname === "admin.localhost:3000" ||
+    hostname === "admin.qoe.fi";
+
+  // If we're on a tenant domain (like a custom subdomain or custom domain)
+  if (!isMainDomain) {
+    // Rewrite path to `/tenant/[domain]/[path]` to avoid routing conflicts with /[locale]
+    url.pathname = `/tenant/${currentHost}${pathname}`;
+    // We only need to rewrite here, no translation needed for tenants yet (unless requested)
+    return NextResponse.rewrite(url);
+  }
+
+  // --- Main Domain Logic Below ---
+
+  // 3. Determine locale selection
   // Detect locale from cookie or Accept-Language
   const getPreferredLocale = () => {
     const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
@@ -36,10 +62,9 @@ export async function middleware(request: NextRequest) {
     return DEFAULT_LANGUAGE;
   };
 
-  // 3. Handle root path redirect: "/" -> "/[locale]"
+  // 4. Handle root path redirect: "/" -> "/[locale]"
   if (pathname === '/') {
     const locale = getPreferredLocale();
-    const url = request.nextUrl.clone();
     url.pathname = `/${locale}`;
     
     // We must run updateSession first to update the session cookies
@@ -61,7 +86,7 @@ export async function middleware(request: NextRequest) {
     return redirectResponse;
   }
 
-  // 4. Check if the pathname starts with a locale
+  // 5. Check if the pathname starts with a locale
   const segments = pathname.split('/');
   const localeSegment = segments[1];
   const isLocaleSubpath = ALL_LANGUAGES.includes(localeSegment as any);

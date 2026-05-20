@@ -1,38 +1,27 @@
 "use client"
 
-import * as React from "react"
-import { useRouter } from "next/navigation"
 import { Editor } from "@/features/editor/components/Editor"
 import { saveArticle } from "../actions"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { Article } from "@prisma/client"
 
-interface EditArticleClientProps {
-  article: {
-    id: string
-    title: string
-    content: string
-    slug: string
-    published: boolean
-  }
-}
-
-export function EditArticleClient({ article }: EditArticleClientProps) {
+export function EditorWrapper({ article }: { article: Article }) {
   const router = useRouter()
-  const [isSaving, setIsSaving] = React.useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   const handleSave = async (data: {
     title: string
     content: string
     slug: string
     published: boolean
+    isPremium: boolean
   }) => {
     setIsSaving(true)
     try {
       await saveArticle(article.id, data)
-      router.push("/dashboard/articles")
-      router.refresh()
-    } catch (error) {
+    } finally {
       setIsSaving(false)
-      throw error // Let the editor component handle displaying this error
     }
   }
 
@@ -42,6 +31,7 @@ export function EditArticleClient({ article }: EditArticleClientProps) {
       initialContent={article.content}
       initialSlug={article.slug}
       initialPublished={article.published}
+      initialIsPremium={article.isPremium}
       onSave={handleSave}
       onBack={() => router.push("/dashboard/articles")}
       isSaving={isSaving}

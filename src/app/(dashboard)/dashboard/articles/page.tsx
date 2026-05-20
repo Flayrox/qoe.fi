@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { FileText, Plus, Edit3, Trash2, Calendar, Globe, Lock } from "lucide-react"
-import { deleteArticleAction } from "./actions"
+import { deleteArticle } from "./actions"
 import { cn } from "@/lib/utils"
 import { getTranslate } from "@/tolgee/server"
 
@@ -120,7 +120,7 @@ export default async function ArticlesPage() {
                     {t('dashboard.articles.edit_content')}
                   </a>
 
-                  <form action={deleteArticleAction.bind(null, article.id)} method="POST">
+                  <form action={deleteArticle.bind(null, article.id)} method="POST">
                     <button
                       type="submit"
                       className="h-8 w-8 rounded-lg flex items-center justify-center border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors cursor-pointer"

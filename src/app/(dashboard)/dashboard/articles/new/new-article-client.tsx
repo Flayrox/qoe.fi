@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { Editor } from "@/features/editor/components/Editor"
-import { createArticleAction } from "../actions"
+import { createArticle } from "../actions"
 
 export function NewArticleClient() {
   const router = useRouter()
@@ -17,7 +17,7 @@ export function NewArticleClient() {
   }) => {
     setIsSaving(true)
     try {
-      await createArticleAction(data)
+      await createArticle(data)
       router.push("/dashboard/articles")
       router.refresh()
     } catch (error) {
