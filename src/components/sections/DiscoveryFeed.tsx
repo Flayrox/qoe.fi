@@ -1,134 +1,163 @@
-"use client"
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { ArrowRight, Sparkles, FilterX } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useTranslate } from "@tolgee/react";
+import { Bookmark, ArrowUpRight, Sparkles, EyeOff, Info } from "lucide-react";
 
-export function DiscoveryFeed({ articles, serendiptyArticles }: { articles: any[], serendiptyArticles: any[] }) {
+interface DiscoveryFeedProps {
+  articles: any[];
+  serendiptyArticles: any[];
+  mutedWords?: string[];
+}
+
+export const DiscoveryFeed = ({ articles, serendiptyArticles, mutedWords = [] }: DiscoveryFeedProps) => {
+  const { t } = useTranslate();
   const [isSerendipityMode, setIsSerendipityMode] = useState(false);
-
   const displayArticles = isSerendipityMode ? serendiptyArticles : articles;
 
-  if (displayArticles.length === 0) return null;
+  const checkIsMuted = (content: string, title: string) => {
+    const fullText = (content + " " + title).toLowerCase();
+    return mutedWords.some(word => fullText.includes(word.toLowerCase()));
+  };
 
   return (
-    <section className="py-24 bg-zinc-50 dark:bg-zinc-950 transition-colors duration-500 relative">
-      <div className="container mx-auto px-4 md:px-8 max-w-7xl">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 md:mb-16 gap-6">
+    <section className="py-32 px-6 bg-black">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-end mb-24 gap-12">
           <div className="max-w-2xl">
-            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 flex items-center gap-3">
-              <Sparkles className="w-8 h-8 text-primary" />
-              Independent Voices
-            </h2>
-            <p className="text-xl text-muted-foreground">
-              Discover the latest sovereign publications across the network.
-            </p>
+            <motion.span
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              className="font-mono text-[10px] tracking-[0.4em] text-white/40 uppercase font-semibold mb-6 block"
+            >
+              {t("feed_tagline", "Curations Souveraines")}
+            </motion.span>
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              className="font-classical text-4xl md:text-6xl text-white font-medium tracking-tight mb-8"
+            >
+              {t("feed_title", "Explorez le réseau.")}
+            </motion.h2>
           </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 bg-card border rounded-full px-4 py-2 shadow-sm">
-              <label htmlFor="serendipity-toggle" className="text-sm font-semibold cursor-pointer select-none">
-                Éclateur de bulle
-              </label>
-              <button 
-                id="serendipity-toggle"
-                onClick={() => setIsSerendipityMode(!isSerendipityMode)}
-                className={`w-12 h-6 rounded-full p-1 transition-colors ${isSerendipityMode ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-              >
-                <motion.div 
-                  className="w-4 h-4 bg-white rounded-full shadow-sm"
-                  layout
-                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  animate={{ x: isSerendipityMode ? 24 : 0 }}
-                />
-              </button>
-            </div>
+
+          {/* Serendipity Toggle */}
+          <div className="flex items-center gap-4 p-2 bg-neutral-900/40 backdrop-blur-2xl border border-white/5 rounded-full shadow-2xl">
+             <span className="pl-4 text-[10px] font-mono text-white/40 uppercase tracking-widest">
+               {t("feed_toggle_label", "Mode Hors-Piste")}
+             </span>
+             <button
+               onClick={() => setIsSerendipityMode(!isSerendipityMode)}
+               className={`relative w-16 h-8 rounded-full transition-colors duration-500 ${isSerendipityMode ? "bg-emerald-500" : "bg-white/5"}`}
+             >
+               <motion.div
+                 animate={{ x: isSerendipityMode ? 32 : 4 }}
+                 className="absolute top-1 w-6 h-6 bg-white rounded-full shadow-xl"
+                 transition={{ type: "spring", stiffness: 500, damping: 30 }}
+               />
+             </button>
           </div>
         </div>
 
-        {isSerendipityMode && (
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8 p-4 bg-primary/10 text-primary border border-primary/20 rounded-xl flex items-start gap-3"
-          >
-            <FilterX className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="font-bold">Mode Hors-Piste Activé</p>
-              <p className="text-sm opacity-90">L'algorithme injecte actuellement des articles hors de vos centres d'intérêts habituels pour stimuler votre esprit critique.</p>
-            </div>
-          </motion.div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
+        {/* Articles Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <AnimatePresence mode="popLayout">
-            {displayArticles.map((article) => {
-              const authorHost = article.author.customDomain 
-                ? article.author.customDomain
-                : `${article.author.subdomain}.qoe.fi`;
+            {displayArticles.map((article, index) => {
+              const isMuted = checkIsMuted(article.content, article.title);
               
-              const protocol = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://' : 'https://';
-              const localHost = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? `${article.author.subdomain}.localhost:3000` : authorHost;
-              const articleUrl = `${protocol}${localHost}/article/${article.slug}`;
-
               return (
-                <motion.a 
+                <motion.div
                   layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.2 }}
-                  key={article.id} 
-                  href={articleUrl}
-                  target="_blank"
-                  className="group flex flex-col h-full border border-border bg-card rounded-2xl overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+                  key={article.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="group relative h-full flex flex-col bg-neutral-900/40 backdrop-blur-2xl border border-white/5 rounded-[2.5rem] overflow-hidden hover:border-white/20 transition-all duration-500"
                 >
-                  <div className="p-6 md:p-8 flex-1 flex flex-col">
-                    <div className="flex items-center gap-3 mb-6">
-                      {article.author.logoUrl ? (
-                        <img src={article.author.logoUrl} alt="" className="w-8 h-8 rounded-md object-cover" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase">
-                          {article.author.name?.substring(0,2) || 'NA'}
-                        </div>
-                      )}
-                      <span className="font-semibold text-sm">{article.author.name}</span>
-                      
-                      {article.author.isCertified && (
-                        <span className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-white text-[10px]">✓</span>
-                      )}
-
-                      {article.category && (
-                        <span className="ml-auto text-xs font-semibold px-2 py-1 bg-muted rounded-md text-muted-foreground">
-                          {article.category.name}
-                        </span>
-                      )}
-                    </div>
+                  <div className="p-10 flex-1 flex flex-col">
                     
-                    <h3 className="text-2xl font-bold mb-4 leading-tight group-hover:text-primary transition-colors">
+                    {/* Card Header */}
+                    <div className="flex items-center justify-between mb-8">
+                       <div className="flex items-center gap-3">
+                         {article.author.logoUrl ? (
+                           <img src={article.author.logoUrl} className="w-8 h-8 rounded-full object-cover border border-white/10" />
+                         ) : (
+                           <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-mono border border-white/10">
+                             {article.author.name?.charAt(0)}
+                           </div>
+                         )}
+                         <span className="text-xs font-medium text-white/60">{article.author.name}</span>
+                       </div>
+                       <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:bg-white hover:text-black transition-all">
+                         <Bookmark className="w-4 h-4" />
+                       </button>
+                    </div>
+
+                    {/* Content */}
+                    <h3 className="font-classical text-2xl text-white mb-6 group-hover:text-emerald-400 transition-colors duration-500">
                       {article.title}
                     </h3>
                     
-                    <p className="text-muted-foreground line-clamp-3 mb-6 flex-1">
-                      {article.content.replace(/<[^>]*>?/gm, '').substring(0, 150)}...
+                    <p className="font-sans text-white/40 text-sm leading-relaxed line-clamp-3 mb-8">
+                      {article.content.replace(/<[^>]*>?/gm, '')}
                     </p>
-                    
-                    <div className="flex items-center justify-between text-xs font-medium text-muted-foreground pt-4 border-t border-border mt-auto">
-                      <time dateTime={article.createdAt.toISOString()}>
-                        {new Date(article.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </time>
-                      <span className="group-hover:text-primary transition-colors flex items-center gap-1">
-                        Lire l'article <ArrowRight className="w-3 h-3" />
-                      </span>
+
+                    {/* Footer */}
+                    <div className="mt-auto pt-8 border-t border-white/5 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">
+                          {new Date(article.createdAt).toLocaleDateString()}
+                        </span>
+                        {article.isPremium && (
+                          <Sparkles className="w-3 h-3 text-amber-400" />
+                        )}
+                      </div>
+                      <ArrowUpRight className="w-5 h-5 text-white/20 group-hover:text-white group-hover:translate-x-1 group-hover:-translate-y-1 transition-all" />
                     </div>
                   </div>
-                </motion.a>
+
+                  {/* Muted Overlay */}
+                  {isMuted && (
+                    <div className="absolute inset-0 z-20 backdrop-blur-3xl bg-black/60 flex flex-col items-center justify-center p-8 text-center">
+                       <EyeOff className="w-12 h-12 text-white/20 mb-6" />
+                       <h4 className="text-white font-classical text-xl mb-4">{t("feed_muted_title", "Contenu filtré")}</h4>
+                       <p className="text-white/40 text-sm mb-8">{t("feed_muted_desc", "Cet article contient des mots que vous avez choisi de bannir de votre sanctuaire.")}</p>
+                       <button className="px-6 py-2 border border-white/10 rounded-full text-[10px] font-mono text-white/60 hover:bg-white/5 uppercase tracking-widest transition-all">
+                         {t("feed_muted_show", "Voir quand même")}
+                       </button>
+                    </div>
+                  )}
+
+                  <a href={`/article/${article.slug}`} className="absolute inset-0 z-10" />
+                </motion.div>
               );
             })}
           </AnimatePresence>
         </div>
+
+        {/* Serendipity Info Overlay */}
+        <AnimatePresence>
+          {isSerendipityMode && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="mt-12 p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-[2rem] flex items-start gap-4"
+            >
+              <Info className="w-6 h-6 text-emerald-500 flex-shrink-0" />
+              <div>
+                <p className="text-emerald-500 font-bold mb-1">{t("feed_serendipity_title", "Exploration Hors-Piste active")}</p>
+                <p className="text-emerald-500/60 text-sm">{t("feed_serendipity_desc", "L'algorithme injecte des perspectives divergentes pour stimuler votre esprit critique et briser votre bulle de filtres.")}</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       </div>
     </section>
   );
-}
+};
