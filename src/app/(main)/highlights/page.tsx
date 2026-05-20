@@ -40,6 +40,7 @@ export default async function HighlightsPage() {
         ) : (
           <div className="space-y-6">
             {highlights.map(h => {
+              if (!h.article || !h.article.author) return null;
               const host = h.article.author.customDomain || `${h.article.author.subdomain}.localhost:3000`
               const url = `http://${host}/article/${h.article.slug}`
 
