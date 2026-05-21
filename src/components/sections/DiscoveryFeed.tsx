@@ -22,25 +22,6 @@ export const DiscoveryFeed = ({ articles, mutedWords = [] }: DiscoveryFeedProps)
     <section className="py-24 px-6 bg-background">
       <div className="max-w-7xl mx-auto">
         
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
-          <div className="max-w-2xl text-left">
-            <motion.span
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              className="text-[10px] tracking-[0.3em] text-neutral-400 uppercase font-semibold mb-4 block"
-            >
-              {t("feed_tagline", "Curations Récentes")}
-            </motion.span>
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              className="text-4xl md:text-5xl text-neutral-900 font-bold tracking-tight"
-            >
-              {t("feed_title", "Explorez les publications.")}
-            </motion.h2>
-          </div>
-        </div>
 
         {/* Articles Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

@@ -4,6 +4,7 @@ import { Hero } from "@/components/sections/Hero";
 import { DiscoveryFeed } from "@/components/sections/DiscoveryFeed";
 import { FeaturedPublications } from "@/components/sections/FeaturedPublications";
 import { CTA } from "@/components/sections/CTA";
+import { CreatorHub } from "@/components/sections/CreatorHub";
 import { notFound } from "next/navigation";
 import { ALL_LANGUAGES } from "@/tolgee/locales";
 import { prisma } from "@/lib/db";
@@ -60,6 +61,7 @@ export default async function Home({ params }: PageProps) {
         mutedWords={mutedWords}
       />
       <CTA config={configMap} />
+      <CreatorHub config={configMap} />
       <Footer />
     </main>
   );
