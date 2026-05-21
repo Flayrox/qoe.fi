@@ -21,7 +21,7 @@ export const ProductPreview = ({ config }: ProductPreviewProps) => {
     switch (readingMode) {
       case "sepia": return "bg-[#f4ecd8] text-[#5b4636] border-[#d3c1a5]";
       case "dyslexia": return "bg-white text-black font-sans leading-relaxed";
-      default: return "bg-[#fcfbf9] text-emerald-950 border-stone-200/60";
+      default: return "bg-[#fcfbf9] text-neutral-950 border-stone-200/60";
     }
   };
 
@@ -112,7 +112,6 @@ export const ProductPreview = ({ config }: ProductPreviewProps) => {
 
           {/* Right Side: Live Simulation */}
           <div className="relative">
-             <div className="absolute -inset-4 bg-gradient-to-tr from-emerald-500/10 to-blue-500/10 blur-3xl opacity-50" />
              <motion.div
                layout
                className={`relative aspect-[3/4] md:aspect-square w-full rounded-[3rem] p-12 shadow-[0_0_50px_rgba(0,0,0,0.5)] border-2 transition-colors duration-700 overflow-hidden ${getThemeClasses()}`}
