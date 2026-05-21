@@ -13,19 +13,6 @@ import { BentoPlateau, BentoItem } from '@/components/ui/BentoPlateau'
 import { Logo } from '@/components/ui/Logo'
 import { motion, AnimatePresence } from 'framer-motion'
 
-const MANIFESTO_MESSAGES = [
-  {
-    target: "Créateurs",
-    title: "Reprenez le contrôle \nde votre audience.",
-    desc: "Pas de publicités. Pas d'algorithmes opaques. Juste vous et vos lecteurs, sur une infrastructure souveraine.",
-  },
-  {
-    target: "Lecteurs",
-    title: "Retrouvez le goût \ndu temps long.",
-    desc: "Un sanctuaire dédié à la lecture profonde. Fuyez le bruit constant, cultivez le silence et choisissez qui vous influence.",
-  }
-];
-
 export function LoginForm() {
   const { t } = useTranslate()
   const tolgee = useTolgee()
@@ -39,6 +26,20 @@ export function LoginForm() {
   const [magicLinkSent, setMagicLinkSent] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [manifestoIdx, setManifestoIdx] = useState(0)
+
+  // Use Tolgee translations directly inside the component body so they are reactive
+  const manifestoMessages = [
+    {
+      target: t("login.manifesto_creators_target", "Créateurs"),
+      title: t("login.manifesto_creators_title", "Reprenez le contrôle \nde votre audience."),
+      desc: t("login.manifesto_creators_desc", "Pas de publicités. Pas d'algorithmes opaques. Juste vous et vos lecteurs, sur une infrastructure souveraine."),
+    },
+    {
+      target: t("login.manifesto_readers_target", "Lecteurs"),
+      title: t("login.manifesto_readers_title", "Retrouvez le goût \ndu temps long."),
+      desc: t("login.manifesto_readers_desc", "Un sanctuaire dédié à la lecture profonde. Fuyez le bruit constant, cultivez le silence et choisissez qui vous influence."),
+    }
+  ];
   
   useEffect(() => {
     const interval = setInterval(() => {
@@ -363,12 +364,14 @@ export function LoginForm() {
                     transition={{ duration: 0.6, ease: "easeOut" }}
                     className="absolute inset-0 flex flex-col justify-end pb-2"
                   >
-                    <p className="text-white/50 text-[10px] uppercase tracking-[0.2em] mb-3">Pour les {MANIFESTO_MESSAGES[manifestoIdx].target}</p>
+                    <p className="text-white/50 text-[10px] uppercase tracking-[0.2em] mb-3">
+                      {t("login.manifesto_label", "Pour les {target}", { target: manifestoMessages[manifestoIdx].target })}
+                    </p>
                     <h3 className="text-white text-3xl font-bold tracking-tight leading-tight mb-4 whitespace-pre-line">
-                      {MANIFESTO_MESSAGES[manifestoIdx].title}
+                      {manifestoMessages[manifestoIdx].title}
                     </h3>
                     <p className="text-white/80 text-sm max-w-sm leading-relaxed">
-                      {MANIFESTO_MESSAGES[manifestoIdx].desc}
+                      {manifestoMessages[manifestoIdx].desc}
                     </p>
                   </motion.div>
                 </AnimatePresence>

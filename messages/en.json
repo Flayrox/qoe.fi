@@ -36,7 +36,32 @@
     "switch_back": "← Back to login",
     "loading_state": "Loading...",
     "error_missing_fields": "Missing fields",
-    "error_general": "An error occurred"
+    "error_general": "An error occurred",
+    "manifesto_creators_target": "Creators",
+    "manifesto_creators_title": "Take back control \nof your audience.",
+    "manifesto_creators_desc": "No ads. No opaque algorithms. Just you and your readers, on a sovereign infrastructure.",
+    "manifesto_readers_target": "Readers",
+    "manifesto_readers_title": "Rediscover the joy \nof deep reading.",
+    "manifesto_readers_desc": "A sanctuary dedicated to deep reading. Escape the constant noise, cultivate silence, and choose who influences you.",
+    "manifesto_label": "For {target}"
+  },
+  "navbar": {
+    "search": "Search",
+    "search_shortcut": "⌘K"
+  },
+  "hero": {
+    "editor_title": "The architecture of silence",
+    "editor_body": "There is an intelligence in emptiness that our screens have forgotten. To write is first to excavate — removing the superfluous until the sentence breathes on its own, without artificial support.\n\nClarity is not imposed. It reveals itself, slowly, like light filtering through the fog of our accumulated thoughts.\n\nThe blank page is not a threat. It is an invitation.",
+    "draft_saved": "Draft · Auto-saved",
+    "words_count": "{count} words",
+    "publish": "Publish",
+    "editor_label": "Editor",
+    "write_label": "Write.",
+    "reader_label": "qoe.fi — Reading",
+    "reader_big_label": "Reader",
+    "read_label": "Read.",
+    "plateau_label": "qoe.fi — Plateau",
+    "close_hint": "Click × to discover publications"
   },
   "sidebar": {
     "platform": "Platform",
