@@ -143,18 +143,41 @@ function MacDot({ bg, label, onClick, pulsing }: { bg: string; label: string; on
 
 // ─── Animated Mac cursor SVG ─────────────────────────────────────────────────
 function MacCursor({ visible, targetX, targetY }: { visible: boolean; targetX: number; targetY: number }) {
+  const cx = typeof window !== "undefined" ? window.innerWidth / 2 : 0;
+  const cy = typeof window !== "undefined" ? window.innerHeight / 2 : 0;
+  
+  // A smooth 4-step path that curves nicely toward the target
+  const pathX = [
+    cx,
+    cx + (targetX - cx) * 0.2 + 80, // curve right
+    cx + (targetX - cx) * 0.7 - 20, // curve left
+    targetX - 6
+  ];
+  
+  const pathY = [
+    cy,
+    cy + (targetY - cy) * 0.1 - 60, // curve up
+    cy + (targetY - cy) * 0.6 + 40, // curve down
+    targetY - 4
+  ];
+
   return (
     <AnimatePresence>
       {visible && (
         <motion.div
           className="fixed z-[200] pointer-events-none"
-          initial={{ x: window.innerWidth / 2, y: window.innerHeight / 2, opacity: 0, scale: 0.6 }}
-          animate={{ x: targetX - 6, y: targetY - 4, opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.8 }}
-          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ x: cx, y: cy, opacity: 0, scale: 0.6 }}
+          animate={{ x: pathX, y: pathY, opacity: 1, scale: 0.95 }}
+          exit={{ opacity: 0, scale: 0.7 }}
+          transition={{ 
+            duration: 1.6, // smooth and responsive
+            ease: "easeInOut",
+            times: [0, 0.4, 0.7, 1] 
+          }}
+          style={{ filter: "drop-shadow(0px 8px 10px rgba(0,0,0,0.25))" }}
         >
-          <svg width="22" height="28" viewBox="0 0 22 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M1 1L1 21L6.5 15.5L9.5 23L12 22L9 14.5H16.5L1 1Z" fill="white" stroke="#333" strokeWidth="1.5" strokeLinejoin="round"/>
+          <svg width="24" height="30" viewBox="0 0 22 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1 1L1 21L6.5 15.5L9.5 23L12 22L9 14.5H16.5L1 1Z" fill="white" stroke="#000000" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
           </svg>
         </motion.div>
       )}
@@ -200,7 +223,7 @@ function PlateauPreview({ onClose, showChrome, autoClickDot }: PlateauProps) {
       </motion.div>
 
       {/* Hidden ref element on red dot position for cursor targeting */}
-      <button ref={redDotRef} className="absolute -top-9 left-3 w-3 h-3 opacity-0 pointer-events-none" aria-hidden />
+      <button ref={redDotRef} data-reddot className="absolute -top-9 left-3 w-3 h-3 opacity-0 pointer-events-none" aria-hidden />
 
       {/* Plateau body */}
       <div className="w-full rounded-[36px] bg-[#EE4B2B] flex flex-col md:flex-row overflow-hidden shadow-2xl md:h-[680px] p-2 md:p-3 gap-2 md:gap-3">
@@ -336,7 +359,7 @@ export const Hero = ({ config }: HeroProps) => {
         setTimeout(() => {
           setAutoClosePhase("closing");
           handleClose();
-        }, 1100);
+        }, 1600);
       }
     };
     el.addEventListener("wheel", onWheel, { passive: false });
@@ -379,8 +402,6 @@ export const Hero = ({ config }: HeroProps) => {
               }
               transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
             >
-              {/* Red dot anchor for cursor targeting */}
-              <span data-reddot className="absolute -top-9 left-[max(2%,8px)] w-3 h-3 rounded-full pointer-events-none" />
               <PlateauPreview
                 onClose={handleClose}
                 showChrome={showChrome}
