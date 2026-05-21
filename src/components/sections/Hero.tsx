@@ -193,6 +193,7 @@ interface PlateauProps {
 }
 
 function PlateauPreview({ onClose, showChrome, autoClickDot }: PlateauProps) {
+  const { t } = useTranslate();
   const [active, setActive] = useState<"writer" | "reader">("writer");
   const typedBody = useTypewriter(EDITOR_BODY, 30, active === "writer");
   const redDotRef = useRef<HTMLButtonElement>(null);
@@ -240,12 +241,12 @@ function PlateauPreview({ onClose, showChrome, autoClickDot }: PlateauProps) {
               <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 shrink-0">
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  <span className="text-[10px] text-neutral-400">Brouillon · Auto-sauvegardé</span>
+                  <span className="text-[10px] text-neutral-400">{t("hero.draft_saved", "Brouillon · Auto-sauvegardé")}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-neutral-300">{typedBody.split(" ").filter(Boolean).length} mots</span>
+                  <span className="text-[10px] text-neutral-300">{t("hero.words_count", `{count} mots`).replace("{count}", typedBody.split(" ").filter(Boolean).length.toString())}</span>
                   <Link href="/login" className="inline-flex items-center gap-1 bg-[#EE4B2B] hover:bg-[#d63d20] text-white text-[10px] font-semibold px-3 py-1.5 rounded-md transition-colors">
-                    Publier <ArrowUpRight className="w-3 h-3" />
+                    {t("hero.publish", "Publier")} <ArrowUpRight className="w-3 h-3" />
                   </Link>
                 </div>
               </div>
