@@ -30,9 +30,11 @@ export const NavbarPremium = () => {
         )}
         role="banner"
       >
-        {/* Left: Logo */}
+        {/* Left: Logo — click to reset to top */}
         <Link
           href="/"
+          data-logo
+          onClick={(e) => { e.preventDefault(); window.location.href = "/"; }}
           className="flex items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 rounded"
         >
           <Logo className="h-5 w-auto" />
