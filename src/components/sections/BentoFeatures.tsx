@@ -19,7 +19,6 @@ export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
       title: t("feature_wallet_title", "Économie Circulaire"),
       description: config["feature_wallet_desc"] || "Un portefeuille virtuel intégré permettant de soutenir vos auteurs préférés via WalletTransaction sans intermédiaire.",
       size: "md:col-span-2",
-      gradient: "from-emerald-500/20 to-teal-500/20"
     },
     {
       id: "pgvector",
@@ -27,7 +26,6 @@ export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
       title: t("feature_vector_title", "Mode Hors-Piste"),
       description: config["feature_vector_desc"] || "Grâce à pgvector, notre IA brise votre bulle idéologique en injectant des perspectives radicalement différentes.",
       size: "md:col-span-1",
-      gradient: "from-blue-500/20 to-indigo-500/20"
     },
     {
       id: "monastic",
@@ -35,7 +33,6 @@ export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
       title: t("feature_monastic_title", "Lecteur Monastique"),
       description: config["feature_monastic_desc"] || "Un carnet personnel numérique où vos Highlights deviennent la matière première de votre propre pensée.",
       size: "md:col-span-1",
-      gradient: "from-amber-500/20 to-orange-500/20"
     },
     {
       id: "sovereign",
@@ -43,7 +40,6 @@ export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
       title: t("feature_sovereign_title", "Souveraineté Totale"),
       description: config["feature_sovereign_desc"] || "Aucun algorithme caché. Vous contrôlez chaque octet de votre expérience de lecture.",
       size: "md:col-span-2",
-      gradient: "from-violet-500/20 to-purple-500/20"
     }
   ];
 
@@ -79,13 +75,10 @@ export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
               whileHover={{ y: -5 }}
-              className={`group relative overflow-hidden rounded-[2.5rem] p-8 md:p-12 bg-neutral-900/40 backdrop-blur-2xl border border-white/5 ${feature.size}`}
+              className={`group relative overflow-hidden rounded-[2.5rem] p-8 md:p-12 bg-neutral-900/40 backdrop-blur-2xl border border-white/5 hover:border-primary/30 transition-all duration-500 ${feature.size}`}
             >
-              {/* Feature Gradient Background */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-700`} />
-              
               <div className="relative z-10 flex flex-col h-full">
-                <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-white group-hover:text-black transition-all duration-500">
+                <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-all duration-500">
                   <feature.icon className="w-6 h-6" />
                 </div>
                 
