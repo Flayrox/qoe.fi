@@ -309,6 +309,7 @@ export const Hero = ({ config }: HeroProps) => {
       genieTargetRef.current = { x: lr.left + lr.width / 2, y: lr.top + lr.height / 2 };
     }
     setClosed(true);
+    document.body.classList.add("hero-closed");
   }, []);
 
   // Intercept wheel — auto-close after 5 cumulative wheel events
