@@ -3,6 +3,8 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { useTranslate } from "@tolgee/react";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 
 interface CTAProps {
   config: Record<string, string>;
@@ -11,67 +13,87 @@ interface CTAProps {
 export const CTA = ({ config }: CTAProps) => {
   const { t } = useTranslate();
 
+  const headline = config["cta_headline"] || t("cta_headline", "Du temps bien dépensé.");
+  const subline = config["cta_subline"] || t("cta_subline", "Pas de scroll toxique. Pas d'algorithme marchand. Juste du fond, du temps long, et un espace qui respecte votre intelligence.");
+  const btnPrimary = config["cta_btn_primary"] || t("cta_btn_primary", "Commencer à lire");
+  const btnSecondary = config["cta_btn_secondary"] || t("cta_btn_secondary", "Se cultiver, gratuitement");
+
   return (
-    <section className="py-24 px-6 bg-background overflow-hidden">
-      <div className="max-w-6xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
+    <section
+      className="relative overflow-hidden py-32 px-6 flex flex-col items-center text-center"
+      style={{ background: "#F97316" }}
+    >
+      {/* Grain texture overlay */}
+      <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+      }} />
+
+      <div className="relative z-10 max-w-2xl mx-auto">
+        {/* Eyebrow */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          className="relative bg-[#EE4B2B] rounded-[3rem] p-12 md:p-24 overflow-hidden text-center shadow-xl"
+          className="text-[10px] tracking-[0.3em] text-white/60 uppercase font-semibold mb-8"
         >
-          <div className="relative z-10 max-w-2xl mx-auto">
-            <motion.span
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="font-mono text-[10px] tracking-[0.4em] text-white/70 uppercase font-semibold mb-8 block"
-            >
-              {t("cta_tagline", "L'appel de la souveraineté")}
-            </motion.span>
-            
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="text-4xl md:text-6xl font-bold text-white mb-10 tracking-tight leading-tight"
-            >
-              {config["cta_title"] || t("cta_main_title", "Prêt à habiter votre esprit ?")}
-            </motion.h2>
+          {t("cta_eyebrow", "Pour ceux qui veulent se cultiver")}
+        </motion.p>
 
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="text-white/80 text-base md:text-lg mb-12 leading-relaxed"
-            >
-              {config["cta_description"] || t("cta_desc", "Rejoignez un réseau où la qualité prime sur la quantité, et où votre attention est le bien le plus précieux.")}
-            </motion.p>
+        {/* Headline — very large, typographic */}
+        <motion.h2
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          className="text-4xl md:text-6xl font-bold text-white tracking-tight leading-tight mb-6"
+        >
+          {headline}
+        </motion.h2>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="flex flex-col sm:flex-row gap-4 items-center justify-center"
-            >
-              <button className="w-full sm:w-auto px-8 py-3.5 bg-white text-[#EE4B2B] rounded-xl font-semibold hover:bg-neutral-100 transition-colors shadow-md text-sm active:scale-97 duration-200 cursor-pointer">
-                {t("cta_button_primary", "Ouvrir un compte")}
-              </button>
-              <button className="w-full sm:w-auto px-8 py-3.5 border border-white/25 text-white rounded-xl font-semibold hover:bg-white/10 transition-colors text-sm active:scale-97 duration-200 cursor-pointer">
-                {t("cta_button_secondary", "Explorer le manifeste")}
-              </button>
-            </motion.div>
+        {/* Subline */}
+        <motion.p
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+          className="text-white/70 text-base md:text-lg leading-relaxed mb-12 max-w-xl mx-auto"
+        >
+          {subline}
+        </motion.p>
 
-            <motion.p
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ delay: 0.6 }}
-              className="text-xs text-white/60 mt-12"
-            >
-              {t("cta_footer", "Sans publicité. Sans algorithme de capture. Sans compromis.")}
-            </motion.p>
-          </div>
+        {/* Buttons */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="flex flex-col sm:flex-row gap-3 justify-center items-center"
+        >
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 bg-white text-[#EE4B2B] font-semibold px-7 py-3.5 rounded-xl hover:bg-neutral-50 transition-colors shadow-lg text-sm"
+          >
+            {btnPrimary}
+            <ArrowUpRight className="w-4 h-4" />
+          </Link>
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 text-white/80 hover:text-white font-medium px-7 py-3.5 rounded-xl border border-white/20 hover:border-white/40 transition-all text-sm"
+          >
+            {btnSecondary}
+          </Link>
         </motion.div>
+
+        {/* Social proof micro-line */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.4 }}
+          className="mt-10 text-[11px] text-white/40"
+        >
+          {t("cta_social_proof", "Gratuit · Aucune carte bancaire requise · Données hébergées en Europe")}
+        </motion.p>
       </div>
     </section>
   );
