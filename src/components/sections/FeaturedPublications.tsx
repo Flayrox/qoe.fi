@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, useAnimationFrame } from "framer-motion";
 import { useTranslate } from "@tolgee/react";
 import { ArrowUpRight } from "lucide-react";
@@ -39,22 +39,29 @@ function WordLane({ words, direction, speed, y }: { words: string[]; direction: 
     containerRef.current.style.transform = `translateX(${posRef.current}px)`;
   });
 
-  const doubled = [...words, ...words];
+  // Calculate random stable opacities per word
+  const items = React.useMemo(() => {
+    return words.map(word => ({
+      word,
+      opacity: 0.08 + Math.random() * 0.07,
+    }));
+  }, [words]);
+
+  const doubled = [...items, ...items];
 
   return (
     <div className="absolute w-full overflow-hidden pointer-events-none" style={{ top: y }}>
       <div ref={containerRef} className="flex gap-8 will-change-transform whitespace-nowrap">
-        {doubled.map((word, i) => (
+        {doubled.map((item, i) => (
           <span
             key={i}
             className="text-sm font-semibold tracking-wide select-none"
             style={{
-              // Words fade out toward center (where articles are), stay opaque on edges
               color: "white",
-              opacity: 0.08 + Math.random() * 0.07,
+              opacity: item.opacity,
             }}
           >
-            {word}
+            {item.word}
           </span>
         ))}
       </div>
@@ -77,6 +84,17 @@ function CenterFadeMask() {
 export const FeaturedPublications = ({ articles, config }: FeaturedPublicationsProps) => {
   const { t } = useTranslate();
   const [selectedArticle, setSelectedArticle] = useState<any | null>(null);
+  const [lanes, setLanes] = useState<{ lane1: string[]; lane2: string[]; lane3: string[]; lane4: string[] } | null>(null);
+
+  useEffect(() => {
+    const shuffle = (arr: string[]) => [...arr].sort(() => Math.random() - 0.5);
+    setLanes({
+      lane1: shuffle(BACKGROUND_WORDS).slice(0, 18),
+      lane2: shuffle(BACKGROUND_WORDS).slice(8, 26),
+      lane3: shuffle(BACKGROUND_WORDS).slice(4, 22),
+      lane4: shuffle(BACKGROUND_WORDS).slice(12, 30),
+    });
+  }, []);
 
   const title = config["featured_title"] || t("featured_pub_title", "Publications récentes");
   const tagline = config["featured_tagline"] || t("featured_pub_tagline", "Écrits sélectionnés");
@@ -95,13 +113,6 @@ export const FeaturedPublications = ({ articles, config }: FeaturedPublicationsP
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
 
-  // Split words into 4 lanes with shuffled subsets
-  const shuffle = (arr: string[]) => [...arr].sort(() => Math.random() - 0.5);
-  const lane1 = shuffle(BACKGROUND_WORDS).slice(0, 18);
-  const lane2 = shuffle(BACKGROUND_WORDS).slice(8, 26);
-  const lane3 = shuffle(BACKGROUND_WORDS).slice(4, 22);
-  const lane4 = shuffle(BACKGROUND_WORDS).slice(12, 30);
-
   return (
     <section
       className="relative overflow-hidden py-24 px-6"
@@ -109,14 +120,16 @@ export const FeaturedPublications = ({ articles, config }: FeaturedPublicationsP
       id="featured"
     >
       {/* ── Floating intellectual words (background) ─── */}
-      <div className="absolute inset-0 overflow-hidden">
-        <WordLane words={lane1} direction={1} speed={22} y="6%" />
-        <WordLane words={lane2} direction={-1} speed={16} y="24%" />
-        <WordLane words={lane3} direction={1} speed={19} y="54%" />
-        <WordLane words={lane4} direction={-1} speed={14} y="78%" />
-        {/* Center radial mask to fade words near the articles */}
-        <CenterFadeMask />
-      </div>
+      {lanes && (
+        <div className="absolute inset-0 overflow-hidden">
+          <WordLane words={lanes.lane1} direction={1} speed={22} y="6%" />
+          <WordLane words={lanes.lane2} direction={-1} speed={16} y="24%" />
+          <WordLane words={lanes.lane3} direction={1} speed={19} y="54%" />
+          <WordLane words={lanes.lane4} direction={-1} speed={14} y="78%" />
+          {/* Center radial mask to fade words near the articles */}
+          <CenterFadeMask />
+        </div>
+      )}
 
       {/* ── Content (above background) ─── */}
       <div className="relative z-20 max-w-3xl mx-auto">

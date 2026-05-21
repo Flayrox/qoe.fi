@@ -226,3 +226,50 @@ To continue building from here:
 **23. L'Ingénierie de la Donnée (Prisma V2)**
 - Évolution majeure de `schema.prisma` exécutée avec succès (incluant `postgresqlExtensions = [vector]`).
 - Apparition des modèles : `Subscriber`, `WalletTransaction`, `Follows`, `Bookmark`, `Highlight`, `Letter`, `BlockedUser`. Préparation intégrale du socle pour l'intégration finale de l'API Stripe Connect (walletBalanceCents).
+
+---
+
+### Session 7 - Refonte Visuelle Premium, Anti-IA, Bento Interactif & Suppression du Discovery Feed
+*Date : 21 Mai 2026*
+
+**24. Thème Crimson Vermillon (#EE4B2B) & Typographie Apple-esque**
+- **Refonte colorimétrique** : Harmonisation globale autour du rouge vermillon `#EE4B2B` (C:0, M:68, Y:82, K:7) et de l'orange d'accentuation `#F97316`.
+- **Typographie** : Transition complète vers des polices sans-serif système Apple-esque (`-apple-system`, `SF Pro Display`, `SF Pro Text`, `BlinkMacSystemFont`), délaissant définitivement l'esthétique brutaliste à polices à chasse fixe (`font-mono`) ou rétro-informatiques.
+- **Correction Logo** : Remplacement des dégradés de l'ancien logo par des tracés SVG vectoriels robustes et uniformes utilisant la couleur de marque `#EE4B2B` sans aucun artefact d'affichage.
+
+**25. Épuration Conceptuelle & Design Anti-IA**
+- **Simplification Nav-Bar** : Nettoyage drastique de la barre de navigation [NavbarPremium.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/components/layout/NavbarPremium.tsx) pour ne conserver que l'essentiel : le logo `qoefie_svg` (redimensionné en hauteur `h-5` discrète), le raccourci global `⌘K` sous forme de pilule minimaliste, et le bouton de connexion. Le chatbot interactif et les liens superflus ont été supprimés.
+- **Esthétique Épurée** : Remplacement des grids bento complexes et chargés par des composants au design ultra-minimaliste inspirés de Vercel, Cursor et du site personnel de Rauno Freiberg (`devouringdetails.com`).
+
+**26. Plateau Bento Interactif & Simulation Autonome**
+- **Optimisation des Dimensions** : Le plateau Bento de la section [Hero.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/components/sections/Hero.tsx) a été agrandi pour occuper une place immersive sur la page (`max-w-[95%] xl:max-w-7xl` et hauteur `720px`). La pilule du Lecteur a été réduite par rapport à celle de l'Éditeur afin de respecter l'intention de design initiale.
+- **Flottaison Visuelle** : Suppression du fond noir opaque des sections en état inactif. Les titres flottent désormais directement sur le gradient parent.
+- **Mémorisation du Défilement** : Implémentation d'une conservation de la position de scroll (`posRef`) pour que le passage d'un onglet à l'autre (Éditeur ↔ Lecteur) reprenne le défilement là où l'utilisateur s'était arrêté.
+- **Auto-Cursor Intercepteur** :
+  - L'utilisateur peut scroller librement le contenu de la prévisualisation du lecteur.
+  - S'il tente de faire un défilement excessif (5 défilements détectés par l'intercepteur `wheel`), un curseur virtuel sous forme d'icône pointeur SVG apparaît en fondu, se déplace de façon fluide vers le bouton de fermeture Mac rouge (dot).
+  - Après une impulsion visuelle sur le bouton rouge, la simulation est interrompue.
+- **Animation "Genie-Effect" vers le Logo** : Lors de la fermeture de la simulation, le plateau bento s'anime en rétrécissant et en se translatant (effet d'aspiration / génie) directement vers le logo de la barre de navigation. Un clic sur le logo réinitialise l'état et recharge proprement la page.
+
+**27. FeaturedPublications & Lanes de Mots avec Résolution d'Hydratation**
+- **Pistes de Mots Animées** : Ajout d'une section [FeaturedPublications.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/components/sections/FeaturedPublications.tsx) sur fond orange vif `#F97316` contenant 4 pistes horizontales indépendantes de concepts philosophiques et intellectuels défilant en boucle via `useAnimationFrame`.
+- **Masque de Lisibilité** : Application d'un gradient radial central (`radial-gradient`) pour estomper les mots en arrière-plan à l'approche des publications à l'avant-plan, garantissant une lisibilité maximale pour les cartes d'articles blanches.
+- **Résolution des Erreurs d'Hydratation Next.js (SSR Mismatch)** :
+  - *Problème* : L'utilisation de `Math.random()` au chargement initial pour le mélange (`shuffle`) des pistes et pour l'opacité individuelle de chaque mot provoquait des divergences systématiques de code HTML entre le serveur de rendu (SSR) et le navigateur du client.
+  - *Solution* : Déplacement de la logique de calcul aléatoire et de mélange des pistes de mots au sein d'un hook `useEffect` s'exécutant au montage côté client. L'opacité individuelle des éléments défilants est mémorisée via `useMemo` pour éviter tout clignotement ou nouvelle génération intempestive lors des re-rendus.
+
+**28. CreatorHub & Modèle Économique Souverain**
+- **Présentation Interactive** : Création du composant [CreatorHub.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/components/sections/CreatorHub.tsx) avec un sélecteur d'onglets animés (Créateurs / Médias & CMS / API) affichant des mockups fonctionnels :
+  - *Créateurs* : Fiche d'auteur avec statistiques épurées.
+  - *Médias* : Dashboard éditorial avec jauges et barres de progression animées.
+  - *API* : Bloc de code terminal sombre montrant un exemple d'intégration de contenu.
+- **Manifeste Politique** : Intégration en bas du composant d'une conviction forte : *"Zéro VC. Zéro GAFAM. Zéro compromis."*.
+
+**29. Suppression Définitive du Discovery Feed**
+- **Nettoyage de page.tsx** : Retrait total du composant de la page principale [page.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/app/%5Blocale%5D/page.tsx). Suppression des imports devenus inutiles (`DiscoveryFeed` et `createClient` de Supabase) et retrait de la requête de base de données récupérant les mots bloqués (`mutedWords`).
+- **Suppression du Fichier** : Effacement physique du fichier obsolète `DiscoveryFeed.tsx`.
+
+**30. Correction de Compilation Lucide**
+- **Importation** : Ajout de l'icône `Bookmark` manquante dans les imports de `lucide-react` au sein de [ArticlePreviewModal.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/components/sections/ArticlePreviewModal.tsx), résolvant une erreur critique empêchant le build.
+- **Validation** : Le projet compile à présent parfaitement et passe la vérification TypeScript stricte.
+

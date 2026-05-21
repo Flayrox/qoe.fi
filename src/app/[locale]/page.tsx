@@ -1,14 +1,12 @@
 import { NavbarPremium } from "@/components/layout/NavbarPremium";
 import { Footer } from "@/components/layout/Footer";
 import { Hero } from "@/components/sections/Hero";
-import { DiscoveryFeed } from "@/components/sections/DiscoveryFeed";
 import { FeaturedPublications } from "@/components/sections/FeaturedPublications";
 import { CTA } from "@/components/sections/CTA";
 import { CreatorHub } from "@/components/sections/CreatorHub";
 import { notFound } from "next/navigation";
 import { ALL_LANGUAGES } from "@/tolgee/locales";
 import { prisma } from "@/lib/db";
-import { createClient } from "@/lib/supabase/server";
 
 interface PageProps {
   params: Promise<{ locale: string }>;
@@ -19,18 +17,6 @@ export default async function Home({ params }: PageProps) {
 
   if (!ALL_LANGUAGES.includes(locale as any)) {
     notFound();
-  }
-
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  let mutedWords: string[] = [];
-  if (user) {
-    const userMutedWords = await prisma.mutedWord.findMany({
-      where: { userId: user.id },
-      select: { word: true }
-    });
-    mutedWords = userMutedWords.map(mw => mw.word);
   }
 
   // Fetch articles for standard feed (excluding shadowbanned authors)
@@ -56,10 +42,6 @@ export default async function Home({ params }: PageProps) {
       <NavbarPremium />
       <Hero config={configMap} />
       <FeaturedPublications articles={standardArticles} config={configMap} />
-      <DiscoveryFeed 
-        articles={standardArticles} 
-        mutedWords={mutedWords}
-      />
       <CTA config={configMap} />
       <CreatorHub config={configMap} />
       <Footer />
