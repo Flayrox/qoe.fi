@@ -36,7 +36,32 @@
     "switch_back": "← Retourner à la connexion",
     "loading_state": "Chargement...",
     "error_missing_fields": "Champs manquants",
-    "error_general": "Une erreur est survenue"
+    "error_general": "Une erreur est survenue",
+    "manifesto_creators_target": "Créateurs",
+    "manifesto_creators_title": "Reprenez le contrôle \nde votre audience.",
+    "manifesto_creators_desc": "Pas de publicités. Pas d'algorithmes opaques. Juste vous et vos lecteurs, sur une infrastructure souveraine.",
+    "manifesto_readers_target": "Lecteurs",
+    "manifesto_readers_title": "Retrouvez le goût \ndu temps long.",
+    "manifesto_readers_desc": "Un sanctuaire dédié à la lecture profonde. Fuyez le bruit constant, cultivez le silence et choisissez qui vous influence.",
+    "manifesto_label": "Pour les {target}"
+  },
+  "navbar": {
+    "search": "Rechercher",
+    "search_shortcut": "⌘K"
+  },
+  "hero": {
+    "editor_title": "L'architecture du silence",
+    "editor_body": "Il y a dans le vide une forme d'intelligence que nos écrans ont oubliée. Écrire, c'est d'abord creuser — ôter le superflu jusqu'à ce que la phrase respire d'elle-même, sans soutien artificiel.\n\nLa clarté ne s'impose pas. Elle se révèle, lentement, comme une lumière qui filtre à travers le brouillard de nos pensées accumulées.\n\nLa page blanche n'est pas une menace. C'est une invitation.",
+    "draft_saved": "Brouillon · Auto-sauvegardé",
+    "words_count": "{count} mots",
+    "publish": "Publier",
+    "editor_label": "Éditeur",
+    "write_label": "Écrire.",
+    "reader_label": "qoe.fi — Lecture",
+    "reader_big_label": "Lecteur",
+    "read_label": "Lire.",
+    "plateau_label": "qoe.fi — Plateau",
+    "close_hint": "Cliquez × pour découvrir les publications"
   },
   "sidebar": {
     "platform": "Plateforme",

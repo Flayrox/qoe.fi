@@ -62,13 +62,13 @@ export const NavbarPremium = () => {
               ? "text-white/80 hover:text-white"
               : "text-neutral-400 hover:text-neutral-700 hover:bg-neutral-50 border border-transparent hover:border-neutral-200/60"
           )}
-          aria-label="Ouvrir la recherche"
+          aria-label={t("navbar.search", "Rechercher")}
         >
-          <span>Rechercher</span>
+          <span>{t("navbar.search", "Rechercher")}</span>
           <kbd className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[9px] font-mono leading-none transition-colors duration-300",
             isWhiteMode ? "bg-white/20 border-white/30 text-white" : "bg-neutral-100 border-neutral-200/80 text-neutral-400"
           )}>
-            ⌘K
+            {t("navbar.search_shortcut", "⌘K")}
           </kbd>
         </button>
 
