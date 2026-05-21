@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Newsreader, JetBrains_Mono, Geist } from "next/font/google";
+import { Inter, JetBrains_Mono, Geist } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -15,10 +15,9 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
-const newsreader = Newsreader({
+const displayFont = Geist({
   variable: "--font-classical",
   subsets: ["latin"],
-  style: "italic",
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -43,7 +42,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} className={cn("scroll-smooth", "font-sans", geist.variable)} suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${newsreader.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
+        className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <TolgeeNextProvider language={locale} staticData={staticData}>

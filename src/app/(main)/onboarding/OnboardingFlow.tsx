@@ -64,51 +64,51 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
   };
 
   return (
-    <div className="relative w-full max-w-4xl mx-auto min-h-[600px] flex flex-col bg-neutral-900/40 backdrop-blur-3xl border border-white/5 rounded-[3rem] overflow-hidden shadow-2xl">
+    <div className="relative w-full max-w-4xl mx-auto min-h-[600px] flex flex-col bg-card/60 backdrop-blur-3xl border border-border/40 rounded-[3rem] overflow-hidden shadow-2xl transition-colors duration-500">
       
       {/* Progress Header */}
-      <div className="p-8 border-b border-white/5 flex items-center justify-between">
+      <div className="p-8 border-b border-border/30 flex items-center justify-between relative z-10">
         <div className="flex gap-2">
           {[1, 2, 3].map(i => (
-            <div key={i} className={`h-1 w-12 rounded-full transition-colors duration-500 ${step >= i ? "bg-white" : "bg-white/10"}`} />
+            <div key={i} className={`h-1 w-12 rounded-full transition-colors duration-500 ${step >= i ? "bg-foreground" : "bg-foreground/10"}`} />
           ))}
         </div>
-        <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">
+        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
           {t("onboarding_step", "Étape")} {step} / 3
         </span>
       </div>
 
-      <div className="flex-1 relative overflow-hidden p-8 md:p-16">
+      <div className="flex-1 relative overflow-hidden p-8 md:p-16 z-10">
         <AnimatePresence mode="wait">
           
           {/* STEP 1: Categories Constellation */}
           {step === 1 && (
             <motion.div
               key="step1"
-              initial={{ opacity: 0, x: 100, filter: "blur(10px)" }}
+              initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
               animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, x: -100, filter: "blur(10px)" }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              exit={{ opacity: 0, x: -50, filter: "blur(10px)" }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
               className="h-full flex flex-col"
             >
               <div className="mb-12">
-                <Sparkles className="w-8 h-8 text-emerald-400 mb-6" />
-                <h2 className="font-classical text-4xl text-white mb-4">{t("onboarding_s1_title", "Qu'est-ce qui vous élève ?")}</h2>
-                <p className="text-white/40">{t("onboarding_s1_desc", "Sélectionnez au moins 3 centres d'intérêt pour calibrer votre sanctuaire.")}</p>
+                <Sparkles className="w-8 h-8 text-primary mb-6" />
+                <h2 className="font-classical text-4xl text-foreground mb-4">{t("onboarding_s1_title", "Qu'est-ce qui vous élève ?")}</h2>
+                <p className="text-muted-foreground text-sm">{t("onboarding_s1_desc", "Sélectionnez au moins 3 centres d'intérêt pour calibrer votre sanctuaire.")}</p>
               </div>
 
               <div className="flex-1 flex flex-wrap gap-4 items-center justify-center py-8">
                 {categories.map((cat, i) => (
                   <motion.button
                     key={cat.id}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: i * 0.05 }}
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: i * 0.04 }}
                     onClick={() => toggleInterest(cat.id)}
-                    className={`px-8 py-4 rounded-full border-2 transition-all duration-500 text-sm font-medium ${
+                    className={`px-8 py-4 rounded-full border-2 transition-all duration-300 text-sm font-medium cursor-pointer ${
                       selectedInterests.includes(cat.id) 
-                        ? "bg-white text-black border-white shadow-[0_0_30px_rgba(255,255,255,0.2)] scale-110" 
-                        : "bg-white/5 text-white/60 border-white/5 hover:border-white/20"
+                        ? "bg-foreground text-background border-foreground shadow-lg scale-105" 
+                        : "bg-muted/30 text-muted-foreground border-border/40 hover:border-border hover:text-foreground"
                     }`}
                   >
                     {cat.name}
@@ -120,7 +120,7 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
                 <button
                   disabled={selectedInterests.length < 3}
                   onClick={handleNext}
-                  className="group flex items-center gap-3 px-10 py-4 bg-white text-black rounded-full font-bold transition-all disabled:opacity-20 disabled:grayscale"
+                  className="group flex items-center gap-3 px-10 py-4 bg-foreground text-background rounded-full font-bold transition-all disabled:opacity-20 disabled:grayscale cursor-pointer text-sm"
                 >
                   {t("common_continue", "Continuer")} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
@@ -132,16 +132,16 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
           {step === 2 && (
             <motion.div
               key="step2"
-              initial={{ opacity: 0, x: 100, filter: "blur(10px)" }}
+              initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
               animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, x: -100, filter: "blur(10px)" }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              exit={{ opacity: 0, x: -50, filter: "blur(10px)" }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
               className="h-full flex flex-col"
             >
               <div className="mb-12">
-                <Shield className="w-8 h-8 text-red-400 mb-6" />
-                <h2 className="font-classical text-4xl text-white mb-4">{t("onboarding_s2_title", "Préservez votre attention.")}</h2>
-                <p className="text-white/40">{t("onboarding_s2_desc", "Bannissez les mots ou sujets qui polluent votre réflexion. Aucun article les contenant ne vous sera proposé.")}</p>
+                <Shield className="w-8 h-8 text-primary mb-6" />
+                <h2 className="font-classical text-4xl text-foreground mb-4">{t("onboarding_s2_title", "Préservez votre attention.")}</h2>
+                <p className="text-muted-foreground text-sm">{t("onboarding_s2_desc", "Bannissez les mots ou sujets qui polluent votre réflexion. Aucun article les contenant ne vous sera proposé.")}</p>
               </div>
 
               <div className="flex-1 space-y-8">
@@ -152,9 +152,9 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
                     value={mutedInput}
                     onChange={(e) => setMutedInput(e.target.value)}
                     placeholder={t("onboarding_s2_placeholder", "Ex: Clash, Buzz, Polémique...")}
-                    className="w-full bg-white/5 border-b-2 border-white/10 py-6 px-4 text-2xl text-white placeholder:text-white/10 focus:outline-none focus:border-white transition-all"
+                    className="w-full bg-muted/20 border-b-2 border-border/60 py-6 px-4 text-2xl text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-foreground transition-all"
                   />
-                  <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white hover:text-black transition-all">
+                  <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-muted border border-border/40 flex items-center justify-center hover:bg-foreground hover:text-background transition-all cursor-pointer">
                     <Check className="w-5 h-5" />
                   </button>
                 </form>
@@ -164,13 +164,13 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
                     {mutedWords.map(word => (
                       <motion.span
                         key={word}
-                        initial={{ scale: 0, opacity: 0 }}
+                        initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-sm"
+                        exit={{ scale: 0.8, opacity: 0 }}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 rounded-lg text-sm"
                       >
                         {word}
-                        <button onClick={() => setMutedWords(mutedWords.filter(w => w !== word))}>
+                        <button onClick={() => setMutedWords(mutedWords.filter(w => w !== word))} className="cursor-pointer hover:scale-110">
                           <X className="w-3 h-3" />
                         </button>
                       </motion.span>
@@ -180,12 +180,12 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
               </div>
 
               <div className="mt-auto pt-8 flex justify-between">
-                <button onClick={handleBack} className="flex items-center gap-2 text-white/40 hover:text-white transition-colors">
+                <button onClick={handleBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-sm">
                   <ArrowLeft className="w-4 h-4" /> {t("common_back", "Retour")}
                 </button>
                 <button
                   onClick={handleNext}
-                  className="group flex items-center gap-3 px-10 py-4 bg-white text-black rounded-full font-bold transition-all"
+                  className="group flex items-center gap-3 px-10 py-4 bg-foreground text-background rounded-full font-bold transition-all cursor-pointer text-sm"
                 >
                   {t("common_continue", "Continuer")} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
@@ -197,38 +197,40 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
           {step === 3 && (
             <motion.div
               key="step3"
-              initial={{ opacity: 0, x: 100, filter: "blur(10px)" }}
+              initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
               animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, x: -100, filter: "blur(10px)" }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              exit={{ opacity: 0, x: -50, filter: "blur(10px)" }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
               className="h-full flex flex-col"
             >
               <div className="mb-12">
-                <Users className="w-8 h-8 text-blue-400 mb-6" />
-                <h2 className="font-classical text-4xl text-white mb-4">{t("onboarding_s3_title", "Choisissez vos alliés.")}</h2>
-                <p className="text-white/40">{t("onboarding_s3_desc", "Voici quelques créateurs certifiés qui correspondent à vos affinités. Suivez-les pour peupler votre premier feed.")}</p>
+                <Users className="w-8 h-8 text-primary mb-6" />
+                <h2 className="font-classical text-4xl text-foreground mb-4">{t("onboarding_s3_title", "Choisissez vos alliés.")}</h2>
+                <p className="text-muted-foreground text-sm">{t("onboarding_s3_desc", "Voici quelques créateurs certifiés qui correspondent à vos affinités. Suivez-les pour peupler votre premier feed.")}</p>
               </div>
 
-              <div className="flex-1 space-y-4 overflow-y-auto pr-4 custom-scrollbar">
+              <div className="flex-1 space-y-4 overflow-y-auto pr-4 custom-scrollbar max-h-[300px]">
                 {suggestedCreators.map(creator => (
                   <button
                     key={creator.id}
                     onClick={() => toggleCreator(creator.id)}
-                    className={`w-full flex items-center gap-6 p-6 rounded-[2rem] border-2 transition-all duration-500 text-left ${
+                    className={`w-full flex items-center gap-6 p-6 rounded-[2rem] border-2 transition-all duration-300 text-left cursor-pointer ${
                       selectedCreators.includes(creator.id)
-                        ? "bg-white/10 border-white/40"
-                        : "bg-white/5 border-white/5 hover:border-white/20"
+                        ? "bg-primary/[0.03] border-primary/40 shadow-sm"
+                        : "bg-muted/10 border-border/20 hover:border-border/60"
                     }`}
                   >
-                    <div className="w-16 h-16 rounded-2xl bg-white/5 flex-shrink-0 flex items-center justify-center overflow-hidden border border-white/10">
+                    <div className="w-16 h-16 rounded-2xl bg-muted flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/50">
                       {creator.logoUrl ? <img src={creator.logoUrl} className="w-full h-full object-cover" /> : creator.name?.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-xl font-bold text-white mb-1 truncate">{creator.name}</h4>
-                      <p className="text-white/40 text-sm truncate">{creator.heroText || "Média indépendant"}</p>
+                      <h4 className="text-lg font-bold text-foreground mb-1 truncate">{creator.name}</h4>
+                      <p className="text-muted-foreground text-sm truncate">{creator.heroText || "Média indépendant"}</p>
                     </div>
                     <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
-                      selectedCreators.includes(creator.id) ? "bg-white border-white text-black" : "border-white/20 text-transparent"
+                      selectedCreators.includes(creator.id) 
+                        ? "bg-foreground border-foreground text-background" 
+                        : "border-border text-transparent"
                     }`}>
                       <Check className="w-5 h-5" />
                     </div>
@@ -237,13 +239,13 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
               </div>
 
               <div className="mt-auto pt-8 flex justify-between items-center">
-                <button onClick={handleBack} className="flex items-center gap-2 text-white/40 hover:text-white transition-colors">
+                <button onClick={handleBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-sm">
                   <ArrowLeft className="w-4 h-4" /> {t("common_back", "Retour")}
                 </button>
                 <button
                   disabled={isSubmitting}
                   onClick={handleComplete}
-                  className="group flex items-center gap-3 px-10 py-4 bg-emerald-500 text-white rounded-full font-bold transition-all hover:bg-emerald-400 disabled:opacity-50"
+                  className="group flex items-center gap-3 px-10 py-4 bg-primary text-white rounded-full font-bold transition-all hover:opacity-90 disabled:opacity-50 cursor-pointer shadow-lg text-sm"
                 >
                   {isSubmitting ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -259,9 +261,6 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
 
         </AnimatePresence>
       </div>
-
-      {/* Decorative Halo */}
-      <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-emerald-500/10 blur-[150px] rounded-full pointer-events-none" />
     </div>
   );
 };

@@ -12,11 +12,16 @@
    ───────────────────────────────────────────────── */
 
 @theme {
-  /* Typography — Project-wide font stack */
-  --font-display: "Inter", sans-serif;
-  --font-body: "Inter", sans-serif;
-  --font-classical: "Newsreader", serif;
-  --font-mono: "JetBrains Mono", monospace;
+  /* Typography — Project-wide font stack (Apple-esque) */
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-classical: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  --font-mono: "SF Mono", -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --color-neural-emerald: var(--neural-emerald);
+  --color-neural-rose: var(--neural-rose);
+  --color-neural-amber: var(--neural-amber);
+  --color-neural-blue: var(--neural-blue);
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -66,99 +71,99 @@
 }
 
 /* ─────────────────────────────────────────────────
-   THEME: Light (default)
-   Clean, warm, professional light mode
-   ───────────────────────────────────────────────── */
+   THEMES ARCHIVED (PAUSED)
+   Original light and dark mode variables preserved here.
+   ───────────────────────────────────────────────── 
 :root {
-  --background: oklch(0.985 0.002 80);     /* Warm white */
-  --foreground: oklch(0.145 0.012 282);     /* Near-black */
+  --neural-emerald: oklch(0.68 0.15 152);
+  --neural-rose: oklch(0.72 0.13 352);
+  --neural-amber: oklch(0.75 0.12 75);
+  --neural-blue: oklch(0.65 0.14 240);
 
-  --card: oklch(1 0 0);                     /* Pure white */
+  --background: oklch(0.985 0.006 82);     
+  --foreground: oklch(0.145 0.012 282);     
+
+  --card: oklch(1 0 0);                     
   --card-foreground: oklch(0.145 0.012 282);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0.012 282);
 
-  --primary: oklch(0.145 0.012 282);        /* Almost black */
-  --primary-foreground: oklch(0.985 0 0);   /* White */
+  --primary: oklch(0.145 0.012 282);        
+  --primary-foreground: oklch(0.985 0 0);   
 
-  --secondary: oklch(0.94 0.002 80);        /* Warm gray-100 */
+  --secondary: oklch(0.94 0.004 82);        
   --secondary-foreground: oklch(0.145 0.012 282);
 
-  --muted: oklch(0.94 0.002 80);
+  --muted: oklch(0.94 0.004 82);
   --muted-foreground: oklch(0.52 0.005 280);
 
-  --accent: oklch(0.94 0.002 80);
+  --accent: oklch(0.94 0.004 82);
   --accent-foreground: oklch(0.145 0.012 282);
 
   --destructive: oklch(0.577 0.245 27.325);
 
-  --border: oklch(0.88 0.003 80);           /* Warm border */
-  --input: oklch(0.88 0.003 80);
+  --border: oklch(0.89 0.003 82);           
+  --input: oklch(0.89 0.003 82);
   --ring: oklch(0.145 0.012 282);
 
-  /* Chart palette */
-  --chart-1: oklch(0.62 0.14 25);           /* Warm red */
-  --chart-2: oklch(0.65 0.12 165);          /* Teal */
-  --chart-3: oklch(0.72 0.10 80);           /* Gold */
-  --chart-4: oklch(0.55 0.15 280);          /* Purple */
-  --chart-5: oklch(0.68 0.13 140);          /* Green */
+  --chart-1: oklch(0.62 0.14 25);           
+  --chart-2: oklch(0.65 0.12 165);          
+  --chart-3: oklch(0.72 0.10 80);           
+  --chart-4: oklch(0.55 0.15 280);          
+  --chart-5: oklch(0.68 0.13 140);          
 
-  --radius: 0.625rem;                       /* Elegant rounded corners */
+  --radius: 0.625rem;                       
 
-  /* Sidebar */
-  --sidebar: oklch(0.975 0.002 80);
+  --sidebar: oklch(0.975 0.004 82);
   --sidebar-foreground: oklch(0.145 0.012 282);
   --sidebar-primary: oklch(0.145 0.012 282);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.94 0.002 80);
+  --sidebar-accent: oklch(0.94 0.004 82);
   --sidebar-accent-foreground: oklch(0.145 0.012 282);
-  --sidebar-border: oklch(0.88 0.003 80);
+  --sidebar-border: oklch(0.89 0.003 82);
   --sidebar-ring: oklch(0.145 0.012 282);
 
-  /* Grid background */
-  --grid-color: rgba(0, 0, 0, 0.04);
+  --grid-color: rgba(16, 185, 129, 0.05);
 }
 
-/* ─────────────────────────────────────────────────
-   THEME: Dark
-   Deep black, minimal, developer-centric
-   Inspired by Linear / Vercel / Cursor
-   ───────────────────────────────────────────────── */
 .dark {
-  --background: oklch(0.05 0 0);            /* Near-black */
-  --foreground: oklch(0.97 0 0);            /* Near-white */
+  --neural-emerald: oklch(0.55 0.15 152);
+  --neural-rose: oklch(0.58 0.14 352);
+  --neural-amber: oklch(0.62 0.14 75);
+  --neural-blue: oklch(0.50 0.15 240);
 
-  --card: oklch(0.1 0.005 280);             /* Elevated dark surface */
+  --background: oklch(0.06 0.01 260);       
+  --foreground: oklch(0.97 0 0);            
+
+  --card: oklch(0.1 0.005 280);             
   --card-foreground: oklch(0.97 0 0);
   --popover: oklch(0.1 0.005 280);
   --popover-foreground: oklch(0.97 0 0);
 
-  --primary: oklch(0.97 0 0);               /* White */
-  --primary-foreground: oklch(0.1 0.005 280);/* Dark */
+  --primary: oklch(0.97 0 0);               
+  --primary-foreground: oklch(0.1 0.005 280);
 
-  --secondary: oklch(0.18 0.005 280);       /* Subtle surface */
+  --secondary: oklch(0.18 0.005 280);       
   --secondary-foreground: oklch(0.97 0 0);
 
   --muted: oklch(0.18 0.005 280);
-  --muted-foreground: oklch(0.63 0 0);      /* Zinc-400 equivalent */
+  --muted-foreground: oklch(0.63 0 0);      
 
   --accent: oklch(0.18 0.005 280);
   --accent-foreground: oklch(0.97 0 0);
 
   --destructive: oklch(0.704 0.191 22.216);
 
-  --border: oklch(0.22 0.005 280);          /* Subtle border */
+  --border: oklch(0.22 0.005 280);          
   --input: oklch(0.22 0.005 280);
   --ring: oklch(0.97 0 0);
 
-  /* Chart palette (brighter for dark bg) */
   --chart-1: oklch(0.75 0.15 25);
   --chart-2: oklch(0.70 0.13 165);
   --chart-3: oklch(0.78 0.11 80);
   --chart-4: oklch(0.65 0.16 280);
   --chart-5: oklch(0.72 0.14 140);
 
-  /* Sidebar */
   --sidebar: oklch(0.08 0.005 280);
   --sidebar-foreground: oklch(0.97 0 0);
   --sidebar-primary: oklch(0.97 0 0);
@@ -168,8 +173,59 @@
   --sidebar-border: oklch(0.22 0.005 280);
   --sidebar-ring: oklch(0.97 0 0);
 
+  --grid-color: rgba(52, 211, 153, 0.025);
+}
+*/
+
+/* ─────────────────────────────────────────────────
+   THEME: White & Red (Pure Minimalist Theme)
+   ───────────────────────────────────────────────── */
+:root {
+  --neural-emerald: #EE4B2B;
+  --neural-rose: #EE4B2B;
+  --neural-amber: oklch(0.75 0.12 75);
+  --neural-blue: oklch(0.65 0.14 240);
+
+  --background: #ffffff;                    /* Pure white */
+  --foreground: #09090b;                    /* Zinc-950 */
+
+  --card: #ffffff;                          /* Elevated white surface */
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+
+  --primary: #EE4B2B;                       /* Vermilion Red — C:0 M:68 Y:82 K:7 */
+  --primary-foreground: #ffffff;            /* White text on red */
+
+  --secondary: #f4f4f5;                     /* Light zinc surface */
+  --secondary-foreground: #09090b;
+
+  --muted: #f4f4f5;                         /* Light zinc surface */
+  --muted-foreground: #71717a;              /* Zinc-500 */
+
+  --accent: #f4f4f5;                        /* Light border-grey */
+  --accent-foreground: #09090b;
+
+  --destructive: #EE4B2B;
+
+  --border: #e4e4e7;                        /* Zinc-200 */
+  --input: #e4e4e7;
+  --ring: #EE4B2B;
+
+  --radius: 0.5rem;
+
+  /* Sidebar */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #09090b;
+  --sidebar-primary: #EE4B2B;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #09090b;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #EE4B2B;
+
   /* Grid background */
-  --grid-color: rgba(255, 255, 255, 0.02);
+  --grid-color: rgba(238, 75, 43, 0.015);
 }
 
 /* ─── Base Layer ─── */
@@ -179,10 +235,7 @@
   }
   body {
     @apply font-body antialiased bg-background text-foreground;
-    background-image: 
-      radial-gradient(at 0% 0%, var(--grid-color) 1px, transparent 1px),
-      radial-gradient(at 0% 0%, var(--grid-color) 1px, transparent 1px);
-    background-size: 40px 40px;
+    background: #ffffff;
   }
   html {
     @apply font-sans scroll-smooth;
@@ -193,12 +246,23 @@
 @layer components {
   /* Glass panel used in Navbar and overlays */
   .glass-panel {
-    @apply bg-background/70 dark:bg-background/60 backdrop-blur-xl border border-border/50 shadow-lg;
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .crimson-gradient {
+    background: #EE4B2B;
+  }
+
+  .ambient-glow {
+    /* Removed for clean design */
   }
 
   /* Organic glow decorations */
   .organic-glow {
-    @apply absolute filter blur-[120px] opacity-30 dark:opacity-15 -z-10 rounded-full;
+    @apply absolute filter blur-[120px] opacity-10 -z-10 rounded-full;
   }
 
   /* Reveal animation base state */
@@ -211,7 +275,23 @@
 
   /* Shimmer loading effect */
   .shimmer {
-    @apply relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_2s_infinite] before:bg-linear-to-r before:from-transparent before:via-white/10 before:to-transparent;
+    @apply relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_2s_infinite] before:bg-linear-to-r before:from-transparent before:via-black/5 before:to-transparent;
+  }
+
+  /* Custom scrollbar utility */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.2);
   }
 }
 

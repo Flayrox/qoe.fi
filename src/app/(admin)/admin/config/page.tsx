@@ -72,13 +72,12 @@ export default async function AdminConfig() {
                   <td colSpan={2} className="px-0 py-0">
                     <form action={handleUpdateConfig} className="w-full flex items-center justify-between gap-4 py-2">
                       <input type="hidden" name="key" value={c.key} />
-                      
-                      <div className="px-6 w-1/2">
-                        <input 
-                          type="text" 
+                                         <div className="px-6 w-1/2">
+                        <textarea 
                           name="value" 
                           defaultValue={c.value} 
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all font-mono"
+                          rows={c.value.length > 80 || c.value.includes('\n') ? 4 : 1}
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all font-mono resize-y"
                         />
                       </div>
                       
@@ -95,7 +94,7 @@ export default async function AdminConfig() {
                       <div className="pr-4 flex-shrink-0">
                         <button 
                           type="submit" 
-                          className="p-2 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-100 rounded-lg text-zinc-400 transition-colors"
+                          className="p-2 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-100 rounded-lg text-zinc-400 transition-colors cursor-pointer"
                           title="Enregistrer les modifications"
                         >
                           <Save className="w-3.5 h-3.5" />
@@ -109,7 +108,7 @@ export default async function AdminConfig() {
                       <input type="hidden" name="key" value={c.key} />
                       <button 
                         type="submit" 
-                        className="p-2 bg-zinc-950 border border-zinc-800 text-red-500/80 hover:text-red-400 hover:border-red-900/50 rounded-lg transition-colors"
+                        className="p-2 bg-zinc-950 border border-zinc-800 text-red-500/80 hover:text-red-400 hover:border-red-900/50 rounded-lg transition-colors cursor-pointer"
                         title="Supprimer la configuration"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -146,11 +145,11 @@ export default async function AdminConfig() {
           
           <div className="space-y-1.5">
             <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Valeur (Value)</label>
-            <input 
-              type="text" 
+            <textarea 
               name="value"
               placeholder="true / false / ou texte" 
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-zinc-200 focus:border-zinc-500 focus:outline-none font-mono focus:ring-1 focus:ring-zinc-500 transition-all"
+              rows={2}
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-zinc-200 focus:border-zinc-500 focus:outline-none font-mono focus:ring-1 focus:ring-zinc-500 transition-all resize-y"
               required
             />
           </div>
