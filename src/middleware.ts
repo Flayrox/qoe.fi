@@ -17,10 +17,10 @@ export async function middleware(request: NextRequest) {
   }
 
   // 2. Multi-tenancy check
-  const currentHost =
-    process.env.NODE_ENV === "production" && process.env.VERCEL === "1"
-      ? hostname.replace(`.qoe.fi`, "")
-      : hostname.replace(`.localhost:3000`, "");
+  const isLocalhost = hostname.includes("localhost");
+  const currentHost = isLocalhost
+    ? hostname.replace(`.localhost:3000`, "")
+    : hostname.replace(`.qoe.fi`, "");
 
   // Define domains that are not tenants (our main app and admin)
   const isMainDomain =
@@ -28,7 +28,9 @@ export async function middleware(request: NextRequest) {
     hostname === "qoe.fi" ||
     hostname === "www.qoe.fi" ||
     hostname === "admin.localhost:3000" ||
-    hostname === "admin.qoe.fi";
+    hostname === "admin.qoe.fi" ||
+    hostname.endsWith(".run.app") ||
+    hostname.includes("run.app");
 
   // If we're on a tenant domain (like a custom subdomain or custom domain)
   if (!isMainDomain) {
