@@ -275,8 +275,8 @@ function PlateauPreview({ onClose, showChrome, autoClickDot }: PlateauProps) {
             </div>
           </div>
           <div className={cn("absolute inset-0 flex flex-col justify-end p-8 transition-opacity duration-400", active === "writer" ? "opacity-0 pointer-events-none" : "opacity-100")}>
-            <p className="text-white/40 text-[10px] uppercase tracking-[0.2em] mb-2">Éditeur</p>
-            <h3 className="text-white text-2xl font-bold tracking-tight">Écrire.</h3>
+            <p className="text-white/40 text-[10px] uppercase tracking-[0.2em] mb-2">{t("hero.editor_label", "Éditeur")}</p>
+            <h3 className="text-white text-2xl font-bold tracking-tight">{t("hero.write_label", "Écrire.")}</h3>
           </div>
         </motion.div>
 
@@ -291,7 +291,7 @@ function PlateauPreview({ onClose, showChrome, autoClickDot }: PlateauProps) {
           <div className={cn("absolute inset-0 transition-opacity duration-400", active === "reader" ? "opacity-100" : "opacity-0 pointer-events-none")}>
             <div className="w-full h-full bg-white rounded-[24px] flex flex-col overflow-hidden">
               <div className="px-5 pt-4 pb-3 border-b border-neutral-100 shrink-0">
-                <p className="text-[9px] text-[#EE4B2B] font-semibold tracking-widest uppercase">qoe.fi — Lecture</p>
+                <p className="text-[9px] text-[#EE4B2B] font-semibold tracking-widest uppercase">{t("hero.reader_label", "qoe.fi — Lecture")}</p>
               </div>
               <div className="relative flex-1 overflow-hidden">
                 <div className="absolute top-0 inset-x-0 h-6 bg-gradient-to-b from-white to-transparent z-10 pointer-events-none" />

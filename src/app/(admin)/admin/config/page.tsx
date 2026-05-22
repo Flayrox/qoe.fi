@@ -36,48 +36,48 @@ export default async function AdminConfig() {
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8 font-sans">
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-zinc-800 border border-zinc-700 rounded-xl text-zinc-100">
+    <div className="max-w-6xl mx-auto space-y-8 font-sans">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="p-3 bg-neutral-100 border border-neutral-200/60 rounded-2xl text-neutral-900 shadow-sm">
           <Settings className="w-6 h-6" />
         </div>
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Feature Flags & Config</h1>
-          <p className="text-zinc-400 mt-1 text-sm">Gérez le comportement global de qoe.fi sans redéployer.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Feature Flags & Config</h1>
+          <p className="text-neutral-500 mt-1 text-sm">Manage global behavior of the platform without redeploying.</p>
         </div>
       </div>
 
       {/* Feature Flags Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-white border border-neutral-200/60 rounded-[24px] overflow-hidden shadow-sm">
         <table className="w-full text-sm text-left">
-          <thead className="text-xs text-zinc-400 uppercase bg-zinc-950/60 border-b border-zinc-800">
+          <thead className="text-xs text-neutral-500 bg-neutral-50/50 border-b border-neutral-100">
             <tr>
-              <th className="px-6 py-4 font-semibold w-1/4">Clé (Key)</th>
-              <th className="px-6 py-4 font-semibold w-1/4">Valeur</th>
+              <th className="px-6 py-4 font-semibold w-1/4">Key</th>
+              <th className="px-6 py-4 font-semibold w-1/4">Value</th>
               <th className="px-6 py-4 font-semibold w-2/5">Description</th>
               <th className="px-6 py-4 text-right font-semibold w-1/12">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-800/60">
+          <tbody className="divide-y divide-neutral-100">
             {configs.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-zinc-500 italic">Aucune configuration définie.</td>
+                <td colSpan={4} className="px-6 py-12 text-center text-neutral-400 font-medium">No configuration defined.</td>
               </tr>
             ) : (
               configs.map(c => (
-                <tr key={c.key} className="hover:bg-zinc-800/10 transition-colors duration-150 align-middle">
-                  <td className="px-6 py-4 font-mono text-xs font-semibold text-zinc-300">{c.key}</td>
+                <tr key={c.key} className="hover:bg-neutral-50/50 transition-colors duration-150 align-middle group">
+                  <td className="px-6 py-4 font-mono text-xs font-semibold text-neutral-700">{c.key}</td>
                   
                   {/* Inline value and description update form */}
                   <td colSpan={2} className="px-0 py-0">
                     <form action={handleUpdateConfig} className="w-full flex items-center justify-between gap-4 py-2">
                       <input type="hidden" name="key" value={c.key} />
-                                         <div className="px-6 w-1/2">
+                      <div className="px-6 w-1/2">
                         <textarea 
                           name="value" 
                           defaultValue={c.value} 
                           rows={c.value.length > 80 || c.value.includes('\n') ? 4 : 1}
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all font-mono resize-y"
+                          className="w-full bg-white border border-neutral-200 rounded-xl px-3 py-2 text-xs text-neutral-900 focus:outline-none focus:border-neutral-300 focus:ring-4 focus:ring-neutral-100 transition-all font-mono resize-y shadow-sm"
                         />
                       </div>
                       
@@ -86,32 +86,32 @@ export default async function AdminConfig() {
                           type="text" 
                           name="description" 
                           defaultValue={c.description || ""} 
-                          className="w-full bg-transparent border-b border-transparent hover:border-zinc-800 focus:border-zinc-700 px-2 py-1 text-xs text-zinc-400 focus:outline-none transition-all"
-                          placeholder="Ajouter une description..."
+                          className="w-full bg-transparent border-b border-transparent hover:border-neutral-200 focus:border-neutral-300 px-2 py-1.5 text-xs text-neutral-600 focus:outline-none transition-all"
+                          placeholder="Add a description..."
                         />
                       </div>
                       
-                      <div className="pr-4 flex-shrink-0">
+                      <div className="pr-4 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                           type="submit" 
-                          className="p-2 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-100 rounded-lg text-zinc-400 transition-colors cursor-pointer"
-                          title="Enregistrer les modifications"
+                          className="p-2.5 bg-white border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50 rounded-xl text-neutral-600 transition-all shadow-sm"
+                          title="Save changes"
                         >
-                          <Save className="w-3.5 h-3.5" />
+                          <Save className="w-4 h-4" />
                         </button>
                       </div>
                     </form>
                   </td>
                   
                   <td className="px-6 py-4 text-right">
-                    <form action={handleDeleteConfig} className="inline-block">
+                    <form action={handleDeleteConfig} className="inline-block opacity-0 group-hover:opacity-100 transition-opacity">
                       <input type="hidden" name="key" value={c.key} />
                       <button 
                         type="submit" 
-                        className="p-2 bg-zinc-950 border border-zinc-800 text-red-500/80 hover:text-red-400 hover:border-red-900/50 rounded-lg transition-colors cursor-pointer"
-                        title="Supprimer la configuration"
+                        className="p-2.5 bg-white border border-red-100 text-red-500 hover:bg-red-50 rounded-xl transition-all shadow-sm"
+                        title="Delete configuration"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </form>
                   </td>
@@ -123,53 +123,53 @@ export default async function AdminConfig() {
       </div>
 
       {/* Add new Config card */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
+      <div className="bg-white border border-neutral-200/60 rounded-[24px] p-6 shadow-sm space-y-6">
         <div>
-          <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-zinc-400" /> Ajouter une configuration
+          <h3 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
+            <Plus className="w-5 h-5 text-[#EE4B2B]" /> Add Configuration
           </h3>
-          <p className="text-xs text-zinc-500 mt-0.5">Créez un nouveau Feature Flag ou une variable de configuration système.</p>
+          <p className="text-sm text-neutral-500 mt-1">Create a new Feature Flag or system configuration variable.</p>
         </div>
         
-        <form action={handleAddConfig} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <div className="space-y-1.5">
-            <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Clé (Key)</label>
+        <form action={handleAddConfig} className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+          <div className="space-y-2">
+            <label className="text-[11px] uppercase font-bold tracking-wider text-neutral-500">Key</label>
             <input 
               type="text" 
               name="key"
               placeholder="Ex: ALLOW_NEW_REGISTRATIONS" 
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-zinc-200 focus:border-zinc-500 focus:outline-none font-mono focus:ring-1 focus:ring-zinc-500 transition-all"
+              className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-2.5 text-sm text-neutral-900 focus:border-neutral-300 focus:outline-none font-mono focus:ring-4 focus:ring-neutral-100 transition-all shadow-sm"
               required
             />
           </div>
           
-          <div className="space-y-1.5">
-            <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Valeur (Value)</label>
+          <div className="space-y-2">
+            <label className="text-[11px] uppercase font-bold tracking-wider text-neutral-500">Value</label>
             <textarea 
               name="value"
-              placeholder="true / false / ou texte" 
-              rows={2}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-zinc-200 focus:border-zinc-500 focus:outline-none font-mono focus:ring-1 focus:ring-zinc-500 transition-all resize-y"
+              placeholder="true / false / or text" 
+              rows={1}
+              className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-2.5 text-sm text-neutral-900 focus:border-neutral-300 focus:outline-none font-mono focus:ring-4 focus:ring-neutral-100 transition-all shadow-sm resize-y"
               required
             />
           </div>
           
-          <div className="space-y-1.5">
-            <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Description</label>
+          <div className="space-y-2">
+            <label className="text-[11px] uppercase font-bold tracking-wider text-neutral-500">Description</label>
             <input 
               type="text" 
               name="description"
-              placeholder="Description explicative pour l'équipe..." 
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-zinc-200 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 transition-all"
+              placeholder="Description for the team..." 
+              className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-2.5 text-sm text-neutral-900 focus:border-neutral-300 focus:outline-none focus:ring-4 focus:ring-neutral-100 transition-all shadow-sm"
             />
           </div>
           
-          <div className="md:col-span-3 flex justify-end mt-2 pt-2 border-t border-zinc-800/40">
+          <div className="md:col-span-3 flex justify-end mt-4 pt-6 border-t border-neutral-100">
             <button 
               type="submit" 
-              className="bg-white text-black px-6 py-2.5 rounded-xl font-bold hover:bg-zinc-200 transition-colors text-xs flex items-center gap-2"
+              className="bg-[#EE4B2B] text-white px-6 py-2.5 rounded-xl font-bold hover:bg-[#d63f22] transition-colors text-sm flex items-center gap-2 shadow-sm"
             >
-              <Plus className="w-4 h-4" /> Ajouter la variable
+              <Plus className="w-4 h-4" /> Add Variable
             </button>
           </div>
         </form>
