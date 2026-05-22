@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Search } from "lucide-react"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -46,25 +47,29 @@ export function DataTable<TData, TValue>({
   })
 
   return (
-    <div>
-      <div className="flex items-center py-4">
-        <Input
-          placeholder="Filtrer par email..."
-          value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("email")?.setFilterValue(event.target.value)
-          }
-          className="max-w-sm bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-500"
-        />
+    <div className="space-y-4">
+      <div className="flex items-center">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+          <Input
+            placeholder="Filtrer par email..."
+            value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
+            onChange={(event) =>
+              table.getColumn("email")?.setFilterValue(event.target.value)
+            }
+            className="pl-10 bg-white border-neutral-200 text-neutral-900 placeholder:text-neutral-400 rounded-xl focus-visible:ring-neutral-200 shadow-sm"
+          />
+        </div>
       </div>
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 overflow-hidden shadow-xl">
+      
+      <div className="rounded-[24px] border border-neutral-200/60 bg-white overflow-hidden shadow-sm">
         <Table>
-          <TableHeader className="bg-zinc-950/60 border-b border-zinc-800">
+          <TableHeader className="bg-neutral-50/80 border-b border-neutral-100">
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="border-b-zinc-800 hover:bg-transparent">
+              <TableRow key={headerGroup.id} className="border-b-neutral-200 hover:bg-transparent">
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id} className="text-zinc-400 font-semibold uppercase text-xs">
+                    <TableHead key={header.id} className="text-neutral-500 font-bold uppercase text-[10px] tracking-wider">
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -77,16 +82,16 @@ export function DataTable<TData, TValue>({
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody className="divide-y divide-zinc-800/60">
+          <TableBody className="divide-y divide-neutral-100/60">
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="hover:bg-zinc-800/20 border-b-zinc-800/60 transition-colors"
+                  className="hover:bg-neutral-50/50 border-b-neutral-100 transition-colors"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="py-4">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
@@ -94,7 +99,7 @@ export function DataTable<TData, TValue>({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-zinc-500">
+                <TableCell colSpan={columns.length} className="h-32 text-center text-neutral-500 font-medium">
                   Aucun résultat.
                 </TableCell>
               </TableRow>
@@ -109,7 +114,7 @@ export function DataTable<TData, TValue>({
           size="sm"
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
-          className="bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+          className="bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 rounded-xl"
         >
           Précédent
         </Button>
@@ -118,7 +123,7 @@ export function DataTable<TData, TValue>({
           size="sm"
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
-          className="bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+          className="bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 rounded-xl"
         >
           Suivant
         </Button>
