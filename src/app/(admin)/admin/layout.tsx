@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/db"
 import Link from "next/link"
-import { Shield, Users, Activity, Settings2 } from "lucide-react"
+import { Shield, Users, Activity, Settings2, LayoutTemplate } from "lucide-react"
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient()
@@ -30,14 +30,17 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           </Link>
         </div>
         <nav className="p-4 space-y-2 flex-1">
-          <Link href="/admin" className="flex items-center gap-3 px-4 py-3 rounded-lg bg-zinc-900 text-white font-medium hover:bg-zinc-800 transition-colors">
-            <Activity className="w-4 h-4 text-zinc-400" /> System Health
+          <Link href="/admin" className="flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 font-medium hover:bg-zinc-800 hover:text-white transition-colors">
+            <Activity className="w-4 h-4" /> System Health
           </Link>
-          <Link href="/admin/creators" className="flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 font-medium hover:bg-zinc-800 hover:text-white transition-colors">
-            <Users className="w-4 h-4" /> Moderation
+          <Link href="/admin/users" className="flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 font-medium hover:bg-zinc-800 hover:text-white transition-colors">
+            <Users className="w-4 h-4" /> Users & Modération
           </Link>
           <Link href="/admin/config" className="flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 font-medium hover:bg-zinc-800 hover:text-white transition-colors">
             <Settings2 className="w-4 h-4" /> Feature Flags
+          </Link>
+          <Link href="/admin/frontend" className="flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 font-medium hover:bg-zinc-800 hover:text-white transition-colors">
+            <LayoutTemplate className="w-4 h-4" /> Frontend & UI
           </Link>
         </nav>
       </aside>

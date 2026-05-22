@@ -26,6 +26,7 @@ model User {
   isCertified    Boolean   @default(false)
   isShadowbanned Boolean   @default(false)
   isSuspended    Boolean   @default(false)
+  suspendReason  String?
   forceStandardTheme Boolean @default(false) // For readers who want pure text, overriding creator themes
   
   // Custom Domain & Multi-tenant Config
