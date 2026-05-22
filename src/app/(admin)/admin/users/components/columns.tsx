@@ -81,12 +81,9 @@ export const columns: ColumnDef<AdminUser>[] = [
 
       return (
         <DropdownMenu>
-          {/* @ts-expect-error React 19 Radix UI type mismatch */}
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800">
-              <span className="sr-only">Ouvrir menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
+          <DropdownMenuTrigger className="h-8 w-8 inline-flex items-center justify-center rounded-md p-0 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-800 transition-colors">
+            <span className="sr-only">Ouvrir menu</span>
+            <MoreHorizontal className="h-4 w-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48 bg-zinc-950 border-zinc-800 text-zinc-200">
             <DropdownMenuLabel>Actions de Modération</DropdownMenuLabel>

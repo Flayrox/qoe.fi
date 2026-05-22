@@ -195,7 +195,10 @@ interface PlateauProps {
 function PlateauPreview({ onClose, showChrome, autoClickDot }: PlateauProps) {
   const { t } = useTranslate();
   const [active, setActive] = useState<"writer" | "reader">("writer");
-  const typedBody = useTypewriter(EDITOR_BODY, 30, active === "writer");
+  
+  const editorBody = t("hero.editor_body", `Il y a dans le vide une forme d'intelligence que nos écrans ont oubliée. Écrire, c'est d'abord creuser — ôter le superflu jusqu'à ce que la phrase respire d'elle-même, sans soutien artificiel.\n\nLa clarté ne s'impose pas. Elle se révèle, lentement, comme une lumière qui filtre à travers le brouillard de nos pensées accumulées.\n\nLa page blanche n'est pas une menace. C'est une invitation.`);
+  
+  const typedBody = useTypewriter(editorBody, 30, active === "writer");
   const redDotRef = useRef<HTMLButtonElement>(null);
 
   return (
@@ -244,7 +247,9 @@ function PlateauPreview({ onClose, showChrome, autoClickDot }: PlateauProps) {
                   <span className="text-[10px] text-neutral-400">{t("hero.draft_saved", "Brouillon · Auto-sauvegardé")}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-neutral-300">{t("hero.words_count", `{count} mots`).replace("{count}", typedBody.split(" ").filter(Boolean).length.toString())}</span>
+                  <span className="text-[10px] text-neutral-300">
+                    {t("hero.words_count", "{count} mots", { count: typedBody.split(" ").filter(Boolean).length.toString() })}
+                  </span>
                   <Link href="/login" className="inline-flex items-center gap-1 bg-[#EE4B2B] hover:bg-[#d63d20] text-white text-[10px] font-semibold px-3 py-1.5 rounded-md transition-colors">
                     {t("hero.publish", "Publier")} <ArrowUpRight className="w-3 h-3" />
                   </Link>
@@ -259,7 +264,9 @@ function PlateauPreview({ onClose, showChrome, autoClickDot }: PlateauProps) {
                     <span key={l} className="text-[10px] font-medium px-2 py-0.5 rounded hover:bg-neutral-700 cursor-pointer transition-colors">{l}</span>
                   ))}
                 </motion.div>
-                <h1 className="text-2xl md:text-[2rem] font-bold text-neutral-900 leading-tight tracking-tight mt-2">{EDITOR_TITLE}</h1>
+                <h1 className="text-2xl md:text-[2rem] font-bold text-neutral-900 leading-tight tracking-tight mt-2">
+                  {t("hero.editor_title", "L'architecture du silence")}
+                </h1>
                 <p className="text-sm md:text-base text-neutral-600 leading-relaxed min-h-[6rem] max-w-2xl whitespace-pre-line">
                   {typedBody}
                   <span className="inline-block w-[2px] h-[1em] bg-[#EE4B2B] align-middle ml-0.5 animate-pulse" />
