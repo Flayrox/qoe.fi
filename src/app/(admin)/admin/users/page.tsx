@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db"
 import { DataTable } from "./components/data-table"
 import { columns, AdminUser } from "./components/columns"
+import { Users } from "lucide-react"
 
 export default async function AdminUsers() {
   // Fetch all users for moderation
@@ -20,10 +21,15 @@ export default async function AdminUsers() {
   })
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8 font-sans">
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Utilisateurs & Modération</h1>
-        <p className="text-zinc-400 mt-1 text-sm">Gérez tous les comptes, bannissements, et certifications depuis le Tribunal.</p>
+    <div className="max-w-6xl mx-auto space-y-8 font-sans">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="p-3 bg-neutral-100 border border-neutral-200/60 rounded-2xl text-neutral-900 shadow-sm">
+          <Users className="w-6 h-6" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Utilisateurs & Modération</h1>
+          <p className="text-neutral-500 mt-1 text-sm">Gérez tous les comptes, bannissements, et certifications.</p>
+        </div>
       </div>
 
       <DataTable columns={columns} data={users as AdminUser[]} />

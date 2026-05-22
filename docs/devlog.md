@@ -273,3 +273,53 @@ To continue building from here:
 - **Importation** : Ajout de l'icône `Bookmark` manquante dans les imports de `lucide-react` au sein de [ArticlePreviewModal.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/components/sections/ArticlePreviewModal.tsx), résolvant une erreur critique empêchant le build.
 - **Validation** : Le projet compile à présent parfaitement et passe la vérification TypeScript stricte.
 
+---
+
+### Session 8 - UI Refinement, Bento System, Tolgee Sync & God Mode (Superadmin)
+*Date : 22 Mai 2026*
+
+**31. Refonte Navbar & Adaptive Logo**
+- **Esthétique** : La barre de navigation (`NavbarPremium.tsx`) a été ancrée au plafond (suppression des marges) avec un adoucissement exclusif des angles inférieurs (`rounded-b-xl`).
+- **Couleurs dynamiques** : Le Logo et les boutons de navigation s'adaptent désormais dynamiquement. Si le Hero est fermé (via le plateau Bento) et que la barre se retrouve sur le fond orange, ils passent en **blanc pur**. Lors du scroll, la barre récupère son `backdrop-blur` blanc et les éléments repassent en **rouge/sombre**.
+
+**32. Animation du Curseur Mac (Easter Egg)**
+- **Problème** : L'animation du curseur (qui s'active après 5 scrolls pour fermer le plateau) ciblait mal le bouton de fermeture sur les grands écrans et le mouvement semblait téléporté (tressaillements).
+- **Solution** : Rattachement de la balise de ciblage directement sur le bouton, et remplacement de l'animation linéaire par une **courbe de Bézier en 4 points** générant un mouvement fluide et organique pendant exactement 1.6s. Ajout d'une ombre portée (`drop-shadow`) pour renforcer l'illusion 3D.
+
+**33. Bento System & Refonte Page de Connexion**
+- **Composant Global** : Extraction de l'architecture visuelle du logo "Q" en un composant réutilisable complet : `BentoPlateau.tsx`.
+- **Login Page** : Transformation radicale de `login-form.tsx` pour adopter ce layout Bento. À gauche (blanc), le formulaire de connexion (avec les boutons Google/Apple réintégrés dans des "mini-bentos"). À droite (rouge), le manifeste de la plateforme.
+- **Animation de Texte** : Intégration de `AnimatePresence` pour faire alterner le manifeste fluide entre un discours pour les "Créateurs" et un autre pour les "Lecteurs".
+
+**34. Tolgee Full Sync & Résolution Middleware**
+- **Problème** : Le site restait en français en visitant le chemin `/en`. Le middleware Supabase effaçait l'en-tête `x-locale` généré par Next.js.
+- **Solution** : Modification de `src/lib/supabase/middleware.ts` pour transmettre explicitement les requêtes clonées : `NextResponse.next({ request: { headers: request.headers } })`. L'hydratation SSR capte désormais correctement la langue ciblée.
+- **Zéro Hardcoding** : Extraction totale des textes statiques de la Landing Page (`Hero.tsx`, `CreatorHub.tsx`, `CTA.tsx`) et ajout synchronisé dans `messages/en.json` et `messages/fr.json`. 
+
+**35. God Mode (Dashboard Superadmin)**
+- **Mise en place de l'Architecture RBAC** : Routage sécurisé sur `/admin` accessible uniquement aux rôles `superadmin`.
+- **Modération Sécurisée (`/admin/users`)** : Implémentation d'une table TanStack listant tous les utilisateurs. Câblage du bouton "Bannir" avec l'API *Service Role* de Supabase : suspension du compte en base de données **et destruction immédiate du token d'authentification** via `admin.updateUserById({ ban_duration: '876000h' })`.
+- **Gestion des Feature Flags (`/admin/config`)** : Tableau de bord pour créer et modifier des variables systèmes en base de données sans redéploiement (ex: bannières d'annonces globales).
+- **Santé du Système (`/admin`)** : Création du composant `GrowthChart.tsx` (Recharts) pour visualiser la croissance en temps réel (MRR, utilisateurs, articles).
+
+---
+
+### Session 9 - Refonte Vercel/Linear Admin & Clone Umami
+*Date : 22 Mai 2026*
+
+**36. Refonte Light Mode Premium (Admin Layout)**
+- **Esthétique Vercel/Linear** : Abandon du Dark Mode Brutaliste pour l'interface d'administration `/admin`. Adoption d'un "Light Mode Premium" ultra-lisible (Fonds blancs, bordures douces `border-neutral-200/60`, ombres légères `shadow-sm`, et backgrounds subtils `bg-neutral-100`).
+- **Sidebar Interactive** : Refonte de la navigation `AdminSidebar` exploitant `framer-motion` (`layoutId="active-nav"`) pour fluidifier les transitions de menu, avec un indicateur de santé système intégré.
+
+**37. Moteur d'Analytics Modulaire (Façon Umami/Matomo)**
+- **Composant Interactif** : Création de `AnalyticsOverview.tsx` : un composant ultra-réactif permettant de cliquer sur des "KPI Cards" (Total Utilisateurs, Créateurs Actifs, Articles, MRR) pour swapper dynamiquement la courbe de croissance en dessous avec animation `AnimatePresence`.
+- **Aggregation Intelligente** : Passage de `GrowthChart` à une grille Recharts `AreaChart` complète et texturée (Gradient CSS), alignant la flexibilité d'un outil d'Analytics dédié pour des décisions "Data-Driven".
+
+**38. Command Palette Omnibar (CMDK)**
+- **Navigation Superadmin 10x** : Implémentation du composant `CommandPalette.tsx` accessible via `⌘K` depuis n'importe où dans le dashboard. Basé sur `cmdk`, il garantit au Superadmin une navigation éclair sans souris vers la Modération, le Dashboard ou les configurations.
+
+**39. Profiling Détaillé & Creator Intelligence**
+- **Modération Éclairée** : Création de la page `/admin/users/[id]/page.tsx` accessible depuis le menu d'actions du tableau utilisateur.
+- **Métriques Avancées** : Vue consolidée permettant d'analyser le LTV (Lifetime Value) des abonnés d'un créateur, ses revenus générés, son taux de conversion et son historique de statut pour une modération chirurgicale et ciblée.
+
+
