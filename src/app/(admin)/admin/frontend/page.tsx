@@ -28,64 +28,64 @@ export default async function AdminFrontend() {
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8 font-sans">
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-zinc-800 border border-zinc-700 rounded-xl text-zinc-100">
+    <div className="max-w-6xl mx-auto space-y-8 font-sans">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="p-3 bg-neutral-100 border border-neutral-200/60 rounded-[28px] text-neutral-900 shadow-sm">
           <LayoutTemplate className="w-6 h-6" />
         </div>
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Frontend & Interface</h1>
-          <p className="text-zinc-400 mt-1 text-sm">Gérez l'apparence globale et les traductions de qoe.fi.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Frontend & Interface</h1>
+          <p className="text-neutral-500 mt-1 text-sm">Gérez l'apparence globale et les traductions de qoe.fi.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Global Banner Card */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col">
+        <div className="bg-white border border-neutral-200/60 rounded-[36px] p-6 shadow-2xl flex flex-col">
           <div className="flex items-center gap-2 mb-6">
-            <Globe className="w-5 h-5 text-blue-400" />
-            <h2 className="text-lg font-bold text-zinc-100">Bannière Globale (Annonces)</h2>
+            <Globe className="w-5 h-5 text-[#EE4B2B]" />
+            <h2 className="text-lg font-bold text-neutral-900">Bannière Globale (Annonces)</h2>
           </div>
           
           <form action={handleSaveBanner} className="space-y-4 flex-1 flex flex-col">
-            <div className="flex items-center justify-between p-3 bg-zinc-950 border border-zinc-800 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-neutral-50 border border-neutral-200/60 rounded-xl">
               <div>
-                <p className="text-sm font-semibold text-zinc-200">Activer la bannière</p>
-                <p className="text-xs text-zinc-500">S'affichera tout en haut de l'écran.</p>
+                <p className="text-sm font-semibold text-neutral-900">Activer la bannière</p>
+                <p className="text-xs text-neutral-500">S'affichera tout en haut de l'écran.</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" name="enabled" defaultChecked={bannerEnabled} className="sr-only peer" />
-                <div className="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#EE4B2B]"></div>
               </label>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Texte de l'annonce</label>
+              <label className="text-[10px] uppercase font-bold tracking-wider text-neutral-500">Texte de l'annonce</label>
               <textarea 
                 name="text"
                 defaultValue={bannerText}
                 placeholder="Ex: qoe.fi V2 est maintenant en ligne ! Découvrez les nouveautés..." 
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-zinc-200 focus:border-zinc-500 focus:outline-none resize-none"
+                className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-2 text-sm text-neutral-900 focus:border-neutral-300 focus:outline-none resize-none shadow-sm"
                 rows={3}
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Lien (URL optionnelle)</label>
+              <label className="text-[10px] uppercase font-bold tracking-wider text-neutral-500">Lien (URL optionnelle)</label>
               <input 
                 type="text" 
                 name="link"
                 defaultValue={bannerLink}
                 placeholder="https://qoe.fi/changelog" 
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-zinc-200 focus:border-zinc-500 focus:outline-none"
+                className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-2 text-sm text-neutral-900 focus:border-neutral-300 focus:outline-none shadow-sm"
               />
             </div>
 
             <div className="mt-auto pt-4 flex justify-end">
               <button 
                 type="submit" 
-                className="bg-white text-black px-6 py-2 rounded-lg font-bold hover:bg-zinc-200 transition-colors text-sm flex items-center gap-2"
+                className="bg-[#EE4B2B] text-white px-6 py-2 rounded-xl font-bold hover:bg-[#d63f22] transition-colors text-sm flex items-center gap-2 shadow-sm"
               >
                 <Save className="w-4 h-4" /> Mettre à jour
               </button>
@@ -94,18 +94,19 @@ export default async function AdminFrontend() {
         </div>
 
         {/* Translations Card */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col">
+        <div className="bg-white border border-neutral-200/60 rounded-[36px] p-6 shadow-2xl flex flex-col">
           <div className="flex items-center gap-2 mb-6">
-            <Languages className="w-5 h-5 text-emerald-400" />
-            <h2 className="text-lg font-bold text-zinc-100">Traductions (Tolgee)</h2>
+            <Languages className="w-5 h-5 text-[#EE4B2B]" />
+            <h2 className="text-lg font-bold text-neutral-900">Traductions (Tolgee)</h2>
           </div>
           
-          <div className="space-y-4 text-zinc-300 text-sm leading-relaxed">
+          <div className="space-y-4 text-neutral-600 text-sm leading-relaxed">
             <p>
               L'intégralité des textes statiques de l'interface (boutons, placeholders, menus, manifestes) n'est plus codée en dur ("hardcoded").
             </p>
-            <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-lg font-mono text-xs text-zinc-400">
-              {`// Exemple de clé de traduction\nt("login.manifesto_creators_title")`}
+            <div className="p-4 bg-neutral-50 border border-neutral-200/60 rounded-xl font-mono text-xs text-neutral-500">
+              {`// Exemple de clé de traduction
+t("login.manifesto_creators_title")`}
             </div>
             <p>
               Pour modifier une phrase sur la plateforme, connectez-vous au <strong>Dashboard Tolgee</strong> du projet. Toute modification effectuée là-bas sera instantanément synchronisée ou nécessitera juste un export des fichiers <code>fr.json</code> et <code>en.json</code>.
@@ -117,7 +118,7 @@ export default async function AdminFrontend() {
               href="https://app.tolgee.io" 
               target="_blank" 
               rel="noreferrer"
-              className="block w-full text-center bg-zinc-800 border border-zinc-700 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-zinc-700 transition-colors text-sm"
+              className="block w-full text-center bg-neutral-100 border border-neutral-200/60 text-neutral-900 px-6 py-2.5 rounded-xl font-bold hover:bg-neutral-200 transition-colors text-sm"
             >
               Ouvrir le Dashboard Tolgee
             </a>

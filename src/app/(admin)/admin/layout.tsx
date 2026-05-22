@@ -22,13 +22,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-neutral-100 text-neutral-900 flex flex-col md:flex-row p-2 md:p-4 gap-2 md:gap-4 font-sans selection:bg-[#EE4B2B] selection:text-white">
+    <div className="min-h-screen bg-neutral-50 text-neutral-900 flex flex-col md:flex-row p-2 md:p-4 gap-2 md:gap-4 font-sans selection:bg-[#EE4B2B] selection:text-white">
       <AdminSidebar />
       
-      <main className="flex-1 bg-white rounded-[32px] border border-neutral-200/60 shadow-sm overflow-hidden flex flex-col relative">
+      <main className="flex-1 bg-white rounded-[36px] border border-neutral-200/60 shadow-2xl overflow-hidden flex flex-col relative">
         <header className="h-[72px] border-b border-neutral-100 flex items-center justify-between px-8 shrink-0 bg-white/80 backdrop-blur-md sticky top-0 z-10">
            <div className="flex items-center gap-3 text-neutral-400 text-xs font-bold tracking-wider uppercase">
-             <Shield className="w-4 h-4 text-emerald-500" />
+             <Shield className="w-4 h-4 text-[#EE4B2B]" />
              SUPERADMIN
            </div>
            

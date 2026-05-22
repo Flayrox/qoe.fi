@@ -97,7 +97,7 @@ export function AnalyticsOverview({ data, totals }: AnalyticsOverviewProps) {
               key={metric.id}
               onClick={() => setActiveMetric(metric.id)}
               className={cn(
-                "relative text-left p-6 rounded-2xl border transition-all duration-300 overflow-hidden group",
+                "relative text-left p-6 rounded-[28px] border transition-all duration-300 overflow-hidden group",
                 isActive 
                   ? "bg-white border-neutral-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]" 
                   : "bg-neutral-50/50 border-neutral-100 hover:bg-neutral-50 hover:border-neutral-200"
@@ -106,7 +106,7 @@ export function AnalyticsOverview({ data, totals }: AnalyticsOverviewProps) {
               {isActive && (
                 <motion.div 
                   layoutId="active-kpi"
-                  className="absolute inset-0 border-2 rounded-2xl pointer-events-none"
+                  className="absolute inset-0 border-2 rounded-[28px] pointer-events-none"
                   style={{ borderColor: activeColor, opacity: 0.1 }}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 />
@@ -127,7 +127,7 @@ export function AnalyticsOverview({ data, totals }: AnalyticsOverviewProps) {
       </div>
 
       {/* Main Chart */}
-      <div className="bg-white border border-neutral-200/60 rounded-3xl p-6 shadow-sm h-[420px] flex flex-col relative overflow-hidden">
+      <div className="bg-white border border-neutral-200/60 rounded-[36px] p-6 shadow-2xl h-[420px] flex flex-col relative overflow-hidden">
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-semibold text-neutral-800">
             {METRICS.find(m => m.id === activeMetric)?.label} over time

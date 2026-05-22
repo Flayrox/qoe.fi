@@ -17,7 +17,7 @@ export function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-full md:w-[260px] bg-white rounded-[32px] border border-neutral-200/60 shadow-sm flex flex-col overflow-hidden shrink-0">
+    <aside className="w-full md:w-[260px] bg-white rounded-[36px] border border-neutral-200/60 shadow-2xl flex flex-col overflow-hidden shrink-0">
       <div className="h-[72px] flex items-center px-8 border-b border-neutral-100">
         <Link href="/" className="flex items-center gap-3">
            <Coffee className="w-5 h-5 text-[#EE4B2B]" />

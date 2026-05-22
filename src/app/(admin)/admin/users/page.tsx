@@ -23,7 +23,7 @@ export default async function AdminUsers() {
   return (
     <div className="max-w-6xl mx-auto space-y-8 font-sans">
       <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-neutral-100 border border-neutral-200/60 rounded-2xl text-neutral-900 shadow-sm">
+        <div className="p-3 bg-neutral-100 border border-neutral-200/60 rounded-[28px] text-neutral-900 shadow-sm">
           <Users className="w-6 h-6" />
         </div>
         <div>

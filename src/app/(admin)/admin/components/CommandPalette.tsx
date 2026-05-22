@@ -29,7 +29,7 @@ export function CommandPalette() {
         onClick={() => setOpen(false)}
       />
       <Command 
-        className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-neutral-200 overflow-hidden relative z-10 animate-in fade-in zoom-in-95 duration-200"
+        className="w-full max-w-2xl bg-white rounded-[36px] shadow-2xl border border-neutral-200 overflow-hidden relative z-10 animate-in fade-in zoom-in-95 duration-200"
       >
         <div className="px-4 border-b border-neutral-100 flex items-center">
           <Command.Input 
