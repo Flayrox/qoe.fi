@@ -38,7 +38,7 @@ export default async function AdminConfig() {
   return (
     <div className="max-w-6xl mx-auto space-y-8 font-sans">
       <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-neutral-100 border border-neutral-200/60 rounded-2xl text-neutral-900 shadow-sm">
+        <div className="p-3 bg-neutral-100 border border-neutral-200/60 rounded-[28px] text-neutral-900 shadow-sm">
           <Settings className="w-6 h-6" />
         </div>
         <div>
@@ -48,7 +48,7 @@ export default async function AdminConfig() {
       </div>
 
       {/* Feature Flags Table */}
-      <div className="bg-white border border-neutral-200/60 rounded-[24px] overflow-hidden shadow-sm">
+      <div className="bg-white border border-neutral-200/60 rounded-[36px] overflow-hidden shadow-2xl">
         <table className="w-full text-sm text-left">
           <thead className="text-xs text-neutral-500 bg-neutral-50/50 border-b border-neutral-100">
             <tr>
@@ -123,7 +123,7 @@ export default async function AdminConfig() {
       </div>
 
       {/* Add new Config card */}
-      <div className="bg-white border border-neutral-200/60 rounded-[24px] p-6 shadow-sm space-y-6">
+      <div className="bg-white border border-neutral-200/60 rounded-[36px] p-6 shadow-2xl space-y-6">
         <div>
           <h3 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
             <Plus className="w-5 h-5 text-[#EE4B2B]" /> Add Configuration
