@@ -13,72 +13,57 @@ interface CreatorHubProps {
 const TABS = ["Créateurs", "Médias & CMS", "API"] as const;
 type Tab = (typeof TABS)[number];
 
-const TAB_CONTENT: Record<Tab, { eyebrow: string; headline: string; body: string; features: string[]; cta: string; ctaHref: string }> = {
-  "Créateurs": {
-    eyebrow: "Journalistes, essayistes, collectifs",
-    headline: "Votre média en 3 minutes.",
-    body: "Pas de code. Pas de serveur. Pas de comptable. Vous avez une voix — nous vous donnons l'infrastructure. Sous-domaine personnalisé, SSL automatique, éditeur riche, newsletter intégrée, paiement direct.",
-    features: [
-      "Sous-domaine media.qoe.fi ou votre propre domaine",
-      "Éditeur WYSIWYG + Markdown — auto-sauvegarde",
-      "Paywall & abonnements via Stripe Connect",
-      "Newsletter via Brevo (API française)",
-      "Analytics éthiques, sans cookies (Umami)",
-      "Hébergement zéro coût jusqu'à 1 000 abonnés",
-    ],
-    cta: "Créer mon média",
-    ctaHref: "/login",
-  },
-  "Médias & CMS": {
-    eyebrow: "Rédactions, titres indépendants",
-    headline: "Votre CMS. Votre audience. Votre ligne.",
-    body: "Synchronisation bidirectionnelle avec vos bases existantes. Importez vos archives, continuez à publier où vous êtes, diffusez ici en temps réel. Votre audience grandit — nos serveurs absorbent.",
-    features: [
-      "API REST + webhooks pour sync CMS existants",
-      "Import d'archives (RSS, JSON, CSV)",
-      "Multi-auteurs et rôles éditoriaux",
-      "Mise en avant croisée inter-médias sur qoe.fi",
-      "Certification officielle (badge vérifié)",
-      "Dashboard éditorial centralisé",
-    ],
-    cta: "Rejoindre l'écosystème",
-    ctaHref: "/login",
-  },
-  "API": {
-    eyebrow: "Développeurs, intégrateurs",
-    headline: "Headless. Ouvert. Souverain.",
-    body: "Accédez à l'intégralité de notre infrastructure via une API REST sémantique. Construisez votre front, votre app mobile, votre propre CMS. Nos données, votre interface.",
-    features: [
-      "API REST documentée (OpenAPI 3.0)",
-      "Authentification via Supabase JWT",
-      "Webhooks temps réel (publication, abonnement)",
-      "SDK TypeScript open-source",
-      "Sandbox de test gratuit",
-      "SLA 99.9% — hébergement Hetzner (Allemagne)",
-    ],
-    cta: "Lire la documentation",
-    ctaHref: "/docs",
-  },
-};
-
-// Terminal-style code snippet for API tab
-const API_SNIPPET = `// Récupérer les articles d'un média
-const res = await fetch(
-  'https://api.qoe.fi/v1/articles',
-  {
-    headers: {
-      Authorization: \`Bearer \${token}\`,
-      'Content-Type': 'application/json',
-    },
-  }
-);
-
-const { data } = await res.json();
-// → [{ id, title, content, author, ... }]`;
-
 export const CreatorHub = ({ config }: CreatorHubProps) => {
   const { t } = useTranslate();
   const [activeTab, setActiveTab] = useState<Tab>("Créateurs");
+
+  const TAB_CONTENT: Record<Tab, { eyebrow: string; headline: string; body: string; features: string[]; cta: string; ctaHref: string }> = {
+    "Créateurs": {
+      eyebrow: t("creator_tab_eyebrow", "Journalistes, essayistes, collectifs"),
+      headline: t("creator_tab_headline", "Votre média en 3 minutes."),
+      body: t("creator_tab_body", "Pas de code. Pas de serveur. Pas de comptable. Vous avez une voix — nous vous donnons l'infrastructure. Sous-domaine personnalisé, SSL automatique, éditeur riche, newsletter intégrée, paiement direct."),
+      features: [
+        t("creator_feat_1", "Sous-domaine media.qoe.fi ou votre propre domaine"),
+        t("creator_feat_2", "Éditeur WYSIWYG + Markdown — auto-sauvegarde"),
+        t("creator_feat_3", "Paywall & abonnements via Stripe Connect"),
+        t("creator_feat_4", "Newsletter via Brevo (API française)"),
+        t("creator_feat_5", "Analytics éthiques, sans cookies (Umami)"),
+        t("creator_feat_6", "Hébergement zéro coût jusqu'à 1 000 abonnés"),
+      ],
+      cta: t("creator_cta", "Créer mon média"),
+      ctaHref: "/login",
+    },
+    "Médias & CMS": {
+      eyebrow: t("media_tab_eyebrow", "Rédactions, titres indépendants"),
+      headline: t("media_tab_headline", "Votre CMS. Votre audience. Votre ligne."),
+      body: t("media_tab_body", "Synchronisation bidirectionnelle avec vos bases existantes. Importez vos archives, continuez à publier où vous êtes, diffusez ici en temps réel. Votre audience grandit — nos serveurs absorbent."),
+      features: [
+        t("media_feat_1", "API REST + webhooks pour sync CMS existants"),
+        t("media_feat_2", "Import d'archives (RSS, JSON, CSV)"),
+        t("media_feat_3", "Multi-auteurs et rôles éditoriaux"),
+        t("media_feat_4", "Mise en avant croisée inter-médias sur qoe.fi"),
+        t("media_feat_5", "Certification officielle (badge vérifié)"),
+        t("media_feat_6", "Dashboard éditorial centralisé"),
+      ],
+      cta: t("media_cta", "Rejoindre l'écosystème"),
+      ctaHref: "/login",
+    },
+    "API": {
+      eyebrow: t("api_tab_eyebrow", "Développeurs, intégrateurs"),
+      headline: t("api_tab_headline", "Headless. Ouvert. Souverain."),
+      body: t("api_tab_body", "Accédez à l'intégralité de notre infrastructure via une API REST sémantique. Construisez votre front, votre app mobile, votre propre CMS. Nos données, votre interface."),
+      features: [
+        t("api_feat_1", "API REST documentée (OpenAPI 3.0)"),
+        t("api_feat_2", "Authentification via Supabase JWT"),
+        t("api_feat_3", "Webhooks temps réel (publication, abonnement)"),
+        t("api_feat_4", "SDK TypeScript open-source"),
+        t("api_feat_5", "Sandbox de test gratuit"),
+        t("api_feat_6", "SLA 99.9% — hébergement Hetzner (Allemagne)"),
+      ],
+      cta: t("api_cta", "Lire la documentation"),
+      ctaHref: "/docs",
+    },
+  };
 
   const sectionTitle = config["creator_hub_title"] || t("creator_hub_title", "Une infrastructure pour ceux qui pensent.");
   const sectionTagline = config["creator_hub_tagline"] || t("creator_hub_tagline", "Rejoignez l'écosystème");
