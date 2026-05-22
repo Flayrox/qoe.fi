@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+  # -----------------------------------------------------
+  # UMAMI ANALYTICS - The Sovereign Tracker
+  # -----------------------------------------------------
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    container_name: umami
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://umami:umami@umami-db:5432/umami
+      DATABASE_TYPE: postgresql
+      APP_SECRET: ${UMAMI_SECRET:-qoe_fi_super_secret_analytics_key_2026}
+    depends_on:
+      umami-db:
+        condition: service_healthy
+    restart: always
+
+  umami-db:
+    image: postgres:15-alpine
+    container_name: umami_db
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: umami
+    volumes:
+      - umami-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umami"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+    restart: always
+
+volumes:
+  umami-db-data:
