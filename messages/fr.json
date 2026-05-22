@@ -139,5 +139,16 @@
       "status_draft": "Brouillon",
       "edit_content": "Modifier le contenu"
     }
-  }
+  },
+  "cta_eyebrow": "Pour ceux qui veulent se cultiver",
+  "cta_headline": "Du temps bien dépensé.",
+  "cta_subline": "Pas de scroll toxique. Pas d'algorithme marchand. Juste du fond, du temps long, et un espace qui respecte votre intelligence.",
+  "cta_btn_primary": "Commencer à lire",
+  "cta_btn_secondary": "Se cultiver, gratuitement",
+  "cta_social_proof": "Gratuit · Aucune carte bancaire requise · Données hébergées en Europe",
+  "creator_hub_title": "Une infrastructure pour ceux qui pensent.",
+  "creator_hub_tagline": "Rejoignez l'écosystème",
+  "creator_hub_conviction": "Zéro VC. Zéro GAFAM. Zéro compromis.",
+  "creator_hub_conviction_sub": "Bootstrapé par conviction. Hébergé en Allemagne (Hetzner, énergie verte). Données souveraines. RGPD by design.",
+  "creator_hub_manifesto": "Lire le manifeste"
 }

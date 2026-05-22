@@ -139,5 +139,16 @@
       "status_draft": "Draft",
       "edit_content": "Edit Content"
     }
-  }
+  },
+  "cta_eyebrow": "For those who seek depth",
+  "cta_headline": "Time well spent.",
+  "cta_subline": "No toxic scrolling. No commercial algorithms. Just substance, deep time, and a space that respects your intelligence.",
+  "cta_btn_primary": "Start reading",
+  "cta_btn_secondary": "Cultivate yourself, for free",
+  "cta_social_proof": "Free · No credit card required · Data hosted in Europe",
+  "creator_hub_title": "An infrastructure for those who think.",
+  "creator_hub_tagline": "Join the ecosystem",
+  "creator_hub_conviction": "Zero VC. Zero Big Tech. Zero compromises.",
+  "creator_hub_conviction_sub": "Bootstrapped by conviction. Hosted in Germany (Hetzner, green energy). Sovereign data. GDPR by design.",
+  "creator_hub_manifesto": "Read the manifesto"
 }

@@ -314,6 +314,7 @@ function PlateauPreview({ onClose, showChrome, autoClickDot }: PlateauProps) {
 
 // ─── Hero section ────────────────────────────────────────────────────────────
 export const Hero = ({ config }: HeroProps) => {
+  const { t } = useTranslate();
   const router = useRouter();
   const [closed, setClosed] = useState(false);
   const [showChrome, setShowChrome] = useState(false);
@@ -431,7 +432,7 @@ export const Hero = ({ config }: HeroProps) => {
               className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 text-[10px] text-neutral-400 select-none pointer-events-none"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#EE4B2B]" />
-              Cliquez × pour découvrir les publications
+              {t("hero.close_hint", "Cliquez × pour découvrir les publications")}
             </motion.div>
           )}
         </AnimatePresence>
