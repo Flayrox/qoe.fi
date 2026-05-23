@@ -7,11 +7,7 @@ import {
   AreaChart,
   ResponsiveContainer,
   Tooltip,
-  XAxis,
-  YAxis,
-  CartesianGrid
 } from "recharts"
-import { Calendar, Users, PenTool, Euro, Activity } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface DailyData {
@@ -35,21 +31,14 @@ interface AnalyticsOverviewProps {
 type MetricType = 'users' | 'creators' | 'articles' | 'revenue'
 
 const METRICS = [
-  { id: 'users' as MetricType, label: 'Utilisateurs', icon: Users, format: (v: number) => v.toLocaleString() },
-  { id: 'creators' as MetricType, label: 'Créateurs', icon: PenTool, format: (v: number) => v.toLocaleString() },
-  { id: 'articles' as MetricType, label: 'Articles', icon: Activity, format: (v: number) => v.toLocaleString() },
-  { id: 'revenue' as MetricType, label: 'MRR / Revenus', icon: Euro, format: (v: number) => `${v.toFixed(2)} €` },
+  { id: 'users' as MetricType, label: 'Utilisateurs', format: (v: number) => v.toLocaleString() },
+  { id: 'creators' as MetricType, label: 'Créateurs', format: (v: number) => v.toLocaleString() },
+  { id: 'articles' as MetricType, label: 'Articles', format: (v: number) => v.toLocaleString() },
+  { id: 'revenue' as MetricType, label: 'MRR / Revenus', format: (v: number) => `${v.toFixed(2)} €` },
 ]
 
 export function AnalyticsOverview({ data, totals }: AnalyticsOverviewProps) {
   const [activeMetric, setActiveMetric] = useState<MetricType>('users')
-  const [dateRange, setDateRange] = useState('30d')
-
-  // Filter data based on dateRange (mocking the filter for now since data passed is 90 days)
-  const filteredData = React.useMemo(() => {
-    const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90
-    return data.slice(-days)
-  }, [data, dateRange])
 
   const activeColor = 
     activeMetric === 'users' ? '#3b82f6' : 
@@ -58,38 +47,9 @@ export function AnalyticsOverview({ data, totals }: AnalyticsOverviewProps) {
     '#EE4B2B'
 
   return (
-    <div className="space-y-6">
-      {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-neutral-900">Analytics</h2>
-          <p className="text-neutral-500 text-sm mt-1">Overview of your platform's performance</p>
-        </div>
-        
-        <div className="flex items-center gap-2 bg-neutral-100/80 p-1 rounded-xl border border-neutral-200/60">
-          {[
-            { id: '7d', label: '7 jours' },
-            { id: '30d', label: '30 jours' },
-            { id: '90d', label: '3 mois' },
-          ].map(range => (
-            <button
-              key={range.id}
-              onClick={() => setDateRange(range.id)}
-              className={cn(
-                "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
-                dateRange === range.id 
-                  ? "bg-white text-neutral-900 shadow-sm" 
-                  : "text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200/50"
-              )}
-            >
-              {range.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* KPI Cards (Clickable) */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="space-y-16 w-full pt-8">
+      {/* Editorial KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8 relative z-10 px-4 md:px-0">
         {METRICS.map(metric => {
           const isActive = activeMetric === metric.id
           return (
@@ -97,98 +57,83 @@ export function AnalyticsOverview({ data, totals }: AnalyticsOverviewProps) {
               key={metric.id}
               onClick={() => setActiveMetric(metric.id)}
               className={cn(
-                "relative text-left p-6 rounded-[28px] border transition-all duration-300 overflow-hidden group",
-                isActive 
-                  ? "bg-white border-neutral-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]" 
-                  : "bg-neutral-50/50 border-neutral-100 hover:bg-neutral-50 hover:border-neutral-200"
+                "group relative text-left flex flex-col items-start focus:outline-none transition-opacity duration-300",
+                !isActive ? "opacity-50 hover:opacity-80" : "opacity-100"
               )}
             >
-              {isActive && (
-                <motion.div 
-                  layoutId="active-kpi"
-                  className="absolute inset-0 border-2 rounded-[28px] pointer-events-none"
-                  style={{ borderColor: activeColor, opacity: 0.1 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                />
-              )}
-              <div className="flex items-center justify-between mb-4">
-                <metric.icon 
-                  className={cn("w-5 h-5 transition-colors", isActive ? "text-neutral-900" : "text-neutral-400 group-hover:text-neutral-600")} 
-                  style={isActive ? { color: activeColor } : {}}
-                />
-              </div>
-              <h3 className="text-sm font-medium text-neutral-500 mb-1">{metric.label}</h3>
-              <div className="text-3xl font-bold text-neutral-900 tracking-tight">
+              <div className="text-3xl md:text-4xl font-semibold tracking-tight text-neutral-900">
                 {metric.format(totals[metric.id])}
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <span className={cn(
+                  "text-xs font-medium",
+                  isActive ? "text-neutral-900" : "text-neutral-500"
+                )}>
+                  {metric.label}
+                </span>
+                {isActive && (
+                  <motion.div
+                    layoutId="active-kpi-dot"
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ backgroundColor: activeColor }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  />
+                )}
               </div>
             </button>
           )
         })}
       </div>
 
-      {/* Main Chart */}
-      <div className="bg-white border border-neutral-200/60 rounded-[36px] p-6 shadow-2xl h-[420px] flex flex-col relative overflow-hidden">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="font-semibold text-neutral-800">
-            {METRICS.find(m => m.id === activeMetric)?.label} over time
-          </h3>
-        </div>
-        
+      {/* Pure Data Spline */}
+      <div className="h-[300px] md:h-[400px] w-full relative -mx-4 md:-mx-8 lg:-mx-12 px-4 md:px-8 lg:px-12 overflow-visible pointer-events-none">
         <AnimatePresence mode="wait">
           <motion.div 
             key={activeMetric}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className="flex-1 w-full h-full"
+            initial={{ opacity: 0, scaleY: 0.95 }}
+            animate={{ opacity: 1, scaleY: 1 }}
+            exit={{ opacity: 0, scaleY: 0.95 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full h-full pointer-events-auto"
           >
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={filteredData}
-                margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
-              >
+              <AreaChart data={data}>
                 <defs>
                   <linearGradient id={`color-${activeMetric}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={activeColor} stopOpacity={0.2} />
-                    <stop offset="95%" stopColor={activeColor} stopOpacity={0} />
+                    <stop offset="0%" stopColor={activeColor} stopOpacity={0.08} />
+                    <stop offset="100%" stopColor={activeColor} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#a3a3a3"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  dy={10}
-                />
-                <YAxis
-                  stroke="#a3a3a3"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => value >= 1000 ? `${(value/1000).toFixed(1)}k` : value}
-                />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: '#ffffff', 
-                    borderColor: '#e5e5e5', 
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-                    fontWeight: 500
+                    backgroundColor: 'rgba(255,255,255,0.9)', 
+                    backdropFilter: 'blur(8px)',
+                    borderColor: 'transparent', 
+                    borderRadius: '16px',
+                    boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05)',
+                    padding: '12px 20px',
+                    fontFamily: 'inherit'
                   }}
-                  itemStyle={{ color: activeColor, fontWeight: 700 }}
+                  itemStyle={{ color: '#171717', fontWeight: 500, fontSize: '14px' }}
+                  labelStyle={{ color: '#a3a3a3', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}
                   cursor={{ stroke: activeColor, strokeWidth: 1, strokeDasharray: '4 4' }}
                 />
                 <Area
                   type="monotone"
                   dataKey={activeMetric}
                   stroke={activeColor}
-                  strokeWidth={3}
+                  strokeWidth={2}
                   fillOpacity={1}
                   fill={`url(#color-${activeMetric})`}
-                  activeDot={{ r: 6, strokeWidth: 0, fill: activeColor }}
+                  activeDot={{
+                    r: 6,
+                    strokeWidth: 4,
+                    fill: '#fff',
+                    stroke: activeColor,
+                    style: { filter: `drop-shadow(0px 0px 8px ${activeColor})` }
+                  }}
+                  animationDuration={1500}
+                  animationEasing="ease-out"
                 />
               </AreaChart>
             </ResponsiveContainer>
