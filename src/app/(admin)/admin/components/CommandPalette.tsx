@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { Command } from "cmdk";
 import { useRouter } from "next/navigation";
-import { Users, Activity, Settings2, LayoutTemplate } from "lucide-react";
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
@@ -23,50 +22,53 @@ export function CommandPalette() {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-neutral-900/20 backdrop-blur-sm flex items-start justify-center pt-[15vh]">
-      <div 
-        className="fixed inset-0" 
+    <div className="fixed inset-0 z-50 bg-white/40 backdrop-blur-md flex items-start justify-center pt-[15vh]">
+      <div
+        className="fixed inset-0"
         onClick={() => setOpen(false)}
       />
-      <Command 
-        className="w-full max-w-2xl bg-white rounded-[36px] shadow-2xl border border-neutral-200 overflow-hidden relative z-10 animate-in fade-in zoom-in-95 duration-200"
+      <Command
+        className="w-full max-w-xl bg-white/90 backdrop-blur-xl rounded-2xl shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_16px_32px_rgba(0,0,0,0.1)] overflow-hidden relative z-10 animate-in fade-in zoom-in-[0.98] duration-200 ease-[0.16,1,0.3,1] antialiased font-sans"
+        style={{
+          boxShadow: "0 0 0 1px rgba(0,0,0,0.06), 0 16px 32px -8px rgba(0,0,0,0.08)"
+        }}
       >
-        <div className="px-4 border-b border-neutral-100 flex items-center">
-          <Command.Input 
+        <div className="flex items-center px-4 border-b border-neutral-100/80">
+          <Command.Input
             autoFocus
-            placeholder="Type a command or search..." 
-            className="w-full h-14 bg-transparent outline-none placeholder:text-neutral-400 text-lg font-medium text-neutral-900"
+            placeholder="Type a command or search..."
+            className="w-full h-14 bg-transparent outline-none placeholder:text-neutral-300 text-lg font-light text-neutral-900"
           />
         </div>
-        <Command.List className="max-h-[400px] overflow-y-auto p-2 scroll-smooth">
-          <Command.Empty className="py-12 text-center text-neutral-500 text-sm font-medium">
+        <Command.List className="max-h-[300px] overflow-y-auto p-2 scroll-smooth">
+          <Command.Empty className="py-8 text-center text-neutral-400 text-sm font-light">
             No results found.
           </Command.Empty>
 
-          <Command.Group heading="Navigation" className="px-2 py-3 text-xs font-bold text-neutral-400 uppercase tracking-wider">
-            <Command.Item 
+          <Command.Group heading="Navigation" className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-neutral-400 [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-widest">
+            <Command.Item
               onSelect={() => { router.push("/admin"); setOpen(false); }}
-              className="flex items-center gap-3 px-4 py-3 mt-1 rounded-xl text-neutral-600 aria-selected:bg-neutral-100 aria-selected:text-neutral-900 cursor-pointer text-sm font-medium transition-colors"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-neutral-600 aria-selected:bg-neutral-100/80 aria-selected:text-neutral-900 cursor-pointer text-sm font-medium transition-colors"
             >
-              <Activity className="w-4 h-4 opacity-70" /> Overview
+              Overview
             </Command.Item>
-            <Command.Item 
+            <Command.Item
               onSelect={() => { router.push("/admin/users"); setOpen(false); }}
-              className="flex items-center gap-3 px-4 py-3 mt-1 rounded-xl text-neutral-600 aria-selected:bg-neutral-100 aria-selected:text-neutral-900 cursor-pointer text-sm font-medium transition-colors"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-neutral-600 aria-selected:bg-neutral-100/80 aria-selected:text-neutral-900 cursor-pointer text-sm font-medium transition-colors"
             >
-              <Users className="w-4 h-4 opacity-70" /> Users & Modération
+              Users & Modération
             </Command.Item>
-            <Command.Item 
+            <Command.Item
               onSelect={() => { router.push("/admin/config"); setOpen(false); }}
-              className="flex items-center gap-3 px-4 py-3 mt-1 rounded-xl text-neutral-600 aria-selected:bg-neutral-100 aria-selected:text-neutral-900 cursor-pointer text-sm font-medium transition-colors"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-neutral-600 aria-selected:bg-neutral-100/80 aria-selected:text-neutral-900 cursor-pointer text-sm font-medium transition-colors"
             >
-              <Settings2 className="w-4 h-4 opacity-70" /> Feature Flags
+              Feature Flags
             </Command.Item>
-            <Command.Item 
+            <Command.Item
               onSelect={() => { router.push("/admin/frontend"); setOpen(false); }}
-              className="flex items-center gap-3 px-4 py-3 mt-1 rounded-xl text-neutral-600 aria-selected:bg-neutral-100 aria-selected:text-neutral-900 cursor-pointer text-sm font-medium transition-colors"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-neutral-600 aria-selected:bg-neutral-100/80 aria-selected:text-neutral-900 cursor-pointer text-sm font-medium transition-colors"
             >
-              <LayoutTemplate className="w-4 h-4 opacity-70" /> Frontend & UI
+              Frontend & UI
             </Command.Item>
           </Command.Group>
         </Command.List>

@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db"
-import { LayoutTemplate, Globe, Languages, Save } from "lucide-react"
 import { setSystemConfig } from "../actions"
 
 export default async function AdminFrontend() {
@@ -28,31 +27,26 @@ export default async function AdminFrontend() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 font-sans">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-neutral-100 border border-neutral-200/60 rounded-[28px] text-neutral-900 shadow-sm">
-          <LayoutTemplate className="w-6 h-6" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Frontend & Interface</h1>
-          <p className="text-neutral-500 mt-1 text-sm">Gérez l'apparence globale et les traductions de qoe.fi.</p>
-        </div>
+    <div className="w-full max-w-5xl mx-auto space-y-12">
+      <div className="mb-12">
+        <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">Frontend</h1>
+        <p className="text-neutral-500 mt-2 text-sm">UI & Localization</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
         
-        {/* Global Banner Card */}
-        <div className="bg-white border border-neutral-200/60 rounded-[36px] p-6 shadow-2xl flex flex-col">
-          <div className="flex items-center gap-2 mb-6">
-            <Globe className="w-5 h-5 text-[#EE4B2B]" />
-            <h2 className="text-lg font-bold text-neutral-900">Bannière Globale (Annonces)</h2>
+        {/* Global Banner */}
+        <div className="flex flex-col">
+          <div className="mb-8 border-b border-neutral-200 pb-4">
+            <h2 className="text-xl font-medium tracking-tight text-neutral-900">Global Banner</h2>
+            <p className="text-neutral-500 mt-1 text-sm">Site-wide announcements</p>
           </div>
           
-          <form action={handleSaveBanner} className="space-y-4 flex-1 flex flex-col">
-            <div className="flex items-center justify-between p-3 bg-neutral-50 border border-neutral-200/60 rounded-xl">
+          <form action={handleSaveBanner} className="space-y-6 flex-1 flex flex-col">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-neutral-900">Activer la bannière</p>
-                <p className="text-xs text-neutral-500">S'affichera tout en haut de l'écran.</p>
+                <p className="text-sm font-medium text-neutral-900">Enable Banner</p>
+                <p className="text-xs text-neutral-500 mt-0.5">Displays at the very top of the screen.</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" name="enabled" defaultChecked={bannerEnabled} className="sr-only peer" />
@@ -61,66 +55,65 @@ export default async function AdminFrontend() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-bold tracking-wider text-neutral-500">Texte de l'annonce</label>
-              <textarea 
+              <label className="text-xs font-medium text-neutral-500">Announcement Text</label>
+              <textarea
                 name="text"
                 defaultValue={bannerText}
-                placeholder="Ex: qoe.fi V2 est maintenant en ligne ! Découvrez les nouveautés..." 
-                className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-2 text-sm text-neutral-900 focus:border-neutral-300 focus:outline-none resize-none shadow-sm"
-                rows={3}
+                placeholder="qoe.fi V2 is now live!"
+                className="w-full bg-transparent border-b border-neutral-200 px-0 py-2 text-base font-medium text-neutral-900 focus:border-neutral-900 focus:ring-0 resize-none transition-colors"
+                rows={2}
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-bold tracking-wider text-neutral-500">Lien (URL optionnelle)</label>
-              <input 
-                type="text" 
+              <label className="text-xs font-medium text-neutral-500">Optional Link URL</label>
+              <input
+                type="text"
                 name="link"
                 defaultValue={bannerLink}
-                placeholder="https://qoe.fi/changelog" 
-                className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-2 text-sm text-neutral-900 focus:border-neutral-300 focus:outline-none shadow-sm"
+                placeholder="https://qoe.fi/changelog"
+                className="w-full bg-transparent border-b border-neutral-200 px-0 py-2 text-base font-medium text-neutral-900 focus:border-neutral-900 focus:ring-0 transition-colors"
               />
             </div>
 
-            <div className="mt-auto pt-4 flex justify-end">
-              <button 
-                type="submit" 
-                className="bg-[#EE4B2B] text-white px-6 py-2 rounded-xl font-bold hover:bg-[#d63f22] transition-colors text-sm flex items-center gap-2 shadow-sm"
+            <div className="pt-4">
+              <button
+                type="submit"
+                className="text-sm font-medium text-neutral-900 hover:text-[#EE4B2B] transition-colors bg-neutral-100 hover:bg-neutral-200 px-4 py-2 rounded-lg"
               >
-                <Save className="w-4 h-4" /> Mettre à jour
+                Save Changes
               </button>
             </div>
           </form>
         </div>
 
-        {/* Translations Card */}
-        <div className="bg-white border border-neutral-200/60 rounded-[36px] p-6 shadow-2xl flex flex-col">
-          <div className="flex items-center gap-2 mb-6">
-            <Languages className="w-5 h-5 text-[#EE4B2B]" />
-            <h2 className="text-lg font-bold text-neutral-900">Traductions (Tolgee)</h2>
+        {/* Translations */}
+        <div className="flex flex-col">
+          <div className="mb-8 border-b border-neutral-200 pb-4">
+            <h2 className="text-xl font-medium tracking-tight text-neutral-900">Translations</h2>
+            <p className="text-neutral-500 mt-1 text-sm">Tolgee Integration</p>
           </div>
           
-          <div className="space-y-4 text-neutral-600 text-sm leading-relaxed">
+          <div className="space-y-4 text-neutral-600 font-medium text-sm leading-relaxed">
             <p>
-              L'intégralité des textes statiques de l'interface (boutons, placeholders, menus, manifestes) n'est plus codée en dur ("hardcoded").
+              The platform's static texts are managed via the Tolgee Dashboard. No hardcoded strings.
             </p>
-            <div className="p-4 bg-neutral-50 border border-neutral-200/60 rounded-xl font-mono text-xs text-neutral-500">
-              {`// Exemple de clé de traduction
-t("login.manifesto_creators_title")`}
+            <div className="p-4 bg-neutral-50 border border-neutral-100 rounded-lg font-mono text-xs text-neutral-500">
+              {`t("login.manifesto_creators_title")`}
             </div>
-            <p>
-              Pour modifier une phrase sur la plateforme, connectez-vous au <strong>Dashboard Tolgee</strong> du projet. Toute modification effectuée là-bas sera instantanément synchronisée ou nécessitera juste un export des fichiers <code>fr.json</code> et <code>en.json</code>.
+            <p className="text-sm text-neutral-500">
+              To modify any phrase, log into the Tolgee Dashboard. Changes sync instantly or via export.
             </p>
           </div>
 
-          <div className="mt-auto pt-6">
-            <a 
-              href="https://app.tolgee.io" 
-              target="_blank" 
+          <div className="pt-8 mt-auto">
+            <a
+              href="https://app.tolgee.io"
+              target="_blank"
               rel="noreferrer"
-              className="block w-full text-center bg-neutral-100 border border-neutral-200/60 text-neutral-900 px-6 py-2.5 rounded-xl font-bold hover:bg-neutral-200 transition-colors text-sm"
+              className="inline-block text-sm font-medium text-neutral-900 hover:text-[#EE4B2B] transition-colors bg-neutral-100 hover:bg-neutral-200 px-4 py-2 rounded-lg"
             >
-              Ouvrir le Dashboard Tolgee
+              Open Tolgee Dashboard ↗
             </a>
           </div>
         </div>

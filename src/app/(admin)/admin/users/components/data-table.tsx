@@ -47,29 +47,29 @@ export function DataTable<TData, TValue>({
   })
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center">
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+    <div className="space-y-6">
+      <div className="flex items-center border-b border-neutral-200 pb-3">
+        <div className="relative w-full max-w-sm flex items-center gap-2">
+          <Search className="w-4 h-4 text-neutral-400" />
           <Input
-            placeholder="Filtrer par email..."
+            placeholder="Search users by email..."
             value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
             onChange={(event) =>
               table.getColumn("email")?.setFilterValue(event.target.value)
             }
-            className="pl-10 bg-white border-neutral-200 text-neutral-900 placeholder:text-neutral-400 rounded-xl focus-visible:ring-neutral-200 shadow-sm"
+            className="border-0 bg-transparent text-sm font-medium text-neutral-900 placeholder:text-neutral-400 focus-visible:ring-0 px-1 shadow-none h-auto"
           />
         </div>
       </div>
       
-      <div className="rounded-[24px] border border-neutral-200/60 bg-white overflow-hidden shadow-sm">
-        <Table>
-          <TableHeader className="bg-neutral-50/80 border-b border-neutral-100">
+      <div className="w-full">
+        <Table className="w-full">
+          <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="border-b-neutral-200 hover:bg-transparent">
+              <TableRow key={headerGroup.id} className="border-b border-neutral-100 hover:bg-transparent">
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id} className="text-neutral-500 font-bold uppercase text-[10px] tracking-wider">
+                    <TableHead key={header.id} className="h-auto py-2 align-bottom text-neutral-500 font-semibold text-xs">
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -82,16 +82,16 @@ export function DataTable<TData, TValue>({
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody className="divide-y divide-neutral-100/60">
+          <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="hover:bg-neutral-50/50 border-b-neutral-100 transition-colors"
+                  className="hover:bg-neutral-50/50 border-b border-neutral-100/50 transition-colors duration-150 group"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-4">
+                    <TableCell key={cell.id} className="py-3 align-middle text-sm text-neutral-700">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
@@ -99,8 +99,8 @@ export function DataTable<TData, TValue>({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-32 text-center text-neutral-500 font-medium">
-                  Aucun résultat.
+                <TableCell colSpan={columns.length} className="h-32 text-center text-neutral-500 text-sm">
+                  No users found.
                 </TableCell>
               </TableRow>
             )}
@@ -108,25 +108,21 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
       
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
+      <div className="flex items-center justify-end space-x-3 pt-4">
+        <button
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
-          className="bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 rounded-xl"
+          className="text-xs font-medium text-neutral-500 hover:text-neutral-900 disabled:opacity-50 transition-colors px-2 py-1 rounded hover:bg-neutral-100"
         >
-          Précédent
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
+          Previous
+        </button>
+        <button
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
-          className="bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 rounded-xl"
+          className="text-xs font-medium text-neutral-500 hover:text-neutral-900 disabled:opacity-50 transition-colors px-2 py-1 rounded hover:bg-neutral-100"
         >
-          Suivant
-        </Button>
+          Next
+        </button>
       </div>
     </div>
   )

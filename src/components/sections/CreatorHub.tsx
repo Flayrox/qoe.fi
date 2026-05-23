@@ -171,7 +171,9 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
                     <span className="ml-3 text-[10px] text-neutral-500 font-mono">api.qoe.fi</span>
                   </div>
                   <pre className="flex-1 p-6 text-[11px] font-mono leading-relaxed text-neutral-300 overflow-auto">
-                    <code>{API_SNIPPET}</code>
+                    <code>{`curl -X GET https://api.qoe.fi/v1/articles \\
+  -H "Authorization: Bearer <token>" \\
+  -H "Content-Type: application/json"`}</code>
                   </pre>
                 </div>
               ) : activeTab === "Médias & CMS" ? (
