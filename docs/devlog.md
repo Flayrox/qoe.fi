@@ -379,6 +379,25 @@ To continue building from here:
 - **Problème** : Les utilisateurs (créateurs et administrateurs inclus) étaient redirigés par défaut vers le Dashboard créateur (`/dashboard`) au lieu du feed timeline (`/home`) après s'être authentifiés.
 - **Solution** : Modification de la Server Action `login` dans [actions.ts](file:///d:/Files/DEV/Main/qoe.fi/src/app/login/actions.ts) ainsi que du callback d'authentification OAuth [route.ts](file:///d:/Files/DEV/Main/qoe.fi/src/app/auth/callback/route.ts) pour rediriger tous les utilisateurs connectés vers le feed `/home` (ou vers `/onboarding` s'il s'agit d'un nouveau lecteur n'ayant pas encore configuré ses intérêts).
 
+---
+
+### Session 13 - Refonte Typographique et Visuelle de la Page de Feed (/home)
+*Date : 26 Mai 2026*
+
+**50. Point d'entrée de Timeline asynchrone multicanaux**
+- **Implémentation** : Refactorisation de [page.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/app/(main)/home/page.tsx) pour charger de façon asynchrone depuis Prisma : les articles recommandés (Editor Picks), les abonnements (créateurs suivis), les découvertes, la liste des signets personnels et les détails financiers, puis transmission au client.
+
+**51. Menu Capsule Morphing & Intégration Tactile (Framer Motion)**
+- **Implémentation** : Création du panneau de contrôle gauche dans [FeedDashboard.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/app/(main)/home/FeedDashboard.tsx) sous forme de capsule verticale en Light Theme (`bg-neutral-100/70 border-neutral-200/50 rounded-[32px]`).
+- **Sélecteur de flux morphing** : Implémentation d'une capsule de sélection blanche animée par un ressort physique (`layoutId="activeFeedHighlight"`) glissant de manière organique entre les onglets de lecture sans rechargement.
+
+**52. Thought Composer ("Crée un post classique") et Bento Plateaux**
+- **Plateaux Bento Vermillons** : Encapsulation des sections milieu (feed) et droite (actualités) dans des coques rouges Vermillon `#EE4B2B` avec angles mathématiquement imbriqués.
+- **Thought Composer** : Carte blanche interactive (`rounded-[32px]`) qui s'étend en douceur au focus. Intègre des tags de hashtag rapides, un choix de catégorie et un bouton de publication instantanée qui injecte localement les micro-posts dans le feed avec une transition physique spring.
+- **Filtre Tag interactif** : Câblage de boutons de hashtags dans la colonne droite pour filtrer instantanément le feed d'articles au clic.
+- **Boutons RLS de Carte** : Ajout de raccourcis directs de signet (bookmarks) et de suivi (follows) sur chaque article du feed, persistant instantanément les relations en base de données.
+
+
 
 
 
