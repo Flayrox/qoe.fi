@@ -322,4 +322,21 @@ To continue building from here:
 - **Modération Éclairée** : Création de la page `/admin/users/[id]/page.tsx` accessible depuis le menu d'actions du tableau utilisateur.
 - **Métriques Avancées** : Vue consolidée permettant d'analyser le LTV (Lifetime Value) des abonnés d'un créateur, ses revenus générés, son taux de conversion et son historique de statut pour une modération chirurgicale et ciblée.
 
+---
+
+### Session 10 - Dé-hardcodage complet, CMS dynamique localisé et constructeurs visuels premium
+*Date : 26 Mai 2026*
+
+**40. Dé-hardcodage exhaustif de la Landing Page & Footer**
+- **Architecture de contenu dynamique** : Migration de toutes les sections de la page d'accueil (`Hero`, `FeaturedPublications`, `CreatorHub`, `CTA`) et du pied de page (`Footer`) d'une structure codée en dur vers un chargement dynamique basé sur `SystemConfig` (Prisma/PostgreSQL).
+- **Internationalisation (i18n) en base de données** : Mise en place d'un pattern de clés localisées (ex: `featured_title_fr` et `featured_title_en`) se combinant de manière fluide avec les fallbacks Tolgee pour préserver la réactivité multilingue sans casser le SEO d'indexation ni le cache de production.
+
+**41. Remplacement des éditeurs JSON par des Constructeurs Visuels Premium**
+- **Aesthetics & UX sans friction** : Remplacement de toutes les zones de texte JSON brutes dans l'espace superadmin par des constructeurs visuels interactifs et soignés :
+  - **ReaderSimulationBuilder** : Éditeur d'éléments de simulation de lecture (choix sémantique du type d'élément, réorganisation par flèches de priorité et ajouts/suppressions).
+  - **CreatorHubTabsBuilder** : Formulaire à onglets pour configurer les fonctionnalités et les checklists d'onboarding par profil.
+  - **FooterColumnsBuilder** : Organisateur de colonnes de liens avec édition imbriquée du libellé, de l'URL et du ciblage de fenêtre (externe/interne).
+- **Sérialisation Transparente** : Les configurations complexes sont sérialisées de manière transparente en JSON côté client avant soumission à l'API de sauvegarde, assurant une parfaite sécurité syntaxique et éliminant tout risque de saisie invalide.
+
+
 
