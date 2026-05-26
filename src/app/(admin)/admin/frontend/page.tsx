@@ -49,7 +49,9 @@ export default async function AdminFrontend() {
     // Footer keys
     "footer_copyright",
     "footer_sections_fr",
-    "footer_sections_en"
+    "footer_sections_en",
+    // Onboarding keys
+    "ONBOARDING_INTERESTS"
   ];
 
   // Fetch configs matching keys

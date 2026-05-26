@@ -83,3 +83,39 @@ export async function toggleBookmarkArticleHome(articleId: string) {
     return { success: false, error: "DATABASE_ERROR" }
   }
 }
+
+export async function createMicroPost(content: string, tags: string[], imageUrl?: string | null) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "UNAUTHORIZED" }
+  }
+
+  const cleanContent = content.trim()
+  if (!cleanContent || cleanContent.length > 280) {
+    return { success: false, error: "INVALID_CONTENT" }
+  }
+
+  try {
+    const post = await prisma.post.create({
+      data: {
+        content: cleanContent,
+        authorId: user.id,
+        tags,
+        imageUrl: imageUrl || null
+      },
+      include: {
+        author: { select: { id: true, name: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, username: true } }
+      }
+    })
+    revalidatePath("/home")
+    if (post.author.username) {
+      revalidatePath(`/@${post.author.username}`)
+    }
+    return { success: true, post }
+  } catch (error) {
+    console.error("Error in createMicroPost:", error)
+    return { success: false, error: "DATABASE_ERROR" }
+  }
+}

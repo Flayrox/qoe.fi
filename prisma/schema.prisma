@@ -80,6 +80,7 @@ model User {
   sentLetters           Letter[]        @relation("LetterSender")
   receivedLetters       Letter[]        @relation("LetterRecipient")
   walletTransactions    WalletTransaction[]
+  posts                 Post[]
   
   // AI Recs
   embedding Unsupported("vector(1536)")?
@@ -121,6 +122,8 @@ model Subscriber {
   isActive    Boolean  @default(true)
   isPremium   Boolean  @default(false)
   ltvCents    Int      @default(0) // Lifetime value in cents
+  receiveArticles Boolean @default(true)
+  receivePosts    Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
@@ -249,4 +252,15 @@ model Article {
   letters        Letter[]
 
   embedding Unsupported("vector(1536)")?
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  authorId  String   @db.Uuid
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tags      String[]
+  imageUrl  String?  @db.Text
 }

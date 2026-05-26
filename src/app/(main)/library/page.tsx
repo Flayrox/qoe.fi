@@ -1,8 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/db"
-import Link from "next/link"
-import { Bookmark, Clock, ArrowRight, Library as LibraryIcon } from "lucide-react"
+import { Bookmark, Clock, ArrowRight, ExternalLink } from "lucide-react"
 
 export default async function LibraryPage() {
   const supabase = await createClient()
@@ -15,7 +14,7 @@ export default async function LibraryPage() {
     include: {
       article: {
         include: {
-          author: { select: { name: true, subdomain: true, customDomain: true, logoUrl: true } },
+          author: { select: { name: true, username: true, subdomain: true, customDomain: true, logoUrl: true } },
           category: { select: { name: true } }
         }
       }
@@ -24,66 +23,83 @@ export default async function LibraryPage() {
   })
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <div className="container mx-auto px-4 py-16 max-w-5xl">
-        <div className="flex items-center gap-4 mb-12 border-b border-border pb-6">
-          <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-            <LibraryIcon className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">Le Sanctuaire</h1>
-            <p className="text-muted-foreground text-sm">Vos lectures sauvegardées et articles favoris.</p>
-          </div>
-        </div>
+    <div className="space-y-4">
+      
+      {/* Page header */}
+      <div className="px-1">
+        <h1 className="text-lg font-bold text-neutral-800 tracking-tight">Le Sanctuaire</h1>
+        <p className="text-xs text-neutral-400 mt-0.5">Vos lectures sauvegardées et articles favoris.</p>
+      </div>
 
+      {/* Bento shell */}
+      <div className="bg-[#EE4B2B] rounded-[40px] p-3 shadow-xl flex flex-col gap-3">
+        
         {bookmarks.length === 0 ? (
-          <div className="text-center py-32 border-2 border-dashed rounded-3xl bg-card">
-            <Bookmark className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-xl font-bold mb-2">Votre sanctuaire est vide</h3>
-            <p className="text-muted-foreground max-w-md mx-auto mb-6">
+          <div className="bg-white rounded-[32px] p-12 shadow-xs border border-neutral-100 text-center flex flex-col items-center justify-center gap-3">
+            <Bookmark className="w-10 h-10 text-neutral-200" />
+            <h4 className="font-bold text-sm text-neutral-600">Votre sanctuaire est vide</h4>
+            <p className="text-xs text-neutral-400 max-w-xs leading-relaxed">
               Explorez qoe.fi et sauvegardez les articles qui méritent d'être lus à tête reposée.
             </p>
-            <Link href="/" className="bg-primary text-primary-foreground px-6 py-3 rounded-full font-semibold hover:opacity-90 transition-opacity">
+            <a href="/home" className="bg-[#EE4B2B] text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-[#d63d20] transition-colors mt-2">
               Découvrir des articles
-            </Link>
+            </a>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {bookmarks.map(b => {
               const host = b.article.author.customDomain || `${b.article.author.subdomain}.localhost:3000`
               const url = `http://${host}/article/${b.article.slug}`
 
               return (
-                <div key={b.id} className="group bg-card border rounded-2xl p-6 hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      {b.article.author.logoUrl ? (
-                        <img src={b.article.author.logoUrl} className="w-6 h-6 rounded-md object-cover" />
-                      ) : (
-                        <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center text-[10px] font-bold">
-                          {b.article.author.name?.charAt(0)}
-                        </div>
-                      )}
-                      <span className="text-xs font-semibold text-muted-foreground">{b.article.author.name}</span>
+                <div key={b.id} className="bg-white rounded-[28px] p-5 shadow-xs border border-neutral-100 flex flex-col justify-between gap-4 group hover:border-[#EE4B2B]/20 transition-colors">
+                  
+                  {/* Top: author + reading time */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <a href={b.article.author.username ? `/@${b.article.author.username}` : "#"} className="flex items-center gap-2 group/auth">
+                        {b.article.author.logoUrl ? (
+                          <img src={b.article.author.logoUrl} className="w-6 h-6 rounded-lg object-cover border border-neutral-200/50" />
+                        ) : (
+                          <div className="w-6 h-6 rounded-lg bg-[#EE4B2B]/10 flex items-center justify-center text-[8px] font-bold text-[#EE4B2B]">
+                            {b.article.author.name?.charAt(0)}
+                          </div>
+                        )}
+                        <span className="text-[10px] font-bold text-neutral-500 group-hover/auth:text-[#EE4B2B] transition-colors">{b.article.author.name}</span>
+                      </a>
+                      <div className="flex items-center gap-1 text-[9px] text-neutral-400 font-mono">
+                        <Clock className="w-2.5 h-2.5" />
+                        {b.article.readingTime} min
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground font-medium bg-muted/50 px-2 py-1 rounded-md">
-                      <Clock className="w-3 h-3" />
-                      {b.article.readingTime} min
-                    </div>
+
+                    <h3 className="text-sm font-bold text-neutral-800 tracking-tight leading-snug group-hover:text-[#EE4B2B] transition-colors mb-2">
+                      {b.article.title}
+                    </h3>
+                    
+                    <p className="text-xs text-neutral-500 leading-relaxed line-clamp-2">
+                      {b.article.content.replace(/<[^>]*>?/gm, '').substring(0, 120)}...
+                    </p>
                   </div>
 
-                  <h3 className="text-xl font-bold mb-3 group-hover:text-primary transition-colors leading-tight">
-                    {b.article.title}
-                  </h3>
-                  
-                  <p className="text-sm text-muted-foreground line-clamp-2 mb-6 flex-1">
-                    {b.article.content.replace(/<[^>]*>?/gm, '').substring(0, 120)}...
-                  </p>
-
-                  <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
-                    <span className="text-xs text-muted-foreground">Sauvegardé le {new Date(b.createdAt).toLocaleDateString()}</span>
-                    <a href={url} target="_blank" className="flex items-center gap-1 text-sm font-semibold text-primary group-hover:translate-x-1 transition-transform">
-                      Lire <ArrowRight className="w-4 h-4" />
+                  {/* Bottom: category + link */}
+                  <div className="flex items-center justify-between pt-3 border-t border-neutral-50">
+                    <div className="flex items-center gap-2">
+                      {b.article.category && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 bg-neutral-100 border rounded text-neutral-500">
+                          {b.article.category.name}
+                        </span>
+                      )}
+                      <span className="text-[9px] text-neutral-400 font-mono">
+                        {new Date(b.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </span>
+                    </div>
+                    <a 
+                      href={url} 
+                      target="_blank" 
+                      className="text-[10px] font-bold text-[#EE4B2B] flex items-center gap-0.5 hover:underline"
+                    >
+                      Lire <ExternalLink className="w-2.5 h-2.5" />
                     </a>
                   </div>
                 </div>
@@ -91,6 +107,7 @@ export default async function LibraryPage() {
             })}
           </div>
         )}
+
       </div>
     </div>
   )

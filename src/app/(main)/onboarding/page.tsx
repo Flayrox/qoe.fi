@@ -20,12 +20,39 @@ export default async function OnboardingPage() {
     redirect("/")
   }
 
-  // Get available categories for interests
-  const uniqueCategories = await prisma.category.findMany({
-    distinct: ['slug'],
-    select: { id: true, name: true, slug: true },
-    take: 20
+  // Get interest categories from SystemConfig (modifiable from admin config menu)
+  let uniqueCategories = []
+  const configInterests = await prisma.systemConfig.findUnique({
+    where: { key: "ONBOARDING_INTERESTS" }
   })
+
+  if (configInterests) {
+    const list = configInterests.value.split(",").map(i => i.trim()).filter(Boolean)
+    uniqueCategories = list.map(name => ({
+      id: name,
+      name,
+      slug: name.toLowerCase().replace(/[^a-z0-9_-]/g, "")
+    }))
+  } else {
+    // Default list
+    const defaultList = ["Politique", "International", "Technologie", "Économie", "Philosophie", "Sciences", "Art & Design"]
+    try {
+      await prisma.systemConfig.create({
+        data: {
+          key: "ONBOARDING_INTERESTS",
+          value: defaultList.join(", "),
+          description: "Liste des centres d'intérêt proposés lors de l'onboarding (séparés par des virgules)."
+        }
+      })
+    } catch (e) {
+      // Ignore if concurrent creation happens
+    }
+    uniqueCategories = defaultList.map(name => ({
+      id: name,
+      name,
+      slug: name.toLowerCase().replace(/[^a-z0-9_-]/g, "")
+    }))
+  }
 
   // Get some certified creators to suggest
   const suggestedCreators = await prisma.user.findMany({

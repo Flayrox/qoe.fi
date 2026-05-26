@@ -736,11 +736,91 @@ function FooterColumnsBuilder({
   );
 }
 
+// ─── ONBOARDING INTERESTS BUILDER ─────────────────────────────────────────────
+function OnboardingInterestsBuilder({
+  value,
+  onChange
+}: {
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const [interests, setInterests] = useState<string[]>([]);
+  const [newInterest, setNewInterest] = useState("");
+
+  useEffect(() => {
+    const list = value ? value.split(",").map(i => i.trim()).filter(Boolean) : [];
+    setInterests(list);
+  }, [value]);
+
+  const updateInterests = (newList: string[]) => {
+    setInterests(newList);
+    onChange(newList.join(", "));
+  };
+
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = newInterest.trim();
+    if (clean && !interests.includes(clean)) {
+      updateInterests([...interests, clean]);
+      setNewInterest("");
+    }
+  };
+
+  const handleDelete = (index: number) => {
+    updateInterests(interests.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Centres d'intérêt de l'onboarding (pgvector IA)</span>
+      </div>
+
+      <form onSubmit={handleAdd} className="flex gap-2">
+        <input
+          type="text"
+          value={newInterest}
+          onChange={(e) => setNewInterest(e.target.value)}
+          placeholder="Ajouter un centre d'intérêt (ex: Technologie, Économie...)"
+          className="flex-1 bg-white border border-neutral-200 rounded-lg p-2 text-sm focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] outline-none"
+        />
+        <button
+          type="submit"
+          className="bg-neutral-900 text-white hover:bg-neutral-800 px-4 py-2 rounded-lg text-sm font-semibold transition-colors shrink-0"
+        >
+          Ajouter
+        </button>
+      </form>
+
+      {interests.length === 0 ? (
+        <div className="text-center py-6 text-neutral-400 text-sm border border-dashed border-neutral-200 rounded-xl bg-neutral-50/50">
+          Aucun centre d'intérêt défini.
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2 p-4 border border-neutral-200/60 rounded-xl bg-neutral-50/20">
+          {interests.map((interest, idx) => (
+            <div key={idx} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-neutral-200 rounded-full text-xs font-semibold text-neutral-800 shadow-sm transition-all hover:border-[#EE4B2B]/40 group">
+              <span>{interest}</span>
+              <button
+                type="button"
+                onClick={() => handleDelete(idx)}
+                className="text-neutral-400 hover:text-red-500 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface FrontendCMSProps {
   initialConfigs: Record<string, string>;
 }
 
-type TabKey = "banner" | "hero" | "featured" | "creator" | "cta" | "footer";
+type TabKey = "banner" | "hero" | "featured" | "creator" | "cta" | "footer" | "onboarding";
 
 // ─── MAIN FRONTEND CMS ────────────────────────────────────────────────────────
 export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
@@ -810,6 +890,8 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
               "footer_copyright",
               "footer_sections_fr", "footer_sections_en"
             ];
+          case "onboarding":
+            return ["ONBOARDING_INTERESTS"];
         }
       };
 
@@ -841,6 +923,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
     { key: "creator", label: "Espace Créateurs" },
     { key: "cta", label: "Appel à l'action (CTA)" },
     { key: "footer", label: "Pied de page (Footer)" },
+    { key: "onboarding", label: "Onboarding (Centres d'intérêt)" },
   ];
 
   return (
@@ -892,7 +975,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
             </div>
 
             {/* Language toggle for translatable fields */}
-            {activeTab !== "banner" && (
+            {activeTab !== "banner" && activeTab !== "onboarding" && (
               <div className="flex items-center gap-1 bg-neutral-100 rounded-lg p-1 text-xs shrink-0 select-none">
                 <button
                   type="button"
@@ -1215,6 +1298,16 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         activeLang={activeLang}
                       />
                     </div>
+                  </div>
+                )}
+
+                {/* ─── TAB: ONBOARDING ────────────────────────────────────────── */}
+                {activeTab === "onboarding" && (
+                  <div className="space-y-6">
+                    <OnboardingInterestsBuilder
+                      value={formValues["ONBOARDING_INTERESTS"] || ""}
+                      onChange={(val) => updateValue("ONBOARDING_INTERESTS", val)}
+                    />
                   </div>
                 )}
               </motion.div>

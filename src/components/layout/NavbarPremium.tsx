@@ -93,69 +93,7 @@ export const NavbarPremium = () => {
           <div className="h-8 w-8 bg-neutral-100 dark:bg-zinc-800 animate-pulse rounded-full" />
         ) : user ? (
           <div className="flex items-center gap-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger className="focus:outline-none flex items-center cursor-pointer select-none">
-                <Avatar className="h-8 w-8 rounded-full border border-[#EE4B2B]/20 hover:border-[#EE4B2B]/50 transition-colors">
-                  <AvatarFallback className="bg-[#EE4B2B]/10 text-[#EE4B2B] text-xs font-bold font-sans">
-                    {user.name ? user.name.slice(0, 2).toUpperCase() : user.email.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 p-1 bg-white dark:bg-zinc-950 border border-neutral-200/80 dark:border-zinc-800/80 rounded-2xl shadow-xl">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel className="px-2.5 py-2">
-                    <span className="font-bold text-sm block leading-tight text-foreground">{user.name || "Lecteur"}</span>
-                    <span className="text-[10px] text-muted-foreground block truncate mt-0.5">{user.email}</span>
-                    <span className="inline-block mt-2 text-[9px] uppercase tracking-wider font-bold bg-neutral-100 dark:bg-zinc-900 px-2 py-0.5 rounded text-[#EE4B2B]">
-                      {user.role === 'superadmin' ? 'Superadmin' : user.role === 'creator' ? 'Créateur' : 'Lecteur'}
-                    </span>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-neutral-100 dark:bg-zinc-900" />
-                  <DropdownMenuItem className="cursor-pointer font-sans text-xs" onClick={() => window.location.href = "/home"}>
-                    <Activity className="w-4 h-4 mr-2.5 text-neutral-400 group-hover/dropdown-menu-item:text-white" />
-                    Votre Timeline
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer font-sans text-xs" onClick={() => window.location.href = "/library"}>
-                    <BookMarked className="w-4 h-4 mr-2.5 text-neutral-400 group-hover/dropdown-menu-item:text-white" />
-                    Votre Sanctuaire
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer font-sans text-xs" onClick={() => window.location.href = "/highlights"}>
-                    <Highlighter className="w-4 h-4 mr-2.5 text-neutral-400 group-hover/dropdown-menu-item:text-white" />
-                    Vos Surlignages
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer font-sans text-xs" onClick={() => window.location.href = "/billing"}>
-                    <Wallet className="w-4 h-4 mr-2.5 text-neutral-400 group-hover/dropdown-menu-item:text-white" />
-                    Portefeuille & Abos
-                  </DropdownMenuItem>
-                  
-                  {(user.role === 'creator' || user.role === 'superadmin') && (
-                    <>
-                      <DropdownMenuSeparator className="bg-neutral-100 dark:bg-zinc-900" />
-                      <DropdownMenuItem className="cursor-pointer font-sans text-xs" onClick={() => window.location.href = "/dashboard"}>
-                        <LayoutDashboard className="w-4 h-4 mr-2.5 text-neutral-400 group-hover/dropdown-menu-item:text-white" />
-                        Espace Créateur
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  
-                  {user.role === 'superadmin' && (
-                    <DropdownMenuItem className="cursor-pointer font-sans text-xs" onClick={() => window.location.href = "/admin"}>
-                      <ShieldAlert className="w-4 h-4 mr-2.5 text-neutral-400 group-hover/dropdown-menu-item:text-white" />
-                      Espace Superadmin
-                    </DropdownMenuItem>
-                  )}
-
-                  <DropdownMenuSeparator className="bg-neutral-100 dark:bg-zinc-900" />
-                  <DropdownMenuItem className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive font-sans text-xs" onClick={async () => {
-                    await logout();
-                    window.location.href = "/";
-                  }}>
-                    <LogOut className="w-4 h-4 mr-2.5" />
-                    Se déconnecter
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Hiding profile dropdown from navbar as requested */}
           </div>
         ) : (
           <Link

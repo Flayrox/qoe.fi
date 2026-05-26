@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
+import { generateMockEmbedding, updateUserEmbedding } from "@/lib/ai"
 
 export async function completeOnboarding(data: {
   interests: string[];
@@ -22,6 +23,10 @@ export async function completeOnboarding(data: {
         data: { onboardingText: data.onboardingText }
       })
     }
+
+    // Generate and save AI pgvector embedding
+    const embeddingVector = generateMockEmbedding(data.onboardingText || "", data.interests)
+    await updateUserEmbedding(user.id, embeddingVector)
 
     // 1. Save Muted Words
     if (data.mutedWords.length > 0) {

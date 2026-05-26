@@ -72,7 +72,7 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
       <div className="p-8 border-b border-border/30 flex items-center justify-between relative z-10">
         <div className="flex gap-2">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className={`h-1 w-12 rounded-full transition-colors duration-500 ${step >= i ? "bg-foreground" : "bg-foreground/10"}`} />
+            <div key={i} className={`h-1 w-12 rounded-full transition-colors duration-500 ${step >= i ? "bg-[#EE4B2B]" : "bg-neutral-200"}`} />
           ))}
         </div>
         <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
@@ -96,7 +96,11 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
               <div className="mb-12">
                 <Sparkles className="w-8 h-8 text-primary mb-6" />
                 <h2 className="font-classical text-4xl text-foreground mb-4">{t("onboarding_s1_title", "Qu'est-ce qui vous élève ?")}</h2>
-                <p className="text-muted-foreground text-sm">{t("onboarding_s1_desc", "Sélectionnez au moins 3 centres d'intérêt pour calibrer votre sanctuaire.")}</p>
+                <p className="text-muted-foreground text-sm">
+                  {categories.length >= 3 
+                    ? t("onboarding_s1_desc", "Sélectionnez au moins 3 centres d'intérêt pour calibrer votre sanctuaire.")
+                    : t("onboarding_s1_desc_fewer", `Sélectionnez vos centres d'intérêt (sélectionnez au moins ${categories.length} centres) pour calibrer votre sanctuaire.`)}
+                </p>
               </div>
 
               <div className="flex-1 flex flex-wrap gap-4 items-center justify-center py-8">
@@ -109,8 +113,8 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
                     onClick={() => toggleInterest(cat.id)}
                     className={`px-8 py-4 rounded-full border-2 transition-all duration-300 text-sm font-medium cursor-pointer ${
                       selectedInterests.includes(cat.id) 
-                        ? "bg-foreground text-background border-foreground shadow-lg scale-105" 
-                        : "bg-muted/30 text-muted-foreground border-border/40 hover:border-border hover:text-foreground"
+                        ? "bg-[#EE4B2B] text-white border-[#EE4B2B] shadow-lg scale-105" 
+                        : "bg-muted/30 text-muted-foreground border-border/40 hover:border-[#EE4B2B]/40 hover:text-foreground"
                     }`}
                   >
                     {cat.name}
@@ -120,7 +124,7 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
 
               <div className="mt-auto pt-8 flex justify-end">
                 <button
-                  disabled={selectedInterests.length < 3}
+                  disabled={selectedInterests.length < Math.min(3, categories.length)}
                   onClick={handleNext}
                   className="group flex items-center gap-3 px-10 py-4 bg-foreground text-background rounded-full font-bold transition-all disabled:opacity-20 disabled:grayscale cursor-pointer text-sm"
                 >
@@ -311,7 +315,7 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
                 <button
                   disabled={isSubmitting}
                   onClick={handleComplete}
-                  className="group flex items-center gap-3 px-10 py-4 bg-primary text-white rounded-full font-bold transition-all hover:opacity-90 disabled:opacity-50 cursor-pointer shadow-lg text-sm"
+                  className="group flex items-center gap-3 px-10 py-4 bg-[#EE4B2B] text-white rounded-full font-bold transition-all hover:opacity-90 disabled:opacity-50 cursor-pointer shadow-lg text-sm"
                 >
                   {isSubmitting ? (
                     <Loader2 className="w-5 h-5 animate-spin" />

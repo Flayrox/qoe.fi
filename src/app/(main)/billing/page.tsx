@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/db"
-import { Wallet, CreditCard, ShieldX } from "lucide-react"
+import { Wallet, CreditCard, ShieldX, ArrowRight, Receipt } from "lucide-react"
 
 export default async function BillingPage() {
   const supabase = await createClient()
@@ -12,105 +12,119 @@ export default async function BillingPage() {
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
     include: {
-      walletTransactions: { orderBy: { createdAt: 'desc' }, take: 5 }
+      walletTransactions: { orderBy: { createdAt: 'desc' }, take: 10 }
     }
   })
 
   const subscriptions = await prisma.subscriber.findMany({
     where: { email: user.email, isPremium: true, isActive: true },
-    include: { creator: { select: { name: true, logoUrl: true } } }
+    include: { creator: { select: { name: true, logoUrl: true, username: true } } }
   })
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <div className="container mx-auto px-4 py-16 max-w-4xl space-y-12">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight mb-2">Gestion Financière</h1>
-          <p className="text-muted-foreground">Transparence totale sur vos abonnements et votre solde.</p>
-        </div>
+    <div className="space-y-4">
+      
+      {/* Page header */}
+      <div className="px-1">
+        <h1 className="text-lg font-bold text-neutral-800 tracking-tight">Portefeuille & Abonnements</h1>
+        <p className="text-xs text-neutral-400 mt-0.5">Transparence totale sur votre solde et vos engagements.</p>
+      </div>
 
-        {/* Wallet Section */}
-        <section className="bg-card border rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-8 shadow-sm">
-          <div className="flex items-center gap-6">
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-              <Wallet className="w-8 h-8" />
+      {/* Main content in Bento shell */}
+      <div className="bg-[#EE4B2B] rounded-[40px] p-3 shadow-xl flex flex-col gap-3">
+        
+        {/* Wallet balance card */}
+        <div className="bg-white rounded-[32px] p-6 shadow-xs border border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-[#EE4B2B]/10 flex items-center justify-center text-[#EE4B2B] shrink-0">
+              <Wallet className="w-7 h-7" />
             </div>
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Solde Disponible</p>
-              <p className="text-4xl font-black font-mono tracking-tighter">
+              <span className="text-[9px] uppercase tracking-wider text-neutral-400 font-bold block">Solde Disponible</span>
+              <span className="text-3xl font-black font-mono text-neutral-800 block mt-1 tracking-tight">
                 {((dbUser?.walletBalanceCents || 0) / 100).toFixed(2)} €
-              </p>
+              </span>
             </div>
           </div>
-          <button className="w-full md:w-auto bg-primary text-primary-foreground px-8 py-3 rounded-full font-bold hover:opacity-90 transition-opacity">
-            Recharger
+          <button className="w-full sm:w-auto bg-[#EE4B2B] text-white hover:bg-[#d63d20] transition-colors py-3 px-8 rounded-2xl text-xs font-bold shadow-xs shadow-[#EE4B2B]/10">
+            Recharger le Portefeuille
           </button>
-        </section>
+        </div>
 
-        {/* Subscriptions */}
-        <section>
-          <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-            <CreditCard className="w-5 h-5" /> Abonnements Premium Actifs
-          </h2>
+        {/* Subscriptions card */}
+        <div className="bg-white rounded-[32px] p-6 shadow-xs border border-neutral-100">
+          <div className="flex items-center gap-2 mb-5">
+            <CreditCard className="w-4 h-4 text-[#EE4B2B]" />
+            <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Abonnements Premium Actifs</span>
+          </div>
           
           {subscriptions.length === 0 ? (
-            <p className="text-muted-foreground italic">Vous n'avez aucun abonnement premium actif.</p>
+            <div className="text-center py-10 text-neutral-400 flex flex-col items-center gap-3">
+              <CreditCard className="w-8 h-8 text-neutral-200" />
+              <p className="text-xs font-semibold">Aucun abonnement premium actif.</p>
+              <a href="/home" className="text-[10px] font-bold text-[#EE4B2B] hover:underline flex items-center gap-1">
+                Découvrir des créateurs <ArrowRight className="w-3 h-3" />
+              </a>
+            </div>
           ) : (
-            <div className="grid gap-4">
+            <div className="space-y-3">
               {subscriptions.map(sub => (
-                <div key={sub.id} className="flex items-center justify-between bg-card border p-4 rounded-2xl">
-                  <div className="flex items-center gap-4">
+                <div key={sub.id} className="flex items-center justify-between border border-neutral-100 p-4 rounded-2xl bg-neutral-50/50 hover:bg-neutral-50 transition-colors">
+                  <a href={sub.creator.username ? `/@${sub.creator.username}` : "#"} className="flex items-center gap-3 min-w-0 group">
                     {sub.creator.logoUrl ? (
-                      <img src={sub.creator.logoUrl} className="w-10 h-10 rounded-full object-cover" />
+                      <img src={sub.creator.logoUrl} className="w-10 h-10 rounded-xl object-cover border border-neutral-200/50" />
                     ) : (
-                      <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center font-bold">
+                      <div className="w-10 h-10 rounded-xl bg-[#EE4B2B]/10 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
                         {sub.creator.name?.charAt(0)}
                       </div>
                     )}
-                    <div>
-                      <h4 className="font-bold">{sub.creator.name}</h4>
-                      <p className="text-xs text-muted-foreground">Premium • Renouvellement auto.</p>
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold block truncate group-hover:text-[#EE4B2B] transition-colors">{sub.creator.name}</span>
+                      <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Premium • Renouvellement auto.</span>
                     </div>
-                  </div>
-                  <button className="text-xs font-semibold text-destructive hover:bg-destructive/10 px-4 py-2 rounded-lg transition-colors flex items-center gap-1">
+                  </a>
+                  <button className="text-[10px] font-bold text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1 border border-red-200/50">
                     <ShieldX className="w-3 h-3" /> Annuler
                   </button>
                 </div>
               ))}
             </div>
           )}
-        </section>
+        </div>
 
-        {/* Transactions */}
-        <section>
-          <h2 className="text-xl font-bold mb-6">Transactions Récentes</h2>
-          <div className="bg-card border rounded-2xl overflow-hidden">
-            {dbUser?.walletTransactions.length === 0 ? (
-              <p className="p-6 text-muted-foreground text-center">Aucune transaction.</p>
-            ) : (
-              <table className="w-full text-sm text-left">
-                <thead className="bg-muted/50 text-muted-foreground font-semibold">
-                  <tr>
-                    <th className="px-6 py-3">Date</th>
-                    <th className="px-6 py-3">Type</th>
-                    <th className="px-6 py-3 text-right">Montant</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {dbUser?.walletTransactions.map(tx => (
-                    <tr key={tx.id}>
-                      <td className="px-6 py-4">{new Date(tx.createdAt).toLocaleDateString()}</td>
-                      <td className="px-6 py-4">{tx.type}</td>
-                      <td className={`px-6 py-4 text-right font-mono font-medium ${tx.amountCents > 0 ? 'text-green-500' : ''}`}>
-                        {tx.amountCents > 0 ? '+' : ''}{(tx.amountCents / 100).toFixed(2)} €
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+        {/* Transactions card */}
+        <div className="bg-white rounded-[32px] p-6 shadow-xs border border-neutral-100">
+          <div className="flex items-center gap-2 mb-5">
+            <Receipt className="w-4 h-4 text-[#EE4B2B]" />
+            <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Transactions Récentes</span>
           </div>
-        </section>
+
+          {(dbUser?.walletTransactions.length || 0) === 0 ? (
+            <div className="text-center py-10 text-neutral-400">
+              <p className="text-xs font-semibold">Aucune transaction pour le moment.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {dbUser?.walletTransactions.map(tx => (
+                <div key={tx.id} className="flex items-center justify-between p-3.5 rounded-2xl border border-neutral-100 hover:bg-neutral-50/50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold ${tx.amountCents > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-neutral-100 text-neutral-500'}`}>
+                      {tx.amountCents > 0 ? '+' : '−'}
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-neutral-700 block">{tx.type}</span>
+                      <span className="text-[9px] text-neutral-400 font-mono">{new Date(tx.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <span className={`text-sm font-bold font-mono ${tx.amountCents > 0 ? 'text-emerald-600' : 'text-neutral-700'}`}>
+                    {tx.amountCents > 0 ? '+' : ''}{(tx.amountCents / 100).toFixed(2)} €
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   )
