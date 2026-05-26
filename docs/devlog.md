@@ -397,9 +397,62 @@ To continue building from here:
 - **Filtre Tag interactif** : Câblage de boutons de hashtags dans la colonne droite pour filtrer instantanément le feed d'articles au clic.
 - **Boutons RLS de Carte** : Ajout de raccourcis directs de signet (bookmarks) et de suivi (follows) sur chaque article du feed, persistant instantanément les relations en base de données.
 
+---
 
+### Session 14 - Base de Données Micro-posts, Personnalisation de Profil et Réglages (GDPR)
+*Date : 26 Mai 2026*
 
+**53. Modèle Post et Préférences Newsletter en Base**
+- **Persistance réelle des posts** : Ajout du modèle `Post` dans `schema.prisma` avec relation `author` (`User`) pour sauvegarder les micro-posts (280 caractères max) en base.
+- **Toggles newsletters granulaires** : Ajout de préférences `receiveArticles` et `receivePosts` sur le modèle `Subscriber` pour permettre aux utilisateurs de s'abonner uniquement aux articles longs, uniquement aux micro-posts, ou aux deux.
+- **Mise à jour client** : Exécution de `npx prisma db push` et `npx prisma generate` pour régénérer le client Prisma.
 
+**54. Fusion Chronologique du Feed Principal**
+- **Fusion et tri** : Mise à jour de `/home/page.tsx` pour requêter à la fois les `Article` et les `Post` réels de la base, les normaliser sous une même interface, et les trier de manière chronologique descendante pour l'affichage unifié dans le composeur et le feed client.
 
+**55. Centre de Réglages Bento à 6 Onglets (RGPD/GDPR)**
+- **Dashboard de Réglages (`/settings`)** : Implémentation d'une interface de réglages moderne et premium en Light Theme avec navigation morphing verticale et structure en blocs Bento.
+- **Votre Compte** : Éditeur d'identité (Nom, Username, Avatar, Biographie/ADN) et changement sécurisé de l'adresse de messagerie de connexion.
+- **Portabilité RGPD** : Ajout d'une action sécurisée `exportUserData` extrayant l'intégralité des données personnelles stockées (profil, abonnements, signets, notes, surlignages, micro-posts et historique financier) sous forme de fichier JSON exportable et téléchargeable d'un clic.
+- **Sécurité** : Formulaire de modification sécurisée du mot de passe via Supabase Auth.
+- **Abonnements & Newsletters** : Gestion granulaire des emails d'articles et tweets par auteur suivi, historique du portefeuille et assistant interactif "Devenir Créateur" pour passer de `user` à `creator` en choisissant son sous-domaine `.qoe.fi`.
+- **Confidentialité** : Gestion des mots exclus (`MutedWord`) et affichage des comptes bloqués.
+- **Affichage & Accessibilité** : Paramétrage linguistique (FR/EN), forçage du thème Light neutre, choix de taille de police, et activation du mode police Dyslexique persisté localement.
+- **Aide** : Formulaire DPO RGPD et de contact d'assistance.
+
+**56. Résolution des types et compilation**
+- **Typage Spring Transitions** : Correction des types de transitions de framer-motion (`springTransition` typé `as const`) pour satisfaire les exigences strictes de compilation.
+- **Champs manquants** : Ajout de la propriété optionnelle `tags` à l'interface `Article` et typage correct des données d'auteurs micro-posts.
+- **Statut final** : La commande `npx tsc --noEmit` passe sans aucune erreur sur le projet.
+
+**57. Intégration du Menu de Profil en Bas à Gauche & Onboarding Sémantique IA**
+- **Déplacement du Menu de Profil** : Retrait total du menu de profil et de son avatar déroulant de la barre de navigation supérieure (`NavbarPremium.tsx`). Intégration sous forme de menu déroulant contextuel complet (`DropdownMenu` Base UI) au niveau du bouton de profil en bas à gauche de la barre latérale du feed (`FeedDashboard.tsx`). Les utilisateurs peuvent y accéder à leur profil, réglages, sanctuaire, solde, ou se déconnecter directement.
+- **Catégories Modulables Administrateur** : Modification de `/onboarding/page.tsx` pour charger dynamiquement les centres d'intérêt depuis la table `SystemConfig` (clé `ONBOARDING_INTERESTS`). Si la clé n'existe pas, elle est automatiquement créée en base de données avec des catégories par défaut. Intégration d'un **visualiseur et éditeur interactif de puces (OnboardingInterestsBuilder)** dans l'espace superadmin (`/admin/frontend`), permettant de moduler, d'ajouter et d'effacer les centres d'intérêt de l'onboarding de manière complètement visuelle.
+- **Correction des Bloquages de l'Onboarding** : Modification de la condition d'activation du bouton d'onboarding (`selectedInterests.length < Math.min(3, categories.length)`) pour éviter que le lecteur soit bloqué si l'administrateur a configuré moins de 3 centres d'intérêt au total.
+- **Raccordement pgvector & IA** : Création d'un utilitaire `src/lib/ai.ts` pour générer un vecteur d'embedding normalisé à 1536 dimensions basé sur les intérêts et le paragraphe sémantique rédigé par le lecteur. L'embedding est mis à jour en base de données PostgreSQL via une requête SQL brute (`UPDATE "User" SET embedding = ...`) à la validation de l'onboarding pour alimenter l'algorithme de recommandation.
+
+---
+
+### Session 15 - Profils Publics `/@username` & Upload d'Images Multi-format (Réseau Social Complet)
+*Date : 26 Mai 2026*
+
+**58. Interception & Routage Unifié de Racine (`/[locale]`)**
+- **Problème** : Conflit de slugs dynamiques Next.js à la racine (`[locale]` vs `[username]` sous le groupe `(main)`).
+- **Solution** : Relocalisation de la page de profil et de ses actions sous `src/app/[locale]/`. Fusion au sein de `src/app/[locale]/page.tsx` pour intercepter les slugs démarrant par `@` (ex: `/@alex`), charger les relations et le profil sémantique de l'utilisateur, et rendre `ProfileDashboard` sous le layout standard. La landing page localized reste chargée si le slug correspond à une langue (`fr`, `en`, etc.).
+
+**59. Composeur & Rendu de Flux avec Images Jointes**
+- **Composeur d'Images** : Ajout d'une option d'attachement d'image dans le composeur de pensées de `FeedDashboard.tsx`. L'import de fichier déclenche un upload vers l'API `/api/articles/upload` avec spinner de progression. La pensée s'accompagne d'une prévisualisation supprimable.
+- **Rendu Premium** : Rendu des images jointes sous les micro-posts dans le feed avec coins arrondis et zoom fluide au survol.
+
+**60. Maillage sémantique global vers `/@username`**
+- Mise à jour de toutes les requêtes d'auteurs (`home/page.tsx`) pour y inclure le champ `username`.
+- Les avatars et mentions de noms dans le flux de pensées, suggestions, et abonnés redirigent vers le chemin sémantique `/@username`.
+
+**61. Upload d'avatar dans les Réglages utilisateur**
+- Transformation du champ texte brut de l'avatar dans `SettingsDashboard.tsx` en un bloc de téléversement interactif avec bouton caméra en surimpression et loader de progression.
+
+**62. Nettoyage de Cache et Validation**
+- Nettoyage du dossier de cache `.next` pour recompile proprement les types Next.js.
+- Exécution de `npx tsc --noEmit` avec succès (zéro erreur de typage) et initialisation du serveur de développement.
 
 
