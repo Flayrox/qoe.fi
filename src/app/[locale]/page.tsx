@@ -44,7 +44,7 @@ export default async function Home({ params }: PageProps) {
       <FeaturedPublications articles={standardArticles} config={configMap} />
       <CTA config={configMap} />
       <CreatorHub config={configMap} />
-      <Footer />
+      <Footer config={configMap} locale={locale} />
     </main>
   );
 }

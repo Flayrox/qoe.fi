@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useTranslate } from "@tolgee/react";
+import { useTranslate, useTolgee } from "@tolgee/react";
 import Link from "next/link";
 import { ArrowUpRight, Check } from "lucide-react";
 
@@ -65,10 +65,31 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
     },
   };
 
-  const sectionTitle = config["creator_hub_title"] || t("creator_hub_title", "Une infrastructure pour ceux qui pensent.");
-  const sectionTagline = config["creator_hub_tagline"] || t("creator_hub_tagline", "Rejoignez l'écosystème");
+  const tolgee = useTolgee();
+  const locale = tolgee.getLanguage() || "fr";
 
-  const content = TAB_CONTENT[activeTab];
+  const sectionTitle = config[`creator_hub_title_${locale}`] || config["creator_hub_title"] || t("creator_hub_title", "Une infrastructure pour ceux qui pensent.");
+  const sectionTagline = config[`creator_hub_tagline_${locale}`] || config["creator_hub_tagline"] || t("creator_hub_tagline", "Rejoignez l'écosystème");
+
+  const convictionHeadline = config[`creator_hub_conviction_${locale}`] || config["creator_hub_conviction"] || t("creator_hub_conviction", "Zéro VC. Zéro GAFAM. Zéro compromis.");
+  const convictionSubtitle = config[`creator_hub_conviction_sub_${locale}`] || config["creator_hub_conviction_sub"] || t("creator_hub_conviction_sub", "Bootstrapé par conviction. Hébergé en Allemagne (Hetzner, énergie verte). Données souveraines. RGPD by design.");
+  const manifestoText = config[`creator_hub_manifesto_${locale}`] || config["creator_hub_manifesto"] || t("creator_hub_manifesto", "Lire le manifeste");
+
+  const customTabsJson = config[`creator_hub_tabs_${locale}`] || config["creator_hub_tabs"];
+  let content = TAB_CONTENT[activeTab];
+  if (customTabsJson) {
+    try {
+      const parsed = JSON.parse(customTabsJson);
+      if (Array.isArray(parsed)) {
+        const idx = TABS.indexOf(activeTab);
+        if (idx !== -1 && parsed[idx]) {
+          content = parsed[idx];
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse creator hub tabs JSON:", e);
+    }
+  }
 
   return (
     <section className="bg-background py-28 px-6 border-t border-neutral-100" id="creators">
@@ -250,17 +271,17 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
         >
           <div className="max-w-lg">
             <p className="text-lg font-semibold text-neutral-900 leading-snug mb-2">
-              {t("creator_hub_conviction", "Zéro VC. Zéro GAFAM. Zéro compromis.")}
+              {convictionHeadline}
             </p>
             <p className="text-sm text-neutral-500">
-              {t("creator_hub_conviction_sub", "Bootstrapé par conviction. Hébergé en Allemagne (Hetzner, énergie verte). Données souveraines. RGPD by design.")}
+              {convictionSubtitle}
             </p>
           </div>
           <Link
             href="/login"
             className="inline-flex items-center gap-2 border border-neutral-300 text-neutral-700 font-medium px-5 py-2.5 rounded-lg hover:border-neutral-400 transition-colors text-sm flex-shrink-0"
           >
-            {t("creator_hub_manifesto", "Lire le manifeste")}
+            {manifestoText}
             <ArrowUpRight className="w-3.5 h-3.5" />
           </Link>
         </motion.div>
