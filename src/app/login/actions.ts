@@ -13,16 +13,32 @@ export async function login(formData: FormData) {
 
   const supabase = await createClient()
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: { user }, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   })
 
-  if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`)
+  if (error || !user) {
+    redirect(`/login?error=${encodeURIComponent(error?.message || 'Authentication failed')}`)
   }
 
-  redirect('/dashboard')
+  const { prisma } = await import('@/lib/db')
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id }
+  })
+
+  if (dbUser) {
+    if (dbUser.role === 'user') {
+      const followsCount = await prisma.follows.count({ where: { readerId: dbUser.id } })
+      const mutedCount = await prisma.mutedWord.count({ where: { userId: dbUser.id } })
+      if (followsCount === 0 && mutedCount === 0) {
+        redirect('/onboarding')
+      }
+    }
+    redirect('/home')
+  }
+
+  redirect('/home')
 }
 
 export async function signup(formData: FormData) {
@@ -37,7 +53,7 @@ export async function signup(formData: FormData) {
 
   const supabase = await createClient()
 
-  const { error } = await supabase.auth.signUp({
+  const { data: { user }, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -48,15 +64,36 @@ export async function signup(formData: FormData) {
     },
   })
 
-  if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`)
+  if (error || !user) {
+    redirect(`/login?error=${encodeURIComponent(error?.message || 'Signup failed')}`)
   }
 
-  redirect('/dashboard')
+  // Redirect to onboarding for new signups
+  redirect('/onboarding')
 }
 
 export async function logout() {
   const supabase = await createClient()
   await supabase.auth.signOut()
   redirect('/login')
+}
+
+export async function getCurrentUser() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { prisma } = await import('@/lib/db')
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      subdomain: true,
+      customDomain: true,
+    }
+  })
+  return dbUser
 }
