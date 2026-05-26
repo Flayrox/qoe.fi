@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 
 export async function completeOnboarding(data: {
   interests: string[];
+  onboardingText?: string;
   mutedWords: string[];
   creatorsToFollow: string[];
 }) {
@@ -14,6 +15,14 @@ export async function completeOnboarding(data: {
   if (!user) throw new Error("Unauthorized")
 
   try {
+    // Save onboarding text if provided
+    if (data.onboardingText) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { onboardingText: data.onboardingText }
+      })
+    }
+
     // 1. Save Muted Words
     if (data.mutedWords.length > 0) {
       await prisma.mutedWord.createMany({
@@ -35,9 +44,6 @@ export async function completeOnboarding(data: {
         skipDuplicates: true
       })
     }
-    
-    // In a real scenario, we might also save interests directly on the user model 
-    // or as a relation to personalize the pgvector query later.
     
     return { success: true }
   } catch (error) {
