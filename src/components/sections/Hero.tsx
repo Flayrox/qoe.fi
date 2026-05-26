@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, useAnimationFrame } from "framer-motion";
-import { useTranslate } from "@tolgee/react";
+import { useTranslate, useTolgee } from "@tolgee/react";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -72,7 +72,7 @@ const READER_ITEMS: RItem[] = [
 ];
 
 // ─── Reader scroll — pauses on inactive, resumes from exact position ──────────
-function ReaderScroll({ active }: { active: boolean }) {
+function ReaderScroll({ active, items }: { active: boolean; items: RItem[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const posRef = useRef(0);
   const activeRef = useRef(active);
@@ -87,7 +87,7 @@ function ReaderScroll({ active }: { active: boolean }) {
     containerRef.current.style.transform = `translateY(-${posRef.current}px)`;
   });
 
-  const doubled = [...READER_ITEMS, ...READER_ITEMS];
+  const doubled = [...items, ...items];
   return (
     <div ref={containerRef} className="will-change-transform">
       {doubled.map((item, i) => {
@@ -190,14 +190,30 @@ interface PlateauProps {
   onClose: (fromElement: DOMRect | null) => void;
   showChrome: boolean;
   autoClickDot: boolean;
+  config: Record<string, string>;
+  locale: string;
 }
 
-function PlateauPreview({ onClose, showChrome, autoClickDot }: PlateauProps) {
+function PlateauPreview({ onClose, showChrome, autoClickDot, config, locale }: PlateauProps) {
   const { t } = useTranslate();
   const [active, setActive] = useState<"writer" | "reader">("writer");
   
-  const editorBody = t("hero.editor_body", `Il y a dans le vide une forme d'intelligence que nos écrans ont oubliée. Écrire, c'est d'abord creuser — ôter le superflu jusqu'à ce que la phrase respire d'elle-même, sans soutien artificiel.\n\nLa clarté ne s'impose pas. Elle se révèle, lentement, comme une lumière qui filtre à travers le brouillard de nos pensées accumulées.\n\nLa page blanche n'est pas une menace. C'est une invitation.`);
+  const editorTitle = config[`hero_editor_title_${locale}`] || config["hero_editor_title"] || t("hero.editor_title", "L'architecture du silence");
+  const editorBody = config[`hero_editor_body_${locale}`] || config["hero_editor_body"] || t("hero.editor_body", `Il y a dans le vide une forme d'intelligence que nos écrans ont oubliée. Écrire, c'est d'abord creuser — ôter le superflu jusqu'à ce que la phrase respire d'elle-même, sans soutien artificiel.\n\nLa clarté ne s'impose pas. Elle se révèle, lentement, comme une lumière qui filtre à travers le brouillard de nos pensées accumulées.\n\nLa page blanche n'est pas une menace. C'est une invitation.`);
   
+  const customReaderItemsJson = config[`hero_reader_items_${locale}`] || config["hero_reader_items"];
+  let readerItems = READER_ITEMS;
+  if (customReaderItemsJson) {
+    try {
+      const parsed = JSON.parse(customReaderItemsJson);
+      if (Array.isArray(parsed)) {
+        readerItems = parsed;
+      }
+    } catch (e) {
+      console.error("Failed to parse custom reader items:", e);
+    }
+  }
+
   const typedBody = useTypewriter(editorBody, 30, active === "writer");
   const redDotRef = useRef<HTMLButtonElement>(null);
 
@@ -265,7 +281,7 @@ function PlateauPreview({ onClose, showChrome, autoClickDot }: PlateauProps) {
                   ))}
                 </motion.div>
                 <h1 className="text-2xl md:text-[2rem] font-bold text-neutral-900 leading-tight tracking-tight mt-2">
-                  {t("hero.editor_title", "L'architecture du silence")}
+                  {editorTitle}
                 </h1>
                 <p className="text-sm md:text-base text-neutral-600 leading-relaxed min-h-[6rem] max-w-2xl whitespace-pre-line">
                   {typedBody}
@@ -297,7 +313,7 @@ function PlateauPreview({ onClose, showChrome, autoClickDot }: PlateauProps) {
                 <div className="absolute top-0 inset-x-0 h-6 bg-gradient-to-b from-white to-transparent z-10 pointer-events-none" />
                 <div className="absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-white to-transparent z-10 pointer-events-none" />
                 <div className="absolute inset-0 px-5 py-4 overflow-hidden">
-                  <ReaderScroll active={active === "reader"} />
+                  <ReaderScroll active={active === "reader"} items={readerItems} />
                 </div>
               </div>
             </div>
@@ -315,6 +331,8 @@ function PlateauPreview({ onClose, showChrome, autoClickDot }: PlateauProps) {
 // ─── Hero section ────────────────────────────────────────────────────────────
 export const Hero = ({ config }: HeroProps) => {
   const { t } = useTranslate();
+  const tolgee = useTolgee();
+  const locale = tolgee.getLanguage() || "fr";
   const router = useRouter();
   const [closed, setClosed] = useState(false);
   const [showChrome, setShowChrome] = useState(false);
@@ -415,6 +433,8 @@ export const Hero = ({ config }: HeroProps) => {
                 onClose={handleClose}
                 showChrome={showChrome}
                 autoClickDot={autoClosePhase === "cursor"}
+                config={config}
+                locale={locale}
               />
             </motion.div>
           )}

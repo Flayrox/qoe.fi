@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { useTranslate } from "@tolgee/react";
+import { useTranslate, useTolgee } from "@tolgee/react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
@@ -12,11 +12,15 @@ interface CTAProps {
 
 export const CTA = ({ config }: CTAProps) => {
   const { t } = useTranslate();
+  const tolgee = useTolgee();
+  const locale = tolgee.getLanguage() || "fr";
 
-  const headline = config["cta_headline"] || t("cta_headline", "Du temps bien dépensé.");
-  const subline = config["cta_subline"] || t("cta_subline", "Pas de scroll toxique. Pas d'algorithme marchand. Juste du fond, du temps long, et un espace qui respecte votre intelligence.");
-  const btnPrimary = config["cta_btn_primary"] || t("cta_btn_primary", "Commencer à lire");
-  const btnSecondary = config["cta_btn_secondary"] || t("cta_btn_secondary", "Se cultiver, gratuitement");
+  const eyebrow = config[`cta_eyebrow_${locale}`] || config["cta_eyebrow"] || t("cta_eyebrow", "Pour ceux qui veulent se cultiver");
+  const headline = config[`cta_headline_${locale}`] || config["cta_headline"] || t("cta_headline", "Du temps bien dépensé.");
+  const subline = config[`cta_subline_${locale}`] || config["cta_subline"] || t("cta_subline", "Pas de scroll toxique. Pas d'algorithme marchand. Juste du fond, du temps long, et un espace qui respecte votre intelligence.");
+  const btnPrimary = config[`cta_btn_primary_${locale}`] || config["cta_btn_primary"] || t("cta_btn_primary", "Commencer à lire");
+  const btnSecondary = config[`cta_btn_secondary_${locale}`] || config["cta_btn_secondary"] || t("cta_btn_secondary", "Se cultiver, gratuitement");
+  const socialProof = config[`cta_social_proof_${locale}`] || config["cta_social_proof"] || t("cta_social_proof", "Gratuit · Aucune carte bancaire requise · Données hébergées en Europe");
 
   return (
     <section
@@ -36,7 +40,7 @@ export const CTA = ({ config }: CTAProps) => {
           viewport={{ once: true }}
           className="text-[10px] tracking-[0.3em] text-white/60 uppercase font-semibold mb-8"
         >
-          {t("cta_eyebrow", "Pour ceux qui veulent se cultiver")}
+          {eyebrow}
         </motion.p>
 
         {/* Headline — very large, typographic */}
@@ -92,7 +96,7 @@ export const CTA = ({ config }: CTAProps) => {
           transition={{ delay: 0.4 }}
           className="mt-10 text-[11px] text-white/40"
         >
-          {t("cta_social_proof", "Gratuit · Aucune carte bancaire requise · Données hébergées en Europe")}
+          {socialProof}
         </motion.p>
       </div>
     </section>

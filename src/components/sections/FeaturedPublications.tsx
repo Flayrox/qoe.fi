@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { motion, useAnimationFrame } from "framer-motion";
-import { useTranslate } from "@tolgee/react";
+import { useTranslate, useTolgee } from "@tolgee/react";
 import { ArrowUpRight } from "lucide-react";
 import { ArticlePreviewModal } from "./ArticlePreviewModal";
 
@@ -86,18 +86,28 @@ export const FeaturedPublications = ({ articles, config }: FeaturedPublicationsP
   const [selectedArticle, setSelectedArticle] = useState<any | null>(null);
   const [lanes, setLanes] = useState<{ lane1: string[]; lane2: string[]; lane3: string[]; lane4: string[] } | null>(null);
 
-  useEffect(() => {
-    const shuffle = (arr: string[]) => [...arr].sort(() => Math.random() - 0.5);
-    setLanes({
-      lane1: shuffle(BACKGROUND_WORDS).slice(0, 18),
-      lane2: shuffle(BACKGROUND_WORDS).slice(8, 26),
-      lane3: shuffle(BACKGROUND_WORDS).slice(4, 22),
-      lane4: shuffle(BACKGROUND_WORDS).slice(12, 30),
-    });
-  }, []);
+  const tolgee = useTolgee();
+  const locale = tolgee.getLanguage() || "fr";
 
-  const title = config["featured_title"] || t("featured_pub_title", "Publications récentes");
-  const tagline = config["featured_tagline"] || t("featured_pub_tagline", "Écrits sélectionnés");
+  useEffect(() => {
+    let words = BACKGROUND_WORDS;
+    const customWordsStr = config["featured_background_words"];
+    if (customWordsStr && customWordsStr.trim()) {
+      words = customWordsStr.split(",").map(w => w.trim()).filter(Boolean);
+    }
+    
+    const shuffle = (arr: string[]) => [...arr].sort(() => Math.random() - 0.5);
+    const count = words.length;
+    setLanes({
+      lane1: shuffle(words).slice(0, Math.min(18, count)),
+      lane2: shuffle(words).slice(Math.min(8, count), Math.min(26, count)),
+      lane3: shuffle(words).slice(Math.min(4, count), Math.min(22, count)),
+      lane4: shuffle(words).slice(Math.min(12, count), Math.min(30, count)),
+    });
+  }, [config]);
+
+  const title = config[`featured_title_${locale}`] || config["featured_title"] || t("featured_pub_title", "Publications récentes");
+  const tagline = config[`featured_tagline_${locale}`] || config["featured_tagline"] || t("featured_pub_tagline", "Écrits sélectionnés");
 
   // Fallback mock articles
   const mockArticles = [
