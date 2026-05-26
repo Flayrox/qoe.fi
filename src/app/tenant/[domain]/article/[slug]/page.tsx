@@ -7,6 +7,10 @@ import { TenantHeader } from "@/components/ui/TenantHeader";
 import { SubscribeForm } from "@/components/ui/SubscribeForm";
 import { Lock } from "lucide-react";
 import { PaywallCut } from "./PaywallCut";
+import { createClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
+import { ReaderActions } from "./ReaderActions";
+import { TextHighlighter } from "./TextHighlighter";
 
 interface PageProps {
   params: Promise<{ domain: string; slug: string }>;
@@ -103,14 +107,65 @@ export default async function TenantArticlePage({ params }: PageProps) {
   } as React.CSSProperties;
 
   const isBrutalist = layoutStyle === 'brutalist';
-  
-  // Fake authentication check for the paywall
-  // In Phase 4, we'll replace this with an actual Supabase session check and Stripe subscription check
-  const isAuthenticated = false;
-  const showPaywall = article.isPremium && !isAuthenticated;
 
-  // Truncate content for paywall (rough estimate by character count or first few paragraphs)
-  
+  // Get active user session server-side
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // DB queries for reader relationships
+  const follow = user ? await prisma.follows.findUnique({
+    where: {
+      readerId_creatorId: {
+        readerId: user.id,
+        creatorId: creator.id
+      }
+    }
+  }) : null;
+  const hasFollowed = !!follow;
+
+  const bookmark = user ? await prisma.bookmark.findUnique({
+    where: {
+      readerId_articleId: {
+        readerId: user.id,
+        articleId: article.id
+      }
+    }
+  }) : null;
+  const hasBookmarked = !!bookmark;
+
+  const userHighlights = user ? await prisma.highlight.findMany({
+    where: {
+      readerId: user.id,
+      articleId: article.id
+    },
+    select: {
+      id: true,
+      text: true,
+      note: true
+    }
+  }) : [];
+
+  // Subscription checking logic
+  const subscription = user ? await prisma.subscriber.findUnique({
+    where: {
+      email_creatorId: {
+        email: user.email || "",
+        creatorId: creator.id
+      }
+    }
+  }) : null;
+  const isSubscribed = !!(subscription?.isActive && subscription?.isPremium);
+
+  // Author and admin bypass
+  const isAuthor = user?.id === creator.id;
+  const isSuperAdmin = user ? (await prisma.user.findUnique({ where: { id: user.id }, select: { role: true } }))?.role === 'superadmin' : false;
+
+  const showPaywall = article.isPremium && !isSubscribed && !isAuthor && !isSuperAdmin;
+
+  // Resolve main app URL
+  const headersList = await headers();
+  const host = headersList.get("host") || "";
+  const mainAppUrl = host.includes("localhost") ? "http://localhost:3000" : "https://qoe.fi";
 
   return (
     <div 
@@ -162,17 +217,38 @@ export default async function TenantArticlePage({ params }: PageProps) {
             </div>
           </header>
 
-          <div className={`mt-12 leading-relaxed ${isBrutalist ? 'font-mono text-lg' : ''}`}>
+          <div id="article-content" className={`mt-12 leading-relaxed ${isBrutalist ? 'font-mono text-lg' : ''}`}>
             <PaywallCut 
               contentHtml={article.content} 
               isPremium={showPaywall} 
               name={name} 
               isBrutalist={isBrutalist} 
               accentColor={accentColor} 
+              mainAppUrl={mainAppUrl}
+              creatorId={creator.id}
             />
           </div>
         </article>
       </main>
+
+      {/* Reader Actions dock */}
+      <ReaderActions
+        articleId={article.id}
+        creatorId={creator.id}
+        creatorName={name || creator.subdomain || ""}
+        isAuthenticated={!!user}
+        initialBookmarked={hasBookmarked}
+        initialFollowed={hasFollowed}
+        mainAppUrl={mainAppUrl}
+      />
+
+      {/* Client-side Text selection Highlighter tool */}
+      <TextHighlighter
+        articleId={article.id}
+        isAuthenticated={!!user}
+        initialHighlights={userHighlights}
+        mainAppUrl={mainAppUrl}
+      />
 
       <footer id="subscribe" className={`mt-32 py-24 text-center ${isBrutalist ? 'border-t-4 border-foreground' : 'border-t bg-zinc-50 dark:bg-zinc-900/50'}`}>
         <div className="container max-w-2xl mx-auto px-4">

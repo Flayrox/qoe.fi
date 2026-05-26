@@ -338,5 +338,49 @@ To continue building from here:
   - **FooterColumnsBuilder** : Organisateur de colonnes de liens avec édition imbriquée du libellé, de l'URL et du ciblage de fenêtre (externe/interne).
 - **Sérialisation Transparente** : Les configurations complexes sont sérialisées de manière transparente en JSON côté client avant soumission à l'API de sauvegarde, assurant une parfaite sécurité syntaxique et éliminant tout risque de saisie invalide.
 
+---
+
+### Session 11 - Expérience Lecteur Premium, Onboarding Sémantique & Écosystème Connecté
+*Date : 26 Mai 2026*
+
+**42. Onboarding Sémantique en 4 Étapes**
+- **Saisie du paragraphe (ADN Lecteur)** : Intégration d'une étape sémantique demandant au lecteur de rédiger ses attentes et sujets favoris. Présentation sous forme de double bento : explication technique à gauche (pgvector 1536 dimensions) et zone de saisie avec compteur de caractères à droite.
+- **Persistance en base de données** : Le paragraphe est transmis par l'action serveur `completeOnboarding` et stocké dans le champ `onboardingText` de la table `User` dans PostgreSQL, servant de base pour le matching sémantique futur.
+
+**43. Timeline Lecteur Facon Twitter en Bento**
+- **Refonte esthétique et fonctionnelle (`/home`)** : Remplacement de la simple liste d'articles par un tableau de bord Bento premium. Il intègre le flux chronologique à gauche, et à droite : la fiche profil avec le solde du portefeuille en temps réel, l'ADN lecteur sémantique extrait, des statistiques de lecture (suivis, signets, notes), et des créateurs certifiés à découvrir pour briser les bulles de filtres.
+
+**44. Authentification Dynamique & Profil dans la Navbar**
+- **NavbarPremium réactive** : Résolution de la session utilisateur côté client via l'action serveur `getCurrentUser`. En cas de connexion active, le bouton statique "Connexion" est remplacé par un avatar avec un menu déroulant premium (`DropdownMenu` de base-ui/shadcn) permettant de naviguer vers la timeline, le sanctuaire, les notes de surlignage, la facturation, ou les espaces d'administration créateurs/superadmins selon les rôles.
+- **Layout unifié (`/home`, `/library`, `/highlights`, `/billing`)** : Création d'un layout commun injectant proprement la NavbarPremium en haut de l'espace de lecture.
+
+**45. Outils de Lecture RLS sur les Articles (Tenant)**
+- **Dock de lecture flottant (`ReaderActions`)** : Insertion d'un dock animé au bas des articles pour s'abonner au créateur ou ajouter/retirer l'article de sa bibliothèque de signets en un clic.
+- **Surlignage Interactif avec Notes (`TextHighlighter`)** : Écouteur de sélection de texte dans les paragraphes de l'article. Il affiche un badge flottant "Surligner" permettant d'ajouter une note personnelle facultative. Le texte s'enveloppe dynamiquement d'une balise `<mark>` persistée dans la table `Highlight` et affichée au survol. Les surlignages existants sont automatiquement appliqués au chargement.
+
+**46. Résolution du Paywall Réel & Déblocage par Portefeuille**
+- **Intégration financière (`PaywallCut`)** : Connexion du bouton "Unlock for 2,00 €" à l'action serveur `unlockArticleWithWallet`. Si le solde `walletBalanceCents` du lecteur est suffisant, il est débité de 2,00 €, une transaction financière est créée, et l'utilisateur obtient le statut de `Subscriber` premium auprès du créateur, débloquant immédiatement l'article.
+- **Règles RLS et bypass de sécurité** : Le paywall s'affiche si l'article est premium et que l'utilisateur n'est ni abonné, ni l'auteur de l'article, ni superadmin.
+
+---
+
+### Session 12 - Résolution du Crash Turbopack & Améliorations de Navigation
+*Date : 26 Mai 2026*
+
+**47. Nettoyage du Cache Corrompu de Turbopack**
+- **Problème** : Erreur `Internal Server Error` (500) bloquante au démarrage. Les logs indiquaient une corruption du cache Turbopack (`TurbopackInternalError: Failed to restore task data`) due à un fichier SST de base de données interne inaccessible/corrompu dans le dossier `.next/dev/cache`.
+- **Solution** : Suppression complète du répertoire de cache `.next` et relancement du serveur Next.js en mode de développement. Le serveur s'est relancé avec succès et la compilation s'effectue désormais sans erreur (code `200` sur `/fr`).
+
+**48. Résolution de l'erreur Runtime Base UI DropdownMenuLabel**
+- **Problème** : Crash au rendu de la barre de navigation premium [NavbarPremium.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/components/layout/NavbarPremium.tsx) avec le message `Base UI: MenuGroupRootContext is missing. Menu group parts must be used within <Menu.Group>`.
+- **Solution** : Importation de `DropdownMenuGroup` dans [NavbarPremium.tsx](file:///d:/Files/DEV/Main/qoe.fi/src/components/layout/NavbarPremium.tsx) et enveloppement de `<DropdownMenuLabel>` et des `<DropdownMenuItem>` enfants pour satisfaire la contrainte contextuelle de Base UI.
+
+**49. Redirection post-connexion vers le Feed Timeline (/home)**
+- **Problème** : Les utilisateurs (créateurs et administrateurs inclus) étaient redirigés par défaut vers le Dashboard créateur (`/dashboard`) au lieu du feed timeline (`/home`) après s'être authentifiés.
+- **Solution** : Modification de la Server Action `login` dans [actions.ts](file:///d:/Files/DEV/Main/qoe.fi/src/app/login/actions.ts) ainsi que du callback d'authentification OAuth [route.ts](file:///d:/Files/DEV/Main/qoe.fi/src/app/auth/callback/route.ts) pour rediriger tous les utilisateurs connectés vers le feed `/home` (ou vers `/onboarding` s'il s'agit d'un nouveau lecteur n'ayant pas encore configuré ses intérêts).
+
+
+
+
 
 

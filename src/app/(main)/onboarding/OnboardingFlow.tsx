@@ -21,6 +21,7 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
 
   // Form State
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [onboardingText, setOnboardingText] = useState("");
   const [mutedWords, setMutedWords] = useState<string[]>([]);
   const [mutedInput, setMutedInput] = useState("");
   const [selectedCreators, setSelectedCreators] = useState<string[]>(suggestedCreators.map(c => c.id));
@@ -33,6 +34,7 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
     try {
       await completeOnboarding({
         interests: selectedInterests,
+        onboardingText,
         mutedWords,
         creatorsToFollow: selectedCreators
       });
@@ -69,12 +71,12 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
       {/* Progress Header */}
       <div className="p-8 border-b border-border/30 flex items-center justify-between relative z-10">
         <div className="flex gap-2">
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3, 4].map(i => (
             <div key={i} className={`h-1 w-12 rounded-full transition-colors duration-500 ${step >= i ? "bg-foreground" : "bg-foreground/10"}`} />
           ))}
         </div>
         <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
-          {t("onboarding_step", "Étape")} {step} / 3
+          {t("onboarding_step", "Étape")} {step} / 4
         </span>
       </div>
 
@@ -127,11 +129,75 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
               </div>
             </motion.div>
           )}
-
-          {/* STEP 2: Muted Words */}
+          {/* STEP 2: Paragraph detail */}
           {step === 2 && (
             <motion.div
               key="step2"
+              initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
+              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, x: -50, filter: "blur(10px)" }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="h-full flex flex-col"
+            >
+              <div className="mb-8">
+                <Sparkles className="w-8 h-8 text-[#EE4B2B] mb-4 animate-pulse" />
+                <h2 className="font-sans font-bold text-3xl text-foreground mb-2">
+                  Détaillez vos lectures idéales.
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                  Rédigez un paragraphe sur vos sujets favoris, vos questions du moment ou ce que vous recherchez. Notre IA sémantique l'analysera pour calibrer vos recommandations.
+                </p>
+              </div>
+
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+                {/* Left Bento Explanation */}
+                <div className="md:col-span-2 bg-[#F97316]/5 border border-[#F97316]/20 p-6 rounded-2xl flex flex-col justify-between">
+                  <div>
+                    <h4 className="font-semibold text-lg text-[#F97316] mb-2">Recommandation Sémantique</h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Contrairement aux flux de buzz compulsifs, nous vectorisons vos écrits et les comparons à la distance cosinusoïdale (pgvector) des articles. Plus votre description est honnête et profonde, plus votre sanctuaire sera pertinent.
+                    </p>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-border/40 text-[10px] font-mono text-muted-foreground">
+                    DIMENSIONS VECTORIELLES : 1536<br />
+                    MOTEUR : PGVECTOR + EMBEDDINGS
+                  </div>
+                </div>
+
+                {/* Right Text Area */}
+                <div className="md:col-span-3 flex flex-col">
+                  <textarea
+                    autoFocus
+                    value={onboardingText}
+                    onChange={(e) => setOnboardingText(e.target.value)}
+                    placeholder="J'aime lire des articles sur l'émancipation économique, la sociologie des technologies, des revues de presse fouillées sur l'indépendance des médias, et les essais philosophiques sur la culture..."
+                    maxLength={1000}
+                    className="w-full flex-1 bg-muted/20 border border-border/80 p-5 rounded-2xl text-sm leading-relaxed placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-[#EE4B2B]/20 focus:border-[#EE4B2B] transition-all resize-none min-h-[160px]"
+                  />
+                  <div className="text-right text-[10px] font-mono text-muted-foreground mt-2">
+                    {onboardingText.length} / 1000 caractères
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-auto pt-4 flex justify-between">
+                <button onClick={handleBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-sm">
+                  <ArrowLeft className="w-4 h-4" /> {t("common_back", "Retour")}
+                </button>
+                <button
+                  onClick={handleNext}
+                  className="group flex items-center gap-3 px-10 py-4 bg-foreground text-background rounded-full font-bold transition-all cursor-pointer text-sm"
+                >
+                  {t("common_continue", "Continuer")} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* STEP 3: Muted Words */}
+          {step === 3 && (
+            <motion.div
+              key="step3"
               initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
               animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
               exit={{ opacity: 0, x: -50, filter: "blur(10px)" }}
@@ -193,10 +259,10 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
             </motion.div>
           )}
 
-          {/* STEP 3: Creators */}
-          {step === 3 && (
+          {/* STEP 4: Creators */}
+          {step === 4 && (
             <motion.div
-              key="step3"
+              key="step4"
               initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
               animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
               exit={{ opacity: 0, x: -50, filter: "blur(10px)" }}
@@ -258,7 +324,6 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
               </div>
             </motion.div>
           )}
-
         </AnimatePresence>
       </div>
     </div>
