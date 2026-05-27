@@ -9,6 +9,7 @@ import { toggleFollowCreatorHome, toggleBookmarkArticleHome } from "./actions"
 import { cn } from "@/lib/utils"
 import { ArticleCard } from "./components/ArticleCard"
 import { MicroPostComposer } from "./components/MicroPostComposer"
+import { useTabStore } from "@/lib/use-tab-store"
 
 interface Author {
   id: string
@@ -83,6 +84,8 @@ export function FeedDashboard({
   const [followsCount, setFollowsCount] = useState<number>(initialFollowsCount)
   const [bookmarksCount, setBookmarksCount] = useState<number>(initialBookmarksCount)
   
+  const { addTab } = useTabStore()
+
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [localPosts, setLocalPosts] = useState<Article[]>([])
   
@@ -91,10 +94,25 @@ export function FeedDashboard({
     { id: 2, text: "Votre note sur 'L'éveil de l'IA' a été synchronisée", time: "Il y a 2h", unread: false },
   ])
 
+  const isCreatorFollowed = (creatorId: string) => followedCreators.some(f => f.id === creatorId)
+  const isArticleBookmarked = (articleId: string) => bookmarks.some(b => b.id === articleId)
+
   const handleFollowToggle = async (creator: any) => {
+    // Optimistic Update
+    const isCurrentlyFollowed = isCreatorFollowed(creator.id)
+    
+    if (isCurrentlyFollowed) {
+      setFollowedCreators(prev => prev.filter(f => f.id !== creator.id))
+      setFollowsCount(prev => Math.max(0, prev - 1))
+    } else {
+      setFollowedCreators(prev => [creator, ...prev])
+      setFollowsCount(prev => prev + 1)
+    }
+
     const res = await toggleFollowCreatorHome(creator.id)
-    if (res.success) {
-      if (res.followed) {
+    if (!res.success) {
+      // Rollback
+      if (isCurrentlyFollowed) {
         setFollowedCreators(prev => [creator, ...prev])
         setFollowsCount(prev => prev + 1)
       } else {
@@ -105,9 +123,21 @@ export function FeedDashboard({
   }
 
   const handleBookmarkToggle = async (article: Article) => {
+    // Optimistic Update
+    const isCurrentlyBookmarked = isArticleBookmarked(article.id)
+    
+    if (isCurrentlyBookmarked) {
+      setBookmarks(prev => prev.filter(b => b.id !== article.id))
+      setBookmarksCount(prev => Math.max(0, prev - 1))
+    } else {
+      setBookmarks(prev => [article, ...prev])
+      setBookmarksCount(prev => prev + 1)
+    }
+
     const res = await toggleBookmarkArticleHome(article.id)
-    if (res.success) {
-      if (res.bookmarked) {
+    if (!res.success) {
+      // Rollback
+      if (isCurrentlyBookmarked) {
         setBookmarks(prev => [article, ...prev])
         setBookmarksCount(prev => prev + 1)
       } else {
@@ -116,9 +146,6 @@ export function FeedDashboard({
       }
     }
   }
-
-  const isCreatorFollowed = (creatorId: string) => followedCreators.some(f => f.id === creatorId)
-  const isArticleBookmarked = (articleId: string) => bookmarks.some(b => b.id === articleId)
 
   const currentFeedArticles = useMemo(() => {
     let list: Article[] = []
@@ -336,8 +363,13 @@ export function FeedDashboard({
                 {suggestedCreators.map(creator => {
                   return (
                     <div key={creator.id} className="flex items-center justify-between gap-3">
-                      <a 
-                        href={creator.username ? `/@${creator.username}` : `/@${creator.subdomain}`}
+                      <div 
+                        onClick={() => addTab({
+                          id: `profile-${creator.username || creator.subdomain}`,
+                          title: creator.name || `@${creator.username || creator.subdomain}`,
+                          type: "profile",
+                          username: creator.username || creator.subdomain
+                        })}
                         className="flex items-center gap-2.5 min-w-0 hover:opacity-85 transition-opacity cursor-pointer group/sug"
                       >
                         <div className="w-8 h-8 rounded-md overflow-hidden border border-neutral-200/30 shrink-0 shadow-xs">
@@ -353,7 +385,7 @@ export function FeedDashboard({
                           <span className="text-xs font-semibold block leading-none truncate group-hover/sug:text-[#EE4B2B] transition-colors duration-200">{creator.name}</span>
                           <span className="text-[9px] text-neutral-400 block truncate mt-1 font-mono">@{creator.username || creator.subdomain}</span>
                         </div>
-                      </a>
+                      </div>
                       <button
                         onClick={() => handleFollowToggle(creator)}
                         className="bg-[#EE4B2B]/5 hover:bg-[#EE4B2B] hover:text-white border border-[#EE4B2B]/20 text-[#EE4B2B] font-bold text-[9px] px-2.5 py-1.5 rounded-md transition-all shrink-0 cursor-pointer"

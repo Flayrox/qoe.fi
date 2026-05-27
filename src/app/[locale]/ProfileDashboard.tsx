@@ -9,6 +9,8 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toggleFollowUser, sendLetter, updateAvatarDirect, fetchUserConnections, updateProfileDirect } from "./actions"
+import { useTabStore } from "@/lib/use-tab-store"
+import { MicroPostCard } from "@/components/social/MicroPostCard"
 
 interface ProfileDashboardProps {
   profileUser: {
@@ -101,6 +103,8 @@ export function ProfileDashboard({
 }: ProfileDashboardProps) {
   const isOwnProfile = currentUserId === profileUser.id
 
+  const { addTab } = useTabStore()
+
   // Navigation states
   const [activeTab, setActiveTab] = useState<string>("pensees")
   const [isPending, startTransition] = useTransition()
@@ -172,11 +176,26 @@ export function ProfileDashboard({
       window.location.href = "/login"
       return
     }
+
+    // Optimistic Update
+    const previousIsFollowing = isFollowing
+    const previousFollowersCount = followersCount
+    
+    setIsFollowing(!previousIsFollowing)
+    setFollowersCount(prev => !previousIsFollowing ? prev + 1 : Math.max(0, prev - 1))
+
     startTransition(async () => {
       const res = await toggleFollowUser(profileUser.id)
-      if (res.success) {
+      if (!res.success) {
+        // Rollback
+        setIsFollowing(previousIsFollowing)
+        setFollowersCount(previousFollowersCount)
+      } else {
+        // Sync just in case
         setIsFollowing(res.followed ?? false)
-        setFollowersCount(prev => res.followed ? prev + 1 : Math.max(0, prev - 1))
+        if (res.followed !== (!previousIsFollowing)) {
+           setFollowersCount(prev => res.followed ? previousFollowersCount + 1 : Math.max(0, previousFollowersCount - 1))
+        }
       }
     })
   }
@@ -551,39 +570,7 @@ export function ProfileDashboard({
                         </div>
                       ) : (
                         posts.map(post => (
-                          <div key={post.id} className="bg-white rounded-xl p-5 md:p-6 shadow-xs border border-neutral-200/50 flex flex-col gap-4 hover:border-neutral-300 transition-all duration-300">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-md overflow-hidden border border-neutral-200/30 shrink-0">
-                                  {post.author.logoUrl ? (
-                                    <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
-                                  ) : (
-                                    <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
-                                      {post.author.name?.charAt(0)}
-                                    </div>
-                                  )}
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-xs font-semibold text-neutral-800 block leading-none">{post.author.name}</span>
-                                    {post.author.isCertified && <span className="text-[#EE4B2B] text-[9px] font-black">✓</span>}
-                                  </div>
-                                  <span className="text-[10px] text-neutral-400 block mt-1 font-mono">@{post.author.username}</span>
-                                </div>
-                              </div>
-                              <span className="text-[10px] text-neutral-400 font-mono">{new Date(post.createdAt).toLocaleDateString()}</span>
-                            </div>
-
-                            <p className="text-[13px] text-neutral-700 leading-relaxed font-sans whitespace-pre-line">
-                              {post.content}
-                            </p>
-
-                            {post.imageUrl && (
-                              <div className="rounded-lg border border-neutral-200/40 overflow-hidden bg-neutral-100 max-h-96">
-                                <img src={post.imageUrl} className="w-full h-full object-cover" alt="Image jointe" />
-                              </div>
-                            )}
-                          </div>
+                          <MicroPostCard key={post.id} post={post} />
                         ))
                       )}
                     </div>
@@ -597,7 +584,12 @@ export function ProfileDashboard({
                       {articles.map(art => (
                         <div 
                           key={art.id} 
-                          onClick={() => window.location.href = `/article/${art.slug}`}
+                          onClick={() => addTab({
+                            id: `article-${art.slug}`,
+                            title: art.title,
+                            type: "article",
+                            slug: art.slug
+                          })}
                           className="bg-white rounded-xl p-5 md:p-6 shadow-xs border border-neutral-200/50 flex flex-col justify-between min-h-48 cursor-pointer hover:border-[#EE4B2B]/20 transition-all duration-300 group"
                         >
                           <div className="space-y-3">
@@ -645,7 +637,12 @@ export function ProfileDashboard({
                             <div className="flex justify-between items-center text-[10px] text-neutral-400 pt-3 border-t border-neutral-100 font-mono">
                               <span className="font-semibold block truncate max-w-xs font-sans text-neutral-400">Surligné dans : {h.article.title}</span>
                               <button 
-                                onClick={() => window.location.href = `/article/${h.article.slug}`}
+                                onClick={() => addTab({
+                                  id: `article-${h.article.slug}`,
+                                  title: h.article.title,
+                                  type: "article",
+                                  slug: h.article.slug
+                                })}
                                 className="text-neutral-500 hover:text-[#EE4B2B] font-bold flex items-center gap-1 cursor-pointer font-sans"
                               >
                                 Consulter l'article <ExternalLink className="w-3 h-3" />
@@ -756,7 +753,12 @@ export function ProfileDashboard({
                       key={u.id}
                       onClick={() => {
                         setShowConnectionsModal(null);
-                        window.location.href = `/@${u.username}`;
+                        addTab({
+                          id: `profile-${u.username}`,
+                          title: u.name || `@${u.username}`,
+                          type: "profile",
+                          username: u.username
+                        });
                       }}
                       className="flex items-center justify-between p-2 rounded-lg hover:bg-neutral-50 cursor-pointer transition-colors"
                     >

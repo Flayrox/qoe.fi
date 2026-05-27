@@ -5,6 +5,7 @@ export interface Tab {
   title: string
   type: "timeline" | "article" | "post" | "profile"
   slug?: string
+  username?: string
   scrollPosition: number
 }
 
