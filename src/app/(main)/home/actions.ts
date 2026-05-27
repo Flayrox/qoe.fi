@@ -246,3 +246,129 @@ export async function repostPost(postId: string) {
     return { success: false, error: "DATABASE_ERROR" }
   }
 }
+
+export async function deletePost(postId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return { success: false, error: "UNAUTHORIZED" }
+
+  try {
+    const post = await prisma.post.findUnique({ where: { id: postId } })
+    if (!post || post.authorId !== user.id) return { success: false, error: "UNAUTHORIZED" }
+    
+    await prisma.post.delete({ where: { id: postId } })
+    return { success: true }
+  } catch (error) {
+    console.error("Delete post error:", error)
+    return { success: false, error: "DATABASE_ERROR" }
+  }
+}
+
+export async function getProfileData(username: string) {
+  const supabase = await createClient()
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  const currentUserId = authUser?.id || null
+
+  try {
+    const profileUser = await prisma.user.findUnique({
+      where: { username },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        username: true,
+        role: true,
+        logoUrl: true,
+        heroText: true,
+        onboardingText: true,
+        isCertified: true,
+        createdAt: true,
+        subdomain: true,
+        headerImageUrl: true
+      }
+    })
+
+    if (!profileUser) return { success: false, error: "NOT_FOUND" }
+
+    let isFollowing = false
+    if (currentUserId && currentUserId !== profileUser.id) {
+      const followRecord = await prisma.follows.findUnique({
+        where: {
+          readerId_creatorId: {
+            readerId: currentUserId,
+            creatorId: profileUser.id
+          }
+        }
+      })
+      isFollowing = !!followRecord
+    }
+
+    const followersCount = await prisma.follows.count({ where: { creatorId: profileUser.id } })
+    const followingCount = await prisma.follows.count({ where: { readerId: profileUser.id } })
+    const postsCount = await prisma.post.count({ where: { authorId: profileUser.id } })
+
+    const dbPosts = await prisma.post.findMany({
+      where: { authorId: profileUser.id },
+      include: {
+        author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } },
+        likes: { select: { userId: true } },
+        _count: { select: { likes: true, replies: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    const dbArticles = (profileUser.role === 'creator' || profileUser.role === 'superadmin')
+      ? await prisma.article.findMany({
+          where: { authorId: profileUser.id, published: true },
+          include: { category: { select: { name: true } } },
+          orderBy: { createdAt: 'desc' }
+        })
+      : []
+
+    const dbHighlights = await prisma.highlight.findMany({
+      where: { readerId: profileUser.id },
+      include: { article: { select: { title: true, slug: true, author: { select: { name: true } } } } },
+      orderBy: { createdAt: 'desc' },
+      take: 15
+    })
+
+    const dbLetters = await prisma.letter.findMany({
+      where: { recipientId: profileUser.id, isPublic: true },
+      include: { sender: { select: { name: true, username: true, logoUrl: true, isCertified: true } } },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    let dbMutedWords: Array<{ id: string, word: string }> = []
+    if (currentUserId && currentUserId === profileUser.id) {
+      dbMutedWords = await prisma.mutedWord.findMany({
+        where: { userId: currentUserId },
+        select: { id: true, word: true },
+        orderBy: { createdAt: 'desc' }
+      })
+    }
+
+    return {
+      success: true,
+      profileUser: { ...profileUser, createdAt: profileUser.createdAt.toISOString() },
+      isFollowing,
+      followersCount,
+      followingCount,
+      postsCount,
+      posts: dbPosts.map(p => ({
+        ...p,
+        createdAt: p.createdAt.toISOString(),
+        likesCount: p._count.likes,
+        repliesCount: p._count.replies,
+        liked: p.likes.some(l => l.userId === currentUserId)
+      })),
+      articles: dbArticles.map(a => ({ ...a, createdAt: a.createdAt.toISOString(), updatedAt: a.updatedAt.toISOString() })),
+      highlights: dbHighlights.map(h => ({ ...h, createdAt: h.createdAt.toISOString() })),
+      letters: dbLetters.map(l => ({ ...l, createdAt: l.createdAt.toISOString() })),
+      initialMutedWords: dbMutedWords
+    }
+  } catch (error) {
+    console.error("Fetch profile error:", error)
+    return { success: false, error: "DATABASE_ERROR" }
+  }
+}
