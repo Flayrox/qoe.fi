@@ -98,15 +98,15 @@ export function ArticleCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.99 }}
       transition={{ duration: 0.25, delay: idx * 0.03, ease: [0.16, 1, 0.3, 1] }}
-      className="bg-white rounded-xl p-5 md:p-6 border border-neutral-200/50 flex flex-col gap-4 relative group hover:border-[#EE4B2B]/20 hover:shadow-[0_2px_12px_rgba(0,0,0,0.01)] transition-all duration-300"
+      className="bg-white rounded-2xl p-6 border border-neutral-200/60 flex flex-col gap-4 relative group hover:border-[#EE4B2B]/20 hover:shadow-md hover:scale-[1.005] transition-all duration-400 ease-[0.16,1,0.3,1]"
     >
       {/* Header Card */}
       <div className="flex items-center justify-between">
         <button 
           onClick={handleOpenProfile}
-          className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left"
+          className="flex items-center gap-3 hover:opacity-95 transition-opacity cursor-pointer group/author outline-none text-left focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 rounded-xl"
         >
-          <div className="w-8 h-8 rounded-md overflow-hidden border border-neutral-200/45 shrink-0 shadow-xs">
+          <div className="w-8 h-8 rounded-lg overflow-hidden border border-neutral-200/45 shrink-0 shadow-sm transition-transform duration-300 group-hover/author:scale-105">
             {article.author.logoUrl ? (
               <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
             ) : (
@@ -131,7 +131,7 @@ export function ArticleCard({
         </button>
 
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-neutral-400 font-semibold font-mono">
+          <span className="text-[10px] text-neutral-400 font-semibold font-mono mr-1">
             {new Date(article.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
           </span>
           
@@ -140,7 +140,7 @@ export function ArticleCard({
             <button
               onClick={() => handleFollowToggle(article.author)}
               className={cn(
-                "text-[9px] font-bold px-2 py-1 rounded-md border transition-all duration-200 cursor-pointer",
+                "text-[9px] font-bold px-2 py-1.5 rounded-lg border transition-all duration-300 ease-[0.16,1,0.3,1] cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none",
                 isFollowed 
                   ? "bg-neutral-100 border-neutral-200 text-neutral-500" 
                   : "bg-white border-neutral-200 text-neutral-600 hover:border-[#EE4B2B] hover:text-[#EE4B2B]"
@@ -154,7 +154,7 @@ export function ArticleCard({
           <button
             onClick={() => handleBookmarkToggle(article)}
             className={cn(
-              "text-[9px] font-bold p-1 rounded-md border transition-all duration-200 cursor-pointer",
+              "text-[9px] font-bold p-1.5 rounded-lg border transition-all duration-300 ease-[0.16,1,0.3,1] cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none",
               isBookmarked 
                 ? "bg-[#EE4B2B]/5 border-[#EE4B2B]/20 text-[#EE4B2B]" 
                 : "bg-white border-neutral-200 text-neutral-400 hover:border-neutral-300 hover:text-[#EE4B2B]"
@@ -181,12 +181,12 @@ export function ArticleCard({
       <div className="flex items-center justify-between pt-3.5 border-t border-neutral-100 mt-1">
         <div className="flex items-center gap-2">
           {article.category && (
-            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 bg-neutral-50 border border-neutral-200/30 rounded text-neutral-400 font-mono">
+            <span className="text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 bg-neutral-50 border border-neutral-200/30 rounded-lg text-neutral-400 font-mono">
               {article.category.name}
             </span>
           )}
           {article.isPremium && (
-            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 bg-[#EE4B2B]/5 border border-[#EE4B2B]/10 rounded text-[#EE4B2B] font-mono">
+            <span className="text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 bg-[#EE4B2B]/5 border border-[#EE4B2B]/10 rounded-lg text-[#EE4B2B] font-mono">
               Premium • 2,00 €
             </span>
           )}
@@ -195,7 +195,7 @@ export function ArticleCard({
         <div className="flex items-center gap-3">
           <button
             onClick={handleOpenInTab}
-            className="text-[10px] font-semibold text-neutral-500 hover:text-[#EE4B2B] flex items-center gap-1.5 transition-colors duration-200 cursor-pointer"
+            className="text-[10px] font-semibold text-neutral-500 hover:text-[#EE4B2B] flex items-center gap-1.5 transition-colors duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 rounded-lg p-1"
           >
             <FileText className="w-3 h-3" /> Ouvrir dans un onglet
           </button>
@@ -204,7 +204,7 @@ export function ArticleCard({
             href={url}
             target="_blank"
             rel="noreferrer"
-            className="text-[10px] font-semibold text-neutral-500 hover:text-[#EE4B2B] flex items-center gap-1.5 transition-colors duration-200"
+            className="text-[10px] font-semibold text-neutral-500 hover:text-[#EE4B2B] flex items-center gap-1.5 transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 rounded-lg p-1"
           >
             Lire l'article <ExternalLink className="w-3 h-3" />
           </a>
