@@ -57,24 +57,25 @@ export function MicroPostComposer({
     const tags = postText.match(/#[a-zA-Z0-9_-]+/g) || []
 
     const { createMicroPost } = await import("../actions")
-    const res = await createMicroPost(postText, tags, postImageUrl)
-    if (res.success && res.post) {
+    const res = await createMicroPost({ content: postText, tags, imageUrl: postImageUrl })
+    if (res.success && res.data?.post) {
+      const post = res.data.post
       onPostCreated({
-        id: res.post.id,
+        id: post.id,
         title: "", // empty title flags it as micro-post
-        slug: `post-${res.post.id}`,
-        content: res.post.content,
-        imageUrl: res.post.imageUrl || null,
+        slug: `post-${post.id}`,
+        content: post.content,
+        imageUrl: post.imageUrl || null,
         published: true,
         isPremium: false,
         readingTime: 1,
-        createdAt: res.post.createdAt,
+        createdAt: post.createdAt,
         author: {
-          ...res.post.author,
+          ...post.author,
           isCertified: false
         },
         category: { name: selectedCategory },
-        tags: res.post.tags || []
+        tags: post.tags || []
       })
 
       setPostText("")

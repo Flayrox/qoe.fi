@@ -23,8 +23,8 @@ export function ArticleReaderView({ slug }: ArticleReaderViewProps) {
     async function loadArticle() {
       setLoading(true)
       const res = await getArticleThread(slug)
-      if (res.success && res.article) {
-        setArticle(res.article)
+      if (res.success && res.data?.article) {
+        setArticle(res.data.article)
       }
       setLoading(false)
     }

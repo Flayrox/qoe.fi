@@ -23,10 +23,10 @@ export function ProfileTabReader({ username, currentUserId }: ProfileTabReaderPr
     async function loadProfile() {
       setLoading(true)
       const res = await getProfileData(username)
-      if (res.success) {
-        setData(res)
+      if (res.success && res.data) {
+        setData(res.data)
       } else {
-        setData({ error: res.error })
+        setData({ error: res.error || "Une erreur est survenue." })
       }
       setLoading(false)
     }

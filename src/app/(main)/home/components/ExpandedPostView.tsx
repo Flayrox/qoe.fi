@@ -48,13 +48,13 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
     async function loadThread() {
       setLoading(true)
       const res = await getPostThread(postId)
-      if (res.success && res.post) {
-        setPost(res.post)
-        const userHasLiked = res.post.likes.some((l: any) => l.userId === currentUserId)
+      if (res.success && res.data?.post) {
+        const postData = res.data.post
+        setPost(postData)
+        const userHasLiked = postData.likes.some((l: any) => l.userId === currentUserId)
         setLiked(userHasLiked)
-        setLikesCount(res.post.likes.length)
-        // Check if user has reposted (assuming we fetched it or default false for now)
-        const userHasReposted = res.post.reposts?.some((r: any) => r.authorId === currentUserId) || false
+        setLikesCount(postData.likes.length)
+        const userHasReposted = postData.reposts?.some((r: any) => r.authorId === currentUserId) || false
         setReposted(userHasReposted)
       }
       setLoading(false)
@@ -125,14 +125,14 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
     if (!replyText.trim() || !currentUserId) return
 
     setSendingReply(true)
-    const res = await replyToPost(postId, replyText)
+    const res = await replyToPost({ postId, content: replyText })
     setSendingReply(false)
 
-    if (res.success && res.reply) {
+    if (res.success && res.data?.reply) {
       setReplyText("")
       setPost(prev => ({
         ...prev,
-        replies: [res.reply, ...(prev?.replies || [])]
+        replies: [res.data.reply, ...(prev?.replies || [])]
       }))
     }
   }
@@ -433,12 +433,12 @@ function CommentThread({
     e.preventDefault()
     if (!replyText.trim() || !currentUserId) return
     setSending(true)
-    const res = await replyToPost(reply.id, replyText)
+    const res = await replyToPost({ postId: reply.id, content: replyText })
     setSending(false)
-    if (res.success && res.reply) {
+    if (res.success && res.data?.reply) {
       setReplyText("")
       setShowReplyForm(false)
-      onReplyAdded(reply.id, res.reply)
+      onReplyAdded(reply.id, res.data.reply)
     }
   }
 

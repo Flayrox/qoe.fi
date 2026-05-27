@@ -3,372 +3,292 @@
 import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import { safeAction } from "@/lib/safe-action"
 
-export async function toggleFollowCreatorHome(creatorId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: "UNAUTHORIZED" }
-  }
-
-  try {
-    const existing = await prisma.follows.findUnique({
-      where: {
-        readerId_creatorId: {
-          readerId: user.id,
-          creatorId
-        }
+export const toggleFollowCreatorHome = safeAction<string, { followed: boolean }>(async (creatorId, user) => {
+  const existing = await prisma.follows.findUnique({
+    where: {
+      readerId_creatorId: {
+        readerId: user.id,
+        creatorId
       }
-    })
-
-    if (existing) {
-      await prisma.follows.delete({
-        where: { id: existing.id }
-      })
-      revalidatePath("/home")
-      return { success: true, followed: false }
-    } else {
-      await prisma.follows.create({
-        data: {
-          readerId: user.id,
-          creatorId
-        }
-      })
-      revalidatePath("/home")
-      return { success: true, followed: true }
     }
-  } catch (error) {
-    console.error("Error in toggleFollowCreatorHome:", error)
-    return { success: false, error: "DATABASE_ERROR" }
-  }
-}
+  })
 
-export async function toggleBookmarkArticleHome(articleId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: "UNAUTHORIZED" }
-  }
-
-  try {
-    const existing = await prisma.bookmark.findUnique({
-      where: {
-        readerId_articleId: {
-          readerId: user.id,
-          articleId
-        }
-      }
+  if (existing) {
+    await prisma.follows.delete({
+      where: { id: existing.id }
     })
-
-    if (existing) {
-      await prisma.bookmark.delete({
-        where: { id: existing.id }
-      })
-      revalidatePath("/home")
-      return { success: true, bookmarked: false }
-    } else {
-      await prisma.bookmark.create({
-        data: {
-          readerId: user.id,
-          articleId
-        }
-      })
-      revalidatePath("/home")
-      return { success: true, bookmarked: true }
-    }
-  } catch (error) {
-    console.error("Error in toggleBookmarkArticleHome:", error)
-    return { success: false, error: "DATABASE_ERROR" }
-  }
-}
-
-export async function createMicroPost(content: string, tags: string[], imageUrl?: string | null) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: "UNAUTHORIZED" }
-  }
-
-  const cleanContent = content.trim()
-  if (!cleanContent || cleanContent.length > 280) {
-    return { success: false, error: "INVALID_CONTENT" }
-  }
-
-  try {
-    const post = await prisma.post.create({
+    revalidatePath("/home")
+    return { followed: false }
+  } else {
+    await prisma.follows.create({
       data: {
-        content: cleanContent,
-        authorId: user.id,
-        tags,
-        imageUrl: imageUrl || null
-      },
-      include: {
-        author: { select: { id: true, name: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, username: true } }
+        readerId: user.id,
+        creatorId
       }
     })
     revalidatePath("/home")
-    if (post.author.username) {
-      revalidatePath(`/@${post.author.username}`)
-    }
-    return { success: true, post }
-  } catch (error) {
-    console.error("Error in createMicroPost:", error)
-    return { success: false, error: "DATABASE_ERROR" }
+    return { followed: true }
   }
-}
+})
 
-export async function toggleLikePost(postId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export const toggleBookmarkArticleHome = safeAction<string, { bookmarked: boolean }>(async (articleId, user) => {
+  const existing = await prisma.bookmark.findUnique({
+    where: {
+      readerId_articleId: {
+        readerId: user.id,
+        articleId
+      }
+    }
+  })
 
-  if (!user) return { success: false, error: "UNAUTHORIZED" }
-
-  try {
-    const existing = await prisma.like.findUnique({
-      where: {
-        postId_userId: {
-          postId,
-          userId: user.id
-        }
+  if (existing) {
+    await prisma.bookmark.delete({
+      where: { id: existing.id }
+    })
+    revalidatePath("/home")
+    return { bookmarked: false }
+  } else {
+    await prisma.bookmark.create({
+      data: {
+        readerId: user.id,
+        articleId
       }
     })
-
-    if (existing) {
-      await prisma.like.delete({ where: { id: existing.id } })
-      return { success: true, liked: false }
-    } else {
-      await prisma.like.create({
-        data: {
-          postId,
-          userId: user.id
-        }
-      })
-      return { success: true, liked: true }
-    }
-  } catch (error) {
-    console.error("Like error:", error)
-    return { success: false, error: "DATABASE_ERROR" }
+    revalidatePath("/home")
+    return { bookmarked: true }
   }
-}
+})
 
-export async function replyToPost(postId: string, content: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export const createMicroPost = safeAction<{ content: string; tags: string[]; imageUrl?: string | null }, { post: any }>(async ({ content, tags, imageUrl }, user) => {
+  const cleanContent = content.trim()
+  if (!cleanContent || cleanContent.length > 280) {
+    throw new Error("INVALID_CONTENT")
+  }
 
-  if (!user) return { success: false, error: "UNAUTHORIZED" }
+  const post = await prisma.post.create({
+    data: {
+      content: cleanContent,
+      authorId: user.id,
+      tags,
+      imageUrl: imageUrl || null
+    },
+    include: {
+      author: { select: { id: true, name: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, username: true } }
+    }
+  })
+  revalidatePath("/home")
+  if (post.author.username) {
+    revalidatePath(`/@${post.author.username}`)
+  }
+  return { post }
+})
 
+export const toggleLikePost = safeAction<string, { liked: boolean }>(async (postId, user) => {
+  const existing = await prisma.like.findUnique({
+    where: {
+      postId_userId: {
+        postId,
+        userId: user.id
+      }
+    }
+  })
+
+  if (existing) {
+    await prisma.like.delete({ where: { id: existing.id } })
+    return { liked: false }
+  } else {
+    await prisma.like.create({
+      data: {
+        postId,
+        userId: user.id
+      }
+    })
+    return { liked: true }
+  }
+})
+
+export const replyToPost = safeAction<{ postId: string; content: string }, { reply: any }>(async ({ postId, content }, user) => {
   const clean = content.trim()
-  if (!clean) return { success: false, error: "INVALID" }
+  if (!clean) throw new Error("INVALID_CONTENT")
 
-  try {
-    const reply = await prisma.post.create({
-      data: {
-        content: clean,
-        authorId: user.id,
-        parentId: postId
-      },
-      include: {
-        author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } }
-      }
-    })
-    return { success: true, reply }
-  } catch (error) {
-    console.error("Reply error:", error)
-    return { success: false, error: "DATABASE_ERROR" }
-  }
-}
+  const reply = await prisma.post.create({
+    data: {
+      content: clean,
+      authorId: user.id,
+      parentId: postId
+    },
+    include: {
+      author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } }
+    }
+  })
+  return { reply }
+})
 
-export async function getPostThread(postId: string) {
-  try {
-    const post = await prisma.post.findUnique({
-      where: { id: postId },
-      include: {
-        author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true, subdomain: true, customDomain: true } },
-        likes: { select: { userId: true } },
-        replies: {
-          include: {
-            author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } },
-            likes: { select: { userId: true } },
-            replies: {
-              include: {
-                author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } }
-              }
+export const getPostThread = safeAction<string, { post: any }>(async (postId) => {
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    include: {
+      author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true, subdomain: true, customDomain: true } },
+      likes: { select: { userId: true } },
+      replies: {
+        include: {
+          author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } },
+          likes: { select: { userId: true } },
+          replies: {
+            include: {
+              author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } }
             }
-          },
-          orderBy: { createdAt: "desc" }
-        }
+          }
+        },
+        orderBy: { createdAt: "desc" }
       }
-    })
+    }
+  })
 
-    return { success: true, post }
-  } catch (error) {
-    console.error("Fetch thread error:", error)
-    return { success: false, error: "DATABASE_ERROR" }
-  }
-}
+  return { post }
+}, false) // No auth required for thread view
 
-export async function getArticleThread(slug: string) {
-  try {
-    const article = await prisma.article.findUnique({
-      where: { slug },
-      include: {
-        author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true, subdomain: true, customDomain: true } },
-        category: { select: { name: true } }
-      }
-    })
-    return { success: true, article }
-  } catch (error) {
-    console.error("Fetch article error:", error)
-    return { success: false, error: "DATABASE_ERROR" }
-  }
-}
+export const getArticleThread = safeAction<string, { article: any }>(async (slug) => {
+  const article = await prisma.article.findUnique({
+    where: { slug },
+    include: {
+      author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true, subdomain: true, customDomain: true } },
+      category: { select: { name: true } }
+    }
+  })
+  return { article }
+}, false)
 
-export async function repostPost(postId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export const repostPost = safeAction<string, { repost: any }>(async (postId, user) => {
+  const repost = await prisma.post.create({
+    data: {
+      content: "", // empty content identifies a repost
+      authorId: user.id,
+      repostId: postId
+    }
+  })
+  return { repost }
+})
 
-  if (!user) return { success: false, error: "UNAUTHORIZED" }
+export const deletePost = safeAction<string, { success: boolean }>(async (postId, user) => {
+  const post = await prisma.post.findUnique({ where: { id: postId } })
+  if (!post || post.authorId !== user.id) throw new Error("UNAUTHORIZED")
+  
+  await prisma.post.delete({ where: { id: postId } })
+  return { success: true }
+})
 
-  try {
-    const repost = await prisma.post.create({
-      data: {
-        content: "", // empty content identifies a repost
-        authorId: user.id,
-        repostId: postId
-      }
-    })
-    return { success: true, repost }
-  } catch (error) {
-    console.error("Repost error:", error)
-    return { success: false, error: "DATABASE_ERROR" }
-  }
-}
-
-export async function deletePost(postId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) return { success: false, error: "UNAUTHORIZED" }
-
-  try {
-    const post = await prisma.post.findUnique({ where: { id: postId } })
-    if (!post || post.authorId !== user.id) return { success: false, error: "UNAUTHORIZED" }
-    
-    await prisma.post.delete({ where: { id: postId } })
-    return { success: true }
-  } catch (error) {
-    console.error("Delete post error:", error)
-    return { success: false, error: "DATABASE_ERROR" }
-  }
-}
-
-export async function getProfileData(username: string) {
+export const getProfileData = safeAction<string, {
+  profileUser: any
+  isFollowing: boolean
+  followersCount: number
+  followingCount: number
+  postsCount: number
+  posts: any[]
+  articles: any[]
+  highlights: any[]
+  letters: any[]
+  initialMutedWords: any[]
+}>(async (username) => {
   const supabase = await createClient()
   const { data: { user: authUser } } = await supabase.auth.getUser()
   const currentUserId = authUser?.id || null
 
-  try {
-    const profileUser = await prisma.user.findUnique({
-      where: { username },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        username: true,
-        role: true,
-        logoUrl: true,
-        heroText: true,
-        onboardingText: true,
-        isCertified: true,
-        createdAt: true,
-        subdomain: true,
-        headerImageUrl: true
+  const profileUser = await prisma.user.findUnique({
+    where: { username },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      username: true,
+      role: true,
+      logoUrl: true,
+      heroText: true,
+      onboardingText: true,
+      isCertified: true,
+      createdAt: true,
+      subdomain: true,
+      headerImageUrl: true
+    }
+  })
+
+  if (!profileUser) throw new Error("NOT_FOUND")
+
+  let isFollowing = false
+  if (currentUserId && currentUserId !== profileUser.id) {
+    const followRecord = await prisma.follows.findUnique({
+      where: {
+        readerId_creatorId: {
+          readerId: currentUserId,
+          creatorId: profileUser.id
+        }
       }
     })
+    isFollowing = !!followRecord
+  }
 
-    if (!profileUser) return { success: false, error: "NOT_FOUND" }
+  const followersCount = await prisma.follows.count({ where: { creatorId: profileUser.id } })
+  const followingCount = await prisma.follows.count({ where: { readerId: profileUser.id } })
+  const postsCount = await prisma.post.count({ where: { authorId: profileUser.id } })
 
-    let isFollowing = false
-    if (currentUserId && currentUserId !== profileUser.id) {
-      const followRecord = await prisma.follows.findUnique({
-        where: {
-          readerId_creatorId: {
-            readerId: currentUserId,
-            creatorId: profileUser.id
-          }
-        }
-      })
-      isFollowing = !!followRecord
-    }
+  const dbPosts = await prisma.post.findMany({
+    where: { authorId: profileUser.id },
+    include: {
+      author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } },
+      likes: { select: { userId: true } },
+      _count: { select: { likes: true, replies: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  })
 
-    const followersCount = await prisma.follows.count({ where: { creatorId: profileUser.id } })
-    const followingCount = await prisma.follows.count({ where: { readerId: profileUser.id } })
-    const postsCount = await prisma.post.count({ where: { authorId: profileUser.id } })
-
-    const dbPosts = await prisma.post.findMany({
-      where: { authorId: profileUser.id },
-      include: {
-        author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } },
-        likes: { select: { userId: true } },
-        _count: { select: { likes: true, replies: true } }
-      },
-      orderBy: { createdAt: 'desc' }
-    })
-
-    const dbArticles = (profileUser.role === 'creator' || profileUser.role === 'superadmin')
-      ? await prisma.article.findMany({
-          where: { authorId: profileUser.id, published: true },
-          include: { category: { select: { name: true } } },
-          orderBy: { createdAt: 'desc' }
-        })
-      : []
-
-    const dbHighlights = await prisma.highlight.findMany({
-      where: { readerId: profileUser.id },
-      include: { article: { select: { title: true, slug: true, author: { select: { name: true } } } } },
-      orderBy: { createdAt: 'desc' },
-      take: 15
-    })
-
-    const dbLetters = await prisma.letter.findMany({
-      where: { recipientId: profileUser.id, isPublic: true },
-      include: { sender: { select: { name: true, username: true, logoUrl: true, isCertified: true } } },
-      orderBy: { createdAt: 'desc' }
-    })
-
-    let dbMutedWords: Array<{ id: string, word: string }> = []
-    if (currentUserId && currentUserId === profileUser.id) {
-      dbMutedWords = await prisma.mutedWord.findMany({
-        where: { userId: currentUserId },
-        select: { id: true, word: true },
+  const dbArticles = (profileUser.role === 'creator' || profileUser.role === 'superadmin')
+    ? await prisma.article.findMany({
+        where: { authorId: profileUser.id, published: true },
+        include: { category: { select: { name: true } } },
         orderBy: { createdAt: 'desc' }
       })
-    }
+    : []
 
-    return {
-      success: true,
-      profileUser: { ...profileUser, createdAt: profileUser.createdAt.toISOString() },
-      isFollowing,
-      followersCount,
-      followingCount,
-      postsCount,
-      posts: dbPosts.map(p => ({
-        ...p,
-        createdAt: p.createdAt.toISOString(),
-        likesCount: p._count.likes,
-        repliesCount: p._count.replies,
-        liked: p.likes.some(l => l.userId === currentUserId)
-      })),
-      articles: dbArticles.map(a => ({ ...a, createdAt: a.createdAt.toISOString(), updatedAt: a.updatedAt.toISOString() })),
-      highlights: dbHighlights.map(h => ({ ...h, createdAt: h.createdAt.toISOString() })),
-      letters: dbLetters.map(l => ({ ...l, createdAt: l.createdAt.toISOString() })),
-      initialMutedWords: dbMutedWords
-    }
-  } catch (error) {
-    console.error("Fetch profile error:", error)
-    return { success: false, error: "DATABASE_ERROR" }
+  const dbHighlights = await prisma.highlight.findMany({
+    where: { readerId: profileUser.id },
+    include: { article: { select: { title: true, slug: true, author: { select: { name: true } } } } },
+    orderBy: { createdAt: 'desc' },
+    take: 15
+  })
+
+  const dbLetters = await prisma.letter.findMany({
+    where: { recipientId: profileUser.id, isPublic: true },
+    include: { sender: { select: { name: true, username: true, logoUrl: true, isCertified: true } } },
+    orderBy: { createdAt: 'desc' }
+  })
+
+  let dbMutedWords: Array<{ id: string, word: string }> = []
+  if (currentUserId && currentUserId === profileUser.id) {
+    dbMutedWords = await prisma.mutedWord.findMany({
+      where: { userId: currentUserId },
+      select: { id: true, word: true },
+      orderBy: { createdAt: 'desc' }
+    })
   }
-}
+
+  return {
+    profileUser: { ...profileUser, createdAt: profileUser.createdAt.toISOString() },
+    isFollowing,
+    followersCount,
+    followingCount,
+    postsCount,
+    posts: dbPosts.map(p => ({
+      ...p,
+      createdAt: p.createdAt.toISOString(),
+      likesCount: p._count.likes,
+      repliesCount: p._count.replies,
+      liked: p.likes.some(l => l.userId === currentUserId)
+    })),
+    articles: dbArticles.map(a => ({ ...a, createdAt: a.createdAt.toISOString(), updatedAt: a.updatedAt.toISOString() })),
+    highlights: dbHighlights.map(h => ({ ...h, createdAt: h.createdAt.toISOString() })),
+    letters: dbLetters.map(l => ({ ...l, createdAt: l.createdAt.toISOString() })),
+    initialMutedWords: dbMutedWords
+  }
+}, false)

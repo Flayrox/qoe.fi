@@ -166,7 +166,7 @@ export function ProfileDashboard({
         }
       }, 1500)
     } else {
-      setProfileSaveError(res.error === "USERNAME_TAKEN" ? "Ce nom d'utilisateur est déjà pris." : "Une erreur est survenue.")
+      setProfileSaveError(res.error === "USERNAME_TAKEN" ? "Ce nom d'utilisateur est déjà pris." : res.error || "Une erreur est survenue.")
     }
   }
 
@@ -192,9 +192,10 @@ export function ProfileDashboard({
         setFollowersCount(previousFollowersCount)
       } else {
         // Sync just in case
-        setIsFollowing(res.followed ?? false)
-        if (res.followed !== (!previousIsFollowing)) {
-           setFollowersCount(prev => res.followed ? previousFollowersCount + 1 : Math.max(0, previousFollowersCount - 1))
+        const isFollowed = res.data?.followed ?? false
+        setIsFollowing(isFollowed)
+        if (isFollowed !== (!previousIsFollowing)) {
+           setFollowersCount(prev => isFollowed ? previousFollowersCount + 1 : Math.max(0, previousFollowersCount - 1))
         }
       }
     })
@@ -236,10 +237,10 @@ export function ProfileDashboard({
   const openConnectionsModal = async (type: "followers" | "following") => {
     setShowConnectionsModal(type)
     setLoadingConnections(true)
-    const res = await fetchUserConnections(profileUser.id, type)
+    const res = await fetchUserConnections({ userId: profileUser.id, type })
     setLoadingConnections(false)
-    if (res.success && res.users) {
-      setConnectionsList(res.users)
+    if (res.success && res.data?.users) {
+      setConnectionsList(res.data.users)
     } else {
       setConnectionsList([])
     }
@@ -252,18 +253,18 @@ export function ProfileDashboard({
 
     setSendingLetter(true)
     setLetterMsg(null)
-    const res = await sendLetter(profileUser.id, letterContent, letterIsPublic)
+    const res = await sendLetter({ recipientId: profileUser.id, content: letterContent, isPublic: letterIsPublic })
     setSendingLetter(false)
 
-    if (res.success && res.letter) {
+    if (res.success && res.data?.letter) {
       setLetterMsg({ type: "success", text: "Votre lettre a été expédiée !" })
       setLetterContent("")
       
       if (letterIsPublic) {
         const newLetterObj = {
-          id: res.letter.id,
-          content: res.letter.content,
-          isPublic: res.letter.isPublic,
+          id: res.data.letter.id,
+          content: res.data.letter.content,
+          isPublic: res.data.letter.isPublic,
           createdAt: new Date().toISOString(),
           sender: {
             name: "Vous",
