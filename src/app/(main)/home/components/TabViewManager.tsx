@@ -8,14 +8,43 @@ import { ExpandedPostView } from "./ExpandedPostView"
 import { ArticleReaderView } from "./ArticleReaderView"
 import { ProfileTabReader } from "./ProfileTabReader"
 import { cn } from "@/lib/utils"
+import { TabErrorBoundary } from "@/components/ui/TabErrorBoundary"
 
 interface TabViewManagerProps {
   feedProps: any
 }
 
 export function TabViewManager({ feedProps }: TabViewManagerProps) {
-  const { tabs, activeTabId, updateScrollPosition } = useTabStore()
+  const { tabs, activeTabId, updateScrollPosition, addTab } = useTabStore()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // Hydrate active tab from URL query params on mount (Feature 14)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const initialTabId = params.get("tab")
+    if (initialTabId && initialTabId !== "timeline") {
+      if (initialTabId.startsWith("profile-")) {
+        const username = initialTabId.replace("profile-", "")
+        addTab({ id: initialTabId, title: `@${username}`, type: "profile" })
+      } else if (initialTabId.startsWith("article-")) {
+        const slug = initialTabId.replace("article-", "")
+        addTab({ id: initialTabId, title: "Article", type: "article" })
+      } else if (initialTabId.startsWith("post-")) {
+        addTab({ id: initialTabId, title: "Post", type: "post" })
+      }
+    }
+  }, [addTab])
+
+  // Synchronize URL query params with the active tab (Feature 14)
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (activeTabId === "timeline") {
+      url.searchParams.delete("tab")
+    } else {
+      url.searchParams.set("tab", activeTabId)
+    }
+    window.history.pushState({}, "", url.toString())
+  }, [activeTabId])
 
   // Record scroll position whenever the container is scrolled
   useEffect(() => {
@@ -57,7 +86,9 @@ export function TabViewManager({ feedProps }: TabViewManagerProps) {
       >
         {/* Core timeline is kept in DOM but hidden to conserve scroll & state */}
         <div className={activeTabId === "timeline" ? "block" : "hidden"}>
-          <FeedDashboard {...feedProps} />
+          <TabErrorBoundary tabId="timeline">
+            <FeedDashboard {...feedProps} />
+          </TabErrorBoundary>
         </div>
 
         {/* Render dynamically open article readers or social threads */}
@@ -67,15 +98,17 @@ export function TabViewManager({ feedProps }: TabViewManagerProps) {
           
           return (
             <div key={tab.id} className={isActive ? "block animate-fadeIn" : "hidden"}>
-              {tab.type === "post" && (
-                <ExpandedPostView postId={tab.id.replace("post-", "")} currentUserId={feedProps.dbUser?.id || null} />
-              )}
-              {tab.type === "article" && (
-                <ArticleReaderView slug={tab.id.replace("article-", "")} />
-              )}
-              {tab.type === "profile" && (
-                <ProfileTabReader username={tab.id.replace("profile-", "")} currentUserId={feedProps.dbUser?.id || null} />
-              )}
+              <TabErrorBoundary tabId={tab.id}>
+                {tab.type === "post" && (
+                  <ExpandedPostView postId={tab.id.replace("post-", "")} currentUserId={feedProps.dbUser?.id || null} />
+                )}
+                {tab.type === "article" && (
+                  <ArticleReaderView slug={tab.id.replace("article-", "")} />
+                )}
+                {tab.type === "profile" && (
+                  <ProfileTabReader username={tab.id.replace("profile-", "")} currentUserId={feedProps.dbUser?.id || null} />
+                )}
+              </TabErrorBoundary>
             </div>
           )
         })}

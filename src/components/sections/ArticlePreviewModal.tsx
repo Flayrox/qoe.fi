@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import { X, Calendar, Clock, Share2, AlertCircle, Bookmark } from "lucide-react";
 import { useTranslate } from "@tolgee/react";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface ArticlePreviewModalProps {
   article: any;
@@ -90,7 +91,7 @@ export const ArticlePreviewModal = ({ article, onClose }: ArticlePreviewModalPro
             {/* HTML Content injection */}
             <div 
               className="space-y-6 ProseMirror"
-              dangerouslySetInnerHTML={{ __html: article.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content) }}
             />
 
             {/* Premium Callout Block */}

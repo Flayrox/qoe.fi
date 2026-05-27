@@ -5,6 +5,7 @@ import { motion } from "framer-motion"
 import { ArrowLeft, BookOpen, Clock, Loader2, AlertCircle } from "lucide-react"
 import { useTabStore } from "@/lib/use-tab-store"
 import { getArticleThread } from "../actions"
+import { sanitizeHtml } from "@/lib/sanitize"
 
 interface ArticleReaderViewProps {
   slug: string
@@ -115,7 +116,7 @@ export function ArticleReaderView({ slug }: ArticleReaderViewProps) {
       {/* Article HTML Content parsed cleanly with gorgeous typographic styles */}
       <div 
         className="prose prose-neutral max-w-none text-[14px] text-neutral-700 leading-relaxed font-sans font-light whitespace-pre-line space-y-4"
-        dangerouslySetInnerHTML={{ __html: article.content }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content) }}
       />
     </motion.div>
   )
