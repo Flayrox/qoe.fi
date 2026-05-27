@@ -119,6 +119,14 @@ export function FeedDashboard({
         setFollowedCreators(prev => prev.filter(f => f.id !== creator.id))
         setFollowsCount(prev => Math.max(0, prev - 1))
       }
+    } else if (res.data) {
+      // Sync state with server reality
+      const actualFollowed = res.data.followed
+      if (actualFollowed) {
+        setFollowedCreators(prev => prev.some(f => f.id === creator.id) ? prev : [creator, ...prev])
+      } else {
+        setFollowedCreators(prev => prev.filter(f => f.id !== creator.id))
+      }
     }
   }
 
@@ -143,6 +151,14 @@ export function FeedDashboard({
       } else {
         setBookmarks(prev => prev.filter(b => b.id !== article.id))
         setBookmarksCount(prev => Math.max(0, prev - 1))
+      }
+    } else if (res.data) {
+      // Sync state with server reality
+      const actualBookmarked = res.data.bookmarked
+      if (actualBookmarked) {
+        setBookmarks(prev => prev.some(b => b.id === article.id) ? prev : [article, ...prev])
+      } else {
+        setBookmarks(prev => prev.filter(b => b.id !== article.id))
       }
     }
   }
