@@ -65,6 +65,19 @@ export function ArticleCard({
     })
   }
 
+  const handleOpenProfile = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const targetUsername = article.author.username || article.author.subdomain
+    if (!targetUsername) return
+    addTab({
+      id: `profile-${targetUsername}`,
+      title: `@${targetUsername}`,
+      type: "profile",
+      slug: targetUsername
+    })
+  }
+
   return (
     <motion.article
       initial={{ opacity: 0, y: 10 }}
@@ -75,9 +88,9 @@ export function ArticleCard({
     >
       {/* Header Card */}
       <div className="flex items-center justify-between">
-        <a 
-          href={article.author.username ? `/@${article.author.username}` : `/@${article.author.subdomain}`} 
-          className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author"
+        <button 
+          onClick={handleOpenProfile}
+          className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left"
         >
           <div className="w-8 h-8 rounded-md overflow-hidden border border-neutral-200/45 shrink-0 shadow-xs">
             {article.author.logoUrl ? (
@@ -101,7 +114,7 @@ export function ArticleCard({
               @{article.author.username || article.author.subdomain}
             </span>
           </div>
-        </a>
+        </button>
 
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-neutral-400 font-semibold font-mono">
