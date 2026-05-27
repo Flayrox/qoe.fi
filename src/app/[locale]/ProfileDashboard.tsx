@@ -3,18 +3,12 @@
 import React, { useState, useTransition } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
-  User, BookOpen, Highlighter, Mail, Sparkles, Plus, Check,
-  Camera, Lock, Globe, ArrowRight, UserPlus, UserMinus, 
-  MessageSquare, Loader2, AlertCircle, X, ExternalLink, Sliders, Trash2, Download
+  User, BookOpen, Highlighter, Mail, Sparkles, Check,
+  Camera, Globe, ArrowRight, UserPlus, UserMinus, 
+  MessageSquare, Loader2, AlertCircle, X, ExternalLink, Sliders
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toggleFollowUser, sendLetter, updateAvatarDirect, fetchUserConnections, updateProfileDirect } from "./actions"
-import { 
-  updateSecurityPassword, 
-  exportUserData, 
-  addMutedWord, 
-  removeMutedWord 
-} from "@/app/(main)/settings/actions"
 
 interface ProfileDashboardProps {
   profileUser: {
@@ -88,6 +82,12 @@ interface ProfileDashboardProps {
   linkedProviders?: string[]
 }
 
+// Crisp Design Engineer springs
+const springs = {
+  tab: { type: "spring" as const, stiffness: 450, damping: 32, mass: 0.7 },
+  card: { type: "spring" as const, stiffness: 350, damping: 28 }
+}
+
 export function ProfileDashboard({
   profileUser,
   currentUserId,
@@ -98,9 +98,6 @@ export function ProfileDashboard({
   articles,
   highlights,
   letters: initialLetters,
-  initialMutedWords = [],
-  linkedProviders = [],
-  postsCount: initialPostsCount
 }: ProfileDashboardProps) {
   const isOwnProfile = currentUserId === profileUser.id
 
@@ -112,7 +109,7 @@ export function ProfileDashboard({
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
   const [followersCount, setFollowersCount] = useState(initialFollowersCount)
   const [followingCount, setFollowingCount] = useState(initialFollowingCount)
-  const [posts, setPosts] = useState(initialPosts)
+  const [posts] = useState(initialPosts)
   const [letters, setLetters] = useState(initialLetters)
 
   // Image Upload state
@@ -132,63 +129,13 @@ export function ProfileDashboard({
 
   // Profile edit states
   const [showEditModal, setShowEditModal] = useState(false)
-  const [activeModalTab, setActiveModalTab] = useState<"identity" | "security" | "muted" | "preferences">("identity")
   const [editName, setEditName] = useState(profileUser.name || "")
   const [editUsername, setEditUsername] = useState(profileUser.username || "")
   const [editBio, setEditBio] = useState(profileUser.onboardingText || "")
   const [editEmail, setEditEmail] = useState(profileUser.email || "")
-  const [linkedGoogle, setLinkedGoogle] = useState(linkedProviders.includes("google"))
-  const [linkedApple, setLinkedApple] = useState(linkedProviders.includes("apple"))
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileSaveError, setProfileSaveError] = useState("")
   const [profileSaveSuccess, setProfileSaveSuccess] = useState("")
-
-  // Security / Settings states
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  const [passwordLoading, setPasswordLoading] = useState(false)
-
-  // Muted words states
-  const [mutedWords, setMutedWords] = useState(initialMutedWords)
-  const [newMutedWord, setNewMutedWord] = useState("")
-
-  // GDPR export state
-  const [gdprLoading, setGdprLoading] = useState(false)
-
-  // Accessibility / display preferences states
-  const [dyslexicMode, setDyslexicMode] = useState<boolean>(false)
-  const [forceLightTheme, setForceLightTheme] = useState<boolean>(false)
-  const [fontSize, setFontSize] = useState<string>("normal")
-
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      setDyslexicMode(localStorage.getItem("dyslexic-mode") === "true")
-      setForceLightTheme(localStorage.getItem("force-light-theme") === "true")
-      setFontSize(localStorage.getItem("font-size-preference") || "normal")
-    }
-  }, [])
-
-  const toggleDyslexic = (val: boolean) => {
-    setDyslexicMode(val)
-    localStorage.setItem("dyslexic-mode", String(val))
-    if (val) {
-      document.documentElement.classList.add("font-dyslexic")
-    } else {
-      document.documentElement.classList.remove("font-dyslexic")
-    }
-  }
-
-  const toggleForceLight = (val: boolean) => {
-    setForceLightTheme(val)
-    localStorage.setItem("force-light-theme", String(val))
-  }
-
-  const changeFontSize = (val: string) => {
-    setFontSize(val)
-    localStorage.setItem("font-size-preference", val)
-    document.documentElement.setAttribute("data-font-size", val)
-  }
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -215,58 +162,7 @@ export function ProfileDashboard({
         }
       }, 1500)
     } else {
-      setProfileSaveError(res.error === "USERNAME_TAKEN" ? "Ce nom d'utilisateur est déjà pris." : "Une erreur est survenue lors de l'enregistrement.")
-    }
-  }
-
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (password !== confirmPassword) {
-      setPasswordMsg({ type: "error", text: "Les mots de passe ne correspondent pas." })
-      return
-    }
-    setPasswordLoading(true)
-    setPasswordMsg(null)
-    const res = await updateSecurityPassword(password)
-    setPasswordLoading(false)
-    if (res.success) {
-      setPasswordMsg({ type: "success", text: "Mot de passe modifié avec succès !" })
-      setPassword("")
-      setConfirmPassword("")
-    } else {
-      setPasswordMsg({ type: "error", text: res.error || "Une erreur est survenue." })
-    }
-  }
-
-  const handleAddMutedWord = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newMutedWord.trim()) return
-    const res = await addMutedWord(newMutedWord)
-    if (res.success && res.muted) {
-      setMutedWords(prev => [res.muted, ...prev])
-      setNewMutedWord("")
-    }
-  }
-
-  const handleRemoveMutedWord = async (id: string) => {
-    const res = await removeMutedWord(id)
-    if (res.success) {
-      setMutedWords(prev => prev.filter(w => w.id !== id))
-    }
-  }
-
-  const handleGdprExport = async () => {
-    setGdprLoading(true)
-    const res = await exportUserData()
-    setGdprLoading(false)
-    if (res.success && res.data) {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res.data, null, 2))
-      const downloadAnchor = document.createElement("a")
-      downloadAnchor.setAttribute("href", dataStr)
-      downloadAnchor.setAttribute("download", `qoe-user-data-export-${profileUser.id}.json`)
-      document.body.appendChild(downloadAnchor)
-      downloadAnchor.click()
-      downloadAnchor.remove()
+      setProfileSaveError(res.error === "USERNAME_TAKEN" ? "Ce nom d'utilisateur est déjà pris." : "Une erreur est survenue.")
     }
   }
 
@@ -341,10 +237,9 @@ export function ProfileDashboard({
     setSendingLetter(false)
 
     if (res.success && res.letter) {
-      setLetterMsg({ type: "success", text: "Votre lettre a été expédiée avec succès !" })
+      setLetterMsg({ type: "success", text: "Votre lettre a été expédiée !" })
       setLetterContent("")
       
-      // If public, append to public letters feed locally
       if (letterIsPublic) {
         const newLetterObj = {
           id: res.letter.id,
@@ -362,7 +257,7 @@ export function ProfileDashboard({
       }
       setTimeout(() => setLetterMsg(null), 4000)
     } else {
-      setLetterMsg({ type: "error", text: "Impossible d'envoyer la lettre. Réessayez." })
+      setLetterMsg({ type: "error", text: "Impossible d'envoyer la lettre." })
     }
   }
 
@@ -373,36 +268,34 @@ export function ProfileDashboard({
     { id: "letters", label: `Correspondance (${letters.length})`, icon: Mail }
   ]
 
-  const springTransition = { type: "spring" as const, stiffness: 350, damping: 30 }
-
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-neutral-800 transition-colors duration-300 font-sans pb-16 selection:bg-[#EE4B2B]/10 selection:text-[#EE4B2B]">
       
       {/* ========================================================================= */}
-      {/* HEADER BANNER                                                             */}
+      {/* HEADER BANNER with razor-sharp borders                                    */}
       {/* ========================================================================= */}
-      <div className="relative h-48 md:h-64 bg-neutral-200 overflow-hidden border-b border-neutral-200/60 shadow-xs">
+      <div className="relative h-40 md:h-48 bg-neutral-200 overflow-hidden border-b border-neutral-200/40">
         {profileUser.headerImageUrl ? (
           <img src={profileUser.headerImageUrl} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
         ) : (
           <>
-            <div className="absolute inset-0 bg-gradient-to-br from-neutral-100 via-neutral-200 to-[#EE4B2B]/10" />
-            <div className="absolute inset-0 bg-[radial-gradient(#EE4B2B/0.08_1px,transparent_1px)] [background-size:20px_20px]" />
+            <div className="absolute inset-0 bg-gradient-to-br from-neutral-50 via-neutral-100 to-[#EE4B2B]/5" />
+            <div className="absolute inset-0 bg-[radial-gradient(#EE4B2B/0.05_1px,transparent_1px)] [background-size:20px_20px]" />
           </>
         )}
       </div>
 
-      <div className="container mx-auto px-4 max-w-6xl -mt-20 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="container mx-auto px-4 max-w-6xl -mt-14 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* ========================================================================= */}
-          {/* LEFT COLUMN: Profile info card (Bento style)                              */}
+          {/* LEFT COLUMN: Profile info (Sharp Bento Card)                              */}
           {/* ========================================================================= */}
           <div className="lg:col-span-4 space-y-4">
-            <div className="bg-white border border-neutral-200/60 rounded-[32px] p-6 shadow-sm flex flex-col gap-6 relative">
+            <div className="bg-white border border-neutral-200/50 rounded-xl p-6 shadow-xs flex flex-col gap-6 relative">
               
-              {/* Avatar section */}
-              <div className="relative w-28 h-28 -mt-20 border-4 border-white rounded-[24px] shadow-md overflow-hidden bg-neutral-100 group shrink-0">
+              {/* Sharp avatar frame */}
+              <div className="relative w-20 h-28 -mt-16 border-4 border-white rounded-xl shadow-xs overflow-hidden bg-neutral-100 group shrink-0">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt={profileUser.name || "Avatar"} className="w-full h-full object-cover" />
                 ) : (
@@ -413,15 +306,15 @@ export function ProfileDashboard({
                 
                 {isOwnProfile && (
                   <label className="absolute inset-0 bg-black/40 cursor-pointer flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <Camera className="w-5 h-5 text-white" />
-                    <span className="text-[9px] text-white font-bold uppercase mt-1">Modifier</span>
+                    <Camera className="w-4 h-4 text-white" />
+                    <span className="text-[8px] text-white font-bold uppercase mt-1">Modifier</span>
                     <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
                   </label>
                 )}
                 
                 {uploadingAvatar && (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                    <Loader2 className="w-5 h-5 text-white animate-spin" />
                   </div>
                 )}
               </div>
@@ -429,16 +322,14 @@ export function ProfileDashboard({
               {/* Name and tags */}
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <h1 className="text-xl font-bold text-neutral-800 tracking-tight leading-none">
+                  <h1 className="text-sm font-semibold text-neutral-800 tracking-tight leading-none">
                     {profileUser.name || "Lecteur"}
                   </h1>
                   {profileUser.isCertified && (
-                    <span className="bg-[#EE4B2B]/10 text-[#EE4B2B] text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-sm">
-                      Certifié
-                    </span>
+                    <span className="text-[#EE4B2B] text-[10px] font-black">✓</span>
                   )}
                   {profileUser.role === 'superadmin' && (
-                    <span className="bg-neutral-800 text-white text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-sm">
+                    <span className="bg-neutral-800 text-white text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded">
                       Admin
                     </span>
                   )}
@@ -455,7 +346,7 @@ export function ProfileDashboard({
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-[10px] font-bold text-[#EE4B2B] hover:underline mt-1 bg-[#EE4B2B]/5 px-2.5 py-1 rounded-xl border border-[#EE4B2B]/10 w-fit"
+                    className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-neutral-500 hover:text-[#EE4B2B] mt-1 bg-neutral-50 border border-neutral-200/50 px-2.5 py-1 rounded-md w-fit transition-colors"
                   >
                     <Globe className="w-3.5 h-3.5" />
                     <span>{profileUser.subdomain}.qoe.fi</span>
@@ -465,25 +356,25 @@ export function ProfileDashboard({
               </div>
 
               {/* Follow Stats */}
-              <div className="flex items-center gap-5 border-y border-neutral-100 py-3.5 text-xs text-neutral-500 font-medium flex-wrap">
+              <div className="flex items-center gap-4 border-y border-neutral-100 py-3.5 text-xs text-neutral-500 font-semibold flex-wrap">
                 <span>
-                  <strong className="text-neutral-800 font-bold">{initialPostsCount}</strong> posts
+                  <strong className="text-neutral-800 font-bold">{posts.length}</strong> posts
                 </span>
-                <button onClick={() => openConnectionsModal("following")} className="hover:text-neutral-900 transition-colors">
+                <button onClick={() => openConnectionsModal("following")} className="hover:text-neutral-900 transition-colors cursor-pointer">
                   <strong className="text-neutral-800 font-bold">{followingCount}</strong> suivis
                 </button>
-                <button onClick={() => openConnectionsModal("followers")} className="hover:text-neutral-900 transition-colors">
+                <button onClick={() => openConnectionsModal("followers")} className="hover:text-neutral-900 transition-colors cursor-pointer">
                   <strong className="text-neutral-800 font-bold">{followersCount}</strong> abonnés
                 </button>
-                <span className="text-[9px] text-neutral-400 font-mono ml-auto">
+                <span className="text-[9px] text-neutral-400 font-mono w-full mt-1.5 block">
                   Membre depuis {new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
                 </span>
               </div>
 
               {/* Reader bio / DNA */}
-              <div className="space-y-2">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 block">ADN de lecture</span>
-                <p className="text-xs text-neutral-600 leading-relaxed font-sans">
+              <div className="space-y-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-neutral-400 block">ADN de lecture</span>
+                <p className="text-[13px] text-neutral-600 leading-relaxed font-sans">
                   {profileUser.onboardingText || "Aucune description sémantique rédigée pour le moment."}
                 </p>
               </div>
@@ -492,16 +383,16 @@ export function ProfileDashboard({
               {isOwnProfile ? (
                 <button
                   onClick={() => setShowEditModal(true)}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-xs font-bold transition-all shadow-sm bg-neutral-900 hover:bg-neutral-800 text-white"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all shadow-xs bg-neutral-900 hover:bg-neutral-800 text-white cursor-pointer"
                 >
-                  <Sliders className="w-4 h-4" /> Modifier le Profil
+                  <Sliders className="w-3.5 h-3.5" /> Modifier le Profil
                 </button>
               ) : (
                 <button
                   onClick={handleFollowToggle}
                   disabled={isPending}
                   className={cn(
-                    "w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-xs font-bold transition-all shadow-sm",
+                    "w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer",
                     isFollowing 
                       ? "bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-200" 
                       : "bg-[#EE4B2B] hover:bg-[#d63d20] text-white"
@@ -509,11 +400,11 @@ export function ProfileDashboard({
                 >
                   {isFollowing ? (
                     <>
-                      <UserMinus className="w-4 h-4" /> Ne plus suivre
+                      <UserMinus className="w-3.5 h-3.5" /> Ne plus suivre
                     </>
                   ) : (
                     <>
-                      <UserPlus className="w-4 h-4" /> Suivre l'auteur
+                      <UserPlus className="w-3.5 h-3.5" /> Suivre l'auteur
                     </>
                   )}
                 </button>
@@ -522,17 +413,17 @@ export function ProfileDashboard({
 
             {/* Correspondence letter widget */}
             {!isOwnProfile && currentUserId && (
-              <div className="bg-white border border-neutral-200/60 rounded-[32px] p-6 shadow-sm flex flex-col gap-4">
+              <div className="bg-white border border-neutral-200/50 rounded-xl p-6 shadow-xs flex flex-col gap-4">
                 <div>
-                  <h3 className="text-sm font-bold text-neutral-800 leading-none flex items-center gap-1.5">
+                  <h3 className="text-xs font-semibold text-neutral-800 leading-none flex items-center gap-1.5">
                     Écrire une Lettre <Sparkles className="w-3.5 h-3.5 text-[#EE4B2B]" />
                   </h3>
-                  <p className="text-[10px] text-neutral-400 mt-1">Envoyez une correspondance intellectuelle à cet utilisateur.</p>
+                  <p className="text-[10px] text-neutral-400 mt-1.5">Envoyez une correspondance intellectuelle à cet utilisateur.</p>
                 </div>
 
                 {letterMsg && (
                   <div className={cn(
-                    "p-2.5 rounded-xl border text-[11px] font-semibold flex items-center gap-2",
+                    "p-2.5 rounded-lg border text-[11px] font-semibold flex items-center gap-2",
                     letterMsg.type === "success" 
                       ? "bg-emerald-50 border-emerald-200 text-emerald-700" 
                       : "bg-red-50 border-red-200 text-red-700"
@@ -549,7 +440,7 @@ export function ProfileDashboard({
                     placeholder="Écrivez vos pensées, critiques ou inspirations..."
                     rows={4}
                     maxLength={1000}
-                    className="w-full text-xs border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-xl p-3 resize-none outline-none transition-all"
+                    className="w-full text-xs border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-lg p-3 resize-none outline-none transition-all"
                     required
                   />
                   <div className="flex items-center justify-between">
@@ -558,7 +449,7 @@ export function ProfileDashboard({
                         type="button"
                         onClick={() => setLetterIsPublic(true)}
                         className={cn(
-                          "px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase border tracking-wider transition-colors",
+                          "px-2.5 py-1 rounded-md text-[9px] font-bold uppercase border tracking-wider transition-colors cursor-pointer",
                           letterIsPublic 
                             ? "bg-neutral-900 border-neutral-900 text-white" 
                             : "bg-white border-neutral-200 text-neutral-400 hover:text-neutral-600"
@@ -570,7 +461,7 @@ export function ProfileDashboard({
                         type="button"
                         onClick={() => setLetterIsPublic(false)}
                         className={cn(
-                          "px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase border tracking-wider transition-colors",
+                          "px-2.5 py-1 rounded-md text-[9px] font-bold uppercase border tracking-wider transition-colors cursor-pointer",
                           !letterIsPublic 
                             ? "bg-neutral-900 border-neutral-900 text-white" 
                             : "bg-white border-neutral-200 text-neutral-400 hover:text-neutral-600"
@@ -582,7 +473,7 @@ export function ProfileDashboard({
                     <button
                       type="submit"
                       disabled={sendingLetter || !letterContent.trim()}
-                      className="bg-[#EE4B2B] text-white hover:bg-[#d63d20] transition-colors py-1.5 px-3.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-50"
+                      className="bg-[#EE4B2B] text-white hover:bg-[#d63d20] transition-colors py-1.5 px-3.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                     >
                       {sendingLetter ? (
                         <>
@@ -601,215 +492,216 @@ export function ProfileDashboard({
           </div>
 
           {/* ========================================================================= */}
-          {/* RIGHT COLUMN: Tab switcher and items grids (Enclosed in Bento coque)       */}
+          {/* RIGHT COLUMN: Tab switcher & items (Pure flat Bento layout)               */}
           {/* ========================================================================= */}
           <div className="lg:col-span-8 space-y-4">
-            <div className="bg-[#EE4B2B] rounded-[40px] p-3 shadow-xl min-h-[calc(100vh-220px)] flex flex-col gap-3">
-              
-              {/* Tab Selector bar */}
-              <div className="bg-white rounded-[32px] p-2 flex items-center justify-start gap-1 overflow-x-auto select-none shrink-0 shadow-xs border border-neutral-100">
-                {tabs.map(tab => {
-                  const Icon = tab.icon
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className="relative z-10 px-4 py-2.5 rounded-2xl text-xs font-bold transition-colors duration-200 flex items-center gap-2 group shrink-0"
-                    >
-                      {activeTab === tab.id && (
-                        <motion.div
-                          layoutId="activeProfileTabHighlight"
-                          transition={springTransition}
-                          className="absolute inset-0 bg-neutral-100 border border-neutral-200/50 rounded-2xl -z-10"
-                        />
-                      )}
-                      <Icon className={cn(
-                        "w-4 h-4 transition-colors",
-                        activeTab === tab.id ? "text-[#EE4B2B]" : "text-neutral-400 group-hover:text-neutral-600"
-                      )} />
-                      <span className={cn(
-                        "transition-colors",
-                        activeTab === tab.id ? "text-neutral-800" : "text-neutral-500 group-hover:text-neutral-800"
-                      )}>
-                        {tab.label}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Dynamic panel content */}
-              <div className="flex-1 flex flex-col gap-3">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={activeTab}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.25, ease: "easeOut" }}
-                    className="flex-1 flex flex-col gap-3"
+            
+            {/* Tab Selector bar (sharp borders) */}
+            <div className="bg-white rounded-xl p-1.5 flex items-center justify-start gap-1 overflow-x-auto select-none shrink-0 shadow-xs border border-neutral-200/50">
+              {tabs.map(tab => {
+                const Icon = tab.icon
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className="relative z-10 px-4 py-2 rounded-lg text-xs font-bold transition-colors duration-200 flex items-center gap-2 group shrink-0 cursor-pointer"
                   >
-                    
-                    {/* ========================================================================= */}
-                    {/* TAB: PENSÉES (Micro-posts)                                                */}
-                    {/* ========================================================================= */}
-                    {activeTab === "pensees" && (
-                      <div className="flex flex-col gap-3">
-                        {posts.length === 0 ? (
-                          <div className="bg-white rounded-[32px] p-12 text-center text-neutral-400 text-xs font-semibold shadow-xs">
-                            Aucune pensée publiée pour le moment.
-                          </div>
-                        ) : (
-                          posts.map(post => (
-                            <div key={post.id} className="bg-white rounded-[32px] p-6 shadow-xs border border-neutral-100 flex flex-col gap-4">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
+                    {activeTab === tab.id && (
+                      <motion.div
+                        layoutId="activeProfileTabHighlight"
+                        transition={springs.tab}
+                        className="absolute inset-0 bg-neutral-50 border border-neutral-200/50 rounded-lg -z-10"
+                      />
+                    )}
+                    <Icon className={cn(
+                      "w-4 h-4 transition-colors",
+                      activeTab === tab.id ? "text-[#EE4B2B]" : "text-neutral-400 group-hover:text-neutral-600"
+                    )} />
+                    <span className={cn(
+                      "transition-colors",
+                      activeTab === tab.id ? "text-[#EE4B2B]" : "text-neutral-500 group-hover:text-neutral-800"
+                    )}>
+                      {tab.label}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Dynamic panel content - pure bento without heavy solid wrapping background */}
+            <div className="space-y-4 min-h-[calc(100vh-220px)] flex flex-col">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.22, ease: "easeOut" }}
+                  className="flex-1 flex flex-col gap-4"
+                >
+                  
+                  {/* ========================================================================= */}
+                  {/* TAB: PENSÉES (Micro-posts)                                                */}
+                  {/* ========================================================================= */}
+                  {activeTab === "pensees" && (
+                    <div className="flex flex-col gap-4">
+                      {posts.length === 0 ? (
+                        <div className="bg-white rounded-xl p-12 text-center text-neutral-400 text-xs font-semibold shadow-xs border border-neutral-200/50">
+                          Aucune pensée publiée pour le moment.
+                        </div>
+                      ) : (
+                        posts.map(post => (
+                          <div key={post.id} className="bg-white rounded-xl p-5 md:p-6 shadow-xs border border-neutral-200/50 flex flex-col gap-4 hover:border-neutral-300 transition-all duration-300">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-md overflow-hidden border border-neutral-200/30 shrink-0">
                                   {post.author.logoUrl ? (
-                                    <img src={post.author.logoUrl} className="w-8 h-8 rounded-xl object-cover" alt="" />
+                                    <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
                                   ) : (
-                                    <div className="w-8 h-8 rounded-xl bg-[#EE4B2B]/10 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
+                                    <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
                                       {post.author.name?.charAt(0)}
                                     </div>
                                   )}
-                                  <div>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs font-bold text-neutral-800 block leading-none">{post.author.name}</span>
-                                      {post.author.isCertified && <span className="w-1.5 h-1.5 rounded-full bg-[#EE4B2B]" />}
-                                    </div>
-                                    <span className="text-[10px] text-neutral-400 block mt-1 font-mono">@{post.author.username}</span>
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs font-semibold text-neutral-800 block leading-none">{post.author.name}</span>
+                                    {post.author.isCertified && <span className="text-[#EE4B2B] text-[9px] font-black">✓</span>}
                                   </div>
+                                  <span className="text-[10px] text-neutral-400 block mt-1 font-mono">@{post.author.username}</span>
                                 </div>
-                                <span className="text-[9px] text-neutral-400 font-mono">{new Date(post.createdAt).toLocaleDateString()}</span>
                               </div>
+                              <span className="text-[10px] text-neutral-400 font-mono">{new Date(post.createdAt).toLocaleDateString()}</span>
+                            </div>
 
-                              <p className="text-xs text-neutral-700 leading-relaxed font-sans whitespace-pre-line">
-                                {post.content}
+                            <p className="text-[13px] text-neutral-700 leading-relaxed font-sans whitespace-pre-line">
+                              {post.content}
+                            </p>
+
+                            {post.imageUrl && (
+                              <div className="rounded-lg border border-neutral-200/40 overflow-hidden bg-neutral-100 max-h-96">
+                                <img src={post.imageUrl} className="w-full h-full object-cover" alt="Image jointe" />
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+
+                  {/* ========================================================================= */}
+                  {/* TAB: ARTICLES                                                             */}
+                  {/* ========================================================================= */}
+                  {activeTab === "articles" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {articles.map(art => (
+                        <div 
+                          key={art.id} 
+                          onClick={() => window.location.href = `/article/${art.slug}`}
+                          className="bg-white rounded-xl p-5 md:p-6 shadow-xs border border-neutral-200/50 flex flex-col justify-between min-h-48 cursor-pointer hover:border-[#EE4B2B]/20 transition-all duration-300 group"
+                        >
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 bg-neutral-50 px-2.5 py-0.5 border border-neutral-200/30 rounded font-mono">
+                                {art.category?.name || "Général"}
+                              </span>
+                              <span className="text-[10px] text-neutral-400 font-semibold font-mono">{art.readingTime} min</span>
+                            </div>
+                            <h3 className="text-sm font-semibold text-neutral-800 tracking-tight leading-snug group-hover:text-[#EE4B2B] transition-colors duration-200">
+                              {art.title}
+                            </h3>
+                          </div>
+                          <div className="flex items-center justify-between pt-4 border-t border-neutral-100 text-[10px] text-neutral-400 font-medium font-mono">
+                            <span>{new Date(art.createdAt).toLocaleDateString()}</span>
+                            <span className="flex items-center gap-1.5 group-hover:text-[#EE4B2B] transition-colors duration-200 font-sans font-semibold">Lire l'écrit <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" /></span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* ========================================================================= */}
+                  {/* TAB: LECTURES (Highlights)                                                */}
+                  {/* ========================================================================= */}
+                  {activeTab === "highlights" && (
+                    <div className="flex flex-col gap-4">
+                      {highlights.length === 0 ? (
+                        <div className="bg-white rounded-xl p-12 text-center text-neutral-400 text-xs font-semibold shadow-xs border border-neutral-200/50">
+                          Aucun passage surligné partagé publiquement.
+                        </div>
+                      ) : (
+                        highlights.map(h => (
+                          <div key={h.id} className="bg-white rounded-xl p-5 md:p-6 shadow-xs border border-neutral-200/50 flex flex-col gap-4 hover:border-neutral-300 transition-all duration-300">
+                            <div className="border-l-2 border-[#EE4B2B] pl-3">
+                              <p className="text-xs text-neutral-700 italic leading-relaxed font-sans">
+                                “{h.text}”
                               </p>
-
-                              {post.imageUrl && (
-                                <div className="rounded-2xl border border-neutral-200/50 overflow-hidden bg-neutral-100 max-h-96">
-                                  <img src={post.imageUrl} className="w-full h-full object-cover" alt="Image jointe" />
-                                </div>
-                              )}
                             </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-
-                    {/* ========================================================================= */}
-                    {/* TAB: ARTICLES                                                             */}
-                    {/* ========================================================================= */}
-                    {activeTab === "articles" && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {articles.map(art => (
-                          <div 
-                            key={art.id} 
-                            onClick={() => window.location.href = `/article/${art.slug}`}
-                            className="bg-white rounded-[32px] p-6 shadow-xs border border-neutral-100 flex flex-col justify-between min-h-48 cursor-pointer hover:border-neutral-300 transition-all group"
-                          >
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 bg-neutral-100 px-2 py-0.5 rounded-sm">
-                                  {art.category?.name || "Général"}
-                                </span>
-                                <span className="text-[9px] text-neutral-400 font-semibold">{art.readingTime} min</span>
-                              </div>
-                              <h3 className="text-sm font-bold text-neutral-800 tracking-tight leading-snug group-hover:text-[#EE4B2B] transition-colors">
-                                {art.title}
-                              </h3>
-                            </div>
-                            <div className="flex items-center justify-between pt-4 border-t border-neutral-50 text-[10px] text-neutral-400 font-medium">
-                              <span>{new Date(art.createdAt).toLocaleDateString()}</span>
-                              <span className="flex items-center gap-1 group-hover:text-neutral-600 transition-colors">Lire l'écrit <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" /></span>
+                            {h.note && (
+                              <p className="text-[13px] text-neutral-500 leading-normal pl-3">
+                                <strong>Note personnelle :</strong> {h.note}
+                              </p>
+                            )}
+                            <div className="flex justify-between items-center text-[10px] text-neutral-400 pt-3 border-t border-neutral-100 font-mono">
+                              <span className="font-semibold block truncate max-w-xs font-sans text-neutral-400">Surligné dans : {h.article.title}</span>
+                              <button 
+                                onClick={() => window.location.href = `/article/${h.article.slug}`}
+                                className="text-neutral-500 hover:text-[#EE4B2B] font-bold flex items-center gap-1 cursor-pointer font-sans"
+                              >
+                                Consulter l'article <ExternalLink className="w-3 h-3" />
+                              </button>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        ))
+                      )}
+                    </div>
+                  )}
 
-                    {/* ========================================================================= */}
-                    {/* TAB: LECTURES (Highlights)                                                */}
-                    {/* ========================================================================= */}
-                    {activeTab === "highlights" && (
-                      <div className="flex flex-col gap-3">
-                        {highlights.length === 0 ? (
-                          <div className="bg-white rounded-[32px] p-12 text-center text-neutral-400 text-xs font-semibold shadow-xs">
-                            Aucun passage surligné partagé publiquement.
-                          </div>
-                        ) : (
-                          highlights.map(h => (
-                            <div key={h.id} className="bg-white rounded-[32px] p-6 shadow-xs border border-neutral-100 flex flex-col gap-4">
-                              <div className="border-l-2 border-[#EE4B2B]/60 pl-3">
-                                <p className="text-xs text-neutral-700 italic leading-relaxed font-sans">
-                                  “{h.text}”
-                                </p>
-                              </div>
-                              {h.note && (
-                                <p className="text-xs text-neutral-500 leading-normal pl-3">
-                                  <strong>Note personnelle :</strong> {h.note}
-                                </p>
-                              )}
-                              <div className="flex justify-between items-center text-[10px] text-neutral-400 pt-3 border-t border-neutral-50">
-                                <span className="font-semibold block truncate max-w-xs">Surligné dans : {h.article.title}</span>
-                                <button 
-                                  onClick={() => window.location.href = `/article/${h.article.slug}`}
-                                  className="text-[#EE4B2B] hover:underline font-bold flex items-center gap-1"
-                                >
-                                  Consulter l'article <ExternalLink className="w-3 h-3" />
-                                </button>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-
-                    {/* ========================================================================= */}
-                    {/* TAB: CORRESPONDANCE (Letters)                                             */}
-                    {/* ========================================================================= */}
-                    {activeTab === "letters" && (
-                      <div className="flex flex-col gap-3">
-                        {letters.length === 0 ? (
-                          <div className="bg-white rounded-[32px] p-12 text-center text-neutral-400 text-xs font-semibold shadow-xs">
-                            Aucune correspondance publique n'a été échangée pour le moment.
-                          </div>
-                        ) : (
-                          letters.map(letter => (
-                            <div key={letter.id} className="bg-white rounded-[32px] p-6 shadow-xs border border-neutral-100 flex flex-col gap-4">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
+                  {/* ========================================================================= */}
+                  {/* TAB: CORRESPONDANCE (Letters)                                             */}
+                  {/* ========================================================================= */}
+                  {activeTab === "letters" && (
+                    <div className="flex flex-col gap-4">
+                      {letters.length === 0 ? (
+                        <div className="bg-white rounded-xl p-12 text-center text-neutral-400 text-xs font-semibold shadow-xs border border-neutral-200/50">
+                          Aucune correspondance publique n'a été échangée pour le moment.
+                        </div>
+                      ) : (
+                        letters.map(letter => (
+                          <div key={letter.id} className="bg-white rounded-xl p-5 md:p-6 shadow-xs border border-neutral-200/50 flex flex-col gap-4 hover:border-neutral-300 transition-all duration-300">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-md overflow-hidden border border-neutral-200/30 shrink-0">
                                   {letter.sender.logoUrl ? (
-                                    <img src={letter.sender.logoUrl} className="w-8 h-8 rounded-xl object-cover" alt="" />
+                                    <img src={letter.sender.logoUrl} className="w-full h-full object-cover" alt="" />
                                   ) : (
-                                    <div className="w-8 h-8 rounded-xl bg-[#EE4B2B]/10 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
+                                    <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
                                       {letter.sender.name?.charAt(0)}
                                     </div>
                                   )}
-                                  <div>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs font-bold text-neutral-800 block leading-none">{letter.sender.name}</span>
-                                      {letter.sender.isCertified && <span className="w-1.5 h-1.5 rounded-full bg-[#EE4B2B]" />}
-                                    </div>
-                                    <span className="text-[10px] text-neutral-400 block mt-1 font-mono">@{letter.sender.username}</span>
-                                  </div>
                                 </div>
-                                <span className="text-[9px] text-neutral-400 font-mono">{new Date(letter.createdAt).toLocaleDateString()}</span>
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs font-semibold text-neutral-800 block leading-none">{letter.sender.name}</span>
+                                    {letter.sender.isCertified && <span className="text-[#EE4B2B] text-[9px] font-black">✓</span>}
+                                  </div>
+                                  <span className="text-[10px] text-neutral-400 block mt-1 font-mono">@{letter.sender.username}</span>
+                                </div>
                               </div>
-
-                              <p className="text-xs text-neutral-700 leading-relaxed font-sans whitespace-pre-line">
-                                {letter.content}
-                              </p>
+                              <span className="text-[10px] text-neutral-400 font-mono">{new Date(letter.createdAt).toLocaleDateString()}</span>
                             </div>
-                          ))
-                        )}
-                      </div>
-                    )}
 
-                  </motion.div>
-                </AnimatePresence>
-              </div>
+                            <p className="text-[13px] text-neutral-700 leading-relaxed font-sans whitespace-pre-line">
+                              {letter.content}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
 
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
 
@@ -822,39 +714,37 @@ export function ProfileDashboard({
       <AnimatePresence>
         {showConnectionsModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowConnectionsModal(null)}
-              className="absolute inset-0 bg-neutral-900/40 backdrop-blur-xs"
+              className="absolute inset-0 bg-neutral-900/30 backdrop-blur-xs"
             />
 
-            {/* Dialog Content */}
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              initial={{ opacity: 0, scale: 0.98, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className="bg-white w-full max-w-md rounded-[32px] p-6 shadow-2xl border border-neutral-100 z-10 flex flex-col max-h-[80vh] relative"
+              exit={{ opacity: 0, scale: 0.98, y: 10 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              className="bg-white w-full max-w-md rounded-xl p-6 shadow-2xl border border-neutral-200/50 z-10 flex flex-col max-h-[80vh] relative"
             >
               <button 
                 onClick={() => setShowConnectionsModal(null)}
-                className="absolute right-5 top-5 p-1.5 rounded-xl hover:bg-neutral-100 text-neutral-400 hover:text-neutral-600 transition-colors"
+                className="absolute right-5 top-5 p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
 
-              <h2 className="text-base font-bold text-neutral-800 mb-4 capitalize">
+              <h2 className="text-sm font-semibold text-neutral-800 mb-4 capitalize leading-none">
                 {showConnectionsModal === "followers" ? "Ses Abonnés" : "Ses Abonnements"}
               </h2>
 
               <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 custom-scrollbar min-h-[250px]">
                 {loadingConnections ? (
                   <div className="flex flex-col items-center justify-center py-16 gap-2">
-                    <Loader2 className="w-6 h-6 text-[#EE4B2B] animate-spin" />
-                    <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Chargement...</span>
+                    <Loader2 className="w-5 h-5 text-[#EE4B2B] animate-spin" />
+                    <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Chargement...</span>
                   </div>
                 ) : connectionsList.length === 0 ? (
                   <div className="text-center py-16 text-neutral-400 text-xs">
@@ -868,23 +758,25 @@ export function ProfileDashboard({
                         setShowConnectionsModal(null);
                         window.location.href = `/@${u.username}`;
                       }}
-                      className="flex items-center justify-between p-2 rounded-2xl hover:bg-neutral-50 cursor-pointer transition-colors"
+                      className="flex items-center justify-between p-2 rounded-lg hover:bg-neutral-50 cursor-pointer transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        {u.logoUrl ? (
-                          <img src={u.logoUrl} className="w-9 h-9 rounded-xl object-cover" alt="" />
-                        ) : (
-                          <div className="w-9 h-9 rounded-xl bg-[#EE4B2B]/10 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
-                            {u.name?.charAt(0)}
-                          </div>
-                        )}
+                        <div className="w-9 h-9 rounded-md overflow-hidden shrink-0 border border-neutral-200/30">
+                          {u.logoUrl ? (
+                            <img src={u.logoUrl} className="w-full h-full object-cover" alt="" />
+                          ) : (
+                            <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
+                              {u.name?.charAt(0)}
+                            </div>
+                          )}
+                        </div>
                         <div>
-                          <span className="text-xs font-bold text-neutral-800 block leading-tight">{u.name}</span>
+                          <span className="text-xs font-semibold text-neutral-800 block leading-tight">{u.name}</span>
                           <span className="text-[9px] text-neutral-400 block mt-0.5">@{u.username}</span>
                         </div>
                       </div>
                       
-                      <button className="text-[10px] font-bold text-[#EE4B2B] bg-[#EE4B2B]/10 px-2.5 py-1 rounded-lg">
+                      <button className="text-[10px] font-bold text-neutral-500 hover:text-[#EE4B2B] bg-neutral-50 hover:bg-[#EE4B2B]/5 border border-neutral-200/50 hover:border-[#EE4B2B]/20 px-2.5 py-1 rounded-lg transition-colors cursor-pointer">
                         Profil
                       </button>
                     </div>
@@ -902,46 +794,44 @@ export function ProfileDashboard({
       <AnimatePresence>
         {showEditModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowEditModal(false)}
-              className="absolute inset-0 bg-neutral-900/40 backdrop-blur-xs"
+              className="absolute inset-0 bg-neutral-900/30 backdrop-blur-xs"
             />
 
-            {/* Dialog Content */}
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              initial={{ opacity: 0, scale: 0.98, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className="bg-white w-full max-w-lg rounded-[32px] p-6 shadow-2xl border border-neutral-100 z-10 flex flex-col max-h-[90vh] relative overflow-hidden"
+              exit={{ opacity: 0, scale: 0.98, y: 10 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              className="bg-white w-full max-w-lg rounded-xl p-6 shadow-2xl border border-neutral-200/50 z-10 flex flex-col max-h-[90vh] relative overflow-hidden"
             >
               <button 
                 onClick={() => setShowEditModal(false)}
-                className="absolute right-5 top-5 p-1.5 rounded-xl hover:bg-neutral-100 text-neutral-400 hover:text-neutral-600 transition-colors"
+                className="absolute right-5 top-5 p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
 
               <div className="mb-4">
-                <h2 className="text-base font-bold text-neutral-800 flex items-center gap-1.5">
+                <h2 className="text-sm font-semibold text-neutral-800 flex items-center gap-1.5">
                   Modifier votre Profil <Sparkles className="w-4 h-4 text-[#EE4B2B]" />
                 </h2>
-                <p className="text-[10px] text-neutral-400 mt-1">Personnalisez votre identité et gérez vos comptes connectés.</p>
+                <p className="text-[10px] text-neutral-400 mt-1.5">Personnalisez votre identité et gérez votre correspondance.</p>
               </div>
 
               {profileSaveError && (
-                <div className="mb-3.5 p-2.5 rounded-xl border border-red-200 bg-red-50 text-[11px] font-semibold text-red-700 flex items-center gap-2">
+                <div className="mb-3.5 p-2.5 rounded-lg border border-red-200 bg-red-50 text-[11px] font-semibold text-red-700 flex items-center gap-2">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   <span>{profileSaveError}</span>
                 </div>
               )}
 
               {profileSaveSuccess && (
-                <div className="mb-3.5 p-2.5 rounded-xl border border-emerald-200 bg-emerald-50 text-[11px] font-semibold text-emerald-700 flex items-center gap-2">
+                <div className="mb-3.5 p-2.5 rounded-lg border border-emerald-200 bg-emerald-50 text-[11px] font-semibold text-emerald-700 flex items-center gap-2">
                   <Check className="w-3.5 h-3.5 shrink-0" />
                   <span>{profileSaveSuccess}</span>
                 </div>
@@ -951,7 +841,7 @@ export function ProfileDashboard({
                 
                 {/* Avatar section */}
                 <div className="flex items-center gap-4 border-b border-neutral-100 pb-4">
-                  <div className="relative w-16 h-16 border-2 border-neutral-200/60 rounded-2xl overflow-hidden bg-neutral-100 group shrink-0 shadow-xs flex items-center justify-center">
+                  <div className="relative w-14 h-14 border border-neutral-200/60 rounded-xl overflow-hidden bg-neutral-100 group shrink-0 shadow-xs flex items-center justify-center">
                     {avatarUrl ? (
                       <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                     ) : (
@@ -961,7 +851,7 @@ export function ProfileDashboard({
                     )}
                     
                     <label className="absolute inset-0 bg-black/40 cursor-pointer flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <Camera className="w-4 h-4 text-white" />
+                      <Camera className="w-3.5 h-3.5 text-white" />
                       <input 
                         type="file" 
                         accept="image/*" 
@@ -979,13 +869,13 @@ export function ProfileDashboard({
                   </div>
                   
                   <div className="flex-1 space-y-1">
-                    <span className="text-[10px] font-bold text-neutral-500 uppercase block">Photo de profil</span>
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase block leading-none font-mono">Photo de profil</span>
                     <input
                       type="text"
                       value={avatarUrl}
                       placeholder="URL ou téléversez..."
                       onChange={(e) => setAvatarUrl(e.target.value)}
-                      className="w-full text-xs border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-xl px-3 py-2"
+                      className="w-full text-xs border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-lg px-3 py-2"
                     />
                   </div>
                 </div>
@@ -993,24 +883,24 @@ export function ProfileDashboard({
                 {/* Identity Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                   <div className="space-y-1">
-                    <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1">Nom d'affichage</label>
+                    <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1 font-mono">Nom d'affichage</label>
                     <input
                       type="text"
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="w-full text-xs border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-xl px-3 py-2.5"
+                      className="w-full text-xs border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-lg px-3 py-2.5"
                       required
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1">Nom d'utilisateur</label>
+                    <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1 font-mono">Nom d'utilisateur</label>
                     <div className="relative">
                       <span className="absolute left-3 top-2.5 text-xs text-neutral-400 font-mono">@</span>
                       <input
                         type="text"
                         value={editUsername}
                         onChange={(e) => setEditUsername(e.target.value)}
-                        className="w-full text-xs border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-xl pl-6 pr-3 py-2.5 font-mono"
+                        className="w-full text-xs border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-lg pl-6 pr-3 py-2.5 font-mono"
                         required
                       />
                     </div>
@@ -1018,92 +908,38 @@ export function ProfileDashboard({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1">Adresse Email</label>
+                  <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1 font-mono">Adresse Email</label>
                   <input
                     type="email"
                     value={editEmail}
                     onChange={(e) => setEditEmail(e.target.value)}
-                    className="w-full text-xs border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-xl px-3 py-2.5"
+                    className="w-full text-xs border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-lg px-3 py-2.5"
                     required
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1">ADN Lecteur (Biographie)</label>
+                  <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1 font-mono">ADN Lecteur (Biographie)</label>
                   <textarea
                     value={editBio}
                     onChange={(e) => setEditBio(e.target.value)}
-                    className="w-full text-xs border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-xl p-3 resize-none h-20 outline-none"
+                    className="w-full text-xs border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-lg p-3 resize-none h-20 outline-none"
                     placeholder="Partagez vos goûts littéraires et philosophiques..."
                   />
-                </div>
-
-                {/* Connected Accounts Section */}
-                <div className="border-t border-neutral-100 pt-3.5 space-y-2.5">
-                  <span className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1">Comptes Connectés</span>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {/* Google Auth Link */}
-                    <button
-                      type="button"
-                      onClick={() => setLinkedGoogle(prev => !prev)}
-                      className={cn(
-                        "flex items-center justify-between p-3 rounded-xl border text-xs font-bold transition-all",
-                        linkedGoogle 
-                          ? "bg-neutral-50 border-neutral-200 text-neutral-700" 
-                          : "bg-white hover:bg-neutral-50 border-neutral-200 text-neutral-400"
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                          <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.68 1.54 14.98 1 12 1 7.35 1 3.37 3.67 1.39 7.56l3.89 3.02c1-2.95 3.73-5.54 6.72-5.54z"/>
-                          <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.36H12v4.51h6.43c-.28 1.44-1.09 2.67-2.3 3.49l3.58 2.78c2.1-1.94 3.3-4.8 3.3-8.42z"/>
-                          <path fill="#FBBC05" d="M5.28 14.54a7.1 7.1 0 0 1 0-4.08L1.39 7.44C.5 9.18 0 11.04 0 13c0 1.96.5 3.82 1.39 5.56l3.89-3.02z"/>
-                          <path fill="#34A853" d="M12 18.96c-2.99 0-5.72-2.59-6.72-5.54L1.39 16.44C3.37 20.33 7.35 23 12 23c2.98 0 5.68-.96 7.64-2.61l-3.58-2.78c-1.12.78-2.53 1.35-4.06 1.35z"/>
-                        </svg>
-                        <span>Google</span>
-                      </div>
-                      <span className={cn("text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold", linkedGoogle ? "bg-emerald-100 text-emerald-800" : "bg-neutral-100 text-neutral-500")}>
-                        {linkedGoogle ? "Lié" : "Associer"}
-                      </span>
-                    </button>
-
-                    {/* Apple Auth Link */}
-                    <button
-                      type="button"
-                      onClick={() => setLinkedApple(prev => !prev)}
-                      className={cn(
-                        "flex items-center justify-between p-3 rounded-xl border text-xs font-bold transition-all",
-                        linkedApple 
-                          ? "bg-neutral-50 border-neutral-200 text-neutral-700" 
-                          : "bg-white hover:bg-neutral-50 border-neutral-200 text-neutral-400"
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <svg className="w-4 h-4 shrink-0 fill-current" viewBox="0 0 24 24">
-                          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.17c.66-.81 1.11-1.93.99-3.06-1 .04-2.22.67-2.94 1.51-.62.71-1.16 1.85-1.02 2.96 1.11.09 2.27-.58 2.97-1.41z"/>
-                        </svg>
-                        <span>Apple</span>
-                      </div>
-                      <span className={cn("text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold", linkedApple ? "bg-emerald-100 text-emerald-800" : "bg-neutral-100 text-neutral-500")}>
-                        {linkedApple ? "Lié" : "Associer"}
-                      </span>
-                    </button>
-                  </div>
                 </div>
 
                 <div className="pt-4 border-t border-neutral-100 flex justify-end gap-2.5">
                   <button
                     type="button"
                     onClick={() => setShowEditModal(false)}
-                    className="px-4 py-2.5 border border-neutral-200 rounded-xl text-xs font-bold text-neutral-500 hover:bg-neutral-50 transition-colors"
+                    className="px-4 py-2.5 border border-neutral-200 rounded-lg text-xs font-bold text-neutral-500 hover:bg-neutral-50 transition-colors cursor-pointer"
                   >
                     Annuler
                   </button>
                   <button
                     type="submit"
                     disabled={savingProfile}
-                    className="bg-[#EE4B2B] text-white hover:bg-[#d63d20] transition-colors py-2.5 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
+                    className="bg-[#EE4B2B] text-white hover:bg-[#d63d20] transition-colors py-2.5 px-4 rounded-lg text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                   >
                     {savingProfile ? (
                       <>
