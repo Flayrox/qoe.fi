@@ -41,15 +41,15 @@ export function AnalyticsOverview({ data, totals }: AnalyticsOverviewProps) {
   const [activeMetric, setActiveMetric] = useState<MetricType>('users')
 
   const activeColor = 
-    activeMetric === 'users' ? '#3b82f6' : 
-    activeMetric === 'creators' ? '#8b5cf6' : 
-    activeMetric === 'articles' ? '#10b981' : 
-    '#EE4B2B'
+    activeMetric === 'users' ? '#EE4B2B' : // Vermillon Brand
+    activeMetric === 'creators' ? '#F97316' : // Orange Accent
+    activeMetric === 'articles' ? '#18181B' : // Zinc-900
+    '#D97706' // Warm Golden Amber
 
   return (
-    <div className="space-y-16 w-full pt-8">
-      {/* Editorial KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8 relative z-10 px-4 md:px-0">
+    <div className="space-y-12 w-full pt-6">
+      {/* Editorial KPIs (Bento Grid Style) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10 px-4 md:px-0">
         {METRICS.map(metric => {
           const isActive = activeMetric === metric.id
           return (
@@ -57,28 +57,26 @@ export function AnalyticsOverview({ data, totals }: AnalyticsOverviewProps) {
               key={metric.id}
               onClick={() => setActiveMetric(metric.id)}
               className={cn(
-                "group relative text-left flex flex-col items-start focus:outline-none transition-opacity duration-300",
-                !isActive ? "opacity-50 hover:opacity-80" : "opacity-100"
+                "group relative text-left flex flex-col items-start p-5 rounded-[20px] border transition-all duration-300 focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none cursor-pointer",
+                isActive 
+                  ? "bg-white border-neutral-200/80 shadow-sm" 
+                  : "bg-neutral-50/50 border-neutral-200/40 opacity-70 hover:opacity-100 hover:bg-neutral-100/40"
               )}
             >
-              <div className="text-3xl md:text-4xl font-semibold tracking-tight text-neutral-900">
+              <div className="text-2xl md:text-3xl font-bold tracking-tight text-neutral-900 group-hover:scale-[1.01] transition-transform duration-300">
                 {metric.format(totals[metric.id])}
               </div>
-              <div className="mt-2 flex items-center gap-2">
-                <span className={cn(
-                  "text-xs font-medium",
-                  isActive ? "text-neutral-900" : "text-neutral-500"
-                )}>
+              <div className="mt-3 flex items-center justify-between w-full">
+                <span className="text-[10px] font-bold text-neutral-400 font-mono uppercase tracking-wider">
                   {metric.label}
                 </span>
-                {isActive && (
-                  <motion.div
-                    layoutId="active-kpi-dot"
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ backgroundColor: activeColor }}
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                  />
-                )}
+                <div 
+                  className={cn(
+                    "w-2 h-2 rounded-full transition-all duration-300",
+                    isActive ? "scale-120" : "scale-50 opacity-40 group-hover:scale-75 group-hover:opacity-100"
+                  )}
+                  style={{ backgroundColor: isActive ? activeColor : "#A3A3A3" }}
+                />
               </div>
             </button>
           )
@@ -90,33 +88,33 @@ export function AnalyticsOverview({ data, totals }: AnalyticsOverviewProps) {
         <AnimatePresence mode="wait">
           <motion.div 
             key={activeMetric}
-            initial={{ opacity: 0, scaleY: 0.95 }}
+            initial={{ opacity: 0, scaleY: 0.97 }}
             animate={{ opacity: 1, scaleY: 1 }}
-            exit={{ opacity: 0, scaleY: 0.95 }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            exit={{ opacity: 0, scaleY: 0.97 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
             className="w-full h-full pointer-events-auto"
           >
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data}>
                 <defs>
                   <linearGradient id={`color-${activeMetric}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={activeColor} stopOpacity={0.08} />
+                    <stop offset="0%" stopColor={activeColor} stopOpacity={0.06} />
                     <stop offset="100%" stopColor={activeColor} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: 'rgba(255,255,255,0.9)', 
-                    backdropFilter: 'blur(8px)',
-                    borderColor: 'transparent', 
-                    borderRadius: '16px',
-                    boxShadow: '0 20px 40px -10px rgba(0,0,0,0.05)',
-                    padding: '12px 20px',
+                    backgroundColor: 'rgba(255,255,255,0.92)', 
+                    backdropFilter: 'blur(12px)',
+                    borderColor: 'rgba(229,229,229,0.8)', 
+                    borderRadius: '20px',
+                    boxShadow: '0 20px 40px -10px rgba(0,0,0,0.06)',
+                    padding: '14px 20px',
                     fontFamily: 'inherit'
                   }}
-                  itemStyle={{ color: '#171717', fontWeight: 500, fontSize: '14px' }}
-                  labelStyle={{ color: '#a3a3a3', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}
-                  cursor={{ stroke: activeColor, strokeWidth: 1, strokeDasharray: '4 4' }}
+                  itemStyle={{ color: '#171717', fontWeight: 600, fontSize: '13px' }}
+                  labelStyle={{ color: '#a3a3a3', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, fontFamily: 'monospace', marginBottom: '6px' }}
+                  cursor={{ stroke: activeColor, strokeWidth: 1.5, strokeDasharray: '4 4' }}
                 />
                 <Area
                   type="monotone"
@@ -132,7 +130,7 @@ export function AnalyticsOverview({ data, totals }: AnalyticsOverviewProps) {
                     stroke: activeColor,
                     style: { filter: `drop-shadow(0px 0px 8px ${activeColor})` }
                   }}
-                  animationDuration={1500}
+                  animationDuration={1000}
                   animationEasing="ease-out"
                 />
               </AreaChart>

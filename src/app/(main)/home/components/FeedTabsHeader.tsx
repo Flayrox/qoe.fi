@@ -22,19 +22,19 @@ export function FeedTabsHeader({ activeFeed, onTabChange, totalCount }: FeedTabs
   ]
 
   return (
-    <div className="sticky top-0 z-40 py-2.5 bg-[#FAFAFA]/80 backdrop-blur-xl border-b border-neutral-200/40 flex items-center justify-between">
-      <div className="flex items-center gap-1 p-1 bg-white border border-neutral-200/50 rounded-xl shadow-xs">
+    <div className="sticky top-0 z-40 py-3 bg-[#FAFAFA]/90 backdrop-blur-xl border-b border-neutral-200/40 flex items-center justify-between transition-all duration-300">
+      <div className="flex items-center gap-1.5 p-1 bg-white border border-neutral-200/60 rounded-2xl shadow-sm">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
-            className="relative px-4 py-1.5 rounded-lg text-xs font-semibold tracking-tight transition-colors duration-200 flex items-center justify-center gap-1.5 outline-none cursor-pointer"
+            className="relative px-4 py-2 rounded-xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center gap-1.5 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30"
           >
             {activeFeed === tab.id && (
               <motion.div
                 layoutId="activeFeedTab"
                 transition={springs.tab}
-                className="absolute inset-0 bg-neutral-50 border border-neutral-200/60 rounded-lg shadow-xs"
+                className="absolute inset-0 bg-neutral-50 border border-neutral-200/45 rounded-xl shadow-xs"
               />
             )}
             <span className={cn(
@@ -47,7 +47,7 @@ export function FeedTabsHeader({ activeFeed, onTabChange, totalCount }: FeedTabs
         ))}
       </div>
       
-      <span className="text-[10px] font-mono text-neutral-400 font-semibold px-2.5 py-1 bg-white rounded-lg border border-neutral-200/40">
+      <span className="text-[10px] font-mono text-neutral-400 font-semibold px-3 py-1.5 bg-white rounded-xl border border-neutral-200/55 shadow-xs">
         {totalCount} publications
       </span>
     </div>

@@ -89,9 +89,9 @@ export function MicroPostComposer({
   }
 
   return (
-    <div className="bg-white rounded-xl p-5 border border-neutral-200/50 flex flex-col gap-3.5 shadow-xs transition-all duration-300">
+    <div className="bg-white rounded-[24px] p-6 border border-neutral-200/60 flex flex-col gap-4 shadow-sm transition-all duration-400 ease-[0.16,1,0.3,1] hover:shadow-md">
       <div className="flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-md overflow-hidden border border-neutral-200/40 shrink-0">
+        <div className="w-8 h-8 rounded-lg overflow-hidden border border-neutral-200/40 shrink-0 shadow-xs">
           {dbUser?.logoUrl ? (
             <img src={dbUser.logoUrl} className="w-full h-full object-cover" alt="" />
           ) : (
@@ -100,17 +100,17 @@ export function MicroPostComposer({
             </div>
           )}
         </div>
-        <span className="text-xs font-semibold text-neutral-800">Crée un post classique</span>
+        <span className="text-xs font-semibold text-neutral-800">Partagez votre pensée</span>
       </div>
 
-      <form onSubmit={handlePostSubmit} className="space-y-3">
+      <form onSubmit={handlePostSubmit} className="space-y-3.5">
         <textarea
           placeholder="Qu'avez-vous en tête aujourd'hui ?"
           value={postText}
           onChange={(e) => setPostText(e.target.value)}
           onFocus={() => setIsComposerExpanded(true)}
           className={cn(
-            "w-full text-[13px] font-sans focus:outline-none resize-none transition-all duration-300 placeholder-neutral-400 text-neutral-800 rounded-lg bg-neutral-50/50 border border-neutral-200/40 p-3",
+            "w-full text-[13px] font-sans focus:outline-none resize-none transition-all duration-300 placeholder-neutral-400 text-neutral-800 rounded-xl bg-neutral-50/50 border border-neutral-200/40 p-3.5 focus:ring-2 focus:ring-[#EE4B2B]/10",
             isComposerExpanded ? "h-24 focus:bg-white focus:border-[#EE4B2B]/30" : "h-11"
           )}
         />
@@ -125,13 +125,13 @@ export function MicroPostComposer({
               className="flex flex-col gap-3.5 overflow-hidden"
             >
               <div className="flex flex-wrap gap-1.5 items-center">
-                <span className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 mr-1">Hashtags:</span>
+                <span className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 mr-1 font-mono">Hashtags:</span>
                 {tagsList.map(tag => (
                   <button
                     type="button"
                     key={tag}
                     onClick={() => insertHashtag(tag)}
-                    className="text-[10px] bg-neutral-50 hover:bg-[#EE4B2B]/5 hover:text-[#EE4B2B] font-semibold px-2 py-0.5 rounded-md border border-neutral-200/30 transition-colors"
+                    className="text-[10px] bg-neutral-50 hover:bg-[#EE4B2B]/5 hover:text-[#EE4B2B] font-semibold px-2.5 py-1 rounded-lg border border-neutral-200/30 transition-all duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none"
                   >
                     {tag}
                   </button>
@@ -139,24 +139,24 @@ export function MicroPostComposer({
               </div>
 
               {postImageUrl && (
-                <div className="relative rounded-lg overflow-hidden bg-neutral-100 border border-neutral-200/40 max-h-48 group">
+                <div className="relative rounded-xl overflow-hidden bg-neutral-100 border border-neutral-200/40 max-h-48 group">
                   <img src={postImageUrl} className="w-full h-full object-cover" alt="Image jointe" />
                   <button
                     type="button"
                     onClick={() => setPostImageUrl("")}
-                    className="absolute top-2 right-2 bg-neutral-900/80 hover:bg-neutral-900 text-white p-1.5 rounded-lg transition-all"
+                    className="absolute top-2 right-2 bg-neutral-900/80 hover:bg-neutral-900 text-white p-2 rounded-xl transition-all shadow-md cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-3 border-t border-neutral-100">
+              <div className="flex items-center justify-between pt-3.5 border-t border-neutral-100">
                 <div className="flex items-center gap-2">
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="text-[11px] bg-neutral-50/50 hover:bg-neutral-100/50 font-semibold border border-neutral-200/60 px-2.5 py-1.5 rounded-lg text-neutral-600 focus:outline-none cursor-pointer"
+                    className="text-[11px] bg-neutral-50/50 hover:bg-neutral-100/50 font-semibold border border-neutral-200/60 px-3 py-2 rounded-xl text-neutral-600 focus:outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30"
                   >
                     <option value="Philosophie">Philosophie</option>
                     <option value="Politique">Politique</option>
@@ -164,7 +164,7 @@ export function MicroPostComposer({
                     <option value="Souveraineté">Souveraineté</option>
                   </select>
 
-                  <label className="cursor-pointer p-2 rounded-lg border border-neutral-200/60 bg-neutral-50/50 hover:bg-neutral-100/50 text-neutral-500 hover:text-neutral-700 transition-colors flex items-center justify-center">
+                  <label className="cursor-pointer p-2 rounded-xl border border-neutral-200/60 bg-neutral-50/50 hover:bg-neutral-100/50 text-neutral-500 hover:text-neutral-700 transition-all flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none">
                     {uploadingPostImage ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-[#EE4B2B]" />
                     ) : (
@@ -187,14 +187,14 @@ export function MicroPostComposer({
                       setIsComposerExpanded(false)
                       setPostImageUrl("")
                     }}
-                    className="px-3.5 py-1.5 border border-neutral-200/60 rounded-lg text-xs font-semibold text-neutral-500 hover:bg-neutral-50"
+                    className="px-4 py-2 border border-neutral-200/60 rounded-xl text-xs font-semibold text-neutral-500 hover:bg-neutral-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none"
                   >
                     Annuler
                   </button>
                   <button
                     type="submit"
                     disabled={!postText.trim() || uploadingPostImage}
-                    className="bg-[#EE4B2B] text-white hover:bg-[#d63d20] disabled:bg-neutral-50 disabled:text-neutral-400 disabled:border-neutral-200/40 disabled:shadow-none transition-colors px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                    className="bg-[#EE4B2B] text-white hover:bg-[#d63d20] disabled:bg-neutral-50 disabled:text-neutral-400 disabled:border-neutral-200/40 disabled:shadow-none transition-all duration-300 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none"
                   >
                     Publier <Send className="w-3 h-3" />
                   </button>
