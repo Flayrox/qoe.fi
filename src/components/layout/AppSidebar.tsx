@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Logo } from "@/components/ui/Logo"
 import { cn } from "@/lib/utils"
+import { useTabStore } from "@/lib/use-tab-store"
 
 interface AppSidebarUser {
   id: string
@@ -45,6 +46,7 @@ const springs = {
 export function AppSidebar({ user }: AppSidebarProps) {
   const pathname = usePathname()
   const [hoveredIndex, setHoveredIndex] = useState<string | null>(null)
+  const { addTab } = useTabStore()
 
   const isActive = (href: string) => {
     if (href === "/home") return pathname === "/home"
@@ -203,7 +205,12 @@ export function AppSidebar({ user }: AppSidebarProps) {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-neutral-100/80" />
                 {user?.username && (
-                  <DropdownMenuItem className="cursor-pointer font-sans text-xs font-semibold text-neutral-700 focus:bg-[#EE4B2B]/5 focus:text-[#EE4B2B]" onClick={() => window.location.href = `/@${user.username}`}>
+                  <DropdownMenuItem className="cursor-pointer font-sans text-xs font-semibold text-neutral-700 focus:bg-[#EE4B2B]/5 focus:text-[#EE4B2B]" onClick={() => addTab({
+                    id: `profile-${user.username}`,
+                    title: user.name || `@${user.username}`,
+                    type: "profile",
+                    username: user.username!
+                  })}>
                     <User className="w-4 h-4 mr-2.5 text-neutral-400 focus-hover:text-[#EE4B2B]" />
                     Mon Profil Public
                   </DropdownMenuItem>
