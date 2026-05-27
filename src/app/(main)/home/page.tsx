@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/db"
-import { FeedDashboard } from "./FeedDashboard"
+import { TabViewManager } from "./components/TabViewManager"
 
 export default async function ReaderHomePage() {
   const supabase = await createClient()
@@ -39,7 +39,10 @@ export default async function ReaderHomePage() {
       isCertified: post.author.isCertified || false
     },
     category: { name: "Micro-post" },
-    tags: post.tags || []
+    tags: post.tags || [],
+    likesCount: post._count?.likes || 0,
+    repliesCount: post._count?.replies || 0,
+    liked: post.likes?.some((l: any) => l.userId === user.id) || false
   })
 
   const mapArticleToFeedItem = (art: any) => ({
@@ -71,7 +74,9 @@ export default async function ReaderHomePage() {
       authorId: { in: [...creatorIds, user.id] } // Show followed + user's posts
     },
     include: {
-      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } }
+      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
+      likes: { select: { userId: true } },
+      _count: { select: { likes: true, replies: true } }
     },
     orderBy: { createdAt: 'desc' },
     take: 20
@@ -100,7 +105,9 @@ export default async function ReaderHomePage() {
 
   const dbRecPosts = await prisma.post.findMany({
     include: {
-      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } }
+      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
+      likes: { select: { userId: true } },
+      _count: { select: { likes: true, replies: true } }
     },
     orderBy: { createdAt: 'desc' },
     take: 20
@@ -138,7 +145,9 @@ export default async function ReaderHomePage() {
       }
     },
     include: {
-      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } }
+      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
+      likes: { select: { userId: true } },
+      _count: { select: { likes: true, replies: true } }
     },
     orderBy: { createdAt: 'desc' },
     take: 20
@@ -187,18 +196,20 @@ export default async function ReaderHomePage() {
     take: 3
   })
 
+  const feedProps = {
+    dbUser,
+    followingArticles,
+    recommendationArticles,
+    discoverArticles,
+    bookmarks: bookmarks.map(b => mapArticleToFeedItem(b.article)),
+    followedCreators: followedCreators.map(f => f.creator),
+    suggestedCreators,
+    initialFollowsCount: followsCount,
+    initialBookmarksCount: bookmarksCount,
+    initialHighlightsCount: highlightsCount,
+  }
+
   return (
-    <FeedDashboard
-      dbUser={dbUser}
-      followingArticles={followingArticles}
-      recommendationArticles={recommendationArticles}
-      discoverArticles={discoverArticles}
-      bookmarks={bookmarks.map(b => mapArticleToFeedItem(b.article))}
-      followedCreators={followedCreators.map(f => f.creator)}
-      suggestedCreators={suggestedCreators}
-      initialFollowsCount={followsCount}
-      initialBookmarksCount={bookmarksCount}
-      initialHighlightsCount={highlightsCount}
-    />
+    <TabViewManager feedProps={feedProps} />
   )
 }

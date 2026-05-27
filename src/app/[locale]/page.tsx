@@ -11,6 +11,8 @@ import { createClient } from "@/lib/supabase/server";
 import { ProfileDashboard } from "./ProfileDashboard";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 
+import { getCachedStandardArticles, getCachedSystemConfig } from "@/lib/cached-queries";
+
 interface PageProps {
   params: Promise<{ locale: string }>;
 }
@@ -234,23 +236,11 @@ export default async function Home({ params }: PageProps) {
     notFound();
   }
 
-  // Fetch articles for standard feed (excluding shadowbanned authors)
-  const standardArticles = await prisma.article.findMany({
-    where: {
-      published: true,
-      author: { allowIndexing: true, isShadowbanned: false }
-    },
-    include: {
-      author: { select: { name: true, subdomain: true, customDomain: true, logoUrl: true, isCertified: true } },
-      category: { select: { name: true } }
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 9,
-  });
+  // Fetch articles for standard feed (excluding shadowbanned authors) using Cache
+  const standardArticles = await getCachedStandardArticles();
 
-  // Fetch SystemConfig for landing page content
-  const configs = await prisma.systemConfig.findMany();
-  const configMap = Object.fromEntries(configs.map(c => [c.key, c.value]));
+  // Fetch SystemConfig for landing page content using Cache
+  const configMap = await getCachedSystemConfig();
 
   return (
     <main className="min-h-screen selection:bg-primary selection:text-primary-foreground overflow-x-hidden bg-background text-foreground">

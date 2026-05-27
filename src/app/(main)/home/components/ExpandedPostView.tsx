@@ -1,0 +1,402 @@
+"use client"
+
+import React, { useState, useEffect } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { ArrowLeft, Send, Loader2, AlertCircle } from "lucide-react"
+import { useTabStore } from "@/lib/use-tab-store"
+import { getPostThread, toggleLikePost, replyToPost } from "../actions"
+import { LikeIcon, CommentIcon, RepostIcon, ShareIcon } from "@/components/icons/CustomIcons"
+import { cn } from "@/lib/utils"
+
+interface ExpandedPostViewProps {
+  postId: string
+  currentUserId: string | null
+}
+
+const springs = {
+  enter: { type: "spring" as const, stiffness: 450, damping: 30 },
+  like: { type: "spring" as const, stiffness: 600, damping: 25 }
+}
+
+export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProps) {
+  const { setActiveTabId } = useTabStore()
+  const [post, setPost] = useState<any | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [replyText, setReplyText] = useState("")
+  const [sendingReply, setSendingReply] = useState(false)
+  const [liked, setLiked] = useState(false)
+  const [likesCount, setLikesCount] = useState(0)
+
+  useEffect(() => {
+    async function loadThread() {
+      setLoading(true)
+      const res = await getPostThread(postId)
+      if (res.success && res.post) {
+        setPost(res.post)
+        const userHasLiked = res.post.likes.some((l: any) => l.userId === currentUserId)
+        setLiked(userHasLiked)
+        setLikesCount(res.post.likes.length)
+      }
+      setLoading(false)
+    }
+    loadThread()
+  }, [postId, currentUserId])
+
+  const handleLikeToggle = async () => {
+    if (!currentUserId) return
+    
+    setLiked(prev => !prev)
+    setLikesCount(prev => liked ? prev - 1 : prev + 1)
+
+    const res = await toggleLikePost(postId)
+    if (!res.success) {
+      setLiked(prev => !prev)
+      setLikesCount(prev => liked ? prev + 1 : prev - 1)
+    }
+  }
+
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/@${post.author.username || post.author.subdomain}/post/${post.id}`
+    const shareData = {
+      title: `Pensée de ${post.author.name} sur QOE.FI`,
+      text: post.content,
+      url: shareUrl
+    }
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData)
+      } catch (err) {
+        console.log("Share failed or cancelled:", err)
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl)
+        alert("Lien copié dans le presse-papiers !")
+      } catch (err) {
+        console.error("Copy error:", err)
+      }
+    }
+  }
+
+  const handleReplySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!replyText.trim() || !currentUserId) return
+
+    setSendingReply(true)
+    const res = await replyToPost(postId, replyText)
+    setSendingReply(false)
+
+    if (res.success && res.reply) {
+      setReplyText("")
+      setPost(prev => ({
+        ...prev,
+        replies: [res.reply, ...(prev?.replies || [])]
+      }))
+    }
+  }
+
+  const handleNestedReplyAdded = (parentId: string, newReply: any) => {
+    const appendReplyRecursively = (repliesList: any[]): any[] => {
+      return repliesList.map(reply => {
+        if (reply.id === parentId) {
+          return {
+            ...reply,
+            replies: [newReply, ...(reply.replies || [])]
+          }
+        }
+        if (reply.replies && reply.replies.length > 0) {
+          return {
+            ...reply,
+            replies: appendReplyRecursively(reply.replies)
+          }
+        }
+        return reply
+      })
+    }
+
+    setPost(prev => {
+      if (!prev) return prev
+      if (prev.id === parentId) {
+        return {
+          ...prev,
+          replies: [newReply, ...(prev.replies || [])]
+        }
+      }
+      return {
+        ...prev,
+        replies: appendReplyRecursively(prev.replies || [])
+      }
+    })
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3 bg-white border border-neutral-200/50 rounded-xl shadow-xs">
+        <Loader2 className="w-5 h-5 animate-spin text-[#EE4B2B]" />
+        <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider font-mono">Chargement du fil social...</span>
+      </div>
+    )
+  }
+
+  if (!post) {
+    return (
+      <div className="bg-white border border-neutral-200/50 rounded-xl p-8 text-center text-neutral-500 shadow-xs">
+        <AlertCircle className="w-8 h-8 text-neutral-300 mx-auto mb-3" />
+        <p className="text-xs">Le contenu demandé est introuvable ou a été supprimé.</p>
+      </div>
+    )
+  }
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={springs.enter}
+      className="bg-white border border-neutral-200/50 rounded-xl p-6 shadow-xs flex flex-col gap-6"
+    >
+      {/* Thread Header */}
+      <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+        <button
+          onClick={() => setActiveTabId("timeline")}
+          className="flex items-center gap-2 text-xs font-semibold text-neutral-500 hover:text-neutral-800 transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" /> Retour au flux
+        </button>
+        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest font-mono">Fil social</span>
+      </div>
+
+      {/* Main post layout */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-md overflow-hidden border border-neutral-200/40 shrink-0 shadow-xs">
+            {post.author.logoUrl ? (
+              <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
+            ) : (
+              <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-sm text-[#EE4B2B]">
+                {post.author.name?.charAt(0)}
+              </div>
+            )}
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-semibold text-neutral-800">{post.author.name}</span>
+              {post.author.isCertified && <span className="text-[#EE4B2B] text-[9px] font-black">✓</span>}
+            </div>
+            <span className="text-xs text-neutral-400 block mt-0.5 font-mono">@{post.author.username || post.author.subdomain}</span>
+          </div>
+        </div>
+
+        <div className="text-base text-neutral-800 leading-relaxed font-sans font-light">
+          {post.content}
+        </div>
+
+        {post.imageUrl && (
+          <div className="rounded-lg border border-neutral-200/40 overflow-hidden bg-neutral-100 max-h-[500px]">
+            <img src={post.imageUrl} className="w-full h-full object-cover" alt="Image du post" />
+          </div>
+        )}
+
+        <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-mono font-semibold pt-2">
+          <span>{new Date(post.createdAt).toLocaleDateString(undefined, { hour: "numeric", minute: "numeric" })}</span>
+          <span>•</span>
+          <span>Souveraineté QOE</span>
+        </div>
+      </div>
+
+      {/* Actions bar */}
+      <div className="flex items-center justify-between border-y border-neutral-100 py-3 px-1 text-neutral-400 text-xs font-semibold">
+        <button 
+          onClick={handleLikeToggle}
+          className={cn(
+            "flex items-center gap-2 cursor-pointer transition-colors",
+            liked ? "text-[#EE4B2B]" : "hover:text-[#EE4B2B]"
+          )}
+        >
+          <motion.div whileTap={{ scale: 1.4 }} transition={springs.like}>
+            <LikeIcon className="w-4 h-4" style={{ fill: liked ? "#EE4B2B" : "transparent" }} />
+          </motion.div>
+          <span>{likesCount} Likes</span>
+        </button>
+
+        <div className="flex items-center gap-2">
+          <CommentIcon className="w-4 h-4 text-neutral-400" />
+          <span>{post.replies?.length || 0} Réponses</span>
+        </div>
+
+        <button className="flex items-center gap-2 hover:text-neutral-700 cursor-pointer">
+          <RepostIcon className="w-4 h-4" />
+          <span>Repost</span>
+        </button>
+
+        <button 
+          onClick={handleShare}
+          className="flex items-center gap-2 hover:text-neutral-700 cursor-pointer"
+        >
+          <ShareIcon className="w-4 h-4" />
+          <span>Partager</span>
+        </button>
+      </div>
+
+      {/* Reply Composer */}
+      {currentUserId && (
+        <form onSubmit={handleReplySubmit} className="flex gap-3 items-end">
+          <textarea
+            value={replyText}
+            onChange={(e) => setReplyText(e.target.value)}
+            placeholder="Publiez votre réponse..."
+            rows={1}
+            className="flex-1 text-[13px] border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-lg p-2.5 h-10 resize-none outline-none transition-all"
+            required
+          />
+          <button
+            type="submit"
+            disabled={sendingReply || !replyText.trim()}
+            className="bg-neutral-900 text-white p-2.5 rounded-lg flex items-center justify-center cursor-pointer h-10 w-10 shrink-0 hover:bg-neutral-800 transition-colors"
+          >
+            {sendingReply ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+          </button>
+        </form>
+      )}
+
+      {/* Recursive Comments list */}
+      <div className="space-y-4 pt-2">
+        <h4 className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2.5">Fils de discussion</h4>
+        <div className="space-y-4">
+          {post.replies && post.replies.length === 0 ? (
+            <p className="text-[11px] text-neutral-400 font-medium italic py-2 pl-1">Aucune réponse pour le moment. Engagez la discussion !</p>
+          ) : (
+            post.replies?.map((reply: any) => (
+              <CommentThread 
+                key={reply.id}
+                reply={reply}
+                depth={0}
+                currentUserId={currentUserId}
+                onReplyAdded={handleNestedReplyAdded}
+              />
+            ))
+          )}
+        </div>
+      </div>
+
+    </motion.div>
+  )
+}
+
+function CommentThread({ reply, depth = 0, currentUserId, onReplyAdded }: { reply: any; depth?: number; currentUserId: string | null; onReplyAdded: (parentId: string, newReply: any) => void }) {
+  const [showReplyForm, setShowReplyForm] = useState(false)
+  const [replyText, setReplyText] = useState("")
+  const [sending, setSending] = useState(false)
+  const [liked, setLiked] = useState(reply.likes?.some((l: any) => l.userId === currentUserId) || false)
+  const [likesCount, setLikesCount] = useState(reply.likes?.length || 0)
+
+  const handleLike = async () => {
+    if (!currentUserId) return
+    setLiked(prev => !prev)
+    setLikesCount(prev => liked ? prev - 1 : prev + 1)
+    await toggleLikePost(reply.id)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!replyText.trim() || !currentUserId) return
+    setSending(true)
+    const res = await replyToPost(reply.id, replyText)
+    setSending(false)
+    if (res.success && res.reply) {
+      setReplyText("")
+      setShowReplyForm(false)
+      onReplyAdded(reply.id, res.reply)
+    }
+  }
+
+  return (
+    <div className="space-y-3 pl-3 border-l border-neutral-100 relative group/comment mt-4">
+      <div className="flex items-center gap-2.5">
+        <div className="w-6 h-6 rounded-md overflow-hidden border border-neutral-200/30 shrink-0 shadow-xs">
+          {reply.author.logoUrl ? (
+            <img src={reply.author.logoUrl} className="w-full h-full object-cover" alt="" />
+          ) : (
+            <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-[9px] text-[#EE4B2B]">
+              {reply.author.name?.charAt(0)}
+            </div>
+          )}
+        </div>
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-semibold text-neutral-800 block leading-none">{reply.author.name}</span>
+            {reply.author.isCertified && <span className="text-[#EE4B2B] text-[8px] font-black">✓</span>}
+          </div>
+          <span className="text-[9px] text-neutral-400 font-mono">@{reply.author.username}</span>
+        </div>
+        <span className="text-[9px] text-neutral-400 font-mono ml-auto">{new Date(reply.createdAt).toLocaleDateString()}</span>
+      </div>
+
+      <p className="text-[13px] text-neutral-700 leading-relaxed font-sans pl-8">
+        {reply.content}
+      </p>
+
+      {/* Sub-comment actions */}
+      <div className="flex items-center gap-4 pl-8 text-[10px] text-neutral-400 font-semibold">
+        <button 
+          onClick={handleLike}
+          className={cn("flex items-center gap-1.5 hover:text-[#EE4B2B] transition-colors cursor-pointer", liked && "text-[#EE4B2B]")}
+        >
+          <LikeIcon className="w-3.5 h-3.5" style={{ fill: liked ? "#EE4B2B" : "transparent" }} />
+          <span>{likesCount}</span>
+        </button>
+
+        <button 
+          onClick={() => setShowReplyForm(prev => !prev)}
+          className="flex items-center gap-1.5 hover:text-neutral-700 transition-colors cursor-pointer"
+        >
+          <CommentIcon className="w-3.5 h-3.5" />
+          <span>Répondre</span>
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showReplyForm && (
+          <motion.form 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            onSubmit={handleSubmit}
+            className="flex gap-2 pl-8 pt-1"
+          >
+            <input
+              type="text"
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              placeholder="Écrire une réponse..."
+              className="flex-1 text-[11px] border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-md p-2 h-8 outline-none transition-all"
+              required
+            />
+            <button
+              type="submit"
+              disabled={sending}
+              className="bg-neutral-900 text-white p-2 rounded-md h-8 w-8 flex items-center justify-center cursor-pointer disabled:opacity-40"
+            >
+              {sending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+            </button>
+          </motion.form>
+        )}
+      </AnimatePresence>
+
+      {/* Children replies */}
+      {reply.replies && reply.replies.length > 0 && depth < 3 && (
+        <div className="space-y-2 mt-2">
+          {reply.replies.map((childReply: any) => (
+            <CommentThread 
+              key={childReply.id} 
+              reply={childReply} 
+              depth={depth + 1} 
+              currentUserId={currentUserId}
+              onReplyAdded={onReplyAdded}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

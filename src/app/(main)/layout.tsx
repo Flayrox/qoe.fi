@@ -24,10 +24,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-neutral-800 transition-colors duration-300 font-sans selection:bg-[#EE4B2B]/10 selection:text-[#EE4B2B]">
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <AppSidebar user={dbUser} />
-          <main className="lg:col-span-9 min-w-0">
+      <AppSidebar user={dbUser} />
+      <div className="lg:pl-64 min-h-screen">
+        <div className="container mx-auto px-6 py-8 max-w-6xl">
+          <main className="min-w-0">
             {children}
           </main>
         </div>

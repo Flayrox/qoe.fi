@@ -81,6 +81,7 @@ model User {
   receivedLetters       Letter[]        @relation("LetterRecipient")
   walletTransactions    WalletTransaction[]
   posts                 Post[]
+  likes                 Like[]
   
   // AI Recs
   embedding Unsupported("vector(1536)")?
@@ -263,4 +264,26 @@ model Post {
   updatedAt DateTime @updatedAt
   tags      String[]
   imageUrl  String?  @db.Text
+
+  // Social interactions
+  parentId  String?
+  parent    Post?    @relation("PostReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Post[]   @relation("PostReplies")
+
+  repostId  String?
+  repost    Post?    @relation("PostReposts", fields: [repostId], references: [id], onDelete: SetNull)
+  reposts   Post[]   @relation("PostReposts")
+
+  likes     Like[]
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
 }

@@ -34,10 +34,18 @@ export async function middleware(request: NextRequest) {
 
   // If we're on a tenant domain (like a custom subdomain or custom domain)
   if (!isMainDomain) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-tenant-domain", currentHost);
+    
     // Rewrite path to `/tenant/[domain]/[path]` to avoid routing conflicts with /[locale]
     url.pathname = `/tenant/${currentHost}${pathname}`;
+    
     // We only need to rewrite here, no translation needed for tenants yet (unless requested)
-    return NextResponse.rewrite(url);
+    return NextResponse.rewrite(url, {
+      request: {
+        headers: requestHeaders,
+      }
+    });
   }
 
   // --- Main Domain Logic Below ---
