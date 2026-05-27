@@ -11,10 +11,14 @@ export function ClientActions({ email }: { email: string }) {
     if (confirm(`Are you sure you want to block ${email}? They will no longer be able to subscribe or read premium content.`)) {
       setIsBlocking(true)
       try {
-        await blockReader(email)
-        alert(`${email} has been blocked.`)
+        const res = await blockReader(email)
+        if (res.success) {
+          alert(`${email} has been blocked.`)
+        } else {
+          alert(res.error)
+        }
       } catch (e: any) {
-        alert(e.message)
+        alert("An unexpected error occurred.")
       } finally {
         setIsBlocking(false)
       }
