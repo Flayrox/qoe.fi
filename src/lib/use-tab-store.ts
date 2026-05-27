@@ -27,8 +27,18 @@ export const useTabStore = create<TabStore>((set) => ({
     if (exists) {
       return { activeTabId: newTab.id }
     }
+    
+    // Tab limit of 10 to prevent memory leaks in DOM (Feature 1)
+    let updatedTabs = [...state.tabs, { ...newTab, scrollPosition: 0 }]
+    if (updatedTabs.length > 10) {
+      const oldestIndex = updatedTabs.findIndex(t => t.id !== "timeline" && t.id !== newTab.id)
+      if (oldestIndex !== -1) {
+        updatedTabs.splice(oldestIndex, 1)
+      }
+    }
+    
     return {
-      tabs: [...state.tabs, { ...newTab, scrollPosition: 0 }],
+      tabs: updatedTabs,
       activeTabId: newTab.id
     }
   }),
