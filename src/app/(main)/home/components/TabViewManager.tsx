@@ -6,6 +6,7 @@ import { FeedDashboard } from "../FeedDashboard"
 import { TabBar } from "./TabBar"
 import { ExpandedPostView } from "./ExpandedPostView"
 import { ArticleReaderView } from "./ArticleReaderView"
+import { ProfileTabReader } from "./ProfileTabReader"
 import { cn } from "@/lib/utils"
 
 interface TabViewManagerProps {
@@ -71,6 +72,9 @@ export function TabViewManager({ feedProps }: TabViewManagerProps) {
               )}
               {tab.type === "article" && (
                 <ArticleReaderView slug={tab.id.replace("article-", "")} />
+              )}
+              {tab.type === "profile" && (
+                <ProfileTabReader username={tab.id.replace("profile-", "")} currentUserId={feedProps.dbUser?.id || null} />
               )}
             </div>
           )

@@ -3,7 +3,7 @@ import { create } from "zustand"
 export interface Tab {
   id: string
   title: string
-  type: "timeline" | "article" | "post"
+  type: "timeline" | "article" | "post" | "profile"
   slug?: string
   scrollPosition: number
 }
