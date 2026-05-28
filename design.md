@@ -1,124 +1,138 @@
 ---
-title: "Système de Design - qoe.fi"
-description: "Documentation officielle du système de design de la plateforme souveraine qoe.fi, structurée selon les normes getdesign.md"
-version: "1.0.0"
-date: "2026-05-27"
+title: "Système de Design & Manifeste UI - qoe.fi"
+description: "Documentation exhaustive, souveraine et intraitable de la plateforme qoe.fi. De la landing page poétique au cockpit d'administration asymétrique."
+version: "3.0.0"
+date: "2026-05-28"
 ---
 
-# Design System : qoe.fi
+# Design System & Manifeste UI : qoe.fi
 
-Bienvenue dans le `design.md` officiel de **qoe.fi**. Ce document centralise les principes directeurs, l'identité visuelle, l'architecture des composants et les règles d'interaction de la plateforme. Il est conçu pour être la source de vérité absolue pour tout développeur ou designer intervenant sur le projet, garantissant une cohérence parfaite et une esthétique "Premium" et "Souveraine".
+Ce document est la source de vérité absolue pour l'architecture visuelle, conceptuelle et technique de **qoe.fi**. Il définit la tension visuelle entre un vide immense et un détail millimétrique, s'inspirant des standards d'excellence d'artisans du web comme Rauno Freiberg, de l'épuration technique de Cursor, et de l'obsession microscopique de devouringdetails.com.
 
----
-
-## 1. Philosophie & Principes Fondamentaux
-
-L'interface de qoe.fi s'inscrit en faux contre les standards du Web 2.0 hyper-stimulant. Elle est pensée comme un **sanctuaire numérique**.
-
-- **Minimalisme Intentionnel ("Anti-IA" & "Zéro Bruit")** : L'interface élimine le superflu (pas de pop-ups agressives, pas d'ombres artificielles lourdes). Le vide ("whitespace") est utilisé comme un élément structurel guidant la concentration.
-- **Temps Long & Calme Visuel** : Les contrastes sont adoucis, les animations sont fluides et prédictibles. L'architecture encourage la réflexion profonde plutôt que la consommation frénétique.
-- **Dualité Conceptuelle** : Le design sépare distinctement le mode "Création" (interface technique, sombre, monastique favorisant le flow) du mode "Lecture" (interface lumineuse, apaisante, aérée).
+**Tout développeur ou agent IA intervenant sur ce projet a l'obligation contractuelle d'appliquer ces règles sans la moindre concession.**
 
 ---
 
-## 2. Identité de Marque & Le Concept "Bento Plateau"
+## 1. Philosophie Globale : Le Rituel et le Sanctuaire
 
-L'élément signature de qoe.fi est son approche visuelle du "Bento Plateau", directement inspirée par l'anatomie de son logo.
+L'interface de qoe.fi refuse catégoriquement la sur-stimulation du Web 2.0 (aggrégateurs frénétiques, pop-ups agressives). Elle s'impose comme un **sanctuaire numérique**.
 
-### Le Logo (Le "Q" / La Tasse de Café / L'Interrupteur)
-Le logo incarne l'éveil intellectuel. Sa forme extérieure rouge et sa découpe interne blanche symbolisent à la fois la tasse de café (le rituel) et un interrupteur abstrait (l'effort de la pensée).
+### L'Étymologie et le Symbole
+* **Le Rituel (Coffee / qoe.fi)** : Le nom se prononce "Coffee". La plateforme est une alternative saine à la consommation frénétique de contenu. On y vient pour "prendre son café intellectuel", stimuler sa noradrénaline et sa curiosité par le temps long.
+* **Le Logo (La Tasse et l'Interrupteur)** : Le logo (le "Q" stylisé) possède une double lecture. 
+    1. Une tasse vue de profil/dessus (la découpe blanche forme l'anse).
+    2. Un interrupteur à bascule abstrait. L'absence d'indication "On/Off" symbolise l'effort intellectuel requis : allumer son propre cerveau est un acte volontaire, exigé du lecteur comme de l'écrivain.
 
-### Le "Bento Plateau"
-Le "Bento Plateau" est la traduction de ce logo en un conteneur d'interface universel.
-- **Enveloppe Externe** : Un grand conteneur, souvent coloré (Rouge Vermillon ou Noir Profond), avec un rayon de courbure extrême (`rounded-[36px]`).
-- **Enveloppe Interne (Les Cartes)** : Des sous-conteneurs blancs ou clairs, insérés avec un `padding` minimal (2 à 3px) et un rayon de courbure légèrement inférieur (`rounded-[24px]` ou `rounded-[28px]`) pour créer un effet d'emboîtement (nested radius) mathématiquement parfait.
+### Le Minimalisme "Anti-IA" et le Vide
+* **Zéro Bruit Visuel** : Aucun espace publicitaire, aucune bordure inutile, aucune ombre excessive, aucun chatbot flottant. 
+* **L'Espace comme Matériau** : Le vide ("whitespace") n'est pas un manque à remplir, c'est la structure porteuse. Les marges sont délibérément gigantesques pour isoler le contenu et forcer la concentration.
 
 ---
 
-## 3. Couleurs (La Flamme Souveraine)
+## 2. L'Architecture Spatiale : Le "Bento Plateau"
 
-La palette de couleurs rejette le noir pur brutal au profit de tons neutres nuancés, rehaussés par un rouge identitaire fort.
+Le concept de **Bento Plateau**, abstraction de la forme du logo "Q", régit l'organisation des blocs interactifs majeurs (Landing Page, Auth, modules globaux).
+
+### La Règle du "Nested Radius" (Emboîtement Parfait)
+Pour qu'une carte à l'intérieur d'un plateau paraisse visuellement parfaite et organique, le rayon interne doit suivre cette formule mathématique stricte : `Radius Externe - Padding = Radius Interne`.
+
+* **L'Enveloppe Externe (Le Plateau)** :
+    * Rayon extrême : `rounded-[32px]` ou `rounded-[36px]`.
+    * Fond : Souvent Rouge Vermillon (`#EE4B2B`), Noir absolu, ou Gris très clair.
+    * Tension : Un padding interne extrêmement fin (`p-2` ou `p-3`, soit 8 à 12px) pour créer un effet d'enserrage luxueux.
+* **L'Enveloppe Interne (Les Cartes / Bento Items)** :
+    * Rayon calculé : `rounded-[24px]` ou `rounded-[28px]`.
+    * Fond : Blanc pur (`#FFFFFF`) ou Zinc profond (`#09090B`).
+
+---
+
+## 3. La Dualité des Interfaces (Vitrine vs Cockpit)
+
+Le design sépare distinctement deux états cognitifs : la consommation apaisée et la production chirurgicale.
+
+### 3.1. Le Mode Lecteur (Landing Page / Vitrine)
+* **Ambiance** : Lumineux, aérien, organique, expansif.
+* **Surfaces & Glassmorphism** : Utilisation de fonds blancs ou gris 50 (`#FAFAFA`). Les éléments de navigation (`NavbarPremium`) utilisent un `bg-white/70` à `bg-white/92` combiné à un flou profond (`backdrop-blur-xl` ou `md`) pour s'intégrer au défilement sans masquer le texte brutalement.
+
+### 3.2. L'Admin Dashboard (Le Cockpit Monastique & Asymétrique)
+L'espace admin (`/admin`) s'éloigne des dashboards génériques (avec leurs grosses sidebars grises et leurs cartes empilées). C'est un terminal de contrôle épuré à l'extrême.
+* **La Sidebar Suspendue** : Elle ne possède *aucune ligne de démarcation* rigide à droite. Elle n'est pas un bloc, mais une colonne de pure typographie suspendue. L'isolation se fait par le vide absolu et des espacements verticaux généreux (`gap-y-8`, `space-y-6`).
+* **Mode Sombre Natif** : Fond `#09090B` (Zinc-950) pour une concentration absolue. Surfaces de données en `#18181B` (Zinc-900).
+* **L'Obsession du Micro-Détail** :
+    * *Hairline Borders* : Les séparateurs de tableaux utilisent des bordures à la limite du perceptible (`border-[0.5px] border-white/5` ou `border-neutral-200/40`).
+    * *Puces d'État (Status Dots)* : Pas de gros badges de statut. Juste un micro-point de 4 à 6px (`h-1.5 w-1.5`) avec un halo subtil.
+    * *Micro-Badges* : `text-[9px] font-medium tracking-[0.25em] uppercase text-zinc-400`.
+* **Clavier d'Abord** : Navigation rapide (Command Palette `⌘+K`), anneaux de focus visibles et nets (`focus-visible:ring-2 focus-visible:ring-neutral-400/50`).
+
+---
+
+## 4. La Flamme et la Toile (Couleurs)
+
+La couleur n'est jamais décorative. Elle signale, hiérarchise et incarne la marque.
 
 ### Couleurs de Marque
-- **Primaire (Vermillon "Crimson")** : `#EE4B2B`
-  - *Usage* : Éléments distinctifs de la marque, CTAs principaux, coques des Bento Plateaus.
-- **Secondaire (Orange d'Accent)** : `#F97316`
-  - *Usage* : Survol (hover states), micro-interactions, sections immersives spécifiques.
+* **Primaire (Vermillon "Crimson")** : `#EE4B2B`
+    * *Usage* : C'est le sang de la plateforme. Utilisé pour le logo, les CTA ultimes, les coques de Bento.
+* **Secondaire (Orange d'Accent)** : `#F97316`
+    * *Usage* : Sections immersives (`FeaturedPublications`), micro-interactions, gradients thermiques subtils.
 
-### Surfaces & Fonds (Thème Clair)
-- **Fond Principal** : `#FFFFFF` ou `#FAFAFA` (Blanc et Gris très clairs pour préserver les yeux lors de longues lectures).
-- **Surfaces Élevées (Cartes)** : `bg-white/92` avec glassmorphism (`backdrop-blur-md`) pour la navigation.
-- **Texte Primaire (Titres)** : `text-neutral-900`
-- **Texte Secondaire (Corps)** : `text-neutral-600` à `text-neutral-700`
-- **Métadonnées** : `text-neutral-400`
-
-### Surfaces & Fonds (Thème Sombre / Mode Éditeur)
-- **Fond Principal** : `#09090B` (Zinc-950) pour les interfaces nécessitant une concentration absolue (Éditeur, Super-Admin).
-- **Surfaces Élevées** : `#18181B` (Zinc-900).
-- **Texte** : `#FAFAFA` (Zinc-50) pour les titres, `#A1A1AA` (Zinc-400) pour le corps.
+### Textes (Hiérarchie)
+* **Titres H1/H2** : `text-neutral-900` (Clair) / `text-zinc-50` (Sombre).
+* **Corps de texte** : `text-neutral-600` (Clair) / `text-zinc-400` (Sombre).
+* **Métadonnées** : `text-neutral-400` (Clair) / `text-zinc-600` (Sombre).
 
 ---
 
-## 4. Typographie
+## 5. Typographie (Le Socle Narratif)
 
-Le système typographique repose sur les polices natives pour garantir des performances optimales et une sensation d'appartenance organique au système de l'utilisateur.
+L'écrit est la clé de voûte de qoe.fi. Les polices natives sont privilégiées pour une appartenance organique au système de l'utilisateur.
 
-### Typographie d'Interface (Dashboard, UI, Boutons)
-- **Famille** : System Sans-Serif (`-apple-system`, `BlinkMacSystemFont`, `SF Pro Display`, `Inter`).
-- **Poids & Styles** :
-  - **Titres UI** : `font-bold` avec un tracking resserré (`tracking-tight`).
-  - **Boutons & Actions** : `font-medium` ou `font-semibold`.
-  - **Tags & Micro-labels** : `text-[10px] uppercase tracking-[0.2em]` (Espacement généreux pour l'élégance technique).
-
-### Typographie Éditoriale (Articles, Publications)
-- **Famille** : Polices Serif élégantes (`Lora`, `Merriweather`, `Georgia`).
-- **Poids & Styles** :
-  - **Corps de texte** : `font-normal` avec un interlignage généreux (`leading-relaxed` ou `leading-loose`).
-  - **Titres de contenu** : Fort contraste de taille par rapport au corps pour hiérarchiser visuellement la lecture sans effort.
+* **Typographie d'Interface (Dashboard, UI, Boutons)** :
+    * Famille : Sans-Serif Système (`SF Pro Display`, `Inter`).
+    * Titres UI : Poids `font-bold` avec un tracking fortement resserré (`tracking-tight` ou `tracking-tighter`) pour un rendu technique et dense.
+    * Micros-labels : `text-[10px] uppercase tracking-[0.2em]`.
+* **Typographie Éditoriale (Articles, Publications)** :
+    * Famille : Serif haut de gamme (`Lora`, `Merriweather`, `Georgia`).
+    * Corps : Poids régulier, interlignage très généreux (`leading-relaxed` ou `leading-loose`).
+    * Fort contraste de taille entre les titres et le corps pour guider l'œil sans effort.
 
 ---
 
-## 5. Composants Structuraux & UI (Basés sur Shadcn & 21st.dev)
+## 6. Motion Design : La Physique de la Matière (Framer Motion)
 
-Tous les composants interactifs doivent refléter la qualité "Premium" de la plateforme.
+L'animation sur qoe.fi obéit aux lois de la physique. Rien n'est abrupte, tout simule la masse et l'inertie. Rien ne "clignote".
 
-### Boutons & Inputs
-- **Bordures** : Les angles pointus sont proscrits. Utilisation de `rounded-xl` ou `rounded-lg`.
-- **États de Focus** : La navigation au clavier ou le clic déclenchent des anneaux de focus subtils : `focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30`.
-- **Glassmorphism** : La navbar et les headers persistants utilisent un léger flou d'arrière-plan pour s'intégrer au défilement du contenu sans le masquer brutalement.
-
-### Cartes & Conteneurs
-- **Ombres (Shadows)** : Jamais d'ombres dures. Utilisation d'ombres diffuses, colorées ou extrêmement douces.
-  - Grandes enveloppes : `shadow-2xl`
-  - Éléments internes : `shadow-sm` ou `shadow-md`
-- **Borders** : Bordures de 1px très légères (`border-border` ou `border-neutral-200/60`) pour délimiter délicatement les espaces dans les tableaux de bord.
+* **Courbe de Référence (Bézier / Spring)** : `ease: [0.16, 1, 0.3, 1]`.
+    * *Signature* : Une impulsion de départ fulgurante (façon écosystème Apple) suivie d'une décélération extrêmement douce à l'arrivée.
+* **Transitions de Texte & Typewriter** : Fondu enchaîné délicat (`AnimatePresence`, `opacity: [0, 1]`, `y: [10, 0]`) plutôt qu'un remplacement brutal.
+* **Micro-interactions (Hovers)** : Durée de `0.2s` à `0.3s`. Un léger grossissement (`scale-102` à `scale-105`) ou une douce translation.
+* **L'Effet Génie (Unmount)** : Les grands composants (comme le Hero ou les Modales) se réduisent en une bille (`borderRadius: 50%, scale: 0.05`) et sont "aspirés" vers leur point d'origine pour quitter l'écran élégamment.
 
 ---
 
-## 6. Animation & Motion Design
+## 7. Iconographie & Ombres
 
-L'animation sur qoe.fi obéit aux lois de la physique. Rien n'est abrupte, tout simule la masse et l'inertie.
-
-- **Courbe de Référence (Bézier)** : `ease: [0.16, 1, 0.3, 1]`. Cette courbe (similaire à l'écosystème Apple) offre une impulsion de départ rapide suivie d'une décélération très douce.
-- **Durées** :
-  - Micro-interactions (Hovers, Active states) : `0.2s` à `0.3s`.
-  - Transitions structurelles (Ouverture de modale, Déploiement de Bento) : `0.55s`.
-- **Transitions de Texte** : Fondu enchaîné délicat (`opacity` et légère translation `y`) plutôt qu'un remplacement brutal de chaîne de caractères.
-
----
-
-## 7. Iconographie
-
-- **Bibliothèque** : **Lucide React** (exclusivement).
-- **Style** : Traits fins et uniformes (Stroke Width de `1.5` ou `2.0` max).
-- **Règle absolue** : Les icônes ne sont jamais remplies (pas de fill solide) pour conserver un rendu aérien et minimaliste.
+* **Ombres (Shadows)** : **Refus total des ombres dures.** Utilisation exclusive d'ombres diffuses, douces, évanescentes ou colorées.
+    * Conteneurs globaux : `shadow-2xl shadow-neutral-200/40`.
+    * Éléments flottants : Filtre CSS `drop-shadow(0px 10px 15px rgba(0,0,0,0.05))`.
+* **Iconographie (Lucide React)** :
+    * Traits fins et uniformes : `strokeWidth="1.5"` (ou `2.0` max).
+    * **Règle absolue** : Les icônes ne sont *jamais* remplies (pas de `fill` solide) pour conserver un rendu aérien.
 
 ---
 
-## 8. Standards de Développement Frontend
+## 8. Protocole de Développement IA & Standards Frontend (MCP)
 
-Ce projet s'appuie massivement sur des générateurs de composants de haute volée :
-1. **Shadcn UI** : Base architecturale robuste pour les primitives (boutons, inputs, popovers).
-2. **21st.dev** : Injection de composants d'UI avancés, expérimentaux et hautement polis pour les éléments distinctifs de la marque.
+Pour garantir un niveau d'excellence mondial, **l'IA (Agent) a l'interdiction formelle de générer des composants d'interface génériques.** Elle doit obligatoirement s'appuyer sur les serveurs MCP configurés dans l'environnement.
 
-*L'intégration d'un nouveau composant doit systématiquement passer par une vérification de sa conformité avec les règles de courbure (nested radius), de couleur et de comportement au clavier définies ci-dessus.*
+### Directives d'utilisation des serveurs MCP (Obligatoire) :
+1. **Shadcn UI (Standardisation & Robustesse)** : 
+   * Pour toute structure anatomique standard (tableaux de données `data-table`, dropdowns, inputs, formulaires, modales), l'IA doit interroger le MCP `shadcn` pour utiliser ses primitives accessibles et extensibles.
+2. **21st.dev (Inspiration & Primitives Avancées)** : 
+   * Pour tout composant hautement visuel, expérimental ou animé (Bento cards complexes, `AnimatedBentoCard`, effets de survol magnétiques, text reveals), l'IA doit rechercher des implémentations de pointe via le MCP `21st.dev`.
+
+### Prohibitions Absolues (Code Generators) :
+1. **INTERDIT** : Les paddings uniformes et grossiers (`p-4` ou `p-6` partout). L'interface exige une asymétrie intentionnelle et une tension spatiale.
+2. **INTERDIT** : Les boutons ou inputs avec des angles à 90° (sauf intention pure brutaliste assumée). Le standard est `rounded-lg`, `rounded-xl` ou `rounded-full`.
+3. **INTERDIT** : L'introduction de couleurs non listées dans la charte (pas de bleu système standard, pas de vert flash sauf alerte système stricte).
+4. **INTERDIT** : Surcharger le Dashboard Admin de cartes colorées. L'Admin reste monochrome (Zinc), seule la donnée critique a droit à la couleur.

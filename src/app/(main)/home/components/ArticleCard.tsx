@@ -98,15 +98,15 @@ export function ArticleCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.99 }}
       transition={{ duration: 0.25, delay: idx * 0.03, ease: [0.16, 1, 0.3, 1] }}
-      className="bg-white rounded-2xl p-6 border border-neutral-200/60 flex flex-col gap-4 relative group hover:border-[#EE4B2B]/20 hover:shadow-md hover:scale-[1.005] transition-all duration-400 ease-[0.16,1,0.3,1]"
+      className="bg-white rounded-[28px] p-6 sm:p-8 border-[0.5px] border-neutral-200/40 flex flex-col gap-5 relative group hover:shadow-2xl hover:shadow-neutral-200/40 hover:scale-[1.002] transition-all duration-500 ease-[0.16,1,0.3,1]"
     >
       {/* Header Card */}
       <div className="flex items-center justify-between">
         <button 
           onClick={handleOpenProfile}
-          className="flex items-center gap-3 hover:opacity-95 transition-opacity cursor-pointer group/author outline-none text-left focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 rounded-xl"
+          className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 rounded-xl"
         >
-          <div className="w-8 h-8 rounded-lg overflow-hidden border border-neutral-200/45 shrink-0 shadow-sm transition-transform duration-300 group-hover/author:scale-105">
+          <div className="w-9 h-9 rounded-[10px] overflow-hidden border-[0.5px] border-neutral-200/50 shrink-0 shadow-sm transition-transform duration-500 ease-[0.16,1,0.3,1] group-hover/author:scale-105">
             {article.author.logoUrl ? (
               <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
             ) : (
@@ -117,21 +117,21 @@ export function ArticleCard({
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold text-neutral-800 leading-none group-hover/author:text-[#EE4B2B] transition-colors duration-200">
+              <span className="text-[13px] font-bold text-neutral-900 tracking-tight leading-none group-hover/author:text-[#EE4B2B] transition-colors duration-200">
                 {article.author.name}
               </span>
               {article.author.isCertified && (
-                <span className="text-[#EE4B2B] text-[9px] font-black">✓</span>
+                <span className="text-[#EE4B2B] text-[10px] font-black">✓</span>
               )}
             </div>
-            <span className="text-[10px] text-neutral-400 block mt-1 font-mono">
+            <span className="text-[10px] text-neutral-400 block mt-1 font-mono uppercase tracking-wider">
               @{article.author.username || article.author.subdomain}
             </span>
           </div>
         </button>
 
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-neutral-400 font-semibold font-mono mr-1">
+        <div className="flex items-center gap-2.5">
+          <span className="text-[10px] text-neutral-400 font-medium font-mono mr-2">
             {new Date(article.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
           </span>
           
@@ -140,13 +140,13 @@ export function ArticleCard({
             <button
               onClick={() => handleFollowToggle(article.author)}
               className={cn(
-                "text-[9px] font-bold px-2 py-1.5 rounded-lg border transition-all duration-300 ease-[0.16,1,0.3,1] cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none",
+                "text-[10px] font-bold px-2 py-1.5 rounded-xl transition-all duration-300 ease-[0.16,1,0.3,1] cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none",
                 isFollowed 
-                  ? "bg-neutral-100 border-neutral-200 text-neutral-500" 
-                  : "bg-white border-neutral-200 text-neutral-600 hover:border-[#EE4B2B] hover:text-[#EE4B2B]"
+                  ? "bg-neutral-50 text-neutral-400" 
+                  : "bg-white text-neutral-500 hover:bg-neutral-50 hover:text-[#EE4B2B]"
               )}
             >
-              {isFollowed ? <UserCheck className="w-2.5 h-2.5" /> : <UserPlus className="w-2.5 h-2.5" />}
+              {isFollowed ? <UserCheck className="w-3 h-3" /> : <UserPlus className="w-3 h-3" />}
             </button>
           )}
 
@@ -154,59 +154,62 @@ export function ArticleCard({
           <button
             onClick={() => handleBookmarkToggle(article)}
             className={cn(
-              "text-[9px] font-bold p-1.5 rounded-lg border transition-all duration-300 ease-[0.16,1,0.3,1] cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none",
+              "text-[10px] font-bold p-1.5 rounded-xl transition-all duration-300 ease-[0.16,1,0.3,1] cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none",
               isBookmarked 
-                ? "bg-[#EE4B2B]/5 border-[#EE4B2B]/20 text-[#EE4B2B]" 
-                : "bg-white border-neutral-200 text-neutral-400 hover:border-neutral-300 hover:text-[#EE4B2B]"
+                ? "bg-[#EE4B2B]/5 text-[#EE4B2B]" 
+                : "bg-white text-neutral-400 hover:bg-neutral-50 hover:text-[#EE4B2B]"
             )}
           >
-            <Bookmark className="w-2.5 h-2.5" style={{ fill: isBookmarked ? "#EE4B2B" : "transparent" }} />
+            <Bookmark className="w-3 h-3" style={{ fill: isBookmarked ? "#EE4B2B" : "transparent" }} strokeWidth={1.5} />
           </button>
         </div>
       </div>
 
       {/* Content block */}
-      <div className="space-y-3">
+      <div className="space-y-3 pt-2">
         <a href={url} target="_blank" rel="noreferrer" className="block group/title">
-          <h3 className="text-sm font-semibold text-neutral-900 tracking-tight leading-snug group-hover:text-[#EE4B2B] transition-colors duration-200 mb-2">
+          <h3 className="font-serif text-xl sm:text-[22px] font-bold text-neutral-900 leading-snug group-hover:text-[#EE4B2B] transition-colors duration-300 mb-3">
             {article.title}
           </h3>
-          <p className="text-xs text-neutral-500 leading-relaxed line-clamp-3">
-            {article.content.replace(/<[^>]*>?/gm, "").substring(0, 150)}...
+          <p className="font-serif text-[15px] text-neutral-600 leading-loose line-clamp-3">
+            {article.content.replace(/<[^>]*>?/gm, "").substring(0, 200)}...
           </p>
         </a>
       </div>
 
       {/* Footer Card */}
-      <div className="flex items-center justify-between pt-3.5 border-t border-neutral-100 mt-1">
+      <div className="flex items-center justify-between pt-4 mt-2">
         <div className="flex items-center gap-2">
           {article.category && (
-            <span className="text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 bg-neutral-50 border border-neutral-200/30 rounded-lg text-neutral-400 font-mono">
+            <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-neutral-400 font-mono">
               {article.category.name}
             </span>
           )}
           {article.isPremium && (
-            <span className="text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 bg-[#EE4B2B]/5 border border-[#EE4B2B]/10 rounded-lg text-[#EE4B2B] font-mono">
-              Premium • 2,00 €
-            </span>
+            <>
+              <span className="text-neutral-300 text-xs">|</span>
+              <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-[#EE4B2B] font-mono flex items-center gap-1">
+                Premium
+              </span>
+            </>
           )}
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={handleOpenInTab}
-            className="text-[10px] font-semibold text-neutral-500 hover:text-[#EE4B2B] flex items-center gap-1.5 transition-colors duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 rounded-lg p-1"
+            className="text-[10px] font-semibold text-neutral-400 hover:text-[#EE4B2B] flex items-center gap-1.5 transition-colors duration-300 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 rounded-lg p-1"
           >
-            <FileText className="w-3 h-3" /> Ouvrir dans un onglet
+            <FileText className="w-3 h-3" strokeWidth={1.5} /> Onglet
           </button>
           <span className="text-neutral-200 text-xs">|</span>
           <a
             href={url}
             target="_blank"
             rel="noreferrer"
-            className="text-[10px] font-semibold text-neutral-500 hover:text-[#EE4B2B] flex items-center gap-1.5 transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 rounded-lg p-1"
+            className="text-[10px] font-semibold text-neutral-400 hover:text-[#EE4B2B] flex items-center gap-1.5 transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 rounded-lg p-1"
           >
-            Lire l'article <ExternalLink className="w-3 h-3" />
+            Lire <ExternalLink className="w-3 h-3" strokeWidth={1.5} />
           </a>
         </div>
       </div>

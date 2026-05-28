@@ -311,50 +311,50 @@ export function ProfileDashboard({
           {/* ========================================================================= */}
           {/* LEFT COLUMN: Profile info (Bento Plateau Card)                            */}
           {/* ========================================================================= */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="bg-white border border-neutral-200/60 rounded-[28px] p-6 shadow-sm flex flex-col gap-6 relative transition-all duration-300 hover:shadow-md">
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-white rounded-[32px] p-8 flex flex-col gap-6 relative transition-all duration-500 shadow-sm border border-neutral-100/50 hover:shadow-2xl hover:shadow-neutral-200/40">
               
               {/* Elegant avatar frame */}
-              <div className="relative w-20 h-28 -mt-16 border-4 border-white rounded-2xl shadow-md overflow-hidden bg-neutral-100 group shrink-0 transition-transform duration-500 ease-[0.16,1,0.3,1] hover:scale-105">
+              <div className="relative w-24 h-32 -mt-20 border-[6px] border-white rounded-[24px] shadow-lg overflow-hidden bg-neutral-100 group shrink-0 transition-all duration-700 ease-[0.16,1,0.3,1] hover:scale-105 hover:-translate-y-2">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt={profileUser.name || "Avatar"} className="w-full h-full object-cover transition-transform duration-700 ease-[0.16,1,0.3,1] group-hover:scale-110" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center font-bold text-3xl text-neutral-400 bg-neutral-200">
+                  <div className="w-full h-full flex items-center justify-center font-bold text-4xl text-neutral-400 bg-neutral-200">
                     {profileUser.name?.charAt(0) || "U"}
                   </div>
                 )}
                 
                 {isOwnProfile && (
                   <label className="absolute inset-0 bg-black/40 cursor-pointer flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <Camera className="w-4 h-4 text-white" />
-                    <span className="text-[8px] text-white font-bold uppercase mt-1">Modifier</span>
+                    <Camera className="w-5 h-5 text-white" />
+                    <span className="text-[9px] text-white font-bold uppercase tracking-wider mt-1.5">Modifier</span>
                     <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
                   </label>
                 )}
                 
                 {uploadingAvatar && (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <Loader2 className="w-5 h-5 text-white animate-spin" />
+                    <Loader2 className="w-6 h-6 text-white animate-spin" />
                   </div>
                 )}
               </div>
 
               {/* Name and tags */}
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <h1 className="text-sm font-semibold text-neutral-800 tracking-tight leading-none">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-[22px] font-bold text-neutral-900 tracking-tighter leading-none">
                     {profileUser.name || "Lecteur"}
                   </h1>
                   {profileUser.isCertified && (
-                    <span className="text-[#EE4B2B] text-[10px] font-black">✓</span>
+                    <span className="text-[#EE4B2B] text-xs font-black">✓</span>
                   )}
                   {profileUser.role === 'superadmin' && (
-                    <span className="bg-neutral-800 text-white text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded">
+                    <span className="bg-neutral-900 text-white text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-md">
                       Admin
                     </span>
                   )}
                 </div>
-                <span className="text-xs text-neutral-400 block font-mono">@{profileUser.username || "lecteur"}</span>
+                <span className="text-sm text-neutral-400 block font-mono tracking-tight mt-1">@{profileUser.username || "lecteur"}</span>
                 
                 {/* Creator site link */}
                 {(profileUser.role === 'creator' || profileUser.role === 'superadmin') && profileUser.subdomain && (
@@ -366,78 +366,80 @@ export function ProfileDashboard({
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-neutral-500 hover:text-[#EE4B2B] mt-1 bg-neutral-50 border border-neutral-200/50 px-2.5 py-1 rounded-lg w-fit transition-colors focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-neutral-500 hover:text-[#EE4B2B] mt-2 bg-neutral-50/50 hover:bg-neutral-100 border border-neutral-200/50 px-3 py-1.5 rounded-xl w-fit transition-colors focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none"
                   >
                     <Globe className="w-3.5 h-3.5" />
                     <span>{profileUser.subdomain}.qoe.fi</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
+                    <ExternalLink className="w-3 h-3" />
                   </a>
                 )}
               </div>
 
               {/* Bento-style Stats Grid */}
-              <div className="grid grid-cols-3 gap-2 border-y border-neutral-100 py-4">
-                <div className="bg-neutral-50/60 border border-neutral-200/40 rounded-2xl p-2.5 text-center flex flex-col justify-center transition-all duration-300 hover:bg-neutral-100/50">
-                  <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider font-mono">Posts</span>
-                  <span className="text-sm font-bold text-neutral-800 mt-0.5">{posts.length}</span>
+              <div className="grid grid-cols-3 gap-2 py-2">
+                <div className="bg-neutral-50/80 rounded-[20px] p-3.5 text-center flex flex-col justify-center transition-all duration-300 hover:bg-neutral-100">
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest font-mono">Posts</span>
+                  <span className="text-lg font-bold text-neutral-900 tracking-tight mt-1">{posts.length}</span>
                 </div>
                 <button 
                   onClick={() => openConnectionsModal("following")} 
-                  className="bg-neutral-50/60 border border-neutral-200/40 rounded-2xl p-2.5 text-center flex flex-col justify-center transition-all duration-300 hover:bg-neutral-100/50 focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none cursor-pointer"
+                  className="bg-neutral-50/80 rounded-[20px] p-3.5 text-center flex flex-col justify-center transition-all duration-300 hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none cursor-pointer"
                 >
-                  <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider font-mono">Suivis</span>
-                  <span className="text-sm font-bold text-neutral-800 mt-0.5">{followingCount}</span>
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest font-mono">Suivis</span>
+                  <span className="text-lg font-bold text-neutral-900 tracking-tight mt-1">{followingCount}</span>
                 </button>
                 <button 
                   onClick={() => openConnectionsModal("followers")} 
-                  className="bg-neutral-50/60 border border-neutral-200/40 rounded-2xl p-2.5 text-center flex flex-col justify-center transition-all duration-300 hover:bg-neutral-100/50 focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none cursor-pointer"
+                  className="bg-neutral-50/80 rounded-[20px] p-3.5 text-center flex flex-col justify-center transition-all duration-300 hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none cursor-pointer"
                 >
-                  <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider font-mono">Abonnés</span>
-                  <span className="text-sm font-bold text-neutral-800 mt-0.5">{followersCount}</span>
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest font-mono">Abonnés</span>
+                  <span className="text-lg font-bold text-neutral-900 tracking-tight mt-1">{followersCount}</span>
                 </button>
               </div>
 
               {/* Reader bio / DNA */}
-              <div className="space-y-2">
-                <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-neutral-400 block font-mono">ADN de lecture</span>
-                <p className="text-[13px] text-neutral-600 leading-relaxed font-sans bg-neutral-50/50 border border-neutral-200/30 rounded-2xl p-3.5">
+              <div className="space-y-3">
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400 block font-mono">ADN Lecteur</span>
+                <p className="text-[14px] text-neutral-700 leading-relaxed font-sans">
                   {profileUser.onboardingText || "Aucune description sémantique rédigée pour le moment."}
                 </p>
               </div>
 
               {/* Profile Edit / Follow Button Action */}
-              {isOwnProfile ? (
-                <button
-                  onClick={() => setShowEditModal(true)}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold transition-all duration-300 ease-[0.16,1,0.3,1] shadow-sm bg-neutral-900 hover:bg-neutral-800 text-white cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none"
-                >
-                  <Sliders className="w-3.5 h-3.5" /> Modifier le Profil
-                </button>
-              ) : (
-                <button
-                  onClick={handleFollowToggle}
-                  disabled={isPending}
-                  className={cn(
-                    "w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold transition-all duration-300 ease-[0.16,1,0.3,1] shadow-sm cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none",
-                    isFollowing 
-                      ? "bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-200" 
-                      : "bg-[#EE4B2B] hover:bg-[#d63d20] text-white"
-                  )}
-                >
-                  {isFollowing ? (
-                    <>
-                      <UserMinus className="w-3.5 h-3.5" /> Ne plus suivre
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="w-3.5 h-3.5" /> Suivre l'auteur
-                    </>
-                  )}
-                </button>
-              )}
+              <div className="pt-2">
+                {isOwnProfile ? (
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-[16px] text-xs font-bold transition-all duration-300 ease-[0.16,1,0.3,1] shadow-sm bg-neutral-900 hover:bg-neutral-800 text-white cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none hover:scale-[1.02]"
+                  >
+                    <Sliders className="w-4 h-4" /> Modifier le Profil
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleFollowToggle}
+                    disabled={isPending}
+                    className={cn(
+                      "w-full flex items-center justify-center gap-2 py-3.5 rounded-[16px] text-xs font-bold transition-all duration-300 ease-[0.16,1,0.3,1] shadow-sm cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none hover:scale-[1.02]",
+                      isFollowing 
+                        ? "bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-200/50" 
+                        : "bg-[#EE4B2B] hover:bg-[#d63d20] text-white"
+                    )}
+                  >
+                    {isFollowing ? (
+                      <>
+                        <UserMinus className="w-4 h-4" /> Ne plus suivre
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-4 h-4" /> Suivre l'auteur
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
 
               {/* Member Since Footnote */}
-              <div className="text-[9px] text-neutral-400 font-mono text-center pt-2 border-t border-neutral-50">
+              <div className="text-[10px] text-neutral-400 font-mono text-center pt-2">
                 Membre depuis {new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
               </div>
             </div>
@@ -575,9 +577,9 @@ export function ProfileDashboard({
                   {/* TAB: PENSÉES (Micro-posts)                                                */}
                   {/* ========================================================================= */}
                   {activeTab === "pensees" && (
-                    <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-5">
                       {posts.length === 0 ? (
-                        <div className="bg-white rounded-2xl p-12 text-center text-neutral-400 text-xs font-semibold shadow-sm border border-neutral-200/50">
+                        <div className="bg-white rounded-[28px] p-12 text-center text-neutral-400 text-[13px] font-bold shadow-sm border-[0.5px] border-neutral-200/50">
                           Aucune pensée publiée pour le moment.
                         </div>
                       ) : (
@@ -592,7 +594,7 @@ export function ProfileDashboard({
                   {/* TAB: ARTICLES                                                             */}
                   {/* ========================================================================= */}
                   {activeTab === "articles" && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       {articles.map(art => (
                         <div 
                           key={art.id} 
@@ -602,22 +604,22 @@ export function ProfileDashboard({
                             type: "article",
                             slug: art.slug
                           })}
-                          className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200/50 flex flex-col justify-between min-h-48 cursor-pointer hover:border-[#EE4B2B]/20 hover:shadow-md transition-all duration-400 ease-[0.16,1,0.3,1] hover:scale-[1.01] group"
+                          className="bg-white rounded-[28px] p-8 shadow-sm border-[0.5px] border-neutral-200/50 flex flex-col justify-between min-h-56 cursor-pointer hover:shadow-2xl hover:shadow-neutral-200/40 transition-all duration-500 ease-[0.16,1,0.3,1] hover:scale-[1.01] group"
                         >
-                          <div className="space-y-3">
+                          <div className="space-y-4">
                             <div className="flex items-center justify-between">
-                              <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 bg-neutral-50 px-2.5 py-0.5 border border-neutral-200/30 rounded font-mono">
+                              <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-neutral-400 font-mono">
                                 {art.category?.name || "Général"}
                               </span>
-                              <span className="text-[10px] text-neutral-400 font-semibold font-mono">{art.readingTime} min</span>
+                              <span className="text-[10px] text-neutral-400 font-bold font-mono">{art.readingTime} min</span>
                             </div>
-                            <h3 className="text-sm font-semibold text-neutral-800 tracking-tight leading-snug group-hover:text-[#EE4B2B] transition-colors duration-200">
+                            <h3 className="text-[20px] font-bold font-serif text-neutral-900 tracking-tight leading-snug group-hover:text-[#EE4B2B] transition-colors duration-300">
                               {art.title}
                             </h3>
                           </div>
-                          <div className="flex items-center justify-between pt-4 border-t border-neutral-100 text-[10px] text-neutral-400 font-medium font-mono">
+                          <div className="flex items-center justify-between pt-5 mt-4 border-t-[0.5px] border-neutral-100 text-[10px] text-neutral-400 font-bold font-mono uppercase tracking-wider">
                             <span>{new Date(art.createdAt).toLocaleDateString()}</span>
-                            <span className="flex items-center gap-1.5 group-hover:text-[#EE4B2B] transition-colors duration-200 font-sans font-semibold">Lire l'écrit <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" /></span>
+                            <span className="flex items-center gap-1.5 group-hover:text-[#EE4B2B] transition-colors duration-300 font-sans font-bold">Lire <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" strokeWidth={2} /></span>
                           </div>
                         </div>
                       ))}
@@ -628,26 +630,26 @@ export function ProfileDashboard({
                   {/* TAB: LECTURES (Highlights)                                                */}
                   {/* ========================================================================= */}
                   {activeTab === "highlights" && (
-                    <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-5">
                       {highlights.length === 0 ? (
-                        <div className="bg-white rounded-2xl p-12 text-center text-neutral-400 text-xs font-semibold shadow-sm border border-neutral-200/50">
+                        <div className="bg-white rounded-[28px] p-12 text-center text-neutral-400 text-[13px] font-bold shadow-sm border-[0.5px] border-neutral-200/50">
                           Aucun passage surligné partagé publiquement.
                         </div>
                       ) : (
                         highlights.map(h => (
-                          <div key={h.id} className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200/50 flex flex-col gap-4 hover:border-neutral-300 hover:shadow-md transition-all duration-400 ease-[0.16,1,0.3,1] hover:scale-[1.005]">
-                            <div className="border-l-2 border-[#EE4B2B] pl-3">
-                              <p className="text-xs text-neutral-700 italic leading-relaxed font-sans">
+                          <div key={h.id} className="bg-white rounded-[28px] p-8 shadow-sm border-[0.5px] border-neutral-200/50 flex flex-col gap-5 hover:shadow-2xl hover:shadow-neutral-200/40 transition-all duration-500 ease-[0.16,1,0.3,1] hover:scale-[1.005]">
+                            <div className="border-l-[3px] border-[#EE4B2B] pl-5 py-1">
+                              <p className="text-[16px] text-neutral-800 italic leading-relaxed font-serif">
                                 “{h.text}”
                               </p>
                             </div>
                             {h.note && (
-                              <p className="text-[13px] text-neutral-500 leading-normal pl-3">
-                                <strong>Note personnelle :</strong> {h.note}
+                              <p className="text-[14px] text-neutral-500 leading-normal pl-5">
+                                <strong className="text-neutral-700">Note personnelle :</strong> {h.note}
                               </p>
                             )}
-                            <div className="flex justify-between items-center text-[10px] text-neutral-400 pt-3 border-t border-neutral-100 font-mono">
-                              <span className="font-semibold block truncate max-w-xs font-sans text-neutral-400">Surligné dans : {h.article.title}</span>
+                            <div className="flex justify-between items-center text-[10px] text-neutral-400 pt-5 mt-2 border-t-[0.5px] border-neutral-100 font-mono">
+                              <span className="font-bold block truncate max-w-xs font-sans text-neutral-500">Source : {h.article.title}</span>
                               <button 
                                 onClick={() => addTab({
                                   id: `article-${h.article.slug}`,
@@ -655,9 +657,9 @@ export function ProfileDashboard({
                                   type: "article",
                                   slug: h.article.slug
                                 })}
-                                className="text-neutral-500 hover:text-[#EE4B2B] font-bold flex items-center gap-1 cursor-pointer font-sans"
+                                className="text-neutral-400 hover:text-[#EE4B2B] font-bold flex items-center gap-1.5 cursor-pointer font-sans transition-colors duration-300 uppercase tracking-wider"
                               >
-                                Consulter l'article <ExternalLink className="w-3 h-3" />
+                                L'article <ExternalLink className="w-3 h-3" strokeWidth={2} />
                               </button>
                             </div>
                           </div>
@@ -670,37 +672,37 @@ export function ProfileDashboard({
                   {/* TAB: CORRESPONDANCE (Letters)                                             */}
                   {/* ========================================================================= */}
                   {activeTab === "letters" && (
-                    <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-5">
                       {letters.length === 0 ? (
-                        <div className="bg-white rounded-2xl p-12 text-center text-neutral-400 text-xs font-semibold shadow-sm border border-neutral-200/50">
+                        <div className="bg-white rounded-[28px] p-12 text-center text-neutral-400 text-[13px] font-bold shadow-sm border-[0.5px] border-neutral-200/50">
                           Aucune correspondance publique n'a été échangée pour le moment.
                         </div>
                       ) : (
                         letters.map(letter => (
-                          <div key={letter.id} className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200/50 flex flex-col gap-4 hover:border-neutral-300 hover:shadow-md transition-all duration-400 ease-[0.16,1,0.3,1] hover:scale-[1.005]">
+                          <div key={letter.id} className="bg-white rounded-[28px] p-8 shadow-sm border-[0.5px] border-neutral-200/50 flex flex-col gap-5 hover:shadow-2xl hover:shadow-neutral-200/40 transition-all duration-500 ease-[0.16,1,0.3,1] hover:scale-[1.005]">
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-lg overflow-hidden border border-neutral-200/30 shrink-0">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-[12px] overflow-hidden border-[0.5px] border-neutral-200/50 shrink-0">
                                   {letter.sender.logoUrl ? (
                                     <img src={letter.sender.logoUrl} className="w-full h-full object-cover" alt="" />
                                   ) : (
-                                    <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
+                                    <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-[13px] text-[#EE4B2B]">
                                       {letter.sender.name?.charAt(0)}
                                     </div>
                                   )}
                                 </div>
                                 <div>
                                   <div className="flex items-center gap-1.5">
-                                    <span className="text-xs font-semibold text-neutral-800 block leading-none">{letter.sender.name}</span>
+                                    <span className="text-[13px] font-bold text-neutral-900 block leading-none">{letter.sender.name}</span>
                                     {letter.sender.isCertified && <span className="text-[#EE4B2B] text-[9px] font-black">✓</span>}
                                   </div>
-                                  <span className="text-[10px] text-neutral-400 block mt-1 font-mono">@{letter.sender.username}</span>
+                                  <span className="text-[10px] text-neutral-400 block mt-1 font-mono uppercase tracking-wider">@{letter.sender.username}</span>
                                 </div>
                               </div>
-                              <span className="text-[10px] text-neutral-400 font-mono">{new Date(letter.createdAt).toLocaleDateString()}</span>
+                              <span className="text-[10px] text-neutral-400 font-bold font-mono">{new Date(letter.createdAt).toLocaleDateString()}</span>
                             </div>
 
-                            <p className="text-[13px] text-neutral-700 leading-relaxed font-sans whitespace-pre-line">
+                            <p className="text-[15px] text-neutral-700 leading-loose font-serif whitespace-pre-line pl-1">
                               {letter.content}
                             </p>
                           </div>
@@ -732,31 +734,31 @@ export function ProfileDashboard({
             />
 
             <motion.div 
-              initial={{ opacity: 0, scale: 0.98, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: 10 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
-              className="bg-white w-full max-w-md rounded-xl p-6 shadow-2xl border border-neutral-200/50 z-10 flex flex-col max-h-[80vh] relative"
+              initial={{ opacity: 0, scale: 0.5, y: 50, borderRadius: "50%" }}
+              animate={{ opacity: 1, scale: 1, y: 0, borderRadius: "24px" }}
+              exit={{ opacity: 0, scale: 0.05, y: 50, borderRadius: "50%" }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-white w-full max-w-md rounded-[24px] p-6 sm:p-8 shadow-2xl shadow-neutral-200/40 border border-neutral-200/50 z-10 flex flex-col max-h-[80vh] relative overflow-hidden"
             >
               <button 
                 onClick={() => setShowConnectionsModal(null)}
                 className="absolute right-5 top-5 p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
 
-              <h2 className="text-sm font-semibold text-neutral-800 mb-4 capitalize leading-none">
+              <h2 className="text-lg font-bold text-neutral-900 mb-6 capitalize leading-none tracking-tight">
                 {showConnectionsModal === "followers" ? "Ses Abonnés" : "Ses Abonnements"}
               </h2>
 
-              <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 custom-scrollbar min-h-[250px]">
+              <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar min-h-[250px]">
                 {loadingConnections ? (
-                  <div className="flex flex-col items-center justify-center py-16 gap-2">
-                    <Loader2 className="w-5 h-5 text-[#EE4B2B] animate-spin" />
-                    <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Chargement...</span>
+                  <div className="flex flex-col items-center justify-center py-16 gap-3">
+                    <Loader2 className="w-6 h-6 text-[#EE4B2B] animate-spin" />
+                    <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-[0.2em]">Chargement...</span>
                   </div>
                 ) : connectionsList.length === 0 ? (
-                  <div className="text-center py-16 text-neutral-400 text-xs">
+                  <div className="text-center py-16 text-neutral-400 text-[13px] font-sans">
                     Aucun utilisateur répertorié.
                   </div>
                 ) : (
@@ -772,25 +774,25 @@ export function ProfileDashboard({
                           username: u.username
                         });
                       }}
-                      className="flex items-center justify-between p-2 rounded-lg hover:bg-neutral-50 cursor-pointer transition-colors"
+                      className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-neutral-50/80 cursor-pointer transition-colors group/conn"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-md overflow-hidden shrink-0 border border-neutral-200/30">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-10 h-10 rounded-[12px] overflow-hidden shrink-0 border-[0.5px] border-neutral-200/50 shadow-sm transition-transform duration-300 group-hover/conn:scale-105">
                           {u.logoUrl ? (
                             <img src={u.logoUrl} className="w-full h-full object-cover" alt="" />
                           ) : (
-                            <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
+                            <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-[13px] text-[#EE4B2B]">
                               {u.name?.charAt(0)}
                             </div>
                           )}
                         </div>
                         <div>
-                          <span className="text-xs font-semibold text-neutral-800 block leading-tight">{u.name}</span>
-                          <span className="text-[9px] text-neutral-400 block mt-0.5">@{u.username}</span>
+                          <span className="text-[13px] font-bold text-neutral-900 block leading-tight">{u.name}</span>
+                          <span className="text-[10px] text-neutral-400 block mt-0.5 font-mono uppercase tracking-wider">@{u.username}</span>
                         </div>
                       </div>
                       
-                      <button className="text-[10px] font-bold text-neutral-500 hover:text-[#EE4B2B] bg-neutral-50 hover:bg-[#EE4B2B]/5 border border-neutral-200/50 hover:border-[#EE4B2B]/20 px-2.5 py-1 rounded-lg transition-colors cursor-pointer">
+                      <button className="text-[10px] font-bold text-neutral-500 hover:text-white bg-neutral-100 hover:bg-[#EE4B2B] border border-transparent px-3 py-1.5 rounded-lg transition-colors cursor-pointer">
                         Profil
                       </button>
                     </div>
@@ -817,24 +819,24 @@ export function ProfileDashboard({
             />
 
             <motion.div 
-              initial={{ opacity: 0, scale: 0.98, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: 10 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
-              className="bg-white w-full max-w-lg rounded-xl p-6 shadow-2xl border border-neutral-200/50 z-10 flex flex-col max-h-[90vh] relative overflow-hidden"
+              initial={{ opacity: 0, scale: 0.5, y: 50, borderRadius: "50%" }}
+              animate={{ opacity: 1, scale: 1, y: 0, borderRadius: "24px" }}
+              exit={{ opacity: 0, scale: 0.05, y: 50, borderRadius: "50%" }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-white w-full max-w-lg rounded-[24px] p-6 sm:p-8 shadow-2xl shadow-neutral-200/40 border border-neutral-200/50 z-10 flex flex-col max-h-[90vh] relative overflow-hidden"
             >
               <button 
                 onClick={() => setShowEditModal(false)}
                 className="absolute right-5 top-5 p-1.5 rounded-lg hover:bg-neutral-100 text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
 
-              <div className="mb-4">
-                <h2 className="text-sm font-semibold text-neutral-800 flex items-center gap-1.5">
+              <div className="mb-6">
+                <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2 tracking-tight">
                   Modifier votre Profil <Sparkles className="w-4 h-4 text-[#EE4B2B]" />
                 </h2>
-                <p className="text-[10px] text-neutral-400 mt-1.5">Personnalisez votre identité et gérez votre correspondance.</p>
+                <p className="text-[11px] text-neutral-500 mt-2 font-sans">Personnalisez votre identité et gérez votre correspondance.</p>
               </div>
 
               {profileSaveError && (
