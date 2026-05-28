@@ -191,13 +191,13 @@ export function FeedDashboard({
   const tagsList = ["#souverainete", "#anti-ia", "#attention", "#philosophie", "#design", "#creators"]
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto selection:bg-[#EE4B2B]/10 selection:text-[#EE4B2B]">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div className="pb-24 max-w-6xl mx-auto selection:bg-[#EE4B2B]/10 selection:text-[#EE4B2B]">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 md:gap-14 items-start px-4 sm:px-6 mt-6">
         
         {/* ========================================================================= */}
         {/* MIDDLE COLUMN: Flat editorial feed without the big red background box     */}
         {/* ========================================================================= */}
-        <div className="lg:col-span-8 space-y-5">
+        <div className="lg:col-span-8 space-y-8">
           
           {/* Top Segmented Tabs with sharp borders and dynamic blur */}
           <FeedTabsHeader 
