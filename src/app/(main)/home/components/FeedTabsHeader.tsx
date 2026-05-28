@@ -22,24 +22,24 @@ export function FeedTabsHeader({ activeFeed, onTabChange, totalCount }: FeedTabs
   ]
 
   return (
-    <div className="sticky top-0 z-40 py-3 bg-[#FAFAFA]/90 backdrop-blur-xl border-b border-neutral-200/40 flex items-center justify-between transition-all duration-300">
-      <div className="flex items-center gap-1.5 p-1 bg-white border border-neutral-200/60 rounded-2xl shadow-sm">
+    <div className="sticky top-0 z-40 py-4 bg-[#FAFAFA]/80 backdrop-blur-2xl border-b-[0.5px] border-neutral-200/50 flex items-center justify-between transition-all duration-300 -mx-4 px-4 sm:-mx-6 sm:px-6 mb-2">
+      <div className="flex items-center gap-1 p-1 bg-neutral-200/30 backdrop-blur-md rounded-[20px] shadow-inner">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
-            className="relative px-4 py-2 rounded-xl text-xs font-semibold tracking-tight transition-all duration-200 flex items-center justify-center gap-1.5 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30"
+            className="relative px-5 py-2.5 rounded-[16px] text-[13px] font-bold tracking-tight transition-all duration-300 flex items-center justify-center outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30"
           >
             {activeFeed === tab.id && (
               <motion.div
                 layoutId="activeFeedTab"
                 transition={springs.tab}
-                className="absolute inset-0 bg-neutral-50 border border-neutral-200/45 rounded-xl shadow-xs"
+                className="absolute inset-0 bg-white rounded-[16px] shadow-sm border-[0.5px] border-neutral-200/50"
               />
             )}
             <span className={cn(
               "relative z-10 transition-colors duration-300", 
-              activeFeed === tab.id ? "text-[#EE4B2B] font-bold" : "text-neutral-500 hover:text-neutral-800"
+              activeFeed === tab.id ? "text-neutral-900" : "text-neutral-500 hover:text-neutral-700"
             )}>
               {tab.label}
             </span>
@@ -47,8 +47,8 @@ export function FeedTabsHeader({ activeFeed, onTabChange, totalCount }: FeedTabs
         ))}
       </div>
       
-      <span className="text-[10px] font-mono text-neutral-400 font-semibold px-3 py-1.5 bg-white rounded-xl border border-neutral-200/55 shadow-xs">
-        {totalCount} publications
+      <span className="text-[10px] font-mono text-neutral-400 font-bold uppercase tracking-[0.1em] px-3 py-1.5">
+        {totalCount} pubs
       </span>
     </div>
   )
