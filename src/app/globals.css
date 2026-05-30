@@ -255,10 +255,10 @@
   --border-strong:  rgba(0, 0, 0, 0.14);
 
   /* Shadow Vocabulary — Jamais de shadow dure */
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05);
-  --shadow-card-hover: 0 4px 16px rgba(0,0,0,0.06), 0 24px 48px rgba(0,0,0,0.07);
-  --shadow-elevated: 0 16px 48px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.04);
-  --shadow-sidebar: 2px 0 24px rgba(0,0,0,0.04);
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.01), 0 2px 4px rgba(0,0,0,0.015), 0 8px 16px rgba(0,0,0,0.015), 0 16px 32px rgba(0,0,0,0.01);
+  --shadow-card-hover: 0 2px 4px rgba(0,0,0,0.02), 0 4px 8px rgba(0,0,0,0.02), 0 16px 32px rgba(0,0,0,0.02), 0 32px 64px rgba(0,0,0,0.02);
+  --shadow-elevated: 0 1px 2px rgba(0,0,0,0.01), 0 4px 8px rgba(0,0,0,0.02), 0 16px 32px rgba(0,0,0,0.04), 0 32px 64px rgba(0,0,0,0.04);
+  --shadow-sidebar: 2px 0 24px rgba(0,0,0,0.03);
 
   --radius-plateau: 4px;   /* Conteneur plateau extérieur */
   --radius-card:    4px;   /* Carte dans plateau (plateau - padding) */
@@ -320,6 +320,17 @@
   /* Shimmer loading effect */
   .shimmer {
     @apply relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_2s_infinite] before:bg-linear-to-r before:from-transparent before:via-black/5 before:to-transparent;
+  }
+
+  /* Rauno Freiberg inspired premium effects */
+  .text-fade-gradient {
+    mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+  }
+
+  .font-editorial {
+    font-variant-ligatures: common-ligatures discretionary-ligatures;
+    font-feature-settings: "dlig" on, "ss01" on, "ss02" on, "cv10" on, "kern" on;
   }
 
   /* Custom scrollbar utility */
