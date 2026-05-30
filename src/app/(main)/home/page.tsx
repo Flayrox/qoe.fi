@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/db"
-import { TabViewManager } from "./components/TabViewManager"
+import { FeedDashboard } from "./FeedDashboard"
 
 export default async function ReaderHomePage() {
   const supabase = await createClient()
@@ -250,6 +250,6 @@ export default async function ReaderHomePage() {
   }
 
   return (
-    <TabViewManager feedProps={feedProps} />
+    <FeedDashboard {...feedProps} />
   )
 }

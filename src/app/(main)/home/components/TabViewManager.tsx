@@ -88,49 +88,52 @@ export function TabViewManager({ feedProps }: TabViewManagerProps) {
   const activeTab = tabs.find(t => t.id === activeTabId)
 
   return (
-    <div className="space-y-3 flex flex-col h-[calc(100vh-48px)] relative overflow-hidden">
-      {/* Reading Progress Bar — article/post tabs only */}
-      <ReadingProgressBar active={isReadingContent} containerRef={scrollContainerRef as React.RefObject<HTMLElement>} />
+    <div className="relative w-full h-[calc(100vh-48px)] overflow-hidden">
+      {/* Back layer containing BOTH navigation and timeline, which gets scaled down in 3D */}
+      <motion.div
+        animate={{
+          scale: activeTabId === "timeline" ? 1 : 0.95,
+          y: activeTabId === "timeline" ? 0 : 20,
+          opacity: activeTabId === "timeline" ? 1 : 0.4,
+          filter: activeTabId === "timeline" ? "blur(0px)" : "blur(2px)",
+        }}
+        transition={springs.backLayer}
+        className={cn(
+          "w-full h-full flex flex-col space-y-3 origin-top",
+          activeTabId === "timeline" ? "" : "pointer-events-none select-none"
+        )}
+      >
+        {/* Reading Progress Bar — article/post tabs only */}
+        <ReadingProgressBar active={isReadingContent} containerRef={scrollContainerRef as React.RefObject<HTMLElement>} />
 
-      {/* Sliding Browser-like Tab bar */}
-      <TabBar />
+        {/* Sliding Browser-like Tab bar */}
+        <TabBar />
 
-      {/* Main scrolling viewport area styled as gray backdrop desktop screen */}
-      <div className="flex-1 relative overflow-hidden bg-[var(--surface-1)] rounded-md border border-[var(--border-subtle)]">
-        {/* Core timeline is kept in DOM but scaled/translated/blurred in background */}
-        <motion.div
-          ref={scrollContainerRef}
-          animate={{
-            scale: activeTabId === "timeline" ? 1 : 0.96,
-            y: activeTabId === "timeline" ? 0 : 20,
-            opacity: activeTabId === "timeline" ? 1 : 0.45,
-            filter: activeTabId === "timeline" ? "blur(0px)" : "blur(1.5px)",
-            borderRadius: activeTabId === "timeline" ? "0px" : "12px",
-          }}
-          transition={springs.backLayer}
-          className={cn(
-            "w-full h-full overflow-y-auto pr-0.5 origin-top",
-            activeTabId === "timeline" ? "" : "pointer-events-none select-none"
-          )}
-          style={{ scrollbarWidth: "thin", scrollbarColor: "var(--surface-3) transparent" }}
-        >
-          <TabErrorBoundary tabId="timeline">
-            <FeedDashboard {...feedProps} />
-          </TabErrorBoundary>
-        </motion.div>
+        {/* Main scrolling viewport area styled as gray backdrop desktop screen */}
+        <div className="flex-1 relative overflow-hidden bg-[var(--surface-1)] rounded-md border border-[var(--border-subtle)]">
+          <div
+            ref={scrollContainerRef}
+            className="w-full h-full overflow-y-auto pr-0.5"
+            style={{ scrollbarWidth: "thin", scrollbarColor: "var(--surface-3) transparent" }}
+          >
+            <TabErrorBoundary tabId="timeline">
+              <FeedDashboard {...feedProps} />
+            </TabErrorBoundary>
+          </div>
+        </div>
+      </motion.div>
 
-        {/* Render active tab as iOS stacked sheets with drag to dismiss */}
-        <AnimatePresence mode="wait">
-          {activeTab && activeTab.id !== "timeline" && (
-            <StackedReaderSheet
-              key={activeTab.id}
-              tab={activeTab}
-              feedProps={feedProps}
-              onClose={() => setActiveTabId("timeline")}
-            />
-          )}
-        </AnimatePresence>
-      </div>
+      {/* Render active tab as Full Viewport fixed overlay with drag to dismiss */}
+      <AnimatePresence mode="wait">
+        {activeTab && activeTab.id !== "timeline" && (
+          <StackedReaderSheet
+            key={activeTab.id}
+            tab={activeTab}
+            feedProps={feedProps}
+            onClose={() => setActiveTabId("timeline")}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -163,7 +166,7 @@ function StackedReaderSheet({
           onClose()
         }
       }}
-      className="absolute inset-x-0 bottom-0 top-[2px] z-50 flex flex-col bg-white rounded-t-[16px] shadow-[0_-10px_35px_rgba(0,0,0,0.08)] border-t border-[var(--border-subtle)] overflow-hidden"
+      className="fixed inset-0 z-50 flex flex-col bg-white rounded-none shadow-[0_-10px_35px_rgba(0,0,0,0.08)] border-t border-[var(--border-subtle)] overflow-hidden"
     >
       {/* Drag Handle with Rauno Vibe */}
       <div
