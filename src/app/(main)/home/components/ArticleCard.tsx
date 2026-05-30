@@ -177,7 +177,7 @@ export function ArticleCard({
                       <CertifiedBadge />
                     )}
                   </div>
-                  <span className="text-[9px] text-[var(--text-tertiary)] font-mono uppercase tracking-wider block mt-0.5">
+                  <span className="text-[9px] text-[var(--text-tertiary)] uppercase tracking-wider block mt-0.5">
                     @{article.author.username || article.author.subdomain} · {formattedDate}
                   </span>
                 </div>
@@ -259,7 +259,7 @@ export function ArticleCard({
                 </span>
                 {article.author.isCertified && <CertifiedBadge />}
               </div>
-              <span className="text-[9px] text-[var(--text-tertiary)] block mt-1 font-mono uppercase tracking-wider">
+              <span className="text-[9px] text-[var(--text-tertiary)] block mt-1 uppercase tracking-wider">
                 @{article.author.username || article.author.subdomain} · {formattedDate}
               </span>
             </div>
