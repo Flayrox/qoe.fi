@@ -55,6 +55,7 @@ Pour atteindre l'excellence "Anti-IA", l'interface obéit à des lois mathémati
 *   **Prisma & PostgreSQL (pgvector)** *[Le Cadastre]* 
 *   **Supabase** *[L'Authentification et l'Hébergement DB]* 
 *   **Tolgee** *[Le Bureau des Traductions]*
+*   **react-image-crop** *[Le Recadrage d'Images Premium]*
 
 ---
 
@@ -170,6 +171,7 @@ Le CTO te l'ordonne : **Interdiction de concevoir from-scratch un élément comp
     *   **Framer Motion (`motiondivision/motion`)** : Obligatoire pour l'inertie et le `AnimatePresence`.
     *   **Next Themes (`pacocoursey/next-themes`)** : Obligatoire pour le dark/light mode.
     *   **CMDK (`pacocoursey/cmdk` / `dip/cmdk`)** : Obligatoire pour les Command Palettes (le `⌘+K`).
+    *   **react-image-crop** : Obligatoire pour le recadrage d'images interactif et redimensionnable (style Twitter/Instagram).
 4.  **Le Mindset** : Calibre ton cerveau sur `skills.sh/nextlevelbuilder/ui-ux-pro-max-skill/ui-ux-pro-max`.
 
 ### D. LA LOI DE L'EXHAUSTIVITÉ IMPLICITE (Le Bon Sens Architecte)
