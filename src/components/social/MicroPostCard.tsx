@@ -3,6 +3,7 @@
 import React from "react"
 import { useTabStore } from "@/lib/use-tab-store"
 import { TextParser } from "@/components/ui/TextParser"
+import { cn } from "@/lib/utils"
 
 export interface MicroPostData {
   id: string
@@ -44,7 +45,7 @@ export function MicroPostCard({ post }: { post: MicroPostData }) {
   }
 
   return (
-    <div className="bg-white rounded-[28px] p-6 sm:p-8 border-[0.5px] border-neutral-200/40 flex flex-col gap-5 hover:shadow-xl hover:shadow-neutral-200/40 hover:scale-[1.002] transition-all duration-500 ease-[0.16,1,0.3,1]">
+    <div className="py-4 border-b border-[var(--border-default)] flex flex-col gap-5 hover:scale-[1.001] transition-all duration-500 ease-[0.16,1,0.3,1]">
       <div className="flex items-center justify-between">
         <button 
           onClick={handleOpenProfile}
@@ -80,10 +81,46 @@ export function MicroPostCard({ post }: { post: MicroPostData }) {
       </div>
 
       {post.imageUrl && (
-        <div className="rounded-[16px] border-[0.5px] border-neutral-200/40 overflow-hidden bg-neutral-100 max-h-96 cursor-pointer mt-1" onClick={handleOpenPost}>
-          <img src={post.imageUrl} className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-700 ease-[0.16,1,0.3,1]" alt="Image jointe" />
+        <div className="overflow-hidden cursor-pointer mt-1" onClick={handleOpenPost}>
+          <ImageGrid urls={getImages(post.imageUrl)} />
         </div>
       )}
+    </div>
+  )
+}
+
+const getImages = (url: string | null | undefined): string[] => {
+  if (!url) return []
+  if (url.startsWith("[")) {
+    try {
+      return JSON.parse(url)
+    } catch (e) {
+      return [url]
+    }
+  }
+  return [url]
+}
+
+function ImageGrid({ urls }: { urls: string[] }) {
+  if (urls.length === 0) return null
+
+  return (
+    <div className={cn(
+      "grid gap-2 overflow-hidden rounded-[var(--radius-element)]",
+      urls.length === 1 ? "grid-cols-1" : "grid-cols-2"
+    )}>
+      {urls.map((url) => (
+        <div
+          key={url}
+          className="relative overflow-hidden bg-[var(--surface-2)] aspect-video border border-[var(--border-default)]"
+        >
+          <img
+            src={url}
+            alt=""
+            className="w-full h-full object-cover hover:scale-[1.01] transition-transform duration-500"
+          />
+        </div>
+      ))}
     </div>
   )
 }

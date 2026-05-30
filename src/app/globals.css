@@ -260,13 +260,12 @@
   --shadow-elevated: 0 16px 48px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.04);
   --shadow-sidebar: 2px 0 24px rgba(0,0,0,0.04);
 
-  /* Nested Radius — La Règle Bento */
-  --radius-plateau: 32px;   /* Conteneur plateau extérieur */
-  --radius-card:    24px;   /* Carte dans plateau (plateau - padding) */
-  --radius-element: 16px;   /* Éléments dans carte */
-  --radius-chip:    99px;   /* Pills / badges */
-  --radius-button:  12px;   /* Boutons */
-  --radius-icon:    10px;   /* Avatars / icon containers */
+  --radius-plateau: 4px;   /* Conteneur plateau extérieur */
+  --radius-card:    4px;   /* Carte dans plateau (plateau - padding) */
+  --radius-element: 2px;   /* Éléments dans carte */
+  --radius-chip:    2px;   /* Pills / badges */
+  --radius-button:  4px;   /* Boutons */
+  --radius-icon:    2px;   /* Avatars / icon containers */
 
   /* Animation Speeds */
   --spring-snappy: cubic-bezier(0.16, 1, 0.3, 1);

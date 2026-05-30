@@ -53,17 +53,11 @@ export function FeedSidebarWidgets({
   }
 
   return (
-    <aside className="lg:col-span-4 lg:sticky lg:top-24 space-y-6 select-none">
+    <aside className="lg:col-span-4 lg:sticky lg:top-24 space-y-8 select-none">
 
       {/* ── Widget 1 : Votre Activité ───────────────────── */}
       {userStats && (
-        <div className={cn(
-          "bg-[var(--surface-0)] rounded-[var(--radius-card)]",
-          "border border-[var(--border-default)]",
-          "p-5"
-        )}
-          style={{ boxShadow: "var(--shadow-card)" }}
-        >
+        <div className="pb-6 border-b border-[var(--border-default)]">
           <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] flex items-center gap-2 mb-4">
             <TrendingUp className="w-3 h-3" strokeWidth={2.5} />
             Votre semaine
@@ -78,14 +72,7 @@ export function FeedSidebarWidgets({
 
       {/* ── Widget 2 : Créateurs suggérés ──────────────── */}
       {suggestedCreators.length > 0 && (
-        <div
-          className={cn(
-            "bg-[var(--surface-0)] rounded-[var(--radius-card)]",
-            "border border-[var(--border-default)]",
-            "p-5"
-          )}
-          style={{ boxShadow: "var(--shadow-card)" }}
-        >
+        <div className="pb-6 border-b border-[var(--border-default)]">
           <div className="flex items-center justify-between mb-4">
             <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] flex items-center gap-2">
               <Compass className="w-3 h-3" strokeWidth={2.5} />
@@ -96,7 +83,7 @@ export function FeedSidebarWidgets({
             </button>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {suggestedCreators.slice(0, 5).map(creator => {
               const isFollowedLocally = followedLocally.has(creator.id)
               const isJustFollowed = justFollowed === creator.id
