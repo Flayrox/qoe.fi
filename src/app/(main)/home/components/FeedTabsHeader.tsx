@@ -29,11 +29,11 @@ export function FeedTabsHeader({ activeFeed, onTabChange, totalCount }: FeedTabs
   return (
     <div
       className={cn(
-        "sticky top-0 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6",
-        "bg-[var(--surface-1)]/85 backdrop-blur-2xl",
+        "sticky top-0 z-40 -mx-6 sm:-mx-8 px-6 sm:px-8",
+        "bg-white/95 backdrop-blur-md",
         "border-b border-[var(--border-subtle)]",
         "flex items-center justify-between",
-        "transition-all duration-300"
+        "transition-all duration-355"
       )}
     >
       {/* Tabs row */}
