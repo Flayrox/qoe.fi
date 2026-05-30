@@ -119,14 +119,10 @@ export function ArticleCard({
         exit={{ opacity: 0, scale: 0.985 }}
         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
         className={cn(
-          "group relative bg-[var(--surface-0)] rounded-[var(--radius-card)]",
-          "border border-[var(--border-default)]",
-          "overflow-hidden cursor-pointer",
+          "group relative overflow-hidden cursor-pointer",
           "transition-all duration-500 ease-[0.16,1,0.3,1]",
-          "hover:shadow-[var(--shadow-card-hover)] hover:border-[var(--border-strong)]",
-          "hover:scale-[1.003]"
+          "border-b border-[var(--border-default)] pb-8 mb-8"
         )}
-        style={{ boxShadow: "var(--shadow-card)" }}
       >
         {/* À LA UNE badge */}
         <div className="absolute top-4 left-4 z-10">
@@ -156,7 +152,7 @@ export function ArticleCard({
           </div>
 
           {/* Content */}
-          <div className="flex-1 flex flex-col justify-between p-6 sm:p-8">
+          <div className="flex-1 flex flex-col justify-between py-2 pl-0 sm:pl-6">
             {/* Author */}
             <div className="flex items-center justify-between mb-5">
               <button
@@ -224,14 +220,10 @@ export function ArticleCard({
       exit={{ opacity: 0, scale: 0.985 }}
       transition={{ duration: 0.25, delay: idx * 0.04, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
-        "group relative bg-[var(--surface-0)] rounded-[var(--radius-card)]",
-        "border border-[var(--border-default)]",
-        "overflow-hidden",
+        "group relative overflow-hidden",
         "transition-all duration-500 ease-[0.16,1,0.3,1]",
-        "hover:shadow-[var(--shadow-card-hover)] hover:border-[var(--border-strong)]",
-        "hover:scale-[1.002]"
+        "border-b border-[var(--border-default)] pb-8 mb-8"
       )}
-      style={{ boxShadow: "var(--shadow-card)" }}
     >
       {/* Hero Image — pleine largeur si présente */}
       {hasHeroImage && (
@@ -244,7 +236,7 @@ export function ArticleCard({
         </div>
       )}
 
-      <div className="p-6 sm:p-7 flex flex-col gap-5">
+      <div className="py-4 flex flex-col gap-5">
         {/* Header : Auteur + Actions */}
         <div className="flex items-center justify-between">
           <button

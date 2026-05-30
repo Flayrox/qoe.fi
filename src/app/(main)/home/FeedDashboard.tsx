@@ -12,6 +12,7 @@ import { MicroPostComposer } from "./components/MicroPostComposer"
 import { useTabStore } from "@/lib/use-tab-store"
 import { FeedTabsHeader } from "./components/FeedTabsHeader"
 import { FeedSidebarWidgets } from "./components/FeedSidebarWidgets"
+import { useFeedStore } from "@/lib/use-feed-store"
 
 interface Author {
   id: string
@@ -89,7 +90,11 @@ export function FeedDashboard({
   const { addTab } = useTabStore()
 
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
-  const [localPosts, setLocalPosts] = useState<Article[]>([])
+  
+  const localPosts = useFeedStore(state => state.localPosts)
+  const deletedPostIds = useFeedStore(state => state.deletedPostIds)
+  const interactions = useFeedStore(state => state.interactions)
+  const toggleBookmarkOptimistic = useFeedStore(state => state.toggleBookmark)
   
   const [notifications, setNotifications] = useState([
     { id: 1, text: "Marc Dutronc a publié 'Souveraineté Numérique en Europe'", time: "Il y a 5 min", unread: true },
@@ -97,7 +102,11 @@ export function FeedDashboard({
   ])
 
   const isCreatorFollowed = (creatorId: string) => followedCreators.some(f => f.id === creatorId)
-  const isArticleBookmarked = (articleId: string) => bookmarks.some(b => b.id === articleId)
+  const isArticleBookmarked = (articleId: string) => {
+    const inter = interactions[articleId]
+    if (inter?.bookmarked !== undefined) return inter.bookmarked
+    return bookmarks.some(b => b.id === articleId)
+  }
 
   const handleFollowToggle = async (creator: any) => {
     // Optimistic Update
@@ -135,6 +144,7 @@ export function FeedDashboard({
   const handleBookmarkToggle = async (article: Article) => {
     // Optimistic Update
     const isCurrentlyBookmarked = isArticleBookmarked(article.id)
+    toggleBookmarkOptimistic(article.id, isCurrentlyBookmarked)
     
     if (isCurrentlyBookmarked) {
       setBookmarks(prev => prev.filter(b => b.id !== article.id))
@@ -147,6 +157,7 @@ export function FeedDashboard({
     const res = await toggleBookmarkArticleHome(article.id)
     if (!res.success) {
       // Rollback
+      toggleBookmarkOptimistic(article.id, !isCurrentlyBookmarked)
       if (isCurrentlyBookmarked) {
         setBookmarks(prev => [article, ...prev])
         setBookmarksCount(prev => prev + 1)
@@ -157,6 +168,7 @@ export function FeedDashboard({
     } else if (res.data) {
       // Sync state with server reality
       const actualBookmarked = res.data.bookmarked
+      useFeedStore.getState().registerInteraction(article.id, { bookmarked: actualBookmarked })
       if (actualBookmarked) {
         setBookmarks(prev => prev.some(b => b.id === article.id) ? prev : [article, ...prev])
       } else {
@@ -177,6 +189,9 @@ export function FeedDashboard({
       list = bookmarks
     }
 
+    // Filter out deleted posts
+    list = list.filter(art => !deletedPostIds.has(art.id))
+
     if (selectedTag) {
       list = list.filter(art => 
         art.title.toLowerCase().includes(selectedTag.toLowerCase()) || 
@@ -186,7 +201,7 @@ export function FeedDashboard({
     }
 
     return list
-  }, [activeFeed, localPosts, recommendationArticles, followingArticles, discoverArticles, bookmarks, selectedTag, followedCreators])
+  }, [activeFeed, localPosts, recommendationArticles, followingArticles, discoverArticles, bookmarks, selectedTag, followedCreators, deletedPostIds])
 
   const tagsList = ["#souverainete", "#anti-ia", "#attention", "#philosophie", "#design", "#creators"]
 
@@ -215,7 +230,6 @@ export function FeedDashboard({
               <MicroPostComposer 
                 dbUser={dbUser}
                 tagsList={tagsList}
-                onPostCreated={(newPost) => setLocalPosts(prev => [newPost, ...prev])}
               />
             )}
 
