@@ -8,14 +8,14 @@ import { TimelineIcon, CommentIcon, ProfileIcon } from "@/components/icons/Custo
 import { cn } from "@/lib/utils"
 
 const springs = {
-  tab: { type: "spring" as const, stiffness: 450, damping: 32, mass: 0.7 }
+  tab: { type: "spring" as const, stiffness: 480, damping: 34, mass: 0.6 }
 }
 
 export function TabBar() {
   const { tabs, activeTabId, setActiveTabId, removeTab } = useTabStore()
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Enables horizontal scrolling with mouse wheel
+  // Scroll horizontal au wheel
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
@@ -29,65 +29,98 @@ export function TabBar() {
     return () => el.removeEventListener("wheel", handleWheel)
   }, [])
 
+  // Auto-scroll vers l'onglet actif
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el || !activeTabId) return
+    const activeEl = el.querySelector(`[data-tab-id="${activeTabId}"]`) as HTMLElement
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" })
+    }
+  }, [activeTabId])
+
   const getIcon = (type: Tab["type"]) => {
     switch (type) {
       case "timeline":
-        return <TimelineIcon className="w-3.5 h-3.5" />
+        return <TimelineIcon className="w-3 h-3 text-[var(--text-tertiary)]" />
       case "post":
-        return <CommentIcon className="w-3.5 h-3.5 text-[#EE4B2B]" />
+        return <CommentIcon className="w-3 h-3 text-[var(--qoe-vermillion)]" />
       case "article":
-        return <FileText className="w-3.5 h-3.5 text-[#EE4B2B]" />
+        return <FileText className="w-3 h-3 text-[var(--qoe-vermillion)]" strokeWidth={1.5} />
       case "profile":
-        return <ProfileIcon className="w-3.5 h-3.5 text-[#EE4B2B]" />
+        return <ProfileIcon className="w-3 h-3 text-[var(--qoe-vermillion)]" />
     }
   }
 
   return (
-    <div className="relative w-full [mask-image:linear-gradient(to_right,transparent,black_12px,black_calc(100%-24px),transparent)] py-1">
-      <div 
+    <div className="relative w-full [mask-image:linear-gradient(to_right,transparent,black_8px,black_calc(100%-16px),transparent)] py-0.5">
+      <div
         ref={scrollRef}
-        className="flex items-center gap-1.5 p-1 bg-neutral-200/35 border border-black/[0.03] rounded-xl overflow-x-auto select-none no-scrollbar w-full"
+        className={cn(
+          "flex items-center gap-1 px-1 py-1",
+          "bg-[var(--surface-2)] border border-[var(--border-subtle)]",
+          "rounded-[var(--radius-element)]",
+          "overflow-x-auto select-none",
+          // Hide scrollbar
+          "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
+          "w-full"
+        )}
       >
         <AnimatePresence mode="popLayout">
           {tabs.map((tab) => {
             const isActive = activeTabId === tab.id
-            
+
             return (
               <motion.div
                 key={tab.id}
+                data-tab-id={tab.id}
                 layout
-                initial={{ opacity: 0, scale: 0.9, x: -10 }}
-                animate={{ opacity: 1, scale: 1, x: 0 }}
-                exit={{ opacity: 0, scale: 0.9, x: 10 }}
+                initial={{ opacity: 0, width: 0, scale: 0.85 }}
+                animate={{ opacity: 1, width: "auto", scale: 1 }}
+                exit={{ opacity: 0, width: 0, scale: 0.85 }}
                 transition={springs.tab}
                 className={cn(
-                  "relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold tracking-tight transition-colors duration-200 outline-none cursor-pointer whitespace-nowrap shrink-0",
-                  isActive ? "text-neutral-900" : "text-neutral-500 hover:text-neutral-800"
+                  "relative group flex items-center gap-1.5 rounded-[10px]",
+                  "text-[11px] font-semibold tracking-tight",
+                  "transition-colors duration-200 outline-none cursor-pointer",
+                  "whitespace-nowrap shrink-0 overflow-hidden",
+                  isActive
+                    ? "text-[var(--text-primary)] px-3 py-1.5"
+                    : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] px-3 py-1.5"
                 )}
                 onClick={() => setActiveTabId(tab.id)}
               >
-                {/* Sliding Active Background */}
+                {/* Active sliding background */}
                 {isActive && (
                   <motion.div
                     layoutId="activeNavigationTab"
                     transition={springs.tab}
-                    className="absolute inset-0 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-black/[0.01] rounded-lg -z-10"
+                    className="absolute inset-0 bg-[var(--surface-0)] rounded-[10px] -z-10 border border-[var(--border-default)]"
+                    style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
                   />
                 )}
 
-                <span className="relative z-10 flex items-center gap-2">
+                {/* Icon + Label */}
+                <span className="flex items-center gap-1.5">
                   {getIcon(tab.type)}
-                  <span className="truncate max-w-[140px]">{tab.title}</span>
+                  <span className="truncate max-w-[120px]">{tab.title}</span>
                 </span>
 
-                {/* Close Button */}
+                {/* Close button — visible au hover uniquement */}
                 {tab.id !== "timeline" && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       removeTab(tab.id)
                     }}
-                    className="relative z-10 p-0.5 rounded-md hover:bg-neutral-100 text-neutral-400 hover:text-neutral-700 transition-colors cursor-pointer"
+                    className={cn(
+                      "relative z-10 p-0.5 rounded-md transition-all duration-150 cursor-pointer",
+                      "text-[var(--text-quaternary)] hover:text-[var(--text-secondary)]",
+                      "hover:bg-[var(--surface-2)]",
+                      // Masquer sauf au hover du tab
+                      "opacity-0 group-hover:opacity-100"
+                    )}
+                    aria-label={`Fermer l'onglet ${tab.title}`}
                   >
                     <X className="w-2.5 h-2.5" />
                   </button>
