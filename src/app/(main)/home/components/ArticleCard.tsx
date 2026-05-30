@@ -6,6 +6,7 @@ import { ExternalLink, UserPlus, UserCheck, Bookmark, FileText, Clock, Crown } f
 import { cn } from "@/lib/utils"
 import { useTabStore } from "@/lib/use-tab-store"
 import { MicroPostCard } from "@/components/social/MicroPostCard"
+import { useTranslate } from "@tolgee/react"
 
 interface Author {
   id: string
@@ -44,8 +45,7 @@ interface ArticleCardProps {
   featured?: boolean   // First card in feed — larger editorial treatment
 }
 
-
-// Génère un gradient subtil basé sur le nom de l'auteur (pour les articles sans image)
+// Generates a subtle gradient based on the author name for articles without a cover image
 function getAuthorGradient(name: string | null): string {
   const hues = [12, 200, 260, 140, 30, 340]
   const idx = (name?.charCodeAt(0) || 0) % hues.length
@@ -63,11 +63,12 @@ export function ArticleCard({
   featured = false,
 }: ArticleCardProps) {
   const { addTab } = useTabStore()
+  const { t } = useTranslate()
   const isMicroPost = !article.title
   const host = article.author.customDomain || `${article.author.subdomain}.localhost:3000`
   const url = isMicroPost ? "#" : `http://${host}/article/${article.slug}`
 
-  // Micro-post — rendu délégué au composant dédié
+  // Micro-post rendering delegated
   if (isMicroPost) {
     return (
       <motion.div
@@ -130,7 +131,7 @@ export function ArticleCard({
             className="text-[8px] font-black uppercase tracking-[0.14em] bg-[var(--qoe-vermillion)] text-white px-2.5 py-1 rounded-full"
             style={{ boxShadow: "0 2px 8px var(--qoe-vermillion-glow)" }}
           >
-            À la une
+            {t("feed.featured_badge", "À la une")}
           </span>
         </div>
 
@@ -155,9 +156,10 @@ export function ArticleCard({
           <div className="flex-1 flex flex-col justify-between py-2 pl-0 sm:pl-6">
             {/* Author */}
             <div className="flex items-center justify-between mb-5">
-              <button
+              <motion.button
                 onClick={handleOpenProfile}
-                className="flex items-center gap-2.5 hover:opacity-85 transition-opacity group/author outline-none"
+                whileTap={{ scale: 0.98 }}
+                className="flex items-center gap-2.5 hover:opacity-85 transition-opacity group/author outline-none cursor-pointer"
               >
                 <div className="w-8 h-8 rounded-[var(--radius-icon)] overflow-hidden border border-[var(--border-default)] shrink-0">
                   {article.author.logoUrl ? (
@@ -181,7 +183,7 @@ export function ArticleCard({
                     @{article.author.username || article.author.subdomain} · {formattedDate}
                   </span>
                 </div>
-              </button>
+              </motion.button>
 
               {dbUser && dbUser.id !== article.author.id && (
                 <FollowButton isFollowed={isFollowed} onToggle={() => handleFollowToggle(article.author)} />
@@ -225,7 +227,7 @@ export function ArticleCard({
         "border-b border-[var(--border-default)] pb-8 mb-8"
       )}
     >
-      {/* Hero Image — pleine largeur si présente */}
+      {/* Cover image */}
       {hasHeroImage && (
         <div className="w-full aspect-[16/9] overflow-hidden">
           <img
@@ -237,10 +239,11 @@ export function ArticleCard({
       )}
 
       <div className="py-4 flex flex-col gap-5">
-        {/* Header : Auteur + Actions */}
+        {/* Header : Author + Actions */}
         <div className="flex items-center justify-between">
-          <button
+          <motion.button
             onClick={handleOpenProfile}
+            whileTap={{ scale: 0.98 }}
             className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 rounded-[var(--radius-icon)]"
           >
             <div className="w-9 h-9 rounded-[var(--radius-icon)] overflow-hidden border border-[var(--border-default)] shrink-0 transition-transform duration-500 ease-[0.16,1,0.3,1] group-hover/author:scale-105">
@@ -263,16 +266,17 @@ export function ArticleCard({
                 @{article.author.username || article.author.subdomain} · {formattedDate}
               </span>
             </div>
-          </button>
+          </motion.button>
 
           {/* Actions header */}
           <div className="flex items-center gap-1.5">
             {dbUser && dbUser.id !== article.author.id && (
               <FollowButton isFollowed={isFollowed} onToggle={() => handleFollowToggle(article.author)} />
             )}
-            {/* Bookmark — visible uniquement au hover de la carte */}
-            <button
+            {/* Bookmark */}
+            <motion.button
               onClick={() => handleBookmarkToggle(article)}
+              whileTap={{ scale: 0.98 }}
               className={cn(
                 "p-2 rounded-[var(--radius-button)] transition-all duration-300 cursor-pointer",
                 "focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none",
@@ -281,18 +285,18 @@ export function ArticleCard({
                   ? "!opacity-100 bg-[var(--qoe-vermillion-08)] text-[var(--qoe-vermillion)]"
                   : "bg-transparent text-[var(--text-tertiary)] hover:bg-[var(--surface-2)] hover:text-[var(--qoe-vermillion)]"
               )}
-              aria-label={isBookmarked ? "Retirer le signet" : "Ajouter aux signets"}
+              aria-label={isBookmarked ? t("feed.bookmark_remove", "Retirer le signet") : t("feed.bookmark_add", "Ajouter aux signets")}
             >
               <Bookmark
                 className="w-3.5 h-3.5"
                 style={{ fill: isBookmarked ? "currentColor" : "transparent" }}
                 strokeWidth={1.5}
               />
-            </button>
+            </motion.button>
           </div>
         </div>
 
-        {/* Contenu — titre + extrait */}
+        {/* Content — title + abstract */}
         <div className="space-y-2.5">
           <a href={url} target="_blank" rel="noreferrer" className="block group/title">
             <h3 className={cn(
@@ -324,18 +328,21 @@ export function ArticleCard({
 // ── Sub-components ───────────────────────────────────────────────────────────
 
 function CertifiedBadge() {
+  const { t } = useTranslate()
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Auteur certifié">
-      <circle cx="7" cy="7" r="7" fill="#EE4B2B" />
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label={t("feed.certified_author", "Auteur certifié")}>
+      <circle cx="7" cy="7" r="7" fill="var(--qoe-vermillion)" />
       <path d="M4.5 7L6.3 8.8L9.5 5.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
 
 function FollowButton({ isFollowed, onToggle }: { isFollowed: boolean; onToggle: () => void }) {
+  const { t } = useTranslate()
   return (
-    <button
+    <motion.button
       onClick={onToggle}
+      whileTap={{ scale: 0.98 }}
       className={cn(
         "flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1.5 rounded-[var(--radius-button)]",
         "transition-all duration-300 ease-[0.16,1,0.3,1] cursor-pointer",
@@ -346,10 +353,10 @@ function FollowButton({ isFollowed, onToggle }: { isFollowed: boolean; onToggle:
       )}
     >
       {isFollowed
-        ? <><UserCheck className="w-3 h-3" /><span>Abonné</span></>
-        : <><UserPlus className="w-3 h-3" /><span>Suivre</span></>
+        ? <><UserCheck className="w-3 h-3" /><span>{t("feed.subscribed", "Abonné")}</span></>
+        : <><UserPlus className="w-3 h-3" /><span>{t("feed.subscribe", "Suivre")}</span></>
       }
-    </button>
+    </motion.button>
   )
 }
 
@@ -366,9 +373,10 @@ function CardFooter({
   handleOpenInTab: () => void
   url: string
 }) {
+  const { t } = useTranslate()
   return (
     <div className="flex items-center justify-between pt-4 border-t border-[var(--border-subtle)] mt-2">
-      {/* Left : Catégorie · Temps · Premium */}
+      {/* Left : Category · Time · Premium */}
       <div className="flex items-center gap-2">
         {article.category && (
           <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary)] font-mono">
@@ -381,7 +389,7 @@ function CardFooter({
             {article.category && <span className="text-[var(--text-quaternary)] text-xs">·</span>}
             <span className="flex items-center gap-1 text-[9px] text-[var(--text-tertiary)] font-mono">
               <Clock className="w-2.5 h-2.5" strokeWidth={2} />
-              {article.readingTime} min
+              {t("feed.reading_time", { count: article.readingTime })}
             </span>
           </>
         )}
@@ -391,30 +399,32 @@ function CardFooter({
             <span className="text-[var(--text-quaternary)] text-xs">·</span>
             <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--qoe-vermillion)] font-mono">
               <Crown className="w-2.5 h-2.5" />
-              Premium
+              {t("feed.premium_badge", "Premium")}
             </span>
           </>
         )}
       </div>
 
-      {/* Right : Actions — apparaissent au hover */}
+      {/* Right : Actions */}
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-        <button
+        <motion.button
           onClick={handleOpenInTab}
-          className="text-[10px] font-semibold text-[var(--text-tertiary)] hover:text-[var(--qoe-vermillion)] flex items-center gap-1.5 transition-colors duration-200 cursor-pointer px-2 py-1.5 rounded-[8px] hover:bg-[var(--qoe-vermillion-08)] focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none"
+          whileTap={{ scale: 0.98 }}
+          className="text-[10px] font-semibold text-[var(--text-tertiary)] hover:text-[var(--qoe-vermillion)] flex items-center gap-1.5 transition-colors duration-200 cursor-pointer px-2 py-1.5 rounded-[var(--radius-button)] hover:bg-[var(--qoe-vermillion-08)] focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none"
         >
           <FileText className="w-3 h-3" strokeWidth={1.5} />
-          Onglet
-        </button>
+          {t("feed.tab_label", "Onglet")}
+        </motion.button>
         <span className="text-[var(--border-strong)] text-xs">|</span>
-        <a
+        <motion.a
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="text-[10px] font-semibold text-[var(--text-tertiary)] hover:text-[var(--qoe-vermillion)] flex items-center gap-1.5 transition-colors duration-200 px-2 py-1.5 rounded-[8px] hover:bg-[var(--qoe-vermillion-08)] focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none"
+          whileTap={{ scale: 0.98 }}
+          className="text-[10px] font-semibold text-[var(--text-tertiary)] hover:text-[var(--qoe-vermillion)] flex items-center gap-1.5 transition-colors duration-200 px-2 py-1.5 rounded-[var(--radius-button)] hover:bg-[var(--qoe-vermillion-08)] focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none"
         >
-          Lire <ExternalLink className="w-3 h-3" strokeWidth={1.5} />
-        </a>
+          {t("feed.read_btn", "Lire")} <ExternalLink className="w-3 h-3" strokeWidth={1.5} />
+        </motion.a>
       </div>
     </div>
   )

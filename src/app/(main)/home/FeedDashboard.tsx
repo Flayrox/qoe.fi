@@ -13,6 +13,8 @@ import { useTabStore } from "@/lib/use-tab-store"
 import { FeedTabsHeader } from "./components/FeedTabsHeader"
 import { FeedSidebarWidgets } from "./components/FeedSidebarWidgets"
 import { useFeedStore } from "@/lib/use-feed-store"
+import { useTranslate } from "@tolgee/react"
+import { trackEvent } from "@/lib/analytics"
 
 interface Author {
   id: string
@@ -80,6 +82,7 @@ export function FeedDashboard({
   initialBookmarksCount,
   initialHighlightsCount,
 }: FeedDashboardProps) {
+  const { t } = useTranslate()
   const [activeFeed, setActiveFeed] = useState<string>("recommandation")
   
   const [bookmarks, setBookmarks] = useState<Article[]>(initialBookmarks)
@@ -97,8 +100,8 @@ export function FeedDashboard({
   const toggleBookmarkOptimistic = useFeedStore(state => state.toggleBookmark)
   
   const [notifications, setNotifications] = useState([
-    { id: 1, text: "Marc Dutronc a publié 'Souveraineté Numérique en Europe'", time: "Il y a 5 min", unread: true },
-    { id: 2, text: "Votre note sur 'L'éveil de l'IA' a été synchronisée", time: "Il y a 2h", unread: false },
+    { id: 1, text: t("feed.notif_mock_1", "Marc Dutronc a publié 'Souveraineté Numérique en Europe'"), time: t("feed.notif_time_1", "Il y a 5 min"), unread: true },
+    { id: 2, text: t("feed.notif_mock_2", "Votre note sur 'L'éveil de l'IA' a été synchronisée"), time: t("feed.notif_time_2", "Il y a 2h"), unread: false },
   ])
 
   const isCreatorFollowed = (creatorId: string) => followedCreators.some(f => f.id === creatorId)
@@ -111,6 +114,7 @@ export function FeedDashboard({
   const handleFollowToggle = async (creator: any) => {
     // Optimistic Update
     const isCurrentlyFollowed = isCreatorFollowed(creator.id)
+    trackEvent("follow_creator_toggled", { creatorId: creator.id, followed: !isCurrentlyFollowed })
     
     if (isCurrentlyFollowed) {
       setFollowedCreators(prev => prev.filter(f => f.id !== creator.id))
@@ -145,6 +149,7 @@ export function FeedDashboard({
     // Optimistic Update
     const isCurrentlyBookmarked = isArticleBookmarked(article.id)
     toggleBookmarkOptimistic(article.id, isCurrentlyBookmarked)
+    trackEvent("bookmark_toggled", { articleId: article.id, bookmarked: !isCurrentlyBookmarked })
     
     if (isCurrentlyBookmarked) {
       setBookmarks(prev => prev.filter(b => b.id !== article.id))
@@ -190,7 +195,17 @@ export function FeedDashboard({
     }
 
     // Filter out deleted posts
-    list = list.filter(art => !deletedPostIds.has(art.id))
+    list = list.filter(art => art && art.id && !deletedPostIds.has(art.id))
+
+    // Deduplicate by ID
+    const seenIds = new Set<string>()
+    list = list.filter(art => {
+      if (!art || !art.id) return false
+      const idStr = String(art.id)
+      if (seenIds.has(idStr)) return false
+      seenIds.add(idStr)
+      return true
+    })
 
     if (selectedTag) {
       list = list.filter(art => 
@@ -220,6 +235,7 @@ export function FeedDashboard({
             onTabChange={(id) => {
               setActiveFeed(id)
               setSelectedTag(null)
+              trackEvent("feed_tab_changed", { tab: id })
             }}
             totalCount={currentFeedArticles.length}
           />
@@ -238,16 +254,17 @@ export function FeedDashboard({
               <AnimatePresence mode="popLayout">
                 {activeFeed === "bookmarks" && currentFeedArticles.length === 0 && (
                   <motion.div
+                    key="bookmarks-empty"
                     initial={{ opacity: 0, scale: 0.99 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.99 }}
                     transition={springs.card}
-                    className="bg-white border border-neutral-200/50 rounded-xl p-12 text-center flex flex-col items-center justify-center gap-3 text-neutral-600 shadow-xs"
+                    className="bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-card)] p-12 text-center flex flex-col items-center justify-center gap-3 text-[var(--text-secondary)] shadow-xs"
                   >
-                    <BookMarked className="w-8 h-8 text-neutral-300" />
-                    <h4 className="font-bold text-xs text-neutral-800">Votre Sanctuaire est vide</h4>
-                    <p className="text-[11px] text-neutral-400 max-w-xs leading-relaxed">
-                      Enregistrez des articles en cliquant sur l'icône de signet pour les conserver ici.
+                    <BookMarked className="w-8 h-8 text-[var(--text-tertiary)]" />
+                    <h4 className="font-bold text-xs text-[var(--text-primary)]">{t("feed.empty_sanctuary", "Votre Sanctuaire est vide")}</h4>
+                    <p className="text-[11px] text-[var(--text-tertiary)] max-w-xs leading-relaxed">
+                      {t("feed.empty_sanctuary_desc", "Enregistrez des articles en cliquant sur l'icône de signet pour les conserver ici.")}
                     </p>
                   </motion.div>
                 )}
@@ -263,13 +280,13 @@ export function FeedDashboard({
                       style={{ boxShadow: "var(--shadow-card)" }}
                     >
                       <AlertCircle className="w-8 h-8 text-[var(--text-quaternary)]" />
-                      <h4 className="font-bold text-xs text-[var(--text-primary)]">Aucun article trouvé</h4>
+                      <h4 className="font-bold text-xs text-[var(--text-primary)]">{t("feed.no_article_found", "Aucun article trouvé")}</h4>
                       <p className="text-[11px] text-[var(--text-tertiary)] max-w-xs leading-relaxed">
-                        Essayez d'effacer le tag filtre ou de suivre de nouveaux créateurs dans la liste Explorer.
+                        {t("feed.no_article_found_desc", "Essayez d'effacer le tag filtre ou de suivre de nouveaux créateurs dans la liste Explorer.")}
                       </p>
                     </motion.div>
                   ) : (
-                    <div className="space-y-4">
+                    <div key={`feed-${activeFeed}`} className="space-y-4">
                       {currentFeedArticles.map((article, idx) => {
                         const isBookmarked = isArticleBookmarked(article.id)
                         const isFollowed = isCreatorFollowed(article.author.id)

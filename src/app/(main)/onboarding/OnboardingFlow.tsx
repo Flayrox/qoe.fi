@@ -6,6 +6,7 @@ import { useTranslate } from "@tolgee/react";
 import { ArrowRight, ArrowLeft, X, Check, Sparkles, Shield, Users, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { completeOnboarding } from "./actions";
+import { trackEvent } from "@/lib/analytics";
 
 interface OnboardingFlowProps {
   categories: any[];
@@ -32,6 +33,11 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
   const handleComplete = async () => {
     setIsSubmitting(true);
     try {
+      trackEvent("onboarding_complete", {
+        interests: selectedInterests.length,
+        mutedWords: mutedWords.length,
+        creatorsFollowed: selectedCreators.length
+      });
       await completeOnboarding({
         interests: selectedInterests,
         onboardingText,
@@ -66,17 +72,17 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
   };
 
   return (
-    <div className="relative w-full max-w-4xl mx-auto min-h-[600px] flex flex-col bg-card/60 backdrop-blur-3xl border border-border/40 rounded-[3rem] overflow-hidden shadow-2xl transition-colors duration-500">
+    <div className="relative w-full max-w-4xl mx-auto min-h-[600px] flex flex-col bg-card/60 backdrop-blur-3xl border border-border/40 rounded-[var(--radius-plateau)] overflow-hidden shadow-2xl transition-colors duration-500">
       
       {/* Progress Header */}
       <div className="p-8 border-b border-border/30 flex items-center justify-between relative z-10">
         <div className="flex gap-2">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className={`h-1 w-12 rounded-full transition-colors duration-500 ${step >= i ? "bg-[#EE4B2B]" : "bg-neutral-200"}`} />
+            <div key={i} className={`h-1 w-12 rounded-[var(--radius-button)] transition-colors duration-500 ${step >= i ? "bg-[var(--qoe-vermillion)]" : "bg-neutral-200"}`} />
           ))}
         </div>
-        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
-          {t("onboarding_step", "Étape")} {step} / 4
+        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest font-semibold">
+          {t("onboarding_reader.step_label", "Étape")} {step} / 4
         </span>
       </div>
 
@@ -90,16 +96,16 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
               initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
               animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
               exit={{ opacity: 0, x: -50, filter: "blur(10px)" }}
-              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ type: "spring", stiffness: 450, damping: 32 }}
               className="h-full flex flex-col"
             >
               <div className="mb-12">
                 <Sparkles className="w-8 h-8 text-primary mb-6" />
-                <h2 className="font-classical text-4xl text-foreground mb-4">{t("onboarding_s1_title", "Qu'est-ce qui vous élève ?")}</h2>
+                <h2 className="font-classical text-4xl text-foreground mb-4">{t("onboarding_reader.s1_title", "Qu'est-ce qui vous élève ?")}</h2>
                 <p className="text-muted-foreground text-sm">
                   {categories.length >= 3 
-                    ? t("onboarding_s1_desc", "Sélectionnez au moins 3 centres d'intérêt pour calibrer votre sanctuaire.")
-                    : t("onboarding_s1_desc_fewer", `Sélectionnez vos centres d'intérêt (sélectionnez au moins ${categories.length} centres) pour calibrer votre sanctuaire.`)}
+                    ? t("onboarding_reader.s1_desc", "Sélectionnez au moins 3 centres d'intérêt pour calibrer votre sanctuaire.")
+                    : t("onboarding_reader.s1_desc_fewer", `Sélectionnez vos centres d'intérêt (sélectionnez au moins ${categories.length} centres) pour calibrer votre sanctuaire.`, { count: categories.length })}
                 </p>
               </div>
 
@@ -109,12 +115,13 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
                     key={cat.id}
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: i * 0.04 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 30, delay: i * 0.04 }}
                     onClick={() => toggleInterest(cat.id)}
-                    className={`px-8 py-4 rounded-full border-2 transition-all duration-300 text-sm font-medium cursor-pointer ${
+                    className={`px-8 py-4 rounded-[var(--radius-button)] border-2 transition-all duration-305 text-sm font-medium cursor-pointer ${
                       selectedInterests.includes(cat.id) 
-                        ? "bg-[#EE4B2B] text-white border-[#EE4B2B] shadow-lg scale-105" 
-                        : "bg-muted/30 text-muted-foreground border-border/40 hover:border-[#EE4B2B]/40 hover:text-foreground"
+                        ? "bg-[var(--qoe-vermillion)] text-white border-[var(--qoe-vermillion)] shadow-lg scale-105" 
+                        : "bg-muted/30 text-muted-foreground border-border/40 hover:border-[var(--qoe-vermillion)]/40 hover:text-foreground"
                     }`}
                   >
                     {cat.name}
@@ -123,16 +130,21 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
               </div>
 
               <div className="mt-auto pt-8 flex justify-end">
-                <button
+                <motion.button
                   disabled={selectedInterests.length < Math.min(3, categories.length)}
-                  onClick={handleNext}
-                  className="group flex items-center gap-3 px-10 py-4 bg-foreground text-background rounded-full font-bold transition-all disabled:opacity-20 disabled:grayscale cursor-pointer text-sm"
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    trackEvent("onboarding_interests_submit", { count: selectedInterests.length });
+                    handleNext();
+                  }}
+                  className="group flex items-center gap-3 px-10 py-4 bg-foreground text-background rounded-[var(--radius-button)] font-bold transition-all disabled:opacity-20 disabled:grayscale cursor-pointer text-sm"
                 >
-                  {t("common_continue", "Continuer")} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
+                  {t("common.continue", "Continuer")} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </motion.button>
               </div>
             </motion.div>
           )}
+
           {/* STEP 2: Paragraph detail */}
           {step === 2 && (
             <motion.div
@@ -140,31 +152,30 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
               initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
               animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
               exit={{ opacity: 0, x: -50, filter: "blur(10px)" }}
-              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ type: "spring", stiffness: 450, damping: 32 }}
               className="h-full flex flex-col"
             >
               <div className="mb-8">
-                <Sparkles className="w-8 h-8 text-[#EE4B2B] mb-4 animate-pulse" />
+                <Sparkles className="w-8 h-8 text-[var(--qoe-vermillion)] mb-4 animate-pulse" />
                 <h2 className="font-sans font-bold text-3xl text-foreground mb-2">
-                  Détaillez vos lectures idéales.
+                  {t("onboarding_reader.s2_title", "Détaillez vos lectures idéales.")}
                 </h2>
                 <p className="text-muted-foreground text-sm">
-                  Rédigez un paragraphe sur vos sujets favoris, vos questions du moment ou ce que vous recherchez. Notre IA sémantique l'analysera pour calibrer vos recommandations.
+                  {t("onboarding_reader.s2_desc", "Rédigez un paragraphe sur vos sujets favoris, vos questions du moment ou ce que vous recherchez. Notre IA sémantique l'analysera pour calibrer vos recommandations.")}
                 </p>
               </div>
 
               <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
                 {/* Left Bento Explanation */}
-                <div className="md:col-span-2 bg-[#F97316]/5 border border-[#F97316]/20 p-6 rounded-2xl flex flex-col justify-between">
+                <div className="md:col-span-2 bg-[var(--surface-2)] border border-[var(--border-default)] p-6 rounded-[var(--radius-card)] flex flex-col justify-between">
                   <div>
-                    <h4 className="font-semibold text-lg text-[#F97316] mb-2">Recommandation Sémantique</h4>
+                    <h4 className="font-semibold text-lg text-foreground mb-2">{t("onboarding_reader.s2_bento_title", "Recommandation Sémantique")}</h4>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Contrairement aux flux de buzz compulsifs, nous vectorisons vos écrits et les comparons à la distance cosinusoïdale (pgvector) des articles. Plus votre description est honnête et profonde, plus votre sanctuaire sera pertinent.
+                      {t("onboarding_reader.s2_bento_desc", "Contrairement aux flux de buzz compulsifs, nous vectorisons vos écrits et les comparons à la distance cosinusoïdale (pgvector) des articles. Plus votre description est honnête et profonde, plus votre sanctuaire sera pertinent.")}
                     </p>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-border/40 text-[10px] font-mono text-muted-foreground">
-                    DIMENSIONS VECTORIELLES : 1536<br />
-                    MOTEUR : PGVECTOR + EMBEDDINGS
+                  <div className="mt-4 pt-4 border-t border-border/40 text-[10px] font-mono text-muted-foreground whitespace-pre-line">
+                    {t("onboarding_reader.s2_bento_footer", "DIMENSIONS VECTORIELLES : 1536\nMOTEUR : PGVECTOR + EMBEDDINGS")}
                   </div>
                 </div>
 
@@ -174,26 +185,34 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
                     autoFocus
                     value={onboardingText}
                     onChange={(e) => setOnboardingText(e.target.value)}
-                    placeholder="J'aime lire des articles sur l'émancipation économique, la sociologie des technologies, des revues de presse fouillées sur l'indépendance des médias, et les essais philosophiques sur la culture..."
+                    placeholder={t("onboarding_reader.s2_textarea_placeholder", "J'aime lire des articles sur l'émancipation économique, la sociologie des technologies, des revues de presse fouillées sur l'indépendance des médias, et les essais philosophiques sur la culture...")}
                     maxLength={1000}
-                    className="w-full flex-1 bg-muted/20 border border-border/80 p-5 rounded-2xl text-sm leading-relaxed placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-[#EE4B2B]/20 focus:border-[#EE4B2B] transition-all resize-none min-h-[160px]"
+                    className="w-full flex-1 bg-muted/20 border border-border/80 p-5 rounded-[var(--radius-element)] text-sm leading-relaxed placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-[var(--qoe-vermillion)]/20 focus:border-[var(--qoe-vermillion)] transition-all resize-none min-h-[160px]"
                   />
                   <div className="text-right text-[10px] font-mono text-muted-foreground mt-2">
-                    {onboardingText.length} / 1000 caractères
+                    {t("onboarding_reader.s2_chars", "{count} / 1000 caractères", { count: onboardingText.length })}
                   </div>
                 </div>
               </div>
 
               <div className="mt-auto pt-4 flex justify-between">
-                <button onClick={handleBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-sm">
-                  <ArrowLeft className="w-4 h-4" /> {t("common_back", "Retour")}
-                </button>
-                <button
-                  onClick={handleNext}
-                  className="group flex items-center gap-3 px-10 py-4 bg-foreground text-background rounded-full font-bold transition-all cursor-pointer text-sm"
+                <motion.button 
+                  onClick={handleBack} 
+                  whileTap={{ scale: 0.98 }}
+                  className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-sm px-4 py-2 rounded-[var(--radius-button)] hover:bg-muted/30"
                 >
-                  {t("common_continue", "Continuer")} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
+                  <ArrowLeft className="w-4 h-4" /> {t("common.back", "Retour")}
+                </motion.button>
+                <motion.button
+                  onClick={() => {
+                    trackEvent("onboarding_text_submit", { length: onboardingText.length });
+                    handleNext();
+                  }}
+                  whileTap={{ scale: 0.98 }}
+                  className="group flex items-center gap-3 px-10 py-4 bg-foreground text-background rounded-[var(--radius-button)] font-bold transition-all cursor-pointer text-sm"
+                >
+                  {t("common.continue", "Continuer")} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </motion.button>
               </div>
             </motion.div>
           )}
@@ -205,13 +224,13 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
               initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
               animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
               exit={{ opacity: 0, x: -50, filter: "blur(10px)" }}
-              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ type: "spring", stiffness: 450, damping: 32 }}
               className="h-full flex flex-col"
             >
               <div className="mb-12">
                 <Shield className="w-8 h-8 text-primary mb-6" />
-                <h2 className="font-classical text-4xl text-foreground mb-4">{t("onboarding_s2_title", "Préservez votre attention.")}</h2>
-                <p className="text-muted-foreground text-sm">{t("onboarding_s2_desc", "Bannissez les mots ou sujets qui polluent votre réflexion. Aucun article les contenant ne vous sera proposé.")}</p>
+                <h2 className="font-classical text-4xl text-foreground mb-4">{t("onboarding_reader.s3_title", "Préservez votre attention.")}</h2>
+                <p className="text-muted-foreground text-sm">{t("onboarding_reader.s3_desc", "Bannissez les mots ou sujets qui polluent votre réflexion. Aucun article les contenant ne vous sera proposé.")}</p>
               </div>
 
               <div className="flex-1 space-y-8">
@@ -221,12 +240,16 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
                     type="text"
                     value={mutedInput}
                     onChange={(e) => setMutedInput(e.target.value)}
-                    placeholder={t("onboarding_s2_placeholder", "Ex: Clash, Buzz, Polémique...")}
-                    className="w-full bg-muted/20 border-b-2 border-border/60 py-6 px-4 text-2xl text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-foreground transition-all"
+                    placeholder={t("onboarding_reader.s3_input_placeholder", "Ex: Clash, Buzz, Polémique...")}
+                    className="w-full bg-muted/20 border-b-2 border-border/60 py-6 px-4 text-2xl text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-[var(--qoe-vermillion)] transition-all"
                   />
-                  <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-muted border border-border/40 flex items-center justify-center hover:bg-foreground hover:text-background transition-all cursor-pointer">
+                  <motion.button 
+                    type="submit" 
+                    whileTap={{ scale: 0.95 }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-[var(--radius-button)] bg-muted border border-border/40 flex items-center justify-center hover:bg-foreground hover:text-background transition-all cursor-pointer"
+                  >
                     <Check className="w-5 h-5" />
-                  </button>
+                  </motion.button>
                 </form>
 
                 <div className="flex flex-wrap gap-3">
@@ -237,12 +260,16 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.8, opacity: 0 }}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 rounded-lg text-sm"
+                        className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 rounded-[var(--radius-element)] text-sm"
                       >
                         {word}
-                        <button onClick={() => setMutedWords(mutedWords.filter(w => w !== word))} className="cursor-pointer hover:scale-110">
+                        <motion.button 
+                          onClick={() => setMutedWords(mutedWords.filter(w => w !== word))} 
+                          whileTap={{ scale: 0.85 }}
+                          className="cursor-pointer hover:scale-110 p-1 -m-1"
+                        >
                           <X className="w-3 h-3" />
-                        </button>
+                        </motion.button>
                       </motion.span>
                     ))}
                   </AnimatePresence>
@@ -250,15 +277,23 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
               </div>
 
               <div className="mt-auto pt-8 flex justify-between">
-                <button onClick={handleBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-sm">
-                  <ArrowLeft className="w-4 h-4" /> {t("common_back", "Retour")}
-                </button>
-                <button
-                  onClick={handleNext}
-                  className="group flex items-center gap-3 px-10 py-4 bg-foreground text-background rounded-full font-bold transition-all cursor-pointer text-sm"
+                <motion.button 
+                  onClick={handleBack} 
+                  whileTap={{ scale: 0.98 }}
+                  className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-sm px-4 py-2 rounded-[var(--radius-button)] hover:bg-muted/30"
                 >
-                  {t("common_continue", "Continuer")} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
+                  <ArrowLeft className="w-4 h-4" /> {t("common.back", "Retour")}
+                </motion.button>
+                <motion.button
+                  onClick={() => {
+                    trackEvent("onboarding_muted_words_submit", { count: mutedWords.length });
+                    handleNext();
+                  }}
+                  whileTap={{ scale: 0.98 }}
+                  className="group flex items-center gap-3 px-10 py-4 bg-foreground text-background rounded-[var(--radius-button)] font-bold transition-all cursor-pointer text-sm"
+                >
+                  {t("common.continue", "Continuer")} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </motion.button>
               </div>
             </motion.div>
           )}
@@ -270,61 +305,67 @@ export const OnboardingFlow = ({ categories, suggestedCreators, userId }: Onboar
               initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
               animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
               exit={{ opacity: 0, x: -50, filter: "blur(10px)" }}
-              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ type: "spring", stiffness: 450, damping: 32 }}
               className="h-full flex flex-col"
             >
               <div className="mb-12">
                 <Users className="w-8 h-8 text-primary mb-6" />
-                <h2 className="font-classical text-4xl text-foreground mb-4">{t("onboarding_s3_title", "Choisissez vos alliés.")}</h2>
-                <p className="text-muted-foreground text-sm">{t("onboarding_s3_desc", "Voici quelques créateurs certifiés qui correspondent à vos affinités. Suivez-les pour peupler votre premier feed.")}</p>
+                <h2 className="font-classical text-4xl text-foreground mb-4">{t("onboarding_reader.s4_title", "Choisissez vos alliés.")}</h2>
+                <p className="text-muted-foreground text-sm">{t("onboarding_reader.s4_desc", "Voici quelques créateurs certifiés qui correspondent à vos affinités. Suivez-les pour peupler votre premier feed.")}</p>
               </div>
 
               <div className="flex-1 space-y-4 overflow-y-auto pr-4 custom-scrollbar max-h-[300px]">
                 {suggestedCreators.map(creator => (
-                  <button
+                  <motion.button
                     key={creator.id}
                     onClick={() => toggleCreator(creator.id)}
-                    className={`w-full flex items-center gap-6 p-6 rounded-[2rem] border-2 transition-all duration-300 text-left cursor-pointer ${
+                    whileTap={{ scale: 0.99 }}
+                    className={`w-full flex items-center gap-6 p-6 rounded-[var(--radius-card)] border-2 transition-all duration-300 text-left cursor-pointer ${
                       selectedCreators.includes(creator.id)
-                        ? "bg-primary/[0.03] border-primary/40 shadow-sm"
+                        ? "bg-[var(--qoe-vermillion-08)] border-[var(--qoe-vermillion)]/40 shadow-sm"
                         : "bg-muted/10 border-border/20 hover:border-border/60"
                     }`}
                   >
-                    <div className="w-16 h-16 rounded-2xl bg-muted flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/50">
+                    <div className="w-16 h-16 rounded-[var(--radius-icon)] bg-muted flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/50">
                       {creator.logoUrl ? <img src={creator.logoUrl} className="w-full h-full object-cover" /> : creator.name?.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="text-lg font-bold text-foreground mb-1 truncate">{creator.name}</h4>
-                      <p className="text-muted-foreground text-sm truncate">{creator.heroText || "Média indépendant"}</p>
+                      <p className="text-muted-foreground text-sm truncate">{creator.heroText || t("onboarding_reader.s4_default_hero", "Média indépendant")}</p>
                     </div>
-                    <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+                    <div className={`w-8 h-8 rounded-[var(--radius-button)] border-2 flex items-center justify-center transition-all ${
                       selectedCreators.includes(creator.id) 
                         ? "bg-foreground border-foreground text-background" 
                         : "border-border text-transparent"
                     }`}>
                       <Check className="w-5 h-5" />
                     </div>
-                  </button>
+                  </motion.button>
                 ))}
               </div>
 
               <div className="mt-auto pt-8 flex justify-between items-center">
-                <button onClick={handleBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-sm">
-                  <ArrowLeft className="w-4 h-4" /> {t("common_back", "Retour")}
-                </button>
-                <button
+                <motion.button 
+                  onClick={handleBack} 
+                  whileTap={{ scale: 0.98 }}
+                  className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-sm px-4 py-2 rounded-[var(--radius-button)] hover:bg-muted/30"
+                >
+                  <ArrowLeft className="w-4 h-4" /> {t("common.back", "Retour")}
+                </motion.button>
+                <motion.button
                   disabled={isSubmitting}
                   onClick={handleComplete}
-                  className="group flex items-center gap-3 px-10 py-4 bg-[#EE4B2B] text-white rounded-full font-bold transition-all hover:opacity-90 disabled:opacity-50 cursor-pointer shadow-lg text-sm"
+                  whileTap={{ scale: 0.98 }}
+                  className="group flex items-center gap-3 px-10 py-4 bg-[var(--qoe-vermillion)] text-white rounded-[var(--radius-button)] font-bold transition-all hover:opacity-90 disabled:opacity-50 cursor-pointer shadow-lg text-sm"
                 >
                   {isSubmitting ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
                     <>
-                      {t("onboarding_finish", "Entrer dans le sanctuaire")} <Sparkles className="w-5 h-5" />
+                      {t("onboarding_reader.finish_btn", "Entrer dans le sanctuaire")} <Sparkles className="w-5 h-5" />
                     </>
                   )}
-                </button>
+                </motion.button>
               </div>
             </motion.div>
           )}
