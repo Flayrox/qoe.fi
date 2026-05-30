@@ -583,9 +583,16 @@ export function ProfileDashboard({
                           Aucune pensée publiée pour le moment.
                         </div>
                       ) : (
-                        posts.map(post => (
-                          <MicroPostCard key={post.id} post={post} />
-                        ))
+                        [...posts]
+                          .sort((a, b) => {
+                            const aPinned = (a as any).isPinned ? 1 : 0
+                            const bPinned = (b as any).isPinned ? 1 : 0
+                            if (aPinned !== bPinned) return bPinned - aPinned
+                            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                          })
+                          .map(post => (
+                            <MicroPostCard key={post.id} post={post} />
+                          ))
                       )}
                     </div>
                   )}

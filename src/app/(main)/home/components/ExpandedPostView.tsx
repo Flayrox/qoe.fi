@@ -8,6 +8,13 @@ import { getPostThread, toggleLikePost, replyToPost, deletePost, repostPost } fr
 import { LikeIcon, CommentIcon, RepostIcon, ShareIcon } from "@/components/icons/CustomIcons"
 import { cn } from "@/lib/utils"
 import { useFeedStore } from "@/lib/use-feed-store"
+import { TextParser } from "@/components/ui/TextParser"
+import { LinkPreview } from "@/components/social/LinkPreview"
+
+const getUrls = (text: string): string[] => {
+  const urlRegex = /https?:\/\/[^\s]+/gi
+  return text.match(urlRegex) || []
+}
 
 interface ExpandedPostViewProps {
   postId: string
@@ -199,7 +206,7 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3 bg-white border border-neutral-200/50 rounded-xl shadow-xs">
         <Loader2 className="w-5 h-5 animate-spin text-[#EE4B2B]" />
-        <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider font-mono">
+        <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">
           {deleting ? "Suppression en cours..." : "Chargement du fil social..."}
         </span>
       </div>
@@ -233,7 +240,7 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
           </button>
           
           <div className="flex items-center gap-3">
-            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest font-mono">Fil social</span>
+            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Fil social</span>
             {currentUserId === post.authorId && (
               <button onClick={handleDelete} className="text-neutral-400 hover:text-red-500 transition-colors cursor-pointer" title="Supprimer le post">
                 <Trash2 className="w-3.5 h-3.5" />
@@ -269,8 +276,14 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
               (post.triggerWarning && !isWarningRevealed) && "blur-[16px] pointer-events-none select-none"
             )}>
               <div className="text-base text-neutral-800 leading-relaxed font-sans font-light">
-                {post.content}
+                <TextParser content={post.content} />
               </div>
+
+              {getUrls(post.content).length > 0 && (
+                <div className="mt-2">
+                  <LinkPreview urls={getUrls(post.content)} />
+                </div>
+              )}
  
               {post.imageUrl && (
                 <ImageGrid urls={getImages(post.imageUrl)} onImageClick={(url) => setLightboxImage(url)} />
@@ -501,11 +514,11 @@ function CommentThread({
             <span className="text-xs font-semibold text-neutral-800 block leading-none">{reply.author.name}</span>
             {reply.author.isCertified && <span className="text-[#EE4B2B] text-[8px] font-black">✓</span>}
           </div>
-          <span className="text-[9px] text-neutral-400 font-mono ml-2">@{reply.author.username}</span>
+          <span className="text-[9px] text-neutral-400 ml-2">@{reply.author.username}</span>
         </button>
         
         <div className="ml-auto flex items-center gap-2">
-          <span className="text-[9px] text-neutral-400 font-mono">{new Date(reply.createdAt).toLocaleDateString()}</span>
+          <span className="text-[9px] text-neutral-400">{new Date(reply.createdAt).toLocaleDateString()}</span>
           {currentUserId === reply.authorId && (
             <button onClick={handleDelete} className="text-neutral-400 hover:text-red-500 transition-colors opacity-0 group-hover/comment:opacity-100 cursor-pointer">
               <Trash2 className="w-3 h-3" />

@@ -113,7 +113,7 @@ export function FeedSidebarWidgets({
                       <span className="text-[12px] font-bold text-[var(--text-primary)] block leading-tight truncate group-hover/sug:text-[var(--qoe-vermillion)] transition-colors duration-200">
                         {creator.name}
                       </span>
-                      <span className="text-[9px] text-[var(--text-tertiary)] block truncate mt-0.5 font-mono uppercase tracking-wider">
+                      <span className="text-[9px] text-[var(--text-tertiary)] block truncate mt-0.5 uppercase tracking-wider">
                         @{creator.username || creator.subdomain}
                       </span>
                     </div>

@@ -3,6 +3,8 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/db"
 import { AppSidebar } from "@/components/layout/AppSidebar"
 
+import { Toaster } from "@/components/ui/sonner"
+
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -33,6 +35,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
           </main>
         </div>
       </div>
+      <Toaster />
     </div>
   )
 }

@@ -71,7 +71,22 @@ export const createMicroPost = safeAction<{
   triggerWarning?: string | null;
 }, { post: any }>(async ({ content, tags, imageUrl, visibility, isDraft, scheduledAt, triggerWarning }, user) => {
   const cleanContent = content.trim()
-  if (!cleanContent || cleanContent.length > 280) {
+  
+  // Calculate characters with link rules:
+  // External links count as 20 chars, internal (post/article) count as 0 chars.
+  const urlRegex = /https?:\/\/[^\s]+/gi
+  const urls = cleanContent.match(urlRegex) || []
+  let charLength = cleanContent.length
+  for (const url of urls) {
+    charLength -= url.length
+    const isInternal = url.includes("/post/") || url.includes("/article/")
+    if (!isInternal) {
+      charLength += 20
+    }
+  }
+
+  const hasImages = imageUrl && imageUrl.trim() && imageUrl !== "[]" && imageUrl !== "null"
+  if ((!cleanContent && !hasImages) || charLength > 280) {
     throw new Error("INVALID_CONTENT")
   }
 
@@ -327,3 +342,185 @@ export const getProfileData = safeAction<string, {
     initialMutedWords: dbMutedWords
   }
 }, false)
+
+export const getUserDrafts = safeAction<void, { drafts: any[] }>(async (_, user) => {
+  const drafts = await prisma.post.findMany({
+    where: {
+      authorId: user.id,
+      isDraft: true
+    },
+    include: {
+      author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } }
+    },
+    orderBy: { updatedAt: "desc" }
+  })
+  return { drafts }
+})
+
+export const pinPost = safeAction<string, { success: boolean }>(async (postId, user) => {
+  const post = await prisma.post.findUnique({ where: { id: postId } })
+  if (!post || post.authorId !== user.id) throw new Error("UNAUTHORIZED")
+
+  // Reset all other pinned posts for this user
+  await prisma.post.updateMany({
+    where: { authorId: user.id, isPinned: true },
+    data: { isPinned: false }
+  })
+
+  // Set this post as pinned
+  await prisma.post.update({
+    where: { id: postId },
+    data: { isPinned: true }
+  })
+
+  revalidatePath("/home")
+  if (user.username) {
+    revalidatePath(`/@${user.username}`)
+  }
+  return { success: true }
+})
+
+export const unpinPost = safeAction<string, { success: boolean }>(async (postId, user) => {
+  const post = await prisma.post.findUnique({ where: { id: postId } })
+  if (!post || post.authorId !== user.id) throw new Error("UNAUTHORIZED")
+
+  await prisma.post.update({
+    where: { id: postId },
+    data: { isPinned: false }
+  })
+
+  revalidatePath("/home")
+  if (user.username) {
+    revalidatePath(`/@${user.username}`)
+  }
+  return { success: true }
+})
+
+export const unfurlUrl = safeAction<string, {
+  isInternal: boolean
+  postType?: "post" | "article"
+  data?: any
+  externalMetadata?: {
+    title: string | null
+    description: string | null
+    image: string | null
+    siteName: string | null
+    url: string
+  }
+}>(async (urlStr) => {
+  try {
+    let url = urlStr.trim()
+    if (!/^https?:\/\//i.test(url)) {
+      url = "https://" + url
+    }
+
+    const parsedUrl = new URL(url)
+    
+    // Check if internal post or article
+    const postMatch = parsedUrl.pathname.match(/\/post\/([a-zA-Z0-9]+)/)
+    if (postMatch) {
+      const postId = postMatch[1]
+      const post = await prisma.post.findUnique({
+        where: { id: postId },
+        include: {
+          author: { select: { id: true, name: true, username: true, subdomain: true, logoUrl: true, isCertified: true } }
+        }
+      })
+      if (post) {
+        return { isInternal: true, postType: "post", data: post }
+      }
+    }
+
+    const articleMatch = parsedUrl.pathname.match(/\/article\/([a-zA-Z0-9_-]+)/)
+    if (articleMatch) {
+      const slug = articleMatch[1]
+      const article = await prisma.article.findUnique({
+        where: { slug },
+        include: {
+          author: { select: { id: true, name: true, username: true, subdomain: true, logoUrl: true, isCertified: true } }
+        }
+      })
+      if (article) {
+        return { isInternal: true, postType: "article", data: article }
+      }
+    }
+
+    // External URL Unfurl
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 4000)
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      }
+    })
+    
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      return { isInternal: false, externalMetadata: { title: parsedUrl.hostname, description: null, image: null, siteName: parsedUrl.hostname, url } }
+    }
+
+    const html = await response.text()
+
+    const getMeta = (propertyOrName: string) => {
+      const regex = new RegExp(`<meta[^>]*(?:property|name)=["']${propertyOrName}["'][^>]*content=["']([^"']+)["']`, "i")
+      let match = html.match(regex)
+      if (!match) {
+        const regexReversed = new RegExp(`<meta[^]*content=["']([^"']+)["'][^>]*(?:property|name)=["']${propertyOrName}["']`, "i")
+        match = html.match(regexReversed)
+      }
+      return match ? match[1] : null
+    }
+
+    const getTitle = () => {
+      const match = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+      return match ? match[1] : null
+    }
+
+    const title = getMeta("og:title") || getMeta("twitter:title") || getTitle() || parsedUrl.hostname
+    const description = getMeta("og:description") || getMeta("twitter:description") || getMeta("description")
+    const image = getMeta("og:image") || getMeta("twitter:image")
+    const siteName = getMeta("og:site_name") || parsedUrl.hostname
+
+    return {
+      isInternal: false,
+      externalMetadata: {
+        title: title ? title.trim() : parsedUrl.hostname,
+        description: description ? description.trim() : null,
+        image: image ? image.trim() : null,
+        siteName: siteName ? siteName.trim() : parsedUrl.hostname,
+        url
+      }
+    }
+  } catch (error) {
+    console.error("Unfurl error:", error)
+    try {
+      const fallbackUrl = new URL(urlStr)
+      return {
+        isInternal: false,
+        externalMetadata: {
+          title: fallbackUrl.hostname,
+          description: null,
+          image: null,
+          siteName: fallbackUrl.hostname,
+          url: urlStr
+        }
+      }
+    } catch {
+      return {
+        isInternal: false,
+        externalMetadata: {
+          title: urlStr,
+          description: null,
+          image: null,
+          siteName: urlStr,
+          url: urlStr
+        }
+      }
+    }
+  }
+}, false)
+
