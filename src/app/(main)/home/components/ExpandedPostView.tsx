@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils"
 import { useFeedStore } from "@/lib/use-feed-store"
 import { TextParser } from "@/components/ui/TextParser"
 import { LinkPreview } from "@/components/social/LinkPreview"
+import { useTranslate } from "@tolgee/react"
+import { trackEvent } from "@/lib/analytics"
 
 const getUrls = (text: string): string[] => {
   const urlRegex = /https?:\/\/[^\s]+/gi
@@ -29,6 +31,7 @@ const springs = {
 
 export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProps) {
   const { setActiveTabId, addTab, removeTab } = useTabStore()
+  const { t } = useTranslate()
   const [post, setPost] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [replyText, setReplyText] = useState("")
@@ -80,6 +83,8 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
     setLiked(prev => !prev)
     setLikesCount(prev => liked ? prev - 1 : prev + 1)
 
+    trackEvent("post_like", { postId, liked: !liked })
+
     const res = await toggleLikePost(postId)
     if (!res.success) {
       // Rollback
@@ -92,13 +97,15 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
   const handleRepost = async () => {
     if (!currentUserId || reposted) return
     setReposted(true)
+    trackEvent("post_repost", { postId })
     const res = await repostPost(postId)
     if (!res.success) setReposted(false)
   }
 
   const handleDelete = async () => {
-    if (!confirm("Voulez-vous vraiment supprimer ce post ?")) return
+    if (!confirm(t("feed.msg_confirm_delete_post", "Voulez-vous vraiment supprimer ce post ?"))) return
     setDeleting(true)
+    trackEvent("post_delete", { postId })
     const res = await deletePost(postId)
     if (res.success) {
       // Mark deleted in store
@@ -108,17 +115,19 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
       setActiveTabId("timeline")
     } else {
       setDeleting(false)
-      alert("Erreur lors de la suppression.")
+      alert(t("feed.msg_error_delete", "Erreur lors de la suppression."))
     }
   }
 
   const handleShare = async () => {
     const shareUrl = `${window.location.origin}/@${post.author.username || post.author.subdomain}/post/${post.id}`
     const shareData = {
-      title: `Pensée de ${post.author.name} sur QOE.FI`,
+      title: t("feed.share_title", { name: post.author.name }),
       text: post.content,
       url: shareUrl
     }
+
+    trackEvent("post_share", { postId })
 
     if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
       try {
@@ -129,7 +138,7 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
     } else {
       try {
         await navigator.clipboard.writeText(shareUrl)
-        alert("Lien copié dans le presse-papiers !")
+        alert(t("feed.msg_link_copied", "Lien copié dans le presse-papiers !"))
       } catch (err) {
         console.error("Copy error:", err)
       }
@@ -141,6 +150,7 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
     if (!replyText.trim() || !currentUserId) return
 
     setSendingReply(true)
+    trackEvent("post_reply", { postId })
     const res = await replyToPost({ postId, content: replyText })
     setSendingReply(false)
 
@@ -204,10 +214,10 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
 
   if (loading || deleting) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3 bg-white border border-neutral-200/50 rounded-xl shadow-xs">
-        <Loader2 className="w-5 h-5 animate-spin text-[#EE4B2B]" />
+      <div className="flex flex-col items-center justify-center py-20 gap-3 bg-white border border-neutral-200/50 rounded-[var(--radius-card)] shadow-xs">
+        <Loader2 className="w-5 h-5 animate-spin text-[var(--qoe-vermillion)]" />
         <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">
-          {deleting ? "Suppression en cours..." : "Chargement du fil social..."}
+          {deleting ? t("feed.loading_post_deleting", "Suppression en cours...") : t("feed.loading_post", "Chargement du fil social...")}
         </span>
       </div>
     )
@@ -215,9 +225,9 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
 
   if (!post) {
     return (
-      <div className="bg-white border border-neutral-200/50 rounded-xl p-8 text-center text-neutral-500 shadow-xs">
+      <div className="bg-white border border-neutral-200/50 rounded-[var(--radius-card)] p-8 text-center text-neutral-500 shadow-xs">
         <AlertCircle className="w-8 h-8 text-neutral-300 mx-auto mb-3" />
-        <p className="text-xs">Le contenu demandé est introuvable ou a été supprimé.</p>
+        <p className="text-xs">{t("feed.post_not_found", "Le contenu demandé est introuvable ou a été supprimé.")}</p>
       </div>
     )
   }
@@ -228,47 +238,57 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springs.enter}
-        className="bg-white border border-neutral-200/50 rounded-xl p-6 shadow-xs flex flex-col gap-6"
+        className="bg-white border border-neutral-200/50 rounded-[var(--radius-card)] p-6 shadow-xs flex flex-col gap-6"
       >
         {/* Thread Header */}
         <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
-          <button
+          <motion.button
             onClick={() => setActiveTabId("timeline")}
-            className="flex items-center gap-2 text-xs font-semibold text-neutral-500 hover:text-neutral-800 transition-colors cursor-pointer"
+            whileTap={{ scale: 0.98 }}
+            className="flex items-center gap-2 text-xs font-semibold text-neutral-500 hover:text-neutral-800 transition-colors cursor-pointer px-2 py-1.5 -ml-2 rounded-[var(--radius-button)] hover:bg-neutral-50"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Retour au flux
-          </button>
+            <ArrowLeft className="w-3.5 h-3.5" /> {t("feed.back_to_feed", "Retour au flux")}
+          </motion.button>
           
           <div className="flex items-center gap-3">
-            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Fil social</span>
+            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">{t("feed.social_thread", "Fil social")}</span>
             {currentUserId === post.authorId && (
-              <button onClick={handleDelete} className="text-neutral-400 hover:text-red-500 transition-colors cursor-pointer" title="Supprimer le post">
+              <motion.button
+                onClick={handleDelete}
+                whileTap={{ scale: 0.95 }}
+                className="w-11 h-11 -my-3.5 -mr-3.5 flex items-center justify-center rounded-[var(--radius-button)] text-neutral-400 hover:text-red-500 hover:bg-neutral-50 transition-colors cursor-pointer"
+                title={t("feed.delete_post", "Supprimer le post")}
+              >
                 <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              </motion.button>
             )}
           </div>
         </div>
 
         {/* Main post layout */}
         <div className="space-y-4">
-          <button onClick={handleOpenProfile} className="flex items-center gap-3 text-left hover:opacity-90 transition-opacity cursor-pointer outline-none group/author">
-            <div className="w-10 h-10 rounded-md overflow-hidden border border-neutral-200/40 shrink-0 shadow-xs">
+          <motion.button
+            onClick={handleOpenProfile}
+            whileTap={{ scale: 0.98 }}
+            className="flex items-center gap-3 text-left hover:opacity-90 transition-opacity cursor-pointer outline-none group/author"
+          >
+            <div className="w-10 h-10 rounded-[var(--radius-icon)] overflow-hidden border border-neutral-200/40 shrink-0 shadow-xs">
               {post.author.logoUrl ? (
                 <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
               ) : (
-                <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-sm text-[#EE4B2B]">
+                <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-sm text-[var(--qoe-vermillion)]">
                   {post.author.name?.charAt(0)}
                 </div>
               )}
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-semibold text-neutral-800 group-hover/author:text-[#EE4B2B] transition-colors">{post.author.name}</span>
-                {post.author.isCertified && <span className="text-[#EE4B2B] text-[9px] font-black">✓</span>}
+                <span className="text-sm font-semibold text-neutral-800 group-hover/author:text-[var(--qoe-vermillion)] transition-colors">{post.author.name}</span>
+                {post.author.isCertified && <span className="text-[var(--qoe-vermillion)] text-[9px] font-black">✓</span>}
               </div>
               <span className="text-xs text-neutral-400 block mt-0.5">@{post.author.username || post.author.subdomain}</span>
             </div>
-          </button>
+          </motion.button>
  
           <div className="relative">
             <div className={cn(
@@ -292,7 +312,7 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
  
             {post.triggerWarning && !isWarningRevealed && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/40 dark:bg-black/40 backdrop-blur-md transition-all duration-300 p-4">
-                <span className="text-[11px] uppercase tracking-wider text-amber-600 mb-2 font-bold">Avertissement</span>
+                <span className="text-[11px] uppercase tracking-wider text-amber-600 mb-2 font-bold">{t("feed.warning_label", "Avertissement")}</span>
                 <p className="text-[13px] font-medium text-neutral-900 dark:text-neutral-100 text-center max-w-[280px] mb-3.5 leading-snug">
                   {post.triggerWarning}
                 </p>
@@ -300,7 +320,7 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
                   onClick={() => setIsWarningRevealed(true)}
                   className="px-3.5 py-2 bg-neutral-900 hover:bg-neutral-850 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-black hover:opacity-90 text-[10px] font-bold rounded-[var(--radius-button)] transition-all cursor-pointer shadow-sm uppercase tracking-wider"
                 >
-                  Afficher
+                  {t("feed.warning_show", "Afficher")}
                 </button>
               </div>
             )}
@@ -309,45 +329,51 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
           <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-semibold pt-2">
             <span>{new Date(post.createdAt).toLocaleDateString(undefined, { hour: "numeric", minute: "numeric" })}</span>
             <span>•</span>
-            <span>Souveraineté QOE</span>
+            <span>{t("feed.qoe_sovereignty", "Souveraineté QOE")}</span>
           </div>
         </div>
 
         {/* Actions bar */}
         <div className="flex items-center justify-between border-y border-neutral-100 py-3 px-1 text-neutral-400 text-xs font-semibold">
-          <button 
+          <motion.button 
             onClick={handleLikeToggle}
+            whileTap={{ scale: 0.98 }}
             className={cn(
-              "flex items-center gap-2 cursor-pointer transition-colors",
-              liked ? "text-[#EE4B2B]" : "hover:text-[#EE4B2B]"
+              "flex items-center gap-2 cursor-pointer transition-colors px-2 py-1.5 rounded-[var(--radius-button)] hover:bg-neutral-50",
+              liked ? "text-[var(--qoe-vermillion)]" : "hover:text-[var(--qoe-vermillion)]"
             )}
           >
             <motion.div whileTap={{ scale: 1.4 }} transition={springs.like}>
-              <LikeIcon className="w-4 h-4" style={{ fill: liked ? "#EE4B2B" : "transparent" }} />
+              <LikeIcon className="w-4 h-4" style={{ fill: liked ? "var(--qoe-vermillion)" : "transparent" }} />
             </motion.div>
             <span>{likesCount} Likes</span>
-          </button>
+          </motion.button>
 
           <div className="flex items-center gap-2">
             <CommentIcon className="w-4 h-4 text-neutral-400" />
             <span>{post.replies?.length || 0} Réponses</span>
           </div>
 
-          <button 
+          <motion.button 
             onClick={handleRepost}
+            whileTap={{ scale: 0.98 }}
             className={cn(
-              "flex items-center gap-2 cursor-pointer transition-colors",
+              "flex items-center gap-2 cursor-pointer transition-colors px-2 py-1.5 rounded-[var(--radius-button)] hover:bg-neutral-50",
               reposted ? "text-emerald-500" : "hover:text-emerald-500"
             )}
           >
             <RepostIcon className="w-4 h-4" />
-            <span>{reposted ? "Reposté" : "Repost"}</span>
-          </button>
+            <span>{reposted ? t("feed.reposted_btn", "Reposté") : t("feed.repost_btn", "Repost")}</span>
+          </motion.button>
 
-          <button onClick={handleShare} className="flex items-center gap-2 hover:text-neutral-700 cursor-pointer">
+          <motion.button
+            onClick={handleShare}
+            whileTap={{ scale: 0.98 }}
+            className="flex items-center gap-2 hover:text-neutral-700 cursor-pointer px-2 py-1.5 rounded-[var(--radius-button)] hover:bg-neutral-50"
+          >
             <ShareIcon className="w-4 h-4" />
-            <span>Partager</span>
-          </button>
+            <span>{t("feed.share_btn", "Partager")}</span>
+          </motion.button>
         </div>
 
         {/* Reply Composer */}
@@ -356,27 +382,28 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
             <textarea
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
-              placeholder="Publiez votre réponse..."
+              placeholder={t("feed.reply_publish", "Publiez votre réponse...")}
               rows={1}
-              className="flex-1 text-[13px] border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-lg p-2.5 h-10 resize-none outline-none transition-all"
+              className="flex-1 text-[13px] border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-[var(--radius-element)] p-2.5 h-10 resize-none outline-none transition-all"
               required
             />
-            <button
+            <motion.button
               type="submit"
+              whileTap={{ scale: 0.95 }}
               disabled={sendingReply || !replyText.trim()}
-              className="bg-neutral-900 text-white p-2.5 rounded-lg flex items-center justify-center cursor-pointer h-10 w-10 shrink-0 hover:bg-neutral-800 transition-colors"
+              className="bg-neutral-900 text-white p-2.5 rounded-[var(--radius-button)] flex items-center justify-center cursor-pointer h-10 w-10 shrink-0 hover:bg-neutral-800 transition-colors disabled:opacity-40"
             >
               {sendingReply ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            </button>
+            </motion.button>
           </form>
         )}
 
         {/* Recursive Comments list */}
         <div className="space-y-4 pt-2">
-          <h4 className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2.5">Fils de discussion</h4>
+          <h4 className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2.5">{t("feed.replies_header", "Fils de discussion")}</h4>
           <div className="space-y-4">
             {post.replies && post.replies.length === 0 ? (
-              <p className="text-[11px] text-neutral-400 font-medium italic py-2 pl-1">Aucune réponse pour le moment. Engagez la discussion !</p>
+              <p className="text-[11px] text-neutral-400 font-medium italic py-2 pl-1">{t("feed.no_replies", "Aucune réponse pour le moment. Engagez la discussion !")}</p>
             ) : (
               post.replies?.map((reply: any) => (
                 <CommentThread 
@@ -421,7 +448,7 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
               <img 
                 src={lightboxImage} 
                 alt="Fullscreen post image" 
-                className="w-auto h-auto max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl" 
+                className="w-auto h-auto max-w-full max-h-[85vh] object-contain rounded-[var(--radius-card)] shadow-2xl" 
               />
             </motion.div>
           </div>
@@ -451,6 +478,7 @@ function CommentThread({
   const [liked, setLiked] = useState(reply.likes?.some((l: any) => l.userId === currentUserId) || false)
   const [likesCount, setLikesCount] = useState(reply.likes?.length || 0)
   const { addTab } = useTabStore()
+  const { t } = useTranslate()
 
   const handleOpenProfile = () => {
     const targetUsername = reply.author.username || reply.author.subdomain
@@ -467,6 +495,7 @@ function CommentThread({
     if (!currentUserId) return
     setLiked((prev: boolean) => !prev)
     setLikesCount((prev: number) => liked ? prev - 1 : prev + 1)
+    trackEvent("comment_like", { replyId: reply.id, liked: !liked })
     await toggleLikePost(reply.id)
   }
 
@@ -474,6 +503,7 @@ function CommentThread({
     e.preventDefault()
     if (!replyText.trim() || !currentUserId) return
     setSending(true)
+    trackEvent("comment_reply", { parentReplyId: reply.id })
     const res = await replyToPost({ postId: reply.id, content: replyText })
     setSending(false)
     if (res.success && res.data?.reply) {
@@ -484,14 +514,15 @@ function CommentThread({
   }
 
   const handleDelete = async () => {
-    if (!confirm("Voulez-vous supprimer cette réponse ?")) return
+    if (!confirm(t("feed.msg_confirm_delete_reply", "Voulez-vous supprimer cette réponse ?"))) return
     setDeleting(true)
+    trackEvent("comment_delete", { replyId: reply.id })
     const res = await deletePost(reply.id)
     if (res.success) {
       onReplyDeleted(reply.id)
     } else {
       setDeleting(false)
-      alert("Erreur lors de la suppression.")
+      alert(t("feed.msg_error_delete", "Erreur lors de la suppression."))
     }
   }
 
@@ -500,29 +531,42 @@ function CommentThread({
   return (
     <div className="space-y-3 pl-3 border-l border-neutral-100 relative group/comment mt-4">
       <div className="flex items-center gap-2.5">
-        <button onClick={handleOpenProfile} className="w-6 h-6 rounded-md overflow-hidden border border-neutral-200/30 shrink-0 shadow-xs cursor-pointer hover:opacity-85 transition-opacity outline-none">
+        <motion.button 
+          onClick={handleOpenProfile} 
+          whileTap={{ scale: 0.98 }}
+          className="w-6 h-6 rounded-[var(--radius-icon)] overflow-hidden border border-neutral-200/30 shrink-0 shadow-xs cursor-pointer hover:opacity-85 transition-opacity outline-none"
+        >
           {reply.author.logoUrl ? (
             <img src={reply.author.logoUrl} className="w-full h-full object-cover" alt="" />
           ) : (
-            <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-[9px] text-[#EE4B2B]">
+            <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-[9px] text-[var(--qoe-vermillion)]">
               {reply.author.name?.charAt(0)}
             </div>
           )}
-        </button>
-        <button onClick={handleOpenProfile} className="flex items-center text-left hover:text-[#EE4B2B] transition-colors cursor-pointer outline-none">
+        </motion.button>
+        <motion.button 
+          onClick={handleOpenProfile} 
+          whileTap={{ scale: 0.98 }}
+          className="flex items-center text-left hover:text-[var(--qoe-vermillion)] transition-colors cursor-pointer outline-none"
+        >
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-semibold text-neutral-800 block leading-none">{reply.author.name}</span>
-            {reply.author.isCertified && <span className="text-[#EE4B2B] text-[8px] font-black">✓</span>}
+            {reply.author.isCertified && <span className="text-[var(--qoe-vermillion)] text-[8px] font-black">✓</span>}
           </div>
           <span className="text-[9px] text-neutral-400 ml-2">@{reply.author.username}</span>
-        </button>
+        </motion.button>
         
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[9px] text-neutral-400">{new Date(reply.createdAt).toLocaleDateString()}</span>
           {currentUserId === reply.authorId && (
-            <button onClick={handleDelete} className="text-neutral-400 hover:text-red-500 transition-colors opacity-0 group-hover/comment:opacity-100 cursor-pointer">
+            <motion.button
+              onClick={handleDelete}
+              whileTap={{ scale: 0.95 }}
+              className="w-11 h-11 -my-4 -mr-4 flex items-center justify-center rounded-[var(--radius-button)] text-neutral-400 hover:text-red-500 transition-colors opacity-0 group-hover/comment:opacity-100 cursor-pointer"
+              title={t("feed.delete_post", "Supprimer le post")}
+            >
               <Trash2 className="w-3 h-3" />
-            </button>
+            </motion.button>
           )}
         </div>
       </div>
@@ -533,21 +577,23 @@ function CommentThread({
 
       {/* Sub-comment actions */}
       <div className="flex items-center gap-4 pl-8 text-[10px] text-neutral-400 font-semibold">
-        <button 
+        <motion.button 
           onClick={handleLike}
-          className={cn("flex items-center gap-1.5 hover:text-[#EE4B2B] transition-colors cursor-pointer", liked && "text-[#EE4B2B]")}
+          whileTap={{ scale: 0.98 }}
+          className={cn("flex items-center gap-1.5 hover:text-[var(--qoe-vermillion)] transition-colors cursor-pointer px-2 py-1 rounded-[var(--radius-button)] hover:bg-neutral-50", liked && "text-[var(--qoe-vermillion)]")}
         >
-          <LikeIcon className="w-3.5 h-3.5" style={{ fill: liked ? "#EE4B2B" : "transparent" }} />
+          <LikeIcon className="w-3.5 h-3.5" style={{ fill: liked ? "var(--qoe-vermillion)" : "transparent" }} />
           <span>{likesCount}</span>
-        </button>
+        </motion.button>
 
-        <button 
+        <motion.button 
           onClick={() => setShowReplyForm(prev => !prev)}
-          className="flex items-center gap-1.5 hover:text-neutral-700 transition-colors cursor-pointer"
+          whileTap={{ scale: 0.98 }}
+          className="flex items-center gap-1.5 hover:text-neutral-700 transition-colors cursor-pointer px-2 py-1 rounded-[var(--radius-button)] hover:bg-neutral-50"
         >
           <CommentIcon className="w-3.5 h-3.5" />
-          <span>Répondre</span>
-        </button>
+          <span>{t("feed.reply_btn", "Répondre")}</span>
+        </motion.button>
       </div>
 
       <AnimatePresence>
@@ -563,17 +609,18 @@ function CommentThread({
               type="text"
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
-              placeholder="Écrire une réponse..."
-              className="flex-1 text-[11px] border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-md p-2 h-8 outline-none transition-all"
+              placeholder={t("feed.reply_placeholder", "Écrire une réponse...")}
+              className="flex-1 text-[11px] border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-[var(--radius-element)] p-2 h-8 outline-none transition-all"
               required
             />
-            <button
+            <motion.button
               type="submit"
+              whileTap={{ scale: 0.95 }}
               disabled={sending}
-              className="bg-neutral-900 text-white p-2 rounded-md h-8 w-8 flex items-center justify-center cursor-pointer disabled:opacity-40"
+              className="bg-neutral-900 text-white p-2 rounded-[var(--radius-button)] h-8 w-8 flex items-center justify-center cursor-pointer disabled:opacity-40"
             >
-              {sending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-            </button>
+              {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+            </motion.button>
           </motion.form>
         )}
       </AnimatePresence>

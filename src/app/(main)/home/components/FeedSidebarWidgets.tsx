@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Compass, TrendingUp, UserCheck, UserPlus, BookOpen, Highlighter, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTabStore } from "@/lib/use-tab-store"
+import { useTranslate } from "@tolgee/react"
 
 interface SuggestedCreator {
   id: string
@@ -35,6 +36,7 @@ export function FeedSidebarWidgets({
   userStats,
 }: FeedSidebarWidgetsProps) {
   const { addTab } = useTabStore()
+  const { t } = useTranslate()
   const [followedLocally, setFollowedLocally] = useState<Set<string>>(new Set())
   const [justFollowed, setJustFollowed] = useState<string | null>(null)
 
@@ -60,12 +62,12 @@ export function FeedSidebarWidgets({
         <div className="pb-6 border-b border-[var(--border-default)]">
           <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] flex items-center gap-2 mb-4">
             <TrendingUp className="w-3 h-3" strokeWidth={2.5} />
-            Votre semaine
+            {t("feed.your_week", "Votre semaine")}
           </span>
           <div className="grid grid-cols-3 gap-3">
-            <StatCell icon={BookOpen} value={userStats.articlesRead} label="Lus" />
-            <StatCell icon={Highlighter} value={userStats.highlights} label="Surlignages" />
-            <StatCell icon={Users} value={userStats.following} label="Abonnements" />
+            <StatCell icon={BookOpen} value={userStats.articlesRead} label={t("feed.stat_read", "Lus")} />
+            <StatCell icon={Highlighter} value={userStats.highlights} label={t("feed.stat_highlights", "Surlignages")} />
+            <StatCell icon={Users} value={userStats.following} label={t("feed.stat_following", "Abonnements")} />
           </div>
         </div>
       )}
@@ -76,10 +78,10 @@ export function FeedSidebarWidgets({
           <div className="flex items-center justify-between mb-4">
             <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] flex items-center gap-2">
               <Compass className="w-3 h-3" strokeWidth={2.5} />
-              À Découvrir
+              {t("feed.to_discover", "À Découvrir")}
             </span>
-            <button className="text-[9px] font-bold text-[var(--text-tertiary)] hover:text-[var(--qoe-vermillion)] transition-colors">
-              Voir +
+            <button className="text-[9px] font-bold text-[var(--text-tertiary)] hover:text-[var(--qoe-vermillion)] transition-colors cursor-pointer">
+              {t("feed.see_more", "Voir +")}
             </button>
           </div>
 
@@ -91,13 +93,14 @@ export function FeedSidebarWidgets({
               return (
                 <div key={creator.id} className="flex items-center justify-between gap-3 group/sug">
                   {/* Profile */}
-                  <button
+                  <motion.button
                     onClick={() => addTab({
                       id: `profile-${creator.username || creator.subdomain}`,
                       title: creator.name || `@${creator.username || creator.subdomain}`,
                       type: "profile",
                       username: creator.username || creator.subdomain || ""
                     })}
+                    whileTap={{ scale: 0.98 }}
                     className="flex items-center gap-2.5 min-w-0 hover:opacity-85 transition-opacity cursor-pointer flex-1 outline-none text-left"
                   >
                     <div className="w-8 h-8 rounded-[var(--radius-icon)] overflow-hidden border border-[var(--border-default)] shrink-0 transition-transform duration-300 group-hover/sug:scale-105">
@@ -117,11 +120,11 @@ export function FeedSidebarWidgets({
                         @{creator.username || creator.subdomain}
                       </span>
                     </div>
-                  </button>
+                  </motion.button>
 
                   {/* Follow button avec micro-animation */}
                   <motion.button
-                    whileTap={{ scale: 0.9 }}
+                    whileTap={{ scale: 0.98 }}
                     transition={springs.follow}
                     onClick={() => handleFollow(creator)}
                     className={cn(
@@ -144,17 +147,17 @@ export function FeedSidebarWidgets({
                           className="flex items-center gap-1"
                         >
                           <UserCheck className="w-3 h-3" />
-                          Abonné !
+                          {t("feed.subscribed_alert", "Abonné !")}
                         </motion.span>
                       ) : isFollowedLocally ? (
                         <motion.span key="followed" className="flex items-center gap-1">
                           <UserCheck className="w-3 h-3" />
-                          Abonné
+                          {t("feed.subscribed", "Abonné")}
                         </motion.span>
                       ) : (
                         <motion.span key="follow" className="flex items-center gap-1">
                           <UserPlus className="w-3 h-3" />
-                          Suivre
+                          {t("feed.subscribe", "Suivre")}
                         </motion.span>
                       )}
                     </AnimatePresence>

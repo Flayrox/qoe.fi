@@ -4,6 +4,7 @@ import React from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Sparkles, Users, Compass, BookMarked, SlidersHorizontal } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useTranslate } from "@tolgee/react"
 
 interface FeedTabsHeaderProps {
   activeFeed: string
@@ -15,14 +16,16 @@ const springs = {
   indicator: { type: "spring" as const, stiffness: 500, damping: 36, mass: 0.6 },
 }
 
-const tabs = [
-  { id: "recommandation", label: "Pour vous",    icon: Sparkles   },
-  { id: "abonnement",     label: "Abonnements",  icon: Users      },
-  { id: "decouvrir",      label: "Explorer",     icon: Compass    },
-  { id: "bookmarks",      label: "Bibliothèque", icon: BookMarked },
-]
-
 export function FeedTabsHeader({ activeFeed, onTabChange, totalCount }: FeedTabsHeaderProps) {
+  const { t } = useTranslate()
+
+  const tabs = [
+    { id: "recommandation", label: t("feed.tab_for_you", "Pour vous"),    icon: Sparkles   },
+    { id: "abonnement",     label: t("feed.tab_following", "Abonnements"),  icon: Users      },
+    { id: "decouvrir",      label: t("feed.tab_discover", "Explorer"),     icon: Compass    },
+    { id: "bookmarks",      label: t("feed.tab_library", "Bibliothèque"), icon: BookMarked },
+  ]
+
   return (
     <div
       className={cn(
@@ -40,9 +43,10 @@ export function FeedTabsHeader({ activeFeed, onTabChange, totalCount }: FeedTabs
           const active = activeFeed === tab.id
 
           return (
-            <button
+            <motion.button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
+              whileTap={{ scale: 0.98 }}
               className={cn(
                 "relative flex items-center gap-1.5 px-4 py-3.5",
                 "text-[12px] font-semibold tracking-tight",
@@ -71,7 +75,7 @@ export function FeedTabsHeader({ activeFeed, onTabChange, totalCount }: FeedTabs
                   style={{ boxShadow: "0 0 8px var(--qoe-vermillion-glow)" }}
                 />
               )}
-            </button>
+            </motion.button>
           )
         })}
       </div>
@@ -98,7 +102,8 @@ export function FeedTabsHeader({ activeFeed, onTabChange, totalCount }: FeedTabs
         </AnimatePresence>
 
         {/* Filters button */}
-        <button
+        <motion.button
+          whileTap={{ scale: 0.98 }}
           className={cn(
             "flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-button)]",
             "text-[10px] font-semibold text-[var(--text-tertiary)]",
@@ -106,11 +111,11 @@ export function FeedTabsHeader({ activeFeed, onTabChange, totalCount }: FeedTabs
             "border border-transparent hover:border-[var(--border-subtle)]",
             "transition-all duration-200 outline-none cursor-pointer"
           )}
-          aria-label="Filtres avancés"
+          aria-label={t("feed.filters_adv", "Filtres avancés")}
         >
           <SlidersHorizontal className="w-3 h-3" strokeWidth={2} />
-          <span className="hidden sm:block">Filtres</span>
-        </button>
+          <span className="hidden sm:block">{t("feed.filters_btn", "Filtres")}</span>
+        </motion.button>
       </div>
     </div>
   )
