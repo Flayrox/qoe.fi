@@ -379,7 +379,7 @@ function CardFooter({
       {/* Left : Category · Time · Premium */}
       <div className="flex items-center gap-2">
         {article.category && (
-          <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary)] font-mono">
+          <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary)] font-sans">
             {article.category.name}
           </span>
         )}
@@ -387,7 +387,7 @@ function CardFooter({
         {article.readingTime > 0 && (
           <>
             {article.category && <span className="text-[var(--text-quaternary)] text-xs">·</span>}
-            <span className="flex items-center gap-1 text-[9px] text-[var(--text-tertiary)] font-mono">
+            <span className="flex items-center gap-1 text-[9px] text-[var(--text-tertiary)] font-sans">
               <Clock className="w-2.5 h-2.5" strokeWidth={2} />
               {t("feed.reading_time", { count: article.readingTime })}
             </span>
@@ -397,7 +397,7 @@ function CardFooter({
         {article.isPremium && (
           <>
             <span className="text-[var(--text-quaternary)] text-xs">·</span>
-            <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--qoe-vermillion)] font-mono">
+            <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--qoe-vermillion)] font-sans">
               <Crown className="w-2.5 h-2.5" />
               {t("feed.premium_badge", "Premium")}
             </span>

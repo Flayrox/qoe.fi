@@ -96,7 +96,7 @@ export function MicroPostCard({ post }: { post: MicroPostData }) {
   const hasWarning = !!post.triggerWarning && !isRevealed
 
   return (
-    <div className="py-4 border-b border-[var(--border-default)] flex flex-col gap-5 hover:scale-[1.001] transition-all duration-500 ease-[0.16,1,0.3,1]">
+    <div className="py-4 border-b border-neutral-100/70 flex flex-col gap-5 hover:scale-[1.001] transition-all duration-500 ease-[0.16,1,0.3,1]">
       {post.isPinned && (
         <div className="flex items-center gap-1.5 text-[9px] font-bold text-[var(--qoe-vermillion)] uppercase tracking-wider pl-1">
           <Pin className="w-3 h-3 fill-current rotate-45" />

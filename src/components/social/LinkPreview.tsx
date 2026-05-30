@@ -15,6 +15,8 @@ export function LinkPreview({ urls }: LinkPreviewProps) {
   const [loading, setLoading] = useState<boolean>(false)
   const { addTab } = useTabStore()
 
+  const urlsKey = urls.join(",")
+
   useEffect(() => {
     let active = true
 
@@ -56,7 +58,7 @@ export function LinkPreview({ urls }: LinkPreviewProps) {
     return () => {
       active = false
     }
-  }, [urls])
+  }, [urlsKey])
 
   if (loading) {
     return (
