@@ -89,29 +89,36 @@ export function MicroPostComposer({
   }
 
   return (
-    <div className="bg-white rounded-[24px] p-6 border border-neutral-200/60 flex flex-col gap-4 shadow-sm transition-all duration-400 ease-[0.16,1,0.3,1] hover:shadow-md">
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-lg overflow-hidden border border-neutral-200/40 shrink-0 shadow-xs">
+    <div
+      className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 border border-[var(--border-default)] flex flex-col gap-4 transition-all duration-400 ease-[0.16,1,0.3,1]"
+      style={{ boxShadow: "var(--shadow-card)" }}
+    >
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full overflow-hidden border border-[var(--border-default)] shrink-0">
           {dbUser?.logoUrl ? (
             <img src={dbUser.logoUrl} className="w-full h-full object-cover" alt="" />
           ) : (
-            <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-[#EE4B2B] text-[10px]">
+            <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-[var(--qoe-vermillion)] text-[10px]">
               {dbUser?.name?.charAt(0).toUpperCase() || "L"}
             </div>
           )}
         </div>
-        <span className="text-xs font-semibold text-neutral-800">Partagez votre pensée</span>
+        <span className="text-[12px] font-semibold text-[var(--text-secondary)]">Partagez une pensée</span>
       </div>
 
       <form onSubmit={handlePostSubmit} className="space-y-3.5">
         <textarea
-          placeholder="Qu'avez-vous en tête aujourd'hui ?"
+          placeholder="Quelle est votre pensée du jour ?"
           value={postText}
           onChange={(e) => setPostText(e.target.value)}
           onFocus={() => setIsComposerExpanded(true)}
           className={cn(
-            "w-full text-[13px] font-sans focus:outline-none resize-none transition-all duration-300 placeholder-neutral-400 text-neutral-800 rounded-xl bg-neutral-50/50 border border-neutral-200/40 p-3.5 focus:ring-2 focus:ring-[#EE4B2B]/10",
-            isComposerExpanded ? "h-24 focus:bg-white focus:border-[#EE4B2B]/30" : "h-11"
+            "w-full font-serif text-[14px] focus:outline-none resize-none transition-all duration-300",
+            "placeholder:text-[var(--text-quaternary)] text-[var(--text-primary)]",
+            "rounded-[var(--radius-element)] bg-[var(--surface-1)] border border-[var(--border-default)]",
+            "p-4 focus:ring-2 focus:ring-[var(--qoe-vermillion)]/15 focus:border-[var(--qoe-vermillion)]/30",
+            "focus:bg-[var(--surface-0)] leading-relaxed",
+            isComposerExpanded ? "h-28" : "h-12"
           )}
         />
 
@@ -125,13 +132,13 @@ export function MicroPostComposer({
               className="flex flex-col gap-3.5 overflow-hidden"
             >
               <div className="flex flex-wrap gap-1.5 items-center">
-                <span className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 mr-1 font-mono">Hashtags:</span>
+                <span className="text-[9px] uppercase tracking-wider font-bold text-[var(--text-quaternary)] mr-1 font-mono">Hashtags:</span>
                 {tagsList.map(tag => (
                   <button
                     type="button"
                     key={tag}
                     onClick={() => insertHashtag(tag)}
-                    className="text-[10px] bg-neutral-50 hover:bg-[#EE4B2B]/5 hover:text-[#EE4B2B] font-semibold px-2.5 py-1 rounded-lg border border-neutral-200/30 transition-all duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none"
+                    className="text-[10px] bg-[var(--surface-2)] hover:bg-[var(--qoe-vermillion-08)] hover:text-[var(--qoe-vermillion)] font-semibold px-2.5 py-1 rounded-full border border-[var(--border-subtle)] transition-all duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none"
                   >
                     {tag}
                   </button>
@@ -151,22 +158,22 @@ export function MicroPostComposer({
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-3.5 border-t border-neutral-100">
+              <div className="flex items-center justify-between pt-3.5 border-t border-[var(--border-subtle)]">
                 <div className="flex items-center gap-2">
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="text-[11px] bg-neutral-50/50 hover:bg-neutral-100/50 font-semibold border border-neutral-200/60 px-3 py-2 rounded-xl text-neutral-600 focus:outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30"
+                    className="text-[11px] bg-[var(--surface-1)] font-semibold border border-[var(--border-default)] px-3 py-2 rounded-[var(--radius-button)] text-[var(--text-secondary)] focus:outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30"
                   >
                     <option value="Philosophie">Philosophie</option>
                     <option value="Politique">Politique</option>
                     <option value="Micro-post">Micro-post</option>
-                    <option value="Souveraineté">Souveraineté</option>
+                    <option value="Souveraïneté">Souveraïneté</option>
                   </select>
 
-                  <label className="cursor-pointer p-2 rounded-xl border border-neutral-200/60 bg-neutral-50/50 hover:bg-neutral-100/50 text-neutral-500 hover:text-neutral-700 transition-all flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none">
+                  <label className="cursor-pointer p-2 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-1)] hover:bg-[var(--surface-2)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-all flex items-center justify-center">
                     {uploadingPostImage ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#EE4B2B]" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--qoe-vermillion)]" />
                     ) : (
                       <Image className="w-3.5 h-3.5" />
                     )}
@@ -187,14 +194,15 @@ export function MicroPostComposer({
                       setIsComposerExpanded(false)
                       setPostImageUrl("")
                     }}
-                    className="px-4 py-2 border border-neutral-200/60 rounded-xl text-xs font-semibold text-neutral-500 hover:bg-neutral-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none"
+                    className="px-3.5 py-2 border border-[var(--border-default)] rounded-[var(--radius-button)] text-xs font-semibold text-[var(--text-tertiary)] hover:bg-[var(--surface-2)] cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none transition-colors"
                   >
                     Annuler
                   </button>
                   <button
                     type="submit"
                     disabled={!postText.trim() || uploadingPostImage}
-                    className="bg-[#EE4B2B] text-white hover:bg-[#d63d20] disabled:bg-neutral-50 disabled:text-neutral-400 disabled:border-neutral-200/40 disabled:shadow-none transition-all duration-300 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none"
+                    className="bg-[var(--qoe-vermillion)] text-white hover:bg-[#d63d20] disabled:bg-[var(--surface-2)] disabled:text-[var(--text-quaternary)] transition-all duration-300 px-4 py-2 rounded-[var(--radius-button)] text-xs font-bold flex items-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none"
+                    style={{ boxShadow: "0 2px 8px var(--qoe-vermillion-glow)" }}
                   >
                     Publier <Send className="w-3 h-3" />
                   </button>

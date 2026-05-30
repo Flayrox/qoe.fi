@@ -1,7 +1,8 @@
 "use client"
 
 import React from "react"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
+import { Sparkles, Users, Compass, BookMarked, SlidersHorizontal } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface FeedTabsHeaderProps {
@@ -11,45 +12,106 @@ interface FeedTabsHeaderProps {
 }
 
 const springs = {
-  tab: { type: "spring" as const, stiffness: 450, damping: 32, mass: 0.7 }
+  indicator: { type: "spring" as const, stiffness: 500, damping: 36, mass: 0.6 },
 }
 
-export function FeedTabsHeader({ activeFeed, onTabChange, totalCount }: FeedTabsHeaderProps) {
-  const tabs = [
-    { id: "recommandation", label: "Recommandation" },
-    { id: "abonnement", label: "Abonnement" },
-    { id: "decouvrir", label: "Découvrir" }
-  ]
+const tabs = [
+  { id: "recommandation", label: "Pour vous",    icon: Sparkles   },
+  { id: "abonnement",     label: "Abonnements",  icon: Users      },
+  { id: "decouvrir",      label: "Explorer",     icon: Compass    },
+  { id: "bookmarks",      label: "Bibliothèque", icon: BookMarked },
+]
 
+export function FeedTabsHeader({ activeFeed, onTabChange, totalCount }: FeedTabsHeaderProps) {
   return (
-    <div className="sticky top-0 z-40 py-4 bg-[#FAFAFA]/80 backdrop-blur-2xl border-b-[0.5px] border-neutral-200/50 flex items-center justify-between transition-all duration-300 -mx-4 px-4 sm:-mx-6 sm:px-6 mb-2">
-      <div className="flex items-center gap-1 p-1 bg-neutral-200/30 backdrop-blur-md rounded-[20px] shadow-inner">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className="relative px-5 py-2.5 rounded-[16px] text-[13px] font-bold tracking-tight transition-all duration-300 flex items-center justify-center outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30"
-          >
-            {activeFeed === tab.id && (
-              <motion.div
-                layoutId="activeFeedTab"
-                transition={springs.tab}
-                className="absolute inset-0 bg-white rounded-[16px] shadow-sm border-[0.5px] border-neutral-200/50"
+    <div
+      className={cn(
+        "sticky top-0 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6",
+        "bg-[var(--surface-1)]/85 backdrop-blur-2xl",
+        "border-b border-[var(--border-subtle)]",
+        "flex items-center justify-between",
+        "transition-all duration-300"
+      )}
+    >
+      {/* Tabs row */}
+      <div className="flex items-end gap-0">
+        {tabs.map(tab => {
+          const Icon = tab.icon
+          const active = activeFeed === tab.id
+
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={cn(
+                "relative flex items-center gap-1.5 px-4 py-3.5",
+                "text-[12px] font-semibold tracking-tight",
+                "outline-none cursor-pointer transition-colors duration-200",
+                "focus-visible:ring-1 focus-visible:ring-[var(--qoe-vermillion)]/30 rounded-t-lg",
+                active
+                  ? "text-[var(--text-primary)]"
+                  : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+              )}
+            >
+              <Icon
+                className={cn(
+                  "w-3.5 h-3.5 shrink-0 transition-colors duration-200",
+                  active ? "text-[var(--qoe-vermillion)]" : "text-current"
+                )}
+                strokeWidth={active ? 2.5 : 2}
               />
-            )}
-            <span className={cn(
-              "relative z-10 transition-colors duration-300", 
-              activeFeed === tab.id ? "text-neutral-900" : "text-neutral-500 hover:text-neutral-700"
-            )}>
-              {tab.label}
-            </span>
-          </button>
-        ))}
+              <span>{tab.label}</span>
+
+              {/* Underline indicator — Linear-style */}
+              {active && (
+                <motion.div
+                  layoutId="feedTabIndicator"
+                  transition={springs.indicator}
+                  className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-[var(--qoe-vermillion)]"
+                  style={{ boxShadow: "0 0 8px var(--qoe-vermillion-glow)" }}
+                />
+              )}
+            </button>
+          )
+        })}
       </div>
-      
-      <span className="text-[10px] font-mono text-neutral-400 font-bold uppercase tracking-[0.1em] px-3 py-1.5">
-        {totalCount} pubs
-      </span>
+
+      {/* Right : Count badge + Filters */}
+      <div className="flex items-center gap-2 py-3">
+        {/* Dynamic count badge */}
+        <AnimatePresence mode="wait">
+          <motion.span
+            key={totalCount}
+            initial={{ opacity: 0, y: -4, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.9 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className={cn(
+              "text-[10px] font-bold font-mono px-2 py-0.5 rounded-full tabular-nums",
+              totalCount > 0
+                ? "bg-[var(--surface-2)] text-[var(--text-tertiary)]"
+                : "text-[var(--text-quaternary)]"
+            )}
+          >
+            {totalCount > 0 ? totalCount : "∅"}
+          </motion.span>
+        </AnimatePresence>
+
+        {/* Filters button */}
+        <button
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--radius-button)]",
+            "text-[10px] font-semibold text-[var(--text-tertiary)]",
+            "hover:bg-[var(--surface-2)] hover:text-[var(--text-secondary)]",
+            "border border-transparent hover:border-[var(--border-subtle)]",
+            "transition-all duration-200 outline-none cursor-pointer"
+          )}
+          aria-label="Filtres avancés"
+        >
+          <SlidersHorizontal className="w-3 h-3" strokeWidth={2} />
+          <span className="hidden sm:block">Filtres</span>
+        </button>
+      </div>
     </div>
   )
 }

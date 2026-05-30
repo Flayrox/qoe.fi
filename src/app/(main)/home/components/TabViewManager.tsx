@@ -9,6 +9,7 @@ import { ArticleReaderView } from "./ArticleReaderView"
 import { ProfileTabReader } from "./ProfileTabReader"
 import { cn } from "@/lib/utils"
 import { TabErrorBoundary } from "@/components/ui/TabErrorBoundary"
+import { ReadingProgressBar } from "@/components/ui/ReadingProgressBar"
 
 interface TabViewManagerProps {
   feedProps: any
@@ -74,15 +75,23 @@ export function TabViewManager({ feedProps }: TabViewManagerProps) {
     }
   }, [activeTabId, tabs])
 
+  const isReadingContent = ["article", "post"].includes(
+    tabs.find(t => t.id === activeTabId)?.type || ""
+  )
+
   return (
-    <div className="space-y-4 flex flex-col h-[calc(100vh-48px)]">
+    <div className="space-y-3 flex flex-col h-[calc(100vh-48px)]">
+      {/* Reading Progress Bar — article/post tabs only */}
+      <ReadingProgressBar active={isReadingContent} containerRef={scrollContainerRef as React.RefObject<HTMLElement>} />
+
       {/* Sliding Browser-like Tab bar */}
       <TabBar />
 
       {/* Main scrolling viewport */}
-      <div 
+      <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto pr-1 h-full custom-scrollbar"
+        className="flex-1 overflow-y-auto pr-0.5 h-full"
+        style={{ scrollbarWidth: "thin", scrollbarColor: "var(--surface-3) transparent" }}
       >
         {/* Core timeline is kept in DOM but hidden to conserve scroll & state */}
         <div className={activeTabId === "timeline" ? "block" : "hidden"}>

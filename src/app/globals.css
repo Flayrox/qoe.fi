@@ -226,6 +226,51 @@
 
   /* Grid background */
   --grid-color: rgba(238, 75, 43, 0.015);
+
+  /* ═══════════════════════════════════════════════════
+     QOE.FI v2 — Design Tokens (Nested Radius System)
+     ═══════════════════════════════════════════════════ */
+
+  /* Brand */
+  --qoe-vermillion: #EE4B2B;
+  --qoe-vermillion-10: rgba(238, 75, 43, 0.10);
+  --qoe-vermillion-08: rgba(238, 75, 43, 0.08);
+  --qoe-vermillion-glow: rgba(238, 75, 43, 0.15);
+
+  /* Surface System — Layered Paper */
+  --surface-0: #FFFFFF;
+  --surface-1: #FAFAFA;
+  --surface-2: #F5F5F4;
+  --surface-3: #EBEBEA;
+
+  /* Text Hierarchy */
+  --text-primary: #0D0D0D;
+  --text-secondary: #525252;
+  --text-tertiary: #A3A3A3;
+  --text-quaternary: #D4D4D4;
+
+  /* Border System */
+  --border-subtle:  rgba(0, 0, 0, 0.04);
+  --border-default: rgba(0, 0, 0, 0.08);
+  --border-strong:  rgba(0, 0, 0, 0.14);
+
+  /* Shadow Vocabulary — Jamais de shadow dure */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05);
+  --shadow-card-hover: 0 4px 16px rgba(0,0,0,0.06), 0 24px 48px rgba(0,0,0,0.07);
+  --shadow-elevated: 0 16px 48px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.04);
+  --shadow-sidebar: 2px 0 24px rgba(0,0,0,0.04);
+
+  /* Nested Radius — La Règle Bento */
+  --radius-plateau: 32px;   /* Conteneur plateau extérieur */
+  --radius-card:    24px;   /* Carte dans plateau (plateau - padding) */
+  --radius-element: 16px;   /* Éléments dans carte */
+  --radius-chip:    99px;   /* Pills / badges */
+  --radius-button:  12px;   /* Boutons */
+  --radius-icon:    10px;   /* Avatars / icon containers */
+
+  /* Animation Speeds */
+  --spring-snappy: cubic-bezier(0.16, 1, 0.3, 1);
+  --spring-gentle: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ─── Base Layer ─── */
@@ -235,7 +280,7 @@
   }
   body {
     @apply font-body antialiased bg-background text-foreground;
-    background: #ffffff;
+    background: var(--surface-1);
   }
   html {
     @apply font-sans scroll-smooth;

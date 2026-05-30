@@ -191,8 +191,8 @@ export function FeedDashboard({
   const tagsList = ["#souverainete", "#anti-ia", "#attention", "#philosophie", "#design", "#creators"]
 
   return (
-    <div className="pb-24 max-w-6xl mx-auto selection:bg-[#EE4B2B]/10 selection:text-[#EE4B2B]">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 md:gap-14 items-start px-4 sm:px-6 mt-6">
+    <div className="pb-24 max-w-6xl mx-auto selection:bg-[var(--qoe-vermillion-10)] selection:text-[var(--qoe-vermillion)]">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 items-start px-4 sm:px-6 mt-6">
         
         {/* ========================================================================= */}
         {/* MIDDLE COLUMN: Flat editorial feed without the big red background box     */}
@@ -220,17 +220,6 @@ export function FeedDashboard({
             )}
 
             <div className="space-y-4">
-              {selectedTag && (
-                <div className="bg-neutral-50 border border-neutral-200/50 rounded-lg px-4 py-2 text-xs flex items-center justify-between">
-                  <span className="text-neutral-500 font-medium">Filtre actif : <strong className="font-mono text-[#EE4B2B]">#{selectedTag.replace('#','')}</strong></span>
-                  <button 
-                    onClick={() => setSelectedTag(null)}
-                    className="text-[10px] font-bold uppercase tracking-wider text-[#EE4B2B] hover:opacity-85 transition-opacity"
-                  >
-                    Effacer
-                  </button>
-                </div>
-              )}
 
               <AnimatePresence mode="popLayout">
                 {activeFeed === "bookmarks" && currentFeedArticles.length === 0 && (
@@ -256,12 +245,13 @@ export function FeedDashboard({
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="bg-white border border-neutral-200/50 rounded-xl p-12 text-center flex flex-col items-center justify-center gap-3 text-neutral-600 shadow-xs"
+                      className="bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-card)] p-16 text-center flex flex-col items-center justify-center gap-3"
+                      style={{ boxShadow: "var(--shadow-card)" }}
                     >
-                      <AlertCircle className="w-8 h-8 text-neutral-300" />
-                      <h4 className="font-bold text-xs text-neutral-800">Aucun article trouvé</h4>
-                      <p className="text-[11px] text-neutral-400 max-w-xs leading-relaxed">
-                        Essayez d'effacer le tag filtre ou de suivre de nouveaux créateurs dans la liste Découvrir.
+                      <AlertCircle className="w-8 h-8 text-[var(--text-quaternary)]" />
+                      <h4 className="font-bold text-xs text-[var(--text-primary)]">Aucun article trouvé</h4>
+                      <p className="text-[11px] text-[var(--text-tertiary)] max-w-xs leading-relaxed">
+                        Essayez d'effacer le tag filtre ou de suivre de nouveaux créateurs dans la liste Explorer.
                       </p>
                     </motion.div>
                   ) : (
@@ -280,6 +270,7 @@ export function FeedDashboard({
                             isFollowed={isFollowed}
                             handleFollowToggle={handleFollowToggle}
                             handleBookmarkToggle={handleBookmarkToggle}
+                            featured={idx === 0 && activeFeed === "recommandation"}
                           />
                         )
                       })}
@@ -296,9 +287,6 @@ export function FeedDashboard({
         {/* RIGHT COLUMN: Composed Sidebar Widgets                                    */}
         {/* ========================================================================= */}
         <FeedSidebarWidgets 
-          tagsList={tagsList}
-          selectedTag={selectedTag}
-          onTagClick={(tag) => setSelectedTag(selectedTag === tag ? null : tag)}
           suggestedCreators={suggestedCreators}
           onFollowToggle={handleFollowToggle}
         />
