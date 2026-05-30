@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { motion } from "framer-motion"
 import { useTabStore } from "@/lib/use-tab-store"
 import { TextParser } from "@/components/ui/TextParser"
 import { cn } from "@/lib/utils"
@@ -38,6 +39,25 @@ export function MicroPostCard({ post }: { post: MicroPostData }) {
   const [isRevealed, setIsRevealed] = React.useState<boolean>(false)
   const [currentUserId, setCurrentUserId] = React.useState<string | null>(null)
   const [showPopover, setShowPopover] = React.useState<boolean>(false)
+  const [tilt, setTilt] = React.useState({ x: 0, y: 0 })
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+    const card = e.currentTarget
+    const rect = card.getBoundingClientRect()
+    const width = rect.width
+    const height = rect.height
+    const mouseX = e.clientX - rect.left - width / 2
+    const mouseY = e.clientY - rect.top - height / 2
+
+    const rX = -(mouseY / (height / 2)) * 0.8
+    const rY = (mouseX / (width / 2)) * 0.8
+
+    setTilt({ x: rX, y: rY })
+  }
+
+  const handleMouseLeave = () => {
+    setTilt({ x: 0, y: 0 })
+  }
 
   React.useEffect(() => {
     const supabase = createClient()
@@ -97,7 +117,20 @@ export function MicroPostCard({ post }: { post: MicroPostData }) {
   const hasWarning = !!post.triggerWarning && !isRevealed
 
   return (
-    <div className="py-4 border-b border-neutral-100/70 flex flex-col gap-5 hover:scale-[1.001] transition-all duration-500 ease-[0.16,1,0.3,1]">
+    <motion.div
+      animate={{
+        rotateX: tilt.x,
+        rotateY: tilt.y,
+      }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        perspective: 1000,
+        transformStyle: "preserve-3d"
+      }}
+      className="py-4 border-b border-neutral-100/70 flex flex-col gap-5 hover:scale-[1.001] transition-all duration-500 ease-[0.16,1,0.3,1]"
+    >
       {post.isPinned && (
         <div className="flex items-center gap-1.5 text-[9px] font-bold text-[var(--qoe-vermillion)] uppercase tracking-wider pl-1">
           <Pin className="w-3 h-3 fill-current rotate-45" />
@@ -106,29 +139,31 @@ export function MicroPostCard({ post }: { post: MicroPostData }) {
       )}
       <div className="flex items-center justify-between">
         <HoverCard>
-          <HoverCardTrigger asChild>
-            <button 
-              onClick={handleOpenProfile}
-              className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left"
-            >
-              <div className="w-9 h-9 rounded-sm overflow-hidden border-[0.5px] border-neutral-200/50 shrink-0 transition-transform duration-500 group-hover/author:scale-105">
-                {post.author.logoUrl ? (
-                  <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
-                ) : (
-                  <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
-                    {post.author.name?.charAt(0) || "U"}
-                  </div>
-                )}
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[13px] font-bold text-neutral-900 block leading-none group-hover/author:text-[#EE4B2B] transition-colors">{post.author.name}</span>
-                  {post.author.isCertified && <span className="text-[#EE4B2B] text-[10px] font-black">✓</span>}
+          <HoverCardTrigger
+            render={
+              <button 
+                onClick={handleOpenProfile}
+                className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left"
+              >
+                <div className="w-9 h-9 rounded-sm overflow-hidden border-[0.5px] border-neutral-200/50 shrink-0 transition-transform duration-500 group-hover/author:scale-105">
+                  {post.author.logoUrl ? (
+                    <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
+                  ) : (
+                    <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
+                      {post.author.name?.charAt(0) || "U"}
+                    </div>
+                  )}
                 </div>
-                <span className="text-[10px] text-neutral-450 block mt-1 uppercase tracking-wider font-sans">@{post.author.username || post.author.subdomain}</span>
-              </div>
-            </button>
-          </HoverCardTrigger>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[13px] font-bold text-neutral-900 block leading-none group-hover/author:text-[#EE4B2B] transition-colors">{post.author.name}</span>
+                    {post.author.isCertified && <span className="text-[#EE4B2B] text-[10px] font-black">✓</span>}
+                  </div>
+                  <span className="text-[10px] text-neutral-450 block mt-1 uppercase tracking-wider font-sans">@{post.author.username || post.author.subdomain}</span>
+                </div>
+              </button>
+            }
+          />
           
           <HoverCardContent className="w-72 p-4 bg-white border border-neutral-200/50 rounded-lg shadow-xl z-50">
             <div className="flex justify-between space-x-4">
@@ -233,7 +268,7 @@ export function MicroPostCard({ post }: { post: MicroPostData }) {
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   )
 }
 

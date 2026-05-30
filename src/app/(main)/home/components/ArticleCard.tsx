@@ -66,6 +66,27 @@ export function ArticleCard({
 }: ArticleCardProps) {
   const { addTab } = useTabStore()
   const { t } = useTranslate()
+  const [tilt, setTilt] = React.useState({ x: 0, y: 0 })
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+    const card = e.currentTarget
+    const rect = card.getBoundingClientRect()
+    const width = rect.width
+    const height = rect.height
+    const mouseX = e.clientX - rect.left - width / 2
+    const mouseY = e.clientY - rect.top - height / 2
+
+    // Calcul de l'inclinaison max 0.8 degré
+    const rX = -(mouseY / (height / 2)) * 0.8
+    const rY = (mouseX / (width / 2)) * 0.8
+
+    setTilt({ x: rX, y: rY })
+  }
+
+  const handleMouseLeave = () => {
+    setTilt({ x: 0, y: 0 })
+  }
+
   const isMicroPost = !article.title
   const host = article.author.customDomain || `${article.author.subdomain}.localhost:3000`
   const url = isMicroPost ? "#" : `http://${host}/article/${article.slug}`
@@ -150,9 +171,21 @@ export function ArticleCard({
     return (
       <motion.article
         initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
+        animate={{ 
+          opacity: 1, 
+          y: 0,
+          rotateX: tilt.x,
+          rotateY: tilt.y,
+        }}
+        whileTap={{ scale: 0.99 }}
         exit={{ opacity: 0, scale: 0.985 }}
         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          perspective: 1000,
+          transformStyle: "preserve-3d"
+        }}
         className={cn(
           "group relative overflow-hidden cursor-pointer",
           "transition-all duration-500 ease-[0.16,1,0.3,1]",
@@ -170,17 +203,17 @@ export function ArticleCard({
         </div>
 
         <div className="flex flex-col sm:flex-row">
-          {/* Image / Gradient */}
+          {/* Image / Gradient — Cinémascope format */}
           <div className="sm:w-[42%] shrink-0">
             <div
-              className="w-full h-48 sm:h-full min-h-[180px] overflow-hidden"
+              className="w-full h-48 sm:h-full min-h-[180px] aspect-[21/9] sm:aspect-auto overflow-hidden rounded-sm border border-[var(--border-subtle)] bg-neutral-100"
               style={{ background: hasHeroImage ? undefined : getAuthorGradient(article.author.name) }}
             >
               {hasHeroImage && (
                 <img
                   src={article.imageUrl!}
                   alt={article.title}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                  className="w-full h-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03]"
                 />
               )}
             </div>
@@ -191,36 +224,38 @@ export function ArticleCard({
             {/* Author */}
             <div className="flex items-center justify-between mb-5">
               <HoverCard>
-                <HoverCardTrigger asChild>
-                  <motion.button
-                    onClick={handleOpenProfile}
-                    whileTap={{ scale: 0.98 }}
-                    className="flex items-center gap-2.5 hover:opacity-85 transition-opacity group/author outline-none cursor-pointer"
-                  >
-                    <div className="w-8 h-8 rounded-sm overflow-hidden border border-[var(--border-default)] shrink-0">
-                      {article.author.logoUrl ? (
-                        <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
-                      ) : (
-                        <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)]">
-                          {article.author.name?.substring(0, 2) || "NA"}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[13px] font-bold text-[var(--text-primary)] tracking-tight group-hover/author:text-[var(--qoe-vermillion)] transition-colors">
-                          {article.author.name}
-                        </span>
-                        {article.author.isCertified && (
-                          <CertifiedBadge />
+                <HoverCardTrigger
+                  render={
+                    <motion.button
+                      onClick={handleOpenProfile}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex items-center gap-2.5 hover:opacity-85 transition-opacity group/author outline-none cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-sm overflow-hidden border border-[var(--border-default)] shrink-0">
+                        {article.author.logoUrl ? (
+                          <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
+                        ) : (
+                          <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)]">
+                            {article.author.name?.substring(0, 2) || "NA"}
+                          </div>
                         )}
                       </div>
-                      <span className="text-[9px] text-[var(--text-tertiary)] uppercase tracking-wider block mt-0.5">
-                        @{article.author.username || article.author.subdomain} · {formattedDate}
-                      </span>
-                    </div>
-                  </motion.button>
-                </HoverCardTrigger>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[13px] font-bold text-[var(--text-primary)] tracking-tight group-hover/author:text-[var(--qoe-vermillion)] transition-colors">
+                            {article.author.name}
+                          </span>
+                          {article.author.isCertified && (
+                            <CertifiedBadge />
+                          )}
+                        </div>
+                        <span className="text-[9px] text-[var(--text-tertiary)] uppercase tracking-wider block mt-0.5">
+                          @{article.author.username || article.author.subdomain} · {formattedDate}
+                        </span>
+                      </div>
+                    </motion.button>
+                  }
+                />
                 {renderAuthorHoverCard()}
               </HoverCard>
 
@@ -234,8 +269,8 @@ export function ArticleCard({
               <h3 className="font-serif text-[22px] sm:text-[26px] font-bold text-[var(--text-primary)] leading-[1.2] tracking-tight mb-3 group-hover/title:text-[var(--qoe-vermillion)] transition-colors duration-300">
                 <Balancer>{article.title}</Balancer>
               </h3>
-              <p className="font-serif text-[14px] text-[var(--text-secondary)] leading-[1.75] line-clamp-3">
-                {article.content.replace(/<[^>]*>?/gm, "").substring(0, 240)}…
+              <p className="font-serif text-[14px] text-[var(--text-secondary)] leading-[1.75] line-clamp-3 text-fade-gradient font-editorial">
+                {article.content.replace(/<[^>]*>?/gm, "").substring(0, 260)}
               </p>
             </a>
 
@@ -257,22 +292,34 @@ export function ArticleCard({
   return (
     <motion.article
       initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={{ 
+        opacity: 1, 
+        y: 0,
+        rotateX: tilt.x,
+        rotateY: tilt.y,
+      }}
+      whileTap={{ scale: 0.99 }}
       exit={{ opacity: 0, scale: 0.985 }}
       transition={{ duration: 0.25, delay: idx * 0.04, ease: [0.16, 1, 0.3, 1] }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        perspective: 1000,
+        transformStyle: "preserve-3d"
+      }}
       className={cn(
         "group relative overflow-hidden",
         "transition-all duration-500 ease-[0.16,1,0.3,1]",
         "border-b border-[var(--border-default)] pb-8 mb-8"
       )}
     >
-      {/* Cover image */}
+      {/* Cover image — Cinémascope 21/9 */}
       {hasHeroImage && (
-        <div className="w-full aspect-[16/9] overflow-hidden">
+        <div className="w-full aspect-[21/9] overflow-hidden rounded-sm border border-[var(--border-subtle)] bg-neutral-100">
           <img
             src={article.imageUrl!}
             alt={article.title}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+            className="w-full h-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03]"
           />
         </div>
       )}
@@ -280,34 +327,36 @@ export function ArticleCard({
       <div className="py-4 flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <HoverCard>
-            <HoverCardTrigger asChild>
-              <motion.button
-                onClick={handleOpenProfile}
-                whileTap={{ scale: 0.98 }}
-                className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 rounded-[var(--radius-icon)]"
-              >
-                <div className="w-9 h-9 rounded-sm overflow-hidden border border-[var(--border-default)] shrink-0 transition-transform duration-500 ease-[0.16,1,0.3,1] group-hover/author:scale-105">
-                  {article.author.logoUrl ? (
-                    <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
-                  ) : (
-                    <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)]">
-                      {article.author.name?.substring(0, 2) || "NA"}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[13px] font-bold text-[var(--text-primary)] tracking-tight leading-none group-hover/author:text-[var(--qoe-vermillion)] transition-colors duration-200">
-                      {article.author.name}
-                    </span>
-                    {article.author.isCertified && <CertifiedBadge />}
+            <HoverCardTrigger
+              render={
+                <motion.button
+                  onClick={handleOpenProfile}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 rounded-[var(--radius-icon)]"
+                >
+                  <div className="w-9 h-9 rounded-sm overflow-hidden border border-[var(--border-default)] shrink-0 transition-transform duration-500 ease-[0.16,1,0.3,1] group-hover/author:scale-105">
+                    {article.author.logoUrl ? (
+                      <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
+                    ) : (
+                      <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)]">
+                        {article.author.name?.substring(0, 2) || "NA"}
+                      </div>
+                    )}
                   </div>
-                  <span className="text-[9px] text-[var(--text-tertiary)] block mt-1 uppercase tracking-wider">
-                    @{article.author.username || article.author.subdomain} · {formattedDate}
-                  </span>
-                </div>
-              </motion.button>
-            </HoverCardTrigger>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[13px] font-bold text-[var(--text-primary)] tracking-tight leading-none group-hover/author:text-[var(--qoe-vermillion)] transition-colors duration-200">
+                        {article.author.name}
+                      </span>
+                      {article.author.isCertified && <CertifiedBadge />}
+                    </div>
+                    <span className="text-[9px] text-[var(--text-tertiary)] block mt-1 uppercase tracking-wider">
+                      @{article.author.username || article.author.subdomain} · {formattedDate}
+                    </span>
+                  </div>
+                </motion.button>
+              }
+            />
             {renderAuthorHoverCard()}
           </HoverCard>
 
@@ -317,9 +366,8 @@ export function ArticleCard({
               <FollowButton isFollowed={isFollowed} onToggle={() => handleFollowToggle(article.author)} />
             )}
             {/* Bookmark */}
-            <motion.button
+            <MagneticButton
               onClick={() => handleBookmarkToggle(article)}
-              whileTap={{ scale: 0.98 }}
               className={cn(
                 "p-2 rounded-[var(--radius-button)] transition-all duration-300 cursor-pointer",
                 "focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none",
@@ -335,7 +383,7 @@ export function ArticleCard({
                 style={{ fill: isBookmarked ? "currentColor" : "transparent" }}
                 strokeWidth={1.5}
               />
-            </motion.button>
+            </MagneticButton>
           </div>
         </div>
 
@@ -350,8 +398,8 @@ export function ArticleCard({
               <Balancer>{article.title}</Balancer>
             </h3>
           </a>
-          <p className="font-serif text-[14px] text-[var(--text-secondary)] leading-[1.75] line-clamp-2">
-            {article.content.replace(/<[^>]*>?/gm, "").substring(0, 200)}…
+          <p className="font-serif text-[14px] text-[var(--text-secondary)] leading-[1.75] line-clamp-2 text-fade-gradient font-editorial">
+            {article.content.replace(/<[^>]*>?/gm, "").substring(0, 200)}
           </p>
         </div>
 
@@ -450,26 +498,68 @@ function CardFooter({
 
       {/* Right : Floating Action Hub */}
       <div className="flex items-center gap-1 bg-white/95 backdrop-blur-xs border border-neutral-200/40 rounded-full p-1 shadow-[0_3px_10px_rgba(0,0,0,0.03)] opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-0.5 group-hover:translate-y-0">
-        <motion.button
+        <MagneticButton
           onClick={handleOpenInTab}
-          whileTap={{ scale: 0.96 }}
           className="p-1.5 text-neutral-450 hover:text-[var(--qoe-vermillion)] hover:bg-[var(--qoe-vermillion-08)] rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
           title={t("feed.tab_label", "Onglet")}
         >
           <FileText className="w-3.5 h-3.5" strokeWidth={1.5} />
-        </motion.button>
+        </MagneticButton>
         <span className="w-[1px] h-3 bg-neutral-200" />
-        <motion.a
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          whileTap={{ scale: 0.96 }}
+        <MagneticButton
+          onClick={(e) => {
+            e.preventDefault()
+            window.open(url, "_blank", "noreferrer")
+          }}
           className="p-1.5 text-neutral-450 hover:text-[var(--qoe-vermillion)] hover:bg-[var(--qoe-vermillion-08)] rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
           title={t("feed.read_btn", "Lire")}
         >
           <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.5} />
-        </motion.a>
+        </MagneticButton>
       </div>
     </div>
+  )
+}
+
+interface MagneticButtonProps {
+  children: React.ReactNode
+  className?: string
+  range?: number
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void
+  title?: string
+  "aria-label"?: string
+}
+
+export function MagneticButton({ children, className, range = 15, onClick, title, "aria-label": ariaLabel }: MagneticButtonProps) {
+  const [position, setPosition] = React.useState({ x: 0, y: 0 })
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const { clientX, clientY, currentTarget } = e
+    const { left, top, width, height } = currentTarget.getBoundingClientRect()
+    const centerX = left + width / 2
+    const centerY = top + height / 2
+    const distanceX = clientX - centerX
+    const distanceY = clientY - centerY
+
+    setPosition({ x: distanceX * 0.35, y: distanceY * 0.35 })
+  }
+
+  const handleMouseLeave = () => {
+    setPosition({ x: 0, y: 0 })
+  }
+
+  return (
+    <motion.button
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      onClick={onClick}
+      title={title}
+      aria-label={ariaLabel}
+      animate={{ x: position.x, y: position.y }}
+      transition={{ type: "spring", stiffness: 450, damping: 28, mass: 0.6 }}
+      className={className}
+    >
+      {children}
+    </motion.button>
   )
 }

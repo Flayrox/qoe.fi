@@ -480,9 +480,9 @@ export function MicroPostComposer({
   }
 
   return (
-    <div className="pb-6 border-b border-[var(--border-default)] flex flex-col gap-4">
+    <div className="pb-6 border-b border-[var(--border-subtle)] flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full overflow-hidden border border-[var(--border-default)] shrink-0">
+        <div className="w-8 h-8 rounded-sm overflow-hidden border border-[var(--border-default)] shrink-0">
           {dbUser?.logoUrl ? (
             <img src={dbUser.logoUrl} className="w-full h-full object-cover" alt="" />
           ) : (
@@ -491,7 +491,7 @@ export function MicroPostComposer({
             </div>
           )}
         </div>
-        <span className="text-[12px] font-semibold text-[var(--text-secondary)]">Partagez une pensée</span>
+        <span className="text-xs font-bold text-[var(--text-secondary)] tracking-tight">Partagez une pensée</span>
       </div>
 
       <form onSubmit={(e) => handlePostSubmit(e)} className="space-y-3.5">
