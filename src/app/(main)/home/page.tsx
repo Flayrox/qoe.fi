@@ -71,7 +71,22 @@ export default async function ReaderHomePage() {
 
   const dbFollowingPosts = await prisma.post.findMany({
     where: {
-      authorId: { in: [...creatorIds, user.id] } // Show followed + user's posts
+      isDraft: false,
+      OR: [
+        { scheduledAt: null },
+        { scheduledAt: { lte: new Date() } }
+      ],
+      AND: [
+        {
+          OR: [
+            { authorId: user.id },
+            {
+              authorId: { in: creatorIds },
+              visibility: { in: ["public", "followers"] }
+            }
+          ]
+        }
+      ]
     },
     include: {
       author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
@@ -104,6 +119,25 @@ export default async function ReaderHomePage() {
   })
 
   const dbRecPosts = await prisma.post.findMany({
+    where: {
+      isDraft: false,
+      OR: [
+        { scheduledAt: null },
+        { scheduledAt: { lte: new Date() } }
+      ],
+      AND: [
+        {
+          OR: [
+            { visibility: "public" },
+            { authorId: user.id },
+            {
+              authorId: { in: creatorIds },
+              visibility: "followers"
+            }
+          ]
+        }
+      ]
+    },
     include: {
       author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
       likes: { select: { userId: true } },
@@ -138,10 +172,16 @@ export default async function ReaderHomePage() {
 
   const dbDiscoverPosts = await prisma.post.findMany({
     where: {
+      isDraft: false,
+      OR: [
+        { scheduledAt: null },
+        { scheduledAt: { lte: new Date() } }
+      ],
+      visibility: "public",
       author: {
         role: 'creator',
         isCertified: true,
-        id: { notIn: creatorIds }
+        id: { notIn: [...creatorIds, user.id] }
       }
     },
     include: {
