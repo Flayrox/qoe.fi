@@ -10,6 +10,7 @@ export interface MicroPostData {
   content: string
   imageUrl?: string | null
   createdAt: string | Date
+  triggerWarning?: string | null
   author: {
     id: string
     name: string | null
@@ -22,6 +23,7 @@ export interface MicroPostData {
 
 export function MicroPostCard({ post }: { post: MicroPostData }) {
   const { addTab } = useTabStore()
+  const [isRevealed, setIsRevealed] = React.useState<boolean>(false)
 
   const handleOpenProfile = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -44,6 +46,8 @@ export function MicroPostCard({ post }: { post: MicroPostData }) {
     })
   }
 
+  const hasWarning = !!post.triggerWarning && !isRevealed
+
   return (
     <div className="py-4 border-b border-[var(--border-default)] flex flex-col gap-5 hover:scale-[1.001] transition-all duration-500 ease-[0.16,1,0.3,1]">
       <div className="flex items-center justify-between">
@@ -65,26 +69,48 @@ export function MicroPostCard({ post }: { post: MicroPostData }) {
               <span className="text-[13px] font-bold text-neutral-900 block leading-none group-hover/author:text-[#EE4B2B] transition-colors">{post.author.name}</span>
               {post.author.isCertified && <span className="text-[#EE4B2B] text-[10px] font-black">✓</span>}
             </div>
-            <span className="text-[10px] text-neutral-400 block mt-1 font-mono uppercase tracking-wider">@{post.author.username || post.author.subdomain}</span>
+            <span className="text-[10px] text-neutral-400 block mt-1 uppercase tracking-wider">@{post.author.username || post.author.subdomain}</span>
           </div>
         </button>
-        <span className="text-[10px] text-neutral-400 font-medium font-mono">
+        <span className="text-[10px] text-neutral-400 font-medium">
           {new Date(post.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
         </span>
       </div>
 
-      <div 
-        onClick={handleOpenPost}
-        className="text-[15px] sm:text-[16px] text-neutral-800 leading-relaxed font-sans cursor-pointer hover:text-neutral-950 transition-colors duration-200 pt-1"
-      >
-        <TextParser content={post.content} />
-      </div>
+      <div className="relative">
+        <div className={cn(
+          "transition-all duration-300",
+          hasWarning && "blur-[16px] pointer-events-none select-none"
+        )}>
+          <div 
+            onClick={handleOpenPost}
+            className="text-[15px] sm:text-[16px] text-neutral-800 leading-relaxed font-sans cursor-pointer hover:text-neutral-950 transition-colors duration-200 pt-1"
+          >
+            <TextParser content={post.content} />
+          </div>
 
-      {post.imageUrl && (
-        <div className="overflow-hidden cursor-pointer mt-1" onClick={handleOpenPost}>
-          <ImageGrid urls={getImages(post.imageUrl)} />
+          {post.imageUrl && (
+            <div className="overflow-hidden cursor-pointer mt-1" onClick={handleOpenPost}>
+              <ImageGrid urls={getImages(post.imageUrl)} />
+            </div>
+          )}
         </div>
-      )}
+
+        {hasWarning && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/40 dark:bg-black/40 backdrop-blur-md transition-all duration-300 p-4">
+            <span className="text-[11px] uppercase tracking-wider text-amber-600 mb-2 font-bold">Avertissement</span>
+            <p className="text-[13px] font-medium text-neutral-900 dark:text-neutral-100 text-center max-w-[280px] mb-3.5 leading-snug">
+              {post.triggerWarning}
+            </p>
+            <button
+              onClick={() => setIsRevealed(true)}
+              className="px-3.5 py-2 bg-neutral-900 hover:bg-neutral-850 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-black hover:opacity-90 text-[10px] font-bold rounded-[var(--radius-button)] transition-all cursor-pointer shadow-sm uppercase tracking-wider"
+            >
+              Afficher
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

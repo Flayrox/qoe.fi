@@ -354,7 +354,7 @@ export function ProfileDashboard({
                     </span>
                   )}
                 </div>
-                <span className="text-sm text-neutral-400 block font-mono tracking-tight mt-1">@{profileUser.username || "lecteur"}</span>
+                <span className="text-sm text-neutral-400 block tracking-tight mt-1">@{profileUser.username || "lecteur"}</span>
                 
                 {/* Creator site link */}
                 {(profileUser.role === 'creator' || profileUser.role === 'superadmin') && profileUser.subdomain && (
@@ -378,28 +378,28 @@ export function ProfileDashboard({
               {/* Bento-style Stats Grid */}
               <div className="grid grid-cols-3 gap-2 py-2">
                 <div className="bg-neutral-50/80 rounded-[20px] p-3.5 text-center flex flex-col justify-center transition-all duration-300 hover:bg-neutral-100">
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest font-mono">Posts</span>
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Posts</span>
                   <span className="text-lg font-bold text-neutral-900 tracking-tight mt-1">{posts.length}</span>
                 </div>
                 <button 
                   onClick={() => openConnectionsModal("following")} 
                   className="bg-neutral-50/80 rounded-[20px] p-3.5 text-center flex flex-col justify-center transition-all duration-300 hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none cursor-pointer"
                 >
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest font-mono">Suivis</span>
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Suivis</span>
                   <span className="text-lg font-bold text-neutral-900 tracking-tight mt-1">{followingCount}</span>
                 </button>
                 <button 
                   onClick={() => openConnectionsModal("followers")} 
                   className="bg-neutral-50/80 rounded-[20px] p-3.5 text-center flex flex-col justify-center transition-all duration-300 hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/30 outline-none cursor-pointer"
                 >
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest font-mono">Abonnés</span>
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Abonnés</span>
                   <span className="text-lg font-bold text-neutral-900 tracking-tight mt-1">{followersCount}</span>
                 </button>
               </div>
 
               {/* Reader bio / DNA */}
               <div className="space-y-3">
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400 block font-mono">ADN Lecteur</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400 block">ADN Lecteur</span>
                 <p className="text-[14px] text-neutral-700 leading-relaxed font-sans">
                   {profileUser.onboardingText || "Aucune description sémantique rédigée pour le moment."}
                 </p>
@@ -439,7 +439,7 @@ export function ProfileDashboard({
               </div>
 
               {/* Member Since Footnote */}
-              <div className="text-[10px] text-neutral-400 font-mono text-center pt-2">
+              <div className="text-[10px] text-neutral-400 text-center pt-2">
                 Membre depuis {new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
               </div>
             </div>
@@ -608,16 +608,16 @@ export function ProfileDashboard({
                         >
                           <div className="space-y-4">
                             <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-neutral-400 font-mono">
+                              <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-neutral-400">
                                 {art.category?.name || "Général"}
                               </span>
-                              <span className="text-[10px] text-neutral-400 font-bold font-mono">{art.readingTime} min</span>
+                              <span className="text-[10px] text-neutral-400 font-bold">{art.readingTime} min</span>
                             </div>
                             <h3 className="text-[20px] font-bold font-serif text-neutral-900 tracking-tight leading-snug group-hover:text-[#EE4B2B] transition-colors duration-300">
                               {art.title}
                             </h3>
                           </div>
-                          <div className="flex items-center justify-between pt-5 mt-4 border-t-[0.5px] border-neutral-100 text-[10px] text-neutral-400 font-bold font-mono uppercase tracking-wider">
+                          <div className="flex items-center justify-between pt-5 mt-4 border-t-[0.5px] border-neutral-100 text-[10px] text-neutral-400 font-bold uppercase tracking-wider">
                             <span>{new Date(art.createdAt).toLocaleDateString()}</span>
                             <span className="flex items-center gap-1.5 group-hover:text-[#EE4B2B] transition-colors duration-300 font-sans font-bold">Lire <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" strokeWidth={2} /></span>
                           </div>
@@ -648,7 +648,7 @@ export function ProfileDashboard({
                                 <strong className="text-neutral-700">Note personnelle :</strong> {h.note}
                               </p>
                             )}
-                            <div className="flex justify-between items-center text-[10px] text-neutral-400 pt-5 mt-2 border-t-[0.5px] border-neutral-100 font-mono">
+                            <div className="flex justify-between items-center text-[10px] text-neutral-400 pt-5 mt-2 border-t-[0.5px] border-neutral-100">
                               <span className="font-bold block truncate max-w-xs font-sans text-neutral-500">Source : {h.article.title}</span>
                               <button 
                                 onClick={() => addTab({
@@ -696,10 +696,10 @@ export function ProfileDashboard({
                                     <span className="text-[13px] font-bold text-neutral-900 block leading-none">{letter.sender.name}</span>
                                     {letter.sender.isCertified && <span className="text-[#EE4B2B] text-[9px] font-black">✓</span>}
                                   </div>
-                                  <span className="text-[10px] text-neutral-400 block mt-1 font-mono uppercase tracking-wider">@{letter.sender.username}</span>
+                                  <span className="text-[10px] text-neutral-400 block mt-1 uppercase tracking-wider">@{letter.sender.username}</span>
                                 </div>
                               </div>
-                              <span className="text-[10px] text-neutral-400 font-bold font-mono">{new Date(letter.createdAt).toLocaleDateString()}</span>
+                              <span className="text-[10px] text-neutral-400 font-bold">{new Date(letter.createdAt).toLocaleDateString()}</span>
                             </div>
 
                             <p className="text-[15px] text-neutral-700 leading-loose font-serif whitespace-pre-line pl-1">
@@ -788,7 +788,7 @@ export function ProfileDashboard({
                         </div>
                         <div>
                           <span className="text-[13px] font-bold text-neutral-900 block leading-tight">{u.name}</span>
-                          <span className="text-[10px] text-neutral-400 block mt-0.5 font-mono uppercase tracking-wider">@{u.username}</span>
+                          <span className="text-[10px] text-neutral-400 block mt-0.5 uppercase tracking-wider">@{u.username}</span>
                         </div>
                       </div>
                       
@@ -885,7 +885,7 @@ export function ProfileDashboard({
                   </div>
                   
                   <div className="flex-1 space-y-1">
-                    <span className="text-[10px] font-bold text-neutral-500 uppercase block leading-none font-mono">Photo de profil</span>
+                    <span className="text-[10px] font-bold text-neutral-500 uppercase block leading-none">Photo de profil</span>
                     <input
                       type="text"
                       value={avatarUrl}
@@ -899,7 +899,7 @@ export function ProfileDashboard({
                 {/* Identity Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                   <div className="space-y-1">
-                    <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1 font-mono">Nom d'affichage</label>
+                    <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1">Nom d'affichage</label>
                     <input
                       type="text"
                       value={editName}
@@ -909,14 +909,14 @@ export function ProfileDashboard({
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1 font-mono">Nom d'utilisateur</label>
+                    <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1">Nom d'utilisateur</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-2.5 text-xs text-neutral-400 font-mono">@</span>
+                      <span className="absolute left-3 top-2.5 text-xs text-neutral-400">@</span>
                       <input
                         type="text"
                         value={editUsername}
                         onChange={(e) => setEditUsername(e.target.value)}
-                        className="w-full text-xs border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-lg pl-6 pr-3 py-2.5 font-mono"
+                        className="w-full text-xs border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-lg pl-6 pr-3 py-2.5"
                         required
                       />
                     </div>
@@ -924,7 +924,7 @@ export function ProfileDashboard({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1 font-mono">Adresse Email</label>
+                  <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1">Adresse Email</label>
                   <input
                     type="email"
                     value={editEmail}
@@ -935,7 +935,7 @@ export function ProfileDashboard({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1 font-mono">ADN Lecteur (Biographie)</label>
+                  <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block px-1">ADN Lecteur (Biographie)</label>
                   <textarea
                     value={editBio}
                     onChange={(e) => setEditBio(e.target.value)}

@@ -264,6 +264,10 @@ model Post {
   updatedAt DateTime @updatedAt
   tags      String[]
   imageUrl  String?  @db.Text
+  visibility     String    @default("public")
+  isDraft        Boolean   @default(false)
+  scheduledAt    DateTime?
+  triggerWarning String?   @db.Text
 
   // Social interactions
   parentId  String?

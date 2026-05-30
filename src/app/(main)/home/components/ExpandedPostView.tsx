@@ -33,6 +33,7 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
   const [reposted, setReposted] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [lightboxImage, setLightboxImage] = useState<string | null>(null)
+  const [isWarningRevealed, setIsWarningRevealed] = useState(false)
 
   const handleOpenProfile = () => {
     const targetUsername = post?.author?.username || post?.author?.subdomain
@@ -138,9 +139,9 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
 
     if (res.success && res.data?.reply) {
       setReplyText("")
-      setPost(prev => ({
+      setPost((prev: any) => ({
         ...prev,
-        replies: [res.data.reply, ...(prev?.replies || [])]
+        replies: [res.data!.reply, ...(prev?.replies || [])]
       }))
       // Increment in store
       useFeedStore.getState().incrementReplies(postId)
@@ -166,7 +167,7 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
       })
     }
 
-    setPost(prev => {
+    setPost((prev: any) => {
       if (!prev) return prev
       if (prev.id === parentId) {
         return {
@@ -188,7 +189,7 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
         replies: reply.replies ? deleteRecursively(reply.replies) : []
       }))
     }
-    setPost(prev => ({
+    setPost((prev: any) => ({
       ...prev,
       replies: deleteRecursively(prev?.replies || [])
     }))
@@ -258,19 +259,41 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
                 <span className="text-sm font-semibold text-neutral-800 group-hover/author:text-[#EE4B2B] transition-colors">{post.author.name}</span>
                 {post.author.isCertified && <span className="text-[#EE4B2B] text-[9px] font-black">✓</span>}
               </div>
-              <span className="text-xs text-neutral-400 block mt-0.5 font-mono">@{post.author.username || post.author.subdomain}</span>
+              <span className="text-xs text-neutral-400 block mt-0.5">@{post.author.username || post.author.subdomain}</span>
             </div>
           </button>
-
-          <div className="text-base text-neutral-800 leading-relaxed font-sans font-light">
-            {post.content}
+ 
+          <div className="relative">
+            <div className={cn(
+              "transition-all duration-300",
+              (post.triggerWarning && !isWarningRevealed) && "blur-[16px] pointer-events-none select-none"
+            )}>
+              <div className="text-base text-neutral-800 leading-relaxed font-sans font-light">
+                {post.content}
+              </div>
+ 
+              {post.imageUrl && (
+                <ImageGrid urls={getImages(post.imageUrl)} onImageClick={(url) => setLightboxImage(url)} />
+              )}
+            </div>
+ 
+            {post.triggerWarning && !isWarningRevealed && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/40 dark:bg-black/40 backdrop-blur-md transition-all duration-300 p-4">
+                <span className="text-[11px] uppercase tracking-wider text-amber-600 mb-2 font-bold">Avertissement</span>
+                <p className="text-[13px] font-medium text-neutral-900 dark:text-neutral-100 text-center max-w-[280px] mb-3.5 leading-snug">
+                  {post.triggerWarning}
+                </p>
+                <button
+                  onClick={() => setIsWarningRevealed(true)}
+                  className="px-3.5 py-2 bg-neutral-900 hover:bg-neutral-850 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-black hover:opacity-90 text-[10px] font-bold rounded-[var(--radius-button)] transition-all cursor-pointer shadow-sm uppercase tracking-wider"
+                >
+                  Afficher
+                </button>
+              </div>
+            )}
           </div>
-
-          {post.imageUrl && (
-            <ImageGrid urls={getImages(post.imageUrl)} onImageClick={(url) => setLightboxImage(url)} />
-          )}
-
-          <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-mono font-semibold pt-2">
+ 
+          <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-semibold pt-2">
             <span>{new Date(post.createdAt).toLocaleDateString(undefined, { hour: "numeric", minute: "numeric" })}</span>
             <span>•</span>
             <span>Souveraineté QOE</span>
@@ -429,8 +452,8 @@ function CommentThread({
 
   const handleLike = async () => {
     if (!currentUserId) return
-    setLiked(prev => !prev)
-    setLikesCount(prev => liked ? prev - 1 : prev + 1)
+    setLiked((prev: boolean) => !prev)
+    setLikesCount((prev: number) => liked ? prev - 1 : prev + 1)
     await toggleLikePost(reply.id)
   }
 
