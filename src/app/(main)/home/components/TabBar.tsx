@@ -80,7 +80,7 @@ export function TabBar() {
                 exit={{ opacity: 0, width: 0, scale: 0.85 }}
                 transition={springs.tab}
                 className={cn(
-                  "relative group flex items-center gap-1.5 rounded-[10px]",
+                  "relative group flex items-center gap-1.5 rounded-[var(--radius-button)]",
                   "text-[11px] font-semibold tracking-tight",
                   "transition-colors duration-200 outline-none cursor-pointer",
                   "whitespace-nowrap shrink-0 overflow-hidden",
@@ -95,7 +95,7 @@ export function TabBar() {
                   <motion.div
                     layoutId="activeNavigationTab"
                     transition={springs.tab}
-                    className="absolute inset-0 bg-[var(--surface-0)] rounded-[10px] -z-10 border border-[var(--border-default)]"
+                    className="absolute inset-0 bg-[var(--surface-0)] rounded-[var(--radius-button)] -z-10 border border-[var(--border-default)]"
                     style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
                   />
                 )}
@@ -106,7 +106,7 @@ export function TabBar() {
                   <span className="truncate max-w-[120px]">{tab.title}</span>
                 </span>
 
-                {/* Close button — visible au hover uniquement */}
+                {/* Close button — Expanded hitbox zone to ensure easy clickability */}
                 {tab.id !== "timeline" && (
                   <button
                     onClick={(e) => {
@@ -114,10 +114,10 @@ export function TabBar() {
                       removeTab(tab.id)
                     }}
                     className={cn(
-                      "relative z-10 p-0.5 rounded-md transition-all duration-150 cursor-pointer",
+                      "relative z-10 w-8 h-8 -my-2 -mr-2 flex items-center justify-center rounded-[var(--radius-element)] transition-all duration-150 cursor-pointer",
                       "text-[var(--text-quaternary)] hover:text-[var(--text-secondary)]",
                       "hover:bg-[var(--surface-2)]",
-                      // Masquer sauf au hover du tab
+                      // Visible on tab hover only
                       "opacity-0 group-hover:opacity-100"
                     )}
                     aria-label={`Fermer l'onglet ${tab.title}`}

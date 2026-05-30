@@ -2,8 +2,11 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/db"
 import { Highlighter, ExternalLink } from "lucide-react"
+import { getTranslate } from "@/tolgee/server"
 
 export default async function HighlightsPage() {
+  const t = await getTranslate()
+  
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -20,23 +23,29 @@ export default async function HighlightsPage() {
   })
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       
       {/* Page header */}
       <div className="px-1">
-        <h1 className="text-lg font-bold text-neutral-800 tracking-tight">Carnet de Surlignages</h1>
-        <p className="text-xs text-neutral-400 mt-0.5">Vos citations et réflexions extraites de vos lectures.</p>
+        <h1 className="text-lg font-bold text-[var(--text-primary)] tracking-tight">
+          {t("highlights.title", "Carnet de Surlignages")}
+        </h1>
+        <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+          {t("highlights.subtitle", "Vos citations et réflexions extraites de vos lectures.")}
+        </p>
       </div>
 
-      {/* Bento shell */}
-      <div className="bg-[#EE4B2B] rounded-[40px] p-3 shadow-xl flex flex-col gap-3">
+      {/* Bento shell — Flat clean aesthetic */}
+      <div className="flex flex-col gap-4">
         
         {highlights.length === 0 ? (
-          <div className="bg-white rounded-[32px] p-12 shadow-xs border border-neutral-100 text-center flex flex-col items-center justify-center gap-3">
-            <Highlighter className="w-10 h-10 text-neutral-200" />
-            <h4 className="font-bold text-sm text-neutral-600">Aucun passage surligné</h4>
-            <p className="text-xs text-neutral-400 max-w-xs leading-relaxed">
-              Surlignez des passages dans les articles que vous lisez pour les retrouver ici.
+          <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-12 border border-[var(--border-default)] shadow-xs text-center flex flex-col items-center justify-center gap-3">
+            <Highlighter className="w-10 h-10 text-[var(--text-quaternary)]" />
+            <h4 className="font-bold text-sm text-[var(--text-secondary)]">
+              {t("highlights.empty_title", "Aucun passage surligné")}
+            </h4>
+            <p className="text-xs text-[var(--text-tertiary)] max-w-xs leading-relaxed">
+              {t("highlights.empty_desc", "Surlignez des passages dans les articles que vous lisez pour les retrouver ici.")}
             </p>
           </div>
         ) : (
@@ -46,33 +55,35 @@ export default async function HighlightsPage() {
             const url = `http://${host}/article/${h.article.slug}`
 
             return (
-              <div key={h.id} className="bg-white rounded-[32px] p-6 shadow-xs border border-neutral-100 flex flex-col gap-4">
+              <div key={h.id} className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 border border-[var(--border-default)] shadow-xs flex flex-col gap-4">
                 {/* Highlighted text */}
-                <div className="border-l-2 border-[#EE4B2B]/60 pl-4">
-                  <p className="text-sm text-neutral-700 italic leading-relaxed font-sans">
+                <div className="border-l-2 border-[var(--qoe-vermillion)]/60 pl-4">
+                  <p className="text-sm text-[var(--text-secondary)] italic leading-relaxed font-sans">
                     "{h.text}"
                   </p>
                 </div>
 
                 {/* Personal note */}
                 {h.note && (
-                  <div className="bg-neutral-50 border border-neutral-100 rounded-2xl p-3.5">
-                    <span className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block mb-1">Votre Note</span>
-                    <p className="text-xs text-neutral-600 leading-relaxed">{h.note}</p>
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-default)] rounded-[var(--radius-card)] p-3.5">
+                    <span className="text-[9px] uppercase tracking-wider font-bold text-[var(--text-tertiary)] block mb-1">
+                      {t("highlights.your_note", "Votre Note")}
+                    </span>
+                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{h.note}</p>
                   </div>
                 )}
 
                 {/* Source info */}
-                <div className="flex items-center justify-between pt-3 border-t border-neutral-50 text-[10px] text-neutral-400">
+                <div className="flex items-center justify-between pt-3 border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-tertiary)]">
                   <span className="font-semibold truncate max-w-[60%]">
-                    Surligné dans : {h.article.title}
+                    {t("highlights.highlighted_in", "Surligné dans :")} {h.article.title}
                   </span>
                   <a 
                     href={url}
                     target="_blank"
-                    className="text-[#EE4B2B] hover:underline font-bold flex items-center gap-1 shrink-0"
+                    className="text-[var(--qoe-vermillion)] hover:underline font-bold flex items-center gap-1 shrink-0"
                   >
-                    Consulter <ExternalLink className="w-3 h-3" />
+                    {t("highlights.consult", "Consulter")} <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
               </div>
