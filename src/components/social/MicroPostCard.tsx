@@ -9,6 +9,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { LinkPreview } from "@/components/social/LinkPreview"
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card"
 
 export interface MicroPostData {
   id: string
@@ -104,27 +105,56 @@ export function MicroPostCard({ post }: { post: MicroPostData }) {
         </div>
       )}
       <div className="flex items-center justify-between">
-        <button 
-          onClick={handleOpenProfile}
-          className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left"
-        >
-          <div className="w-9 h-9 rounded-[10px] overflow-hidden border-[0.5px] border-neutral-200/50 shrink-0 transition-transform duration-500 group-hover/author:scale-105">
-            {post.author.logoUrl ? (
-              <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
-            ) : (
-              <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
-                {post.author.name?.charAt(0) || "U"}
+        <HoverCard>
+          <HoverCardTrigger asChild>
+            <button 
+              onClick={handleOpenProfile}
+              className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left"
+            >
+              <div className="w-9 h-9 rounded-sm overflow-hidden border-[0.5px] border-neutral-200/50 shrink-0 transition-transform duration-500 group-hover/author:scale-105">
+                {post.author.logoUrl ? (
+                  <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
+                ) : (
+                  <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
+                    {post.author.name?.charAt(0) || "U"}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[13px] font-bold text-neutral-900 block leading-none group-hover/author:text-[#EE4B2B] transition-colors">{post.author.name}</span>
-              {post.author.isCertified && <span className="text-[#EE4B2B] text-[10px] font-black">✓</span>}
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[13px] font-bold text-neutral-900 block leading-none group-hover/author:text-[#EE4B2B] transition-colors">{post.author.name}</span>
+                  {post.author.isCertified && <span className="text-[#EE4B2B] text-[10px] font-black">✓</span>}
+                </div>
+                <span className="text-[10px] text-neutral-450 block mt-1 uppercase tracking-wider font-sans">@{post.author.username || post.author.subdomain}</span>
+              </div>
+            </button>
+          </HoverCardTrigger>
+          
+          <HoverCardContent className="w-72 p-4 bg-white border border-neutral-200/50 rounded-lg shadow-xl z-50">
+            <div className="flex justify-between space-x-4">
+              <div className="w-10 h-10 rounded-sm overflow-hidden border border-neutral-200/30 shrink-0">
+                {post.author.logoUrl ? (
+                  <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
+                ) : (
+                  <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-sm text-[var(--qoe-vermillion)]">
+                    {post.author.name?.charAt(0) || "U"}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h4 className="text-xs font-bold text-neutral-900 leading-none">{post.author.name}</h4>
+                  {post.author.isCertified && <span className="text-[var(--qoe-vermillion)] text-[10px] font-black">✓</span>}
+                </div>
+                <p className="text-[10px] text-neutral-450 leading-none">@{post.author.username || post.author.subdomain}</p>
+                <div className="flex items-center pt-2 gap-4 text-[9px] font-bold uppercase tracking-wider text-neutral-400">
+                  <span className="text-[var(--qoe-vermillion)] font-sans">Auteur certifié</span>
+                  <span className="font-sans">8.4k abonnés</span>
+                </div>
+              </div>
             </div>
-            <span className="text-[10px] text-neutral-400 block mt-1 uppercase tracking-wider">@{post.author.username || post.author.subdomain}</span>
-          </div>
-        </button>
+          </HoverCardContent>
+        </HoverCard>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-neutral-400 font-medium">
             {new Date(post.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
@@ -224,19 +254,21 @@ function ImageGrid({ urls }: { urls: string[] }) {
 
   return (
     <div className={cn(
-      "grid gap-2 overflow-hidden rounded-[var(--radius-element)]",
+      "grid gap-3 overflow-hidden rounded-md",
       urls.length === 1 ? "grid-cols-1" : "grid-cols-2"
     )}>
       {urls.map((url) => (
         <div
           key={url}
-          className="relative overflow-hidden bg-[var(--surface-2)] aspect-video border border-[var(--border-default)]"
+          className="relative overflow-hidden bg-white p-0.5 border border-neutral-200/60 shadow-[0_1px_4px_rgba(0,0,0,0.02)] rounded-md group/img"
         >
-          <img
-            src={url}
-            alt=""
-            className="w-full h-full object-cover hover:scale-[1.01] transition-transform duration-500"
-          />
+          <div className="relative overflow-hidden aspect-video rounded-sm border border-neutral-100/50">
+            <img
+              src={url}
+              alt=""
+              className="w-full h-full object-cover transition-transform duration-700 ease-[0.16,1,0.3,1] group-hover/img:scale-[1.02]"
+            />
+          </div>
         </div>
       ))}
     </div>
