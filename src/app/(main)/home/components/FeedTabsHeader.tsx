@@ -18,6 +18,7 @@ const springs = {
 
 export function FeedTabsHeader({ activeFeed, onTabChange, totalCount }: FeedTabsHeaderProps) {
   const { t } = useTranslate()
+  const [hoveredTab, setHoveredTab] = React.useState<string | null>(null)
 
   const tabs = [
     { id: "recommandation", label: t("feed.tab_for_you", "Pour vous"),    icon: Sparkles   },
@@ -29,10 +30,7 @@ export function FeedTabsHeader({ activeFeed, onTabChange, totalCount }: FeedTabs
   return (
     <div
       className={cn(
-        "sticky top-0 z-40 -mx-6 sm:-mx-8 px-6 sm:px-8",
-        "bg-white/95 backdrop-blur-md",
-        "border-b border-[var(--border-subtle)]",
-        "flex items-center justify-between",
+        "flex items-center justify-between w-full",
         "transition-all duration-355"
       )}
     >
@@ -46,17 +44,28 @@ export function FeedTabsHeader({ activeFeed, onTabChange, totalCount }: FeedTabs
             <motion.button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              whileTap={{ scale: 0.98 }}
+              onMouseEnter={() => setHoveredTab(tab.id)}
+              onMouseLeave={() => setHoveredTab(null)}
+              whileTap={{ scale: 0.985 }}
               className={cn(
                 "relative flex items-center gap-1.5 px-4 py-3.5",
                 "text-[12px] font-semibold tracking-tight",
-                "outline-none cursor-pointer transition-colors duration-200",
+                "outline-none cursor-pointer transition-colors duration-200 z-10",
                 "focus-visible:ring-1 focus-visible:ring-[var(--qoe-vermillion)]/30 rounded-t-lg",
                 active
                   ? "text-[var(--text-primary)]"
                   : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
               )}
             >
+              {/* Warping Hover Pill Background */}
+              {hoveredTab === tab.id && (
+                <motion.div
+                  layoutId="hoverTabIndicator"
+                  transition={{ type: "spring", stiffness: 450, damping: 32, mass: 0.8 }}
+                  className="absolute inset-x-1 inset-y-1.5 rounded-sm bg-neutral-100/50 -z-10"
+                />
+              )}
+
               <Icon
                 className={cn(
                   "w-3.5 h-3.5 shrink-0 transition-colors duration-200",
