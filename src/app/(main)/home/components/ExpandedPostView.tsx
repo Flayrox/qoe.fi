@@ -7,6 +7,7 @@ import { useTabStore } from "@/lib/use-tab-store"
 import { getPostThread, toggleLikePost, replyToPost, deletePost, repostPost } from "../actions"
 import { LikeIcon, CommentIcon, RepostIcon, ShareIcon } from "@/components/icons/CustomIcons"
 import { cn } from "@/lib/utils"
+import { useFeedStore } from "@/lib/use-feed-store"
 
 interface ExpandedPostViewProps {
   postId: string
@@ -65,11 +66,16 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
   const handleLikeToggle = async () => {
     if (!currentUserId) return
     
+    // Optimistic toggle in the global store
+    useFeedStore.getState().toggleLike(postId, liked, likesCount)
+    
     setLiked(prev => !prev)
     setLikesCount(prev => liked ? prev - 1 : prev + 1)
 
     const res = await toggleLikePost(postId)
     if (!res.success) {
+      // Rollback
+      useFeedStore.getState().toggleLike(postId, !liked, liked ? likesCount - 1 : likesCount + 1)
       setLiked(prev => !prev)
       setLikesCount(prev => liked ? prev + 1 : prev - 1)
     }
@@ -87,6 +93,8 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
     setDeleting(true)
     const res = await deletePost(postId)
     if (res.success) {
+      // Mark deleted in store
+      useFeedStore.getState().deletePost(postId)
       // Close the tab and return to timeline
       removeTab(`post-${postId}`)
       setActiveTabId("timeline")
@@ -134,6 +142,8 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
         ...prev,
         replies: [res.data.reply, ...(prev?.replies || [])]
       }))
+      // Increment in store
+      useFeedStore.getState().incrementReplies(postId)
     }
   }
 
@@ -257,12 +267,7 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
           </div>
 
           {post.imageUrl && (
-            <div 
-              onClick={() => setLightboxImage(post.imageUrl)}
-              className="rounded-lg border border-neutral-200/40 overflow-hidden bg-neutral-100 max-h-[500px] cursor-zoom-in"
-            >
-              <img src={post.imageUrl} className="w-full h-full object-cover" alt="Image du post" />
-            </div>
+            <ImageGrid urls={getImages(post.imageUrl)} onImageClick={(url) => setLightboxImage(url)} />
           )}
 
           <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-mono font-semibold pt-2">
@@ -552,6 +557,43 @@ function CommentThread({
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+const getImages = (url: string | null | undefined): string[] => {
+  if (!url) return []
+  if (url.startsWith("[")) {
+    try {
+      return JSON.parse(url)
+    } catch (e) {
+      return [url]
+    }
+  }
+  return [url]
+}
+
+function ImageGrid({ urls, onImageClick }: { urls: string[]; onImageClick?: (url: string) => void }) {
+  if (urls.length === 0) return null
+
+  return (
+    <div className={cn(
+      "grid gap-2 overflow-hidden rounded-[var(--radius-element)] mt-2",
+      urls.length === 1 ? "grid-cols-1" : "grid-cols-2"
+    )}>
+      {urls.map((url) => (
+        <div
+          key={url}
+          onClick={() => onImageClick?.(url)}
+          className="relative overflow-hidden bg-[var(--surface-2)] aspect-video border border-[var(--border-default)] cursor-zoom-in"
+        >
+          <img
+            src={url}
+            alt=""
+            className="w-full h-full object-cover hover:scale-[1.01] transition-transform duration-500"
+          />
+        </div>
+      ))}
     </div>
   )
 }
