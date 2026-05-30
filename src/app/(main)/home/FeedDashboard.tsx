@@ -286,7 +286,7 @@ export function FeedDashboard({
                       </p>
                     </motion.div>
                   ) : (
-                    <div key={`feed-${activeFeed}`} className="space-y-4">
+                    <div key={`feed-${activeFeed}`} className="space-y-6 relative pl-5 sm:pl-7 border-l border-neutral-100/80 ml-2 sm:ml-3">
                       {currentFeedArticles.map((article, idx) => {
                         const isBookmarked = isArticleBookmarked(article.id)
                         const isFollowed = isCreatorFollowed(article.author.id)

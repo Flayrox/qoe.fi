@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils"
 import { useTabStore } from "@/lib/use-tab-store"
 import { MicroPostCard } from "@/components/social/MicroPostCard"
 import { useTranslate } from "@tolgee/react"
+import { Balancer } from "react-wrap-balancer"
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card"
 
 interface Author {
   id: string
@@ -82,6 +84,38 @@ export function ArticleCard({
     )
   }
 
+  const renderAuthorHoverCard = () => (
+    <HoverCardContent className="w-72 p-4 bg-white border border-neutral-200/50 rounded-lg shadow-xl z-50">
+      <div className="flex justify-between space-x-4">
+        <div className="w-10 h-10 rounded-sm overflow-hidden border border-neutral-200/30 shrink-0">
+          {article.author.logoUrl ? (
+            <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
+          ) : (
+            <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-sm text-[var(--qoe-vermillion)]">
+              {article.author.name?.substring(0, 2) || "NA"}
+            </div>
+          )}
+        </div>
+        <div className="space-y-1.5 flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <h4 className="text-xs font-bold text-neutral-900 leading-none">{article.author.name}</h4>
+            {article.author.isCertified && <CertifiedBadge />}
+          </div>
+          <p className="text-[10px] text-neutral-450 leading-none">@{article.author.username || article.author.subdomain}</p>
+          {article.author.heroText && (
+            <p className="text-[10px] text-neutral-600 leading-normal line-clamp-2 pt-0.5">
+              {article.author.heroText}
+            </p>
+          )}
+          <div className="flex items-center pt-2 gap-4 text-[9px] font-bold uppercase tracking-wider text-neutral-400">
+            <span className="text-[var(--qoe-vermillion)]">Écrits certifiés</span>
+            <span>12.5k abonnés</span>
+          </div>
+        </div>
+      </div>
+    </HoverCardContent>
+  )
+
   const handleOpenInTab = () => {
     addTab({
       id: `article-${article.slug}`,
@@ -156,34 +190,39 @@ export function ArticleCard({
           <div className="flex-1 flex flex-col justify-between py-2 pl-0 sm:pl-6">
             {/* Author */}
             <div className="flex items-center justify-between mb-5">
-              <motion.button
-                onClick={handleOpenProfile}
-                whileTap={{ scale: 0.98 }}
-                className="flex items-center gap-2.5 hover:opacity-85 transition-opacity group/author outline-none cursor-pointer"
-              >
-                <div className="w-8 h-8 rounded-[var(--radius-icon)] overflow-hidden border border-[var(--border-default)] shrink-0">
-                  {article.author.logoUrl ? (
-                    <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
-                  ) : (
-                    <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)]">
-                      {article.author.name?.substring(0, 2) || "NA"}
+              <HoverCard>
+                <HoverCardTrigger asChild>
+                  <motion.button
+                    onClick={handleOpenProfile}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center gap-2.5 hover:opacity-85 transition-opacity group/author outline-none cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-sm overflow-hidden border border-[var(--border-default)] shrink-0">
+                      {article.author.logoUrl ? (
+                        <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
+                      ) : (
+                        <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)]">
+                          {article.author.name?.substring(0, 2) || "NA"}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[13px] font-bold text-[var(--text-primary)] tracking-tight group-hover/author:text-[var(--qoe-vermillion)] transition-colors">
-                      {article.author.name}
-                    </span>
-                    {article.author.isCertified && (
-                      <CertifiedBadge />
-                    )}
-                  </div>
-                  <span className="text-[9px] text-[var(--text-tertiary)] uppercase tracking-wider block mt-0.5">
-                    @{article.author.username || article.author.subdomain} · {formattedDate}
-                  </span>
-                </div>
-              </motion.button>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[13px] font-bold text-[var(--text-primary)] tracking-tight group-hover/author:text-[var(--qoe-vermillion)] transition-colors">
+                          {article.author.name}
+                        </span>
+                        {article.author.isCertified && (
+                          <CertifiedBadge />
+                        )}
+                      </div>
+                      <span className="text-[9px] text-[var(--text-tertiary)] uppercase tracking-wider block mt-0.5">
+                        @{article.author.username || article.author.subdomain} · {formattedDate}
+                      </span>
+                    </div>
+                  </motion.button>
+                </HoverCardTrigger>
+                {renderAuthorHoverCard()}
+              </HoverCard>
 
               {dbUser && dbUser.id !== article.author.id && (
                 <FollowButton isFollowed={isFollowed} onToggle={() => handleFollowToggle(article.author)} />
@@ -193,7 +232,7 @@ export function ArticleCard({
             {/* Title + Excerpt */}
             <a href={url} target="_blank" rel="noreferrer" onClick={handleOpenInTab} className="block group/title flex-1">
               <h3 className="font-serif text-[22px] sm:text-[26px] font-bold text-[var(--text-primary)] leading-[1.2] tracking-tight mb-3 group-hover/title:text-[var(--qoe-vermillion)] transition-colors duration-300">
-                {article.title}
+                <Balancer>{article.title}</Balancer>
               </h3>
               <p className="font-serif text-[14px] text-[var(--text-secondary)] leading-[1.75] line-clamp-3">
                 {article.content.replace(/<[^>]*>?/gm, "").substring(0, 240)}…
@@ -239,34 +278,38 @@ export function ArticleCard({
       )}
 
       <div className="py-4 flex flex-col gap-5">
-        {/* Header : Author + Actions */}
         <div className="flex items-center justify-between">
-          <motion.button
-            onClick={handleOpenProfile}
-            whileTap={{ scale: 0.98 }}
-            className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 rounded-[var(--radius-icon)]"
-          >
-            <div className="w-9 h-9 rounded-[var(--radius-icon)] overflow-hidden border border-[var(--border-default)] shrink-0 transition-transform duration-500 ease-[0.16,1,0.3,1] group-hover/author:scale-105">
-              {article.author.logoUrl ? (
-                <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
-              ) : (
-                <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)]">
-                  {article.author.name?.substring(0, 2) || "NA"}
+          <HoverCard>
+            <HoverCardTrigger asChild>
+              <motion.button
+                onClick={handleOpenProfile}
+                whileTap={{ scale: 0.98 }}
+                className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 rounded-[var(--radius-icon)]"
+              >
+                <div className="w-9 h-9 rounded-sm overflow-hidden border border-[var(--border-default)] shrink-0 transition-transform duration-500 ease-[0.16,1,0.3,1] group-hover/author:scale-105">
+                  {article.author.logoUrl ? (
+                    <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
+                  ) : (
+                    <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)]">
+                      {article.author.name?.substring(0, 2) || "NA"}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[13px] font-bold text-[var(--text-primary)] tracking-tight leading-none group-hover/author:text-[var(--qoe-vermillion)] transition-colors duration-200">
-                  {article.author.name}
-                </span>
-                {article.author.isCertified && <CertifiedBadge />}
-              </div>
-              <span className="text-[9px] text-[var(--text-tertiary)] block mt-1 uppercase tracking-wider">
-                @{article.author.username || article.author.subdomain} · {formattedDate}
-              </span>
-            </div>
-          </motion.button>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[13px] font-bold text-[var(--text-primary)] tracking-tight leading-none group-hover/author:text-[var(--qoe-vermillion)] transition-colors duration-200">
+                      {article.author.name}
+                    </span>
+                    {article.author.isCertified && <CertifiedBadge />}
+                  </div>
+                  <span className="text-[9px] text-[var(--text-tertiary)] block mt-1 uppercase tracking-wider">
+                    @{article.author.username || article.author.subdomain} · {formattedDate}
+                  </span>
+                </div>
+              </motion.button>
+            </HoverCardTrigger>
+            {renderAuthorHoverCard()}
+          </HoverCard>
 
           {/* Actions header */}
           <div className="flex items-center gap-1.5">
@@ -304,7 +347,7 @@ export function ArticleCard({
               "group-hover/title:text-[var(--qoe-vermillion)] transition-colors duration-300",
               "text-[20px] sm:text-[22px]"
             )}>
-              {article.title}
+              <Balancer>{article.title}</Balancer>
             </h3>
           </a>
           <p className="font-serif text-[14px] text-[var(--text-secondary)] leading-[1.75] line-clamp-2">
@@ -405,25 +448,26 @@ function CardFooter({
         )}
       </div>
 
-      {/* Right : Actions */}
-      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+      {/* Right : Floating Action Hub */}
+      <div className="flex items-center gap-1 bg-white/95 backdrop-blur-xs border border-neutral-200/40 rounded-full p-1 shadow-[0_3px_10px_rgba(0,0,0,0.03)] opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-0.5 group-hover:translate-y-0">
         <motion.button
           onClick={handleOpenInTab}
-          whileTap={{ scale: 0.98 }}
-          className="text-[10px] font-semibold text-[var(--text-tertiary)] hover:text-[var(--qoe-vermillion)] flex items-center gap-1.5 transition-colors duration-200 cursor-pointer px-2 py-1.5 rounded-[var(--radius-button)] hover:bg-[var(--qoe-vermillion-08)] focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none"
+          whileTap={{ scale: 0.96 }}
+          className="p-1.5 text-neutral-450 hover:text-[var(--qoe-vermillion)] hover:bg-[var(--qoe-vermillion-08)] rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
+          title={t("feed.tab_label", "Onglet")}
         >
-          <FileText className="w-3 h-3" strokeWidth={1.5} />
-          {t("feed.tab_label", "Onglet")}
+          <FileText className="w-3.5 h-3.5" strokeWidth={1.5} />
         </motion.button>
-        <span className="text-[var(--border-strong)] text-xs">|</span>
+        <span className="w-[1px] h-3 bg-neutral-200" />
         <motion.a
           href={url}
           target="_blank"
           rel="noreferrer"
-          whileTap={{ scale: 0.98 }}
-          className="text-[10px] font-semibold text-[var(--text-tertiary)] hover:text-[var(--qoe-vermillion)] flex items-center gap-1.5 transition-colors duration-200 px-2 py-1.5 rounded-[var(--radius-button)] hover:bg-[var(--qoe-vermillion-08)] focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none"
+          whileTap={{ scale: 0.96 }}
+          className="p-1.5 text-neutral-450 hover:text-[var(--qoe-vermillion)] hover:bg-[var(--qoe-vermillion-08)] rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
+          title={t("feed.read_btn", "Lire")}
         >
-          {t("feed.read_btn", "Lire")} <ExternalLink className="w-3 h-3" strokeWidth={1.5} />
+          <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.5} />
         </motion.a>
       </div>
     </div>
