@@ -2,12 +2,33 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Send, Trash2, Loader2, Image, AlertCircle, Globe, Users, Calendar as CalendarIcon, AlertTriangle, FileText } from "lucide-react"
+import { Send, Trash2, Loader2, Image, AlertCircle, Globe, Users, Calendar as CalendarIcon, AlertTriangle, FileText, Crop, RefreshCw, ArrowLeft, ArrowRight, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useFeedStore } from "@/lib/use-feed-store"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { TimePickerInput } from "@/components/ui/time-picker/time-picker-input"
+import { toast } from "sonner"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
+
+interface ComposerImage {
+  id: string
+  url: string
+  file?: File
+  isUploading?: boolean
+}
+
+const getImages = (url: string | null | undefined): string[] => {
+  if (!url) return []
+  if (url.startsWith("[")) {
+    try {
+      return JSON.parse(url)
+    } catch (e) {
+      return [url]
+    }
+  }
+  return [url]
+}
 
 interface MicroPostComposerProps {
   dbUser: any
@@ -20,10 +41,15 @@ export function MicroPostComposer({
 }: MicroPostComposerProps) {
   const [isComposerExpanded, setIsComposerExpanded] = useState<boolean>(false)
   const [postText, setPostText] = useState<string>("")
-  const [postImageUrls, setPostImageUrls] = useState<string[]>([])
-  const [uploadingPostImage, setUploadingPostImage] = useState<boolean>(false)
+  const [images, setImages] = useState<ComposerImage[]>([])
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+
+  // Drafts states
+  const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null)
+  const [isDraftsOpen, setIsDraftsOpen] = useState(false)
+  const [drafts, setDrafts] = useState<any[]>([])
+  const [loadingDrafts, setLoadingDrafts] = useState(false)
 
   // Popover controls
   const [showVisibilityDropdown, setShowVisibilityDropdown] = useState<boolean>(false)
@@ -42,6 +68,10 @@ export function MicroPostComposer({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const hourRef = useRef<HTMLInputElement>(null)
   const minuteRef = useRef<HTMLInputElement>(null)
+  const replaceInputRef = useRef<HTMLInputElement>(null)
+  const [replacingImageId, setReplacingImageId] = useState<string | null>(null)
+  const [croppingImage, setCroppingImage] = useState<ComposerImage | null>(null)
+  const [showDraftPopover, setShowDraftPopover] = useState<boolean>(false)
 
   // Load draft from localStorage on mount
   useEffect(() => {
@@ -70,13 +100,31 @@ export function MicroPostComposer({
   }
 
   const CHAR_LIMIT = 280
-  const isOverLimit = postText.length > CHAR_LIMIT
-  const charsRemaining = CHAR_LIMIT - postText.length
-  
+  const getUrls = (text: string) => {
+    const urlRegex = /https?:\/\/[^\s]+/gi
+    return text.match(urlRegex) || []
+  }
+  const calculateCharacters = (text: string) => {
+    const urls = getUrls(text)
+    let len = text.length
+    for (const url of urls) {
+      len -= url.length
+      const isInternal = url.includes("/post/") || url.includes("/article/")
+      if (!isInternal) {
+        len += 20
+      }
+    }
+    return len
+  }
+
+  const currentLength = calculateCharacters(postText)
+  const isOverLimit = currentLength > CHAR_LIMIT
+  const charsRemaining = CHAR_LIMIT - currentLength
+
   // Radial calculations
   const radius = 9
   const circumference = 2 * Math.PI * radius
-  const percentage = Math.min((postText.length / CHAR_LIMIT) * 100, 100)
+  const percentage = Math.min((currentLength / CHAR_LIMIT) * 100, 100)
   const strokeDashoffset = circumference - (percentage / 100) * circumference
 
   // Client-side premium image compression
@@ -135,58 +183,59 @@ export function MicroPostComposer({
     })
   }
 
+  const processAndAddFile = async (file: File, replaceId?: string) => {
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error(`L'image ${file.name} dépasse la limite de 8 Mo.`)
+      return
+    }
+
+    const tempId = replaceId || Math.random().toString(36).substring(7)
+    const initialBlobUrl = URL.createObjectURL(file)
+
+    if (replaceId) {
+      setImages(prev => prev.map(img => img.id === replaceId ? { ...img, url: initialBlobUrl, file } : img))
+    } else {
+      setImages(prev => [...prev, { id: tempId, url: initialBlobUrl, file }])
+    }
+
+    try {
+      const compressedBlob = await compressImage(file)
+      const compressedFile = new File([compressedBlob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+        type: "image/jpeg"
+      })
+      const compressedBlobUrl = URL.createObjectURL(compressedBlob)
+
+      setImages(prev => prev.map(img => {
+        if (img.id === tempId) {
+          if (img.url.startsWith("blob:")) {
+            URL.revokeObjectURL(img.url)
+          }
+          return { ...img, url: compressedBlobUrl, file: compressedFile }
+        }
+        return img
+      }))
+    } catch (err) {
+      console.error("Compression error:", err)
+    }
+  }
+
   const handlePostImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (files.length === 0) return
 
-    if (postImageUrls.length + files.length > 4) {
-      alert("Vous pouvez ajouter jusqu'à 4 images maximum par post.")
+    if (images.length + files.length > 4) {
+      toast.error("Vous pouvez ajouter jusqu'à 4 images maximum par post.")
       return
     }
 
-    setUploadingPostImage(true)
     setSubmitError(null)
 
-    try {
-      const uploadedUrls: string[] = []
-
-      for (const file of files) {
-        if (file.size > 4 * 1024 * 1024) {
-          alert(`L'image ${file.name} dépasse la limite de 4 Mo.`)
-          continue
-        }
-
-        const compressedBlob = await compressImage(file)
-        const compressedFile = new File([compressedBlob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
-          type: "image/jpeg"
-        })
-
-        const formData = new FormData()
-        formData.append("file", compressedFile)
-
-        const uploadRes = await fetch("/api/articles/upload", {
-          method: "POST",
-          body: formData
-        })
-        const uploadData = await uploadRes.json()
-
-        if (uploadRes.ok && uploadData.url) {
-          uploadedUrls.push(uploadData.url)
-        } else {
-          setSubmitError(uploadData.error || "Une erreur est survenue lors de l'upload.")
-        }
-      }
-
-      setPostImageUrls(prev => [...prev, ...uploadedUrls])
-    } catch (err) {
-      console.error(err)
-      setSubmitError("Erreur de connexion lors du téléversement.")
-    } finally {
-      setUploadingPostImage(false)
+    for (const file of files) {
+      await processAndAddFile(file)
     }
+    e.target.value = ""
   }
 
-  // Handle clipboard paste of images
   const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData.items
     const files: File[] = []
@@ -198,41 +247,37 @@ export function MicroPostComposer({
     }
     if (files.length > 0) {
       e.preventDefault()
-      if (postImageUrls.length + files.length > 4) {
-        alert("Vous pouvez ajouter jusqu'à 4 images maximum par post.")
+      if (images.length + files.length > 4) {
+        toast.error("Vous pouvez ajouter jusqu'à 4 images maximum par post.")
         return
       }
-      setUploadingPostImage(true)
       setSubmitError(null)
-      try {
-        const uploadedUrls: string[] = []
-        for (const file of files) {
-          if (file.size > 4 * 1024 * 1024) {
-            alert(`L'image ${file.name} dépasse la limite de 4 Mo.`)
-            continue
-          }
-          const compressedBlob = await compressImage(file)
-          const compressedFile = new File([compressedBlob], "pasted-image.jpg", {
-            type: "image/jpeg"
-          })
-          const formData = new FormData()
-          formData.append("file", compressedFile)
-          const uploadRes = await fetch("/api/articles/upload", {
-            method: "POST",
-            body: formData
-          })
-          const uploadData = await uploadRes.json()
-          if (uploadRes.ok && uploadData.url) {
-            uploadedUrls.push(uploadData.url)
-          }
-        }
-        setPostImageUrls(prev => [...prev, ...uploadedUrls])
-      } catch (err) {
-        setSubmitError("Erreur de connexion lors du téléversement.")
-      } finally {
-        setUploadingPostImage(false)
+      for (const file of files) {
+        await processAndAddFile(file)
       }
     }
+  }
+
+  const handleReplaceImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && replacingImageId) {
+      await processAndAddFile(file, replacingImageId)
+      setReplacingImageId(null)
+    }
+    e.target.value = ""
+  }
+
+  const moveImage = (index: number, direction: "left" | "right") => {
+    const nextIndex = direction === "left" ? index - 1 : index + 1
+    if (nextIndex < 0 || nextIndex >= images.length) return
+
+    setImages(prev => {
+      const newImages = [...prev]
+      const temp = newImages[index]
+      newImages[index] = newImages[nextIndex]
+      newImages[nextIndex] = temp
+      return newImages
+    })
   }
 
   const getScheduledDateTimeString = () => {
@@ -240,25 +285,124 @@ export function MicroPostComposer({
     return scheduledDate.toISOString()
   }
 
+  const handleLoadDraft = (draft: any) => {
+    setPostText(draft.content)
+    
+    const imageUrls = getImages(draft.imageUrl)
+    const composerImages = imageUrls.map(url => ({
+      id: Math.random().toString(36).substring(7),
+      url,
+      isUploading: false
+    }))
+    setImages(composerImages)
+
+    setVisibility(draft.visibility || "public")
+    setIsScheduled(!!draft.scheduledAt)
+    setScheduledDate(draft.scheduledAt ? new Date(draft.scheduledAt) : undefined)
+    setIsTriggerWarning(!!draft.triggerWarning)
+    setTriggerWarning(draft.triggerWarning || "")
+    
+    setLoadedDraftId(draft.id)
+    setIsComposerExpanded(true)
+    setIsDraftsOpen(false)
+
+    localStorage.setItem("qoe_micro_post_draft", draft.content)
+    toast.success("Brouillon chargé dans l'éditeur.")
+  }
+
+  const handleDeleteDraft = async (draftId: string) => {
+    setDrafts(prev => prev.filter(d => d.id !== draftId))
+    if (loadedDraftId === draftId) {
+      setLoadedDraftId(null)
+    }
+
+    try {
+      const { deletePost } = await import("../actions")
+      const res = await deletePost(draftId)
+      if (res.success) {
+        toast.success("Brouillon supprimé.")
+      } else {
+        toast.error("Impossible de supprimer le brouillon.")
+        loadDrafts()
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error("Erreur réseau lors de la suppression.")
+      loadDrafts()
+    }
+  }
+
+  const loadDrafts = async () => {
+    setLoadingDrafts(true)
+    try {
+      const { getUserDrafts } = await import("../actions")
+      const res = await getUserDrafts()
+      if (res.success && res.data?.drafts) {
+        setDrafts(res.data.drafts)
+      } else {
+        setDrafts([])
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error("Erreur lors de la récupération des brouillons.")
+    } finally {
+      setLoadingDrafts(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isDraftsOpen) {
+      loadDrafts()
+    }
+  }, [isDraftsOpen])
+
+  const uploadComposerImages = async (composerImages: ComposerImage[]): Promise<string[]> => {
+    const uploadedUrls: string[] = []
+    for (const img of composerImages) {
+      if (!img.file) {
+        uploadedUrls.push(img.url)
+        continue
+      }
+      const formData = new FormData()
+      formData.append("file", img.file)
+      const res = await fetch("/api/articles/upload", {
+        method: "POST",
+        body: formData
+      })
+      if (!res.ok) {
+        throw new Error("Erreur lors de l'envoi d'une image au serveur.")
+      }
+      const data = await res.json()
+      if (!data.url) {
+        throw new Error("L'upload de l'image a échoué.")
+      }
+      uploadedUrls.push(data.url)
+    }
+    return uploadedUrls
+  }
+
   const handlePostSubmit = async (e: React.FormEvent, forceDraft?: boolean) => {
     e.preventDefault()
-    if (!postText.trim() || !dbUser || isSubmitting || isOverLimit) return
+    const textContent = postText.trim()
+    const isDraftSubmit = forceDraft !== undefined ? forceDraft : isDraft
+    
+    if ((!textContent && images.length === 0) || !dbUser || isSubmitting || isOverLimit) return
 
     setSubmitError(null)
     setIsSubmitting(true)
-    const tags = postText.match(/#[a-zA-Z0-9_-]+/g) || []
-
-    const imagePayload = postImageUrls.length > 0 ? JSON.stringify(postImageUrls) : null
-    const submitDraft = forceDraft !== undefined ? forceDraft : isDraft
 
     try {
+      const uploadedUrls = await uploadComposerImages(images)
+      const imagePayload = uploadedUrls.length > 0 ? JSON.stringify(uploadedUrls) : null
+      const tags = textContent.match(/#[a-zA-Z0-9_-]+/g) || []
+
       const { createMicroPost } = await import("../actions")
       const res = await createMicroPost({
-        content: postText,
+        content: textContent,
         tags,
         imageUrl: imagePayload,
         visibility,
-        isDraft: submitDraft,
+        isDraft: isDraftSubmit,
         scheduledAt: isScheduled && scheduledDate ? getScheduledDateTimeString() : null,
         triggerWarning: isTriggerWarning && triggerWarning.trim() ? triggerWarning.trim() : null
       })
@@ -266,9 +410,24 @@ export function MicroPostComposer({
       if (res.success && res.data?.post) {
         const post = res.data.post
         
-        // Only append to the client feed state if it's visible now (not a draft, and scheduledAt is not in the future)
+        images.forEach(img => {
+          if (img.url.startsWith("blob:")) {
+            URL.revokeObjectURL(img.url)
+          }
+        })
+        
+        if (loadedDraftId) {
+          try {
+            const { deletePost } = await import("../actions")
+            await deletePost(loadedDraftId)
+          } catch (err) {
+            console.error("Failed to delete original draft post after publishing:", err)
+          }
+          setLoadedDraftId(null)
+        }
+        
         const isFuture = isScheduled && scheduledDate && new Date(getScheduledDateTimeString() || "") > new Date()
-        if (!submitDraft && !isFuture) {
+        if (!isDraftSubmit && !isFuture) {
           useFeedStore.getState().addLocalPost({
             id: post.id,
             title: "",
@@ -288,8 +447,10 @@ export function MicroPostComposer({
           })
         }
 
+        toast.success(isDraftSubmit ? "Brouillon enregistré." : "Pensée publiée.")
+
         setPostText("")
-        setPostImageUrls([])
+        setImages([])
         setVisibility("public")
         setIsScheduled(false)
         setScheduledDate(undefined)
@@ -304,9 +465,12 @@ export function MicroPostComposer({
         setIsComposerExpanded(false)
       } else {
         setSubmitError("Impossible de publier la pensée. Veuillez réessayer.")
+        toast.error("Impossible de publier la pensée. Veuillez réessayer.")
       }
-    } catch (err) {
-      setSubmitError("Erreur de connexion avec le serveur. Veuillez réessayer.")
+    } catch (err: any) {
+      console.error(err)
+      setSubmitError(err.message || "Erreur de connexion avec le serveur. Veuillez réessayer.")
+      toast.error(err.message || "Erreur de connexion avec le serveur. Veuillez réessayer.")
     } finally {
       setIsSubmitting(false)
     }
@@ -340,7 +504,7 @@ export function MicroPostComposer({
               handlePostSubmit(e)
             } else if (e.key === "Escape") {
               setIsComposerExpanded(false)
-              setPostImageUrls([])
+              setImages([])
               setPostText("")
               setVisibility("public")
               setIsScheduled(false)
@@ -387,33 +551,106 @@ export function MicroPostComposer({
                 </div>
               )}
 
-              {uploadingPostImage && (
-                <div className="relative overflow-hidden bg-[var(--surface-1)] border border-[var(--border-default)] h-16 flex items-center justify-center gap-3">
-                  <Loader2 className="w-4 h-4 animate-spin text-[var(--qoe-vermillion)]" />
-                  <span className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Téléchargement de l'image...</span>
-                  <div className="absolute bottom-0 left-0 h-0.5 bg-[var(--qoe-vermillion)] animate-pulse w-full" />
+              {images.length > 0 && (
+                <div className={cn(
+                  "grid gap-2",
+                  images.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                )}>
+                  <AnimatePresence initial={false}>
+                    {images.map((img, idx) => (
+                      <motion.div
+                        key={img.id}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                        className="relative aspect-video bg-neutral-100 border border-neutral-200/40 group overflow-hidden rounded-[var(--radius-button)]"
+                      >
+                        <img
+                          src={img.url}
+                          className={cn(
+                            "w-full h-full object-cover transition-all duration-500",
+                            img.isUploading ? "blur-md scale-95" : "blur-0 scale-100"
+                          )}
+                          alt=""
+                        />
+
+                        {/* Premium Hover Actions Overlay */}
+                        <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-2.5 z-10">
+                          <div className="flex items-center justify-between w-full">
+                            {/* Reorder actions */}
+                            <div className="flex items-center gap-1">
+                              {idx > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => moveImage(idx, "left")}
+                                  className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors"
+                                  title="Déplacer vers la gauche"
+                                >
+                                  <ArrowLeft className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {idx < images.length - 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => moveImage(idx, "right")}
+                                  className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors"
+                                  title="Déplacer vers la droite"
+                                >
+                                  <ArrowRight className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Crop & Replace actions */}
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setCroppingImage(img)}
+                                className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors"
+                                title="Recadrer l'image"
+                              >
+                                <Crop className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReplacingImageId(img.id)
+                                  replaceInputRef.current?.click()
+                                }}
+                                className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors"
+                                title="Remplacer l'image"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => setImages(prev => prev.filter(i => i.id !== img.id))}
+                              className="bg-red-650/80 hover:bg-red-700 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors"
+                              title="Supprimer l'image"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
                 </div>
               )}
 
-              {postImageUrls.length > 0 && !uploadingPostImage && (
-                <div className={cn(
-                  "grid gap-2",
-                  postImageUrls.length === 1 ? "grid-cols-1" : "grid-cols-2"
-                )}>
-                  {postImageUrls.map((url, index) => (
-                    <div key={url} className="relative aspect-video bg-neutral-100 border border-neutral-200/40 group">
-                      <img src={url} className="w-full h-full object-cover" alt="" />
-                      <button
-                        type="button"
-                        onClick={() => setPostImageUrls(prev => prev.filter((_, i) => i !== index))}
-                        className="absolute top-2 right-2 bg-neutral-900/80 hover:bg-neutral-900 text-white p-2 transition-all shadow-md cursor-pointer rounded-[var(--radius-button)]"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* Hidden file input for replacement */}
+              <input
+                type="file"
+                ref={replaceInputRef}
+                onChange={handleReplaceImage}
+                accept="image/*"
+                className="hidden"
+              />
 
               <div className="flex items-center justify-between pt-3.5 border-t border-[var(--border-subtle)] bg-transparent">
                 <div className="flex items-center gap-2">
@@ -425,7 +662,7 @@ export function MicroPostComposer({
                       className="hidden"
                       multiple
                       onChange={handlePostImageUpload}
-                      disabled={uploadingPostImage || isSubmitting || postImageUrls.length >= 4}
+                      disabled={isSubmitting || images.length >= 4}
                     />
                   </label>
 
@@ -601,10 +838,10 @@ export function MicroPostComposer({
                       <label className="flex items-center justify-between cursor-pointer text-xs text-[var(--text-secondary)]">
                         <span>Masquer le contenu</span>
                         <input
-                          type="checkbox"
-                          checked={isTriggerWarning}
-                          onChange={(e) => setIsTriggerWarning(e.target.checked)}
-                          className="accent-[var(--qoe-vermillion)] cursor-pointer"
+                           type="checkbox"
+                           checked={isTriggerWarning}
+                           onChange={(e) => setIsTriggerWarning(e.target.checked)}
+                           className="accent-[var(--qoe-vermillion)] cursor-pointer"
                         />
                       </label>
                       {isTriggerWarning && (
@@ -663,12 +900,50 @@ export function MicroPostComposer({
                     </div>
                   )}
 
+                  {/* Unified Drafts Popover */}
+                  <Popover open={showDraftPopover} onOpenChange={setShowDraftPopover}>
+                    <PopoverTrigger
+                      render={
+                        <button
+                          type="button"
+                          className="px-3.5 py-2 border border-[var(--border-default)] rounded-[var(--radius-button)] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-2)] cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none transition-colors"
+                        >
+                          Brouillons
+                        </button>
+                      }
+                    />
+                    <PopoverContent align="end" className="w-56 p-1.5 space-y-0.5 bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-button)] shadow-lg z-50">
+                      <button
+                        type="button"
+                        disabled={!postText.trim() && images.length === 0}
+                        onClick={(e) => {
+                          setShowDraftPopover(false)
+                          handlePostSubmit(e, true)
+                        }}
+                        className="w-full text-left px-2.5 py-1.5 rounded-[var(--radius-button)] text-xs transition-colors hover:bg-[var(--surface-1)] text-[var(--text-secondary)] disabled:opacity-50 disabled:pointer-events-none cursor-pointer font-serif"
+                      >
+                        Enregistrer le brouillon actuel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowDraftPopover(false)
+                          setIsDraftsOpen(true)
+                        }}
+                        className="w-full text-left px-2.5 py-1.5 rounded-[var(--radius-button)] text-xs transition-colors hover:bg-[var(--surface-1)] text-[var(--text-secondary)] cursor-pointer font-serif"
+                      >
+                        Voir tous les brouillons
+                      </button>
+                    </PopoverContent>
+                  </Popover>
+
                   <button
                     type="button"
                     onClick={() => {
                       setIsComposerExpanded(false)
-                      setPostImageUrls([])
+                      setImages([])
                       setPostText("")
+                      setLoadedDraftId(null)
                       setVisibility("public")
                       setIsScheduled(false)
                       setScheduledDate(undefined)
@@ -687,18 +962,9 @@ export function MicroPostComposer({
                   </button>
 
                   <button
-                    type="button"
-                    disabled={!postText.trim() || uploadingPostImage || isSubmitting || isOverLimit}
-                    onClick={(e) => handlePostSubmit(e, true)}
-                    className="px-3.5 py-2 border border-[var(--border-default)] rounded-[var(--radius-button)] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-2)] cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none transition-colors"
-                  >
-                    Brouillon
-                  </button>
-
-                  <button
                     type="submit"
-                    disabled={!postText.trim() || uploadingPostImage || isSubmitting || isOverLimit}
-                    className="bg-[var(--qoe-vermillion)] text-white hover:bg-[#d63d20] disabled:bg-[var(--surface-2)] disabled:text-[var(--text-quaternary)] transition-all duration-300 px-4 py-2 rounded-[var(--radius-button)] text-xs font-bold flex items-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none"
+                    disabled={(!postText.trim() && images.length === 0) || isSubmitting || isOverLimit}
+                    className="bg-[var(--qoe-vermillion)] text-white hover:bg-[#d63d20] disabled:bg-[var(--surface-2)] disabled:text-[var(--text-quaternary)] transition-all duration-300 px-4 py-2 rounded-[var(--radius-button)] text-xs font-bold flex items-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none animate-fade-in"
                     style={{ boxShadow: "0 2px 8px var(--qoe-vermillion-glow)" }}
                   >
                     {isSubmitting ? (
@@ -709,7 +975,6 @@ export function MicroPostComposer({
                       <>
                         Publier <Send className="w-3 h-3" />
                       </>
-                    )}
                   </button>
                 </div>
               </div>
@@ -718,6 +983,313 @@ export function MicroPostComposer({
           )}
         </AnimatePresence>
       </form>
+
+      <Sheet open={isDraftsOpen} onOpenChange={setIsDraftsOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col h-full bg-[var(--surface-0)] border-l border-[var(--border-default)] z-[60]">
+          <SheetHeader className="p-6 border-b border-[var(--border-subtle)]">
+            <SheetTitle className="text-base font-bold text-[var(--text-primary)]">Mes Brouillons</SheetTitle>
+            <SheetDescription className="text-xs text-[var(--text-tertiary)]">
+              Retrouvez et modifiez vos pensées enregistrées.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {loadingDrafts ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3">
+                <Loader2 className="w-5 h-5 animate-spin text-[var(--qoe-vermillion)]" />
+                <span className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Chargement des brouillons...</span>
+              </div>
+            ) : drafts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+                <FileText className="w-8 h-8 text-[var(--text-quaternary)]" />
+                <p className="text-xs text-[var(--text-secondary)] font-serif">Vous n'avez aucun brouillon pour le moment.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {drafts.map(draft => (
+                  <div
+                    key={draft.id}
+                    className="group border border-[var(--border-default)] rounded-[var(--radius-card)] p-4 bg-[var(--surface-1)] hover:bg-[var(--surface-2)] transition-all duration-300 flex flex-col justify-between gap-3 relative"
+                  >
+                    <div className="space-y-1 pr-8">
+                      <p className="text-[13px] text-[var(--text-primary)] font-serif leading-relaxed line-clamp-3 whitespace-pre-wrap">
+                        {draft.content}
+                      </p>
+                      
+                      <div className="flex flex-wrap gap-2 pt-1.5 items-center">
+                        <span className="text-[9px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold bg-[var(--surface-2)] px-2 py-0.5 rounded-[var(--radius-button)]">
+                          {draft.visibility === "public" ? "Public" : "Followers"}
+                        </span>
+                        {draft.scheduledAt && (
+                          <span className="text-[9px] text-[var(--qoe-vermillion)] bg-[var(--qoe-vermillion-08)] px-2 py-0.5 rounded-[var(--radius-button)] font-medium">
+                            Planifié
+                          </span>
+                        )}
+                        {draft.triggerWarning && (
+                          <span className="text-[9px] text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-[var(--radius-button)] font-medium">
+                            Warning
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-3 mt-1">
+                      <span className="text-[9px] text-[var(--text-tertiary)]">
+                        Mis à jour {new Date(draft.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                      
+                      <button
+                        type="button"
+                        onClick={() => handleLoadDraft(draft)}
+                        className="text-[10px] font-bold text-[var(--qoe-vermillion)] hover:text-[#d63d20] bg-[var(--qoe-vermillion-08)] px-2.5 py-1 rounded-[var(--radius-button)] transition-all cursor-pointer"
+                      >
+                        Charger
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteDraft(draft.id)}
+                      className="absolute top-4 right-4 text-[var(--text-quaternary)] hover:text-[var(--qoe-vermillion)] transition-colors p-1.5 rounded-[var(--radius-button)] cursor-pointer"
+                      title="Supprimer le brouillon"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Modal de Recadrage d'Image Premium */}
+      <AnimatePresence>
+        {croppingImage && (
+          <ImageCropperModal
+            image={croppingImage}
+            onClose={() => setCroppingImage(null)}
+            onConfirm={(croppedUrl, croppedFile) => {
+              setImages(prev => prev.map(img => img.id === croppingImage.id ? { ...img, url: croppedUrl, file: croppedFile } : img))
+              setCroppingImage(null)
+              toast.success("Image recadrée avec succès.")
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// -------------------------------------------------------------
+// Sub-component: ImageCropperModal
+// -------------------------------------------------------------
+
+interface ImageCropperModalProps {
+  image: ComposerImage
+  onClose: () => void
+  onConfirm: (croppedUrl: string, croppedFile: File) => void
+}
+
+function ImageCropperModal({ image, onClose, onConfirm }: ImageCropperModalProps) {
+  const [zoom, setZoom] = useState<number>(1)
+  const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const [aspectRatio, setAspectRatio] = useState<"1:1" | "16:9" | "original">("original")
+  
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
+  const [isDragging, setIsDragging] = useState<boolean>(false)
+  const dragStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
+  
+  const [naturalAspect, setNaturalAspect] = useState<number>(1)
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setIsDragging(true)
+    dragStart.current = { x: e.clientX - position.x, y: e.clientY - position.y }
+  }
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return
+    e.preventDefault()
+    setPosition({
+      x: e.clientX - dragStart.current.x,
+      y: e.clientY - dragStart.current.y
+    })
+  }
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    setIsDragging(false)
+    e.currentTarget.releasePointerCapture(e.pointerId)
+  }
+
+  const getViewportStyle = () => {
+    const baseWidth = 320
+    let height = baseWidth
+    
+    if (aspectRatio === "16:9") {
+      height = baseWidth / (16 / 9)
+    } else if (aspectRatio === "original") {
+      height = baseWidth / naturalAspect
+      if (height > 360) {
+        height = 360
+      }
+    }
+    return {
+      width: `${baseWidth}px`,
+      height: `${height}px`
+    }
+  }
+
+  const handleConfirm = () => {
+    const viewport = viewportRef.current
+    const imgEl = imgRef.current
+    if (!viewport || !imgEl) return
+
+    const viewportRect = viewport.getBoundingClientRect()
+    const imgRect = imgEl.getBoundingClientRect()
+
+    const scaleX = imgEl.naturalWidth / imgRect.width
+    const scaleY = imgEl.naturalHeight / imgRect.height
+
+    const sx = (viewportRect.left - imgRect.left) * scaleX
+    const sy = (viewportRect.top - imgRect.top) * scaleY
+    const sw = viewportRect.width * scaleX
+    const sh = viewportRect.height * scaleY
+
+    const canvas = document.createElement("canvas")
+    canvas.width = Math.min(sw, 1600)
+    canvas.height = canvas.width * (viewportRect.height / viewportRect.width)
+
+    const ctx = canvas.getContext("2d")
+    if (ctx) {
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = "high"
+      ctx.drawImage(imgEl, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const croppedUrl = URL.createObjectURL(blob)
+          const croppedFile = new File([blob], `cropped-${Date.now()}.jpg`, { type: "image/jpeg" })
+          onConfirm(croppedUrl, croppedFile)
+        }
+      }, "image/jpeg", 0.9)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-neutral-950/80 backdrop-blur-xs z-[100] flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.97 }}
+        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+        className="bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-card)] w-full max-w-md overflow-hidden shadow-2xl flex flex-col"
+      >
+        <div className="p-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
+          <span className="text-sm font-semibold text-[var(--text-primary)]">Recadrer l'image</span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] p-1 cursor-pointer transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 min-h-[380px] bg-neutral-900 flex items-center justify-center p-6 select-none relative overflow-hidden">
+          <div
+            ref={viewportRef}
+            style={getViewportStyle()}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            className="relative overflow-hidden border border-neutral-600/50 shadow-inner bg-neutral-950 cursor-grab active:cursor-grabbing"
+          >
+            <img
+              ref={imgRef}
+              src={image.url}
+              alt="To crop"
+              draggable={false}
+              onLoad={(e) => {
+                const img = e.currentTarget
+                setNaturalAspect(img.naturalWidth / img.naturalHeight)
+              }}
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px)) scale(${zoom})`,
+                transformOrigin: "center center",
+                maxHeight: "none",
+                maxWidth: "none",
+              }}
+              className="max-w-none pointer-events-none select-none transition-transform duration-75"
+            />
+          </div>
+        </div>
+
+        <div className="p-4 bg-[var(--surface-1)] border-t border-[var(--border-subtle)] space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-xs text-[var(--text-secondary)] font-medium">Format</span>
+            <div className="flex gap-1.5">
+              {(["original", "1:1", "16:9"] as const).map((ratio) => (
+                <button
+                  key={ratio}
+                  type="button"
+                  onClick={() => {
+                    setAspectRatio(ratio)
+                    setPosition({ x: 0, y: 0 })
+                    setZoom(1)
+                  }}
+                  className={cn(
+                    "px-2.5 py-1 rounded-[var(--radius-button)] text-[10px] uppercase font-bold border transition-all cursor-pointer font-serif",
+                    aspectRatio === ratio
+                      ? "border-[var(--qoe-vermillion)] bg-[var(--qoe-vermillion-08)] text-[var(--qoe-vermillion)]"
+                      : "border-[var(--border-default)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] bg-[var(--surface-0)]"
+                  )}
+                >
+                  {ratio}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+              <span>Zoom</span>
+              <span>{Math.round(zoom * 100)}%</span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="3"
+              step="0.01"
+              value={zoom}
+              onChange={(e) => setZoom(parseFloat(e.target.value))}
+              className="w-full h-1 bg-[var(--border-default)] rounded-lg appearance-none cursor-pointer accent-[var(--qoe-vermillion)]"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3.5 py-2 border border-[var(--border-default)] rounded-[var(--radius-button)] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-2)] cursor-pointer"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirm}
+              className="px-3.5 py-2 bg-[var(--qoe-vermillion)] hover:bg-[#d63d20] text-white font-bold rounded-[var(--radius-button)] text-xs cursor-pointer"
+            >
+              Confirmer
+            </button>
+          </div>
+        </div>
+      </motion.div>
     </div>
   )
 }
