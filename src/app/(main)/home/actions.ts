@@ -61,7 +61,15 @@ export const toggleBookmarkArticleHome = safeAction<string, { bookmarked: boolea
   }
 })
 
-export const createMicroPost = safeAction<{ content: string; tags: string[]; imageUrl?: string | null }, { post: any }>(async ({ content, tags, imageUrl }, user) => {
+export const createMicroPost = safeAction<{
+  content: string;
+  tags: string[];
+  imageUrl?: string | null;
+  visibility?: string;
+  isDraft?: boolean;
+  scheduledAt?: string | null;
+  triggerWarning?: string | null;
+}, { post: any }>(async ({ content, tags, imageUrl, visibility, isDraft, scheduledAt, triggerWarning }, user) => {
   const cleanContent = content.trim()
   if (!cleanContent || cleanContent.length > 280) {
     throw new Error("INVALID_CONTENT")
@@ -72,7 +80,11 @@ export const createMicroPost = safeAction<{ content: string; tags: string[]; ima
       content: cleanContent,
       authorId: user.id,
       tags,
-      imageUrl: imageUrl || null
+      imageUrl: imageUrl || null,
+      visibility: visibility || "public",
+      isDraft: isDraft || false,
+      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+      triggerWarning: triggerWarning || null
     },
     include: {
       author: { select: { id: true, name: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, username: true } }
@@ -231,10 +243,33 @@ export const getProfileData = safeAction<string, {
 
   const followersCount = await prisma.follows.count({ where: { creatorId: profileUser.id } })
   const followingCount = await prisma.follows.count({ where: { readerId: profileUser.id } })
-  const postsCount = await prisma.post.count({ where: { authorId: profileUser.id } })
+  const isOwnProfile = currentUserId === profileUser.id
+  const postsCount = await prisma.post.count({
+    where: {
+      authorId: profileUser.id,
+      ...(isOwnProfile ? {} : {
+        isDraft: false,
+        OR: [
+          { scheduledAt: null },
+          { scheduledAt: { lte: new Date() } }
+        ],
+        visibility: isFollowing ? { in: ["public", "followers"] } : "public"
+      })
+    }
+  })
 
   const dbPosts = await prisma.post.findMany({
-    where: { authorId: profileUser.id },
+    where: {
+      authorId: profileUser.id,
+      ...(isOwnProfile ? {} : {
+        isDraft: false,
+        OR: [
+          { scheduledAt: null },
+          { scheduledAt: { lte: new Date() } }
+        ],
+        visibility: isFollowing ? { in: ["public", "followers"] } : "public"
+      })
+    },
     include: {
       author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } },
       likes: { select: { userId: true } },
