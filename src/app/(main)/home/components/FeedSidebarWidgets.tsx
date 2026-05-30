@@ -55,38 +55,41 @@ export function FeedSidebarWidgets({
   }
 
   return (
-    <aside className="lg:col-span-4 lg:sticky lg:top-24 space-y-8 select-none">
+    <aside className="lg:col-span-4 lg:sticky lg:top-24 space-y-6 select-none">
 
-      {/* ── Widget 1 : Votre Activité ───────────────────── */}
+      {/* ── Widget 1 : Votre Activité (Feuille Blanche) ── */}
       {userStats && (
-        <div className="pb-6 border-b border-[var(--border-default)]">
-          <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] flex items-center gap-2 mb-4">
-            <TrendingUp className="w-3 h-3" strokeWidth={2.5} />
+        <div className="bg-white border border-[var(--border-subtle)] rounded-md p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01),0_10px_35px_rgba(0,0,0,0.02)] space-y-5">
+          <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] flex items-center gap-2">
+            <TrendingUp className="w-3 h-3 text-[var(--qoe-vermillion)]" strokeWidth={2.5} />
             {t("feed.your_week", "Votre semaine")}
           </span>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2.5">
             <StatCell icon={BookOpen} value={userStats.articlesRead} label={t("feed.stat_read", "Lus")} />
             <StatCell icon={Highlighter} value={userStats.highlights} label={t("feed.stat_highlights", "Surlignages")} />
             <StatCell icon={Users} value={userStats.following} label={t("feed.stat_following", "Abonnements")} />
           </div>
+
+          {/* Interactive sparkline graph */}
+          <ActivitySparkline />
         </div>
       )}
 
-      {/* ── Widget 2 : Créateurs suggérés ──────────────── */}
+      {/* ── Widget 2 : Créateurs suggérés (Feuille Blanche) ── */}
       {suggestedCreators.length > 0 && (
-        <div className="pb-6 border-b border-[var(--border-default)]">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white border border-[var(--border-subtle)] rounded-md p-6 shadow-[0_1px_3px_rgba(0,0,0,0.01),0_10px_35px_rgba(0,0,0,0.02)] space-y-4">
+          <div className="flex items-center justify-between">
             <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] flex items-center gap-2">
-              <Compass className="w-3 h-3" strokeWidth={2.5} />
+              <Compass className="w-3 h-3 text-[var(--qoe-vermillion)]" strokeWidth={2.5} />
               {t("feed.to_discover", "À Découvrir")}
             </span>
-            <button className="text-[9px] font-bold text-[var(--text-tertiary)] hover:text-[var(--qoe-vermillion)] transition-colors cursor-pointer">
+            <button className="text-[9px] font-bold text-[var(--text-tertiary)] hover:text-[var(--qoe-vermillion)] transition-colors cursor-pointer outline-none">
               {t("feed.see_more", "Voir +")}
             </button>
           </div>
 
           <div className="space-y-4">
-            {suggestedCreators.slice(0, 5).map(creator => {
+            {suggestedCreators.slice(0, 3).map(creator => {
               const isFollowedLocally = followedLocally.has(creator.id)
               const isJustFollowed = justFollowed === creator.id
 
@@ -103,7 +106,7 @@ export function FeedSidebarWidgets({
                     whileTap={{ scale: 0.98 }}
                     className="flex items-center gap-2.5 min-w-0 hover:opacity-85 transition-opacity cursor-pointer flex-1 outline-none text-left"
                   >
-                    <div className="w-8 h-8 rounded-[var(--radius-icon)] overflow-hidden border border-[var(--border-default)] shrink-0 transition-transform duration-300 group-hover/sug:scale-105">
+                    <div className="w-8 h-8 rounded-[var(--radius-icon)] overflow-hidden border border-[var(--border-subtle)] shrink-0 transition-transform duration-300 group-hover/sug:scale-105">
                       {creator.logoUrl ? (
                         <img src={creator.logoUrl} className="w-full h-full object-cover" alt="" />
                       ) : (
@@ -116,13 +119,13 @@ export function FeedSidebarWidgets({
                       <span className="text-[12px] font-bold text-[var(--text-primary)] block leading-tight truncate group-hover/sug:text-[var(--qoe-vermillion)] transition-colors duration-200">
                         {creator.name}
                       </span>
-                      <span className="text-[9px] text-[var(--text-tertiary)] block truncate mt-0.5 uppercase tracking-wider">
+                      <span className="text-[9px] text-[var(--text-tertiary)] block truncate mt-0.5 uppercase tracking-wider font-sans">
                         @{creator.username || creator.subdomain}
                       </span>
                     </div>
                   </motion.button>
 
-                  {/* Follow button avec micro-animation */}
+                  {/* Follow button with spring dynamics */}
                   <motion.button
                     whileTap={{ scale: 0.98 }}
                     transition={springs.follow}
@@ -173,6 +176,58 @@ export function FeedSidebarWidgets({
   )
 }
 
+// ── ActivitySparkline component ──
+function ActivitySparkline() {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+  const data = [1, 3, 2, 5, 2, 4, 3]
+  const days = ["L", "M", "M", "J", "V", "S", "D"]
+  const maxVal = Math.max(...data)
+
+  return (
+    <div className="pt-4 border-t border-neutral-100/60 flex flex-col gap-2">
+      <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-wider text-neutral-400">
+        <span>Activité de lecture</span>
+        <span className="text-[var(--qoe-vermillion)] font-sans tracking-tight">
+          {hoveredIndex !== null ? `${data[hoveredIndex]} écrits` : "7 derniers jours"}
+        </span>
+      </div>
+
+      <div className="h-10 flex items-end justify-between gap-1.5 pt-1">
+        {data.map((val, idx) => {
+          const heightPercent = maxVal > 0 ? (val / maxVal) * 100 : 0
+          const isHovered = hoveredIndex === idx
+
+          return (
+            <div
+              key={idx}
+              className="flex-1 flex flex-col items-center gap-1 group cursor-pointer"
+              onMouseEnter={() => setHoveredIndex(idx)}
+              onMouseLeave={() => setHoveredIndex(null)}
+            >
+              <div className="w-full relative h-7 flex items-end">
+                <motion.div
+                  animate={{
+                    height: `${Math.max(heightPercent, 12)}%`,
+                    backgroundColor: isHovered ? "var(--qoe-vermillion)" : "rgba(238, 75, 43, 0.12)"
+                  }}
+                  transition={{ type: "spring", stiffness: 350, damping: 20 }}
+                  className="w-full rounded-sm"
+                />
+              </div>
+              <span className={cn(
+                "text-[8px] font-bold transition-colors duration-150 font-sans",
+                isHovered ? "text-[var(--qoe-vermillion)]" : "text-neutral-450"
+              )}>
+                {days[idx]}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── StatCell sub-component ───────────────────────────────────────────────────
 function StatCell({
   icon: Icon,
@@ -184,12 +239,12 @@ function StatCell({
   label: string
 }) {
   return (
-    <div className="flex flex-col items-center gap-1.5 py-3 rounded-[var(--radius-element)] bg-[var(--surface-1)]">
+    <div className="flex flex-col items-center gap-1.5 py-3 rounded-md bg-[var(--surface-1)] border border-[var(--border-subtle)]">
       <Icon className="w-3.5 h-3.5 text-[var(--text-tertiary)]" strokeWidth={1.5} />
-      <span className="text-[18px] font-black text-[var(--text-primary)] leading-none font-mono tabular-nums">
+      <span className="text-[17px] font-bold text-[var(--text-primary)] leading-none font-sans tracking-tight">
         {value}
       </span>
-      <span className="text-[8px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+      <span className="text-[8px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] font-sans">
         {label}
       </span>
     </div>

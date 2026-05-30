@@ -227,7 +227,7 @@ export function FeedDashboard({
         {/* ========================================================================= */}
         {/* MIDDLE COLUMN: Flat editorial feed without the big red background box     */}
         {/* ========================================================================= */}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="lg:col-span-8 bg-white border border-[var(--border-subtle)] rounded-md p-6 sm:p-8 shadow-[0_1px_3px_rgba(0,0,0,0.01),0_10px_35px_rgba(0,0,0,0.02)] space-y-6">
           
           {/* Top Segmented Tabs with sharp borders and dynamic blur */}
           <FeedTabsHeader 
@@ -320,6 +320,11 @@ export function FeedDashboard({
         <FeedSidebarWidgets 
           suggestedCreators={suggestedCreators}
           onFollowToggle={handleFollowToggle}
+          userStats={{
+            articlesRead: 12,
+            highlights: initialHighlightsCount || 4,
+            following: followsCount
+          }}
         />
 
       </div>

@@ -68,23 +68,23 @@ export function ArticleReaderView({ slug }: ArticleReaderViewProps) {
         >
           <ArrowLeft className="w-3.5 h-3.5" /> {t("feed.back_to_feed", "Retour au flux")}
         </motion.button>
-        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest font-mono">{t("feed.read_tab_title", "Lecture de l'écrit")}</span>
+        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest font-sans">{t("feed.read_tab_title", "Lecture de l'écrit")}</span>
       </div>
 
       {/* Meta headers */}
       <div className="space-y-4">
         <div className="flex items-center gap-2.5">
           {article.category && (
-            <span className="text-[9px] font-bold uppercase tracking-wider px-2.5 py-0.5 bg-neutral-50 border border-neutral-200/30 rounded text-neutral-500 font-mono">
+            <span className="text-[9px] font-bold uppercase tracking-wider px-2.5 py-0.5 bg-neutral-50 border border-neutral-200/30 rounded text-neutral-500 font-sans">
               {article.category.name}
             </span>
           )}
           {article.isPremium && (
-            <span className="text-[9px] font-bold uppercase tracking-wider px-2.5 py-0.5 bg-[var(--qoe-vermillion-08)] border border-[var(--qoe-vermillion)]/10 text-[var(--qoe-vermillion)] font-mono">
+            <span className="text-[9px] font-bold uppercase tracking-wider px-2.5 py-0.5 bg-[var(--qoe-vermillion-08)] border border-[var(--qoe-vermillion)]/10 text-[var(--qoe-vermillion)] font-sans">
               {t("feed.premium_badge", "Premium")}
             </span>
           )}
-          <span className="text-[10px] text-neutral-400 font-mono flex items-center gap-1">
+          <span className="text-[10px] text-neutral-400 font-sans flex items-center gap-1">
             <Clock className="w-3.5 h-3.5" /> {t("feed.reading_time", { count: article.readingTime || 5 })}
           </span>
         </div>
@@ -109,7 +109,7 @@ export function ArticleReaderView({ slug }: ArticleReaderViewProps) {
               <span className="text-xs font-semibold text-neutral-800 leading-none">{article.author.name}</span>
               {article.author.isCertified && <span className="text-[var(--qoe-vermillion)] text-[9px] font-black">✓</span>}
             </div>
-            <span className="text-[10px] text-neutral-400 block mt-1 font-mono">
+            <span className="text-[10px] text-neutral-400 block mt-1 font-sans">
               @{article.author.username || article.author.subdomain} • {new Date(article.createdAt).toLocaleDateString(undefined, { dateStyle: "medium" })}
             </span>
           </div>
