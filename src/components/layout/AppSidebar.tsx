@@ -106,7 +106,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
               "bg-transparent select-none overflow-hidden"
             )}
           >
-          <div className="flex flex-col justify-between h-full w-full py-5">
+          <div className="flex flex-col h-full w-full py-5">
 
           {/* ── TOP SECTION ─────────────────────────────── */}
           <div className="space-y-6">
@@ -127,7 +127,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                      transition={springs.hover}
                      className="shrink-0 flex items-center justify-center w-8 h-8"
                    >
-                     <Logo className="h-[13px] w-auto" fillColor="#EE4B2B" />
+                     <Logo className="h-[16px] w-auto" fillColor="#EE4B2B" />
                    </motion.div>
                  </button>
                ) : (
@@ -140,7 +140,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                      transition={springs.hover}
                      className="shrink-0 flex items-center justify-center w-8 h-8"
                    >
-                     <Logo className="h-[13px] w-auto" fillColor="#EE4B2B" />
+                     <Logo className="h-[16px] w-auto" fillColor="#EE4B2B" />
                    </motion.div>
                  </a>
                )}
@@ -263,105 +263,110 @@ export function AppSidebar({ user }: AppSidebarProps) {
             )}
           </div>
 
-          {/* ── BOTTOM USER PROFILE ──────────────────────── */}
-          <div className="px-2 pt-4 mt-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                className="w-full outline-none cursor-pointer"
-              >
-                  <div
-                    className={cn(
-                      "flex flex-col items-center justify-center py-2 rounded-[var(--radius-button)]",
-                      "hover:bg-white/50 border border-transparent",
-                      "hover:border-[var(--border-subtle)] transition-all duration-200 group"
-                    )}
-                  >
-                    {/* Avatar */}
-                    <div
-                      className={cn(
-                        "relative w-8 h-8 rounded-[var(--radius-button)] overflow-hidden shrink-0",
-                        "border border-[var(--border-default)]",
-                        user?.role === "creator" ? "ring-1 ring-[var(--qoe-vermillion)]/25 ring-offset-1" : ""
-                      )}
-                    >
-                      {user?.logoUrl ? (
-                        <img src={user.logoUrl} className="w-full h-full object-cover" alt="" />
-                      ) : (
-                        <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-[var(--qoe-vermillion)] text-xs">
-                          {user?.name?.substring(0, 2).toUpperCase() || "L"}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent
-                align="start"
-                side="right"
-                sideOffset={16}
-                className="w-56 p-1.5 bg-white/95 backdrop-blur-xl border border-[var(--border-default)] rounded-[var(--radius-element)] shadow-[var(--shadow-elevated)] z-50 ml-2"
-              >
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel className="px-2.5 py-2">
-                    <span className="font-bold text-xs block leading-tight text-[var(--text-primary)]">
-                      {user?.name || "Lecteur"}
-                    </span>
-                    <span className="text-[10px] text-[var(--text-tertiary)] block truncate mt-0.5">
-                      {user?.email}
-                    </span>
-                    <span className="inline-block mt-2 text-[8px] uppercase tracking-wider font-bold bg-[var(--qoe-vermillion-08)] px-2 py-0.5 rounded text-[var(--qoe-vermillion)]">
-                      {roleLabel}
-                    </span>
-                  </DropdownMenuLabel>
-
-                  <DropdownMenuSeparator className="bg-[var(--border-subtle)]" />
-
-                  {user?.username && (
-                    <DropdownMenuItem
-                      className="cursor-pointer font-sans text-xs font-semibold text-[var(--text-secondary)] focus:bg-[var(--qoe-vermillion-08)] focus:text-[var(--qoe-vermillion)] rounded-[8px]"
-                      onClick={() => window.location.href = `/profile/${user.username}`}
-                    >
-                      <User className="w-4 h-4 mr-2.5 text-[var(--text-tertiary)]" />
-                      Mon Profil Public
-                    </DropdownMenuItem>
-                  )}
-
-                  <DropdownMenuItem
-                    className="cursor-pointer font-sans text-xs font-semibold text-[var(--text-secondary)] focus:bg-[var(--surface-2)] rounded-[8px]"
-                    onClick={() => window.location.href = "/settings"}
-                  >
-                    <Settings className="w-4 h-4 mr-2.5 text-[var(--text-tertiary)]" />
-                    Réglages
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    className="cursor-pointer font-sans text-xs font-semibold text-[var(--text-secondary)] focus:bg-[var(--surface-2)] rounded-[8px]"
-                    onClick={() => window.location.href = "/onboarding"}
-                  >
-                    <Sparkles className="w-4 h-4 mr-2.5 text-[var(--text-tertiary)]" />
-                    Recommencer l'onboarding
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator className="bg-[var(--border-subtle)]" />
-
-                  <DropdownMenuItem
-                    className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive font-sans text-xs font-semibold rounded-[8px]"
-                    onClick={async () => {
-                      await logout()
-                      window.location.href = "/"
-                    }}
-                  >
-                    <LogOut className="w-4 h-4 mr-2.5" />
-                    Se déconnecter
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
-
-        </div>
           </motion.aside>
         </div>
+      </div>
+
+      {/* ── FIXED BOTTOM USER PROFILE ── */}
+      <div 
+        className="fixed bottom-5 w-16 z-40 flex justify-center pointer-events-auto"
+        style={{
+          left: isHome ? "calc(50vw - 404px)" : "0px",
+        }}
+      >
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger
+            className="outline-none cursor-pointer"
+          >
+            <div
+              className={cn(
+                "flex items-center justify-center w-12 h-10 rounded-[var(--radius-button)]",
+                "hover:bg-white/50 border border-transparent",
+                "hover:border-[var(--border-subtle)] transition-all duration-200 group"
+              )}
+            >
+              {/* Avatar */}
+              <div
+                className={cn(
+                  "relative w-8 h-8 rounded-[var(--radius-button)] overflow-hidden shrink-0",
+                  "border border-[var(--border-default)]",
+                  user?.role === "creator" ? "ring-1 ring-[var(--qoe-vermillion)]/25 ring-offset-1" : ""
+                )}
+              >
+                {user?.logoUrl ? (
+                  <img src={user.logoUrl} className="w-full h-full object-cover" alt="" />
+                ) : (
+                  <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-[var(--qoe-vermillion)] text-xs">
+                    {user?.name?.substring(0, 2).toUpperCase() || "L"}
+                  </div>
+                )}
+              </div>
+            </div>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent
+            align="start"
+            side="right"
+            sideOffset={16}
+            className="w-56 p-1.5 bg-white/95 backdrop-blur-xl border border-[var(--border-default)] rounded-[var(--radius-element)] shadow-[var(--shadow-elevated)] z-50 ml-2"
+          >
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="px-2.5 py-2">
+                <span className="font-bold text-xs block leading-tight text-[var(--text-primary)]">
+                  {user?.name || "Lecteur"}
+                </span>
+                <span className="text-[10px] text-[var(--text-tertiary)] block truncate mt-0.5">
+                  {user?.email}
+                </span>
+                <span className="inline-block mt-2 text-[8px] uppercase tracking-wider font-bold bg-[var(--qoe-vermillion-08)] px-2 py-0.5 rounded text-[var(--qoe-vermillion)]">
+                  {roleLabel}
+                </span>
+              </DropdownMenuLabel>
+
+              <DropdownMenuSeparator className="bg-[var(--border-subtle)]" />
+
+              {user?.username && (
+                <DropdownMenuItem
+                  className="cursor-pointer font-sans text-xs font-semibold text-[var(--text-secondary)] focus:bg-[var(--qoe-vermillion-08)] focus:text-[var(--qoe-vermillion)] rounded-[8px]"
+                  onClick={() => window.location.href = `/profile/${user.username}`}
+                >
+                  <User className="w-4 h-4 mr-2.5 text-[var(--text-tertiary)]" />
+                  Mon Profil Public
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuItem
+                className="cursor-pointer font-sans text-xs font-semibold text-[var(--text-secondary)] focus:bg-[var(--surface-2)] rounded-[8px]"
+                onClick={() => window.location.href = "/settings"}
+              >
+                <Settings className="w-4 h-4 mr-2.5 text-[var(--text-tertiary)]" />
+                Réglages
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                className="cursor-pointer font-sans text-xs font-semibold text-[var(--text-secondary)] focus:bg-[var(--surface-2)] rounded-[8px]"
+                onClick={() => window.location.href = "/onboarding"}
+              >
+                <Sparkles className="w-4 h-4 mr-2.5 text-[var(--text-tertiary)]" />
+                Recommencer l'onboarding
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator className="bg-[var(--border-subtle)]" />
+
+              <DropdownMenuItem
+                className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive font-sans text-xs font-semibold rounded-[8px]"
+                onClick={async () => {
+                  await logout()
+                  window.location.href = "/"
+                }}
+              >
+                <LogOut className="w-4 h-4 mr-2.5" />
+                Se déconnecter
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </TooltipProvider>
   )
