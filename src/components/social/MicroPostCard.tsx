@@ -2,7 +2,7 @@
 
 import React from "react"
 import { motion } from "framer-motion"
-import { useTabStore } from "@/lib/use-tab-store"
+
 import { TextParser } from "@/components/ui/TextParser"
 import { cn } from "@/lib/utils"
 import { MoreHorizontal, Pin } from "lucide-react"
@@ -34,10 +34,9 @@ const getUrls = (text: string): string[] => {
   return text.match(urlRegex) || []
 }
 
-export function MicroPostCard({ post }: { post: MicroPostData }) {
-  const { addTab } = useTabStore()
+export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, onOpenPost }: { post: MicroPostData; currentUserId?: string | null; onOpenProfile?: (username: string) => void; onOpenPost?: (postId: string) => void }) {
   const [isRevealed, setIsRevealed] = React.useState<boolean>(false)
-  const [currentUserId, setCurrentUserId] = React.useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = React.useState<string | null>(propUserId || null)
   const [showPopover, setShowPopover] = React.useState<boolean>(false)
   const [tilt, setTilt] = React.useState({ x: 0, y: 0 })
 
@@ -60,13 +59,14 @@ export function MicroPostCard({ post }: { post: MicroPostData }) {
   }
 
   React.useEffect(() => {
+    if (propUserId) return
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user) {
         setCurrentUserId(data.user.id)
       }
     })
-  }, [])
+  }, [propUserId])
 
   const handlePinToggle = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -98,20 +98,17 @@ export function MicroPostCard({ post }: { post: MicroPostData }) {
     e.stopPropagation()
     const targetUsername = post.author.username || post.author.subdomain
     if (!targetUsername) return
-    addTab({
-      id: `profile-${targetUsername}`,
-      title: `@${targetUsername}`,
-      type: "profile",
-      username: targetUsername
-    })
+    if (onOpenProfile) {
+      onOpenProfile(targetUsername)
+    } else {
+      window.location.href = `/profile/${targetUsername}`
+    }
   }
 
   const handleOpenPost = () => {
-    addTab({
-      id: `post-${post.id}`,
-      title: `${post.author.name || "Post"}`,
-      type: "post"
-    })
+    if (onOpenPost) {
+      onOpenPost(post.id)
+    }
   }
 
   const hasWarning = !!post.triggerWarning && !isRevealed
@@ -242,7 +239,17 @@ export function MicroPostCard({ post }: { post: MicroPostData }) {
 
           {getUrls(post.content).length > 0 && (
             <div className="mt-2">
-              <LinkPreview urls={getUrls(post.content)} />
+              <LinkPreview 
+                urls={getUrls(post.content)} 
+                onNavigate={(target) => {
+                  if (target.type === "post" && onOpenPost) {
+                    onOpenPost(target.id)
+                  } else if (target.type === "article" && target.slug) {
+                    const host = post.author.subdomain ? `${post.author.subdomain}.localhost:3000` : "localhost:3000"
+                    window.open(`http://${host}/article/${target.slug}`, "_blank")
+                  }
+                }}
+              />
             </div>
           )}
 

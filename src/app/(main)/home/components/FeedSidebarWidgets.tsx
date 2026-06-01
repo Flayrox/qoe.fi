@@ -4,7 +4,7 @@ import React, { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Compass, TrendingUp, UserCheck, UserPlus, BookOpen, Highlighter, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useTabStore } from "@/lib/use-tab-store"
+
 import { useTranslate } from "@tolgee/react"
 
 interface SuggestedCreator {
@@ -18,7 +18,7 @@ interface SuggestedCreator {
 interface FeedSidebarWidgetsProps {
   suggestedCreators: SuggestedCreator[]
   onFollowToggle: (creator: SuggestedCreator) => void
-  // Stats utilisateur (optionnelles)
+  onOpenProfile?: (username: string) => void
   userStats?: {
     articlesRead: number
     highlights: number
@@ -33,9 +33,9 @@ const springs = {
 export function FeedSidebarWidgets({
   suggestedCreators,
   onFollowToggle,
+  onOpenProfile,
   userStats,
 }: FeedSidebarWidgetsProps) {
-  const { addTab } = useTabStore()
   const { t } = useTranslate()
   const [followedLocally, setFollowedLocally] = useState<Set<string>>(new Set())
   const [justFollowed, setJustFollowed] = useState<string | null>(null)
@@ -97,12 +97,14 @@ export function FeedSidebarWidgets({
                 <div key={creator.id} className="flex items-center justify-between gap-3 group/sug">
                   {/* Profile */}
                   <motion.button
-                    onClick={() => addTab({
-                      id: `profile-${creator.username || creator.subdomain}`,
-                      title: creator.name || `@${creator.username || creator.subdomain}`,
-                      type: "profile",
-                      username: creator.username || creator.subdomain || ""
-                    })}
+                    onClick={() => {
+                      const username = creator.username || creator.subdomain || ''
+                      if (onOpenProfile) {
+                        onOpenProfile(username)
+                      } else {
+                        window.location.href = `/profile/${username}`
+                      }
+                    }}
                     whileTap={{ scale: 0.98 }}
                     className="flex items-center gap-2.5 min-w-0 hover:opacity-85 transition-opacity cursor-pointer flex-1 outline-none text-left"
                   >
