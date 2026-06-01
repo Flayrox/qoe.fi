@@ -10,7 +10,7 @@ export default async function ReaderHomePage() {
 
   if (!user) redirect("/login")
 
-  // Fetch dbUser details and followed creators in parallel (Step 1)
+  // Étape 1 : Récupérer les détails de dbUser et les créateurs suivis en parallèle
   const [dbUser, followedCreators] = await Promise.all([
     getRequestDbUser(user.id),
     prisma.follows.findMany({
@@ -24,10 +24,10 @@ export default async function ReaderHomePage() {
 
   const creatorIds = followedCreators.map(f => f.creatorId)
 
-  // Mapping helper functions
+  // Fonctions utilitaires de remappage
   const mapPostToFeedItem = (post: any) => ({
     id: post.id,
-    title: "", // Empty title identifies it as a micro-post (tweet) in FeedDashboard
+    title: "", // Un titre vide identifie un micro-post (tweet) dans FeedDashboard
     slug: `post-${post.id}`,
     content: post.content,
     imageUrl: post.imageUrl || null,
@@ -56,7 +56,7 @@ export default async function ReaderHomePage() {
     tags: art.semanticTags || []
   })
 
-  // Define parallel database promises (Step 2)
+  // Étape 2 : Définir les promesses de base de données parallèles
   const dbFollowingArticlesPromise = creatorIds.length > 0
     ? prisma.article.findMany({
         where: { 
@@ -211,7 +211,13 @@ export default async function ReaderHomePage() {
     take: 3
   })
 
-  // Execute all step 2 database promises in parallel
+  // Récupérer les mots masqués en parallèle
+  const mutedWordsPromise = prisma.mutedWord.findMany({
+    where: { userId: user.id },
+    select: { word: true }
+  })
+
+  // Étape 2 : Exécuter toutes les promesses de base de données en parallèle
   const [
     dbFollowingArticles,
     dbFollowingPosts,
@@ -221,7 +227,8 @@ export default async function ReaderHomePage() {
     dbDiscoverPosts,
     bookmarks,
     highlightsCount,
-    suggestedCreators
+    suggestedCreators,
+    mutedWords
   ] = await Promise.all([
     dbFollowingArticlesPromise,
     dbFollowingPostsPromise,
@@ -231,10 +238,11 @@ export default async function ReaderHomePage() {
     dbDiscoverPostsPromise,
     bookmarksPromise,
     highlightsCountPromise,
-    suggestedCreatorsPromise
+    suggestedCreatorsPromise,
+    mutedWordsPromise
   ])
 
-  // Combine and sort feed elements
+  // Combiner et trier les éléments de la timeline
   const followingArticles = [
     ...dbFollowingArticles.map(mapArticleToFeedItem),
     ...dbFollowingPosts.map(mapPostToFeedItem)
@@ -252,6 +260,7 @@ export default async function ReaderHomePage() {
 
   const followsCount = followedCreators.length
   const bookmarksCount = bookmarks.length
+  const mutedWordsList = mutedWords.map(w => w.word.toLowerCase())
 
   const feedProps = {
     dbUser,
@@ -264,6 +273,7 @@ export default async function ReaderHomePage() {
     initialFollowsCount: followsCount,
     initialBookmarksCount: bookmarksCount,
     initialHighlightsCount: highlightsCount,
+    mutedWords: mutedWordsList
   }
 
   return (
