@@ -56,7 +56,7 @@ export function ReaderPageLayout({ giantTitle, giantTitleSuffix = ".", children 
       {/* ── CENTERED CONTAINER ── */}
       <div className={cn(
         "pb-24 max-w-[640px] mx-auto selection:bg-[var(--qoe-vermillion-10)] selection:text-[var(--qoe-vermillion)] relative z-20 px-4 sm:px-6",
-        isTimeline ? "pt-[30vh]" : "pt-16"
+        isTimeline ? "pt-[30vh]" : "pt-5"
       )}>
         
 
