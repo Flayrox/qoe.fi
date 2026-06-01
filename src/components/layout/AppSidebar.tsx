@@ -111,25 +111,40 @@ export function AppSidebar({ user }: AppSidebarProps) {
           {/* ── TOP SECTION ─────────────────────────────── */}
           <div className="space-y-6">
 
-            {/* Logo */}
-            {isHome ? (
-              <div className="h-8" />
-            ) : (
-              <div className="px-4 h-8 flex items-center justify-center">
-                <a
-                  href="/home"
-                  className="flex items-center justify-center gap-2.5 h-8 outline-none group"
-                >
-                  <motion.div
-                    whileHover={{ scale: 1.06, rotate: -2 }}
-                    transition={springs.hover}
-                    className="shrink-0 flex items-center justify-center w-8 h-8"
-                  >
-                    <Logo className="h-[13px] w-auto" fillColor="#EE4B2B" />
-                  </motion.div>
-                </a>
-              </div>
-            )}
+             {/* Logo */}
+             <div className="px-4 h-8 flex items-center justify-center">
+               {isTimeline ? (
+                 <button
+                   onClick={(e) => {
+                     e.preventDefault()
+                     window.scrollTo({ top: 0, behavior: "smooth" })
+                   }}
+                   className="flex items-center justify-center w-8 h-8 outline-none group cursor-pointer bg-transparent border-0"
+                   title="Retour en haut"
+                 >
+                   <motion.div
+                     whileHover={{ scale: 1.06, rotate: -2 }}
+                     transition={springs.hover}
+                     className="shrink-0 flex items-center justify-center w-8 h-8"
+                   >
+                     <Logo className="h-[13px] w-auto" fillColor="#EE4B2B" />
+                   </motion.div>
+                 </button>
+               ) : (
+                 <a
+                   href="/home"
+                   className="flex items-center justify-center gap-2.5 h-8 outline-none group"
+                 >
+                   <motion.div
+                     whileHover={{ scale: 1.06, rotate: -2 }}
+                     transition={springs.hover}
+                     className="shrink-0 flex items-center justify-center w-8 h-8"
+                   >
+                     <Logo className="h-[13px] w-auto" fillColor="#EE4B2B" />
+                   </motion.div>
+                 </a>
+               )}
+             </div>
 
             {/* Navigation */}
             <nav
