@@ -61,6 +61,8 @@ export function AppSidebar({ user }: AppSidebarProps) {
     pathname.endsWith("/highlights") || pathname.endsWith("/highlights/") ||
     pathname.endsWith("/billing") || pathname.endsWith("/billing/")
 
+  const isTimeline = pathname.endsWith("/home") || pathname.endsWith("/home/")
+
   const isActive = (href: string) => {
     if (href === "/home") return pathname === "/home"
     return pathname.startsWith(href)
@@ -94,7 +96,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
               : "h-full w-16"
           )}
           style={{
-            marginTop: isHome ? "calc(30vh + 32px)" : "0px",
+            marginTop: isHome ? (isTimeline ? "calc(30vh + 32px)" : "36px") : "0px",
           }}
         >
           <motion.aside
