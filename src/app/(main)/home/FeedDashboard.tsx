@@ -1,21 +1,20 @@
 "use client"
 
-import React, { useState, useMemo, useEffect, useRef } from "react"
+import React, { useState, useMemo } from "react"
+import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
+import { Logo } from "@/components/ui/Logo"
 import { 
-  BookMarked, Users, Bell, Hash, Sparkles, Compass, AlertCircle
+  BookMarked, AlertCircle
 } from "lucide-react"
 import { toggleFollowCreatorHome, toggleBookmarkArticleHome } from "./actions"
 import { cn } from "@/lib/utils"
 import { ArticleCard } from "./components/ArticleCard"
 import { MicroPostComposer } from "./components/MicroPostComposer"
-import { useTabStore } from "@/lib/use-tab-store"
 import { FeedTabsHeader } from "./components/FeedTabsHeader"
-import { FeedSidebarWidgets } from "./components/FeedSidebarWidgets"
-import { useFeedStore } from "@/lib/use-feed-store"
+import { ExpandedPostView } from "./components/ExpandedPostView"
 import { useTranslate } from "@tolgee/react"
 import { trackEvent } from "@/lib/analytics"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface Author {
   id: string
@@ -65,10 +64,9 @@ interface FeedDashboardProps {
   initialHighlightsCount: number
 }
 
-// Snappy engineering springs (instantly responsive)
+// Spring physics — Rauno-style, never ease-in-out
 const springs = {
-  tab: { type: "spring" as const, stiffness: 450, damping: 32, mass: 0.7 },
-  card: { type: "spring" as const, stiffness: 350, damping: 28 }
+  card: { type: "spring" as const, stiffness: 350, damping: 28 },
 }
 
 export function FeedDashboard({
@@ -85,38 +83,19 @@ export function FeedDashboard({
 }: FeedDashboardProps) {
   const { t } = useTranslate()
   const [activeFeed, setActiveFeed] = useState<string>("recommandation")
+  const [activePostId, setActivePostId] = useState<string | null>(null)
   
   const [bookmarks, setBookmarks] = useState<Article[]>(initialBookmarks)
   const [followedCreators, setFollowedCreators] = useState<any[]>(initialFollowedCreators)
   const [followsCount, setFollowsCount] = useState<number>(initialFollowsCount)
   const [bookmarksCount, setBookmarksCount] = useState<number>(initialBookmarksCount)
-  
-  const { addTab } = useTabStore()
 
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
-  const [scrollProgress, setScrollProgress] = useState(0)
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const totalHeight = document.documentElement.scrollHeight - window.innerHeight
-      if (totalHeight > 0) {
-        setScrollProgress(window.scrollY / totalHeight)
-      }
-    }
-    window.addEventListener("scroll", handleScroll, { passive: true })
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
   
-  const localPosts = useFeedStore(state => state.localPosts)
-  const deletedPostIds = useFeedStore(state => state.deletedPostIds)
-  const interactions = useFeedStore(state => state.interactions)
-  const toggleBookmarkOptimistic = useFeedStore(state => state.toggleBookmark)
+  const [localPosts, setLocalPosts] = useState<Article[]>([])
+  const [deletedPostIds, setDeletedPostIds] = useState<Set<string>>(new Set())
+  const [interactions, setInteractions] = useState<Record<string, { liked?: boolean; likesCount?: number; bookmarked?: boolean; repliesCount?: number }>>({})
   
-  const [notifications, setNotifications] = useState([
-    { id: 1, text: t("feed.notif_mock_1", "Marc Dutronc a publié 'Souveraineté Numérique en Europe'"), time: t("feed.notif_time_1", "Il y a 5 min"), unread: true },
-    { id: 2, text: t("feed.notif_mock_2", "Votre note sur 'L'éveil de l'IA' a été synchronisée"), time: t("feed.notif_time_2", "Il y a 2h"), unread: false },
-  ])
-
   const isCreatorFollowed = (creatorId: string) => followedCreators.some(f => f.id === creatorId)
   const isArticleBookmarked = (articleId: string) => {
     const inter = interactions[articleId]
@@ -125,7 +104,6 @@ export function FeedDashboard({
   }
 
   const handleFollowToggle = async (creator: any) => {
-    // Optimistic Update
     const isCurrentlyFollowed = isCreatorFollowed(creator.id)
     trackEvent("follow_creator_toggled", { creatorId: creator.id, followed: !isCurrentlyFollowed })
     
@@ -139,7 +117,6 @@ export function FeedDashboard({
 
     const res = await toggleFollowCreatorHome(creator.id)
     if (!res.success) {
-      // Rollback
       if (isCurrentlyFollowed) {
         setFollowedCreators(prev => [creator, ...prev])
         setFollowsCount(prev => prev + 1)
@@ -148,7 +125,6 @@ export function FeedDashboard({
         setFollowsCount(prev => Math.max(0, prev - 1))
       }
     } else if (res.data) {
-      // Sync state with server reality
       const actualFollowed = res.data.followed
       if (actualFollowed) {
         setFollowedCreators(prev => prev.some(f => f.id === creator.id) ? prev : [creator, ...prev])
@@ -159,9 +135,17 @@ export function FeedDashboard({
   }
 
   const handleBookmarkToggle = async (article: Article) => {
-    // Optimistic Update
     const isCurrentlyBookmarked = isArticleBookmarked(article.id)
-    toggleBookmarkOptimistic(article.id, isCurrentlyBookmarked)
+    
+    // Optimistic local state update
+    setInteractions(prev => ({
+      ...prev,
+      [article.id]: {
+        ...prev[article.id],
+        bookmarked: !isCurrentlyBookmarked
+      }
+    }))
+    
     trackEvent("bookmark_toggled", { articleId: article.id, bookmarked: !isCurrentlyBookmarked })
     
     if (isCurrentlyBookmarked) {
@@ -175,22 +159,19 @@ export function FeedDashboard({
     const res = await toggleBookmarkArticleHome(article.id)
     if (!res.success) {
       // Rollback
-      toggleBookmarkOptimistic(article.id, !isCurrentlyBookmarked)
+      setInteractions(prev => ({
+        ...prev,
+        [article.id]: {
+          ...prev[article.id],
+          bookmarked: isCurrentlyBookmarked
+        }
+      }))
       if (isCurrentlyBookmarked) {
         setBookmarks(prev => [article, ...prev])
         setBookmarksCount(prev => prev + 1)
       } else {
         setBookmarks(prev => prev.filter(b => b.id !== article.id))
         setBookmarksCount(prev => Math.max(0, prev - 1))
-      }
-    } else if (res.data) {
-      // Sync state with server reality
-      const actualBookmarked = res.data.bookmarked
-      useFeedStore.getState().registerInteraction(article.id, { bookmarked: actualBookmarked })
-      if (actualBookmarked) {
-        setBookmarks(prev => prev.some(b => b.id === article.id) ? prev : [article, ...prev])
-      } else {
-        setBookmarks(prev => prev.filter(b => b.id !== article.id))
       }
     }
   }
@@ -207,10 +188,8 @@ export function FeedDashboard({
       list = bookmarks
     }
 
-    // Filter out deleted posts
     list = list.filter(art => art && art.id && !deletedPostIds.has(art.id))
 
-    // Deduplicate by ID
     const seenIds = new Set<string>()
     list = list.filter(art => {
       if (!art || !art.id) return false
@@ -235,231 +214,198 @@ export function FeedDashboard({
 
   return (
     <>
-      {/* 
-        =========================================================================
-        GEOMETRIC BACKGROUND: 3 blocks, grid lines, and subtle vermillion aura 
-        =========================================================================
-      */}
-      <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden bg-[var(--surface-1)]">
-        {/* Subtle Vermillion Aura */}
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[var(--qoe-vermillion)]/5 blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-[var(--qoe-vermillion)]/5 blur-[150px]" />
-        <div className="absolute top-[40%] left-[20%] w-[40%] h-[40%] rounded-full bg-white/40 blur-[100px]" />
+      {/* ── IMMERSIVE BACKGROUND BLURS ── */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute inset-0 bg-[#faf7f5]" />
+        
+        <div 
+          className="absolute bottom-[-20%] left-[-15%] w-[80%] h-[70%] rounded-full"
+          style={{
+            background: "radial-gradient(ellipse at center, rgba(238,75,43,0.12) 0%, rgba(238,75,43,0.06) 35%, rgba(238,75,43,0.02) 60%, transparent 80%)",
+            filter: "blur(60px)",
+          }}
+        />
+        
+        <div 
+          className="absolute top-[-10%] right-[-10%] w-[60%] h-[50%] rounded-full"
+          style={{
+            background: "radial-gradient(ellipse at center, rgba(255,180,140,0.15) 0%, rgba(255,200,170,0.08) 40%, transparent 70%)",
+            filter: "blur(80px)",
+          }}
+        />
 
-        {/* Vertical lines framing the central max-w-2xl content (approx 672px) */}
-        <div className="absolute top-0 bottom-0 left-1/2 -translate-x-[336px] w-[1px] bg-neutral-200/50" />
-        <div className="absolute top-0 bottom-0 left-1/2 translate-x-[336px] w-[1px] bg-neutral-200/50" />
+        <div 
+          className="absolute top-[30%] left-[30%] w-[50%] h-[50%] rounded-full"
+          style={{
+            background: "radial-gradient(ellipse at center, rgba(255,230,215,0.2) 0%, transparent 60%)",
+            filter: "blur(100px)",
+          }}
+        />
 
-        {/* Horizontal lines cutting the screen into 3 blocks */}
-        <div className="absolute top-[25vh] left-0 right-0 h-[1px] bg-neutral-200/50" />
-        <div className="absolute top-[65vh] left-0 right-0 h-[1px] bg-neutral-200/50" />
+        <div 
+          className="absolute top-0 right-0 bottom-0 w-[35%]"
+          style={{
+            background: "linear-gradient(to left, rgba(250,247,245,0.95) 0%, transparent 100%)",
+          }}
+        />
       </div>
 
-      <div className="pb-24 max-w-2xl mx-auto selection:bg-[var(--qoe-vermillion-10)] selection:text-[var(--qoe-vermillion)] relative">
-        <div className="relative z-10 mt-6">
-          {/* ========================================================================= */}
-          {/* THE PAPER SHEET: Central column                                           */}
-          {/* ========================================================================= */}
-          <div className="w-full bg-white border border-[var(--border-subtle)] rounded-md shadow-[0_1px_3px_rgba(0,0,0,0.01),0_10px_35px_rgba(0,0,0,0.02)] overflow-hidden">
-            
-            {/* Sticky Header inside the sheet containing "Lire." and the Tabs */}
-            <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md pt-8 pb-4 px-6 sm:px-8 border-b border-[var(--border-subtle)] transition-all duration-300">
-              <div className="flex items-center gap-6 relative w-full">
-                {/* Grand titre Lire. */}
-                <motion.h1 
-                  className="font-serif text-[42px] font-bold text-[var(--qoe-vermillion)] tracking-tight leading-none shrink-0 overflow-hidden"
-                  animate={{
-                    opacity: scrollProgress > 0.05 ? 0 : 1,
-                    y: scrollProgress > 0.05 ? -10 : 0,
-                    width: scrollProgress > 0.05 ? 0 : "auto",
-                    marginRight: scrollProgress > 0.05 ? 0 : 16
-                  }}
-                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                  style={{ transformOrigin: "left center" }}
-                >
-                  Lire.
-                </motion.h1>
-
-                {/* Tabs */}
-                <div className="flex-1 min-w-0">
-                  <FeedTabsHeader 
-                    activeFeed={activeFeed}
-                    onTabChange={(id) => {
-                      setActiveFeed(id)
-                      setSelectedTag(null)
-                      trackEvent("feed_tab_changed", { tab: id })
-                    }}
-                    totalCount={currentFeedArticles.length}
-                  />
-                </div>
-              </div>
+      {/* ── CENTERED TIMELINE CONTAINER (z-20) ── */}
+      <div className="pt-[30vh] pb-24 max-w-[640px] mx-auto selection:bg-[var(--qoe-vermillion-10)] selection:text-[var(--qoe-vermillion)] relative z-20 px-4 sm:px-6">
+        
+        {/* ── LOGO LAYER (z-10) ── */}
+        <div className="sticky top-[28px] z-10 w-full flex justify-center bg-transparent pointer-events-none h-0">
+          <div className="w-full max-w-[640px] px-2 flex items-center gap-6 relative">
+            <div className="absolute left-[-84px] w-16 h-8 flex items-center justify-center top-5">
+              <Link href="/home" className="flex items-center justify-center w-8 h-8 pointer-events-auto">
+                <Logo className="h-[13px] w-auto" fillColor="#EE4B2B" />
+              </Link>
             </div>
-
-            {/* Main content inside the sheet */}
-            <div className="p-6 sm:p-8 space-y-6">
-              {activeFeed !== "bookmarks" && activeFeed !== "following_creators" && activeFeed !== "notifications" && (
-                <MicroPostComposer 
-                  dbUser={dbUser}
-                  tagsList={tagsList}
-                />
-              )}
-
-            <div className="space-y-4">
-
-              <AnimatePresence mode="popLayout">
-                {activeFeed === "bookmarks" && currentFeedArticles.length === 0 && (
-                  <motion.div
-                    key="bookmarks-empty"
-                    initial={{ opacity: 0, scale: 0.99 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.99 }}
-                    transition={springs.card}
-                    className="bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-card)] p-12 text-center flex flex-col items-center justify-center gap-3 text-[var(--text-secondary)] shadow-xs"
-                  >
-                    <BookMarked className="w-8 h-8 text-[var(--text-tertiary)]" />
-                    <h4 className="font-bold text-xs text-[var(--text-primary)]">{t("feed.empty_sanctuary", "Votre Sanctuaire est vide")}</h4>
-                    <p className="text-[11px] text-[var(--text-tertiary)] max-w-xs leading-relaxed">
-                      {t("feed.empty_sanctuary_desc", "Enregistrez des articles en cliquant sur l'icône de signet pour les conserver ici.")}
-                    </p>
-                  </motion.div>
-                )}
-
-                {activeFeed !== "following_creators" && activeFeed !== "notifications" && (
-                  currentFeedArticles.length === 0 ? (
-                    <motion.div
-                      key="empty-state"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-card)] p-16 text-center flex flex-col items-center justify-center gap-3"
-                      style={{ boxShadow: "var(--shadow-card)" }}
-                    >
-                      <AlertCircle className="w-8 h-8 text-[var(--text-quaternary)]" />
-                      <h4 className="font-bold text-xs text-[var(--text-primary)]">{t("feed.no_article_found", "Aucun article trouvé")}</h4>
-                      <p className="text-[11px] text-[var(--text-tertiary)] max-w-xs leading-relaxed">
-                        {t("feed.no_article_found_desc", "Essayez d'effacer le tag filtre ou de suivre de nouveaux créateurs dans la liste Explorer.")}
-                      </p>
-                    </motion.div>
-                  ) : (
-                    <div key={`feed-${activeFeed}`} className="space-y-6 relative pl-5 sm:pl-7 ml-2 sm:ml-3">
-                      {/* Zen Scroll Line & Vermillion Pearl */}
-                      <div className="absolute left-0 top-1 bottom-1 w-[1px] bg-neutral-150/60 pointer-events-none">
-                        <motion.div
-                          className="absolute left-1/2 -translate-x-[40%] w-1.5 h-1.5 rounded-full bg-[var(--qoe-vermillion)]"
-                          style={{ top: `${scrollProgress * 100}%` }}
-                          animate={{
-                            scale: [1, 1.3, 1],
-                            boxShadow: ["0 0 0 0px rgba(238,75,43,0.2)", "0 0 0 4px rgba(238,75,43,0)", "0 0 0 0px rgba(238,75,43,0.2)"]
-                          }}
-                          transition={{
-                            repeat: Infinity,
-                            duration: 3,
-                            ease: "easeInOut"
-                          }}
-                        />
-                      </div>
-                      {currentFeedArticles.map((article, idx) => {
-                        const isBookmarked = isArticleBookmarked(article.id)
-                        const isFollowed = isCreatorFollowed(article.author.id)
-
-                        return (
-                          <ArticleCard 
-                            key={article.id}
-                            article={article}
-                            idx={idx}
-                            dbUser={dbUser}
-                            isBookmarked={isBookmarked}
-                            isFollowed={isFollowed}
-                            handleFollowToggle={handleFollowToggle}
-                            handleBookmarkToggle={handleBookmarkToggle}
-                            featured={idx === 0 && activeFeed === "recommandation"}
-                          />
-                        )
-                      })}
-                    </div>
-                  )
-                )}
-              </AnimatePresence>
-            </div>
-
           </div>
         </div>
 
-        {/* 
-          =========================================================================
-          RIGHT COLUMN (MINIMALIST): SVG/logos of recommended creators with hover tooltips
-          =========================================================================
-        */}
-        <TooltipProvider delay={100}>
-          <div className="absolute left-[calc(100%+24px)] top-12 hidden xl:flex flex-col gap-4 pointer-events-auto select-none">
-            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--text-tertiary)] [writing-mode:vertical-lr] mb-2 block">
-              SUGGESTIONS
+        {/* Real "Lire." title positioned sticky so it sticks at top */}
+        <div className="sticky top-0 h-0 z-10 pointer-events-none select-none">
+          <div className="absolute left-2 top-1">
+            <span className="font-sans text-5xl font-extrabold text-[var(--qoe-vermillion)] tracking-tighter">
+              Lire<span className="text-[var(--text-primary)]">.</span>
             </span>
-            <div className="flex flex-col gap-3">
-              {suggestedCreators.slice(0, 5).map((creator) => {
-                const isFollowed = isCreatorFollowed(creator.id)
-                return (
-                  <Tooltip key={creator.id}>
-                    <TooltipTrigger
-                      render={
-                        <motion.button
-                          onClick={() => addTab({
-                            id: `profile-${creator.username || creator.subdomain}`,
-                            title: creator.name || `@${creator.username || creator.subdomain}`,
-                            type: "profile",
-                            username: creator.username || creator.subdomain || ""
-                          })}
-                          whileHover={{ scale: 1.08 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="w-8 h-8 rounded-sm overflow-hidden border border-[var(--border-default)] bg-white hover:border-[var(--qoe-vermillion)] transition-colors cursor-pointer flex items-center justify-center shrink-0 shadow-sm"
-                        >
-                          {creator.logoUrl ? (
-                            <img src={creator.logoUrl} className="w-full h-full object-cover" alt="" />
-                          ) : (
-                            <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-[10px] text-[var(--qoe-vermillion)]">
-                              {creator.name?.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                        </motion.button>
-                      }
-                    />
-                    <TooltipContent
-                      side="right"
-                      className="bg-white text-[var(--text-primary)] text-xs border border-[var(--border-default)] p-3 shadow-lg rounded-md flex flex-col gap-2 w-48 z-50 ml-2"
-                    >
-                      <div className="flex flex-col">
-                        <span className="font-bold text-[12px] text-neutral-900 leading-none">
-                          {creator.name}
-                        </span>
-                        <span className="text-[10px] text-neutral-400 mt-1">
-                          @{creator.username || creator.subdomain}
-                        </span>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          handleFollowToggle(creator)
-                        }}
-                        className={cn(
-                          "w-full text-[10px] font-bold py-1.5 rounded-sm transition-colors text-center cursor-pointer",
-                          isFollowed
-                            ? "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
-                            : "bg-[var(--qoe-vermillion)] text-white hover:bg-[#d63c1e]"
-                        )}
-                      >
-                        {isFollowed ? "Abonné" : "Suivre"}
-                      </button>
-                    </TooltipContent>
-                  </Tooltip>
-                )
-              })}
-            </div>
           </div>
-        </TooltipProvider>
+        </div>
 
+        {/* ── STICKY TABS WRAPPER (z-30) ── */}
+        <div className="sticky top-0 z-30 w-full flex items-baseline justify-center py-4 px-6 bg-transparent pointer-events-auto">
+          <FeedTabsHeader 
+            activeFeed={activeFeed}
+            onTabChange={(id) => {
+              setActiveFeed(id)
+              setSelectedTag(null)
+              setActivePostId(null) // Reset expanded post view on tab change
+              trackEvent("feed_tab_changed", { tab: id })
+            }}
+          />
+        </div>
+
+        {/* Main timeline white bento sheet */}
+        <div className="bg-white shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-neutral-200/40 rounded-t-xl min-h-screen mt-12 relative z-20">
+
+          {/* Sticky header of the sheet itself to mask scroll items and provide background for the tabs */}
+          <div className="sticky top-0 z-10 h-[44px] bg-white rounded-t-xl border-t border-x border-neutral-200/40 -mx-[1px] -mt-[1px]" />
+
+          <div className="px-6 pt-2 pb-6">
+            <AnimatePresence mode="wait">
+              {activePostId ? (
+                <motion.div
+                  key="expanded-post"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={springs.card}
+                >
+                  <ExpandedPostView
+                    postId={activePostId}
+                    currentUserId={dbUser?.id || null}
+                    onClose={() => setActivePostId(null)}
+                    onOpenProfile={(username) => {
+                      window.location.href = `/profile/${username}`
+                    }}
+                    onInteractionUpdate={(postId, update) => {
+                      setInteractions(prev => ({
+                        ...prev,
+                        [postId]: {
+                          ...prev[postId],
+                          ...update
+                        }
+                      }))
+                    }}
+                  />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="feed-list"
+                  initial={{ opacity: 0, y: -15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 15 }}
+                  transition={springs.card}
+                  className="space-y-6"
+                >
+                  {activeFeed !== "bookmarks" && activeFeed !== "following_creators" && activeFeed !== "notifications" && (
+                    <MicroPostComposer 
+                      dbUser={dbUser}
+                      tagsList={tagsList}
+                      onPostCreated={(post) => setLocalPosts(prev => [post, ...prev])}
+                    />
+                  )}
+
+                  <div className="space-y-4">
+                    <AnimatePresence mode="popLayout">
+                      {activeFeed === "bookmarks" && currentFeedArticles.length === 0 && (
+                        <motion.div
+                          key="bookmarks-empty"
+                          initial={{ opacity: 0, scale: 0.99 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.99 }}
+                          transition={springs.card}
+                          className="bg-white/60 backdrop-blur-sm border border-[var(--border-subtle)] rounded-md p-12 text-center flex flex-col items-center justify-center gap-3 text-[var(--text-secondary)]"
+                        >
+                          <BookMarked className="w-8 h-8 text-[var(--text-tertiary)]" />
+                          <h4 className="font-bold text-xs text-[var(--text-primary)]">{t("feed.empty_sanctuary", "Votre Sanctuaire est vide")}</h4>
+                          <p className="text-[11px] text-[var(--text-tertiary)] max-w-xs leading-relaxed">
+                            {t("feed.empty_sanctuary_desc", "Enregistrez des articles en cliquant sur l'icône de signet pour les conserver ici.")}
+                          </p>
+                        </motion.div>
+                      )}
+
+                      {activeFeed !== "following_creators" && activeFeed !== "notifications" && (
+                        currentFeedArticles.length === 0 ? (
+                          <motion.div
+                            key="empty-state"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="bg-white/60 backdrop-blur-sm border border-[var(--border-subtle)] rounded-md p-16 text-center flex flex-col items-center justify-center gap-3"
+                          >
+                            <AlertCircle className="w-8 h-8 text-[var(--text-quaternary)]" />
+                            <h4 className="font-bold text-xs text-[var(--text-primary)]">{t("feed.no_article_found", "Aucun article trouvé")}</h4>
+                            <p className="text-[11px] text-[var(--text-tertiary)] max-w-xs leading-relaxed">
+                              {t("feed.no_article_found_desc", "Essayez d'effacer le tag filtre ou de suivre de nouveaux créateurs dans la liste Explorer.")}
+                            </p>
+                          </motion.div>
+                        ) : (
+                          <div key={`feed-${activeFeed}`} className="space-y-0">
+                            {currentFeedArticles.map((article, idx) => {
+                              const isBookmarked = isArticleBookmarked(article.id)
+                              const isFollowed = isCreatorFollowed(article.author.id)
+
+                              return (
+                                <ArticleCard 
+                                  key={article.id}
+                                  article={article}
+                                  idx={idx}
+                                  dbUser={dbUser}
+                                  isBookmarked={isBookmarked}
+                                  isFollowed={isFollowed}
+                                  handleFollowToggle={handleFollowToggle}
+                                  handleBookmarkToggle={handleBookmarkToggle}
+                                  featured={idx === 0 && activeFeed === "recommandation"}
+                                  onOpenPost={setActivePostId}
+                                  onOpenProfile={(username) => {
+                                    window.location.href = `/profile/${username}`
+                                  }}
+                                />
+                              )
+                            })}
+                          </div>
+                        )
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
       </div>
-    </div>
     </>
   )
 }

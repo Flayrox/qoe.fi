@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/tooltip"
 import { Logo } from "@/components/ui/Logo"
 import { cn } from "@/lib/utils"
-import { useTabStore } from "@/lib/use-tab-store"
+
 
 interface AppSidebarUser {
   id: string
@@ -54,7 +54,12 @@ export function AppSidebar({ user }: AppSidebarProps) {
   const pathname = usePathname()
   const [hoveredIndex, setHoveredIndex] = useState<string | null>(null)
   const [settingsHovered, setSettingsHovered] = useState(false)
-  const { addTab } = useTabStore()
+
+  const isHome =
+    pathname.endsWith("/home") || pathname.endsWith("/home/") ||
+    pathname.endsWith("/library") || pathname.endsWith("/library/") ||
+    pathname.endsWith("/highlights") || pathname.endsWith("/highlights/") ||
+    pathname.endsWith("/billing") || pathname.endsWith("/billing/")
 
   const isActive = (href: string) => {
     if (href === "/home") return pathname === "/home"
@@ -72,31 +77,57 @@ export function AppSidebar({ user }: AppSidebarProps) {
 
   return (
     <TooltipProvider delay={180}>
-      <aside
-        className="fixed top-0 left-0 h-screen hidden lg:flex flex-col w-16
-                   border-r border-[var(--border-subtle)]
-                   bg-transparent select-none z-30 overflow-hidden"
+      <div 
+        className={cn(
+          isHome 
+            ? "absolute top-0 w-16 h-full pointer-events-none z-30" 
+            : "fixed top-0 left-0 w-16 h-full z-30"
+        )}
+        style={{
+          left: isHome ? "calc(50vw - 404px)" : "0px",
+        }}
       >
-        <div className="flex flex-col justify-between h-full w-full py-5">
+        <div
+          className={cn(
+            isHome 
+              ? "sticky top-[28px] h-[calc(100vh-28px)] w-16 pointer-events-auto" 
+              : "h-full w-16"
+          )}
+          style={{
+            marginTop: isHome ? "calc(30vh + 32px)" : "0px",
+          }}
+        >
+          <motion.aside
+            className={cn(
+              "absolute inset-0 flex flex-col w-16",
+              isHome ? "border-r-0" : "border-r border-[var(--border-subtle)]",
+              "bg-transparent select-none overflow-hidden"
+            )}
+          >
+          <div className="flex flex-col justify-between h-full w-full py-5">
 
           {/* ── TOP SECTION ─────────────────────────────── */}
           <div className="space-y-6">
 
             {/* Logo */}
-            <div className="px-4">
-              <a
-                href="/home"
-                className="flex items-center justify-center gap-2.5 h-8 outline-none group"
-              >
-                <motion.div
-                  whileHover={{ scale: 1.06, rotate: -2 }}
-                  transition={springs.hover}
-                  className="shrink-0 flex items-center justify-center w-8 h-8"
+            {isHome ? (
+              <div className="h-8" />
+            ) : (
+              <div className="px-4 h-8 flex items-center justify-center">
+                <a
+                  href="/home"
+                  className="flex items-center justify-center gap-2.5 h-8 outline-none group"
                 >
-                  <Logo className="h-[13px] w-auto" fillColor="#EE4B2B" />
-                </motion.div>
-              </a>
-            </div>
+                  <motion.div
+                    whileHover={{ scale: 1.06, rotate: -2 }}
+                    transition={springs.hover}
+                    className="shrink-0 flex items-center justify-center w-8 h-8"
+                  >
+                    <Logo className="h-[13px] w-auto" fillColor="#EE4B2B" />
+                  </motion.div>
+                </a>
+              </div>
+            )}
 
             {/* Navigation */}
             <nav
@@ -271,12 +302,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                   {user?.username && (
                     <DropdownMenuItem
                       className="cursor-pointer font-sans text-xs font-semibold text-[var(--text-secondary)] focus:bg-[var(--qoe-vermillion-08)] focus:text-[var(--qoe-vermillion)] rounded-[8px]"
-                      onClick={() => addTab({
-                        id: `profile-${user.username}`,
-                        title: user.name || `@${user.username}`,
-                        type: "profile",
-                        username: user.username!
-                      })}
+                      onClick={() => window.location.href = `/profile/${user.username}`}
                     >
                       <User className="w-4 h-4 mr-2.5 text-[var(--text-tertiary)]" />
                       Mon Profil Public
@@ -317,7 +343,9 @@ export function AppSidebar({ user }: AppSidebarProps) {
           </div>
 
         </div>
-      </aside>
+          </motion.aside>
+        </div>
+      </div>
     </TooltipProvider>
   )
 }
