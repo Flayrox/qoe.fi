@@ -62,6 +62,7 @@ interface FeedDashboardProps {
   initialFollowsCount: number
   initialBookmarksCount: number
   initialHighlightsCount: number
+  mutedWords?: string[]
 }
 
 // Spring physics — Rauno-style, never ease-in-out
@@ -80,6 +81,7 @@ export function FeedDashboard({
   initialFollowsCount,
   initialBookmarksCount,
   initialHighlightsCount,
+  mutedWords = [],
 }: FeedDashboardProps) {
   const { t } = useTranslate()
   const [activeFeed, setActiveFeed] = useState<string>("recommandation")
@@ -188,6 +190,16 @@ export function FeedDashboard({
       list = bookmarks
     }
 
+    // Filter out posts and articles containing any of the user's muted words
+    if (mutedWords && mutedWords.length > 0) {
+      list = list.filter(art => {
+        if (!art) return false
+        const contentLower = (art.content || "").toLowerCase()
+        const titleLower = (art.title || "").toLowerCase()
+        return !mutedWords.some(word => contentLower.includes(word) || titleLower.includes(word))
+      })
+    }
+
     list = list.filter(art => art && art.id && !deletedPostIds.has(art.id))
 
     const seenIds = new Set<string>()
@@ -208,7 +220,7 @@ export function FeedDashboard({
     }
 
     return list
-  }, [activeFeed, localPosts, recommendationArticles, followingArticles, discoverArticles, bookmarks, selectedTag, followedCreators, deletedPostIds])
+  }, [activeFeed, localPosts, recommendationArticles, followingArticles, discoverArticles, bookmarks, selectedTag, followedCreators, deletedPostIds, mutedWords])
 
   const tagsList = ["#souverainete", "#anti-ia", "#attention", "#philosophie", "#design", "#creators"]
 
@@ -257,9 +269,16 @@ export function FeedDashboard({
         <div className="sticky top-[28px] z-10 w-full flex justify-center bg-transparent pointer-events-none h-0">
           <div className="w-full max-w-[640px] px-2 flex items-center gap-6 relative">
             <div className="absolute left-[-84px] w-16 h-8 flex items-center justify-center top-5">
-              <Link href="/home" className="flex items-center justify-center w-8 h-8 pointer-events-auto">
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  window.scrollTo({ top: 0, behavior: "smooth" })
+                }}
+                className="flex items-center justify-center w-8 h-8 pointer-events-auto cursor-pointer outline-none bg-transparent border-0"
+                title="Retour en haut"
+              >
                 <Logo className="h-[13px] w-auto" fillColor="#EE4B2B" />
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -278,10 +297,14 @@ export function FeedDashboard({
           <FeedTabsHeader 
             activeFeed={activeFeed}
             onTabChange={(id) => {
-              setActiveFeed(id)
-              setSelectedTag(null)
-              setActivePostId(null) // Reset expanded post view on tab change
-              trackEvent("feed_tab_changed", { tab: id })
+              if (activeFeed === id) {
+                window.scrollTo({ top: 0, behavior: "smooth" })
+              } else {
+                setActiveFeed(id)
+                setSelectedTag(null)
+                setActivePostId(null) // Reset expanded post view on tab change
+                trackEvent("feed_tab_changed", { tab: id })
+              }
             }}
           />
         </div>

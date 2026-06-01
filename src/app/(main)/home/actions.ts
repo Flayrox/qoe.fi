@@ -5,8 +5,19 @@ import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { safeAction } from "@/lib/safe-action"
 
-// Global in-memory cache for unfurled URL previews to prevent duplicate scraping and IP bans
-const unfurlCache = new Map<string, any>()
+// Cache global en mémoire pour les aperçus d'URLs (unfurling) pour éviter le scraping à chaque appel et les bannissements d'IP
+const unfurlCache = new Map<string, {
+  isInternal: boolean
+  postType?: "post" | "article"
+  data?: unknown
+  externalMetadata?: {
+    title: string | null
+    description: string | null
+    image: string | null
+    siteName: string | null
+    url: string
+  }
+}>()
 
 export const toggleFollowCreatorHome = safeAction<string, { followed: boolean }>(async (creatorId, user) => {
   const existing = await prisma.follows.findUnique({
@@ -22,7 +33,6 @@ export const toggleFollowCreatorHome = safeAction<string, { followed: boolean }>
     await prisma.follows.delete({
       where: { id: existing.id }
     })
-    revalidatePath("/home")
     return { followed: false }
   } else {
     await prisma.follows.create({
@@ -31,7 +41,6 @@ export const toggleFollowCreatorHome = safeAction<string, { followed: boolean }>
         creatorId
       }
     })
-    revalidatePath("/home")
     return { followed: true }
   }
 })
@@ -50,7 +59,6 @@ export const toggleBookmarkArticleHome = safeAction<string, { bookmarked: boolea
     await prisma.bookmark.delete({
       where: { id: existing.id }
     })
-    revalidatePath("/home")
     return { bookmarked: false }
   } else {
     await prisma.bookmark.create({
@@ -59,7 +67,6 @@ export const toggleBookmarkArticleHome = safeAction<string, { bookmarked: boolea
         articleId
       }
     })
-    revalidatePath("/home")
     return { bookmarked: true }
   }
 })
@@ -417,21 +424,21 @@ export const unfurlUrl = safeAction<string, {
       url = "https://" + url
     }
 
-    // Return immediately if result is already in the global memory cache
+    // Retourner immédiatement si le résultat est déjà présent dans le cache mémoire global
     if (unfurlCache.has(url)) {
       return unfurlCache.get(url)!
     }
 
     const parsedUrl = new URL(url)
     
-    // Check if the host belongs to the platform (only treat as internal if matches localhost or qoe.fi)
+    // Vérifier si l'hôte appartient à la plateforme (ne traiter comme interne que si localhost ou qoe.fi)
     const isInternalHost = parsedUrl.hostname.endsWith("qoe.fi") || 
                            parsedUrl.hostname === "localhost" || 
                            parsedUrl.hostname.endsWith(".localhost") ||
                            parsedUrl.hostname === "127.0.0.1"
 
     if (isInternalHost) {
-      // Check if internal post or article
+      // Vérifier s'il s'agit d'un micro-post ou d'un article interne
       const postMatch = parsedUrl.pathname.match(/\/post\/([a-zA-Z0-9]+)/)
       if (postMatch) {
         const postId = postMatch[1]
@@ -465,7 +472,7 @@ export const unfurlUrl = safeAction<string, {
       }
     }
 
-    // External URL Unfurl
+    // Unfurl (résolution) de l'URL externe
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 4000)
 
