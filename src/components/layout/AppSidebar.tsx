@@ -127,7 +127,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                      transition={springs.hover}
                      className="shrink-0 flex items-center justify-center w-8 h-8"
                    >
-                     <Logo className="h-[16px] w-auto" fillColor="#EE4B2B" />
+                     <Logo className="h-[20px] w-auto" fillColor="#EE4B2B" />
                    </motion.div>
                  </button>
                ) : (
@@ -140,7 +140,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                      transition={springs.hover}
                      className="shrink-0 flex items-center justify-center w-8 h-8"
                    >
-                     <Logo className="h-[16px] w-auto" fillColor="#EE4B2B" />
+                     <Logo className="h-[20px] w-auto" fillColor="#EE4B2B" />
                    </motion.div>
                  </a>
                )}

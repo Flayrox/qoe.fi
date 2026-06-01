@@ -283,6 +283,7 @@
   }
   html {
     @apply font-sans scroll-smooth;
+    scrollbar-gutter: stable;
   }
 }
 
