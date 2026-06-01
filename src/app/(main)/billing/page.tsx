@@ -3,6 +3,8 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/db"
 import { Wallet, CreditCard, ShieldX, ArrowRight, Receipt } from "lucide-react"
 
+import { Logo } from "@/components/ui/Logo"
+
 export default async function BillingPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -22,110 +24,178 @@ export default async function BillingPage() {
   })
 
   return (
-    <div className="space-y-4">
-      
-      {/* Page header */}
-      <div className="px-1">
-        <h1 className="text-lg font-bold text-neutral-800 tracking-tight">Portefeuille & Abonnements</h1>
-        <p className="text-xs text-neutral-400 mt-0.5">Transparence totale sur votre solde et vos engagements.</p>
+    <>
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute inset-0 bg-[#faf7f5]" />
+        
+        <div 
+          className="absolute bottom-[-20%] left-[-15%] w-[80%] h-[70%] rounded-full"
+          style={{
+            background: "radial-gradient(ellipse at center, rgba(238,75,43,0.12) 0%, rgba(238,75,43,0.06) 35%, rgba(238,75,43,0.02) 60%, transparent 80%)",
+            filter: "blur(60px)",
+          }}
+        />
+        
+        <div 
+          className="absolute top-[-10%] right-[-10%] w-[60%] h-[50%] rounded-full"
+          style={{
+            background: "radial-gradient(ellipse at center, rgba(255,180,140,0.15) 0%, rgba(255,200,170,0.08) 40%, transparent 70%)",
+            filter: "blur(80px)",
+          }}
+        />
+
+        <div 
+          className="absolute top-[30%] left-[30%] w-[50%] h-[50%] rounded-full"
+          style={{
+            background: "radial-gradient(ellipse at center, rgba(255,230,215,0.2) 0%, transparent 60%)",
+            filter: "blur(100px)",
+          }}
+        />
+
+        <div 
+          className="absolute top-0 right-0 bottom-0 w-[35%]"
+          style={{
+            background: "linear-gradient(to left, rgba(250,247,245,0.95) 0%, transparent 100%)",
+          }}
+        />
       </div>
 
-      {/* Main content in Bento shell */}
-      <div className="bg-[#EE4B2B] rounded-[40px] p-3 shadow-xl flex flex-col gap-3">
+      {/* ── MAIN CONTENT (z-20) ── */}
+      <div className="pt-[30vh] pb-24 max-w-[640px] mx-auto selection:bg-[var(--qoe-vermillion-10)] selection:text-[var(--qoe-vermillion)] relative z-20">
         
-        {/* Wallet balance card */}
-        <div className="bg-white rounded-[32px] p-6 shadow-xs border border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-[#EE4B2B]/10 flex items-center justify-center text-[#EE4B2B] shrink-0">
-              <Wallet className="w-7 h-7" />
-            </div>
-            <div>
-              <span className="text-[9px] uppercase tracking-wider text-neutral-400 font-bold block">Solde Disponible</span>
-              <span className="text-3xl font-black font-mono text-neutral-800 block mt-1 tracking-tight">
-                {((dbUser?.walletBalanceCents || 0) / 100).toFixed(2)} €
-              </span>
-            </div>
-          </div>
-          <button className="w-full sm:w-auto bg-[#EE4B2B] text-white hover:bg-[#d63d20] transition-colors py-3 px-8 rounded-2xl text-xs font-bold shadow-xs shadow-[#EE4B2B]/10">
-            Recharger le Portefeuille
-          </button>
-        </div>
-
-        {/* Subscriptions card */}
-        <div className="bg-white rounded-[32px] p-6 shadow-xs border border-neutral-100">
-          <div className="flex items-center gap-2 mb-5">
-            <CreditCard className="w-4 h-4 text-[#EE4B2B]" />
-            <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Abonnements Premium Actifs</span>
-          </div>
-          
-          {subscriptions.length === 0 ? (
-            <div className="text-center py-10 text-neutral-400 flex flex-col items-center gap-3">
-              <CreditCard className="w-8 h-8 text-neutral-200" />
-              <p className="text-xs font-semibold">Aucun abonnement premium actif.</p>
-              <a href="/home" className="text-[10px] font-bold text-[#EE4B2B] hover:underline flex items-center gap-1">
-                Découvrir des créateurs <ArrowRight className="w-3 h-3" />
+        {/* ── LOGO LAYER (z-10) ── */}
+        <div className="sticky top-[28px] z-10 w-full flex justify-center bg-transparent pointer-events-none h-0">
+          <div className="w-full max-w-[640px] px-2 flex items-center gap-6 relative">
+            <div className="absolute left-[-84px] w-16 h-8 flex items-center justify-center top-5">
+              <a href="/home" className="flex items-center justify-center w-8 h-8 pointer-events-auto">
+                <Logo className="h-[13px] w-auto" fillColor="#EE4B2B" />
               </a>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {subscriptions.map(sub => (
-                <div key={sub.id} className="flex items-center justify-between border border-neutral-100 p-4 rounded-2xl bg-neutral-50/50 hover:bg-neutral-50 transition-colors">
-                  <a href={sub.creator.username ? `/@${sub.creator.username}` : "#"} className="flex items-center gap-3 min-w-0 group">
-                    {sub.creator.logoUrl ? (
-                      <img src={sub.creator.logoUrl} className="w-10 h-10 rounded-xl object-cover border border-neutral-200/50" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-xl bg-[#EE4B2B]/10 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
-                        {sub.creator.name?.charAt(0)}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <span className="text-xs font-bold block truncate group-hover:text-[#EE4B2B] transition-colors">{sub.creator.name}</span>
-                      <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Premium • Renouvellement auto.</span>
-                    </div>
-                  </a>
-                  <button className="text-[10px] font-bold text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1 border border-red-200/50">
-                    <ShieldX className="w-3 h-3" /> Annuler
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Transactions card */}
-        <div className="bg-white rounded-[32px] p-6 shadow-xs border border-neutral-100">
-          <div className="flex items-center gap-2 mb-5">
-            <Receipt className="w-4 h-4 text-[#EE4B2B]" />
-            <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Transactions Récentes</span>
           </div>
-
-          {(dbUser?.walletTransactions.length || 0) === 0 ? (
-            <div className="text-center py-10 text-neutral-400">
-              <p className="text-xs font-semibold">Aucune transaction pour le moment.</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {dbUser?.walletTransactions.map(tx => (
-                <div key={tx.id} className="flex items-center justify-between p-3.5 rounded-2xl border border-neutral-100 hover:bg-neutral-50/50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold ${tx.amountCents > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-neutral-100 text-neutral-500'}`}>
-                      {tx.amountCents > 0 ? '+' : '−'}
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-neutral-700 block">{tx.type}</span>
-                      <span className="text-[9px] text-neutral-400 font-mono">{new Date(tx.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                  <span className={`text-sm font-bold font-mono ${tx.amountCents > 0 ? 'text-emerald-600' : 'text-neutral-700'}`}>
-                    {tx.amountCents > 0 ? '+' : ''}{(tx.amountCents / 100).toFixed(2)} €
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
+        {/* Real "Portefeuille." title positioned sticky so it sticks at top and is covered by the sheet */}
+        <div className="sticky top-0 h-0 z-10 pointer-events-none select-none">
+          <div className="absolute left-2 top-1">
+            <span className="font-sans text-5xl font-extrabold text-[var(--qoe-vermillion)] tracking-tighter">
+              Portefeuille<span className="text-[var(--text-primary)]">.</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-neutral-200/40 rounded-t-xl min-h-screen mt-12 relative z-20">
+          
+          {/* Sticky header of the sheet itself to mask the contents */}
+          <div className="sticky top-0 z-10 h-[60px] bg-white rounded-t-xl border-t border-x border-neutral-200/40 -mx-[1px] -mt-[1px]" />
+
+          <div className="px-6 pb-6 space-y-6">
+            
+            {/* Page header inside the sheet */}
+            <div className="px-1">
+              <h1 className="text-lg font-bold text-neutral-800 tracking-tight">Portefeuille & Abonnements</h1>
+              <p className="text-xs text-neutral-400 mt-0.5">Transparence totale sur votre solde et vos engagements.</p>
+            </div>
+
+            {/* Main content in Bento shell wrapper inside sheet */}
+            <div className="bg-[#EE4B2B] rounded-[40px] p-3 shadow-xl flex flex-col gap-3">
+              
+              {/* Wallet balance card */}
+              <div className="bg-white rounded-[32px] p-6 shadow-xs border border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-[#EE4B2B]/10 flex items-center justify-center text-[#EE4B2B] shrink-0">
+                    <Wallet className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <span className="text-[9px] uppercase tracking-wider text-neutral-400 font-bold block">Solde Disponible</span>
+                    <span className="text-3xl font-black font-mono text-neutral-800 block mt-1 tracking-tight">
+                      {((dbUser?.walletBalanceCents || 0) / 100).toFixed(2)} €
+                    </span>
+                  </div>
+                </div>
+                <button className="w-full sm:w-auto bg-[#EE4B2B] text-white hover:bg-[#d63d20] transition-colors py-3 px-8 rounded-2xl text-xs font-bold shadow-xs shadow-[#EE4B2B]/10">
+                  Recharger le Portefeuille
+                </button>
+              </div>
+
+              {/* Subscriptions card */}
+              <div className="bg-white rounded-[32px] p-6 shadow-xs border border-neutral-100">
+                <div className="flex items-center gap-2 mb-5">
+                  <CreditCard className="w-4 h-4 text-[#EE4B2B]" />
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Abonnements Premium Actifs</span>
+                </div>
+                
+                {subscriptions.length === 0 ? (
+                  <div className="text-center py-10 text-neutral-400 flex flex-col items-center gap-3">
+                    <CreditCard className="w-8 h-8 text-neutral-200" />
+                    <p className="text-xs font-semibold">Aucun abonnement premium actif.</p>
+                    <a href="/home" className="text-[10px] font-bold text-[#EE4B2B] hover:underline flex items-center gap-1">
+                      Découvrir des créateurs <ArrowRight className="w-3 h-3" />
+                    </a>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {subscriptions.map(sub => (
+                      <div key={sub.id} className="flex items-center justify-between border border-neutral-100 p-4 rounded-2xl bg-neutral-50/50 hover:bg-neutral-50 transition-colors">
+                        <a href={sub.creator.username ? `/@${sub.creator.username}` : "#"} className="flex items-center gap-3 min-w-0 group">
+                          {sub.creator.logoUrl ? (
+                            <img src={sub.creator.logoUrl} className="w-10 h-10 rounded-xl object-cover border border-neutral-200/50" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-xl bg-[#EE4B2B]/10 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
+                              {sub.creator.name?.charAt(0)}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold block truncate group-hover:text-[#EE4B2B] transition-colors">{sub.creator.name}</span>
+                            <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider">Premium • Renouvellement auto.</span>
+                          </div>
+                        </a>
+                        <button className="text-[10px] font-bold text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1 border border-red-200/50">
+                          <ShieldX className="w-3 h-3" /> Annuler
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Transactions card */}
+              <div className="bg-white rounded-[32px] p-6 shadow-xs border border-neutral-100">
+                <div className="flex items-center gap-2 mb-5">
+                  <Receipt className="w-4 h-4 text-[#EE4B2B]" />
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Transactions Récentes</span>
+                </div>
+
+                {(dbUser?.walletTransactions.length || 0) === 0 ? (
+                  <div className="text-center py-10 text-neutral-400">
+                    <p className="text-xs font-semibold">Aucune transaction pour le moment.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {dbUser?.walletTransactions.map(tx => (
+                      <div key={tx.id} className="flex items-center justify-between p-3.5 rounded-2xl border border-neutral-100 hover:bg-neutral-50/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold ${tx.amountCents > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-neutral-100 text-neutral-500'}`}>
+                            {tx.amountCents > 0 ? '+' : '−'}
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-neutral-700 block">{tx.type}</span>
+                            <span className="text-[9px] text-neutral-400 font-mono">{new Date(tx.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        <span className={`text-sm font-bold font-mono ${tx.amountCents > 0 ? 'text-emerald-600' : 'text-neutral-700'}`}>
+                          {tx.amountCents > 0 ? '+' : ''}{(tx.amountCents / 100).toFixed(2)} €
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   )
 }

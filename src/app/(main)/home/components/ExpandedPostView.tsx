@@ -3,11 +3,11 @@
 import React, { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ArrowLeft, Send, Loader2, AlertCircle, Trash2, X } from "lucide-react"
-import { useTabStore } from "@/lib/use-tab-store"
+
 import { getPostThread, toggleLikePost, replyToPost, deletePost, repostPost } from "../actions"
 import { LikeIcon, CommentIcon, RepostIcon, ShareIcon } from "@/components/icons/CustomIcons"
 import { cn } from "@/lib/utils"
-import { useFeedStore } from "@/lib/use-feed-store"
+
 import { TextParser } from "@/components/ui/TextParser"
 import { LinkPreview } from "@/components/social/LinkPreview"
 import { useTranslate } from "@tolgee/react"
@@ -21,6 +21,9 @@ const getUrls = (text: string): string[] => {
 interface ExpandedPostViewProps {
   postId: string
   currentUserId: string | null
+  onClose?: () => void
+  onOpenProfile?: (username: string) => void
+  onInteractionUpdate?: (postId: string, update: { liked?: boolean; likesCount?: number; repliesCount?: number }) => void
 }
 
 const springs = {
@@ -29,8 +32,7 @@ const springs = {
   lightbox: { type: "spring" as const, stiffness: 350, damping: 30 }
 }
 
-export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProps) {
-  const { setActiveTabId, addTab, removeTab } = useTabStore()
+export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile: onOpenProfileProp, onInteractionUpdate }: ExpandedPostViewProps) {
   const { t } = useTranslate()
   const [post, setPost] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
@@ -48,12 +50,11 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
   const handleOpenProfile = () => {
     const targetUsername = post?.author?.username || post?.author?.subdomain
     if (!targetUsername) return
-    addTab({
-      id: `profile-${targetUsername}`,
-      title: `@${targetUsername}`,
-      type: "profile",
-      slug: targetUsername
-    })
+    if (onOpenProfileProp) {
+      onOpenProfileProp(targetUsername)
+    } else {
+      window.location.href = `/profile/${targetUsername}`
+    }
   }
 
   useEffect(() => {
@@ -77,20 +78,26 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
   const handleLikeToggle = async () => {
     if (!currentUserId) return
     
-    // Optimistic toggle in the global store
-    useFeedStore.getState().toggleLike(postId, liked, likesCount)
-    
-    setLiked(prev => !prev)
-    setLikesCount(prev => liked ? prev - 1 : prev + 1)
+    const newLiked = !liked
+    const newLikesCount = liked ? likesCount - 1 : likesCount + 1
 
-    trackEvent("post_like", { postId, liked: !liked })
+    setLiked(newLiked)
+    setLikesCount(newLikesCount)
+
+    if (onInteractionUpdate) {
+      onInteractionUpdate(postId, { liked: newLiked, likesCount: newLikesCount })
+    }
+
+    trackEvent("post_like", { postId, liked: newLiked })
 
     const res = await toggleLikePost(postId)
     if (!res.success) {
       // Rollback
-      useFeedStore.getState().toggleLike(postId, !liked, liked ? likesCount - 1 : likesCount + 1)
-      setLiked(prev => !prev)
-      setLikesCount(prev => liked ? prev + 1 : prev - 1)
+      setLiked(liked)
+      setLikesCount(likesCount)
+      if (onInteractionUpdate) {
+        onInteractionUpdate(postId, { liked, likesCount })
+      }
     }
   }
 
@@ -108,11 +115,8 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
     trackEvent("post_delete", { postId })
     const res = await deletePost(postId)
     if (res.success) {
-      // Mark deleted in store
-      useFeedStore.getState().deletePost(postId)
-      // Close the tab and return to timeline
-      removeTab(`post-${postId}`)
-      setActiveTabId("timeline")
+      // Close the view
+      if (onClose) onClose()
     } else {
       setDeleting(false)
       alert(t("feed.msg_error_delete", "Erreur lors de la suppression."))
@@ -160,8 +164,9 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
         ...prev,
         replies: [res.data!.reply, ...(prev?.replies || [])]
       }))
-      // Increment in store
-      useFeedStore.getState().incrementReplies(postId)
+      if (onInteractionUpdate) {
+        onInteractionUpdate(postId, { repliesCount: (post.replies?.length || 0) + 1 })
+      }
     }
   }
 
@@ -243,7 +248,7 @@ export function ExpandedPostView({ postId, currentUserId }: ExpandedPostViewProp
         {/* Thread Header */}
         <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
           <motion.button
-            onClick={() => setActiveTabId("timeline")}
+            onClick={() => onClose?.()}
             whileTap={{ scale: 0.98 }}
             className="flex items-center gap-2 text-xs font-semibold text-neutral-500 hover:text-neutral-800 transition-colors cursor-pointer px-2 py-1.5 -ml-2 rounded-[var(--radius-button)] hover:bg-neutral-50"
           >
@@ -477,18 +482,12 @@ function CommentThread({
   const [deleting, setDeleting] = useState(false)
   const [liked, setLiked] = useState(reply.likes?.some((l: any) => l.userId === currentUserId) || false)
   const [likesCount, setLikesCount] = useState(reply.likes?.length || 0)
-  const { addTab } = useTabStore()
   const { t } = useTranslate()
 
   const handleOpenProfile = () => {
     const targetUsername = reply.author.username || reply.author.subdomain
     if (!targetUsername) return
-    addTab({
-      id: `profile-${targetUsername}`,
-      title: `@${targetUsername}`,
-      type: "profile",
-      slug: targetUsername
-    })
+    window.location.href = `/profile/${targetUsername}`
   }
 
   const handleLike = async () => {

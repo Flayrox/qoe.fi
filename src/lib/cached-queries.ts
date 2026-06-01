@@ -1,5 +1,22 @@
+import { cache } from "react"
 import { unstable_cache } from "next/cache"
 import { prisma } from "@/lib/db"
+
+export const getRequestDbUser = cache(async (id: string) => {
+  return await prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      logoUrl: true,
+      username: true,
+      walletBalanceCents: true,
+      onboardingText: true
+    }
+  })
+})
 
 export const getCachedSystemConfig = unstable_cache(
   async () => {

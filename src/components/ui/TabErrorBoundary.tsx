@@ -2,11 +2,11 @@
 
 import React, { Component, ErrorInfo, ReactNode } from "react"
 import { AlertTriangle, RefreshCw, X } from "lucide-react"
-import { useTabStore } from "@/lib/use-tab-store"
 
 interface Props {
   children: ReactNode
   tabId: string
+  onClose?: () => void
 }
 
 interface State {
@@ -36,9 +36,9 @@ export class TabErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <TabErrorFallback 
-          tabId={this.props.tabId} 
           error={this.state.error} 
-          onReset={this.handleReset} 
+          onReset={this.handleReset}
+          onClose={this.props.onClose}
         />
       )
     }
@@ -47,12 +47,11 @@ export class TabErrorBoundary extends Component<Props, State> {
   }
 }
 
-function TabErrorFallback({ tabId, error, onReset }: { tabId: string; error: Error | null; onReset: () => void }) {
-  const { removeTab, setActiveTabId } = useTabStore()
-
+function TabErrorFallback({ error, onReset, onClose }: { error: Error | null; onReset: () => void; onClose?: () => void }) {
   const handleClose = () => {
-    removeTab(tabId)
-    setActiveTabId("timeline")
+    if (onClose) {
+      onClose()
+    }
   }
 
   return (
@@ -74,12 +73,14 @@ function TabErrorFallback({ tabId, error, onReset }: { tabId: string; error: Err
         >
           <RefreshCw className="w-3.5 h-3.5" /> Réessayer
         </button>
-        <button
-          onClick={handleClose}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 cursor-pointer transition-colors"
-        >
-          <X className="w-3.5 h-3.5" /> Fermer l'onglet
-        </button>
+        {onClose && (
+          <button
+            onClick={handleClose}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 cursor-pointer transition-colors"
+          >
+            <X className="w-3.5 h-3.5" /> Fermer
+          </button>
+        )}
       </div>
     </div>
   )

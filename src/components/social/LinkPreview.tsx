@@ -4,16 +4,16 @@ import React, { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Globe, FileText, Loader2, ArrowUpRight } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useTabStore } from "@/lib/use-tab-store"
+
 
 interface LinkPreviewProps {
   urls: string[]
+  onNavigate?: (target: { type: 'post' | 'article' | 'profile'; id: string; slug?: string }) => void
 }
 
-export function LinkPreview({ urls }: LinkPreviewProps) {
+export function LinkPreview({ urls, onNavigate }: LinkPreviewProps) {
   const [preview, setPreview] = useState<any | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
-  const { addTab } = useTabStore()
 
   const urlsKey = urls.join(",")
 
@@ -82,11 +82,9 @@ export function LinkPreview({ urls }: LinkPreviewProps) {
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()
-          addTab({
-            id: `post-${post.id}`,
-            title: authorName,
-            type: "post"
-          })
+          if (onNavigate) {
+            onNavigate({ type: 'post', id: post.id })
+          }
         }}
         className="group/quote border border-[var(--border-default)] rounded-[var(--radius-card)] p-4 bg-[var(--surface-0)] hover:bg-[var(--surface-2)] transition-all duration-300 cursor-pointer flex flex-col gap-2 mt-2"
       >
@@ -131,12 +129,9 @@ export function LinkPreview({ urls }: LinkPreviewProps) {
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()
-          addTab({
-            id: `article-${article.slug}`,
-            title: article.title,
-            type: "article",
-            slug: article.slug
-          })
+          if (onNavigate) {
+            onNavigate({ type: 'article', id: article.id, slug: article.slug })
+          }
         }}
         className="group/quote border border-[var(--border-default)] rounded-[var(--radius-card)] p-4 bg-[var(--surface-0)] hover:bg-[var(--surface-2)] transition-all duration-300 cursor-pointer flex flex-col gap-1.5 mt-2"
       >

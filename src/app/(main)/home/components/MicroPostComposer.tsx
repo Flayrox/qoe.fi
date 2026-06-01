@@ -7,7 +7,7 @@ import ReactCrop, { centerCrop, makeAspectCrop } from "react-image-crop"
 import type { Crop, PixelCrop } from "react-image-crop"
 import "react-image-crop/dist/ReactCrop.css"
 import { cn } from "@/lib/utils"
-import { useFeedStore } from "@/lib/use-feed-store"
+
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { TimePickerInput } from "@/components/ui/time-picker/time-picker-input"
@@ -36,11 +36,13 @@ const getImages = (url: string | null | undefined): string[] => {
 interface MicroPostComposerProps {
   dbUser: any
   tagsList: string[]
+  onPostCreated?: (post: any) => void
 }
 
 export function MicroPostComposer({
   dbUser,
   tagsList,
+  onPostCreated,
 }: MicroPostComposerProps) {
   const [isComposerExpanded, setIsComposerExpanded] = useState<boolean>(false)
   const [postText, setPostText] = useState<string>("")
@@ -430,8 +432,8 @@ export function MicroPostComposer({
         }
         
         const isFuture = isScheduled && scheduledDate && new Date(getScheduledDateTimeString() || "") > new Date()
-        if (!isDraftSubmit && !isFuture) {
-          useFeedStore.getState().addLocalPost({
+        if (!isDraftSubmit && !isFuture && onPostCreated) {
+          onPostCreated({
             id: post.id,
             title: "",
             slug: `post-${post.id}`,

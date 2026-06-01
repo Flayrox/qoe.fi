@@ -9,7 +9,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toggleFollowUser, sendLetter, updateAvatarDirect, fetchUserConnections, updateProfileDirect } from "./actions"
-import { useTabStore } from "@/lib/use-tab-store"
+
 import { MicroPostCard } from "@/components/social/MicroPostCard"
 
 interface ProfileDashboardProps {
@@ -103,7 +103,7 @@ export function ProfileDashboard({
 }: ProfileDashboardProps) {
   const isOwnProfile = currentUserId === profileUser.id
 
-  const { addTab } = useTabStore()
+
 
   // Navigation states
   const [activeTab, setActiveTab] = useState<string>("pensees")
@@ -591,7 +591,7 @@ export function ProfileDashboard({
                             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                           })
                           .map(post => (
-                            <MicroPostCard key={post.id} post={post} />
+                            <MicroPostCard key={post.id} post={post} currentUserId={currentUserId} />
                           ))
                       )}
                     </div>
@@ -605,12 +605,9 @@ export function ProfileDashboard({
                       {articles.map(art => (
                         <div 
                           key={art.id} 
-                          onClick={() => addTab({
-                            id: `article-${art.slug}`,
-                            title: art.title,
-                            type: "article",
-                            slug: art.slug
-                          })}
+                          onClick={() => {
+                            window.location.href = `/tenant/${profileUser.subdomain || 'default'}/article/${art.slug}`;
+                          }}
                           className="bg-white rounded-[28px] p-8 shadow-sm border-[0.5px] border-neutral-200/50 flex flex-col justify-between min-h-56 cursor-pointer hover:shadow-2xl hover:shadow-neutral-200/40 transition-all duration-500 ease-[0.16,1,0.3,1] hover:scale-[1.01] group"
                         >
                           <div className="space-y-4">
@@ -658,12 +655,9 @@ export function ProfileDashboard({
                             <div className="flex justify-between items-center text-[10px] text-neutral-400 pt-5 mt-2 border-t-[0.5px] border-neutral-100">
                               <span className="font-bold block truncate max-w-xs font-sans text-neutral-500">Source : {h.article.title}</span>
                               <button 
-                                onClick={() => addTab({
-                                  id: `article-${h.article.slug}`,
-                                  title: h.article.title,
-                                  type: "article",
-                                  slug: h.article.slug
-                                })}
+                                onClick={() => {
+                                  window.location.href = `/tenant/${profileUser.subdomain || 'default'}/article/${h.article.slug}`;
+                                }}
                                 className="text-neutral-400 hover:text-[#EE4B2B] font-bold flex items-center gap-1.5 cursor-pointer font-sans transition-colors duration-300 uppercase tracking-wider"
                               >
                                 L'article <ExternalLink className="w-3 h-3" strokeWidth={2} />
@@ -774,12 +768,7 @@ export function ProfileDashboard({
                       key={u.id}
                       onClick={() => {
                         setShowConnectionsModal(null);
-                        addTab({
-                          id: `profile-${u.username}`,
-                          title: u.name || `@${u.username}`,
-                          type: "profile",
-                          username: u.username
-                        });
+                        window.location.href = `/@${u.username}`;
                       }}
                       className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-neutral-50/80 cursor-pointer transition-colors group/conn"
                     >

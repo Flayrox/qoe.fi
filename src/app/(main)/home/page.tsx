@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/db"
+import { getRequestDbUser } from "@/lib/cached-queries"
 import { FeedDashboard } from "./FeedDashboard"
 
 export default async function ReaderHomePage() {
@@ -9,21 +10,21 @@ export default async function ReaderHomePage() {
 
   if (!user) redirect("/login")
 
-  // Fetch dbUser details
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { id: true, name: true, email: true, walletBalanceCents: true, onboardingText: true, role: true, logoUrl: true, username: true }
-  })
+  // Fetch dbUser details and followed creators in parallel (Step 1)
+  const [dbUser, followedCreators] = await Promise.all([
+    getRequestDbUser(user.id),
+    prisma.follows.findMany({
+      where: { readerId: user.id },
+      include: {
+        creator: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+  ])
 
-  // Creators the user follows
-  const following = await prisma.follows.findMany({
-    where: { readerId: user.id },
-    select: { creatorId: true }
-  })
-  
-  const creatorIds = following.map(f => f.creatorId)
+  const creatorIds = followedCreators.map(f => f.creatorId)
 
-  // Mapping helper
+  // Mapping helper functions
   const mapPostToFeedItem = (post: any) => ({
     id: post.id,
     title: "", // Empty title identifies it as a micro-post (tweet) in FeedDashboard
@@ -55,55 +56,53 @@ export default async function ReaderHomePage() {
     tags: art.semanticTags || []
   })
 
-  // 1. Abonnements Feed (Followed creators' articles + micro-posts)
-  const dbFollowingArticles = await prisma.article.findMany({
-    where: { 
-      authorId: { in: creatorIds },
-      published: true 
-    },
-    include: {
-      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
-      category: { select: { name: true } }
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 20
-  })
+  // Define parallel database promises (Step 2)
+  const dbFollowingArticlesPromise = creatorIds.length > 0
+    ? prisma.article.findMany({
+        where: { 
+          authorId: { in: creatorIds },
+          published: true 
+        },
+        include: {
+          author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
+          category: { select: { name: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 20
+      })
+    : Promise.resolve([])
 
-  const dbFollowingPosts = await prisma.post.findMany({
-    where: {
-      isDraft: false,
-      OR: [
-        { scheduledAt: null },
-        { scheduledAt: { lte: new Date() } }
-      ],
-      AND: [
-        {
+  const dbFollowingPostsPromise = creatorIds.length > 0
+    ? prisma.post.findMany({
+        where: {
+          isDraft: false,
           OR: [
-            { authorId: user.id },
+            { scheduledAt: null },
+            { scheduledAt: { lte: new Date() } }
+          ],
+          AND: [
             {
-              authorId: { in: creatorIds },
-              visibility: { in: ["public", "followers"] }
+              OR: [
+                { authorId: user.id },
+                {
+                  authorId: { in: creatorIds },
+                  visibility: { in: ["public", "followers"] }
+                }
+              ]
             }
           ]
-        }
-      ]
-    },
-    include: {
-      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
-      likes: { select: { userId: true } },
-      _count: { select: { likes: true, replies: true } }
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 20
-  })
+        },
+        include: {
+          author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
+          likes: { select: { userId: true } },
+          _count: { select: { likes: true, replies: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 20
+      })
+    : Promise.resolve([])
 
-  const followingArticles = [
-    ...dbFollowingArticles.map(mapArticleToFeedItem),
-    ...dbFollowingPosts.map(mapPostToFeedItem)
-  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-  // 2. Recommandations Feed (Featured articles + recent micro-posts on the platform)
-  const dbRecArticles = await prisma.article.findMany({
+  const dbRecArticlesPromise = prisma.article.findMany({
     where: { 
       published: true 
     },
@@ -118,7 +117,7 @@ export default async function ReaderHomePage() {
     take: 20
   })
 
-  const dbRecPosts = await prisma.post.findMany({
+  const dbRecPostsPromise = prisma.post.findMany({
     where: {
       isDraft: false,
       OR: [
@@ -130,10 +129,10 @@ export default async function ReaderHomePage() {
           OR: [
             { visibility: "public" },
             { authorId: user.id },
-            {
+            ...(creatorIds.length > 0 ? [{
               authorId: { in: creatorIds },
               visibility: "followers"
-            }
+            }] : [])
           ]
         }
       ]
@@ -147,19 +146,13 @@ export default async function ReaderHomePage() {
     take: 20
   })
 
-  const recommendationArticles = [
-    ...dbRecArticles.map(mapArticleToFeedItem),
-    ...dbRecPosts.map(mapPostToFeedItem)
-  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-  // 3. Découvrir Feed (Articles + posts from certified creators NOT followed yet)
-  const dbDiscoverArticles = await prisma.article.findMany({
+  const dbDiscoverArticlesPromise = prisma.article.findMany({
     where: {
       published: true,
       author: {
         role: 'creator',
         isCertified: true,
-        id: { notIn: creatorIds }
+        id: creatorIds.length > 0 ? { notIn: creatorIds } : undefined
       }
     },
     include: {
@@ -170,7 +163,7 @@ export default async function ReaderHomePage() {
     take: 20
   })
 
-  const dbDiscoverPosts = await prisma.post.findMany({
+  const dbDiscoverPostsPromise = prisma.post.findMany({
     where: {
       isDraft: false,
       OR: [
@@ -181,7 +174,7 @@ export default async function ReaderHomePage() {
       author: {
         role: 'creator',
         isCertified: true,
-        id: { notIn: [...creatorIds, user.id] }
+        id: creatorIds.length > 0 ? { notIn: [...creatorIds, user.id] } : { not: user.id }
       }
     },
     include: {
@@ -193,13 +186,7 @@ export default async function ReaderHomePage() {
     take: 20
   })
 
-  const discoverArticles = [
-    ...dbDiscoverArticles.map(mapArticleToFeedItem),
-    ...dbDiscoverPosts.map(mapPostToFeedItem)
-  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-  // Bookmarks (Sanctuaire)
-  const bookmarks = await prisma.bookmark.findMany({
+  const bookmarksPromise = prisma.bookmark.findMany({
     where: { readerId: user.id },
     include: {
       article: {
@@ -212,29 +199,59 @@ export default async function ReaderHomePage() {
     orderBy: { createdAt: 'desc' }
   })
 
-  // Followed creators
-  const followedCreators = await prisma.follows.findMany({
-    where: { readerId: user.id },
-    include: {
-      creator: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } }
-    },
-    orderBy: { createdAt: 'desc' }
-  })
+  const highlightsCountPromise = prisma.highlight.count({ where: { readerId: user.id } })
 
-  const followsCount = followedCreators.length
-  const bookmarksCount = bookmarks.length
-  const highlightsCount = await prisma.highlight.count({ where: { readerId: user.id } })
-
-  // Suggested creators to follow
-  const suggestedCreators = await prisma.user.findMany({
+  const suggestedCreatorsPromise = prisma.user.findMany({
     where: {
       role: 'creator',
       isCertified: true,
-      id: { notIn: [...creatorIds, user.id] }
+      id: creatorIds.length > 0 ? { notIn: [...creatorIds, user.id] } : { not: user.id }
     },
     select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true },
     take: 3
   })
+
+  // Execute all step 2 database promises in parallel
+  const [
+    dbFollowingArticles,
+    dbFollowingPosts,
+    dbRecArticles,
+    dbRecPosts,
+    dbDiscoverArticles,
+    dbDiscoverPosts,
+    bookmarks,
+    highlightsCount,
+    suggestedCreators
+  ] = await Promise.all([
+    dbFollowingArticlesPromise,
+    dbFollowingPostsPromise,
+    dbRecArticlesPromise,
+    dbRecPostsPromise,
+    dbDiscoverArticlesPromise,
+    dbDiscoverPostsPromise,
+    bookmarksPromise,
+    highlightsCountPromise,
+    suggestedCreatorsPromise
+  ])
+
+  // Combine and sort feed elements
+  const followingArticles = [
+    ...dbFollowingArticles.map(mapArticleToFeedItem),
+    ...dbFollowingPosts.map(mapPostToFeedItem)
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+  const recommendationArticles = [
+    ...dbRecArticles.map(mapArticleToFeedItem),
+    ...dbRecPosts.map(mapPostToFeedItem)
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+  const discoverArticles = [
+    ...dbDiscoverArticles.map(mapArticleToFeedItem),
+    ...dbDiscoverPosts.map(mapPostToFeedItem)
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+  const followsCount = followedCreators.length
+  const bookmarksCount = bookmarks.length
 
   const feedProps = {
     dbUser,
