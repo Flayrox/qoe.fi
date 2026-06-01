@@ -1,17 +1,15 @@
 "use client"
 
 import React from "react"
-import { useTabStore } from "@/lib/use-tab-store"
 import { cn } from "@/lib/utils"
 
 interface TextParserProps {
   content: string
   className?: string
+  onMentionClick?: (username: string) => void
 }
 
-export function TextParser({ content, className }: TextParserProps) {
-  const { addTab } = useTabStore()
-
+export function TextParser({ content, className, onMentionClick }: TextParserProps) {
   if (!content) return null
 
   // Split by mentions and hashtags, keeping the matched string in the array
@@ -27,12 +25,11 @@ export function TextParser({ content, className }: TextParserProps) {
               key={i}
               onClick={(e) => {
                 e.stopPropagation()
-                addTab({
-                  id: `profile-${username}`,
-                  title: `@${username}`,
-                  type: "profile",
-                  username
-                })
+                if (onMentionClick) {
+                  onMentionClick(username)
+                } else {
+                  window.location.href = `/profile/${username}`
+                }
               }}
               className="text-[#EE4B2B] font-semibold hover:underline cursor-pointer"
             >

@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { safeAction } from "@/lib/safe-action"
 
+// Global in-memory cache for unfurled URL previews to prevent duplicate scraping and IP bans
+const unfurlCache = new Map<string, any>()
+
 export const toggleFollowCreatorHome = safeAction<string, { followed: boolean }>(async (creatorId, user) => {
   const existing = await prisma.follows.findUnique({
     where: {
@@ -414,34 +417,51 @@ export const unfurlUrl = safeAction<string, {
       url = "https://" + url
     }
 
-    const parsedUrl = new URL(url)
-    
-    // Check if internal post or article
-    const postMatch = parsedUrl.pathname.match(/\/post\/([a-zA-Z0-9]+)/)
-    if (postMatch) {
-      const postId = postMatch[1]
-      const post = await prisma.post.findUnique({
-        where: { id: postId },
-        include: {
-          author: { select: { id: true, name: true, username: true, subdomain: true, logoUrl: true, isCertified: true } }
-        }
-      })
-      if (post) {
-        return { isInternal: true, postType: "post", data: post }
-      }
+    // Return immediately if result is already in the global memory cache
+    if (unfurlCache.has(url)) {
+      return unfurlCache.get(url)!
     }
 
-    const articleMatch = parsedUrl.pathname.match(/\/article\/([a-zA-Z0-9_-]+)/)
-    if (articleMatch) {
-      const slug = articleMatch[1]
-      const article = await prisma.article.findUnique({
-        where: { slug },
-        include: {
-          author: { select: { id: true, name: true, username: true, subdomain: true, logoUrl: true, isCertified: true } }
+    const parsedUrl = new URL(url)
+    
+    // Check if the host belongs to the platform (only treat as internal if matches localhost or qoe.fi)
+    const isInternalHost = parsedUrl.hostname.endsWith("qoe.fi") || 
+                           parsedUrl.hostname === "localhost" || 
+                           parsedUrl.hostname.endsWith(".localhost") ||
+                           parsedUrl.hostname === "127.0.0.1"
+
+    if (isInternalHost) {
+      // Check if internal post or article
+      const postMatch = parsedUrl.pathname.match(/\/post\/([a-zA-Z0-9]+)/)
+      if (postMatch) {
+        const postId = postMatch[1]
+        const post = await prisma.post.findUnique({
+          where: { id: postId },
+          include: {
+            author: { select: { id: true, name: true, username: true, subdomain: true, logoUrl: true, isCertified: true } }
+          }
+        })
+        if (post) {
+          const result = { isInternal: true, postType: "post" as const, data: post }
+          unfurlCache.set(url, result)
+          return result
         }
-      })
-      if (article) {
-        return { isInternal: true, postType: "article", data: article }
+      }
+
+      const articleMatch = parsedUrl.pathname.match(/\/article\/([a-zA-Z0-9_-]+)/)
+      if (articleMatch) {
+        const slug = articleMatch[1]
+        const article = await prisma.article.findUnique({
+          where: { slug },
+          include: {
+            author: { select: { id: true, name: true, username: true, subdomain: true, logoUrl: true, isCertified: true } }
+          }
+        })
+        if (article) {
+          const result = { isInternal: true, postType: "article" as const, data: article }
+          unfurlCache.set(url, result)
+          return result
+        }
       }
     }
 
@@ -460,7 +480,9 @@ export const unfurlUrl = safeAction<string, {
     clearTimeout(timeoutId)
 
     if (!response.ok) {
-      return { isInternal: false, externalMetadata: { title: parsedUrl.hostname, description: null, image: null, siteName: parsedUrl.hostname, url } }
+      const failResult = { isInternal: false, externalMetadata: { title: parsedUrl.hostname, description: null, image: null, siteName: parsedUrl.hostname, url } }
+      unfurlCache.set(url, failResult)
+      return failResult
     }
 
     const html = await response.text()
@@ -485,7 +507,7 @@ export const unfurlUrl = safeAction<string, {
     const image = getMeta("og:image") || getMeta("twitter:image")
     const siteName = getMeta("og:site_name") || parsedUrl.hostname
 
-    return {
+    const successResult = {
       isInternal: false,
       externalMetadata: {
         title: title ? title.trim() : parsedUrl.hostname,
@@ -495,11 +517,13 @@ export const unfurlUrl = safeAction<string, {
         url
       }
     }
+    unfurlCache.set(url, successResult)
+    return successResult
   } catch (error) {
     console.error("Unfurl error:", error)
     try {
       const fallbackUrl = new URL(urlStr)
-      return {
+      const errFallbackResult = {
         isInternal: false,
         externalMetadata: {
           title: fallbackUrl.hostname,
@@ -509,8 +533,10 @@ export const unfurlUrl = safeAction<string, {
           url: urlStr
         }
       }
+      unfurlCache.set(urlStr, errFallbackResult)
+      return errFallbackResult
     } catch {
-      return {
+      const totalFallbackResult = {
         isInternal: false,
         externalMetadata: {
           title: urlStr,
@@ -520,6 +546,8 @@ export const unfurlUrl = safeAction<string, {
           url: urlStr
         }
       }
+      unfurlCache.set(urlStr, totalFallbackResult)
+      return totalFallbackResult
     }
   }
 }, false)

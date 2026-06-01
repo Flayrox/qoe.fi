@@ -4,7 +4,7 @@ import React from "react"
 import { motion } from "framer-motion"
 import { ExternalLink, UserPlus, UserCheck, Bookmark, FileText, Clock, Crown } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useTabStore } from "@/lib/use-tab-store"
+
 import { MicroPostCard } from "@/components/social/MicroPostCard"
 import { useTranslate } from "@tolgee/react"
 import { Balancer } from "react-wrap-balancer"
@@ -44,7 +44,10 @@ interface ArticleCardProps {
   isFollowed: boolean
   handleFollowToggle: (author: any) => void
   handleBookmarkToggle: (article: Article) => void
-  featured?: boolean   // First card in feed — larger editorial treatment
+  featured?: boolean
+  onOpenArticle?: (article: Article) => void
+  onOpenProfile?: (username: string) => void
+  onOpenPost?: (postId: string) => void
 }
 
 // Generates a subtle gradient based on the author name for articles without a cover image
@@ -63,8 +66,10 @@ export function ArticleCard({
   handleFollowToggle,
   handleBookmarkToggle,
   featured = false,
+  onOpenArticle,
+  onOpenProfile,
+  onOpenPost,
 }: ArticleCardProps) {
-  const { addTab } = useTabStore()
   const { t } = useTranslate()
   const [tilt, setTilt] = React.useState({ x: 0, y: 0 })
 
@@ -100,7 +105,7 @@ export function ArticleCard({
         exit={{ opacity: 0, scale: 0.99 }}
         transition={{ duration: 0.25, delay: idx * 0.03, ease: [0.16, 1, 0.3, 1] }}
       >
-        <MicroPostCard post={article} />
+        <MicroPostCard post={article} currentUserId={dbUser?.id || null} onOpenPost={onOpenPost} onOpenProfile={onOpenProfile} />
       </motion.div>
     )
   }
@@ -138,12 +143,9 @@ export function ArticleCard({
   )
 
   const handleOpenInTab = () => {
-    addTab({
-      id: `article-${article.slug}`,
-      title: article.title,
-      type: "article",
-      slug: article.slug
-    })
+    if (onOpenArticle) {
+      onOpenArticle(article)
+    }
   }
 
   const handleOpenProfile = (e: React.MouseEvent) => {
@@ -151,12 +153,11 @@ export function ArticleCard({
     e.stopPropagation()
     const targetUsername = article.author.username || article.author.subdomain
     if (!targetUsername) return
-    addTab({
-      id: `profile-${targetUsername}`,
-      title: `@${targetUsername}`,
-      type: "profile",
-      slug: targetUsername
-    })
+    if (onOpenProfile) {
+      onOpenProfile(targetUsername)
+    } else {
+      window.location.href = `/profile/${targetUsername}`
+    }
   }
 
   const formattedDate = new Date(article.createdAt).toLocaleDateString("fr-FR", {
