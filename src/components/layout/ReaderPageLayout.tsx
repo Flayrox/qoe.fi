@@ -2,7 +2,7 @@
 
 import React from "react"
 import { usePathname } from "next/navigation"
-import { Logo } from "@/components/ui/Logo"
+
 import { cn } from "@/lib/utils"
 
 interface ReaderPageLayoutProps {
@@ -59,36 +59,10 @@ export function ReaderPageLayout({ giantTitle, giantTitleSuffix = ".", children 
         isTimeline ? "pt-[30vh]" : "pt-16"
       )}>
         
-        {/* ── LOGO LAYER (z-10) ── */}
-        <div className="sticky top-[28px] z-10 w-full flex justify-center bg-transparent pointer-events-none h-0">
-          <div className="w-full max-w-[640px] px-2 flex items-center gap-6 relative">
-            <div className={cn(
-              "absolute left-[-84px] w-16 h-8 flex items-center justify-center",
-              isTimeline ? "top-5" : "top-1"
-            )}>
-              {isTimeline ? (
-                <button
-                  onClick={(e) => {
-                    e.preventDefault()
-                    window.scrollTo({ top: 0, behavior: "smooth" })
-                  }}
-                  className="flex items-center justify-center w-8 h-8 pointer-events-auto cursor-pointer outline-none bg-transparent border-0"
-                  title="Retour en haut"
-                >
-                  <Logo className="h-[13px] w-auto" fillColor="#EE4B2B" />
-                </button>
-              ) : (
-                <a href="/home" className="flex items-center justify-center w-8 h-8 pointer-events-auto">
-                  <Logo className="h-[13px] w-auto" fillColor="#EE4B2B" />
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
 
         {/* ── STICKY TITLE ── */}
         {giantTitle && (
-          <div className="sticky top-0 h-0 z-10 pointer-events-none select-none">
+          <div className={cn("sticky h-0 z-10 pointer-events-none select-none", isTimeline ? "top-0" : "top-[48px]")}>
             <div className="absolute left-2 top-1">
               <span className="font-sans text-5xl font-extrabold text-[var(--qoe-vermillion)] tracking-tighter">
                 {giantTitle}<span className="text-[var(--text-primary)]">{giantTitleSuffix}</span>
