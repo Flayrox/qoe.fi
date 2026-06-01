@@ -13,6 +13,7 @@ import { ArticleCard } from "./components/ArticleCard"
 import { MicroPostComposer } from "./components/MicroPostComposer"
 import { FeedTabsHeader } from "./components/FeedTabsHeader"
 import { ExpandedPostView } from "./components/ExpandedPostView"
+import { HomeWidgets } from "./components/HomeWidgets"
 import { useTranslate } from "@tolgee/react"
 import { trackEvent } from "@/lib/analytics"
 
@@ -63,6 +64,10 @@ interface FeedDashboardProps {
   initialBookmarksCount: number
   initialHighlightsCount: number
   mutedWords?: string[]
+  featuredArticle: any
+  recommendedArticles: any[]
+  trends: any[]
+  promos: any[]
 }
 
 // Spring physics — Rauno-style, never ease-in-out
@@ -82,6 +87,10 @@ export function FeedDashboard({
   initialBookmarksCount,
   initialHighlightsCount,
   mutedWords = [],
+  featuredArticle,
+  recommendedArticles,
+  trends,
+  promos,
 }: FeedDashboardProps) {
   const { t } = useTranslate()
   const [activeFeed, setActiveFeed] = useState<string>("recommandation")
@@ -225,7 +234,17 @@ export function FeedDashboard({
   const tagsList = ["#souverainete", "#anti-ia", "#attention", "#philosophie", "#design", "#creators"]
 
   return (
-    <ReaderPageLayout giantTitle="Lire">
+    <ReaderPageLayout 
+      giantTitle="Lire"
+      headerWidgets={
+        <HomeWidgets
+          featuredArticle={featuredArticle}
+          recommendedArticles={recommendedArticles}
+          trends={trends}
+          promos={promos}
+        />
+      }
+    >
         {/* ── STICKY TABS WRAPPER (z-30) ── */}
         <div className="sticky top-0 z-30 w-full flex items-baseline justify-center py-4 px-6 bg-transparent pointer-events-auto">
           <FeedTabsHeader 

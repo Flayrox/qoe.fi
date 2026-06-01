@@ -292,3 +292,23 @@ model Like {
 
   @@unique([postId, userId])
 }
+
+model Trend {
+  id        String   @id @default(cuid())
+  hashtag   String   @unique
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PartnerPromo {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @db.Text
+  ctaText     String?
+  ctaUrl      String?
+  imageUrl    String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
