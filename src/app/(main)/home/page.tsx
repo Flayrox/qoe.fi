@@ -217,6 +217,27 @@ export default async function ReaderHomePage() {
     select: { word: true }
   })
 
+  // Promesses pour les Widgets
+  const trendsPromise = prisma.trend.findMany({
+    orderBy: { count: 'desc' },
+    take: 5
+  })
+
+  const promosPromise = prisma.partnerPromo.findMany({
+    where: { isActive: true },
+    orderBy: { createdAt: 'desc' },
+    take: 3
+  })
+
+  const featuredArticlePromise = prisma.article.findFirst({
+    where: { published: true, isEditorPick: true },
+    include: {
+      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
+      category: { select: { name: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  })
+
   // Étape 2 : Exécuter toutes les promesses de base de données en parallèle
   const [
     dbFollowingArticles,
@@ -228,7 +249,10 @@ export default async function ReaderHomePage() {
     bookmarks,
     highlightsCount,
     suggestedCreators,
-    mutedWords
+    mutedWords,
+    trends,
+    promos,
+    dbFeaturedArticle
   ] = await Promise.all([
     dbFollowingArticlesPromise,
     dbFollowingPostsPromise,
@@ -239,7 +263,10 @@ export default async function ReaderHomePage() {
     bookmarksPromise,
     highlightsCountPromise,
     suggestedCreatorsPromise,
-    mutedWordsPromise
+    mutedWordsPromise,
+    trendsPromise,
+    promosPromise,
+    featuredArticlePromise
   ])
 
   // Combiner et trier les éléments de la timeline
@@ -262,6 +289,16 @@ export default async function ReaderHomePage() {
   const bookmarksCount = bookmarks.length
   const mutedWordsList = mutedWords.map(w => w.word.toLowerCase())
 
+  // Déterminer l'article à la une pour le widget
+  const featuredArticle = dbFeaturedArticle || dbRecArticles[0] || null
+  const widgetFeaturedArticle = featuredArticle ? mapArticleToFeedItem(featuredArticle) : null
+
+  // Déterminer les articles recommandés pour le widget (exclure l'article à la une)
+  const widgetRecArticles = dbRecArticles
+    .filter(art => art.id !== featuredArticle?.id)
+    .slice(0, 5)
+    .map(mapArticleToFeedItem)
+
   const feedProps = {
     dbUser,
     followingArticles,
@@ -273,7 +310,20 @@ export default async function ReaderHomePage() {
     initialFollowsCount: followsCount,
     initialBookmarksCount: bookmarksCount,
     initialHighlightsCount: highlightsCount,
-    mutedWords: mutedWordsList
+    mutedWords: mutedWordsList,
+    // Widget props
+    featuredArticle: widgetFeaturedArticle,
+    recommendedArticles: widgetRecArticles,
+    trends: trends.map(t => ({ id: t.id, hashtag: t.hashtag, count: t.count })),
+    promos: promos.map(p => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      ctaText: p.ctaText,
+      ctaUrl: p.ctaUrl,
+      imageUrl: p.imageUrl,
+      isActive: p.isActive
+    }))
   }
 
   return (

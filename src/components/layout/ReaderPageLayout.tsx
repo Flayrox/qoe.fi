@@ -8,10 +8,16 @@ import { cn } from "@/lib/utils"
 interface ReaderPageLayoutProps {
   giantTitle?: string
   giantTitleSuffix?: string
+  headerWidgets?: React.ReactNode
   children: React.ReactNode
 }
 
-export function ReaderPageLayout({ giantTitle, giantTitleSuffix = ".", children }: ReaderPageLayoutProps) {
+export function ReaderPageLayout({ 
+  giantTitle, 
+  giantTitleSuffix = ".", 
+  headerWidgets,
+  children 
+}: ReaderPageLayoutProps) {
   const pathname = usePathname()
   const isTimeline = pathname.endsWith("/home") || pathname.endsWith("/home/")
 
@@ -59,6 +65,12 @@ export function ReaderPageLayout({ giantTitle, giantTitleSuffix = ".", children 
         isTimeline ? "pt-[30vh]" : "pt-5"
       )}>
         
+        {/* Render headerWidgets if present - absolute positioned in the background of the title, full-screen width */}
+        {headerWidgets && (
+          <div className="absolute top-12 left-1/2 -translate-x-1/2 w-screen z-0 overflow-hidden">
+            {headerWidgets}
+          </div>
+        )}
 
         {/* ── STICKY TITLE ── */}
         {giantTitle && (
