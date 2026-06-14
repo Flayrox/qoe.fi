@@ -1,0 +1,75 @@
+# =====================================================================
+# 🐳 Dockerfile.dev — qoe.fi (DÉVELOPPEMENT avec Hot-Reload)
+# =====================================================================
+# Cette image est utilisée UNIQUEMENT en développement.
+# Avantages vs Dockerfile prod :
+#   ✅ Plus simple (1 seul stage)
+#   ✅ Hot-reload : tes modifs de code sont reflétées en direct
+#   ✅ Includes devDependencies (eslint, typescript, vitest, etc.)
+# Inconvénients :
+#   ❌ Image plus lourde (~500 MB)
+#   ❌ Plus lent en cold-start
+#
+# 📖 Le hot-reload fonctionne grâce à :
+#   1. Le bind mount dans docker-compose.dev.yml
+#   2. Le polling activé via CHOKIDAR_USEPOLLING=true
+#   3. Next.js dev server qui écoute les changements de fichiers
+# =====================================================================
+
+# Image de base : Node 20 sur Alpine (légère)
+FROM node:20-alpine
+
+# Dépendances système nécessaires pour certains modules npm
+RUN apk add --no-cache libc6-compat openssl git
+
+# Définit le répertoire de travail dans le container
+WORKDIR /app
+
+# Variables d'environnement pour le dev
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+# ⚠️ CHOKIDAR_USEPOLLING est CRUCIAL pour le hot-reload dans Docker
+# Sur Windows/Mac (avec Docker Desktop), le système de fichiers partagé
+# ne notifie pas Docker des changements. Le polling règle ce problème.
+ENV CHOKIDAR_USEPOLLING=true
+ENV WATCHPACK_POLLING=true
+
+# Active corepack pour pnpm (ou utilise npm si pas de pnpm-lock.yaml)
+RUN corepack enable
+
+# Copie les fichiers de manifestes en premier (cache Docker optimal)
+COPY package.json package-lock.json* pnpm-lock.yaml* .npmrc* ./
+
+# Installe TOUTES les dépendances (dev + prod) car on est en dev
+# En dev, on a besoin de TS, eslint, vitest, etc.
+RUN \
+  if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; \
+  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
+  else echo "Lockfile not found." && exit 1; \
+  fi
+
+# ⚠️ On ne copie PAS le code source ici !
+# Pourquoi ? Parce que docker-compose.dev.yml va utiliser un BIND MOUNT
+# pour monter le dossier courant dans /app. Ainsi, tes modifs sont
+# visibles en temps réel dans le container, pas besoin de rebuild.
+
+# Génère le client Prisma (nécessaire au runtime, pas au build)
+# On le fait quand même ici pour éviter de le refaire à chaque démarrage
+# Mais la commande est idempotente, pas de souci.
+RUN npx prisma generate || true
+
+# Expose le port 3000
+EXPOSE 3000
+
+# Healthcheck pour vérifier que Next.js dev server est up
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
+# 🚀 Commande de démarrage
+# En dev, on lance `next dev` (pas `next start`).
+# Le hot-reload est automatique grâce au bind mount + CHOKIDAR.
+CMD ["npm", "run", "dev"]
