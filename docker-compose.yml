@@ -1,0 +1,241 @@
+# =====================================================================
+# 🐳 docker-compose.yml — Orchestration PRINCIPALE (dev + prod)
+# =====================================================================
+# Ce fichier est le "socle commun" de qoe.fi. Il est conçu pour être
+# utilisé TEL QUEL en dev local (sans Caddy) ET en prod (avec Caddy).
+#
+# 📋 Usage :
+#   Dev local (HMR) :
+#     docker compose -f docker-compose.dev.yml up
+#
+#   Production (VPS) :
+#     docker compose --profile prod up -d
+#     (le --profile prod active Caddy qui n'est pas lancé en dev)
+#
+# 📖 Concepts clés :
+# - "profiles" permet d'activer un service seulement dans certains contextes
+# - "env_file" charge les variables depuis un fichier (jamais commité)
+# - "restart: unless-stopped" = redémarre après un crash ou reboot du VPS
+# =====================================================================
+
+name: qoefi
+
+services:
+  # -------------------------------------------------------------------
+  # 🐘 SERVICE : PostgreSQL avec pgvector
+  # -------------------------------------------------------------------
+  # Base de données principale. Le port 5432 n'est PAS exposé sur le VPS
+  # en prod (on n'y accède que depuis le réseau Docker interne).
+  # En dev, on l'expose sur 5433 pour y accéder depuis pgAdmin par exemple.
+  # -------------------------------------------------------------------
+  db:
+    image: pgvector/pgvector:pg16-alpine
+    container_name: qoefi-${ENV:-dev}-db
+    restart: unless-stopped
+
+    # Variables de configuration de Postgres au premier démarrage
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-qoe}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qoe}
+      POSTGRES_DB: ${POSTGRES_DB:-qoe}
+
+    # Volume nommé pour PERSISTER les données
+    # 🎯 En prod, ce volume survit aux `docker compose down` et reboots
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    # En dev, on expose le port pour y accéder depuis l'extérieur (ex: pgAdmin)
+    # En prod, on le retire automatiquement via la variable ENV
+    ports:
+      - target: 5432
+        published: ${DB_EXTERNAL_PORT:-5433}
+        protocol: tcp
+        mode: host
+
+    # Healthcheck : attend que Postgres soit prêt à accepter des connexions
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qoe} -d ${POSTGRES_DB:-qoe}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    # Limites de ressources (empêche un service de bouffer toute la RAM du VPS)
+    # Ajuste selon ton VPS (OVH, Hetzner, etc. ont des specs différentes)
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 128M
+
+    networks:
+      - qoefi-net
+
+  # -------------------------------------------------------------------
+  # 🔄 SERVICE : Migrations Prisma (one-shot)
+  # -------------------------------------------------------------------
+  # Applique les migrations au démarrage. S'arrête une fois terminé.
+  # Restart: "no" car on ne veut PAS qu'il boucle en cas d'erreur.
+  # -------------------------------------------------------------------
+  migrate:
+    image: qoefi-app:latest  # Construit depuis le Dockerfile prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qoefi-${ENV:-dev}-migrate
+    restart: "no"
+
+    # Attend que la DB soit healthy
+    depends_on:
+      db:
+        condition: service_healthy
+
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
+      DIRECT_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
+
+    # Override la commande : au lieu de "node server.js", on lance les migrations
+    # "deploy" applique les migrations sans reset (sûr en prod)
+    command: ["npx", "prisma", "migrate", "deploy"]
+
+    # Surcharge le CMD du Dockerfile : on ne veut PAS démarrer le serveur Node ici
+    # Juste appliquer les migrations et s'arrêter
+    entrypoint: [""]
+
+    networks:
+      - qoefi-net
+
+  # -------------------------------------------------------------------
+  # ⚛️ SERVICE : Application Next.js (production)
+  # -------------------------------------------------------------------
+  # C'est l'app qui sert le trafic. Utilise le Dockerfile de prod (multi-stage).
+  # En prod, elle n'est PAS exposée directement : seul Caddy y accède.
+  # -------------------------------------------------------------------
+  app:
+    image: qoefi-app:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qoefi-${ENV:-dev}-app
+    restart: unless-stopped
+
+    # Ordre de démarrage strict : DB → migrations → app
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+    # Charge les variables depuis le fichier .env (ignoré par git)
+    env_file:
+      - .env.docker
+
+    # Surcharge certaines variables pour pointer sur le service "db" interne
+    # (le hostname "db" est résolu par Docker via le réseau)
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
+      DIRECT_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    # ⚠️ En prod, on n'expose PAS le port 3000 directement
+    # Seul Caddy (dans le réseau) y accède. C'est plus sûr.
+    # Si tu veux quand même y accéder pour debug, décommente :
+    # ports:
+    #   - "3008:3000"
+
+    # Healthcheck : Next.js sert une réponse sur /
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Limites de ressources
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: "2.0"
+        reservations:
+          memory: 256M
+
+    networks:
+      - qoefi-net
+
+  # -------------------------------------------------------------------
+  # 🌐 SERVICE : Caddy (reverse proxy + HTTPS automatique)
+  # -------------------------------------------------------------------
+  # ⚠️ Activé UNIQUEMENT avec le profile "prod" :
+  #   docker compose --profile prod up -d
+  #
+  # En dev, on n'a pas besoin de Caddy car on accède directement à l'app
+  # sur localhost:3000.
+  #
+  # Pourquoi Caddy ?
+  #   - HTTPS automatique via Let's Encrypt (zéro config !)
+  #   - Renouvellement automatique des certificats
+  #   - Reverse proxy simple et performant
+  #   - Headers de sécurité intégrés
+  # -------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: qoefi-${ENV:-dev}-caddy
+    restart: unless-stopped
+
+    # Active SEULEMENT si on lance avec --profile prod
+    profiles:
+      - prod
+
+    # Ports exposés sur le VPS : 80 (HTTP) et 443 (HTTPS)
+    # ⚠️ Sur ton VPS, assure-toi que ces ports ne sont pas déjà pris
+    # (tu m'as dit que 3000-3007 sont occupés, mais 80/443 devraient être libres)
+    ports:
+      - "80:80"    # HTTP → redirige automatiquement vers HTTPS
+      - "443:443"  # HTTPS (Caddy gère le certif Let's Encrypt)
+
+    # Configuration Caddy
+    volumes:
+      # Caddyfile : la config de ton reverse proxy
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Volumes nommés pour stocker les certifs et le cache
+      - caddy_data:/data
+      - caddy_config:/config
+
+    # Attend que l'app soit healthy avant de démarrer
+    depends_on:
+      app:
+        condition: service_healthy
+
+    # Réseau pour communiquer avec l'app
+    networks:
+      - qoefi-net
+
+# =====================================================================
+# 📦 VOLUMES NOMMÉS (persistants)
+# =====================================================================
+# ⚠️ Pour TOUT SUPPRIMER (DB incluse) : docker compose down -v
+# =====================================================================
+volumes:
+  postgres_data:
+    name: qoefi-postgres-data
+  caddy_data:
+    name: qoefi-caddy-data
+  caddy_config:
+    name: qoefi-caddy-config
+
+# =====================================================================
+# 🌐 RÉSEAU PRIVÉ
+# =====================================================================
+# Réseau bridge qui isole tes services du reste du VPS.
+# Les services communiquent entre eux par leur nom (db, app, caddy).
+# =====================================================================
+networks:
+  qoefi-net:
+    name: qoefi-net
+    driver: bridge

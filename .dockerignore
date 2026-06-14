@@ -1,0 +1,110 @@
+# =====================================================================
+# 🐳 .dockerignore — Fichiers à EXCLURE du contexte de build Docker
+# =====================================================================
+# Ce fichier dit à Docker quoi NE PAS copier dans l'image.
+# Règle d'or : tout ce qui n'est pas nécessaire au runtime/build final.
+# =====================================================================
+
+# 📦 Dépendances (sera réinstallé dans l'image via npm ci)
+node_modules
+.pnp
+.pnp.js
+
+# 🏗️ Builds Next.js (sera régénéré DANS l'image)
+.next/
+out/
+build/
+dist/
+
+# 🔐 Variables d'environnement — ⚠️ NE JAMAIS ENVOYER
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.docker
+
+# 📝 Logs (inutiles dans l'image)
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 🧪 Tests et coverage
+coverage
+.nyc_output
+*.lcov
+
+# 🗃️ Git
+.git
+.gitignore
+.gitattributes
+
+# 📚 Documentation (pas nécessaire dans l'image)
+README.md
+*.md
+docs/
+
+# 🎨 Assets de design (référencés ailleurs ou non utilisés au runtime)
+DesignTemplates/
+plans/
+past/
+qoefie_svg.svg
+
+# 🛠️ Fichiers de config IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# 🐳 Docker lui-même (évite la récursion)
+docker-compose*.yml
+Dockerfile
+Dockerfile.dev
+.dockerignore
+
+# 🤖 Fichiers d'agents / outils dev
+.agents/
+.docs/
+.waiting/
+.roo/
+.gemini/
+.skills-lock.json
+
+# 🧪 Tests
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+src/**/*.test.ts
+
+# 📸 Screenshots / mockups
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
+!prisma/**/*.svg  # garde les SVG référencés
+
+# 💾 Backups
+*.sql
+*.dump
+*.tar.gz
+*.zip
+
+# ⏭️ Fichiers Prisma générés
+src/generated/prisma/
+
+# 🚫 Cache divers
+.cache/
+.parcel-cache/
+.turbo/
+.vercel/

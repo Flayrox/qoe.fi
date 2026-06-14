@@ -1,0 +1,187 @@
+# =====================================================================
+# 🐳 docker-compose.dev.yml — Environnement de DÉVELOPPEMENT
+# =====================================================================
+# Usage : docker compose -f docker-compose.dev.yml up
+#
+# Ce fichier orchestre 3 services pour le dev local :
+#   1. db       → PostgreSQL avec extension pgvector
+#   2. migrate  → Job one-shot qui applique les migrations Prisma
+#   3. app      → Next.js avec hot-reload (montre tes modifs en direct)
+#
+# 📖 Concepts Docker Compose :
+# - "services" = les containers qui tournent
+# - "volumes"  = persistance des données (DB) + partage de fichiers (HMR)
+# - "networks" = réseau privé pour que les services communiquent entre eux
+# - "depends_on" avec "condition: service_healthy" = attend que le service soit OK
+# =====================================================================
+
+name: qoefi-dev
+
+services:
+  # -------------------------------------------------------------------
+  # 🐘 SERVICE 1 : PostgreSQL avec pgvector
+  # -------------------------------------------------------------------
+  # C'est la base de données locale. L'image "pgvector/pgvector:pg16-alpine"
+  # inclut PostgreSQL 16 + l'extension vector (utilisée par ton schema.prisma).
+  # On persiste les données dans un volume nommé pour ne pas les perdre
+  # quand on relance docker compose down.
+  # -------------------------------------------------------------------
+  db:
+    image: pgvector/pgvector:pg16-alpine
+    container_name: qoefi-dev-db
+    restart: unless-stopped
+
+    # Variables d'env pour créer la DB et l'utilisateur au premier démarrage
+    # Ces valeurs sont lues depuis .env.docker (grâce à env_file ci-dessous)
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-qoe}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qoe}
+      POSTGRES_DB: ${POSTGRES_DB:-qoe}
+      # Permet d'initialiser des extensions au premier démarrage
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+
+    # Port exposé sur ta machine (localhost:5433 → db:5432 interne)
+    # On utilise 5433 pour ne pas conflicter si tu as déjà Postgres en local
+    ports:
+      - "5433:5432"
+
+    # Volume nommé : les données survivent aux redémarrages
+    # ⚠️ Pour TOUT EFFACER : docker compose down -v
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      # Script SQL d'init pour pgvector (optionnel, l'image le fait déjà)
+      # - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+    # Healthcheck : vérifie que Postgres accepte les connexions
+    # Utilisé par depends_on pour attendre que la DB soit vraiment ready
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qoe} -d ${POSTGRES_DB:-qoe}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+    # Réseau privé pour que les services communiquent
+    networks:
+      - qoefi-net
+
+  # -------------------------------------------------------------------
+  # 🔄 SERVICE 2 : Migrations Prisma (job one-shot)
+  # -------------------------------------------------------------------
+  # Ce service ne tourne PAS en continu. Il s'exécute UNE FOIS au démarrage
+  # pour appliquer les migrations Prisma (crée/modifie les tables).
+  # S'il n'y a pas de migration en attente, il ne fait rien et s'arrête.
+  #
+  # Comment ça marche :
+  #   1. depends_on attend que "db" soit healthy
+  #   2. On lance le même Dockerfile.dev que l'app (cohérence des deps)
+  #   3. On override la commande : "npx prisma migrate deploy"
+  #   4. Quand c'est fini, le container s'arrête (restart: "no")
+  # -------------------------------------------------------------------
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: qoefi-dev-migrate
+    restart: "no"  # one-shot, ne redémarre pas
+
+    # Attend que la DB soit healthy avant de lancer prisma
+    depends_on:
+      db:
+        condition: service_healthy
+
+    # Les envs sont nécessaires pour que Prisma se connecte à la DB
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
+      DIRECT_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
+
+    # Override de la commande : on lance les migrations au lieu de "npm run dev"
+    # "deploy" = applique les migrations (vs "dev" qui peut reset la DB, dangereux)
+    command: npx prisma migrate deploy
+
+    networks:
+      - qoefi-net
+
+  # -------------------------------------------------------------------
+  # ⚛️ SERVICE 3 : Application Next.js (le cœur de qoe.fi)
+  # -------------------------------------------------------------------
+  # C'est ce service que tu utilises 100% du temps en dev.
+  # Le bind mount permet le hot-reload : tu modifies un fichier dans VSCode,
+  # le container le voit immédiatement, Next.js recompile.
+  # -------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: qoefi-dev-app
+    restart: unless-stopped
+
+    # Attend la DB ET les migrations
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully  # attend que migrate ait fini
+
+    # ⚠️ IMPORTANT : ne PAS mettre env_file ici, on va passer les vars
+    # explicitement pour éviter les fuites de secrets du système
+    # Charge le fichier .env.docker s'il existe
+    env_file:
+      - .env.docker
+    environment:
+      # Surcharge les URLs de DB pour pointer sur le service "db" interne
+      # (le hostname "db" est résolu par Docker grâce au réseau)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
+      DIRECT_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
+      NODE_ENV: development
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      # Active le polling pour le hot-reload (nécessaire sur Windows/Mac)
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    # Bind mount : ton code source local est monté dans le container
+    # 🎯 C'est ÇA qui permet le hot-reload
+    # Format : CHEMIN_LOCAL:CHEMIN_DANS_CONTAINER
+    volumes:
+      - .:/app                    # Monte tout le projet
+      - /app/node_modules         # ⚠️ Exclut node_modules (utilise celui du container)
+      - /app/.next                # ⚠️ Exclut .next (utilise celui du container)
+      - /app/src/generated/prisma # Évite les conflits de génération Prisma
+
+    # Port exposé : localhost:3000 → app:3000
+    ports:
+      - "3000:3000"
+
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # Next.js met du temps à démarrer en dev
+
+    networks:
+      - qoefi-net
+
+# =====================================================================
+# 📦 VOLUMES NOMMÉS
+# =====================================================================
+# Les volumes nommés sont gérés par Docker (stockés dans /var/lib/docker/...)
+# Ils survivent aux `docker compose down` (contrairement aux bind mounts).
+# =====================================================================
+volumes:
+  postgres_dev_data:
+    name: qoefi-dev-postgres-data
+
+# =====================================================================
+# 🌐 RÉSEAUX
+# =====================================================================
+# Crée un réseau privé pour que les services communiquent entre eux
+# par leur nom (db, app, migrate) au lieu d'IPs.
+# =====================================================================
+networks:
+  qoefi-net:
+    name: qoefi-dev-net
+    driver: bridge
