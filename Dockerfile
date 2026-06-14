@@ -1,140 +1,169 @@
 # =====================================================================
-# 🐳 Dockerfile — qoe.fi (PRODUCTION)
+# 🐳 Dockerfile multi-target — qoe.fi monorepo
 # =====================================================================
-# Build multi-stage pour produire une image finale légère (~150 MB)
-# au lieu d'1+ GB si on copiait tout node_modules.
+# 📖 Un SEUL Dockerfile qui build 4 cibles :
+#    - web      : apps/web (Next.js public)
+#    - console  : apps/console (Next.js auth)
+#    - api      : apps/api (Hono backend)
+#    - workers  : workers/ (BullMQ)
 #
-# 📖 Concepts clés :
-# - "stage" = étape de build avec son propre système de fichiers
-# - "AS <name>" permet de référencer une étape plus tard
-# - À la fin, on ne "publie" que les fichiers du dernier FROM
+# 🎯 Usage :
+#    docker build --target web -t qoefi-web .
+#    docker build --target console -t qoefi-console .
+#    docker build --target api -t qoefi-api .
+#    docker build --target workers -t qoefi-workers .
+#
+# 📖 Stratégie : stages de base communs + stages spécifiques
 # =====================================================================
 
-# ---------------------------------------------------------------------
-# 🥇 STAGE 1 : "base" — Image commune avec pnpm/npm et Node
-# ---------------------------------------------------------------------
-# On définit la version de Node une seule fois ici, elle est héritée par
-# les stages suivants (DRY : Don't Repeat Yourself)
-# ---------------------------------------------------------------------
+# ─────────────────────────────────────────────────────────────────────
+# 🥉 STAGE BASE : node + outils communs
+# ─────────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat openssl git
+WORKDIR /app
 
-# Installation de libc6-compat pour la compatibilité avec certains modules natifs
-# et de openssl pour Prisma (qui en a besoin)
-RUN apk add --no-cache libc6-compat openssl
+# ─────────────────────────────────────────────────────────────────────
+# 🥈 STAGE DEPS : installation des dépendances (toutes workspaces)
+# ─────────────────────────────────────────────────────────────────────
+# 📖 Une seule fois : pnpm install installe TOUT le workspace.
+#    Les stages suivants réutilisent ce node_modules.
+# ─────────────────────────────────────────────────────────────────────
+FROM base AS deps
+# Copie les manifests de TOUT le monorepo
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml ./
+COPY turbo.json ./
 
-# Active pnpm (plus rapide que npm). Si tu préfères npm, on peut changer.
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
+# Active pnpm via corepack
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# ---------------------------------------------------------------------
-# 🥈 STAGE 2 : "deps" — Installation des dépendances de production UNIQUEMENT
-# ---------------------------------------------------------------------
-# Pourquoi séparer ? Pour ne pas copier les devDependencies dans l'image finale.
-# C'est le secret d'une image légère.
-# ---------------------------------------------------------------------
-FROM base AS deps
-WORKDIR /app
+# ⚠️ ASTUCE : on crée des package.json vides pour chaque app/package
+# qu'on n'a pas encore copié, pour que pnpm install ne plante pas.
+# Ces package.json seront remplacés au COPY suivant.
+RUN for dir in apps/web apps/console apps/api workers packages/*/; do \
+  mkdir -p "$dir" && \
+  if [ ! -f "$dir/package.json" ]; then \
+    echo "{\"name\":\"$(basename $dir)\",\"private\":true}" > "$dir/package.json"; \
+  fi; \
+done
 
-# Copie UNIQUEMENT les fichiers de manifestes pour profiter du cache Docker
-# (si package.json ne change pas, Docker ne réinstalle pas tout)
-COPY package.json package-lock.json* pnpm-lock.yaml* .npmrc* ./
+# Installe les dépendances (production + dev pour le build)
+RUN pnpm install --frozen-lockfile
 
-# Installe les dépendances (production only, pas de devDependencies)
-# --frozen-lockfile = ne pas modifier le lockfile, garantit la reproductibilité
-# Si tu n'utilises pas pnpm, adapte la commande (npm ci, yarn install --frozen-lockfile)
-RUN \
-  if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile --prod; \
-  elif [ -f package-lock.json ]; then npm ci --only=production; \
-  elif [ -f yarn.lock ]; then yarn install --production --frozen-lockfile; \
-  else echo "Lockfile not found." && exit 1; \
-  fi
+# ─────────────────────────────────────────────────────────────────────
+# 🥇 STAGE BUILDER : build de TOUTES les apps
+# ─────────────────────────────────────────────────────────────────────
+FROM deps AS builder
 
-# ---------------------------------------------------------------------
-# 🥉 STAGE 3 : "builder" — Build de l'application Next.js
-# ---------------------------------------------------------------------
-# C'est ici qu'on a besoin des devDependencies (typescript, eslint, etc.)
-# et qu'on lance `next build` pour produire le bundle de production.
-# ---------------------------------------------------------------------
-FROM base AS builder
-WORKDIR /app
+# Variables d'env
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
 
-# Copie d'abord les fichiers de manifestes pour cache
-COPY package.json package-lock.json* pnpm-lock.yaml* .npmrc* ./
-# ⚠️ Ici on installe TOUTES les dépendances (dev inclus) car on a besoin de TS pour le build
-RUN \
-  if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm ci; \
-  elif [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
-  else echo "Lockfile not found." && exit 1; \
-  fi
-
-# Copie le reste du code source
+# Copie tout le code source
 COPY . .
 
-# Désactive la télémétrie Next.js pendant le build (privacy + perf)
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
+# Génère le client Prisma (pour le runtime)
+RUN pnpm --filter @qoe/db prisma generate || true
 
-# 🔨 Génère le client Prisma (nécessaire pour le build Next.js)
-# ET applique les migrations sur la DB au démarrage
-RUN npx prisma generate
+# Build chaque app Turborepo gère les dépendances inter-packages
+# (packages/db doit être "build" avant apps/console, etc.)
+RUN pnpm turbo build --filter=@qoe/web --filter=@qoe/console --filter=@qoe/api --filter=@qoe/workers
 
-# 🔨 Build l'application Next.js
-# Avec output: "standalone" dans next.config.ts, ça produit .next/standalone/
-RUN npm run build
+# ═════════════════════════════════════════════════════════════════════
+# 🎯 TARGETS FINALES (4 stages qui héritent du builder)
+# ═════════════════════════════════════════════════════════════════════
 
-# ---------------------------------------------------------------------
-# 🏆 STAGE 4 : "runner" — Image finale ultra-légère pour la production
-# ---------------------------------------------------------------------
-# C'est CE stage qui sera l'image finale publiée.
-# Elle ne contient QUE :
-#   - Le runtime Node
-#   - Les fichiers standalone de Next.js
-#   - Les fichiers statiques et publics
-#   - Le client Prisma (pour les migrations au démarrage)
-# Pas de source code, pas de node_modules complet, pas de devDeps.
-# ---------------------------------------------------------------------
-FROM node:20-alpine AS runner
+# ─────────────────────────────────────────────────────────────────────
+# 🌐 TARGET : WEB (Next.js public — start.qoe.fi + tenants)
+# ─────────────────────────────────────────────────────────────────────
+FROM node:20-alpine AS web
+RUN apk add --no-cache libc6-compat openssl wget
 WORKDIR /app
-
-# Identique au stage "base" pour la cohérence
-RUN apk add --no-cache libc6-compat openssl
-
 ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# Crée un utilisateur non-root pour la sécurité (bonne pratique Docker)
-# Ne JAMAIS faire tourner un container en root en production
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Crée un user non-root
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
-# 📁 Copie le build standalone (contient tout : node_modules minimal + server.js)
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+# Copie le build standalone (auto-suffisant : deps minimales)
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 
-# 📁 Copie les fichiers statiques (CSS, JS, images du build)
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# 📁 Copie le dossier public (favicon, robots.txt, etc.)
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-
-# 📁 Copie le schéma Prisma et le client généré (pour les migrations au démarrage)
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-
-# Switch vers l'utilisateur non-root
 USER nextjs
-
-# Expose le port 3000 (port par défaut de Next.js)
 EXPOSE 3000
 
-# Healthcheck : vérifie que l'app répond
-# Toutes les 30s, curl la racine, timeout 10s, 3 retries avant de marquer unhealthy
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/start || exit 1
+
+CMD ["node", "apps/web/server.js"]
+
+# ─────────────────────────────────────────────────────────────────────
+# ⚛️ TARGET : CONSOLE (Next.js auth — qoe.fi, dashboard, admin)
+# ─────────────────────────────────────────────────────────────────────
+FROM node:20-alpine AS console
+RUN apk add --no-cache libc6-compat openssl wget
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+COPY --from=builder --chown=nextjs:nodejs /app/apps/console/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/console/.next/static ./apps/console/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/console/public ./apps/console/public
+
+USER nextjs
+EXPOSE 3000
+
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
-# 🚀 Commande de démarrage
-# nextjs standalone produit un fichier `server.js` à la racine
-CMD ["node", "server.js"]
+CMD ["node", "apps/console/server.js"]
+
+# ─────────────────────────────────────────────────────────────────────
+# 🔌 TARGET : API (Hono backend — api.qoe.fi)
+# ─────────────────────────────────────────────────────────────────────
+FROM node:20-alpine AS api
+RUN apk add --no-cache libc6-compat openssl wget
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3001
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 hono
+
+COPY --from=builder --chown=hono:nodejs /app/apps/api/dist ./dist
+COPY --from=builder --chown=hono:nodejs /app/apps/api/node_modules ./node_modules
+COPY --from=builder --chown=hono:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+
+USER hono
+EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+
+CMD ["node", "dist/index.js"]
+
+# ─────────────────────────────────────────────────────────────────────
+# ⚙️ TARGET : WORKERS (BullMQ — jobs async)
+# ─────────────────────────────────────────────────────────────────────
+FROM node:20-alpine AS workers
+RUN apk add --no-cache libc6-compat openssl
+WORKDIR /app
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 worker
+
+COPY --from=builder --chown=worker:nodejs /app/workers/dist ./dist
+COPY --from=builder --chown=worker:nodejs /app/workers/node_modules ./node_modules
+COPY --from=builder --chown=worker:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+
+USER worker
+
+CMD ["node", "dist/index.js"]

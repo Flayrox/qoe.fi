@@ -1,174 +1,220 @@
-# 🐳 Guide Docker — qoe.fi
+# 🐳 Guide Docker — qoe.fi monorepo
 
-> Documentation complète pour développer et déployer **qoe.fi** avec Docker.
+> Documentation complète pour développer et déployer **qoe.fi** (monorepo Turborepo) avec Docker.
 
 ---
 
 ## 📑 Table des matières
 
-1. [Prérequis](#-prérequis)
-2. [Quickstart — Dev local](#-quickstart--dev-local)
-3. [Architecture](#-architecture)
-4. [Commandes utiles](#-commandes-utiles)
-5. [Déploiement sur VPS](#-déploiement-sur-vps)
-6. [Troubleshooting](#-troubleshooting)
-7. [Concepts expliqués](#-concepts-expliqués)
-
----
-
-## ✅ Prérequis
-
-Avant de commencer, installe sur ta machine :
-
-| Outil | Version min | Vérification | Pourquoi |
-|-------|-------------|--------------|----------|
-| **Docker Desktop** | 4.x+ | `docker --version` | Exécute les containers |
-| **Docker Compose** | v2+ (inclus dans Docker Desktop) | `docker compose version` | Orchestre les services |
-| **Git** | 2.x+ | `git --version` | Versionning (déjà installé si t'es là) |
-| **Node** | 20+ | `node --version` | Uniquement pour Prisma Studio en local (optionnel) |
-
-> 💡 **Astuce Windows** : Si tu utilises Git Bash ou WSL2 pour les scripts `.sh`, tout fonctionnera out-of-the-box.
-
----
-
-## 🚀 Quickstart — Dev local
-
-> 🎯 En moins de 5 minutes, tu auras qoe.fi qui tourne avec une vraie base de données PostgreSQL + pgvector.
-
-### Étape 1 : Copier le fichier d'environnement
-
-```bash
-cp .env.docker.example .env.docker
-```
-
-👉 Édite `.env.docker` et remplis les **vraies valeurs** de Supabase (URL, anon key, service role key). Récupère-les dans ton dashboard Supabase → Project Settings → API.
-
-> ⚠️ **NE COMMIT JAMAIS `.env.docker`** — il est déjà dans `.gitignore` (cf. `.dockerignore` + `.gitignore`).
-
-### Étape 2 : Lancer le stack dev
-
-```bash
-# Option A : via npm (plus simple)
-npm run docker:dev
-
-# Option B : directement avec docker compose
-docker compose -f docker-compose.dev.yml up
-```
-
-Au premier lancement, Docker va :
-1. 📦 Télécharger les images (Postgres, Node) — ~500 MB, prend 1-2 min
-2. 🔨 Construire l'image de l'app — 1-3 min la première fois
-3. 🚀 Démarrer Postgres → attendre qu'il soit healthy
-4. 🔄 Appliquer les migrations Prisma automatiquement
-5. ⚛️ Démarrer Next.js avec hot-reload
-
-### Étape 3 : Accéder à l'app
-
-| Service | URL | Notes |
-|---------|-----|-------|
-| **App Next.js** | http://localhost:3000 | Hot-reload activé ! |
-| **PostgreSQL** | `localhost:5433` | User: `qoe`, Pass: `qoe` (ou ce que tu as mis) |
-| **Prisma Studio** (optionnel) | http://localhost:5555 | Voir les données de la DB |
-
-> 💡 **Tu peux maintenant modifier n'importe quel fichier dans `src/`** → la page se rafraîchit automatiquement dans le navigateur ! C'est le **hot-reload** 🎉
+1. [Architecture](#-architecture)
+2. [Prérequis](#-prérequis)
+3. [Quickstart — Dev local](#-quickstart--dev-local)
+4. [Commandes dev](#-commandes-dev)
+5. [Production](#-production)
+6. [Déploiement sur VPS](#-déploiement-sur-vps)
+7. [Troubleshooting](#-troubleshooting)
+8. [Architecture réseau](#-architecture-réseau)
 
 ---
 
 ## 🏗️ Architecture
 
-```
-┌──────────────────────────────────────────────────────────┐
-│  🐳 docker-compose.dev.yml                              │
-│                                                           │
-│  ┌─────────────┐    ┌──────────────┐    ┌────────────┐  │
-│  │   db        │    │  migrate     │    │   app      │  │
-│  │ Postgres 16 │◀───│  (one-shot)  │◀───│ Next.js 16 │  │
-│  │ + pgvector  │    │ Prisma       │    │  + HMR ✅  │  │
-│  │ :5432       │    │              │    │  :3000     │  │
-│  └─────────────┘    └──────────────┘    └────────────┘  │
-│         ▲                    ▲                  ▲         │
-│         └────── réseau qoefi-dev-net ──────────────────┘ │
-└──────────────────────────────────────────────────────────┘
-```
-
-### Les 3 services
-
-| Service | Rôle | Tourne en continu ? | Ports |
-|---------|------|----------------------|-------|
-| `db` | PostgreSQL 16 + extension pgvector | ✅ Oui (volume persistant) | 5433 (externe) |
-| `migrate` | Applique les migrations Prisma | ❌ Une seule fois au démarrage | Aucun |
-| `app` | L'application Next.js | ✅ Oui (avec hot-reload) | 3000 |
-
-### Ordre de démarrage (dépendances)
+qoe.fi est un monorepo avec **8 services Docker** :
 
 ```
-db (healthy)  →  migrate (completed)  →  app (healthy)
+┌─────────────────────────────────────────────────────────────────┐
+│                        Internet (ports 80, 443)                  │
+└────────────────────────────┬────────────────────────────────────┘
+                             ↓
+                    ┌────────────────┐
+                    │  🌐 caddy     │ (reverse proxy + TLS auto)
+                    │  caddy:2      │
+                    └────────┬───────┘
+                             │
+        ┌────────────────────┼─────────────────────┐
+        ↓                    ↓                     ↓
+   ┌────┴─────┐         ┌────┴─────┐          ┌────┴────┐
+   │ 🌐 web  │         │⚛️ console │          │🔌 api  │
+   │ Next.js │         │ Next.js   │          │  Hono  │
+   │  :3000  │         │  :3000    │          │  :3001 │
+   │ (public)│         │ (auth)    │          │(public)│
+   └────┬────┘         └────┬──────┘          └────┬────┘
+        │                   │                     │
+        └───────────────────┼─────────────────────┘
+                            │
+                  ┌─────────┴──────────┐
+                  │  qoefi-private     │ (réseau privé)
+                  │                    │
+        ┌─────────┼──────────┬─────────┴────┐
+        ↓         ↓          ↓              ↓
+   ┌────┴───┐ ┌───┴────┐ ┌──┴────┐    ┌─────┴──────┐
+   │🐘 db  │ │🔄redis │ │⚙️workers│    │ migrate   │
+   │+pgvec │ │cache+q │ │ BullMQ │    │ (one-shot)│
+   │ :5432 │ │  :6379 │ │        │    │            │
+   └────────┘ └────────┘ └────────┘    └────────────┘
 ```
 
-Docker Compose attend automatiquement que chaque service soit prêt grâce à `depends_on` + `healthcheck`. **C'est la magie** : tu n'as rien à gérer manuellement.
+### Services
+
+| Service | Image | Port interne | Réseau | Description |
+|---------|-------|--------------|--------|-------------|
+| **caddy** | caddy:2-alpine | 80, 443 | public | Reverse proxy + TLS auto (Let's Encrypt) |
+| **web** | Node 20 (custom) | 3000 | public+private | Next.js : start.qoe.fi + tenants |
+| **console** | Node 20 (custom) | 3000 | public+private | Next.js : qoe.fi, dashboard, admin |
+| **api** | Node 20 (custom) | 3001 | public+private | Hono backend : api.qoe.fi |
+| **workers** | Node 20 (custom) | — | private | BullMQ : emails, AI, billing async |
+| **db** | pgvector/pgvector:pg16 | 5432 | private | PostgreSQL + extension vector |
+| **redis** | redis:7-alpine | 6379 | private | Cache + queue BullMQ |
+| **migrate** | (même image que api) | — | private | One-shot Prisma migrate deploy |
+
+### Domaines
+
+| URL | Service | Description |
+|-----|---------|-------------|
+| `qoe.fi`, `www.qoe.fi` | console | Home/feed + auth + reader pages |
+| `*.qoe.fi` (subdomain) | web | Tenant creator pages (ex: writer.qoe.fi) |
+| `dashboard.qoe.fi` | console | Dashboard créateur |
+| `admin.qoe.fi` | console | Admin plateforme (superadmin) |
+| `start.qoe.fi` | web | Landing marketing |
+| `api.qoe.fi` | api | Backend API |
+| Custom domain (CNAME) | web | Tenant via custom domain |
 
 ---
 
-## 🎮 Commandes utiles
+## ✅ Prérequis
 
-> 📋 **Raccourcis npm** disponibles dans `package.json` (section "scripts")
+- **Docker Desktop** 4.x+ ([docker.com](https://docker.com))
+- **Docker Compose** v2+ (inclus dans Docker Desktop)
+- **Git** 2.x+
+- **Node 20+** (uniquement pour quelques scripts)
 
-### Développement
+> 💡 Sur Windows, utilise **WSL2** pour de meilleures performances de bind mount.
+
+---
+
+## 🚀 Quickstart — Dev local
+
+```bash
+# 1. Cloner
+git clone https://github.com/ton-user/qoe.fi.git
+cd qoe.fi
+
+# 2. Copier le template d'env
+cp .env.docker.example .env.docker
+# Édite .env.docker avec tes clés Supabase, Stripe, etc.
+
+# 3. Lancer le stack dev complet
+npm run docker:dev
+
+# OU directement :
+docker compose -f docker-compose.dev.yml up
+```
+
+### URLs accessibles en local
+
+| Service | URL | Notes |
+|---------|-----|-------|
+| **Console** (qoe.fi, dashboard, admin) | http://localhost:3000 | HMR actif |
+| **Web** (start, tenants) | http://localhost:3001 | HMR actif |
+| **API** (api.qoe.fi) | http://localhost:3002 | HMR actif |
+| **Prisma Studio** (optionnel) | http://localhost:5555 | UI pour explorer la DB |
+| **PostgreSQL** | `localhost:5433` | User: qoe, Pass: qoe (ou ce que tu as mis) |
+| **Redis** | `localhost:6379` | Pas d'auth en dev |
+
+> ⚠️ En dev local, on n'utilise PAS Caddy (ports 80/443). On accède directement aux containers sur les ports 3000/3001/3002. Caddy n'est utilisé qu'en production.
+
+### Test rapide
+
+```bash
+# Logs en direct
+npm run docker:dev:logs
+
+# Shell dans le container console
+npm run docker:dev:shell
+
+# Connexion psql
+npm run docker:dev:db
+
+# Redis CLI
+npm run docker:dev:redis
+```
+
+---
+
+## 🎮 Commandes dev
 
 | Commande npm | Équivalent Docker | Description |
 |--------------|-------------------|-------------|
-| `npm run docker:dev` | `docker compose -f docker-compose.dev.yml up` | Lance le stack en avant-plan (logs visibles) |
-| `npm run docker:dev:detached` | `... up -d` | Lance en arrière-plan (libère le terminal) |
-| `npm run docker:dev:logs` | `... logs -f` | Suit les logs en direct |
-| `npm run docker:dev:shell` | `... exec app sh` | Ouvre un shell dans le container de l'app |
-| `npm run docker:dev:db` | `... exec db psql ...` | Ouvre psql pour jouer avec la DB |
-| `npm run docker:dev:down` | `... down` | Arrête et supprime les containers (garde les volumes) |
-| `npm run docker:dev:reset` | `... down -v && ... up --build` | ⚠️ Supprime TOUT (DB incluse) et rebuild |
+| `npm run docker:dev` | `docker compose -f docker-compose.dev.yml up` | Lance le stack (foreground) |
+| `npm run docker:dev:detached` | `... up -d` | Lance en arrière-plan |
+| `npm run docker:dev:build` | `... up --build` | Rebuild les images avant de lancer |
+| `npm run docker:dev:logs` | `... logs -f` | Logs en direct |
+| `npm run docker:dev:console` | `... logs -f console` | Logs uniquement du container console |
+| `npm run docker:dev:web` | `... logs -f web` | Logs uniquement du container web |
+| `npm run docker:dev:shell` | `... exec console sh` | Shell dans console |
+| `npm run docker:dev:db` | `... exec db psql ...` | psql dans la DB |
+| `npm run docker:dev:redis` | `... exec redis redis-cli` | Redis CLI |
+| `npm run docker:dev:studio` | `... up prisma-studio` | Lance Prisma Studio (UI web) |
+| `npm run docker:dev:down` | `... down` | Arrête les containers (garde les volumes) |
+| `npm run docker:dev:reset` | `... down -v && ... up --build` | ⚠️ **Supprime tout** (DB incluse) et rebuild |
 
-### Base de données
+---
+
+## 🚢 Production
+
+### Build des images
+
+```bash
+# Build toutes les cibles du Dockerfile multi-target
+docker build --target web -t qoefi-web:latest .
+docker build --target console -t qoefi-console:latest .
+docker build --target api -t qoefi-api:latest .
+docker build --target workers -t qoefi-workers:latest .
+```
+
+**OU** laisse docker-compose le faire :
+
+```bash
+# Build + lance tout en arrière-plan
+npm run docker:prod
+```
+
+### Commandes prod
 
 | Commande | Description |
 |----------|-------------|
-| `npm run docker:seed` | Applique migrations + seed (via `scripts/seed-docker.sh`) |
-| `npm run docker:seed:reset` | ⚠️ Reset complet de la DB + seed |
-| `npm run docker:wait-db` | Attend que Postgres soit ready (utile en CI/CD) |
-| `npm run prisma:studio` | Ouvre Prisma Studio (UI web pour la DB) |
-
-### Production (VPS)
-
-| Commande | Description |
-|----------|-------------|
-| `npm run docker:prod` | Build + lance en prod (avec Caddy) |
-| `npm run docker:prod:down` | Arrête la prod |
+| `npm run docker:prod` | Build + lance tout (arrière-plan) |
+| `npm run docker:prod:down` | Arrête tout |
 | `npm run docker:prod:logs` | Logs en direct |
-| `npm run docker:prod:rebuild` | Force le rebuild complet (après un changement de deps) |
+| `npm run docker:prod:logs:console` | Logs de console uniquement |
+| `npm run docker:prod:logs:caddy` | Logs Caddy uniquement |
+| `npm run docker:prod:ps` | Status des containers |
+| `npm run docker:prod:shell` | Shell dans console |
+| `npm run docker:prod:db` | psql dans la DB prod |
+| `npm run docker:prod:rebuild` | Force rebuild complet (après changement de deps) |
+| `npm run docker:prod:web` | Rebuild + redémarre UNIQUEMENT web |
+| `npm run docker:prod:console` | Rebuild + redémarre UNIQUEMENT console |
+| `npm run docker:prod:api` | Rebuild + redémarre UNIQUEMENT api |
 
 ---
 
 ## 🌐 Déploiement sur VPS
 
-> 🎯 Guide pas-à-pas pour mettre qoe.fi en production sur ton VPS.
-
-### Prérequis côté VPS
+### Étape 1 : Préparer le VPS
 
 ```bash
-# Connecte-toi en SSH à ton VPS
+# Connexion SSH
 ssh user@ton-vps-ip
 
-# Installe Docker + Compose (si pas déjà fait)
+# Installation Docker
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 sudo usermod -aG docker $USER
 # Déconnecte-toi/reconnecte-toi pour appliquer le groupe
-
-# Vérifie
-docker --version
-docker compose version
 ```
 
-### Étape 1 : Transférer le code
+### Étape 2 : Transférer le code
 
-**Option A : avec Git** (recommandé)
 ```bash
 # Sur ton PC
 git push origin main
@@ -179,53 +225,37 @@ git clone https://github.com/ton-user/qoe.fi.git
 cd qoe.fi
 ```
 
-**Option B : avec SCP** (si pas de Git)
-```bash
-# Sur ton PC
-scp -r ./qoe.fi user@ton-vps-ip:/var/www/
-```
-
-### Étape 2 : Configurer l'environnement prod
+### Étape 3 : Configurer l'environnement
 
 ```bash
 # Sur le VPS
-cd /var/www/qoe.fi
 cp .env.docker.example .env.docker
-nano .env.docker  # édite avec tes VRAIS secrets de prod !
+nano .env.docker  # Édite avec tes VRAIS secrets de prod
 ```
 
-⚠️ **Critique** : change ces valeurs pour la prod :
-- `POSTGRES_PASSWORD` → un vrai mot de passe fort : `openssl rand -base64 32`
-- `NEXTAUTH_SECRET` → `openssl rand -base64 32`
-- `STRIPE_SECRET_KEY` → ta clé live (sk_live_...)
-- `NEXT_PUBLIC_APP_URL` → `https://qoe.fi` (ton vrai domaine)
-- `SUPABASE_*` → les clés de ton projet prod (pas staging)
+⚠️ **Critique** : change ces valeurs :
+- `POSTGRES_PASSWORD` : `openssl rand -base64 32`
+- `STRIPE_SECRET_KEY` : `sk_live_...` (pas sk_test)
+- `SUPABASE_*` : clés du projet prod
+- `RESEND_API_KEY` : clé API Resend
+- `NEXT_PUBLIC_APP_URL=https://qoe.fi` (ton vrai domaine)
+- `PRIMARY_DOMAIN=qoe.fi` (sans protocole)
 
-### Étape 3 : Configurer le DNS
+### Étape 4 : Configurer le DNS
 
 Dans ton registrar (OVH, Cloudflare, etc.) :
-```
-Type: A
-Host: @
-Value: IP_DE_TON_VPS
-TTL: 3600
 
-Type: A
-Host: www
-Value: IP_DE_TON_VPS
-TTL: 3600
-```
+| Type | Host | Value |
+|------|------|-------|
+| A | @ | IP_DE_TON_VPS |
+| A | www | IP_DE_TON_VPS |
+| A | * | IP_DE_TON_VPS (wildcard) |
+| A | start | IP_DE_TON_VPS |
+| A | dashboard | IP_DE_TON_VPS |
+| A | admin | IP_DE_TON_VPS |
+| A | api | IP_DE_TON_VPS |
 
-> ⏱️ La propagation DNS peut prendre jusqu'à 48h (souvent 5-30 min).
-
-### Étape 4 : Configurer Caddy
-
-Édite [`docker/caddy/Caddyfile`](docker/caddy/Caddyfile:7) et remplace `qoe.fi` par ton vrai domaine :
-
-```bash
-nano docker/caddy/Caddyfile
-# Remplace toutes les occurrences de "qoe.fi" par ton domaine
-```
+> ⏱️ La propagation DNS peut prendre 5-30 min (ou 48h max).
 
 ### Étape 5 : Lancer en prod
 
@@ -233,27 +263,35 @@ nano docker/caddy/Caddyfile
 # Build + démarre en arrière-plan
 npm run docker:prod
 
-# Ou directement :
-docker compose --profile prod up -d --build
+# Vérifier que tout tourne
+npm run docker:prod:ps
 ```
 
-### Étape 6 : Vérifier
+### Étape 6 : Tester
 
 ```bash
-# Logs en temps réel
-docker compose logs -f
-
-# Status des containers
-docker compose ps
-
-# Tester depuis ton PC
+# Depuis ton PC
 curl -I https://qoe.fi
+curl -I https://dashboard.qoe.fi
+curl -I https://start.qoe.fi
+curl -I https://api.qoe.fi/health
 ```
 
-Si tout va bien, tu devrais voir :
-- ✅ Caddy a obtenu un certificat SSL
-- ✅ L'app répond sur https://qoe.fi
-- ✅ HTTP redirige automatiquement vers HTTPS
+Si tout va bien :
+- ✅ Caddy a obtenu les certifs Let's Encrypt
+- ✅ Chaque sous-domaine répond
+- ✅ HTTP redirige vers HTTPS
+- ✅ `/api.qoe.fi/health` retourne `{"status":"ok"}`
+
+### Étape 7 : Backups automatiques
+
+```bash
+# Sur le VPS, ajouter une ligne au cron
+crontab -e
+
+# Backup tous les jours à 3h du matin
+0 3 * * * /var/www/qoe.fi/scripts/backup-postgres.sh >> /var/log/qoefi-backup.log 2>&1
+```
 
 ### Mises à jour futures
 
@@ -267,100 +305,119 @@ git pull
 npm run docker:prod:rebuild
 ```
 
-C'est tout ! 🎉
-
 ---
 
 ## 🆘 Troubleshooting
 
-### ❌ "Port 3000 is already in use"
+### "Port 3000 is already in use"
 
-Tu as une autre app sur le port 3000. Change dans `docker-compose.dev.yml` :
-```yaml
-ports:
-  - "3001:3000"  # utilise 3001 à la place
-```
-
-### ❌ "Cannot connect to database"
-
-La DB n'est pas encore prête. Attends 30 secondes, ou vérifie :
 ```bash
-npm run docker:dev:db  # essaie de te connecter
+# Trouve le process qui occupe le port
+lsof -i :3000  # Mac/Linux
+netstat -ano | findstr :3000  # Windows
+
+# Tue-le OU change le port dans docker-compose.dev.yml
 ```
 
-### ❌ "Hot-reload ne fonctionne pas" (Windows/Mac)
+### "Cannot connect to database"
 
-Vérifie que les variables d'env sont bien dans `docker-compose.dev.yml` :
-```yaml
-CHOKIDAR_USEPOLLING: "true"
-WATCHPACK_POLLING: "true"
-```
-
-### ❌ "prisma generate failed"
-
-Souvent dû à un problème de connexion. Force le rebuild :
 ```bash
+# Vérifie que db est healthy
+npm run docker:dev:ps
+
+# Logs db
+docker compose -f docker-compose.dev.yml logs db
+```
+
+### HMR ne fonctionne pas (Windows/Mac)
+
+Les volumes partagés ne notifient pas Docker. Solution : polling (déjà activé par défaut dans docker-compose.dev.yml) :
+```yaml
+environment:
+  CHOKIDAR_USEPOLLING: "true"
+  WATCHPACK_POLLING: "true"
+```
+
+### "Caddy ne peut pas obtenir le certificat SSL"
+
+1. Vérifie DNS : `nslookup qoe.fi` doit pointer sur ton VPS
+2. Ports 80/443 ouverts (pas de firewall)
+3. Let's Encrypt pas rate-limité (max 5 certifs/semaine par domaine)
+4. Logs : `docker compose logs caddy`
+
+### "Connection refused" sur la DB après reset
+
+```bash
+# Reset complet
 npm run docker:dev:reset
 ```
 
-### ❌ Caddy ne peut pas obtenir le certificat SSL
+### "Out of memory" sur le VPS
 
-Vérifie que :
-1. Le DNS pointe bien vers l'IP de ton VPS (`nslookup qoe.fi`)
-2. Les ports 80 et 443 sont ouverts (pas de firewall, pas d'autre service dessus)
-3. Let's Encrypt n'est pas rate-limité (max 5 certifs/semaine par domaine)
-
-### ❌ "permission denied" sur les scripts .sh
-
-Sous Windows, les permissions ne s'appliquent pas. Les scripts marcheront quand même via `bash ./scripts/wait-for-db.sh` ou les raccourcis npm (`npm run docker:wait-db`).
+Ajuste les `deploy.resources.limits` dans `docker-compose.yml` selon la RAM de ton VPS. Règle : allouer max 70% de la RAM totale.
 
 ---
 
-## 📖 Concepts expliqués
+## 🛡️ Architecture réseau (sécurité)
 
-> 🎓 Pour les débutants qui veulent comprendre ce qu'ils font
+### Deux réseaux isolés
 
-### C'est quoi Docker ?
+| Réseau | Services | Accès Internet |
+|--------|----------|----------------|
+| **qoefi-public** | caddy, web, console, api | ✅ (via Caddy) |
+| **qoefi-private** | db, redis, workers, migrate | ❌ (interne uniquement) |
 
-Imagine une **boîte hermétique** qui contient ton app + tout ce dont elle a besoin (Node, dépendances, config). Cette boîte peut tourner **pareil** sur ton PC, sur ton VPS, ou chez un autre développeur. Plus de "ça marche chez moi" !
+**Conséquence** : impossible d'accéder à la DB ou Redis depuis l'extérieur, même si un service web est compromis.
 
-### C'est quoi Docker Compose ?
+### Reverse proxy seul exposé
 
-Un fichier YAML qui décrit **plusieurs boîtes** qui collaborent. Ici on en a 3 : la DB, les migrations, l'app. Docker Compose les démarre dans le bon ordre.
+Seul **Caddy** expose des ports sur Internet (80, 443). Les autres services sont sur `expose:` (port interne Docker uniquement, pas publié sur l'host).
 
-### C'est quoi un Volume ?
+### Caddy = seul entry point
 
-Un **disque dur virtuel** géré par Docker. Les données de ta DB sont dans un volume nommé (`qoefi-postgres-data`) : elles survivent aux `docker compose down` et aux reboots.
-
-### C'est quoi un Bind Mount ?
-
-Un **miroir** entre un dossier de ton PC et un dossier dans le container. C'est ça qui permet le hot-reload : tu modifies un fichier sur ton PC → le container le voit immédiatement.
-
-### C'est quoi un Healthcheck ?
-
-Une commande que Docker lance régulièrement pour vérifier qu'un service est "vivant". Tant qu'il n'est pas healthy, les autres services qui dépendent de lui ne démarrent pas.
-
-### C'est quoi un "multi-stage build" ?
-
-Une technique Dockerfile où on **construit dans une image, mais on publie une autre image** (plus légère). Le `Dockerfile` de qoe.fi utilise 4 stages : base → deps → builder → runner. L'image finale ne contient que le strict minimum.
-
-### C'est quoi Caddy ?
-
-Un serveur web moderne qui :
-- Sert de **reverse proxy** (redirige les requêtes vers ton app)
-- Gère **automatiquement HTTPS** avec Let's Encrypt (zéro config !)
-- Renouvelle les certificats tout seul (1 mois avant expiration)
-
-C'est 10x plus simple que nginx. 🚀
+Toute requête passe par Caddy. Pas de port direct vers les apps. Tu peux :
+- Rate-limit par IP
+- Bloquer les bots
+- Logger centralisé
+- WAF (via Cloudflare devant)
 
 ---
 
-## 📞 Besoin d'aide ?
+## 📚 Concepts expliqués
 
-Si tu bloques, voici les logs à checker en priorité :
-```bash
-npm run docker:dev:logs    # logs en direct
-docker compose ps          # status des containers
-```
+### Pourquoi 2 réseaux ?
 
-Et n'hésite pas à me demander ! 🐳✨
+Pour limiter la surface d'attaque. Si un attaquant trouve une faille dans une app Next.js, il **ne peut pas** se connecter directement à la DB. Il devrait d'abord compromettre Caddy, ce qui est BEAUCOUP plus dur.
+
+### Pourquoi Caddy et pas nginx ?
+
+- HTTPS **automatique** (zéro config, vs 30 lignes nginx)
+- Renewal **automatique** des certifs
+- Config **10× plus simple**
+- Performance équivalente
+
+### Pourquoi un seul Dockerfile multi-target ?
+
+- **Cache partagé** : un seul `pnpm install` pour toutes les apps
+- **Build plus rapide** : pas de duplication des deps
+- **Cohérence** : impossible d'avoir des versions différentes de Node entre les apps
+
+### Pourquoi Redis en plus de Postgres ?
+
+- **Cache** : invalidation rapide (pattern `cache.get(key)` au lieu de query DB)
+- **Queue** : BullMQ pour les jobs async (emails, AI, webhooks)
+- **Session** : peut stocker des sessions éphémères
+- **Rate limiting** : compteurs rapides
+
+Si demain tu n'as plus besoin de Redis (faible traffic), tu peux le supprimer. Pour l'instant, on l'inclut par défaut.
+
+---
+
+## 🆘 Besoin d'aide ?
+
+Si tu bloques :
+1. Check les logs : `npm run docker:prod:logs`
+2. Check le status : `npm run docker:prod:ps`
+3. Lis le [DOCKER.md original](#) (cette doc) 😅
+
+Et n'hésite pas à demander de l'aide ! 🐳✨

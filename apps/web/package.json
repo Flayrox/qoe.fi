@@ -1,0 +1,44 @@
+{
+  "name": "@qoe/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Public-facing web app: landing (start.qoe.fi) + tenant pages (*.qoe.fi)",
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@qoe/auth": "workspace:*",
+    "@qoe/billing": "workspace:*",
+    "@qoe/config": "workspace:*",
+    "@qoe/db": "workspace:*",
+    "@qoe/i18n": "workspace:*",
+    "@qoe/supabase": "workspace:*",
+    "@qoe/ui": "workspace:*",
+    "@qoe/utils": "workspace:*",
+    "@qoe/analytics": "workspace:*",
+    "@prisma/client": "^6.19.3",
+    "@supabase/ssr": "^0.10.3",
+    "@tolgee/react": "^7.0.0",
+    "@tolgee/web": "^7.0.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "framer-motion": "^12.39.0",
+    "lucide-react": "^1.16.0",
+    "next": "16.2.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@qoe/tsconfig": "workspace:*",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5"
+  }
+}

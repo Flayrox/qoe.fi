@@ -1,0 +1,32 @@
+# =====================================================================
+# 📦 pnpm-workspace.yaml — Définit les workspaces du monorepo qoe.fi
+# =====================================================================
+# 📖 pnpm workspaces permet de gérer plusieurs packages/apps dans
+#    un seul repo avec un seul `node_modules` partagé (économie disque).
+#
+# 🎯 Tous les dossiers listés ici sont traités comme des packages :
+#    - Tu peux importer `@qoe/db` depuis n'importe quelle app
+#    - Une modif dans un package rebuild automatiquement
+#
+# 📖 Structure :
+#    apps/*    → Les applications déployables (Next.js, Hono, workers)
+#    packages/* → Les bibliothèques partagées
+#    workers/*  → Les workers asynchrones (optionnel v1)
+# =====================================================================
+
+packages:
+  # 🟢 Applications déployables
+  - "apps/*"
+
+  # 📚 Bibliothèques partagées
+  - "packages/*"
+
+  # ⚙️ Workers asynchrones (BullMQ, jobs, etc.)
+  - "workers/*"
+
+  # ❌ Exclusions explicites (ne PAS traiter comme workspace)
+  - "!**/node_modules"
+  - "!**/dist"
+  - "!**/.next"
+  - "!**/build"
+  - "!**/.turbo"

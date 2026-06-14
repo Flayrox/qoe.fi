@@ -1,0 +1,26 @@
+{
+  "name": "@qoe/workers",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Background workers (BullMQ) — emails, AI embeddings, billing",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "echo skip",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@qoe/config": "workspace:*",
+    "@qoe/utils": "workspace:*",
+    "bullmq": "^5.34.0",
+    "ioredis": "^5.4.1"
+  },
+  "devDependencies": {
+    "@qoe/tsconfig": "workspace:*",
+    "@types/node": "^20",
+    "tsx": "^4.19.2",
+    "typescript": "^5"
+  }
+}

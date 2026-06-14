@@ -1,0 +1,2 @@
+// Re-export
+export { default } from "../../../../../../../src/app/(dashboard)/dashboard/analytics/page";

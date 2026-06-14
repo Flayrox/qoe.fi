@@ -1,0 +1,25 @@
+{
+  "name": "@qoe/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./env": "./src/env.ts",
+    "./constants": "./src/constants.ts",
+    "./features": "./src/features.ts"
+  },
+  "scripts": {
+    "lint": "echo skip",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@qoe/tsconfig": "workspace:*",
+    "typescript": "^5"
+  }
+}
