@@ -1,0 +1,34 @@
+import type { NextConfig } from "next";
+
+/**
+ * ⚙️ apps/web — Config Next.js pour le site public
+ *
+ * Sert : start.qoe.fi (landing) + qoe.fi/*.qoe.fi (tenants) + custom domains
+ */
+const nextConfig: NextConfig = {
+  output: "standalone",
+  reactStrictMode: true,
+  experimental: {
+    typedRoutes: true,
+  },
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "**.supabase.co" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
+    ],
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
+    ];
+  },
+};
+
+export default nextConfig;

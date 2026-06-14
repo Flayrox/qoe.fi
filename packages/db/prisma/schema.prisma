@@ -1,0 +1,28 @@
+// =====================================================================
+// 🐘 packages/db/prisma/schema.prisma
+// =====================================================================
+// Schéma Prisma principal. Référencé par tous les packages et apps.
+//
+// 📖 Note : en Phase 1 on garde une copie ici. Le vrai source unique
+//    sera déplacé vers ./prisma/schema.prisma à la racine du monorepo
+//    lors d'une migration ultérieure (pour faciliter `prisma migrate`).
+//    Pour l'instant, on copie depuis ../../prisma/schema.prisma.
+//
+// 🎯 Plus tard, on symlinkera ou on déplacera vers la racine.
+// =====================================================================
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [vector]
+}
+
+// ⚠️ Le contenu détaillé est dans /prisma/schema.prisma
+// En attendant la migration, importe depuis là.
+// Cette copie sera synchronisée via un script (TODO Phase 1.5).
