@@ -1,0 +1,99 @@
+# =====================================================================
+# 🌐 Caddyfile — Reverse proxy + HTTPS automatique pour qoe.fi
+# =====================================================================
+# 📖 Caddy est un serveur web moderne qui :
+#   ✅ Gère HTTPS automatiquement (Let's Encrypt, gratuit, renouvelé auto)
+#   ✅ Sert de reverse proxy (redirige les requêtes vers ton app)
+#   ✅ Ajoute des headers de sécurité par défaut
+#   ✅ Configuration ultra-simple (10x moins verbeux que nginx)
+#
+# 🎯 Ce fichier est monté dans le container Caddy via docker-compose.yml
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# 🌍 SITE PRINCIPAL : qoe.fi (et sous-domaines)
+# ---------------------------------------------------------------------
+# ⚠️ REMPLACE "qoe.fi" par ton vrai domaine avant de déployer !
+# Tu peux mettre plusieurs domaines : qoe.fi, www.qoe.fi, app.qoe.fi, etc.
+# ---------------------------------------------------------------------
+
+qoe.fi, www.qoe.fi {
+    # Le bloc "encode" active la compression gzip automatique (performances)
+    encode zstd gzip
+
+    # Headers de sécurité (bonne pratique web)
+    header {
+        # Empêche le site d'être embarqué dans une iframe (anti-clickjacking)
+        X-Frame-Options "SAMEORIGIN"
+        # Empêche le navigateur d'interpréter un fichier d'un autre type MIME
+        X-Content-Type-Options "nosniff"
+        # Active la protection XSS du navigateur
+        X-XSS-Protection "1; mode=block"
+        # Force HTTPS pendant 1 an (HSTS)
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        # Politique de référent (privacy)
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    # 🔀 REVERSE PROXY : redirige TOUT le trafic vers l'app Next.js
+    # "app:3000" = le service "app" du docker-compose (port 3000 interne)
+    # "transparent" = transmet les headers tels quels à l'app
+    reverse_proxy app:3000 {
+        # Timeouts pour éviter que Caddy coupe les connexions longues
+        # (utile pour les uploads de fichiers, Server-Sent Events, etc.)
+        transport http {
+            dial_timeout 30s
+            response_header_timeout 30s
+            read_timeout 30s
+            write_timeout 30s
+        }
+    }
+
+    # 📊 Active les logs d'accès (tu peux les voir avec : docker compose logs caddy)
+    log {
+        output stdout
+        format console
+        level INFO
+    }
+}
+
+# ---------------------------------------------------------------------
+# 🛠️ SOUS-DOMAINE : admin.qoe.fi (optionnel)
+# ---------------------------------------------------------------------
+# Si tu veux séparer le dashboard admin sur un sous-domaine dédié.
+# Décommente et adapte si besoin.
+# ---------------------------------------------------------------------
+# admin.qoe.fi {
+#     encode zstd gzip
+#     reverse_proxy app:3000
+# }
+
+# ---------------------------------------------------------------------
+# 📚 SOUS-DOMAINE : tenant.qoe.fi (pour les pages créateurs)
+# ---------------------------------------------------------------------
+# Ton architecture multi-tenant pourrait utiliser des sous-domaines.
+# Exemple : creator1.qoe.fi → page du créateur 1
+# C'est ce que tu as déjà dans src/app/tenant/[domain]/
+# ---------------------------------------------------------------------
+# *.qoe.fi {
+#     encode zstd gzip
+#     reverse_proxy app:3000
+# }
+
+# =====================================================================
+# 💡 NOTES IMPORTANTES
+# =====================================================================
+# 1. Caddy va AUTOMATIQUEMENT :
+#    - Obtenir un certificat SSL pour qoe.fi
+#    - Le renouveler 1 mois avant expiration
+#    - Rediriger HTTP → HTTPS
+#
+# 2. Pour que ça marche, il faut que :
+#    - Le domaine pointe vers l'IP de ton VPS (DNS A record)
+#    - Les ports 80 ET 443 soient ouverts et accessibles depuis Internet
+#    - Caddy puisse contacter Let's Encrypt (port 443 sortant)
+#
+# 3. Pour tester en LOCAL sans domaine :
+#    Remplace "qoe.fi" par "localhost"
+#    Caddy générera un certificat auto-signé (avertissement navigateur)
+# =====================================================================
