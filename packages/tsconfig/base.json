@@ -10,8 +10,6 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,

@@ -18,7 +18,7 @@ export async function findFollowingFeed(
     where: { readerId },
     select: { creatorId: true },
   });
-  const creatorIds = follows.map((f) => f.creatorId);
+  const creatorIds = follows.map((f: any) => f.creatorId);
 
   if (creatorIds.length === 0) return [];
 

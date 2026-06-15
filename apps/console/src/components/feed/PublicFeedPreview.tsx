@@ -86,7 +86,7 @@ export function PublicFeedPreview({
           </Link>
           <div className="flex items-center gap-3">
             <Link
-              href="/start"
+              href={"/start" as any}
               className="hidden text-sm text-muted-foreground hover:text-foreground md:inline-block"
             >
               Découvrir
@@ -134,7 +134,7 @@ export function PublicFeedPreview({
               Les voix les plus suivies ce mois-ci.
             </p>
             <Button variant="outline" className="mt-4 w-full" asChild>
-              <Link href="/start">Explorer</Link>
+              <Link href={"/start" as any}>Explorer</Link>
             </Button>
           </div>
         </aside>

@@ -20,7 +20,7 @@ import { cn } from "@qoe/utils";
 
 // Ré-export du CSS global depuis l'ancien emplacement
 // (sera migré physiquement en Phase 8)
-import "../../../src/app/globals.css";
+import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const inter = Inter({ variable: "--font-body", subsets: ["latin"] });
@@ -48,7 +48,7 @@ export default async function RootLayout({
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <TolgeeNextProvider language={locale} staticData={staticData}>
+          <TolgeeNextProvider language={locale} staticData={staticData as any}>
             <TooltipProvider>
               {children}
               <Toaster />

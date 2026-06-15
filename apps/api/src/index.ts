@@ -56,7 +56,7 @@ app.get("/v1/users/:username", (c) =>
 );
 
 // ─── Démarrage ───────────────────────────────────────────────
-const port = Number(process.env.PORT) || 3001;
+const port = Number(process.env.PORT) || 3002;
 
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`🔌 API server running on http://localhost:${info.port}`);

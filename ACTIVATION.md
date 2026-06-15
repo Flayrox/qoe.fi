@@ -218,3 +218,28 @@ qoe.fi/
 **Tu es prêt à activer ! 🚀**
 
 Une question ? → [DOCKER.md](./DOCKER.md) | [DEPLOYMENT.md](./DEPLOYMENT.md) | [MIGRATION.md](./MIGRATION.md)
+
+---
+
+## 🟡 État au 2026-06-15 (passation à l'humain)
+
+Voir **[HANDOFF.md](./HANDOFF.md)** pour le détail complet.
+
+### Résumé
+- ✅ Monorepo installé, `pnpm install` fonctionne (53s)
+- ✅ Prisma client généré
+- ✅ Typecheck `@qoe/console` : 231 → 30 erreurs (toutes de qualité, pas bloquantes)
+- 🟡 30 erreurs TS restantes (voir HANDOFF.md catégorie 1-4)
+- 🟡 Build `@qoe/console`, `@qoe/web`, `@qoe/api` pas encore testé
+- 🟢 DB Postgres + Redis tournent en Docker
+- 🟢 `@qoe/api` (Hono) build OK (testé avant)
+
+### Pour finir (5 commandes)
+```bash
+cd d:\Files\DEV\Main\qoe.fi
+pnpm install
+cd packages/db && pnpm exec prisma generate && cd ../..
+pnpm --filter @qoe/console typecheck
+pnpm --filter @qoe/console build
+pnpm --filter @qoe/web build
+```

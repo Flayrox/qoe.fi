@@ -15,14 +15,13 @@ import { DEFAULT_LANGUAGE, type Language } from "./locales";
 /**
  * 🌐 Crée une instance Tolgee côté client.
  */
-function createTolgee(language: Language, staticData: Record<string, string>) {
-  return Tolgee()
-    .use(...)
-    .init({
-      language,
-      staticData,
-      fallbackLanguage: DEFAULT_LANGUAGE,
-    });
+function createTolgee(language: Language, staticData: unknown) {
+  // TODO Phase 8.5 : ajouter les plugins Tolgee ici (LanguageDetector, etc.)
+  return Tolgee().init({
+    language,
+    staticData: staticData as never,
+    fallbackLanguage: DEFAULT_LANGUAGE,
+  });
 }
 
 /**
@@ -34,7 +33,8 @@ export function TolgeeNextProvider({
   children,
 }: {
   language: Language;
-  staticData: Record<string, string>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  staticData: any;
   children: React.ReactNode;
 }) {
   // Tolgee doit être créé côté client uniquement

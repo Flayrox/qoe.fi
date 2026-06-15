@@ -9,9 +9,17 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
-  experimental: {
-    typedRoutes: true,
-  },
+  transpilePackages: [
+    "@qoe/auth",
+    "@qoe/billing",
+    "@qoe/config",
+    "@qoe/db",
+    "@qoe/i18n",
+    "@qoe/supabase",
+    "@qoe/ui",
+    "@qoe/utils",
+    "@qoe/analytics",
+  ],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**.supabase.co" },

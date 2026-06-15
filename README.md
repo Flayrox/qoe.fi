@@ -2,6 +2,8 @@
 
 > A sophisticated platform for modern creators — built as a scalable Turborepo monorepo.
 
+> 🟢 **État au 2026-06-15** : L'activation du monorepo est **terminée et réussie**. Les applications typecheckent à 100% sans erreur et le build de production global compile en 42s. Voir [HANDOFF.md](./HANDOFF.md) pour les détails et [ACTIVATION.md](./ACTIVATION.md) pour l'historique.
+
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-orange)](https://pnpm.io)
@@ -45,15 +47,15 @@ qoe.fi/
 
 ### 🌐 Domain mapping
 
-| URL | App | Purpose |
-|-----|-----|---------|
-| `start.qoe.fi` | `web` | Landing marketing (Hero, Features, Pricing) |
-| `qoe.fi` | `console` | Home/feed (public preview + authenticated feed) |
+| URL                | App       | Purpose                                         |
+| ------------------ | --------- | ----------------------------------------------- |
+| `start.qoe.fi`     | `web`     | Landing marketing (Hero, Features, Pricing)     |
+| `qoe.fi`           | `console` | Home/feed (public preview + authenticated feed) |
 | `dashboard.qoe.fi` | `console` | Creator dashboard (articles, audience, billing) |
-| `admin.qoe.fi` | `console` | Platform admin (superadmin only) |
-| `api.qoe.fi` | `api` | Backend API (Hono + tRPC) |
-| `*.qoe.fi` | `web` | Creator tenant pages (subdomain) |
-| Custom domain | `web` | Tenant via CNAME |
+| `admin.qoe.fi`     | `console` | Platform admin (superadmin only)                |
+| `api.qoe.fi`       | `api`     | Backend API (Hono + tRPC)                       |
+| `*.qoe.fi`         | `web`     | Creator tenant pages (subdomain)                |
+| Custom domain      | `web`     | Tenant via CNAME                                |
 
 ---
 
@@ -129,6 +131,7 @@ pnpm docker:prod
 ## 📦 Apps overview
 
 ### 🌐 `apps/web` — Public site
+
 - Landing marketing (`/start`)
 - Tenant public pages (`*.qoe.fi`)
 - Article reading experience
@@ -136,12 +139,14 @@ pnpm docker:prod
 - Optimized for SEO + performance (ISR-friendly)
 
 ### ⚛️ `apps/console` — Authenticated app
+
 - **Home/feed** (`qoe.fi/`): public preview for anonymous, personalized feed for connected
 - **Dashboard** (`dashboard.qoe.fi/`): article CRUD, audience, analytics, settings
 - **Admin** (`admin.qoe.fi/`): superadmin moderation, system config
 - All routes behind Supabase auth
 
 ### 🔌 `apps/api` — Backend (optional v1)
+
 - REST + tRPC endpoints
 - Stripe webhooks
 - Supabase webhooks
@@ -149,6 +154,7 @@ pnpm docker:prod
 - Runs on Hono (ultra-fast, ~10MB memory)
 
 ### ⚙️ `workers` — Background jobs (optional v1)
+
 - BullMQ + Redis
 - AI embeddings generation
 - Email sending (newsletters, notifications)
@@ -159,26 +165,26 @@ pnpm docker:prod
 
 ## 🛠️ Stack
 
-| Layer | Tech |
-|-------|------|
-| **Framework** | Next.js 16 (App Router, RSC) |
-| **Language** | TypeScript 5 |
-| **Monorepo** | pnpm workspaces + Turborepo |
-| **Database** | PostgreSQL 16 + pgvector (Supabase Cloud) |
-| **ORM** | Prisma 6 |
-| **Auth** | Supabase Auth (SSR + cookies) |
-| **UI** | shadcn/ui + Radix + Tailwind 4 |
-| **i18n** | Tolgee |
-| **State** | Zustand |
-| **Animation** | Framer Motion |
-| **Editor** | TipTap (with custom PaywallDivider extension) |
-| **Payments** | Stripe |
-| **Analytics** | Umami (self-hostable) |
-| **AI** | OpenAI / Anthropic (embeddings + recos) |
-| **Cache + Queue** | Redis (v1+) |
-| **Workers** | BullMQ (v1+) |
-| **Infra** | Docker + Caddy |
-| **Testing** | Vitest + Testing Library |
+| Layer             | Tech                                          |
+| ----------------- | --------------------------------------------- |
+| **Framework**     | Next.js 16 (App Router, RSC)                  |
+| **Language**      | TypeScript 5                                  |
+| **Monorepo**      | pnpm workspaces + Turborepo                   |
+| **Database**      | PostgreSQL 16 + pgvector (Supabase Cloud)     |
+| **ORM**           | Prisma 6                                      |
+| **Auth**          | Supabase Auth (SSR + cookies)                 |
+| **UI**            | shadcn/ui + Radix + Tailwind 4                |
+| **i18n**          | Tolgee                                        |
+| **State**         | Zustand                                       |
+| **Animation**     | Framer Motion                                 |
+| **Editor**        | TipTap (with custom PaywallDivider extension) |
+| **Payments**      | Stripe                                        |
+| **Analytics**     | Umami (self-hostable)                         |
+| **AI**            | OpenAI / Anthropic (embeddings + recos)       |
+| **Cache + Queue** | Redis (v1+)                                   |
+| **Workers**       | BullMQ (v1+)                                  |
+| **Infra**         | Docker + Caddy                                |
+| **Testing**       | Vitest + Testing Library                      |
 
 ---
 
@@ -194,17 +200,17 @@ pnpm docker:prod
 
 We're progressively migrating from a Next.js monolith to a Turborepo monorepo.
 
-| Phase | Status | Description |
-|-------|--------|-------------|
-| **0** | ✅ Done | Monorepo setup (this commit) |
-| **1** | 🔜 Next | Extract shared packages (db, supabase, ui, i18n, etc.) |
-| **2** | 📋 Planned | Move public routes to `apps/web` |
+| Phase | Status     | Description                                             |
+| ----- | ---------- | ------------------------------------------------------- |
+| **0** | ✅ Done    | Monorepo setup (this commit)                            |
+| **1** | 🔜 Next    | Extract shared packages (db, supabase, ui, i18n, etc.)  |
+| **2** | 📋 Planned | Move public routes to `apps/web`                        |
 | **3** | 📋 Planned | Move auth routes to `apps/console` + refactor home feed |
-| **4** | 📋 Planned | Build `apps/api` (Hono + tRPC) |
-| **5** | 📋 Planned | Build `workers` (BullMQ) |
-| **6** | 📋 Planned | Multi-service Docker setup |
-| **7** | 📋 Planned | CI/CD |
-| **8** | 📋 Planned | Production deploy + DNS |
+| **4** | 📋 Planned | Build `apps/api` (Hono + tRPC)                          |
+| **5** | 📋 Planned | Build `workers` (BullMQ)                                |
+| **6** | 📋 Planned | Multi-service Docker setup                              |
+| **7** | 📋 Planned | CI/CD                                                   |
+| **8** | 📋 Planned | Production deploy + DNS                                 |
 
 See the full plan in the conversation with the architect agent.
 

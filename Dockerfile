@@ -48,7 +48,8 @@ RUN for dir in apps/web apps/console apps/api workers packages/*/; do \
 done
 
 # Installe les dépendances (production + dev pour le build)
-RUN pnpm install --frozen-lockfile
+# Note : --no-frozen-lockfile car le lockfile peut être régénéré
+RUN pnpm install --no-frozen-lockfile
 
 # ─────────────────────────────────────────────────────────────────────
 # 🥇 STAGE BUILDER : build de TOUTES les apps
@@ -62,12 +63,16 @@ ENV NODE_ENV=production
 # Copie tout le code source
 COPY . .
 
+# Re-installe les dépendances maintenant que TOUT le code est copié
+# (le stage deps n'avait que les manifests)
+RUN pnpm install --no-frozen-lockfile
+
 # Génère le client Prisma (pour le runtime)
 RUN pnpm --filter @qoe/db prisma generate || true
 
-# Build chaque app Turborepo gère les dépendances inter-packages
-# (packages/db doit être "build" avant apps/console, etc.)
-RUN pnpm turbo build --filter=@qoe/web --filter=@qoe/console --filter=@qoe/api --filter=@qoe/workers
+# Build chaque app (Turbo gère les dépendances inter-packages)
+# Note : on builde tout le workspace, Turbo skip les packages sans script "build"
+RUN pnpm turbo build
 
 # ═════════════════════════════════════════════════════════════════════
 # 🎯 TARGETS FINALES (4 stages qui héritent du builder)
