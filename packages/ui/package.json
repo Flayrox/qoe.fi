@@ -9,7 +9,10 @@
     ".": "./src/index.ts",
     "./button": "./src/button.tsx",
     "./card": "./src/card.tsx",
-    "./tokens": "./src/tokens.ts"
+    "./tokens": "./src/tokens.ts",
+    "./SocialIcon": "./src/SocialIcon.tsx",
+    "./TenantHeader": "./src/TenantHeader.tsx",
+    "./SubscribeForm": "./src/SubscribeForm.tsx"
   },
   "scripts": {
     "lint": "echo skip",
@@ -19,14 +22,17 @@
     "@qoe/utils": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "lucide-react": "^1.16.0",
     "tailwind-merge": "^3.6.0"
   },
   "peerDependencies": {
+    "next": "^16.2.6",
     "react": "^19",
     "react-dom": "^19"
   },
   "devDependencies": {
     "@qoe/tsconfig": "workspace:*",
+    "@qoe/db": "workspace:*",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "typescript": "^5"
