@@ -1,76 +1,66 @@
 # 🚀 Guide de déploiement production — qoe.fi
 
-> Checklist complète pour déployer qoe.fi sur ton VPS pour la première fois.
+> **État post-refacto** : `pnpm` (pas `npm`), source unique Prisma dans `packages/db/prisma/`,
+> 8 services Docker avec 2 réseaux isolés.
 
 ---
 
-## 📑 Table des matières
+## 📋 Pré-déploiement
 
-1. [Prérequis](#-prérequis)
-2. [Préparation locale](#-préparation-locale)
-3. [Setup du VPS](#-setup-du-vps)
-4. [Configuration DNS](#-configuration-dns)
-5. [Premier déploiement](#-premier-déploiement)
-6. [Vérification post-déploiement](#-vérification-post-déploiement)
-7. [Mises à jour futures](#-mises-à-jour-futures)
-8. [Rollback](#-rollback)
-9. [Troubleshooting](#-troubleshooting)
-
----
-
-## ✅ Prérequis
-
-### Sur ton PC
-- Git installé
-- Accès SSH configuré sur ton VPS
-- Tes clés API prêtes :
-  - [ ] **Supabase** : URL du projet + anon key + service_role key
-  - [ ] **Stripe** : secret_key (sk_live_...) + webhook_secret (whsec_...)
-  - [ ] **Resend** (ou autre SMTP) : API key pour les emails
-  - [ ] **OpenAI** (optionnel) : pour AI embeddings/recos
-  - [ ] **Tolgee** : API key pour l'i18n
-
-### Sur ton VPS
-- Docker + Docker Compose installés
-- Au moins 4 GB RAM (recommandé : 8 GB)
-- 20 GB d'espace disque (DB + images Docker)
-- Ports 80 et 443 ouverts (HTTP/HTTPS)
-- Un nom de domaine que tu contrôles
-
----
-
-## 🖥️ Préparation locale
-
-### 1. Vérifier que tout est en place
-
+### Vérification structure monorepo
 ```bash
 # À la racine du projet
 ls -la
 # Tu dois voir : apps/ workers/ packages/ docker/ pnpm-workspace.yaml turbo.json
 ```
 
-### 2. Copier et éditer le fichier d'env
+### Configuration Supabase (Cloud)
+1. Crée un projet sur [supabase.com](https://supabase.com)
+2. Active l'extension `vector` dans `Database → Extensions`
+3. Note :
+   - `Project URL` (ex: `https://xxx.supabase.co`)
+   - `anon public` key
+   - `service_role` key (⚠️ secret)
+4. Configure les redirections auth : `https://qoe.fi/auth/callback`
 
-```bash
-cp .env.docker.example .env.docker
-nano .env.docker
-```
+### Configuration Stripe
+1. Crée un compte sur [stripe.com](https://stripe.com)
+2. Active ton compte (KYC + IBAN)
+3. Note tes clés :
+   - `sk_live_...` (secret)
+   - `pk_live_...` (public)
+   - `whsec_...` (webhook secret — à créer)
+4. Crée les produits/prix pour les abonnements créateurs
 
-### 3. Remplir les valeurs critiques
+### Configuration Resend
+1. Crée un compte sur [resend.com](https://resend.com)
+2. Vérifie ton domaine (`qoe.fi` + DKIM + DMARC)
+3. Note ta clé `re_...`
+
+### Configuration Tolgee
+1. Crée un projet sur [tolgee.io](https://tolgee.io)
+2. Note ta clé `tgpk_...`
+
+---
+
+## ⚙️ Variables d'environnement
+
+Crée un fichier `.env.docker` à la racine :
 
 ```bash
 # === POSTGRES (utilisé en interne Docker) ===
 POSTGRES_USER=qoe
-POSTGRES_PASSWORD=$(openssl rand -base64 32)  # 🔐 Génère un mot de passe FORT
+POSTGRES_PASSWORD=<Génère_un_mdp_fort_64_chars>
 POSTGRES_DB=qoe
+POSTGRES_PORT=5432
 
 # === DOMAINE PRINCIPAL (sans protocole) ===
 PRIMARY_DOMAIN=qoe.fi
 
 # === SUPABASE (Auth externe) ===
 NEXT_PUBLIC_SUPABASE_URL=https://ton-projet.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
 
 # === STRIPE (paiements) - EN MODE LIVE ===
 STRIPE_SECRET_KEY=sk_live_...
@@ -79,23 +69,30 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
 
 # === RESEND (emails) ===
 RESEND_API_KEY=re_...
-RESEND_FROM_EMAIL=noreply@qoe.fi
 
 # === OPENAI (optionnel) ===
 OPENAI_API_KEY=sk-...
 
 # === TOLGEE (i18n) ===
 NEXT_PUBLIC_TOLGEE_API_KEY=tgpk_...
-NEXT_PUBLIC_TOLGEE_API_URL=https://app.tolgee.io
+NEXT_PUBLIC_TOLGEE_URL=https://app.tolgee.io
+
+# === REDIS (interne Docker) ===
+REDIS_URL=redis://redis:6379
+
+# === APP URL (pour OAuth redirects) ===
+NEXT_PUBLIC_APP_URL=https://qoe.fi
 ```
 
-> ⚠️ **Ne jamais commiter `.env.docker`** — il est dans `.gitignore`.
+> ⚠️ **Ne commit JAMAIS `.env.docker`**. Il est dans `.gitignore` par défaut.
 
-### 4. Tester en local (optionnel mais recommandé)
+---
+
+## 🧪 Test en local avant prod
 
 ```bash
 # Lance le stack dev complet
-npm run docker:dev
+pnpm docker:dev
 
 # Vérifie que :
 # - http://localhost:3000 répond (qoe.fi local)
@@ -105,44 +102,39 @@ npm run docker:dev
 
 ---
 
-## 🌍 Setup du VPS
+## 🖥️ Déploiement sur VPS
 
-### 1. Connexion SSH
+### Prérequis VPS
+- **OS** : Ubuntu 22.04 LTS (ou Debian 12)
+- **RAM** : 4 GB minimum (8 GB recommandé pour la prod)
+- **CPU** : 2 vCPU minimum
+- **Stockage** : 40 GB SSD minimum
+- **IP publique** : statique
+- **Ports ouverts** : 22 (SSH), 80 (HTTP), 443 (HTTPS)
 
+### Étape 1 : Préparer le VPS
 ```bash
+# Connexion SSH
 ssh user@ton-vps-ip
-```
 
-### 2. Installation Docker (si pas déjà fait)
-
-```bash
-# Mise à jour des paquets
+# Mise à jour
 sudo apt update && sudo apt upgrade -y
 
 # Installation Docker
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
-
-# Ajout de ton user au groupe docker (pour ne pas avoir à faire sudo)
 sudo usermod -aG docker $USER
-newgrp docker
 
+# Déconnecte-toi / reconnecte-toi pour appliquer le groupe
 # Vérification
 docker --version
 docker compose version
 ```
 
-### 3. Création du dossier de l'app
-
+### Étape 2 : Cloner le projet
 ```bash
-sudo mkdir -p /opt/qoe.fi
-sudo chown $USER:$USER /opt/qoe.fi
-cd /opt/qoe.fi
-```
+cd /opt  # ou /var/www, ou /home/user
 
-### 4. Clone du code
-
-```bash
 # Option A : Via Git
 git clone https://github.com/ton-user/qoe.fi.git .
 
@@ -151,120 +143,74 @@ git clone https://github.com/ton-user/qoe.fi.git .
 # scp -r ./qoe.fi/* user@ton-vps-ip:/opt/qoe.fi/
 ```
 
-### 5. Création de l'env de production
-
+### Étape 3 : Configurer l'env
 ```bash
 cd /opt/qoe.fi
+cp .env.docker.example .env.docker
 nano .env.docker
 # Colle les valeurs préparées plus haut
 ```
 
-> 🔐 **Sécurité** : restreint les permissions de `.env.docker` :
-```bash
-chmod 600 .env/docker
-```
-
-### 6. Ouverture des ports (firewall)
-
+### Étape 4 : Ouvrir les ports
 ```bash
 # UFW (Ubuntu)
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw allow 22/tcp   # SSH
+sudo ufw allow 22/tcp    # SSH
+sudo ufw allow 80/tcp    # HTTP (redirect HTTPS)
+sudo ufw allow 443/tcp   # HTTPS
 sudo ufw enable
 
 # Vérifier
 sudo ufw status
 ```
 
-> Si tu utilises un autre firewall (iptables, firewalld), adapte.
+### Étape 5 : Premier déploiement
+```bash
+# Build toutes les images
+pnpm docker:prod:build
 
----
+# Lance en arrière-plan
+pnpm docker:prod:up
 
-## 🌐 Configuration DNS
+# Vérifier
+pnpm docker:prod:ps
+# → Tous les services doivent être "healthy"
+```
 
-Connecte-toi à ton registrar (OVH, Cloudflare, Gandi, etc.) et ajoute :
+### Étape 6 : Initialiser la base de données
+```bash
+# Le service `migrate` s'exécute one-shot au démarrage
+# Pour seed :
+pnpm docker:seed
+```
 
-### Records A
+### Étape 7 : Configurer le DNS
 
-| Type | Host | Value | TTL |
-|------|------|-------|-----|
-| A | @ | `IP_DE_TON_VPS` | 3600 |
-| A | www | `IP_DE_TON_VPS` | 3600 |
-| A | * | `IP_DE_TON_VPS` | 3600 (wildcard pour tenants) |
-| A | start | `IP_DE_TON_VPS` | 3600 |
-| A | dashboard | `IP_DE_TON_VPS` | 3600 |
-| A | admin | `IP_DE_TON_VPS` | 3600 |
-| A | api | `IP_DE_TON_VPS` | 3600 |
+Chez ton registrar (Cloudflare, OVH, Gandi, etc.) :
 
-### Vérification
+| Type | Nom | Valeur | TTL |
+|------|-----|--------|-----|
+| A | `@` | `<IP_VPS>` | 300 |
+| A | `*` | `<IP_VPS>` | 300 |
+| AAAA | `@` | `<IP_V6_VPS>` | 300 (optionnel) |
+| AAAA | `*` | `<IP_V6_VPS>` | 300 (optionnel) |
+
+> ⚠️ Le wildcard `*` est **obligatoire** pour les sous-domaines `*.qoe.fi`.
+
+### Étape 8 : Vérifier le SSL
+**Caddy obtient les certificats Let's Encrypt automatiquement** dès que le DNS est propagé (5-30 min).
 
 ```bash
-# Sur ton PC ou VPS
-nslookup qoe.fi
-dig start.qoe.fi +short
-```
+# Vérifier la propagation
+nslookup qoe.fi 8.8.8.8
+nslookup start.qoe.fi 8.8.8.8
 
-> ⏱️ La propagation peut prendre 5-30 min, parfois jusqu'à 48h (rare).
-
-### ⚠️ Cloudflare (optionnel mais recommandé)
-
-Si tu utilises Cloudflare comme DNS :
-1. Mets le proxy **activé** (icône orange) pour avoir le WAF
-2. Cloudflare gère alors le HTTPS, Caddy utilise HTTP interne
-3. Mais pour `*.qoe.fi` wildcard, le proxy marche bien aussi
-
----
-
-## 🚀 Premier déploiement
-
-### 1. Lancer le script de déploiement
-
-```bash
-cd /opt/qoe.fi
-bash scripts/deploy.sh
-```
-
-> Le script va :
-> 1. Backup de la DB
-> 2. Pull des changements
-> 3. Build des images (5-10 min au premier build)
-> 4. Démarrage de tous les services
-> 5. Health checks
-
-### 2. Suivre les logs
-
-```bash
-# En parallèle, dans un autre terminal SSH
-cd /opt/qoe.fi
-npm run docker:prod:logs
-```
-
-### 3. Status des containers
-
-```bash
-npm run docker:prod:ps
-```
-
-Tu dois voir 8 services en status `Up` ou `healthy` :
-
-```
-NAME                 STATUS              PORTS
-qoefi-caddy          Up (healthy)        0.0.0.0:80->80, 443->443
-qoefi-web            Up (healthy)
-qoefi-console        Up (healthy)
-qoefi-api            Up (healthy)
-qoefi-workers        Up
-qoefi-db             Up (healthy)
-qoefi-redis          Up (healthy)
-qoefi-migrate        Exited (0)          (normal : one-shot)
+# Tu dois voir "CN = qoe.fi" et un issuer Let's Encrypt
+openssl s_client -connect qoe.fi:443 -servername qoe.fi < /dev/null 2>/dev/null | openssl x509 -noout -subject
 ```
 
 ---
 
-## ✅ Vérification post-déploiement
-
-### Tests de base
+## ✅ Validation finale
 
 ```bash
 # 1. Health check API
@@ -281,73 +227,92 @@ curl -I https://qoe.fi
 
 # 4. SSL valide
 openssl s_client -connect qoe.fi:443 -servername qoe.fi < /dev/null 2>/dev/null | openssl x509 -noout -subject
-# → Tu dois voir "CN = qoe.fi" et un issuer Let's Encrypt
+# → "CN = qoe.fi" + issuer Let's Encrypt
 
 # 5. Certificat wildcard
 openssl s_client -connect start.qoe.fi:443 -servername start.qoe.fi < /dev/null 2>/dev/null | openssl x509 -noout -subject
 # → CN = *.qoe.fi (ou qoe.fi, selon config Caddy)
 ```
 
-### Tests fonctionnels
+---
 
-1. **Landing** : ouvre https://start.qoe.fi dans un navigateur
-2. **Inscription** : va sur https://qoe.fi et inscris-toi
-3. **Feed** : connecté, tu dois voir le feed (vide si première visite)
-4. **Admin** : connecte-toi en superadmin, vérifie https://admin.qoe.fi
-5. **Tenant** : un créateur doit pouvoir personnaliser son `*.qoe.fi`
+## 📊 Monitoring
 
-### Vérification des logs
-
+### Logs
 ```bash
 # Logs de tous les services
-npm run docker:prod:logs
+pnpm docker:prod:logs
 
 # Logs d'un service spécifique
-npm run docker:prod:logs:caddy
+pnpm docker:prod:logs:caddy       # Caddy (SSL)
+pnpm docker:prod:logs:web         # Web app
+pnpm docker:prod:logs:console     # Console app
+pnpm docker:prod:logs:api         # API
+pnpm docker:prod:logs:workers     # Workers BullMQ
+```
+
+### État
+```bash
+pnpm docker:prod:ps       # Liste + état
+pnpm docker:prod:stats    # CPU/RAM par container (via docker stats)
+```
+
+### Shell dans un container
+```bash
+pnpm docker:prod:shell    # Shell dans console
+pnpm docker:prod:db       # psql dans db
 ```
 
 ---
 
-## 🔄 Mises à jour futures
-
-### Workflow simple
+## 🔄 Workflow de mise à jour
 
 ```bash
 # Sur ton PC : commit + push
 git add .
-git commit -m "feat: nouvelle feature"
-git push origin main
+git commit -m "feat: ..."
+git push
 
 # Sur le VPS : pull + deploy
 ssh user@ton-vps-ip
 cd /opt/qoe.fi
-bash scripts/deploy.sh
-```
-
-### Redémarrer un seul service (après un fix rapide)
-
-```bash
-# Redémarrer uniquement web
-npm run docker:prod:web
-
-# Redémarrer uniquement console
-npm run docker:prod:console
-```
-
-### Rebuild complet (changement de deps)
-
-```bash
-npm run docker:prod:rebuild
+git pull
+pnpm docker:prod:rebuild   # Rebuild + restart
 ```
 
 ---
 
-## ↩️ Rollback
+## 🔧 Maintenance
 
-Si un déploiement casse quelque chose, voici comment revenir en arrière.
+### Restart d'un service
+```bash
+# Redémarrer uniquement web
+pnpm docker:prod:web
 
-### Rollback rapide (image précédente)
+# Redémarrer uniquement console
+pnpm docker:prod:console
 
+# Redémarrer uniquement api
+pnpm docker:prod:api
+
+# Redémarrer uniquement workers
+pnpm docker:prod:workers
+```
+
+### Backup
+```bash
+# Backup manuel
+pnpm docker:backup
+# → Fichier dans /backups/qoe_YYYYMMDD_HHMMSS.sql.gz
+
+# Cron automatique (tous les jours à 3h du matin)
+ssh user@ton-vps-ip
+crontab -e
+# Ajoute :
+0 3 * * * /opt/qoe.fi/scripts/backup-postgres.sh >> /var/log/qoefi-backup.log 2>&1
+```
+
+### Rollback
 ```bash
 # Liste les images disponibles
 docker images | grep qoefi
@@ -356,8 +321,7 @@ docker images | grep qoefi
 docker compose up -d --no-deps web:<tag-précédent>
 ```
 
-### Rollback complet (depuis backup DB)
-
+### Restore depuis backup
 ```bash
 # ⚠️ DESTRUCTIF : écrase la DB actuelle
 # 1. Arrêter les services qui écrivent dans la DB
@@ -365,35 +329,30 @@ docker compose stop web console api workers
 
 # 2. Restaurer le backup
 LATEST_BACKUP=$(ls -t /backups/qoe_*.sql.gz | head -1)
-docker exec -i qoefi-db psql -U qoe -d qoe < <(gunzip -c "$LATEST_BACKUP")
+gunzip -c "$LATEST_BACKUP" | docker compose exec -T db psql -U qoe -d qoe
 
 # 3. Rollback le code
 git checkout <commit-précédent>
 
 # 4. Rebuild + restart
-npm run docker:prod:rebuild
+pnpm docker:prod:rebuild
 ```
-
-> 💡 **Astuce** : toujours tester les déploiements en **staging** d'abord si possible.
 
 ---
 
 ## 🆘 Troubleshooting
 
-### "DNS ne résout pas"
-
+### DNS ne se propage pas
 ```bash
 # Vérifier la propagation
 nslookup qoe.fi 8.8.8.8
-dig qoe.fi @8.8.8.8
 
 # Si pas résolu : attendre 30 min, vérifier la config DNS
 ```
 
-### "Caddy ne peut pas obtenir le certificat"
-
+### SSL ne s'obtient pas
 ```bash
-npm run docker:prod:logs:caddy
+pnpm docker:prod:logs:caddy
 # Cherche "acme" ou "challenge" dans les logs
 
 # Causes possibles :
@@ -402,51 +361,82 @@ npm run docker:prod:logs:caddy
 # 3. Let's Encrypt rate-limited (max 5 certifs/semaine)
 ```
 
-### "Container restart en boucle"
-
+### Container unhealthy
 ```bash
 # Identifier le service
-docker compose ps
+pnpm docker:prod:ps
 
 # Voir les logs
-docker compose logs console
-
+pnpm docker:prod:logs:console
 # Souvent : variable d'env manquante ou DB pas healthy
 ```
 
-### "Out of memory"
-
-Augmente la RAM du VPS OU réduis les `deploy.resources.limits` dans `docker-compose.yml`.
-
-### "Migration failed"
-
+### DB migrations échouent
 ```bash
 # Voir le détail
-docker compose logs migrate
+pnpm docker:prod:logs:migrate
 
 # Reset DB (⚠️ PERTE DE DONNÉES)
 docker compose down -v
-docker compose up migrate
+pnpm docker:prod:up
+```
+
+### "Out of memory" sur le VPS
+```bash
+# Vérifier la conso
+docker stats
+
+# Augmenter la RAM du VPS (recommandé : 4 GB minimum)
+# OU limiter les workers Node
 ```
 
 ---
 
-## 📋 Checklist finale
+## 📋 Checklist de déploiement
 
-Avant de dire "c'est en prod !", vérifie :
-
-- [ ] `.env.docker` rempli avec des **vraies clés** (pas sk_test, pas dev)
-- [ ] DNS résolu sur l'IP du VPS
-- [ ] `npm run docker:prod:ps` montre tous les services healthy
+- [ ] VPS 4 GB+ avec Docker installé
+- [ ] Ports 22, 80, 443 ouverts
+- [ ] DNS wildcard `*.qoe.fi` → IP VPS
+- [ ] `.env.docker` configuré avec toutes les clés
+- [ ] `pnpm docker:prod:build` successful
+- [ ] `pnpm docker:prod:up` lance tous les services
+- [ ] `pnpm docker:prod:ps` montre tous les services healthy
 - [ ] `https://api.qoe.fi/health` retourne 200
-- [ ] `https://start.qoe.fi` charge en < 3s
-- [ ] SSL valide (pas d'erreur dans le navigateur)
-- [ ] Backups cron configurés
-- [ ] Monitoring (Sentry / Uptime Kuma) configuré
-- [ ] Cloudflare devant (optionnel mais recommandé)
+- [ ] `https://qoe.fi` charge (HTTP 200)
+- [ ] `https://start.qoe.fi` charge
+- [ ] Certificat SSL wildcard valide (Let's Encrypt)
+- [ ] Backup Postgres configuré (cron)
+- [ ] Stripe webhook configuré
+- [ ] Supabase redirect URLs configurées
 
 ---
 
-**Tu as terminé ! 🎉** Tu peux maintenant partager ton URL à tes premiers utilisateurs.
+## 🔐 Sécurité post-déploiement
 
-Questions ? Relis [DOCKER.md](./DOCKER.md) ou [MIGRATION.md](./MIGRATION.md).
+```bash
+# 1. SSH : désactiver password auth, forcer clés SSH
+sudo nano /etc/ssh/sshd_config
+# PasswordAuthentication no
+sudo systemctl restart sshd
+
+# 2. Fail2ban (anti-bruteforce)
+sudo apt install fail2ban
+sudo systemctl enable fail2ban
+
+# 3. Auto-update security patches
+sudo apt install unattended-upgrades
+sudo dpkg-reconfigure -plow unattended-upgrades
+
+# 4. Surveiller les logs SSH
+sudo tail -f /var/log/auth.log
+```
+
+---
+
+## 📖 Liens utiles
+
+- [README.md](./README.md) — Vitrine du projet
+- [ACTIVATION.md](./ACTIVATION.md) — Comment démarrer
+- [DOCKER.md](./DOCKER.md) — Architecture Docker détaillée
+- [HANDOFF.md](./HANDOFF.md) — Contexte complet
+- [MIGRATION.md](./MIGRATION.md) — Historique de la migration
