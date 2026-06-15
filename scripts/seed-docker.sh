@@ -66,9 +66,10 @@ DB_HOST="$DB_HOST" DB_PORT="$DB_PORT" DB_TIMEOUT=30 \
   }
 
 # --- Étape 2 : Migrations Prisma ---
+# 📖 Source unique : packages/db/prisma/ (dédupliqué depuis prisma/)
 echo ""
 echo "🔄 Étape 2/3 : Application des migrations Prisma..."
-cd "$PROJECT_ROOT"
+cd "$PROJECT_ROOT/packages/db"
 
 if [ "$RESET" = true ]; then
   echo -e "${YELLOW}⚠️  RESET demandé : toutes les données seront SUPPRIMÉES${NC}"
@@ -82,6 +83,8 @@ else
   # deploy = applique les migrations sans reset, sûr pour la prod aussi
   npx prisma migrate deploy
 fi
+
+cd "$PROJECT_ROOT"
 
 echo -e "${GREEN}✅ Migrations appliquées avec succès${NC}"
 

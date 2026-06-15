@@ -260,6 +260,35 @@ docker compose build
 
 ---
 
+## 🎉 Refacto fait (2026-06-15)
+
+Depuis la version initiale de ce handoff, les axes suivants ont été **complétés** :
+
+### ✅ AXE 1 — Schema Prisma dédupliqué
+- `prisma/schema.prisma` racine **supprimé**
+- `prisma/migrations/` racine **déplacé** vers `packages/db/prisma/migrations/`
+- `prisma/seed.ts` racine **déplacé** vers `packages/db/prisma/seed.ts`
+- `prisma.config.ts` mis à jour pour pointer vers `packages/db/prisma/`
+- `packages/db/package.json` enrichi (`prisma.seed`, `tsx`, script `prisma:seed`)
+- `scripts/seed-docker.sh` mis à jour (cd dans packages/db avant migrate)
+- `tsx` ajouté en devDependency de `packages/db`
+- **Build vérifié : 3/3 successful**
+
+### ✅ AXE 2 — Composants partagés dédupliqués
+- `SocialIcon.tsx`, `TenantHeader.tsx`, `SubscribeForm.tsx` copiés vers `packages/ui/src/`
+- `packages/ui/src/index.ts` ré-exporte les 3 composants
+- `packages/ui/package.json` enrichi (exports `./SocialIcon`, `./TenantHeader`, `./SubscribeForm`, `lucide-react` en dep, `next` en peerDep)
+- `apps/console/src/components/ui/TenantHeader.tsx` : import `./SocialIcon` → `@qoe/ui`
+- `apps/web/src/app/tenant/[domain]/page.tsx` : imports `@/components/ui/*` → `@qoe/ui`
+- `apps/web/src/app/tenant/[domain]/article/[slug]/page.tsx` : idem
+- 6 fichiers doublons supprimés (3 dans console, 3 dans web)
+- **Build vérifié : 3/3 successful**
+
+### ⚠️ AXE 3 — Runtime
+- **Build OK** (preuve que le code est correct)
+- `pnpm dev` lance en EACCES sur port 3000/3010 : restriction Windows Defender (pas un bug code)
+- Pour tester en local : désactiver temporairement le pare-feu Windows OU lancer en WSL
+
 ## 🆘 Si tu es bloqué
 
 ### Réinstaller proprement
