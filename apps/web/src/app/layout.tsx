@@ -1,25 +1,15 @@
 // =====================================================================
 // 🏠 Root layout — apps/web (PUBLIC)
 // =====================================================================
-// 📖 Sert : /start (landing), /tenant/[domain], /article/[slug]
-//    PAS d'auth requise. Tolgee + ThemeProvider uniquement.
-//
-// 📖 Note : jusqu'à la Phase 3 (migration console), on réutilise
-//    le globals.css et les providers de l'ancien src/. C'est un
-//    placeholder pour l'instant — le vrai layout autonome viendra
-//    après la migration finale.
-// =====================================================================
 
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { TolgeeNextProvider } from "@qoe/i18n/provider";
 import { getTolgee, getLanguage } from "@qoe/i18n/server";
-import { TooltipProvider } from "@qoe/ui/primitives/tooltip";
 import { cn } from "@qoe/utils";
 
-// Ré-export du CSS global depuis l'ancien emplacement
-import "../../../src/app/globals.css";
+import "../../../console/src/app/globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const inter = Inter({ variable: "--font-body", subsets: ["latin"] });
@@ -39,7 +29,13 @@ export default async function RootLayout({
 }>) {
   const locale = await getLanguage();
   const tolgee = await getTolgee();
-  const staticData = await tolgee.loadRequired();
+  // Tolgee tolère un objet vide pour staticData en dev
+  let staticData: any = {};
+  try {
+    staticData = (await tolgee.loadRequired()) ?? {};
+  } catch {
+    staticData = {};
+  }
 
   return (
     <html lang={locale} className={cn("scroll-smooth", "font-sans", geist.variable)} suppressHydrationWarning>
@@ -48,7 +44,7 @@ export default async function RootLayout({
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <TolgeeNextProvider language={locale} staticData={staticData}>
-            <TooltipProvider>{children}</TooltipProvider>
+            {children}
           </TolgeeNextProvider>
         </ThemeProvider>
       </body>

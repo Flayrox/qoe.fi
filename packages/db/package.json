@@ -15,7 +15,10 @@
   },
   "scripts": {
     "lint": "echo skip",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prisma:generate": "prisma generate",
+    "prebuild": "prisma generate",
+    "pretypecheck": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3"

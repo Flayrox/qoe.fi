@@ -1,2 +1,6 @@
-// Re-export
-export { cn, formatCurrency, formatDate, formatNumber, slugify, shortId, uuid } from "@qoe/utils";
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}

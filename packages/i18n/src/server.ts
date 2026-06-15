@@ -37,14 +37,20 @@ export async function getLanguage(): Promise<Language> {
 
 /**
  * 📝 Helper de traduction côté serveur.
+ * Retourne directement la fonction `t(key, defaultValue)` pour usage direct :
+ *   const t = await getTranslate()
+ *   t("home.title", "Bienvenue")
  */
 export async function getTranslate() {
-  const language = await getLanguage();
   const tolgee = await getTolgee();
-  const t = tolgee.t;
+  return tolgee.t.bind(tolgee);
+}
 
-  return {
-    language,
-    t,
-  };
+/**
+ * 📝 Variante qui retourne aussi la langue détectée.
+ */
+export async function getTranslateWithLanguage() {
+  const language = await getLanguage();
+  const t = await getTranslate();
+  return { language, t };
 }

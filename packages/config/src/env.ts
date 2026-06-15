@@ -68,6 +68,49 @@ const envSchema = z.object({
  * Appelle cette fonction UNE FOIS au démarrage.
  */
 export function parseEnv() {
+  if (typeof window !== "undefined") {
+    // Client-side environment variables validation (browser)
+    // accessed via literal paths so Next.js static analyser can inline them.
+    const clientSchema = z.object({
+      NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+      NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+      NEXT_PUBLIC_TOLGEE_API_KEY: z.string().optional(),
+      NEXT_PUBLIC_TOLGEE_API_URL: z.string().url().default("https://app.tolgee.io"),
+      NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
+      NEXT_PUBLIC_CONSOLE_URL: z.string().url().default("http://localhost:3000"),
+      NEXT_PUBLIC_LANDING_URL: z.string().url().default("http://localhost:3000/start"),
+      NEXT_PUBLIC_API_URL: z.string().url().default("http://localhost:3001"),
+      NEXT_PUBLIC_UMAMI_WEBSITE_ID: z.string().optional(),
+      NEXT_PUBLIC_UMAMI_SCRIPT_URL: z.string().url().optional(),
+    });
+
+    const clientValues = {
+      NODE_ENV: process.env.NODE_ENV,
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+      NEXT_PUBLIC_TOLGEE_API_KEY: process.env.NEXT_PUBLIC_TOLGEE_API_KEY,
+      NEXT_PUBLIC_TOLGEE_API_URL: process.env.NEXT_PUBLIC_TOLGEE_API_URL,
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+      NEXT_PUBLIC_CONSOLE_URL: process.env.NEXT_PUBLIC_CONSOLE_URL,
+      NEXT_PUBLIC_LANDING_URL: process.env.NEXT_PUBLIC_LANDING_URL,
+      NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+      NEXT_PUBLIC_UMAMI_WEBSITE_ID: process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID,
+      NEXT_PUBLIC_UMAMI_SCRIPT_URL: process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL,
+    };
+
+    const parsed = clientSchema.safeParse(clientValues);
+    if (!parsed.success) {
+      console.error("❌ Invalid client-side environment variables:");
+      console.error(parsed.error.flatten().fieldErrors);
+      throw new Error("Invalid client-side environment variables");
+    }
+    return parsed.data as any;
+  }
+
+  // Server-side validation
   const parsed = envSchema.safeParse(process.env);
 
   if (!parsed.success) {
