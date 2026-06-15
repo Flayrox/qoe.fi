@@ -4,9 +4,9 @@
   "private": true,
   "description": "Console app: home/feed + auth + admin + dashboard + reader (qoe.fi, dashboard.qoe.fi, admin.qoe.fi)",
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "next dev -p 3010",
     "build": "next build",
-    "start": "next start -p 3000",
+    "start": "next start -p 3010",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },

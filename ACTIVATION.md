@@ -40,7 +40,7 @@ cp .env.docker.example .env
 # 4. Lancer la stack dev complète
 pnpm docker:dev
 # → Postgres + pgvector + Redis + web + console + api avec HMR
-# → Console: http://localhost:3000
+# → Console: http://localhost:3010
 # → Web:     http://localhost:3001
 # → API:     http://localhost:3002/health
 ```
@@ -55,7 +55,7 @@ pnpm docker:dev
 ```bash
 # Tout lancer en parallèle (Turbo orchestre)
 pnpm dev
-# → @qoe/console sur :3000
+# → @qoe/console sur :3010
 # → @qoe/web sur :3001
 # → @qoe/api sur :3002
 
