@@ -55,7 +55,7 @@ export default async function HighlightsPage() {
               ) : (
                 highlights.map((h: any) => {
                   if (!h.article || !h.article.author) return null
-                  const host = h.article.author.customDomain || `${h.article.author.subdomain}.localhost:3000`
+                  const host = h.article.author.customDomain || `${h.article.author.subdomain}.localhost:3001`
                   const url = `http://${host}/article/${h.article.slug}`
 
                   return (
