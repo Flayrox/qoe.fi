@@ -32,9 +32,9 @@ cp .env.docker.example .env
 
 # 3. Start dev stack
 pnpm docker:dev
-# → Console: http://localhost:3000
-# → Web:     http://localhost:3001
-# → API:     http://localhost:3002/health
+# → Console: http://localhost:4000
+# → Web:     http://localhost:4001
+# → API:     http://localhost:4002/health
 ```
 
 📖 **Voir [ACTIVATION.md](./ACTIVATION.md) pour le guide complet.**

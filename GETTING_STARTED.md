@@ -80,7 +80,7 @@ pnpm dev
 ```
 
 C'est tout ! **Turborepo** va lancer en parallèle :
-* ⚛️ **Console** (`qoe.fi` local) sur : http://localhost:3000
+* ⚛️ **Console** (`qoe.fi` local) sur : http://localhost:3010
 * 🌐 **Web** (`start.qoe.fi` local) sur : http://localhost:3001
 * 🔌 **API** (`api.qoe.fi` local) sur : http://localhost:3002
 
