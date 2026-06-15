@@ -95,9 +95,9 @@ NEXT_PUBLIC_APP_URL=https://qoe.fi
 pnpm docker:dev
 
 # Vérifie que :
-# - http://localhost:3000 répond (qoe.fi local)
-# - http://localhost:3001 répond (start.qoe.fi local)
-# - http://localhost:3002/health retourne OK
+# - http://localhost:4000 répond (qoe.fi local via Docker dev)
+# - http://localhost:4001 répond (start.qoe.fi local via Docker dev)
+# - http://localhost:4002/health retourne OK
 ```
 
 ---

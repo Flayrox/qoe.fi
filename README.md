@@ -75,16 +75,19 @@ cp .env.docker.example .env
 
 ### 3. Démarrage
 ```bash
-# Option A : Stack complet avec Docker (recommandé)
+# Option A : Stack complet avec Docker
 pnpm docker:dev
 # → Postgres + pgvector + Redis + web + console + api avec HMR
-# → Console: http://localhost:3000
-# → Web:     http://localhost:3001
-# → API:     http://localhost:3002/health
+# → Console: http://localhost:4000
+# → Web:     http://localhost:4001
+# → API:     http://localhost:4002/health
 
-# Option B : Dev local sans Docker (DB externe requise)
+# Option B : Dev local hybride (recommandé, DB externe/Docker + node host)
 pnpm prisma:generate
 pnpm dev   # Turbo lance les 3 apps en parallèle
+# → Console: http://localhost:3010
+# → Web:     http://localhost:3001
+# → API:     http://localhost:3002/health
 ```
 
 ### 4. Prisma Studio (optionnel)
@@ -248,12 +251,12 @@ pnpm prisma:format        # Formate schema.prisma
 
 ## 🐳 Docker (8 services)
 
-| Service | Port externe | Réseau | Description |
-|---------|--------------|--------|-------------|
-| **caddy** | 80, 443 | public | Reverse proxy + TLS auto |
-| **web** | 3001 | public | Next.js public |
-| **console** | 3000 | public | Next.js auth |
-| **api** | 3002 | public | Hono backend |
+| Service | Port externe (Local / Docker Dev) | Réseau | Description |
+|---------|-----------------------------------|--------|-------------|
+| **caddy** | 80, 443 (Prod uniquement) | public | Reverse proxy + TLS auto |
+| **web** | 3001 / 4001 | public | Next.js public |
+| **console** | 3010 / 4000 | public | Next.js auth |
+| **api** | 3002 / 4002 | public | Hono backend |
 | **workers** | - | private | BullMQ jobs |
 | **migrate** | - | private | One-shot Prisma migrate |
 | **db** | 5433→5432 | private | Postgres 16 + pgvector |

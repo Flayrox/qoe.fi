@@ -81,11 +81,11 @@ docker compose -f docker-compose.dev.yml up
 
 | URL | Service |
 |-----|---------|
-| http://qoe.fi:3000 (via `/etc/hosts`) | Console (qoe.fi local) |
-| http://localhost:3000 | Console direct |
-| http://start.qoe.fi:3001 (via `/etc/hosts`) | Web (start.qoe.fi local) |
-| http://localhost:3001 | Web direct |
-| http://localhost:3002/health | API health check |
+| http://qoe.fi:4000 (via `/etc/hosts`) | Console (qoe.fi local) |
+| http://localhost:4000 | Console direct |
+| http://start.qoe.fi:4001 (via `/etc/hosts`) | Web (start.qoe.fi local) |
+| http://localhost:4001 | Web direct |
+| http://localhost:4002/health | API health check |
 | `psql -h localhost -p 5433 -U qoe -d qoe` | Postgres direct |
 | `redis-cli -h localhost -p 6379` | Redis direct |
 

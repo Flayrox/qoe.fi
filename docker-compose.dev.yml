@@ -12,7 +12,7 @@
 #
 # 🌐 Accès :
 #    Web (start.qoe.fi)        : http://localhost:3001
-#    Console (qoe.fi)          : http://localhost:3000
+#    Console (qoe.fi)          : http://localhost:3010
 #    API (api.qoe.fi)          : http://localhost:3002
 #    Prisma Studio             : http://localhost:5555
 #    PostgreSQL                : localhost:5433 (via pgAdmin/DBeaver)
@@ -175,14 +175,14 @@ services:
 
     working_dir: /app
     ports:
-      - "4000:3000"
+      - "4000:3010"
 
     env_file:
       - .env.docker
 
     environment:
       NODE_ENV: development
-      PORT: 3000
+      PORT: 3010
       HOSTNAME: 0.0.0.0
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"

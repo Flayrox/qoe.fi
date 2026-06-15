@@ -57,7 +57,7 @@ export function LibraryClient({ bookmarks }: LibraryClientProps) {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {bookmarks.map(b => {
-                    const host = b.article.author.customDomain || `${b.article.author.subdomain}.localhost:3000`
+                    const host = b.article.author.customDomain || `${b.article.author.subdomain}.localhost:3001`
                     const url = `http://${host}/article/${b.article.slug}`
 
                     return (
