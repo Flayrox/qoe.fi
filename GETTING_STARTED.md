@@ -36,6 +36,10 @@ Plutôt que de faire tourner toute l'application (y compris Node.js et Next.js) 
 1. **Node.js 20+** et **pnpm 9+** (via le site officiel ou ton terminal).
 2. **Docker Desktop** pour Windows (avec WSL2 activé).
 
+> [!WARNING]
+> Si tu as déjà lancé la stack complète par le passé, tes conteneurs Node (`api`, `migrate`, etc.) tournent peut-être encore et consomment énormément de CPU/RAM (comme illustré par exemple avec `api` à 1.3 Go de RAM et `migrate` à 1.6 Go). 
+> Avant de continuer, clique sur l'icône **Corbeille** (Delete) à côté du groupe `qoefi-dev` dans Docker Desktop pour tout nettoyer et libérer la mémoire de ton PC.
+
 ---
 
 ## 🏁 Démarrage rapide (5 étapes)
