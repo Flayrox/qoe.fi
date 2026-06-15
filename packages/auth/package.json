@@ -18,7 +18,8 @@
     "dependencies":  {
                          "@qoe/config":  "workspace:*",
                          "@qoe/db":  "workspace:*",
-                         "@qoe/supabase":  "workspace:*"
+                         "@qoe/supabase":  "workspace:*",
+                         "@supabase/supabase-js": "^2.45.4"
                      },
     "devDependencies":  {
                             "@qoe/tsconfig":  "workspace:*",

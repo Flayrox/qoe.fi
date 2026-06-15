@@ -68,7 +68,7 @@ const envSchema = z.object({
  * Appelle cette fonction UNE FOIS au démarrage.
  */
 export function parseEnv() {
-  if (typeof window !== "undefined") {
+  if (typeof globalThis !== "undefined" && "window" in globalThis) {
     // Client-side environment variables validation (browser)
     // accessed via literal paths so Next.js static analyser can inline them.
     const clientSchema = z.object({
