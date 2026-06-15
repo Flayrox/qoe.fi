@@ -342,6 +342,9 @@ importers:
       '@qoe/supabase':
         specifier: workspace:*
         version: link:../supabase
+      '@supabase/supabase-js':
+        specifier: ^2.45.4
+        version: 2.108.2
     devDependencies:
       '@qoe/tsconfig':
         specifier: workspace:*
