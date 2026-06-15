@@ -25,7 +25,6 @@ export type {
   SystemConfig,
   Like,
   Prisma,
-  UserRole,
 } from "@prisma/client";
 
 export { ROLES } from "@qoe/config";
