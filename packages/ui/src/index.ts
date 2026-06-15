@@ -1,11 +1,16 @@
 // =====================================================================
 // 📦 @qoe/ui — Re-exports
 // =====================================================================
+// 📖 Tous les composants UI partagés entre les apps du monorepo.
+//    Les apps n'importent QUE depuis @qoe/ui (jamais depuis
+//    @qoe/ui/src/SocialIcon ou autre chemin interne).
+// =====================================================================
 
 export * from "./tokens";
 export { Button, buttonVariants } from "./button";
 export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "./card";
 
-// 📖 Note : les autres composants shadcn (sheet, dialog, dropdown, etc.)
-// seront migrés progressivement depuis src/components/ui/ vers ce package.
-// Pour l'instant, on garde src/components/ui/ dans l'app console (Phase 3).
+// 🌍 Composants partagés (déplacés depuis apps/console + apps/web)
+export { SocialIcon } from "./SocialIcon";
+export { TenantHeader } from "./TenantHeader";
+export { SubscribeForm } from "./SubscribeForm";

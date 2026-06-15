@@ -17,8 +17,12 @@
     "lint": "echo skip",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
+    "prisma:seed": "prisma db seed",
     "prebuild": "prisma generate",
     "pretypecheck": "prisma generate"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3"
@@ -27,6 +31,7 @@
     "@qoe/tsconfig": "workspace:*",
     "@qoe/config": "workspace:*",
     "prisma": "^6.19.3",
+    "tsx": "^4.19.0",
     "typescript": "^5"
   }
 }
