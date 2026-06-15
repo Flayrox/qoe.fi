@@ -9,6 +9,7 @@ import { cache } from "react";
 import { prisma } from "@qoe/db/client";
 import { createClient } from "@qoe/supabase/server";
 import type { User } from "@qoe/db/types";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { ROLES, type Role } from "@qoe/config";
 import { can, type Action } from "./permissions";
@@ -17,7 +18,7 @@ import { can, type Action } from "./permissions";
  * 👤 Récupère l'utilisateur Supabase authentifié (depuis le cookie).
  * Retourne null si pas connecté.
  */
-export const getAuthUser = cache(async () => {
+export const getAuthUser = cache(async (): Promise<SupabaseUser | null> => {
   const supabase = await createClient();
   const {
     data: { user },
