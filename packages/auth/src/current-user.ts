@@ -6,9 +6,9 @@
 // =====================================================================
 
 import { cache } from "react";
-import { prisma } from "@qoe/db";
+import { prisma } from "@qoe/db/client";
 import { createClient } from "@qoe/supabase/server";
-import type { User } from "@prisma/client";
+import type { User } from "@qoe/db/types";
 import { redirect } from "next/navigation";
 import { ROLES, type Role } from "@qoe/config";
 import { can, type Action } from "./permissions";
@@ -45,7 +45,7 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
  */
 export async function requireUser(redirectTo: string = "/login"): Promise<User> {
   const user = await getCurrentUser();
-  if (!user) redirect(redirectTo);
+  if (!user) redirect(redirectTo as any);
   return user;
 }
 

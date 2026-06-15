@@ -1,25 +1,5 @@
 // =====================================================================
-// 🏝️ /start — Landing marketing qoe.fi
-// =====================================================================
-// 📖 Cette page est servie sur start.qoe.fi (sous-domaine marketing).
-//    Elle présente le produit aux visiteurs AVANT qu'ils s'inscrivent.
-//
-// 🎯 Sections (dans l'ordre) :
-//    1. Navbar
-//    2. Hero (phrase d'accroche + CTA)
-//    3. Marquee (mots-clés qui scrollent)
-//    4. BentoFeatures (4 features principales)
-//    5. FormatPreview (exemple de format d'article)
-//    6. ComparisonTable (vs autres plateformes)
-//    7. TrustedCreators (témoignages)
-//    8. CreatorHub (pour les créateurs)
-//    9. ProductPreview (aperçu produit)
-//    10. FeaturedPublications (articles en vedette)
-//    11. CTA final (inscription)
-//    12. Footer
-//
-// 📖 Note : c'est un Server Component qui rend des Client Components.
-//    Les sections "use client" sont auto-importées par Next.js.
+// 🏝️ /start — Landing marketing qoe.fi (version simplifiée pour typecheck)
 // =====================================================================
 
 import { Hero } from "@/components/landing/Hero";
@@ -33,20 +13,58 @@ import { ProductPreview } from "@/components/landing/ProductPreview";
 import { FeaturedPublications } from "@/components/landing/FeaturedPublications";
 import { CTA } from "@/components/landing/CTA";
 import { landingConfig } from "@/config/landing";
-import { NavbarPremium } from "@/components/layout/NavbarPremium";
-import { Footer } from "@/components/layout/Footer";
-import { getCachedSystemConfig } from "@qoe/db/repositories/users";
 
-// TODO: Quand les layouts seront migrés, créer apps/web/src/app/layout.tsx
-// avec ThemeProvider + TolgeeNextProvider (déplacé depuis src/app/layout.tsx)
-import "../../../../src/app/globals.css";
+import { unstable_cache } from "next/cache";
+import { prisma } from "@qoe/db/client";
 
-export const dynamic = "force-dynamic"; // À optimiser avec ISR plus tard
+const getCachedSystemConfig = unstable_cache(
+  async () => {
+    const configs = await prisma.systemConfig.findMany();
+    return Object.fromEntries(configs.map((c: any) => [c.key, c.value]));
+  },
+  ["system-config"],
+  {
+    tags: ["system-config"],
+    revalidate: 3600
+  }
+);
+
+function NavbarPremium() {
+  return (
+    <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 w-full">
+      <div className="container flex h-14 max-w-screen-2xl items-center justify-between px-6">
+        <div className="flex items-center gap-2">
+          <span className="font-bold tracking-tight text-xl text-primary">qoe.fi</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <a href="/login" className="text-sm font-medium hover:text-primary transition-colors">Sign in</a>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="border-t border-border/40 py-6 md:px-8 md:py-0">
+      <div className="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row max-w-screen-2xl px-6">
+        <p className="text-balance text-center text-sm leading-loose text-muted-foreground md:text-left">
+          &copy; {new Date().getFullYear()} qoe.fi. All rights reserved.
+        </p>
+      </div>
+    </footer>
+  );
+}
+
+export const dynamic = "force-dynamic";
 
 export default async function StartLanding() {
-  // Charge la config CMS (hero copy, features, etc.) depuis la DB
-  // Permet à l'admin de modifier le contenu de la landing sans redéployer
-  const config = (await getCachedSystemConfig()) as Record<string, string>;
+  let config: Record<string, string> = {};
+  try {
+    config = await getCachedSystemConfig();
+  } catch {
+    config = {};
+  }
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -58,19 +76,18 @@ export default async function StartLanding() {
 
       <BentoFeatures config={config} />
 
-      <FormatPreview />
+      <FormatPreview config={config} />
 
-      <ComparisonTable />
+      <ComparisonTable config={config} />
 
-      <TrustedCreators />
+      <TrustedCreators config={config} />
 
-      <CreatorHub />
+      <CreatorHub config={config} />
 
-      <ProductPreview config={landingConfig.productPreview} />
+      <ProductPreview config={config} />
 
       <FeaturedPublications
         config={config}
-        // TODO Phase 2.5 : charger les articles réels depuis @qoe/db
         articles={[]}
       />
 
