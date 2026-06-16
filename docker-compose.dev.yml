@@ -95,7 +95,10 @@ services:
 
     # Bind mount du code source (pas besoin de rebuild pour migrate)
     volumes:
-      - ./apps/console:/app/apps/console
+      - ./apps/landing:/app/apps/landing
+      - ./apps/feed:/app/apps/feed
+      - ./apps/dashboard:/app/apps/dashboard
+      - ./apps/admin:/app/apps/admin
       - ./apps/api:/app/apps/api
       - ./apps/web:/app/apps/web
       - ./packages:/app/packages
@@ -166,11 +169,55 @@ services:
         condition: service_completed_successfully
 
   # ───────────────────────────────────────────────────────────────────
-  # ⚛️ CONSOLE : Next.js auth (HMR)
+  # 📣 LANDING : Next.js marketing (HMR)
   # ───────────────────────────────────────────────────────────────────
-  console:
+  landing:
     image: node:22-alpine
-    container_name: qoefi-dev-console
+    container_name: qoefi-dev-landing
+    restart: unless-stopped
+
+    working_dir: /app
+    ports:
+      - "4040:3040"
+
+    env_file:
+      - .env.docker
+
+    environment:
+      NODE_ENV: development
+      PORT: 3040
+      HOSTNAME: 0.0.0.0
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
+      REDIS_URL: redis://redis:6379
+
+    volumes:
+      - ./apps/landing:/app/apps/landing
+      - ./packages:/app/packages
+      - ./package.json:/app/package.json
+      - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
+      - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
+      - ./.npmrc:/app/.npmrc
+      - /app/apps/landing/node_modules
+      - /app/apps/landing/.next
+      - /app/packages/*/node_modules
+
+    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile --filter @qoe/landing... && cd apps/landing && pnpm dev"
+
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # ───────────────────────────────────────────────────────────────────
+  # 📰 FEED : Next.js reader (HMR)
+  # ───────────────────────────────────────────────────────────────────
+  feed:
+    image: node:22-alpine
+    container_name: qoefi-dev-feed
     restart: unless-stopped
 
     working_dir: /app
@@ -191,18 +238,105 @@ services:
       REDIS_URL: redis://redis:6379
 
     volumes:
-      - ./apps/console:/app/apps/console
-      - ./src:/app/src  # Ré-export du code legacy
+      - ./apps/feed:/app/apps/feed
       - ./packages:/app/packages
       - ./package.json:/app/package.json
       - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
       - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
       - ./.npmrc:/app/.npmrc
-      - /app/apps/console/node_modules
-      - /app/apps/console/.next
+      - /app/apps/feed/node_modules
+      - /app/apps/feed/.next
       - /app/packages/*/node_modules
 
-    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile --filter @qoe/console... && cd apps/console && pnpm dev"
+    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile --filter @qoe/feed... && cd apps/feed && pnpm dev"
+
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # ───────────────────────────────────────────────────────────────────
+  # 🎨 DASHBOARD : Next.js creator (HMR)
+  # ───────────────────────────────────────────────────────────────────
+  dashboard:
+    image: node:22-alpine
+    container_name: qoefi-dev-dashboard
+    restart: unless-stopped
+
+    working_dir: /app
+    ports:
+      - "4020:3020"
+
+    env_file:
+      - .env.docker
+
+    environment:
+      NODE_ENV: development
+      PORT: 3020
+      HOSTNAME: 0.0.0.0
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
+      REDIS_URL: redis://redis:6379
+
+    volumes:
+      - ./apps/dashboard:/app/apps/dashboard
+      - ./packages:/app/packages
+      - ./package.json:/app/package.json
+      - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
+      - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
+      - ./.npmrc:/app/.npmrc
+      - /app/apps/dashboard/node_modules
+      - /app/apps/dashboard/.next
+      - /app/packages/*/node_modules
+
+    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile --filter @qoe/dashboard... && cd apps/dashboard && pnpm dev"
+
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # ───────────────────────────────────────────────────────────────────
+  # 🛡️ ADMIN : Next.js superadmin (HMR)
+  # ───────────────────────────────────────────────────────────────────
+  admin:
+    image: node:22-alpine
+    container_name: qoefi-dev-admin
+    restart: unless-stopped
+
+    working_dir: /app
+    ports:
+      - "4030:3030"
+
+    env_file:
+      - .env.docker
+
+    environment:
+      NODE_ENV: development
+      PORT: 3030
+      HOSTNAME: 0.0.0.0
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
+      REDIS_URL: redis://redis:6379
+
+    volumes:
+      - ./apps/admin:/app/apps/admin
+      - ./packages:/app/packages
+      - ./package.json:/app/package.json
+      - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
+      - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
+      - ./.npmrc:/app/.npmrc
+      - /app/apps/admin/node_modules
+      - /app/apps/admin/.next
+      - /app/packages/*/node_modules
+
+    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile --filter @qoe/admin... && cd apps/admin && pnpm dev"
 
     depends_on:
       db:
