@@ -20,6 +20,8 @@
   },
   "dependencies": {
     "@qoe/utils": "workspace:*",
+    "@qoe/db": "workspace:*",
+    "@qoe/supabase": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.16.0",
@@ -32,7 +34,6 @@
   },
   "devDependencies": {
     "@qoe/tsconfig": "workspace:*",
-    "@qoe/db": "workspace:*",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "typescript": "^5"

@@ -1,6 +1,6 @@
 # 🐳 Guide Docker — qoe.fi monorepo (état post-refacto)
 
-> **8 services, 2 réseaux isolés, 1 source de vérité pour Prisma.**
+> **11 services, 2 réseaux isolés, 1 source de vérité pour Prisma.**
 > Ce guide reflète l'état après le refacto qui a dédupliqué `packages/db/prisma/`.
 
 ---
@@ -26,9 +26,12 @@
 | Service | Port externe | Réseau | Build stage | Description |
 |---------|--------------|--------|-------------|-------------|
 | **caddy** | 80, 443 | public | runtime | Reverse proxy + TLS auto (Let's Encrypt) |
-| **web** | 3001 | public | `web` | Next.js public (start.qoe.fi + tenants) |
-| **console** | 3000 | public | `console` | Next.js auth (qoe.fi, dashboard, admin) |
-| **api** | 3002 | public | `api` | Hono backend (`/health` + futur) |
+| **web** | 4001→3000 | public | `web` | Next.js public (blogs créateurs / tenants) |
+| **landing** | 4040→3040 | public | `landing` | Next.js marketing (`start.qoe.fi`) |
+| **feed** | 4000→3010 | public | `feed` | Next.js reader (`qoe.fi` + auth central) |
+| **dashboard** | 4020→3020 | public | `dashboard` | Next.js creator (`dashboard.qoe.fi`) |
+| **admin** | 4030→3030 | public | `admin` | Next.js superadmin (`admin.qoe.fi`) |
+| **api** | 4002→3001 | public | `api` | Hono backend (`api.qoe.fi`) |
 | **workers** | - | private | `workers` | BullMQ jobs (emails, AI, billing) |
 | **migrate** | - | private | runtime | One-shot Prisma migrate (s'exécute puis s'arrête) |
 | **db** | 5433→5432 | private | postgres:16-alpine | PostgreSQL 16 + pgvector |
@@ -38,16 +41,17 @@
 
 | Subdomain | Service interne |
 |-----------|-----------------|
-| `qoe.fi` | console |
-| `dashboard.qoe.fi` | console |
-| `admin.qoe.fi` | console |
-| `start.qoe.fi` | web |
+| `qoe.fi` | feed |
+| `www.qoe.fi` | feed |
+| `dashboard.qoe.fi` | dashboard |
+| `admin.qoe.fi` | admin |
+| `start.qoe.fi` | landing |
 | `*.qoe.fi` (wildcard) | web |
 | `api.qoe.fi` | api |
 
 ### Réseaux
 
-- **`qoefi-public`** : caddy, web, console, api, workers
+- **`qoefi-public`** : caddy, web, landing, feed, dashboard, admin, api, workers
 - **`qoefi-private`** : db, redis, migrate, workers (accès DB interne)
 
 ---
@@ -77,17 +81,18 @@ pnpm docker:dev
 docker compose -f docker-compose.dev.yml up
 ```
 
-### URLs accessibles en local
+### URLs accessibles en local (Docker Dev)
 
-| URL | Service |
-|-----|---------|
-| http://qoe.fi:4000 (via `/etc/hosts`) | Console (qoe.fi local) |
-| http://localhost:4000 | Console direct |
-| http://start.qoe.fi:4001 (via `/etc/hosts`) | Web (start.qoe.fi local) |
-| http://localhost:4001 | Web direct |
-| http://localhost:4002/health | API health check |
-| `psql -h localhost -p 5433 -U qoe -d qoe` | Postgres direct |
-| `redis-cli -h localhost -p 6379` | Redis direct |
+| URL | Service | Port local (Docker) | Port local (npm dev) |
+|-----|---------|---------------------|----------------------|
+| `http://qoe.fi:4000` | feed (flux lecteur + auth) | 4000 (interne: 3010) | 3010 |
+| `http://start.qoe.fi:4040` | landing (site vitrine) | 4040 (interne: 3040) | 3040 |
+| `http://dashboard.qoe.fi:4020` | dashboard (studio créateur) | 4020 (interne: 3020) | 3020 |
+| `http://admin.qoe.fi:4030` | admin (panel superadmin) | 4030 (interne: 3030) | 3030 |
+| `http://localhost:4001` (ou `*.qoe.fi`) | web (blogs créateurs) | 4001 (interne: 3000) | 3001 |
+| `http://localhost:4002/health` | api (Hono backend) | 4002 (interne: 3001) | 3002 |
+| `psql -h localhost -p 5433 -U qoe -d qoe` | db (Postgres direct) | 5433 (interne: 5432) | 5433 |
+| `redis-cli -h localhost -p 6379` | redis (Redis cache direct) | 6379 | 6379 |
 
 > Pour utiliser les vrais subdomains en local, ajoute dans `/etc/hosts` :
 > ```
@@ -126,20 +131,26 @@ pnpm docker:dev:logs     # Tous les logs
 
 ### Par service
 ```bash
-pnpm docker:dev:web       # Logs web
-pnpm docker:dev:console   # Logs console
-pnpm docker:dev:api       # Logs api
-pnpm docker:dev:shell     # Shell dans le container console
-pnpm docker:dev:db        # psql dans db
-pnpm docker:dev:redis     # redis-cli
-pnpm docker:dev:studio    # Prisma Studio (http://localhost:5555)
+pnpm docker:dev:web         # Logs web
+pnpm docker:dev:landing     # Logs landing
+pnpm docker:dev:feed        # Logs feed
+pnpm docker:dev:dashboard   # Logs dashboard
+pnpm docker:dev:admin       # Logs admin
+pnpm docker:dev:api         # Logs api
+pnpm docker:dev:shell       # Shell dans le container feed
+pnpm docker:dev:db          # psql dans db
+pnpm docker:dev:redis       # redis-cli
+pnpm docker:dev:studio      # Prisma Studio (http://localhost:5555)
 ```
 
 ### Build manuel
 ```bash
 # Build toutes les cibles du Dockerfile multi-target
 docker build --target web -t qoefi-web:latest .
-docker build --target console -t qoefi-console:latest .
+docker build --target landing -t qoefi-landing:latest .
+docker build --target feed -t qoefi-feed:latest .
+docker build --target dashboard -t qoefi-dashboard:latest .
+docker build --target admin -t qoefi-admin:latest .
 docker build --target api -t qoefi-api:latest .
 docker build --target workers -t qoefi-workers:latest .
 
@@ -157,7 +168,10 @@ pnpm docker:prod:build
 
 # OU par service
 pnpm docker:prod:web
-pnpm docker:prod:console
+pnpm docker:prod:landing
+pnpm docker:prod:feed
+pnpm docker:prod:dashboard
+pnpm docker:prod:admin
 pnpm docker:prod:api
 pnpm docker:prod:workers
 
@@ -170,7 +184,10 @@ pnpm docker:prod:up
 pnpm docker:prod:ps                          # État des containers
 pnpm docker:prod:logs                        # Tous les logs
 pnpm docker:prod:logs:web                    # Logs web uniquement
-pnpm docker:prod:logs:console                # Logs console
+pnpm docker:prod:logs:landing                # Logs landing
+pnpm docker:prod:logs:feed                   # Logs feed
+pnpm docker:prod:logs:dashboard              # Logs dashboard
+pnpm docker:prod:logs:admin                  # Logs admin
 pnpm docker:prod:logs:api                    # Logs api
 pnpm docker:prod:logs:caddy                  # Logs caddy (SSL)
 pnpm docker:prod:logs:workers                # Logs workers
@@ -320,7 +337,7 @@ pnpm docker:prod:rebuild   # Rebuild + restart
 lsof -i :3000           # Mac/Linux
 powershell -Command "Get-NetTCPConnection -LocalPort 3000"  # Windows
 
-# Tue-le OU change le port dans apps/console/package.json
+# Tue-le OU change le port dans les packages d'apps (ex: apps/feed/package.json)
 # "dev": "next dev -p 3010"
 ```
 

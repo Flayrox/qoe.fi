@@ -1,8 +1,7 @@
-# 🚀 Guide d'activation — qoe.fi monorepo (état post-refacto)
+# 🚀 Guide d'activation — qoe.fi monorepo (état post-découplage)
 
-> **Le projet est activé et build clean.** Ce guide explique comment démarrer
-> le développement après le refacto qui a dédupliqué le schema Prisma et
-> centralisé les composants UI partagés.
+> **La plateforme a été scindée avec succès en 5 applications Next.js indépendantes et 1 API Hono.**
+> Ce guide explique comment démarrer et gérer le développement après cette refactorisation majeure.
 
 ---
 
@@ -24,10 +23,10 @@ pnpm --version
 
 ---
 
-## 🎯 Démarrage en 4 commandes
+## 🎯 Démarrage en 4 étapes
 
 ```bash
-# 1. Installer toutes les dépendances du monorepo (14 workspaces)
+# 1. Installer toutes les dépendances du monorepo (17 workspaces résolus)
 pnpm install
 
 # 2. Générer le client Prisma (depuis packages/db/prisma/schema.prisma)
@@ -37,12 +36,15 @@ pnpm prisma:generate
 cp .env.docker.example .env
 # Édite .env avec tes clés Supabase, Stripe, etc.
 
-# 4. Lancer la stack dev complète
+# 4. Lancer la stack dev complète avec Docker
 pnpm docker:dev
-# → Postgres + pgvector + Redis + web + console + api avec HMR
-# → Console: http://localhost:3010
-# → Web:     http://localhost:3001
-# → API:     http://localhost:3002/health
+# → Postgres + pgvector + Redis + landing + feed + dashboard + admin + web + api avec HMR
+# → Feed (Lecteur & Auth):  http://localhost:4000  (interne: 3010)
+# → Web (Blogs créateurs):   http://localhost:4001  (interne: 3000)
+# → Dashboard (Studio):      http://localhost:4020  (interne: 3020)
+# → Admin (Platform):        http://localhost:4030  (interne: 3030)
+# → Landing (Vitrines/CMS):  http://localhost:4040  (interne: 3040)
+# → API:                     http://localhost:4002/health (interne: 3002)
 ```
 
 **C'est tout.** En 5 minutes tu as le stack complet qui tourne.
@@ -51,216 +53,158 @@ pnpm docker:dev
 
 ## 🛠️ Commandes quotidiennes
 
-### Développement
+### Développement Local Hybride (Recommandé)
+Le mode hybride lance les bases de données dans Docker et exécute les serveurs Next.js/Hono localement sur ton hôte pour des performances maximales et un Hot-Reload ultra-rapide.
+
 ```bash
-# Tout lancer en parallèle (Turbo orchestre)
+# Lancer uniquement la DB et Redis dans Docker
+docker compose -f docker-compose.dev.yml up -d db redis
+
+# Tout lancer sur l'hôte en parallèle (Turbo orchestre)
 pnpm dev
-# → @qoe/console sur :3010
-# → @qoe/web sur :3001
-# → @qoe/api sur :3002
+# → @qoe/feed (Flux & Connexion) sur :3010
+# → @qoe/web (Blogs des créateurs) sur :3001
+# → @qoe/dashboard (Studio d'écriture) sur :3020
+# → @qoe/admin (Pilotage superadmin) sur :3030
+# → @qoe/landing (Vitrine & Textes légaux) sur :3040
+# → @qoe/api (Hono backend) sur :3002
+```
 
-# Une seule app
-pnpm --filter @qoe/console dev
-pnpm --filter @qoe/web dev
-pnpm --filter @qoe/api dev
+### Commandes par application
+```bash
+pnpm --filter @qoe/landing dev      # Uniquement la landing page
+pnpm --filter @qoe/feed dev         # Uniquement le flux lecteur
+pnpm --filter @qoe/dashboard dev    # Uniquement l'espace créateur
+pnpm --filter @qoe/admin dev        # Uniquement l'espace administrateur
+pnpm --filter @qoe/web dev          # Uniquement le moteur multi-tenant des blogs
+pnpm --filter @qoe/api dev          # Uniquement l'API Hono
+```
 
-# Build tout
+### Qualité & Build global
+```bash
+# Build toutes les applications et packages
 pnpm build
-# → 3/3 successful (api, console, web) en ~42s la 1ère fois
-# → < 1s en cache hit (Turbo)
+# → 6/6 successful (api, landing, feed, dashboard, admin, web) en ~45s
+# → < 1s en cache hit (grâce au cache intelligent de Turborepo)
 
-# Typecheck + lint
+# Lancer la vérification des types TypeScript sur tout le projet
 pnpm typecheck
+
+# Lancer le linter ESLint sur tout le projet
 pnpm lint
 
-# Tests
-pnpm test           # Vitest
-pnpm test:ui        # Mode UI
+# Lancer les tests unitaires
+pnpm test
+pnpm test:ui # Lance l'interface interactive de Vitest
 ```
 
 ### Docker
 ```bash
-pnpm docker:dev          # Stack dev complet
-pnpm docker:dev:down     # Stop + remove
-pnpm docker:dev:reset    # ⚠️ Reset complet (supprime data)
-pnpm docker:dev:logs     # Logs en direct
-pnpm docker:dev:db       # psql dans le container
-pnpm docker:dev:redis    # redis-cli dans le container
-pnpm docker:dev:studio   # Lance prisma-studio
-```
-
-### Prisma
-```bash
-pnpm prisma:migrate      # Crée + applique une migration
-pnpm prisma:generate     # Regen le client (auto via prebuild/pretypecheck)
-pnpm prisma:studio       # GUI http://localhost:5555
-pnpm prisma:format       # Formate schema.prisma
-pnpm prisma:seed         # Seed la DB (idempotent)
-```
-
-### Production
-```bash
-pnpm docker:prod:build   # Build toutes les images
-pnpm docker:prod:up      # Lance en arrière-plan
-pnpm docker:prod:logs    # Logs en direct
-pnpm docker:prod:down    # Stop
-pnpm docker:backup       # Backup Postgres
-pnpm docker:deploy       # Deploy complet sur VPS
+pnpm docker:dev          # Lance l'ensemble de la stack en local
+pnpm docker:dev:down     # Arrête et supprime les conteneurs
+pnpm docker:dev:reset    # ⚠️ Réinitialisation complète (supprime les bases de données)
+pnpm docker:dev:logs     # Affiche les logs en direct de tous les services
+pnpm docker:dev:db       # Connexion interactive psql dans le conteneur DB
+pnpm docker:dev:redis    # Connexion interactive redis-cli dans le conteneur Redis
+pnpm docker:dev:studio   # Lance Prisma Studio via Docker
 ```
 
 ---
 
-## 🏗️ Architecture du monorepo
+## 🏗️ Architecture finale du monorepo
 
 ```
-qoe.fi/                              # 14 workspaces
-├── apps/                            # 3 apps déployables
-│   ├── console/                     # Next.js 16 — auth + dashboard + admin
-│   ├── web/                         # Next.js 16 — public + tenants
-│   └── api/                         # Hono backend
+qoe.fi/                              # 17 workspaces résolus
+├── apps/                            # 6 services / applications indépendantes
+│   ├── landing/                     # Next.js 16 — start.qoe.fi (vitrine, textes légaux, CMS)
+│   ├── feed/                        # Next.js 16 — qoe.fi (flux lecteurs & SSO centralisé)
+│   ├── dashboard/                   # Next.js 16 — dashboard.qoe.fi (studio créateur & TipTap)
+│   ├── admin/                       # Next.js 16 — admin.qoe.fi (superadmin & CMS config)
+│   ├── web/                         # Next.js 16 — *.qoe.fi & domaines customs (blogs créateurs)
+│   └── api/                         # Hono backend (endpoints légers)
 ├── packages/                        # 10 packages partagés
-│   ├── db/                          # 🐘 Prisma (SOURCE UNIQUE: prisma/)
-│   ├── auth/                        # 🔐 Roles, permissions, current-user
-│   ├── ui/                          # 🎨 Tokens + 3 composants partagés
-│   ├── supabase/                    # 🔌 3 clients SSR
-│   ├── i18n/                        # 🌐 Tolgee helpers
-│   ├── analytics/                   # 📊 Events tracking
-│   ├── billing/                     # 💳 Stripe (placeholder)
-│   ├── config/                      # ⚙️ Env Zod, constantes
-│   ├── utils/                       # 🔧 cn, format, slugify, validation
-│   └── tsconfig/                    # 📐 4 tsconfig partagés
-├── workers/                         # BullMQ (placeholder)
-├── docker/                          # Caddy, Postgres, Redis
-├── messages/                        # i18n locales
-├── scripts/                         # deploy, seed, backup, dedupe
-└── prisma.config.ts                 # Pointe vers packages/db/prisma/
+│   ├── db/                          # 🐘 Prisma Singleton (Source unique de vérité DB)
+│   ├── auth/                        # 🔐 Rôles, permissions et helpers session
+│   ├── ui/                          # 🎨 Design System & composants partagés
+│   ├── supabase/                    # 🔌 Clients d'authentification SSR
+│   ├── i18n/                        # 🌐 Helpers de traduction Tolgee
+│   ├── analytics/                   # 📊 Événements et tracking
+│   ├── billing/                     # 💳 Logique Stripe abonnements
+│   ├── config/                      # ⚙️ Validation des variables d'environnement (Zod)
+│   ├── utils/                       # 🔧 Fonctions utilitaires communes
+│   └── tsconfig/                    # 📐 Configurations TypeScript partagées
+├── workers/                         # BullMQ (queues de tâches asynchrones)
+├── docker/                          # Configuration Caddy (Reverse Proxy), Postgres et Redis
+└── prisma.config.ts                 # Redirige le CLI Prisma racine vers le package db
 ```
 
-### Subdomains prévus
-| Subdomain | App | Usage |
-|-----------|-----|-------|
-| `qoe.fi` | console | Home / feed / auth |
-| `dashboard.qoe.fi` | console | Creator dashboard |
-| `admin.qoe.fi` | console | Superadmin |
-| `start.qoe.fi` | web | Landing |
-| `*.qoe.fi` | web | Tenants |
-| `api.qoe.fi` | api | Backend |
+### Planification des sous-domaines (DNS Wildcard)
+| Sous-domaine | Application Next.js | Rôle |
+|--------------|----------------------|------|
+| `qoe.fi` | `apps/feed` | Portail d'accueil, flux de lecture et connexion unique (SSO) |
+| `dashboard.qoe.fi` | `apps/dashboard` | Studio d'écriture et de publication des créateurs |
+| `admin.qoe.fi` | `apps/admin` | Panel de modération de la plateforme et édition du CMS |
+| `start.qoe.fi` | `apps/landing` | Vitrine commerciale, mentions légales et CGU de la marque |
+| `*.qoe.fi` (wildcard) | `apps/web` | Moteur multi-tenant servant les blogs publics des créateurs |
+| `api.qoe.fi` | `apps/api` | Backend Hono (endpoints à haute performance) |
 
 ---
 
-## 📂 Source unique : `packages/db/prisma/`
+## 📂 Source unique de vérité : `packages/db/prisma/`
 
-**Point critique** : tout Prisma (schema, migrations, seed) vit dans le package `@qoe/db`.
+Toutes les interactions avec la base de données (schéma, migrations, scripts de seed) s'effectuent au sein du package `@qoe/db` pour éviter tout drift technique.
 
-```
-packages/db/
-├── prisma/
-│   ├── schema.prisma         # Source de vérité
-│   ├── seed.ts               # Données de test
-│   └── migrations/           # 2 migrations initiales
-├── src/
-│   ├── client.ts             # Singleton Prisma
-│   ├── types.ts              # Ré-exports des types User, Article, etc.
-│   ├── index.ts              # Public API
-│   └── repositories/         # articles.ts, users.ts, posts.ts
-├── package.json              # @qoe/db
-└── tsconfig.json
-```
-
-**Le dossier `prisma/` racine a été supprimé** au commit `eaddd0b`. Pour pointer :
 ```ts
-// ✅ Correct (depuis n'importe où)
+// ✅ À importer depuis n'importe quelle application du monorepo
 import { prisma } from "@qoe/db/client";
-import type { User } from "@qoe/db/types";
+import type { User, Post } from "@qoe/db/types";
 ```
+
+Le dossier `prisma/` racine a été totalement nettoyé.
 
 ---
 
 ## 🎨 Composants UI partagés : `packages/ui/`
 
-3 composants sont **déjà partagés** entre `console` et `web` :
-- `SocialIcon`
-- `TenantHeader`
-- `SubscribeForm`
+Le package `@qoe/ui` centralise le design system de qoe.fi. Les composants communs à haute valeur ajoutée y sont logés :
+- `SocialIcon` : Icônes sociales pour les créateurs.
+- `TenantHeader` : En-tête dynamique du blog des créateurs.
+- `SubscribeForm` : Formulaire d'abonnement universel connecté à Stripe.
 
 ```tsx
-// ✅ Depuis n'importe quelle app
-import { SocialIcon, TenantHeader, SubscribeForm } from "@qoe/ui";
+// ✅ Importable dans n'importe quelle application
+import { TenantHeader, SubscribeForm } from "@qoe/ui";
 ```
-
-**Le reste des shadcn/ui** (button, card, input, etc.) reste encore dans `apps/console/src/components/ui/`. Migration future (cf. roadmap dans README.md).
 
 ---
 
-## 🐛 Troubleshooting
+## 🔌 Authentification Unique (SSO Subdomains)
 
-### `pnpm install` échoue avec EPERM (Windows)
-C'est un bug connu de pnpm sur Windows (locks atomiques). **Réessaie** : ça passe au 2ème coup.
+Toutes les applications partagent la session grâce au package `@qoe/supabase`.
+Les cookies d'authentification sont configurés sur le domaine parent `.qoe.fi`, ce qui garantit qu'une authentification réussie sur `qoe.fi/login` ouvre automatiquement la session sur `dashboard.qoe.fi`, `admin.qoe.fi` et sur les blogs `*.qoe.fi`.
 
-### `Cannot find module '@prisma/client'`
-Tu as oublié `pnpm prisma:generate` après un `pnpm install`. Le client est généré dans `node_modules/.prisma/client/`.
+---
 
-### Port 3000 / 3010 occupé
-- Vérifie quel process l'utilise : `powershell -Command "Get-NetTCPConnection -LocalPort 3000"`
-- Tue-le OU change le port dans `apps/console/package.json` (`"dev": "next dev -p 3010"`)
+## 🐛 Guide de dépannage (Troubleshooting)
 
-### `prisma migrate deploy` échoue dans Docker
-Le container `migrate` one-shot dépend de `db` healthy. Vérifie :
+### Port occupé lors du démarrage
+Si un message vous indique qu'un port est occupé en local (ex: `3010`), vous pouvez identifier le processus en cours et l'arrêter :
+```powershell
+# Sur Windows (PowerShell)
+Get-NetTCPConnection -LocalPort 3010 | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force }
+```
+
+### Erreur TypeScript "Module @prisma/client has no exported member"
+Le client Prisma doit être régénéré suite à une installation ou une mise à jour de schéma :
 ```bash
-docker compose ps        # db doit être "healthy"
-docker compose logs db
+pnpm prisma:generate
 ```
 
-### Build error : `Module '"@prisma/client"' has no exported member 'X'`
-Regen le client : `pnpm prisma:generate`
-
-### EACCES sur port 3000 (Windows Defender)
-Désactive temporairement le pare-feu OU lance en WSL :
-```bash
-wsl
-cd /mnt/d/Files/DEV/Main/qoe.fi
-pnpm dev
-```
+### Erreurs de droits ou EACCES sur Windows
+Sous Windows, Next.js ou pnpm peuvent parfois rencontrer des blocages d'accès réseau local (Windows Defender). Si cela arrive, exécutez votre terminal en mode administrateur ou lancez le projet dans WSL2 (Ubuntu).
 
 ---
 
-## 🧹 Scripts utiles
+## 🎉 Le projet est prêt pour le développement !
 
-| Script | Description |
-|--------|-------------|
-| `scripts/cleanup-fantoms.ps1` | Supprime les re-exports fantômes (legacy) |
-| `scripts/dedupe-prisma.ps1` | Déduplique le schema Prisma |
-| `scripts/dedupe-ui.ps1` | Déduplique les composants UI partagés |
-| `scripts/fix-implicit-any.ps1` | Ajoute `: any` aux callbacks Prisma |
-| `scripts/deploy.sh` | Deploy complet sur VPS |
-| `scripts/seed-docker.sh` | Seed la DB (migrations + data) |
-| `scripts/backup-postgres.sh` | Backup Postgres (cron-ready) |
-| `scripts/wait-for-db.sh` | Attend que Postgres soit healthy |
-
----
-
-## 📖 Documentation
-
-| Fichier | Contenu |
-|---------|---------|
-| [README.md](./README.md) | Vitrine du projet |
-| [ACTIVATION.md](./ACTIVATION.md) | Ce fichier (démarrage) |
-| [DOCKER.md](./DOCKER.md) | Guide Docker complet |
-| [DEPLOYMENT.md](./DEPLOYMENT.md) | Déploiement production |
-| [HANDOFF.md](./HANDOFF.md) | Passation projet (historique complet) |
-| [MIGRATION.md](./MIGRATION.md) | Migration monolithe → monorepo (historique) |
-
----
-
-## 🎉 Le projet est activé !
-
-**État final** :
-- ✅ `pnpm install` : 14 workspaces
-- ✅ `pnpm prisma:generate` : OK
-- ✅ `pnpm build` : 3/3 successful (api, console, web)
-- ✅ `pnpm typecheck` : 0 erreur
-- ✅ 1 source de vérité par concept (schema, composants partagés)
-- ✅ Docker multi-services prêt (dev + prod)
-- ✅ Documentation complète
-
-Tu peux maintenant développer sereinement. Le projet est dans un état **propre, scalable, fonctionnel** 🏆
+L'architecture est propre, découpée de manière étanche, performante et documentée. Tu as désormais toutes les clés en main pour bâtir des fonctionnalités d'élite sur qoe.fi ! 🏆
