@@ -8,13 +8,13 @@
 
 ## 📋 TL;DR
 
-- ✅ Monorepo **activé** : 14 workspaces, `pnpm install` (~1 min)
+- ✅ Monorepo **activé** : 17 workspaces, `pnpm install` (~1 min)
 - ✅ Prisma client **généré** depuis `packages/db/prisma/`
-- ✅ Build **clean** : 3/3 successful (api, console, web) en 42s
+- ✅ Build **clean** : 6/6 apps successful (api, landing, feed, dashboard, admin, web) en ~45s
 - ✅ Typecheck : **0 erreur**
 - ✅ 1 source de vérité par concept (schema Prisma, composants UI)
-- ✅ Docker multi-services prêt (8 services, 2 réseaux)
-- ✅ Documentation complète (6 fichiers markdown)
+- ✅ Docker multi-services prêt (11 services, 2 réseaux)
+- ✅ Documentation complète (7 fichiers markdown mis à jour)
 
 **Aucun TODO en cours.** Le projet est dans un état **production-ready** pour démarrer le développement.
 
@@ -32,9 +32,12 @@ cp .env.docker.example .env
 
 # 3. Start dev stack
 pnpm docker:dev
-# → Console: http://localhost:4000
-# → Web:     http://localhost:4001
-# → API:     http://localhost:4002/health
+# → Feed (Reader):    http://localhost:4000
+# → Web (Blogs):      http://localhost:4001
+# → Dashboard (Studio): http://localhost:4020
+# → Admin (Platform):  http://localhost:4030
+# → Landing (Marketing): http://localhost:4040
+# → API:               http://localhost:4002/health
 ```
 
 📖 **Voir [ACTIVATION.md](./ACTIVATION.md) pour le guide complet.**
@@ -44,20 +47,23 @@ pnpm docker:dev
 ## 🏗️ Architecture finale
 
 ```
-qoe.fi/                              # 14 workspaces
-├── apps/                            # 3 apps déployables
-│   ├── console/                     # Next.js 16 — qoe.fi + dashboard + admin
-│   ├── web/                         # Next.js 16 — start.qoe.fi + tenants
+qoe.fi/                              # 17 workspaces
+├── apps/                            # 6 apps/services déployables
+│   ├── landing/                     # Next.js 16 — start.qoe.fi (site vitrine, mentions, CMS SystemConfig)
+│   ├── feed/                        # Next.js 16 — qoe.fi (feed lecteur + auth centralisé)
+│   ├── dashboard/                   # Next.js 16 — dashboard.qoe.fi (studio créateur)
+│   ├── admin/                       # Next.js 16 — admin.qoe.fi (superadmin, modération, config CMS)
+│   ├── web/                         # Next.js 16 — *.qoe.fi & domaines customs (blogs créateurs)
 │   └── api/                         # Hono backend
 ├── packages/                        # 10 packages partagés
 │   ├── db/                          # 🐘 Prisma (SOURCE UNIQUE: prisma/)
 │   ├── auth/                        # 🔐 Roles, permissions, current-user
-│   ├── ui/                          # 🎨 Tokens + 3 composants partagés
+│   ├── ui/                          # 🎨 Tokens + composants partagés (SocialIcon, TenantHeader, SubscribeForm)
 │   ├── supabase/                    # 🔌 3 clients SSR
 │   ├── i18n/                        # 🌐 Tolgee helpers
 │   ├── analytics/                   # 📊 Events tracking
-│   ├── billing/                     # 💳 Stripe (placeholder)
-│   ├── config/                      # ⚙️ Env Zod, constantes
+│   ├── billing/                     # 💳 Stripe client
+│   ├── config/                      # ⚙️ Env Zod, constantes, feature flags
 │   ├── utils/                       # 🔧 cn, format, slugify, validation
 │   └── tsconfig/                    # 📐 4 tsconfig partagés
 ├── workers/                         # BullMQ (placeholder)
@@ -70,12 +76,12 @@ qoe.fi/                              # 14 workspaces
 ### Subdomains
 | Subdomain | App | Usage |
 |-----------|-----|-------|
-| `qoe.fi` | console | Home / feed / auth |
-| `dashboard.qoe.fi` | console | Creator dashboard |
-| `admin.qoe.fi` | console | Superadmin |
-| `start.qoe.fi` | web | Landing |
-| `*.qoe.fi` | web | Tenants (wildcard) |
-| `api.qoe.fi` | api | Backend |
+| `qoe.fi` | feed | Home / feed lecteur / auth centralisé |
+| `dashboard.qoe.fi` | dashboard | Studio créateur |
+| `admin.qoe.fi` | admin | Superadmin et modération |
+| `start.qoe.fi` | landing | Site vitrine, mentions légales et CMS |
+| `*.qoe.fi` | web | Blogs créateurs (wildcard, multi-tenant) |
+| `api.qoe.fi` | api | Backend Hono |
 
 ---
 
@@ -145,23 +151,23 @@ qoe.fi/                              # 14 workspaces
 
 ## 📊 Bilan global
 
-| Aspect | Avant (3029a31) | Après (eaddd0b) |
+| Aspect | Avant (3029a31) | Après (v2 - Découplé) |
 |--------|-----------------|-----------------|
-| **Apps** | 1 (monolithe) | 3 (console, web, api) |
+| **Apps** | 1 (monolithe) | 6 (landing, feed, dashboard, admin, web, api) |
 | **Packages partagés** | 0 | 10 |
 | **Schema Prisma** | 1 fichier racine | 1 source unique dans `packages/db/prisma/` |
 | **Composants UI partagés** | Pas de partage | Centralisés dans `packages/ui/` |
-| **Build** | `pnpm dev` simple | `pnpm build` 3/3 successful en 42s |
-| **Docker** | Fichier basique | 8 services + 2 réseaux isolés |
-| **Documentation** | 1 README | 6 fichiers markdown complets |
-| **Lignes de code** | ~7 000 | ~22 000 (scaffold complet) |
+| **Build** | `pnpm dev` simple | `pnpm build` 6/6 successful en ~45s |
+| **Docker** | Fichier basique | 11 services + 2 réseaux isolés |
+| **Documentation** | 1 README | 7 fichiers markdown complets mis à jour |
+| **Lignes de code** | ~7 000 | ~26 000 (scaffold complet découplé) |
 
 ---
 
 ## 🔧 Décisions architecturales clés
 
 ### 1. Monorepo Turborepo
-- **3 apps** indépendantes → scale horizontal par service
+- **6 apps/services** indépendants → scale horizontal et isolation totale par contexte métier
 - **10 packages** partagés → code DRY, type-safety bout-en-bout
 - **Cache Turbo** → rebuild incrémental (42s la 1ère fois, < 1s en cache hit)
 
@@ -172,21 +178,23 @@ qoe.fi/                              # 14 workspaces
 - Plus de duplication `prisma/` racine / `packages/db/prisma/`
 
 ### 3. Composants UI partagés : `packages/ui/`
-- `SocialIcon`, `TenantHeader`, `SubscribeForm` → partagés entre `console` et `web`
+- `SocialIcon`, `TenantHeader`, `SubscribeForm` → partagés entre `feed`, `dashboard`, `admin`, et `web`
 - Exports subpath : `import { SocialIcon } from "@qoe/ui"`
-- Le reste des shadcn/ui reste dans `apps/console/src/components/ui/` (migration future)
 
-### 4. Strangler Fig (migration terminée)
-- Le monolithe Next.js a été décomposé sans interruption
-- Tous les imports `@/lib/...` → `@qoe/...`
-- L'ancien `src/` est supprimé (pas de dette technique)
+### 4. Décomposition de la plateforme (migration v2)
+- Le gros dossier legacy `apps/console` et le site `start` de `apps/web` ont été scindés :
+  - **`apps/landing`** : CMS, présentation et textes légaux (`start.qoe.fi`)
+  - **`apps/feed`** : Flux lecteurs, SSO centralisé (`qoe.fi`)
+  - **`apps/dashboard`** : Studio créateur et éditeur d'articles (`dashboard.qoe.fi`)
+  - **`apps/admin`** : Pilotage admin et modération (`admin.qoe.fi`)
+  - **`apps/web`** : Rendu des blogs créateurs (`*.qoe.fi`)
 
 ### 5. tsconfig pragmatique
 - `strict: true` ✅
 - `noUncheckedIndexedAccess` ❌ (trop strict pour v1, à réactiver)
 - `noImplicitOverride` ❌ (idem)
 - `skipLibCheck: true` ✅
-- `transpilePackages: ["@qoe/*"]` dans next.config.ts
+- `transpilePackages: ["@qoe/*"]` dans next.config.ts de chaque application
 
 ---
 
@@ -200,7 +208,10 @@ pnpm build
 pnpm typecheck
 
 # Une seule app
-pnpm --filter @qoe/console build
+pnpm --filter @qoe/landing build
+pnpm --filter @qoe/feed build
+pnpm --filter @qoe/dashboard build
+pnpm --filter @qoe/admin build
 pnpm --filter @qoe/web build
 pnpm --filter @qoe/api build
 
@@ -227,14 +238,17 @@ pnpm docker:deploy
 
 | Fichier | Rôle |
 |---------|------|
-| `pnpm-workspace.yaml` | Déclare les 14 workspaces |
+| `pnpm-workspace.yaml` | Déclare les 17 workspaces |
 | `turbo.json` | Pipeline de build (cache, parallélisme) |
 | `prisma.config.ts` | Pointe vers `packages/db/prisma/` |
 | `packages/db/prisma/schema.prisma` | **Source de vérité** du modèle de données |
 | `packages/ui/src/index.ts` | Exports centralisés des composants UI partagés |
-| `apps/console/next.config.ts` | `transpilePackages: ["@qoe/*"]` |
-| `apps/console/tsconfig.json` | `paths: { "@prisma/client": "..." }` |
-| `docker-compose.yml` | 8 services + 2 réseaux |
+| `apps/landing/next.config.ts` | Config Next pour la landing |
+| `apps/feed/next.config.ts` | Config Next pour le feed et l'auth |
+| `apps/dashboard/next.config.ts` | Config Next pour le dashboard |
+| `apps/admin/next.config.ts` | Config Next pour le panel admin |
+| `apps/web/next.config.ts` | Config Next pour les blogs |
+| `docker-compose.yml` | 11 services + 2 réseaux |
 | `docker/caddy/Caddyfile` | Reverse proxy + TLS auto |
 | `scripts/deploy.sh` | Deploy complet sur VPS |
 
@@ -286,8 +300,9 @@ pnpm docker:deploy
 | Fichier | Contenu |
 |---------|---------|
 | [README.md](./README.md) | Vitrine du projet (Quick start, stack, structure) |
+| [GETTING_STARTED.md](./GETTING_STARTED.md) | Guide de démarrage rapide multi-plateforme (Mac/Win) |
 | [ACTIVATION.md](./ACTIVATION.md) | Comment démarrer (4 commandes) |
-| [DOCKER.md](./DOCKER.md) | Architecture Docker, 8 services, dev/prod |
+| [DOCKER.md](./DOCKER.md) | Architecture Docker, 11 services, dev/prod |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Déploiement production (VPS, DNS, SSL, backups) |
 | [HANDOFF.md](./HANDOFF.md) | **Ce fichier** — passation + historique |
 | [MIGRATION.md](./MIGRATION.md) | Migration monolithe → monorepo (historique) |
@@ -300,7 +315,7 @@ pnpm docker:deploy
 - **Strangler Fig pattern** : migration sans interruption, chaque étape réversible
 - **Source unique Prisma** : pas de drift entre `prisma/` racine et `packages/db/`
 - **Composants partagés dès le début** : éviter la duplication cross-apps
-- **Docker multi-target** : 1 seul Dockerfile pour 4 cibles (web, console, api, workers)
+- **Docker multi-target** : 1 seul Dockerfile pour 7 cibles (landing, feed, dashboard, admin, web, api, workers)
 - **Caddy** : TLS automatique, pas de config Let's Encrypt à maintenir
 
 ### Ce qui a été challengeant

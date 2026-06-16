@@ -40,7 +40,13 @@ services:
     depends_on:
       web:
         condition: service_started
-      console:
+      feed:
+        condition: service_started
+      dashboard:
+        condition: service_started
+      admin:
+        condition: service_started
+      landing:
         condition: service_started
       api:
         condition: service_started
@@ -118,15 +124,68 @@ services:
         max-file: "3"
 
   # ───────────────────────────────────────────────────────────────────
-  # ⚛️ CONSOLE : Next.js auth (home + dashboard + admin)
+  # 📣 LANDING : Next.js marketing (start.qoe.fi)
   # ───────────────────────────────────────────────────────────────────
-  console:
+  landing:
     build:
       context: .
       dockerfile: Dockerfile
-      target: console
-    image: qoefi-console:latest
-    container_name: qoefi-console
+      target: landing
+    image: qoefi-landing:latest
+    container_name: qoefi-landing
+    restart: unless-stopped
+
+    expose:
+      - "3000"
+
+    env_file:
+      - .env.docker
+
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXT_PUBLIC_APP_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_CONSOLE_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+
+    networks:
+      - qoefi-public
+      - qoefi-private
+
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ───────────────────────────────────────────────────────────────────
+  # 📰 FEED : Next.js public reader (qoe.fi / www.qoe.fi)
+  # ───────────────────────────────────────────────────────────────────
+  feed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: feed
+    image: qoefi-feed:latest
+    container_name: qoefi-feed
     restart: unless-stopped
 
     expose:
@@ -160,10 +219,118 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1024M
-          cpus: "1.5"
+          memory: 768M
+          cpus: "1.0"
         reservations:
-          memory: 256M
+          memory: 128M
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ───────────────────────────────────────────────────────────────────
+  # 🎨 DASHBOARD : Next.js creator (dashboard.qoe.fi)
+  # ───────────────────────────────────────────────────────────────────
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dashboard
+    image: qoefi-dashboard:latest
+    container_name: qoefi-dashboard
+    restart: unless-stopped
+
+    expose:
+      - "3000"
+
+    env_file:
+      - .env.docker
+
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXT_PUBLIC_APP_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_CONSOLE_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+
+    networks:
+      - qoefi-public
+      - qoefi-private
+
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: "1.0"
+        reservations:
+          memory: 128M
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ───────────────────────────────────────────────────────────────────
+  # 🛡️ ADMIN : Next.js platform admin (admin.qoe.fi)
+  # ───────────────────────────────────────────────────────────────────
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: admin
+    image: qoefi-admin:latest
+    container_name: qoefi-admin
+    restart: unless-stopped
+
+    expose:
+      - "3000"
+
+    env_file:
+      - .env.docker
+
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXT_PUBLIC_APP_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_CONSOLE_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+
+    networks:
+      - qoefi-public
+      - qoefi-private
+
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
 
     logging:
       driver: json-file
