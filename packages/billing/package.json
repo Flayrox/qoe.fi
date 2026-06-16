@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@qoe/config": "workspace:*",
+    "@qoe/db": "workspace:*",
     "stripe": "^17.5.0"
   },
   "devDependencies": {

@@ -85,3 +85,9 @@ qoefie.psd
 **/*.test.ts.snap
 **/*.test.tsx.snap
 .vitest-cache
+
+# Local backup / archives (non-project)
+OLD/
+POINT git.rar
+scripts/zip.ps1
+scripts/zip.sh

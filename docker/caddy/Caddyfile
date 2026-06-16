@@ -18,11 +18,11 @@
 # =====================================================================
 
 # ─────────────────────────────────────────────────────────────────────
-# 🌍 DOMAINE PRINCIPAL : qoe.fi (home + auth)
+# 🌍 DOMAINE PRINCIPAL : qoe.fi (home + auth + feed)
 # ─────────────────────────────────────────────────────────────────────
 # Sert : / (home/feed), /login, /library, /highlights, /billing,
-#        /settings, /onboarding, /@username (profil public)
-qoe.fi, www.qoe.fi, *.qoe.fi {
+#        /settings, /onboarding
+qoe.fi, www.qoe.fi {
     encode zstd gzip
 
     # Headers de sécurité
@@ -35,13 +35,8 @@ qoe.fi, www.qoe.fi, *.qoe.fi {
         Permissions-Policy "camera=(), microphone=(), geolocation=()"
     }
 
-    # Rate limiting (max 100 req/s par IP)
-    # ⚠️ Nécessite le plugin Caddy rate-limit (compilé en standard)
-    # Si pas disponible, commente cette ligne
-    # rate_limit {remote.ip} 100r/s
-
-    # 🔀 Reverse proxy vers console (qui gère home + auth)
-    reverse_proxy console:3000 {
+    # 🔀 Reverse proxy vers feed (qui gère home + auth)
+    reverse_proxy feed:3000 {
         header_up Host {host}
         header_up X-Real-IP {remote_host}
         header_up X-Forwarded-For {remote_host}
@@ -62,6 +57,36 @@ qoe.fi, www.qoe.fi, *.qoe.fi {
 }
 
 # ─────────────────────────────────────────────────────────────────────
+# 📚 BLOGS CRÉATEURS : *.qoe.fi (Tenants)
+# ─────────────────────────────────────────────────────────────────────
+# Tous les sous-domaines créateurs (ex: jean.qoe.fi) vont vers web
+*.qoe.fi {
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    reverse_proxy web:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        transport http {
+            dial_timeout 30s
+        }
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────
 # 🟠 DASHBOARD CRÉATEUR : dashboard.qoe.fi
 # ─────────────────────────────────────────────────────────────────────
 dashboard.qoe.fi {
@@ -73,7 +98,7 @@ dashboard.qoe.fi {
         X-Content-Type-Options "nosniff"
     }
 
-    reverse_proxy console:3000 {
+    reverse_proxy dashboard:3000 {
         transport http {
             dial_timeout 30s
         }
@@ -98,7 +123,7 @@ admin.qoe.fi {
         X-XSS-Protection "1; mode=block"
     }
 
-    reverse_proxy console:3000 {
+    reverse_proxy admin:3000 {
         transport http {
             dial_timeout 30s
         }
@@ -122,14 +147,14 @@ start.qoe.fi {
         X-Content-Type-Options "nosniff"
     }
 
-    reverse_proxy web:3000 {
+    reverse_proxy landing:3000 {
         transport http {
             dial_timeout 30s
         }
     }
 
     # Cache agressif sur le site marketing (statique)
-    reverse_proxy web:3000 {
+    reverse_proxy landing:3000 {
         header_up Host {host}
     }
 

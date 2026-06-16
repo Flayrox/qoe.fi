@@ -1,7 +1,7 @@
 # 🚀 Guide de déploiement production — qoe.fi
 
 > **État post-refacto** : `pnpm` (pas `npm`), source unique Prisma dans `packages/db/prisma/`,
-> 8 services Docker avec 2 réseaux isolés.
+> 11 services Docker avec 2 réseaux isolés.
 
 ---
 
@@ -245,9 +245,12 @@ pnpm docker:prod:logs
 
 # Logs d'un service spécifique
 pnpm docker:prod:logs:caddy       # Caddy (SSL)
-pnpm docker:prod:logs:web         # Web app
-pnpm docker:prod:logs:console     # Console app
-pnpm docker:prod:logs:api         # API
+pnpm docker:prod:logs:web         # Web (blogs créateurs)
+pnpm docker:prod:logs:landing     # Landing (vitrine)
+pnpm docker:prod:logs:feed        # Feed (flux lecteur + auth)
+pnpm docker:prod:logs:dashboard   # Dashboard (studio créateur)
+pnpm docker:prod:logs:admin       # Admin (cockpit superadmin)
+pnpm docker:prod:logs:api         # API Hono
 pnpm docker:prod:logs:workers     # Workers BullMQ
 ```
 
@@ -259,7 +262,7 @@ pnpm docker:prod:stats    # CPU/RAM par container (via docker stats)
 
 ### Shell dans un container
 ```bash
-pnpm docker:prod:shell    # Shell dans console
+pnpm docker:prod:shell    # Shell dans feed
 pnpm docker:prod:db       # psql dans db
 ```
 
@@ -286,16 +289,15 @@ pnpm docker:prod:rebuild   # Rebuild + restart
 
 ### Restart d'un service
 ```bash
-# Redémarrer uniquement web
-pnpm docker:prod:web
+# Redémarrer un service Next.js spécifique
+pnpm docker:prod:web         # Blogs créateurs
+pnpm docker:prod:landing     # Site vitrine
+pnpm docker:prod:feed        # Feed & auth
+pnpm docker:prod:dashboard   # Espace créateur
+pnpm docker:prod:admin       # Panel superadmin
 
-# Redémarrer uniquement console
-pnpm docker:prod:console
-
-# Redémarrer uniquement api
+# Redémarrer l'API ou les workers
 pnpm docker:prod:api
-
-# Redémarrer uniquement workers
 pnpm docker:prod:workers
 ```
 
@@ -325,7 +327,7 @@ docker compose up -d --no-deps web:<tag-précédent>
 ```bash
 # ⚠️ DESTRUCTIF : écrase la DB actuelle
 # 1. Arrêter les services qui écrivent dans la DB
-docker compose stop web console api workers
+docker compose stop web landing feed dashboard admin api workers
 
 # 2. Restaurer le backup
 LATEST_BACKUP=$(ls -t /backups/qoe_*.sql.gz | head -1)
@@ -367,7 +369,7 @@ pnpm docker:prod:logs:caddy
 pnpm docker:prod:ps
 
 # Voir les logs
-pnpm docker:prod:logs:console
+pnpm docker:prod:logs:feed
 # Souvent : variable d'env manquante ou DB pas healthy
 ```
 

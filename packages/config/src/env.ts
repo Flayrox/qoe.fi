@@ -68,6 +68,19 @@ const envSchema = z.object({
  * Appelle cette fonction UNE FOIS au démarrage.
  */
 export function parseEnv() {
+  const cleanEnvValue = (val: any): any => {
+    if (typeof val === "string") {
+      val = val.trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1).trim();
+      }
+      if (val === "") {
+        return undefined;
+      }
+    }
+    return val;
+  };
+
   if (typeof globalThis !== "undefined" && "window" in globalThis) {
     // Client-side environment variables validation (browser)
     // accessed via literal paths so Next.js static analyser can inline them.
@@ -87,18 +100,18 @@ export function parseEnv() {
     });
 
     const clientValues = {
-      NODE_ENV: process.env.NODE_ENV,
-      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
-      NEXT_PUBLIC_TOLGEE_API_KEY: process.env.NEXT_PUBLIC_TOLGEE_API_KEY,
-      NEXT_PUBLIC_TOLGEE_API_URL: process.env.NEXT_PUBLIC_TOLGEE_API_URL,
-      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-      NEXT_PUBLIC_CONSOLE_URL: process.env.NEXT_PUBLIC_CONSOLE_URL,
-      NEXT_PUBLIC_LANDING_URL: process.env.NEXT_PUBLIC_LANDING_URL,
-      NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-      NEXT_PUBLIC_UMAMI_WEBSITE_ID: process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID,
-      NEXT_PUBLIC_UMAMI_SCRIPT_URL: process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL,
+      NODE_ENV: cleanEnvValue(process.env.NODE_ENV),
+      NEXT_PUBLIC_SUPABASE_URL: cleanEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL),
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: cleanEnvValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: cleanEnvValue(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY),
+      NEXT_PUBLIC_TOLGEE_API_KEY: cleanEnvValue(process.env.NEXT_PUBLIC_TOLGEE_API_KEY),
+      NEXT_PUBLIC_TOLGEE_API_URL: cleanEnvValue(process.env.NEXT_PUBLIC_TOLGEE_API_URL),
+      NEXT_PUBLIC_APP_URL: cleanEnvValue(process.env.NEXT_PUBLIC_APP_URL),
+      NEXT_PUBLIC_CONSOLE_URL: cleanEnvValue(process.env.NEXT_PUBLIC_CONSOLE_URL),
+      NEXT_PUBLIC_LANDING_URL: cleanEnvValue(process.env.NEXT_PUBLIC_LANDING_URL),
+      NEXT_PUBLIC_API_URL: cleanEnvValue(process.env.NEXT_PUBLIC_API_URL),
+      NEXT_PUBLIC_UMAMI_WEBSITE_ID: cleanEnvValue(process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID),
+      NEXT_PUBLIC_UMAMI_SCRIPT_URL: cleanEnvValue(process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL),
     };
 
     const parsed = clientSchema.safeParse(clientValues);
@@ -110,8 +123,33 @@ export function parseEnv() {
     return parsed.data as any;
   }
 
+  // Pre-process all server-side environment variables
+  const rawEnv = { ...process.env };
+  const cleanServerEnv: Record<string, any> = {};
+  for (const key of Object.keys(rawEnv)) {
+    cleanServerEnv[key] = cleanEnvValue(rawEnv[key]);
+  }
+
   // Server-side validation
-  const parsed = envSchema.safeParse(process.env);
+  if (
+    cleanServerEnv.SKIP_ENV_VALIDATION === "true" ||
+    cleanServerEnv.SKIP_ENV_VALIDATION === "1" ||
+    cleanServerEnv.NEXT_PHASE === "phase-production-build"
+  ) {
+    const parsedMock = envSchema.safeParse({
+      ...cleanServerEnv,
+      DATABASE_URL: cleanServerEnv.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/postgres",
+      DIRECT_URL: cleanServerEnv.DIRECT_URL || "postgresql://postgres:postgres@localhost:5432/postgres",
+      NEXT_PUBLIC_SUPABASE_URL: cleanServerEnv.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: cleanServerEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder_anon_key",
+    });
+    if (parsedMock.success) {
+      return parsedMock.data;
+    }
+    return cleanServerEnv as any;
+  }
+
+  const parsed = envSchema.safeParse(cleanServerEnv);
 
   if (!parsed.success) {
     console.error("❌ Invalid environment variables:");

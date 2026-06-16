@@ -14,3 +14,6 @@ export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 export { SocialIcon } from "./SocialIcon";
 export { TenantHeader } from "./TenantHeader";
 export { SubscribeForm } from "./SubscribeForm";
+export { Logo } from "./Logo";
+export { DevtoolsPanel } from "./devtools/DevtoolsPanel";
+

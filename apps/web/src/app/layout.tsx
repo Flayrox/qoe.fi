@@ -8,8 +8,9 @@ import { ThemeProvider } from "next-themes";
 import { TolgeeNextProvider } from "@qoe/i18n/provider";
 import { getTolgee, getLanguage } from "@qoe/i18n/server";
 import { cn } from "@qoe/utils";
+import { DevtoolsPanel } from "@qoe/ui";
 
-import "../../../console/src/app/globals.css";
+import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const inter = Inter({ variable: "--font-body", subsets: ["latin"] });
@@ -45,6 +46,7 @@ export default async function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <TolgeeNextProvider language={locale} staticData={staticData}>
             {children}
+            {process.env.NODE_ENV === "development" && <DevtoolsPanel />}
           </TolgeeNextProvider>
         </ThemeProvider>
       </body>

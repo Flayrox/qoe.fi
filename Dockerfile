@@ -40,7 +40,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # ⚠️ ASTUCE : on crée des package.json vides pour chaque app/package
 # qu'on n'a pas encore copié, pour que pnpm install ne plante pas.
 # Ces package.json seront remplacés au COPY suivant.
-RUN for dir in apps/web apps/console apps/api workers packages/*/; do \
+RUN for dir in apps/web apps/landing apps/feed apps/dashboard apps/admin apps/api workers packages/*/; do \
   mkdir -p "$dir" && \
   if [ ! -f "$dir/package.json" ]; then \
     echo "{\"name\":\"$(basename $dir)\",\"private\":true}" > "$dir/package.json"; \
@@ -106,9 +106,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 CMD ["node", "apps/web/server.js"]
 
 # ─────────────────────────────────────────────────────────────────────
-# ⚛️ TARGET : CONSOLE (Next.js auth — qoe.fi, dashboard, admin)
+# 📣 TARGET : LANDING (Next.js — start.qoe.fi)
 # ─────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS console
+FROM node:20-alpine AS landing
 RUN apk add --no-cache libc6-compat openssl wget
 WORKDIR /app
 ENV NODE_ENV=production
@@ -118,9 +118,9 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-COPY --from=builder --chown=nextjs:nodejs /app/apps/console/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/console/.next/static ./apps/console/.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/apps/console/public ./apps/console/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/landing/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/landing/.next/static ./apps/landing/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/landing/public ./apps/landing/public
 
 USER nextjs
 EXPOSE 3000
@@ -128,7 +128,82 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
-CMD ["node", "apps/console/server.js"]
+CMD ["node", "apps/landing/server.js"]
+
+# ─────────────────────────────────────────────────────────────────────
+# 📰 TARGET : FEED (Next.js — qoe.fi)
+# ─────────────────────────────────────────────────────────────────────
+FROM node:20-alpine AS feed
+RUN apk add --no-cache libc6-compat openssl wget
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+COPY --from=builder --chown=nextjs:nodejs /app/apps/feed/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/feed/.next/static ./apps/feed/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/feed/public ./apps/feed/public
+
+USER nextjs
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/login || exit 1
+
+CMD ["node", "apps/feed/server.js"]
+
+# ─────────────────────────────────────────────────────────────────────
+# 🎨 TARGET : DASHBOARD (Next.js — dashboard.qoe.fi)
+# ─────────────────────────────────────────────────────────────────────
+FROM node:20-alpine AS dashboard
+RUN apk add --no-cache libc6-compat openssl wget
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+COPY --from=builder --chown=nextjs:nodejs /app/apps/dashboard/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/dashboard/.next/static ./apps/dashboard/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/dashboard/public ./apps/dashboard/public
+
+USER nextjs
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
+CMD ["node", "apps/dashboard/server.js"]
+
+# ─────────────────────────────────────────────────────────────────────
+# 🛡️ TARGET : ADMIN (Next.js — admin.qoe.fi)
+# ─────────────────────────────────────────────────────────────────────
+FROM node:20-alpine AS admin
+RUN apk add --no-cache libc6-compat openssl wget
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/.next/static ./apps/admin/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/public ./apps/admin/public
+
+USER nextjs
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
+CMD ["node", "apps/admin/server.js"]
 
 # ─────────────────────────────────────────────────────────────────────
 # 🔌 TARGET : API (Hono backend — api.qoe.fi)

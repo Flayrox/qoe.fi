@@ -8,6 +8,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
+  allowedDevOrigins: ["localhost", "192.168.1.86", "*.qoe.fi", "127.0.0.1"],
   transpilePackages: [
     "@qoe/auth",
     "@qoe/billing",
