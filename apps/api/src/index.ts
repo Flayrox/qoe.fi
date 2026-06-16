@@ -17,6 +17,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
+import { verifyWebhook, handleWebhookEvent } from "@qoe/billing";
+
 const app = new Hono();
 
 // ─── Middleware globaux ──────────────────────────────────────
@@ -46,8 +48,24 @@ app.get("/health", (c) =>
   })
 );
 
-// ─── Webhooks (placeholder) ─────────────────────────────────
-app.post("/webhooks/stripe", (c) => c.text("ok", 200));
+// ─── Webhooks ───────────────────────────────────────────────
+app.post("/webhooks/stripe", async (c) => {
+  const signature = c.req.header("stripe-signature");
+  if (!signature) {
+    return c.text("Missing signature", 400);
+  }
+
+  try {
+    const rawBody = await c.req.text();
+    const event = await verifyWebhook(rawBody, signature);
+    await handleWebhookEvent(event);
+    return c.text("Webhook processed successfully", 200);
+  } catch (err: any) {
+    console.error(`❌ Webhook Error: ${err.message}`);
+    return c.text(`Webhook Error: ${err.message}`, 400);
+  }
+});
+
 app.post("/webhooks/supabase", (c) => c.text("ok", 200));
 
 // ─── Routes principales (à implémenter) ──────────────────────
