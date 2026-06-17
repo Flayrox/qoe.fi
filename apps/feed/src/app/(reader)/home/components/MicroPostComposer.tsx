@@ -37,12 +37,14 @@ interface MicroPostComposerProps {
   dbUser: any
   tagsList: string[]
   onPostCreated?: (post: any) => void
+  onLoginRequired?: () => void
 }
 
 export function MicroPostComposer({
   dbUser,
   tagsList,
   onPostCreated,
+  onLoginRequired,
 }: MicroPostComposerProps) {
   const [isComposerExpanded, setIsComposerExpanded] = useState<boolean>(false)
   const [postText, setPostText] = useState<string>("")
@@ -80,12 +82,13 @@ export function MicroPostComposer({
 
   // Load draft from localStorage on mount
   useEffect(() => {
+    if (!dbUser) return
     const saved = localStorage.getItem("qoe_micro_post_draft")
     if (saved) {
       setPostText(saved)
       setIsComposerExpanded(true)
     }
-  }, [])
+  }, [dbUser])
 
   // Auto-grow height logic
   useEffect(() => {
@@ -96,6 +99,12 @@ export function MicroPostComposer({
   }, [postText, isComposerExpanded])
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (!dbUser) {
+      if (onLoginRequired) {
+        onLoginRequired()
+      }
+      return
+    }
     const val = e.target.value
     setPostText(val)
     localStorage.setItem("qoe_micro_post_draft", val)
@@ -502,7 +511,16 @@ export function MicroPostComposer({
           placeholder="Quelle est votre pensée du jour ?"
           value={postText}
           onChange={handleTextChange}
-          onFocus={() => setIsComposerExpanded(true)}
+          onFocus={() => {
+            if (!dbUser) {
+              textareaRef.current?.blur()
+              if (onLoginRequired) {
+                onLoginRequired()
+              }
+              return
+            }
+            setIsComposerExpanded(true)
+          }}
           onKeyDown={(e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
               e.preventDefault()

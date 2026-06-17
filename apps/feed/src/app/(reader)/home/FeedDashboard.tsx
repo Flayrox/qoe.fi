@@ -14,6 +14,7 @@ import { MicroPostComposer } from "./components/MicroPostComposer"
 import { FeedTabsHeader } from "./components/FeedTabsHeader"
 import { ExpandedPostView } from "./components/ExpandedPostView"
 import { HomeWidgets } from "./components/HomeWidgets"
+import { LoginModal } from "./components/LoginModal"
 import { useTranslate } from "@tolgee/react"
 import { trackEvent } from "@/lib/analytics"
 
@@ -95,6 +96,7 @@ export function FeedDashboard({
   const { t } = useTranslate()
   const [activeFeed, setActiveFeed] = useState<string>("recommandation")
   const [activePostId, setActivePostId] = useState<string | null>(null)
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   
   const [bookmarks, setBookmarks] = useState<Article[]>(initialBookmarks)
   const [followedCreators, setFollowedCreators] = useState<any[]>(initialFollowedCreators)
@@ -115,6 +117,10 @@ export function FeedDashboard({
   }
 
   const handleFollowToggle = async (creator: any) => {
+    if (!dbUser) {
+      setIsLoginModalOpen(true)
+      return
+    }
     const isCurrentlyFollowed = isCreatorFollowed(creator.id)
     trackEvent("follow_creator_toggled", { creatorId: creator.id, followed: !isCurrentlyFollowed })
     
@@ -146,6 +152,10 @@ export function FeedDashboard({
   }
 
   const handleBookmarkToggle = async (article: Article) => {
+    if (!dbUser) {
+      setIsLoginModalOpen(true)
+      return
+    }
     const isCurrentlyBookmarked = isArticleBookmarked(article.id)
     
     // Optimistic local state update
@@ -294,6 +304,7 @@ export function FeedDashboard({
                         }
                       }))
                     }}
+                    onLoginRequired={() => setIsLoginModalOpen(true)}
                   />
                 </motion.div>
               ) : (
@@ -310,6 +321,7 @@ export function FeedDashboard({
                       dbUser={dbUser}
                       tagsList={tagsList}
                       onPostCreated={(post) => setLocalPosts(prev => [post, ...prev])}
+                      onLoginRequired={() => setIsLoginModalOpen(true)}
                     />
                   )}
 
@@ -381,6 +393,7 @@ export function FeedDashboard({
             </AnimatePresence>
           </div>
         </div>
+        <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
     </ReaderPageLayout>
   )
 }
