@@ -1,7 +1,7 @@
+﻿// =====================================================================
+// ðŸ–¥ï¸ Edit Article Page â€” apps/dashboard/src/app/(creator)/dashboard/articles/[id]/page.tsx
 // =====================================================================
-// 🖥️ Edit Article Page — apps/dashboard/src/app/(creator)/dashboard/articles/[id]/page.tsx
-// =====================================================================
-// 📖 Page d'édition d'un article existant avec l'éditeur riche.
+// ðŸ“– Page d'Ã©dition d'un article existant avec l'Ã©diteur riche.
 // =====================================================================
 
 import { getArticleByIdAction, getCategoriesAction } from "../actions"

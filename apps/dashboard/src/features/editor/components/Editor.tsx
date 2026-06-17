@@ -85,7 +85,6 @@ export function Editor({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   
   const [showSettings, setShowSettings] = useState(false)
-  const [editorTick, setEditorTick] = useState(0)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -118,7 +117,6 @@ export function Editor({
     },
     onUpdate: () => {
       setHasUnsavedChanges(true)
-      setEditorTick(prev => prev + 1)
     }
   })
 
@@ -235,28 +233,6 @@ export function Editor({
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [title, slug, published, isPremium, categoryId, seoTitle, seoDescription, editor])
-
-  // Debounced auto-save (saves 1.5s after user stops typing)
-  useEffect(() => {
-    if (!hasUnsavedChanges || isSaving || !title.trim()) return
-
-    const timer = setTimeout(() => {
-      handleManualSave()
-    }, 1500)
-
-    return () => clearTimeout(timer)
-  }, [
-    title,
-    slug,
-    published,
-    isPremium,
-    categoryId,
-    seoTitle,
-    seoDescription,
-    editorTick,
-    hasUnsavedChanges,
-    isSaving
-  ])
 
   if (!editor) {
     return null

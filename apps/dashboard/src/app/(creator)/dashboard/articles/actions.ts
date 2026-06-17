@@ -1,8 +1,8 @@
+﻿// =====================================================================
+// âš¡ Server Actions â€” apps/dashboard/src/app/(creator)/dashboard/articles/actions.ts
 // =====================================================================
-// ⚡ Server Actions — apps/dashboard/src/app/(creator)/dashboard/articles/actions.ts
-// =====================================================================
-// 📖 Actions serveur pour gérer les articles et catégories (CRUD).
-//    Sécurisé avec @qoe/auth et connecté à Prisma.
+// ðŸ“– Actions serveur pour gÃ©rer les articles et catÃ©gories (CRUD).
+//    SÃ©curisÃ© avec @qoe/auth et connectÃ© Ã  Prisma.
 // =====================================================================
 
 "use server"
@@ -13,22 +13,22 @@ import { getCurrentUser } from "@qoe/auth/current-user"
 import { slugify, shortId } from "@qoe/utils"
 
 /**
- * 🔒 Récupère l'utilisateur connecté ou lève une erreur si non authentifié.
+ * ðŸ”’ RÃ©cupÃ¨re l'utilisateur connectÃ© ou lÃ¨ve une erreur si non authentifiÃ©.
  */
 async function authenticateUser() {
   const user = await getCurrentUser()
   if (!user) {
-    throw new Error("Vous devez être connecté pour effectuer cette action.")
+    throw new Error("Vous devez Ãªtre connectÃ© pour effectuer cette action.")
   }
   return user
 }
 
 // =====================================================================
-// 📚 ARTICLES ACTIONS
+// ðŸ“š ARTICLES ACTIONS
 // =====================================================================
 
 /**
- * 📖 Récupère la liste complète des articles du créateur connecté.
+ * ðŸ“– RÃ©cupÃ¨re la liste complÃ¨te des articles du crÃ©ateur connectÃ©.
  */
 export async function getArticlesAction() {
   const user = await authenticateUser()
@@ -47,7 +47,7 @@ export async function getArticlesAction() {
 }
 
 /**
- * 📖 Récupère un unique article par son ID, s'il appartient au créateur.
+ * ðŸ“– RÃ©cupÃ¨re un unique article par son ID, s'il appartient au crÃ©ateur.
  */
 export async function getArticleByIdAction(id: string) {
   const user = await authenticateUser()
@@ -60,14 +60,14 @@ export async function getArticleByIdAction(id: string) {
   })
 
   if (article && article.authorId !== user.id) {
-    throw new Error("Vous n'êtes pas autorisé à accéder à cet article.")
+    throw new Error("Vous n'Ãªtes pas autorisÃ© Ã  accÃ©der Ã  cet article.")
   }
 
   return article
 }
 
 /**
- * 📝 Sauvegarde (crée ou met à jour) un article.
+ * ðŸ“ Sauvegarde (crÃ©e ou met Ã  jour) un article.
  */
 export async function saveArticleAction(data: {
   id?: string
@@ -99,13 +99,13 @@ export async function saveArticleAction(data: {
     throw new Error("Le titre de l'article est requis.")
   }
 
-  // 2. Génération / Validation du slug
+  // 2. GÃ©nÃ©ration / Validation du slug
   let finalSlug = slugify(slug || title)
   if (!finalSlug) {
     finalSlug = `article-${shortId()}`
   }
 
-  // 3. Vérification de l'unicité globale du slug
+  // 3. VÃ©rification de l'unicitÃ© globale du slug
   let isSlugTaken = await prisma.article.findFirst({
     where: {
       slug: finalSlug,
@@ -113,18 +113,18 @@ export async function saveArticleAction(data: {
     },
   })
 
-  // Si le slug est déjà pris, on lui ajoute un suffixe unique
+  // Si le slug est dÃ©jÃ  pris, on lui ajoute un suffixe unique
   if (isSlugTaken) {
     finalSlug = `${finalSlug}-${shortId(4)}`
   }
 
-  // Calcul du temps de lecture estimé (environ 200 mots par minute)
+  // Calcul du temps de lecture estimÃ© (environ 200 mots par minute)
   const wordCount = content.replace(/<[^>]*>/g, "").split(/\s+/).filter(Boolean).length
   const readingTime = Math.max(1, Math.ceil(wordCount / 200))
 
   if (id) {
-    // Mise à jour de l'article existant
-    // Vérification de propriété
+    // Mise Ã  jour de l'article existant
+    // VÃ©rification de propriÃ©tÃ©
     const existing = await prisma.article.findUnique({
       where: { id },
     })
@@ -134,7 +134,7 @@ export async function saveArticleAction(data: {
     }
 
     if (existing.authorId !== user.id) {
-      throw new Error("Vous n'êtes pas autorisé à modifier cet article.")
+      throw new Error("Vous n'Ãªtes pas autorisÃ© Ã  modifier cet article.")
     }
 
     const updated = await prisma.article.update({
@@ -156,7 +156,7 @@ export async function saveArticleAction(data: {
     revalidatePath(`/dashboard/articles/${id}`)
     return updated
   } else {
-    // Création d'un nouvel article
+    // CrÃ©ation d'un nouvel article
     const created = await prisma.article.create({
       data: {
         title,
@@ -178,7 +178,7 @@ export async function saveArticleAction(data: {
 }
 
 /**
- * ❌ Supprime un article par son ID.
+ * âŒ Supprime un article par son ID.
  */
 export async function deleteArticleAction(id: string) {
   const user = await authenticateUser()
@@ -192,7 +192,7 @@ export async function deleteArticleAction(id: string) {
   }
 
   if (existing.authorId !== user.id) {
-    throw new Error("Vous n'êtes pas autorisé à supprimer cet article.")
+    throw new Error("Vous n'Ãªtes pas autorisÃ© Ã  supprimer cet article.")
   }
 
   await prisma.article.delete({
@@ -204,12 +204,12 @@ export async function deleteArticleAction(id: string) {
 }
 
 // =====================================================================
-// 📁 CATEGORIES ACTIONS
+// ðŸ“ CATEGORIES ACTIONS
 // =====================================================================
 
 /**
- * 📖 Récupère toutes les catégories créées par le créateur.
- * Inclut le décompte d'articles associés.
+ * ðŸ“– RÃ©cupÃ¨re toutes les catÃ©gories crÃ©Ã©es par le crÃ©ateur.
+ * Inclut le dÃ©compte d'articles associÃ©s.
  */
 export async function getCategoriesAction() {
   const user = await authenticateUser()
@@ -232,7 +232,7 @@ export async function getCategoriesAction() {
 }
 
 /**
- * 📝 Crée ou met à jour une catégorie.
+ * ðŸ“ CrÃ©e ou met Ã  jour une catÃ©gorie.
  */
 export async function saveCategoryAction(data: {
   id?: string
@@ -244,7 +244,7 @@ export async function saveCategoryAction(data: {
   const { id, name, slug, description = null } = data
 
   if (!name.trim()) {
-    throw new Error("Le nom de la catégorie est requis.")
+    throw new Error("Le nom de la catÃ©gorie est requis.")
   }
 
   let finalSlug = slugify(slug || name)
@@ -252,7 +252,7 @@ export async function saveCategoryAction(data: {
     finalSlug = `cat-${shortId()}`
   }
 
-  // Vérification d'unicité du slug POUR CE CRÉATEUR
+  // VÃ©rification d'unicitÃ© du slug POUR CE CRÃ‰ATEUR
   const existingWithSlug = await prisma.category.findFirst({
     where: {
       userId: user.id,
@@ -262,7 +262,7 @@ export async function saveCategoryAction(data: {
   })
 
   if (existingWithSlug) {
-    throw new Error(`Le slug "${finalSlug}" est déjà utilisé par une autre de vos catégories.`)
+    throw new Error(`Le slug "${finalSlug}" est dÃ©jÃ  utilisÃ© par une autre de vos catÃ©gories.`)
   }
 
   if (id) {
@@ -271,11 +271,11 @@ export async function saveCategoryAction(data: {
     })
 
     if (!existing) {
-      throw new Error("Catégorie introuvable.")
+      throw new Error("CatÃ©gorie introuvable.")
     }
 
     if (existing.userId !== user.id) {
-      throw new Error("Vous n'êtes pas autorisé à modifier cette catégorie.")
+      throw new Error("Vous n'Ãªtes pas autorisÃ© Ã  modifier cette catÃ©gorie.")
     }
 
     const updated = await prisma.category.update({
@@ -305,8 +305,8 @@ export async function saveCategoryAction(data: {
 }
 
 /**
- * ❌ Supprime une catégorie.
- * Met à null la catégorie de tous les articles qui y étaient associés.
+ * âŒ Supprime une catÃ©gorie.
+ * Met Ã  null la catÃ©gorie de tous les articles qui y Ã©taient associÃ©s.
  */
 export async function deleteCategoryAction(id: string) {
   const user = await authenticateUser()
@@ -316,11 +316,11 @@ export async function deleteCategoryAction(id: string) {
   })
 
   if (!existing) {
-    throw new Error("Catégorie introuvable.")
+    throw new Error("CatÃ©gorie introuvable.")
   }
 
   if (existing.userId !== user.id) {
-    throw new Error("Vous n'êtes pas autorisé à supprimer cette catégorie.")
+    throw new Error("Vous n'Ãªtes pas autorisÃ© Ã  supprimer cette catÃ©gorie.")
   }
 
   // Suppression
