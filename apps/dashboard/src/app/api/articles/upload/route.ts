@@ -1,8 +1,8 @@
+﻿// =====================================================================
+// ðŸ“¤ API Upload â€” apps/dashboard/src/app/api/articles/upload/route.ts
 // =====================================================================
-// 📤 API Upload — apps/dashboard/src/app/api/articles/upload/route.ts
-// =====================================================================
-// 📖 Upload d'images vers Supabase Storage (bucket "articles-media").
-//    Utilisé par l'éditeur TipTap pour insérer des images dans les articles.
+// ðŸ“– Upload d'images vers Supabase Storage (bucket "articles-media").
+//    UtilisÃ© par l'Ã©diteur TipTap pour insÃ©rer des images dans les articles.
 // =====================================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -14,7 +14,7 @@ const MAX_SIZE_BYTES = LIMITS.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   try {
-    // 🔐 Vérifie l'auth du créateur
+    // ðŸ” VÃ©rifie l'auth du crÃ©ateur
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // 📥 Parse le multipart form data
+    // ðŸ“¥ Parse le multipart form data
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
@@ -30,12 +30,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // ✅ Validation du type
+    // âœ… Validation du type
     if (!file.type.startsWith("image/")) {
       return NextResponse.json({ error: "File must be an image" }, { status: 400 });
     }
 
-    // ✅ Validation de la taille
+    // âœ… Validation de la taille
     if (file.size > MAX_SIZE_BYTES) {
       return NextResponse.json(
         { error: `File size exceeds ${LIMITS.MAX_UPLOAD_SIZE_MB}MB limit` },
@@ -43,13 +43,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 📝 Génère un nom de fichier unique pour ce créateur
+    // ðŸ“ GÃ©nÃ¨re un nom de fichier unique pour ce crÃ©ateur
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 8);
     const fileExtension = file.name.split(".").pop() || "png";
     const filePath = `${user.id}/${timestamp}-${randomString}.${fileExtension}`;
 
-    // 📤 Upload vers le bucket Supabase Storage "articles-media"
+    // ðŸ“¤ Upload vers le bucket Supabase Storage "articles-media"
     const { data, error } = await supabase.storage
       .from("articles-media")
       .upload(filePath, file, {
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to upload image" }, { status: 500 });
     }
 
-    // 🔗 Récupère l'URL publique de l'image
+    // ðŸ”— RÃ©cupÃ¨re l'URL publique de l'image
     const { data: publicUrlData } = supabase.storage
       .from("articles-media")
       .getPublicUrl(filePath);

@@ -12,7 +12,6 @@ interface NewArticleClientProps {
 export function NewArticleClient({ categories }: NewArticleClientProps) {
   const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
-  const [articleId, setArticleId] = useState<string | null>(null)
 
   const handleSave = async (data: {
     title: string
@@ -26,16 +25,10 @@ export function NewArticleClient({ categories }: NewArticleClientProps) {
   }) => {
     try {
       setIsSaving(true)
-      const result = await saveArticleAction({
-        id: articleId || undefined,
-        ...data,
-      })
+      const created = await saveArticleAction(data)
       
-      if (!articleId) {
-        setArticleId(result.id)
-        // Silently update the URL in the browser without unmounting the editor
-        window.history.replaceState(null, "", `/dashboard/articles/${result.id}`)
-      }
+      // Redirect to the edit page for this new article once created
+      router.push(`/dashboard/articles/${created.id}`)
       router.refresh()
     } catch (err: any) {
       throw new Error(err?.message || "Échec de l'enregistrement.")
