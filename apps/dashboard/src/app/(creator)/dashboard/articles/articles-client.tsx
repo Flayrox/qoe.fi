@@ -66,7 +66,6 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all")
   const [premiumFilter, setPremiumFilter] = useState<"all" | "free" | "premium">("all")
-  const [hoveredArticleId, setHoveredArticleId] = useState<string | null>(null)
 
   // Category Form State
   const [newCatName, setNewCatName] = useState("")
@@ -173,21 +172,21 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
   })
 
   return (
-    <div className="space-y-16 max-w-3xl mx-auto pb-24 text-zinc-900 dark:text-zinc-50 font-sans">
+    <div className="space-y-16 max-w-3xl mx-auto pb-24 text-zinc-900 font-sans">
       {/* Header - Apple-esque minimalist, huge spacing, crisp dark title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
             Écrits & Pensées
           </h1>
-          <p className="text-zinc-400 dark:text-zinc-500 text-xs tracking-normal font-sans">
+          <p className="text-zinc-400 text-xs tracking-normal font-sans">
             Un espace souverain pour cultiver le silence et l'écriture profonde.
           </p>
         </div>
 
         <a
           href="/dashboard/articles/new"
-          className="inline-flex items-center gap-1.5 h-8 px-4 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 font-sans font-semibold text-xs rounded-lg transition-all cursor-pointer shadow-sm"
+          className="inline-flex items-center gap-1.5 h-8 px-4 bg-zinc-900 text-white hover:bg-zinc-800 font-sans font-semibold text-xs rounded-lg transition-all cursor-pointer shadow-sm"
         >
           <Plus className="h-3.5 w-3.5" />
           Rédiger
@@ -195,19 +194,19 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
       </div>
 
       {/* Tabs Menu - pure text based, spacious, no heavy borders */}
-      <div className="border-b border-zinc-100 dark:border-zinc-900 flex items-center gap-8 text-xs font-semibold uppercase tracking-wider">
+      <div className="border-b border-zinc-100 flex items-center gap-8 text-xs font-semibold uppercase tracking-wider">
         <button
           onClick={() => setActiveTab("articles")}
           className={cn(
             "relative pb-4 cursor-pointer transition-colors",
-            activeTab === "articles" ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-300"
+            activeTab === "articles" ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-600"
           )}
         >
           Articles ({articles.length})
           {activeTab === "articles" && (
             <motion.div
               layoutId="tabUnderline"
-              className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-900 dark:bg-zinc-100 rounded-full"
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-900 rounded-full"
             />
           )}
         </button>
@@ -216,14 +215,14 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
           onClick={() => setActiveTab("categories")}
           className={cn(
             "relative pb-4 cursor-pointer transition-colors",
-            activeTab === "categories" ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-300"
+            activeTab === "categories" ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-600"
           )}
         >
           Thèmes ({categories.length})
           {activeTab === "categories" && (
             <motion.div
               layoutId="tabUnderline"
-              className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-900 dark:bg-zinc-100 rounded-full"
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-900 rounded-full"
             />
           )}
         </button>
@@ -240,27 +239,27 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
             className="space-y-12"
           >
             {/* Minimal Search & Filters - borderless, light, spacious */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 py-2 border-b border-zinc-100 dark:border-zinc-900">
+            <div className="flex flex-col sm:flex-row items-center gap-4 py-2 border-b border-zinc-100">
               {/* Search */}
               <div className="relative flex-1 w-full">
-                <Search className="absolute left-1 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 dark:text-zinc-600" />
+                <Search className="absolute left-1 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Rechercher par mot-clé..."
-                  className="w-full bg-transparent border-0 py-1.5 pl-7 pr-4 text-xs text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-300 dark:placeholder:text-zinc-700 focus:outline-none focus:ring-0 font-sans"
+                  className="w-full bg-transparent border-0 py-1.5 pl-7 pr-4 text-xs text-zinc-800 placeholder:text-zinc-300 focus:outline-none focus:ring-0 font-sans"
                 />
               </div>
 
               <div className="flex items-center gap-4 w-full sm:w-auto">
                 {/* Status */}
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider">État</span>
+                  <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">État</span>
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value as any)}
-                    className="bg-transparent border-0 p-0 text-xs text-zinc-600 dark:text-zinc-400 focus:outline-none focus:ring-0 font-sans font-semibold cursor-pointer"
+                    className="bg-transparent border-0 p-0 text-xs text-zinc-600 focus:outline-none focus:ring-0 font-sans font-semibold cursor-pointer"
                   >
                     <option value="all">Tous</option>
                     <option value="published">Publiés</option>
@@ -270,11 +269,11 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
 
                 {/* Premium */}
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider">Accès</span>
+                  <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">Accès</span>
                   <select
                     value={premiumFilter}
                     onChange={(e) => setPremiumFilter(e.target.value as any)}
-                    className="bg-transparent border-0 p-0 text-xs text-zinc-600 dark:text-zinc-400 focus:outline-none focus:ring-0 font-sans font-semibold cursor-pointer"
+                    className="bg-transparent border-0 p-0 text-xs text-zinc-600 focus:outline-none focus:ring-0 font-sans font-semibold cursor-pointer"
                   >
                     <option value="all">Tous</option>
                     <option value="free">Gratuits</option>
@@ -300,22 +299,11 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                 {filteredArticles.map((art) => (
                   <div
                     key={art.id}
-                    onMouseEnter={() => setHoveredArticleId(art.id)}
-                    onMouseLeave={() => setHoveredArticleId(null)}
-                    className="relative group border-b border-zinc-100/60 dark:border-zinc-900/40 py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all -mx-4 px-4 rounded-xl"
+                    className="group border-b border-zinc-100/60 py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:bg-zinc-50/50 -mx-4 px-4 rounded-xl"
                   >
-                    {/* Sliding Hover Highlight Background */}
-                    {hoveredArticleId === art.id && (
-                      <motion.div
-                        layoutId="hoverHighlight"
-                        className="absolute inset-0 bg-zinc-100/45 dark:bg-zinc-900/35 rounded-xl -z-10"
-                        transition={{ type: "spring", stiffness: 350, damping: 32 }}
-                      />
-                    )}
-
                     {/* Left: Text & minimal status */}
-                    <div className="space-y-1.5 flex-1 min-w-0 z-10">
-                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-zinc-400 dark:text-zinc-500 font-sans">
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-zinc-400 font-sans">
                         {/* Clean minimal date */}
                         <span className="flex items-center gap-1 font-mono text-[10px]">
                           {new Date(art.createdAt).toLocaleDateString("fr-FR", {
@@ -325,47 +313,47 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                           })}
                         </span>
 
-                        <span className="text-zinc-200 dark:text-zinc-800">•</span>
+                        <span className="text-zinc-200">•</span>
 
                         {/* Quiet Status Dot */}
                         <span className="flex items-center gap-1">
-                          <span className={cn("h-1.5 w-1.5 rounded-full", art.published ? "bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-700")} />
+                          <span className={cn("h-1.5 w-1.5 rounded-full", art.published ? "bg-emerald-500" : "bg-zinc-300")} />
                           {art.published ? "Publié" : "Brouillon"}
                         </span>
 
                         {/* Quiet Premium Label */}
                         {art.isPremium && (
                           <>
-                            <span className="text-zinc-200 dark:text-zinc-800">•</span>
-                            <span className="font-semibold text-zinc-600 dark:text-zinc-400">Premium</span>
+                            <span className="text-zinc-200">•</span>
+                            <span className="font-semibold text-zinc-600">Premium</span>
                           </>
                         )}
 
                         {/* Category Label */}
                         {art.category && (
                           <>
-                            <span className="text-zinc-200 dark:text-zinc-800">•</span>
-                            <span className="text-zinc-500 dark:text-zinc-400">{art.category.name}</span>
+                            <span className="text-zinc-200">•</span>
+                            <span className="text-zinc-500">{art.category.name}</span>
                           </>
                         )}
                       </div>
 
                       {/* Title - large, sans-serif or crisp, spacious layout */}
-                      <h3 className="text-base font-medium text-zinc-900 dark:text-zinc-50 group-hover:text-primary transition-colors font-sans tracking-tight">
+                      <h3 className="text-base font-medium text-zinc-900 group-hover:text-primary transition-colors font-sans tracking-tight">
                         {art.title}
                       </h3>
                       
                       {/* URL Slug preview */}
-                      <p className="text-xs text-zinc-400 dark:text-zinc-600 font-mono">
+                      <p className="text-xs text-zinc-400 font-mono">
                         /{art.slug}
                       </p>
                     </div>
 
                     {/* Right: minimal quiet controls (only visible on hover or mobile) */}
-                    <div className="flex items-center gap-1.5 self-end sm:self-center opacity-70 group-hover:opacity-100 transition-opacity z-10">
+                    <div className="flex items-center gap-1.5 self-end sm:self-center opacity-70 group-hover:opacity-100 transition-opacity">
                       <a
                         href={`/dashboard/articles/${art.id}`}
-                        className="inline-flex items-center justify-center h-8 px-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-50 hover:bg-zinc-50 dark:hover:bg-zinc-800 font-sans text-xs font-semibold transition-colors"
+                        className="inline-flex items-center justify-center h-8 px-3 rounded-lg border border-zinc-200 bg-white text-zinc-500 hover:text-zinc-950 hover:bg-zinc-50 font-sans text-xs font-semibold transition-colors"
                         title="Éditer"
                       >
                         <Edit3 className="h-3.5 w-3.5" />
@@ -374,7 +362,7 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
 
                       <button
                         onClick={() => handleDeleteArticle(art.id, art.title)}
-                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors cursor-pointer"
+                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-transparent hover:border-zinc-200 text-zinc-400 hover:text-red-500 hover:bg-zinc-50 transition-colors cursor-pointer"
                         title="Supprimer"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
