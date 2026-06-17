@@ -1,12 +1,38 @@
-// Placeholder temporaire — Phase 8.5 Phase 2
-export default function ArticleEditPage({ params }: { params: Promise<{ id: string }> }) {
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold">Édition d'article</h1>
-      <p className="text-muted-foreground mt-2">
-        Cette page sera restaurée dans une prochaine itération.
-        Voir MIGRATION.md pour le contexte.
-      </p>
-    </div>
-  );
+// =====================================================================
+// 🖥️ Edit Article Page — apps/dashboard/src/app/(creator)/dashboard/articles/[id]/page.tsx
+// =====================================================================
+// 📖 Page d'édition d'un article existant avec l'éditeur riche.
+// =====================================================================
+
+import { getArticleByIdAction, getCategoriesAction } from "../actions"
+import { EditArticleClient } from "./edit-article-client"
+import { notFound } from "next/navigation"
+
+interface PageProps {
+  params: Promise<{ id: string }>
+}
+
+export default async function ArticleEditPage({ params }: PageProps) {
+  const { id } = await params
+
+  try {
+    const [article, categories] = await Promise.all([
+      getArticleByIdAction(id),
+      getCategoriesAction(),
+    ])
+
+    if (!article) {
+      notFound()
+    }
+
+    return (
+      <EditArticleClient
+        article={article}
+        categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+      />
+    )
+  } catch (error) {
+    console.error("Error loading article:", error)
+    notFound()
+  }
 }
