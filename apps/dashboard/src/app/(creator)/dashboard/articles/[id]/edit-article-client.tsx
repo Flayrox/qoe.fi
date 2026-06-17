@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import React, { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -44,7 +44,7 @@ export function EditArticleClient({ article, categories }: EditArticleClientProp
       })
       router.refresh()
     } catch (err: any) {
-      throw new Error(err?.message || "Échec de l'enregistrement.")
+      throw new Error(err?.message || "Ã‰chec de l'enregistrement.")
     } finally {
       setIsSaving(false)
     }
