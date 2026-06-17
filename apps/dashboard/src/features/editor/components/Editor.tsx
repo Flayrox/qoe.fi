@@ -1,12 +1,11 @@
 "use client"
 
-import React, { useState, useCallback, useRef, useEffect } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Underline from "@tiptap/extension-underline"
 import Image from "@tiptap/extension-image"
 import { PaywallDivider } from "../extensions/PaywallDivider"
-import { useDebounce } from "use-debounce"
 import {
   Bold,
   Italic,
@@ -19,17 +18,18 @@ import {
   ListOrdered,
   Quote,
   Code,
-  Undo2,
-  Redo2,
-  Save,
-  Globe,
-  Lock,
   ArrowLeft,
   ImageIcon,
   Loader2,
   Check,
-  Send,
-  Unlock
+  Globe,
+  Lock,
+  Unlock,
+  Settings,
+  FolderOpen,
+  Search,
+  Eye,
+  CornerDownRight
 } from "lucide-react"
 import { cn } from "@qoe/utils"
 
@@ -39,6 +39,10 @@ export interface EditorProps {
   initialContent?: string
   initialPublished?: boolean
   initialIsPremium?: boolean
+  initialCategoryId?: string | null
+  initialSeoTitle?: string | null
+  initialSeoDescription?: string | null
+  categories?: { id: string; name: string }[]
   isSaving?: boolean
   onSave: (data: {
     title: string
@@ -46,6 +50,9 @@ export interface EditorProps {
     slug: string
     published: boolean
     isPremium: boolean
+    categoryId: string | null
+    seoTitle: string | null
+    seoDescription: string | null
   }) => Promise<void>
   onBack?: () => void
 }
@@ -56,6 +63,10 @@ export function Editor({
   initialContent = "",
   initialPublished = false,
   initialIsPremium = false,
+  initialCategoryId = null,
+  initialSeoTitle = "",
+  initialSeoDescription = "",
+  categories = [],
   isSaving = false,
   onSave,
   onBack,
@@ -64,17 +75,19 @@ export function Editor({
   const [slug, setSlug] = useState(initialSlug)
   const [published, setPublished] = useState(initialPublished)
   const [isPremium, setIsPremium] = useState(initialIsPremium)
-  const [error, setError] = useState<string | null>(null)
+  const [categoryId, setCategoryId] = useState<string | null>(initialCategoryId)
+  const [seoTitle, setSeoTitle] = useState(initialSeoTitle || "")
+  const [seoDescription, setSeoDescription] = useState(initialSeoDescription || "")
   
+  const [error, setError] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
-  const [isAutoSaving, setIsAutoSaving] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  
+  const [showSettings, setShowSettings] = useState(false)
+  const [editorTick, setEditorTick] = useState(0)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const isFirstRender = useRef(true)
-
-  const [debouncedTitle] = useDebounce(title, 2000)
-  const [debouncedSlug] = useDebounce(slug, 2000)
 
   const editor = useEditor({
     extensions: [ /* @ts-ignore */
@@ -83,7 +96,7 @@ export function Editor({
       PaywallDivider,
       Image.configure({
         HTMLAttributes: {
-          class: 'rounded-xl shadow-md border border-zinc-800 my-8 max-w-full h-auto',
+          class: 'rounded-2xl border border-zinc-150 my-10 max-w-full h-auto shadow-sm',
         },
       })
     ],
@@ -91,7 +104,7 @@ export function Editor({
     editorProps: {
       attributes: {
         class:
-          "prose prose-invert max-w-none focus:outline-none min-h-[400px] text-lg font-serif leading-relaxed placeholder:text-zinc-600",
+          "prose prose-zinc max-w-none focus:outline-none min-h-[500px] text-zinc-800 text-[17px] font-classical leading-relaxed placeholder:text-zinc-300",
       },
       handleDrop: (view, event, slice, moved) => {
         if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) {
@@ -103,69 +116,37 @@ export function Editor({
         return false;
       },
     },
+    onUpdate: () => {
+      setHasUnsavedChanges(true)
+      setEditorTick(prev => prev + 1)
+    }
   })
 
+  // Watch for state changes to mark as unsaved
+  useEffect(() => {
+    if (title !== initialTitle || slug !== initialSlug || categoryId !== initialCategoryId || seoTitle !== (initialSeoTitle || "") || seoDescription !== (initialSeoDescription || "")) {
+      setHasUnsavedChanges(true)
+    }
+  }, [title, slug, categoryId, seoTitle, seoDescription])
+
+  // Generate slug automatically
   useEffect(() => {
     if (!initialSlug && title && !slug) {
       const generated = title
         .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)+/g, "")
       setSlug(generated)
     }
   }, [title, initialSlug, slug])
 
-  const editorContent = editor?.getHTML() || "";
-  const [debouncedContent] = useDebounce(editorContent, 2000);
-
-  const performAutoSave = useCallback(async () => {
-    if (!editor || isAutoSaving || isSaving) return;
-
-    try {
-      setIsAutoSaving(true);
-      setError(null);
-      
-      await onSave({
-        title: debouncedTitle,
-        content: debouncedContent,
-        slug: debouncedSlug,
-        published,
-        isPremium 
-      });
-      
-      setLastSaved(new Date());
-    } catch (err: any) {
-      console.error("Auto-save failed:", err);
-    } finally {
-      setIsAutoSaving(false);
-    }
-  }, [editor, isAutoSaving, isSaving, debouncedTitle, debouncedContent, debouncedSlug, published, isPremium, onSave]);
-
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-
-    if (!debouncedTitle.trim() || !debouncedSlug.trim()) {
-      return;
-    }
-
-    const hasChanges = 
-      debouncedTitle !== initialTitle || 
-      debouncedSlug !== initialSlug || 
-      debouncedContent !== initialContent;
-
-    if (hasChanges) {
-      performAutoSave();
-    }
-  }, [debouncedTitle, debouncedSlug, debouncedContent, initialContent, initialSlug, initialTitle, performAutoSave]);
-
   const uploadImage = async (file: File) => {
     if (!editor) return;
     
     if (!file.type.startsWith("image/")) {
-      setError("Please select a valid image file");
+      setError("Le fichier doit être une image valide.");
       return;
     }
 
@@ -184,13 +165,13 @@ export function Editor({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to upload image");
+        throw new Error(data.error || "Échec de l'upload");
       }
 
       editor.chain().focus().setImage({ src: data.url }).run();
-      
+      setHasUnsavedChanges(true)
     } catch (err: any) {
-      setError(err?.message || "An error occurred while uploading the image");
+      setError(err?.message || "Une erreur est survenue lors de l'upload de l'image.");
     } finally {
       setIsUploading(false);
     }
@@ -206,24 +187,21 @@ export function Editor({
     }
   };
 
-  if (!editor) {
-    return null
-  }
-
   const handleManualSave = async () => {
     if (!title.trim()) {
-      setError("Title is required")
+      setError("Le titre de l'article est requis avant d'enregistrer.")
       return
     }
     
     try {
       setError(null)
-      const htmlContent = editor.getHTML()
-      // Ensure slug is generated if missing
+      const htmlContent = editor?.getHTML() || ""
       let finalSlug = slug;
       if (!finalSlug) {
         finalSlug = title
           .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/(^-|-$)+/g, "")
         setSlug(finalSlug);
@@ -235,301 +213,367 @@ export function Editor({
         slug: finalSlug,
         published,
         isPremium,
+        categoryId,
+        seoTitle: seoTitle || null,
+        seoDescription: seoDescription || null
       })
       setLastSaved(new Date())
+      setHasUnsavedChanges(false)
     } catch (err: any) {
-      setError(err?.message || "Failed to save article")
+      setError(err?.message || "Échec de la sauvegarde.")
     }
   }
 
-  const handlePublishAndEmail = async () => {
-    if (!title.trim()) {
-      setError("Title is required before sending")
-      return
+  // Keyboard shortcut for saving (Cmd+S / Ctrl+S)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault()
+        handleManualSave()
+      }
     }
-    setPublished(true)
-    await handleManualSave()
-    alert("Newsletter dispatch will be connected to Brevo API shortly! Article saved and published.")
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [title, slug, published, isPremium, categoryId, seoTitle, seoDescription, editor])
+
+  // Debounced auto-save (saves 1.5s after user stops typing)
+  useEffect(() => {
+    if (!hasUnsavedChanges || isSaving || !title.trim()) return
+
+    const timer = setTimeout(() => {
+      handleManualSave()
+    }, 1500)
+
+    return () => clearTimeout(timer)
+  }, [
+    title,
+    slug,
+    published,
+    isPremium,
+    categoryId,
+    seoTitle,
+    seoDescription,
+    editorTick,
+    hasUnsavedChanges,
+    isSaving
+  ])
+
+  if (!editor) {
+    return null
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6">
-      {/* Header controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
-        <div className="flex items-center gap-3">
+    <div className="w-full max-w-3xl mx-auto space-y-12 pb-32">
+      {/* Sleek, spaced header with absolute minimal decorations */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-zinc-100">
+        <div className="flex items-center gap-4">
           {onBack && (
             <button
               onClick={onBack}
-              className="h-9 w-9 rounded-lg flex items-center justify-center border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 hover:text-white text-zinc-400 transition-colors cursor-pointer"
+              className="h-8 w-8 rounded-full flex items-center justify-center border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-500 hover:text-zinc-900 transition-all cursor-pointer"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
           )}
           <div>
-            <h2 className="text-lg font-bold tracking-tight text-white font-sans flex items-center gap-2">
-              {initialTitle ? "Edit Article" : "New Masterpiece"}
-              {(isSaving || isAutoSaving) && <Loader2 className="w-3 h-3 animate-spin text-zinc-400" />}
-              {lastSaved && !isSaving && !isAutoSaving && (
-                <span className="text-[10px] font-normal text-zinc-500 flex items-center gap-1">
-                  <Check className="w-3 h-3 text-green-500" /> Saved {lastSaved.toLocaleTimeString()}
+            <h2 className="text-xl font-medium text-zinc-900 font-sans tracking-tight flex items-center gap-3">
+              {initialTitle ? "Édition" : "Nouvel écrit"}
+              {isSaving && <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />}
+              {lastSaved && !isSaving && (
+                <span className="text-[11px] font-normal text-zinc-400 flex items-center gap-1.5 font-sans">
+                  <Check className="w-3.5 h-3.5 text-zinc-400" /> Sauvegardé à {lastSaved.toLocaleTimeString()}
+                </span>
+              )}
+              {hasUnsavedChanges && !isSaving && (
+                <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200/50 px-2 py-0.5 rounded-md font-sans">
+                  Modifications non enregistrées (Cmd+S)
                 </span>
               )}
             </h2>
-            <p className="text-xs text-zinc-400 font-sans">
-              Drafting a new sovereign voice
+            <p className="text-xs text-zinc-400 font-sans mt-0.5">
+              Rédigez sans bruit ni distraction
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Premium Toggle */}
+        {/* Action Controls - minimal layout, no borders on buttons where possible */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Options Button */}
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className={cn(
+              "h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-zinc-200",
+              showSettings
+                ? "bg-zinc-100 text-zinc-900"
+                : "bg-white text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+            )}
+          >
+            <Settings className="h-3.5 w-3.5" />
+            <span>Options</span>
+          </button>
+
+          {/* Premium / Free */}
           <button
             onClick={() => {
               setIsPremium(!isPremium);
-              setTimeout(handleManualSave, 100); 
+              setHasUnsavedChanges(true)
             }}
             className={cn(
-              "h-9 px-3 rounded-lg flex items-center gap-2 border border-zinc-800 font-sans text-xs font-medium transition-colors cursor-pointer",
+              "h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border",
               isPremium
-                ? "bg-amber-950/30 border-amber-800/80 text-amber-400 hover:bg-amber-950/50"
-                : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                ? "bg-zinc-900 border-zinc-900 text-white hover:bg-zinc-800"
+                : "bg-white border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
             )}
-            title="Premium content will be hidden behind a paywall"
           >
-            {isPremium ? (
-              <>
-                <Lock className="h-3.5 w-3.5" />
-                Premium
-              </>
-            ) : (
-              <>
-                <Unlock className="h-3.5 w-3.5" />
-                Free
-              </>
-            )}
+            {isPremium ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+            <span>{isPremium ? "Premium" : "Gratuit"}</span>
           </button>
 
-          <div className="w-[1px] h-6 bg-zinc-800 mx-1"></div>
-
-          {/* Published Toggle */}
+          {/* Published / Draft */}
           <button
             onClick={() => {
               setPublished(!published);
-              setTimeout(handleManualSave, 100); 
+              setHasUnsavedChanges(true)
             }}
             className={cn(
-              "h-9 px-3 rounded-lg flex items-center gap-2 border border-zinc-800 font-sans text-xs font-medium transition-colors cursor-pointer",
+              "h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border",
               published
-                ? "bg-green-950/30 border-green-800/80 text-green-400 hover:bg-green-950/50"
-                : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                ? "bg-zinc-900 border-zinc-900 text-white hover:bg-zinc-800"
+                : "bg-white border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
             )}
           >
-            {published ? (
-              <>
-                <Globe className="h-3.5 w-3.5" />
-                Published
-              </>
-            ) : (
-              <>
-                <Lock className="h-3.5 w-3.5" />
-                Draft
-              </>
-            )}
+            {published ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+            <span>{published ? "Publié" : "Brouillon"}</span>
           </button>
 
-          {/* Send Email Newsletter */}
-          <button
-             onClick={handlePublishAndEmail}
-             className="h-9 px-3 rounded-lg flex items-center gap-2 border border-blue-900/50 bg-blue-950/30 text-blue-400 hover:bg-blue-900/50 font-sans text-xs font-medium transition-colors cursor-pointer"
-             title="Publish and email to subscribers"
-          >
-            <Send className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Dispatch</span>
-          </button>
-
-          {/* Save Button */}
+          {/* Save Action */}
           <button
             onClick={handleManualSave}
-            disabled={isSaving || isAutoSaving}
-            className="h-9 px-4 bg-white text-black font-sans text-xs font-semibold rounded-lg flex items-center gap-2 hover:bg-zinc-100 transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+            disabled={isSaving}
+            className="h-8 px-4 bg-primary text-white font-sans text-xs font-semibold rounded-lg flex items-center gap-1.5 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer shadow-sm"
           >
-            <Save className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">
-              {(isSaving || isAutoSaving) ? "Saving..." : "Save Changes"}
-            </span>
+            <span>Enregistrer</span>
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-950/30 border border-red-900/50 text-red-300 p-4 font-mono text-xs rounded-lg">
+        <div className="bg-red-50 border border-red-200/60 text-red-700 p-4 font-sans text-xs rounded-xl">
           {error}
         </div>
       )}
 
-      {/* Editor Surface */}
-      <div className="grid gap-6">
-        {/* Title & Slug Group */}
-        <div className="space-y-4 bg-zinc-950 p-6 border border-zinc-800 rounded-xl shadow-lg">
-          <div className="space-y-1">
-            <label className="text-xs uppercase tracking-wider text-zinc-400 font-sans font-semibold">
-              Article Title
-            </label>
+      {/* Main Content Area - Wide spaces, Rauno-style */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
+        {/* Editor column */}
+        <div className={cn("transition-all space-y-12", showSettings ? "lg:col-span-2" : "lg:col-span-3")}>
+          {/* Title Area - completely borderless, large and elegant typography */}
+          <div className="space-y-4">
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="The sovereign manifestation of independent media..."
-              className="w-full bg-zinc-900/30 border border-zinc-800 rounded-lg p-3 text-lg font-bold font-sans text-white focus:outline-none focus:border-zinc-700 placeholder:text-zinc-600 transition-colors"
+              placeholder="Titre de votre œuvre..."
+              className="w-full bg-transparent border-0 text-3xl font-bold tracking-tight text-zinc-900 focus:outline-none focus:ring-0 placeholder:text-zinc-200 font-sans leading-tight"
             />
+            
+            <div className="flex items-center gap-2 text-xs text-zinc-400 font-mono">
+              <span>slug :</span>
+              <input
+                type="text"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, "-"))}
+                placeholder="slug-url"
+                className="bg-transparent border-0 p-0 text-xs font-mono text-zinc-500 focus:outline-none focus:ring-0 w-full"
+              />
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs uppercase tracking-wider text-zinc-400 font-sans font-semibold">
-              Slug Identifier
-            </label>
-            <input
-              type="text"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, "-"))}
-              placeholder="e.g. sovereign-manifesto"
-              className="w-full bg-zinc-900/10 border border-zinc-800 rounded-lg p-3 text-sm font-mono text-zinc-400 focus:outline-none focus:border-zinc-700 focus:text-white transition-colors"
-            />
-          </div>
-        </div>
+          {/* Text Editor Core */}
+          <div className="space-y-6">
+            {/* Ultra minimal formatting toolbar, pure light theme, no borders between buttons */}
+            <div className="flex flex-wrap items-center gap-0.5 py-1.5 border-b border-zinc-100 sticky top-0 bg-white/80 backdrop-blur-md z-10">
+              <ToolbarButton
+                active={editor.isActive("bold")}
+                onClick={() => editor.chain().focus().toggleBold().run()}
+                icon={<Bold className="h-3.5 w-3.5" />}
+                tooltip="Gras"
+              />
+              <ToolbarButton
+                active={editor.isActive("italic")}
+                onClick={() => editor.chain().focus().toggleItalic().run()}
+                icon={<Italic className="h-3.5 w-3.5" />}
+                tooltip="Italique"
+              />
+              <ToolbarButton
+                active={editor.isActive("underline")}
+                onClick={() => editor.chain().focus().toggleUnderline().run()}
+                icon={<UnderlineIcon className="h-3.5 w-3.5" />}
+                tooltip="Souligné"
+              />
+              <ToolbarButton
+                active={editor.isActive("strike")}
+                onClick={() => editor.chain().focus().toggleStrike().run()}
+                icon={<Strikethrough className="h-3.5 w-3.5" />}
+                tooltip="Barré"
+              />
 
-        {/* Toolbar & Text Body */}
-        <div className="flex flex-col bg-zinc-950 border border-zinc-800 rounded-xl shadow-lg overflow-hidden">
-          {/* Formatting Toolbar */}
-          <div className="flex flex-wrap items-center gap-1 p-2 bg-zinc-900/50 backdrop-blur-sm border-b border-zinc-800 sticky top-0 z-10">
-            {/* Inline styles */}
-            <ToolbarButton
-              active={editor.isActive("bold")}
-              onClick={() => editor.chain().focus().toggleBold().run()}
-              icon={<Bold className="h-3.5 w-3.5" />}
-              tooltip="Bold"
-            />
-            <ToolbarButton
-              active={editor.isActive("italic")}
-              onClick={() => editor.chain().focus().toggleItalic().run()}
-              icon={<Italic className="h-3.5 w-3.5" />}
-              tooltip="Italic"
-            />
-            <ToolbarButton
-              active={editor.isActive("underline")}
-              onClick={() => editor.chain().focus().toggleUnderline().run()}
-              icon={<UnderlineIcon className="h-3.5 w-3.5" />}
-              tooltip="Underline"
-            />
-            <ToolbarButton
-              active={editor.isActive("strike")}
-              onClick={() => editor.chain().focus().toggleStrike().run()}
-              icon={<Strikethrough className="h-3.5 w-3.5" />}
-              tooltip="Strike"
-            />
+              <div className="h-4 w-[1px] bg-zinc-200 mx-2" />
 
-            <div className="h-5 w-[1px] bg-zinc-800 mx-1" />
+              <ToolbarButton
+                active={editor.isActive("heading", { level: 1 })}
+                onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                icon={<Heading1 className="h-3.5 w-3.5" />}
+                tooltip="Titre 1"
+              />
+              <ToolbarButton
+                active={editor.isActive("heading", { level: 2 })}
+                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                icon={<Heading2 className="h-3.5 w-3.5" />}
+                tooltip="Titre 2"
+              />
+              <ToolbarButton
+                active={editor.isActive("heading", { level: 3 })}
+                onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                icon={<Heading3 className="h-3.5 w-3.5" />}
+                tooltip="Titre 3"
+              />
 
-            {/* Headers */}
-            <ToolbarButton
-              active={editor.isActive("heading", { level: 1 })}
-              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-              icon={<Heading1 className="h-3.5 w-3.5" />}
-              tooltip="H1"
-            />
-            <ToolbarButton
-              active={editor.isActive("heading", { level: 2 })}
-              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-              icon={<Heading2 className="h-3.5 w-3.5" />}
-              tooltip="H2"
-            />
-            <ToolbarButton
-              active={editor.isActive("heading", { level: 3 })}
-              onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-              icon={<Heading3 className="h-3.5 w-3.5" />}
-              tooltip="H3"
-            />
+              <div className="h-4 w-[1px] bg-zinc-200 mx-2" />
 
-            <div className="h-5 w-[1px] bg-zinc-800 mx-1" />
+              <ToolbarButton
+                active={editor.isActive("bulletList")}
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+                icon={<List className="h-3.5 w-3.5" />}
+                tooltip="Liste puces"
+              />
+              <ToolbarButton
+                active={editor.isActive("orderedList")}
+                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                icon={<ListOrdered className="h-3.5 w-3.5" />}
+                tooltip="Liste numéros"
+              />
 
-            {/* Lists */}
-            <ToolbarButton
-              active={editor.isActive("bulletList")}
-              onClick={() => editor.chain().focus().toggleBulletList().run()}
-              icon={<List className="h-3.5 w-3.5" />}
-              tooltip="Bullet List"
-            />
-            <ToolbarButton
-              active={editor.isActive("orderedList")}
-              onClick={() => editor.chain().focus().toggleOrderedList().run()}
-              icon={<ListOrdered className="h-3.5 w-3.5" />}
-              tooltip="Ordered List"
-            />
+              <div className="h-4 w-[1px] bg-zinc-200 mx-2" />
 
-            <div className="h-5 w-[1px] bg-zinc-800 mx-1" />
+              <ToolbarButton
+                active={editor.isActive("blockquote")}
+                onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                icon={<Quote className="h-3.5 w-3.5" />}
+                tooltip="Citation"
+              />
+              <ToolbarButton
+                active={editor.isActive("codeBlock")}
+                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                icon={<Code className="h-3.5 w-3.5" />}
+                tooltip="Code"
+              />
 
-            {/* Block formats */}
-            <ToolbarButton
-              active={editor.isActive("blockquote")}
-              onClick={() => editor.chain().focus().toggleBlockquote().run()}
-              icon={<Quote className="h-3.5 w-3.5" />}
-              tooltip="Blockquote"
-            />
-            <ToolbarButton
-              active={editor.isActive("codeBlock")}
-              onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-              icon={<Code className="h-3.5 w-3.5" />}
-              tooltip="Code Block"
-            />
+              <div className="h-4 w-[1px] bg-zinc-200 mx-2" />
 
-            <div className="h-5 w-[1px] bg-zinc-800 mx-1" />
+              {/* Media selection */}
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileSelect} 
+                accept="image/*" 
+                className="hidden" 
+                aria-label="Insérer image"
+              />
+              <ToolbarButton
+                onClick={() => fileInputRef.current?.click()}
+                icon={isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500" /> : <ImageIcon className="h-3.5 w-3.5" />}
+                tooltip="Image"
+                disabled={isUploading}
+              />
+            </div>
 
-            <ToolbarButton
-              onClick={() => {
-                // .setPaywallDivider() // TODO: re-enable when extension is wired
-                void editor
-              }}
-              icon={<Lock className="h-3.5 w-3.5 text-amber-500" />}
-              tooltip="Insert Paywall Cut"
-            />
-
-            <div className="h-5 w-[1px] bg-zinc-800 mx-1" />
-
-            {/* Media */}
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileSelect} 
-              accept="image/*" 
-              className="hidden" 
-            />
-            <ToolbarButton
-              onClick={() => fileInputRef.current?.click()}
-              icon={isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
-              tooltip="Insert Image"
-              disabled={isUploading}
-            />
-
-            <div className="h-5 w-[1px] bg-zinc-800 mx-1" />
-
-            {/* History */}
-            <ToolbarButton
-              onClick={() => editor.chain().focus().undo().run()}
-              icon={<Undo2 className="h-3.5 w-3.5" />}
-              tooltip="Undo"
-            />
-            <ToolbarButton
-              onClick={() => editor.chain().focus().redo().run()}
-              icon={<Redo2 className="h-3.5 w-3.5" />}
-              tooltip="Redo"
-            />
-          </div>
-
-          {/* Tiptap content area */}
-          <div className="p-6 md:p-8 bg-zinc-950 font-serif min-h-[450px]">
-            <EditorContent editor={editor} />
+            {/* TipTap main body with classical light font */}
+            <div className="py-4">
+              <EditorContent editor={editor} />
+            </div>
           </div>
         </div>
+
+        {/* Options / Settings Panel - Clean, Spacious, pure white */}
+        {showSettings && (
+          <div className="space-y-12 lg:col-span-1 animate-in fade-in-50 duration-200 lg:sticky lg:top-24">
+            {/* Category selection */}
+            <div className="space-y-4">
+              <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider font-sans flex items-center gap-2">
+                <FolderOpen className="h-3.5 w-3.5 text-zinc-500" />
+                Catégorie
+              </h3>
+              
+              <div className="space-y-3">
+                <select
+                  value={categoryId || ""}
+                  onChange={(e) => {
+                    setCategoryId(e.target.value || null);
+                  }}
+                  className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-xs text-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors font-sans cursor-pointer"
+                >
+                  <option value="">-- Sans catégorie --</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-zinc-400 leading-relaxed font-sans">
+                  Associez cet écrit à un thème pour l'organiser sur votre blog.
+                </p>
+              </div>
+            </div>
+
+            {/* SEO Optimization */}
+            <div className="space-y-4">
+              <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider font-sans flex items-center gap-2">
+                <Search className="h-3.5 w-3.5 text-zinc-500" />
+                Optimisation SEO
+              </h3>
+
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-zinc-400 font-sans uppercase tracking-wider font-semibold">
+                    Titre alternatif
+                  </label>
+                  <input
+                    type="text"
+                    value={seoTitle}
+                    onChange={(e) => setSeoTitle(e.target.value)}
+                    placeholder={title || "Titre d'origine"}
+                    className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-xs text-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors font-sans"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] text-zinc-400 font-sans uppercase tracking-wider font-semibold">
+                    Description SEO
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={seoDescription}
+                    onChange={(e) => setSeoDescription(e.target.value)}
+                    placeholder="Une courte accroche pour les moteurs de recherche..."
+                    className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-xs text-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors font-sans resize-none"
+                  />
+                </div>
+
+                {/* Google Preview - clean simulated search result */}
+                <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100 space-y-1 font-sans">
+                  <span className="text-[9px] text-zinc-400 font-mono block">Aperçu Google</span>
+                  <span className="text-xs font-medium text-zinc-900 block truncate">
+                    {seoTitle || title || "Titre de l'écrit"}
+                  </span>
+                  <span className="text-[10px] text-zinc-400 block line-clamp-2 leading-relaxed">
+                    {seoDescription || "Aucune description SEO saisie. Google utilisera le début de votre article."}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -551,10 +595,10 @@ function ToolbarButton({ active, onClick, icon, tooltip, disabled }: ToolbarButt
       title={tooltip}
       disabled={disabled}
       className={cn(
-        "h-8 w-8 flex items-center justify-center rounded-md transition-colors font-sans text-sm cursor-pointer",
+        "h-8 w-8 flex items-center justify-center rounded-lg transition-all font-sans text-sm cursor-pointer",
         active
-          ? "bg-zinc-800 text-white font-medium"
-          : "text-zinc-400 hover:text-white hover:bg-zinc-800/60",
+          ? "bg-zinc-900 text-white font-medium"
+          : "text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50",
         disabled && "opacity-50 cursor-not-allowed"
       )}
     >
