@@ -16,8 +16,7 @@ export async function getTolgee() {
     language: DEFAULT_LANGUAGE,
     fallbackLanguage: DEFAULT_LANGUAGE,
     staticData: {
-      fr: () => import("../../../messages/fr.json"),
-      en: () => import("../../../messages/en.json"),
+      // TODO: charger dynamiquement depuis packages/i18n/locales/*.json
     },
   });
   return tolgee;
