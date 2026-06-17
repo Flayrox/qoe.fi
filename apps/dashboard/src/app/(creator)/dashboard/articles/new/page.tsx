@@ -1,9 +1,18 @@
-// Placeholder
-export default function NewArticlePage() {
+// =====================================================================
+// 🖥️ New Article Page — apps/dashboard/src/app/(creator)/dashboard/articles/new/page.tsx
+// =====================================================================
+// 📖 Page de création d'un nouvel article avec l'éditeur riche.
+// =====================================================================
+
+import { getCategoriesAction } from "../actions"
+import { NewArticleClient } from "./new-article-client"
+
+export default async function NewArticlePage() {
+  const categories = await getCategoriesAction()
+
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold">Nouvel article</h1>
-      <p className="text-muted-foreground mt-2">Éditeur d'article - À implémenter.</p>
-    </div>
-  );
+    <NewArticleClient 
+      categories={categories.map((c) => ({ id: c.id, name: c.name }))} 
+    />
+  )
 }
