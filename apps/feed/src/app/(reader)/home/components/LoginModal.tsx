@@ -12,7 +12,7 @@ interface LoginModalProps {
 }
 
 const springs = {
-  overlay: { duration: 0.25, ease: "easeOut" },
+  overlay: { duration: 0.25, ease: "easeOut" as any },
   modal: { type: "spring" as const, stiffness: 380, damping: 28 },
   fade: { duration: 0.18 }
 }

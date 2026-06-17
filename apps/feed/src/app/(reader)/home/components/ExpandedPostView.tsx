@@ -24,6 +24,7 @@ interface ExpandedPostViewProps {
   onClose?: () => void
   onOpenProfile?: (username: string) => void
   onInteractionUpdate?: (postId: string, update: { liked?: boolean; likesCount?: number; repliesCount?: number }) => void
+  onLoginRequired?: () => void
 }
 
 const springs = {
@@ -32,7 +33,7 @@ const springs = {
   lightbox: { type: "spring" as const, stiffness: 350, damping: 30 }
 }
 
-export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile: onOpenProfileProp, onInteractionUpdate }: ExpandedPostViewProps) {
+export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile: onOpenProfileProp, onInteractionUpdate, onLoginRequired }: ExpandedPostViewProps) {
   const { t } = useTranslate()
   const [post, setPost] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
@@ -76,7 +77,10 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
   }, [postId, currentUserId])
 
   const handleLikeToggle = async () => {
-    if (!currentUserId) return
+    if (!currentUserId) {
+      if (onLoginRequired) onLoginRequired()
+      return
+    }
     
     const newLiked = !liked
     const newLikesCount = liked ? likesCount - 1 : likesCount + 1
@@ -102,7 +106,11 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
   }
 
   const handleRepost = async () => {
-    if (!currentUserId || reposted) return
+    if (!currentUserId) {
+      if (onLoginRequired) onLoginRequired()
+      return
+    }
+    if (reposted) return
     setReposted(true)
     trackEvent("post_repost", { postId })
     const res = await repostPost(postId)
@@ -382,26 +390,46 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
         </div>
 
         {/* Reply Composer */}
-        {currentUserId && (
-          <form onSubmit={handleReplySubmit} className="flex gap-3 items-end">
-            <textarea
-              value={replyText}
-              onChange={(e) => setReplyText(e.target.value)}
-              placeholder={t("feed.reply_publish", "Publiez votre réponse...")}
-              rows={1}
-              className="flex-1 text-[13px] border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-[var(--radius-element)] p-2.5 h-10 resize-none outline-none transition-all"
-              required
-            />
-            <motion.button
-              type="submit"
-              whileTap={{ scale: 0.95 }}
-              disabled={sendingReply || !replyText.trim()}
-              className="bg-neutral-900 text-white p-2.5 rounded-[var(--radius-button)] flex items-center justify-center cursor-pointer h-10 w-10 shrink-0 hover:bg-neutral-800 transition-colors disabled:opacity-40"
-            >
-              {sendingReply ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            </motion.button>
-          </form>
-        )}
+        <form 
+          onSubmit={(e) => {
+            if (!currentUserId) {
+              e.preventDefault()
+              if (onLoginRequired) onLoginRequired()
+              return
+            }
+            handleReplySubmit(e)
+          }} 
+          className="flex gap-3 items-end"
+        >
+          <textarea
+            value={replyText}
+            onChange={(e) => {
+              if (!currentUserId) {
+                if (onLoginRequired) onLoginRequired()
+                return
+              }
+              setReplyText(e.target.value)
+            }}
+            onFocus={(e) => {
+              if (!currentUserId) {
+                e.currentTarget.blur()
+                if (onLoginRequired) onLoginRequired()
+              }
+            }}
+            placeholder={t("feed.reply_publish", "Publiez votre réponse...")}
+            rows={1}
+            className="flex-1 text-[13px] border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-[var(--radius-element)] p-2.5 h-10 resize-none outline-none transition-all"
+            required
+          />
+          <motion.button
+            type="submit"
+            whileTap={{ scale: 0.95 }}
+            disabled={sendingReply || !!(currentUserId && !replyText.trim())}
+            className="bg-neutral-900 text-white p-2.5 rounded-[var(--radius-button)] flex items-center justify-center cursor-pointer h-10 w-10 shrink-0 hover:bg-neutral-800 transition-colors disabled:opacity-40"
+          >
+            {sendingReply ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+          </motion.button>
+        </form>
 
         {/* Recursive Comments list */}
         <div className="space-y-4 pt-2">
@@ -418,6 +446,7 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
                   currentUserId={currentUserId}
                   onReplyAdded={handleNestedReplyAdded}
                   onReplyDeleted={handleNestedReplyDeleted}
+                  onLoginRequired={onLoginRequired}
                 />
               ))
             )}
@@ -468,13 +497,15 @@ function CommentThread({
   depth = 0, 
   currentUserId, 
   onReplyAdded,
-  onReplyDeleted 
+  onReplyDeleted,
+  onLoginRequired
 }: { 
   reply: any; 
   depth?: number; 
   currentUserId: string | null; 
   onReplyAdded: (parentId: string, newReply: any) => void;
   onReplyDeleted: (deletedId: string) => void;
+  onLoginRequired?: () => void;
 }) {
   const [showReplyForm, setShowReplyForm] = useState(false)
   const [replyText, setReplyText] = useState("")
@@ -491,7 +522,10 @@ function CommentThread({
   }
 
   const handleLike = async () => {
-    if (!currentUserId) return
+    if (!currentUserId) {
+      if (onLoginRequired) onLoginRequired()
+      return
+    }
     setLiked((prev: boolean) => !prev)
     setLikesCount((prev: number) => liked ? prev - 1 : prev + 1)
     trackEvent("comment_like", { replyId: reply.id, liked: !liked })
@@ -500,7 +534,11 @@ function CommentThread({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!replyText.trim() || !currentUserId) return
+    if (!currentUserId) {
+      if (onLoginRequired) onLoginRequired()
+      return
+    }
+    if (!replyText.trim()) return
     setSending(true)
     trackEvent("comment_reply", { parentReplyId: reply.id })
     const res = await replyToPost({ postId: reply.id, content: replyText })
@@ -586,7 +624,13 @@ function CommentThread({
         </motion.button>
 
         <motion.button 
-          onClick={() => setShowReplyForm(prev => !prev)}
+          onClick={() => {
+            if (!currentUserId) {
+              if (onLoginRequired) onLoginRequired()
+              return
+            }
+            setShowReplyForm(prev => !prev)
+          }}
           whileTap={{ scale: 0.98 }}
           className="flex items-center gap-1.5 hover:text-neutral-700 transition-colors cursor-pointer px-2 py-1 rounded-[var(--radius-button)] hover:bg-neutral-50"
         >
@@ -635,6 +679,7 @@ function CommentThread({
               currentUserId={currentUserId}
               onReplyAdded={onReplyAdded}
               onReplyDeleted={onReplyDeleted}
+              onLoginRequired={onLoginRequired}
             />
           ))}
         </div>
