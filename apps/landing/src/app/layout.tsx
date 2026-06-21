@@ -9,7 +9,8 @@ import { getTolgee, getLanguage } from "@qoe/i18n/server";
 import { cn } from "@qoe/utils";
 import { DevtoolsPanel, ThemeProvider } from "@qoe/ui";
 
-import "./globals.css";
+// CSS global unifié — source unique dans @qoe/theme
+import "@qoe/theme/styles";
 
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
