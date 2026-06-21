@@ -27,8 +27,6 @@ export async function login(formData: FormData) {
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id }
   })
-
-  let finalRedirect = '/home'
   if (dbUser) {
     if (dbUser.role === 'user') {
       const followsCount = await prisma.follows.count({ where: { readerId: dbUser.id } })
@@ -37,23 +35,9 @@ export async function login(formData: FormData) {
         redirect('/onboarding')
       }
     }
-    if (redirectTo) {
-      finalRedirect = redirectTo
-    }
   }
 
-  if (finalRedirect.startsWith('http://') || finalRedirect.startsWith('https://')) {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      const targetUrl = new URL('/auth/session-transfer', finalRedirect)
-      targetUrl.searchParams.set('access_token', session.access_token)
-      targetUrl.searchParams.set('refresh_token', session.refresh_token)
-      targetUrl.searchParams.set('redirect', finalRedirect)
-      redirect(targetUrl.toString())
-    }
-  }
-
-  redirect(finalRedirect as any)
+  redirect(redirectTo || '/home' as any)
 }
 
 export async function signup(formData: FormData) {
