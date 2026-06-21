@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 export async function login(formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
+  const redirectTo = formData.get('redirect') as string
   
   if (!email || !password) {
     redirect('/login?error=Missing+credentials')
@@ -27,6 +28,7 @@ export async function login(formData: FormData) {
     where: { id: user.id }
   })
 
+  let finalRedirect = '/home'
   if (dbUser) {
     if (dbUser.role === 'user') {
       const followsCount = await prisma.follows.count({ where: { readerId: dbUser.id } })
@@ -35,10 +37,23 @@ export async function login(formData: FormData) {
         redirect('/onboarding')
       }
     }
-    redirect('/home' as any)
+    if (redirectTo) {
+      finalRedirect = redirectTo
+    }
   }
 
-  redirect('/home' as any)
+  if (finalRedirect.startsWith('http://') || finalRedirect.startsWith('https://')) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      const targetUrl = new URL('/auth/session-transfer', finalRedirect)
+      targetUrl.searchParams.set('access_token', session.access_token)
+      targetUrl.searchParams.set('refresh_token', session.refresh_token)
+      targetUrl.searchParams.set('redirect', finalRedirect)
+      redirect(targetUrl.toString())
+    }
+  }
+
+  redirect(finalRedirect as any)
 }
 
 export async function signup(formData: FormData) {

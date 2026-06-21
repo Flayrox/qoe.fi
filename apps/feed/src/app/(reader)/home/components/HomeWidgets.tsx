@@ -122,7 +122,7 @@ export function HomeWidgets({
 
 // ── Widget: Article à la une ──────────────────────────────────────────────────
 function FeaturedCard({ article }: { article: Article }) {
-  const host = article.author.customDomain || `${article.author.subdomain}.localhost:3000`
+  const host = article.author.customDomain || `${article.author.subdomain}.localhost`
   const url = `http://${host}/article/${article.slug}`
 
   return (
@@ -181,7 +181,7 @@ function FeaturedCard({ article }: { article: Article }) {
 
 // ── Widget: Article Recommandé ────────────────────────────────────────────────
 function RecommendedCard({ article }: { article: Article }) {
-  const host = article.author.customDomain || `${article.author.subdomain}.localhost:3000`
+  const host = article.author.customDomain || `${article.author.subdomain}.localhost`
   const url = `http://${host}/article/${article.slug}`
 
   return (

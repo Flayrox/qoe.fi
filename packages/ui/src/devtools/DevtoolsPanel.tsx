@@ -488,12 +488,12 @@ export function DevtoolsPanel() {
 
   // 🔗 Predefined Monorepo Links
   const appLinks = [
-    { name: "Landing Vitrine", url: `http://localhost:${ports.landing}`, port: ports.landing, icon: "🌐" },
-    { name: "Espace Feed / Lecteur", url: `http://localhost:${ports.feed}`, port: ports.feed, icon: "💬" },
-    { name: "Studio Créateur (Console)", url: `http://localhost:${ports.dashboard}`, port: ports.dashboard, icon: "🎨" },
-    { name: "Admin Console", url: `http://localhost:${ports.admin}`, port: ports.admin, icon: "🛡️" },
-    { name: "Tenant Portal (Web)", url: `http://localhost:${ports.tenant}`, port: ports.tenant, icon: "📄" },
-    { name: "API Gateway", url: `http://localhost:${ports.api}`, port: ports.api, icon: "⚡" },
+    { name: "Landing Vitrine", url: `http://start.localhost`, port: ports.landing, icon: "🌐" },
+    { name: "Espace Feed / Lecteur", url: `http://localhost`, port: ports.feed, icon: "💬" },
+    { name: "Studio Créateur (Console)", url: `http://dashboard.localhost`, port: ports.dashboard, icon: "🎨" },
+    { name: "Admin Console", url: `http://admin.localhost`, port: ports.admin, icon: "🛡️" },
+    { name: "Tenant Portal (Web)", url: `http://*.localhost`, port: ports.tenant, icon: "📄" },
+    { name: "API Gateway", url: `http://api.localhost`, port: ports.api, icon: "⚡" },
     { name: "Prisma Studio (GUI)", url: `http://localhost:${ports.prisma}`, port: ports.prisma, icon: "💾" },
   ];
 
@@ -620,7 +620,7 @@ export function DevtoolsPanel() {
                   ) : (
                     <div className="qoe-devtools-grid">
                       {creators.map((c) => {
-                        const localSubdomainUrl = `http://${c.subdomain}.localhost:${ports.tenant}`;
+                        const localSubdomainUrl = `http://${c.subdomain}.localhost`;
                         return (
                           <div key={c.id} className="qoe-devtools-port-card" style={{ gap: "6px" }}>
                             <span className="qoe-devtools-port-name" style={{ color: c.accentColor || "#c5a880" }}>
