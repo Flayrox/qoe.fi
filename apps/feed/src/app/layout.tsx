@@ -18,9 +18,8 @@ import { AnalyticsScript } from "@qoe/analytics/client";
 import { cn } from "@qoe/utils";
 import { DevtoolsPanel, ThemeProvider } from "@qoe/ui";
 
-// Ré-export du CSS global depuis l'ancien emplacement
-// (sera migré physiquement en Phase 8)
-import "./globals.css";
+// CSS global unifié — source unique dans @qoe/theme
+import "@qoe/theme/styles";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const inter = Inter({ variable: "--font-body", subsets: ["latin"] });
