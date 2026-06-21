@@ -18,6 +18,7 @@
     "@qoe/db": "workspace:*",
     "@qoe/i18n": "workspace:*",
     "@qoe/supabase": "workspace:*",
+    "@qoe/theme": "workspace:*",
     "@qoe/ui": "workspace:*",
     "@qoe/utils": "workspace:*",
     "@supabase/ssr": "^0.10.3",
