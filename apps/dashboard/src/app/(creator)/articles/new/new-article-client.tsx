@@ -28,7 +28,7 @@ export function NewArticleClient({ categories }: NewArticleClientProps) {
       const created = await saveArticleAction(data)
       
       // Redirect to the edit page for this new article once created
-      router.push(`/dashboard/articles/${created.id}`)
+      router.push(`/articles/${created.id}`)
       router.refresh()
     } catch (err: any) {
       throw new Error(err?.message || "Échec de l'enregistrement.")
@@ -43,7 +43,7 @@ export function NewArticleClient({ categories }: NewArticleClientProps) {
         categories={categories}
         isSaving={isSaving}
         onSave={handleSave}
-        onBack={() => router.push("/dashboard/articles")}
+        onBack={() => router.push("/articles")}
       />
     </div>
   )

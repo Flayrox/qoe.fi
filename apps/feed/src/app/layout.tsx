@@ -10,14 +10,13 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Geist } from "next/font/google";
 import Script from "next/script";
-import { ThemeProvider } from "next-themes";
 import { TolgeeNextProvider } from "@qoe/i18n/provider";
 import { getTolgee, getLanguage } from "@qoe/i18n/server";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AnalyticsScript } from "@qoe/analytics/client";
 import { cn } from "@qoe/utils";
-import { DevtoolsPanel } from "@qoe/ui";
+import { DevtoolsPanel, ThemeProvider } from "@qoe/ui";
 
 // Ré-export du CSS global depuis l'ancien emplacement
 // (sera migré physiquement en Phase 8)
