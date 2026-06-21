@@ -31,6 +31,11 @@ export function getCookieDomain(hostname?: string) {
   // Split port if present
   activeHost = activeHost.split(":")[0];
 
+  // In development, return '.qoe.test' for any subdomain or root domain of qoe.test
+  if (activeHost.endsWith("qoe.test")) {
+    return ".qoe.test";
+  }
+
   // In development, always return undefined so that we set host-only cookies.
   // This avoids any browser rejection of cookies on .localhost domains.
   if (
