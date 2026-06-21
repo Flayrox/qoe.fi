@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Backend API (Hono) — serves /api.qoe.fi (webhooks, tRPC, public API)",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --env-file=.env src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "echo skip",

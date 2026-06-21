@@ -10,6 +10,7 @@
 
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getCookieDomain } from "./cookie-config";
 
 /**
  * 🔄 Met à jour la session Supabase pour la requête en cours.
@@ -19,6 +20,9 @@ export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request: { headers: request.headers },
   });
+
+  const hostHeader = request.headers.get("host");
+  const hostname = hostHeader ? hostHeader.split(":")[0] : undefined;
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,6 +43,12 @@ export async function updateSession(request: NextRequest) {
             supabaseResponse.cookies.set(name, value, options)
           );
         },
+      },
+      cookieOptions: {
+        domain: getCookieDomain(hostname),
+        path: "/",
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
       },
     }
   );

@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import React, { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -64,7 +64,7 @@ export function EditArticleClient({ article, categories }: EditArticleClientProp
         categories={categories}
         isSaving={isSaving}
         onSave={handleSave}
-        onBack={() => router.push("/dashboard/articles")}
+        onBack={() => router.push("/articles")}
       />
     </div>
   )

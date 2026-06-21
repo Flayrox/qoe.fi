@@ -41,32 +41,32 @@ export async function AppSidebar() {
   const items = [
     {
       title: t('sidebar.nav_overview'),
-      url: "/dashboard",
+      url: "/",
       icon: Home,
     },
     {
       title: t('sidebar.nav_articles'),
-      url: "/dashboard/articles",
+      url: "/articles",
       icon: FileText,
     },
     {
       title: t('sidebar.nav_newsletters'),
-      url: "/dashboard/newsletters",
+      url: "/newsletters",
       icon: Mail,
     },
     {
       title: t('sidebar.nav_audience'),
-      url: "/dashboard/audience",
+      url: "/audience",
       icon: Users,
     },
     {
       title: t('sidebar.nav_analytics'),
-      url: "/dashboard/analytics",
+      url: "/analytics",
       icon: PieChart,
     },
     {
       title: t('sidebar.nav_settings'),
-      url: "/dashboard/settings",
+      url: "/settings",
       icon: Settings,
     },
   ]
