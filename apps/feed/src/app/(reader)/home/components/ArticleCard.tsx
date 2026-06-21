@@ -93,7 +93,7 @@ export function ArticleCard({
   }
 
   const isMicroPost = !article.title
-  const host = article.author.customDomain || `${article.author.subdomain}.localhost:3000`
+  const host = article.author.customDomain || `${article.author.subdomain}.localhost`
   const url = isMicroPost ? "#" : `http://${host}/article/${article.slug}`
 
   // Micro-post rendering delegated
