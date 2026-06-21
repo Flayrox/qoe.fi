@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
     "@qoe/ui",
     "@qoe/utils",
     "@qoe/analytics",
+    "@qoe/theme",
   ],
   images: {
     remotePatterns: [
