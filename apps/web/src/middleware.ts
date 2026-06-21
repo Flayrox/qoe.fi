@@ -28,6 +28,8 @@ export async function middleware(request: NextRequest) {
   let currentHost = hostWithoutPort;
   if (hostWithoutPort.endsWith(".localhost")) {
     currentHost = hostWithoutPort.replace(".localhost", "");
+  } else if (hostWithoutPort.endsWith(".lvh.me")) {
+    currentHost = hostWithoutPort.replace(".lvh.me", "");
   } else if (hostWithoutPort.endsWith(".qoe.fi")) {
     currentHost = hostWithoutPort.replace(".qoe.fi", "");
   }
@@ -35,6 +37,7 @@ export async function middleware(request: NextRequest) {
   // Define domains that are NOT tenant sites
   const systemDomains = [
     "localhost",
+    "lvh.me",
     "qoe.fi",
     "www.qoe.fi",
     "start.qoe.fi",

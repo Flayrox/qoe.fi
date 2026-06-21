@@ -223,6 +223,7 @@ export function LoginForm() {
 
                   {(authMode === 'password' || authMode === 'signup') && (
                     <form action={authMode === 'password' ? login : signup} className="space-y-4">
+                      <input type="hidden" name="redirect" value={searchParams.get('redirect') || ''} />
                       {authMode === 'signup' && (
                         <>
                           <div className="space-y-1">

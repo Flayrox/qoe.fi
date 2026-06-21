@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
   // 1. Déterminer l'URL de login centrale (qoe.fi/login)
   const isLocal = host.includes("localhost") || host.includes("127.0.0.1");
   const loginUrl = isLocal
-    ? "http://localhost:3010/login"
+    ? "http://localhost/login"
     : "https://qoe.fi/login";
 
   // 2. Protection de l'espace créateur

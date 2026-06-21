@@ -6,7 +6,8 @@
 // =====================================================================
 
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { getCookieDomain } from "./cookie-config";
 
 /**
  * 🖥️ Client Supabase pour le serveur.
@@ -14,6 +15,17 @@ import { cookies } from "next/headers";
  */
 export async function createClient() {
   const cookieStore = await cookies();
+  
+  let hostname: string | undefined = undefined;
+  try {
+    const headersList = await headers();
+    const hostHeader = headersList.get("host");
+    if (hostHeader) {
+      hostname = hostHeader.split(":")[0];
+    }
+  } catch {
+    // headers() might throw in some static generation contexts
+  }
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,6 +45,12 @@ export async function createClient() {
             // rafraîchit la session avant chaque render.
           }
         },
+      },
+      cookieOptions: {
+        domain: getCookieDomain(hostname),
+        path: "/",
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
       },
     }
   );

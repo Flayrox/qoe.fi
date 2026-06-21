@@ -97,8 +97,8 @@ export const LIMITS = {
 export const URLS = {
   APP: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   CONSOLE: process.env.NEXT_PUBLIC_CONSOLE_URL || "http://localhost:3000",
-  ADMIN: process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3000/admin",
-  DASHBOARD: process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost:3000/dashboard",
+  ADMIN: process.env.NEXT_PUBLIC_ADMIN_URL || "http://admin.localhost",
+  DASHBOARD: process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://dashboard.localhost",
   API: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
   LANDING: process.env.NEXT_PUBLIC_LANDING_URL || "http://localhost:3000/start",
 } as const;

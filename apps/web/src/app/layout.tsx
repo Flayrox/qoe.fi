@@ -4,11 +4,10 @@
 
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Geist } from "next/font/google";
-import { ThemeProvider } from "next-themes";
 import { TolgeeNextProvider } from "@qoe/i18n/provider";
 import { getTolgee, getLanguage } from "@qoe/i18n/server";
 import { cn } from "@qoe/utils";
-import { DevtoolsPanel } from "@qoe/ui";
+import { DevtoolsPanel, ThemeProvider } from "@qoe/ui";
 
 import "./globals.css";
 

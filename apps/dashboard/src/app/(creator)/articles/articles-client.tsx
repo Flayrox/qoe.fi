@@ -185,7 +185,7 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
         </div>
 
         <a
-          href="/dashboard/articles/new"
+          href="/articles/new"
           className="inline-flex items-center gap-1.5 h-8 px-4 bg-zinc-900 text-white hover:bg-zinc-800 font-sans font-semibold text-xs rounded-lg transition-all cursor-pointer shadow-sm"
         >
           <Plus className="h-3.5 w-3.5" />
@@ -352,7 +352,7 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                     {/* Right: minimal quiet controls (only visible on hover or mobile) */}
                     <div className="flex items-center gap-1.5 self-end sm:self-center opacity-70 group-hover:opacity-100 transition-opacity">
                       <a
-                        href={`/dashboard/articles/${art.id}`}
+                        href={`/articles/${art.id}`}
                         className="inline-flex items-center justify-center h-8 px-3 rounded-lg border border-zinc-200 bg-white text-zinc-500 hover:text-zinc-950 hover:bg-zinc-50 font-sans text-xs font-semibold transition-colors"
                         title="Éditer"
                       >
