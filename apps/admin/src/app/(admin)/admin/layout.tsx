@@ -14,8 +14,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const host = headersList.get("host") || "";
 
   if (!authUser) {
-    const isLocal = host.includes("localhost") || process.env.NODE_ENV === 'development';
-    const loginUrl = isLocal ? "http://localhost/login" : "https://qoe.fi/login";
+    const isLocal = host.includes("localhost") || host.includes("qoe.test") || process.env.NODE_ENV === 'development';
+    const baseDomain = host.includes("qoe.test") ? "qoe.test" : "localhost";
+    const loginUrl = isLocal ? `http://${baseDomain}/login` : "https://qoe.fi/login";
     redirect(loginUrl);
   }
 
@@ -25,8 +26,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   // Security Check: Only superadmins
   if (user?.role !== 'superadmin') {
-    const isLocal = host.includes("localhost") || process.env.NODE_ENV === 'development';
-    const homeUrl = isLocal ? "http://localhost" : "https://qoe.fi";
+    const isLocal = host.includes("localhost") || host.includes("qoe.test") || process.env.NODE_ENV === 'development';
+    const baseDomain = host.includes("qoe.test") ? "qoe.test" : "localhost";
+    const homeUrl = isLocal ? `http://${baseDomain}` : "https://qoe.fi";
     redirect(homeUrl);
   }
 
