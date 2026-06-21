@@ -163,7 +163,11 @@ export default async function TenantArticlePage({ params }: PageProps) {
   // Resolve main app URL
   const headersList = await headers();
   const host = headersList.get("host") || "";
-  const mainAppUrl = host.includes("localhost") ? "http://localhost" : "https://qoe.fi";
+  const mainAppUrl = host.includes("qoe.test")
+    ? "http://qoe.test"
+    : host.includes("localhost")
+    ? "http://localhost"
+    : "https://qoe.fi";
 
   return (
     <div 

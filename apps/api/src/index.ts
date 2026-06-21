@@ -28,7 +28,7 @@ app.use(
   cors({
     origin: (origin) => {
       if (!origin) return "*";
-      if (origin.endsWith(".localhost") || origin.endsWith(".lvh.me") || origin === "http://localhost" || origin === "http://lvh.me" || origin.startsWith("http://localhost:")) {
+      if (origin.endsWith(".localhost") || origin.endsWith(".qoe.test") || origin.endsWith(".lvh.me") || origin === "http://localhost" || origin === "http://qoe.test" || origin === "http://lvh.me" || origin.startsWith("http://localhost:")) {
         return origin;
       }
       // Production origins

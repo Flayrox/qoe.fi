@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect, useTransition } from "react";
 import { createClient } from "@qoe/supabase/client";
+
+console.log("DevtoolsPanel.tsx top-level execution!");
+
 import {
   getDevtoolsData,
   createMockUserAction,
@@ -98,6 +101,8 @@ export function DevtoolsPanel() {
     subscribers: 0,
   });
 
+  console.log("DevtoolsPanel rendering, isOpen:", isOpen);
+
   // 🔔 Alert notifications inside panel
   const [alert, setAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -153,6 +158,7 @@ export function DevtoolsPanel() {
     if (typeof window !== "undefined") {
       const savedOpen = localStorage.getItem("qoe_devtools_open");
       const savedTab = localStorage.getItem("qoe_devtools_tab");
+      console.log("DevtoolsPanel localStorage init - savedOpen:", savedOpen, "savedTab:", savedTab);
       if (savedOpen === "true") setIsOpen(true);
       if (savedTab) setActiveTab(savedTab);
 
@@ -173,6 +179,7 @@ export function DevtoolsPanel() {
   }, [isOpen]);
 
   const toggleOpen = () => {
+    console.log("toggleOpen clicked! Current isOpen:", isOpen);
     const nextState = !isOpen;
     setIsOpen(nextState);
     localStorage.setItem("qoe_devtools_open", String(nextState));
