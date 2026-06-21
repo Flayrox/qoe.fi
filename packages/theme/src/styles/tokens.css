@@ -1,0 +1,162 @@
+/* ═══════════════════════════════════════════════════════════════════
+   @qoe/theme — tokens.css
+   Design Tokens en 2 couches (source unique de vérité pour toutes les apps)
+   ═══════════════════════════════════════════════════════════════════
+
+   Layer 1 — Primitives brutes (zinc scale, vermillon scale, radii).
+             ⚠️ JAMAIS utilisées directement par les composants.
+             Référencées uniquement par les sémantiques (Layer 2).
+
+   Layer 2 — Sémantiques (--background, --foreground, --primary...).
+             ✅ C'est ce que les composants consomment (text-foreground, bg-primary).
+             Seule cette couche change entre thèmes (.dark, [data-accent]).
+
+   Décision produit : le thème par défaut est NEUTRE zinc/noir.
+   Le vermillon #EE4B2B est relégué en accent brand OPT-IN via [data-accent]
+   (voir themes.css). Le dashboard reste neutre ; un créateur peut activer
+   l'accent brand sur son blog public uniquement.
+   ═══════════════════════════════════════════════════════════════════ */
+
+
+/* ─────────────────────────────────────────────
+   LAYER 1 — Primitives brutes
+   ───────────────────────────────────────────── */
+:root {
+  /* Neutrals — zinc scale */
+  --zinc-0:   #ffffff;
+  --zinc-50:  #fafafa;
+  --zinc-100: #f4f4f5;
+  --zinc-200: #e4e4e7;
+  --zinc-300: #d4d4d8;
+  --zinc-400: #a1a1aa;
+  --zinc-500: #71717a;
+  --zinc-600: #52525b;
+  --zinc-700: #3f3f46;
+  --zinc-800: #27272a;
+  --zinc-900: #18181b;
+  --zinc-950: #09090b;
+
+  /* Brand — vermillon (accent optionnel, opt-in) */
+  --vermillion-400: #E55A2E;
+  --vermillion-500: #EE4B2B;
+  --vermillion-600: #C7331A;
+
+  /* Legacy neural accents (conservés pour rétro-compat, mappés sainement) */
+  --neural-emerald: oklch(0.68 0.15 152);
+  --neural-rose:    var(--vermillion-500);
+  --neural-amber:   oklch(0.75 0.12 75);
+  --neural-blue:    oklch(0.65 0.14 240);
+
+  /* Radii de base */
+  --radius-base: 0.5rem;
+}
+
+
+/* ─────────────────────────────────────────────
+   LAYER 2 — Sémantiques (thème light neutre par défaut)
+   ───────────────────────────────────────────── */
+:root {
+  /* Surfaces & texte */
+  --background:          var(--zinc-0);
+  --foreground:          var(--zinc-950);
+
+  --card:                var(--zinc-0);
+  --card-foreground:     var(--zinc-950);
+  --popover:             var(--zinc-0);
+  --popover-foreground:  var(--zinc-950);
+
+  /* Primary = neutre zinc-950 (PAS de vermillon par défaut) */
+  --primary:             var(--zinc-950);
+  --primary-foreground:  var(--zinc-0);
+
+  --secondary:           var(--zinc-100);
+  --secondary-foreground:var(--zinc-950);
+
+  --muted:               var(--zinc-100);
+  --muted-foreground:    var(--zinc-500);
+
+  --accent:              var(--zinc-100);
+  --accent-foreground:   var(--zinc-950);
+
+  --destructive:         var(--vermillion-600);
+
+  --border:              var(--zinc-200);
+  --input:               var(--zinc-200);
+  --ring:                var(--zinc-950);
+
+  /* Brand accent — opt-in, NON actif par défaut.
+     Activé via [data-accent="vermillion"] (voir themes.css). */
+  --accent-brand:        var(--vermillion-500);
+  --accent-brand-fg:     var(--zinc-0);
+
+  /* Charts */
+  --chart-1: oklch(0.62 0.14 25);
+  --chart-2: oklch(0.65 0.12 165);
+  --chart-3: oklch(0.72 0.10 80);
+  --chart-4: oklch(0.55 0.15 280);
+  --chart-5: oklch(0.68 0.13 140);
+
+  /* Sidebar */
+  --sidebar:                 var(--zinc-0);
+  --sidebar-foreground:      var(--zinc-950);
+  --sidebar-primary:         var(--zinc-950);
+  --sidebar-primary-foreground: var(--zinc-0);
+  --sidebar-accent:          var(--zinc-100);
+  --sidebar-accent-foreground: var(--zinc-950);
+  --sidebar-border:          var(--zinc-200);
+  --sidebar-ring:            var(--zinc-950);
+
+  /* Grid décoratif (très subtil) */
+  --grid-color: rgba(0, 0, 0, 0.015);
+
+  /* ═══════════════════════════════════════════════════
+     QOE.FI v2 — Design Tokens étendus (Nested Radius System)
+     Conservés car utilisés par le devtools et plusieurs composants.
+     Remappés sur les primitives zinc.
+     ═══════════════════════════════════════════════════ */
+
+  /* Brand vars (référence, pour color pickers settings) */
+  --qoe-vermillion:       var(--vermillion-500);
+  --qoe-vermillion-10:    rgba(238, 75, 43, 0.10);
+  --qoe-vermillion-08:    rgba(238, 75, 43, 0.08);
+  --qoe-vermillion-glow:  rgba(238, 75, 43, 0.15);
+
+  /* Surface System — Layered Paper */
+  --surface-0: var(--zinc-0);
+  --surface-1: var(--zinc-50);
+  --surface-2: var(--zinc-100);
+  --surface-3: var(--zinc-200);
+
+  /* Text Hierarchy */
+  --text-primary:    var(--zinc-950);
+  --text-secondary:  var(--zinc-600);
+  --text-tertiary:   var(--zinc-400);
+  --text-quaternary: var(--zinc-300);
+
+  /* Border System */
+  --border-subtle:  rgba(0, 0, 0, 0.04);
+  --border-default: rgba(0, 0, 0, 0.08);
+  --border-strong:  rgba(0, 0, 0, 0.14);
+
+  /* Shadow Vocabulary — jamais de shadow dure */
+  --shadow-card:        0 1px 2px rgba(0,0,0,0.01), 0 2px 4px rgba(0,0,0,0.015), 0 8px 16px rgba(0,0,0,0.015), 0 16px 32px rgba(0,0,0,0.01);
+  --shadow-card-hover:  0 2px 4px rgba(0,0,0,0.02), 0 4px 8px rgba(0,0,0,0.02), 0 16px 32px rgba(0,0,0,0.02), 0 32px 64px rgba(0,0,0,0.02);
+  --shadow-elevated:    0 1px 2px rgba(0,0,0,0.01), 0 4px 8px rgba(0,0,0,0.02), 0 16px 32px rgba(0,0,0,0.04), 0 32px 64px rgba(0,0,0,0.04);
+  --shadow-sidebar:     2px 0 24px rgba(0,0,0,0.03);
+
+  /* Radii imbriqués */
+  --radius:          var(--radius-base);
+  --radius-plateau:  4px;
+  --radius-card:     4px;
+  --radius-element:  2px;
+  --radius-chip:     2px;
+  --radius-button:   4px;
+  --radius-icon:     2px;
+
+  /* Easings */
+  --spring-snappy: cubic-bezier(0.16, 1, 0.3, 1);
+  --spring-gentle: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Carousel */
+  --carousel-padding: calc(50vw - 320px + 1.5rem);
+}

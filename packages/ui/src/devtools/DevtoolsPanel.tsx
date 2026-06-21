@@ -464,14 +464,60 @@ export function DevtoolsPanel() {
   const ports = getMonorepoPorts();
 
   // 🏥 Host diagnostics helpers
+  const getDynamicUrl = (subdomain: string, port?: string | number) => {
+    if (typeof window === "undefined") return "";
+    const hostname = window.location.hostname;
+    
+    // Detect domain suffix
+    let suffix = "localhost";
+    if (hostname.endsWith("qoe.test")) {
+      suffix = "qoe.test";
+    } else if (hostname.endsWith("qoe.fi")) {
+      suffix = "qoe.fi";
+    } else if (hostname.endsWith("lvh.me")) {
+      suffix = "lvh.me";
+    }
+    
+    const protocol = window.location.protocol;
+    if (subdomain === "") {
+      return `${protocol}//${suffix}`;
+    }
+    if (subdomain === "*") {
+      return `${protocol}//*.${suffix}`;
+    }
+    return `${protocol}//${subdomain}.${suffix}`;
+  };
+
   const getAppNameFromPort = () => {
     if (typeof window === "undefined") return "Chargement...";
 
-    // Check for local creator subdomain host first to be accurate
-    const parts = window.location.hostname.split(".");
-    if (parts.length > 1 && parts[0] !== "localhost" && parts[0] !== "www") {
-      return `Sous-domaine (${parts[0]})`;
+    const hostname = window.location.hostname;
+    let suffix = "localhost";
+    let sub = "";
+    
+    if (hostname.endsWith(".qoe.test")) {
+      sub = hostname.replace(".qoe.test", "");
+      suffix = "qoe.test";
+    } else if (hostname === "qoe.test") {
+      suffix = "qoe.test";
+    } else if (hostname.endsWith(".qoe.fi")) {
+      sub = hostname.replace(".qoe.fi", "");
+      suffix = "qoe.fi";
+    } else if (hostname === "qoe.fi") {
+      suffix = "qoe.fi";
+    } else if (hostname.endsWith(".localhost") && hostname !== "localhost") {
+      sub = hostname.replace(".localhost", "");
     }
+    
+    if (sub && !["start", "api", "dashboard", "admin", "www"].includes(sub)) {
+      return `Sous-domaine (${sub})`;
+    }
+
+    if (sub === "start") return "Landing Vitrine";
+    if (sub === "dashboard") return "Dashboard Créateur";
+    if (sub === "admin") return "Admin Console";
+    if (sub === "api") return "API Gateway";
+    if (hostname === "localhost" || hostname === "qoe.test" || hostname === "qoe.fi") return "Espace Feed";
 
     const port = window.location.port;
     if (port === ports.landing) return "Landing Vitrine";
@@ -495,12 +541,12 @@ export function DevtoolsPanel() {
 
   // 🔗 Predefined Monorepo Links
   const appLinks = [
-    { name: "Landing Vitrine", url: `http://start.localhost`, port: ports.landing, icon: "🌐" },
-    { name: "Espace Feed / Lecteur", url: `http://localhost`, port: ports.feed, icon: "💬" },
-    { name: "Studio Créateur (Console)", url: `http://dashboard.localhost`, port: ports.dashboard, icon: "🎨" },
-    { name: "Admin Console", url: `http://admin.localhost`, port: ports.admin, icon: "🛡️" },
-    { name: "Tenant Portal (Web)", url: `http://*.localhost`, port: ports.tenant, icon: "📄" },
-    { name: "API Gateway", url: `http://api.localhost`, port: ports.api, icon: "⚡" },
+    { name: "Landing Vitrine", url: getDynamicUrl("start", ports.landing), port: ports.landing, icon: "🌐" },
+    { name: "Espace Feed / Lecteur", url: getDynamicUrl("", ports.feed), port: ports.feed, icon: "💬" },
+    { name: "Studio Créateur (Console)", url: getDynamicUrl("dashboard", ports.dashboard), port: ports.dashboard, icon: "🎨" },
+    { name: "Admin Console", url: getDynamicUrl("admin", ports.admin), port: ports.admin, icon: "🛡️" },
+    { name: "Tenant Portal (Web)", url: getDynamicUrl("*", ports.tenant), port: ports.tenant, icon: "📄" },
+    { name: "API Gateway", url: getDynamicUrl("api", ports.api), port: ports.api, icon: "⚡" },
     { name: "Prisma Studio (GUI)", url: `http://localhost:${ports.prisma}`, port: ports.prisma, icon: "💾" },
   ];
 
@@ -627,7 +673,8 @@ export function DevtoolsPanel() {
                   ) : (
                     <div className="qoe-devtools-grid">
                       {creators.map((c) => {
-                        const localSubdomainUrl = `http://${c.subdomain}.localhost`;
+                        const localSubdomainUrl = getDynamicUrl(c.subdomain || "");
+                        const displayDomain = typeof window !== "undefined" && window.location.hostname.endsWith("qoe.test") ? "qoe.test" : "localhost";
                         return (
                           <div key={c.id} className="qoe-devtools-port-card" style={{ gap: "6px" }}>
                             <span className="qoe-devtools-port-name" style={{ color: c.accentColor || "#c5a880" }}>
@@ -646,7 +693,7 @@ export function DevtoolsPanel() {
                               <span className="qoe-devtools-badge">{c.layoutStyle || "minimal"}</span>
                             </div>
                             <span className="qoe-devtools-port-url" style={{ fontSize: "8px" }}>
-                              {c.subdomain}.localhost:{ports.tenant}
+                              {c.subdomain}.{displayDomain}
                             </span>
                           </div>
                         );
@@ -1021,7 +1068,7 @@ export function DevtoolsPanel() {
                               <span className="qoe-devtools-user-meta">{user.email}</span>
                               {user.subdomain && (
                                 <span className="qoe-devtools-user-meta" style={{ color: "rgba(var(--devtools-accent), 0.7)" }}>
-                                  🌐 {user.subdomain}.localhost
+                                  🌐 {user.subdomain}.{typeof window !== "undefined" && window.location.hostname.endsWith("qoe.test") ? "qoe.test" : "localhost"}
                                 </span>
                               )}
                             </div>
