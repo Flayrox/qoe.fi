@@ -56,6 +56,8 @@ qoe.fi/                              # Monorepo Turborepo
 | `*.qoe.fi` | web | Blogs publics des créateurs (multi-tenant) |
 | `api.qoe.fi` | api | Hono backend (future) |
 
+Pour le dev Windows des blogs créateurs, préfère `*.lvh.me` pour les sous-domaines dynamiques (`monsieur.lvh.me`) car `*.qoe.test` ne peut pas être résolu en wildcard sans DNS local dédié.
+
 ---
 
 ## ⚡ Quick start (5 minutes)
@@ -64,6 +66,7 @@ qoe.fi/                              # Monorepo Turborepo
 - Node.js 20+
 - pnpm 9.15+ (`npm install -g pnpm`)
 - Docker Desktop (pour Postgres + Redis)
+- Caddy local ou Docker Desktop pour le fallback automatique de `pnpm dev:win`
 
 ### 2. Installation
 ```bash
@@ -90,6 +93,7 @@ pnpm docker:dev
 # → API:               http://localhost:4002/health
 
 # Option B : Dev local hybride (recommandé, DB externe/Docker + node host)
+pnpm dev:win   # Windows : démarre Caddy + DB/Redis + Turbo dev
 pnpm prisma:generate
 pnpm dev   # Turbo lance les 6 apps en parallèle
 # → Feed (Reader):    http://localhost:3010

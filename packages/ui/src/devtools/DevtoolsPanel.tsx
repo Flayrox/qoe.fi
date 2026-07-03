@@ -467,7 +467,7 @@ export function DevtoolsPanel() {
   const getDynamicUrl = (subdomain: string, port?: string | number) => {
     if (typeof window === "undefined") return "";
     const hostname = window.location.hostname;
-    
+
     // Detect domain suffix
     let suffix = "localhost";
     if (hostname.endsWith("qoe.test")) {
@@ -477,15 +477,16 @@ export function DevtoolsPanel() {
     } else if (hostname.endsWith("lvh.me")) {
       suffix = "lvh.me";
     }
-    
+
+    const tenantSuffix = process.env.NEXT_PUBLIC_DEV_TENANT_SUFFIX || suffix;
     const protocol = window.location.protocol;
     if (subdomain === "") {
       return `${protocol}//${suffix}`;
     }
     if (subdomain === "*") {
-      return `${protocol}//*.${suffix}`;
+      return `${protocol}//*.${tenantSuffix}`;
     }
-    return `${protocol}//${subdomain}.${suffix}`;
+    return `${protocol}//${subdomain}.${tenantSuffix}`;
   };
 
   const getAppNameFromPort = () => {
