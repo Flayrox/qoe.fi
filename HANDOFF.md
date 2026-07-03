@@ -8,13 +8,13 @@
 
 ## 📋 TL;DR
 
-- ✅ Monorepo **activé** : 17 workspaces, `pnpm install` (~1 min)
+- ✅ Monorepo **activé** : 18 workspaces (`pnpm install` ~1 min)
 - ✅ Prisma client **généré** depuis `packages/db/prisma/`
-- ✅ Build **clean** : 6/6 apps successful (api, landing, feed, dashboard, admin, web) en ~45s
+- ✅ Build **clean** : 6/6 apps + 11 packages + 1 worker successful (api, landing, feed, dashboard, admin, web) en ~45s
 - ✅ Typecheck : **0 erreur**
 - ✅ 1 source de vérité par concept (schema Prisma, composants UI)
 - ✅ Docker multi-services prêt (11 services, 2 réseaux)
-- ✅ Documentation complète (7 fichiers markdown mis à jour)
+- ✅ Documentation complète (7 fichiers markdown mis à jour + `plans/` interne non publié)
 
 **Aucun TODO en cours.** Le projet est dans un état **production-ready** pour démarrer le développement.
 
@@ -47,7 +47,7 @@ pnpm docker:dev
 ## 🏗️ Architecture finale
 
 ```
-qoe.fi/                              # 17 workspaces
+qoe.fi/                              # 18 workspaces
 ├── apps/                            # 6 apps/services déployables
 │   ├── landing/                     # Next.js 16 — start.qoe.fi (site vitrine, mentions, CMS SystemConfig)
 │   ├── feed/                        # Next.js 16 — qoe.fi (feed lecteur + auth centralisé)
@@ -55,10 +55,11 @@ qoe.fi/                              # 17 workspaces
 │   ├── admin/                       # Next.js 16 — admin.qoe.fi (superadmin, modération, config CMS)
 │   ├── web/                         # Next.js 16 — *.qoe.fi & domaines customs (blogs créateurs)
 │   └── api/                         # Hono backend
-├── packages/                        # 10 packages partagés
+├── packages/                        # 11 packages partagés
 │   ├── db/                          # 🐘 Prisma (SOURCE UNIQUE: prisma/)
 │   ├── auth/                        # 🔐 Roles, permissions, current-user
 │   ├── ui/                          # 🎨 Tokens + composants partagés (SocialIcon, TenantHeader, SubscribeForm)
+│   ├── theme/                       # 🎨 Design tokens multi-apps (CSS vars + registre de thèmes)
 │   ├── supabase/                    # 🔌 3 clients SSR
 │   ├── i18n/                        # 🌐 Tolgee helpers
 │   ├── analytics/                   # 📊 Events tracking
@@ -66,7 +67,7 @@ qoe.fi/                              # 17 workspaces
 │   ├── config/                      # ⚙️ Env Zod, constantes, feature flags
 │   ├── utils/                       # 🔧 cn, format, slugify, validation
 │   └── tsconfig/                    # 📐 4 tsconfig partagés
-├── workers/                         # BullMQ (placeholder)
+├── workers/                         # BullMQ (emails, AI, billing — actif)
 ├── docker/                          # Caddy, Postgres, Redis
 ├── messages/                        # i18n locales
 ├── scripts/                         # deploy, seed, backup, dedupe
@@ -154,12 +155,13 @@ qoe.fi/                              # 17 workspaces
 | Aspect | Avant (3029a31) | Après (v2 - Découplé) |
 |--------|-----------------|-----------------|
 | **Apps** | 1 (monolithe) | 6 (landing, feed, dashboard, admin, web, api) |
-| **Packages partagés** | 0 | 10 |
+| **Packages partagés** | 0 | 11 |
 | **Schema Prisma** | 1 fichier racine | 1 source unique dans `packages/db/prisma/` |
 | **Composants UI partagés** | Pas de partage | Centralisés dans `packages/ui/` |
-| **Build** | `pnpm dev` simple | `pnpm build` 6/6 successful en ~45s |
+| **Design tokens** | 5 `globals.css` divergents | Source unique dans `packages/theme/` (en cours d'intégration) |
+| **Build** | `pnpm dev` simple | `pnpm build` 6/6 + 11 packages + 1 worker successful en ~45s |
 | **Docker** | Fichier basique | 11 services + 2 réseaux isolés |
-| **Documentation** | 1 README | 7 fichiers markdown complets mis à jour |
+| **Documentation** | 1 README | 7 fichiers markdown mis à jour + `plans/` interne |
 | **Lignes de code** | ~7 000 | ~26 000 (scaffold complet découplé) |
 
 ---
@@ -168,7 +170,7 @@ qoe.fi/                              # 17 workspaces
 
 ### 1. Monorepo Turborepo
 - **6 apps/services** indépendants → scale horizontal et isolation totale par contexte métier
-- **10 packages** partagés → code DRY, type-safety bout-en-bout
+- **11 packages** partagés → code DRY, type-safety bout-en-bout
 - **Cache Turbo** → rebuild incrémental (42s la 1ère fois, < 1s en cache hit)
 
 ### 2. Source unique Prisma : `packages/db/prisma/`
@@ -238,11 +240,12 @@ pnpm docker:deploy
 
 | Fichier | Rôle |
 |---------|------|
-| `pnpm-workspace.yaml` | Déclare les 17 workspaces |
+| `pnpm-workspace.yaml` | Déclare les 18 workspaces |
 | `turbo.json` | Pipeline de build (cache, parallélisme) |
 | `prisma.config.ts` | Pointe vers `packages/db/prisma/` |
 | `packages/db/prisma/schema.prisma` | **Source de vérité** du modèle de données |
 | `packages/ui/src/index.ts` | Exports centralisés des composants UI partagés |
+| `packages/theme/src/` | Design tokens + registre de thèmes (source unique CSS) |
 | `apps/landing/next.config.ts` | Config Next pour la landing |
 | `apps/feed/next.config.ts` | Config Next pour le feed et l'auth |
 | `apps/dashboard/next.config.ts` | Config Next pour le dashboard |
@@ -271,17 +274,22 @@ pnpm docker:deploy
 
 ## 🗺️ Roadmap future
 
+### 🟡 Workers BullMQ (scaffold en place, jobs à implémenter)
+- `workers/` existe avec BullMQ + ioredis configurés
+- `workers/src/index.ts` est le point d'entrée
+- Jobs à câbler : emails (Resend), AI embeddings (OpenAI → pgvector), billing webhooks (Stripe)
+- Variables d'env déjà disponibles via `@qoe/config`
+
 ### 🟡 Stubs à remplacer
-- `apps/console/src/app/(reader)/onboarding/OnboardingFlow.tsx` (version minimaliste)
-- `apps/console/src/components/ui/SubscribeForm.tsx` (si pas migré)
+- Onboarding et `SubscribeForm` (ces derniers ont été dédupliqués dans `@qoe/ui`)
 
 ### 🟡 Migration shadcn/ui → `packages/ui/`
-- ~30 fichiers shadcn dans `apps/console/src/components/ui/` à migrer progressivement
+- ~30 fichiers shadcn dans `apps/dashboard/src/components/ui/` à migrer progressivement
 - Le pattern est en place (cf. AXE 2)
 
-### 🔮 Workers BullMQ
-- `apps/workers/` existe (placeholder)
-- Jobs : emails, AI embeddings, billing webhooks
+### 🟡 Brancher `packages/theme`
+- Le package existe avec tokens + `ThemeProvider`
+- Reste à remplacer les 5 `globals.css` locaux par `import "@qoe/theme/styles"`
 
 ### 🔮 CI/CD
 - GitHub Actions : `pnpm install && pnpm typecheck && pnpm build` sur chaque PR
@@ -301,11 +309,15 @@ pnpm docker:deploy
 |---------|---------|
 | [README.md](./README.md) | Vitrine du projet (Quick start, stack, structure) |
 | [GETTING_STARTED.md](./GETTING_STARTED.md) | Guide de démarrage rapide multi-plateforme (Mac/Win) |
+| [DEV.md](./DEV.md) | Workflow dev quotidien (3 étapes : db Docker + Caddy + `pnpm dev`) |
 | [ACTIVATION.md](./ACTIVATION.md) | Comment démarrer (4 commandes) |
 | [DOCKER.md](./DOCKER.md) | Architecture Docker, 11 services, dev/prod |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Déploiement production (VPS, DNS, SSL, backups) |
 | [HANDOFF.md](./HANDOFF.md) | **Ce fichier** — passation + historique |
 | [MIGRATION.md](./MIGRATION.md) | Migration monolithe → monorepo (historique) |
+
+> 📂 `plans/` contient les notes de travail internes (roadmaps, explorations
+> design). **Non publié** (`.gitignore`).
 
 ---
 

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/tooltip"
 import { Logo } from "@/components/ui/Logo"
 import { cn } from "@qoe/utils"
+import { URLS } from "@qoe/config"
 
 
 interface AppSidebarUser {
@@ -229,7 +230,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                 <Tooltip>
                   <TooltipTrigger>
                     <a
-                      href="/dashboard"
+                      href={URLS.DASHBOARD}
                       className="relative flex items-center justify-center w-12 h-10 rounded-[var(--radius-button)]
                                  text-xs font-semibold transition-colors duration-200 outline-none
                                  hover:bg-white/50"
@@ -246,7 +247,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                   <Tooltip>
                     <TooltipTrigger>
                       <a
-                        href="/admin"
+                        href={URLS.ADMIN}
                         className="relative flex items-center justify-center w-12 h-10 rounded-[var(--radius-button)]
                                    text-xs font-semibold transition-colors duration-200 outline-none
                                    hover:bg-white/50"

@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 export async function login(formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
+  const redirectTo = formData.get('redirect') as string
   
   if (!email || !password) {
     redirect('/login?error=Missing+credentials')
@@ -26,7 +27,6 @@ export async function login(formData: FormData) {
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id }
   })
-
   if (dbUser) {
     if (dbUser.role === 'user') {
       const followsCount = await prisma.follows.count({ where: { readerId: dbUser.id } })
@@ -35,10 +35,9 @@ export async function login(formData: FormData) {
         redirect('/onboarding')
       }
     }
-    redirect('/home' as any)
   }
 
-  redirect('/home' as any)
+  redirect(redirectTo || '/home' as any)
 }
 
 export async function signup(formData: FormData) {

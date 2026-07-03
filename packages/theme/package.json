@@ -1,0 +1,37 @@
+{
+    "name": "@qoe/theme",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "exports": {
+        ".": "./src/index.ts",
+        "./styles": "./src/styles/index.css",
+        "./styles/tokens": "./src/styles/tokens.css",
+        "./styles/themes": "./src/styles/themes.css",
+        "./styles/base": "./src/styles/base.css",
+        "./registry": "./src/registry.ts",
+        "./ThemeProvider": "./src/ThemeProvider.tsx",
+        "./ThemeStyle": "./src/ThemeStyle.tsx",
+        "./tokens": "./src/tokens.ts"
+    },
+    "scripts": {
+        "lint": "echo skip",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@qoe/utils": "workspace:*",
+        "next-themes": "^0.4.6"
+    },
+    "peerDependencies": {
+        "next": "^16.2.6",
+        "react": "^19",
+        "react-dom": "^19"
+    },
+    "devDependencies": {
+        "@qoe/tsconfig": "workspace:*",
+        "@types/react": "^19",
+        "typescript": "^5"
+    }
+}

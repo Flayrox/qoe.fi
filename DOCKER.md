@@ -31,7 +31,7 @@
 | **feed** | 4000→3010 | public | `feed` | Next.js reader (`qoe.fi` + auth central) |
 | **dashboard** | 4020→3020 | public | `dashboard` | Next.js creator (`dashboard.qoe.fi`) |
 | **admin** | 4030→3030 | public | `admin` | Next.js superadmin (`admin.qoe.fi`) |
-| **api** | 4002→3001 | public | `api` | Hono backend (`api.qoe.fi`) |
+| **api** | 4002→3002 | public | `api` | Hono backend (`api.qoe.fi`) |
 | **workers** | - | private | `workers` | BullMQ jobs (emails, AI, billing) |
 | **migrate** | - | private | runtime | One-shot Prisma migrate (s'exécute puis s'arrête) |
 | **db** | 5433→5432 | private | postgres:16-alpine | PostgreSQL 16 + pgvector |
@@ -90,7 +90,7 @@ docker compose -f docker-compose.dev.yml up
 | `http://dashboard.qoe.fi:4020` | dashboard (studio créateur) | 4020 (interne: 3020) | 3020 |
 | `http://admin.qoe.fi:4030` | admin (panel superadmin) | 4030 (interne: 3030) | 3030 |
 | `http://localhost:4001` (ou `*.qoe.fi`) | web (blogs créateurs) | 4001 (interne: 3000) | 3001 |
-| `http://localhost:4002/health` | api (Hono backend) | 4002 (interne: 3001) | 3002 |
+| `http://localhost:4002/health` | api (Hono backend) | 4002 (interne: 3002) | 3002 |
 | `psql -h localhost -p 5433 -U qoe -d qoe` | db (Postgres direct) | 5433 (interne: 5432) | 5433 |
 | `redis-cli -h localhost -p 6379` | redis (Redis cache direct) | 6379 | 6379 |
 

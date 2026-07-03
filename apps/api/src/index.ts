@@ -26,15 +26,23 @@ app.use("*", logger());
 app.use(
   "*",
   cors({
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:3010",
-      "http://localhost:3001",
-      "https://qoe.fi",
-      "https://*.qoe.fi",
-      "https://dashboard.qoe.fi",
-      "https://admin.qoe.fi",
-    ],
+    origin: (origin) => {
+      if (!origin) return "*";
+      if (origin.endsWith(".localhost") || origin.endsWith(".qoe.test") || origin.endsWith(".lvh.me") || origin === "http://localhost" || origin === "http://qoe.test" || origin === "http://lvh.me" || origin.startsWith("http://localhost:")) {
+        return origin;
+      }
+      // Production origins
+      const allowedProdDomains = [
+        "https://qoe.fi",
+        "https://dashboard.qoe.fi",
+        "https://admin.qoe.fi",
+        "https://start.qoe.fi",
+      ];
+      if (allowedProdDomains.includes(origin) || /\.qoe\.fi$/.test(origin)) {
+        return origin;
+      }
+      return "";
+    },
     credentials: true,
   })
 );
@@ -75,7 +83,7 @@ app.get("/v1/users/:username", (c) =>
 );
 
 // ─── Démarrage ───────────────────────────────────────────────
-const port = Number(process.env.PORT) || 3002;
+const port = 3002;
 
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`🔌 API server running on http://localhost:${info.port}`);

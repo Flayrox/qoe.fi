@@ -1,4 +1,4 @@
-﻿// =====================================================================
+// =====================================================================
 // âš¡ Server Actions â€” apps/dashboard/src/app/(creator)/dashboard/articles/actions.ts
 // =====================================================================
 // ðŸ“– Actions serveur pour gÃ©rer les articles et catÃ©gories (CRUD).
@@ -9,18 +9,14 @@
 
 import { revalidatePath } from "next/cache"
 import { prisma } from "@qoe/db/client"
-import { getCurrentUser } from "@qoe/auth/current-user"
+import { requireUser } from "@qoe/auth/current-user"
 import { slugify, shortId } from "@qoe/utils"
 
 /**
- * ðŸ”’ RÃ©cupÃ¨re l'utilisateur connectÃ© ou lÃ¨ve une erreur si non authentifiÃ©.
+ * ðŸ”’ RÃ©cupÃ¨re l'utilisateur connectÃ© ou redirige vers la page de connexion.
  */
 async function authenticateUser() {
-  const user = await getCurrentUser()
-  if (!user) {
-    throw new Error("Vous devez Ãªtre connectÃ© pour effectuer cette action.")
-  }
-  return user
+  return await requireUser()
 }
 
 // =====================================================================
@@ -152,8 +148,8 @@ export async function saveArticleAction(data: {
       },
     })
 
-    revalidatePath("/dashboard/articles")
-    revalidatePath(`/dashboard/articles/${id}`)
+    revalidatePath("/articles")
+    revalidatePath(`/articles/${id}`)
     return updated
   } else {
     // CrÃ©ation d'un nouvel article
@@ -172,7 +168,7 @@ export async function saveArticleAction(data: {
       },
     })
 
-    revalidatePath("/dashboard/articles")
+    revalidatePath("/articles")
     return created
   }
 }
@@ -199,7 +195,7 @@ export async function deleteArticleAction(id: string) {
     where: { id },
   })
 
-  revalidatePath("/dashboard/articles")
+  revalidatePath("/articles")
   return { success: true }
 }
 
@@ -287,7 +283,7 @@ export async function saveCategoryAction(data: {
       },
     })
 
-    revalidatePath("/dashboard/articles")
+    revalidatePath("/articles")
     return updated
   } else {
     const created = await prisma.category.create({
@@ -299,7 +295,7 @@ export async function saveCategoryAction(data: {
       },
     })
 
-    revalidatePath("/dashboard/articles")
+    revalidatePath("/articles")
     return created
   }
 }
@@ -328,6 +324,6 @@ export async function deleteCategoryAction(id: string) {
     where: { id },
   })
 
-  revalidatePath("/dashboard/articles")
+  revalidatePath("/articles")
   return { success: true }
 }

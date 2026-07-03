@@ -1,21 +1,23 @@
 // =====================================================================
-// 🎨 Design Tokens — Source unique des couleurs, espacement, typo
+// 🎨 Design Tokens — @qoe/ui
 // =====================================================================
-// 📖 Toutes les constantes de design (couleurs, espacements) sont définies
-//    ici et importées par les composants UI.
+// 📖 Re-exporte le helper runtime token() depuis @qoe/theme (source unique).
+//    Les composants/charts lisent la valeur résolue du token sémantique,
+//    ils suivent ainsi automatiquement le thème actif (light/dark/accent).
 //
-// 🎯 Pourquoi un fichier tokens.ts ?
-//    - Permet de les utiliser dans le JS (ex: charts, dynamic styles)
-//    - Source unique de vérité (avec tailwind.config.ts)
-//    - Type-safe (impossible de se tromper de couleur)
+// ⚠️ Les constantes statiques historiques (COLORS, SPACING...) sont
+//    conservées ci-dessous pour rétro-compat mais sont DÉPRÉCIÉES.
+//    Préférez `token("--primary")` etc. dans tout nouveau code.
 // =====================================================================
 
+export { token, tokens } from "@qoe/theme";
+
 /**
- * 🎨 Palette de couleurs qoe.fi
- * Inspiré de l'esthétique vermillon/sépia européenne.
+ * @deprecated Palette statique historique. Ne reflete plus le thème actif.
+ * Pour une couleur qui suit le thème, utiliser `token("--primary")`.
+ * Conservée pour les <option> de color pickers (settings/admin).
  */
 export const COLORS = {
-  // Couleurs de marque
   vermillion: {
     50: "#FEF2ED",
     100: "#FBE0D2",
@@ -28,7 +30,6 @@ export const COLORS = {
     800: "#6E1A0D",
     900: "#451107",
   },
-  // Neutres chauds
   sepia: {
     50: "#FBF9F6",
     100: "#F4EFE8",
@@ -43,23 +44,19 @@ export const COLORS = {
   },
 } as const;
 
-/**
- * 📏 Échelle d'espacement (en rem, cohérente avec Tailwind).
- */
+/** @deprecated Utiliser les utilitaires Tailwind (gap-4, p-4...). */
 export const SPACING = {
-  xs: "0.25rem", // 4px
-  sm: "0.5rem", // 8px
-  md: "1rem", // 16px
-  lg: "1.5rem", // 24px
-  xl: "2rem", // 32px
-  "2xl": "3rem", // 48px
-  "3xl": "4rem", // 64px
-  "4xl": "6rem", // 96px
+  xs: "0.25rem",
+  sm: "0.5rem",
+  md: "1rem",
+  lg: "1.5rem",
+  xl: "2rem",
+  "2xl": "3rem",
+  "3xl": "4rem",
+  "4xl": "6rem",
 } as const;
 
-/**
- * 🔠 Familles de polices
- */
+/** @deprecated Les familles sont gérées via @theme (voir @qoe/theme/styles). */
 export const FONTS = {
   sans: '"Inter", "Geist", system-ui, sans-serif',
   serif: '"Geist", "Playfair Display", Georgia, serif',
@@ -67,9 +64,7 @@ export const FONTS = {
   display: '"Geist", "Playfair Display", serif',
 } as const;
 
-/**
- * 🌗 Hauteurs de breakpoints (mobile-first)
- */
+/** @deprecated Utiliser les breakpoints Tailwind. */
 export const BREAKPOINTS = {
   sm: 640,
   md: 768,
@@ -78,9 +73,7 @@ export const BREAKPOINTS = {
   "2xl": 1536,
 } as const;
 
-/**
- * ⏱️ Durées d'animation
- */
+/** @deprecated Utiliser les utilitaires Tailwind (duration-150...). */
 export const DURATIONS = {
   fast: 150,
   normal: 250,

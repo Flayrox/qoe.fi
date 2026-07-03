@@ -91,3 +91,9 @@ OLD/
 POINT git.rar
 scripts/zip.ps1
 scripts/zip.sh
+
+# ─── Internal planning notes (NOT for public repo) ──────────
+# Plan documents & working notes for the team only.
+# /plans/ contains drafts, design explorations, internal roadmaps
+# that should not be pushed to the public repo.
+plans/

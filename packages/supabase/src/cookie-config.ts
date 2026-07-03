@@ -1,0 +1,56 @@
+/**
+ * Get the cookie domain dynamically based on the current hostname.
+ * Allows cookie sharing across subdomains (e.g., .localhost in dev, .qoe.fi in prod).
+ * Returns undefined for bare 'localhost' to prevent browser rejection.
+ */
+export function getCookieDomain(hostname?: string) {
+  let activeHost = hostname;
+  if (!activeHost) {
+    const glob = globalThis as any;
+    if (typeof glob.window !== "undefined") {
+      activeHost = glob.window.location.hostname;
+    } else {
+      // Server-side fallback if hostname is not passed
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+      if (appUrl) {
+        try {
+          activeHost = new URL(appUrl).hostname;
+        } catch {
+          return undefined;
+        }
+      } else {
+        return undefined;
+      }
+    }
+  }
+
+  if (!activeHost) {
+    return undefined;
+  }
+
+  // Split port if present
+  activeHost = activeHost.split(":")[0];
+
+  // In development, return '.qoe.test' for any subdomain or root domain of qoe.test
+  if (activeHost.endsWith("qoe.test")) {
+    return ".qoe.test";
+  }
+
+  // In development, always return undefined so that we set host-only cookies.
+  // This avoids any browser rejection of cookies on .localhost domains.
+  if (
+    activeHost === "localhost" ||
+    activeHost === "127.0.0.1" ||
+    activeHost.endsWith(".localhost") ||
+    activeHost.endsWith(".lvh.me")
+  ) {
+    return undefined;
+  }
+
+  // For production domains
+  if (activeHost.endsWith("qoe.fi")) {
+    return ".qoe.fi";
+  }
+
+  return `.${activeHost}`;
+}
