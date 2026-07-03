@@ -94,7 +94,7 @@ export const LIMITS = {
 function getDynamicUrl(subdomain: string): string {
   if (typeof window === "undefined") return "";
   const hostname = window.location.hostname;
-  
+
   let suffix = "localhost";
   if (hostname.endsWith("qoe.test")) {
     suffix = "qoe.test";
@@ -103,12 +103,13 @@ function getDynamicUrl(subdomain: string): string {
   } else if (hostname.endsWith("lvh.me")) {
     suffix = "lvh.me";
   }
-  
+
+  const tenantSuffix = process.env.NEXT_PUBLIC_DEV_TENANT_SUFFIX || suffix;
   const protocol = window.location.protocol;
   if (subdomain === "") {
     return `${protocol}//${suffix}`;
   }
-  return `${protocol}//${subdomain}.${suffix}`;
+  return `${protocol}//${subdomain}.${tenantSuffix}`;
 }
 
 export const URLS = {

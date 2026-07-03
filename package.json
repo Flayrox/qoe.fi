@@ -8,6 +8,7 @@
     "test:ui": "turbo run test:ui",
     "build": "turbo run build",
     "dev": "node scripts/copy-env.js && turbo run dev --parallel",
+    "dev:win": "powershell -ExecutionPolicy Bypass -File scripts/dev-windows.ps1",
     "start": "turbo run start",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

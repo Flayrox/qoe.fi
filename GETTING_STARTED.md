@@ -35,6 +35,7 @@ Plutôt que de faire tourner toute l'application (y compris Node.js et Next.js) 
 ### Sur Windows
 1. **Node.js 20+** et **pnpm 9+** (via le site officiel ou ton terminal).
 2. **Docker Desktop** pour Windows (avec WSL2 activé).
+3. Les entrées `hosts` suivantes doivent pointer vers `127.0.0.1` : `qoe.test`, `dashboard.qoe.test`, `admin.qoe.test`, `feed.qoe.test`.
 
 > [!WARNING]
 > Si tu as déjà lancé la stack complète par le passé, tes conteneurs Node (`api`, `migrate`, etc.) tournent peut-être encore et consomment énormément de CPU/RAM (comme illustré par exemple avec `api` à 1.3 Go de RAM et `migrate` à 1.6 Go). 
@@ -42,7 +43,7 @@ Plutôt que de faire tourner toute l'application (y compris Node.js et Next.js) 
 
 ---
 
-## 🏁 Démarrage rapide (5 étapes)
+## 🏁 Démarrage rapide (6 étapes)
 
 Fais ces étapes dans ton terminal sur ton Mac ou sur ton Windows :
 
@@ -73,11 +74,25 @@ docker compose -f docker-compose.dev.yml up -d db redis
 ```
 *Vérifie que les conteneurs tournent bien avec `docker compose -f docker-compose.dev.yml ps`.*
 
-### 5. Générer le client Prisma et lancer le serveur de dev
+### 5. Lancer le reverse proxy local
+Sur macOS et Windows, démarre Caddy pour faire répondre `qoe.test` et ses sous-domaines :
+```bash
+caddy start --config Caddyfile.dev
+```
+
+### 6. Générer le client Prisma et lancer le serveur de dev
 ```bash
 pnpm prisma:generate
 pnpm dev
 ```
+
+Sur Windows, tu peux aussi utiliser la commande unique :
+```bash
+pnpm dev:win
+```
+Si Caddy n'est pas installé localement, le script bascule automatiquement sur un container Docker `caddy:2-alpine`.
+
+Pour les blogs créateurs sur Windows, utilise `*.lvh.me` plutôt que `*.qoe.test` pour les sous-domaines dynamiques comme `monsieur.lvh.me`. Le DNS de `lvh.me` pointe déjà vers `127.0.0.1`, ce qui évite le problème `DNS_PROBE_FINISHED_NXDOMAIN`.
 
 C'est tout ! **Turborepo** va lancer en parallèle :
 * ⚛️ **Landing** (`start.qoe.fi` local) sur : http://localhost:3040
