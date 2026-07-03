@@ -91,17 +91,52 @@ export const LIMITS = {
   MAX_PAGE_SIZE: 100,
 } as const;
 
-/**
- * 🌐 URLs canoniques (utilisées pour les redirects, emails, etc.)
- */
+function getDynamicUrl(subdomain: string): string {
+  if (typeof window === "undefined") return "";
+  const hostname = window.location.hostname;
+  
+  let suffix = "localhost";
+  if (hostname.endsWith("qoe.test")) {
+    suffix = "qoe.test";
+  } else if (hostname.endsWith("qoe.fi")) {
+    suffix = "qoe.fi";
+  } else if (hostname.endsWith("lvh.me")) {
+    suffix = "lvh.me";
+  }
+  
+  const protocol = window.location.protocol;
+  if (subdomain === "") {
+    return `${protocol}//${suffix}`;
+  }
+  return `${protocol}//${subdomain}.${suffix}`;
+}
+
 export const URLS = {
-  APP: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-  CONSOLE: process.env.NEXT_PUBLIC_CONSOLE_URL || "http://localhost:3000",
-  ADMIN: process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3000/admin",
-  DASHBOARD: process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost:3000/dashboard",
-  API: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
-  LANDING: process.env.NEXT_PUBLIC_LANDING_URL || "http://localhost:3000/start",
-} as const;
+  get APP(): string {
+    if (typeof window !== "undefined") return getDynamicUrl("");
+    return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  },
+  get CONSOLE(): string {
+    if (typeof window !== "undefined") return getDynamicUrl("");
+    return process.env.NEXT_PUBLIC_CONSOLE_URL || "http://localhost:3000";
+  },
+  get ADMIN(): string {
+    if (typeof window !== "undefined") return getDynamicUrl("admin");
+    return process.env.NEXT_PUBLIC_ADMIN_URL || "http://admin.localhost";
+  },
+  get DASHBOARD(): string {
+    if (typeof window !== "undefined") return getDynamicUrl("dashboard");
+    return process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://dashboard.localhost";
+  },
+  get API(): string {
+    if (typeof window !== "undefined") return getDynamicUrl("api");
+    return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+  },
+  get LANDING(): string {
+    if (typeof window !== "undefined") return getDynamicUrl("start");
+    return process.env.NEXT_PUBLIC_LANDING_URL || "http://localhost:3000/start";
+  },
+};
 
 /**
  * 🌍 Langues supportées.

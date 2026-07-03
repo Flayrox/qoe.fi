@@ -1,0 +1,90 @@
+/* ═══════════════════════════════════════════════════════════════════
+   @qoe/theme — themes.css
+   Variantes de thème (override des sémantiques Layer 2)
+   ═══════════════════════════════════════════════════════════════════
+
+   Ici on bascule les valeurs sémantiques (--primary, --background, etc.)
+   selon le mode (light/dark) ou l'accent brand choisi.
+   Les composants n'ont rien à coder : ils consomment toujours les mêmes
+   tokens sémantiques, c'est le sélecteur CSS qui décide de la valeur.
+
+   Activation :
+     - Dark mode : classe `.dark` sur <html> (via next-themes, attribute="class")
+     - Accent vermillon : attribut `data-accent="vermillion"` sur <html>
+       ou sur un sous-arbre <section data-accent="vermillion">
+   ═══════════════════════════════════════════════════════════════════ */
+
+
+/* ─────────────────────────────────────────────
+   DARK MODE — bascule les sémantiques vers zinc sombre
+   Le neutre zinc se prête naturellement au dark.
+   ───────────────────────────────────────────── */
+.dark {
+  --background:          var(--zinc-950);
+  --foreground:          var(--zinc-50);
+
+  --card:                var(--zinc-900);
+  --card-foreground:     var(--zinc-50);
+  --popover:             var(--zinc-900);
+  --popover-foreground:  var(--zinc-50);
+
+  --primary:             var(--zinc-50);
+  --primary-foreground:  var(--zinc-950);
+
+  --secondary:           var(--zinc-800);
+  --secondary-foreground:var(--zinc-50);
+
+  --muted:               var(--zinc-800);
+  --muted-foreground:    var(--zinc-400);
+
+  --accent:              var(--zinc-800);
+  --accent-foreground:   var(--zinc-50);
+
+  --border:              var(--zinc-800);
+  --input:               var(--zinc-800);
+  --ring:                var(--zinc-50);
+
+  --sidebar:                 var(--zinc-950);
+  --sidebar-foreground:      var(--zinc-50);
+  --sidebar-primary:         var(--zinc-50);
+  --sidebar-primary-foreground: var(--zinc-950);
+  --sidebar-accent:          var(--zinc-800);
+  --sidebar-accent-foreground: var(--zinc-50);
+  --sidebar-border:          var(--zinc-800);
+  --sidebar-ring:            var(--zinc-50);
+
+  --grid-color: rgba(255, 255, 255, 0.02);
+
+  /* Surface & text overrides (Layer 2 v2) */
+  --surface-0: var(--zinc-950);
+  --surface-1: var(--zinc-900);
+  --surface-2: var(--zinc-800);
+  --surface-3: var(--zinc-700);
+
+  --text-primary:    var(--zinc-50);
+  --text-secondary:  var(--zinc-400);
+  --text-tertiary:   var(--zinc-500);
+  --text-quaternary: var(--zinc-600);
+
+  --border-subtle:  rgba(255, 255, 255, 0.04);
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-strong:  rgba(255, 255, 255, 0.14);
+}
+
+
+/* ─────────────────────────────────────────────
+   ACCENT BRAND — vermillon (OPT-IN)
+
+   Le dashboard reste neutre par défaut. Un créateur peut activer
+   l'accent vermillon sur son blog public via <html data-accent="vermillion">.
+   Cela remappe --primary vers le vermillon, sans toucher au reste.
+   ───────────────────────────────────────────── */
+[data-accent="vermillion"] {
+  --primary:             var(--vermillion-500);
+  --primary-foreground:  var(--zinc-0);
+  --ring:                var(--vermillion-500);
+  --sidebar-primary:         var(--vermillion-500);
+  --sidebar-primary-foreground: var(--zinc-0);
+  --sidebar-ring:            var(--vermillion-500);
+  --accent-brand:        var(--vermillion-500);
+}

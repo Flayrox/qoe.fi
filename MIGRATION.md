@@ -8,9 +8,9 @@
 ## 📋 TL;DR
 
 - **Avant** : monolithe Next.js 14 dans `src/`
-- **Après** : monorepo Turborepo avec 6 apps + 10 packages partagés + 1 worker (17 workspaces)
+- **Après** : monorepo Turborepo avec 6 apps + 11 packages partagés + 1 worker (18 workspaces)
 - **Statut** : ✅ Migration et découplage complet **terminés**
-- **Build final** : 17/17 successful
+- **Build final** : 18/18 successful
 - **Voir aussi** : [HANDOFF.md](./HANDOFF.md) pour le contexte complet
 
 ---
@@ -65,10 +65,11 @@ qoe.fi/
 │   ├── admin/                           # admin.qoe.fi (superadmin, config CMS)
 │   ├── web/                             # *.qoe.fi (blogs créateurs multi-tenant)
 │   └── api/                             # api.qoe.fi (Hono API)
-├── packages/                            # 10 packages partagés
+├── packages/                            # 11 packages partagés
 │   ├── db/                              # Prisma (SOURCE UNIQUE)
 │   ├── auth/                            # Roles, permissions, current-user
 │   ├── ui/                              # Tokens + composants partagés
+│   ├── theme/                           # Design tokens multi-apps (ajouté après le découplage)
 │   ├── supabase/                        # Clients SSR
 │   ├── i18n/                            # Tolgee helpers
 │   ├── analytics/                       # Events tracking
@@ -86,9 +87,10 @@ qoe.fi/
 
 **Avantages** :
 - 6 apps totalement isolées → scale horizontal fin par service, isolation de sécurité
-- 10 packages partagés → code DRY, type-safety bout-en-bout
+- 11 packages partagés → code DRY, type-safety bout-en-bout
 - Build incrémental Turbo (~45s la 1ère fois, < 1s en cache)
 - Séparation stricte des préoccupations (feed = lecteurs, dashboard = créateurs, admin = superadmin, landing = vitrine, web = blogs, api = backend)
+- Design tokens unifiés (`packages/theme`) : plus de `globals.css` divergents entre les 5 fronts
 
 ---
 
@@ -108,10 +110,14 @@ qoe.fi/
 ### Phase 1-3 — Migration du code (par toi, dans le commit `65e4c5b`)
 **Commit** : `65e4c5b` (313 fichiers, +20 437 lignes)
 
-#### 1. Packages créés
+#### 1. Packages créés (initiaux)
 - **10 packages workspace** avec leur `package.json` propre
 - Chaque package a son `exports` (entry + subpaths)
 - `prebuild` et `pretypecheck` pour auto-generate Prisma client
+
+> ℹ️ Un **11ème package** (`@qoe/theme`) a été ajouté après le découplage pour
+> centraliser les design tokens et éliminer la divergence des `globals.css`
+> entre les 5 fronts. Voir [`plans/theming-architecture.md`](./plans/theming-architecture.md).
 
 #### 2. Apps créées
 - **`apps/console`** : Next.js 16, sert qoe.fi + dashboard + admin
@@ -209,7 +215,7 @@ qoe.fi/
 - **react-day-picker** : Ajout de la dépendance manquante pour le composant calendrier shadcn/ui dans `@qoe/dashboard`, `@qoe/feed` et `@qoe/admin`.
 - **Cleanup des composants admin obsolètes** : Suppression des résidus et fichiers re-export fantômes comme `AdminHeader.tsx` dans `apps/dashboard` et `apps/feed`.
 
-- **Build final vérifié** : `pnpm build` ✅ 6/6 apps + 10 packages + 1 worker = 17/17 workspaces successful en ~45s.
+- **Build final vérifié** : `pnpm build` ✅ 6/6 apps + 11 packages + 1 worker = 18/18 workspaces successful en ~45s.
 
 ---
 
@@ -219,10 +225,10 @@ qoe.fi/
 |----------|--------|
 | **Fichiers créés** | ~70 packages + apps structure |
 | **Fichiers déplacés/scindés** | ~400 (scission de console en 4 apps distinctes) |
-| **Fichiers supprimés** | ~50 (doublons, re-exports fantômes, legacy) |
+| **Fichiers supprimés** | ~50 (doublons, re-exports fantômes, legacy + dossier `apps/console` final) |
 | **Lignes ajoutées** | ~26 000 (scaffold complet découplé) |
 | **Lignes supprimées** | ~22 000 (legacy src/ + console/) |
-| **Workspaces pnpm** | 17 (6 apps, 10 packages, 1 worker) |
+| **Workspaces pnpm** | 18 (6 apps, 11 packages, 1 worker) |
 | **Services Docker** | 11 (Caddy, db, redis, migrate, api, workers + 5 fronts) |
 | **Réseaux Docker** | 2 (`qoefi-public` + `qoefi-private`) |
 | **Build time** | ~45s global complet (grâce au cache intelligent Turborepo) |
@@ -278,7 +284,7 @@ Au lieu de tout réécrire d'un coup ou de garder un gros monolithe Next.js qui 
 | Outil | Usage |
 |-------|-------|
 | **PowerShell** | Scripts de migration (`fix-imports.ps1`, `cleanup-fantoms.ps1`, `dedupe-prisma.ps1`, `dedupe-ui.ps1`) |
-| **pnpm workspaces** | Gestion des 17 workspaces |
+| **pnpm workspaces** | Gestion des 18 workspaces |
 | **Turbo** | Pipeline de build (cache, parallélisme) |
 | **TypeScript** | Vérification de types en cascade |
 | **Prisma** | Génération du client + migrations |
@@ -302,10 +308,10 @@ Au lieu de tout réécrire d'un coup ou de garder un gros monolithe Next.js qui 
 La migration monolithe → monorepo et le découplage complet en 5 applications autonomes sont **terminés avec succès**. Le projet est dans un état :
 
 - ✅ **Propre** : 0 dette technique de migration, isolation hermétique des domaines d'application
-- ✅ **DRY** : 1 seule source de vérité par concept (Prisma, composants partagés)
+- ✅ **DRY** : 1 seule source de vérité par concept (Prisma, composants partagés, design tokens)
 - ✅ **Scalable** : chaque application peut scale indépendamment
 - ✅ **Type-safe** : type-safety bout-en-bout via les packages
-- ✅ **Documenté** : 7 fichiers markdown couvrent tous les aspects du projet
-- ✅ **Build clean** : 17/17 workspaces successful
+- ✅ **Documenté** : 8 fichiers markdown couvrent les aspects publics du projet
+- ✅ **Build clean** : 18/18 workspaces successful (docs internes `plans/` non publiées)
 
 Le prochain dev qui arrive sur le projet a tout ce qu'il faut dans [README.md](./README.md) pour être opérationnel en 5 minutes.
