@@ -63,6 +63,7 @@
     "prisma:generate": "cd packages/db && pnpm prisma generate",
     "prisma:studio": "cd packages/db && pnpm prisma studio",
     "prisma:format": "cd packages/db && pnpm prisma format",
+    "prisma:seed": "cd packages/db && pnpm prisma db seed",
     "zip:win": "powershell -ExecutionPolicy Bypass -File scripts/zip.ps1",
     "zip:mac": "bash scripts/zip.sh"
   },

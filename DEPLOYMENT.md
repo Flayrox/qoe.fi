@@ -96,7 +96,7 @@ pnpm docker:dev
 
 # Vérifie que :
 # - http://localhost:4000 répond (qoe.fi local via Docker dev)
-# - http://localhost:4001 répond (start.qoe.fi local via Docker dev)
+# - http://localhost:4040 répond (start.qoe.fi local via Docker dev)
 # - http://localhost:4002/health retourne OK
 ```
 
@@ -438,6 +438,8 @@ sudo tail -f /var/log/auth.log
 ## 📖 Liens utiles
 
 - [README.md](./README.md) — Vitrine du projet
+- [GETTING_STARTED.md](./GETTING_STARTED.md) — Démarrage rapide Mac/Win
+- [DEV.md](./DEV.md) — Workflow dev quotidien (3 étapes)
 - [ACTIVATION.md](./ACTIVATION.md) — Comment démarrer
 - [DOCKER.md](./DOCKER.md) — Architecture Docker détaillée
 - [HANDOFF.md](./HANDOFF.md) — Contexte complet

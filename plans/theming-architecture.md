@@ -333,7 +333,7 @@ Cette architecture devient le **nouveau socle**. Elle remplace l'ancienne "Phase
 - [ ] **T0.7** Refactor [`apps/web`](apps/web/src/app/tenant/[domain]/page.tsx) : remplacer inline `customStyle` par `<ThemeStyle>` + `forcedTheme`
 - [ ] **T0.8** Refactor [`articles-client.tsx`](apps/dashboard/src/app/(creator)/articles/articles-client.tsx) : `zinc-*` hardcoded → `foreground`/`primary`/`muted-foreground`
 - [ ] **T0.9** Vérifier non-régression visuelle sur les 5 apps + charts
-- [ ] **T0.10** Mettre à jour [`components.json`](components.json) (chemin CSS) + [`STYLE.md`](apps/dashboard/STYLE.md) avec le guide des tokens
+- [ ] **T0.10** Mettre à jour [`components.json`](components.json) (chemin CSS) + [`apps/dashboard/STYLE.md`](apps/dashboard/STYLE.md) avec le guide des tokens
 
 Une fois T0 terminé, les Phases 1→9 du [`dashboard-creator-roadmap.md`](dashboard-creator-roadmap.md)
 s'appuient sur un socle sain : chaque nouvelle page consomme `text-foreground` etc.

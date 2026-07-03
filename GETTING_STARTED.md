@@ -103,9 +103,14 @@ Puisque ta base de données tourne dans Docker, voici comment interagir avec ell
   pnpm prisma:migrate
   ```
 * **Insérer des fausses données de test (Seed)** :
-  ```bash
-  pnpm prisma:seed
-  ```
+  - En dev local (Postgres dans Docker, schéma Prisma déjà migré) :
+    ```bash
+    pnpm prisma:seed
+    ```
+  - En passant par Docker (depuis l'hôte, ne nécessite pas de générateur local) :
+    ```bash
+    pnpm docker:seed
+    ```
 * **Arrêter les bases de données** :
   ```bash
   docker compose -f docker-compose.dev.yml down

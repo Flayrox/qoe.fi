@@ -25,10 +25,11 @@ qoe.fi/                              # Monorepo Turborepo
 │   ├── admin/                       # Next.js 16 — admin.qoe.fi (superadmin, modération)
 │   ├── web/                         # Next.js 16 — *.qoe.fi & domaines customs (blogs créateurs)
 │   └── api/                         # Hono backend (health, future)
-├── packages/                        # 10 packages partagés
+├── packages/                        # 11 packages partagés
 │   ├── db/                          # 🐘 Prisma client + repos (SOURCE UNIQUE: prisma/)
 │   ├── auth/                        # 🔐 Roles, permissions, current-user
 │   ├── ui/                          # 🎨 Tokens + composants partagés
+│   ├── theme/                       # 🎨 Design tokens multi-apps (light/dark + accents)
 │   ├── supabase/                    # 🔌 3 clients (browser/server/middleware)
 │   ├── i18n/                        # 🌐 Tolgee helpers
 │   ├── analytics/                   # 📊 Events tracking
@@ -36,7 +37,7 @@ qoe.fi/                              # Monorepo Turborepo
 │   ├── config/                      # ⚙️ Env Zod, constantes, feature flags
 │   ├── utils/                       # 🔧 cn, format, slugify, validation
 │   └── tsconfig/                    # 📐 4 tsconfig partagés
-├── workers/                         # BullMQ (placeholder)
+├── workers/                         # BullMQ (emails, AI, billing — actif)
 ├── docker/                          # Caddy, Postgres, Redis
 ├── messages/                        # i18n locales
 ├── scripts/                         # deploy, seed, backup, dedupe
@@ -183,6 +184,7 @@ pnpm prisma:migrate       # dev: crée + applique une migration
 pnpm prisma:generate      # regen le client
 pnpm prisma:studio        # GUI Prisma Studio
 pnpm prisma:format        # Formate schema.prisma
+pnpm prisma:seed          # Exécute prisma/seed.ts (idempotent)
 ```
 
 > 📖 **Source unique Prisma** : `packages/db/prisma/`
@@ -195,7 +197,7 @@ pnpm prisma:format        # Formate schema.prisma
 
 ### 1. Monorepo Turborepo
 - **6 apps/services** indépendants (5 Next.js + 1 Hono API) → scale horizontal par app
-- **10 packages** partagés → code DRY, type-safety bout-en-bout
+- **11 packages** partagés → code DRY, type-safety bout-en-bout
 - **Cache Turbo** → rebuild incrémental (42s pour tout, < 1s si cache hit)
 
 ### 2. Single source of truth : `packages/db/prisma/`
@@ -259,6 +261,7 @@ pnpm prisma:format        # Formate schema.prisma
 | `@qoe/db` | Prisma client singleton + repos (articles/users/posts) + types |
 | `@qoe/auth` | Roles, permissions (`can(user, action)`), current-user helpers |
 | `@qoe/ui` | Tokens, button, card, + composants partagés (SocialIcon, TenantHeader, SubscribeForm) |
+| `@qoe/theme` | Design tokens multi-apps (CSS variables + registre type-safe de thèmes/accents) |
 | `@qoe/supabase` | 3 clients SSR (browser, server, middleware) |
 | `@qoe/i18n` | Tolgee helpers (server, client, provider, locales) |
 | `@qoe/analytics` | Events tracking (client, server) |
@@ -311,11 +314,17 @@ En résumé :
 | Fichier | Contenu |
 |---------|---------|
 | [README.md](./README.md) | Ce fichier (vitrine du projet) |
+| [GETTING_STARTED.md](./GETTING_STARTED.md) | Démarrage rapide Mac/Win avec le workflow hybride |
+| [DEV.md](./DEV.md) | Workflow dev quotidien (3 étapes, Caddy + Docker) |
 | [ACTIVATION.md](./ACTIVATION.md) | Guide d'activation post-refacto |
 | [DOCKER.md](./DOCKER.md) | Guide Docker complet |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Déploiement production (VPS) |
 | [HANDOFF.md](./HANDOFF.md) | Passation projet (état post-refacto) |
 | [MIGRATION.md](./MIGRATION.md) | Migration monolithe → monorepo (historique) |
+
+> 📂 Les notes de travail internes (plans, explorations design) sont
+> versionnées dans `/plans/` mais **non publiées** (`plans/` est dans
+> `.gitignore`).
 
 ---
 
@@ -347,12 +356,13 @@ pnpm lint                 # ESLint
 ### 🟡 En cours
 - [ ] Remplacer les stubs (OnboardingFlow, SubscribeForm)
 - [ ] Migrer les autres shadcn/ui vers `packages/ui/`
+- [ ] **Implémenter les jobs** BullMQ (emails, AI embeddings, billing webhooks)
+- [ ] Brancher `packages/theme` dans les 5 apps (remplace les `globals.css` locaux)
 - [ ] CI/CD GitHub Actions (build + typecheck + tests)
 - [ ] Tests E2E (Playwright)
 
 ### 🔮 Futur
-- [ ] Workers BullMQ (emails, AI, billing)
-- [ ] API Hono complète
+- [ ] API Hono complète (au-delà de `/health`)
 - [ ] Multi-région (UE + US)
 - [ ] Realtime (Supabase channels)
 - [ ] Mobile app (React Native)
