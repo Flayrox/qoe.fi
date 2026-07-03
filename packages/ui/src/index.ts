@@ -16,4 +16,6 @@ export { TenantHeader } from "./TenantHeader";
 export { SubscribeForm } from "./SubscribeForm";
 export { Logo } from "./Logo";
 export { DevtoolsPanel } from "./devtools/DevtoolsPanel";
+export { ThemeProvider } from "./theme-provider";
+
 

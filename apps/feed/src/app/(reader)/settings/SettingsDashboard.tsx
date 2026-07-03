@@ -16,6 +16,7 @@ import { useTranslate, useTolgee } from "@tolgee/react"
 import { useRouter } from "next/navigation"
 import { cn } from "@qoe/utils"
 import { trackServerEvent } from "@qoe/analytics"
+import { URLS } from "@qoe/config"
 
 interface SettingsDashboardProps {
   dbUser: {
@@ -215,7 +216,7 @@ export function SettingsDashboard({
       setUpgradeMsg({ type: "success", text: t("settings_reader.msg_creator_success", "Compte créateur activé ! Redirection vers votre nouvel espace...") })
       trackServerEvent("upgrade_creator_clicked", { subdomain })
       setTimeout(() => {
-        window.location.href = "/dashboard"
+        window.location.href = URLS.DASHBOARD
       }, 1500)
     } else {
       setUpgradeMsg({ 
@@ -753,7 +754,7 @@ export function SettingsDashboard({
                             <strong className="font-mono text-[var(--qoe-vermillion)]">{dbUser.subdomain}.qoe.fi</strong>
                           </p>
                           <motion.button
-                            onClick={() => window.location.href = "/dashboard"}
+                            onClick={() => window.location.href = URLS.DASHBOARD}
                             whileTap={{ scale: 0.98 }}
                             className="bg-[var(--text-primary)] text-[var(--surface-0)] hover:opacity-90 transition-all px-4 py-2 rounded-[var(--radius-button)] text-xs font-bold self-start cursor-pointer"
                           >
