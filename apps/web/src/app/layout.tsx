@@ -43,7 +43,7 @@ export default async function RootLayout({
       <body
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
       >
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <TolgeeNextProvider language={locale} staticData={staticData}>
             {children}
             {process.env.NODE_ENV === "development" && <DevtoolsPanel />}

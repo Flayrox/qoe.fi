@@ -57,7 +57,7 @@ flowchart LR
       variable `--accent-brand` optionnelle (utilisable via classe utilitaire `.accent-brand`).
 - [ ] **0.2** Définir les tokens sémantiques définitifs : `--background`, `--foreground`,
       `--muted-foreground`, `--border`, `--primary` (= zinc-950), `--accent-brand` (vermillon, opt-in).
-- [ ] **0.3** Créer un guide de style / cheatsheet (`apps/dashboard/STYLE.md`) référençant les
+- [ ] **0.3** Créer un guide de style / cheatsheet ([`apps/dashboard/STYLE.md`](../apps/dashboard/STYLE.md)) référençant les
       patterns de la page articles : titre `text-2xl font-bold tracking-tight`, sous-titre poétique
       `text-zinc-400 text-xs`, tabs textuels avec underline `layoutId`, liste `space-y-1` avec
       `border-b border-zinc-100/60`, statut "quiet dot" `h-1.5 w-1.5 rounded-full`.
