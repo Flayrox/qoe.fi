@@ -10,18 +10,16 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Geist } from "next/font/google";
 import Script from "next/script";
-import { ThemeProvider } from "next-themes";
 import { TolgeeNextProvider } from "@qoe/i18n/provider";
 import { getTolgee, getLanguage } from "@qoe/i18n/server";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AnalyticsScript } from "@qoe/analytics/client";
 import { cn } from "@qoe/utils";
-import { DevtoolsPanel } from "@qoe/ui";
+import { DevtoolsPanel, ThemeProvider } from "@qoe/ui";
 
-// Ré-export du CSS global depuis l'ancien emplacement
-// (sera migré physiquement en Phase 8)
-import "./globals.css";
+// CSS global unifié — source unique dans @qoe/theme
+import "@qoe/theme/styles";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const inter = Inter({ variable: "--font-body", subsets: ["latin"] });
@@ -48,7 +46,7 @@ export default async function RootLayout({
       <body
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
       >
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <TolgeeNextProvider language={locale} staticData={staticData as any}>
             <TooltipProvider>
               {children}

@@ -1,6 +1,7 @@
 import { ReactNode } from "react"
 import { createClient } from "@qoe/supabase/server"
 import { redirect } from "next/navigation"
+import { headers } from "next/headers"
 import { prisma } from "@qoe/db/client"
 import { AdminSidebar } from "./components/AdminSidebar"
 import { CommandPalette } from "./components/CommandPalette"
@@ -9,10 +10,13 @@ import { AdminHeader } from "./components/AdminHeader"
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient()
   const { data: { user: authUser } } = await supabase.auth.getUser()
+  const headersList = await headers();
+  const host = headersList.get("host") || "";
 
   if (!authUser) {
-    const isLocal = typeof window !== 'undefined' ? window.location.hostname.includes("localhost") : process.env.NODE_ENV === 'development';
-    const loginUrl = isLocal ? "http://localhost:3010/login" : "https://qoe.fi/login";
+    const isLocal = host.includes("localhost") || host.includes("qoe.test") || process.env.NODE_ENV === 'development';
+    const baseDomain = host.includes("qoe.test") ? "qoe.test" : "localhost";
+    const loginUrl = isLocal ? `http://${baseDomain}/login` : "https://qoe.fi/login";
     redirect(loginUrl);
   }
 
@@ -22,8 +26,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   // Security Check: Only superadmins
   if (user?.role !== 'superadmin') {
-    const isLocal = typeof window !== 'undefined' ? window.location.hostname.includes("localhost") : process.env.NODE_ENV === 'development';
-    const homeUrl = isLocal ? "http://localhost:3010" : "https://qoe.fi";
+    const isLocal = host.includes("localhost") || host.includes("qoe.test") || process.env.NODE_ENV === 'development';
+    const baseDomain = host.includes("qoe.test") ? "qoe.test" : "localhost";
+    const homeUrl = isLocal ? `http://${baseDomain}` : "https://qoe.fi";
     redirect(homeUrl);
   }
 
