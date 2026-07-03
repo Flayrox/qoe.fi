@@ -1,0 +1,138 @@
+/* ═══════════════════════════════════════════════════════════════════
+   @qoe/theme — base.css
+   Base layer : reset léger + classes utilitaires transverses.
+   Ce qui est COMMUN à toutes les apps et n'a pas sa place dans un
+   globals.css local.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: color-mix(in oklch, var(--ring) 50%, transparent);
+  }
+  body {
+    background: var(--surface-1);
+    color: var(--foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  html {
+    scroll-behavior: smooth;
+    scrollbar-gutter: stable;
+  }
+}
+
+@layer components {
+  /* Glass panel (Navbar & overlays) */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+  }
+  .dark .glass-panel {
+    background: rgba(9, 9, 11, 0.75);
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .crimson-gradient {
+    background: var(--vermillion-500);
+  }
+
+  /* Organic glow decorations (très subtil) */
+  .organic-glow {
+    position: absolute;
+    filter: blur(120px);
+    opacity: 0.1;
+    z-index: -10;
+    border-radius: 9999px;
+  }
+
+  /* Reveal animation */
+  .reveal {
+    opacity: 0;
+    transform: translateY(2rem);
+    transition: opacity 1000ms cubic-bezier(0.16, 1, 0.3, 1),
+                transform 1000ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Shimmer loading */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    animation: qoe-shimmer 2s infinite;
+    background: linear-gradient(
+      to right,
+      transparent,
+      rgba(0, 0, 0, 0.05),
+      transparent
+    );
+  }
+
+  /* Fade gradient mask */
+  .text-fade-gradient {
+    -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+  }
+
+  .font-editorial {
+    font-variant-ligatures: common-ligatures discretionary-ligatures;
+    font-feature-settings: "dlig" on, "ss01" on, "ss02" on, "cv10" on, "kern" on;
+  }
+
+  /* Custom thin scrollbar */
+  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  /* Hide scrollbar entirely */
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* ─── Keyframes ─── */
+@keyframes qoe-shimmer {
+  100% { transform: translateX(100%); }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 40s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Responsive carousel padding (mobile) */
+@media (max-width: 640px) {
+  :root {
+    --carousel-padding: 1rem;
+  }
+}

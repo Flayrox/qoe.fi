@@ -1,0 +1,44 @@
+# =====================================================================
+# 🌐 Caddyfile de Développement Local — qoe.fi
+# =====================================================================
+# Ce fichier configure Caddy en local sur ton Mac pour faire du reverse
+# proxy de tes domaines .localhost vers les ports de ton pnpm dev natif.
+#
+# 🔧 Prérequis :
+#    1. Installer Caddy : brew install caddy
+#    2. Lancer Caddy : caddy run --config Caddyfile.dev
+#
+# 📝 Note sur le SSL : 
+#    Caddy utilise HTTP par défaut ici. Si tu veux du HTTPS local avec 
+#    des certificats auto-signés de confiance automatique, remplace 
+#    simplement "http://" par "https://" (Caddy te demandera ton mot de 
+# 🍏 Feed (App principale) : localhost & qoe.test
+http://localhost, http://qoe.test {
+    reverse_proxy localhost:3010
+}
+
+# 📣 Landing (Marketing) : start.localhost & start.qoe.test
+http://start.localhost, http://start.qoe.test {
+    reverse_proxy localhost:3040
+}
+
+# 🟠 Dashboard Créateur : dashboard.localhost & dashboard.qoe.test
+http://dashboard.localhost, http://dashboard.qoe.test {
+    reverse_proxy localhost:3020
+}
+
+# 🔴 Admin Plateforme : admin.localhost & admin.qoe.test
+http://admin.localhost, http://admin.qoe.test {
+    reverse_proxy localhost:3030
+}
+
+# 🔌 API (Hono Backend) : api.localhost & api.qoe.test
+http://api.localhost, http://api.qoe.test {
+    reverse_proxy localhost:3002
+}
+
+# 📚 Blogs Créateurs (Tenants / Wildcard) : *.localhost & *.qoe.test
+# Ex: jean.localhost, test.localhost -> redirigé vers l'app Web
+http://*.localhost, http://*.qoe.test {
+    reverse_proxy localhost:3001
+}
