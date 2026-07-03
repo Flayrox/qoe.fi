@@ -37,8 +37,8 @@ http://api.localhost, http://api.qoe.test {
     reverse_proxy localhost:3002
 }
 
-# 📚 Blogs Créateurs (Tenants / Wildcard) : *.localhost & *.qoe.test
-# Ex: jean.localhost, test.localhost -> redirigé vers l'app Web
-http://*.localhost, http://*.qoe.test {
+# 📚 Blogs Créateurs (Tenants / Wildcard) : *.localhost, *.qoe.test & *.lvh.me
+# Ex: jean.localhost, test.localhost, jean.lvh.me -> redirigé vers l'app Web
+http://*.localhost, http://*.qoe.test, http://*.lvh.me {
     reverse_proxy localhost:3001
 }
