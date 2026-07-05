@@ -43,6 +43,8 @@ model User {
   footerText     String?
   themeMode      String?   @default("system")
   layoutStyle    String?   @default("minimal")
+  advancedSettingsMode Boolean @default(false)
+  hasCompletedOnboarding Boolean @default(false)
   
   // SEO & Metadata
   seoTitle       String?
