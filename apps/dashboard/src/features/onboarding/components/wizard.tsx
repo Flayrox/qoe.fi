@@ -105,24 +105,29 @@ export function OnboardingWizard() {
   const currentPreviewStyle = previewStyles[data.layoutStyle as keyof typeof previewStyles]
 
   return (
-    <div className="flex h-screen w-full bg-white text-neutral-900 overflow-hidden">
+    <div className="flex h-screen w-full bg-[#FCFBF9] text-neutral-900 overflow-hidden font-sans">
       
       {/* Left Column: Form & Interactions */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 sm:px-16 lg:px-24 relative">
+      <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 sm:px-16 lg:px-24 relative bg-white border-r border-neutral-100">
+        <div className="absolute top-8 left-8 sm:left-16 lg:left-24 flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#EE4B2B] animate-pulse" />
+          <span className="text-[10px] uppercase font-bold tracking-widest text-neutral-400">qoe.fi · Studio Setup</span>
+        </div>
+
         <AnimatePresence mode="wait">
           {step === 1 && (
             <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-md w-full">
-              <h1 className="text-4xl font-light mb-2">Qui es-tu ?</h1>
-              <p className="text-neutral-500 mb-8">Commençons par les présentations. C'est ce que tes lecteurs verront en premier.</p>
+              <h1 className="text-4xl font-serif font-bold text-neutral-900 mb-2 tracking-tight">Qui es-tu ?</h1>
+              <p className="text-neutral-500 mb-8 text-sm leading-relaxed">Commençons par les présentations. C'est ce que tes lecteurs verront en premier sur ton espace d'écriture.</p>
               
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm text-neutral-500 mb-2">Nom d'affichage</label>
-                  <input type="text" placeholder="Ton nom ou pseudo" className="w-full bg-neutral-50 border border-neutral-200 rounded-lg p-4 text-neutral-900 focus:outline-none focus:border-neutral-400 transition-colors" value={data.name} onChange={(e) => setData({ ...data, name: e.target.value })} />
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">Nom d'affichage</label>
+                  <input type="text" placeholder="Ton nom ou pseudo" className="w-full bg-[#FAF9F6] border border-neutral-200 rounded-lg p-4 text-neutral-900 focus:outline-none focus:border-[#EE4B2B] focus:ring-1 focus:ring-[#EE4B2B] transition-all" value={data.name} onChange={(e) => setData({ ...data, name: e.target.value })} />
                 </div>
                 <div>
-                  <label className="block text-sm text-neutral-500 mb-2">Courte bio / Accroche</label>
-                  <textarea placeholder="De quoi vas-tu parler ?" rows={3} className="w-full bg-neutral-50 border border-neutral-200 rounded-lg p-4 text-neutral-900 focus:outline-none focus:border-neutral-400 transition-colors resize-none" value={data.heroText} onChange={(e) => setData({ ...data, heroText: e.target.value })} />
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">Courte bio / Accroche</label>
+                  <textarea placeholder="De quoi vas-tu parler ?" rows={3} className="w-full bg-[#FAF9F6] border border-neutral-200 rounded-lg p-4 text-neutral-900 focus:outline-none focus:border-[#EE4B2B] focus:ring-1 focus:ring-[#EE4B2B] transition-all resize-none" value={data.heroText} onChange={(e) => setData({ ...data, heroText: e.target.value })} />
                 </div>
               </div>
             </motion.div>
@@ -130,14 +135,14 @@ export function OnboardingWizard() {
 
           {step === 2 && (
             <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-md w-full">
-              <h1 className="text-4xl font-light mb-2">Ton adresse web</h1>
-              <p className="text-neutral-400 mb-8">Choisis l'URL où tes lecteurs pourront te trouver.</p>
+              <h1 className="text-4xl font-serif font-bold text-neutral-900 mb-2 tracking-tight">Ton adresse web</h1>
+              <p className="text-neutral-500 mb-8 text-sm leading-relaxed">Choisis l'adresse unique (sous-domaine) où tes abonnés pourront te lire.</p>
               
               <div className="space-y-6">
                 <div>
-                  <div className="flex bg-neutral-50 border border-neutral-200 rounded-lg overflow-hidden focus-within:border-neutral-400 transition-colors">
+                  <div className="flex bg-[#FAF9F6] border border-neutral-200 rounded-lg overflow-hidden focus-within:border-[#EE4B2B] focus-within:ring-1 focus-within:ring-[#EE4B2B] transition-all">
                     <input type="text" placeholder="mon-super-site" className="flex-1 bg-transparent p-4 text-neutral-900 outline-none" value={data.subdomain} onChange={(e) => setData({ ...data, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })} />
-                    <div className="flex items-center px-4 bg-neutral-100 text-neutral-500 border-l border-neutral-200">
+                    <div className="flex items-center px-4 bg-neutral-100 text-neutral-500 border-l border-neutral-200 font-medium">
                       .qoe.fi
                     </div>
                   </div>
@@ -145,26 +150,26 @@ export function OnboardingWizard() {
                   {/* Status indicator */}
                   <div className="mt-3 min-h-[24px]">
                     {isCheckingDomain && (
-                      <span className="flex items-center text-neutral-400 text-sm">
-                        <Loader2 size={14} className="animate-spin mr-2" /> Vérification...
+                      <span className="flex items-center text-neutral-400 text-xs">
+                        <Loader2 size={14} className="animate-spin mr-2" /> Vérification de la disponibilité...
                       </span>
                     )}
                     {!isCheckingDomain && domainStatus === "valid" && (
-                      <span className="flex items-center text-green-400 text-sm">
-                        <CheckCircle2 size={14} className="mr-2" /> Domaine disponible !
+                      <span className="flex items-center text-emerald-600 text-xs font-medium">
+                        <CheckCircle2 size={14} className="mr-2" /> Cette adresse est libre et t'attend !
                       </span>
                     )}
                     {!isCheckingDomain && domainStatus === "invalid" && data.subdomain.length >= 3 && (
-                      <div className="text-sm">
-                        <span className="flex items-center text-red-400 mb-2">
+                      <div className="text-xs">
+                        <span className="flex items-center text-[#EE4B2B] mb-2 font-medium">
                           <AlertCircle size={14} className="mr-2" /> {domainError}
                         </span>
                         {domainSuggestions.length > 0 && (
                           <div className="mt-2">
-                            <span className="text-neutral-400">Suggestions :</span>
+                            <span className="text-neutral-400">Pourquoi pas une de celles-ci ?</span>
                             <div className="flex flex-wrap gap-2 mt-2">
                               {domainSuggestions.map(s => (
-                                <button key={s} onClick={() => setData({ ...data, subdomain: s })} className="bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs px-3 py-1.5 rounded-full transition-colors">
+                                <button key={s} onClick={() => setData({ ...data, subdomain: s })} className="bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs px-3 py-1.5 rounded-full transition-colors border border-neutral-200">
                                   {s}
                                 </button>
                               ))}
@@ -181,22 +186,22 @@ export function OnboardingWizard() {
 
           {step === 3 && (
             <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-md w-full">
-              <h1 className="text-4xl font-light mb-2">L'ambiance</h1>
-              <p className="text-neutral-400 mb-8">Sélectionne un style de départ. Ne t'inquiète pas, tu pourras toujours changer plus tard.</p>
+              <h1 className="text-4xl font-serif font-bold text-neutral-900 mb-2 tracking-tight">L'ambiance</h1>
+              <p className="text-neutral-500 mb-8 text-sm leading-relaxed">Sélectionne le design de départ pour ton espace. Modifiable à tout moment.</p>
               
               <div className="space-y-4">
                 {[
-                  { id: "minimal", name: "Minimaliste", desc: "Pur, centré sur le texte." },
-                  { id: "magazine", name: "Magazine", desc: "Élégant, classique, structuré." },
-                  { id: "brutalist", name: "Brutaliste", desc: "Moderne, contrasté, assumé." }
+                  { id: "minimal", name: "Minimaliste", desc: "Design puriste, centré exclusivement sur la force du texte." },
+                  { id: "magazine", name: "Magazine", desc: "Édition classique, élégance littéraire avec empattement." },
+                  { id: "brutalist", name: "Brutaliste", desc: "Moderne, contrasté, néon et sans compromis." }
                 ].map(style => (
                   <button
                     key={style.id}
                     onClick={() => setData({ ...data, layoutStyle: style.id })}
-                    className={`w-full text-left p-4 rounded-xl border transition-all ${data.layoutStyle === style.id ? 'bg-neutral-100 border-neutral-400' : 'bg-neutral-50 border-neutral-200 hover:bg-neutral-100'}`}
+                    className={`w-full text-left p-4 rounded-xl border transition-all ${data.layoutStyle === style.id ? 'bg-[#FAF9F6] border-[#EE4B2B] shadow-sm' : 'bg-white border-neutral-200 hover:bg-[#FAF9F6]'}`}
                   >
-                    <div className="text-lg font-medium">{style.name}</div>
-                    <div className="text-neutral-500 text-sm">{style.desc}</div>
+                    <div className="text-base font-semibold text-neutral-900">{style.name}</div>
+                    <div className="text-neutral-500 text-xs mt-0.5">{style.desc}</div>
                   </button>
                 ))}
               </div>
@@ -205,30 +210,30 @@ export function OnboardingWizard() {
 
           {step === 4 && (
             <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-md w-full">
-              <h1 className="text-4xl font-light mb-2">Le Cockpit</h1>
-              <p className="text-neutral-400 mb-8">Comment souhaites-tu gérer ton espace ? (Modifiable à tout moment)</p>
+              <h1 className="text-4xl font-serif font-bold text-neutral-900 mb-2 tracking-tight">Le Cockpit</h1>
+              <p className="text-neutral-500 mb-8 text-sm leading-relaxed">Comment souhaites-tu configurer ton studio d'écriture ?</p>
               
               <div className="space-y-4">
                 <button
                   onClick={() => setData({ ...data, advancedSettingsMode: false })}
-                  className={`w-full text-left p-6 rounded-xl border transition-all ${!data.advancedSettingsMode ? 'bg-neutral-100 border-neutral-400' : 'bg-neutral-50 border-neutral-200 hover:bg-neutral-100'}`}
+                  className={`w-full text-left p-5 rounded-xl border transition-all ${!data.advancedSettingsMode ? 'bg-[#FAF9F6] border-[#EE4B2B] shadow-sm' : 'bg-white border-neutral-200 hover:bg-[#FAF9F6]'}`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-xl font-medium">Pilote Automatique</div>
-                    <span className="bg-neutral-700 text-xs px-2 py-1 rounded">Recommandé</span>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="text-base font-semibold text-neutral-900">Pilote Automatique (Simple)</div>
+                    <span className="bg-[#EE4B2B] text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">Recommandé</span>
                   </div>
-                  <div className="text-neutral-400 text-sm">Concentre-toi uniquement sur l'écriture. Le design et la structure s'adaptent de manière intelligente.</div>
+                  <div className="text-neutral-500 text-xs">Idéal pour se concentrer uniquement sur les écrits. Le design et le rendu s'adaptent automatiquement sans réglages complexes.</div>
                 </button>
                 
                 <button
                   onClick={() => setData({ ...data, advancedSettingsMode: true })}
-                  className={`w-full text-left p-6 rounded-xl border transition-all ${data.advancedSettingsMode ? 'bg-orange-50 border-orange-300' : 'bg-neutral-50 border-neutral-200 hover:bg-neutral-100'}`}
+                  className={`w-full text-left p-5 rounded-xl border transition-all ${data.advancedSettingsMode ? 'bg-orange-50 border-orange-300' : 'bg-white border-neutral-200 hover:bg-[#FAF9F6]'}`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-xl font-medium text-orange-600">Mode Manuel (Avancé)</div>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="text-base font-semibold text-neutral-900 text-orange-800">Mode Manuel (Avancé)</div>
                   </div>
-                  <div className="text-neutral-500 text-sm">
-                    ⚠️ Conçu pour les médias à grande échelle. Contrôle total sur la navigation, les métadonnées et le CSS. Plus complexe à prendre en main.
+                  <div className="text-neutral-500 text-xs">
+                    ⚠️ Conçu pour les structures ou médias à grande échelle. Contrôle total du CSS, des métadonnées, layouts complexes et de la navigation. (Modifiable à tout moment)
                   </div>
                 </button>
               </div>
@@ -237,9 +242,9 @@ export function OnboardingWizard() {
 
           {step === 5 && (
             <motion.div key="step5" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center text-center w-full h-full">
-              <Loader2 size={48} className="animate-spin text-neutral-500 mb-6" />
-              <h1 className="text-3xl font-light mb-4">Construction de ton espace...</h1>
-              <p className="text-neutral-400">Préparation du domaine, génération du design, et écriture du premier brouillon.</p>
+              <Loader2 size={40} className="animate-spin text-[#EE4B2B] mb-6" />
+              <h1 className="text-2xl font-serif font-bold text-neutral-900 mb-2">Génération de ton Sanctuaire...</h1>
+              <p className="text-neutral-500 text-sm">Nous configurons ton sous-domaine, le design choisi et ton premier article de bienvenue.</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -249,9 +254,9 @@ export function OnboardingWizard() {
           <div className="absolute bottom-8 left-8 sm:left-16 lg:left-24 right-8 sm:right-16 lg:right-24 flex justify-between items-center">
             <button 
               onClick={handleBack} 
-              className={`flex items-center text-neutral-500 hover:text-neutral-900 transition-colors ${step === 1 ? 'opacity-0 pointer-events-none' : ''}`}
+              className={`flex items-center text-neutral-400 hover:text-neutral-900 text-xs font-semibold uppercase tracking-wider transition-colors ${step === 1 ? 'opacity-0 pointer-events-none' : ''}`}
             >
-              <ArrowLeft size={16} className="mr-2" /> Retour
+              <ArrowLeft size={14} className="mr-1.5" /> Retour
             </button>
             
             <button 
@@ -260,67 +265,77 @@ export function OnboardingWizard() {
                 (step === 1 && (!data.name || !data.heroText)) || 
                 (step === 2 && domainStatus !== "valid")
               }
-              className="flex items-center bg-neutral-900 text-white px-6 py-3 rounded-full font-medium hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center bg-[#EE4B2B] hover:bg-[#d63d20] text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-red-500/10"
             >
-              {step === 4 ? "Lancer mon espace" : "Continuer"} <ArrowRight size={16} className="ml-2" />
+              {step === 4 ? "Lancer mon espace" : "Continuer"} <ArrowRight size={14} className="ml-1.5" />
             </button>
           </div>
         )}
       </div>
 
-      {/* Right Column: Live Preview */}
-      <div className="hidden lg:flex w-1/2 bg-neutral-900 border-l border-neutral-800 items-center justify-center p-12 relative overflow-hidden">
-        {/* Abstract Background pattern */}
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-neutral-600 via-neutral-900 to-black"></div>
+      {/* Right Column: Live Preview (Plateau Aesthetic) */}
+      <div className="hidden lg:flex w-1/2 bg-[#FAF9F6] items-center justify-center p-12 relative overflow-hidden">
+        {/* Subtle grid pattern resembling premium desk / architect layout */}
+        <div className="absolute inset-0 opacity-[0.03] bg-[linear-gradient(to_right,#000_1px,transparent_1px),linear-gradient(to_bottom,#000_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         
         <AnimatePresence mode="popLayout">
           {step < 5 && (
-            <motion.div 
-              key={data.layoutStyle}
-              initial={{ opacity: 0, y: 40, rotateX: 10 }} 
-              animate={{ opacity: 1, y: 0, rotateX: 0 }} 
-              exit={{ opacity: 0, y: -40, rotateX: -10 }}
-              transition={{ duration: 0.5, type: "spring", bounce: 0.3 }}
-              className="relative z-10 w-full max-w-lg aspect-[3/4] shadow-2xl rounded-2xl overflow-hidden flex flex-col"
-              style={{ 
-                backgroundColor: currentPreviewStyle.bg, 
-                color: currentPreviewStyle.text,
-              }}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -20 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full max-w-lg bg-[#EE4B2B] rounded-[36px] p-3 shadow-2xl flex flex-col aspect-[3/4]"
             >
-              {/* Preview Header */}
-              <div className="p-8 pb-4 flex justify-between items-center border-b border-opacity-10 border-current">
-                <div className={`text-xl font-bold ${currentPreviewStyle.font}`} style={{ color: currentPreviewStyle.accent }}>
-                  {data.name || "Mon Espace"}
-                </div>
-                <div className="flex gap-4 text-sm opacity-60">
-                  <span>Accueil</span>
-                  <span>Articles</span>
-                </div>
-              </div>
-
-              {/* Preview Body */}
-              <div className={`p-8 flex-1 flex flex-col justify-center ${currentPreviewStyle.font}`}>
-                <motion.h1 
-                  layout
-                  className={`text-4xl md:text-5xl font-bold mb-6 leading-tight ${data.layoutStyle === 'magazine' ? 'tracking-tight' : ''}`}
-                >
-                  {data.heroText || "Ceci est le titre de mon média indépendant."}
-                </motion.h1>
-                <div className="flex items-center gap-4 mt-8">
-                  <div className="px-6 py-3 rounded-full text-white font-medium text-sm" style={{ backgroundColor: currentPreviewStyle.accent }}>
-                    S'abonner
+              {/* Plateau Inner Wrapper */}
+              <div 
+                className="w-full h-full bg-white rounded-[28px] overflow-hidden flex flex-col shadow-inner transition-colors duration-300"
+                style={{ 
+                  backgroundColor: currentPreviewStyle.bg, 
+                  color: currentPreviewStyle.text,
+                }}
+              >
+                {/* Simulated Header */}
+                <div className="px-6 py-4 border-b border-opacity-10 border-current flex justify-between items-center shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${currentPreviewStyle.font}`} style={{ color: currentPreviewStyle.accent }}>
+                      {data.name || "Mon Espace"}
+                    </span>
                   </div>
-                  <div className="opacity-60 text-sm">
-                    Lire le dernier article
+                  <div className="flex gap-4 text-[9px] uppercase font-semibold tracking-wider opacity-60">
+                    <span>Accueil</span>
+                    <span>Articles</span>
                   </div>
                 </div>
-              </div>
 
-              {/* Fake Articles List */}
-              <div className="p-8 pt-0 flex gap-4">
-                {[1, 2].map((i) => (
-                  <div key={i} className="flex-1 bg-current opacity-5 rounded-lg h-32"></div>
-                ))}
+                {/* Preview Body */}
+                <div className={`p-8 flex-1 flex flex-col justify-center ${currentPreviewStyle.font}`}>
+                  <p className="text-[8px] font-bold uppercase tracking-widest mb-2" style={{ color: currentPreviewStyle.accent }}>
+                    {data.subdomain ? `${data.subdomain}.qoe.fi` : "En attente d'adresse..."}
+                  </p>
+                  <motion.h1 
+                    layout
+                    className={`text-3xl md:text-4xl font-bold mb-6 leading-tight tracking-tight`}
+                  >
+                    {data.heroText || "L'architecture du silence."}
+                  </motion.h1>
+                  <div className="flex items-center gap-4 mt-8">
+                    <div className="px-5 py-2 rounded text-white font-bold text-[10px] uppercase tracking-wider" style={{ backgroundColor: currentPreviewStyle.accent }}>
+                      S'abonner
+                    </div>
+                    <div className="opacity-60 text-[10px] uppercase font-semibold tracking-wider">
+                      Lire la suite
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fake Articles List */}
+                <div className="p-6 pt-0 flex gap-3 shrink-0">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="flex-1 bg-current opacity-5 rounded-lg h-20"></div>
+                  ))}
+                </div>
               </div>
             </motion.div>
           )}
