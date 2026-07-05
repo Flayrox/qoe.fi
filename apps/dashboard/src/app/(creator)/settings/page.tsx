@@ -96,7 +96,8 @@ export default async function CreatorSettingsPage() {
       id: cat.id,
       name: cat.name,
       slug: cat.slug
-    }))
+    })),
+    advancedSettingsMode: creator.advancedSettingsMode
   }
 
   return <CreatorStudio initialCreator={initialCreatorData} />
