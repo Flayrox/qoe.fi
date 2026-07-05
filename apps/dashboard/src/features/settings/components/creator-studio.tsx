@@ -517,7 +517,7 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
         
         {/* Profile Branding Header */}
         <div className="p-4 border-b border-border/60 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#EE4B2B]/10 border border-[#EE4B2B]/20 flex items-center justify-center font-bold text-[#EE4B2B] text-sm">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center font-bold text-primary text-sm">
             QS
           </div>
           <div>
@@ -534,7 +534,7 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
               onClick={() => { setActiveView("accueil"); setActiveArticleId(null); setRightSidebarTab("identity"); }}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeView === "accueil"
-                  ? "bg-[#EE4B2B]/10 text-[#EE4B2B] border border-[#EE4B2B]/20 shadow-sm"
+                  ? "bg-primary/10 text-primary border border-primary/20 shadow-sm"
                   : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
               }`}
             >
@@ -549,7 +549,7 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
               onClick={() => { setActiveView("domaine"); setActiveArticleId(null); }}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeView === "domaine"
-                  ? "bg-[#EE4B2B]/10 text-[#EE4B2B] border border-[#EE4B2B]/20 shadow-sm"
+                  ? "bg-primary/10 text-primary border border-primary/20 shadow-sm"
                   : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
               }`}
             >
@@ -569,7 +569,7 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
             <button
               onClick={handleCreateArticle}
               disabled={isCreatingArticle}
-              className="flex items-center gap-1 text-[10px] font-extrabold text-[#EE4B2B] hover:text-[#EE4B2B]/80 transition-colors bg-[#EE4B2B]/10 px-2 py-0.5 rounded-full cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1 text-[10px] font-extrabold text-primary hover:text-primary/80 transition-colors bg-primary/10 px-2 py-0.5 rounded-full cursor-pointer disabled:opacity-50"
             >
               {isCreatingArticle ? (
                 <Loader2 className="w-2.5 h-2.5 animate-spin" />
@@ -592,7 +592,7 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
                   }}
                   className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-left cursor-pointer ${
                     isSelected
-                      ? "bg-[#EE4B2B]/10 text-[#EE4B2B] border border-[#EE4B2B]/20 font-bold"
+                      ? "bg-primary/10 text-primary border border-primary/20 font-bold"
                       : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                   }`}
                 >
@@ -603,7 +603,7 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
                   <span className={`text-[8px] font-black px-1 py-0.2 rounded shrink-0 ml-1.5 uppercase ${
                     art.published
                       ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                      : "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20"
+                      : "bg-muted text-muted-foreground border border-border"
                   }`}>
                     {art.published ? "Pub" : "Draft"}
                   </span>

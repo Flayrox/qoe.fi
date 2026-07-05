@@ -104,11 +104,11 @@ export function HeaderClient() {
 
   return (
     <>
-      <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between border-b border-zinc-100 bg-white/80 px-4 backdrop-blur-md select-none dark:border-zinc-800/40 dark:bg-zinc-950/80">
+      <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between border-b border-border/50 bg-background/80 px-4 backdrop-blur-md select-none">
         <div className="flex items-center gap-2">
-          <SidebarTrigger className="text-zinc-500 hover:text-zinc-950 dark:hover:text-zinc-50 transition-colors" />
+          <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
           
-          <span className="text-zinc-300 dark:text-zinc-700 mx-1">|</span>
+          <span className="text-border mx-1">|</span>
 
           {/* Breadcrumbs */}
           <nav className="flex items-center gap-1.5 font-sans text-xs" aria-label="Fil d'Ariane">
@@ -116,14 +116,14 @@ export function HeaderClient() {
               const isLast = idx === breadcrumbs.length - 1
               return (
                 <React.Fragment key={crumb.href + idx}>
-                  {idx > 0 && <ChevronRight className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-650 shrink-0" strokeWidth={1.5} />}
+                  {idx > 0 && <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" strokeWidth={1.5} />}
                   <span
                     onClick={() => !isLast && handleAction(crumb.href)}
                     className={cn(
                       "transition-colors duration-200",
                       isLast
-                        ? "text-zinc-850 font-semibold cursor-default dark:text-zinc-200"
-                        : "text-zinc-400 hover:text-zinc-950 cursor-pointer dark:hover:text-zinc-50"
+                        ? "text-foreground font-semibold cursor-default"
+                        : "text-muted-foreground hover:text-foreground cursor-pointer"
                     )}
                   >
                     {crumb.label}
@@ -137,13 +137,13 @@ export function HeaderClient() {
         {/* Global Search Button Trigger */}
         <button
           onClick={() => setIsOpen(true)}
-          className="flex items-center gap-3 font-sans text-xs text-zinc-400 bg-zinc-50 border border-zinc-200/60 rounded-lg py-1.5 px-3 hover:bg-zinc-100 hover:text-zinc-700 hover:border-zinc-300/80 transition-all duration-200 cursor-pointer dark:bg-zinc-900/40 dark:border-zinc-800/40 dark:text-zinc-500 dark:hover:bg-zinc-900 dark:hover:text-zinc-300"
+          className="flex items-center gap-3 font-sans text-xs text-muted-foreground bg-muted/50 border border-border rounded-lg py-1.5 px-3 hover:bg-muted hover:text-foreground hover:border-border transition-all duration-200 cursor-pointer"
         >
           <div className="flex items-center gap-1.5">
             <Search className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
             <span>Rechercher...</span>
           </div>
-          <div className="flex items-center gap-0.5 border border-zinc-200/80 bg-white shadow-[0_1px_1px_rgba(0,0,0,0.02)] text-[10px] px-1 rounded font-semibold text-zinc-400 select-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-500">
+          <div className="flex items-center gap-0.5 border border-border bg-card shadow-[0_1px_1px_rgba(0,0,0,0.02)] text-[10px] px-1 rounded font-semibold text-muted-foreground select-none">
             <Command className="w-2.5 h-2.5 shrink-0" strokeWidth={1.5} />
             <span>K</span>
           </div>
@@ -155,23 +155,23 @@ export function HeaderClient() {
         ref={dialogRef}
         onClose={closeDialog}
         onClick={(e) => e.target === dialogRef.current && closeDialog()}
-        className="fixed inset-0 m-auto w-full max-w-lg rounded-xl border border-zinc-200/80 bg-white/95 backdrop-blur-xl shadow-2xl p-0 focus:outline-none dark:border-zinc-800/80 dark:bg-zinc-900/95 overflow-hidden animate-in fade-in zoom-in-95 duration-200 backdrop:bg-zinc-950/20 dark:backdrop:bg-zinc-950/40"
+        className="fixed inset-0 m-auto w-full max-w-lg rounded-xl border border-border bg-popover/95 backdrop-blur-xl shadow-2xl p-0 focus:outline-none overflow-hidden animate-in fade-in zoom-in-95 duration-200 backdrop:bg-background/25"
       >
         <div className="flex flex-col h-full font-sans">
           {/* Header Search Field */}
-          <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-zinc-100 dark:border-zinc-800/65">
-            <Search className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.5} />
+          <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-border">
+            <Search className="w-4 h-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Rechercher des écrits, réglages, actions..."
-              className="flex-1 text-sm bg-transparent border-none outline-none text-zinc-850 placeholder:text-zinc-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+              className="flex-1 text-sm bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60"
               autoFocus
             />
             <button
               onClick={closeDialog}
-              className="text-[10px] font-sans font-semibold border border-zinc-200 rounded px-1.5 py-0.5 text-zinc-400 bg-zinc-50 hover:bg-zinc-100 transition-colors dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-500"
+              className="text-[10px] font-sans font-semibold border border-border rounded px-1.5 py-0.5 text-muted-foreground bg-muted hover:bg-muted/80 transition-colors"
             >
               Échap
             </button>
@@ -180,12 +180,12 @@ export function HeaderClient() {
           {/* Results List */}
           <div className="max-h-[300px] overflow-y-auto p-2">
             {filteredActions.length === 0 ? (
-              <div className="text-center py-8 text-zinc-450 text-xs dark:text-zinc-550">
+              <div className="text-center py-8 text-muted-foreground text-xs">
                 Aucun résultat pour &ldquo;{query}&rdquo;
               </div>
             ) : (
               <div className="space-y-1.5">
-                <div className="px-2 py-1 text-[10px] uppercase tracking-wider font-bold text-zinc-400/80 dark:text-zinc-500/80">
+                <div className="px-2 py-1 text-[10px] uppercase tracking-wider font-bold text-muted-foreground/80">
                   Raccourcis de la console
                 </div>
                 {filteredActions.map((action, idx) => {
@@ -194,17 +194,17 @@ export function HeaderClient() {
                     <button
                       key={action.href + idx}
                       onClick={() => handleAction(action.href)}
-                      className="w-full flex items-center justify-between text-left p-2.5 rounded-lg hover:bg-zinc-100/85 transition-colors cursor-pointer dark:hover:bg-zinc-800/60"
+                      className="w-full flex items-center justify-between text-left p-2.5 rounded-lg hover:bg-muted transition-colors cursor-pointer"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-md bg-zinc-50 flex items-center justify-center border border-zinc-150 dark:bg-zinc-900 dark:border-zinc-800">
-                          <Icon className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" strokeWidth={1.5} />
+                        <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center border border-border">
+                          <Icon className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />
                         </div>
-                        <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                        <span className="text-xs font-medium text-foreground/90">
                           {action.label}
                         </span>
                       </div>
-                      <span className="text-[9px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded font-medium dark:bg-zinc-800 dark:text-zinc-400">
+                      <span className="text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-medium">
                         {action.category}
                       </span>
                     </button>
@@ -215,8 +215,8 @@ export function HeaderClient() {
           </div>
 
           {/* Footer Navigation Hints */}
-          <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-50/50 border-t border-zinc-100 text-[10px] text-zinc-400 select-none dark:bg-zinc-950/30 dark:border-zinc-800/40 dark:text-zinc-500">
-            <span>Sélectionner avec <kbd className="border border-zinc-200 rounded px-1 dark:border-zinc-800">Entrée</kbd></span>
+          <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-t border-border text-[10px] text-muted-foreground select-none">
+            <span>Sélectionner avec <kbd className="border border-border rounded px-1">Entrée</kbd></span>
             <span>Naviguer avec la souris ou clavier</span>
           </div>
         </div>
