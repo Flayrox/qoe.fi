@@ -46,6 +46,10 @@ model User {
   advancedSettingsMode Boolean @default(false)
   hasCompletedOnboarding Boolean @default(false)
   
+  // API Config
+  apiAccessStatus      String    @default("none") // "none", "pending", "approved", "rejected", "revoked"
+  apiApplicationReason String?   @db.Text
+  
   // SEO & Metadata
   seoTitle       String?
   seoDescription String?
@@ -84,6 +88,7 @@ model User {
   walletTransactions    WalletTransaction[]
   posts                 Post[]
   likes                 Like[]
+  apiKeys               ApiKey[]
   
   // AI Recs
   embedding Unsupported("vector(1536)")?
@@ -313,4 +318,18 @@ model PartnerPromo {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model ApiKey {
+  id          String   @id @default(cuid())
+  name        String
+  keyPrefix   String   // e.g. "qoe_live_" followed by the prefix characters
+  keyHash     String   @unique // SHA-256 hash of the complete key
+  createdAt   DateTime @default(now())
+  lastUsedAt  DateTime?
+  
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([keyHash])
 }
