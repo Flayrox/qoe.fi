@@ -64,6 +64,11 @@ export async function AppSidebar() {
       iconName: "PieChart" as IconName,
     },
     {
+      title: t('sidebar.nav_developer'),
+      url: "/developer",
+      iconName: "Code" as IconName,
+    },
+    {
       title: t('sidebar.nav_settings'),
       url: "/settings",
       iconName: "Settings" as IconName,
