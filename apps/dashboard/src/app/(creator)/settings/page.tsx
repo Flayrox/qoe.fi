@@ -8,7 +8,7 @@
 import { redirect } from "next/navigation"
 import { prisma } from "@qoe/db/client"
 import { createClient } from "@qoe/supabase/server"
-import CreatorStudio, { CreatorProfile } from "@/features/settings/components/creator-studio"
+import VisualStudio, { CreatorProfile } from "@/features/settings/components/visual-studio"
 
 export default async function CreatorSettingsPage() {
   // 1. Authentification de l'utilisateur
@@ -100,5 +100,5 @@ export default async function CreatorSettingsPage() {
     advancedSettingsMode: creator.advancedSettingsMode
   }
 
-  return <CreatorStudio initialCreator={initialCreatorData} />
+  return <VisualStudio initialCreator={initialCreatorData} />
 }
