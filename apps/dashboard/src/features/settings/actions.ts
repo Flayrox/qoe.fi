@@ -63,6 +63,7 @@ export async function updateCreatorProfileAction(data: {
   seoDescription?: string | null
   allowIndexing?: boolean
   supportUrl?: string | null
+  advancedSettingsMode?: boolean
 }) {
   const user = await authenticateUser()
 
@@ -82,6 +83,7 @@ export async function updateCreatorProfileAction(data: {
       seoDescription: data.seoDescription,
       allowIndexing: data.allowIndexing,
       supportUrl: data.supportUrl,
+      advancedSettingsMode: data.advancedSettingsMode,
     },
   })
 
