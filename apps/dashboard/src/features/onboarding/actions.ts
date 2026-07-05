@@ -79,6 +79,8 @@ export async function completeOnboardingAction(data: {
 
   await prisma.$transaction(async (tx) => {
     // Mettre à jour l'utilisateur
+    // Mettre à jour l'utilisateur et le promouvoir créateur (sauf s'il est déjà superadmin)
+    const newRole = user.role === "superadmin" ? "superadmin" : "creator"
     await tx.user.update({
       where: { id: user.id },
       data: {
@@ -87,6 +89,7 @@ export async function completeOnboardingAction(data: {
         subdomain: data.subdomain,
         layoutStyle: data.layoutStyle,
         advancedSettingsMode: data.advancedSettingsMode,
+        role: newRole,
         hasCompletedOnboarding: true
       }
     })
