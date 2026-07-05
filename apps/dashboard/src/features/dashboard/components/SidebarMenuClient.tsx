@@ -2,7 +2,7 @@
 
 import React from "react"
 import { usePathname } from "next/navigation"
-import { Home, Settings, FileText, Users, Mail, PieChart } from "lucide-react"
+import { Home, Settings, FileText, Users, Mail, PieChart, Code } from "lucide-react"
 import { cn } from "@qoe/utils"
 import {
   SidebarMenu,
@@ -16,6 +16,7 @@ const iconMap = {
   Mail,
   Users,
   PieChart,
+  Code,
   Settings,
 }
 
