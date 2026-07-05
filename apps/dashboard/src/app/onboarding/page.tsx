@@ -1,13 +1,13 @@
-import { requireCreator } from "@qoe/auth/current-user"
+import { requireUser } from "@qoe/auth/current-user"
 import { redirect } from "next/navigation"
 import { OnboardingWizard } from "@/features/onboarding/components/wizard"
 
 export default async function OnboardingPage() {
-  const user = await requireCreator()
+  const user = await requireUser()
 
   // S'ils ont déjà passé l'onboarding, on les renvoie sur le dashboard
-  if (user.hasCompletedOnboarding) {
-    redirect("/settings") // Ou "/" si le dashboard root est actif
+  if (user.hasCompletedOnboarding || user.subdomain) {
+    redirect("/?already_onboarded=true")
   }
 
   return (

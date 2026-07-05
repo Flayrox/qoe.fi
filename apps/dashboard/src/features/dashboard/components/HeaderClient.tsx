@@ -1,10 +1,11 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from "react"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Search, ChevronRight, FileText, Users, Mail, PieChart, Settings, Plus, Command } from "lucide-react"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { cn } from "@qoe/utils"
+import { toast } from "sonner"
 
 const segmentMap: Record<string, string> = {
   articles: "Écrits",
@@ -18,9 +19,21 @@ const segmentMap: Record<string, string> = {
 export function HeaderClient() {
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const alreadyOnboarded = searchParams.get("already_onboarded")
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState("")
   const dialogRef = useRef<HTMLDialogElement>(null)
+
+  // Check for already_onboarded query parameter to show toast
+  useEffect(() => {
+    if (alreadyOnboarded === "true") {
+      toast.error("Tu es déjà créateur, tu ne peux pas recommencer l'onboarding !")
+      // Clear parameter from URL cleanly without reload
+      const newUrl = window.location.pathname
+      window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl)
+    }
+  }, [alreadyOnboarded])
 
   // 1. Dynamic Breadcrumbs parsing
   const getBreadcrumbs = () => {
