@@ -228,6 +228,8 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [isCreatingArticle, setIsCreatingArticle] = useState(false)
   const [isDeletingArticle, setIsDeletingArticle] = useState(false)
+  const [isDomainModalOpen, setIsDomainModalOpen] = useState(false)
+  const [isAdvancedMode, setIsAdvancedMode] = useState(false)
 
   // Subdomain Validation State
   const [subdomainInput, setSubdomainInput] = useState(current.subdomain || "")
@@ -515,17 +517,6 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
           ===================================================================== */}
       <div className="w-[280px] shrink-0 border-r border-border h-full overflow-y-auto flex flex-col bg-card select-none">
         
-        {/* Profile Branding Header */}
-        <div className="p-4 border-b border-border/60 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center font-bold text-primary text-sm">
-            QS
-          </div>
-          <div>
-            <h2 className="text-sm font-black tracking-tight uppercase">QOE Studio</h2>
-            <p className="text-[10px] text-muted-foreground font-semibold">Visual Architect v4.1</p>
-          </div>
-        </div>
-
         {/* 1. Vues Section */}
         <div className="p-4 border-b border-border/40">
           <h4 className="text-[9px] font-black text-muted-foreground uppercase tracking-wider mb-2.5">Vues</h4>
@@ -543,21 +534,6 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
                 <span>Accueil du Site</span>
               </div>
               <Eye className="w-3.5 h-3.5 opacity-60" />
-            </button>
-            
-            <button
-              onClick={() => { setActiveView("domaine"); setActiveArticleId(null); }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                activeView === "domaine"
-                  ? "bg-primary/10 text-primary border border-primary/20 shadow-sm"
-                  : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Globe className="w-3.5 h-3.5" />
-                <span>Domaine & URL</span>
-              </div>
-              <ChevronRight className="w-3.5 h-3.5 opacity-60" />
             </button>
           </div>
         </div>
@@ -701,14 +677,17 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
           </div>
 
           {/* Premium Browser Mockup Address Bar */}
-          <div className="flex-1 max-w-md mx-6 flex items-center gap-1.5 px-3 py-1 rounded-md bg-neutral-100 dark:bg-zinc-900 border border-border text-[11px] font-mono text-muted-foreground">
+          <button
+            onClick={() => setIsDomainModalOpen(true)}
+            className="flex-1 max-w-md mx-6 flex items-center justify-center gap-1.5 px-3 py-1 rounded-md bg-muted/50 hover:bg-muted border border-border text-[11px] font-mono text-muted-foreground transition-colors cursor-pointer"
+          >
             <span className="text-emerald-500 font-extrabold select-none">https://</span>
             <span className="font-bold text-foreground">{current.subdomain || "votre-site"}</span>
             <span className="font-semibold text-muted-foreground">.qoe.fi</span>
             {activeView === "article" && activeArticle && (
               <span className="text-muted-foreground/60 truncate">/articles/{activeArticle.slug || "sans-titre"}</span>
             )}
-          </div>
+          </button>
 
           <div className="w-24 flex items-center justify-end gap-1.5">
             <span className="text-[10px] font-black tracking-wider text-muted-foreground bg-muted px-2 py-0.5 rounded uppercase">
@@ -1015,18 +994,7 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
                 </div>
               )}
 
-              {/* VIEW: DOMAINE VIEW PANEL FALLBACK AT CENTER IF DIRECT SELECTION */}
-              {activeView === "domaine" && (
-                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
-                  <div className="w-12 h-12 rounded-2xl bg-[#EE4B2B]/10 border border-[#EE4B2B]/20 flex items-center justify-center mb-4">
-                    <Globe className="w-6 h-6 text-[#EE4B2B]" />
-                  </div>
-                  <h3 className="text-base font-black tracking-tight uppercase">Configuration Domaine</h3>
-                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                    Saisissez et validez la disponibilité de votre sous-domaine unique dans le panneau de droite. Une fois validé, il sera actif sur le web immédiatement.
-                  </p>
-                </div>
-              )}
+
 
             </div>
           </motion.div>
@@ -1039,92 +1007,7 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
           ===================================================================== */}
       <div className="w-[340px] shrink-0 border-l border-border h-full overflow-y-auto flex flex-col bg-card select-none">
         
-        {/* DOMAIN VIEW INSPECTOR PANEL */}
-        {activeView === "domaine" && (
-          <div className="p-5 space-y-6">
-            <div className="pb-3 border-b border-border/60">
-              <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-                <Globe className="w-4 h-4 text-primary text-[#EE4B2B]" />
-                <span>Adresse & Domaine</span>
-              </h3>
-              <p className="text-[10px] text-muted-foreground mt-1">Configurez le point d'accès public de votre site.</p>
-            </div>
 
-            {/* Subdomain inputs */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold block">Sous-domaine qoe.fi</label>
-              <div className="flex items-center">
-                <input
-                  type="text"
-                  placeholder="votre-nom"
-                  value={subdomainInput}
-                  onChange={e => setSubdomainInput(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
-                  className="px-3 py-2.5 rounded-l-lg border border-r-0 border-border bg-background text-xs font-bold focus:outline-none focus:ring-1 focus:ring-[#EE4B2B] lowercase flex-1"
-                />
-                <span className="px-3 py-2.5 bg-muted text-muted-foreground border border-l-0 border-border rounded-r-lg text-xs font-black">
-                  .qoe.fi
-                </span>
-              </div>
-
-              {/* Status Indicator Badges */}
-              <AnimatePresence mode="wait">
-                {subdomainCheck.loading && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-1.5 font-medium"
-                  >
-                    <Loader2 className="w-3 h-3 animate-spin text-[#EE4B2B]" />
-                    <span>Recherche de disponibilité...</span>
-                  </motion.div>
-                )}
-
-                {!subdomainCheck.loading && subdomainCheck.available === true && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center gap-1 text-[10px] text-emerald-500 font-extrabold mt-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-md"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Adresse disponible !</span>
-                  </motion.div>
-                )}
-
-                {!subdomainCheck.loading && subdomainCheck.available === false && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center gap-1 text-[10px] text-destructive font-extrabold mt-1.5 bg-destructive/10 border border-destructive/20 px-2.5 py-1.5 rounded-md"
-                  >
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    <span>{subdomainCheck.error}</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <div className="p-4 bg-[#EE4B2B]/5 border border-[#EE4B2B]/10 rounded-xl space-y-1.5">
-              <h4 className="text-[11px] font-black text-foreground flex items-center gap-1.5">
-                <Info className="w-3.5 h-3.5 text-primary" />
-                <span>Hébergement Cloud</span>
-              </h4>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Votre site visualisé est automatiquement hébergé sur nos serveurs CDN. En sauvegardant, il sera déployé à l'adresse indiquée.
-              </p>
-            </div>
-
-            <button
-              onClick={() => setCurrent(prev => ({ ...prev, subdomain: subdomainInput }))}
-              disabled={subdomainInput === original.subdomain || subdomainCheck.available !== true}
-              className="w-full py-2 bg-[#EE4B2B] hover:bg-[#EE4B2B]/90 text-white font-black text-xs rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Appliquer le sous-domaine
-            </button>
-          </div>
-        )}
 
         {/* ARTICLE EDIT VIEW INSPECTOR PANEL */}
         {activeView === "article" && activeArticle && (
@@ -1340,16 +1223,18 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold block">Lien Image Bannière</label>
-                    <input
-                      type="text"
-                      value={current.headerImageUrl || ""}
-                      onChange={e => setCurrent(prev => ({ ...prev, headerImageUrl: e.target.value }))}
-                      placeholder="https://images.unsplash.com/... cover image"
-                      className="w-full px-3 py-2 border border-border rounded-lg text-xs bg-background font-medium font-mono text-[10px]"
-                    />
-                  </div>
+                  {isAdvancedMode && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold block">Lien Image Bannière</label>
+                      <input
+                        type="text"
+                        value={current.headerImageUrl || ""}
+                        onChange={e => setCurrent(prev => ({ ...prev, headerImageUrl: e.target.value }))}
+                        placeholder="https://images.unsplash.com/... cover image"
+                        className="w-full px-3 py-2 border border-border rounded-lg text-xs bg-background font-medium font-mono text-[10px]"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1419,70 +1304,74 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
                     </div>
                   </div>
 
-                  {/* Layout selector */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold block">Style Structurel (Layout)</label>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {(
-                        [
-                          { id: "minimal", label: "Minimal" },
-                          { id: "magazine", label: "Magazine" },
-                          { id: "brutalist", label: "Brutaliste" }
-                        ] as const
-                      ).map(lay => {
-                        const isSelected = current.layoutStyle === lay.id
-                        return (
-                          <button
-                            key={lay.id}
-                            onClick={() => setCurrent(prev => ({ ...prev, layoutStyle: lay.id }))}
-                            className={`py-2 rounded-lg border text-[10px] font-extrabold cursor-pointer transition-all ${
-                              isSelected
-                                ? "border-[#EE4B2B] bg-[#EE4B2B]/5 text-[#EE4B2B]"
-                                : "border-border bg-background hover:bg-muted/15"
-                            }`}
-                          >
-                            {lay.label}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
+                  {isAdvancedMode && (
+                    <>
+                      {/* Layout selector */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold block">Style Structurel (Layout)</label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {(
+                            [
+                              { id: "minimal", label: "Minimal" },
+                              { id: "magazine", label: "Magazine" },
+                              { id: "brutalist", label: "Brutaliste" }
+                            ] as const
+                          ).map(lay => {
+                            const isSelected = current.layoutStyle === lay.id
+                            return (
+                              <button
+                                key={lay.id}
+                                onClick={() => setCurrent(prev => ({ ...prev, layoutStyle: lay.id }))}
+                                className={`py-2 rounded-lg border text-[10px] font-extrabold cursor-pointer transition-all ${
+                                  isSelected
+                                    ? "border-primary bg-primary/5 text-primary"
+                                    : "border-border bg-background hover:bg-muted/15"
+                                }`}
+                              >
+                                {lay.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
 
-                  {/* Custom Accent color picker */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold block">Couleur d'accentuation</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        ref={accentColorRef}
-                        type="color"
-                        value={current.accentColor || currentThemePreset.accentColor}
-                        onChange={e => setCurrent(prev => ({ ...prev, accentColor: e.target.value }))}
-                        className="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
-                      />
-                      <input
-                        type="text"
-                        value={current.accentColor || currentThemePreset.accentColor}
-                        onChange={e => setCurrent(prev => ({ ...prev, accentColor: e.target.value }))}
-                        placeholder="#EE4B2B"
-                        className="px-2 py-1.5 border border-border rounded bg-background text-xs font-mono font-bold w-20 focus:outline-none"
-                      />
-                    </div>
-                  </div>
+                      {/* Custom Accent color picker */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold block">Couleur d'accentuation</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            ref={accentColorRef}
+                            type="color"
+                            value={current.accentColor || currentThemePreset.accentColor}
+                            onChange={e => setCurrent(prev => ({ ...prev, accentColor: e.target.value }))}
+                            className="w-8 h-8 rounded border-0 cursor-pointer bg-transparent"
+                          />
+                          <input
+                            type="text"
+                            value={current.accentColor || currentThemePreset.accentColor}
+                            onChange={e => setCurrent(prev => ({ ...prev, accentColor: e.target.value }))}
+                            placeholder="#EE4B2B"
+                            className="px-2 py-1.5 border border-border rounded bg-background text-xs font-mono font-bold w-20 focus:outline-none"
+                          />
+                        </div>
+                      </div>
 
-                  {/* Support Button URL */}
-                  <div className="space-y-1.5 pt-2 border-t border-border/40">
-                    <label className="text-xs font-bold block">Lien du Bouton "Soutenir" (Support URL)</label>
-                    <input
-                      type="text"
-                      value={current.supportUrl || ""}
-                      onChange={e => setCurrent(prev => ({ ...prev, supportUrl: e.target.value }))}
-                      placeholder="https://buymeacoffee.com/SarahConnor"
-                      className="w-full px-3 py-2 border border-border rounded-lg text-xs bg-background font-mono text-[10px]"
-                    />
-                    <p className="text-[10px] text-muted-foreground leading-normal mt-1">
-                      Optionnel. Permet d'injecter un bouton de financement participatif (BuyMeACoffee, Patreon) dans votre en-tête.
-                    </p>
-                  </div>
+                      {/* Support Button URL */}
+                      <div className="space-y-1.5 pt-2 border-t border-border/40">
+                        <label className="text-xs font-bold block">Lien du Bouton "Soutenir" (Support URL)</label>
+                        <input
+                          type="text"
+                          value={current.supportUrl || ""}
+                          onChange={e => setCurrent(prev => ({ ...prev, supportUrl: e.target.value }))}
+                          placeholder="https://buymeacoffee.com/SarahConnor"
+                          className="w-full px-3 py-2 border border-border rounded-lg text-xs bg-background font-mono text-[10px]"
+                        />
+                        <p className="text-[10px] text-muted-foreground leading-normal mt-1">
+                          Optionnel. Permet d'injecter un bouton de financement participatif (BuyMeACoffee, Patreon) dans votre en-tête.
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -1496,7 +1385,7 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
                     </div>
                     <button
                       onClick={addNavigationLink}
-                      className="flex items-center gap-1 text-[10px] font-extrabold text-[#EE4B2B] hover:underline bg-[#EE4B2B]/5 border border-[#EE4B2B]/10 px-2 py-1 rounded-md cursor-pointer"
+                      className="flex items-center gap-1 text-[10px] font-extrabold text-primary hover:underline bg-primary/5 border border-primary/10 px-2 py-1 rounded-md cursor-pointer"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Ajouter</span>
@@ -1600,7 +1489,7 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
                           <button
                             key={plat}
                             onClick={() => addSocialLink(plat)}
-                            className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-muted hover:bg-[#EE4B2B]/10 hover:text-[#EE4B2B] transition-colors rounded cursor-pointer"
+                            className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-muted hover:bg-primary/10 hover:text-primary transition-colors rounded cursor-pointer"
                           >
                             +{plat}
                           </button>
@@ -1619,7 +1508,7 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
                             key={idx}
                             className="flex items-center gap-2 p-2 border border-border bg-background rounded-xl shadow-xs"
                           >
-                            <span className="text-[9px] font-black capitalize text-[#EE4B2B] bg-[#EE4B2B]/5 px-2 py-1 rounded w-16 text-center select-none shrink-0 border border-[#EE4B2B]/10">
+                            <span className="text-[9px] font-black capitalize text-primary bg-primary/5 px-2 py-1 rounded w-16 text-center select-none shrink-0 border border-primary/10">
                               {soc.platform}
                             </span>
                             
@@ -1664,13 +1553,13 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
             animate={{ opacity: 1, y: 0, x: "-50%" }}
             exit={{ opacity: 0, y: 80, x: "-50%" }}
             transition={{ type: "spring", stiffness: 350, damping: 25 }}
-            className="fixed bottom-6 left-1/2 z-50 flex items-center justify-between gap-6 px-5 py-3.5 bg-zinc-900/95 dark:bg-zinc-900/95 border border-zinc-800 text-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-md w-[90%] max-w-xl select-none"
+            className="fixed bottom-6 left-1/2 z-50 flex items-center justify-between gap-6 px-5 py-3.5 bg-popover/95 border border-border text-popover-foreground rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] backdrop-blur-md w-[90%] max-w-xl select-none"
           >
             <div className="flex items-center gap-3">
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
               <div>
                 <p className="text-[11px] font-black uppercase tracking-wider">Modifications en cours</p>
-                <p className="text-[10px] text-zinc-400 mt-0.5">Enregistrez pour synchroniser votre site.</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Enregistrez pour synchroniser votre site.</p>
               </div>
             </div>
 
@@ -1678,7 +1567,7 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
               <button
                 disabled={isSaving}
                 onClick={handleDiscardChanges}
-                className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-xl transition-all cursor-pointer"
+                className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 rounded-xl transition-all cursor-pointer"
               >
                 Annuler
               </button>
@@ -1686,7 +1575,7 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
               <button
                 disabled={isSaving}
                 onClick={handleSaveAll}
-                className="flex items-center gap-2 px-5 py-2 text-xs font-black text-white bg-[#EE4B2B] hover:bg-[#EE4B2B]/90 hover:scale-[1.02] active:scale-[0.98] rounded-xl shadow-md transition-all cursor-pointer"
+                className="flex items-center gap-2 px-5 py-2 text-xs font-black text-primary-foreground bg-primary hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] rounded-xl shadow-md transition-all cursor-pointer"
               >
                 {isSaving ? (
                   <>
@@ -1702,6 +1591,133 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
               </button>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* =====================================================================
+          🌐 CONTEXTUAL DOMAIN & URL MODAL (Foreground Overlay)
+          ===================================================================== */}
+      <AnimatePresence>
+        {isDomainModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center select-none">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsDomainModalOpen(false)}
+              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+            />
+            {/* Modal Body */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              className="bg-popover border border-border rounded-2xl shadow-2xl p-6 w-[420px] max-w-[95vw] relative z-10 space-y-6 animate-in fade-in zoom-in-95 duration-200"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-black uppercase tracking-wider">Adresse & Domaine</h3>
+                </div>
+                <button
+                  onClick={() => setIsDomainModalOpen(false)}
+                  className="p-1 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Subdomain Settings */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold block text-foreground">Sous-domaine qoe.fi</label>
+                <div className="flex items-center">
+                  <input
+                    type="text"
+                    placeholder="votre-nom"
+                    value={subdomainInput}
+                    onChange={e => setSubdomainInput(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
+                    className="px-3 py-2 border border-r-0 border-border bg-background text-xs font-bold focus:outline-none focus:ring-1 focus:ring-primary lowercase flex-1 h-9 rounded-l-lg"
+                  />
+                  <span className="px-3 py-2 bg-muted text-muted-foreground border border-l-0 border-border rounded-r-lg text-xs font-black h-9 flex items-center">
+                    .qoe.fi
+                  </span>
+                </div>
+
+                {/* Status Indicators */}
+                <AnimatePresence mode="wait">
+                  {subdomainCheck.loading && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-1.5 font-medium"
+                    >
+                      <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                      <span>Recherche de disponibilité...</span>
+                    </motion.div>
+                  )}
+
+                  {!subdomainCheck.loading && subdomainCheck.available === true && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="flex items-center gap-1 text-[10px] text-emerald-500 font-extrabold mt-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-md"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Adresse disponible !</span>
+                    </motion.div>
+                  )}
+
+                  {!subdomainCheck.loading && subdomainCheck.available === false && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="flex items-center gap-1 text-[10px] text-destructive font-extrabold mt-1.5 bg-destructive/10 border border-destructive/20 px-2.5 py-1.5 rounded-md"
+                    >
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      <span>{subdomainCheck.error}</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Info Cloud */}
+              <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl space-y-1.5">
+                <h4 className="text-[11px] font-black text-foreground flex items-center gap-1.5">
+                  <Info className="w-3.5 h-3.5 text-primary" />
+                  <span>Hébergement Cloud CDN</span>
+                </h4>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Votre site est déployé instantanément sur nos serveurs CDN dès que vous enregistrez les modifications.
+                </p>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-2 justify-end pt-2">
+                <button
+                  onClick={() => setIsDomainModalOpen(false)}
+                  className="px-4 h-9 text-xs font-bold text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 rounded-lg transition-colors cursor-pointer"
+                >
+                  Fermer
+                </button>
+                <button
+                  onClick={() => {
+                    setCurrent(prev => ({ ...prev, subdomain: subdomainInput }));
+                    setIsDomainModalOpen(false);
+                    toast.success("Sous-domaine mis à jour dans le studio ! N'oubliez pas d'enregistrer.");
+                  }}
+                  disabled={subdomainInput === original.subdomain || subdomainCheck.available !== true}
+                  className="px-4 h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xs rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Appliquer
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
