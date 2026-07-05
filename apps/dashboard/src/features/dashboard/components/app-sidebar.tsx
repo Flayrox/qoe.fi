@@ -71,11 +71,11 @@ export async function AppSidebar() {
   ]
 
   return (
-    <Sidebar variant="inset" className="border-r border-border/50">
+    <Sidebar variant="inset" className="border-r border-border">
       <SidebarHeader className="p-4 flex flex-row items-center gap-2 select-none">
         <Logo className="h-4.5 w-auto" fillColor="currentColor" />
         <span className="font-sans text-sm font-semibold tracking-tight text-foreground">qoe.fi</span>
-        <span className="text-[9px] uppercase tracking-wider bg-zinc-100 text-zinc-500 font-black px-1.5 py-0.5 rounded dark:bg-zinc-800 dark:text-zinc-400">
+        <span className="text-[9px] uppercase tracking-wider bg-muted text-muted-foreground font-black px-1.5 py-0.5 rounded">
           Console
         </span>
       </SidebarHeader>
@@ -95,24 +95,24 @@ export async function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu modal={false}>
-              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" className="hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md" />}>
-                <Avatar className="h-8 w-8 rounded-md border border-border/50">
-                  <AvatarFallback className="rounded-md font-sans text-xs bg-zinc-100 text-zinc-950 font-bold dark:bg-zinc-800 dark:text-zinc-50">{userFallback}</AvatarFallback>
+              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md" />}>
+                <Avatar className="h-8 w-8 rounded-md border border-border">
+                  <AvatarFallback className="rounded-md font-sans text-xs bg-muted text-foreground font-bold">{userFallback}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight font-sans">
                   <span className="truncate font-semibold text-foreground text-xs leading-none">{userName}</span>
                   <span className="truncate text-[10px] text-muted-foreground mt-0.5 leading-none">{userEmail}</span>
                 </div>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-white/95 backdrop-blur-xl border border-border/50 shadow-lg p-1.5 dark:bg-zinc-900/95" side="top" align="end" sideOffset={8}>
-                <DropdownMenuItem className="text-xs font-medium font-sans cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-850 rounded px-2.5 py-1.5">
+              <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-popover backdrop-blur-xl border border-border shadow-lg p-1.5" side="top" align="end" sideOffset={8}>
+                <DropdownMenuItem className="text-xs font-medium font-sans cursor-pointer hover:bg-muted rounded px-2.5 py-1.5">
                   {t('sidebar.user_profile')}
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-xs font-medium font-sans cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-850 rounded px-2.5 py-1.5">
+                <DropdownMenuItem className="text-xs font-medium font-sans cursor-pointer hover:bg-muted rounded px-2.5 py-1.5">
                   {t('sidebar.user_billing')}
                 </DropdownMenuItem>
                 <DropdownMenuItem render={<form action={logout} className="w-full" />} className="p-0">
-                  <button type="submit" className="w-full text-left cursor-pointer bg-transparent border-0 px-2.5 py-1.5 text-red-500 font-sans text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/20 rounded">
+                  <button type="submit" className="w-full text-left cursor-pointer bg-transparent border-0 px-2.5 py-1.5 text-destructive font-sans text-xs font-semibold hover:bg-destructive/10 rounded">
                     {t('sidebar.user_logout')}
                   </button>
                 </DropdownMenuItem>

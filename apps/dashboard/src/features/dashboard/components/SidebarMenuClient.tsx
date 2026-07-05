@@ -57,8 +57,8 @@ export function SidebarMenuClient({ items }: SidebarMenuClientProps) {
               className={cn(
                 "transition-colors duration-200 select-none text-xs rounded-md font-sans py-1.5 px-3 h-8 flex items-center gap-2.5",
                 active
-                  ? "bg-zinc-100/80 text-zinc-950 font-medium dark:bg-zinc-800/80 dark:text-zinc-50"
-                  : "text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                  : "text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
               )}
             >
               {Icon && <Icon strokeWidth={1.5} className="w-4 h-4 shrink-0" />}
