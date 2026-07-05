@@ -10,6 +10,7 @@ import {
   createMockUserAction,
   generateMockFeedPostsAction,
   resetDatabaseAction,
+  resetOnboardingAction,
   simulateSubscriberAction,
   simulateFollowAction,
   simulateLikeAction,
@@ -247,6 +248,18 @@ export function DevtoolsPanel() {
         refreshData();
       } else {
         triggerAlert("error", `Échec du reset: ${res.error}`);
+      }
+    });
+  };
+
+  const handleResetOnboarding = () => {
+    startTransition(async () => {
+      const res = await resetOnboardingAction();
+      if (res.success) {
+        triggerAlert("success", "Onboarding réinitialisé pour tous les utilisateurs !");
+        refreshData();
+      } else {
+        triggerAlert("error", `Échec de la réinitialisation: ${res.error}`);
       }
     });
   };
@@ -738,6 +751,14 @@ export function DevtoolsPanel() {
                       className="qoe-devtools-btn qoe-devtools-btn-danger"
                     >
                       <Trash2 size={12} /> 🧹 Clean & Reset Database (Prisma)
+                    </button>
+                    <button
+                      onClick={handleResetOnboarding}
+                      disabled={isPending}
+                      className="qoe-devtools-btn"
+                      style={{ background: "rgba(255, 165, 0, 0.1)", color: "orange", borderColor: "rgba(255, 165, 0, 0.3)" }}
+                    >
+                      <RefreshCw size={12} /> 🔄 Reset Onboarding State
                     </button>
                   </div>
                 </div>

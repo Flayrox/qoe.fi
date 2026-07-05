@@ -554,3 +554,19 @@ export async function addMockFundsAction({
   }
 }
 
+/**
+ * 🔄 Réinitialise l'état d'onboarding de tous les utilisateurs (ou d'un seul) pour faciliter les tests.
+ */
+export async function resetOnboardingAction() {
+  try {
+    await prisma.user.updateMany({
+      data: {
+        hasCompletedOnboarding: false,
+      },
+    });
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error in resetOnboardingAction:", error);
+    return { success: false, error: error?.message || "Failed to reset onboarding" };
+  }
+}

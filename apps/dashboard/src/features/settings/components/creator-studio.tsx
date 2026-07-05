@@ -124,6 +124,7 @@ export interface CreatorProfile {
   socialLinks: ClientSocialLink[]
   articles: StudioArticle[]
   categories: ClientCategory[]
+  advancedSettingsMode: boolean
 }
 
 export interface ThemePreset {
@@ -229,7 +230,7 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
   const [isCreatingArticle, setIsCreatingArticle] = useState(false)
   const [isDeletingArticle, setIsDeletingArticle] = useState(false)
   const [isDomainModalOpen, setIsDomainModalOpen] = useState(false)
-  const [isAdvancedMode, setIsAdvancedMode] = useState(false)
+  const isAdvancedMode = current.advancedSettingsMode
 
   // Subdomain Validation State
   const [subdomainInput, setSubdomainInput] = useState(current.subdomain || "")
@@ -308,7 +309,7 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
       const profileFieldsChanged = [
         "name", "heroText", "accentColor", "fontFamily", "themeMode", "layoutStyle",
         "logoUrl", "headerImageUrl", "footerText", "seoTitle", "seoDescription",
-        "allowIndexing", "supportUrl"
+        "allowIndexing", "supportUrl", "advancedSettingsMode"
       ].some(field => current[field as keyof CreatorProfile] !== original[field as keyof CreatorProfile])
 
       if (profileFieldsChanged) {
@@ -325,7 +326,8 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
           seoTitle: current.seoTitle,
           seoDescription: current.seoDescription,
           allowIndexing: current.allowIndexing,
-          supportUrl: current.supportUrl
+          supportUrl: current.supportUrl,
+          advancedSettingsMode: current.advancedSettingsMode
         })
       }
 
@@ -1149,6 +1151,29 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
         {activeView === "accueil" && (
           <div className="flex flex-col h-full overflow-hidden">
             
+            {/* Header with Mode Toggle */}
+            <div className="px-4 py-2.5 border-b border-border flex items-center justify-between bg-muted/20">
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Configuration</span>
+              <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg border border-border">
+                <button
+                  onClick={() => setCurrent(prev => ({ ...prev, advancedSettingsMode: false }))}
+                  className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
+                    !isAdvancedMode ? "bg-background text-foreground shadow-xs animate-fade-in" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Simple
+                </button>
+                <button
+                  onClick={() => setCurrent(prev => ({ ...prev, advancedSettingsMode: true }))}
+                  className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
+                    isAdvancedMode ? "bg-background text-foreground shadow-xs animate-fade-in" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Avancé
+                </button>
+              </div>
+            </div>
+
             {/* Category tabs inside inspector */}
             <div className="grid grid-cols-4 gap-0.5 p-1 bg-muted/60 border-b border-border">
               {(
