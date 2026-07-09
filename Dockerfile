@@ -216,3 +216,18 @@ COPY --from=builder --chown=worker:nodejs /app/node_modules/.prisma ./node_modul
 USER worker
 
 CMD ["node", "dist/index.js"]
+
+# ─────────────────────────────────────────────────────────────────────
+# 🔄 TARGET : MIGRATE (Prisma migrate deploy — one-shot)
+# ─────────────────────────────────────────────────────────────────────
+FROM node:20-alpine AS migrate
+RUN apk add --no-cache libc6-compat openssl
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Copie le schema Prisma et les migrations depuis le builder
+COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+CMD ["npx", "prisma", "migrate", "deploy", "--schema=/app/packages/db/prisma/schema.prisma"]
