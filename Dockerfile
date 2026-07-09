@@ -70,7 +70,7 @@ USER nextjs
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/start || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health.svg || exit 1
 
 CMD ["node", "apps/web/server.js"]
 
@@ -95,7 +95,7 @@ USER nextjs
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health.svg || exit 1
 
 CMD ["node", "apps/landing/server.js"]
 
@@ -120,7 +120,7 @@ USER nextjs
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/login || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health.svg || exit 1
 
 CMD ["node", "apps/feed/server.js"]
 
@@ -145,7 +145,7 @@ USER nextjs
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health.svg || exit 1
 
 CMD ["node", "apps/dashboard/server.js"]
 
@@ -170,7 +170,7 @@ USER nextjs
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health.svg || exit 1
 
 CMD ["node", "apps/admin/server.js"]
 
