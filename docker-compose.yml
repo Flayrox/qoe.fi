@@ -530,7 +530,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: api  # Réutilise l'image API qui a Prisma
+      target: migrate  # Stage dédié avec schema Prisma + migrations
     container_name: qoefi-migrate
     restart: "no"  # S'exécute une seule fois, ne redémarre pas
 
@@ -540,8 +540,6 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
       DIRECT_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
-
-    command: ["npx", "prisma", "migrate", "deploy", "--schema=/app/packages/db/prisma/schema.prisma"]
 
     networks:
       - qoefi-private
