@@ -22,7 +22,7 @@ packages:
   - "packages/*"
 
   # ⚙️ Workers asynchrones (BullMQ, jobs, etc.)
-  - "workers/*"
+  - "workers"
 
   # ❌ Exclusions explicites (ne PAS traiter comme workspace)
   - "!**/node_modules"
