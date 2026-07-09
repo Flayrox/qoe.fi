@@ -50,8 +50,8 @@ RUN if [ -f .env.docker ]; then \
       cp .env.docker apps/admin/.env; \
     fi
 
-# Build chaque app en utilisant le cache Turborepo
-RUN --mount=type=cache,target=/app/.turbo pnpm turbo build
+# Build chaque app en utilisant le cache Turborepo (mais force le build pour garantir l'injection des variables d'environnement)
+RUN --mount=type=cache,target=/app/.turbo pnpm turbo build --force
 
 # ═════════════════════════════════════════════════════════════════════
 # 🎯 TARGETS FINALES (4 stages qui héritent du builder)
