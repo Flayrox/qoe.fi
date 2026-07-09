@@ -187,7 +187,7 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 hono
 
 COPY --from=builder --chown=hono:nodejs /app/apps/api/dist ./dist
-COPY --from=builder --chown=hono:nodejs /app/apps/api/node_modules ./node_modules
+COPY --from=builder --chown=hono:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=hono:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 
 USER hono
@@ -210,7 +210,7 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 worker
 
 COPY --from=builder --chown=worker:nodejs /app/workers/dist ./dist
-COPY --from=builder --chown=worker:nodejs /app/workers/node_modules ./node_modules
+COPY --from=builder --chown=worker:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=worker:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 
 USER worker
