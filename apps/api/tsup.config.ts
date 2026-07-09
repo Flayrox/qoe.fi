@@ -7,6 +7,7 @@ export default defineConfig({
   // Bundle tous les packages @qoe/* workspace dans le build final
   // pour éviter les ERR_MODULE_NOT_FOUND en production Docker
   bundle: true,
+  noExternal: [/^@qoe\//],
   // Ne pas bundler les dépendances natives (node_modules externes)
   external: [
     // Node.js builtins
