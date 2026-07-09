@@ -12,7 +12,8 @@
     "./tokens": "./src/tokens.ts",
     "./SocialIcon": "./src/SocialIcon.tsx",
     "./TenantHeader": "./src/TenantHeader.tsx",
-    "./SubscribeForm": "./src/SubscribeForm.tsx"
+    "./SubscribeForm": "./src/SubscribeForm.tsx",
+    "./devtools-actions": "./src/devtools/actions.ts"
   },
   "scripts": {
     "lint": "echo skip",
