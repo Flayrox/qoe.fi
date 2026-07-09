@@ -38,7 +38,7 @@ COPY . .
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --prod=false
 
 # Génère le client Prisma (pour le runtime)
-RUN pnpm --filter @qoe/db prisma generate
+RUN pnpm --filter @qoe/db run prisma:generate
 
 # Build chaque app en utilisant le cache Turborepo
 RUN --mount=type=cache,target=/app/.turbo pnpm turbo build

@@ -118,7 +118,7 @@ const apiAuth = async (c: any, next: any) => {
     prisma.apiKey.update({
       where: { id: apiKeyRecord.id },
       data: { lastUsedAt: new Date() },
-    }).catch(err => console.error("Failed to update lastUsedAt:", err));
+    }).catch((err: any) => console.error("Failed to update lastUsedAt:", err));
 
     // Store user in context
     c.set("creator", user);
