@@ -18,6 +18,16 @@
 # =====================================================================
 
 # ─────────────────────────────────────────────────────────────────────
+# ⚙️ OPTIONS GLOBALES
+# ─────────────────────────────────────────────────────────────────────
+# Nginx gère TLS en amont (port 443). Caddy ne sert que du HTTP
+# en interne (port 80 → 8080 → Nginx). Pas besoin de certs Let's Encrypt.
+{
+    auto_https off
+    admin off
+}
+
+# ─────────────────────────────────────────────────────────────────────
 # 🌍 DOMAINE PRINCIPAL : qoe.fi (home + auth + feed)
 # ─────────────────────────────────────────────────────────────────────
 # Sert : / (home/feed), /login, /library, /highlights, /billing,
