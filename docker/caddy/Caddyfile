@@ -148,14 +148,10 @@ start.qoe.fi {
     }
 
     reverse_proxy landing:3000 {
+        header_up Host {host}
         transport http {
             dial_timeout 30s
         }
-    }
-
-    # Cache agressif sur le site marketing (statique)
-    reverse_proxy landing:3000 {
-        header_up Host {host}
     }
 
     log {
@@ -196,9 +192,9 @@ api.qoe.fi {
 #    Si un host ne match aucun des blocs ci-dessus, c'est un custom domain.
 #    → On le route vers web (qui résout via subdomain/customDomain).
 #    ⚠️ Nécessite que le DNS pointe vers le VPS.
-{
-    # Catch-all pour custom domains
-    @custom host not qoe.fi www.qoe.fi *.qoe.fi start.qoe.fi api.qoe.fi dashboard.qoe.fi admin.qoe.fi
+:80 {
+    # Catch-all pour custom domains (tout ce qui n'est pas qoe.fi)
+    @custom not host qoe.fi www.qoe.fi start.qoe.fi api.qoe.fi dashboard.qoe.fi admin.qoe.fi
     handle @custom {
         reverse_proxy web:3000 {
             header_up Host {host}
