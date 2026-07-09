@@ -69,7 +69,7 @@ export default async function RootLayout({
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <TolgeeNextProvider language={locale} staticData={staticData as Record<string, unknown>}>
+          <TolgeeNextProvider language={locale} staticData={staticData as any}>
             <TooltipProvider>
               {children}
               <Toaster />
