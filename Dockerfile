@@ -34,8 +34,8 @@ ENV NODE_ENV=production
 # Copie tout le code source
 COPY . .
 
-# Installe toutes les dépendances en utilisant le cache de montage BuildKit
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+# Installe toutes les dépendances en utilisant le cache de montage BuildKit (y compris devDependencies pour le build)
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --prod=false
 
 # Génère le client Prisma (pour le runtime)
 RUN pnpm --filter @qoe/db prisma generate
