@@ -6,6 +6,7 @@ export default defineConfig({
   outDir: "dist",
   // Bundle tous les packages @qoe/* workspace dans le build final
   bundle: true,
+  noExternal: [/^@qoe\//],
   // Ne pas bundler les dépendances npm externes
   external: [
     "node:*",
