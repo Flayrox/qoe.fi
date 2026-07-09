@@ -9,17 +9,18 @@ export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   const pathname = url.pathname;
 
-  // 1. Skip Next.js internals, API and static files
+  // 1. Skip Next.js internals, API, static files and SSO auth routes
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
+    pathname.startsWith("/auth/sso") ||
     pathname.includes(".")
   ) {
     return NextResponse.next();
   }
 
   // 2. Refresh Supabase session (toujours)
-  const { supabaseResponse } = await updateSession(request);
+  const { supabaseResponse, user } = await updateSession(request);
 
   // 3. Multi-tenancy check
   const hostname = request.headers.get("host") || "";
@@ -52,6 +53,24 @@ export async function middleware(request: NextRequest) {
   const isSystemDomain = systemDomains.includes(currentHost);
 
   if (!isSystemDomain) {
+    // If the user has no session locally, and we haven't checked SSO in the last 5 mins, redirect to main platform SSO sync.
+    const ssoChecked = request.cookies.get("sso_checked")?.value === "true";
+    if (!user && !ssoChecked) {
+      let mainAppUrl = "https://qoe.fi";
+      if (process.env.NODE_ENV === "development") {
+        mainAppUrl = "http://qoe.test";
+      }
+      
+      const host = request.headers.get("host") || "localhost:3000";
+      const protocol = request.headers.get("x-forwarded-proto") || "http";
+      const callbackPath = `/auth/sso/callback?redirect_to=${encodeURIComponent(pathname + url.search)}`;
+      const callbackUrl = `${protocol}://${host}${callbackPath}`;
+      
+      const ssoSyncUrl = new URL(`${mainAppUrl}/auth/sso/sync`);
+      ssoSyncUrl.searchParams.set("return_to", callbackUrl);
+      return NextResponse.redirect(ssoSyncUrl.toString());
+    }
+
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-tenant-domain", currentHost);
 
