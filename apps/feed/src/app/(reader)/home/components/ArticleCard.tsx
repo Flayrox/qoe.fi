@@ -92,6 +92,7 @@ export function ArticleCard({
     setTilt({ x: 0, y: 0 })
   }
 
+  const isMicroPost = !article.title
   const isProd = typeof window !== "undefined"
     ? window.location.hostname.endsWith("qoe.fi")
     : process.env.NODE_ENV === "production"
