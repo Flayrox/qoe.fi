@@ -42,7 +42,7 @@ export default async function RootLayout({
 }>) {
   const locale = await getLanguage();
   const tolgee = await getTolgee();
-  let staticData: Record<string, unknown> = {};
+  let staticData: any = {};
   try {
     staticData = (await tolgee.loadRequired()) ?? {};
   } catch {
