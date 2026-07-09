@@ -26,10 +26,9 @@ services:
     container_name: qoefi-caddy
     restart: unless-stopped
 
-    # Ports publics (80 = HTTP→HTTPS redirect, 443 = HTTPS)
+    # Écoute uniquement sur le port 8080 en local (Nginx de l'hôte fera le reverse proxy)
     ports:
-      - "80:80"
-      - "443:443"
+      - "127.0.0.1:8080:80"
 
     volumes:
       - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
