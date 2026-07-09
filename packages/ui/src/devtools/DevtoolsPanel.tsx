@@ -5,19 +5,7 @@ import { createClient } from "@qoe/supabase/client";
 
 console.log("DevtoolsPanel.tsx top-level execution!");
 
-import {
-  getDevtoolsData,
-  createMockUserAction,
-  generateMockFeedPostsAction,
-  resetDatabaseAction,
-  resetOnboardingAction,
-  simulateSubscriberAction,
-  simulateFollowAction,
-  simulateLikeAction,
-  addMockFundsAction,
-  type DevtoolsUser,
-  type DevtoolsStats,
-} from "./actions";
+import type { DevtoolsUser, DevtoolsStats } from "./actions";
 import "./Devtools.css";
 
 // Lucide React Icons (Direct imports to avoid bundling bloated imports)
@@ -86,7 +74,30 @@ function getMonorepoPorts() {
   };
 }
 
-export function DevtoolsPanel() {
+export interface DevtoolsActions {
+  getDevtoolsData: () => Promise<{ success: boolean; users?: DevtoolsUser[]; stats?: DevtoolsStats; error?: string }>;
+  createMockUserAction: (data: any) => Promise<any>;
+  generateMockFeedPostsAction: () => Promise<any>;
+  resetDatabaseAction: () => Promise<any>;
+  resetOnboardingAction: () => Promise<any>;
+  simulateSubscriberAction: (data: any) => Promise<any>;
+  simulateFollowAction: (data: any) => Promise<any>;
+  simulateLikeAction: (data: any) => Promise<any>;
+  addMockFundsAction: (data: any) => Promise<any>;
+}
+
+export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
+  const {
+    getDevtoolsData,
+    createMockUserAction,
+    generateMockFeedPostsAction,
+    resetDatabaseAction,
+    resetOnboardingAction,
+    simulateSubscriberAction,
+    simulateFollowAction,
+    simulateLikeAction,
+    addMockFundsAction,
+  } = actions;
   // 🧭 UI States
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("jumper"); // "jumper", "sandbox", "impersonator", "stats"

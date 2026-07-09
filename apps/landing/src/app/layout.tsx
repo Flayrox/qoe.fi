@@ -8,6 +8,17 @@ import { TolgeeNextProvider } from "@qoe/i18n/provider";
 import { getTolgee, getLanguage } from "@qoe/i18n/server";
 import { cn } from "@qoe/utils";
 import { DevtoolsPanel, ThemeProvider } from "@qoe/ui";
+import {
+  getDevtoolsData,
+  createMockUserAction,
+  generateMockFeedPostsAction,
+  resetDatabaseAction,
+  resetOnboardingAction,
+  simulateSubscriberAction,
+  simulateFollowAction,
+  simulateLikeAction,
+  addMockFundsAction
+} from "@qoe/ui/devtools-actions";
 
 // CSS global unifié — source unique dans @qoe/theme
 import "@qoe/theme/styles";
@@ -31,12 +42,24 @@ export default async function RootLayout({
 }>) {
   const locale = await getLanguage();
   const tolgee = await getTolgee();
-  let staticData: any = {};
+  let staticData: Record<string, unknown> = {};
   try {
     staticData = (await tolgee.loadRequired()) ?? {};
   } catch {
     staticData = {};
   }
+
+  const devtoolsActions = {
+    getDevtoolsData,
+    createMockUserAction,
+    generateMockFeedPostsAction,
+    resetDatabaseAction,
+    resetOnboardingAction,
+    simulateSubscriberAction,
+    simulateFollowAction,
+    simulateLikeAction,
+    addMockFundsAction
+  };
 
   return (
     <html lang={locale} className={cn("scroll-smooth", "font-sans", geist.variable)} suppressHydrationWarning>
@@ -46,7 +69,7 @@ export default async function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <TolgeeNextProvider language={locale} staticData={staticData}>
             {children}
-            {process.env.NODE_ENV === "development" && <DevtoolsPanel />}
+            {process.env.NODE_ENV === "development" && <DevtoolsPanel actions={devtoolsActions} />}
           </TolgeeNextProvider>
         </ThemeProvider>
       </body>

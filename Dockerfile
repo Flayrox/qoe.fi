@@ -16,63 +16,32 @@
 # 📖 Stratégie : stages de base communs + stages spécifiques
 # =====================================================================
 
-# ─────────────────────────────────────────────────────────────────────
-# 🥉 STAGE BASE : node + outils communs
+# 🥉 STAGE BASE : node + corepack pnpm
 # ─────────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS base
 RUN apk add --no-cache libc6-compat openssl git
 WORKDIR /app
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
+# 🥈 STAGE BUILDER : installation et build unifiés avec cache pnpm & turbo
 # ─────────────────────────────────────────────────────────────────────
-# 🥈 STAGE DEPS : installation des dépendances (toutes workspaces)
-# ─────────────────────────────────────────────────────────────────────
-# 📖 Une seule fois : pnpm install installe TOUT le workspace.
-#    Les stages suivants réutilisent ce node_modules.
-# ─────────────────────────────────────────────────────────────────────
-FROM base AS deps
-# Copie les manifests de TOUT le monorepo
-COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml ./
-COPY turbo.json ./
-
-# Active pnpm via corepack
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-# ⚠️ ASTUCE : on crée des package.json vides pour chaque app/package
-# qu'on n'a pas encore copié, pour que pnpm install ne plante pas.
-# Ces package.json seront remplacés au COPY suivant.
-RUN for dir in apps/web apps/landing apps/feed apps/dashboard apps/admin apps/api workers packages/*/; do \
-  mkdir -p "$dir" && \
-  if [ ! -f "$dir/package.json" ]; then \
-    echo "{\"name\":\"$(basename $dir)\",\"private\":true}" > "$dir/package.json"; \
-  fi; \
-done
-
-# Installe les dépendances (production + dev pour le build)
-# Note : --no-frozen-lockfile car le lockfile peut être régénéré
-RUN pnpm install --no-frozen-lockfile
-
-# ─────────────────────────────────────────────────────────────────────
-# 🥇 STAGE BUILDER : build de TOUTES les apps
-# ─────────────────────────────────────────────────────────────────────
-FROM deps AS builder
-
-# Variables d'env
+FROM base AS builder
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
 # Copie tout le code source
 COPY . .
 
-# Re-installe les dépendances maintenant que TOUT le code est copié
-# (le stage deps n'avait que les manifests)
-RUN pnpm install --no-frozen-lockfile
+# Installe toutes les dépendances en utilisant le cache de montage BuildKit
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 # Génère le client Prisma (pour le runtime)
-RUN pnpm --filter @qoe/db prisma generate || true
+RUN pnpm --filter @qoe/db prisma generate
 
-# Build chaque app (Turbo gère les dépendances inter-packages)
-# Note : on builde tout le workspace, Turbo skip les packages sans script "build"
-RUN pnpm turbo build
+# Build chaque app en utilisant le cache Turborepo
+RUN --mount=type=cache,target=/app/.turbo pnpm turbo build
 
 # ═════════════════════════════════════════════════════════════════════
 # 🎯 TARGETS FINALES (4 stages qui héritent du builder)

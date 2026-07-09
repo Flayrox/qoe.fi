@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -55,6 +55,16 @@ export function AppSidebar({ user }: AppSidebarProps) {
   const pathname = usePathname()
   const [hoveredIndex, setHoveredIndex] = useState<string | null>(null)
   const [settingsHovered, setSettingsHovered] = useState(false)
+
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsMounted(true), 0)
+    return () => clearTimeout(t)
+  }, [])
+
+  const dashboardUrl = isMounted ? URLS.DASHBOARD : "http://dashboard.localhost"
+  const adminUrl = isMounted ? URLS.ADMIN : "http://admin.localhost"
 
   const isHome =
     pathname.endsWith("/home") || pathname.endsWith("/home/") ||
@@ -230,7 +240,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                 <Tooltip>
                   <TooltipTrigger>
                     <a
-                      href={URLS.DASHBOARD}
+                      href={dashboardUrl}
                       className="relative flex items-center justify-center w-12 h-10 rounded-[var(--radius-button)]
                                  text-xs font-semibold transition-colors duration-200 outline-none
                                  hover:bg-white/50"
@@ -247,7 +257,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                   <Tooltip>
                     <TooltipTrigger>
                       <a
-                        href={URLS.ADMIN}
+                        href={adminUrl}
                         className="relative flex items-center justify-center w-12 h-10 rounded-[var(--radius-button)]
                                    text-xs font-semibold transition-colors duration-200 outline-none
                                    hover:bg-white/50"
@@ -350,7 +360,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                 onClick={() => window.location.href = "/onboarding"}
               >
                 <Sparkles className="w-4 h-4 mr-2.5 text-[var(--text-tertiary)]" />
-                Recommencer l'onboarding
+                Recommencer l&apos;onboarding
               </DropdownMenuItem>
 
               <DropdownMenuSeparator className="bg-[var(--border-subtle)]" />
