@@ -2,6 +2,8 @@
   "extends": "@qoe/tsconfig/node.json",
   "compilerOptions": {
     "baseUrl": ".",
+    "noEmit": false,
+    "outDir": "./dist",
     "paths": {
       "@/*": ["./src/*"]
     }
