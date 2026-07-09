@@ -57,8 +57,13 @@ export function LibraryClient({ bookmarks }: LibraryClientProps) {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {bookmarks.map(b => {
-                    const host = b.article.author.customDomain || `${b.article.author.subdomain}.localhost:3001`
-                    const url = `http://${host}/article/${b.article.slug}`
+                    const isProd = typeof window !== "undefined"
+                      ? window.location.hostname.endsWith("qoe.fi")
+                      : process.env.NODE_ENV === "production"
+                    const suffix = isProd ? "qoe.fi" : "localhost"
+                    const protocol = isProd ? "https:" : "http:"
+                    const host = b.article.author.customDomain || (b.article.author.subdomain ? `${b.article.author.subdomain}.${suffix}` : "")
+                    const url = host ? `${protocol}//${host}/article/${b.article.slug}` : "#"
 
                     return (
                       <div 

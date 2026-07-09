@@ -245,8 +245,13 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
                   if (target.type === "post" && onOpenPost) {
                     onOpenPost(target.id)
                   } else if (target.type === "article" && target.slug) {
-                    const host = post.author.subdomain ? `${post.author.subdomain}.localhost:3000` : "localhost:3000"
-                    window.open(`http://${host}/article/${target.slug}`, "_blank")
+                    const isProd = typeof window !== "undefined"
+                      ? window.location.hostname.endsWith("qoe.fi")
+                      : process.env.NODE_ENV === "production"
+                    const suffix = isProd ? "qoe.fi" : "localhost"
+                    const protocol = isProd ? "https:" : "http:"
+                    const host = post.author.subdomain ? `${post.author.subdomain}.${suffix}` : suffix
+                    window.open(`${protocol}//${host}/article/${target.slug}`, "_blank")
                   }
                 }}
               />

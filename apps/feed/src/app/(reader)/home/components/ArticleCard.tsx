@@ -92,9 +92,13 @@ export function ArticleCard({
     setTilt({ x: 0, y: 0 })
   }
 
-  const isMicroPost = !article.title
-  const host = article.author.customDomain || `${article.author.subdomain}.localhost`
-  const url = isMicroPost ? "#" : `http://${host}/article/${article.slug}`
+  const isProd = typeof window !== "undefined"
+    ? window.location.hostname.endsWith("qoe.fi")
+    : process.env.NODE_ENV === "production"
+  const suffix = isProd ? "qoe.fi" : "localhost"
+  const protocol = isProd ? "https:" : "http:"
+  const host = article.author.customDomain || (article.author.subdomain ? `${article.author.subdomain}.${suffix}` : null)
+  const url = isMicroPost || !host ? "#" : `${protocol}//${host}/article/${article.slug}`
 
   // Micro-post rendering delegated
   if (isMicroPost) {

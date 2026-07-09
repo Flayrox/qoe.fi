@@ -55,8 +55,13 @@ export default async function HighlightsPage() {
               ) : (
                 highlights.map((h: any) => {
                   if (!h.article || !h.article.author) return null
-                  const host = h.article.author.customDomain || `${h.article.author.subdomain}.localhost:3001`
-                  const url = `http://${host}/article/${h.article.slug}`
+                  const isProd = typeof window !== "undefined"
+                    ? window.location.hostname.endsWith("qoe.fi")
+                    : process.env.NODE_ENV === "production"
+                  const suffix = isProd ? "qoe.fi" : "localhost"
+                  const protocol = isProd ? "https:" : "http:"
+                  const host = h.article.author.customDomain || (h.article.author.subdomain ? `${h.article.author.subdomain}.${suffix}` : "")
+                  const url = host ? `${protocol}//${host}/article/${h.article.slug}` : "#"
 
                   return (
                     <div key={h.id} className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 border border-[var(--border-default)] shadow-xs flex flex-col gap-4">
