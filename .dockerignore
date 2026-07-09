@@ -16,8 +16,8 @@ out/
 build/
 dist/
 
-# 🔐 Variables d'environnement — ⚠️ NE JAMAIS ENVOYER
-.env
+# 🔐 Variables d'environnement — ⚠️ NE JAMAIS ENVOYER (Commenté localement pour permettre le build Next.js)
+#.env
 .env.local
 .env.development
 .env.development.local
@@ -25,7 +25,7 @@ dist/
 .env.test.local
 .env.production
 .env.production.local
-.env.docker
+#.env.docker
 
 # 📝 Logs (inutiles dans l'image)
 *.log
