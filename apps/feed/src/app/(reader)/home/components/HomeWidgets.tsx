@@ -122,8 +122,13 @@ export function HomeWidgets({
 
 // ── Widget: Article à la une ──────────────────────────────────────────────────
 function FeaturedCard({ article }: { article: Article }) {
-  const host = article.author.customDomain || `${article.author.subdomain}.localhost`
-  const url = `http://${host}/article/${article.slug}`
+  const isProd = typeof window !== "undefined"
+    ? window.location.hostname.endsWith("qoe.fi")
+    : process.env.NODE_ENV === "production"
+  const suffix = isProd ? "qoe.fi" : "localhost"
+  const protocol = isProd ? "https:" : "http:"
+  const host = article.author.customDomain || (article.author.subdomain ? `${article.author.subdomain}.${suffix}` : "")
+  const url = host ? `${protocol}//${host}/article/${article.slug}` : "#"
 
   return (
     <motion.div
@@ -181,8 +186,13 @@ function FeaturedCard({ article }: { article: Article }) {
 
 // ── Widget: Article Recommandé ────────────────────────────────────────────────
 function RecommendedCard({ article }: { article: Article }) {
-  const host = article.author.customDomain || `${article.author.subdomain}.localhost`
-  const url = `http://${host}/article/${article.slug}`
+  const isProd = typeof window !== "undefined"
+    ? window.location.hostname.endsWith("qoe.fi")
+    : process.env.NODE_ENV === "production"
+  const suffix = isProd ? "qoe.fi" : "localhost"
+  const protocol = isProd ? "https:" : "http:"
+  const host = article.author.customDomain || (article.author.subdomain ? `${article.author.subdomain}.${suffix}` : "")
+  const url = host ? `${protocol}//${host}/article/${article.slug}` : "#"
 
   return (
     <motion.div
