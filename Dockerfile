@@ -40,8 +40,15 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 # Génère le client Prisma (pour le runtime)
 RUN pnpm --filter @qoe/db run prisma:generate
 
-# Assure que les variables d'environnement de build Next.js (comme les URL Supabase) sont disponibles pour la compilation
-RUN if [ -f .env.docker ]; then cp .env.docker .env; fi
+# Assure que les variables d'environnement de build Next.js (comme les URL Supabase) sont disponibles pour la compilation dans chaque application du monorepo
+RUN if [ -f .env.docker ]; then \
+      cp .env.docker .env && \
+      cp .env.docker apps/web/.env && \
+      cp .env.docker apps/landing/.env && \
+      cp .env.docker apps/feed/.env && \
+      cp .env.docker apps/dashboard/.env && \
+      cp .env.docker apps/admin/.env; \
+    fi
 
 # Build chaque app en utilisant le cache Turborepo
 RUN --mount=type=cache,target=/app/.turbo pnpm turbo build
