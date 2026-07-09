@@ -359,8 +359,6 @@ services:
       NODE_ENV: production
       PORT: 3001
       HOSTNAME: 0.0.0.0
-      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
-      DIRECT_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
       REDIS_URL: redis://redis:6379
       SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
@@ -409,7 +407,6 @@ services:
 
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
       REDIS_URL: redis://redis:6379
       SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
@@ -537,9 +534,7 @@ services:
     env_file:
       - .env.docker
 
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
-      DIRECT_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
+    # Les variables d'environnement DATABASE_URL et DIRECT_URL sont héritées directement du fichier .env.docker (Supabase Pooler)
 
     networks:
       - qoefi-private
