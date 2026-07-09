@@ -32,7 +32,7 @@
 # ─────────────────────────────────────────────────────────────────────
 # Sert : / (home/feed), /login, /library, /highlights, /billing,
 #        /settings, /onboarding
-qoe.fi, www.qoe.fi {
+http://qoe.fi, http://www.qoe.fi {
     encode zstd gzip
 
     # Headers de sécurité
@@ -70,7 +70,7 @@ qoe.fi, www.qoe.fi {
 # 📚 BLOGS CRÉATEURS : *.qoe.fi (Tenants)
 # ─────────────────────────────────────────────────────────────────────
 # Tous les sous-domaines créateurs (ex: jean.qoe.fi) vont vers web
-*.qoe.fi {
+http://*.qoe.fi {
     encode zstd gzip
 
     header {
@@ -99,7 +99,7 @@ qoe.fi, www.qoe.fi {
 # ─────────────────────────────────────────────────────────────────────
 # 🟠 DASHBOARD CRÉATEUR : dashboard.qoe.fi
 # ─────────────────────────────────────────────────────────────────────
-dashboard.qoe.fi {
+http://dashboard.qoe.fi {
     encode zstd gzip
 
     header {
@@ -123,7 +123,7 @@ dashboard.qoe.fi {
 # ─────────────────────────────────────────────────────────────────────
 # 🔴 ADMIN PLATEFORME : admin.qoe.fi
 # ─────────────────────────────────────────────────────────────────────
-admin.qoe.fi {
+http://admin.qoe.fi {
     encode zstd gzip
 
     header {
@@ -148,7 +148,7 @@ admin.qoe.fi {
 # ─────────────────────────────────────────────────────────────────────
 # 📣 LANDING MARKETING : start.qoe.fi
 # ─────────────────────────────────────────────────────────────────────
-start.qoe.fi {
+http://start.qoe.fi {
     encode zstd gzip
 
     # Headers plus permissifs (site public, pas d'auth)
@@ -173,7 +173,7 @@ start.qoe.fi {
 # ─────────────────────────────────────────────────────────────────────
 # 🔌 API : api.qoe.fi
 # ─────────────────────────────────────────────────────────────────────
-api.qoe.fi {
+http://api.qoe.fi {
     encode zstd gzip
 
     header {
