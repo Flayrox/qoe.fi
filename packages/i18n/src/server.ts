@@ -71,15 +71,30 @@ export function translateKey(
 }
 
 /**
- * 🌐 Détecte la langue depuis les headers Next.js.
+ * 🌐 Détecte la langue depuis les cookies/headers Next.js.
+ * Priority: cookie "x-locale" > header "x-locale" > default "fr"
  */
 export async function getLanguage(): Promise<Language> {
-  const { headers } = await import("next/headers");
-  const headerList = await headers();
-  const cookieLang = headerList.get("x-locale");
-  if (cookieLang && (ALL_LANGUAGES as string[]).includes(cookieLang)) {
-    return cookieLang as Language;
-  }
+  const { cookies, headers } = await import("next/headers");
+
+  // 1. Try reading the cookie directly (most reliable)
+  try {
+    const cookieStore = await cookies();
+    const cookieLang = cookieStore.get("x-locale")?.value;
+    if (cookieLang && (ALL_LANGUAGES as string[]).includes(cookieLang)) {
+      return cookieLang as Language;
+    }
+  } catch {}
+
+  // 2. Fallback: read the header (set by middleware)
+  try {
+    const headerList = await headers();
+    const headerLang = headerList.get("x-locale");
+    if (headerLang && (ALL_LANGUAGES as string[]).includes(headerLang)) {
+      return headerLang as Language;
+    }
+  } catch {}
+
   return DEFAULT_LANGUAGE;
 }
 
