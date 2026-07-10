@@ -30,6 +30,7 @@ interface SettingsDashboardProps {
     walletBalanceCents: number
     subdomain: string | null
   }
+  hasPassword: boolean
   subscriptions: Array<{
     creator: {
       id: string
@@ -71,11 +72,13 @@ const springs = {
 
 export function SettingsDashboard({
   dbUser,
+  hasPassword: initialHasPassword,
   subscriptions: initialSubscriptions,
   walletTransactions,
   mutedWords: initialMutedWords,
   blockedUsers
 }: SettingsDashboardProps) {
+  const [hasPassword, setHasPassword] = useState(initialHasPassword)
   const router = useRouter()
   const { t } = useTranslate()
   const tolgee = useTolgee()
@@ -140,6 +143,13 @@ export function SettingsDashboard({
     return "normal"
   })
 
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(() => {
+    return tolgee.getLanguage() || "fr"
+  })
+
+  const [accessibilityLoading, setAccessibilityLoading] = useState(false)
+  const [accessibilityMsg, setAccessibilityMsg] = useState<{ type: "success" | "error", text: string } | null>(null)
+
   // Tab definitions
   const tabs = [
     { id: "compte", label: t("settings_reader.tab_account", "Votre Compte"), icon: User },
@@ -197,8 +207,9 @@ export function SettingsDashboard({
     const res = await updateSecurityPassword(password)
     setPasswordLoading(false)
     if (res.success) {
-      setPasswordMsg({ type: "success", text: t("settings_reader.msg_password_success", "Mot de passe modifié avec succès !") })
+      setPasswordMsg({ type: "success", text: hasPassword ? t("settings_reader.msg_password_success", "Mot de passe modifié avec succès !") : "Mot de passe défini avec succès !" })
       trackServerEvent("security_password_updated")
+      setHasPassword(true)
       setPassword("")
       setConfirmPassword("")
     } else {
@@ -269,12 +280,58 @@ export function SettingsDashboard({
     }
   }
 
-  const handleLanguageChange = async (lang: string) => {
-    // TODO i18n: brancher sur @qoe/i18n/setLanguage quand implémenté
-    // await setLanguage(lang)
-    void lang
-    trackServerEvent("language_changed", { lang })
-    router.refresh()
+  const handleLanguageChange = (lang: string) => {
+    setSelectedLanguage(lang)
+  }
+
+  const toggleDyslexic = (val: boolean) => {
+    setDyslexicMode(val)
+  }
+
+  const toggleForceLight = (val: boolean) => {
+    setForceLightTheme(val)
+  }
+
+  const changeFontSize = (val: string) => {
+    setFontSize(val)
+  }
+
+  const handleAccessibilitySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAccessibilityLoading(true)
+    setAccessibilityMsg(null)
+
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("dyslexic-mode", String(dyslexicMode))
+        localStorage.setItem("force-light-theme", String(forceLightTheme))
+        localStorage.setItem("font-size-preference", fontSize)
+
+        if (dyslexicMode) {
+          document.documentElement.classList.add("font-dyslexic")
+        } else {
+          document.documentElement.classList.remove("font-dyslexic")
+        }
+        document.documentElement.setAttribute("data-font-size", fontSize)
+
+        const originalLang = tolgee.getLanguage()
+        if (selectedLanguage !== originalLang) {
+          document.cookie = `x-locale=${selectedLanguage};path=/;max-age=31536000`
+          await tolgee.changeLanguage(selectedLanguage)
+          trackServerEvent("language_changed", { lang: selectedLanguage })
+        }
+      }
+
+      setAccessibilityMsg({ type: "success", text: "Préférences d'affichage enregistrées !" })
+      
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+    } catch (err) {
+      setAccessibilityMsg({ type: "error", text: "Une erreur est survenue lors de l'enregistrement." })
+    } finally {
+      setAccessibilityLoading(false)
+    }
   }
 
   const handleGdprExport = async () => {
@@ -291,31 +348,6 @@ export function SettingsDashboard({
       downloadAnchor.remove()
       trackServerEvent("gdpr_export_requested")
     }
-  }
-
-  // Accessibility state syncs
-  const toggleDyslexic = (val: boolean) => {
-    setDyslexicMode(val)
-    localStorage.setItem("dyslexic-mode", String(val))
-    if (val) {
-      document.documentElement.classList.add("font-dyslexic")
-    } else {
-      document.documentElement.classList.remove("font-dyslexic")
-    }
-    trackServerEvent("dyslexic_mode_toggled", { enabled: val })
-  }
-
-  const toggleForceLight = (val: boolean) => {
-    setForceLightTheme(val)
-    localStorage.setItem("force-light-theme", String(val))
-    trackServerEvent("force_light_theme_toggled", { enabled: val })
-  }
-
-  const changeFontSize = (val: string) => {
-    setFontSize(val)
-    localStorage.setItem("font-size-preference", val)
-    document.documentElement.setAttribute("data-font-size", val)
-    trackServerEvent("font_size_changed", { size: val })
   }
 
   return (
@@ -625,10 +657,12 @@ export function SettingsDashboard({
                     <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-6">
                       <div>
                         <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight leading-none">
-                          {t("settings_reader.password_title", "Changement de Mot de Passe")}
+                          {hasPassword ? t("settings_reader.password_title", "Changement de Mot de Passe") : "Définir un Mot de Passe"}
                         </h2>
                         <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                          {t("settings_reader.password_subtitle", "Configurez un nouveau mot de passe fort pour sécuriser votre compte.")}
+                          {hasPassword 
+                            ? t("settings_reader.password_subtitle", "Configurez un nouveau mot de passe fort pour sécuriser votre compte.")
+                            : "Configurez un mot de passe pour pouvoir vous connecter directement sans lien magique."}
                         </p>
                       </div>
 
@@ -679,7 +713,7 @@ export function SettingsDashboard({
                             disabled={passwordLoading}
                             className="bg-[var(--qoe-vermillion)] text-white hover:opacity-90 disabled:opacity-50 transition-all px-4 py-2.5 rounded-[var(--radius-button)] text-xs font-bold cursor-pointer"
                           >
-                            {passwordLoading ? t("settings_reader.saving", "Enregistrement...") : t("settings_reader.password_btn", "Modifier le mot de passe")}
+                            {passwordLoading ? t("settings_reader.saving", "Enregistrement...") : (hasPassword ? t("settings_reader.password_btn", "Modifier le mot de passe") : "Définir le mot de passe")}
                           </motion.button>
                         </div>
                       </form>
@@ -973,7 +1007,19 @@ export function SettingsDashboard({
                   {/* TAB 5: ACCESSIBILITE & AFFICHAGE & LANGUES                                 */}
                   {/* ========================================================================= */}
                   {activeTab === "accessibilite" && (
-                    <>
+                    <form onSubmit={handleAccessibilitySubmit} className="flex-1 flex flex-col gap-4">
+                      {accessibilityMsg && (
+                        <div className={cn(
+                          "p-3.5 rounded-[var(--radius-button)] border flex items-start gap-2.5 text-xs font-semibold",
+                          accessibilityMsg.type === "success" 
+                            ? "bg-emerald-50 border-emerald-200 text-emerald-700" 
+                            : "bg-red-50 border-red-200 text-[var(--qoe-vermillion)]"
+                        )}>
+                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                          <span>{accessibilityMsg.text}</span>
+                        </div>
+                      )}
+
                       {/* Language Selection */}
                       <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-4">
                         <div>
@@ -987,11 +1033,12 @@ export function SettingsDashboard({
 
                         <div className="flex gap-2 bg-[var(--surface-2)] p-1 rounded-[var(--radius-button)] w-32 shrink-0 border border-[var(--border-default)]">
                           <motion.button
+                            type="button"
                             onClick={() => handleLanguageChange("fr")}
                             whileTap={{ scale: 0.98 }}
                             className={cn(
                               "text-xs font-bold flex-1 py-2 rounded-[var(--radius-element)] transition-colors cursor-pointer",
-                              tolgee.getLanguage() === "fr"
+                              selectedLanguage === "fr"
                                 ? "bg-[var(--surface-0)] text-[var(--text-primary)] shadow-sm border border-[var(--border-default)]"
                                 : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
                             )}
@@ -999,11 +1046,12 @@ export function SettingsDashboard({
                             Français
                           </motion.button>
                           <motion.button
+                            type="button"
                             onClick={() => handleLanguageChange("en")}
                             whileTap={{ scale: 0.98 }}
                             className={cn(
                               "text-xs font-bold flex-1 py-2 rounded-[var(--radius-element)] transition-colors cursor-pointer",
-                              tolgee.getLanguage() === "en"
+                              selectedLanguage === "en"
                                 ? "bg-[var(--surface-0)] text-[var(--text-primary)] shadow-sm border border-[var(--border-default)]"
                                 : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
                             )}
@@ -1089,8 +1137,19 @@ export function SettingsDashboard({
                             </label>
                           </div>
                         </div>
+
+                        <div className="flex justify-end pt-2 border-t border-[var(--border-subtle)] mt-4">
+                          <motion.button
+                            type="submit"
+                            whileTap={{ scale: 0.98 }}
+                            disabled={accessibilityLoading}
+                            className="bg-[var(--qoe-vermillion)] text-white hover:opacity-90 disabled:opacity-50 transition-all px-4 py-2.5 rounded-[var(--radius-button)] text-xs font-bold cursor-pointer"
+                          >
+                            {accessibilityLoading ? t("settings_reader.saving", "Enregistrement...") : t("settings_reader.save_changes", "Sauvegarder les modifications")}
+                          </motion.button>
+                        </div>
                       </div>
-                    </>
+                    </form>
                   )}
 
                   {/* ========================================================================= */}
