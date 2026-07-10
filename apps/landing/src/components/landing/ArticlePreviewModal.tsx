@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import { X, Calendar, Clock, Share2, AlertCircle, Bookmark } from "lucide-react";
-import { useTranslate } from "@tolgee/react";
+import { useTranslate } from "@qoe/i18n";
 import { sanitizeHtml } from "@/lib/sanitize";
 
 interface ArticlePreviewModalProps {

@@ -5,7 +5,7 @@ import { Command } from "cmdk";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Search, Compass, BookOpen, User, Mail, Sun, Moon, CornerDownLeft } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useTranslate } from "@tolgee/react";
+import { useTranslate } from "@qoe/i18n";
 import { useRouter } from "next/navigation";
 
 export const AskQoeBar = () => {

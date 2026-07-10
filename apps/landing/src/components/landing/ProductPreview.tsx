@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useTranslate } from "@tolgee/react";
+import { useTranslate } from "@qoe/i18n";
 import { Type, Eye, Coffee, Accessibility } from "lucide-react";
 
 interface ProductPreviewProps {
