@@ -66,35 +66,6 @@ http://qoe.fi, http://www.qoe.fi {
     }
 }
 
-# ─────────────────────────────────────────────────────────────────────
-# 📚 BLOGS CRÉATEURS : *.qoe.fi (Tenants)
-# ─────────────────────────────────────────────────────────────────────
-# Tous les sous-domaines créateurs (ex: jean.qoe.fi) vont vers web
-http://*.qoe.fi {
-    encode zstd gzip
-
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains"
-        X-Frame-Options "SAMEORIGIN"
-        X-Content-Type-Options "nosniff"
-        Referrer-Policy "strict-origin-when-cross-origin"
-    }
-
-    reverse_proxy web:3000 {
-        header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-        transport http {
-            dial_timeout 30s
-        }
-    }
-
-    log {
-        output stdout
-        format console
-    }
-}
 
 # ─────────────────────────────────────────────────────────────────────
 # 🟠 DASHBOARD CRÉATEUR : dashboard.qoe.fi
@@ -186,6 +157,39 @@ http://api.qoe.fi {
         transport http {
             dial_timeout 60s
             response_header_timeout 60s
+        }
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# 📚 BLOGS CRÉATEURS (WILDCARD) : *.qoe.fi (Tenants)
+# ─────────────────────────────────────────────────────────────────────
+# Tous les sous-domaines créateurs (ex: jean.qoe.fi) vont vers web.
+# ⚠️ Cette règle wildcard doit impérativement être après les routes spécifiques
+#    (dashboard.qoe.fi, admin.qoe.fi, start.qoe.fi, api.qoe.fi) pour que Caddy
+#    aiguille correctement vers les conteneurs spécifiques en priorité.
+http://*.qoe.fi {
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    reverse_proxy web:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        transport http {
+            dial_timeout 30s
         }
     }
 
