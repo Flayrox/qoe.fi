@@ -1,29 +1,33 @@
 // =====================================================================
-// 🖥️ Tolgee Server — Helpers côté serveur
-// =====================================================================
-// 📖 Crée une instance Tolgee pour les Server Components.
-//    Charge les traductions statiques (SSR) pour éviter le flash de FR.
+// 🖥️ server.ts — Zero-dependency Server Translation Helpers
 // =====================================================================
 
-import { Tolgee } from "@tolgee/web";
 import { ALL_LANGUAGES, DEFAULT_LANGUAGE, type Language } from "./locales";
 import frTranslations from "../../../messages/fr.json";
 import enTranslations from "../../../messages/en.json";
 
-/**
- * 🖥️ Crée une instance Tolgee pour le serveur.
- */
-export async function getTolgee(lang?: Language) {
-  const activeLang = lang || await getLanguage();
-  const tolgee = Tolgee().init({
-    language: activeLang,
-    fallbackLanguage: DEFAULT_LANGUAGE,
-    staticData: {
-      fr: frTranslations,
-      en: enTranslations,
-    },
-  });
-  return tolgee;
+const translations: Record<string, any> = {
+  fr: frTranslations,
+  en: enTranslations,
+};
+
+export function translateKey(lang: string, key: string, defaultValue?: string, params?: Record<string, any>): string {
+  const messages = translations[lang] || translations[DEFAULT_LANGUAGE];
+  const parts = key.split(".");
+  let val: any = messages;
+  for (const part of parts) {
+    if (val === undefined || val === null) break;
+    val = val[part];
+  }
+  if (typeof val !== "string") {
+    val = defaultValue || key;
+  }
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      val = val.replace(new RegExp(`{${k}}`, "g"), String(v));
+    });
+  }
+  return val;
 }
 
 /**
@@ -44,15 +48,19 @@ export async function getLanguage(): Promise<Language> {
  */
 export async function getTranslate() {
   const activeLang = await getLanguage();
-  const tolgee = await getTolgee(activeLang);
-  return tolgee.t.bind(tolgee);
+  return (key: string, defaultValue?: any, params?: any) => {
+    const defVal = typeof defaultValue === "string" ? defaultValue : undefined;
+    const p = typeof defaultValue === "object" ? defaultValue : params;
+    return translateKey(activeLang, key, defVal, p);
+  };
 }
 
 /**
- * 📝 Variante qui retourne aussi la langue détectée.
+ * Compatibility helper to prevent layout compilation errors
  */
-export async function getTranslateWithLanguage() {
-  const language = await getLanguage();
-  const tolgee = await getTolgee(language);
-  return { language, t: tolgee.t.bind(tolgee) };
+export async function getTolgee(lang?: Language) {
+  const activeLang = lang || await getLanguage();
+  return {
+    loadRequired: async () => translations[activeLang] || translations[DEFAULT_LANGUAGE],
+  };
 }

@@ -2,7 +2,7 @@
 
 import React from "react"
 import { Bookmark, Clock, ExternalLink } from "lucide-react"
-import { useTranslate } from "@tolgee/react"
+import { useTranslate } from "@qoe/i18n"
 import { motion } from "framer-motion"
 import { trackServerEvent } from "@qoe/analytics"
 

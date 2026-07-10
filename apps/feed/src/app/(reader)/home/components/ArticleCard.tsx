@@ -6,7 +6,7 @@ import { ExternalLink, UserPlus, UserCheck, Bookmark, FileText, Clock, Crown } f
 import { cn } from "@qoe/utils"
 
 import { MicroPostCard } from "@/components/social/MicroPostCard"
-import { useTranslate } from "@tolgee/react"
+import { useTranslate } from "@qoe/i18n"
 import { Balancer } from "react-wrap-balancer"
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card"
 
