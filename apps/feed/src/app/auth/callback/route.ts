@@ -13,11 +13,35 @@ export async function GET(request: Request) {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { prisma } = await import('@qoe/db/client')
-        const dbUser = await prisma.user.findUnique({
+        let dbUser = await prisma.user.findUnique({
           where: { id: user.id }
         })
 
-        if (dbUser) {
+        if (!dbUser) {
+          const emailPrefix = user.email ? user.email.split('@')[0] : 'user'
+          let baseUsername = emailPrefix.toLowerCase().replace(/[^a-z0-9_-]/g, "")
+          if (!baseUsername) baseUsername = "user"
+          
+          let finalUsername = baseUsername
+          const existingUsername = await prisma.user.findUnique({
+            where: { username: finalUsername }
+          })
+          if (existingUsername) {
+            finalUsername = `${baseUsername}_${Math.random().toString(36).substring(2, 8)}`
+          }
+
+          dbUser = await prisma.user.create({
+            data: {
+              id: user.id,
+              email: user.email!,
+              name: user.user_metadata?.name || user.user_metadata?.full_name || emailPrefix,
+              username: finalUsername,
+              role: 'user',
+              hasCompletedOnboarding: false,
+            }
+          })
+          next = '/onboarding'
+        } else {
           if (dbUser.role === 'user') {
             const followsCount = await prisma.follows.count({ where: { readerId: dbUser.id } })
             const mutedCount = await prisma.mutedWord.count({ where: { userId: dbUser.id } })
@@ -29,8 +53,6 @@ export async function GET(request: Request) {
           } else {
             next = '/home'
           }
-        } else {
-          next = '/onboarding'
         }
       }
 
