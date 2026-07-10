@@ -7,6 +7,7 @@ import frTranslations from "../../../messages/fr.json";
 import enTranslations from "../../../messages/en.json";
 import { prisma } from "@qoe/db/client";
 import { unstable_cache } from "next/cache";
+import { compilePlural, interpolate } from "./compiler";
 
 const translations: Record<string, any> = {
   fr: frTranslations,
@@ -59,15 +60,19 @@ export function translateKey(
       if (staticVal === undefined || staticVal === null) break;
       staticVal = staticVal[part];
     }
+    if (typeof staticVal !== "string") {
+      if (process.env.NODE_ENV === "development") {
+        console.warn(`[i18n Server Warning] Missing translation key: "${key}" for language "${lang}"`);
+      }
+    }
     val = typeof staticVal === "string" ? staticVal : (defaultValue || key);
   }
 
   if (params) {
-    Object.entries(params).forEach(([k, v]) => {
-      val = val!.replace(new RegExp(`{${k}}`, "g"), String(v));
-    });
+    val = compilePlural(val, lang, params);
+    val = interpolate(val, params);
   }
-  return val!;
+  return val;
 }
 
 /**

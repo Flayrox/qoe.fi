@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Area,
@@ -39,6 +39,11 @@ const METRICS = [
 
 export function AnalyticsOverview({ data, totals }: AnalyticsOverviewProps) {
   const [activeMetric, setActiveMetric] = useState<MetricType>('users')
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const activeColor = 
     activeMetric === 'users' ? '#EE4B2B' : // Vermillon Brand
@@ -94,47 +99,51 @@ export function AnalyticsOverview({ data, totals }: AnalyticsOverviewProps) {
             transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
             className="w-full h-full pointer-events-auto"
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data}>
-                <defs>
-                  <linearGradient id={`color-${activeMetric}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={activeColor} stopOpacity={0.06} />
-                    <stop offset="100%" stopColor={activeColor} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(255,255,255,0.92)', 
-                    backdropFilter: 'blur(12px)',
-                    borderColor: 'rgba(229,229,229,0.8)', 
-                    borderRadius: '20px',
-                    boxShadow: '0 20px 40px -10px rgba(0,0,0,0.06)',
-                    padding: '14px 20px',
-                    fontFamily: 'inherit'
-                  }}
-                  itemStyle={{ color: '#171717', fontWeight: 600, fontSize: '13px' }}
-                  labelStyle={{ color: '#a3a3a3', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, fontFamily: 'monospace', marginBottom: '6px' }}
-                  cursor={{ stroke: activeColor, strokeWidth: 1.5, strokeDasharray: '4 4' }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey={activeMetric}
-                  stroke={activeColor}
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill={`url(#color-${activeMetric})`}
-                  activeDot={{
-                    r: 6,
-                    strokeWidth: 4,
-                    fill: '#fff',
-                    stroke: activeColor,
-                    style: { filter: `drop-shadow(0px 0px 8px ${activeColor})` }
-                  }}
-                  animationDuration={1000}
-                  animationEasing="ease-out"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {isMounted ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data}>
+                  <defs>
+                    <linearGradient id={`color-${activeMetric}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={activeColor} stopOpacity={0.06} />
+                      <stop offset="100%" stopColor={activeColor} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(255,255,255,0.92)', 
+                      backdropFilter: 'blur(12px)',
+                      borderColor: 'rgba(229,229,229,0.8)', 
+                      borderRadius: '20px',
+                      boxShadow: '0 20px 40px -10px rgba(0,0,0,0.06)',
+                      padding: '14px 20px',
+                      fontFamily: 'inherit'
+                    }}
+                    itemStyle={{ color: '#171717', fontWeight: 600, fontSize: '13px' }}
+                    labelStyle={{ color: '#a3a3a3', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, fontFamily: 'monospace', marginBottom: '6px' }}
+                    cursor={{ stroke: activeColor, strokeWidth: 1.5, strokeDasharray: '4 4' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey={activeMetric}
+                    stroke={activeColor}
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill={`url(#color-${activeMetric})`}
+                    activeDot={{
+                      r: 6,
+                      strokeWidth: 4,
+                      fill: '#fff',
+                      stroke: activeColor,
+                      style: { filter: `drop-shadow(0px 0px 8px ${activeColor})` }
+                    }}
+                    animationDuration={1000}
+                    animationEasing="ease-out"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full bg-neutral-100/50 animate-pulse rounded-3xl" />
+            )}
           </motion.div>
         </AnimatePresence>
       </div>

@@ -8,6 +8,7 @@ import React, { createContext, useContext } from "react";
 import { type Language } from "./locales";
 import frTranslations from "../../../messages/fr.json";
 import enTranslations from "../../../messages/en.json";
+import { compilePlural, interpolate } from "./compiler";
 
 const translations: Record<string, any> = {
   fr: frTranslations,
@@ -78,12 +79,14 @@ export function TolgeeNextProvider({
       val = val[part];
     }
     if (typeof val !== "string") {
+      if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
+        console.warn(`[i18n Client Warning] Missing translation key: "${key}" for language "${language}"`);
+      }
       val = defVal || key;
     }
     if (p) {
-      Object.entries(p).forEach(([k, v]) => {
-        val = val.replace(new RegExp(`{${k}}`, "g"), String(v));
-      });
+      val = compilePlural(val, language, p);
+      val = interpolate(val, p);
     }
     return val;
   };

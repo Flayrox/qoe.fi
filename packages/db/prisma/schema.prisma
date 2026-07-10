@@ -89,6 +89,7 @@ model User {
   posts                 Post[]
   likes                 Like[]
   apiKeys               ApiKey[]
+  translationLogs       TranslationAuditLog[]
   
   // AI Recs
   embedding Unsupported("vector(1536)")?
@@ -332,4 +333,15 @@ model ApiKey {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([keyHash])
+}
+
+model TranslationAuditLog {
+  id        String   @id @default(cuid())
+  key       String   // e.g. "login.title_login"
+  lang      String   // "fr" or "en"
+  oldValue  String?  @db.Text
+  newValue  String?  @db.Text
+  authorId  String?  @db.Uuid
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
 }
