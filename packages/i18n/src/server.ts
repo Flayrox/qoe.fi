@@ -7,16 +7,20 @@
 
 import { Tolgee } from "@tolgee/web";
 import { ALL_LANGUAGES, DEFAULT_LANGUAGE, type Language } from "./locales";
+import frTranslations from "../../../messages/fr.json";
+import enTranslations from "../../../messages/en.json";
 
 /**
  * 🖥️ Crée une instance Tolgee pour le serveur.
  */
-export async function getTolgee() {
+export async function getTolgee(lang?: Language) {
+  const activeLang = lang || await getLanguage();
   const tolgee = Tolgee().init({
-    language: DEFAULT_LANGUAGE,
+    language: activeLang,
     fallbackLanguage: DEFAULT_LANGUAGE,
     staticData: {
-      // TODO: charger dynamiquement depuis packages/i18n/locales/*.json
+      fr: frTranslations,
+      en: enTranslations,
     },
   });
   return tolgee;
@@ -37,12 +41,10 @@ export async function getLanguage(): Promise<Language> {
 
 /**
  * 📝 Helper de traduction côté serveur.
- * Retourne directement la fonction `t(key, defaultValue)` pour usage direct :
- *   const t = await getTranslate()
- *   t("home.title", "Bienvenue")
  */
 export async function getTranslate() {
-  const tolgee = await getTolgee();
+  const activeLang = await getLanguage();
+  const tolgee = await getTolgee(activeLang);
   return tolgee.t.bind(tolgee);
 }
 
@@ -51,6 +53,6 @@ export async function getTranslate() {
  */
 export async function getTranslateWithLanguage() {
   const language = await getLanguage();
-  const t = await getTranslate();
-  return { language, t };
+  const tolgee = await getTolgee(language);
+  return { language, t: tolgee.t.bind(tolgee) };
 }

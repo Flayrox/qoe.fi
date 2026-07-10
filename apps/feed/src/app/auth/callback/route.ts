@@ -42,14 +42,8 @@ export async function GET(request: Request) {
           })
           next = '/onboarding'
         } else {
-          if (dbUser.role === 'user') {
-            const followsCount = await prisma.follows.count({ where: { readerId: dbUser.id } })
-            const mutedCount = await prisma.mutedWord.count({ where: { userId: dbUser.id } })
-            if (followsCount === 0 && mutedCount === 0) {
-              next = '/onboarding'
-            } else {
-              next = '/home'
-            }
+          if (dbUser.role === 'user' && !dbUser.hasCompletedOnboarding) {
+            next = '/onboarding'
           } else {
             next = '/home'
           }

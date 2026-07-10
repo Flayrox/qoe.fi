@@ -8,7 +8,11 @@ import { updateSession } from "@qoe/supabase/middleware";
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // 1. Refresh Supabase session (toujours)
+  // 1. Forward language cookie as header
+  const localeCookie = request.cookies.get("x-locale")?.value || "fr";
+  request.headers.set("x-locale", localeCookie);
+
+  // 2. Refresh Supabase session (toujours)
   const { supabaseResponse, user } = await updateSession(request);
 
   // 2. Protection des routes privées des lecteurs

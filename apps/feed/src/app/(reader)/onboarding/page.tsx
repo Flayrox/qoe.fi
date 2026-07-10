@@ -11,12 +11,13 @@ export default async function OnboardingPage() {
     redirect("/login")
   }
 
-  // Check if they already have follows or muted words, which means they might have completed onboarding
-  const followsCount = await prisma.follows.count({ where: { readerId: user.id } })
-  const mutedCount = await prisma.mutedWord.count({ where: { userId: user.id } })
+  // Check if they already completed onboarding
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { hasCompletedOnboarding: true }
+  })
 
-  if (followsCount > 0 || mutedCount > 0) {
-    // Already onboarded
+  if (dbUser?.hasCompletedOnboarding) {
     redirect("/")
   }
 
@@ -72,14 +73,14 @@ export default async function OnboardingPage() {
   })
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl relative z-10">
+    <main className="min-h-screen flex flex-col items-center justify-center bg-background px-4 py-12">
+      <div className="w-full max-w-[90%] xl:max-w-6xl mx-auto animate-in fade-in zoom-in duration-500">
         <OnboardingFlow 
           categories={uniqueCategories} 
           suggestedCreators={creators}
           userId={user.id}
         />
       </div>
-    </div>
+    </main>
   )
 }

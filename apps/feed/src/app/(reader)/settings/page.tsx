@@ -88,9 +88,24 @@ export default async function UserSettingsPage() {
     orderBy: { createdAt: 'desc' }
   })
 
+  // 5. Check if user has a password in auth.users
+  let hasPassword = true
+  try {
+    const authUser = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT encrypted_password FROM auth.users WHERE id = $1::uuid`,
+      user.id
+    )
+    if (authUser && authUser.length > 0) {
+      hasPassword = !!authUser[0].encrypted_password
+    }
+  } catch (e) {
+    console.error("Failed to check password existence:", e)
+  }
+
   return (
     <SettingsDashboard
       dbUser={dbUser}
+      hasPassword={hasPassword}
       subscriptions={subscriptions}
       walletTransactions={walletTransactions.map((t: any) => ({
         ...t,
