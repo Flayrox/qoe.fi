@@ -98,13 +98,14 @@ services:
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     networks:
       - qoefi-public
       - qoefi-private
 
     depends_on:
-      db:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
 
@@ -151,13 +152,14 @@ services:
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     networks:
       - qoefi-public
       - qoefi-private
 
     depends_on:
-      db:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
 
@@ -205,13 +207,14 @@ services:
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     networks:
       - qoefi-public
       - qoefi-private
 
     depends_on:
-      db:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
 
@@ -259,13 +262,14 @@ services:
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     networks:
       - qoefi-public
       - qoefi-private
 
     depends_on:
-      db:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
 
@@ -313,13 +317,14 @@ services:
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     networks:
       - qoefi-public
       - qoefi-private
 
     depends_on:
-      db:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
 
@@ -366,13 +371,14 @@ services:
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     networks:
       - qoefi-public
       - qoefi-private
 
     depends_on:
-      db:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
       redis:
@@ -416,12 +422,13 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY}
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@qoe.fi}
 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     networks:
       - qoefi-private  # ⚠️ Pas besoin d'être public
 
     depends_on:
-      db:
-        condition: service_healthy
       redis:
         condition: service_started
 
@@ -440,48 +447,48 @@ services:
   # ───────────────────────────────────────────────────────────────────
   # 🐘 POSTGRES : DB principale (RÉSEAU PRIVÉ UNIQUEMENT)
   # ───────────────────────────────────────────────────────────────────
-  db:
-    image: pgvector/pgvector:pg16
-    container_name: qoefi-db
-    restart: unless-stopped
-
-    # ⚠️ PAS de port public : uniquement réseau Docker interne
-    expose:
-      - "5432"
-
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-qoe}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qoe}
-      POSTGRES_DB: ${POSTGRES_DB:-qoe}
-      # Encoding
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
-      # Performance
-      POSTGRES_SHARED_BUFFERS: 256MB
-      POSTGRES_EFFECTIVE_CACHE_SIZE: 1GB
-      POSTGRES_WORK_MEM: 16MB
-      POSTGRES_MAINTENANCE_WORK_MEM: 128MB
-
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-      # Backup local (volume séparé, monté depuis un cron)
-      - postgres_backups:/backups
-
-    networks:
-      - qoefi-private  # 🔒 PRIVÉ
-
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qoe} -d ${POSTGRES_DB:-qoe}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-    deploy:
-      resources:
-        limits:
-          memory: 1024M
-          cpus: "2.0"
+  # db:
+  #   image: pgvector/pgvector:pg16
+  #   container_name: qoefi-db
+  #   restart: unless-stopped
+  # 
+  #   # ⚠️ PAS de port public : uniquement réseau Docker interne
+  #   expose:
+  #     - "5432"
+  # 
+  #   environment:
+  #     POSTGRES_USER: ${POSTGRES_USER:-qoe}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qoe}
+  #     POSTGRES_DB: ${POSTGRES_DB:-qoe}
+  #     # Encoding
+  #     POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+  #     # Performance
+  #     POSTGRES_SHARED_BUFFERS: 256MB
+  #     POSTGRES_EFFECTIVE_CACHE_SIZE: 1GB
+  #     POSTGRES_WORK_MEM: 16MB
+  #     POSTGRES_MAINTENANCE_WORK_MEM: 128MB
+  # 
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+  #     # Backup local (volume séparé, monté depuis un cron)
+  #     - postgres_backups:/backups
+  # 
+  #   networks:
+  #     - qoefi-private  # 🔒 PRIVÉ
+  # 
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qoe} -d ${POSTGRES_DB:-qoe}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
+  # 
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 1024M
+  #         cpus: "2.0"
 
   # ───────────────────────────────────────────────────────────────────
   # 🔄 REDIS : cache + queue (RÉSEAU PRIVÉ)
@@ -536,12 +543,11 @@ services:
 
     # Les variables d'environnement DATABASE_URL et DIRECT_URL sont héritées directement du fichier .env.docker (Supabase Pooler)
 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     networks:
       - qoefi-private
-
-    depends_on:
-      db:
-        condition: service_healthy
 
 # =====================================================================
 # 🌐 RÉSEAUX
