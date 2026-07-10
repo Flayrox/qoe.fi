@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { Search, Save, Trash2, Globe, AlertCircle, Sparkles, Filter, X } from "lucide-react";
+import { Search, Save, Trash2, Globe, AlertCircle, Sparkles, Filter, X, Download, Upload } from "lucide-react";
 import { saveTranslationOverrides } from "../actions";
 
 interface TranslationCMSProps {
@@ -119,11 +119,126 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
   const diff = getDiff();
   const isDirty = diff.length > 0;
 
+  const parseCSVLine = (line: string) => {
+    const result = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        result.push(current);
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    result.push(current);
+    return result;
+  };
+
+  const handleExportCSV = () => {
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // BOM for Excel formatting
+    csvContent += "Key,Default FR,Default EN,Override FR,Override EN\n";
+    
+    allKeys.forEach((key) => {
+      const defFr = `"${(defaultFr[key] || "").replace(/"/g, '""')}"`;
+      const defEn = `"${(defaultEn[key] || "").replace(/"/g, '""')}"`;
+      const overFr = `"${(overrides.fr?.[key] || "").replace(/"/g, '""')}"`;
+      const overEn = `"${(overrides.en?.[key] || "").replace(/"/g, '""')}"`;
+      csvContent += `"${key}",${defFr},${defEn},${overFr},${overEn}\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "qoe_translations_export.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportJSON = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(overrides, null, 2));
+    const link = document.createElement("a");
+    link.setAttribute("href", dataStr);
+    link.setAttribute("download", "qoe_translations_overrides.json");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (file.name.endsWith(".json")) {
+        try {
+          const parsed = JSON.parse(content);
+          if (parsed && (parsed.fr || parsed.en)) {
+            setOverrides({
+              fr: parsed.fr || {},
+              en: parsed.en || {},
+            });
+            setSaveStatus("idle");
+            alert("Surcharges de traduction JSON chargées avec succès ! Cliquez sur Enregistrer pour appliquer.");
+          } else {
+            alert("Format de fichier JSON invalide. Il doit contenir des objets 'fr' ou 'en'.");
+          }
+        } catch (err) {
+          alert("Échec de la lecture du fichier JSON.");
+        }
+      } else if (file.name.endsWith(".csv")) {
+        try {
+          const lines = content.split(/\r?\n/).filter(line => line.trim() !== "");
+          if (lines.length < 2) return;
+          
+          const newFr: Record<string, string> = {};
+          const newEn: Record<string, string> = {};
+
+          for (let i = 1; i < lines.length; i++) {
+            const columns = parseCSVLine(lines[i]);
+            if (columns.length >= 5) {
+              const key = columns[0];
+              const overFr = columns[3];
+              const overEn = columns[4];
+
+              if (overFr && overFr.trim() !== "") newFr[key] = overFr;
+              if (overEn && overEn.trim() !== "") newEn[key] = overEn;
+            }
+          }
+
+          setOverrides({ fr: newFr, en: newEn });
+          setSaveStatus("idle");
+          alert("Fichier de traduction CSV chargé avec succès ! Cliquez sur Enregistrer pour appliquer.");
+        } catch (err) {
+          alert("Échec de la lecture du fichier CSV.");
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const confirmSave = () => {
     setShowModal(false);
     startTransition(async () => {
       try {
-        const res = await saveTranslationOverrides(overrides);
+        const changesSummaryList = diff.map(d => ({
+          key: d.key,
+          lang: d.lang,
+          oldValue: d.oldVal,
+          newValue: d.newVal
+        }));
+        const res = await saveTranslationOverrides(overrides, changesSummaryList);
         if (res.success) {
           setSaveStatus("success");
           setTimeout(() => setSaveStatus("idle"), 3000);
@@ -156,6 +271,31 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-1 text-[11px] text-neutral-600 font-bold border border-neutral-200 px-3 py-1.5 rounded-lg hover:bg-neutral-50 transition-all cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
+          <button
+            type="button"
+            onClick={handleExportJSON}
+            className="inline-flex items-center gap-1 text-[11px] text-neutral-600 font-bold border border-neutral-200 px-3 py-1.5 rounded-lg hover:bg-neutral-50 transition-all cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" /> Export JSON
+          </button>
+          
+          <label className="inline-flex items-center gap-1 text-[11px] text-neutral-600 font-bold border border-neutral-200 px-3 py-1.5 rounded-lg hover:bg-neutral-50 transition-all cursor-pointer">
+            <Upload className="w-3.5 h-3.5" /> Import
+            <input
+              type="file"
+              accept=".csv,.json"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </label>
+
           {overriddenCount > 0 && (
             <button
               type="button"
