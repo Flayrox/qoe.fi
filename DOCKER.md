@@ -23,8 +23,8 @@
 
 ### Services
 
-| Service | Port externe | Réseau | Build stage | Description |
-|---------|--------------|--------|-------------|-------------|
+| Service | Port externe | Réseau | Build stage / Image | Description |
+|---------|--------------|--------|---------------------|-------------|
 | **caddy** | 80, 443 | public | runtime | Reverse proxy + TLS auto (Let's Encrypt) |
 | **web** | 4001→3000 | public | `web` | Next.js public (blogs créateurs / tenants) |
 | **landing** | 4040→3040 | public | `landing` | Next.js marketing (`start.qoe.fi`) |
@@ -34,25 +34,27 @@
 | **api** | 4002→3002 | public | `api` | Hono backend (`api.qoe.fi`) |
 | **workers** | - | private | `workers` | BullMQ jobs (emails, AI, billing) |
 | **migrate** | - | private | runtime | One-shot Prisma migrate (s'exécute puis s'arrête) |
-| **db** | 5433→5432 | private | postgres:16-alpine | PostgreSQL 16 + pgvector |
 | **redis** | 6379 | private | redis:7-alpine | Cache + queue |
+| **db (Supabase)** | 5433→5432 | private | `supabase/postgres:17` | Postgres 17 + pgvector (hébergé dans `/var/www/supabase/`) |
 
 ### Domaines
 
-| Subdomain | Service interne |
-|-----------|-----------------|
-| `qoe.fi` | feed |
-| `www.qoe.fi` | feed |
-| `dashboard.qoe.fi` | dashboard |
-| `admin.qoe.fi` | admin |
-| `start.qoe.fi` | landing |
-| `*.qoe.fi` (wildcard) | web |
-| `api.qoe.fi` | api |
+| Subdomain | Service interne | Description |
+|-----------|-----------------|-------------|
+| `qoe.fi` | feed | Flux lecteur & authentification centrale |
+| `www.qoe.fi` | feed | Redirection vers domaine racine |
+| `dashboard.qoe.fi` | dashboard | Dashboard créateur / studio d'édition |
+| `admin.qoe.fi` | admin | Panneau de contrôle super-administrateur |
+| `start.qoe.fi` | landing | Vitrine commerciale de l'application |
+| `*.qoe.fi` (wildcard) | web | Blogs publics des créateurs (multi-tenancy) |
+| `api.qoe.fi` | api | API Gateway REST (Hono backend) |
+| `admin-supabase.qoe.fi` | Supabase Kong | API Rest Supabase Auto-hébergée (avec proxy cache NVMe) |
+| `admin-studio.qoe.fi` | Supabase Studio | Interface GUI de la base de données (sécurisée par Basic Auth) |
 
 ### Réseaux
 
 - **`qoefi-public`** : caddy, web, landing, feed, dashboard, admin, api, workers
-- **`qoefi-private`** : db, redis, migrate, workers (accès DB interne)
+- **`qoefi-private`** : redis, migrate, workers (accès DB via loopback `host.docker.internal:5433`)
 
 ---
 

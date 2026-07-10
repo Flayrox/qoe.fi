@@ -45,22 +45,27 @@ ls -la
 
 ## ⚙️ Variables d'environnement
 
-Crée un fichier `.env.docker` à la racine :
+Crée un fichier `.env.docker` à la racine (généralement situé dans `/var/www/qoe.fi/` sur le VPS) :
 
 ```bash
-# === POSTGRES (utilisé en interne Docker) ===
-POSTGRES_USER=qoe
-POSTGRES_PASSWORD=<Génère_un_mdp_fort_64_chars>
-POSTGRES_DB=qoe
-POSTGRES_PORT=5432
+# === BASE DE DONNÉES (Connexion directe à Supabase DB) ===
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=<Mot_de_passe_généré_par_supabase>
+POSTGRES_DB=postgres
+
+# Connexion directe à la DB sur le port 5433 (bypasse le pooler Supavisor pour les processus internes)
+DATABASE_URL="postgresql://postgres:<Mot_de_passe_généré_par_supabase>@host.docker.internal:5433/postgres"
+DIRECT_URL="postgresql://postgres:<Mot_de_passe_généré_par_supabase>@host.docker.internal:5433/postgres"
 
 # === DOMAINE PRINCIPAL (sans protocole) ===
 PRIMARY_DOMAIN=qoe.fi
 
-# === SUPABASE (Auth externe) ===
-NEXT_PUBLIC_SUPABASE_URL=https://ton-projet.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
+# === SUPABASE AUTO-HÉBERGÉ (Sous-domaines dédiés) ===
+# URL de l'API / Gateway Kong
+NEXT_PUBLIC_SUPABASE_URL="https://admin-supabase.qoe.fi"
+# Clés cryptographiques générées lors de l'initialisation de Supabase
+NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 
 # === STRIPE (paiements) - EN MODE LIVE ===
 STRIPE_SECRET_KEY=sk_live_...
@@ -84,7 +89,7 @@ REDIS_URL=redis://redis:6379
 NEXT_PUBLIC_APP_URL=https://qoe.fi
 ```
 
-> ⚠️ **Ne commit JAMAIS `.env.docker`**. Il est dans `.gitignore` par défaut.
+> ⚠️ **Ne commit JAMAIS `.env.docker`**. Il est listé dans `.gitignore`.
 
 ---
 
@@ -133,79 +138,194 @@ docker compose version
 
 ### Étape 2 : Cloner le projet
 ```bash
-cd /opt  # ou /var/www, ou /home/user
+cd /var/www  # Répertoire recommandé
 
 # Option A : Via Git
-git clone https://github.com/ton-user/qoe.fi.git .
+git clone https://github.com/Flayrox/qoe.fi.git .
 
-# Option B : Via SCP (si pas de repo)
+# Option B : Via SCP (si pas de repo public)
 # Sur ton PC :
-# scp -r ./qoe.fi/* user@ton-vps-ip:/opt/qoe.fi/
+# scp -r ./qoe.fi/* user@ton-vps-ip:/var/www/qoe.fi/
 ```
 
-### Étape 3 : Configurer l'env
-```bash
-cd /opt/qoe.fi
-cp .env.docker.example .env.docker
-nano .env.docker
-# Colle les valeurs préparées plus haut
-```
+### Étape 3 : Installer & configurer Supabase en auto-hébergé
 
-### Étape 4 : Ouvrir les ports
-```bash
-# UFW (Ubuntu)
-sudo ufw allow 22/tcp    # SSH
-sudo ufw allow 80/tcp    # HTTP (redirect HTTPS)
-sudo ufw allow 443/tcp   # HTTPS
-sudo ufw enable
+Pour éviter les frais récurrents et garder une maîtrise souveraine des données, Supabase est hébergé localement sur le VPS dans son propre environnement Docker.
 
-# Vérifier
-sudo ufw status
-```
+1. **Cloner le dépôt officiel Supabase** :
+   ```bash
+   cd /var/www
+   git clone --depth 1 https://github.com/supabase/supabase.git
+   cd supabase/docker
+   cp .env.example .env
+   ```
 
-### Étape 5 : Premier déploiement
-```bash
-# Build toutes les images
-pnpm docker:prod:build
+2. **Générer les clés cryptographiques de sécurité** :
+   ```bash
+   # Génère les secrets JWT, clés d'API (anon & service_role) et mots de passe système uniques
+   sh utils/generate-keys.sh --update-env
+   sh utils/add-new-auth-keys.sh --update-env
+   ```
 
-# Lance en arrière-plan
-pnpm docker:prod:up
+3. **Configurer les variables personnalisées et le serveur SMTP (Hostinger)** :
+   Configure ton fichier `/var/www/supabase/docker/.env` avec les valeurs adaptées :
+   ```ini
+   # --- Domaines personnalisés ---
+   API_EXTERNAL_URL="https://admin-supabase.qoe.fi"
+   STUDIO_DEFAULT_ORGANIZATION="Qoe Admin"
+   STUDIO_DEFAULT_PROJECT="qoe.fi"
 
-# Vérifier
-pnpm docker:prod:ps
-# → Tous les services doivent être "healthy"
-```
+   # --- Serveur SMTP Hostinger ---
+   SMTP_ADMIN_EMAIL="noreply@qoe.fi"
+   SMTP_HOST="smtp.hostinger.com"
+   SMTP_PORT=587
+   SMTP_USER="noreply@qoe.fi"
+   SMTP_PASS="<Mot_de_passe_smtp>"
+   SMTP_SENDER_NAME="Qoe.fi Auth"
+   ```
 
-### Étape 6 : Initialiser la base de données
-```bash
-# Le service `migrate` s'exécute one-shot au démarrage
-# Pour seed :
-pnpm docker:seed
-```
+4. **Exposer le port Postgres direct (5433)** :
+   Modifie le service `db` dans `/var/www/supabase/docker/docker-compose.yml` pour mapper le port `5433` du VPS vers le port `5432` du conteneur. Cela permet à Prisma et au script de migration de l'application principale de s'y connecter directement et de manière robuste :
+   ```yaml
+     db:
+       container_name: supabase-db
+       image: supabase/postgres:17.6.1.136
+       restart: unless-stopped
+       ports:
+         - "5433:5432"
+       # ... reste de la configuration du service
+   ```
+
+5. **Démarrer les conteneurs de la stack Supabase** :
+   ```bash
+   docker compose up -d
+   # 11 conteneurs officiels démarrent de manière isolée et s'auto-surveillent.
+   ```
+
+### Étape 4 : Configurer le Reverse Proxy Nginx & Caching de Storage
+
+1. **Créer la configuration de cache pour les fichiers médias (Nginx NVMe Cache)** :
+   Crée `/etc/nginx/conf.d/cache.conf` pour stocker localement les assets statiques issus du Storage de Supabase :
+   ```nginx
+   proxy_cache_path /var/cache/nginx/supabase_storage levels=1:2 keys_zone=supabase_storage_cache:10m max_size=10g inactive=24h use_temp_path=off;
+   ```
+
+2. **Configurer les serveurs virtuels Nginx (`/etc/nginx/sites-available/qoe.conf`)** :
+   Nous sécurisons l'interface de gestion (Studio) par un Basic Auth Nginx (`qoe-admin:8db7e120f26ba09f`) et configurons la redirection vers Kong (API) et Caddy (App principale) :
+   ```nginx
+   # --- 1. Supabase API & Kong (admin-supabase.qoe.fi) ---
+   server {
+       server_name admin-supabase.qoe.fi;
+       listen 80; listen [::]:80; # TLS géré par Caddy/Let's Encrypt de manière automatisée ou Nginx
+       
+       location /storage/v1/object/public/ {
+           proxy_pass http://127.0.0.1:8000;
+           proxy_cache supabase_storage_cache;
+           proxy_cache_valid 200 302 1d;
+           proxy_cache_valid 404 1m;
+           add_header X-Proxy-Cache $upstream_cache_status;
+           proxy_ignore_headers Cache-Control Set-Cookie;
+       }
+
+       location / {
+           proxy_pass http://127.0.0.1:8000;
+           proxy_set_header Host $host;
+       }
+   }
+
+   # --- 2. Supabase Studio Dashboard (admin-studio.qoe.fi) ---
+   server {
+       server_name admin-studio.qoe.fi;
+       listen 80; listen [::]:80;
+
+       location / {
+           auth_basic "Accès Restreint Admin";
+           auth_basic_user_file /etc/nginx/.htpasswd;
+           proxy_pass http://127.0.0.1:8002;
+           proxy_set_header Host $host;
+       }
+   }
+
+   # --- 3. Application Principale (qoe.fi / *.qoe.fi) ---
+   server {
+       server_name qoe.fi *.qoe.fi;
+       listen 80; listen [::]:80;
+       location / {
+           proxy_pass http://127.0.0.1:8080; # Transmet à Caddy
+           proxy_set_header Host $host;
+       }
+   }
+   ```
+   *Active le site avec `sudo ln -s /etc/nginx/sites-available/qoe.conf /etc/nginx/sites-enabled/` et redémarre Nginx : `sudo nginx -t && sudo systemctl restart nginx`.*
+
+### Étape 5 : Migrer les données de l'ancienne DB Cloud vers la DB locale
+
+1. **Exporter le schéma public de production** :
+   ```bash
+   docker run --rm --network host -v /tmp:/tmp postgres:17 pg_dump "postgresql://postgres:<mdp_cloud>@db.xxx.supabase.co:5432/postgres" -n public --clean --no-owner --no-privileges -f /tmp/public_dump.sql
+   ```
+2. **Exporter les données d'authentification (auth) et de métadonnées de stockage (storage)** :
+   ```bash
+   docker run --rm --network host -v /tmp:/tmp postgres:17 pg_dump "postgresql://postgres:<mdp_cloud>@db.xxx.supabase.co:5432/postgres" -n auth --data-only --no-owner --no-privileges -f /tmp/auth_data_dump.sql
+   docker run --rm --network host -v /tmp:/tmp postgres:17 pg_dump "postgresql://postgres:<mdp_cloud>@db.xxx.supabase.co:5432/postgres" -n storage --data-only --no-owner --no-privileges -f /tmp/storage_data_dump.sql
+   ```
+3. **Restaurer dans la nouvelle instance Supabase auto-hébergée** (en utilisant le binaire `psql` libre du conteneur) :
+   ```bash
+   # Activer pgvector dans le schéma public
+   docker exec -i supabase-db /usr/lib/postgresql/bin/psql -U supabase_admin -d postgres -c "create extension if not exists vector with schema public;"
+
+   # Restaurer le schéma public
+   docker exec -i supabase-db /usr/lib/postgresql/bin/psql -U supabase_admin -d postgres < /tmp/public_dump.sql
+
+   # Restaurer les tables auth & storage en ignorant temporairement les triggers de contraintes
+   echo "SET session_replication_role = 'replica';" | cat - /tmp/auth_data_dump.sql > /tmp/auth_data_dump_replica.sql
+   docker exec -i supabase-db /usr/lib/postgresql/bin/psql -U supabase_admin -d postgres < /tmp/auth_data_dump_replica.sql
+
+   echo "SET session_replication_role = 'replica';" | cat - /tmp/storage_data_dump.sql > /tmp/storage_data_dump_replica.sql
+   docker exec -i supabase-db /usr/lib/postgresql/bin/psql -U supabase_admin -d postgres < /tmp/storage_data_dump_replica.sql
+   ```
+
+### Étape 6 : Configurer l'environnement de l'application et lancer les conteneurs
+
+1. **Écrire le fichier `/var/www/qoe.fi/.env.docker`** avec les secrets générés ci-dessus.
+2. **Ouvrir les ports indispensables sur le VPS** :
+   ```bash
+   # UFW (Ubuntu)
+   sudo ufw allow 22/tcp    # SSH
+   sudo ufw allow 80/tcp    # HTTP
+   sudo ufw allow 443/tcp   # HTTPS
+   sudo ufw enable
+   ```
+3. **Premier déploiement du monorepo** :
+   ```bash
+   cd /var/www/qoe.fi
+   # Build de toutes les applications (Next.js, Hono API, Workers)
+   pnpm docker:prod:build
+   
+   # Lancement en arrière-plan (sans recréer de DB locale car la DB est celle de Supabase !)
+   pnpm docker:prod:up
+   ```
 
 ### Étape 7 : Configurer le DNS
 
-Chez ton registrar (Cloudflare, OVH, Gandi, etc.) :
+Chez ton registrar (Cloudflare, Hostinger, OVH, etc.), pointe les entrées DNS vers l'adresse IP de ton VPS Hetzner :
 
 | Type | Nom | Valeur | TTL |
 |------|-----|--------|-----|
-| A | `@` | `<IP_VPS>` | 300 |
-| A | `*` | `<IP_VPS>` | 300 |
-| AAAA | `@` | `<IP_V6_VPS>` | 300 (optionnel) |
-| AAAA | `*` | `<IP_V6_VPS>` | 300 (optionnel) |
+| A | `@` (qoe.fi) | `<IP_VPS>` | 300 |
+| A | `*` (*.qoe.fi) | `<IP_VPS>` | 300 |
+| A | `admin-supabase` | `<IP_VPS>` | 300 |
+| A | `admin-studio` | `<IP_VPS>` | 300 |
 
-> ⚠️ Le wildcard `*` est **obligatoire** pour les sous-domaines `*.qoe.fi`.
+> ⚠️ Le wildcard `*` est **obligatoire** pour la gestion dynamique des sous-domaines des créateurs.
 
-### Étape 8 : Vérifier le SSL
-**Caddy obtient les certificats Let's Encrypt automatiquement** dès que le DNS est propagé (5-30 min).
+### Étape 8 : Vérifier le SSL et la connectivité
+
+**Caddy et Nginx obtiennent les certificats Let's Encrypt de manière transparente** dès la propagation DNS complétée.
 
 ```bash
-# Vérifier la propagation
-nslookup qoe.fi 8.8.8.8
-nslookup start.qoe.fi 8.8.8.8
-
-# Tu dois voir "CN = qoe.fi" et un issuer Let's Encrypt
-openssl s_client -connect qoe.fi:443 -servername qoe.fi < /dev/null 2>/dev/null | openssl x509 -noout -subject
+# Tester que l'API et l'authentification répondent sur les sous-domaines configurés
+curl -I https://admin-supabase.qoe.fi/auth/v1/health
 ```
 
 ---
