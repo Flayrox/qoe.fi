@@ -3,7 +3,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { createClient as createServerClient } from "@qoe/supabase/server"
 import { prisma } from "@qoe/db/client"
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 
 // Create a Supabase admin client to bypass RLS and manage auth users
 function getAdminClient() {
@@ -141,5 +141,23 @@ export async function toggleUserShadowban(userId: string, isShadowbanned: boolea
   })
 
   revalidatePath("/admin/creators")
+  return { success: true }
+}
+
+export async function saveTranslationOverrides(overrides: Record<string, any>) {
+  await verifySuperadmin()
+
+  await prisma.systemConfig.upsert({
+    where: { key: "TRANSLATIONS_OVERRIDE" },
+    update: { value: JSON.stringify(overrides) },
+    create: {
+      key: "TRANSLATIONS_OVERRIDE",
+      value: JSON.stringify(overrides),
+      description: "Translation overrides for dynamic i18n"
+    }
+  });
+
+  (revalidateTag as any)("i18n-overrides");
+  revalidatePath("/", "layout");
   return { success: true }
 }

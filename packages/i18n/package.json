@@ -15,7 +15,9 @@
                     "lint":  "echo skip",
                     "typecheck":  "tsc --noEmit"
                 },
-    "dependencies": {},
+    "dependencies": {
+        "@qoe/db": "workspace:*"
+    },
     "peerDependencies":  {
                              "react":  "^19"
                          },

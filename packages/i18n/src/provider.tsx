@@ -50,13 +50,14 @@ export function useTolgee() {
  */
 export function TolgeeNextProvider({
   language,
+  staticData,
   children,
 }: {
   language: Language;
   staticData?: any;
   children: React.ReactNode;
 }) {
-  const messages = translations[language] || translations.fr;
+  const messages = staticData || translations[language] || translations.fr;
 
   const t = (key: string, defaultValue?: any, params?: any): string => {
     const defVal = typeof defaultValue === "string" ? defaultValue : undefined;
