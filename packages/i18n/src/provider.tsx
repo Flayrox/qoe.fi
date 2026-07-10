@@ -39,7 +39,15 @@ export function useTolgee() {
     getLanguage: () => currentLang,
     changeLanguage: async (lang: string) => {
       if (typeof window !== "undefined") {
-        document.cookie = `x-locale=${lang};path=/;max-age=31536000`;
+        const hostname = window.location.hostname;
+        let domainAttr = "";
+        if (hostname.endsWith("qoe.test")) {
+          domainAttr = ";domain=.qoe.test";
+        } else if (hostname.endsWith("qoe.fi")) {
+          domainAttr = ";domain=.qoe.fi";
+        }
+        // No domain attribute for localhost (browser default = host-only)
+        document.cookie = `x-locale=${lang};path=/;max-age=31536000${domainAttr}`;
       }
     }
   };
