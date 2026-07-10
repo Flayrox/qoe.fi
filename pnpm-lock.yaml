@@ -772,12 +772,9 @@ importers:
 
   packages/i18n:
     dependencies:
-      '@tolgee/react':
-        specifier: ^7.0.0
-        version: 7.1.1(react@19.2.4)
-      '@tolgee/web':
-        specifier: ^7.0.0
-        version: 7.1.1
+      '@qoe/db':
+        specifier: workspace:*
+        version: link:../db
       react:
         specifier: ^19
         version: 19.2.4

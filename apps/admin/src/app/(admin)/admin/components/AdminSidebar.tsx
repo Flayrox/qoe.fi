@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/admin/config", label: "Feature Flags" },
   { href: "/admin/frontend", label: "Frontend & UI" },
   { href: "/admin/widgets", label: "Widgets & Tendances" },
+  { href: "/admin/translations", label: "Traducteur & Langues" },
 ]
 
 export function AdminSidebar() {
