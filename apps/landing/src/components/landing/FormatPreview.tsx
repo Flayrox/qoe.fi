@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useTranslate } from "@tolgee/react";
+import { useTranslate } from "@qoe/i18n";
 import { FileText, Mail, Volume2, BarChart2, Zap, LayoutGrid, Circle, Maximize2, Terminal } from "lucide-react";
 
 interface FormatPreviewProps {

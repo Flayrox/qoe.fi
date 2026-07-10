@@ -12,7 +12,7 @@ import {
   addMutedWord, removeMutedWord
 } from "./actions"
 
-import { useTranslate, useTolgee } from "@tolgee/react"
+import { useTranslate, useTolgee } from "@qoe/i18n"
 import { useRouter } from "next/navigation"
 import { cn } from "@qoe/utils"
 import { trackServerEvent } from "@qoe/analytics"

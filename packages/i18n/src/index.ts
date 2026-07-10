@@ -1,7 +1,7 @@
 // =====================================================================
-// 📦 @qoe/i18n — Tolgee re-exports
+// 📦 @qoe/i18n — Unified Exports
 // =====================================================================
 
 export * from "./locales";
-export { TolgeeNextProvider } from "./provider";
-export { getTolgee, getTranslate } from "./server";
+export { TolgeeNextProvider, useTranslate, useTolgee } from "./provider";
+export { getTolgee, getTranslate, getLanguage } from "./server";

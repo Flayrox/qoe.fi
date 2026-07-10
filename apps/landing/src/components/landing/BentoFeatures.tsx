@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { useTranslate } from "@tolgee/react";
+import { useTranslate } from "@qoe/i18n";
 import { Wallet, Compass, BookOpen, ShieldCheck, Zap } from "lucide-react";
 
 interface BentoFeaturesProps {

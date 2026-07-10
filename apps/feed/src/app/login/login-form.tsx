@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { login, signup } from './actions'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@qoe/supabase/client'
-import { useTranslate, useTolgee } from '@tolgee/react'
+import { useTranslate, useTolgee } from "@qoe/i18n"
 
 import { cn } from '@qoe/utils'
 import { BentoPlateau, BentoItem } from '@/components/ui/BentoPlateau'

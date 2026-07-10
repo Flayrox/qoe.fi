@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useTranslate } from "@tolgee/react";
+import { useTranslate } from "@qoe/i18n";
 import { motion } from "framer-motion";
 import { cn } from "@qoe/utils";
 import { Logo } from "@/components/ui/Logo";

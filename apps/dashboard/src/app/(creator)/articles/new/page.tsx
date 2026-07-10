@@ -1,7 +1,7 @@
-﻿// =====================================================================
-// ðŸ–¥ï¸ New Article Page â€” apps/dashboard/src/app/(creator)/dashboard/articles/new/page.tsx
 // =====================================================================
-// ðŸ“– Page de crÃ©ation d'un nouvel article avec l'Ã©diteur riche.
+// 🖥️ New Article Page — apps/dashboard/src/app/(creator)/dashboard/articles/new/page.tsx
+// =====================================================================
+// 📖 Page de création d'un nouvel article avec l'éditeur riche.
 // =====================================================================
 
 import { getCategoriesAction } from "../actions"

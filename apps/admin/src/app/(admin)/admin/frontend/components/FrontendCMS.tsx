@@ -16,6 +16,7 @@ import {
   Link as LinkIcon
 } from "lucide-react";
 import { saveMultipleFrontendConfigs } from "../actions";
+import { ALL_LANGUAGES, type Language } from "@qoe/i18n";
 
 // Default presets for fallback and reset buttons
 const PRESETS = {
@@ -570,7 +571,7 @@ function FooterColumnsBuilder({
 }: {
   value: string;
   onChange: (val: string) => void;
-  activeLang: "fr" | "en";
+  activeLang: Language;
 }) {
   const [columns, setColumns] = useState<FooterColumn[]>([]);
 
@@ -827,7 +828,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState<TabKey>("banner");
   // Language toggles for each tab's localized fields
-  const [activeLang, setActiveLang] = useState<"fr" | "en">("fr");
+  const [activeLang, setActiveLang] = useState<Language>(ALL_LANGUAGES[0] || "fr");
 
   // State values
   const [formValues, setFormValues] = useState<Record<string, string>>(initialConfigs);
@@ -977,24 +978,18 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
             {/* Language toggle for translatable fields */}
             {activeTab !== "banner" && activeTab !== "onboarding" && (
               <div className="flex items-center gap-1 bg-neutral-100 rounded-lg p-1 text-xs shrink-0 select-none">
-                <button
-                  type="button"
-                  onClick={() => setActiveLang("fr")}
-                  className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-                    activeLang === "fr" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-800"
-                  }`}
-                >
-                  Français
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveLang("en")}
-                  className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-                    activeLang === "en" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-800"
-                  }`}
-                >
-                  English
-                </button>
+                {ALL_LANGUAGES.map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => setActiveLang(lang)}
+                    className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+                      activeLang === lang ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-800"
+                    }`}
+                  >
+                    {lang === "fr" ? "Français" : lang === "en" ? "English" : (lang as string).toUpperCase()}
+                  </button>
+                ))}
               </div>
             )}
           </div>

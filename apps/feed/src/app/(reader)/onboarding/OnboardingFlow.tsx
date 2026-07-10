@@ -2,7 +2,7 @@
 
 import React, { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useTranslate } from "@tolgee/react"
+import { useTranslate } from "@qoe/i18n"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@qoe/utils"
 import { BentoPlateau, BentoItem } from "@/components/ui/BentoPlateau"

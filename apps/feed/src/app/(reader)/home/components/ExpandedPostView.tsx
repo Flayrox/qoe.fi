@@ -10,7 +10,7 @@ import { cn } from "@qoe/utils"
 
 import { TextParser } from "@/components/ui/TextParser"
 import { LinkPreview } from "@/components/social/LinkPreview"
-import { useTranslate } from "@tolgee/react"
+import { useTranslate } from "@qoe/i18n"
 import { trackEvent } from "@/lib/analytics"
 
 const getUrls = (text: string): string[] => {

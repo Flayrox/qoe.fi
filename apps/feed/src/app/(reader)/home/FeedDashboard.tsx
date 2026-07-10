@@ -15,7 +15,7 @@ import { FeedTabsHeader } from "./components/FeedTabsHeader"
 import { ExpandedPostView } from "./components/ExpandedPostView"
 import { HomeWidgets } from "./components/HomeWidgets"
 import { LoginModal } from "./components/LoginModal"
-import { useTranslate } from "@tolgee/react"
+import { useTranslate } from "@qoe/i18n"
 import { trackEvent } from "@/lib/analytics"
 
 interface Author {

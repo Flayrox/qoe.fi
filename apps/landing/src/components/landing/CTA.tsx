@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { useTranslate, useTolgee } from "@tolgee/react";
+import { useTranslate, useTolgee } from "@qoe/i18n";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 

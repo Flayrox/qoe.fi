@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useTranslate, useTolgee } from "@tolgee/react";
+import { useTranslate, useTolgee } from "@qoe/i18n";
 import Link from "next/link";
 import { ArrowUpRight, Check } from "lucide-react";
 

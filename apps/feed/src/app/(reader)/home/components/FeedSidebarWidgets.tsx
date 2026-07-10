@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Compass, TrendingUp, UserCheck, UserPlus, BookOpen, Highlighter, Users } from "lucide-react"
 import { cn } from "@qoe/utils"
 
-import { useTranslate } from "@tolgee/react"
+import { useTranslate } from "@qoe/i18n"
 
 interface SuggestedCreator {
   id: string

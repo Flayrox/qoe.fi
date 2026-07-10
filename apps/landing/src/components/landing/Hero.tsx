@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, useAnimationFrame } from "framer-motion";
-import { useTranslate, useTolgee } from "@tolgee/react";
+import { useTranslate, useTolgee } from "@qoe/i18n";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
