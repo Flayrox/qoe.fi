@@ -316,7 +316,6 @@ export function SettingsDashboard({
 
         const originalLang = tolgee.getLanguage()
         if (selectedLanguage !== originalLang) {
-          document.cookie = `x-locale=${selectedLanguage};path=/;max-age=31536000`
           await tolgee.changeLanguage(selectedLanguage)
           trackServerEvent("language_changed", { lang: selectedLanguage })
         }
