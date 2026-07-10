@@ -16,13 +16,14 @@ export async function completeOnboarding(data: {
   if (!user) throw new Error("Unauthorized")
 
   try {
-    // Save onboarding text if provided
-    if (data.onboardingText) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { onboardingText: data.onboardingText }
-      })
-    }
+    // Update onboarding completion and save biography if provided
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        hasCompletedOnboarding: true,
+        ...(data.onboardingText ? { onboardingText: data.onboardingText } : {})
+      }
+    })
 
     // Generate and save AI pgvector embedding
     const embeddingVector = await generateMockEmbedding(data.onboardingText || "", data.interests)
