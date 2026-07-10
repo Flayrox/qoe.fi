@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { motion, useAnimationFrame } from "framer-motion";
-import { useTranslate, useTolgee } from "@tolgee/react";
+import { useTranslate, useTolgee } from "@qoe/i18n";
 import { ArrowUpRight } from "lucide-react";
 import { ArticlePreviewModal } from "./ArticlePreviewModal";
 

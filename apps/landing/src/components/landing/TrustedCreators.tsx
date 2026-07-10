@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { useTranslate } from "@tolgee/react";
+import { useTranslate } from "@qoe/i18n";
 import { ShieldAlert, CheckCircle, Users, FileText } from "lucide-react";
 
 interface TrustedCreatorsProps {

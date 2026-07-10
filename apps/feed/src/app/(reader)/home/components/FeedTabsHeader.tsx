@@ -3,7 +3,7 @@
 import React from "react"
 import { motion } from "framer-motion"
 import { cn } from "@qoe/utils"
-import { useTranslate } from "@tolgee/react"
+import { useTranslate } from "@qoe/i18n"
 
 interface FeedTabsHeaderProps {
   activeFeed: string
