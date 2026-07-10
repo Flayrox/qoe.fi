@@ -19,8 +19,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // 1.5 Forward language cookie as request header
+  const localeCookie = request.cookies.get("x-locale")?.value || "fr";
+  request.headers.set("x-locale", localeCookie);
+
   // 2. Refresh Supabase session (toujours)
   const { supabaseResponse, user } = await updateSession(request);
+
+  // 2.5 Set locale header on response
+  supabaseResponse.headers.set("x-locale", localeCookie);
 
   // 3. Multi-tenancy check
   const hostname = request.headers.get("host") || "";
@@ -88,6 +95,9 @@ export async function middleware(request: NextRequest) {
     supabaseResponse.cookies.getAll().forEach((cookie) => {
       rewriteResponse.cookies.set(cookie.name, cookie.value, cookie);
     });
+
+    // Also forward locale header on rewrite
+    rewriteResponse.headers.set("x-locale", localeCookie);
 
     return rewriteResponse;
   }

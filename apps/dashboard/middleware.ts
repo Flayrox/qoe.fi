@@ -7,7 +7,15 @@ import { updateSession } from "@qoe/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
   const host = request.headers.get("host") || "";
+
+  // Forward language cookie as request header
+  const localeCookie = request.cookies.get("x-locale")?.value || "fr";
+  request.headers.set("x-locale", localeCookie);
+
   const { supabaseResponse, user } = await updateSession(request);
+
+  // Set locale header on response too
+  supabaseResponse.headers.set("x-locale", localeCookie);
 
   // 1. Déterminer l'URL de login centrale (qoe.fi/login)
   const isLocal = host.includes("localhost") || host.includes("127.0.0.1") || host.includes("qoe.test");

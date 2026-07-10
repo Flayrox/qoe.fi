@@ -8,14 +8,19 @@ import { updateSession } from "@qoe/supabase/middleware";
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // 1. Forward language cookie as header
+  // 1. Read language cookie
   const localeCookie = request.cookies.get("x-locale")?.value || "fr";
+
+  // 2. Forward language as a request header for Server Components
   request.headers.set("x-locale", localeCookie);
 
-  // 2. Refresh Supabase session (toujours)
+  // 3. Refresh Supabase session (toujours)
   const { supabaseResponse, user } = await updateSession(request);
 
-  // 2. Protection des routes privées des lecteurs
+  // 4. Also set the locale header on the response (ensures downstream reads work)
+  supabaseResponse.headers.set("x-locale", localeCookie);
+
+  // 5. Protection des routes privées des lecteurs
   const protectedRoutes = ["/settings", "/library", "/highlights", "/billing", "/onboarding"];
   const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));
 
@@ -25,7 +30,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 3. Si connecté et qu'on va sur /login, redirige vers /home
+  // 6. Si connecté et qu'on va sur /login, redirige vers /home
   if (pathname === "/login" && user) {
     const url = request.nextUrl.clone();
     url.pathname = "/home";
