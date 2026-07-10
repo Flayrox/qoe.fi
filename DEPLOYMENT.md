@@ -255,6 +255,27 @@ Pour éviter les frais récurrents et garder une maîtrise souveraine des donné
            proxy_set_header Host $host;
        }
    }
+
+   # --- 4. CDN d'Images & Stockage (cdn.qoe.fi) ---
+   server {
+       server_name cdn.qoe.fi;
+       listen 80; listen [::]:80;
+
+       # 🔒 Restreindre uniquement aux fichiers publics du bucket
+       location /storage/v1/object/public/ {
+           proxy_pass http://127.0.0.1:8000; # Redirige vers Kong Supabase
+           proxy_cache supabase_storage_cache;
+           proxy_cache_valid 200 302 1d;
+           proxy_cache_valid 404 1m;
+           add_header X-Proxy-Cache $upstream_cache_status;
+           proxy_ignore_headers Cache-Control Set-Cookie;
+       }
+
+       # 🚫 Bloquer le reste pour sécuriser l'API / configuration
+       location / {
+           return 403;
+       }
+   }
    ```
    *Active le site avec `sudo ln -s /etc/nginx/sites-available/qoe.conf /etc/nginx/sites-enabled/` et redémarre Nginx : `sudo nginx -t && sudo systemctl restart nginx`.*
 
@@ -316,6 +337,7 @@ Chez ton registrar (Cloudflare, Hostinger, OVH, etc.), pointe les entrées DNS v
 | A | `*` (*.qoe.fi) | `<IP_VPS>` | 300 |
 | A | `admin-supabase` | `<IP_VPS>` | 300 |
 | A | `admin-studio` | `<IP_VPS>` | 300 |
+| A | `cdn` (cdn.qoe.fi) | `<IP_VPS>` | 300 |
 
 > ⚠️ Le wildcard `*` est **obligatoire** pour la gestion dynamique des sous-domaines des créateurs.
 

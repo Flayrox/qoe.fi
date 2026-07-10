@@ -57,8 +57,14 @@ export async function POST(request: NextRequest) {
       .from("articles-media")
       .getPublicUrl(filePath);
 
+    let finalUrl = publicUrlData.publicUrl;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (supabaseUrl && finalUrl.startsWith(supabaseUrl)) {
+      finalUrl = finalUrl.replace(supabaseUrl, "https://cdn.qoe.fi");
+    }
+
     return NextResponse.json({ 
-      url: publicUrlData.publicUrl 
+      url: finalUrl 
     }, { status: 200 });
 
   } catch (error) {

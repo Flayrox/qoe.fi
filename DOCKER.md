@@ -50,6 +50,7 @@
 | `api.qoe.fi` | api | API Gateway REST (Hono backend) |
 | `admin-supabase.qoe.fi` | Supabase Kong | API Rest Supabase Auto-hébergée (avec proxy cache NVMe) |
 | `admin-studio.qoe.fi` | Supabase Studio | Interface GUI de la base de données (sécurisée par Basic Auth) |
+| `cdn.qoe.fi` | Nginx Host | CDN d'images & Stockage public (sécurisé avec cache local) |
 
 ### Réseaux
 

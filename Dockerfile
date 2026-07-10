@@ -51,7 +51,9 @@ RUN if [ -f .env.docker ]; then \
     fi
 
 # Build chaque app en utilisant le cache Turborepo (mais force le build pour garantir l'injection des variables d'environnement)
-RUN --mount=type=cache,target=/app/.turbo pnpm turbo build --force
+# ⚠️ Concurrency bridée à 1 et max-old-space-size à 2048 pour éviter de faire saturer les 4Go de RAM du VPS lors des compilations Next.js
+RUN --mount=type=cache,target=/app/.turbo NODE_OPTIONS="--max-old-space-size=2048" pnpm turbo build --force --concurrency=1
+
 
 # ═════════════════════════════════════════════════════════════════════
 # 🎯 TARGETS FINALES (4 stages qui héritent du builder)
