@@ -144,8 +144,11 @@ export async function toggleUserShadowban(userId: string, isShadowbanned: boolea
   return { success: true }
 }
 
-export async function saveTranslationOverrides(overrides: Record<string, any>) {
-  await verifySuperadmin()
+export async function saveTranslationOverrides(
+  overrides: Record<string, any>,
+  changesSummaryList?: Array<{ key: string; lang: string; oldValue: string | null; newValue: string | null }>
+) {
+  const admin = await verifySuperadmin()
 
   await prisma.systemConfig.upsert({
     where: { key: "TRANSLATIONS_OVERRIDE" },
@@ -156,6 +159,23 @@ export async function saveTranslationOverrides(overrides: Record<string, any>) {
       description: "Translation overrides for dynamic i18n"
     }
   });
+
+  // Bulk log translation edits into DB for audit
+  if (changesSummaryList && changesSummaryList.length > 0) {
+    try {
+      await prisma.translationAuditLog.createMany({
+        data: changesSummaryList.map(change => ({
+          key: change.key,
+          lang: change.lang,
+          oldValue: change.oldValue,
+          newValue: change.newValue,
+          authorId: admin.id
+        }))
+      });
+    } catch (e) {
+      console.error("Failed to create translation audit logs:", e);
+    }
+  }
 
   (revalidateTag as any)("i18n-overrides");
   revalidatePath("/", "layout");
