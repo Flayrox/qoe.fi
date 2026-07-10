@@ -15,10 +15,7 @@
                     "lint":  "echo skip",
                     "typecheck":  "tsc --noEmit"
                 },
-    "dependencies":  {
-                         "@tolgee/react":  "^7.0.0",
-                         "@tolgee/web":  "^7.0.0"
-                     },
+    "dependencies": {},
     "peerDependencies":  {
                              "react":  "^19"
                          },

@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { useTranslate } from "@tolgee/react";
+import { useTranslate } from "@qoe/i18n";
 import { motion } from "framer-motion";
 
 export const Navbar = () => {
