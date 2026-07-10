@@ -758,7 +758,7 @@ function OnboardingInterestsBuilder({
     onChange(newList.join(", "));
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = (e: React.FormEvent | React.MouseEvent | React.KeyboardEvent) => {
     e.preventDefault();
     const clean = newInterest.trim();
     if (clean && !interests.includes(clean)) {
@@ -777,21 +777,28 @@ function OnboardingInterestsBuilder({
         <span className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Centres d'intérêt de l'onboarding (pgvector IA)</span>
       </div>
 
-      <form onSubmit={handleAdd} className="flex gap-2">
+      <div className="flex gap-2">
         <input
           type="text"
           value={newInterest}
           onChange={(e) => setNewInterest(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleAdd(e);
+            }
+          }}
           placeholder="Ajouter un centre d'intérêt (ex: Technologie, Économie...)"
           className="flex-1 bg-white border border-neutral-200 rounded-lg p-2 text-sm focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] outline-none"
         />
         <button
-          type="submit"
+          type="button"
+          onClick={handleAdd}
           className="bg-neutral-900 text-white hover:bg-neutral-800 px-4 py-2 rounded-lg text-sm font-semibold transition-colors shrink-0"
         >
           Ajouter
         </button>
-      </form>
+      </div>
 
       {interests.length === 0 ? (
         <div className="text-center py-6 text-neutral-400 text-sm border border-dashed border-neutral-200 rounded-xl bg-neutral-50/50">
@@ -977,19 +984,22 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
 
             {/* Language toggle for translatable fields */}
             {activeTab !== "banner" && activeTab !== "onboarding" && (
-              <div className="flex items-center gap-1 bg-neutral-100 rounded-lg p-1 text-xs shrink-0 select-none">
-                {ALL_LANGUAGES.map((lang) => (
-                  <button
-                    key={lang}
-                    type="button"
-                    onClick={() => setActiveLang(lang)}
-                    className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-                      activeLang === lang ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-800"
-                    }`}
-                  >
-                    {lang === "fr" ? "Français" : lang === "en" ? "English" : (lang as string).toUpperCase()}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2.5 bg-neutral-50 border border-neutral-200/60 rounded-xl p-1 text-xs shrink-0 select-none">
+                <span className="text-[10px] uppercase font-bold text-neutral-400 pl-1.5">Langue d'édition :</span>
+                <div className="flex items-center gap-1 bg-neutral-100 p-0.5 rounded-lg">
+                  {ALL_LANGUAGES.map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => setActiveLang(lang)}
+                      className={`px-3 py-1.5 rounded-md font-medium transition-all ${
+                        activeLang === lang ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-800"
+                      }`}
+                    >
+                      {lang === "fr" ? "Français" : lang === "en" ? "English" : (lang as string).toUpperCase()}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
