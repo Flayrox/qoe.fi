@@ -20,11 +20,20 @@
 # ─────────────────────────────────────────────────────────────────────
 # ⚙️ OPTIONS GLOBALES
 # ─────────────────────────────────────────────────────────────────────
-# Nginx gère TLS en amont (port 443). Caddy ne sert que du HTTP
-# en interne (port 80 → 8080 → Nginx). Pas besoin de certs Let's Encrypt.
 {
-    auto_https off
     admin off
+}
+
+(qoe_cert) {
+    tls /etc/letsencrypt/live/qoe.fi/fullchain.pem /etc/letsencrypt/live/qoe.fi/privkey.pem
+}
+
+(lassez_cert) {
+    tls /etc/letsencrypt/live/lassez.fr-0001/fullchain.pem /etc/letsencrypt/live/lassez.fr-0001/privkey.pem
+}
+
+(api_lassez_cert) {
+    tls /etc/letsencrypt/live/api.lassez.fr/fullchain.pem /etc/letsencrypt/live/api.lassez.fr/privkey.pem
 }
 
 # ─────────────────────────────────────────────────────────────────────
@@ -32,7 +41,8 @@
 # ─────────────────────────────────────────────────────────────────────
 # Sert : / (home/feed), /login, /library, /highlights, /billing,
 #        /settings, /onboarding
-http://qoe.fi, http://www.qoe.fi {
+qoe.fi, www.qoe.fi {
+    import qoe_cert
     encode zstd gzip
 
     # Headers de sécurité
@@ -70,7 +80,8 @@ http://qoe.fi, http://www.qoe.fi {
 # ─────────────────────────────────────────────────────────────────────
 # 🟠 DASHBOARD CRÉATEUR : dashboard.qoe.fi
 # ─────────────────────────────────────────────────────────────────────
-http://dashboard.qoe.fi {
+dashboard.qoe.fi {
+    import qoe_cert
     encode zstd gzip
 
     header {
@@ -94,7 +105,8 @@ http://dashboard.qoe.fi {
 # ─────────────────────────────────────────────────────────────────────
 # 🔴 ADMIN PLATEFORME : admin.qoe.fi
 # ─────────────────────────────────────────────────────────────────────
-http://admin.qoe.fi {
+admin.qoe.fi {
+    import qoe_cert
     encode zstd gzip
 
     header {
@@ -119,7 +131,8 @@ http://admin.qoe.fi {
 # ─────────────────────────────────────────────────────────────────────
 # 📣 LANDING MARKETING : start.qoe.fi
 # ─────────────────────────────────────────────────────────────────────
-http://start.qoe.fi {
+start.qoe.fi {
+    import qoe_cert
     encode zstd gzip
 
     # Headers plus permissifs (site public, pas d'auth)
@@ -144,7 +157,8 @@ http://start.qoe.fi {
 # ─────────────────────────────────────────────────────────────────────
 # 🔌 API : api.qoe.fi
 # ─────────────────────────────────────────────────────────────────────
-http://api.qoe.fi {
+api.qoe.fi {
+    import qoe_cert
     encode zstd gzip
 
     header {
@@ -173,7 +187,8 @@ http://api.qoe.fi {
 # ⚠️ Cette règle wildcard doit impérativement être après les routes spécifiques
 #    (dashboard.qoe.fi, admin.qoe.fi, start.qoe.fi, api.qoe.fi) pour que Caddy
 #    aiguille correctement vers les conteneurs spécifiques en priorité.
-http://*.qoe.fi {
+*.qoe.fi {
+    import qoe_cert
     encode zstd gzip
 
     header {
@@ -236,3 +251,92 @@ http://*.qoe.fi {
 # 4. Les blocs @custom en fin de fichier permettent aux custom domains
 #    (CNAME) de fonctionner SANS avoir à reconfigurer Caddy.
 #    C'est du "any host that's not in our list → tenant".
+
+# ───────────────────────────────────────────────────────────────────
+# 🇫🇷 LASSEZ FRONTEND : lassez.fr
+# ───────────────────────────────────────────────────────────────────
+lassez.fr, www.lassez.fr {
+    import lassez_cert
+    encode zstd gzip
+    reverse_proxy host.docker.internal:4000
+    log {
+        output stdout
+        format console
+    }
+}
+
+# ───────────────────────────────────────────────────────────────────
+# ⚙️ LASSEZ API : api.lassez.fr
+# ───────────────────────────────────────────────────────────────────
+api.lassez.fr {
+    import api_lassez_cert
+    encode zstd gzip
+    reverse_proxy host.docker.internal:4001
+    log {
+        output stdout
+        format console
+    }
+}
+
+# ───────────────────────────────────────────────────────────────────
+# 🎥 LASSEZ STUDIO : studio.lassez.fr
+# ───────────────────────────────────────────────────────────────────
+studio.lassez.fr {
+    import lassez_cert
+    encode zstd gzip
+    reverse_proxy host.docker.internal:4002
+    log {
+        output stdout
+        format console
+    }
+}
+
+# ───────────────────────────────────────────────────────────────────
+# 🐘 SUPABASE API GATEWAY (Kong) - auth.qoe.fi
+# ───────────────────────────────────────────────────────────────────
+auth.qoe.fi {
+    import qoe_cert
+    encode zstd gzip
+    reverse_proxy supabase-kong:8000
+    log {
+        output stdout
+        format console
+    }
+}
+
+# ───────────────────────────────────────────────────────────────────
+# 📦 SOVEREIGN CDN (Supabase Storage Local Cache) - cdn.qoe.fi
+# ───────────────────────────────────────────────────────────────────
+cdn.qoe.fi {
+    import qoe_cert
+    encode zstd gzip
+    # Re-write the URL
+    rewrite * /storage/v1/object/public{path}
+    reverse_proxy supabase-kong:8000
+    log {
+        output stdout
+        format console
+    }
+}
+
+# ───────────────────────────────────────────────────────────────────
+# 💻 SUPABASE STUDIO (Dashboard) via Tailscale + Basic Auth
+# ───────────────────────────────────────────────────────────────────
+admin-studio.qoe.fi {
+    import qoe_cert
+    encode zstd gzip
+    
+    @tailscale remote_ip 100.64.0.0/10 127.0.0.0/8 172.16.0.0/12
+    handle @tailscale {
+        basicauth / {
+            qoe-admin JDJhJDE0JFB3WHFQVkdhTWRhTnBUZnVESE5reE9jSzEzWHBFYnRDeG93NTcwY29RdklNLkNqNlJ1dnF1
+        }
+        reverse_proxy supabase-studio:3000
+    }
+    respond "Access Denied - Private Network Only" 403
+    
+    log {
+        output stdout
+        format console
+    }
+}
