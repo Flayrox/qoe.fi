@@ -939,7 +939,7 @@ export function SettingsDashboard({
                       )}
 
                       <div className="space-y-3">
-                        {/* Dynamic Current Session */}
+                        {/* Dynamic Current Session Card */}
                         <div className="p-4 border border-[var(--border-default)] rounded-[var(--radius-card)] bg-[var(--surface-1)]/50 flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full bg-[var(--surface-2)] text-[var(--text-primary)] flex items-center justify-center shrink-0">
@@ -962,29 +962,10 @@ export function SettingsDashboard({
                           <span className="text-xs font-semibold text-[var(--text-tertiary)]">Appareil actuel</span>
                         </div>
 
-                        {/* Other Session Placeholder */}
-                        <div className="p-4 border border-[var(--border-default)] rounded-[var(--radius-card)] bg-[var(--surface-1)]/50 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-[var(--surface-2)] text-[var(--text-tertiary)] flex items-center justify-center shrink-0">
-                              <Smartphone className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <span className="text-xs font-bold text-[var(--text-primary)] block">Safari Mobile (iOS)</span>
-                              <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
-                                Paris, France • Dernier accès : Il y a 2h
-                              </span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSessionMsg("Session Safari Mobile révoquée avec succès.")
-                              setTimeout(() => setSessionMsg(null), 3000)
-                            }}
-                            className="text-xs text-destructive hover:bg-destructive/10 px-2.5 py-1 rounded-[var(--radius-button)] font-semibold transition-colors cursor-pointer"
-                          >
-                            Révoquer
-                          </button>
+                        {/* No Other Sessions Notice */}
+                        <div className="p-4 border border-dashed border-[var(--border-default)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-tertiary)] flex items-center justify-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>Aucun autre appareil actuellement connecté à ce compte.</span>
                         </div>
                       </div>
                     </div>
