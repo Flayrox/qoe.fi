@@ -10,14 +10,15 @@
 
 ### 👤 L'Entité Créateur / Utilisateur
 - Un utilisateur est une **personne unique** avec une identité propre (`User`).
-- Il possède un compte personnel, un e-mail de connexion, un mot de passe, une photo d'identité et un portefeuille.
-- **Un créateur peut travailler pour plusieurs médias simultanément** (par exemple : son blog personnel + Média A + Média B).
-- Il n'est pas enfermé dans un seul média.
+- Il possède son compte personnel, son e-mail de connexion, son mot de passe et son portefeuille (`qoe.fi/settings`).
+- **Création de Médias en 1 Clic** : Un créateur peut **créer un ou plusieurs nouveaux médias** (journal, magazine, revue) directement depuis son compte personnel, sans devoir recréer un compte supplémentaire ni passer par un compte admin spécial.
+- **Un créateur peut être propriétaire de son média personnel ET rédacteur/contributeur pour 3 autres médias simultanément**.
 
 ### 📰 L'Entité Média / Publication
 - Un média est une **organisation / publication indépendante** (`Media / Publication`).
 - Un média possède son sous-domaine (`*.qoe.fi`), son domaine personnalisé (`journal.com`), son design system (*Visual Studio*), son SEO, ses abonnés et son équipe de rédacteurs.
-- Un créateur peut avoir différents rôles selon le média (*Rédacteur / Writer*, *Éditeur / Creator*, *Administrateur / Advanced*).
+- Les réglages du Dashboard Studio (`dashboard.qoe.fi/settings`) sont réservés à la gestion d'un média spécifique.
+- Un créateur a des rôles distincts selon le média (*Writer*, *Creator*, *Advanced*).
 
 ### 🎛️ Sélecteur de Contexte de Travail
 Dans la barre supérieure et la sidebar, le commutateur **[Writer | Creator | Advanced]** permet de basculer instantanément de vue :
