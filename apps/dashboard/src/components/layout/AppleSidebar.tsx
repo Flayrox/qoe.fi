@@ -3,7 +3,8 @@
 import React, { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { cn } from "@qoe/utils"
-import { Plus, Settings, LogOut } from "lucide-react"
+import { URLS } from "@qoe/config"
+import { Plus, Settings, LogOut, User, Palette } from "lucide-react"
 
 export interface AppleSidebarItem {
   title: string
@@ -62,7 +63,14 @@ export function AppleSidebar({
   className,
 }: AppleSidebarProps) {
   const [isAccountOpen, setIsAccountOpen] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
   const accountMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  const accountUrl = isMounted ? `${URLS.CONSOLE}/settings` : "#"
 
   const isItemActive = (url: string) => {
     if (url === "/") {
@@ -250,13 +258,22 @@ export function AppleSidebar({
                   )}
                 </div>
 
+                <a
+                  href={accountUrl}
+                  className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-[8px] hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors"
+                  onClick={() => setIsAccountOpen(false)}
+                >
+                  <User className="w-4 h-4" />
+                  <span>Mon Compte Personnel</span>
+                </a>
+
                 <Link
                   href="/settings"
                   className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-[8px] hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors"
                   onClick={() => setIsAccountOpen(false)}
                 >
-                  <Settings className="w-4 h-4" />
-                  <span>Réglages du compte</span>
+                  <Palette className="w-4 h-4" />
+                  <span>Design du Média</span>
                 </Link>
 
                 <div className="h-px my-1 bg-sidebar-border/60" />
