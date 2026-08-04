@@ -11,7 +11,8 @@ import { createClient } from "@qoe/supabase/server";
 import type { User } from "@qoe/db/types";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
-import { ROLES, type Role } from "@qoe/config";
+import { headers } from "next/headers";
+import { ROLES, type Role, getMonorepoUrl } from "@qoe/config";
 import { can, type Action } from "./permissions";
 
 /**
@@ -41,12 +42,38 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
 });
 
 /**
- * 👤 Récupère l'utilisateur OU redirige vers /login.
- * Utilisable dans les layouts/pages protégées.
+ * 👤 Récupère l'utilisateur OU redirige vers la page de login CENTRALE.
+ *
+ * Construit dynamiquement l'URL de login en utilisant getMonorepoUrl pour
+ * être compatible Dev Direct (lvh.me:3010), Dev Caddy et Production (qoe.fi).
+ *
+ * Le paramètre ?redirect= encode l'URL COMPLÈTE courante pour retour après connexion.
  */
-export async function requireUser(redirectTo: string = "/login"): Promise<User> {
+export async function requireUser(): Promise<User> {
   const user = await getCurrentUser();
-  if (!user) redirect(redirectTo as any);
+
+  if (!user) {
+    let loginUrl = "/login";
+
+    try {
+      const headersList = await headers();
+      const host = headersList.get("host") || "";
+      // Construire l'URL de la page courante via referer ou x-invoke-path
+      const referer = headersList.get("referer");
+      const invokedPath = headersList.get("x-invoke-path");
+      const proto = process.env.NODE_ENV === "production" ? "https" : "http";
+      const currentUrl = referer || (invokedPath ? `${proto}://${host}${invokedPath}` : `${proto}://${host}/`);
+
+      const feedBase = getMonorepoUrl("feed", host);
+      loginUrl = `${feedBase}/login?redirect=${encodeURIComponent(currentUrl)}`;
+    } catch {
+      // Fallback si headers() n'est pas disponible (ex: génération statique)
+      loginUrl = "/login";
+    }
+
+    redirect(loginUrl);
+  }
+
   return user;
 }
 
