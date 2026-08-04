@@ -351,29 +351,77 @@ export function SettingsDashboard({
 
   return (
     <div className="min-h-screen bg-[var(--surface-1)] text-[var(--text-primary)] transition-colors duration-300 font-sans pb-16 selection:bg-[var(--qoe-vermillion-10)] selection:text-[var(--qoe-vermillion)]">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="container mx-auto px-4 py-8 max-w-7xl space-y-6">
+        
+        {/* ========================================================================= */}
+        {/* TOP PAGE HEADER                                                           */}
+        {/* ========================================================================= */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-[var(--border-subtle)]">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+              Réglages du Compte
+            </h1>
+            <p className="text-xs text-[var(--text-tertiary)] mt-1">
+              Gérez votre identité personnelle, votre sécurité et vos préférences globales.
+            </p>
+          </div>
+
+          {/* Quick bridge button to Studio Settings for creators */}
+          {(dbUser.role === "creator" || dbUser.role === "superadmin") && (
+            <a
+              href={`${URLS.DASHBOARD}/settings`}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-[var(--radius-button)] text-xs font-semibold bg-[var(--surface-0)] border border-[var(--border-default)] hover:bg-[var(--surface-2)] text-[var(--text-primary)] transition-all shadow-xs shrink-0 self-start md:self-auto cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-[var(--qoe-vermillion)]" />
+              <span>Studio & Design Média ({dbUser.subdomain || "Studio"})</span>
+              <ArrowRight className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
+            </a>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           {/* ========================================================================= */}
           {/* LEFT COLUMN: Settings Tabs Sidebar                                        */}
           {/* ========================================================================= */}
           <div className="lg:col-span-4 lg:sticky lg:top-24 space-y-4">
-            <div className="bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-plateau)] p-5 space-y-6 shadow-xs">
+            <div className="bg-[var(--surface-0)]/90 backdrop-blur-xl border border-[var(--border-default)] rounded-[var(--radius-card)] p-3 space-y-5 shadow-xs">
+              
+              {/* User Profile Card Badge in Sidebar */}
+              <div className="flex items-center gap-3 p-2.5 rounded-[var(--radius-button)] bg-[var(--surface-1)] border border-[var(--border-subtle)]">
+                <div className="relative w-9 h-9 rounded-full overflow-hidden bg-[var(--surface-2)] border border-[var(--border-default)] shrink-0 flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)]">
+                  {dbUser.logoUrl ? (
+                    <img src={dbUser.logoUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    (dbUser.name || "U").slice(0, 2).toUpperCase()
+                  )}
+                </div>
+                <div className="flex-1 truncate min-w-0">
+                  <span className="text-xs font-bold block truncate leading-tight text-[var(--text-primary)]">
+                    {dbUser.name || "Utilisateur"}
+                  </span>
+                  <span className="text-[11px] text-[var(--text-tertiary)] block truncate">
+                    {dbUser.email}
+                  </span>
+                </div>
+              </div>
+
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block px-3 mb-3">
-                  {t("settings_reader.general_settings_header", "Réglages Généraux")}
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block px-3 mb-2">
+                  {t("settings_reader.general_settings_header", "Menu des Réglages")}
                 </span>
                 <div className="space-y-1 relative">
                   {tabs.map(tab => {
                     const Icon = tab.icon
+                    const isActive = activeTab === tab.id
                     return (
                       <motion.button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         whileTap={{ scale: 0.98 }}
-                        className="relative z-10 w-full text-left px-3.5 py-3 rounded-[var(--radius-button)] text-xs font-semibold transition-colors duration-200 flex items-center gap-2.5 group cursor-pointer"
+                        className="relative z-10 w-full text-left px-3.5 py-2.5 rounded-[var(--radius-button)] text-xs font-semibold transition-colors duration-200 flex items-center gap-2.5 group cursor-pointer"
                       >
-                        {activeTab === tab.id && (
+                        {isActive && (
                           <motion.div
                             layoutId="settingsTabHighlight"
                             transition={springs.indicator}
@@ -381,12 +429,12 @@ export function SettingsDashboard({
                           />
                         )}
                         <Icon className={cn(
-                          "w-4 h-4 transition-colors",
-                          activeTab === tab.id ? "text-[var(--qoe-vermillion)]" : "text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]"
+                          "w-4 h-4 transition-colors shrink-0",
+                          isActive ? "text-[var(--qoe-vermillion)]" : "text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]"
                         )} />
                         <span className={cn(
-                          "transition-colors", 
-                          activeTab === tab.id ? "text-[var(--qoe-vermillion)]" : "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
+                          "transition-colors truncate", 
+                          isActive ? "text-[var(--qoe-vermillion)] font-bold" : "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                         )}>
                           {tab.label}
                         </span>
@@ -396,9 +444,9 @@ export function SettingsDashboard({
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-tertiary)] px-3">
-                <p>qoe.fi v0.2 • {t("hero.plateau_label", "qoe.fi — Plateau")}</p>
-                <p className="mt-1">{t("settings_reader.gdpr_subtitle", "Conformément au RGPD européen, téléchargez une copie complète de vos données au format portable JSON.")}</p>
+              <div className="pt-3 border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-tertiary)] px-3 leading-relaxed">
+                <p>qoe.fi • {t("hero.plateau_label", "Plateau Sécurisé RGPD")}</p>
+                <p className="mt-0.5">{t("settings_reader.gdpr_subtitle", "Souveraineté des données et protection de l'attention.")}</p>
               </div>
             </div>
           </div>
