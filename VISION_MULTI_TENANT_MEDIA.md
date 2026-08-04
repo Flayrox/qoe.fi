@@ -20,11 +20,11 @@
 - Les réglages du Dashboard Studio (`dashboard.qoe.fi/settings`) sont réservés à la gestion d'un média spécifique.
 - Un créateur a des rôles distincts selon le média (*Writer*, *Creator*, *Advanced*).
 
-### 🎛️ Sélecteur de Contexte de Travail
-Dans la barre supérieure et la sidebar, le commutateur **[Writer | Creator | Advanced]** permet de basculer instantanément de vue :
-- **Writer** : Espace d'écriture et de rédaction d'articles/brouillons pour les médias auxquels le créateur contribue.
-- **Creator** : Espace de gestion éditoriale, programmation, newsletters et analytics du média sélectionné.
-- **Advanced** : Réglages avancés de la publication (domaines, clés API, membres de l'équipe, monétisation Stripe).
+### 🎛️ Sélecteur de Contexte de Travail (Empilement Progressif des Modes)
+Dans la barre supérieure et la sidebar, le commutateur **[Writer | Creator | Advanced]** permet d'activer un niveau d'interface cumulatif :
+- **Writer (Niveau 1 — Blog Personnel)** : Le socle minimal et universel de rédaction, de prise de notes et de publication sur son propre blog personnel.
+- **Creator (Niveau 2 — Déclinaisons Réseaux & Médias)** : Inclus `Writer` + Outils de transformation automatique d'articles longs en **carrousels Instagram, micro-posts/tweets et visuels sociaux** + Analytics & Newsletters.
+- **Advanced (Niveau 3 — Multi-Publications & Gestion d'Équipes)** : Inclus `Writer` + `Creator` + Gestion de **plusieurs médias simultanés**, invitation de rédacteurs, sous-domaines complexes, monétisation Stripe & accès API.
 
 ---
 

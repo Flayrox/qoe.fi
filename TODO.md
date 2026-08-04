@@ -33,10 +33,10 @@
 - [ ] **Gestion des Réglages Médias Dédiés** : Réserver les réglages du Dashboard Studio (`dashboard.qoe.fi/settings`) à la configuration fine de chaque média (subdomaine `.qoe.fi`, domaine personnalisé, logo, palette, SEO, rôles d'équipe).
 - [ ] **Cas d'Usage Multi-Médias** : Gérer un créateur qui possède son média propre **ET** qui travaille simultanément en tant que rédacteur/contributeur pour 3 autres médias.
 - [ ] **Context Switcher Média (En-tête Studio)** : Composant de basculement rapide de contexte de publication dans la topbar ou la sidebar.
-- [ ] **Modes d'Interface Studio (Sélecteur de rôle)** :
-  - `Writer` : Mode épuré axé uniquement sur la rédaction et le brouillon pour les auteurs contributeurs.
-  - `Creator` : Mode gestion complète d'une publication (stats, abonnés, thèmes, revenus).
-  - `Advanced` : Mode multi-publications, invitations d'équipe, droits d'édition avancés & API.
+- [ ] **Empilement Progressif des Niveaux d'Interface (Studio Levels)** :
+  - **`Writer` (Niveau 1 — Socle & Blog Personnel)** : Interface minimale et épurée axée sur la rédaction d'articles, la gestion de brouillons et la publication sur son blog personnel.
+  - **`Creator` (Niveau 2 — Déclinaison Multi-Format & Réseaux)** : Inclus `Writer` + Outils de conversion automatique d'un article en **carrousels Instagram, micro-posts/tweets et visuels sociaux** + Analytics d'engagement & Newsletters.
+  - **`Advanced` (Niveau 3 — Multi-Médias & Gestion d'Équipes)** : Inclus `Writer` + `Creator` + Gestion de **plusieurs médias/publications simultanés**, invitation de rédacteurs, sous-domaines/domaines personnalisés complexes, monétisation Stripe & API.
 
 ---
 
