@@ -2,14 +2,19 @@
 
 import React from "react"
 import { usePathname } from "next/navigation"
-import { Home, Settings, FileText, Users, Mail, PieChart, Code } from "lucide-react"
-import { cn } from "@qoe/utils"
 import {
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-} from "@/components/ui/sidebar"
-
+  Home,
+  FileText,
+  Mail,
+  Users,
+  PieChart,
+  Code,
+  Settings,
+  HelpCircle,
+  LogOut,
+  Plus
+} from "lucide-react"
+import { cn } from "@qoe/utils"
 import Link from "next/link"
 
 const iconMap = {
@@ -20,6 +25,9 @@ const iconMap = {
   PieChart,
   Code,
   Settings,
+  HelpCircle,
+  LogOut,
+  Plus
 }
 
 export type IconName = keyof typeof iconMap
@@ -32,9 +40,10 @@ interface MenuItem {
 
 interface SidebarMenuClientProps {
   items: MenuItem[]
+  isCollapsed?: boolean
 }
 
-export function SidebarMenuClient({ items }: SidebarMenuClientProps) {
+export function SidebarMenuClient({ items, isCollapsed = false }: SidebarMenuClientProps) {
   const pathname = usePathname()
 
   const isLinkActive = (url: string) => {
@@ -45,31 +54,29 @@ export function SidebarMenuClient({ items }: SidebarMenuClientProps) {
   }
 
   return (
-    <SidebarMenu>
+    <nav className={cn("flex flex-col gap-1 w-full", isCollapsed && "items-center")}>
       {items.map((item) => {
         const Icon = iconMap[item.iconName]
         const active = isLinkActive(item.url)
 
         return (
-          <SidebarMenuItem key={item.title}>
-            <SidebarMenuButton
-              size="sm"
-              isActive={active}
-              tooltip={item.title}
-              render={<Link href={item.url} />}
-              className={cn(
-                "transition-colors duration-200 select-none text-xs rounded-md font-sans py-1.5 px-3 h-8 flex items-center gap-2.5",
-                active
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                  : "text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-              )}
-            >
-              {Icon && <Icon strokeWidth={1.5} className="w-4 h-4 shrink-0" />}
-              <span className="truncate">{item.title}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          <Link
+            key={item.title}
+            href={item.url}
+            title={isCollapsed ? item.title : undefined}
+            className={cn(
+              "flex items-center gap-3 rounded-xl text-xs transition-all duration-200 select-none font-sans",
+              isCollapsed ? "w-10 h-10 justify-center p-0" : "px-3 py-2 w-full",
+              active
+                ? "bg-primary/10 text-primary font-semibold shadow-2xs"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+          >
+            {Icon && <Icon className="w-4 h-4 shrink-0 stroke-[1.75]" />}
+            {!isCollapsed && <span className="truncate">{item.title}</span>}
+          </Link>
         )
       })}
-    </SidebarMenu>
+    </nav>
   )
 }

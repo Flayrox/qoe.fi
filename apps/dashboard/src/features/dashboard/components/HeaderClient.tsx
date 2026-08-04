@@ -117,50 +117,43 @@ export function HeaderClient() {
 
   return (
     <>
-      <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between border-b border-border/50 bg-background/80 px-4 backdrop-blur-md select-none">
-        <div className="flex items-center gap-2">
-          <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
-          
-          <span className="text-border mx-1">|</span>
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center bg-background/80 px-6 backdrop-blur-md select-none font-sans">
+        <div className="w-full max-w-7xl flex items-center justify-between">
+          {/* Left: Search Bar (w-96, élargie, alignée) */}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsOpen(true)}
+              className="w-80 md:w-96 flex items-center justify-between font-sans text-xs text-muted-foreground/80 bg-muted/50 border border-transparent rounded-lg py-1.5 px-3.5 hover:bg-muted hover:text-foreground transition-all duration-200 cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <Search className="w-3.5 h-3.5 shrink-0 text-muted-foreground/70" strokeWidth={1.5} />
+                <span className="text-[13px] font-normal">Rechercher...</span>
+              </div>
+              <div className="flex items-center gap-0.5 border border-border/30 bg-background/60 text-[10px] px-1.5 py-0.5 rounded font-medium text-muted-foreground select-none">
+                <Command className="w-2.5 h-2.5 shrink-0" strokeWidth={1.5} />
+                <span>K</span>
+              </div>
+            </button>
+          </div>
 
-          {/* Breadcrumbs */}
-          <nav className="flex items-center gap-1.5 font-sans text-xs" aria-label="Fil d'Ariane">
-            {breadcrumbs.map((crumb, idx) => {
-              const isLast = idx === breadcrumbs.length - 1
-              return (
-                <React.Fragment key={crumb.href + idx}>
-                  {idx > 0 && <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" strokeWidth={1.5} />}
-                  <span
-                    onClick={() => !isLast && handleAction(crumb.href)}
-                    className={cn(
-                      "transition-colors duration-200",
-                      isLast
-                        ? "text-foreground font-semibold cursor-default"
-                        : "text-muted-foreground hover:text-foreground cursor-pointer"
-                    )}
-                  >
-                    {crumb.label}
-                  </span>
-                </React.Fragment>
-              )
-            })}
-          </nav>
+          {/* Right: Writer, Creator, Advanced Navigation Links (Alignés sur le bord max-w-7xl) */}
+          <div className="flex items-center gap-6 font-sans text-xs font-semibold">
+            <nav className="hidden lg:flex items-center gap-6">
+              <button
+                onClick={() => handleAction("/")}
+                className="text-primary border-b-2 border-primary py-1.5 transition-colors cursor-pointer"
+              >
+                Writer
+              </button>
+              <span className="text-muted-foreground/50 py-1.5 cursor-not-allowed opacity-60" title="Prochainement">
+                Creator
+              </span>
+              <span className="text-muted-foreground/50 py-1.5 cursor-not-allowed opacity-60" title="Prochainement">
+                Advanced
+              </span>
+            </nav>
+          </div>
         </div>
-
-        {/* Global Search Button Trigger */}
-        <button
-          onClick={() => setIsOpen(true)}
-          className="flex items-center gap-3 font-sans text-xs text-muted-foreground bg-muted/50 border border-border rounded-lg py-1.5 px-3 hover:bg-muted hover:text-foreground hover:border-border transition-all duration-200 cursor-pointer"
-        >
-          <div className="flex items-center gap-1.5">
-            <Search className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-            <span>Rechercher...</span>
-          </div>
-          <div className="flex items-center gap-0.5 border border-border bg-card shadow-[0_1px_1px_rgba(0,0,0,0.02)] text-[10px] px-1 rounded font-semibold text-muted-foreground select-none">
-            <Command className="w-2.5 h-2.5 shrink-0" strokeWidth={1.5} />
-            <span>K</span>
-          </div>
-        </button>
       </header>
 
       {/* Cmd+K Search Dialog overlay */}
