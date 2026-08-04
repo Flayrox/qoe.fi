@@ -33,6 +33,16 @@ interface SettingsDashboardProps {
     subdomain: string | null
   }
   hasPassword: boolean
+  currentSessionInfo?: {
+    browserOs: string
+    ipAddress: string
+    lastSignInAt: string
+  }
+  connectedIdentities?: Array<{
+    provider: string
+    createdAt: string
+    lastSignInAt?: string
+  }>
   subscriptions: Array<{
     creator: {
       id: string
@@ -75,6 +85,8 @@ const springs = {
 export function SettingsDashboard({
   dbUser,
   hasPassword: initialHasPassword,
+  currentSessionInfo,
+  connectedIdentities = [],
   subscriptions: initialSubscriptions,
   walletTransactions,
   mutedWords: initialMutedWords,
@@ -818,15 +830,23 @@ export function SettingsDashboard({
                             </div>
                             <div>
                               <span className="text-xs font-bold text-[var(--text-primary)] block">Google Account</span>
-                              <span className="text-[10px] text-[var(--text-tertiary)] block">Connexion via OAuth Google</span>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block">
+                                {connectedIdentities.some(i => i.provider === "google") ? "Compte associé" : "Connexion via OAuth Google"}
+                              </span>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
-                          >
-                            Lier mon compte Google
-                          </button>
+                          {connectedIdentities.some(i => i.provider === "google") ? (
+                            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-[var(--radius-button)]">
+                              Connecté
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
+                            >
+                              Lier mon compte Google
+                            </button>
+                          )}
                         </div>
 
                         {/* Apple */}
@@ -837,15 +857,23 @@ export function SettingsDashboard({
                             </div>
                             <div>
                               <span className="text-xs font-bold text-[var(--text-primary)] block">Apple ID</span>
-                              <span className="text-[10px] text-[var(--text-tertiary)] block">Connexion via Sign in with Apple</span>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block">
+                                {connectedIdentities.some(i => i.provider === "apple") ? "Compte associé" : "Connexion via Sign in with Apple"}
+                              </span>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
-                          >
-                            Lier mon Apple ID
-                          </button>
+                          {connectedIdentities.some(i => i.provider === "apple") ? (
+                            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-[var(--radius-button)]">
+                              Connecté
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
+                            >
+                              Lier mon Apple ID
+                            </button>
+                          )}
                         </div>
 
                         {/* GitHub */}
@@ -856,15 +884,23 @@ export function SettingsDashboard({
                             </div>
                             <div>
                               <span className="text-xs font-bold text-[var(--text-primary)] block">GitHub Account</span>
-                              <span className="text-[10px] text-[var(--text-tertiary)] block">Connexion via GitHub OAuth</span>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block">
+                                {connectedIdentities.some(i => i.provider === "github") ? "Compte associé" : "Connexion via GitHub OAuth"}
+                              </span>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
-                          >
-                            Lier mon compte GitHub
-                          </button>
+                          {connectedIdentities.some(i => i.provider === "github") ? (
+                            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-[var(--radius-button)]">
+                              Connecté
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
+                            >
+                              Lier mon compte GitHub
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -903,21 +939,23 @@ export function SettingsDashboard({
                       )}
 
                       <div className="space-y-3">
-                        {/* Current Session */}
-                        <div className="p-4 border border-emerald-500/30 rounded-[var(--radius-card)] bg-emerald-500/5 flex items-center justify-between">
+                        {/* Dynamic Current Session */}
+                        <div className="p-4 border border-[var(--border-default)] rounded-[var(--radius-card)] bg-[var(--surface-1)]/50 flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                            <div className="w-9 h-9 rounded-full bg-[var(--surface-2)] text-[var(--text-primary)] flex items-center justify-center shrink-0">
                               <Monitor className="w-4 h-4" />
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-[var(--text-primary)]">Navigateur Actuel</span>
+                                <span className="text-xs font-bold text-[var(--text-primary)]">
+                                  {currentSessionInfo?.browserOs || "Navigateur Web"}
+                                </span>
                                 <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
                                   — Session active
                                 </span>
                               </div>
                               <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
-                                Chrome / Windows • IP: 127.0.0.1
+                                IP: {currentSessionInfo?.ipAddress || "127.0.0.1"} • Connexion : {currentSessionInfo?.lastSignInAt ? new Date(currentSessionInfo.lastSignInAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "À l'instant"}
                               </span>
                             </div>
                           </div>
