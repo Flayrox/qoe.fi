@@ -12,28 +12,28 @@
 #    Caddy utilise HTTP par défaut ici. Si tu veux du HTTPS local avec 
 #    des certificats auto-signés de confiance automatique, remplace 
 #    simplement "http://" par "https://" (Caddy te demandera ton mot de 
-# 🍏 Feed (App principale) : localhost & qoe.test
-http://localhost, http://qoe.test {
+# 🍏 Feed (App principale) : localhost, qoe.test & lvh.me
+http://localhost, http://qoe.test, http://lvh.me {
     reverse_proxy localhost:3010
 }
 
-# 📣 Landing (Marketing) : start.localhost & start.qoe.test
-http://start.localhost, http://start.qoe.test {
+# 📣 Landing (Marketing) : start.localhost, start.qoe.test & start.lvh.me
+http://start.localhost, http://start.qoe.test, http://start.lvh.me {
     reverse_proxy localhost:3040
 }
 
-# 🟠 Dashboard Créateur : dashboard.localhost & dashboard.qoe.test
-http://dashboard.localhost, http://dashboard.qoe.test {
+# 🟠 Dashboard Créateur : dashboard.localhost, dashboard.qoe.test & dashboard.lvh.me
+http://dashboard.localhost, http://dashboard.qoe.test, http://dashboard.lvh.me {
     reverse_proxy localhost:3020
 }
 
-# 🔴 Admin Plateforme : admin.localhost & admin.qoe.test
-http://admin.localhost, http://admin.qoe.test {
+# 🔴 Admin Plateforme : admin.localhost, admin.qoe.test & admin.lvh.me
+http://admin.localhost, http://admin.qoe.test, http://admin.lvh.me {
     reverse_proxy localhost:3030
 }
 
-# 🔌 API (Hono Backend) : api.localhost & api.qoe.test
-http://api.localhost, http://api.qoe.test {
+# 🔌 API (Hono Backend) : api.localhost, api.qoe.test & api.lvh.me
+http://api.localhost, http://api.qoe.test, http://api.lvh.me {
     reverse_proxy localhost:3002
 }
 

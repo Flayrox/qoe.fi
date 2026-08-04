@@ -32,6 +32,7 @@ import {
   CornerDownRight
 } from "lucide-react"
 import { cn } from "@qoe/utils"
+import { compressImage } from "@/lib/image-compressor"
 
 export interface EditorProps {
   initialTitle?: string
@@ -152,8 +153,11 @@ export function Editor({
       setIsUploading(true);
       setError(null);
 
+      // Compresse l'image côté client
+      const compressedFile = await compressImage(file);
+
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", compressedFile);
 
       const response = await fetch("/api/articles/upload", {
         method: "POST",
