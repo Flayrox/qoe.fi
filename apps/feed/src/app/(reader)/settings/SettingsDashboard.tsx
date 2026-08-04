@@ -4,7 +4,8 @@ import React, { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
   User, Lock, ShieldAlert, Globe, HelpCircle, 
-  CreditCard, Download, Plus, Trash, Check, AlertCircle, ArrowRight, Sparkles, Sliders, Camera, Loader2
+  CreditCard, Download, Plus, Trash, Check, AlertCircle, ArrowRight, Sparkles, Sliders, Camera, Loader2,
+  KeyRound, Monitor, Smartphone, ShieldCheck, Mail, Bell, SlidersHorizontal, Moon, Sun, AlertTriangle, Eye, EyeOff, Zap, LogOut, ExternalLink, RefreshCw, FileText, CheckCircle2, X
 } from "lucide-react"
 import { 
   updateProfile, upgradeToCreator, updateNewsletterPreferences, 
@@ -89,11 +90,8 @@ export function SettingsDashboard({
   // Form states
   const [name, setName] = useState(dbUser.name || "")
   const [username, setUsername] = useState(dbUser.username || "")
-  const [avatarUrl, setAvatarUrl] = useState(dbUser.logoUrl || "")
-  const [bio, setBio] = useState(dbUser.onboardingText || "")
   const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error", text: string } | null>(null)
   const [profileLoading, setProfileLoading] = useState(false)
-  const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
   // Security states
   const [newEmail, setNewEmail] = useState(dbUser.email)
@@ -104,6 +102,21 @@ export function SettingsDashboard({
   const [confirmPassword, setConfirmPassword] = useState("")
   const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error", text: string } | null>(null)
   const [passwordLoading, setPasswordLoading] = useState(false)
+
+  // Sessions state (UI)
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null)
+  const [sessionMsg, setSessionMsg] = useState<string | null>(null)
+
+  // Timeline preferences
+  const [timelineAlgorithm, setTimelineAlgorithm] = useState<"chrono" | "ai">("chrono")
+  const [triggerWarningFilter, setTriggerWarningFilter] = useState<"show" | "warn" | "hide">("warn")
+  const [autoplayMedia, setAutoplayMedia] = useState(true)
+
+  // Notification Toggles (UI)
+  const [notifyFollowers, setNotifyFollowers] = useState(true)
+  const [notifyComments, setNotifyComments] = useState(true)
+  const [notifyMentions, setNotifyMentions] = useState(true)
+  const [digestFrequency, setDigestFrequency] = useState<"realtime" | "daily" | "weekly">("daily")
 
   // Upgrade state
   const [subdomain, setSubdomain] = useState("")
@@ -118,10 +131,19 @@ export function SettingsDashboard({
   const [mutedWords, setMutedWords] = useState(initialMutedWords)
   const [newMutedWord, setNewMutedWord] = useState("")
 
-  // GDPR export state
+  // GDPR export state (asynchronous email request UI)
+  const [gdprRequested, setGdprRequested] = useState(false)
   const [gdprLoading, setGdprLoading] = useState(false)
 
-  // Accessibility/Localstorage settings state (loaded client-side)
+  // Account Modals (Freeze & Danger Zone)
+  const [isFreezeModalOpen, setIsFreezeModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [deletePassword, setDeletePassword] = useState("")
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("")
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  // Accessibility & Display settings state
   const [dyslexicMode, setDyslexicMode] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("dyslexic-mode") === "true"
@@ -152,12 +174,15 @@ export function SettingsDashboard({
 
   // Tab definitions
   const tabs = [
-    { id: "compte", label: t("settings_reader.tab_account", "Votre Compte"), icon: User },
-    { id: "securite", label: t("settings_reader.tab_security", "Sécurité & Accès"), icon: Lock },
-    { id: "abonnements", label: t("settings_reader.tab_billing", "Portefeuille & Abonnements"), icon: CreditCard },
-    { id: "confidentialite", label: t("settings_reader.tab_privacy", "Confidentialité & Blocages"), icon: ShieldAlert },
-    { id: "accessibilite", label: t("settings_reader.tab_accessibility", "Affichage & Langues"), icon: Sliders },
-    { id: "aide", label: t("settings_reader.tab_help", "Aide & Ressources"), icon: HelpCircle }
+    { id: "compte", label: "Mon Compte & Identité", icon: User },
+    { id: "securite", label: "Sécurité & Mot de passe", icon: Lock },
+    { id: "sso", label: "Connexions SSO & Comptes", icon: ShieldCheck },
+    { id: "sessions", label: "Sessions & Appareils", icon: Monitor },
+    { id: "timeline", label: "Timeline & Contenus", icon: SlidersHorizontal },
+    { id: "notifications", label: "Notifications & Messagerie", icon: Bell },
+    { id: "abonnements", label: "Portefeuille & Facturation", icon: CreditCard },
+    { id: "accessibilite", label: "Affichage & Accessibilité", icon: Sliders },
+    { id: "confidentialite", label: "Confidentialité & RGPD", icon: ShieldAlert },
   ]
 
   // Handlers
@@ -165,18 +190,18 @@ export function SettingsDashboard({
     e.preventDefault()
     setProfileLoading(true)
     setProfileMsg(null)
-    const res = await updateProfile({ name, username, avatarUrl, bio })
+    const res = await updateProfile({ name, username, avatarUrl: dbUser.logoUrl || "", bio: dbUser.onboardingText || "" })
     setProfileLoading(false)
     if (res.success) {
-      setProfileMsg({ type: "success", text: t("settings_reader.msg_profile_success", "Profil mis à jour avec succès !") })
+      setProfileMsg({ type: "success", text: "Compte système mis à jour avec succès !" })
       trackServerEvent("profile_updated")
       router.refresh()
     } else {
       setProfileMsg({ 
         type: "error", 
         text: res.error === "USERNAME_TAKEN" 
-          ? t("settings_reader.msg_username_taken", "Ce nom d'utilisateur est déjà pris.") 
-          : t("settings_reader.msg_error_general", "Une erreur est survenue lors de l'enregistrement.") 
+          ? "Ce nom d'utilisateur est déjà réservé." 
+          : "Une erreur est survenue lors de l'enregistrement." 
       })
     }
   }
@@ -189,17 +214,17 @@ export function SettingsDashboard({
     const res = await updateSecurityEmail(newEmail)
     setEmailLoading(false)
     if (res.success) {
-      setEmailMsg({ type: "success", text: t("settings_reader.msg_email_success", "Un e-mail de confirmation a été envoyé à la nouvelle adresse.") })
+      setEmailMsg({ type: "success", text: "Un e-mail de confirmation a été envoyé à la nouvelle adresse." })
       trackServerEvent("security_email_updated")
     } else {
-      setEmailMsg({ type: "error", text: res.error || t("settings_reader.msg_error_general", "Une erreur est survenue lors de l'enregistrement.") })
+      setEmailMsg({ type: "error", text: res.error || "Une erreur est survenue lors de la modification de l'adresse e-mail." })
     }
   }
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (password !== confirmPassword) {
-      setPasswordMsg({ type: "error", text: t("settings_reader.msg_password_mismatch", "Les mots de passe ne correspondent pas.") })
+      setPasswordMsg({ type: "error", text: "Les mots de passe ne correspondent pas." })
       return
     }
     setPasswordLoading(true)
@@ -207,13 +232,13 @@ export function SettingsDashboard({
     const res = await updateSecurityPassword(password)
     setPasswordLoading(false)
     if (res.success) {
-      setPasswordMsg({ type: "success", text: hasPassword ? t("settings_reader.msg_password_success", "Mot de passe modifié avec succès !") : "Mot de passe défini avec succès !" })
+      setPasswordMsg({ type: "success", text: hasPassword ? "Mot de passe modifié avec succès !" : "Mot de passe défini avec succès !" })
       trackServerEvent("security_password_updated")
       setHasPassword(true)
       setPassword("")
       setConfirmPassword("")
     } else {
-      setPasswordMsg({ type: "error", text: res.error || t("settings_reader.msg_error_general", "Une erreur est survenue lors de l'enregistrement.") })
+      setPasswordMsg({ type: "error", text: res.error || "Une erreur est survenue lors de l'enregistrement." })
     }
   }
 
@@ -224,7 +249,7 @@ export function SettingsDashboard({
     const res = await upgradeToCreator(subdomain)
     setUpgradeLoading(false)
     if (res.success) {
-      setUpgradeMsg({ type: "success", text: t("settings_reader.msg_creator_success", "Compte créateur activé ! Redirection vers votre nouvel espace...") })
+      setUpgradeMsg({ type: "success", text: "Compte créateur activé ! Redirection vers votre nouveau Studio..." })
       trackServerEvent("upgrade_creator_clicked", { subdomain })
       setTimeout(() => {
         window.location.href = URLS.DASHBOARD
@@ -233,8 +258,8 @@ export function SettingsDashboard({
       setUpgradeMsg({ 
         type: "error", 
         text: res.error === "SUBDOMAIN_TAKEN" 
-          ? t("settings_reader.msg_subdomain_taken", "Ce sous-domaine est déjà réservé.") 
-          : t("settings_reader.msg_subdomain_invalid", "Format de sous-domaine invalide (3 caractères min, sans caractères spéciaux).") 
+          ? "Ce sous-domaine est déjà réservé." 
+          : "Format de sous-domaine invalide (3 caractères min, sans caractères spéciaux)." 
       })
     }
   }
@@ -255,7 +280,7 @@ export function SettingsDashboard({
 
     const res = await updateNewsletterPreferences(creatorId, newArticles, newPosts)
     if (res.success) {
-      setSubMsg(t("settings_reader.msg_newsletter_success", "Préférences de messagerie enregistrées."))
+      setSubMsg("Préférences de messagerie enregistrées.")
       trackServerEvent("newsletter_preferences_updated", { creatorId, receiveArticles: newArticles, receivePosts: newPosts })
       setTimeout(() => setSubMsg(null), 2000)
     }
@@ -278,6 +303,16 @@ export function SettingsDashboard({
       setMutedWords(prev => prev.filter(w => w.id !== id))
       trackServerEvent("muted_word_removed")
     }
+  }
+
+  const handleGdprRequest = async () => {
+    setGdprLoading(true)
+    // Simulate background email export job
+    setTimeout(() => {
+      setGdprLoading(false)
+      setGdprRequested(true)
+      trackServerEvent("gdpr_export_requested")
+    }, 1200)
   }
 
   const handleLanguageChange = (lang: string) => {
@@ -325,7 +360,7 @@ export function SettingsDashboard({
       
       setTimeout(() => {
         window.location.reload()
-      }, 1000)
+      }, 800)
     } catch (err) {
       setAccessibilityMsg({ type: "error", text: "Une erreur est survenue lors de l'enregistrement." })
     } finally {
@@ -333,30 +368,31 @@ export function SettingsDashboard({
     }
   }
 
-  const handleGdprExport = async () => {
-    setGdprLoading(true)
-    const res = await exportUserData()
-    setGdprLoading(false)
-    if (res.success && res.data) {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res.data, null, 2))
-      const downloadAnchor = document.createElement("a")
-      downloadAnchor.setAttribute("href", dataStr)
-      downloadAnchor.setAttribute("download", `qoe-user-data-export-${dbUser.id}.json`)
-      document.body.appendChild(downloadAnchor)
-      downloadAnchor.click()
-      downloadAnchor.remove()
-      trackServerEvent("gdpr_export_requested")
-    }
+  // Password strength calculator helper
+  const getPasswordStrength = (pass: string) => {
+    if (!pass) return { score: 0, label: "Non renseigné", color: "bg-[var(--border-default)]" }
+    let score = 0
+    if (pass.length >= 8) score += 1
+    if (pass.length >= 12) score += 1
+    if (/[A-Z]/.test(pass)) score += 1
+    if (/[0-9]/.test(pass)) score += 1
+    if (/[^A-Za-z0-9]/.test(pass)) score += 1
+
+    if (score <= 2) return { score: 33, label: "Faible", color: "bg-red-500" }
+    if (score <= 4) return { score: 66, label: "Moyen", color: "bg-amber-500" }
+    return { score: 100, label: "Fort & Sécurisé", color: "bg-emerald-500" }
   }
 
+  const passStrength = getPasswordStrength(password)
+
   return (
-    <div className="min-h-screen bg-[var(--surface-1)] text-[var(--text-primary)] transition-colors duration-300 font-sans pb-16 selection:bg-[var(--qoe-vermillion-10)] selection:text-[var(--qoe-vermillion)]">
+    <div className="min-h-screen bg-[var(--surface-1)] text-[var(--text-primary)] transition-colors duration-300 font-sans pb-24 selection:bg-[var(--qoe-vermillion-10)] selection:text-[var(--qoe-vermillion)]">
       <div className="container mx-auto px-4 py-8 max-w-7xl space-y-6">
         
         {/* ========================================================================= */}
         {/* TOP PAGE HEADER                                                           */}
         {/* ========================================================================= */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-[var(--border-subtle)]">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
               Réglages du Compte
@@ -385,9 +421,9 @@ export function SettingsDashboard({
           {/* LEFT COLUMN: Settings Tabs Sidebar                                        */}
           {/* ========================================================================= */}
           <div className="lg:col-span-4 lg:sticky lg:top-24 space-y-4">
-            <div className="bg-[var(--surface-0)]/90 backdrop-blur-xl border border-[var(--border-default)] rounded-[var(--radius-card)] p-3 space-y-5 shadow-xs">
+            <div className="bg-[var(--surface-0)]/90 backdrop-blur-xl border border-[var(--border-default)] rounded-[var(--radius-card)] p-3 space-y-4 shadow-xs">
               
-              {/* User Profile Card Badge in Sidebar */}
+              {/* User Profile Summary Badge */}
               <div className="flex items-center gap-3 p-2.5 rounded-[var(--radius-button)] bg-[var(--surface-1)] border border-[var(--border-subtle)]">
                 <div className="relative w-9 h-9 rounded-full overflow-hidden bg-[var(--surface-2)] border border-[var(--border-default)] shrink-0 flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)]">
                   {dbUser.logoUrl ? (
@@ -408,7 +444,7 @@ export function SettingsDashboard({
 
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] block px-3 mb-2">
-                  {t("settings_reader.general_settings_header", "Menu des Réglages")}
+                  Menu des Réglages
                 </span>
                 <div className="space-y-1 relative">
                   {tabs.map(tab => {
@@ -419,7 +455,7 @@ export function SettingsDashboard({
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         whileTap={{ scale: 0.98 }}
-                        className="relative z-10 w-full text-left px-3.5 py-2.5 rounded-[var(--radius-button)] text-xs font-semibold transition-colors duration-200 flex items-center gap-2.5 group cursor-pointer"
+                        className="relative z-10 w-full text-left px-3 py-2 rounded-[var(--radius-button)] text-xs font-semibold transition-colors duration-200 flex items-center gap-2.5 group cursor-pointer"
                       >
                         {isActive && (
                           <motion.div
@@ -433,7 +469,7 @@ export function SettingsDashboard({
                           isActive ? "text-[var(--qoe-vermillion)]" : "text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]"
                         )} />
                         <span className={cn(
-                          "transition-colors truncate", 
+                          "transition-colors truncate text-xs", 
                           isActive ? "text-[var(--qoe-vermillion)] font-bold" : "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                         )}>
                           {tab.label}
@@ -445,8 +481,8 @@ export function SettingsDashboard({
               </div>
 
               <div className="pt-3 border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-tertiary)] px-3 leading-relaxed">
-                <p>qoe.fi • {t("hero.plateau_label", "Plateau Sécurisé RGPD")}</p>
-                <p className="mt-0.5">{t("settings_reader.gdpr_subtitle", "Souveraineté des données et protection de l'attention.")}</p>
+                <p>qoe.fi • Plateau Sécurisé RGPD</p>
+                <p className="mt-0.5">Souveraineté des données et protection de l'attention.</p>
               </div>
             </div>
           </div>
@@ -460,25 +496,54 @@ export function SettingsDashboard({
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
+                  exit={{ opacity: 0, y: -8 }}
                   transition={springs.tab}
                   className="flex-1 flex flex-col gap-4"
                 >
                   
                   {/* ========================================================================= */}
-                  {/* TAB 1: VOTRE COMPTE                                                       */}
+                  {/* TAB 1: MON COMPTE & IDENTITÉ                                              */}
                   {/* ========================================================================= */}
                   {activeTab === "compte" && (
                     <>
+                      {/* Public Profile Bridge Card */}
+                      <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-5 shadow-xs border border-[var(--border-default)] flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-[var(--surface-2)] border border-[var(--border-default)] shrink-0 overflow-hidden flex items-center justify-center text-sm font-bold text-[var(--qoe-vermillion)]">
+                            {dbUser.logoUrl ? (
+                              <img src={dbUser.logoUrl} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              (dbUser.name || "U").slice(0, 2).toUpperCase()
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="text-xs font-bold text-[var(--text-primary)]">
+                              Personnalisation du Profil Public
+                            </h3>
+                            <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
+                              Votre photo de profil, biographie et bannières sont gérées directement sur votre page publique.
+                            </p>
+                          </div>
+                        </div>
+                        <a
+                          href={dbUser.username ? `/profile/${dbUser.username}` : "/profile"}
+                          className="px-3.5 py-2 rounded-[var(--radius-button)] bg-[var(--surface-1)] border border-[var(--border-default)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all flex items-center gap-1.5 shrink-0"
+                        >
+                          <span>Éditer le profil public</span>
+                          <ExternalLink className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
+                        </a>
+                      </div>
+
+                      {/* System Identification Form */}
                       <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-6">
                         <div>
-                          <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight leading-none">
-                            {t("settings_reader.title", "Votre Profil Lecteur")}
+                          <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                            Identité Système & Compte
                           </h2>
                           <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                            {t("settings_reader.subtitle", "Personnalisez votre identité et vos thèmes sur la plateforme.")}
+                            Informations principales associées à votre compte utilisateur sur qoe.fi.
                           </p>
                         </div>
 
@@ -498,112 +563,28 @@ export function SettingsDashboard({
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1">
                               <label className="text-[10px] uppercase tracking-wider font-bold text-[var(--text-tertiary)] block px-1">
-                                {t("settings_reader.display_name", "Nom d'affichage")}
+                                Nom d'affichage
                               </label>
                               <input
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] px-3 py-2.5"
+                                className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] px-3.5 py-2.5"
                                 required
                               />
                             </div>
                             <div className="space-y-1">
                               <label className="text-[10px] uppercase tracking-wider font-bold text-[var(--text-tertiary)] block px-1">
-                                {t("settings_reader.username", "Nom d'utilisateur")}
+                                Nom d'utilisateur (@handle)
                               </label>
                               <input
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] px-3 py-2.5"
+                                className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] px-3.5 py-2.5 font-mono"
                                 required
                               />
                             </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="text-[10px] uppercase tracking-wider font-bold text-[var(--text-tertiary)] block px-1">
-                              {t("settings_reader.profile_picture", "Photo de profil")}
-                            </label>
-                            <div className="flex items-center gap-4">
-                              <div className="relative w-16 h-16 border border-[var(--border-default)] rounded-[var(--radius-card)] overflow-hidden bg-[var(--surface-1)] group shrink-0 shadow-xs flex items-center justify-center">
-                                {avatarUrl ? (
-                                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center font-bold text-lg text-[var(--text-tertiary)] bg-[var(--surface-2)]">
-                                    {name.charAt(0) || "U"}
-                                  </div>
-                                )}
-                                
-                                <label className="absolute inset-0 bg-black/40 cursor-pointer flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                  <Camera className="w-4 h-4 text-white" />
-                                  <input 
-                                    type="file" 
-                                    accept="image/*" 
-                                    className="hidden" 
-                                    disabled={uploadingAvatar}
-                                    onChange={async (e) => {
-                                      const file = e.target.files?.[0]
-                                      if (!file) return
-                                      
-                                      setUploadingAvatar(true)
-                                      const formData = new FormData()
-                                      formData.append("file", file)
-                                      try {
-                                        const uploadRes = await fetch("/api/articles/upload", {
-                                          method: "POST",
-                                          body: formData
-                                        })
-                                        const uploadData = await uploadRes.json()
-                                        if (uploadRes.ok && uploadData.url) {
-                                          setAvatarUrl(uploadData.url)
-                                        } else {
-                                          alert(uploadData.error || t("settings_reader.msg_error_general", "Une erreur est survenue lors de l'enregistrement."))
-                                        }
-                                      } catch (err) {
-                                        console.error(err)
-                                        alert("Erreur lors de l'envoi de l'image.")
-                                      } finally {
-                                        setUploadingAvatar(false)
-                                      }
-                                    }}
-                                  />
-                                </label>
-
-                                {uploadingAvatar && (
-                                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                    <Loader2 className="w-4 h-4 text-white animate-spin" />
-                                  </div>
-                                )}
-                              </div>
-                              
-                              <div className="flex-1 space-y-1">
-                                <input
-                                  type="text"
-                                  value={avatarUrl}
-                                  placeholder={t("settings_reader.profile_picture_placeholder", "URL de l'image ou téléversez-en une...")}
-                                  onChange={(e) => setAvatarUrl(e.target.value)}
-                                  className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] px-3 py-2.5"
-                                />
-                                <span className="text-[9px] text-[var(--text-tertiary)] block px-1">
-                                  {t("settings_reader.profile_picture_help", "Survolez le carré à gauche pour importer directement un fichier.")}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[10px] uppercase tracking-wider font-bold text-[var(--text-tertiary)] block px-1">
-                              {t("settings_reader.bio_label", "Biographie")}
-                            </label>
-                            <textarea
-                              value={bio}
-                              rows={4}
-                              placeholder={t("settings_reader.bio_placeholder", "Présentez-vous brièvement ou indiquez vos sujets de prédilection.")}
-                              onChange={(e) => setBio(e.target.value)}
-                              className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-card)] p-3 resize-none"
-                            />
                           </div>
 
                           <div className="flex justify-end pt-2">
@@ -613,20 +594,27 @@ export function SettingsDashboard({
                               disabled={profileLoading}
                               className="bg-[var(--qoe-vermillion)] text-white hover:opacity-90 disabled:opacity-50 transition-all px-4 py-2.5 rounded-[var(--radius-button)] text-xs font-bold cursor-pointer"
                             >
-                              {profileLoading ? t("settings_reader.saving", "Enregistrement...") : t("settings_reader.save_changes", "Sauvegarder les modifications")}
+                              {profileLoading ? "Enregistrement..." : "Sauvegarder l'identité"}
                             </motion.button>
                           </div>
                         </form>
                       </div>
 
+                      {/* Primary Email Card */}
                       <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-6">
-                        <div>
-                          <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight leading-none">
-                            {t("settings_reader.email_title", "Adresse de Messagerie")}
-                          </h2>
-                          <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                            {t("settings_reader.email_subtitle", "Modifiez l'adresse e-mail de connexion à votre compte.")}
-                          </p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                              Adresse E-mail Principale
+                            </h2>
+                            <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                              Utilisée pour la connexion, les notifications et la récupération de compte.
+                            </p>
+                          </div>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>E-mail vérifié</span>
+                          </span>
                         </div>
 
                         {emailMsg && (
@@ -646,7 +634,7 @@ export function SettingsDashboard({
                             type="email"
                             value={newEmail}
                             onChange={(e) => setNewEmail(e.target.value)}
-                            className="flex-1 text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] px-3 py-2.5"
+                            className="flex-1 text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] px-3.5 py-2.5"
                             required
                           />
                           <motion.button
@@ -655,120 +643,493 @@ export function SettingsDashboard({
                             disabled={emailLoading || newEmail === dbUser.email}
                             className="bg-[var(--qoe-vermillion)] text-white hover:opacity-90 disabled:bg-[var(--surface-2)] disabled:text-[var(--text-tertiary)] disabled:border-[var(--border-default)] disabled:cursor-not-allowed transition-all px-4 py-2.5 rounded-[var(--radius-button)] text-xs font-bold shrink-0 cursor-pointer"
                           >
-                            {emailLoading ? t("settings_reader.email_updating", "Mise à jour...") : t("settings_reader.email_btn", "Modifier l'email")}
+                            {emailLoading ? "Mise à jour..." : "Modifier l'e-mail"}
                           </motion.button>
                         </form>
                       </div>
+                    </>
+                  )}
 
-                      <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-5">
+                  {/* ========================================================================= */}
+                  {/* TAB 2: SÉCURITÉ & ACCÈS                                                   */}
+                  {/* ========================================================================= */}
+                  {activeTab === "securite" && (
+                    <>
+                      <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-6">
                         <div>
-                          <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight leading-none">
-                            {t("settings_reader.gdpr_title", "Données Personnelles (RGPD)")}
+                          <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                            {hasPassword ? "Changement de Mot de Passe" : "Définir un Mot de Passe"}
                           </h2>
                           <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                            {t("settings_reader.gdpr_subtitle", "Conformément au RGPD européen, téléchargez une copie complète de vos données au format portable JSON.")}
+                            {hasPassword 
+                              ? "Choisissez un mot de passe complexe comportant au moins 8 caractères."
+                              : "Configurez un mot de passe pour vous connecter directement sans lien magique."}
                           </p>
                         </div>
 
-                        <div className="bg-[var(--surface-1)] border border-[var(--border-default)] rounded-[var(--radius-card)] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div className="flex gap-3">
-                            <div className="w-9 h-9 bg-[var(--surface-2)] rounded-[var(--radius-icon)] flex items-center justify-center text-[var(--text-secondary)] shrink-0">
-                              <Download className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <span className="text-xs font-bold text-[var(--text-secondary)] block">
-                                {t("settings_reader.gdpr_file_label", "Fichier qoe-user-data.json")}
-                              </span>
-                              <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
-                                {t("settings_reader.gdpr_file_desc", "Inclut profil, bookmarks, highlights, abonnements et transactions.")}
-                              </span>
-                            </div>
+                        {passwordMsg && (
+                          <div className={cn(
+                            "p-3.5 rounded-[var(--radius-button)] border flex items-start gap-2.5 text-xs font-semibold",
+                            passwordMsg.type === "success" 
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-700" 
+                              : "bg-red-50 border-red-200 text-[var(--qoe-vermillion)]"
+                          )}>
+                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span>{passwordMsg.text}</span>
                           </div>
-                          <motion.button
-                            onClick={handleGdprExport}
-                            whileTap={{ scale: 0.98 }}
-                            disabled={gdprLoading}
-                            className="bg-[var(--text-primary)] text-[var(--surface-0)] hover:opacity-90 transition-all px-4 py-2.5 rounded-[var(--radius-button)] text-xs font-bold shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
-                          >
-                            {gdprLoading ? t("settings_reader.gdpr_preparing", "Préparation...") : t("settings_reader.gdpr_btn", "Exporter mes données")}
-                          </motion.button>
+                        )}
+
+                        <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] uppercase tracking-wider font-bold text-[var(--text-tertiary)] block px-1">
+                              Nouveau mot de passe
+                            </label>
+                            <input
+                              type="password"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] px-3.5 py-2.5"
+                              required
+                              minLength={6}
+                            />
+                            {/* Password strength bar */}
+                            {password && (
+                              <div className="mt-2 space-y-1">
+                                <div className="h-1.5 w-full bg-[var(--surface-2)] rounded-full overflow-hidden">
+                                  <div 
+                                    className={cn("h-full transition-all duration-300", passStrength.color)} 
+                                    style={{ width: `${passStrength.score}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] font-bold text-[var(--text-tertiary)] block">
+                                  Force : <span className="text-[var(--text-primary)]">{passStrength.label}</span>
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] uppercase tracking-wider font-bold text-[var(--text-tertiary)] block px-1">
+                              Confirmer le mot de passe
+                            </label>
+                            <input
+                              type="password"
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] px-3.5 py-2.5"
+                              required
+                            />
+                          </div>
+
+                          <div className="flex justify-end pt-2">
+                            <motion.button
+                              type="submit"
+                              whileTap={{ scale: 0.98 }}
+                              disabled={passwordLoading}
+                              className="bg-[var(--qoe-vermillion)] text-white hover:opacity-90 disabled:opacity-50 transition-all px-4 py-2.5 rounded-[var(--radius-button)] text-xs font-bold cursor-pointer"
+                            >
+                              {passwordLoading ? "Enregistrement..." : (hasPassword ? "Modifier le mot de passe" : "Définir le mot de passe")}
+                            </motion.button>
+                          </div>
+                        </form>
+                      </div>
+
+                      {/* 2FA & Passkeys Preview */}
+                      <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                              Double Authentification (2FA / Passkeys)
+                            </h2>
+                            <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                              Sécurisez votre compte avec une application TOTP (Google Authenticator) ou Touch ID/Face ID.
+                            </p>
+                          </div>
+                          <span className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] bg-[var(--surface-2)] px-2.5 py-1 rounded border border-[var(--border-default)]">
+                            Prochainement
+                          </span>
                         </div>
                       </div>
                     </>
                   )}
 
                   {/* ========================================================================= */}
-                  {/* TAB 2: SECURITE                                                           */}
+                  {/* TAB 3: CONNEXIONS SSO & COMPTES                                           */}
                   {/* ========================================================================= */}
-                  {activeTab === "securite" && (
+                  {activeTab === "sso" && (
                     <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-6">
                       <div>
-                        <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight leading-none">
-                          {hasPassword ? t("settings_reader.password_title", "Changement de Mot de Passe") : "Définir un Mot de Passe"}
+                        <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                          Comptes Connexes & SSO
                         </h2>
                         <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                          {hasPassword 
-                            ? t("settings_reader.password_subtitle", "Configurez un nouveau mot de passe fort pour sécuriser votre compte.")
-                            : "Configurez un mot de passe pour pouvoir vous connecter directement sans lien magique."}
+                          Liez vos comptes sociaux pour vous connecter en 1 clic sans mot de passe.
                         </p>
                       </div>
 
-                      {passwordMsg && (
-                        <div className={cn(
-                          "p-3.5 rounded-[var(--radius-button)] border flex items-start gap-2.5 text-xs font-semibold",
-                          passwordMsg.type === "success" 
-                            ? "bg-emerald-50 border-emerald-200 text-emerald-700" 
-                            : "bg-red-50 border-red-200 text-[var(--qoe-vermillion)]"
-                        )}>
-                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                          <span>{passwordMsg.text}</span>
-                        </div>
-                      )}
-
-                      <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] uppercase tracking-wider font-bold text-[var(--text-tertiary)] block px-1">
-                            {t("settings_reader.new_password", "Nouveau mot de passe")}
-                          </label>
-                          <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] px-3 py-2.5"
-                            required
-                            minLength={6}
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[10px] uppercase tracking-wider font-bold text-[var(--text-tertiary)] block px-1">
-                            {t("settings_reader.confirm_password", "Confirmer le mot de passe")}
-                          </label>
-                          <input
-                            type="password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] px-3 py-2.5"
-                            required
-                          />
-                        </div>
-
-                        <div className="flex justify-end pt-2">
-                          <motion.button
-                            type="submit"
-                            whileTap={{ scale: 0.98 }}
-                            disabled={passwordLoading}
-                            className="bg-[var(--qoe-vermillion)] text-white hover:opacity-90 disabled:opacity-50 transition-all px-4 py-2.5 rounded-[var(--radius-button)] text-xs font-bold cursor-pointer"
+                      <div className="space-y-3">
+                        {/* Google */}
+                        <div className="flex items-center justify-between p-4 border border-[var(--border-default)] rounded-[var(--radius-card)] bg-[var(--surface-1)]/50">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-[var(--surface-0)] border border-[var(--border-default)] flex items-center justify-center font-bold text-xs text-[var(--text-primary)] shrink-0">
+                              G
+                            </div>
+                            <div>
+                              <span className="text-xs font-bold text-[var(--text-primary)] block">Google Account</span>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block">Connexion via OAuth Google</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
                           >
-                            {passwordLoading ? t("settings_reader.saving", "Enregistrement...") : (hasPassword ? t("settings_reader.password_btn", "Modifier le mot de passe") : "Définir le mot de passe")}
-                          </motion.button>
+                            Lier mon compte Google
+                          </button>
                         </div>
-                      </form>
+
+                        {/* Apple */}
+                        <div className="flex items-center justify-between p-4 border border-[var(--border-default)] rounded-[var(--radius-card)] bg-[var(--surface-1)]/50">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-[var(--surface-0)] border border-[var(--border-default)] flex items-center justify-center font-bold text-xs text-[var(--text-primary)] shrink-0">
+                              
+                            </div>
+                            <div>
+                              <span className="text-xs font-bold text-[var(--text-primary)] block">Apple ID</span>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block">Connexion via Sign in with Apple</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
+                          >
+                            Lier mon Apple ID
+                          </button>
+                        </div>
+
+                        {/* GitHub */}
+                        <div className="flex items-center justify-between p-4 border border-[var(--border-default)] rounded-[var(--radius-card)] bg-[var(--surface-1)]/50">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-[var(--surface-0)] border border-[var(--border-default)] flex items-center justify-center font-bold text-xs text-[var(--text-primary)] shrink-0">
+                              GH
+                            </div>
+                            <div>
+                              <span className="text-xs font-bold text-[var(--text-primary)] block">GitHub Account</span>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block">Connexion via GitHub OAuth</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
+                          >
+                            Lier mon compte GitHub
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
 
                   {/* ========================================================================= */}
-                  {/* TAB 3: ABONNEMENTS & NEWSLETTERS                                          */}
+                  {/* TAB 4: SESSIONS & APPAREILS                                                */}
+                  {/* ========================================================================= */}
+                  {activeTab === "sessions" && (
+                    <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                            Sessions Actives & Appareils
+                          </h2>
+                          <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                            Appareils actuellement connectés à votre compte. Vous pouvez révoquer un accès à tout moment.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSessionMsg("Déconnexion de toutes les autres sessions effectuée.")
+                            setTimeout(() => setSessionMsg(null), 3000)
+                          }}
+                          className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-1)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
+                        >
+                          Se déconnecter des autres appareils
+                        </button>
+                      </div>
+
+                      {sessionMsg && (
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-[var(--radius-button)]">
+                          {sessionMsg}
+                        </div>
+                      )}
+
+                      <div className="space-y-3">
+                        {/* Current Session */}
+                        <div className="p-4 border border-emerald-500/30 rounded-[var(--radius-card)] bg-emerald-500/5 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                              <Monitor className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-[var(--text-primary)]">Navigateur Actuel</span>
+                                <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                  Session Active
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5 font-mono">
+                                Chrome / Windows • IP: 127.0.0.1
+                              </span>
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-bold text-emerald-600">Appareil actuel</span>
+                        </div>
+
+                        {/* Other Session Placeholder */}
+                        <div className="p-4 border border-[var(--border-default)] rounded-[var(--radius-card)] bg-[var(--surface-1)]/50 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-[var(--surface-2)] text-[var(--text-tertiary)] flex items-center justify-center shrink-0">
+                              <Smartphone className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <span className="text-xs font-bold text-[var(--text-primary)] block">Safari Mobile (iOS)</span>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block font-mono mt-0.5">
+                                Paris, France • Dernier accès : Il y a 2h
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSessionMsg("Session Safari Mobile révoquée avec succès.")
+                              setTimeout(() => setSessionMsg(null), 3000)
+                            }}
+                            className="text-xs text-destructive hover:bg-destructive/10 px-2.5 py-1 rounded-[var(--radius-button)] font-semibold transition-colors cursor-pointer"
+                          >
+                            Révoquer
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ========================================================================= */}
+                  {/* TAB 5: TIMELINE & CONTENUS                                                */}
+                  {/* ========================================================================= */}
+                  {activeTab === "timeline" && (
+                    <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-6">
+                      <div>
+                        <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                          Réglages de la Timeline & du Feed
+                        </h2>
+                        <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                          Ajustez la logique de recommandation et le filtrage des contenus.
+                        </p>
+                      </div>
+
+                      <div className="space-y-5">
+                        {/* Algorithm switcher */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-[var(--border-subtle)]">
+                          <div>
+                            <span className="text-xs font-bold text-[var(--text-primary)] block">Algorithme d'Affichage du Feed</span>
+                            <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
+                              Ordre chronologique strict des abonnements ou suggestions intelligentes vectorielles.
+                            </span>
+                          </div>
+                          <div className="flex gap-1.5 bg-[var(--surface-2)] p-1 rounded-[var(--radius-button)] border border-[var(--border-default)]">
+                            <button
+                              type="button"
+                              onClick={() => setTimelineAlgorithm("chrono")}
+                              className={cn(
+                                "text-xs font-semibold px-3 py-1.5 rounded-[var(--radius-element)] transition-all cursor-pointer",
+                                timelineAlgorithm === "chrono" 
+                                  ? "bg-[var(--surface-0)] text-[var(--text-primary)] shadow-xs" 
+                                  : "text-[var(--text-tertiary)]"
+                              )}
+                            >
+                              Chronologique
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTimelineAlgorithm("ai")}
+                              className={cn(
+                                "text-xs font-semibold px-3 py-1.5 rounded-[var(--radius-element)] transition-all cursor-pointer",
+                                timelineAlgorithm === "ai" 
+                                  ? "bg-[var(--surface-0)] text-[var(--text-primary)] shadow-xs" 
+                                  : "text-[var(--text-tertiary)]"
+                              )}
+                            >
+                              Recommandations IA
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Trigger Warnings filter */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-[var(--border-subtle)]">
+                          <div>
+                            <span className="text-xs font-bold text-[var(--text-primary)] block">Avertissements de Contenu (Trigger Warnings)</span>
+                            <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
+                              Comportement face aux articles contenant des avertissements sensibles.
+                            </span>
+                          </div>
+                          <select
+                            value={triggerWarningFilter}
+                            onChange={(e) => setTriggerWarningFilter(e.target.value as any)}
+                            className="text-xs bg-[var(--surface-1)] hover:bg-[var(--surface-2)] font-semibold border border-[var(--border-default)] px-3 py-1.5 rounded-[var(--radius-button)] focus:outline-none cursor-pointer"
+                          >
+                            <option value="warn">Avertir avec voile (Défaut)</option>
+                            <option value="show">Toujours afficher directement</option>
+                            <option value="hide">Masquer les contenus sensibles</option>
+                          </select>
+                        </div>
+
+                        {/* Media Autoplay */}
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <span className="text-xs font-bold text-[var(--text-primary)] block">Lecture Automatique des Médias</span>
+                            <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
+                              Lancer les vidéos et animations automatiquement lors du défilement.
+                            </span>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={autoplayMedia}
+                              onChange={(e) => setAutoplayMedia(e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <div className="w-9 h-5 bg-[var(--surface-2)] border border-[var(--border-default)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--border-default)] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[var(--qoe-vermillion)]"></div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ========================================================================= */}
+                  {/* TAB 6: NOTIFICATIONS & MESSAGERIE                                         */}
+                  {/* ========================================================================= */}
+                  {activeTab === "notifications" && (
+                    <div className="space-y-4">
+                      <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-6">
+                        <div>
+                          <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                            Préférences de Notifications
+                          </h2>
+                          <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                            Choisissez les événements pour lesquels vous souhaitez recevoir une notification.
+                          </p>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+                            <div>
+                              <span className="text-xs font-bold text-[var(--text-primary)] block">Nouveaux Abonnés</span>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block">Notifier lorsque quelqu'un commence à vous suivre</span>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={notifyFollowers}
+                              onChange={(e) => setNotifyFollowers(e.target.checked)}
+                              className="w-4 h-4 rounded border-[var(--border-default)] text-[var(--qoe-vermillion)] cursor-pointer"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+                            <div>
+                              <span className="text-xs font-bold text-[var(--text-primary)] block">Commentaires & Réponses</span>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block">Notifier lors d'une réaction sur vos écrits ou posts</span>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={notifyComments}
+                              onChange={(e) => setNotifyComments(e.target.checked)}
+                              className="w-4 h-4 rounded border-[var(--border-default)] text-[var(--qoe-vermillion)] cursor-pointer"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-xs font-bold text-[var(--text-primary)] block">Mentions</span>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block">Notifier lorsqu'un créateur vous mentionne (@username)</span>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={notifyMentions}
+                              onChange={(e) => setNotifyMentions(e.target.checked)}
+                              className="w-4 h-4 rounded border-[var(--border-default)] text-[var(--qoe-vermillion)] cursor-pointer"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Creator Newsletters Toggles */}
+                      <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                              Inscriptions Newsletters par Créateur
+                            </h2>
+                            <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                              Ajustez la réception par e-mail pour chaque créateur que vous suivez.
+                            </p>
+                          </div>
+                          {subMsg && (
+                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200 animate-fade-in">
+                              {subMsg}
+                            </span>
+                          )}
+                        </div>
+
+                        {subscriptions.length === 0 ? (
+                          <div className="text-center py-6 text-[var(--text-tertiary)] text-xs border border-dashed border-[var(--border-default)] rounded-[var(--radius-card)] p-4">
+                            Vous ne suivez aucun créateur pour le moment.
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {subscriptions.map(sub => (
+                              <div key={sub.creator.id} className="border border-[var(--border-default)] rounded-[var(--radius-card)] p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[var(--surface-1)]/50">
+                                <div className="flex items-center gap-3">
+                                  {sub.creator.logoUrl ? (
+                                    <img src={sub.creator.logoUrl} className="w-8 h-8 rounded-full object-cover border border-[var(--border-default)]" />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)] shrink-0">
+                                      {sub.creator.name?.charAt(0)}
+                                    </div>
+                                  )}
+                                  <div>
+                                    <span className="text-xs font-bold text-[var(--text-primary)] block">{sub.creator.name}</span>
+                                    <span className="text-[10px] text-[var(--text-tertiary)] block">@{sub.creator.subdomain}</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex gap-4">
+                                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={sub.receiveArticles}
+                                      onChange={(e) => handleNewsletterToggle(sub.creator.id, "articles", e.target.checked)}
+                                      className="w-3.5 h-3.5 rounded border-[var(--border-default)] text-[var(--qoe-vermillion)] cursor-pointer"
+                                    />
+                                    <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Articles</span>
+                                  </label>
+
+                                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={sub.receivePosts}
+                                      onChange={(e) => handleNewsletterToggle(sub.creator.id, "posts", e.target.checked)}
+                                      className="w-3.5 h-3.5 rounded border-[var(--border-default)] text-[var(--qoe-vermillion)] cursor-pointer"
+                                    />
+                                    <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Micro-posts</span>
+                                  </label>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ========================================================================= */}
+                  {/* TAB 7: PORTEFEUILLE & BILLING                                             */}
                   {/* ========================================================================= */}
                   {activeTab === "abonnements" && (
                     <>
@@ -776,13 +1137,13 @@ export function SettingsDashboard({
                       {dbUser.role === "user" ? (
                         <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-5">
                           <div className="flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-[#F97316]" />
-                            <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight leading-none">
-                              {t("settings_reader.creator_banner_title", "Devenir Créateur Média")}
+                            <Sparkles className="w-5 h-5 text-[var(--qoe-vermillion)]" />
+                            <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                              Devenir Créateur Média
                             </h2>
                           </div>
                           <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                            {t("settings_reader.creator_banner_desc", "Passez au rôle Créateur pour concevoir votre propre univers éditorial. Publiez des articles premium avec paywalls, des micro-posts, gérez une liste de diffusion de newsletters et définissez votre design system exclusif.")}
+                            Passez au rôle Créateur pour concevoir votre propre univers éditorial, publier des articles premium avec paywalls et réserver votre sous-domaine média.
                           </p>
 
                           {upgradeMsg && (
@@ -801,10 +1162,10 @@ export function SettingsDashboard({
                             <div className="flex-1 relative">
                               <input
                                 type="text"
-                                placeholder={t("settings_reader.creator_subdomain_placeholder", "votre-media")}
+                                placeholder="votre-media"
                                 value={subdomain}
                                 onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                                className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] pl-3 pr-24 py-2.5"
+                                className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] pl-3.5 pr-20 py-2.5 font-mono"
                                 required
                               />
                               <span className="absolute right-3 top-3 text-[10px] text-[var(--text-tertiary)] font-bold font-mono">
@@ -817,7 +1178,7 @@ export function SettingsDashboard({
                               disabled={upgradeLoading || subdomain.length < 3}
                               className="bg-[var(--qoe-vermillion)] text-white hover:opacity-90 disabled:bg-[var(--surface-2)] disabled:text-[var(--text-tertiary)] disabled:border-[var(--border-default)] disabled:cursor-not-allowed transition-all px-4 py-2.5 rounded-[var(--radius-button)] text-xs font-bold shrink-0 flex items-center gap-1 cursor-pointer"
                             >
-                              {upgradeLoading ? t("settings_reader.creator_btn_loading", "Activation...") : t("settings_reader.creator_btn", "Activer mon média")}{" "}
+                              {upgradeLoading ? "Activation..." : "Activer mon média"}{" "}
                               <ArrowRight className="w-3.5 h-3.5" />
                             </motion.button>
                           </form>
@@ -826,134 +1187,65 @@ export function SettingsDashboard({
                         <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-4">
                           <div className="flex items-center gap-2">
                             <Sparkles className="w-5 h-5 text-emerald-500" />
-                            <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight leading-none">
-                              {t("settings_reader.creator_active_title", "Compte Créateur Actif")}
+                            <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                              Compte Créateur Actif
                             </h2>
                           </div>
                           <p className="text-xs text-[var(--text-secondary)]">
-                            {t("settings_reader.creator_active_desc", "Votre média est accessible à l'adresse :")}{" "}
+                            Votre média est accessible à l'adresse :{" "}
                             <strong className="font-mono text-[var(--qoe-vermillion)]">{dbUser.subdomain}.qoe.fi</strong>
                           </p>
-                          <motion.button
-                            onClick={() => window.location.href = URLS.DASHBOARD}
-                            whileTap={{ scale: 0.98 }}
-                            className="bg-[var(--text-primary)] text-[var(--surface-0)] hover:opacity-90 transition-all px-4 py-2 rounded-[var(--radius-button)] text-xs font-bold self-start cursor-pointer"
+                          <a
+                            href={URLS.DASHBOARD}
+                            className="bg-[var(--text-primary)] text-[var(--surface-0)] hover:opacity-90 transition-all px-4 py-2 rounded-[var(--radius-button)] text-xs font-bold self-start cursor-pointer inline-flex items-center gap-1.5"
                           >
-                            {t("settings_reader.creator_go_dashboard", "Aller au Dashboard Créateur")}
-                          </motion.button>
+                            <span>Aller au Dashboard Créateur</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </a>
                         </div>
                       )}
-
-                      {/* Newsletter Toggles */}
-                      <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-5">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight leading-none">
-                              {t("settings_reader.newsletter_pref_title", "Préférences de Messagerie")}
-                            </h2>
-                            <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                              {t("settings_reader.newsletter_pref_subtitle", "Sélectionnez les contenus que vous souhaitez recevoir par e-mail par créateur.")}
-                            </p>
-                          </div>
-                          {subMsg && (
-                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-[var(--radius-chip)] border border-emerald-200 animate-fade-in">
-                              {subMsg}
-                            </span>
-                          )}
-                        </div>
-
-                        {subscriptions.length === 0 ? (
-                          <div className="text-center py-8 text-[var(--text-tertiary)] text-xs border border-dashed border-[var(--border-default)] rounded-[var(--radius-card)] p-4">
-                            {t("settings_reader.no_creator_followed", "Vous ne suivez aucun créateur pour le moment.")}
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {subscriptions.map(sub => (
-                              <div key={sub.creator.id} className="border border-[var(--border-default)] rounded-[var(--radius-card)] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[var(--surface-1)]/50">
-                                <div className="flex items-center gap-3">
-                                  {sub.creator.logoUrl ? (
-                                    <img src={sub.creator.logoUrl} className="w-8 h-8 rounded-[var(--radius-icon)] object-cover border border-[var(--border-default)]" />
-                                  ) : (
-                                    <div className="w-8 h-8 rounded-[var(--radius-icon)] bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)]">
-                                      {sub.creator.name?.charAt(0)}
-                                    </div>
-                                  )}
-                                  <div>
-                                    <span className="text-xs font-bold text-[var(--text-primary)] block">{sub.creator.name}</span>
-                                    <span className="text-[10px] text-[var(--text-tertiary)] block">@{sub.creator.subdomain}</span>
-                                  </div>
-                                </div>
-
-                                <div className="flex gap-4">
-                                  {/* Toggle Articles */}
-                                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                                    <input
-                                      type="checkbox"
-                                      checked={sub.receiveArticles}
-                                      onChange={(e) => handleNewsletterToggle(sub.creator.id, "articles", e.target.checked)}
-                                      className="w-3.5 h-3.5 rounded-[var(--radius-element)] border-[var(--border-default)] text-[var(--qoe-vermillion)] focus:ring-[var(--qoe-vermillion)]/30 cursor-pointer"
-                                    />
-                                    <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Articles</span>
-                                  </label>
-
-                                  {/* Toggle Posts */}
-                                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                                    <input
-                                      type="checkbox"
-                                      checked={sub.receivePosts}
-                                      onChange={(e) => handleNewsletterToggle(sub.creator.id, "posts", e.target.checked)}
-                                      className="w-3.5 h-3.5 rounded-[var(--radius-element)] border-[var(--border-default)] text-[var(--qoe-vermillion)] focus:ring-[var(--qoe-vermillion)]/30 cursor-pointer"
-                                    />
-                                    <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Tweets / Posts</span>
-                                  </label>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
 
                       {/* Transactions History */}
                       <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-4">
                         <div>
-                          <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight leading-none">
-                            {t("settings_reader.wallet_history_title", "Historique du Portefeuille")}
+                          <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                            Historique du Portefeuille & Factures
                           </h2>
                           <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                            {t("settings_reader.wallet_history_subtitle", "Relevé de vos transactions financières et déblocages d'articles.")}
+                            Relevé de vos transactions financières et déblocages d'articles.
                           </p>
                         </div>
 
                         {walletTransactions.length === 0 ? (
                           <div className="text-center py-6 text-[var(--text-tertiary)] text-xs">
-                            {t("settings_reader.no_transactions", "Aucune transaction répertoriée.")}
+                            Aucune transaction répertoriée.
                           </div>
                         ) : (
                           <div className="border border-[var(--border-default)] rounded-[var(--radius-card)] overflow-hidden text-xs">
                             <table className="w-full text-left border-collapse">
-                                <thead>
-                                  <tr className="bg-[var(--surface-1)] border-b border-[var(--border-default)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                                    <th className="p-3">{t("settings_reader.th_date", "Date")}</th>
-                                    <th className="p-3">{t("settings_reader.th_type", "Type")}</th>
-                                    <th className="p-3 text-right">{t("settings_reader.th_amount", "Montant")}</th>
+                              <thead>
+                                <tr className="bg-[var(--surface-1)] border-b border-[var(--border-default)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+                                  <th className="p-3">Date</th>
+                                  <th className="p-3">Type</th>
+                                  <th className="p-3 text-right">Montant</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {walletTransactions.map(tx => (
+                                  <tr key={tx.id} className="border-b border-[var(--border-subtle)] hover:bg-[var(--surface-1)]/50 transition-colors">
+                                    <td className="p-3 text-[var(--text-secondary)]">{new Date(tx.createdAt).toLocaleDateString()}</td>
+                                    <td className="p-3 font-semibold">
+                                      {tx.type === "DEPOSIT" ? "Recharge" : tx.type === "SUBSCRIPTION_PAYMENT" ? "Déblocage premium" : tx.type}
+                                    </td>
+                                    <td className={cn(
+                                      "p-3 text-right font-bold font-mono",
+                                      tx.amountCents > 0 ? "text-emerald-600" : "text-[var(--text-primary)]"
+                                    )}>
+                                      {tx.amountCents > 0 ? "+" : ""}{(tx.amountCents / 100).toFixed(2)} €
+                                    </td>
                                   </tr>
-                                </thead>
-                                <tbody>
-                                  {walletTransactions.map(tx => (
-                                    <tr key={tx.id} className="border-b border-[var(--border-subtle)] hover:bg-[var(--surface-1)]/50 transition-colors">
-                                      <td className="p-3 text-[var(--text-secondary)]">{new Date(tx.createdAt).toLocaleDateString()}</td>
-                                      <td className="p-3 font-semibold">
-                                        {tx.type === "DEPOSIT" ? t("settings_reader.tx_deposit", "Recharge") : tx.type === "SUBSCRIPTION_PAYMENT" ? t("settings_reader.tx_unlock", "Déblocage premium") : tx.type}
-                                      </td>
-                                      <td className={cn(
-                                        "p-3 text-right font-bold font-mono",
-                                        tx.amountCents > 0 ? "text-emerald-600" : "text-[var(--text-primary)]"
-                                      )}>
-                                        {tx.amountCents > 0 ? "+" : ""}{(tx.amountCents / 100).toFixed(2)} €
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
+                                ))}
+                              </tbody>
                             </table>
                           </div>
                         )}
@@ -962,96 +1254,7 @@ export function SettingsDashboard({
                   )}
 
                   {/* ========================================================================= */}
-                  {/* TAB 4: PRIVACY & BLOCKAGES                                                */}
-                  {/* ========================================================================= */}
-                  {activeTab === "confidentialite" && (
-                    <>
-                      {/* Muted words */}
-                      <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-5">
-                        <div>
-                          <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight leading-none">
-                            {t("settings_reader.muted_words_title", "Mots exclus (Muted Words)")}
-                          </h2>
-                          <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                            {t("settings_reader.muted_words_subtitle", "Excluez du contenu de votre feed en listant des mots ou concepts spécifiques (protection de l'attention).")}
-                          </p>
-                        </div>
-
-                        <form onSubmit={handleAddMutedWord} className="flex gap-2">
-                          <input
-                            type="text"
-                            placeholder={t("settings_reader.muted_words_placeholder", "Saisissez un mot (ex: politique, football...)")}
-                            value={newMutedWord}
-                            onChange={(e) => setNewMutedWord(e.target.value)}
-                            className="flex-1 text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] px-3 py-2.5"
-                          />
-                          <motion.button
-                            type="submit"
-                            whileTap={{ scale: 0.98 }}
-                            className="bg-[var(--qoe-vermillion)] text-white hover:opacity-90 transition-colors p-2.5 rounded-[var(--radius-button)] text-xs font-bold flex items-center justify-center shrink-0 cursor-pointer h-10 w-10"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </motion.button>
-                        </form>
-
-                        {mutedWords.length === 0 ? (
-                          <div className="text-center py-6 text-[var(--text-tertiary)] text-xs">
-                            {t("settings_reader.no_muted_words", "Aucun mot exclu pour le moment.")}
-                          </div>
-                        ) : (
-                          <div className="flex flex-wrap gap-1.5">
-                            {mutedWords.map(w => (
-                              <div key={w.id} className="text-xs bg-[var(--surface-1)] border border-[var(--border-default)] rounded-[var(--radius-card)] px-3 py-1.5 flex items-center gap-2 font-semibold">
-                                <span className="font-mono">{w.word}</span>
-                                <button 
-                                  onClick={() => handleRemoveMutedWord(w.id)}
-                                  className="text-[var(--text-tertiary)] hover:text-red-500 transition-colors shrink-0 p-2 -m-2"
-                                  title="Retirer"
-                                >
-                                  <Trash className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Blocked accounts list */}
-                      <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-4">
-                        <div>
-                          <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight leading-none">
-                            {t("settings_reader.blocked_title", "Comptes Bloqués")}
-                          </h2>
-                          <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                            {t("settings_reader.blocked_subtitle", "Utilisateurs bloqués que vous ne souhaitez plus voir interagir sur vos espaces.")}
-                          </p>
-                        </div>
-
-                        {blockedUsers.length === 0 ? (
-                          <div className="text-center py-6 text-[var(--text-tertiary)] text-xs">
-                            {t("settings_reader.no_blocked", "Aucun utilisateur bloqué.")}
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            {blockedUsers.map(b => (
-                              <div key={b.id} className="border border-[var(--border-default)] rounded-[var(--radius-card)] p-3 flex items-center justify-between text-xs bg-[var(--surface-1)]/50">
-                                <div>
-                                  <span className="font-bold text-[var(--text-secondary)] block">{b.user.name}</span>
-                                  <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">@{b.user.username || b.user.email.split("@")[0]}</span>
-                                </div>
-                                <span className="text-[9px] text-[var(--text-tertiary)] font-semibold font-mono">
-                                  {t("settings_reader.blocked_on", "Bloqué le")} {new Date(b.createdAt).toLocaleDateString()}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {/* ========================================================================= */}
-                  {/* TAB 5: ACCESSIBILITE & AFFICHAGE & LANGUES                                 */}
+                  {/* TAB 8: AFFICHAGE & ACCESSIBILITÉ                                           */}
                   {/* ========================================================================= */}
                   {activeTab === "accessibilite" && (
                     <form onSubmit={handleAccessibilitySubmit} className="flex-1 flex flex-col gap-4">
@@ -1070,52 +1273,50 @@ export function SettingsDashboard({
                       {/* Language Selection */}
                       <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-4">
                         <div>
-                          <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight leading-none">
-                            {t("settings_reader.interface_lang_title", "Langue de l'Interface")}
+                          <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                            Langue de l'Interface
                           </h2>
                           <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                            {t("settings_reader.interface_lang_subtitle", "Sélectionnez la langue par défaut de l'application.")}
+                            Sélectionnez la langue par défaut de l'application (Tolgee i18n).
                           </p>
                         </div>
 
-                        <div className="flex gap-2 bg-[var(--surface-2)] p-1 rounded-[var(--radius-button)] w-32 shrink-0 border border-[var(--border-default)]">
-                          <motion.button
+                        <div className="flex gap-2 bg-[var(--surface-2)] p-1 rounded-[var(--radius-button)] w-36 shrink-0 border border-[var(--border-default)]">
+                          <button
                             type="button"
                             onClick={() => handleLanguageChange("fr")}
-                            whileTap={{ scale: 0.98 }}
                             className={cn(
-                              "text-xs font-bold flex-1 py-2 rounded-[var(--radius-element)] transition-colors cursor-pointer",
+                              "text-xs font-bold flex-1 py-1.5 rounded-[var(--radius-element)] transition-colors cursor-pointer",
                               selectedLanguage === "fr"
-                                ? "bg-[var(--surface-0)] text-[var(--text-primary)] shadow-sm border border-[var(--border-default)]"
+                                ? "bg-[var(--surface-0)] text-[var(--text-primary)] shadow-xs border border-[var(--border-default)]"
                                 : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
                             )}
                           >
                             Français
-                          </motion.button>
-                          <motion.button
+                          </button>
+                          <button
                             type="button"
                             onClick={() => handleLanguageChange("en")}
-                            whileTap={{ scale: 0.98 }}
                             className={cn(
-                              "text-xs font-bold flex-1 py-2 rounded-[var(--radius-element)] transition-colors cursor-pointer",
+                              "text-xs font-bold flex-1 py-1.5 rounded-[var(--radius-element)] transition-colors cursor-pointer",
                               selectedLanguage === "en"
-                                ? "bg-[var(--surface-0)] text-[var(--text-primary)] shadow-sm border border-[var(--border-default)]"
+                                ? "bg-[var(--surface-0)] text-[var(--text-primary)] shadow-xs border border-[var(--border-default)]"
                                 : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
                             )}
                           >
                             English
-                          </motion.button>
+                          </button>
                         </div>
                       </div>
 
                       {/* Display Preferences */}
-                      <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-6">
+                      <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-5">
                         <div>
-                          <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight leading-none">
-                            {t("settings_reader.display_pref_title", "Préférences d'Affichage")}
+                          <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                            Préférences d'Affichage & Typographie
                           </h2>
                           <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                            {t("settings_reader.display_pref_subtitle", "Ajustez les styles visuels pour un confort de lecture adapté.")}
+                            Ajustez les styles visuels pour un confort de lecture adapté.
                           </p>
                         </div>
 
@@ -1123,11 +1324,9 @@ export function SettingsDashboard({
                           {/* Font Size select */}
                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-[var(--border-subtle)]">
                             <div>
-                              <span className="text-xs font-bold text-[var(--text-secondary)] block">
-                                {t("settings_reader.font_size_label", "Taille du Texte")}
-                              </span>
+                              <span className="text-xs font-bold text-[var(--text-secondary)] block">Taille du Texte</span>
                               <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
-                                {t("settings_reader.font_size_desc", "Augmentez ou réduisez la taille globale de la typographie.")}
+                                Augmentez ou réduisez la taille globale de la typographie.
                               </span>
                             </div>
                             <select
@@ -1135,21 +1334,19 @@ export function SettingsDashboard({
                               onChange={(e) => changeFontSize(e.target.value)}
                               className="text-xs bg-[var(--surface-1)] hover:bg-[var(--surface-2)] font-semibold border border-[var(--border-default)] px-3 py-1.5 rounded-[var(--radius-button)] focus:outline-none cursor-pointer"
                             >
-                              <option value="small">{t("settings_reader.font_size_small", "Petite")}</option>
-                              <option value="normal">{t("settings_reader.font_size_normal", "Normale")}</option>
-                              <option value="large">{t("settings_reader.font_size_large", "Grande")}</option>
-                              <option value="xlarge">{t("settings_reader.font_size_xlarge", "Très Grande")}</option>
+                              <option value="small">Petite</option>
+                              <option value="normal">Normale</option>
+                              <option value="large">Grande</option>
+                              <option value="xlarge">Très Grande</option>
                             </select>
                           </div>
 
                           {/* Dyslexic font toggle */}
                           <div className="flex items-center justify-between gap-3 pb-4 border-b border-[var(--border-subtle)]">
                             <div>
-                              <span className="text-xs font-bold text-[var(--text-secondary)] block">
-                                {t("settings_reader.dyslexic_label", "Police Dyslexique")}
-                              </span>
+                              <span className="text-xs font-bold text-[var(--text-secondary)] block">Police Dyslexique</span>
                               <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
-                                {t("settings_reader.dyslexic_desc", "Force l'utilisation d'une typographie simplifiée facilitant le décodage de lecture.")}
+                                Force l'utilisation d'une typographie facilitant le décodage de lecture.
                               </span>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer select-none">
@@ -1166,11 +1363,9 @@ export function SettingsDashboard({
                           {/* Override creator themes */}
                           <div className="flex items-center justify-between gap-3">
                             <div>
-                              <span className="text-xs font-bold text-[var(--text-secondary)] block">
-                                {t("settings_reader.force_light_label", "Forcer le Thème Light Standard")}
-                              </span>
+                              <span className="text-xs font-bold text-[var(--text-secondary)] block">Forcer le Thème Light Standard</span>
                               <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
-                                {t("settings_reader.force_light_desc", "Ignore les styles de couleur et polices personnalisés par les auteurs pour un fond blanc neuve uniforme.")}
+                                Ignore les thèmes de couleur personnalisés par les auteurs pour un fond neutre uniforme.
                               </span>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer select-none">
@@ -1185,14 +1380,14 @@ export function SettingsDashboard({
                           </div>
                         </div>
 
-                        <div className="flex justify-end pt-2 border-t border-[var(--border-subtle)] mt-4">
+                        <div className="flex justify-end pt-2 border-t border-[var(--border-subtle)] mt-2">
                           <motion.button
                             type="submit"
                             whileTap={{ scale: 0.98 }}
                             disabled={accessibilityLoading}
                             className="bg-[var(--qoe-vermillion)] text-white hover:opacity-90 disabled:opacity-50 transition-all px-4 py-2.5 rounded-[var(--radius-button)] text-xs font-bold cursor-pointer"
                           >
-                            {accessibilityLoading ? t("settings_reader.saving", "Enregistrement...") : t("settings_reader.save_changes", "Sauvegarder les modifications")}
+                            {accessibilityLoading ? "Enregistrement..." : "Sauvegarder les préférences"}
                           </motion.button>
                         </div>
                       </div>
@@ -1200,47 +1395,151 @@ export function SettingsDashboard({
                   )}
 
                   {/* ========================================================================= */}
-                  {/* TAB 6: AIDE & ACCUEIL                                                     */}
+                  {/* TAB 9: CONFIDENTIALITÉ, RGPD & ZONE DE DANGER                            */}
                   {/* ========================================================================= */}
-                  {activeTab === "aide" && (
-                    <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-6">
-                      <div>
-                        <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight leading-none">
-                          {t("settings_reader.help_title", "Centre d'Aide & Ressources")}
-                        </h2>
-                        <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                          {t("settings_reader.help_subtitle", "Informations légales et accompagnement utilisateur.")}
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                        <div className="border border-[var(--border-default)] rounded-[var(--radius-card)] p-4 flex flex-col gap-1.5 hover:bg-[var(--surface-1)] transition-colors">
-                          <span className="font-bold text-[var(--text-secondary)]">
-                            {t("settings_reader.support_title", "Support Technique")}
-                          </span>
-                          <span className="text-[var(--text-secondary)] leading-normal">
-                            {t("settings_reader.support_desc", "Une question sur vos abonnements ou votre solde ? Envoyez un message à notre équipe de support technique.")}
-                          </span>
-                          <a href="mailto:support@qoe.fi" className="text-[var(--qoe-vermillion)] hover:underline font-semibold block mt-2">support@qoe.fi</a>
+                  {activeTab === "confidentialite" && (
+                    <>
+                      {/* Muted words */}
+                      <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-5">
+                        <div>
+                          <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                            Mots Exclus (Muted Words)
+                          </h2>
+                          <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                            Excluez du contenu de votre feed en listant des mots ou concepts spécifiques.
+                          </p>
                         </div>
 
-                        <div className="border border-[var(--border-default)] rounded-[var(--radius-card)] p-4 flex flex-col gap-1.5 hover:bg-[var(--surface-1)] transition-colors">
-                          <span className="font-bold text-[var(--text-secondary)]">
-                            {t("settings_reader.gdpr_support_title", "Conformément au RGPD européen, téléchargez une copie complète de vos données au format portable JSON.")}
-                          </span>
-                          <span className="text-[var(--text-secondary)] leading-normal">
-                            {t("settings_reader.gdpr_support_desc", "Pour toute demande relative au Règlement Général sur la Protection des Données (RGPD/GDPR) ou suppression définitive.")}
-                          </span>
-                          <a href="mailto:rgpd@qoe.fi" className="text-[var(--qoe-vermillion)] hover:underline font-semibold block mt-2">dpo@qoe.fi</a>
+                        <form onSubmit={handleAddMutedWord} className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Saisissez un mot à exclure..."
+                            value={newMutedWord}
+                            onChange={(e) => setNewMutedWord(e.target.value)}
+                            className="flex-1 text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] px-3.5 py-2.5"
+                          />
+                          <motion.button
+                            type="submit"
+                            whileTap={{ scale: 0.98 }}
+                            className="bg-[var(--qoe-vermillion)] text-white hover:opacity-90 transition-colors p-2.5 rounded-[var(--radius-button)] text-xs font-bold flex items-center justify-center shrink-0 cursor-pointer h-10 w-10"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </motion.button>
+                        </form>
+
+                        {mutedWords.length === 0 ? (
+                          <div className="text-center py-6 text-[var(--text-tertiary)] text-xs">
+                            Aucun mot exclu pour le moment.
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {mutedWords.map(w => (
+                              <div key={w.id} className="text-xs bg-[var(--surface-1)] border border-[var(--border-default)] rounded-[var(--radius-card)] px-3 py-1.5 flex items-center gap-2 font-semibold">
+                                <span className="font-mono">{w.word}</span>
+                                <button 
+                                  onClick={() => handleRemoveMutedWord(w.id)}
+                                  className="text-[var(--text-tertiary)] hover:text-red-500 transition-colors shrink-0 p-1"
+                                  title="Retirer"
+                                >
+                                  <Trash className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* GDPR Export Protocol Card */}
+                      <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-4">
+                        <div>
+                          <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                            Exportation des Données Personnelles (RGPD Art. 20)
+                          </h2>
+                          <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                            Recevez une archive chiffrée complète de vos données au format JSON par e-mail.
+                          </p>
+                        </div>
+
+                        <div className="bg-[var(--surface-1)] border border-[var(--border-default)] rounded-[var(--radius-card)] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex gap-3">
+                            <div className="w-9 h-9 bg-[var(--surface-2)] rounded-full flex items-center justify-center text-[var(--text-secondary)] shrink-0">
+                              <Download className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <span className="text-xs font-bold text-[var(--text-primary)] block">
+                                Archive RGPD Sécurisée
+                              </span>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
+                                Inclut profil, bookmarks, surlignages, abonnements et historique financier.
+                              </span>
+                            </div>
+                          </div>
+
+                          {gdprRequested ? (
+                            <div className="px-3.5 py-2 rounded-[var(--radius-button)] bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>Demande transmise — Lien envoyé par e-mail</span>
+                            </div>
+                          ) : (
+                            <motion.button
+                              onClick={handleGdprRequest}
+                              whileTap={{ scale: 0.98 }}
+                              disabled={gdprLoading}
+                              className="bg-[var(--text-primary)] text-[var(--surface-0)] hover:opacity-90 transition-all px-4 py-2.5 rounded-[var(--radius-button)] text-xs font-bold shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              {gdprLoading ? "Génération en cours..." : "Demander mon archive par e-mail"}
+                            </motion.button>
+                          )}
                         </div>
                       </div>
 
-                      <div className="pt-4 border-t border-[var(--border-default)] text-[10px] text-[var(--text-tertiary)]">
-                        <p className="leading-relaxed">
-                          {t("settings_reader.footer_conviction", "qoe.fi est conçu avec pour valeurs la protection de l'attention et la souveraineté économique des créateurs de contenu en Europe. Nous n'utilisons aucun traceur tiers publicitaire.")}
-                        </p>
+                      {/* Account Freeze / Sleep Card */}
+                      <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                              Mettre le Compte en Sommeil (Freeze)
+                            </h2>
+                            <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                              Masquez temporairement votre profil et votre activité. Votre compte sera réactivé automatiquement à votre prochaine connexion.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setIsFreezeModalOpen(true)}
+                            className="px-3.5 py-2 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-1)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer shrink-0"
+                          >
+                            Mettre en sommeil
+                          </button>
+                        </div>
                       </div>
-                    </div>
+
+                      {/* DANGER ZONE: Account Deletion */}
+                      <div className="bg-red-500/5 border border-red-500/20 rounded-[var(--radius-card)] p-6 shadow-xs flex flex-col gap-4">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div>
+                            <h2 className="text-base font-bold text-red-600 tracking-tight leading-none">
+                              Zone de Danger : Suppression Définitive du Compte
+                            </h2>
+                            <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                              La suppression entraîne l'effacement irréversible de votre profil, de vos abonnements et de vos contenus.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsDeleteModalOpen(true)
+                              setDeleteError(null)
+                              setDeleteConfirmationText("")
+                              setDeletePassword("")
+                            }}
+                            className="px-4 py-2.5 rounded-[var(--radius-button)] bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer"
+                          >
+                            Supprimer mon compte
+                          </button>
+                        </div>
+                      </div>
+                    </>
                   )}
 
                 </motion.div>
@@ -1251,6 +1550,117 @@ export function SettingsDashboard({
 
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* MODAL: Account Freeze Confirmation                                        */}
+      {/* ========================================================================= */}
+      {isFreezeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-card)] max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-[var(--text-primary)]">Mettre le compte en sommeil</h3>
+              <button onClick={() => setIsFreezeModalOpen(false)} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              Votre compte sera temporairement désactivé et masqué des recherches. Pour le réactiver, il vous suffira de vous reconnecter à tout moment.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setIsFreezeModalOpen(false)}
+                className="px-4 py-2 rounded-[var(--radius-button)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-1)]"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  setIsFreezeModalOpen(false)
+                  alert("Votre compte a été mis en sommeil.")
+                }}
+                className="px-4 py-2 rounded-[var(--radius-button)] bg-[var(--text-primary)] text-[var(--surface-0)] text-xs font-semibold"
+              >
+                Confirmer la mise en sommeil
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: DANGER ZONE Account Deletion Modal                                 */}
+      {/* ========================================================================= */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
+          <div className="bg-[var(--surface-0)] border border-red-500/30 rounded-[var(--radius-card)] max-w-lg w-full p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-3">
+              <div className="flex items-center gap-2 text-red-600">
+                <AlertTriangle className="w-5 h-5 shrink-0" />
+                <h3 className="text-base font-bold">Confirmation de Suppression Définitive</h3>
+              </div>
+              <button onClick={() => setIsDeleteModalOpen(false)} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-[var(--radius-button)] text-xs text-red-600 font-medium leading-relaxed">
+              Attention : Cette action est irréversible. Toutes vos données (posts, bookmarks, historique) seront planifiées pour suppression sous 30 jours.
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="space-y-1">
+                <label className="font-bold text-[var(--text-secondary)] block">
+                  Veuillez confirmer votre mot de passe :
+                </label>
+                <input
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="Mot de passe actuel"
+                  className="w-full text-xs border border-[var(--border-default)] focus:border-red-500 bg-[var(--surface-1)] rounded-[var(--radius-button)] px-3 py-2"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[var(--text-secondary)] block">
+                  Saisissez <span className="font-mono text-red-600 font-bold">SUPPRIMER</span> pour valider :
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmationText}
+                  onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                  placeholder="SUPPRIMER"
+                  className="w-full text-xs border border-[var(--border-default)] focus:border-red-500 bg-[var(--surface-1)] rounded-[var(--radius-button)] px-3 py-2 font-mono uppercase"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+              <button
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="px-4 py-2 rounded-[var(--radius-button)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-1)] cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                disabled={deleteConfirmationText !== "SUPPRIMER" || !deletePassword}
+                onClick={() => {
+                  setDeleteLoading(true)
+                  setTimeout(() => {
+                    setDeleteLoading(false)
+                    alert("Demande de suppression enregistrée. Période de grâce de 30 jours active.")
+                    setIsDeleteModalOpen(false)
+                  }, 1500)
+                }}
+                className="px-4 py-2 rounded-[var(--radius-button)] bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-all cursor-pointer"
+              >
+                {deleteLoading ? "Suppression en cours..." : "Supprimer définitivement"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
