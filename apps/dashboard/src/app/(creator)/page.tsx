@@ -70,7 +70,7 @@ export default async function CreatorDashboardPage() {
   ]
 
   return (
-    <main className="w-full max-w-7xl space-y-8 pb-24 md:pb-12 text-foreground font-sans selection:bg-primary/20 selection:text-primary">
+    <main className="w-full space-y-8 pb-24 md:pb-12 text-foreground font-sans selection:bg-primary/20 selection:text-primary">
       
       {/* Main Stage Headline */}
       <section className="pt-2 space-y-0.5">

@@ -243,7 +243,7 @@ export function Editor({
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-12 pb-32">
+    <div className="w-full space-y-12 pb-32">
       {/* Sleek, spaced header with absolute minimal decorations */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-zinc-100">
         <div className="flex items-center gap-4">
