@@ -1,6 +1,6 @@
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
+import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/features/dashboard/components/app-sidebar"
-import { HeaderClient } from "@/features/dashboard/components/HeaderClient"
+import { DashboardLayoutContent } from "@/features/dashboard/components/DashboardLayoutContent"
 import { requireUser } from "@qoe/auth/current-user"
 import { redirect } from "next/navigation"
 
@@ -21,14 +21,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="flex flex-col">
-        <HeaderClient />
-        
-        {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
-          {children}
-        </div>
-      </SidebarInset>
+      <DashboardLayoutContent>
+        {children}
+      </DashboardLayoutContent>
     </SidebarProvider>
   )
 }

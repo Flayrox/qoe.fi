@@ -1,24 +1,19 @@
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarFooter,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarRail,
-} from "@/components/ui/sidebar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Logo } from "@qoe/ui"
+import React from "react"
 import { createClient } from "@qoe/supabase/server"
 import { prisma } from "@qoe/db/client"
 import { logout } from "@/app/login/actions"
 import { getTranslate } from "@qoe/i18n/server"
 import { SidebarMenuClient, type IconName } from "./SidebarMenuClient"
+import { FloatingSidebarClient } from "./FloatingSidebarClient"
+import { Plus } from "lucide-react"
+import Link from "next/link"
+import { Logo } from "@qoe/ui"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarFooter,
+} from "@/components/ui/sidebar"
 
 export async function AppSidebar() {
   const supabase = await createClient()
@@ -38,98 +33,86 @@ export async function AppSidebar() {
 
   const t = await getTranslate()
 
-  const items = [
+  const menuItems = [
     {
-      title: t('sidebar.nav_overview'),
+      title: t('sidebar.nav_overview', 'Home'),
       url: "/",
       iconName: "Home" as IconName,
     },
     {
-      title: t('sidebar.nav_articles'),
+      title: t('sidebar.nav_articles', 'Articles'),
       url: "/articles",
       iconName: "FileText" as IconName,
     },
     {
-      title: t('sidebar.nav_newsletters'),
+      title: t('sidebar.nav_newsletters', 'Newsletters'),
       url: "/newsletters",
       iconName: "Mail" as IconName,
     },
     {
-      title: t('sidebar.nav_audience'),
+      title: t('sidebar.nav_audience', 'Audience'),
       url: "/audience",
       iconName: "Users" as IconName,
     },
     {
-      title: t('sidebar.nav_analytics'),
+      title: t('sidebar.nav_analytics', 'Analytics'),
       url: "/analytics",
       iconName: "PieChart" as IconName,
     },
     {
-      title: t('sidebar.nav_developer'),
+      title: t('sidebar.nav_developer', 'Développeur / API'),
       url: "/developer",
       iconName: "Code" as IconName,
     },
     {
-      title: t('sidebar.nav_settings'),
+      title: t('sidebar.nav_settings', 'Paramètres'),
       url: "/settings",
       iconName: "Settings" as IconName,
     },
   ]
 
   return (
-    <Sidebar variant="inset" className="border-r border-border/50 bg-sidebar transition-all duration-200">
-      <SidebarHeader className="p-4 flex flex-row items-center gap-2.5 select-none border-b border-border/40">
-        <Logo className="h-4.5 w-auto" fillColor="currentColor" />
-        <span className="font-sans text-sm font-semibold tracking-tight text-sidebar-foreground">qoe.fi</span>
-        <span className="text-[9px] uppercase tracking-wider bg-muted text-muted-foreground font-bold px-1.5 py-0.5 rounded-md border border-border/40">
-          Console
-        </span>
-      </SidebarHeader>
-      
-      <SidebarContent className="px-2">
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground/70 px-3 mt-4 mb-2 select-none">
-            {t('sidebar.platform')}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenuClient items={items} />
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
+    <>
+      {/* Desktop Floating Rounded Sidebar Card with Collapse/Expand */}
+      <FloatingSidebarClient
+        userName={userName}
+        userEmail={userEmail}
+        userFallback={userFallback}
+        menuItems={menuItems}
+        logoutAction={logout}
+      />
 
-      <SidebarFooter className="p-3 border-t border-border/40">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md transition-colors" />}>
-                <Avatar className="h-8 w-8 rounded-md border border-border/60">
-                  <AvatarFallback className="rounded-md font-sans text-xs bg-muted text-foreground font-bold">{userFallback}</AvatarFallback>
-                </Avatar>
-                <div className="grid flex-1 text-left text-sm leading-tight font-sans">
-                  <span className="truncate font-semibold text-sidebar-foreground text-xs leading-none">{userName}</span>
-                  <span className="truncate text-[10px] text-muted-foreground mt-1 leading-none">{userEmail}</span>
-                </div>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-popover backdrop-blur-xl border border-border shadow-md p-1.5" side="top" align="end" sideOffset={8}>
-                <DropdownMenuItem className="text-xs font-medium font-sans cursor-pointer hover:bg-muted rounded px-2.5 py-1.5 text-popover-foreground">
-                  {t('sidebar.user_profile')}
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-xs font-medium font-sans cursor-pointer hover:bg-muted rounded px-2.5 py-1.5 text-popover-foreground">
-                  {t('sidebar.user_billing')}
-                </DropdownMenuItem>
-                <DropdownMenuItem render={<form action={logout} className="w-full" />} className="p-0">
-                  <button type="submit" className="w-full text-left cursor-pointer bg-transparent border-0 px-2.5 py-1.5 text-destructive font-sans text-xs font-semibold hover:bg-destructive/10 rounded">
-                    {t('sidebar.user_logout')}
-                  </button>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-      
-      {/* Interactive sidebar rail for smooth resizing & collapsing */}
-      <SidebarRail />
-    </Sidebar>
+      {/* Mobile Drawer (Visible only on mobile md:hidden) */}
+      <Sidebar className="md:hidden border-r border-border/50 bg-sidebar">
+        <SidebarHeader className="p-4 flex flex-col gap-3">
+          <div className="flex items-center gap-2.5">
+            <Logo className="h-4.5 w-auto" fillColor="currentColor" />
+            <span className="font-sans text-sm font-semibold tracking-tight text-sidebar-foreground">qoe.fi</span>
+          </div>
+          <Link
+            href="/articles/new"
+            className="w-full py-2 px-3 bg-primary text-primary-foreground rounded-xl font-sans text-xs font-semibold flex items-center justify-center gap-2"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Draft</span>
+          </Link>
+        </SidebarHeader>
+
+        <SidebarContent className="px-2">
+          <SidebarMenuClient items={menuItems} />
+        </SidebarContent>
+
+        <SidebarFooter className="p-3 border-t border-border/40">
+          <form action={logout} className="w-full">
+            <button
+              type="submit"
+              className="w-full text-left px-2 py-1.5 text-destructive font-sans text-xs font-semibold hover:bg-destructive/10 rounded-lg"
+            >
+              Logout
+            </button>
+          </form>
+        </SidebarFooter>
+      </Sidebar>
+    </>
   )
 }
