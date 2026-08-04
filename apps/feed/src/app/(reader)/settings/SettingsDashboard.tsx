@@ -595,12 +595,12 @@ export function SettingsDashboard({
 
                           <div className="space-y-1">
                             <label className="text-[10px] uppercase tracking-wider font-bold text-[var(--text-tertiary)] block px-1">
-                              {t("settings_reader.bio_label", "ADN Lecteur (Biographie)")}
+                              {t("settings_reader.bio_label", "Biographie")}
                             </label>
                             <textarea
                               value={bio}
                               rows={4}
-                              placeholder={t("settings_reader.bio_placeholder", "Décrivez vos lectures idéales pour calibrer le matching vectoriel pgvector.")}
+                              placeholder={t("settings_reader.bio_placeholder", "Présentez-vous brièvement ou indiquez vos sujets de prédilection.")}
                               onChange={(e) => setBio(e.target.value)}
                               className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-card)] p-3 resize-none"
                             />
