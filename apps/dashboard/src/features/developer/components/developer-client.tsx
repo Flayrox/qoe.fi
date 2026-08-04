@@ -167,7 +167,7 @@ export function DeveloperClient({
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 font-sans pb-16 text-zinc-800">
+    <div className="w-full space-y-8 font-sans pb-16 text-zinc-800">
       
       {/* Premium Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-100 pb-6">

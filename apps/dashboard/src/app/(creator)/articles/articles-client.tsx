@@ -170,7 +170,7 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
   const countDrafts = articles.filter(a => !a.published).length
 
   return (
-    <div className="space-y-8 max-w-[1200px] mx-auto w-full pb-24 text-foreground font-sans selection:bg-primary/20 selection:text-primary">
+    <div className="space-y-8 w-full pb-24 text-foreground font-sans selection:bg-primary/20 selection:text-primary">
       
       {/* Main Stage Headline */}
       <section className="pt-4 md:pt-2 space-y-4">
