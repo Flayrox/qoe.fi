@@ -11,6 +11,7 @@ import React, { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useDebounce } from "use-debounce"
 import { toast } from "sonner"
+import { URLS } from "@qoe/config"
 import {
   ExternalLink,
   Plus,
@@ -20,7 +21,8 @@ import {
   ArrowUp,
   ArrowDown,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  User
 } from "lucide-react"
 
 // Import Server Actions
@@ -138,6 +140,11 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
   const [current, setCurrent] = useState<CreatorProfile>(initialCreator)
   const [activeTab, setActiveTab] = useState<TabType>("general")
   const [isSaving, setIsSaving] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Subdomain Validation State
   const [subdomainInput, setSubdomainInput] = useState(current.subdomain || "")
@@ -201,6 +208,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
   }
 
   const publicBlogUrl = getPublicBlogUrl()
+  const consoleSettingsUrl = isMounted ? `${URLS.CONSOLE}/settings` : "#"
 
   // =====================================================================
   // ⚙️ MUTATION HANDLERS
@@ -358,6 +366,23 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
                 <span>Enregistrer</span>
               )}
             </button>
+          </div>
+        </div>
+
+        {/* Informative banner pointing to personal user account settings */}
+        <div className="max-w-3xl mx-auto px-6 pb-5">
+          <div className="p-3 bg-muted/40 border border-border/50 rounded-xl flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <User className="w-4 h-4 text-primary shrink-0" />
+              <span>Vous personnalisez le design et la configuration du média. Pour vos données personnelles (mot de passe, email) :</span>
+            </div>
+            <a
+              href={consoleSettingsUrl}
+              className="shrink-0 px-2.5 py-1 bg-background hover:bg-muted border border-border/60 rounded-lg font-semibold text-foreground text-[11px] transition-colors flex items-center gap-1"
+            >
+              <span>Mon Compte</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
         </div>
 
