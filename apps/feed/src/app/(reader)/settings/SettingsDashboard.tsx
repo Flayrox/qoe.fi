@@ -11,7 +11,7 @@ import {
   updateProfile, upgradeToCreator, updateNewsletterPreferences, 
   updateSecurityEmail, updateSecurityPassword, exportUserData,
   addMutedWord, removeMutedWord, requestGdprExportEmail,
-  freezeAccount, deleteAccount, revokeUserSession, updateTimelinePreferences
+  freezeAccount, deleteAccount, revokeUserSession, revokeAllOtherSessions, updateTimelinePreferences
 } from "./actions"
 
 import { useTranslate, useTolgee } from "@qoe/i18n"
@@ -42,6 +42,13 @@ interface SettingsDashboardProps {
     provider: string
     createdAt: string
     lastSignInAt?: string
+  }>
+  userSessions?: Array<{
+    id: string
+    browserOs: string
+    ipAddress: string
+    updatedAt: string
+    isCurrent: boolean
   }>
   subscriptions: Array<{
     creator: {
@@ -87,6 +94,7 @@ export function SettingsDashboard({
   hasPassword: initialHasPassword,
   currentSessionInfo,
   connectedIdentities = [],
+  userSessions = [],
   subscriptions: initialSubscriptions,
   walletTransactions,
   mutedWords: initialMutedWords,
@@ -922,8 +930,12 @@ export function SettingsDashboard({
                         </div>
                         <button
                           type="button"
-                          onClick={() => {
-                            setSessionMsg("Déconnexion de toutes les autres sessions effectuée.")
+                          onClick={async () => {
+                            const res = await revokeAllOtherSessions()
+                            if (res.success) {
+                              setSessionMsg("Déconnexion de toutes les autres sessions effectuée.")
+                              router.refresh()
+                            }
                             setTimeout(() => setSessionMsg(null), 3000)
                           }}
                           className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-1)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
@@ -939,34 +951,60 @@ export function SettingsDashboard({
                       )}
 
                       <div className="space-y-3">
-                        {/* Dynamic Current Session Card */}
-                        <div className="p-4 border border-[var(--border-default)] rounded-[var(--radius-card)] bg-[var(--surface-1)]/50 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-[var(--surface-2)] text-[var(--text-primary)] flex items-center justify-center shrink-0">
-                              <Monitor className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-[var(--text-primary)]">
-                                  {currentSessionInfo?.browserOs || "Navigateur Web"}
-                                </span>
-                                <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
-                                  — Session active
-                                </span>
-                              </div>
-                              <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
-                                IP: {currentSessionInfo?.ipAddress || "127.0.0.1"} • Connexion : {currentSessionInfo?.lastSignInAt ? new Date(currentSessionInfo.lastSignInAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "À l'instant"}
-                              </span>
-                            </div>
-                          </div>
-                          <span className="text-xs font-semibold text-[var(--text-tertiary)]">Appareil actuel</span>
-                        </div>
+                        {userSessions.map((session, idx) => {
+                          const isMobile = session.browserOs.toLowerCase().includes("mobile") || session.browserOs.toLowerCase().includes("iphone") || session.browserOs.toLowerCase().includes("ipad") || session.browserOs.toLowerCase().includes("android")
 
-                        {/* No Other Sessions Notice */}
-                        <div className="p-4 border border-dashed border-[var(--border-default)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-tertiary)] flex items-center justify-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <span>Aucun autre appareil actuellement connecté à ce compte.</span>
-                        </div>
+                          return (
+                            <div key={session.id || idx} className={cn("p-4 border rounded-[var(--radius-card)] flex items-center justify-between", session.isCurrent || idx === 0 ? "border-[var(--border-default)] bg-[var(--surface-1)]/50" : "border-[var(--border-default)] bg-[var(--surface-0)]")}>
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full bg-[var(--surface-2)] text-[var(--text-primary)] flex items-center justify-center shrink-0">
+                                  {isMobile ? <Smartphone className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-[var(--text-primary)]">
+                                      {session.browserOs}
+                                    </span>
+                                    {(session.isCurrent || idx === 0) && (
+                                      <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
+                                        — Session active
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
+                                    IP: {session.ipAddress} • Dernier accès : {new Date(session.updatedAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {(session.isCurrent || idx === 0) ? (
+                                <span className="text-xs font-semibold text-[var(--text-tertiary)]">Appareil actuel</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const res = await revokeUserSession(session.id)
+                                    if (res.success) {
+                                      setSessionMsg("Session révoquée avec succès.")
+                                      router.refresh()
+                                    }
+                                    setTimeout(() => setSessionMsg(null), 3000)
+                                  }}
+                                  className="text-xs text-destructive hover:bg-destructive/10 px-2.5 py-1 rounded-[var(--radius-button)] font-semibold transition-colors cursor-pointer"
+                                >
+                                  Révoquer
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })}
+
+                        {userSessions.length <= 1 && (
+                          <div className="p-4 border border-dashed border-[var(--border-default)] rounded-[var(--radius-card)] text-center text-xs text-[var(--text-tertiary)] flex items-center justify-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span>Aucun autre appareil actuellement connecté à ce compte.</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

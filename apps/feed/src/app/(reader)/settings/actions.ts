@@ -399,11 +399,37 @@ export async function revokeUserSession(sessionId: string) {
   if (!user) return { success: false, error: "UNAUTHORIZED" }
 
   try {
-    console.log(`[AUTH SESSION] Revoking session ${sessionId} for user ${user.id}`)
+    await prisma.$queryRawUnsafe(
+      `DELETE FROM auth.sessions WHERE id = $1::uuid AND user_id = $2::uuid`,
+      sessionId,
+      user.id
+    )
+    revalidatePath("/settings")
     return { success: true }
   } catch (error) {
     console.error("Error in revokeUserSession:", error)
     return { success: false, error: "REVOKE_ERROR" }
+  }
+}
+
+// 9b. Revoke All Other Sessions
+export async function revokeAllOtherSessions() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return { success: false, error: "UNAUTHORIZED" }
+
+  try {
+    // Delete all sessions except current active session in auth.sessions
+    await prisma.$queryRawUnsafe(
+      `DELETE FROM auth.sessions WHERE user_id = $1::uuid AND updated_at < NOW() - INTERVAL '30 seconds'`,
+      user.id
+    )
+    revalidatePath("/settings")
+    return { success: true }
+  } catch (error) {
+    console.error("Error in revokeAllOtherSessions:", error)
+    return { success: false, error: "REVOKE_ALL_ERROR" }
   }
 }
 
