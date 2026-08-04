@@ -2,12 +2,13 @@
 
 import { createClient } from '@qoe/supabase/server'
 import { redirect } from 'next/navigation'
+import { getMonorepoUrl } from '@qoe/config'
 
 export async function logout() {
   const supabase = await createClient()
   await supabase.auth.signOut()
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi'
-  redirect(`${appUrl}/login`)
+  const loginUrl = `${getMonorepoUrl("feed")}/login`
+  redirect(loginUrl)
 }
 
 export async function getCurrentUser() {

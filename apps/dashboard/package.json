@@ -23,6 +23,7 @@
     "@qoe/theme": "workspace:*",
     "@qoe/ui": "workspace:*",
     "@qoe/utils": "workspace:*",
+    "@sentry/nextjs": "^10.65.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.4",
     "@tanstack/react-table": "^8.21.3",

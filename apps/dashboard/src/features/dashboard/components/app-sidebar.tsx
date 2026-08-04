@@ -9,6 +9,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarRail,
 } from "@/components/ui/sidebar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -76,18 +77,18 @@ export async function AppSidebar() {
   ]
 
   return (
-    <Sidebar variant="inset" className="border-r border-border">
-      <SidebarHeader className="p-4 flex flex-row items-center gap-2 select-none">
+    <Sidebar variant="inset" className="border-r border-border/50 bg-sidebar transition-all duration-200">
+      <SidebarHeader className="p-4 flex flex-row items-center gap-2.5 select-none border-b border-border/40">
         <Logo className="h-4.5 w-auto" fillColor="currentColor" />
-        <span className="font-sans text-sm font-semibold tracking-tight text-foreground">qoe.fi</span>
-        <span className="text-[9px] uppercase tracking-wider bg-muted text-muted-foreground font-black px-1.5 py-0.5 rounded">
+        <span className="font-sans text-sm font-semibold tracking-tight text-sidebar-foreground">qoe.fi</span>
+        <span className="text-[9px] uppercase tracking-wider bg-muted text-muted-foreground font-bold px-1.5 py-0.5 rounded-md border border-border/40">
           Console
         </span>
       </SidebarHeader>
       
       <SidebarContent className="px-2">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] uppercase font-black tracking-wider text-muted-foreground/60 px-3 mt-4 mb-2">
+          <SidebarGroupLabel className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground/70 px-3 mt-4 mb-2 select-none">
             {t('sidebar.platform')}
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -96,24 +97,24 @@ export async function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-3 border-t border-border/40">
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu modal={false}>
-              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md" />}>
-                <Avatar className="h-8 w-8 rounded-md border border-border">
+              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md transition-colors" />}>
+                <Avatar className="h-8 w-8 rounded-md border border-border/60">
                   <AvatarFallback className="rounded-md font-sans text-xs bg-muted text-foreground font-bold">{userFallback}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight font-sans">
-                  <span className="truncate font-semibold text-foreground text-xs leading-none">{userName}</span>
-                  <span className="truncate text-[10px] text-muted-foreground mt-0.5 leading-none">{userEmail}</span>
+                  <span className="truncate font-semibold text-sidebar-foreground text-xs leading-none">{userName}</span>
+                  <span className="truncate text-[10px] text-muted-foreground mt-1 leading-none">{userEmail}</span>
                 </div>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-popover backdrop-blur-xl border border-border shadow-lg p-1.5" side="top" align="end" sideOffset={8}>
-                <DropdownMenuItem className="text-xs font-medium font-sans cursor-pointer hover:bg-muted rounded px-2.5 py-1.5">
+              <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-popover backdrop-blur-xl border border-border shadow-md p-1.5" side="top" align="end" sideOffset={8}>
+                <DropdownMenuItem className="text-xs font-medium font-sans cursor-pointer hover:bg-muted rounded px-2.5 py-1.5 text-popover-foreground">
                   {t('sidebar.user_profile')}
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-xs font-medium font-sans cursor-pointer hover:bg-muted rounded px-2.5 py-1.5">
+                <DropdownMenuItem className="text-xs font-medium font-sans cursor-pointer hover:bg-muted rounded px-2.5 py-1.5 text-popover-foreground">
                   {t('sidebar.user_billing')}
                 </DropdownMenuItem>
                 <DropdownMenuItem render={<form action={logout} className="w-full" />} className="p-0">
@@ -126,6 +127,9 @@ export async function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      
+      {/* Interactive sidebar rail for smooth resizing & collapsing */}
+      <SidebarRail />
     </Sidebar>
   )
 }

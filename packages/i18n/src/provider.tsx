@@ -44,6 +44,8 @@ export function useTolgee() {
         let domainAttr = "";
         if (hostname.endsWith("qoe.test")) {
           domainAttr = ";domain=.qoe.test";
+        } else if (hostname.endsWith("lvh.me")) {
+          domainAttr = ";domain=.lvh.me";
         } else if (hostname.endsWith("qoe.fi")) {
           domainAttr = ";domain=.qoe.fi";
         }

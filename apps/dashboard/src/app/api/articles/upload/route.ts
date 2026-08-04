@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@qoe/supabase/server";
 import { getCurrentUser } from "@qoe/auth/current-user";
 import { LIMITS } from "@qoe/config";
+import { moderateImage } from "@/lib/moderation";
 
 const MAX_SIZE_BYTES = LIMITS.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
 
@@ -39,6 +40,15 @@ export async function POST(request: NextRequest) {
     if (file.size > MAX_SIZE_BYTES) {
       return NextResponse.json(
         { error: `File size exceeds ${LIMITS.MAX_UPLOAD_SIZE_MB}MB limit` },
+        { status: 400 }
+      );
+    }
+
+    // 🛡️ OpenAI Moderation check (AI Content Moderation)
+    const moderation = await moderateImage(file);
+    if (!moderation.safe) {
+      return NextResponse.json(
+        { error: moderation.reason || "Content flagged by safety filters." },
         { status: 400 }
       );
     }

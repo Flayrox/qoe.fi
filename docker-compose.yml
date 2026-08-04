@@ -26,14 +26,20 @@ services:
     container_name: qoefi-caddy
     restart: unless-stopped
 
-    # Écoute uniquement sur le port 8080 en local (Nginx de l'hôte fera le reverse proxy)
+    # Écoute publique
     ports:
-      - "127.0.0.1:8080:80"
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
     volumes:
       - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+      - /etc/letsencrypt:/etc/letsencrypt:ro
 
     # Caddy a besoin de connaître les autres services
     depends_on:
@@ -52,6 +58,7 @@ services:
 
     networks:
       - qoefi-public
+      - supabase_default
 
     # Resource limits
     deploy:
@@ -104,6 +111,7 @@ services:
     networks:
       - qoefi-public
       - qoefi-private
+      - supabase_default
 
     depends_on:
       migrate:
@@ -158,6 +166,7 @@ services:
     networks:
       - qoefi-public
       - qoefi-private
+      - supabase_default
 
     depends_on:
       migrate:
@@ -213,6 +222,7 @@ services:
     networks:
       - qoefi-public
       - qoefi-private
+      - supabase_default
 
     depends_on:
       migrate:
@@ -268,6 +278,7 @@ services:
     networks:
       - qoefi-public
       - qoefi-private
+      - supabase_default
 
     depends_on:
       migrate:
@@ -323,6 +334,7 @@ services:
     networks:
       - qoefi-public
       - qoefi-private
+      - supabase_default
 
     depends_on:
       migrate:
@@ -377,6 +389,7 @@ services:
     networks:
       - qoefi-public
       - qoefi-private
+      - supabase_default
 
     depends_on:
       migrate:
@@ -426,7 +439,8 @@ services:
       - "host.docker.internal:host-gateway"
 
     networks:
-      - qoefi-private  # ⚠️ Pas besoin d'être public
+      - qoefi-private
+      - supabase_default  # ⚠️ Pas besoin d'être public
 
     depends_on:
       redis:
@@ -514,6 +528,7 @@ services:
 
     networks:
       - qoefi-private
+      - supabase_default
 
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -548,6 +563,7 @@ services:
 
     networks:
       - qoefi-private
+      - supabase_default
 
 # =====================================================================
 # 🌐 RÉSEAUX
@@ -563,6 +579,8 @@ networks:
     name: qoefi-private
     driver: bridge
     internal: false  # Doit pouvoir downloader (npm, etc.) au build
+  supabase_default:
+    external: true
 
 # =====================================================================
 # 📦 VOLUMES

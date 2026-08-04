@@ -10,6 +10,8 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar"
 
+import Link from "next/link"
+
 const iconMap = {
   Home,
   FileText,
@@ -54,7 +56,7 @@ export function SidebarMenuClient({ items }: SidebarMenuClientProps) {
               size="sm"
               isActive={active}
               tooltip={item.title}
-              render={<a href={item.url} />}
+              render={<Link href={item.url} />}
               className={cn(
                 "transition-colors duration-200 select-none text-xs rounded-md font-sans py-1.5 px-3 h-8 flex items-center gap-2.5",
                 active

@@ -4,30 +4,32 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@qoe/supabase/middleware";
+import { getMonorepoUrl } from "@qoe/config";
 
 export async function middleware(request: NextRequest) {
   const host = request.headers.get("host") || "";
+  const hostname = host.split(":")[0];
+
+  // 1. Étape 0 Absolue : Canonicalisation immédiate de localhost -> admin.lvh.me
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    const canonicalUrl = request.nextUrl.clone();
+    canonicalUrl.hostname = "admin.lvh.me";
+    return NextResponse.redirect(canonicalUrl);
+  }
 
   // Forward language cookie as request header
   const localeCookie = request.cookies.get("x-locale")?.value || "fr";
   request.headers.set("x-locale", localeCookie);
 
   const { supabaseResponse, user } = await updateSession(request);
-
-  // Set locale header on response too
   supabaseResponse.headers.set("x-locale", localeCookie);
 
-  // 1. Déterminer l'URL de login centrale (qoe.fi/login)
-  const isLocal = host.includes("localhost") || host.includes("127.0.0.1") || host.includes("qoe.test");
-  const loginUrl = isLocal
-    ? host.includes("qoe.test")
-      ? "http://qoe.test/login"
-      : "http://localhost/login"
-    : "https://qoe.fi/login";
-
-  // 2. Protection de l'espace admin (layout s'occupe de vérifier le rôle superadmin)
+  // 2. Protection de l'espace admin avec résolution universelle getMonorepoUrl
   if (!user) {
-    return NextResponse.redirect(new URL(loginUrl));
+    const loginBase = `${getMonorepoUrl("feed", host)}/login`;
+    const currentTarget = request.nextUrl.href;
+    const redirectTarget = `${loginBase}?redirect=${encodeURIComponent(currentTarget)}`;
+    return NextResponse.redirect(new URL(redirectTarget));
   }
 
   return supabaseResponse;
