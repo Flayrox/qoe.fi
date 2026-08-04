@@ -134,12 +134,67 @@ export default async function UserSettingsPage() {
     console.error("Failed to check password existence:", e)
   }
 
+  // 6. Fetch active sessions from auth.sessions
+  let userSessions: Array<{
+    id: string
+    browserOs: string
+    ipAddress: string
+    updatedAt: string
+    isCurrent: boolean
+  }> = []
+
+  try {
+    const dbSessions = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT id, user_agent, ip, updated_at FROM auth.sessions WHERE user_id = $1::uuid AND (not_after IS NULL OR not_after > NOW()) ORDER BY updated_at DESC`,
+      user.id
+    )
+
+    if (dbSessions && dbSessions.length > 0) {
+      userSessions = dbSessions.map((s: any, idx: number) => {
+        const agent = s.user_agent || ""
+        let bOs = "Navigateur Web"
+        if (agent.includes("Chrome")) bOs = "Chrome"
+        else if (agent.includes("Safari") && !agent.includes("iPhone") && !agent.includes("iPad")) bOs = "Safari"
+        else if (agent.includes("Firefox")) bOs = "Firefox"
+        else if (agent.includes("Edge")) bOs = "Edge"
+
+        if (agent.includes("Windows")) bOs += " / Windows"
+        else if (agent.includes("Mac OS") || agent.includes("Macintosh")) bOs += " / macOS"
+        else if (agent.includes("iPhone")) bOs = "Safari Mobile / iPhone"
+        else if (agent.includes("iPad")) bOs = "Safari Mobile / iPad"
+        else if (agent.includes("Android")) bOs = "Chrome Mobile / Android"
+        else if (agent.includes("Linux")) bOs += " / Linux"
+
+        return {
+          id: s.id,
+          browserOs: bOs,
+          ipAddress: s.ip ? String(s.ip) : "127.0.0.1",
+          updatedAt: s.updated_at ? new Date(s.updated_at).toISOString() : new Date().toISOString(),
+          isCurrent: idx === 0 || agent === rawUserAgent
+        }
+      })
+    }
+  } catch (e) {
+    console.error("Failed to query auth.sessions:", e)
+  }
+
+  if (userSessions.length === 0) {
+    userSessions.push({
+      id: "current",
+      browserOs,
+      ipAddress,
+      updatedAt: user.last_sign_in_at || new Date().toISOString(),
+      isCurrent: true
+    })
+  }
+
   return (
     <SettingsDashboard
       dbUser={dbUser}
       hasPassword={hasPassword}
       currentSessionInfo={currentSessionInfo}
       connectedIdentities={connectedIdentities}
+      userSessions={userSessions}
       subscriptions={subscriptions}
       walletTransactions={walletTransactions.map((t: any) => ({
         ...t,
