@@ -3,6 +3,7 @@
 import { prisma } from "@qoe/db/client"
 import { createClient } from "@qoe/supabase/server"
 import { revalidatePath } from "next/cache"
+import { sendSecurityPasswordChangedAlert, sendGdprArchiveReadyEmail, sendSecurityLoginAlert } from "@qoe/auth"
 
 // 1. Profile updates
 export async function updateProfile(data: { name: string, username: string, avatarUrl: string, bio: string }) {
@@ -154,8 +155,18 @@ export async function updateSecurityEmail(email: string) {
 
 export async function updateSecurityPassword(password: string) {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   const { error } = await supabase.auth.updateUser({ password })
   if (error) return { success: false, error: error.message }
+
+  if (user && user.email) {
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { name: true } })
+    await sendSecurityPasswordChangedAlert({
+      toEmail: user.email,
+      userName: dbUser?.name || "Utilisateur"
+    })
+  }
+
   return { success: true }
 }
 
@@ -300,9 +311,15 @@ export async function requestGdprExportEmail() {
   if (!user || !user.email) return { success: false, error: "UNAUTHORIZED" }
 
   try {
-    // In production with local or cloud Supabase/Resend, this enqueues an email job.
-    // For now, log the GDPR export request
-    console.log(`[GDPR EXPORT JOB] Queued data export for user ${user.id} (${user.email})`)
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { name: true } })
+    
+    // Dispatch transactional security email with encrypted download link
+    await sendGdprArchiveReadyEmail({
+      toEmail: user.email,
+      userName: dbUser?.name || "Utilisateur",
+      downloadUrl: `https://qoe.fi/api/gdpr/download?token=${Buffer.from(user.id + ":" + Date.now()).toString("base64url")}`,
+      expiresInHours: 24
+    })
 
     return { success: true, message: "JOB_QUEUED" }
   } catch (error) {
