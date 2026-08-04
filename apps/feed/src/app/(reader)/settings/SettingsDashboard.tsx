@@ -113,11 +113,14 @@ export function SettingsDashboard({
   const [triggerWarningFilter, setTriggerWarningFilter] = useState<"show" | "warn" | "hide">("warn")
   const [autoplayMedia, setAutoplayMedia] = useState(true)
 
-  // Notification Toggles (UI)
+  // Notification & Email Toggles
   const [notifyFollowers, setNotifyFollowers] = useState(true)
   const [notifyComments, setNotifyComments] = useState(true)
   const [notifyMentions, setNotifyMentions] = useState(true)
-  const [digestFrequency, setDigestFrequency] = useState<"realtime" | "daily" | "weekly">("daily")
+  const [digestFrequency, setDigestFrequency] = useState<"realtime" | "daily" | "weekly" | "never">("daily")
+  const [securityEmailLogin, setSecurityEmailLogin] = useState(true)
+  const [securityEmailChanges, setSecurityEmailChanges] = useState(true)
+  const [productUpdatesEmail, setProductUpdatesEmail] = useState(true)
 
   // Upgrade state
   const [subdomain, setSubdomain] = useState("")
@@ -620,7 +623,7 @@ export function SettingsDashboard({
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] px-3.5 py-2.5 font-mono"
+                                className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] px-3.5 py-2.5"
                                 required
                               />
                             </div>
@@ -909,16 +912,16 @@ export function SettingsDashboard({
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-[var(--text-primary)]">Navigateur Actuel</span>
-                                <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
-                                  Session Active
+                                <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
+                                  — Session active
                                 </span>
                               </div>
-                              <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5 font-mono">
+                              <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
                                 Chrome / Windows • IP: 127.0.0.1
                               </span>
                             </div>
                           </div>
-                          <span className="text-[10px] font-bold text-emerald-600">Appareil actuel</span>
+                          <span className="text-xs font-semibold text-[var(--text-tertiary)]">Appareil actuel</span>
                         </div>
 
                         {/* Other Session Placeholder */}
@@ -929,7 +932,7 @@ export function SettingsDashboard({
                             </div>
                             <div>
                               <span className="text-xs font-bold text-[var(--text-primary)] block">Safari Mobile (iOS)</span>
-                              <span className="text-[10px] text-[var(--text-tertiary)] block font-mono mt-0.5">
+                              <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
                                 Paris, France • Dernier accès : Il y a 2h
                               </span>
                             </div>
@@ -1098,6 +1101,76 @@ export function SettingsDashboard({
                         </div>
                       </div>
 
+                      {/* Security & Transactional Email Settings */}
+                      <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-6">
+                        <div>
+                          <h2 className="text-base font-bold text-[var(--text-primary)] tracking-tight leading-none">
+                            E-mails de Sécurité & Communication System
+                          </h2>
+                          <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                            Gérez les alertes e-mails de sécurité transactionnelle et la fréquence des récapitulatifs.
+                          </p>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+                            <div>
+                              <span className="text-xs font-bold text-[var(--text-primary)] block">Alertes de Nouvelle Connexion</span>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block">Recevoir un e-mail immédiat lors d'une connexion sur un nouvel appareil</span>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={securityEmailLogin}
+                              onChange={(e) => setSecurityEmailLogin(e.target.checked)}
+                              className="w-4 h-4 rounded border-[var(--border-default)] text-[var(--qoe-vermillion)] cursor-pointer"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+                            <div>
+                              <span className="text-xs font-bold text-[var(--text-primary)] block">Alertes de Modification de Sécurité</span>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block">Recevoir un e-mail lors du changement de mot de passe ou d'e-mail</span>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={securityEmailChanges}
+                              onChange={(e) => setSecurityEmailChanges(e.target.checked)}
+                              className="w-4 h-4 rounded border-[var(--border-default)] text-[var(--qoe-vermillion)] cursor-pointer"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+                            <div>
+                              <span className="text-xs font-bold text-[var(--text-primary)] block">Fréquence des Récapitulatifs (Digest)</span>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block">Choisissez la fréquence d'envoi des résumés d'écrits et d'actualités</span>
+                            </div>
+                            <select
+                              value={digestFrequency}
+                              onChange={(e) => setDigestFrequency(e.target.value as any)}
+                              className="text-xs bg-[var(--surface-1)] hover:bg-[var(--surface-2)] font-semibold border border-[var(--border-default)] px-3 py-1.5 rounded-[var(--radius-button)] focus:outline-none cursor-pointer"
+                            >
+                              <option value="realtime">En temps réel</option>
+                              <option value="daily">Digest Quotidien (Recommandé)</option>
+                              <option value="weekly">Récapitulatif Hebdomadaire</option>
+                              <option value="never">Jamais</option>
+                            </select>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-xs font-bold text-[var(--text-primary)] block">Annonces Produit & Nouveautés qoe.fi</span>
+                              <span className="text-[10px] text-[var(--text-tertiary)] block">Recevoir les notes de mise à jour et fonctionnalités de la plateforme</span>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={productUpdatesEmail}
+                              onChange={(e) => setProductUpdatesEmail(e.target.checked)}
+                              className="w-4 h-4 rounded border-[var(--border-default)] text-[var(--qoe-vermillion)] cursor-pointer"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Creator Newsletters Toggles */}
                       <div className="bg-[var(--surface-0)] rounded-[var(--radius-card)] p-6 shadow-xs border border-[var(--border-default)] flex flex-col gap-5">
                         <div className="flex items-center justify-between">
@@ -1204,10 +1277,10 @@ export function SettingsDashboard({
                                 placeholder="votre-media"
                                 value={subdomain}
                                 onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                                className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] pl-3.5 pr-20 py-2.5 font-mono"
+                                className="w-full text-xs border border-[var(--border-default)] focus:border-[var(--text-tertiary)] focus:outline-none bg-[var(--surface-1)] focus:bg-[var(--surface-0)] rounded-[var(--radius-button)] pl-3.5 pr-20 py-2.5"
                                 required
                               />
-                              <span className="absolute right-3 top-3 text-[10px] text-[var(--text-tertiary)] font-bold font-mono">
+                              <span className="absolute right-3 top-3 text-[10px] text-[var(--text-tertiary)] font-bold">
                                 .qoe.fi
                               </span>
                             </div>
@@ -1232,7 +1305,7 @@ export function SettingsDashboard({
                           </div>
                           <p className="text-xs text-[var(--text-secondary)]">
                             Votre média est accessible à l'adresse :{" "}
-                            <strong className="font-mono text-[var(--qoe-vermillion)]">{dbUser.subdomain}.qoe.fi</strong>
+                            <strong className="font-bold text-[var(--qoe-vermillion)]">{dbUser.subdomain}.qoe.fi</strong>
                           </p>
                           <a
                             href={URLS.DASHBOARD}
@@ -1277,7 +1350,7 @@ export function SettingsDashboard({
                                       {tx.type === "DEPOSIT" ? "Recharge" : tx.type === "SUBSCRIPTION_PAYMENT" ? "Déblocage premium" : tx.type}
                                     </td>
                                     <td className={cn(
-                                      "p-3 text-right font-bold font-mono",
+                                      "p-3 text-right font-bold text-xs",
                                       tx.amountCents > 0 ? "text-emerald-600" : "text-[var(--text-primary)]"
                                     )}>
                                       {tx.amountCents > 0 ? "+" : ""}{(tx.amountCents / 100).toFixed(2)} €
@@ -1474,7 +1547,7 @@ export function SettingsDashboard({
                           <div className="flex flex-wrap gap-1.5">
                             {mutedWords.map(w => (
                               <div key={w.id} className="text-xs bg-[var(--surface-1)] border border-[var(--border-default)] rounded-[var(--radius-card)] px-3 py-1.5 flex items-center gap-2 font-semibold">
-                                <span className="font-mono">{w.word}</span>
+                                <span className="font-semibold">{w.word}</span>
                                 <button 
                                   onClick={() => handleRemoveMutedWord(w.id)}
                                   className="text-[var(--text-tertiary)] hover:text-red-500 transition-colors shrink-0 p-1"
@@ -1665,14 +1738,14 @@ export function SettingsDashboard({
 
               <div className="space-y-1">
                 <label className="font-bold text-[var(--text-secondary)] block">
-                  Saisissez <span className="font-mono text-red-600 font-bold">SUPPRIMER</span> pour valider :
+                  Saisissez <span className="text-red-600 font-bold">SUPPRIMER</span> pour valider :
                 </label>
                 <input
                   type="text"
                   value={deleteConfirmationText}
                   onChange={(e) => setDeleteConfirmationText(e.target.value)}
                   placeholder="SUPPRIMER"
-                  className="w-full text-xs border border-[var(--border-default)] focus:border-red-500 bg-[var(--surface-1)] rounded-[var(--radius-button)] px-3 py-2 font-mono uppercase"
+                  className="w-full text-xs border border-[var(--border-default)] focus:border-red-500 bg-[var(--surface-1)] rounded-[var(--radius-button)] px-3 py-2 uppercase"
                 />
               </div>
             </div>
