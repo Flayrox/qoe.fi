@@ -3,6 +3,7 @@
 import { prisma } from "@qoe/db/client";
 import { createServiceClient } from "@qoe/supabase/server";
 import crypto from "crypto";
+import { revalidatePath } from "next/cache";
 
 export interface DevtoolsUser {
   id: string;
