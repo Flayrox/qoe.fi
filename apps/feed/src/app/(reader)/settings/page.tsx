@@ -1,5 +1,6 @@
 import { createClient } from "@qoe/supabase/server"
 import { redirect } from "next/navigation"
+import { headers } from "next/headers"
 import { prisma } from "@qoe/db/client"
 import { SettingsDashboard } from "./SettingsDashboard"
 
@@ -8,6 +9,37 @@ export default async function UserSettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) redirect("/login")
+
+  // Extract real request headers for dynamic session info
+  const headersList = await headers()
+  const rawUserAgent = headersList.get("user-agent") || "Navigateur Web"
+  const ipAddress = headersList.get("x-forwarded-for")?.split(",")[0] || headersList.get("x-real-ip") || "127.0.0.1"
+
+  // Parse user-agent for friendly display
+  let browserOs = "Navigateur Web"
+  if (rawUserAgent.includes("Chrome")) browserOs = "Chrome"
+  else if (rawUserAgent.includes("Safari")) browserOs = "Safari"
+  else if (rawUserAgent.includes("Firefox")) browserOs = "Firefox"
+  else if (rawUserAgent.includes("Edge")) browserOs = "Edge"
+
+  if (rawUserAgent.includes("Windows")) browserOs += " / Windows"
+  else if (rawUserAgent.includes("Mac OS") || rawUserAgent.includes("Macintosh")) browserOs += " / macOS"
+  else if (rawUserAgent.includes("iPhone") || rawUserAgent.includes("iPad")) browserOs += " / iOS"
+  else if (rawUserAgent.includes("Android")) browserOs += " / Android"
+  else if (rawUserAgent.includes("Linux")) browserOs += " / Linux"
+
+  const currentSessionInfo = {
+    browserOs,
+    ipAddress,
+    lastSignInAt: user.last_sign_in_at || new Date().toISOString()
+  }
+
+  // Extract real Supabase OAuth connected identities
+  const connectedIdentities = (user.identities || []).map((id: any) => ({
+    provider: id.provider,
+    createdAt: id.created_at,
+    lastSignInAt: id.last_sign_in_at
+  }))
 
   // 1. Fetch main user profile
   const dbUser = await prisma.user.findUnique({
@@ -106,6 +138,8 @@ export default async function UserSettingsPage() {
     <SettingsDashboard
       dbUser={dbUser}
       hasPassword={hasPassword}
+      currentSessionInfo={currentSessionInfo}
+      connectedIdentities={connectedIdentities}
       subscriptions={subscriptions}
       walletTransactions={walletTransactions.map((t: any) => ({
         ...t,
