@@ -52,3 +52,11 @@ Une fois tout démarré, accède directement à tes applications via les domaine
 
 * **Arrêter Caddy** : `caddy stop`
 * **Arrêter les bases de données** : `docker compose -f docker-compose.dev.yml down`
+
+
+## 🤖 Keeping AI Context Updated
+
+If you are using AI agents (Cursor, Claude, etc.) or making significant architectural changes:
+1. When adding new apps, packages, or modifying core logic, **you must ensure the `AI_CODEBASE_MAP.md` remains accurate**.
+2. If `schema.prisma` is changed, or if a major API route/UI component is refactored, verify that the "Dependency & Blast Radius Matrix" in `AI_CODEBASE_MAP.md` is updated to reflect the new state.
+3. Keeping the map up to date guarantees that AI coding assistants will continue to output high-quality, hallucination-free code.

@@ -313,10 +313,21 @@ En résumé :
 
 ---
 
+
+## 🤖 AI Context & Architecture
+> **ATTENTION AI AGENTS (Cursor, Claude, Antigravity, etc.)**
+>
+> This repository maintains a Ground Truth codebase map specifically designed for AI consumption.
+> Before writing, modifying, or proposing any code changes, you MUST read and analyze:
+> 👉 **[AI_CODEBASE_MAP.md](./AI_CODEBASE_MAP.md)**
+>
+> It contains the absolute single source of truth for the stack, file registry, blast radius metrics, routing conventions, and strict architectural rules.
+
 ## 📖 Documentation
 
 | Fichier | Contenu |
 |---------|---------|
+| [AI_CODEBASE_MAP.md](./AI_CODEBASE_MAP.md) | 🤖 Ground Truth Codebase Map for AI Coding Agents |
 | [README.md](./README.md) | Ce fichier (vitrine du projet) |
 | [GETTING_STARTED.md](./GETTING_STARTED.md) | Démarrage rapide Mac/Win avec le workflow hybride |
 | [DEV.md](./DEV.md) | Workflow dev quotidien (3 étapes, Caddy + Docker) |
