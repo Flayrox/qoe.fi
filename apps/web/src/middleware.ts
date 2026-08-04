@@ -65,7 +65,13 @@ export async function middleware(request: NextRequest) {
     if (!user && !ssoChecked) {
       let mainAppUrl = "https://qoe.fi";
       if (process.env.NODE_ENV === "development") {
-        mainAppUrl = "http://qoe.test";
+        if (hostWithoutPort.endsWith("lvh.me")) {
+          mainAppUrl = "http://lvh.me";
+        } else if (hostWithoutPort.endsWith("qoe.test")) {
+          mainAppUrl = "http://qoe.test";
+        } else {
+          mainAppUrl = "http://localhost:3010";
+        }
       }
       
       const host = request.headers.get("host") || "localhost:3000";

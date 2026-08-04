@@ -91,51 +91,77 @@ export const LIMITS = {
   MAX_PAGE_SIZE: 100,
 } as const;
 
-function getDynamicUrl(subdomain: string): string {
-  if (typeof window === "undefined") return "";
-  const hostname = window.location.hostname;
+export type MonorepoApp = "feed" | "dashboard" | "admin" | "landing" | "api" | "tenant";
 
-  let suffix = "localhost";
-  if (hostname.endsWith("qoe.test")) {
-    suffix = "qoe.test";
-  } else if (hostname.endsWith("qoe.fi")) {
-    suffix = "qoe.fi";
-  } else if (hostname.endsWith("lvh.me")) {
-    suffix = "lvh.me";
+export function getMonorepoUrl(app: MonorepoApp, hostname?: string, tenantSubdomain?: string): string {
+  // 1. Mode Production
+  if (process.env.NODE_ENV === "production") {
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "qoe.fi";
+    switch (app) {
+      case "feed": return `https://${rootDomain}`;
+      case "dashboard": return `https://dashboard.${rootDomain}`;
+      case "admin": return `https://admin.${rootDomain}`;
+      case "landing": return `https://start.${rootDomain}`;
+      case "api": return `https://api.${rootDomain}`;
+      case "tenant": return `https://${tenantSubdomain || "demo"}.${rootDomain}`;
+    }
   }
 
-  const tenantSuffix = process.env.NEXT_PUBLIC_DEV_TENANT_SUFFIX || suffix;
-  const protocol = window.location.protocol;
-  if (subdomain === "") {
-    return `${protocol}//${suffix}`;
+  // 2. Mode Développement (Détection dynamique lvh.me vs qoe.test + conservation des ports)
+  let devBase = "lvh.me";
+  if (hostname && hostname.endsWith("qoe.test")) {
+    devBase = "qoe.test";
   }
-  return `${protocol}//${subdomain}.${tenantSuffix}`;
+
+  // Si l'hôte n'a pas de port (ex: Caddy proxy sur port 80), on n'ajoute pas de port
+  const isCaddy = hostname && !hostname.includes(":");
+  const feedPort = isCaddy ? "" : ":3010";
+  const dashboardPort = isCaddy ? "" : ":3020";
+  const adminPort = isCaddy ? "" : ":3030";
+  const landingPort = isCaddy ? "" : ":3040";
+  const apiPort = isCaddy ? "" : ":3002";
+  const tenantPort = isCaddy ? "" : ":3001";
+
+  switch (app) {
+    case "feed": return `http://${devBase}${feedPort}`;
+    case "dashboard": return `http://dashboard.${devBase}${dashboardPort}`;
+    case "admin": return `http://admin.${devBase}${adminPort}`;
+    case "landing": return `http://start.${devBase}${landingPort}`;
+    case "api": return `http://api.${devBase}${apiPort}`;
+    case "tenant": return `http://${tenantSubdomain || "climat"}.${devBase}${tenantPort}`;
+  }
 }
 
 export const URLS = {
   get APP(): string {
-    if (typeof window !== "undefined") return getDynamicUrl("");
-    return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const win = (globalThis as Record<string, unknown>).window as { location: { hostname: string; port: string; protocol: string } } | undefined;
+    const hostname = win ? `${win.location.hostname}${win.location.port ? `:${win.location.port}` : ""}` : undefined;
+    return getMonorepoUrl("feed", hostname);
   },
   get CONSOLE(): string {
-    if (typeof window !== "undefined") return getDynamicUrl("");
-    return process.env.NEXT_PUBLIC_CONSOLE_URL || "http://localhost:3000";
+    const win = (globalThis as Record<string, unknown>).window as { location: { hostname: string; port: string; protocol: string } } | undefined;
+    const hostname = win ? `${win.location.hostname}${win.location.port ? `:${win.location.port}` : ""}` : undefined;
+    return getMonorepoUrl("feed", hostname);
   },
   get ADMIN(): string {
-    if (typeof window !== "undefined") return getDynamicUrl("admin");
-    return process.env.NEXT_PUBLIC_ADMIN_URL || "http://admin.localhost";
+    const win = (globalThis as Record<string, unknown>).window as { location: { hostname: string; port: string; protocol: string } } | undefined;
+    const hostname = win ? `${win.location.hostname}${win.location.port ? `:${win.location.port}` : ""}` : undefined;
+    return getMonorepoUrl("admin", hostname);
   },
   get DASHBOARD(): string {
-    if (typeof window !== "undefined") return getDynamicUrl("dashboard");
-    return process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://dashboard.localhost";
+    const win = (globalThis as Record<string, unknown>).window as { location: { hostname: string; port: string; protocol: string } } | undefined;
+    const hostname = win ? `${win.location.hostname}${win.location.port ? `:${win.location.port}` : ""}` : undefined;
+    return getMonorepoUrl("dashboard", hostname);
   },
   get API(): string {
-    if (typeof window !== "undefined") return getDynamicUrl("api");
-    return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    const win = (globalThis as Record<string, unknown>).window as { location: { hostname: string; port: string; protocol: string } } | undefined;
+    const hostname = win ? `${win.location.hostname}${win.location.port ? `:${win.location.port}` : ""}` : undefined;
+    return getMonorepoUrl("api", hostname);
   },
   get LANDING(): string {
-    if (typeof window !== "undefined") return getDynamicUrl("start");
-    return process.env.NEXT_PUBLIC_LANDING_URL || "http://localhost:3000/start";
+    const win = (globalThis as Record<string, unknown>).window as { location: { hostname: string; port: string; protocol: string } } | undefined;
+    const hostname = win ? `${win.location.hostname}${win.location.port ? `:${win.location.port}` : ""}` : undefined;
+    return getMonorepoUrl("landing", hostname);
   },
 };
 
