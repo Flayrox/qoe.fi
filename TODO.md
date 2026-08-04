@@ -27,12 +27,16 @@
 
 ---
 
-### 2. 🎙️ Multi-Tenancy Média Multi-Publications (Vision Produit)
-> Référence : [`VISION_MULTI_TENANT_MEDIA.md`](file:///d:/Files/DEV/Main/qoe.fi/VISION_MULTI_TENANT_MEDIA.md)
-- [ ] Unifier le modèle où un compte créateur peut travailler pour **plusieurs médias / publications** simultanément.
-- [ ] Créer le **Context Switcher Média** dans l'en-tête du Dashboard Studio (*Basculeur de rôle & publication*).
-- [ ] Séparer les modes d'interface Studio : **Writer** (rédaction seule), **Creator** (gestion d'un média), **Advanced** (multi-médias & rôles d'équipe).
-- [ ] Gestion des rôles & permissions par média (Éditeur, Auteur, Admin Média).
+### 2. 🎙️ Multi-Tenancy Média & Gestion des Médias depuis le Compte Créateur
+> Références : [`VISION_MULTI_TENANT_MEDIA.md`](file:///d:/Files/DEV/Main/qoe.fi/VISION_MULTI_TENANT_MEDIA.md) & Discussion *"Redesign Creator Dashboard Settings"*
+- [ ] **Création de Média en 1 Clic** : Permettre à un utilisateur / créateur de **créer un ou plusieurs nouveaux médias** (journal, magazine, revue) directement depuis son compte principal, sans devoir créer un compte supplémentaire ou passer par un compte admin média global.
+- [ ] **Gestion des Réglages Médias Dédiés** : Réserver les réglages du Dashboard Studio (`dashboard.qoe.fi/settings`) à la configuration fine de chaque média (subdomaine `.qoe.fi`, domaine personnalisé, logo, palette, SEO, rôles d'équipe).
+- [ ] **Cas d'Usage Multi-Médias** : Gérer un créateur qui possède son média propre **ET** qui travaille simultanément en tant que rédacteur/contributeur pour 3 autres médias.
+- [ ] **Context Switcher Média (En-tête Studio)** : Composant de basculement rapide de contexte de publication dans la topbar ou la sidebar.
+- [ ] **Modes d'Interface Studio (Sélecteur de rôle)** :
+  - `Writer` : Mode épuré axé uniquement sur la rédaction et le brouillon pour les auteurs contributeurs.
+  - `Creator` : Mode gestion complète d'une publication (stats, abonnés, thèmes, revenus).
+  - `Advanced` : Mode multi-publications, invitations d'équipe, droits d'édition avancés & API.
 
 ---
 
