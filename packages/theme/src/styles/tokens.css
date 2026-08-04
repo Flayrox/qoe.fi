@@ -56,8 +56,8 @@
    LAYER 2 — Sémantiques (thème light neutre par défaut)
    ───────────────────────────────────────────── */
 :root {
-  /* Surfaces & texte */
-  --background:          var(--zinc-0);
+  /* Surfaces & texte (Fond gris doux Apple #f5f5f7) */
+  --background:          #f5f5f7;
   --foreground:          var(--zinc-950);
 
   --card:                var(--zinc-0);
@@ -65,8 +65,8 @@
   --popover:             var(--zinc-0);
   --popover-foreground:  var(--zinc-950);
 
-  /* Primary = neutre zinc-950 (PAS de vermillon par défaut) */
-  --primary:             var(--zinc-950);
+  /* Primary = Vermillon #EE4B2B */
+  --primary:             var(--vermillion-500);
   --primary-foreground:  var(--zinc-0);
 
   --secondary:           var(--zinc-100);
@@ -96,15 +96,15 @@
   --chart-4: oklch(0.55 0.15 280);
   --chart-5: oklch(0.68 0.13 140);
 
-  /* Sidebar */
-  --sidebar:                 var(--zinc-0);
-  --sidebar-foreground:      var(--zinc-950);
-  --sidebar-primary:         var(--zinc-950);
+  /* Sidebar — Style Apple Music Web (Verre dépoli blanc + touche Vermillon) */
+  --sidebar:                 rgba(255, 255, 255, 0.85);
+  --sidebar-foreground:      var(--zinc-900);
+  --sidebar-primary:         var(--vermillion-500);
   --sidebar-primary-foreground: var(--zinc-0);
-  --sidebar-accent:          var(--zinc-100);
+  --sidebar-accent:          rgba(0, 0, 0, 0.05);
   --sidebar-accent-foreground: var(--zinc-950);
-  --sidebar-border:          var(--zinc-200);
-  --sidebar-ring:            var(--zinc-950);
+  --sidebar-border:          rgba(0, 0, 0, 0.08);
+  --sidebar-ring:            var(--vermillion-500);
 
   /* Grid décoratif (très subtil) */
   --grid-color: rgba(0, 0, 0, 0.015);

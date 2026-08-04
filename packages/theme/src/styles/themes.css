@@ -28,8 +28,8 @@
   --popover:             var(--zinc-900);
   --popover-foreground:  var(--zinc-50);
 
-  --primary:             var(--zinc-50);
-  --primary-foreground:  var(--zinc-950);
+  --primary:             var(--vermillion-500);
+  --primary-foreground:  var(--zinc-0);
 
   --secondary:           var(--zinc-800);
   --secondary-foreground:var(--zinc-50);
@@ -44,14 +44,14 @@
   --input:               var(--zinc-800);
   --ring:                var(--zinc-50);
 
-  --sidebar:                 var(--zinc-950);
+  --sidebar:                 rgba(24, 24, 27, 0.85);
   --sidebar-foreground:      var(--zinc-50);
-  --sidebar-primary:         var(--zinc-50);
-  --sidebar-primary-foreground: var(--zinc-950);
-  --sidebar-accent:          var(--zinc-800);
+  --sidebar-primary:         var(--vermillion-500);
+  --sidebar-primary-foreground: var(--zinc-0);
+  --sidebar-accent:          rgba(255, 255, 255, 0.08);
   --sidebar-accent-foreground: var(--zinc-50);
-  --sidebar-border:          var(--zinc-800);
-  --sidebar-ring:            var(--zinc-50);
+  --sidebar-border:          rgba(255, 255, 255, 0.12);
+  --sidebar-ring:            var(--vermillion-500);
 
   --grid-color: rgba(255, 255, 255, 0.02);
 
