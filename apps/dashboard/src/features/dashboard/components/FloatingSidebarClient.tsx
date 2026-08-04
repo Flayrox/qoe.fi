@@ -25,6 +25,7 @@ interface FloatingSidebarClientProps {
   userName: string
   userEmail: string
   userFallback: string
+  userAvatar?: string | null
   menuItems: MenuItem[]
   logoutAction: () => Promise<void>
 }
@@ -43,6 +44,7 @@ export function FloatingSidebarClient({
   userName,
   userEmail,
   userFallback,
+  userAvatar,
   menuItems,
   logoutAction,
 }: FloatingSidebarClientProps) {
@@ -66,6 +68,7 @@ export function FloatingSidebarClient({
       userName={userName}
       userEmail={userEmail}
       userFallback={userFallback}
+      userAvatar={userAvatar}
       onLogout={logoutAction}
       primaryAction={{
         label: "Nouvel Écrit",

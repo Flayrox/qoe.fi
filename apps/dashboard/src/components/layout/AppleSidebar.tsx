@@ -28,6 +28,8 @@ export interface AppleSidebarProps {
   userEmail?: string
   /** Initiale/fallback de l'utilisateur */
   userFallback?: string
+  /** Avatar de l'utilisateur */
+  userAvatar?: string | null
   /** Action de déconnexion */
   onLogout?: () => void | Promise<void>
   /** Action principale CTA (ex: "Nouvel Écrit") */
@@ -51,7 +53,10 @@ export function AppleSidebar({
   activeUrl,
   logo,
   brandName = "qoe.fi",
+  userName,
+  userEmail,
   userFallback = "CR",
+  userAvatar,
   onLogout,
   primaryAction,
   className,
@@ -207,11 +212,22 @@ export function AppleSidebar({
               )}
               aria-label="Menu compte"
             >
-              <span className="w-7 h-7 rounded-full bg-sidebar-primary/10 text-sidebar-primary font-bold text-xs flex items-center justify-center shrink-0 border border-sidebar-primary/20">
-                {userFallback}
+              <span className="w-7 h-7 rounded-full bg-sidebar-primary/10 text-sidebar-primary font-bold text-xs flex items-center justify-center shrink-0 border border-sidebar-primary/20 overflow-hidden">
+                {userAvatar ? (
+                  <img src={userAvatar} alt={userName || "Utilisateur"} className="w-full h-full object-cover" />
+                ) : (
+                  userFallback
+                )}
               </span>
-              <div className="flex-1 text-left truncate">
-                <span className="text-xs font-semibold block leading-tight truncate">{brandName}</span>
+              <div className="flex-1 text-left truncate min-w-0">
+                <span className="text-xs font-semibold block leading-tight truncate">
+                  {userName || "Créateur"}
+                </span>
+                {userEmail && (
+                  <span className="text-[11px] text-muted-foreground block truncate leading-tight mt-0.5">
+                    {userEmail}
+                  </span>
+                )}
               </div>
             </button>
 
@@ -219,17 +235,28 @@ export function AppleSidebar({
             {isAccountOpen && (
               <div
                 className={cn(
-                  "absolute bottom-11 right-0 z-50 w-52 p-1.5 rounded-[12px] shadow-2xl transition-all duration-150 animate-in fade-in slide-in-from-bottom-2",
+                  "absolute bottom-11 right-0 z-50 w-56 p-2 rounded-[14px] shadow-2xl transition-all duration-150 animate-in fade-in slide-in-from-bottom-2",
                   "bg-sidebar/95 backdrop-blur-2xl border border-sidebar-border text-sidebar-foreground"
                 )}
               >
+                <div className="px-2.5 py-2 mb-1 border-b border-sidebar-border/60">
+                  <span className="font-semibold text-xs block leading-tight truncate">
+                    {userName || "Créateur"}
+                  </span>
+                  {userEmail && (
+                    <span className="text-[10px] text-muted-foreground block truncate mt-0.5">
+                      {userEmail}
+                    </span>
+                  )}
+                </div>
+
                 <Link
                   href="/settings"
                   className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-[8px] hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors"
                   onClick={() => setIsAccountOpen(false)}
                 >
                   <Settings className="w-4 h-4" />
-                  <span>Réglages de l'application</span>
+                  <span>Réglages du compte</span>
                 </Link>
 
                 <div className="h-px my-1 bg-sidebar-border/60" />

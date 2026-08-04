@@ -117,8 +117,8 @@ export function HeaderClient() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center bg-background/80 px-6 backdrop-blur-md select-none font-sans">
-        <div className="w-full max-w-7xl flex items-center justify-between">
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center bg-background/80 px-4 backdrop-blur-md select-none font-sans">
+        <div className="w-full flex items-center justify-between">
           {/* Left: Search Bar (w-96, élargie, alignée) */}
           <div className="flex items-center gap-4">
             <button
