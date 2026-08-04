@@ -28,8 +28,9 @@ export async function AppSidebar() {
     : null
 
   const userEmail = user?.email || authUser?.email || "hello@qoe.fi"
-  const userName = user?.name || "Creator"
+  const userName = user?.name || user?.username || (authUser?.user_metadata?.name as string | undefined) || "Creator"
   const userFallback = userName.slice(0, 2).toUpperCase()
+  const userAvatar = user?.logoUrl || (authUser?.user_metadata?.avatar_url as string | undefined) || null
 
   const t = await getTranslate()
 
@@ -78,12 +79,13 @@ export async function AppSidebar() {
         userName={userName}
         userEmail={userEmail}
         userFallback={userFallback}
+        userAvatar={userAvatar}
         menuItems={menuItems}
         logoutAction={logout}
       />
 
-      {/* Mobile Drawer (Visible only on mobile md:hidden) */}
-      <Sidebar className="md:hidden border-r border-border/50 bg-sidebar">
+      {/* Mobile Drawer (Visible uniquement sur mobile md:!hidden) */}
+      <Sidebar className="md:!hidden border-r border-border/50 bg-sidebar">
         <SidebarHeader className="p-4 flex flex-col gap-3">
           <div className="flex items-center gap-2.5">
             <Logo className="h-4.5 w-auto" fillColor="currentColor" />
@@ -102,11 +104,28 @@ export async function AppSidebar() {
           <SidebarMenuClient items={menuItems} />
         </SidebarContent>
 
-        <SidebarFooter className="p-3 border-t border-border/40">
+        <SidebarFooter className="p-3 border-t border-border/40 flex flex-col gap-2">
+          <div className="flex items-center gap-2.5 px-2 py-1.5">
+            <span className="w-7 h-7 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0 border border-primary/20 overflow-hidden">
+              {userAvatar ? (
+                <img src={userAvatar} alt={userName} className="w-full h-full object-cover" />
+              ) : (
+                userFallback
+              )}
+            </span>
+            <div className="flex-1 text-left truncate min-w-0">
+              <span className="text-xs font-semibold block leading-tight truncate text-sidebar-foreground">
+                {userName}
+              </span>
+              <span className="text-[11px] text-muted-foreground block truncate leading-tight">
+                {userEmail}
+              </span>
+            </div>
+          </div>
           <form action={logout} className="w-full">
             <button
               type="submit"
-              className="w-full text-left px-2 py-1.5 text-destructive font-sans text-xs font-semibold hover:bg-destructive/10 rounded-lg"
+              className="w-full text-left px-2 py-1.5 text-destructive font-sans text-xs font-semibold hover:bg-destructive/10 rounded-lg flex items-center gap-2"
             >
               Logout
             </button>

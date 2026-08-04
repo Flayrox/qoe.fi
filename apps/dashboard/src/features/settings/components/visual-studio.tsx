@@ -1,46 +1,26 @@
 // =====================================================================
-// ⚡ QOE Visual Studio Component — apps/dashboard/src/features/settings/components/visual-studio.tsx
+// ⚡ QOE Creator Publication Settings — apps/dashboard/src/features/settings/components/visual-studio.tsx
 // =====================================================================
-// Ultra-premium visual site builder & settings editor.
-// Optimized for simplicity, performance, and responsive live pre-rendering.
-// Features a collapsible live preview with sleek spring physics and glassmorphism.
+// Pure, Minimalist Creator Settings Console (Ghost CMS & Vercel Settings Style).
+// 100% Theme-Agnostic Semantic Tokens (@qoe/theme). Zero AI Slop.
 // =====================================================================
 
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
-import { useTheme } from "next-themes"
+import React, { useState, useEffect } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { useDebounce } from "use-debounce"
 import { toast } from "sonner"
 import {
-  Paintbrush,
-  Globe,
-  Link as LinkIcon,
+  ExternalLink,
   Plus,
   Trash2,
   Check,
   Loader2,
-  X,
-  ExternalLink,
-  AlignLeft,
-  Type,
-  Image as ImageIcon,
   ArrowUp,
   ArrowDown,
   AlertCircle,
-  Laptop,
-  Smartphone,
-  Info,
-  FileText,
-  Layout,
-  Eye,
-  EyeOff,
-  User,
-  CheckCircle,
-  HelpCircle,
-  Sparkles,
-  Palette
+  CheckCircle
 } from "lucide-react"
 
 // Import Server Actions
@@ -116,41 +96,47 @@ export interface CreatorProfile {
   advancedSettingsMode: boolean
 }
 
-// Predefined premium color palette
 export const ACCENT_SWATCHES = [
-  { id: "vermilion", name: "QOE Vermilion", hex: "#EE4B2B", bg: "bg-[#EE4B2B]" },
-  { id: "emerald", name: "Emerald Green", hex: "#10B981", bg: "bg-[#10B981]" },
-  { id: "royal", name: "Royal Blue", hex: "#3B82F6", bg: "bg-[#3B82F6]" },
-  { id: "orchid", name: "Orchid Pink", hex: "#D946EF", bg: "bg-[#D946EF]" },
-  { id: "amber", name: "Warm Amber", hex: "#F59E0B", bg: "bg-[#F59E0B]" },
-  { id: "charcoal", name: "Anthracite", hex: "#1F2937", bg: "bg-[#1F2937]" },
+  { id: "vermilion", name: "Vermillon", hex: "#EE4B2B" },
+  { id: "emerald", name: "Émeraude", hex: "#10B981" },
+  { id: "royal", name: "Bleu Royal", hex: "#3B82F6" },
+  { id: "orchid", name: "Orchidée", hex: "#D946EF" },
+  { id: "amber", name: "Ambre", hex: "#F59E0B" },
+  { id: "charcoal", name: "Anthracite", hex: "#3F3F46" },
 ]
 
 export const SITE_FONTS = [
-  { id: "sans", name: "Inter", family: "'Inter', sans-serif" },
-  { id: "outfit", name: "Outfit", family: "'Outfit', sans-serif" },
-  { id: "space-grotesk", name: "Space Grotesk", family: "'Space Grotesk', sans-serif" },
-  { id: "serif", name: "Playfair Display", family: "'Playfair Display', serif" },
+  { id: "sans", name: "Inter (Sans-serif)", family: "'Inter', sans-serif" },
+  { id: "outfit", name: "Outfit (Moderne)", family: "'Outfit', sans-serif" },
+  { id: "space-grotesk", name: "Space Grotesk (Tech)", family: "'Space Grotesk', sans-serif" },
+  { id: "serif", name: "Playfair Display (Serif)", family: "'Playfair Display', serif" },
+]
+
+export const SUPPORTED_SOCIAL_PLATFORMS = [
+  { id: "twitter", name: "X (Twitter)" },
+  { id: "github", name: "GitHub" },
+  { id: "substack", name: "Substack" },
+  { id: "youtube", name: "YouTube" },
+  { id: "linkedin", name: "LinkedIn" },
+  { id: "instagram", name: "Instagram" },
+  { id: "bluesky", name: "Bluesky" },
+  { id: "mastodon", name: "Mastodon" },
+  { id: "threads", name: "Threads" },
 ]
 
 interface VisualStudioProps {
   initialCreator: CreatorProfile
 }
 
-type TabType = "identity" | "style" | "navigation" | "socials"
+type TabType = "general" | "domain" | "navigation" | "seo"
 
 export default function VisualStudio({ initialCreator }: VisualStudioProps) {
-  const { theme: dashboardTheme } = useTheme()
-
   // =====================================================================
   // 💾 STATE MANAGEMENT
   // =====================================================================
   const [original, setOriginal] = useState<CreatorProfile>(initialCreator)
   const [current, setCurrent] = useState<CreatorProfile>(initialCreator)
-  
-  const [activeTab, setActiveTab] = useState<TabType>("identity")
-  const [showPreview, setShowPreview] = useState<boolean>(true)
-  const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop")
+  const [activeTab, setActiveTab] = useState<TabType>("general")
   const [isSaving, setIsSaving] = useState(false)
 
   // Subdomain Validation State
@@ -162,12 +148,10 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
     error: string | null
   }>({ loading: false, available: null, error: null })
 
-  // Sync subdomain input with changes
   useEffect(() => {
     setSubdomainInput(current.subdomain || "")
   }, [current.subdomain])
 
-  // Subdomain availability check
   useEffect(() => {
     if (debouncedSubdomain === original.subdomain) {
       setSubdomainCheck({ loading: false, available: null, error: null })
@@ -191,18 +175,32 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
         setSubdomainCheck({
           loading: false,
           available: false,
-          error: "Erreur lors de la vérification de la disponibilité."
+          error: "Erreur de vérification."
         })
       }
     }
     check()
   }, [debouncedSubdomain, original.subdomain])
 
-  // Determine active font stack
-  const activeFont = SITE_FONTS.find(f => f.id === current.fontFamily) || SITE_FONTS[0]
-
-  // Check if anything has been modified (baseline tracking)
   const hasChanges = JSON.stringify(current) !== JSON.stringify(original)
+
+  const getPublicBlogUrl = () => {
+    if (typeof window === "undefined") return `http://${current.subdomain || "climat"}.lvh.me:3001`
+    const host = window.location.hostname
+    const activeSub = current.subdomain || "climat"
+    if (host.includes("lvh.me")) {
+      return `http://${activeSub}.lvh.me:3001`
+    }
+    if (host.includes("qoe.test")) {
+      return `http://${activeSub}.qoe.test:3001`
+    }
+    if (host.includes("localhost")) {
+      return `http://${activeSub}.lvh.me:3001`
+    }
+    return `https://${activeSub}.qoe.fi`
+  }
+
+  const publicBlogUrl = getPublicBlogUrl()
 
   // =====================================================================
   // ⚙️ MUTATION HANDLERS
@@ -216,9 +214,8 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
   const handleSaveAll = async () => {
     setIsSaving(true)
     try {
-      // 1. Save Profile Fields if changed
       const profileFieldsChanged = [
-        "name", "heroText", "accentColor", "fontFamily", "logoUrl", "headerImageUrl", "footerText"
+        "name", "heroText", "accentColor", "fontFamily", "logoUrl", "headerImageUrl", "footerText", "seoTitle", "seoDescription", "allowIndexing", "supportUrl"
       ].some(field => current[field as keyof CreatorProfile] !== original[field as keyof CreatorProfile])
 
       if (profileFieldsChanged) {
@@ -229,11 +226,14 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
           fontFamily: current.fontFamily,
           logoUrl: current.logoUrl,
           headerImageUrl: current.headerImageUrl,
-          footerText: current.footerText
+          footerText: current.footerText,
+          seoTitle: current.seoTitle,
+          seoDescription: current.seoDescription,
+          allowIndexing: current.allowIndexing,
+          supportUrl: current.supportUrl
         })
       }
 
-      // 2. Save Subdomain if changed
       if (current.subdomain !== original.subdomain) {
         if (current.subdomain) {
           if (subdomainCheck.available === false) {
@@ -245,19 +245,17 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
         }
       }
 
-      // 3. Save Navigation links
       const navChanged = JSON.stringify(current.navigation) !== JSON.stringify(original.navigation)
       if (navChanged) {
         await saveNavigationLinksAction(current.navigation)
       }
 
-      // 4. Save Social links
       const socialChanged = JSON.stringify(current.socialLinks) !== JSON.stringify(original.socialLinks)
       if (socialChanged) {
         await saveSocialLinksAction(current.socialLinks)
       }
 
-      toast.success("Paramètres enregistrés et publiés avec succès !")
+      toast.success("Paramètres enregistrés.")
       setOriginal(current)
     } catch (err: any) {
       toast.error(err.message || "Erreur de sauvegarde.")
@@ -269,7 +267,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
   // Navigation Links Helpers
   const addNavigationLink = () => {
     const newLink: ClientNavigationItem = {
-      label: "Nouveau Lien",
+      label: "Nouvel onglet",
       url: "https://",
       order: current.navigation.length,
       isExternal: true
@@ -300,9 +298,8 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
 
   // Social Links Helpers
   const addSocialLink = (platform: string) => {
-    // Prevent duplicated platforms to keep it simple
     if (current.socialLinks.some(s => s.platform === platform)) {
-      toast.warning(`Le lien ${platform} existe déjà.`)
+      toast.warning(`Le profil ${platform} est déjà présent.`)
       return
     }
     const newSocial: ClientSocialLink = {
@@ -321,769 +318,622 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] w-full overflow-hidden bg-[#FCFBF9] text-neutral-900 relative font-sans">
-      {/* Dynamic Font Loader */}
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Outfit:wght@400;500;600;700;900&family=Space+Grotesk:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&display=swap" />
-
+    <div className="w-full min-h-screen bg-background text-foreground font-sans pb-24">
       {/* =====================================================================
-          👈 LEFT/CENTER WORKSPACE: RETRACTABLE LIVE PREVIEW OR FORM PREVIEW
+          TOP HEADER (Ghost / Vercel Settings Header)
           ===================================================================== */}
-      <div className="flex-1 h-full overflow-hidden flex flex-col bg-[#fbfaf8] relative border-r border-neutral-200">
-        
-        {/* Top Control Panel */}
-        <div className="w-full h-14 border-b border-neutral-200 bg-white/80 backdrop-blur-md px-6 flex items-center justify-between z-10 select-none">
-          <div className="flex items-center gap-4">
-            {/* Visual Studio branding signature */}
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#EE4B2B]" />
-              <span className="text-xs uppercase font-bold tracking-widest text-neutral-400">Visual Studio</span>
-            </div>
-            
-            {/* Toggle Preview Button */}
-            <button
-              onClick={() => setShowPreview(!showPreview)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-neutral-50 border border-neutral-200 text-xs font-bold text-neutral-700 hover:text-neutral-900 transition-all cursor-pointer shadow-sm"
+      <header className="w-full border-b border-border/40 bg-background/90 backdrop-blur-md sticky top-0 z-20">
+        <div className="max-w-3xl mx-auto px-6 py-5 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Paramètres de la publication
+            </h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Configuration de votre espace d'écriture sur qoe.fi
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <a
+              href={publicBlogUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium"
             >
-              {showPreview ? (
-                <>
-                  <EyeOff className="w-3.5 h-3.5 text-neutral-400" />
-                  <span>Masquer l'aperçu</span>
-                </>
+              <span>Voir le site</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+
+            <button
+              disabled={!hasChanges || isSaving}
+              onClick={handleSaveAll}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isSaving ? (
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Enregistrement...</span>
+                </span>
               ) : (
-                <>
-                  <Eye className="w-3.5 h-3.5 text-[#EE4B2B]" />
-                  <span>Afficher l'aperçu</span>
-                </>
+                <span>Enregistrer</span>
               )}
             </button>
           </div>
+        </div>
 
-          {/* Browser Address Bar (Shown only when preview is active) */}
-          <AnimatePresence>
-            {showPreview && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="flex-1 max-w-sm mx-6 hidden md:flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-xl bg-neutral-100/60 border border-neutral-200 text-[11px] font-mono text-neutral-500"
-              >
-                <span className="text-[#EE4B2B] font-black select-none">https://</span>
-                <span className="font-bold text-neutral-700">{current.subdomain || "votre-site"}</span>
-                <span className="text-neutral-400 font-semibold">.qoe.fi</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Device and status triggers */}
-          <div className="flex items-center gap-2">
-            {showPreview && (
-              <div className="flex items-center gap-0.5 bg-neutral-100 p-0.5 rounded-lg border border-neutral-200">
+        {/* Minimal Tab Bar */}
+        <div className="max-w-3xl mx-auto px-6">
+          <div className="flex gap-6 border-b border-border/40">
+            {(
+              [
+                { id: "general", label: "Général" },
+                { id: "domain", label: "Domaine & DNS" },
+                { id: "navigation", label: "Navigation & Réseaux" },
+                { id: "seo", label: "SEO & Pied de page" },
+              ] as const
+            ).map((tab) => {
+              const isSelected = activeTab === tab.id
+              return (
                 <button
-                  onClick={() => setPreviewDevice("desktop")}
-                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-                    previewDevice === "desktop" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-400 hover:text-neutral-700"
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`pb-3 text-xs font-medium transition-colors border-b-2 -mb-px cursor-pointer ${
+                    isSelected
+                      ? "border-primary text-foreground font-semibold"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
                   }`}
-                  title="Aperçu Ordinateur"
                 >
-                  <Laptop className="w-3.5 h-3.5" />
+                  {tab.label}
                 </button>
-                <button
-                  onClick={() => setPreviewDevice("mobile")}
-                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-                    previewDevice === "mobile" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-400 hover:text-neutral-700"
-                  }`}
-                  title="Aperçu Mobile"
-                >
-                  <Smartphone className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-            {!showPreview && (
-              <span className="text-[10px] font-black uppercase bg-neutral-100 border border-neutral-200 text-neutral-500 px-2.5 py-1 rounded-lg">
-                Formulaire Étendu
-              </span>
-            )}
+              )
+            })}
           </div>
         </div>
-
-        {/* Workspace Body */}
-        <div className="flex-1 w-full flex items-center justify-center p-6 overflow-auto bg-[radial-gradient(rgba(238,75,43,0.04)_1px,transparent_1px)] [background-size:20px_24px]">
-          
-          <AnimatePresence mode="wait">
-            {showPreview ? (
-              /* PREVIEW ACTIVE: Renders the site mockup in real time */
-              <motion.div
-                key="preview-container"
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 300, damping: 28 }}
-                style={{
-                  width: previewDevice === "desktop" ? "100%" : "375px",
-                  height: previewDevice === "desktop" ? "100%" : "720px",
-                  maxWidth: "100%",
-                  maxHeight: "100%"
-                }}
-                className={`bg-white border border-neutral-200 shadow-2xl flex flex-col overflow-hidden relative transition-all duration-300 ${
-                  previewDevice === "mobile" ? "rounded-[2.5rem] border-8 border-neutral-900 shadow-[0_25px_60px_rgba(0,0,0,0.2)]" : "rounded-xl"
-                }`}
-              >
-                {/* Dynamic variables injection based on local state */}
-                <div
-                  style={{
-                    "--live-accent": current.accentColor || "#EE4B2B",
-                    fontFamily: activeFont.family
-                  } as React.CSSProperties}
-                  className="w-full h-full overflow-y-auto flex flex-col bg-[#FAF9F6] text-neutral-900 transition-colors select-none"
-                >
-                  <div className="min-h-full flex flex-col flex-1 pb-12">
-                    
-                    {/* Header Live Preview component */}
-                    <header className="border-b border-neutral-200/60 bg-white/80 backdrop-blur-md py-4 sticky top-0 z-30 px-6 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {current.logoUrl ? (
-                          <img src={current.logoUrl} alt="Logo" className="w-6 h-6 rounded-full object-cover border border-neutral-200" />
-                        ) : (
-                          <div className="w-6 h-6 rounded-full bg-[var(--live-accent)]/10 flex items-center justify-center font-bold text-[10px]" style={{ color: "var(--live-accent)" }}>
-                            {current.name?.charAt(0) || "Q"}
-                          </div>
-                        )}
-                        <span className="text-xs font-black tracking-tight">{current.name || "Sans Nom"}</span>
-                      </div>
-
-                      {/* Header Custom links preview */}
-                      <nav className="flex items-center gap-3 text-[10px] font-semibold text-neutral-500">
-                        {current.navigation.slice(0, 3).map((link, idx) => (
-                          <span key={idx} className="hover:text-neutral-900">
-                            {link.label}
-                          </span>
-                        ))}
-                        {current.navigation.length === 0 && (
-                          <span className="text-[9px] italic text-neutral-300">Aucun lien</span>
-                        )}
-                      </nav>
-                    </header>
-
-                    {/* Banner Image Preview */}
-                    <div className="relative w-full h-24 bg-neutral-100 flex items-center justify-center overflow-hidden border-b border-neutral-200/40">
-                      {current.headerImageUrl ? (
-                        <>
-                          <div className="absolute inset-0 bg-neutral-950/10 z-10" />
-                          <img src={current.headerImageUrl} alt="Bannière" className="w-full h-full object-cover" />
-                        </>
-                      ) : (
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-neutral-400">
-                          <ImageIcon className="w-3.5 h-3.5" />
-                          <span>Pas d'image de couverture</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Hero Information Preview */}
-                    <section className="px-6 py-10 text-center max-w-xl mx-auto space-y-3">
-                      <h1 className="text-xl md:text-2xl font-black tracking-tight leading-tight text-neutral-900">
-                        {current.name || "Nouveau Créateur"}
-                      </h1>
-                      <p className="text-xs text-neutral-500 font-medium leading-relaxed max-w-sm mx-auto whitespace-pre-line">
-                        {current.heroText || "Ajoutez un message de bienvenue pour accrocher vos lecteurs."}
-                      </p>
-                    </section>
-
-                    {/* Mock Articles Section */}
-                    <main className="px-6 py-6 border-t border-neutral-200/50 max-w-lg mx-auto w-full flex-1">
-                      <div className="flex items-center justify-between mb-4 pb-1.5 border-b border-neutral-200/50">
-                        <span className="text-[9px] font-black text-neutral-400 uppercase tracking-wider">Publications</span>
-                        <span className="text-[9px] font-bold text-neutral-400">En direct</span>
-                      </div>
-                      
-                      {/* Live feedback loop of articles */}
-                      <div className="space-y-3">
-                        {current.articles.slice(0, 1).map((art, i) => (
-                          <div key={art.id || i} className="p-3.5 bg-white border border-neutral-200/60 rounded-xl space-y-1.5">
-                            <span className="text-[8px] font-black uppercase tracking-wider" style={{ color: "var(--live-accent)" }}>
-                              {current.categories.find(c => c.id === art.categoryId)?.name || "GÉNÉRAL"}
-                            </span>
-                            <h4 className="text-xs font-bold text-neutral-900">{art.title || "Titre de l'article"}</h4>
-                            <p className="text-[10px] text-neutral-400 line-clamp-1">{art.content || "Contenu rédigé..."}</p>
-                          </div>
-                        ))}
-                        {current.articles.length === 0 && (
-                          <div className="p-4 border border-dashed rounded-xl text-center text-[10px] text-neutral-400">
-                            Aucune publication. Configurez vos articles depuis votre console.
-                          </div>
-                        )}
-                      </div>
-                    </main>
-
-                    {/* Footer Mock View */}
-                    <footer className="border-t border-neutral-200/50 bg-neutral-50 py-8 px-6 text-center mt-auto">
-                      <div className="max-w-xs mx-auto space-y-3">
-                        <p className="text-[10px] text-neutral-400 font-medium leading-normal whitespace-pre-line">
-                          {current.footerText || "Merci de votre visite !"}
-                        </p>
-
-                        {/* Social Links List */}
-                        {current.socialLinks.length > 0 && (
-                          <div className="flex justify-center flex-wrap gap-2.5 pt-1">
-                            {current.socialLinks.map((soc, idx) => (
-                              <span
-                                key={idx}
-                                className="text-[8px] font-bold uppercase px-2 py-0.5 bg-neutral-200/50 rounded-md text-neutral-600 border border-neutral-300/40"
-                              >
-                                {soc.platform}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <p className="text-[8px] text-neutral-300 font-bold pt-1">© {new Date().getFullYear()} • qoe.fi</p>
-                      </div>
-                    </footer>
-
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              /* PREVIEW COLLAPSED: Form layout centers beautifully inside glass container */
-              <motion.div
-                key="form-expanded-container"
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                transition={{ duration: 0.25 }}
-                className="w-full max-w-xl bg-white/40 border border-neutral-200 rounded-3xl p-8 shadow-[0_30px_70px_rgba(0,0,0,0.08)] backdrop-blur-xl relative"
-              >
-                {/* Visual Accent gradient blur behind */}
-                <div className="absolute -top-12 -left-12 w-48 h-48 bg-[#EE4B2B]/10 rounded-full blur-[40px] pointer-events-none" />
-                <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-[#EE4B2B]/5 rounded-full blur-[40px] pointer-events-none" />
-
-                <div className="relative z-10 space-y-6">
-                  {/* Explanatory helper header */}
-                  <div className="flex items-center gap-3 pb-4 border-b border-neutral-100">
-                    <div className="p-2 rounded-xl bg-[#EE4B2B]/10 text-[#EE4B2B]">
-                      <Sparkles className="w-5 h-5 animate-pulse" />
-                    </div>
-                    <div>
-                      <h2 className="text-sm font-bold text-neutral-800 uppercase tracking-wider">Ajustements Studio</h2>
-                        La prévisualisation est masquée pour préserver vos performances. Modifiez vos options à droite en toute légèreté.
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    {/* Live configuration metrics */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 rounded-2xl bg-white border border-neutral-200 shadow-sm flex flex-col gap-1.5">
-                        <span className="text-[9px] uppercase font-black text-neutral-500 tracking-wider">Sous-domaine</span>
-                        <span className="text-xs font-bold text-neutral-800 truncate">
-                          {current.subdomain ? `${current.subdomain}.qoe.fi` : "Non configuré"}
-                        </span>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-white border border-neutral-200 shadow-sm flex flex-col gap-1.5">
-                        <span className="text-[9px] uppercase font-black text-neutral-500 tracking-wider">Identité</span>
-                        <span className="text-xs font-bold text-neutral-800 truncate">
-                          {current.name || "Non nommé"}
-                        </span>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-white border border-neutral-200 shadow-sm flex flex-col gap-1.5">
-                        <span className="text-[9px] uppercase font-black text-neutral-500 tracking-wider">Couleur d'accent</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: current.accentColor || "#EE4B2B" }} />
-                          <span className="text-xs font-bold text-neutral-800 font-mono">
-                            {current.accentColor || "#EE4B2B"}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-white border border-neutral-200 shadow-sm flex flex-col gap-1.5">
-                        <span className="text-[9px] uppercase font-black text-neutral-500 tracking-wider">Police Active</span>
-                        <span className="text-xs font-bold text-neutral-800" style={{ fontFamily: activeFont.family }}>
-                          {activeFont.name}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-[#EE4B2B]/5 border border-[#EE4B2B]/10 flex items-center gap-3">
-                      <Info className="w-4 h-4 text-[#EE4B2B] shrink-0" />
-                      <p className="text-[10px] text-neutral-600 leading-relaxed">
-                        Toutes vos modifications sont en attente d'enregistrement. Utilisez la barre de commande flottante en bas de l'écran pour valider.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-        </div>
-      </div>
+      </header>
 
       {/* =====================================================================
-          👉 RIGHT SIDEBAR (360px): CONFIGURATION PROPERTY INSPECTOR
+          MAIN SETTINGS STAGE (Ultra-Clean Ghost / Vercel Form Rows)
           ===================================================================== */}
-      <div className="w-[360px] shrink-0 border-l border-neutral-200 h-full overflow-y-auto flex flex-col bg-white select-none">
-        
-        {/* Selector Tabs Header */}
-        <div className="grid grid-cols-4 gap-0.5 p-1.5 bg-white border-b border-neutral-100">
-          {(
-            [
-              { id: "identity", label: "Profil", icon: User },
-              { id: "style", label: "Style", icon: Palette },
-              { id: "navigation", label: "Menu", icon: LinkIcon },
-              { id: "socials", label: "Réseaux", icon: Globe }
-            ] as const
-          ).map(tab => {
-            const Icon = tab.icon
-            const isSelected = activeTab === tab.id
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl text-[10px] font-bold transition-all cursor-pointer ${
-                  isSelected
-                    ? "bg-white text-neutral-900 border border-neutral-200 shadow-sm"
-                    : "text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50"
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5 mb-1" />
-                <span>{tab.label}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Tab Contents */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-6">
-          <AnimatePresence mode="wait">
-            
-            {/* TAB 1: IDENTITY */}
-            {activeTab === "identity" && (
-              <motion.div
-                key="tab-identity"
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-5"
-              >
-                <div className="pb-3 border-b border-neutral-100">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-neutral-800">Identité & Adresse</h3>
-                  <p className="text-[10px] text-neutral-400 mt-0.5">Configurez l'accroche et l'adresse de votre espace.</p>
+      <main className="max-w-3xl mx-auto px-6 pt-8">
+        <AnimatePresence mode="wait">
+          
+          {/* TAB 1: GÉNÉRAL */}
+          {activeTab === "general" && (
+            <motion.div
+              key="tab-general"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              className="space-y-8"
+            >
+              <div className="divide-y divide-border/30">
+                {/* Title */}
+                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block">Nom de la publication</label>
+                    <span className="text-xs text-muted-foreground block mt-0.5">
+                      Titre principal de votre blog.
+                    </span>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <input
+                      type="text"
+                      value={current.name || ""}
+                      onChange={(e) => setCurrent((prev) => ({ ...prev, name: e.target.value }))}
+                      placeholder="Ex. Le Carnet de Sarah"
+                      className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
+                    />
+                  </div>
                 </div>
 
-                {/* Subdomain Input with Live Checker */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold block text-neutral-400">Adresse Web (Sous-domaine)</label>
-                  <div className="relative">
-                    <div className="flex items-center">
+                {/* Slogan */}
+                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block">Slogan (Hero Tagline)</label>
+                    <span className="text-xs text-muted-foreground block mt-0.5">
+                      Brève présentation sous le titre principal.
+                    </span>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <textarea
+                      value={current.heroText || ""}
+                      onChange={(e) => setCurrent((prev) => ({ ...prev, heroText: e.target.value }))}
+                      placeholder="Ex. Réflexions sur la technologie, l'art et l'écriture libre..."
+                      rows={3}
+                      className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 resize-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Accent Color Swatches */}
+                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block">Couleur d'accentuation</label>
+                    <span className="text-xs text-muted-foreground block mt-0.5">
+                      Teinte des éléments interactifs et boutons.
+                    </span>
+                  </div>
+                  <div className="sm:col-span-2 space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {ACCENT_SWATCHES.map((swatch) => {
+                        const isSelected = current.accentColor?.toLowerCase() === swatch.hex.toLowerCase()
+                        return (
+                          <button
+                            key={swatch.id}
+                            onClick={() => setCurrent((prev) => ({ ...prev, accentColor: swatch.hex }))}
+                            className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors ${
+                              isSelected
+                                ? "border-primary bg-primary/10 text-foreground"
+                                : "border-border/30 bg-muted/20 hover:bg-muted/50 text-muted-foreground"
+                            }`}
+                          >
+                            <span
+                              className="w-3 h-3 rounded-full border border-black/10 shrink-0"
+                              style={{ backgroundColor: swatch.hex }}
+                            />
+                            <span>{swatch.name}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <input
+                        type="color"
+                        value={current.accentColor || "#EE4B2B"}
+                        onChange={(e) => setCurrent((prev) => ({ ...prev, accentColor: e.target.value }))}
+                        className="w-7 h-7 rounded border border-border/30 cursor-pointer bg-transparent shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={current.accentColor || "#EE4B2B"}
+                        onChange={(e) => setCurrent((prev) => ({ ...prev, accentColor: e.target.value }))}
+                        className="w-32 px-3 py-1.5 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Typography */}
+                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block">Police éditoriale</label>
+                    <span className="text-xs text-muted-foreground block mt-0.5">
+                      Famille de polices pour les titres et le corps.
+                    </span>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <select
+                      value={current.fontFamily || "sans"}
+                      onChange={(e) => setCurrent((prev) => ({ ...prev, fontFamily: e.target.value }))}
+                      className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
+                    >
+                      {SITE_FONTS.map((font) => (
+                        <option key={font.id} value={font.id}>
+                          {font.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Avatar / Logo URL */}
+                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block">Avatar / Logo (URL)</label>
+                    <span className="text-xs text-muted-foreground block mt-0.5">
+                      Icône ronde affichée en en-tête.
+                    </span>
+                  </div>
+                  <div className="sm:col-span-2 space-y-2">
+                    <input
+                      type="text"
+                      value={current.logoUrl || ""}
+                      onChange={(e) => setCurrent((prev) => ({ ...prev, logoUrl: e.target.value }))}
+                      placeholder="https://domaine.com/logo.png"
+                      className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
+                    />
+                    {current.logoUrl && (
+                      <div className="flex items-center gap-2">
+                        <img src={current.logoUrl} alt="Logo" className="w-7 h-7 rounded-full object-cover border border-border/30" />
+                        <span className="text-xs text-muted-foreground">Aperçu</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Cover Image URL */}
+                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block">Image de couverture (URL)</label>
+                    <span className="text-xs text-muted-foreground block mt-0.5">
+                      Bannière d'arrière-plan d'en-tête.
+                    </span>
+                  </div>
+                  <div className="sm:col-span-2 space-y-2">
+                    <input
+                      type="text"
+                      value={current.headerImageUrl || ""}
+                      onChange={(e) => setCurrent((prev) => ({ ...prev, headerImageUrl: e.target.value }))}
+                      placeholder="https://images.unsplash.com/photo-..."
+                      className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* TAB 2: DOMAINE & DNS */}
+          {activeTab === "domain" && (
+            <motion.div
+              key="tab-domain"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              className="space-y-8"
+            >
+              <div className="divide-y divide-border/30">
+                {/* Subdomain */}
+                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block">Sous-domaine qoe.fi</label>
+                    <span className="text-xs text-muted-foreground block mt-0.5">
+                      Votre adresse publique sur qoe.fi.
+                    </span>
+                  </div>
+                  <div className="sm:col-span-2 space-y-2">
+                    <div className="relative flex items-center">
                       <input
                         type="text"
                         value={subdomainInput}
-                        onChange={e => {
+                        onChange={(e) => {
                           const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")
                           setSubdomainInput(val)
-                          setCurrent(prev => ({ ...prev, subdomain: val }))
+                          setCurrent((prev) => ({ ...prev, subdomain: val }))
                         }}
-                        className="px-3 py-2 bg-neutral-50 text-xs font-bold rounded-l-lg border border-neutral-200 focus:outline-none w-full text-neutral-900 font-mono lowercase"
+                        className="w-full pl-3.5 pr-20 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
                         placeholder="mon-espace"
                       />
-                      <span className="px-3 py-2 bg-neutral-100 text-neutral-500 border border-neutral-200 border-l-0 rounded-r-lg text-[10px] font-bold font-mono">
+                      <span className="absolute right-3 text-xs text-muted-foreground select-none">
                         .qoe.fi
                       </span>
                     </div>
 
-                    {/* Subdomain availability overlay feedback */}
-                    <div className="absolute right-24 top-1/2 -translate-y-1/2 flex items-center pr-1.5">
+                    <div>
                       {subdomainCheck.loading && (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-500" />
+                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <Loader2 className="w-3 h-3 animate-spin text-primary" /> Vérification...
+                        </span>
                       )}
                       {!subdomainCheck.loading && subdomainCheck.available === true && (
-                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        <span className="text-xs text-emerald-500 font-medium flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" /> Sous-domaine disponible.
+                        </span>
                       )}
                       {!subdomainCheck.loading && subdomainCheck.available === false && (
-                        <X className="w-3.5 h-3.5 text-red-500" />
+                        <span className="text-xs text-destructive font-medium flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> {subdomainCheck.error || "Indisponible."}
+                        </span>
                       )}
                     </div>
                   </div>
-
-                  {subdomainCheck.error && (
-                    <div className="flex items-center gap-1 text-[9px] text-red-400 font-bold bg-red-950/20 p-2 rounded-lg border border-red-900/30">
-                      <AlertCircle className="w-3 h-3 shrink-0" />
-                      <span>{subdomainCheck.error}</span>
-                    </div>
-                  )}
-                  {subdomainCheck.available === true && (
-                    <p className="text-[9px] text-emerald-500 font-bold">Cette adresse est disponible !</p>
-                  )}
                 </div>
 
-                {/* Display Name */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold block text-neutral-400">Nom d'affichage</label>
-                  <input
-                    type="text"
-                    value={current.name || ""}
-                    onChange={e => setCurrent(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Ex. Sarah Connor"
-                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-neutral-50 text-neutral-900 font-bold focus:outline-none focus:border-neutral-300 focus:ring-1 focus:ring-neutral-300"
-                  />
-                </div>
-
-                {/* Hero Biography */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold block text-neutral-400">Message de bienvenue (Bio)</label>
-                  <textarea
-                    value={current.heroText || ""}
-                    onChange={e => setCurrent(prev => ({ ...prev, heroText: e.target.value }))}
-                    placeholder="Ex. Écrivaine et journalist. Bienvenue sur mon journal de bord..."
-                    rows={3}
-                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-neutral-50 text-neutral-800 font-semibold focus:outline-none resize-none focus:border-neutral-300 focus:ring-1 focus:ring-neutral-300"
-                  />
-                </div>
-
-                {/* Avatar Logo URL */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold block text-neutral-400">URL de l'Avatar / Logo</label>
-                  <input
-                    type="text"
-                    value={current.logoUrl || ""}
-                    onChange={e => setCurrent(prev => ({ ...prev, logoUrl: e.target.value }))}
-                    placeholder="https://... URL"
-                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-neutral-50 text-neutral-600 font-mono text-[10px] focus:outline-none focus:border-neutral-300 focus:ring-1 focus:ring-neutral-300"
-                  />
-                </div>
-
-                {/* Cover Banner URL */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold block text-neutral-400">URL de l'Image de Couverture</label>
-                  <input
-                    type="text"
-                    value={current.headerImageUrl || ""}
-                    onChange={e => setCurrent(prev => ({ ...prev, headerImageUrl: e.target.value }))}
-                    placeholder="https://images.unsplash.com/... cover image"
-                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-neutral-50 text-neutral-600 font-mono text-[10px] focus:outline-none focus:border-neutral-300 focus:ring-1 focus:ring-neutral-300"
-                  />
-                </div>
-              </motion.div>
-            )}
-
-            {/* TAB 2: VISUAL STYLE */}
-            {activeTab === "style" && (
-              <motion.div
-                key="tab-style"
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-5"
-              >
-                <div className="pb-3 border-b border-neutral-100">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-neutral-800">Style Visuel</h3>
-                  <p className="text-[10px] text-neutral-400 mt-0.5">Personnalisez l'ambiance et la typographie de votre site.</p>
-                </div>
-
-                {/* Font Choices */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold block text-neutral-400">Famille de Polices</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {SITE_FONTS.map(font => {
-                      const isSelected = current.fontFamily === font.id
-                      return (
-                        <button
-                          key={font.id}
-                          onClick={() => setCurrent(prev => ({ ...prev, fontFamily: font.id }))}
-                          className={`p-3 rounded-xl border text-left flex flex-col gap-1.5 cursor-pointer transition-all ${
-                            isSelected
-                              ? "border-[#EE4B2B] bg-[#EE4B2B]/5 shadow-[0_4px_20px_rgba(238,75,43,0.15)]"
-                              : "border-neutral-100 bg-neutral-50 hover:bg-neutral-100 hover:border-neutral-200"
-                          }`}
-                        >
-                          <span className="text-sm font-black" style={{ fontFamily: font.family }}>Aa</span>
-                          <span className="text-[9px] font-bold text-neutral-400 leading-none">{font.name}</span>
-                        </button>
-                      )
-                    })}
+                {/* Custom Domain */}
+                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block">Domaine personnalisé</label>
+                    <span className="text-xs text-muted-foreground block mt-0.5">
+                      Pointez votre nom de domaine DNS propre.
+                    </span>
                   </div>
-                </div>
-
-                {/* Custom and Predefined Accents */}
-                <div className="space-y-3">
-                  <label className="text-xs font-bold block text-neutral-400">Couleur d'accentuation</label>
-                  
-                  {/* Swatches Grid */}
-                  <div className="grid grid-cols-3 gap-2">
-                    {ACCENT_SWATCHES.map(swatch => {
-                      const isSelected = current.accentColor?.toLowerCase() === swatch.hex.toLowerCase()
-                      return (
-                        <button
-                          key={swatch.id}
-                          onClick={() => setCurrent(prev => ({ ...prev, accentColor: swatch.hex }))}
-                          className={`p-2 rounded-xl border flex items-center gap-2 text-left cursor-pointer transition-all ${
-                            isSelected
-                              ? "border-[#EE4B2B] bg-[#EE4B2B]/5"
-                              : "border-neutral-100 bg-neutral-50 hover:bg-neutral-100"
-                          }`}
-                        >
-                          <span className={`w-3.5 h-3.5 rounded-full ${swatch.bg} border border-neutral-950/20`} />
-                          <span className="text-[9px] font-bold text-neutral-600 truncate">{swatch.name.split(" ")[0]}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  {/* Hex Color Picker */}
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="color"
-                      value={current.accentColor || "#EE4B2B"}
-                      onChange={e => setCurrent(prev => ({ ...prev, accentColor: e.target.value }))}
-                      className="w-8 h-8 rounded border-0 cursor-pointer bg-transparent shrink-0"
-                    />
+                  <div className="sm:col-span-2 space-y-3">
                     <input
                       type="text"
-                      value={current.accentColor || "#EE4B2B"}
-                      onChange={e => setCurrent(prev => ({ ...prev, accentColor: e.target.value }))}
-                      placeholder="#EE4B2B"
-                      className="px-3 py-1.5 border border-neutral-200 rounded bg-neutral-50 text-xs font-mono font-bold w-full text-neutral-900 focus:outline-none"
+                      value={current.customDomain || ""}
+                      onChange={(e) => setCurrent((prev) => ({ ...prev, customDomain: e.target.value }))}
+                      placeholder="journal.mon-domaine.com"
+                      className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
                     />
+
+                    <div className="p-3 bg-muted/30 border border-border/30 rounded-lg space-y-1 text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground block">Configuration CNAME DNS :</span>
+                      <p>Créez un enregistrement CNAME pointant vers <span className="text-primary font-medium">cname.qoe.fi</span> chez votre registrar.</p>
+                    </div>
                   </div>
                 </div>
 
-                {/* Footer Text Area */}
-                <div className="space-y-1.5 pt-3 border-t border-neutral-100">
-                  <label className="text-xs font-bold block text-neutral-400">Texte du Pied de Page</label>
-                  <textarea
-                    value={current.footerText || ""}
-                    onChange={e => setCurrent(prev => ({ ...prev, footerText: e.target.value }))}
-                    placeholder="Saisissez un message de bas de page ou d'au revoir..."
-                    rows={2}
-                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-xs bg-neutral-50 text-neutral-700 font-semibold focus:outline-none resize-none focus:border-neutral-300 focus:ring-1 focus:ring-neutral-300"
-                  />
-                </div>
-              </motion.div>
-            )}
-
-            {/* TAB 3: NAVIGATION MENU LINKS */}
-            {activeTab === "navigation" && (
-              <motion.div
-                key="tab-navigation"
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-5"
-              >
-                <div className="pb-3 border-b border-neutral-100 flex items-center justify-between">
+                {/* Support Contact */}
+                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
                   <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-neutral-800">Menu de Navigation</h3>
-                    <p className="text-[10px] text-neutral-400 mt-0.5">Gérez les onglets d'en-tête de votre site.</p>
+                    <label className="text-xs font-semibold text-foreground block">Support & Contact</label>
+                    <span className="text-xs text-muted-foreground block mt-0.5">
+                      Email ou lien d'aide pour vos abonnés.
+                    </span>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <input
+                      type="text"
+                      value={current.supportUrl || ""}
+                      onChange={(e) => setCurrent((prev) => ({ ...prev, supportUrl: e.target.value }))}
+                      placeholder="https://support.votre-site.com ou contact@votre-site.com"
+                      className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* TAB 3: NAVIGATION & RÉSEAUX */}
+          {activeTab === "navigation" && (
+            <motion.div
+              key="tab-navigation"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              className="space-y-8"
+            >
+              {/* Header Links */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-border/30">
+                  <div>
+                    <h2 className="text-sm font-semibold text-foreground">Menu de navigation principal</h2>
+                    <p className="text-xs text-muted-foreground">Onglets affichés dans l'en-tête de votre site.</p>
                   </div>
                   <button
                     onClick={addNavigationLink}
-                    className="flex items-center gap-1 text-[10px] font-black text-white hover:text-white bg-[#EE4B2B] hover:bg-[#ff5d40] px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-muted/40 hover:bg-muted text-foreground text-xs font-semibold border border-border/30 transition-colors cursor-pointer"
                   >
-                    <Plus className="w-3 h-3" />
-                    <span>Ajouter</span>
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Ajouter un lien</span>
                   </button>
                 </div>
 
                 {current.navigation.length === 0 ? (
-                  <div className="text-center py-8 text-xs text-neutral-400 bg-neutral-50 border border-dashed border-neutral-200 rounded-2xl">
-                    Aucun lien personnalisé dans le menu.
+                  <div className="py-6 text-center border border-dashed border-border/40 rounded-lg text-xs text-muted-foreground">
+                    Aucun lien de menu.
                   </div>
                 ) : (
-                  <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
-                    <LayoutGroup id="nav-item-layout">
-                      {current.navigation.map((nav, idx) => (
-                        <motion.div
-                          layout
-                          key={idx}
-                          className="flex items-center gap-2 p-3 border border-neutral-200 bg-white rounded-xl relative shadow-sm"
-                        >
-                          {/* Reordering indicators */}
-                          <div className="flex flex-col gap-0.5 shrink-0">
-                            <button
-                              disabled={idx === 0}
-                              onClick={() => reorderNavigationLink(idx, "up")}
-                              className="p-0.5 text-neutral-400 hover:text-neutral-900 disabled:opacity-20 cursor-pointer transition-colors"
-                            >
-                              <ArrowUp className="w-3 h-3" />
-                            </button>
-                            <button
-                              disabled={idx === current.navigation.length - 1}
-                              onClick={() => reorderNavigationLink(idx, "down")}
-                              className="p-0.5 text-neutral-400 hover:text-neutral-900 disabled:opacity-20 cursor-pointer transition-colors"
-                            >
-                              <ArrowDown className="w-3 h-3" />
-                            </button>
-                          </div>
-
-                          {/* Text/URL configuration */}
-                          <div className="grid grid-cols-2 gap-1.5 flex-1">
-                            <div className="space-y-1">
-                              <span className="text-[8px] font-bold text-neutral-400 uppercase">Titre</span>
-                              <input
-                                type="text"
-                                value={nav.label}
-                                onChange={e => {
-                                  const updated = [...current.navigation]
-                                  updated[idx] = { ...updated[idx], label: e.target.value }
-                                  setCurrent(prev => ({ ...prev, navigation: updated }))
-                                }}
-                                className="w-full px-2 py-1.5 text-[10px] border border-neutral-200 rounded bg-neutral-50 text-neutral-900 font-bold focus:outline-none"
-                                placeholder="Onglet"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <span className="text-[8px] font-bold text-neutral-400 uppercase">Lien</span>
-                              <input
-                                type="text"
-                                value={nav.url || ""}
-                                onChange={e => {
-                                  const updated = [...current.navigation]
-                                  updated[idx] = { ...updated[idx], url: e.target.value }
-                                  setCurrent(prev => ({ ...prev, navigation: updated }))
-                                }}
-                                className="w-full px-2 py-1.5 text-[10px] border border-neutral-200 rounded bg-neutral-50 text-neutral-600 font-mono focus:outline-none"
-                                placeholder="https://"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Delete Item */}
+                  <div className="space-y-2">
+                    {current.navigation.map((nav, idx) => (
+                      <div key={idx} className="flex items-center gap-2 p-2 bg-muted/20 border border-border/30 rounded-lg">
+                        <div className="flex flex-col gap-0.5 shrink-0">
                           <button
-                            onClick={() => removeNavigationLink(idx)}
-                            className="p-1 text-red-500 hover:bg-red-500/10 rounded-md transition-colors cursor-pointer shrink-0 mt-3"
+                            disabled={idx === 0}
+                            onClick={() => reorderNavigationLink(idx, "up")}
+                            className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <ArrowUp className="w-3 h-3" />
                           </button>
-                        </motion.div>
-                      ))}
-                    </LayoutGroup>
-                  </div>
-                )}
-              </motion.div>
-            )}
-
-            {/* TAB 4: SOCIAL NETWORKS */}
-            {activeTab === "socials" && (
-              <motion.div
-                key="tab-socials"
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-5"
-              >
-                <div className="pb-3 border-b border-neutral-100">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-neutral-800">Réseaux Sociaux</h3>
-                  <p className="text-[10px] text-neutral-400 mt-0.5">Ajoutez vos profils pour connecter vos communautés.</p>
-                </div>
-
-                {/* Add Quick Button Shortcuts */}
-                <div className="space-y-2">
-                  <span className="text-[10px] font-bold text-neutral-400 block">Plateformes Supportées</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(["twitter", "github", "instagram", "youtube"] as const).map(plat => {
-                      const isConnected = current.socialLinks.some(s => s.platform === plat)
-                      return (
-                        <button
-                          key={plat}
-                          disabled={isConnected}
-                          onClick={() => addSocialLink(plat)}
-                          className={`text-[9px] font-black uppercase px-2 py-1.5 rounded-lg border transition-all cursor-pointer ${
-                            isConnected
-                              ? "bg-neutral-50 border-neutral-100 text-neutral-300 cursor-not-allowed"
-                              : "bg-[#EE4B2B]/10 border-[#EE4B2B]/20 text-[#EE4B2B] hover:bg-[#EE4B2B] hover:text-white"
-                          }`}
-                        >
-                          +{plat}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Existing Connections List */}
-                <div className="space-y-2 pt-3 border-t border-neutral-100">
-                  <span className="text-xs font-bold text-neutral-500 block">Liens Configurés</span>
-
-                  {current.socialLinks.length === 0 ? (
-                    <div className="text-center py-8 text-xs text-neutral-500 bg-neutral-950 border border-dashed border-neutral-900 rounded-2xl">
-                      Aucun profil social connecté.
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
-                      {current.socialLinks.map((soc, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center gap-2.5 p-3 border border-neutral-200 bg-white rounded-xl shadow-sm"
-                        >
-                          {/* Platform badge display */}
-                          <span className="text-[9px] font-black uppercase text-[#EE4B2B] bg-[#EE4B2B]/5 px-2.5 py-1 rounded-lg border border-[#EE4B2B]/10 w-16 text-center select-none shrink-0 capitalize">
-                            {soc.platform}
-                          </span>
-
-                          <input
-                            type="text"
-                            value={soc.url}
-                            onChange={e => {
-                              const updated = [...current.socialLinks]
-                              updated[idx] = { ...updated[idx], url: e.target.value }
-                              setCurrent(prev => ({ ...prev, socialLinks: updated }))
-                            }}
-                            className="px-2 py-1.5 text-[10px] border border-neutral-200 bg-neutral-50 rounded flex-1 font-mono text-neutral-600 focus:outline-none"
-                            placeholder="https://"
-                          />
-
                           <button
-                            onClick={() => removeSocialLink(idx)}
-                            className="p-1 text-red-500 hover:bg-red-500/10 rounded-md transition-colors cursor-pointer shrink-0"
+                            disabled={idx === current.navigation.length - 1}
+                            onClick={() => reorderNavigationLink(idx, "down")}
+                            className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <ArrowDown className="w-3 h-3" />
                           </button>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
 
-          </AnimatePresence>
-        </div>
-      </div>
+                        <input
+                          type="text"
+                          value={nav.label}
+                          onChange={(e) => {
+                            const updated = [...current.navigation]
+                            updated[idx] = { ...updated[idx], label: e.target.value }
+                            setCurrent((prev) => ({ ...prev, navigation: updated }))
+                          }}
+                          placeholder="Intitulé"
+                          className="w-1/3 px-3 py-1.5 bg-background border border-border/30 rounded text-xs font-medium text-foreground focus:outline-none"
+                        />
+
+                        <input
+                          type="text"
+                          value={nav.url || ""}
+                          onChange={(e) => {
+                            const updated = [...current.navigation]
+                            updated[idx] = { ...updated[idx], url: e.target.value }
+                            setCurrent((prev) => ({ ...prev, navigation: updated }))
+                          }}
+                          placeholder="https://"
+                          className="flex-1 px-3 py-1.5 bg-background border border-border/30 rounded text-xs font-medium text-foreground focus:outline-none"
+                        />
+
+                        <button
+                          onClick={() => removeNavigationLink(idx)}
+                          className="p-1.5 text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer shrink-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Social Networks */}
+              <div className="space-y-4 pt-6 border-t border-border/30">
+                <div className="pb-2 border-b border-border/30">
+                  <h2 className="text-sm font-semibold text-foreground">Réseaux sociaux</h2>
+                  <p className="text-xs text-muted-foreground">Liens vers vos profils externes.</p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {SUPPORTED_SOCIAL_PLATFORMS.map((plat) => {
+                    const isConnected = current.socialLinks.some((s) => s.platform === plat.id)
+                    return (
+                      <button
+                        key={plat.id}
+                        disabled={isConnected}
+                        onClick={() => addSocialLink(plat.id)}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
+                          isConnected
+                            ? "bg-muted/20 border-border/20 text-muted-foreground/40 cursor-not-allowed"
+                            : "bg-muted/30 hover:bg-muted border-border/30 text-foreground"
+                        }`}
+                      >
+                        + {plat.name}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  {current.socialLinks.map((soc, idx) => (
+                    <div key={idx} className="flex items-center gap-2 p-2 bg-muted/20 border border-border/30 rounded-lg">
+                      <span className="text-xs font-semibold uppercase px-2.5 py-1 bg-muted border border-border/30 rounded shrink-0 w-24 text-center select-none text-muted-foreground">
+                        {soc.platform}
+                      </span>
+
+                      <input
+                        type="text"
+                        value={soc.url}
+                        onChange={(e) => {
+                          const updated = [...current.socialLinks]
+                          updated[idx] = { ...updated[idx], url: e.target.value }
+                          setCurrent((prev) => ({ ...prev, socialLinks: updated }))
+                        }}
+                        placeholder="https://"
+                        className="flex-1 px-3 py-1.5 bg-background border border-border/30 rounded text-xs font-medium text-foreground focus:outline-none"
+                      />
+
+                      <button
+                        onClick={() => removeSocialLink(idx)}
+                        className="p-1.5 text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer shrink-0"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* TAB 4: SEO & PIED DE PAGE */}
+          {activeTab === "seo" && (
+            <motion.div
+              key="tab-seo"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+              className="space-y-8"
+            >
+              <div className="divide-y divide-border/30">
+                {/* Meta Title */}
+                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block">Titre META (SEO)</label>
+                    <span className="text-xs text-muted-foreground block mt-0.5">
+                      Titre affiché sur Google et réseaux.
+                    </span>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <input
+                      type="text"
+                      value={current.seoTitle || ""}
+                      onChange={(e) => setCurrent((prev) => ({ ...prev, seoTitle: e.target.value }))}
+                      placeholder="Ex. Le Carnet de Sarah — Écrits & Analyses"
+                      className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
+                    />
+                  </div>
+                </div>
+
+                {/* Meta Description */}
+                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block">Description META</label>
+                    <span className="text-xs text-muted-foreground block mt-0.5">
+                      Résumé affiché dans les résultats de recherche.
+                    </span>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <textarea
+                      value={current.seoDescription || ""}
+                      onChange={(e) => setCurrent((prev) => ({ ...prev, seoDescription: e.target.value }))}
+                      placeholder="Description concise de votre ligne éditoriale..."
+                      rows={3}
+                      className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 resize-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Search Engine Indexing */}
+                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block">Indexation moteur</label>
+                    <span className="text-xs text-muted-foreground block mt-0.5">
+                      Référencement public.
+                    </span>
+                  </div>
+                  <div className="sm:col-span-2 flex items-center gap-2.5">
+                    <input
+                      type="checkbox"
+                      checked={current.allowIndexing}
+                      onChange={(e) => setCurrent((prev) => ({ ...prev, allowIndexing: e.target.checked }))}
+                      className="w-4 h-4 rounded border-border/40 text-primary focus:ring-primary cursor-pointer"
+                    />
+                    <span className="text-xs text-foreground font-medium">Autoriser les robots d'indexation Google</span>
+                  </div>
+                </div>
+
+                {/* Footer Text */}
+                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block">Texte de pied de page</label>
+                    <span className="text-xs text-muted-foreground block mt-0.5">
+                      Message en bas de page.
+                    </span>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <textarea
+                      value={current.footerText || ""}
+                      onChange={(e) => setCurrent((prev) => ({ ...prev, footerText: e.target.value }))}
+                      placeholder="Ex. Tous droits réservés. Merci de votre lecture."
+                      rows={2}
+                      className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
+      </main>
 
       {/* =====================================================================
-          💾 FLOATING SAVE DOCK (Animated Framer-Motion Command Bar)
+          DISCRET BOTTOM SAVE BAR (Only when modified)
           ===================================================================== */}
       <AnimatePresence>
         {hasChanges && (
           <motion.div
-            initial={{ opacity: 0, y: 80, x: "-50%" }}
-            animate={{ opacity: 1, y: 0, x: "-50%" }}
-            exit={{ opacity: 0, y: 80, x: "-50%" }}
-            transition={{ type: "spring", stiffness: 350, damping: 25 }}
-            className="fixed bottom-6 left-1/2 z-50 flex items-center justify-between gap-6 px-5 py-4 bg-white/95 border border-neutral-200 text-neutral-900 rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.12)] backdrop-blur-md w-[90%] max-w-lg select-none"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.15 }}
+            className="fixed bottom-6 right-8 z-30 bg-card border border-border/50 text-card-foreground rounded-xl shadow-lg p-3 flex items-center gap-4 select-none"
           >
-            <div className="flex items-center gap-3">
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-wider text-neutral-800">Modifications non publiées</p>
-                <p className="text-[10px] text-neutral-500 mt-0.5">Enregistrez pour synchroniser vos paramètres.</p>
-              </div>
-            </div>
+            <span className="text-xs text-muted-foreground font-medium px-1">Modifications non enregistrées</span>
 
             <div className="flex items-center gap-2">
               <button
                 disabled={isSaving}
                 onClick={handleDiscardChanges}
-                className="px-3.5 py-1.5 text-xs font-bold text-neutral-500 hover:text-neutral-900 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted rounded-lg transition-colors cursor-pointer disabled:opacity-50"
               >
                 Annuler
               </button>
-              
+
               <button
                 disabled={isSaving}
                 onClick={handleSaveAll}
-                className="px-4 py-1.5 text-xs font-black text-white bg-[#EE4B2B] hover:bg-[#ff5d40] rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-[0_4px_20px_rgba(238,75,43,0.3)] disabled:opacity-50"
+                className="px-3.5 py-1.5 text-xs font-semibold text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 {isSaving ? (
                   <>
@@ -1101,7 +951,6 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
           </motion.div>
         )}
       </AnimatePresence>
-
     </div>
   )
 }
