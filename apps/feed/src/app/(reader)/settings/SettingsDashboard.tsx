@@ -14,6 +14,7 @@ import {
   freezeAccount, deleteAccount, revokeUserSession, revokeAllOtherSessions, updateTimelinePreferences
 } from "./actions"
 
+import { createClient } from "@qoe/supabase/client"
 import { useTranslate, useTolgee } from "@qoe/i18n"
 import { useRouter } from "next/navigation"
 import { cn } from "@qoe/utils"
@@ -107,6 +108,53 @@ export function SettingsDashboard({
 
   // Tab state
   const [activeTab, setActiveTab] = useState<string>("compte")
+
+  // SSO states & handlers
+  const [ssoLoading, setSsoLoading] = useState<string | null>(null)
+  const [ssoMsg, setSsoMsg] = useState<string | null>(null)
+  const [ssoError, setSsoError] = useState<string | null>(null)
+
+  const handleLinkOAuth = async (provider: 'google' | 'apple') => {
+    try {
+      setSsoLoading(provider)
+      setSsoError(null)
+      const supabase = createClient()
+      const { data, error } = await supabase.auth.linkIdentity({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?linked=true`,
+        },
+      })
+      if (error) throw error
+      if (data?.url) {
+        window.location.href = data.url
+      }
+    } catch (err: any) {
+      setSsoError(err.message)
+    } finally {
+      setSsoLoading(null)
+    }
+  }
+
+  const handleUnlinkOAuth = async (provider: 'google' | 'apple') => {
+    try {
+      setSsoLoading(provider)
+      setSsoError(null)
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      const targetIdentity = user?.identities?.find((i: any) => i.provider === provider)
+      if (targetIdentity) {
+        const { error } = await supabase.auth.unlinkIdentity(targetIdentity)
+        if (error) throw error
+        setSsoMsg(`Compte ${provider === 'google' ? 'Google' : 'Apple ID'} dissocié avec succès.`)
+        router.refresh()
+      }
+    } catch (err: any) {
+      setSsoError(err.message)
+    } finally {
+      setSsoLoading(null)
+    }
+  }
 
   // Form states
   const [name, setName] = useState(dbUser.name || "")
@@ -825,9 +873,23 @@ export function SettingsDashboard({
                           Comptes Connexes & SSO
                         </h2>
                         <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                          Liez vos comptes sociaux pour vous connecter en 1 clic sans mot de passe.
+                          Liez vos comptes sociaux Google et Apple ID pour vous connecter en 1 clic sans mot de passe.
                         </p>
                       </div>
+
+                      {ssoMsg && (
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-[var(--radius-button)] flex items-center justify-between">
+                          <span>{ssoMsg}</span>
+                          <button type="button" onClick={() => setSsoMsg(null)} className="text-emerald-700 hover:text-emerald-900 font-bold">×</button>
+                        </div>
+                      )}
+
+                      {ssoError && (
+                        <div className="p-3 bg-destructive/10 border border-destructive/30 text-destructive text-xs font-semibold rounded-[var(--radius-button)] flex items-center justify-between">
+                          <span>{ssoError}</span>
+                          <button type="button" onClick={() => setSsoError(null)} className="text-destructive hover:text-destructive/80 font-bold">×</button>
+                        </div>
+                      )}
 
                       <div className="space-y-3">
                         {/* Google */}
@@ -839,20 +901,34 @@ export function SettingsDashboard({
                             <div>
                               <span className="text-xs font-bold text-[var(--text-primary)] block">Google Account</span>
                               <span className="text-[10px] text-[var(--text-tertiary)] block">
-                                {connectedIdentities.some(i => i.provider === "google") ? "Compte associé" : "Connexion via OAuth Google"}
+                                {connectedIdentities.some(i => i.provider === "google") ? "Compte Google associé" : "Connexion via OAuth Google"}
                               </span>
                             </div>
                           </div>
+
                           {connectedIdentities.some(i => i.provider === "google") ? (
-                            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-[var(--radius-button)]">
-                              Connecté
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-[var(--radius-button)]">
+                                Connecté
+                              </span>
+                              <button
+                                type="button"
+                                disabled={ssoLoading === "google"}
+                                onClick={() => handleUnlinkOAuth("google")}
+                                className="text-xs text-destructive hover:bg-destructive/10 px-2.5 py-1 rounded-[var(--radius-button)] font-semibold transition-colors cursor-pointer"
+                              >
+                                {ssoLoading === "google" ? "Déliaison..." : "Délier"}
+                              </button>
+                            </div>
                           ) : (
                             <button
                               type="button"
-                              className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
+                              disabled={ssoLoading === "google"}
+                              onClick={() => handleLinkOAuth("google")}
+                              className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer flex items-center gap-1.5"
                             >
-                              Lier mon compte Google
+                              {ssoLoading === "google" && <Loader2 className="w-3 h-3 animate-spin" />}
+                              <span>Lier mon compte Google</span>
                             </button>
                           )}
                         </div>
@@ -866,47 +942,34 @@ export function SettingsDashboard({
                             <div>
                               <span className="text-xs font-bold text-[var(--text-primary)] block">Apple ID</span>
                               <span className="text-[10px] text-[var(--text-tertiary)] block">
-                                {connectedIdentities.some(i => i.provider === "apple") ? "Compte associé" : "Connexion via Sign in with Apple"}
+                                {connectedIdentities.some(i => i.provider === "apple") ? "Apple ID associé" : "Connexion via Sign in with Apple"}
                               </span>
                             </div>
                           </div>
-                          {connectedIdentities.some(i => i.provider === "apple") ? (
-                            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-[var(--radius-button)]">
-                              Connecté
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
-                            >
-                              Lier mon Apple ID
-                            </button>
-                          )}
-                        </div>
 
-                        {/* GitHub */}
-                        <div className="flex items-center justify-between p-4 border border-[var(--border-default)] rounded-[var(--radius-card)] bg-[var(--surface-1)]/50">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-[var(--surface-0)] border border-[var(--border-default)] flex items-center justify-center font-bold text-xs text-[var(--text-primary)] shrink-0">
-                              GH
-                            </div>
-                            <div>
-                              <span className="text-xs font-bold text-[var(--text-primary)] block">GitHub Account</span>
-                              <span className="text-[10px] text-[var(--text-tertiary)] block">
-                                {connectedIdentities.some(i => i.provider === "github") ? "Compte associé" : "Connexion via GitHub OAuth"}
+                          {connectedIdentities.some(i => i.provider === "apple") ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-[var(--radius-button)]">
+                                Connecté
                               </span>
+                              <button
+                                type="button"
+                                disabled={ssoLoading === "apple"}
+                                onClick={() => handleUnlinkOAuth("apple")}
+                                className="text-xs text-destructive hover:bg-destructive/10 px-2.5 py-1 rounded-[var(--radius-button)] font-semibold transition-colors cursor-pointer"
+                              >
+                                {ssoLoading === "apple" ? "Déliaison..." : "Délier"}
+                              </button>
                             </div>
-                          </div>
-                          {connectedIdentities.some(i => i.provider === "github") ? (
-                            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-[var(--radius-button)]">
-                              Connecté
-                            </span>
                           ) : (
                             <button
                               type="button"
-                              className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
+                              disabled={ssoLoading === "apple"}
+                              onClick={() => handleLinkOAuth("apple")}
+                              className="px-3 py-1.5 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-0)] hover:bg-[var(--surface-2)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer flex items-center gap-1.5"
                             >
-                              Lier mon compte GitHub
+                              {ssoLoading === "apple" && <Loader2 className="w-3 h-3 animate-spin" />}
+                              <span>Lier mon Apple ID</span>
                             </button>
                           )}
                         </div>
