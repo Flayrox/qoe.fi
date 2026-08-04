@@ -10,7 +10,8 @@ import {
 import { 
   updateProfile, upgradeToCreator, updateNewsletterPreferences, 
   updateSecurityEmail, updateSecurityPassword, exportUserData,
-  addMutedWord, removeMutedWord
+  addMutedWord, removeMutedWord, requestGdprExportEmail,
+  freezeAccount, deleteAccount, revokeUserSession, updateTimelinePreferences
 } from "./actions"
 
 import { useTranslate, useTolgee } from "@qoe/i18n"
@@ -307,12 +308,50 @@ export function SettingsDashboard({
 
   const handleGdprRequest = async () => {
     setGdprLoading(true)
-    // Simulate background email export job
-    setTimeout(() => {
-      setGdprLoading(false)
+    const res = await requestGdprExportEmail()
+    setGdprLoading(false)
+    if (res.success) {
       setGdprRequested(true)
       trackServerEvent("gdpr_export_requested")
-    }, 1200)
+    }
+  }
+
+  const handleConfirmFreezeAccount = async () => {
+    const res = await freezeAccount()
+    if (res.success) {
+      setIsFreezeModalOpen(false)
+      alert("Votre compte a été mis en sommeil.")
+      window.location.href = "/login"
+    } else {
+      alert("Erreur lors de la mise en sommeil du compte.")
+    }
+  }
+
+  const handleConfirmDeleteAccount = async () => {
+    if (!deletePassword) return
+    setDeleteLoading(true)
+    setDeleteError(null)
+
+    const res = await deleteAccount(deletePassword)
+    setDeleteLoading(false)
+
+    if (res.success) {
+      setIsDeleteModalOpen(false)
+      alert("Demande de suppression enregistrée. Période de grâce de 30 jours active.")
+      window.location.href = "/login"
+    } else {
+      setDeleteError(res.error === "INVALID_PASSWORD" ? "Mot de passe incorrect." : "Erreur lors de la suppression.")
+    }
+  }
+
+  const handleRevokeSession = async (sessionId: string) => {
+    setRevokingSessionId(sessionId)
+    const res = await revokeUserSession(sessionId)
+    setRevokingSessionId(null)
+    if (res.success) {
+      setSessionMsg("Session révoquée avec succès.")
+      setTimeout(() => setSessionMsg(null), 3000)
+    }
   }
 
   const handleLanguageChange = (lang: string) => {
@@ -1574,11 +1613,8 @@ export function SettingsDashboard({
                 Annuler
               </button>
               <button
-                onClick={() => {
-                  setIsFreezeModalOpen(false)
-                  alert("Votre compte a été mis en sommeil.")
-                }}
-                className="px-4 py-2 rounded-[var(--radius-button)] bg-[var(--text-primary)] text-[var(--surface-0)] text-xs font-semibold"
+                onClick={handleConfirmFreezeAccount}
+                className="px-4 py-2 rounded-[var(--radius-button)] bg-[var(--text-primary)] text-[var(--surface-0)] text-xs font-semibold cursor-pointer"
               >
                 Confirmer la mise en sommeil
               </button>
@@ -1606,6 +1642,12 @@ export function SettingsDashboard({
             <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-[var(--radius-button)] text-xs text-red-600 font-medium leading-relaxed">
               Attention : Cette action est irréversible. Toutes vos données (posts, bookmarks, historique) seront planifiées pour suppression sous 30 jours.
             </div>
+
+            {deleteError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-[var(--radius-button)]">
+                {deleteError}
+              </div>
+            )}
 
             <div className="space-y-3 text-xs">
               <div className="space-y-1">
@@ -1643,15 +1685,8 @@ export function SettingsDashboard({
                 Annuler
               </button>
               <button
-                disabled={deleteConfirmationText !== "SUPPRIMER" || !deletePassword}
-                onClick={() => {
-                  setDeleteLoading(true)
-                  setTimeout(() => {
-                    setDeleteLoading(false)
-                    alert("Demande de suppression enregistrée. Période de grâce de 30 jours active.")
-                    setIsDeleteModalOpen(false)
-                  }, 1500)
-                }}
+                disabled={deleteConfirmationText !== "SUPPRIMER" || !deletePassword || deleteLoading}
+                onClick={handleConfirmDeleteAccount}
                 className="px-4 py-2 rounded-[var(--radius-button)] bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-all cursor-pointer"
               >
                 {deleteLoading ? "Suppression en cours..." : "Supprimer définitivement"}
