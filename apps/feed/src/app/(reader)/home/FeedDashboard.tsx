@@ -9,7 +9,7 @@ import {
 } from "lucide-react"
 import { toggleFollowCreatorHome, toggleBookmarkArticleHome } from "./actions"
 import { cn } from "@qoe/utils"
-import { ArticleCard, LoginModal, GuestFloatingBar, type AuthActionContext } from "@qoe/ui"
+import { ArticleCard, LoginModal, GuestFloatingBar, useOptimisticMutation, type AuthActionContext } from "@qoe/ui"
 import { MicroPostComposer } from "./components/MicroPostComposer"
 import { FeedTabsHeader } from "./components/FeedTabsHeader"
 import { ExpandedPostView } from "./components/ExpandedPostView"
