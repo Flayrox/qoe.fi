@@ -94,6 +94,12 @@ export const LIMITS = {
 export type MonorepoApp = "feed" | "dashboard" | "admin" | "landing" | "api" | "tenant";
 
 export function getMonorepoUrl(app: MonorepoApp, hostname?: string, tenantSubdomain?: string): string {
+  // Auto-détection côté navigateur si l'hôte n'est pas passé explicitement
+  let host = hostname;
+  if (!host && typeof window !== "undefined" && window.location) {
+    host = window.location.host;
+  }
+
   // 1. Mode Production
   if (process.env.NODE_ENV === "production") {
     const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "qoe.fi";
@@ -107,14 +113,19 @@ export function getMonorepoUrl(app: MonorepoApp, hostname?: string, tenantSubdom
     }
   }
 
-  // 2. Mode Développement (Détection dynamique lvh.me vs qoe.test + conservation des ports)
+  // 2. Mode Développement (Détection dynamique lvh.me vs qoe.test vs localhost)
   let devBase = "lvh.me";
-  if (hostname && hostname.endsWith("qoe.test")) {
-    devBase = "qoe.test";
+  if (host) {
+    if (host.includes("qoe.test")) {
+      devBase = "qoe.test";
+    } else if (host.includes("lvh.me")) {
+      devBase = "lvh.me";
+    } else if (host.includes("localhost")) {
+      devBase = "lvh.me"; // lvh.me pointe toujours sur 127.0.0.1 pour la résolution des sous-domaines
+    }
   }
 
-  // Si l'hôte n'a pas de port (ex: Caddy proxy sur port 80), on n'ajoute pas de port
-  const isCaddy = hostname && !hostname.includes(":");
+  const isCaddy = host && !host.includes(":");
   const feedPort = isCaddy ? "" : ":3010";
   const dashboardPort = isCaddy ? "" : ":3020";
   const adminPort = isCaddy ? "" : ":3030";
@@ -134,34 +145,22 @@ export function getMonorepoUrl(app: MonorepoApp, hostname?: string, tenantSubdom
 
 export const URLS = {
   get APP(): string {
-    const win = (globalThis as Record<string, unknown>).window as { location: { hostname: string; port: string; protocol: string } } | undefined;
-    const hostname = win ? `${win.location.hostname}${win.location.port ? `:${win.location.port}` : ""}` : undefined;
-    return getMonorepoUrl("feed", hostname);
+    return getMonorepoUrl("feed");
   },
   get CONSOLE(): string {
-    const win = (globalThis as Record<string, unknown>).window as { location: { hostname: string; port: string; protocol: string } } | undefined;
-    const hostname = win ? `${win.location.hostname}${win.location.port ? `:${win.location.port}` : ""}` : undefined;
-    return getMonorepoUrl("feed", hostname);
+    return getMonorepoUrl("feed");
   },
   get ADMIN(): string {
-    const win = (globalThis as Record<string, unknown>).window as { location: { hostname: string; port: string; protocol: string } } | undefined;
-    const hostname = win ? `${win.location.hostname}${win.location.port ? `:${win.location.port}` : ""}` : undefined;
-    return getMonorepoUrl("admin", hostname);
+    return getMonorepoUrl("admin");
   },
   get DASHBOARD(): string {
-    const win = (globalThis as Record<string, unknown>).window as { location: { hostname: string; port: string; protocol: string } } | undefined;
-    const hostname = win ? `${win.location.hostname}${win.location.port ? `:${win.location.port}` : ""}` : undefined;
-    return getMonorepoUrl("dashboard", hostname);
+    return getMonorepoUrl("dashboard");
   },
   get API(): string {
-    const win = (globalThis as Record<string, unknown>).window as { location: { hostname: string; port: string; protocol: string } } | undefined;
-    const hostname = win ? `${win.location.hostname}${win.location.port ? `:${win.location.port}` : ""}` : undefined;
-    return getMonorepoUrl("api", hostname);
+    return getMonorepoUrl("api");
   },
   get LANDING(): string {
-    const win = (globalThis as Record<string, unknown>).window as { location: { hostname: string; port: string; protocol: string } } | undefined;
-    const hostname = win ? `${win.location.hostname}${win.location.port ? `:${win.location.port}` : ""}` : undefined;
-    return getMonorepoUrl("landing", hostname);
+    return getMonorepoUrl("landing");
   },
 };
 
