@@ -4,6 +4,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@qoe/supabase/middleware";
+import { parseTenantHost, getMainAppUrl } from "@qoe/config";
 
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
@@ -29,51 +30,15 @@ export async function middleware(request: NextRequest) {
   // 2.5 Set locale header on response
   supabaseResponse.headers.set("x-locale", localeCookie);
 
-  // 3. Multi-tenancy check
+  // 3. Multi-tenancy check via @qoe/config
   const hostname = request.headers.get("host") || "";
-  const hostWithoutPort = hostname.split(":")[0];
+  const { subdomain, isSystemDomain } = parseTenantHost(hostname);
 
-  let currentHost = hostWithoutPort;
-  if (hostWithoutPort.endsWith(".localhost")) {
-    currentHost = hostWithoutPort.replace(".localhost", "");
-  } else if (hostWithoutPort.endsWith(".qoe.test")) {
-    currentHost = hostWithoutPort.replace(".qoe.test", "");
-  } else if (hostWithoutPort.endsWith(".lvh.me")) {
-    currentHost = hostWithoutPort.replace(".lvh.me", "");
-  } else if (hostWithoutPort.endsWith(".qoe.fi")) {
-    currentHost = hostWithoutPort.replace(".qoe.fi", "");
-  }
-
-  // Define domains that are NOT tenant sites
-  const systemDomains = [
-    "localhost",
-    "qoe.test",
-    "lvh.me",
-    "qoe.fi",
-    "www.qoe.fi",
-    "start.qoe.fi",
-    "api.qoe.fi",
-    "dashboard.qoe.fi",
-    "admin.qoe.fi"
-  ];
-
-  const isSystemDomain = systemDomains.includes(currentHost);
-
-  if (!isSystemDomain) {
+  if (!isSystemDomain && subdomain) {
     // If the user has no session locally, and we haven't checked SSO in the last 5 mins, redirect to main platform SSO sync.
     const ssoChecked = request.cookies.get("sso_checked")?.value === "true";
     if (!user && !ssoChecked) {
-      let mainAppUrl = "https://qoe.fi";
-      if (process.env.NODE_ENV === "development") {
-        if (hostWithoutPort.endsWith("lvh.me")) {
-          mainAppUrl = "http://lvh.me";
-        } else if (hostWithoutPort.endsWith("qoe.test")) {
-          mainAppUrl = "http://qoe.test";
-        } else {
-          mainAppUrl = "http://localhost:3010";
-        }
-      }
-      
+      const mainAppUrl = getMainAppUrl(hostname);
       const host = request.headers.get("host") || "localhost:3000";
       const protocol = request.headers.get("x-forwarded-proto") || "http";
       const callbackPath = `/auth/sso/callback?redirect_to=${encodeURIComponent(pathname + url.search)}`;
@@ -85,10 +50,10 @@ export async function middleware(request: NextRequest) {
     }
 
     const requestHeaders = new Headers(request.headers);
-    requestHeaders.set("x-tenant-domain", currentHost);
+    requestHeaders.set("x-tenant-domain", subdomain);
 
     // Rewrite path to /tenant/[domain]/[path]
-    url.pathname = `/tenant/${currentHost}${pathname}`;
+    url.pathname = `/tenant/${subdomain}${pathname}`;
 
     // Return rewritten path with session headers
     const rewriteResponse = NextResponse.rewrite(url, {
