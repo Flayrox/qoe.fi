@@ -124,7 +124,7 @@ export function ArticleCard({
         {/* À LA UNE badge */}
         <div className="absolute top-4 left-4 z-10">
           <span
-            className="text-[8px] font-black uppercase tracking-[0.14em] bg-[#EE4B2B] text-white px-2.5 py-1 rounded-full shadow-md"
+            className="text-[8px] font-black uppercase tracking-[0.14em] bg-primary text-white px-2.5 py-1 rounded-full shadow-md"
           >
             À la une
           </span>
@@ -159,14 +159,14 @@ export function ArticleCard({
                   {article.author.logoUrl ? (
                     <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
                   ) : (
-                    <div className="w-full h-full bg-[#EE4B2B]/10 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
+                    <div className="w-full h-full bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">
                       {article.author.name?.substring(0, 2) || "NA"}
                     </div>
                   )}
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[13px] font-bold text-foreground tracking-tight group-hover/author:text-[#EE4B2B] transition-colors">
+                    <span className="text-[13px] font-bold text-foreground tracking-tight group-hover/author:text-primary transition-colors">
                       {article.author.name}
                     </span>
                   </div>
@@ -183,7 +183,7 @@ export function ArticleCard({
 
             {/* Title + Excerpt */}
             <a href={url} target="_blank" rel="noreferrer" onClick={handleOpenInTab} className="block group/title flex-1">
-              <h3 className="font-serif text-[22px] sm:text-[26px] font-bold text-foreground leading-[1.2] tracking-tight mb-3 group-hover/title:text-[#EE4B2B] transition-colors duration-300">
+              <h3 className="font-serif text-[22px] sm:text-[26px] font-bold text-foreground leading-[1.2] tracking-tight mb-3 group-hover/title:text-primary transition-colors duration-300">
                 {article.title}
               </h3>
               <p className="font-serif text-[14px] text-muted-foreground leading-[1.75] line-clamp-3">
@@ -251,14 +251,14 @@ export function ArticleCard({
               {article.author.logoUrl ? (
                 <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
               ) : (
-                <div className="w-full h-full bg-[#EE4B2B]/10 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
+                <div className="w-full h-full bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">
                   {article.author.name?.substring(0, 2) || "NA"}
                 </div>
               )}
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[13px] font-bold text-foreground tracking-tight leading-none group-hover/author:text-[#EE4B2B] transition-colors duration-200">
+                <span className="text-[13px] font-bold text-foreground tracking-tight leading-none group-hover/author:text-primary transition-colors duration-200">
                   {article.author.name}
                 </span>
               </div>
@@ -280,8 +280,8 @@ export function ArticleCard({
                   "p-2 rounded-xl transition-all duration-300 cursor-pointer outline-none",
                   "opacity-0 group-hover:opacity-100",
                   isBookmarked
-                    ? "!opacity-100 bg-[#EE4B2B]/10 text-[#EE4B2B]"
-                    : "bg-transparent text-muted-foreground hover:bg-muted hover:text-[#EE4B2B]"
+                    ? "!opacity-100 bg-primary/10 text-primary"
+                    : "bg-transparent text-muted-foreground hover:bg-muted hover:text-primary"
                 )}
                 aria-label={isBookmarked ? "Retirer le signet" : "Ajouter aux signets"}
               >
@@ -300,7 +300,7 @@ export function ArticleCard({
           <a href={url} target="_blank" rel="noreferrer" className="block group/title">
             <h3 className={cn(
               "font-serif font-bold text-foreground leading-[1.25] tracking-tight",
-              "group-hover/title:text-[#EE4B2B] transition-colors duration-300",
+              "group-hover/title:text-primary transition-colors duration-300",
               "text-[20px] sm:text-[22px]"
             )}>
               {article.title}
@@ -333,7 +333,7 @@ function FollowButton({ isFollowed, onToggle }: { isFollowed: boolean; onToggle:
         "transition-all duration-300 cursor-pointer outline-none",
         isFollowed
           ? "bg-muted text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          : "bg-muted text-foreground hover:bg-[#EE4B2B] hover:text-white"
+          : "bg-muted text-foreground hover:bg-primary hover:text-white"
       )}
     >
       {isFollowed
@@ -380,7 +380,7 @@ function CardFooter({
         {article.isPremium && (
           <>
             <span className="text-muted-foreground/40 text-xs">·</span>
-            <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[#EE4B2B] font-sans">
+            <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.1em] text-primary font-sans">
               <Crown className="w-2.5 h-2.5" />
               Premium
             </span>
@@ -392,7 +392,7 @@ function CardFooter({
       <div className="flex items-center gap-1 bg-card/95 border border-border/40 rounded-full p-1 shadow-xs opacity-0 group-hover:opacity-100 transition-all duration-300">
         <button
           onClick={handleOpenInTab}
-          className="p-1.5 text-muted-foreground hover:text-[#EE4B2B] hover:bg-[#EE4B2B]/10 rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
+          className="p-1.5 text-muted-foreground hover:text-primary hover:bg-[#EE4B2B]/10 rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
           title="Aperçu"
         >
           <FileText className="w-3.5 h-3.5" strokeWidth={1.5} />
@@ -403,7 +403,7 @@ function CardFooter({
             e.preventDefault()
             window.open(url, "_blank", "noreferrer")
           }}
-          className="p-1.5 text-muted-foreground hover:text-[#EE4B2B] hover:bg-[#EE4B2B]/10 rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
+          className="p-1.5 text-muted-foreground hover:text-primary hover:bg-[#EE4B2B]/10 rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
           title="Lire"
         >
           <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.5} />
