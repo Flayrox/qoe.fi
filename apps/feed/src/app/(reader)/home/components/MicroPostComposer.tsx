@@ -333,7 +333,7 @@ export function MicroPostComposer({
     try {
       const { deletePost } = await import("../actions")
       const res = await deletePost(draftId)
-      if (res.success) {
+      if (res.ok) {
         toast.success("Brouillon supprimé.")
       } else {
         toast.error("Impossible de supprimer le brouillon.")
@@ -351,7 +351,7 @@ export function MicroPostComposer({
     try {
       const { getUserDrafts } = await import("../actions")
       const res = await getUserDrafts()
-      if (res.success && res.data?.drafts) {
+      if (res.ok && res.data?.drafts) {
         setDrafts(res.data.drafts)
       } else {
         setDrafts([])
@@ -421,7 +421,7 @@ export function MicroPostComposer({
         triggerWarning: isTriggerWarning && triggerWarning.trim() ? triggerWarning.trim() : null
       })
 
-      if (res.success && res.data?.post) {
+      if (res.ok && res.data?.post) {
         const post = res.data.post
         
         images.forEach(img => {
