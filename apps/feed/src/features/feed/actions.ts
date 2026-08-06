@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@qoe/db/client"
+import { follows, bookmarks, posts, articles } from "@qoe/db"
 import { createClient } from "@qoe/supabase/server"
 import { revalidatePath } from "next/cache"
 import { safeAction } from "@/lib/safe-action"
@@ -20,55 +20,11 @@ const unfurlCache = new Map<string, {
 }>()
 
 export const toggleFollowCreatorHome = safeAction<string, { followed: boolean }>(async (creatorId, user) => {
-  const existing = await prisma.follows.findUnique({
-    where: {
-      readerId_creatorId: {
-        readerId: user.id,
-        creatorId
-      }
-    }
-  })
-
-  if (existing) {
-    await prisma.follows.delete({
-      where: { id: existing.id }
-    })
-    return { followed: false }
-  } else {
-    await prisma.follows.create({
-      data: {
-        readerId: user.id,
-        creatorId
-      }
-    })
-    return { followed: true }
-  }
+  return follows.toggleFollow(user.id, creatorId)
 })
 
 export const toggleBookmarkArticleHome = safeAction<string, { bookmarked: boolean }>(async (articleId, user) => {
-  const existing = await prisma.bookmark.findUnique({
-    where: {
-      readerId_articleId: {
-        readerId: user.id,
-        articleId
-      }
-    }
-  })
-
-  if (existing) {
-    await prisma.bookmark.delete({
-      where: { id: existing.id }
-    })
-    return { bookmarked: false }
-  } else {
-    await prisma.bookmark.create({
-      data: {
-        readerId: user.id,
-        articleId
-      }
-    })
-    return { bookmarked: true }
-  }
+  return bookmarks.toggleBookmark(user.id, articleId)
 })
 
 export const createMicroPost = safeAction<{
@@ -100,120 +56,54 @@ export const createMicroPost = safeAction<{
     throw new Error("INVALID_CONTENT")
   }
 
-  const post = await prisma.post.create({
-    data: {
-      content: cleanContent,
-      authorId: user.id,
-      tags,
-      imageUrl: imageUrl || null,
-      visibility: visibility || "public",
-      isDraft: isDraft || false,
-      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
-      triggerWarning: triggerWarning || null
-    },
-    include: {
-      author: { select: { id: true, name: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, username: true } }
-    }
+  const newPost = await posts.createMicroPost({
+    content: cleanContent,
+    authorId: user.id,
+    tags,
+    imageUrl: imageUrl || null,
+    visibility: visibility || "public",
+    isDraft: isDraft || false,
+    scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+    triggerWarning: triggerWarning || null
   })
+
   revalidatePath("/home")
-  if (post.author.username) {
-    revalidatePath(`/@${post.author.username}`)
+  if (newPost.author.username) {
+    revalidatePath(`/@${newPost.author.username}`)
   }
-  return { post }
+  return { post: newPost }
 })
 
 export const toggleLikePost = safeAction<string, { liked: boolean }>(async (postId, user) => {
-  const existing = await prisma.like.findUnique({
-    where: {
-      postId_userId: {
-        postId,
-        userId: user.id
-      }
-    }
-  })
-
-  if (existing) {
-    await prisma.like.delete({ where: { id: existing.id } })
-    return { liked: false }
-  } else {
-    await prisma.like.create({
-      data: {
-        postId,
-        userId: user.id
-      }
-    })
-    return { liked: true }
-  }
+  return posts.toggleLike(postId, user.id)
 })
 
 export const replyToPost = safeAction<{ postId: string; content: string }, { reply: any }>(async ({ postId, content }, user) => {
   const clean = content.trim()
   if (!clean) throw new Error("INVALID_CONTENT")
 
-  const reply = await prisma.post.create({
-    data: {
-      content: clean,
-      authorId: user.id,
-      parentId: postId
-    },
-    include: {
-      author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } }
-    }
-  })
+  const reply = await posts.replyToPost(postId, user.id, clean)
   return { reply }
 })
 
 export const getPostThread = safeAction<string, { post: any }>(async (postId) => {
-  const post = await prisma.post.findUnique({
-    where: { id: postId },
-    include: {
-      author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true, subdomain: true, customDomain: true } },
-      likes: { select: { userId: true } },
-      replies: {
-        include: {
-          author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } },
-          likes: { select: { userId: true } },
-          replies: {
-            include: {
-              author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } }
-            }
-          }
-        },
-        orderBy: { createdAt: "desc" }
-      }
-    }
-  })
-
+  const post = await posts.findThreadById(postId)
   return { post }
 }, false) // No auth required for thread view
 
 export const getArticleThread = safeAction<string, { article: any }>(async (slug) => {
-  const article = await prisma.article.findUnique({
-    where: { slug },
-    include: {
-      author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true, subdomain: true, customDomain: true } },
-      category: { select: { name: true } }
-    }
-  })
+  const article = await articles.findBySlug(slug)
   return { article }
 }, false)
 
 export const repostPost = safeAction<string, { repost: any }>(async (postId, user) => {
-  const repost = await prisma.post.create({
-    data: {
-      content: "", // empty content identifies a repost
-      authorId: user.id,
-      repostId: postId
-    }
-  })
+  const repost = await posts.repostPost(postId, user.id)
   return { repost }
 })
 
 export const deletePost = safeAction<string, { success: boolean }>(async (postId, user) => {
-  const post = await prisma.post.findUnique({ where: { id: postId } })
-  if (!post || post.authorId !== user.id) throw new Error("UNAUTHORIZED")
-  
-  await prisma.post.delete({ where: { id: postId } })
+  const deleted = await posts.deletePost(postId, user.id)
+  if (!deleted) throw new Error("UNAUTHORIZED")
   return { success: true }
 })
 
@@ -233,6 +123,7 @@ export const getProfileData = safeAction<string, {
   const { data: { user: authUser } } = await supabase.auth.getUser()
   const currentUserId = authUser?.id || null
 
+  const { prisma } = await import("@qoe/db/client")
   const profileUser = await prisma.user.findUnique({
     where: { username },
     select: {
@@ -253,22 +144,15 @@ export const getProfileData = safeAction<string, {
 
   if (!profileUser) throw new Error("NOT_FOUND")
 
-  let isFollowing = false
+  let isFollowingUser = false
   if (currentUserId && currentUserId !== profileUser.id) {
-    const followRecord = await prisma.follows.findUnique({
-      where: {
-        readerId_creatorId: {
-          readerId: currentUserId,
-          creatorId: profileUser.id
-        }
-      }
-    })
-    isFollowing = !!followRecord
+    isFollowingUser = await follows.isFollowing(currentUserId, profileUser.id)
   }
 
-  const followersCount = await prisma.follows.count({ where: { creatorId: profileUser.id } })
-  const followingCount = await prisma.follows.count({ where: { readerId: profileUser.id } })
+  const followersCount = await follows.countFollowers(profileUser.id)
+  const followingCount = await follows.countFollowing(profileUser.id)
   const isOwnProfile = currentUserId === profileUser.id
+
   const postsCount = await prisma.post.count({
     where: {
       authorId: profileUser.id,
@@ -278,7 +162,7 @@ export const getProfileData = safeAction<string, {
           { scheduledAt: null },
           { scheduledAt: { lte: new Date() } }
         ],
-        visibility: isFollowing ? { in: ["public", "followers"] } : "public"
+        visibility: isFollowingUser ? { in: ["public", "followers"] } : "public"
       })
     }
   })
@@ -292,7 +176,7 @@ export const getProfileData = safeAction<string, {
           { scheduledAt: null },
           { scheduledAt: { lte: new Date() } }
         ],
-        visibility: isFollowing ? { in: ["public", "followers"] } : "public"
+        visibility: isFollowingUser ? { in: ["public", "followers"] } : "public"
       })
     },
     include: {
@@ -304,11 +188,7 @@ export const getProfileData = safeAction<string, {
   })
 
   const dbArticles = (profileUser.role === 'creator' || profileUser.role === 'superadmin')
-    ? await prisma.article.findMany({
-        where: { authorId: profileUser.id, published: true },
-        include: { category: { select: { name: true } } },
-        orderBy: { createdAt: 'desc' }
-      })
+    ? await articles.findPublishedByAuthor(profileUser.id, { take: 50 })
     : []
 
   const dbHighlights = await prisma.highlight.findMany({
@@ -335,7 +215,7 @@ export const getProfileData = safeAction<string, {
 
   return {
     profileUser: { ...profileUser, createdAt: profileUser.createdAt.toISOString() },
-    isFollowing,
+    isFollowing: isFollowingUser,
     followersCount,
     followingCount,
     postsCount,
@@ -346,7 +226,7 @@ export const getProfileData = safeAction<string, {
       repliesCount: p._count.replies,
       liked: p.likes.some(l => l.userId === currentUserId)
     })),
-    articles: dbArticles.map(a => ({ ...a, createdAt: a.createdAt.toISOString(), updatedAt: a.updatedAt.toISOString() })),
+    articles: dbArticles.map(a => ({ ...a, createdAt: a.createdAt.toISOString(), updatedAt: (a as any).updatedAt ? (a as any).updatedAt.toISOString() : new Date().toISOString() })),
     highlights: dbHighlights.map(h => ({ ...h, createdAt: h.createdAt.toISOString() })),
     letters: dbLetters.map(l => ({ ...l, createdAt: l.createdAt.toISOString() })),
     initialMutedWords: dbMutedWords
@@ -354,34 +234,13 @@ export const getProfileData = safeAction<string, {
 }, false)
 
 export const getUserDrafts = safeAction<void, { drafts: any[] }>(async (_, user) => {
-  const drafts = await prisma.post.findMany({
-    where: {
-      authorId: user.id,
-      isDraft: true
-    },
-    include: {
-      author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } }
-    },
-    orderBy: { updatedAt: "desc" }
-  })
+  const drafts = await posts.getUserDrafts(user.id)
   return { drafts }
 })
 
 export const pinPost = safeAction<string, { success: boolean }>(async (postId, user) => {
-  const post = await prisma.post.findUnique({ where: { id: postId } })
-  if (!post || post.authorId !== user.id) throw new Error("UNAUTHORIZED")
-
-  // Reset all other pinned posts for this user
-  await prisma.post.updateMany({
-    where: { authorId: user.id, isPinned: true },
-    data: { isPinned: false }
-  })
-
-  // Set this post as pinned
-  await prisma.post.update({
-    where: { id: postId },
-    data: { isPinned: true }
-  })
+  const success = await posts.setPinStatus(postId, user.id, true)
+  if (!success) throw new Error("UNAUTHORIZED")
 
   revalidatePath("/home")
   if (user.username) {
@@ -391,13 +250,8 @@ export const pinPost = safeAction<string, { success: boolean }>(async (postId, u
 })
 
 export const unpinPost = safeAction<string, { success: boolean }>(async (postId, user) => {
-  const post = await prisma.post.findUnique({ where: { id: postId } })
-  if (!post || post.authorId !== user.id) throw new Error("UNAUTHORIZED")
-
-  await prisma.post.update({
-    where: { id: postId },
-    data: { isPinned: false }
-  })
+  const success = await posts.setPinStatus(postId, user.id, false)
+  if (!success) throw new Error("UNAUTHORIZED")
 
   revalidatePath("/home")
   if (user.username) {
@@ -424,30 +278,21 @@ export const unfurlUrl = safeAction<string, {
       url = "https://" + url
     }
 
-    // Retourner immédiatement si le résultat est déjà présent dans le cache mémoire global
     if (unfurlCache.has(url)) {
       return unfurlCache.get(url)!
     }
 
     const parsedUrl = new URL(url)
-    
-    // Vérifier si l'hôte appartient à la plateforme (ne traiter comme interne que si localhost ou qoe.fi)
     const isInternalHost = parsedUrl.hostname.endsWith("qoe.fi") || 
                            parsedUrl.hostname === "localhost" || 
                            parsedUrl.hostname.endsWith(".localhost") ||
                            parsedUrl.hostname === "127.0.0.1"
 
     if (isInternalHost) {
-      // Vérifier s'il s'agit d'un micro-post ou d'un article interne
       const postMatch = parsedUrl.pathname.match(/\/post\/([a-zA-Z0-9]+)/)
       if (postMatch) {
         const postId = postMatch[1]
-        const post = await prisma.post.findUnique({
-          where: { id: postId },
-          include: {
-            author: { select: { id: true, name: true, username: true, subdomain: true, logoUrl: true, isCertified: true } }
-          }
-        })
+        const post = await posts.findThreadById(postId)
         if (post) {
           const result = { isInternal: true, postType: "post" as const, data: post }
           unfurlCache.set(url, result)
@@ -458,12 +303,7 @@ export const unfurlUrl = safeAction<string, {
       const articleMatch = parsedUrl.pathname.match(/\/article\/([a-zA-Z0-9_-]+)/)
       if (articleMatch) {
         const slug = articleMatch[1]
-        const article = await prisma.article.findUnique({
-          where: { slug },
-          include: {
-            author: { select: { id: true, name: true, username: true, subdomain: true, logoUrl: true, isCertified: true } }
-          }
-        })
+        const article = await articles.findBySlug(slug)
         if (article) {
           const result = { isInternal: true, postType: "article" as const, data: article }
           unfurlCache.set(url, result)
@@ -472,7 +312,6 @@ export const unfurlUrl = safeAction<string, {
       }
     }
 
-    // Unfurl (résolution) de l'URL externe
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 4000)
 

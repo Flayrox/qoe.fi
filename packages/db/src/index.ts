@@ -7,3 +7,5 @@ export * from "./types";
 export * as articles from "./repositories/articles";
 export * as users from "./repositories/users";
 export * as posts from "./repositories/posts";
+export * as follows from "./repositories/follows";
+export * as bookmarks from "./repositories/bookmarks";
