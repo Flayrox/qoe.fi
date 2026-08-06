@@ -10,7 +10,9 @@
     "./env": "./src/env.ts",
     "./constants": "./src/constants.ts",
     "./features": "./src/features.ts",
-    "./routes": "./src/routes.ts"
+    "./routes": "./src/routes.ts",
+    "./schemas": "./src/schemas.ts",
+    "./tenant": "./src/tenant.ts"
   },
   "scripts": {
     "lint": "echo skip",
