@@ -11,6 +11,7 @@ import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { LinkPreview } from "@/components/social/LinkPreview"
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card"
+import { routes } from "@qoe/config/routes"
 
 export interface MicroPostData {
   id: string
@@ -245,8 +246,8 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
                   if (target.type === "post" && onOpenPost) {
                     onOpenPost(target.id)
                   } else if (target.type === "article" && target.slug) {
-                    const host = post.author.subdomain ? `${post.author.subdomain}.localhost:3000` : "localhost:3000"
-                    window.open(`http://${host}/article/${target.slug}`, "_blank")
+                    const articleUrl = routes.tenant.article(post.author.subdomain || "demo", target.slug)
+                    window.open(articleUrl, "_blank")
                   }
                 }}
               />
