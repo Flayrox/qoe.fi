@@ -5,25 +5,9 @@ import { motion } from "framer-motion"
 import { cn } from "@qoe/utils"
 import { routes } from "@qoe/config/routes"
 import { Pin } from "lucide-react"
+import type { FeedPostDTO } from "@qoe/db/types"
 
-export interface MicroPostData {
-  id: string
-  content: string
-  imageUrl?: string | null
-  createdAt: string | Date
-  triggerWarning?: string | null
-  isPinned?: boolean
-  tags?: string[]
-  _count?: { likes?: number; replies?: number; reposts?: number }
-  author: {
-    id: string
-    name: string | null
-    username: string | null
-    subdomain?: string | null
-    logoUrl: string | null
-    isCertified?: boolean
-  }
-}
+export type { FeedPostDTO as MicroPostData }
 
 export function MicroPostCard({
   post,
@@ -32,7 +16,7 @@ export function MicroPostCard({
   onOpenProfile,
   onOpenPost,
 }: {
-  post: MicroPostData
+  post: FeedPostDTO
   currentUserId?: string | null
   isPreview?: boolean
   onOpenProfile?: (username: string) => void
