@@ -40,7 +40,7 @@ export function GuestFloatingBar({ onOpenAuth, labels }: GuestFloatingBarProps) 
         onClick={() => onOpenAuth({ mode: "signup", actionContext: "follow" })}
         className={cn(
           "px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
-          "bg-[#EE4B2B] text-white hover:bg-[#d63d20] shadow-sm shadow-[#EE4B2B]/20"
+          "bg-primary text-primary-foreground hover:opacity-90 shadow-sm"
         )}
       >
         <UserPlus className="w-3.5 h-3.5" />

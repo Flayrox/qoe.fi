@@ -289,7 +289,7 @@ export function LoginModal({
                             <Button
                               type="submit"
                               disabled={loading}
-                              className="w-full h-10 font-sans font-semibold mt-2 rounded-xl bg-[#EE4B2B] hover:bg-[#d63d20] text-white transition-colors text-xs cursor-pointer"
+                              className="w-full h-10 font-sans font-semibold mt-2 rounded-xl bg-primary hover:opacity-90 text-primary-foreground transition-colors text-xs cursor-pointer"
                             >
                               {loading ? 'Chargement...' : 'Recevoir un lien magique'}
                             </Button>
@@ -356,7 +356,7 @@ export function LoginModal({
                             <Button
                               type="submit"
                               disabled={loading}
-                              className="w-full h-10 font-sans font-semibold mt-3 rounded-xl bg-[#EE4B2B] hover:bg-[#d63d20] text-white transition-colors text-xs cursor-pointer"
+                              className="w-full h-10 font-sans font-semibold mt-3 rounded-xl bg-primary hover:opacity-90 text-primary-foreground transition-colors text-xs cursor-pointer"
                             >
                               {loading ? 'Chargement...' : (authMode === 'password' ? 'Se connecter' : 'S\'inscrire')}
                             </Button>
