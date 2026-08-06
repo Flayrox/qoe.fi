@@ -10,7 +10,7 @@ export * from "./tokens";
 export { Button, buttonVariants } from "./button";
 export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "./card";
 
-// 🌍 Composants partagés (déplacés depuis apps/console + apps/web)
+// 🌍 Composants partagés
 export { SocialIcon } from "./SocialIcon";
 export { TenantHeader } from "./TenantHeader";
 export { SubscribeForm } from "./SubscribeForm";
@@ -22,5 +22,4 @@ export { GuestFloatingBar, type AuthActionContext } from "./GuestFloatingBar";
 export { LoginModal } from "./LoginModal";
 export { ArticleCard } from "./ArticleCard";
 export { MicroPostCard } from "./MicroPostCard";
-
-
+export { useOptimisticMutation, type UseOptimisticMutationOptions } from "./hooks/useOptimisticMutation";
