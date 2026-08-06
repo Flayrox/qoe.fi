@@ -140,7 +140,7 @@ export function FeedDashboard({
     }
 
     const res = await toggleFollowCreatorHome(creator.id)
-    if (!res.success) {
+    if (!res.ok) {
       if (isCurrentlyFollowed) {
         setFollowedCreators(prev => [creator, ...prev])
         setFollowsCount(prev => prev + 1)
@@ -185,7 +185,7 @@ export function FeedDashboard({
     }
 
     const res = await toggleBookmarkArticleHome(article.id)
-    if (!res.success) {
+    if (!res.ok) {
       // Rollback
       setInteractions(prev => ({
         ...prev,

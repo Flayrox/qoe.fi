@@ -10,13 +10,15 @@
     "./cn": "./src/cn.ts",
     "./format": "./src/format.ts",
     "./slugify": "./src/slugify.ts",
-    "./validation": "./src/validation.ts"
+    "./validation": "./src/validation.ts",
+    "./action": "./src/action.ts"
   },
   "scripts": {
     "lint": "echo skip",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@qoe/db": "workspace:*",
     "clsx": "^2.1.1",
     "tailwind-merge": "^3.6.0",
     "zod": "^3.23.8"

@@ -1,27 +1,25 @@
 import { createClient } from "@qoe/supabase/server"
-
-export type ActionResponse<T = void> =
-  | { success: true; data?: T }
-  | { success: false; error: string; fieldErrors?: Record<string, string[]> }
+import type { ActionResult } from "@qoe/db/types"
+import { actionOk, actionErr } from "@qoe/utils/action"
 
 export function safeAction<TInput, TOutput>(
   action: (input: TInput, user: any) => Promise<TOutput>,
   requireAuth: boolean = true
-) {
-  return async (input: TInput): Promise<ActionResponse<TOutput>> => {
+): (input: TInput) => Promise<ActionResult<TOutput>> {
+  return async (input: TInput): Promise<ActionResult<TOutput>> => {
     try {
       const supabase = await createClient()
       const { data: { user }, error: authError } = await supabase.auth.getUser()
 
       if (requireAuth && (authError || !user)) {
-        return { success: false, error: "Unauthorized" }
+        return actionErr("Non autorisé. Veuillez vous connecter.", "UNAUTHORIZED")
       }
 
       const result = await action(input, user)
-      return { success: true, data: result }
+      return actionOk(result)
     } catch (e: any) {
       console.error("Safe action error:", e)
-      return { success: false, error: e.message || "An internal error occurred" }
+      return actionErr(e.message || "Une erreur interne est survenue.", "INTERNAL_ERROR")
     }
   }
 }

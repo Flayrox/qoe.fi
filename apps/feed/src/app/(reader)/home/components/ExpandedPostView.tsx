@@ -62,7 +62,7 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
     async function loadThread() {
       setLoading(true)
       const res = await getPostThread(postId)
-      if (res.success && res.data?.post) {
+      if (res.ok && res.data?.post) {
         const postData = res.data.post
         setPost(postData)
         const userHasLiked = postData.likes.some((l: any) => l.userId === currentUserId)
@@ -95,7 +95,7 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
     trackEvent("post_like", { postId, liked: newLiked })
 
     const res = await toggleLikePost(postId)
-    if (!res.success) {
+    if (!res.ok) {
       // Rollback
       setLiked(liked)
       setLikesCount(likesCount)
@@ -114,7 +114,7 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
     setReposted(true)
     trackEvent("post_repost", { postId })
     const res = await repostPost(postId)
-    if (!res.success) setReposted(false)
+    if (!res.ok) setReposted(false)
   }
 
   const handleDelete = async () => {
@@ -122,7 +122,7 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
     setDeleting(true)
     trackEvent("post_delete", { postId })
     const res = await deletePost(postId)
-    if (res.success) {
+    if (res.ok) {
       // Close the view
       if (onClose) onClose()
     } else {
@@ -166,7 +166,7 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
     const res = await replyToPost({ postId, content: replyText })
     setSendingReply(false)
 
-    if (res.success && res.data?.reply) {
+    if (res.ok && res.data?.reply) {
       setReplyText("")
       setPost((prev: any) => ({
         ...prev,
@@ -543,7 +543,7 @@ function CommentThread({
     trackEvent("comment_reply", { parentReplyId: reply.id })
     const res = await replyToPost({ postId: reply.id, content: replyText })
     setSending(false)
-    if (res.success && res.data?.reply) {
+    if (res.ok && res.data?.reply) {
       setReplyText("")
       setShowReplyForm(false)
       onReplyAdded(reply.id, res.data.reply)
@@ -555,7 +555,7 @@ function CommentThread({
     setDeleting(true)
     trackEvent("comment_delete", { replyId: reply.id })
     const res = await deletePost(reply.id)
-    if (res.success) {
+    if (res.ok) {
       onReplyDeleted(reply.id)
     } else {
       setDeleting(false)

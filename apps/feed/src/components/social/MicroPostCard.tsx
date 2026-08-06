@@ -76,13 +76,13 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
       const { pinPost, unpinPost } = await import("@/app/(reader)/home/actions")
       if (post.isPinned) {
         const res = await unpinPost(post.id)
-        if (res.success) {
+        if (res.ok) {
           toast.success("Post désépinglé du profil.")
           window.location.reload()
         }
       } else {
         const res = await pinPost(post.id)
-        if (res.success) {
+        if (res.ok) {
           toast.success("Post épinglé sur le profil.")
           window.location.reload()
         }
