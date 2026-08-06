@@ -4,6 +4,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "@qoe/config": ["../../packages/config/src/index.ts"],
+      "@qoe/config/*": ["../../packages/config/src/*"],
       "@prisma/client": ["../../node_modules/.prisma/client/default"]
     }
   },
