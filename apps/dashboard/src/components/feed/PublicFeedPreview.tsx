@@ -86,7 +86,7 @@ export function PublicFeedPreview({
           </Link>
           <div className="flex items-center gap-3">
             <Link
-              href={"/start" as any}
+              href="/start"
               className="hidden text-sm text-muted-foreground hover:text-foreground md:inline-block"
             >
               Découvrir
@@ -134,7 +134,7 @@ export function PublicFeedPreview({
               Les voix les plus suivies ce mois-ci.
             </p>
             <Button variant="outline" className="mt-4 w-full" asChild>
-              <Link href={"/start" as any}>Explorer</Link>
+              <Link href="/start">Explorer</Link>
             </Button>
           </div>
         </aside>
@@ -185,13 +185,8 @@ export function PublicFeedPreview({
                     key={post.id}
                     post={{
                       id: post.id,
-                      title: "",
-                      slug: `post-${post.id}`,
                       content: post.content,
                       imageUrl: post.imageUrl ?? null,
-                      published: true,
-                      isPremium: false,
-                      readingTime: 1,
                       createdAt:
                         typeof post.createdAt === "string"
                           ? post.createdAt
@@ -200,11 +195,8 @@ export function PublicFeedPreview({
                         ...post.author,
                         isCertified: post.author.isCertified || false,
                       },
-                      category: { name: "Micro-post" },
                       tags: post.tags || [],
-                      likesCount: post._count?.likes || 0,
-                      repliesCount: post._count?.replies || 0,
-                      liked: false,
+                      _count: post._count,
                     }}
                     isPreview
                   />

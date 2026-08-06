@@ -9,9 +9,9 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) redirect("/login")
+    // if (!user) redirect("/login") // ALLOW PUBLIC READ-ONLY ACCESS
 
-  const dbUser = await getRequestDbUser(user.id)
+  const dbUser = user ? await getRequestDbUser(user.id) : null
 
   return (
     <div className="relative min-h-screen bg-[var(--surface-1)] text-[var(--text-primary)] transition-colors duration-300 font-sans selection:bg-[var(--qoe-vermillion-10)] selection:text-[var(--qoe-vermillion)]">

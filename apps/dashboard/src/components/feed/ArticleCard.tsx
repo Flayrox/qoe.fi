@@ -1,6 +1,14 @@
 // Stub minimal — sera restauré depuis git history
 import Link from "next/link";
 
+interface ArticleAuthor {
+  id: string;
+  name: string | null;
+  username: string | null;
+  logoUrl?: string | null;
+  isCertified?: boolean;
+}
+
 interface Article {
   id: string;
   title: string;
@@ -11,7 +19,7 @@ interface Article {
   isPremium: boolean;
   readingTime: number;
   createdAt: Date | string;
-  author: any;
+  author: ArticleAuthor;
   category: { name: string } | null;
   tags?: string[];
 }
@@ -19,7 +27,7 @@ interface Article {
 export function ArticleCard({ article, isPreview }: { article: Article; isPreview?: boolean }) {
   return (
     <Link
-      href={`/article/${article.slug}` as any}
+      href={`/article/${article.slug}`}
       className="block p-4 border border-border/40 rounded-lg hover:bg-muted/50 transition-colors"
     >
       <h3 className="font-semibold">{article.title}</h3>

@@ -119,8 +119,9 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
       setNewCatDesc("")
       setCategorySuccess(true)
       setTimeout(() => setCategorySuccess(false), 3000)
-    } catch (err: any) {
-      setCategoryError(err?.message || "Une erreur est survenue lors de la création du thème.")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Une erreur est survenue lors de la création du thème."
+      setCategoryError(message)
     } finally {
       setIsCreatingCategory(false)
     }
@@ -136,8 +137,9 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
       await deleteCategoryAction(id)
       setCategories(prev => prev.filter(c => c.id !== id))
       setArticles(prev => prev.map(art => art.categoryId === id ? { ...art, categoryId: null, category: null } : art))
-    } catch (err: any) {
-      alert(err?.message || "Échec de la suppression.")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Échec de la suppression."
+      alert(message)
     }
   }
 
@@ -150,8 +152,9 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
     try {
       await deleteArticleAction(id)
       setArticles(prev => prev.filter(a => a.id !== id))
-    } catch (err: any) {
-      alert(err?.message || "Échec de la suppression.")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Échec de la suppression."
+      alert(message)
     }
   }
 

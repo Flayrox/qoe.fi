@@ -1,17 +1,25 @@
 // Stub minimal
 import Link from "next/link";
 
+interface PostAuthor {
+  id: string;
+  name: string | null;
+  username: string | null;
+  logoUrl?: string | null;
+  isCertified?: boolean;
+}
+
 interface Post {
   id: string;
   content: string;
   imageUrl?: string | null;
-  author: any;
+  author: PostAuthor;
   createdAt: Date | string;
   tags?: string[];
   _count?: { likes: number; replies: number; reposts: number };
 }
 
-export function MicroPostCard({ post, isPreview }: { post: any; isPreview?: boolean }) {
+export function MicroPostCard({ post, isPreview }: { post: Post; isPreview?: boolean }) {
   return (
     <div className="p-4 border border-border/40 rounded-lg">
       <div className="flex items-start gap-3">
