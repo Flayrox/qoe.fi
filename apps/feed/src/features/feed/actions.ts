@@ -1,6 +1,7 @@
 "use server"
 
 import { follows, bookmarks, posts, articles } from "@qoe/db"
+import { createMicroPostSchema, replyToPostSchema } from "@qoe/config"
 import { createClient } from "@qoe/supabase/server"
 import { revalidatePath } from "next/cache"
 import { safeAction } from "@/lib/safe-action"
@@ -35,8 +36,9 @@ export const createMicroPost = safeAction<{
   isDraft?: boolean;
   scheduledAt?: string | null;
   triggerWarning?: string | null;
-}, { post: any }>(async ({ content, tags, imageUrl, visibility, isDraft, scheduledAt, triggerWarning }, user) => {
-  const cleanContent = content.trim()
+}, { post: any }>(async (rawInput, user) => {
+  const input = createMicroPostSchema.parse(rawInput)
+  const cleanContent = input.content
   
   // Calculate characters with link rules:
   // External links count as 20 chars, internal (post/article) count as 0 chars.
@@ -51,20 +53,19 @@ export const createMicroPost = safeAction<{
     }
   }
 
-  const hasImages = imageUrl && imageUrl.trim() && imageUrl !== "[]" && imageUrl !== "null"
-  if ((!cleanContent && !hasImages) || charLength > 280) {
-    throw new Error("INVALID_CONTENT")
+  if (charLength > 280) {
+    throw new Error("INVALID_CONTENT_LENGTH")
   }
 
   const newPost = await posts.createMicroPost({
     content: cleanContent,
     authorId: user.id,
-    tags,
-    imageUrl: imageUrl || null,
-    visibility: visibility || "public",
-    isDraft: isDraft || false,
-    scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
-    triggerWarning: triggerWarning || null
+    tags: input.tags,
+    imageUrl: input.imageUrl || null,
+    visibility: input.visibility,
+    isDraft: input.isDraft,
+    scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
+    triggerWarning: input.triggerWarning || null
   })
 
   revalidatePath("/home")
@@ -78,11 +79,9 @@ export const toggleLikePost = safeAction<string, { liked: boolean }>(async (post
   return posts.toggleLike(postId, user.id)
 })
 
-export const replyToPost = safeAction<{ postId: string; content: string }, { reply: any }>(async ({ postId, content }, user) => {
-  const clean = content.trim()
-  if (!clean) throw new Error("INVALID_CONTENT")
-
-  const reply = await posts.replyToPost(postId, user.id, clean)
+export const replyToPost = safeAction<{ postId: string; content: string }, { reply: any }>(async (rawInput, user) => {
+  const { postId, content } = replyToPostSchema.parse(rawInput)
+  const reply = await posts.replyToPost(postId, user.id, content)
   return { reply }
 })
 
