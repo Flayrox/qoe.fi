@@ -17,5 +17,10 @@ export { SubscribeForm } from "./SubscribeForm";
 export { Logo } from "./Logo";
 export { DevtoolsPanel } from "./devtools/DevtoolsPanel";
 export { ThemeProvider } from "./theme-provider";
+export { BentoPlateau, BentoItem } from "./BentoPlateau";
+export { GuestFloatingBar, type AuthActionContext } from "./GuestFloatingBar";
+export { LoginModal } from "./LoginModal";
+export { ArticleCard } from "./ArticleCard";
+export { MicroPostCard } from "./MicroPostCard";
 
 
