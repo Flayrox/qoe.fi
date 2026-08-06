@@ -5,44 +5,21 @@ import { motion } from "framer-motion"
 import { ExternalLink, UserPlus, UserCheck, Bookmark, FileText, Clock, Crown } from "lucide-react"
 import { cn } from "@qoe/utils"
 import { routes } from "@qoe/config/routes"
+import type { FeedArticleDTO, CreatorProfileDTO } from "@qoe/db/types"
 
-interface Author {
-  id: string
-  name: string | null
-  username: string | null
-  subdomain: string | null
-  customDomain: string | null
-  logoUrl: string | null
-  heroText: string | null
-  isCertified?: boolean
-}
-
-export interface Article {
-  id: string
-  title: string
-  slug: string
-  content: string
-  imageUrl?: string | null
-  published: boolean
-  isPremium: boolean
-  readingTime: number
-  createdAt: Date | string
-  author: Author
-  category: { name: string } | null
-  tags?: string[]
-}
+export type { FeedArticleDTO as Article }
 
 interface ArticleCardProps {
-  article: Article
+  article: FeedArticleDTO
   idx?: number
   dbUser?: any
   isBookmarked?: boolean
   isFollowed?: boolean
-  handleFollowToggle?: (author: any) => void
-  handleBookmarkToggle?: (article: Article) => void
+  handleFollowToggle?: (author: CreatorProfileDTO) => void
+  handleBookmarkToggle?: (article: FeedArticleDTO) => void
   featured?: boolean
   isPreview?: boolean
-  onOpenArticle?: (article: Article) => void
+  onOpenArticle?: (article: FeedArticleDTO) => void
   onOpenProfile?: (username: string) => void
   onOpenPost?: (postId: string) => void
 }
@@ -374,9 +351,9 @@ function CardFooter({
   handleOpenInTab,
   url,
 }: {
-  article: Article
+  article: FeedArticleDTO
   isBookmarked: boolean
-  handleBookmarkToggle?: (a: Article) => void
+  handleBookmarkToggle?: (a: FeedArticleDTO) => void
   handleOpenInTab: () => void
   url: string
 }) {
