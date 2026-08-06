@@ -30,7 +30,7 @@ export function LinkPreview({ urls, onNavigate }: LinkPreviewProps) {
         for (const url of urls) {
           if (!active) break
           const res = await unfurlUrl(url)
-          if (res.success && res.data) {
+          if (res.ok && res.data) {
             const previewData = res.data
             // We count as "valid" if it is an internal post/article or has rich metadata (image or description)
             const hasRichMetadata =
