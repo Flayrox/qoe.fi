@@ -23,14 +23,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Sparkles, TrendingUp } from "lucide-react";
-import { ArticleCard } from "@/components/feed/ArticleCard";
-import { MicroPostCard } from "@/components/feed/MicroPostCard";
+import { ArticleCard, MicroPostCard, LoginModal } from "@qoe/ui";
 import { Button } from "@qoe/ui/button";
 import { Logo } from "@/components/ui/Logo";
 import { isFeatureEnabled } from "@qoe/config/features";
 import { EVENTS } from "@qoe/analytics/events";
 import { URLS } from "@qoe/config";
-import { LoginModal } from "@/app/(reader)/home/components/LoginModal";
 
 
 interface Author {
