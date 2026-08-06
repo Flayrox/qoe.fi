@@ -26,21 +26,22 @@ qoe.fi/ (Root Monorepo)
 │   ├── admin/             # Superadmin dashboard (admin.qoe.fi) - CMS editing & global stats
 │   ├── api/               # Hono backend API (api.qoe.fi) - Core API services
 │   ├── dashboard/         # Creator studio (dashboard.qoe.fi) - TipTap editor & stripe analytics
-│   ├── feed/              # Reader feed & central auth (qoe.fi) - SSO, bookmarks library
+│   ├── feed/              # Reader feed & central auth (qoe.fi) - Feature-Sliced Design (src/features/)
+│   │   └── src/features/  # Feed, Auth, and Post-View domain modules
 │   ├── landing/           # Public marketing site (start.qoe.fi) - GDPR, pricing, landing
 │   └── web/               # Tenant blog engine (*.qoe.fi) - Ultra-optimized multi-tenant reader view
 ├── packages/              # Shared internal libraries (100% DRY)
 │   ├── analytics/         # Tracking events (client/server)
 │   ├── auth/              # Roles & permissions (`can(user, action)`)
 │   ├── billing/           # Stripe integration & plans
-│   ├── config/            # ENV validation (Zod) & global constants
-│   ├── db/                # Singleton Prisma client, Schema, migrations, repositories
+│   ├── config/            # ENV validation (Zod), Route Registry (@qoe/config/routes)
+│   ├── db/                # Singleton Prisma client, Schema, DTOs (@qoe/db/types), Repositories (follows, bookmarks, posts, articles, users)
 │   ├── i18n/              # Tolgee localization (server/client)
 │   ├── supabase/          # Supabase SSR clients (browser, server, middleware)
-│   ├── theme/             # Design tokens & color palettes
+│   ├── theme/             # Design tokens & dynamic CSS variables (Layer 1 Primitives + Layer 2 Semantics)
 │   ├── tsconfig/          # Shared TypeScript configurations
-│   ├── ui/                # Shared UI components (shadcn based)
-│   └── utils/             # Helper functions (cn, slugify, etc)
+│   ├── ui/                # Unified component system (ArticleCard, MicroPostCard, GuestFloatingBar, LoginModal, BentoPlateau)
+│   └── utils/             # Helper functions & Server Action protocol (ActionResult<T>, actionOk, actionErr)
 ├── workers/               # Async workers (BullMQ jobs)
 ├── docker/                # Shared Docker configuration & Caddyfiles
 └── prisma/                # (DEPRECATED - moved to packages/db/prisma)
