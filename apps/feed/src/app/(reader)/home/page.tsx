@@ -1,8 +1,25 @@
 import { createClient } from "@qoe/supabase/server"
 import { redirect } from "next/navigation"
 import { prisma } from "@qoe/db/client"
+import type { Prisma } from "@qoe/db/types"
+import { unstable_cache } from "next/cache"
 import { getRequestDbUser } from "@/lib/cached-queries"
 import { FeedDashboard } from "./FeedDashboard"
+
+type PostWithDetails = Prisma.PostGetPayload<{
+  include: {
+    author: { select: { id: true; name: true; username: true; subdomain: true; customDomain: true; logoUrl: true; heroText: true; isCertified: true } };
+    likes: { select: { userId: true } };
+    _count: { select: { likes: true; replies: true } };
+  };
+}>
+
+type ArticleWithDetails = Prisma.ArticleGetPayload<{
+  include: {
+    author: { select: { id: true; name: true; username: true; subdomain: true; customDomain: true; logoUrl: true; heroText: true; isCertified: true } };
+    category: { select: { name: true } };
+  };
+}>
 
 export default async function ReaderHomePage() {
   const supabase = await createClient()
@@ -24,8 +41,8 @@ export default async function ReaderHomePage() {
 
   const creatorIds = followedCreators.map(f => f.creatorId)
 
-  // Fonctions utilitaires de remappage
-  const mapPostToFeedItem = (post: any) => ({
+  // Fonctions utilitaires de remappage typées strictement
+  const mapPostToFeedItem = (post: PostWithDetails) => ({
     id: post.id,
     title: "", // Un titre vide identifie un micro-post (tweet) dans FeedDashboard
     slug: `post-${post.id}`,
@@ -43,10 +60,10 @@ export default async function ReaderHomePage() {
     tags: post.tags || [],
     likesCount: post._count?.likes || 0,
     repliesCount: post._count?.replies || 0,
-    liked: post.likes?.some((l: any) => l.userId === user?.id) || false
+    liked: post.likes?.some((l) => l.userId === user?.id) || false
   })
 
-  const mapArticleToFeedItem = (art: any) => ({
+  const mapArticleToFeedItem = (art: ArticleWithDetails) => ({
     ...art,
     createdAt: art.createdAt.toISOString(),
     author: {
@@ -55,6 +72,7 @@ export default async function ReaderHomePage() {
     },
     tags: art.semanticTags || []
   })
+
 
   // Étape 2 : Définir les promesses de base de données parallèles
   const dbFollowingArticlesPromise = creatorIds.length > 0
@@ -227,26 +245,39 @@ export default async function ReaderHomePage() {
       })
     : Promise.resolve([])
 
-  // Promesses pour les Widgets
-  const trendsPromise = prisma.trend.findMany({
-    orderBy: { count: 'desc' },
-    take: 5
-  })
+  // Promesses pour les Widgets (mises en cache pour éviter la surcharge DB)
+  const trendsPromise = unstable_cache(
+    async () => prisma.trend.findMany({
+      orderBy: { count: 'desc' },
+      take: 5
+    }),
+    ["home-widget-trends"],
+    { revalidate: 120 }
+  )()
 
-  const promosPromise = prisma.partnerPromo.findMany({
-    where: { isActive: true },
-    orderBy: { createdAt: 'desc' },
-    take: 3
-  })
+  const promosPromise = unstable_cache(
+    async () => prisma.partnerPromo.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' },
+      take: 3
+    }),
+    ["home-widget-promos"],
+    { revalidate: 300 }
+  )()
 
-  const featuredArticlePromise = prisma.article.findFirst({
-    where: { published: true, isEditorPick: true },
-    include: {
-      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
-      category: { select: { name: true } }
-    },
-    orderBy: { createdAt: 'desc' }
-  })
+  const featuredArticlePromise = unstable_cache(
+    async () => prisma.article.findFirst({
+      where: { published: true, isEditorPick: true },
+      include: {
+        author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
+        category: { select: { name: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    }),
+    ["home-widget-featured-article"],
+    { revalidate: 120 }
+  )()
+
 
   // Étape 2 : Exécuter toutes les promesses de base de données en parallèle
   const [
