@@ -7,6 +7,7 @@ import { cn } from "@qoe/utils"
 
 import { MicroPostCard } from "@/components/social/MicroPostCard"
 import { useTranslate } from "@qoe/i18n"
+import { routes } from "@qoe/config/routes"
 import { Balancer } from "react-wrap-balancer"
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card"
 
@@ -92,14 +93,16 @@ export function ArticleCard({
     setTilt({ x: 0, y: 0 })
   }
 
-  const isMicroPost = !article.title
-  const isProd = typeof window !== "undefined"
+  const isMicroPost = !article.title  const isProd = typeof window !== "undefined"
     ? window.location.hostname.endsWith("qoe.fi")
     : process.env.NODE_ENV === "production"
   const suffix = isProd ? "qoe.fi" : "localhost"
-  const protocol = isProd ? "https:" : "http:"
   const host = article.author.customDomain || (article.author.subdomain ? `${article.author.subdomain}.${suffix}` : null)
-  const url = isMicroPost || !host ? "#" : `${protocol}//${host}/article/${article.slug}`
+  const url = isMicroPost
+    ? "#"
+    : article.author.subdomain
+    ? routes.tenant.article(article.author.subdomain, article.slug)
+    : routes.feed.article(article.slug)
 
   // Micro-post rendering delegated
   if (isMicroPost) {
@@ -122,7 +125,7 @@ export function ArticleCard({
           {article.author.logoUrl ? (
             <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
           ) : (
-            <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-sm text-[var(--qoe-vermillion)]">
+            <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)]">
               {article.author.name?.substring(0, 2) || "NA"}
             </div>
           )}
@@ -161,7 +164,7 @@ export function ArticleCard({
     if (onOpenProfile) {
       onOpenProfile(targetUsername)
     } else {
-      window.location.href = `/profile/${targetUsername}`
+      window.location.href = routes.feed.profile(targetUsername)
     }
   }
 

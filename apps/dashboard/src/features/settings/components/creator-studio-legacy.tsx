@@ -374,8 +374,9 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
 
       toast.success("Studio sauvegardé et mis en ligne avec succès !")
       setOriginal(current)
-    } catch (err: any) {
-      toast.error(err.message || "Erreur de sauvegarde.")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur de sauvegarde."
+      toast.error(message)
     } finally {
       setIsSaving(false)
     }
@@ -404,8 +405,9 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
       setActiveArticleId(newArt.id)
       setActiveView("article")
       toast.success("Nouveau brouillon d'article créé !")
-    } catch (err: any) {
-      toast.error("Erreur d'initialisation de l'article : " + err.message)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur d'initialisation de l'article"
+      toast.error("Erreur d'initialisation de l'article : " + message)
     } finally {
       setIsCreatingArticle(false)
     }
@@ -423,14 +425,15 @@ export default function CreatorStudio({ initialCreator }: CreatorStudioProps) {
       setActiveArticleId(null)
       setActiveView("accueil")
       toast.success("Article supprimé avec succès.")
-    } catch (err: any) {
-      toast.error("Erreur de suppression : " + err.message)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur de suppression"
+      toast.error("Erreur de suppression : " + message)
     } finally {
       setIsDeletingArticle(false)
     }
   }
 
-  const updateActiveArticleField = (field: keyof StudioArticle, value: any) => {
+  const updateActiveArticleField = (field: keyof StudioArticle, value: StudioArticle[keyof StudioArticle]) => {
     if (!activeArticleId) return
     setCurrent(prev => {
       const updated = prev.articles.map(art => {

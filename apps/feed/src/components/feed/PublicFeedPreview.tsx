@@ -18,6 +18,9 @@
 //    └────────────────────────────────────────────┘
 // =====================================================================
 
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Sparkles, TrendingUp } from "lucide-react";
 import { ArticleCard } from "@/components/feed/ArticleCard";
@@ -27,6 +30,7 @@ import { Logo } from "@/components/ui/Logo";
 import { isFeatureEnabled } from "@qoe/config/features";
 import { EVENTS } from "@qoe/analytics/events";
 import { URLS } from "@qoe/config";
+import { LoginModal } from "@/app/(reader)/home/components/LoginModal";
 
 
 interface Author {
@@ -77,6 +81,14 @@ export function PublicFeedPreview({
   trendingArticles,
   trendingPosts,
 }: PublicFeedPreviewProps) {
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login");
+
+  const openAuth = (mode: "login" | "signup") => {
+    setAuthModalMode(mode);
+    setIsLoginModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* ─── Topbar minimaliste ─────────────────────────────── */}
@@ -93,11 +105,11 @@ export function PublicFeedPreview({
             >
               Découvrir
             </Link>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/login">Se connecter</Link>
+            <Button variant="ghost" size="sm" onClick={() => openAuth("login")}>
+              Se connecter
             </Button>
-            <Button size="sm" asChild>
-              <Link href="/login?signup=true">S'inscrire</Link>
+            <Button size="sm" onClick={() => openAuth("signup")}>
+              S'inscrire
             </Button>
           </div>
         </div>
@@ -160,14 +172,12 @@ export function PublicFeedPreview({
                 et participer à la conversation.
               </p>
               <div className="flex flex-wrap gap-3">
-                <Button size="lg" variant="secondary" asChild>
-                  <Link href="/login?signup=true" data-event={EVENTS.SIGNUP_STARTED}>
-                    Créer un compte gratuit
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
+                <Button size="lg" variant="secondary" onClick={() => openAuth("signup")} data-event={EVENTS.SIGNUP_STARTED}>
+                  Créer un compte gratuit
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-                <Button size="lg" variant="ghost" className="text-white hover:bg-white/10" asChild>
-                  <Link href="/login">Se connecter</Link>
+                <Button size="lg" variant="ghost" className="text-white hover:bg-white/10" onClick={() => openAuth("login")}>
+                  Se connecter
                 </Button>
               </div>
             </div>
@@ -187,13 +197,8 @@ export function PublicFeedPreview({
                     key={post.id}
                     post={{
                       id: post.id,
-                      title: "",
-                      slug: `post-${post.id}`,
                       content: post.content,
                       imageUrl: post.imageUrl ?? null,
-                      published: true,
-                      isPremium: false,
-                      readingTime: 1,
                       createdAt:
                         typeof post.createdAt === "string"
                           ? post.createdAt
@@ -202,11 +207,8 @@ export function PublicFeedPreview({
                         ...post.author,
                         isCertified: post.author.isCertified || false,
                       },
-                      category: { name: "Micro-post" },
                       tags: post.tags || [],
-                      likesCount: post._count?.likes || 0,
-                      repliesCount: post._count?.replies || 0,
-                      liked: false,
+                      _count: post._count,
                     }}
                     isPreview
                   />
@@ -249,11 +251,9 @@ export function PublicFeedPreview({
             <p className="mb-6 text-muted-foreground">
               Inscris-toi gratuitement, pas de carte bancaire requise.
             </p>
-            <Button size="lg" asChild>
-              <Link href="/login?signup=true">
-                Créer mon compte
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
+            <Button size="lg" onClick={() => openAuth("signup")}>
+              Créer mon compte
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         </main>
@@ -280,8 +280,8 @@ export function PublicFeedPreview({
                 <span>Pas de pub, pas de tracking</span>
               </li>
             </ul>
-            <Button className="mt-6 w-full" asChild>
-              <Link href="/login?signup=true">S'inscrire gratuitement</Link>
+            <Button className="mt-6 w-full" onClick={() => openAuth("signup")}>
+              S'inscrire gratuitement
             </Button>
           </div>
 
@@ -301,6 +301,7 @@ export function PublicFeedPreview({
           </div>
         </aside>
       </div>
+      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} initialMode={authModalMode} />
     </div>
   );
 }

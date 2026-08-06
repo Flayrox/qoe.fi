@@ -41,11 +41,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // 3. Si connecté et qu'on va sur /login, redirige vers la cible de retour (ou /home)
-  if (pathname === "/login" && user) {
+  if ((pathname === "/login" || pathname === "/register") && user) {
     const customRedirect = request.nextUrl.searchParams.get("redirect") || request.nextUrl.searchParams.get("next");
-    if (customRedirect) {
+    if (customRedirect && customRedirect.startsWith("/") && !customRedirect.startsWith("//")) {
       try {
-        return NextResponse.redirect(new URL(customRedirect));
+        return NextResponse.redirect(new URL(customRedirect, request.url));
       } catch {
         // Fallback si l'URL est invalide
       }

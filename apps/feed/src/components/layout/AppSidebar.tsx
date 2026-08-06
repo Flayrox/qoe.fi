@@ -20,6 +20,7 @@ import {
 import { Logo } from "@/components/ui/Logo"
 import { cn } from "@qoe/utils"
 import { URLS } from "@qoe/config"
+import { routes } from "@qoe/config/routes"
 
 
 interface AppSidebarUser {
@@ -37,10 +38,10 @@ interface AppSidebarProps {
 }
 
 const navLinks = [
-  { href: "/home",       label: "Timeline",     icon: Activity,   badge: null },
-  { href: "/library",    label: "Mes Signets",  icon: BookMarked, badge: null },
-  { href: "/highlights", label: "Surlignages",  icon: Highlighter, badge: null },
-  { href: "/billing",    label: "Portefeuille", icon: Wallet,     badge: null },
+  { href: routes.feed.home(),       label: "Timeline",     icon: Activity,   badge: null },
+  { href: routes.feed.library(),    label: "Mes Signets",  icon: BookMarked, badge: null },
+  { href: routes.feed.highlights(), label: "Surlignages",  icon: Highlighter, badge: null },
+  { href: routes.feed.billing(),    label: "Portefeuille", icon: Wallet,     badge: null },
 ]
 
 // Rauno-style springs

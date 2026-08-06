@@ -74,8 +74,9 @@ export function LoginForm() {
         },
       })
       if (error) throw error
-    } catch (err: any) {
-      setLocalError(err.message)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Une erreur est survenue."
+      setLocalError(message)
       setLoading(false)
     }
   }
@@ -95,8 +96,9 @@ export function LoginForm() {
       })
       if (error) throw error
       setMagicLinkSent(true)
-    } catch (err: any) {
-      setLocalError(err.message)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Une erreur est survenue."
+      setLocalError(message)
     } finally {
       setLoading(false)
     }

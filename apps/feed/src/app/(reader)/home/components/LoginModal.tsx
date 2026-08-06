@@ -1,344 +1,437 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Loader2, Mail, Lock, User, AtSign, CheckCircle2, AlertCircle } from "lucide-react"
+import { X, AlertCircle } from "lucide-react"
 import { createClient } from "@qoe/supabase/client"
 import { cn } from "@qoe/utils"
+import { BentoPlateau, BentoItem } from "@/components/ui/BentoPlateau"
+import { Logo } from "@/components/ui/Logo"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { useTranslate, useTolgee } from "@qoe/i18n"
+import { login, signup } from "@/app/login/actions"
+
+export type AuthActionContext = "like" | "follow" | "bookmark" | "comment" | "repost"
 
 interface LoginModalProps {
   isOpen: boolean
   onClose: () => void
+  initialMode?: "login" | "signup" | "magic-link"
+  actionContext?: AuthActionContext
 }
 
 const springs = {
-  overlay: { duration: 0.25, ease: "easeOut" as any },
+  overlay: { duration: 0.25, ease: "easeOut" as const },
   modal: { type: "spring" as const, stiffness: 380, damping: 28 },
   fade: { duration: 0.18 }
 }
 
-export function LoginModal({ isOpen, onClose }: LoginModalProps) {
-  const [mode, setMode] = useState<"login" | "signup">("login")
+export function LoginModal({ isOpen, onClose, initialMode = "login", actionContext }: LoginModalProps) {
+  const { t } = useTranslate()
+  const tolgee = useTolgee()
+  
+  const [authMode, setAuthMode] = useState<'magic-link' | 'password' | 'signup'>(
+    initialMode === "signup" ? "signup" : "magic-link"
+  )
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
   const [username, setUsername] = useState("")
-  
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  const [magicLinkSent, setMagicLinkSent] = useState(false)
+  const [localError, setLocalError] = useState<string | null>(null)
+  const [manifestoIdx, setManifestoIdx] = useState(0)
+
+  useEffect(() => {
+    if (isOpen) {
+      setAuthMode(initialMode === "signup" ? "signup" : "magic-link")
+      setLocalError(null)
+      setMagicLinkSent(false)
+    }
+  }, [isOpen, initialMode])
+
+  const getContextSubtitle = () => {
+    if (actionContext === "like") {
+      return t("auth_context.like", "Connectez-vous pour aimer ce post et soutenir cet auteur")
+    }
+    if (actionContext === "follow") {
+      return t("auth_context.follow", "Abonnez-vous à cet auteur pour ne rater aucun de ses écrits")
+    }
+    if (actionContext === "bookmark") {
+      return t("auth_context.bookmark", "Enregistrez cet article dans votre sanctuaire de lecture")
+    }
+    if (actionContext === "comment") {
+      return t("auth_context.comment", "Rejoignez la conversation et répondez à l'auteur")
+    }
+    if (actionContext === "repost") {
+      return t("auth_context.repost", "Partagez ce post avec vos abonnés")
+    }
+    return authMode === 'signup' 
+      ? t('login.subtitle_signup', 'Rejoignez le réseau souverain') 
+      : t('login.subtitle_login', 'Accédez à votre espace')
+  }
+
+  const manifestoMessages = [
+    {
+      target: t("login.manifesto_creators_target", "Créateurs"),
+      title: t("login.manifesto_creators_title", "Reprenez le contrôle \nde votre audience."),
+      desc: t("login.manifesto_creators_desc", "Pas de publicités. Pas d'algorithmes opaques. Juste vous et vos lecteurs, sur une infrastructure souveraine."),
+    },
+    {
+      target: t("login.manifesto_readers_target", "Lecteurs"),
+      title: t("login.manifesto_readers_title", "Retrouvez le goût \ndu temps long."),
+      desc: t("login.manifesto_readers_desc", "Un sanctuaire dédié à la lecture profonde. Fuyez le bruit constant, cultivez le silence et choisissez qui vous influence."),
+    }
+  ]
+
+  useEffect(() => {
+    if (!isOpen) return
+    const interval = setInterval(() => {
+      setManifestoIdx((prev) => (prev === 0 ? 1 : 0))
+    }, 6000)
+    return () => clearInterval(interval)
+  }, [isOpen])
 
   const supabase = createClient()
 
-  const handleClose = () => {
-    if (loading) return
-    setError(null)
-    setSuccess(false)
-    onClose()
+  const handleOAuth = async (provider: 'google' | 'apple') => {
+    try {
+      setLoading(true)
+      setLocalError(null)
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (error) throw error
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Une erreur est survenue."
+      setLocalError(message)
+      setLoading(false)
+    }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleMagicLinkSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (loading) return
-
-    setLoading(true)
-    setError(null)
+    if (!email) return
 
     try {
-      if (mode === "login") {
-        const { data, error: authError } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        })
-
-        if (authError) throw authError
-
-        if (data.user) {
-          setSuccess(true)
-          // Smoothly reload page after success checkmark animation
-          setTimeout(() => {
-            window.location.reload()
-          }, 1200)
-        }
-      } else {
-        // Inscription
-        if (!name.trim() || !username.trim()) {
-          throw new Error("Veuillez remplir tous les champs.")
-        }
-
-        const cleanUsername = username.startsWith("@") ? username : `@${username}`
-
-        const { data, error: authError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              name,
-              username: cleanUsername,
-            }
-          }
-        })
-
-        if (authError) throw authError
-
-        if (data.user) {
-          setSuccess(true)
-          setTimeout(() => {
-            window.location.href = "/onboarding"
-          }, 1200)
-        }
-      }
-    } catch (err: any) {
-      console.error("Auth error:", err)
-      setError(err.message || "Une erreur est survenue lors de l'authentification.")
+      setLoading(true)
+      setLocalError(null)
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (error) throw error
+      setMagicLinkSent(true)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Une erreur est survenue."
+      setLocalError(message)
     } finally {
       setLoading(false)
     }
   }
 
+  const handleClose = () => {
+    if (loading) return
+    setLocalError(null)
+    setMagicLinkSent(false)
+    onClose()
+  }
+
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          {/* Backdrop glass blur */}
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 overflow-y-auto">
+          {/* Glass blur Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={springs.overlay}
-            className="absolute inset-0 bg-neutral-950/45 backdrop-blur-[10px]"
+            className="fixed inset-0 bg-neutral-950/60 backdrop-blur-[12px]"
             onClick={handleClose}
           />
 
-          {/* Modal Card */}
+          {/* Modal Container — Full Bento Plateau Layout */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
             transition={springs.modal}
-            className={cn(
-              "relative z-10 w-full max-w-md overflow-hidden",
-              "bg-white/75 backdrop-blur-[24px] border border-neutral-200/50 shadow-2xl",
-              "rounded-2xl p-8 flex flex-col gap-6"
-            )}
-            style={{ boxShadow: "0 20px 50px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.1)" }}
+            className="relative z-10 w-full max-w-5xl mx-auto my-auto"
           >
-            {/* Close Button */}
+            {/* Floating Close Button */}
             {!loading && (
               <button
                 onClick={handleClose}
-                className="absolute top-5 right-5 p-2 rounded-full text-neutral-450 hover:bg-neutral-100/70 hover:text-neutral-800 transition-all cursor-pointer outline-none"
+                className="absolute -top-3 -right-3 z-50 p-2.5 rounded-full bg-card text-foreground border border-border shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer"
                 aria-label="Fermer"
               >
                 <X className="w-4 h-4" />
               </button>
             )}
 
-            {/* Logo + Header */}
-            <div className="text-center space-y-2 mt-2">
-              <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[#EE4B2B]/5 border border-[#EE4B2B]/10 text-[#EE4B2B] mb-2 font-serif font-black text-lg select-none">
-                Q
-              </div>
-              <h3 className="font-serif text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 leading-none">
-                {mode === "login" ? "Se connecter à QOE" : "Créer un compte"}
-              </h3>
-              <p className="text-[11px] uppercase tracking-wider text-neutral-400 font-sans font-bold pt-0.5">
-                {mode === "login" ? "Le sanctuaire de la lecture profonde" : "Rejoignez le réseau souverain"}
-              </p>
-            </div>
-
-            <AnimatePresence mode="wait">
-              {success ? (
-                /* Success animation screen */
-                <motion.div
-                  key="success-screen"
-                  initial={{ opacity: 0, scale: 0.96 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={springs.fade}
-                  className="flex flex-col items-center justify-center py-8 text-center gap-4"
-                >
-                  <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20, delay: 0.1 }}
-                  >
-                    <CheckCircle2 className="w-12 h-12 text-emerald-500" />
-                  </motion.div>
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-bold text-neutral-900">
-                      {mode === "login" ? "Connexion réussie !" : "Compte créé !"}
-                    </h4>
-                    <p className="text-xs text-neutral-500">
-                      {mode === "login" ? "Préparation de votre sanctuaire de lecture..." : "Bienvenue sur QOE. Redirection..."}
-                    </p>
-                  </div>
-                </motion.div>
-              ) : (
-                /* Regular form screen */
-                <motion.div
-                  key="form-screen"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={springs.fade}
-                  className="space-y-4"
-                >
-                  {/* Tab Switcher */}
-                  {!loading && (
-                    <div className="flex bg-neutral-100/70 p-1 rounded-xl border border-neutral-200/20">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setMode("login")
-                          setError(null)
-                        }}
-                        className={cn(
-                          "flex-1 text-center py-1.5 rounded-lg text-xs font-semibold tracking-tight transition-all cursor-pointer",
-                          mode === "login"
-                            ? "bg-white text-neutral-900 shadow-sm"
-                            : "text-neutral-450 hover:text-neutral-800"
-                        )}
-                      >
-                        Connexion
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setMode("signup")
-                          setError(null)
-                        }}
-                        className={cn(
-                          "flex-1 text-center py-1.5 rounded-lg text-xs font-semibold tracking-tight transition-all cursor-pointer",
-                          mode === "signup"
-                            ? "bg-white text-neutral-900 shadow-sm"
-                            : "text-neutral-450 hover:text-neutral-800"
-                        )}
-                      >
-                        Inscription
-                      </button>
+            <BentoPlateau className="md:h-[600px] shadow-2xl rounded-3xl overflow-hidden border border-border/50">
+              {/* Auth Side (Left) */}
+              <BentoItem 
+                active={true} 
+                flexBasisActive="55%" 
+                innerClassName="bg-card text-card-foreground"
+              >
+                <div className="w-full h-full flex flex-col items-center justify-center p-6 md:p-10 relative">
+                  <div className="w-full max-w-md">
+                    {/* Header */}
+                    <div className="mb-6 text-center">
+                      <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-1.5">
+                        {authMode === 'signup' ? t('login.title_signup', 'Créer un compte') : t('login.title_login', 'Connexion')}
+                      </h2>
+                      <p className="text-muted-foreground text-xs md:text-sm">
+                        {getContextSubtitle()}
+                      </p>
                     </div>
-                  )}
 
-                  {/* Error Notification */}
-                  {error && (
-                    <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-[11px] font-medium text-[#EE4B2B] flex items-start gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                      <span>{error}</span>
-                    </div>
-                  )}
-
-                  {/* Auth Form */}
-                  <form onSubmit={handleSubmit} className="space-y-3.5">
-                    {mode === "signup" && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.18 }}
-                        className="space-y-3.5 overflow-hidden"
-                      >
-                        {/* Full Name input */}
-                        <div className="space-y-1">
-                          <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block pl-0.5">Nom complet</label>
-                          <div className="relative">
-                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400">
-                              <User className="w-3.5 h-3.5" />
-                            </span>
-                            <input
-                              type="text"
-                              required={mode === "signup"}
-                              disabled={loading}
-                              value={name}
-                              onChange={(e) => setName(e.target.value)}
-                              placeholder="Marc Dutronc"
-                              className="h-11 w-full pl-9 pr-4 rounded-xl bg-neutral-50/50 border border-neutral-200/70 focus:border-[#EE4B2B] focus:bg-white text-xs outline-none transition-all"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Username input */}
-                        <div className="space-y-1">
-                          <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block pl-0.5">Nom d'utilisateur</label>
-                          <div className="relative">
-                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400">
-                              <AtSign className="w-3.5 h-3.5" />
-                            </span>
-                            <input
-                              type="text"
-                              required={mode === "signup"}
-                              disabled={loading}
-                              value={username}
-                              onChange={(e) => setUsername(e.target.value)}
-                              placeholder="marcdutronc"
-                              className="h-11 w-full pl-9 pr-4 rounded-xl bg-neutral-50/50 border border-neutral-200/70 focus:border-[#EE4B2B] focus:bg-white text-xs outline-none transition-all"
-                            />
-                          </div>
-                        </div>
-                      </motion.div>
+                    {/* Error display */}
+                    {localError && (
+                      <div className="p-3 mb-4 bg-destructive/10 border border-destructive/30 text-destructive text-xs font-mono rounded-xl flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                        <div className="flex-1">{localError}</div>
+                      </div>
                     )}
 
-                    {/* Email input */}
-                    <div className="space-y-1">
-                      <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block pl-0.5">Adresse email</label>
-                      <div className="relative">
-                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400">
-                          <Mail className="w-3.5 h-3.5" />
-                        </span>
-                        <input
-                          type="email"
-                          required
-                          disabled={loading}
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="vous@exemple.com"
-                          className="h-11 w-full pl-9 pr-4 rounded-xl bg-neutral-50/50 border border-neutral-200/70 focus:border-[#EE4B2B] focus:bg-white text-xs outline-none transition-all"
-                        />
+                    {/* Success screen for Magic Link */}
+                    {magicLinkSent ? (
+                      <div className="text-center py-6 space-y-4 animate-in fade-in zoom-in duration-300">
+                        <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center justify-center mx-auto text-emerald-500 text-2xl shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+                          ✓
+                        </div>
+                        <div className="space-y-2">
+                          <h3 className="text-lg font-bold text-emerald-500">{t('login.magic_link_success', 'Lien magique envoyé')}</h3>
+                          <p className="text-muted-foreground text-xs leading-relaxed px-4">
+                            {t('login.magic_link_success_desc', 'Consultez votre boîte mail et cliquez sur le lien pour vous connecter.')}
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => setMagicLinkSent(false)}
+                          variant="outline"
+                          className="mt-4 text-xs font-mono"
+                        >
+                          {t('login.switch_back', 'Retour')}
+                        </Button>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="space-y-5">
+                        {/* Social Logins - Mini Bento Style */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleOAuth('google')}
+                            className="w-full flex items-center p-1.5 rounded-2xl bg-neutral-100/80 hover:bg-neutral-200/60 dark:bg-zinc-800/80 dark:hover:bg-zinc-700/80 border border-neutral-200/60 dark:border-zinc-700 transition-colors group cursor-pointer"
+                          >
+                            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-xs border border-neutral-100 group-hover:scale-105 transition-transform shrink-0">
+                              <svg className="w-4 h-4 text-neutral-800" viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                <path fill="currentColor" fillOpacity="0.5" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                <path fill="currentColor" fillOpacity="0.3" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                                <path fill="currentColor" fillOpacity="0.6" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                              </svg>
+                            </div>
+                            <div className="flex-1 flex items-center justify-center pr-2">
+                              <span className="text-[12px] font-semibold text-foreground/80 group-hover:text-foreground transition-colors">{t('login.google_btn', 'Google')}</span>
+                            </div>
+                          </button>
 
-                    {/* Password input */}
-                    <div className="space-y-1">
-                      <label className="text-[9px] uppercase tracking-wider font-bold text-neutral-400 block pl-0.5">Mot de passe</label>
-                      <div className="relative">
-                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400">
-                          <Lock className="w-3.5 h-3.5" />
-                        </span>
-                        <input
-                          type="password"
-                          required
-                          disabled={loading}
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="••••••••"
-                          className="h-11 w-full pl-9 pr-4 rounded-xl bg-neutral-50/50 border border-neutral-200/70 focus:border-[#EE4B2B] focus:bg-white text-xs outline-none transition-all"
-                        />
+                          <button
+                            type="button"
+                            onClick={() => handleOAuth('apple')}
+                            className="w-full flex items-center p-1.5 rounded-2xl bg-neutral-100/80 hover:bg-neutral-200/60 dark:bg-zinc-800/80 dark:hover:bg-zinc-700/80 border border-neutral-200/60 dark:border-zinc-700 transition-colors group cursor-pointer"
+                          >
+                            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-xs border border-neutral-100 group-hover:scale-105 transition-transform shrink-0">
+                              <svg className="w-4 h-4 text-neutral-800" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.48C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.1 16.67C20.08 16.74 19.67 18.11 18.71 19.5M15.97 4.17C16.63 3.37 17.07 2.28 16.95 1C16 1.04 14.9 1.6 14.24 2.38C13.68 3.04 13.19 4.14 13.34 5.39C14.39 5.47 15.4 4.88 15.97 4.17Z" />
+                              </svg>
+                            </div>
+                            <div className="flex-1 flex items-center justify-center pr-2">
+                              <span className="text-[12px] font-semibold text-foreground/80 group-hover:text-foreground transition-colors">{t('login.apple_btn', 'Apple')}</span>
+                            </div>
+                          </button>
+                        </div>
+
+                        {/* Separator */}
+                        <div className="flex items-center gap-4 my-4 opacity-60">
+                          <div className="flex-1 h-px bg-border"></div>
+                          <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{t('login.or_separator', 'Ou')}</span>
+                          <div className="flex-1 h-px bg-border"></div>
+                        </div>
+
+                        {/* Interactive Modes */}
+                        {authMode === 'magic-link' && (
+                          <form onSubmit={handleMagicLinkSubmit} className="space-y-3">
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground block mb-0.5">{t('login.label_email', 'Email')}</label>
+                              <Input
+                                type="email"
+                                required
+                                disabled={loading}
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder={t('login.placeholder_email', 'vous@exemple.com')}
+                                className="h-10 w-full rounded-xl bg-muted/40 border-border text-xs"
+                              />
+                            </div>
+                            <Button
+                              type="submit"
+                              disabled={loading}
+                              className="w-full h-10 font-sans font-semibold mt-2 rounded-xl bg-[#EE4B2B] hover:bg-[#d63d20] text-white transition-colors text-xs cursor-pointer"
+                            >
+                              {loading ? t('login.loading_state', 'Chargement...') : t('login.button_magic_link', 'Recevoir un lien magique')}
+                            </Button>
+                          </form>
+                        )}
+
+                        {(authMode === 'password' || authMode === 'signup') && (
+                          <form action={authMode === 'password' ? login : signup} className="space-y-3">
+                            {authMode === 'signup' && (
+                              <>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground block mb-0.5">{t('login.label_name', 'Nom complet')}</label>
+                                  <Input
+                                    name="name"
+                                    type="text"
+                                    required
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    placeholder={t('login.placeholder_name', 'Marc Dutronc')}
+                                    className="h-10 w-full rounded-xl bg-muted/40 border-border text-xs"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground block mb-0.5">{t('login.label_username', 'Nom d\'utilisateur')}</label>
+                                  <Input
+                                    name="username"
+                                    type="text"
+                                    required
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    placeholder={t('login.placeholder_username', '@marcdutronc')}
+                                    className="h-10 w-full rounded-xl bg-muted/40 border-border text-xs"
+                                  />
+                                </div>
+                              </>
+                            )}
+
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground block mb-0.5">{t('login.label_email', 'Email')}</label>
+                              <Input
+                                name="email"
+                                type="email"
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder={t('login.placeholder_email', 'vous@exemple.com')}
+                                className="h-10 w-full rounded-xl bg-muted/40 border-border text-xs"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground block mb-0.5">{t('login.label_password', 'Mot de passe')}</label>
+                              <Input
+                                name="password"
+                                type="password"
+                                required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder={t('login.placeholder_password', '••••••••')}
+                                className="h-10 w-full rounded-xl bg-muted/40 border-border text-xs"
+                              />
+                            </div>
+
+                            <Button
+                              type="submit"
+                              disabled={loading}
+                              className="w-full h-10 font-sans font-semibold mt-3 rounded-xl bg-[#EE4B2B] hover:bg-[#d63d20] text-white transition-colors text-xs cursor-pointer"
+                            >
+                              {loading ? t('login.loading_state', 'Chargement...') : (authMode === 'password' ? t('login.button_login', 'Se connecter') : t('login.button_signup', 'S\'inscrire'))}
+                            </Button>
+                          </form>
+                        )}
+
+                        {/* Toggle standard/magic auth mode */}
+                        <div className="text-center pt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (authMode === 'magic-link') {
+                                setAuthMode('password')
+                              } else {
+                                setAuthMode('magic-link')
+                              }
+                            }}
+                            className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                          >
+                            {authMode === 'magic-link' ? t('login.switch_password', 'Se connecter par mot de passe') : t('login.switch_magic_link', 'Se connecter par lien magique')}
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    )}
+                  </div>
 
-                    {/* Submit Button */}
+                  {/* Footer Switch */}
+                  <div className="absolute bottom-5 left-6 right-6 flex items-center justify-between">
                     <button
-                      type="submit"
-                      disabled={loading}
-                      className={cn(
-                        "w-full h-11 font-sans font-bold mt-2.5 rounded-xl text-xs uppercase tracking-wider",
-                        "bg-[#EE4B2B] hover:bg-[#d63d20] text-white cursor-pointer transition-colors shadow-sm",
-                        "flex items-center justify-center gap-2 disabled:opacity-50"
-                      )}
+                      type="button"
+                      onClick={() => {
+                        setLocalError(null)
+                        setAuthMode(authMode === 'signup' ? 'magic-link' : 'signup')
+                      }}
+                      className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                     >
-                      {loading ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Authentification...</span>
-                        </>
-                      ) : (
-                        <span>{mode === "login" ? "Se connecter" : "S'inscrire"}</span>
-                      )}
+                      {authMode === 'signup' ? t('login.switch_login', 'Déjà un compte ? Connexion') : t('login.switch_signup', 'Pas de compte ? S\'inscrire')}
                     </button>
-                  </form>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  </div>
+                </div>
+              </BentoItem>
+
+              {/* Branding Side (Right) */}
+              <BentoItem 
+                active={false} 
+                flexBasisInactive="45%"
+                inactiveContent={
+                  <div className="w-full h-full flex flex-col items-start justify-between p-8">
+                    <Logo className="h-8 w-auto opacity-90" fillColor="#FFFFFF" />
+                    
+                    <div className="mt-auto relative w-full h-[140px]">
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={manifestoIdx}
+                          initial={{ opacity: 0, y: 15 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -15 }}
+                          transition={{ duration: 0.6, ease: "easeOut" }}
+                          className="absolute inset-0 flex flex-col justify-end pb-2"
+                        >
+                          <p className="text-white/50 text-[10px] uppercase tracking-[0.2em] mb-3">
+                            {t("login.manifesto_label", "Pour les {target}", { target: manifestoMessages[manifestoIdx].target })}
+                          </p>
+                          <h3 className="text-white text-2xl md:text-3xl font-bold tracking-tight leading-tight mb-3 whitespace-pre-line">
+                            {manifestoMessages[manifestoIdx].title}
+                          </h3>
+                          <p className="text-white/80 text-xs md:text-sm max-w-sm leading-relaxed">
+                            {manifestoMessages[manifestoIdx].desc}
+                          </p>
+                        </motion.div>
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                }
+              >
+                <div />
+              </BentoItem>
+            </BentoPlateau>
           </motion.div>
         </div>
       )}

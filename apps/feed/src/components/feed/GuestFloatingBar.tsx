@@ -1,0 +1,60 @@
+"use client"
+
+import React from "react"
+import { Bookmark, UserPlus, LogIn, Sparkles } from "lucide-react"
+import { motion } from "framer-motion"
+import { cn } from "@qoe/utils"
+import { useTranslate } from "@qoe/i18n"
+
+export type AuthActionContext = "like" | "follow" | "bookmark" | "comment" | "repost"
+
+interface GuestFloatingBarProps {
+  onOpenAuth: (options: { mode: "login" | "signup"; actionContext?: AuthActionContext }) => void
+}
+
+export function GuestFloatingBar({ onOpenAuth }: GuestFloatingBarProps) {
+  const { t } = useTranslate()
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-neutral-200/80 dark:border-zinc-800/80 shadow-2xl rounded-2xl p-2.5 flex items-center gap-3 transition-all duration-300 pointer-events-auto select-none max-w-[90%] sm:max-w-md"
+    >
+      {/* Bookmark Action Trigger */}
+      <button
+        onClick={() => onOpenAuth({ mode: "signup", actionContext: "bookmark" })}
+        className="w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer hover:bg-neutral-100 dark:hover:bg-zinc-800 text-muted-foreground hover:text-foreground"
+        title={t("guest_bar.bookmark_tooltip", "Enregistrer dans le sanctuaire")}
+      >
+        <Bookmark className="w-5 h-5" />
+      </button>
+
+      <div className="w-px h-5 bg-neutral-200 dark:bg-zinc-800" />
+
+      {/* Main Signup Vermilion Action */}
+      <button
+        onClick={() => onOpenAuth({ mode: "signup", actionContext: "follow" })}
+        className={cn(
+          "px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+          "bg-[#EE4B2B] text-white hover:bg-[#d63d20] shadow-sm shadow-[#EE4B2B]/20"
+        )}
+      >
+        <UserPlus className="w-3.5 h-3.5" />
+        <span>{t("guest_bar.signup_btn", "Rejoindre qoe.fi")}</span>
+      </button>
+
+      <div className="w-px h-5 bg-neutral-200 dark:bg-zinc-800" />
+
+      {/* Login Action */}
+      <button
+        onClick={() => onOpenAuth({ mode: "login" })}
+        className="px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-neutral-100 dark:hover:bg-zinc-800 transition-all flex items-center gap-1.5 cursor-pointer"
+      >
+        <LogIn className="w-3.5 h-3.5" />
+        <span>{t("guest_bar.login_btn", "Connexion")}</span>
+      </button>
+    </motion.div>
+  )
+}
