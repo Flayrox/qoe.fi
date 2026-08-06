@@ -2,8 +2,11 @@
   "extends": "@qoe/tsconfig/react-library.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "rootDir": "./src",
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "paths": {
+      "@qoe/config": ["../config/src/index.ts"],
+      "@qoe/config/*": ["../config/src/*"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "dist"]

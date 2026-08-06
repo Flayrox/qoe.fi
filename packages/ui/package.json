@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@qoe/utils": "workspace:*",
+    "@qoe/config": "workspace:*",
     "@qoe/db": "workspace:*",
     "@qoe/supabase": "workspace:*",
     "@qoe/theme": "workspace:*",
