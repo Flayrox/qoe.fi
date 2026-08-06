@@ -2,8 +2,11 @@
   "extends": "@qoe/tsconfig/base.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "rootDir": "./src",
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "paths": {
+      "@qoe/db": ["../db/src/index.ts"],
+      "@qoe/db/*": ["../db/src/*"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
