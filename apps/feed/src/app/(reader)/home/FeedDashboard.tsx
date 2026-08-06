@@ -15,6 +15,7 @@ import { FeedTabsHeader } from "./components/FeedTabsHeader"
 import { ExpandedPostView } from "./components/ExpandedPostView"
 import { HomeWidgets } from "./components/HomeWidgets"
 import { LoginModal } from "./components/LoginModal"
+import { GuestFloatingBar, type AuthActionContext } from "@/components/feed/GuestFloatingBar"
 import { useTranslate } from "@qoe/i18n"
 import { trackEvent } from "@/lib/analytics"
 
@@ -97,6 +98,14 @@ export function FeedDashboard({
   const [activeFeed, setActiveFeed] = useState<string>("recommandation")
   const [activePostId, setActivePostId] = useState<string | null>(null)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
+  const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login")
+  const [authActionContext, setAuthActionContext] = useState<AuthActionContext | undefined>(undefined)
+
+  const openAuth = (options?: { mode?: "login" | "signup"; actionContext?: AuthActionContext }) => {
+    setAuthModalMode(options?.mode || "login")
+    setAuthActionContext(options?.actionContext)
+    setIsLoginModalOpen(true)
+  }
   
   const [bookmarks, setBookmarks] = useState<Article[]>(initialBookmarks)
   const [followedCreators, setFollowedCreators] = useState<any[]>(initialFollowedCreators)
@@ -118,7 +127,7 @@ export function FeedDashboard({
 
   const handleFollowToggle = async (creator: any) => {
     if (!dbUser) {
-      setIsLoginModalOpen(true)
+      openAuth({ mode: "signup", actionContext: "follow" })
       return
     }
     const isCurrentlyFollowed = isCreatorFollowed(creator.id)
@@ -153,7 +162,7 @@ export function FeedDashboard({
 
   const handleBookmarkToggle = async (article: Article) => {
     if (!dbUser) {
-      setIsLoginModalOpen(true)
+      openAuth({ mode: "signup", actionContext: "bookmark" })
       return
     }
     const isCurrentlyBookmarked = isArticleBookmarked(article.id)
@@ -393,7 +402,13 @@ export function FeedDashboard({
             </AnimatePresence>
           </div>
         </div>
-        <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
+        <LoginModal 
+          isOpen={isLoginModalOpen} 
+          onClose={() => setIsLoginModalOpen(false)} 
+          initialMode={authModalMode}
+          actionContext={authActionContext}
+        />
+        {!dbUser && <GuestFloatingBar onOpenAuth={openAuth} />}
     </ReaderPageLayout>
   )
 }
