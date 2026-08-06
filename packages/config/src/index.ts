@@ -7,4 +7,5 @@
 
 export * from "./constants";
 export * from "./features";
+export * from "./routes";
 export { env, parseEnv } from "./env";
