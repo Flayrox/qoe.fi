@@ -2,14 +2,38 @@
 
 import React, { useState, useRef, useEffect } from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { cn } from "@qoe/utils"
 import { URLS } from "@qoe/config"
-import { Plus, Settings, LogOut, User, Palette } from "lucide-react"
+import {
+  Home,
+  FileText,
+  Mail,
+  Users,
+  PieChart,
+  Code,
+  Settings,
+  Plus,
+  LogOut,
+  User,
+  Palette,
+} from "lucide-react"
+
+const iconMap: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number; width?: number; height?: number }>> = {
+  Home,
+  FileText,
+  Mail,
+  Users,
+  PieChart,
+  Code,
+  Settings,
+}
 
 export interface AppleSidebarItem {
   title: string
   url: string
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number; width?: number; height?: number }>
+  iconName?: string
+  icon?: React.ComponentType<{ className?: string; strokeWidth?: number; width?: number; height?: number }>
   section?: string
   badge?: string | number
 }
@@ -17,8 +41,8 @@ export interface AppleSidebarItem {
 export interface AppleSidebarProps {
   /** Liste des éléments de navigation */
   items: AppleSidebarItem[]
-  /** URL ou path actuellement actif */
-  activeUrl: string
+  /** URL ou path actuellement actif (optionnel, prend le path courant par défaut) */
+  activeUrl?: string
   /** Logo ou élément branding d'en-tête */
   logo?: React.ReactNode
   /** Titre ou nom affiché sous le logo */
@@ -51,7 +75,7 @@ const ArrowSVG = () => (
 
 export function AppleSidebar({
   items,
-  activeUrl,
+  activeUrl: activeUrlProp,
   logo,
   brandName = "qoe.fi",
   userName,
@@ -62,7 +86,10 @@ export function AppleSidebar({
   primaryAction,
   className,
 }: AppleSidebarProps) {
+  const currentPathname = usePathname()
+  const activeUrl = activeUrlProp ?? currentPathname
   const [isAccountOpen, setIsAccountOpen] = useState(false)
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const accountMenuRef = useRef<HTMLDivElement>(null)
 
@@ -79,16 +106,37 @@ export function AppleSidebar({
     return activeUrl.startsWith(url)
   }
 
-  // Fermeture du popover au clic extérieur
+  // Fermeture du popover au clic extérieur et touche Échap, et écoute du menu mobile
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
         setIsAccountOpen(false)
       }
     }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsAccountOpen(false)
+        setIsMobileOpen(false)
+      }
+    }
+    const handleToggleMobile = () => {
+      setIsMobileOpen((prev) => !prev)
+    }
+
     document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+    document.addEventListener("keydown", handleKeyDown)
+    window.addEventListener("toggle-mobile-sidebar", handleToggleMobile)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("toggle-mobile-sidebar", handleToggleMobile)
+    }
+  }, [isAccountOpen])
+
+  // Fermer le menu mobile lors d'un changement de page
+  useEffect(() => {
+    setIsMobileOpen(false)
+  }, [activeUrl])
 
   // Groupement des items par section
   const groupedItems = items.reduce<Record<string, AppleSidebarItem[]>>((acc, item) => {
@@ -99,16 +147,31 @@ export function AppleSidebar({
   }, {})
 
   return (
-    <aside
-      className={cn(
-        "fixed top-[6px] left-[6px] bottom-[6px] z-40 hidden md:flex flex-col font-sans select-none w-[250px]",
-        className
+    <>
+      {/* ── BACKDROP MOBILE ── */}
+      {isMobileOpen && (
+        <div
+          onClick={() => setIsMobileOpen(false)}
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs md:hidden animate-in fade-in duration-200"
+          aria-hidden="true"
+        />
       )}
-    >
+
+      <aside
+        className={cn(
+          "font-sans select-none w-[250px]",
+          "fixed top-[6px] left-[6px] bottom-[6px] z-40 transition-transform duration-200 ease-in-out",
+          isMobileOpen
+            ? "flex flex-col translate-x-0"
+            : "hidden md:flex flex-col -translate-x-full md:translate-x-0",
+          className
+        )}
+      >
       <nav
+        aria-label="Navigation principale"
         className={cn(
           "h-full flex flex-col justify-between p-4 rounded-[18px] relative overflow-hidden",
-          "bg-sidebar/85 backdrop-blur-[25px] saturate-[180%] border border-sidebar-border shadow-xl text-sidebar-foreground"
+          "bg-sidebar backdrop-blur-[25px] saturate-[180%] border border-sidebar-border shadow-xl text-sidebar-foreground"
         )}
       >
         {/* ── EN-TÊTE / LOGO ── */}
@@ -134,13 +197,14 @@ export function AppleSidebar({
               )}
               <ul className="space-y-[2px]">
                 {sectionItems.map((item) => {
-                  const Icon = item.icon
+                  const Icon = item.icon || (item.iconName ? iconMap[item.iconName] : FileText)
                   const active = isItemActive(item.url)
 
                   return (
                     <li key={item.title}>
                       <Link
                         href={item.url}
+                        aria-current={active ? "page" : undefined}
                         className={cn(
                           "flex items-center gap-3 px-3 py-2 rounded-[10px] transition-all duration-150 outline-none",
                           active
@@ -214,6 +278,8 @@ export function AppleSidebar({
             <button
               type="button"
               onClick={() => setIsAccountOpen(!isAccountOpen)}
+              aria-expanded={isAccountOpen}
+              aria-haspopup="menu"
               className={cn(
                 "w-full flex items-center gap-2.5 p-1.5 rounded-[12px] transition-colors outline-none",
                 "hover:bg-sidebar-accent/60 text-sidebar-foreground"
@@ -300,5 +366,6 @@ export function AppleSidebar({
         </div>
       </nav>
     </aside>
+  </>
   )
 }
