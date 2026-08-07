@@ -13,6 +13,7 @@ import {
   Sun,
   Moon,
   FileCode2,
+  Sliders,
 } from "lucide-react";
 import { useTranslate } from "@qoe/i18n";
 import { useRouter } from "next/navigation";
@@ -31,9 +32,11 @@ export interface MeiliSearchResult {
 export interface SearchItem {
   id: string;
   titleKey: string;
+  label: string;
   keywordsKey?: string[];
   path: string;
   breadcrumbs?: string[];
+  breadcrumbLabels?: string[];
 }
 
 interface CommandMenuProps {
@@ -158,24 +161,24 @@ export function CommandMenu({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] sm:pt-[20vh] p-4 select-none font-sans">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh] sm:pt-[15vh] p-4 select-none font-sans">
       {/* Backdrop */}
       <div
         onClick={() => onOpenChange(false)}
-        className="fixed inset-0 bg-background/40 backdrop-blur-sm transition-opacity duration-200"
+        className="fixed inset-0 bg-background/50 backdrop-blur-sm transition-opacity duration-200"
       />
 
-      {/* Top Navbar Style Search Modal Container */}
+      {/* Top Navbar Style Search Modal Container (Compact Height) */}
       <Command
         label="Console Search"
         className={cn(
-          "relative z-50 flex h-full w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl shadow-2xl sm:h-auto",
+          "relative z-50 flex h-full w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl shadow-2xl sm:h-auto max-h-[310px]",
           "animate-in fade-in-0 zoom-in-95 duration-200"
         )}
         shouldFilter={true}
       >
         {/* Header Search Field */}
-        <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-border">
+        <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border/60">
           <Search className="w-4 h-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
           <Command.Input
             value={query}
@@ -185,91 +188,26 @@ export function CommandMenu({
               "search_header_placeholder",
               "Rechercher des écrits, réglages, actions..."
             )}
-            className="flex-1 text-sm bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60"
+            className="flex-1 text-xs bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60"
           />
           <button
             onClick={() => onOpenChange(false)}
-            className="text-[10px] font-sans font-semibold border border-border rounded px-1.5 py-0.5 text-muted-foreground bg-muted hover:bg-muted/80 transition-colors cursor-pointer"
+            className="text-[10px] font-sans font-medium border border-border/50 rounded px-1.5 py-0.5 text-muted-foreground bg-muted/60 hover:bg-muted transition-colors cursor-pointer"
           >
             Échap
           </button>
         </div>
 
         {/* Results List */}
-        <Command.List className="max-h-[340px] overflow-y-auto p-2">
-          <Command.Empty className="text-center py-8 text-muted-foreground text-xs font-medium">
+        <Command.List className="max-h-[230px] overflow-y-auto p-2 custom-scrollbar space-y-3">
+          <Command.Empty className="text-center py-6 text-muted-foreground text-xs font-medium">
             {t("common.no_results", "Aucun résultat trouvé.")}
           </Command.Empty>
 
-          {/* GROUP 1: Articles & Drafts (Meilisearch) */}
-          {searchResults.length > 0 && (
-            <Command.Group
-              heading={
-                t("ask_group_articles", "Articles & Brouillons") as string
-              }
-              className="px-2 py-1 text-[10px] uppercase tracking-wider font-bold text-muted-foreground/80 mb-1"
-            >
-              {searchResults.map((article) => (
-                <CommandItem
-                  key={article.id}
-                  icon={FileCode2}
-                  label={article.title}
-                  subtitle={article.content?.replace(/<[^>]*>?/gm, "")}
-                  category="Article"
-                  onSelect={() => handleSelect(`/articles/${article.id}`)}
-                />
-              ))}
-            </Command.Group>
-          )}
-
-          {/* GROUP 2: Settings Tree Nodes */}
-          {items.length > 0 && (
-            <Command.Group
-              heading={t("ask_group_settings", "Réglages de la Console") as string}
-              className="px-2 py-1 text-[10px] uppercase tracking-wider font-bold text-muted-foreground/80 mb-1"
-            >
-              {items.map((item) => {
-                const translatedTitle =
-                  t(item.titleKey as string) || item.titleKey;
-                const translatedBreadcrumbs = item.breadcrumbs
-                  ?.map((bc) => t(bc as string) || bc)
-                  .join(" → ");
-
-                return (
-                  <CommandItem
-                    key={item.id}
-                    value={`${translatedTitle} ${item.keywordsKey?.join(" ") || ""}`}
-                    icon={Settings}
-                    label={translatedTitle}
-                    subtitle={translatedBreadcrumbs}
-                    category="Réglage"
-                    onSelect={() => handleSelect(item.path)}
-                  />
-                );
-              })}
-            </Command.Group>
-          )}
-
-          {/* GROUP 3: Quick Navigation Actions */}
+          {/* GROUP 1: Ergonomic Order -> Visual Preferences (Themes) */}
           <Command.Group
-            heading={t("ask_group_action", "Raccourcis de la Console") as string}
-            className="px-2 py-1 text-[10px] uppercase tracking-wider font-bold text-muted-foreground/80 mb-1"
-          >
-            {quickActions.map((action) => (
-              <CommandItem
-                key={action.id}
-                icon={action.icon}
-                label={action.label}
-                category={action.category}
-                onSelect={() => handleSelect(action.path)}
-              />
-            ))}
-          </Command.Group>
-
-          {/* GROUP 4: Theme Preferences */}
-          <Command.Group
-            heading={t("ask_group_theme", "Préférences Visuelles") as string}
-            className="px-2 py-1 text-[10px] uppercase tracking-wider font-bold text-muted-foreground/80 mb-1"
+            heading={t("ask_group_theme", "Préférences visuelles") as string}
+            className="px-2 py-0.5 text-xs font-semibold text-muted-foreground/80 mb-1"
           >
             <CommandItem
               icon={Sun}
@@ -290,13 +228,82 @@ export function CommandMenu({
               }}
             />
           </Command.Group>
+
+          {/* GROUP 2: Console Quick Shortcuts */}
+          <Command.Group
+            heading={t("ask_group_action", "Raccourcis de la console") as string}
+            className="px-2 py-0.5 text-xs font-semibold text-muted-foreground/80 mb-1"
+          >
+            {quickActions.map((action) => (
+              <CommandItem
+                key={action.id}
+                icon={action.icon}
+                label={action.label}
+                category={action.category}
+                onSelect={() => handleSelect(action.path)}
+              />
+            ))}
+          </Command.Group>
+
+          {/* GROUP 3: Articles & Drafts (Meilisearch, shown when searching) */}
+          {searchResults.length > 0 && (
+            <Command.Group
+              heading={
+                t("ask_group_articles", "Articles & Brouillons") as string
+              }
+              className="px-2 py-0.5 text-xs font-semibold text-muted-foreground/80 mb-1"
+            >
+              {searchResults.map((article) => (
+                <CommandItem
+                  key={article.id}
+                  icon={FileCode2}
+                  label={article.title}
+                  subtitle={article.content?.replace(/<[^>]*>?/gm, "")}
+                  category="Article"
+                  onSelect={() => handleSelect(`/articles/${article.id}`)}
+                />
+              ))}
+            </Command.Group>
+          )}
+
+          {/* GROUP 4: Studio Settings Tree (Deep Linking) */}
+          {items.length > 0 && (
+            <Command.Group
+              heading={t("ask_group_settings", "Réglages du Studio") as string}
+              className="px-2 py-0.5 text-xs font-semibold text-muted-foreground/80 mb-1"
+            >
+              {items.map((item) => {
+                const translated = t(item.titleKey as string);
+                const displayTitle =
+                  translated && !translated.startsWith("dashboard.") && !translated.startsWith("settings_")
+                    ? translated
+                    : item.label;
+
+                const breadcrumbStr = item.breadcrumbLabels && item.breadcrumbLabels.length > 0
+                  ? item.breadcrumbLabels.join(" → ")
+                  : undefined;
+
+                return (
+                  <CommandItem
+                    key={item.id}
+                    value={`${displayTitle} ${item.keywordsKey?.join(" ") || ""}`}
+                    icon={Sliders}
+                    label={displayTitle}
+                    subtitle={breadcrumbStr}
+                    category="Réglage"
+                    onSelect={() => handleSelect(item.path)}
+                  />
+                );
+              })}
+            </Command.Group>
+          )}
         </Command.List>
 
         {/* Footer Navigation Hints */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-t border-border text-[10px] text-muted-foreground select-none">
+        <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-t border-border/50 text-[10px] text-muted-foreground select-none">
           <span>
             Sélectionner avec{" "}
-            <kbd className="border border-border rounded px-1 font-semibold">Entrée</kbd>
+            <kbd className="border border-border/60 rounded px-1 font-medium bg-background">Entrée</kbd>
           </span>
           <span>Naviguer avec la souris ou clavier</span>
         </div>
@@ -326,10 +333,10 @@ const CommandItem = ({
     <Command.Item
       value={value || label}
       onSelect={onSelect}
-      className="w-full flex items-center justify-between text-left p-2.5 rounded-lg hover:bg-muted aria-selected:bg-muted transition-colors cursor-pointer mb-1 select-none group"
+      className="w-full flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg hover:bg-muted aria-selected:bg-muted transition-colors cursor-pointer mb-0.5 select-none group"
     >
-      <div className="flex items-center gap-3 min-w-0 pr-2">
-        <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center border border-border shrink-0">
+      <div className="flex items-center gap-2.5 min-w-0 pr-2">
+        <div className="w-6 h-6 rounded-md bg-muted/80 flex items-center justify-center border border-border/60 shrink-0">
           <Icon className="w-3.5 h-3.5 text-muted-foreground group-aria-selected:text-primary transition-colors" strokeWidth={1.5} />
         </div>
         <div className="flex flex-col min-w-0">
@@ -337,14 +344,14 @@ const CommandItem = ({
             {label}
           </span>
           {subtitle && (
-            <span className="text-[10px] text-muted-foreground truncate">
+            <span className="text-[10px] text-muted-foreground/80 truncate">
               {subtitle}
             </span>
           )}
         </div>
       </div>
       {category && (
-        <span className="text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-medium shrink-0">
+        <span className="text-[10px] font-medium bg-muted/80 text-muted-foreground px-2 py-0.5 rounded-md shrink-0">
           {category}
         </span>
       )}
