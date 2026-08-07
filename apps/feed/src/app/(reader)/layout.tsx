@@ -1,5 +1,4 @@
 import { createClient } from "@qoe/supabase/server"
-import { redirect } from "next/navigation"
 import { getRequestDbUser } from "../../lib/cached-queries"
 import { AppSidebar } from "@/components/layout/AppSidebar"
 import { MainContentWrapper } from "@/components/layout/MainContentWrapper"
@@ -9,12 +8,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-    // if (!user) redirect("/login") // ALLOW PUBLIC READ-ONLY ACCESS
-
   const dbUser = user ? await getRequestDbUser(user.id) : null
 
   return (
-    <div className="relative min-h-screen bg-[var(--surface-1)] text-[var(--text-primary)] transition-colors duration-300 font-sans selection:bg-[var(--qoe-vermillion-10)] selection:text-[var(--qoe-vermillion)]">
+    <div className="relative min-h-screen bg-background text-foreground transition-colors duration-300 font-sans selection:bg-primary/10 selection:text-primary">
       <AppSidebar user={dbUser} />
       <MainContentWrapper>
         {children}

@@ -21,7 +21,7 @@ export function FeedTabsHeader({ activeFeed, onTabChange }: FeedTabsHeaderProps)
   ]
 
   return (
-    <div className="flex items-baseline gap-0">
+    <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar">
       {tabs.map(tab => {
         const active = activeFeed === tab.id
 
@@ -31,22 +31,21 @@ export function FeedTabsHeader({ activeFeed, onTabChange }: FeedTabsHeaderProps)
             onClick={() => onTabChange(tab.id)}
             whileTap={{ scale: 0.98 }}
             className={cn(
-              "relative px-3 py-1",
-              "text-[13px] font-medium tracking-tight",
-              "outline-none cursor-pointer transition-colors duration-200",
+              "relative px-3 py-1 rounded-full",
+              "text-xs font-semibold tracking-tight",
+              "outline-none cursor-pointer transition-all duration-200 select-none",
               active
-                ? "text-[var(--text-primary)]"
-                : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+                ? "text-foreground bg-muted/60"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
             )}
           >
             {tab.label}
 
-            {/* Underline indicator */}
             {active && (
               <motion.div
-                layoutId="feedTabUnderline"
-                transition={{ type: "spring", stiffness: 500, damping: 36, mass: 0.6 }}
-                className="absolute bottom-0 left-3 right-3 h-[1.5px] rounded-full bg-[var(--qoe-vermillion)]"
+                layoutId="feedTabActiveBg"
+                transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                className="absolute inset-0 rounded-full bg-muted/80 -z-10 border border-border/50"
               />
             )}
           </motion.button>
