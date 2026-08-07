@@ -3,7 +3,7 @@ import { createClient } from "@qoe/supabase/server"
 import { prisma } from "@qoe/db/client"
 import { logout } from "@/app/login/actions"
 import { getTranslate } from "@qoe/i18n/server"
-import { AppleSidebar } from "@/components/layout/AppleSidebar"
+import { Sidebar } from "@qoe/ui/sidebar"
 import { Logo } from "@qoe/ui"
 
 export async function AppSidebar() {
@@ -64,7 +64,7 @@ export async function AppSidebar() {
   ]
 
   return (
-    <AppleSidebar
+    <Sidebar
       items={menuItems}
       logo={<Logo className="h-5 w-auto" fillColor="#EE4B2B" />}
       brandName="Studio"
