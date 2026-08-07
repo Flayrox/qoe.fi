@@ -502,7 +502,7 @@ export function MicroPostComposer({
             </div>
           )}
         </div>
-        <span className="text-xs font-bold text-[var(--text-secondary)] tracking-tight">Partagez une pensée</span>
+        <span className="text-xs font-semibold text-foreground/80 tracking-tight">Partagez une pensée</span>
       </div>
 
       <form onSubmit={(e) => handlePostSubmit(e)} className="space-y-3.5">
@@ -545,8 +545,8 @@ export function MicroPostComposer({
           onPaste={handlePaste}
           disabled={isSubmitting}
           className={cn(
-            "w-full font-serif text-[15px] focus:outline-none resize-none transition-all duration-300",
-            "placeholder:text-[var(--text-quaternary)] text-[var(--text-primary)]",
+            "w-full font-sans text-sm focus:outline-none resize-none transition-all duration-200",
+            "placeholder:text-muted-foreground/60 text-foreground font-normal",
             "bg-transparent border-0 p-0 focus:ring-0 leading-relaxed",
             isComposerExpanded ? "" : "h-12"
           )}
