@@ -5,7 +5,7 @@ import { cn } from "@qoe/utils"
 
 export function MainContentWrapper({ children }: { children: React.ReactNode }) {
   return (
-    <div className={cn("min-h-screen transition-all duration-300 md:pl-[270px] w-full")}>
+    <div className={cn("min-h-screen transition-all duration-300 w-full")}>
       <main className="min-w-0 w-full min-h-screen">
         {children}
       </main>

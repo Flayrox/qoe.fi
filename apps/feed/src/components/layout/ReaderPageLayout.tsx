@@ -23,7 +23,7 @@ export function ReaderPageLayout({
   return (
     <div className="relative min-h-screen bg-background text-foreground selection:bg-accent-brand/10 selection:text-accent-brand">
       {/* ── IMMERSIVE BACKGROUND CANVAS / "LIRE" MANIFESTO LAYER ── */}
-      <div className="fixed top-0 left-0 md:left-[260px] right-0 h-screen pointer-events-none z-0 flex flex-col justify-start px-6 pt-12 overflow-hidden">
+      <div className="fixed top-0 left-0 right-0 h-screen pointer-events-none z-0 flex flex-col justify-start px-6 pt-12 overflow-hidden">
         {/* Soft background ambient glow */}
         <div 
           className="absolute top-[10%] left-[20%] w-[50%] h-[40%] rounded-full opacity-40 dark:opacity-20 pointer-events-none"
