@@ -4,7 +4,7 @@ import { prisma } from "@qoe/db/client"
 import type { Prisma, FeedArticleDTO, FeedPostDTO } from "@qoe/db/types"
 import { unstable_cache } from "next/cache"
 import { getRequestDbUser } from "@/lib/cached-queries"
-import { FeedDashboard } from "@/features/feed"
+import { FeedDashboard } from "./FeedDashboard"
 
 type PostWithDetails = Prisma.PostGetPayload<{
   include: {

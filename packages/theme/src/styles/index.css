@@ -21,6 +21,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Tailwind v4 Monorepo Sources */
+@source "../../../ui/src";
+@source "../../../../apps";
+
 @import "./tokens.css";
 @import "./themes.css";
 @import "./base.css";

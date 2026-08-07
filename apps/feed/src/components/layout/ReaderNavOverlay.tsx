@@ -9,7 +9,6 @@ import {
   Bookmark,
   Highlighter,
   Wallet,
-  Settings,
   User,
   LogOut,
   Sparkles,
@@ -154,7 +153,7 @@ export function ReaderNavOverlay({
                 <div className="px-3 py-2 mb-1 border-b border-border/60">
                   <span className="font-bold text-xs block truncate leading-tight">{userName}</span>
                   {userEmail && (
-                    <span className="text-[10px] text-muted-foreground block truncate mt-0.5 font-mono">
+                    <span className="text-[10px] text-muted-foreground block truncate mt-0.5">
                       {userEmail}
                     </span>
                   )}
@@ -170,15 +169,6 @@ export function ReaderNavOverlay({
                     <span>Studio Créateur</span>
                   </a>
                 )}
-
-                <Link
-                  href="/settings"
-                  className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-xl hover:bg-muted transition-colors"
-                  onClick={() => setIsProfileOpen(false)}
-                >
-                  <Settings className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>Réglages du Compte</span>
-                </Link>
 
                 <div className="h-px my-1 bg-border/60" />
 
