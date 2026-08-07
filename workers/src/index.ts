@@ -2,34 +2,39 @@
 // ⚙️ Workers — Background jobs runner
 // =====================================================================
 // 📖 BullMQ = file de jobs basée sur Redis. Plus robuste que node-cron.
-//
-// 🎯 Workers prévus (à implémenter en Phase 5) :
-//    - embeddings  : génère les vecteurs pgvector pour les articles/posts
-//    - emails      : envois newsletters, notifications, confirmations
-//    - billing     : Stripe webhooks async, payouts, commissions
-//    - search      : re-indexation Meilisearch
-//
-// Ce fichier est le point d'entrée qui démarre tous les workers.
 // =====================================================================
 
-console.log("⚙️ qoe.fi workers — placeholder");
-console.log("   Sera implémenté en Phase 5.");
-console.log("   Workers prévus : embeddings, emails, billing, search");
+import { Worker } from "bullmq";
+import IORedis from "ioredis";
+import { processMeilisearchSyncJob, setupMeilisearch } from "./jobs/meilisearchSync";
 
-// Garde le process actif jusqu'à SIGTERM/SIGINT
-// (évite que Docker redémarre le container en boucle)
-process.on("SIGTERM", () => {
+console.log("⚙️ qoe.fi workers — Démarrage...");
+
+const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
+  maxRetriesPerRequest: null,
+});
+
+// Initialiser Meilisearch
+setupMeilisearch();
+
+const searchWorker = new Worker("search-sync", processMeilisearchSyncJob, { connection: connection as any });
+
+searchWorker.on("completed", (job) => {
+  console.log(`[Worker] Job ${job.id} terminé avec succès.`);
+});
+
+searchWorker.on("failed", (job, err) => {
+  console.error(`[Worker] Job ${job?.id} a échoué:`, err);
+});
+
+process.on("SIGTERM", async () => {
   console.log("⚙️ Workers: SIGTERM reçu, arrêt propre...");
+  await searchWorker.close();
   process.exit(0);
 });
 
-process.on("SIGINT", () => {
+process.on("SIGINT", async () => {
   console.log("⚙️ Workers: SIGINT reçu, arrêt propre...");
+  await searchWorker.close();
   process.exit(0);
 });
-
-// Heartbeat toutes les 30s pour indiquer que le worker tourne
-setInterval(() => {
-  console.log("⚙️ Workers: en attente de tâches (Phase 5)...");
-}, 30_000);
-
