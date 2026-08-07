@@ -1,8 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { motion } from "framer-motion"
-import { MessageSquare, Repeat, Heart, Bookmark, Clock } from "lucide-react"
+import { MessageSquare, Repeat, Heart, Bookmark } from "lucide-react"
 import { cn } from "@qoe/utils"
 import { routes } from "@qoe/config"
 import type { FeedArticleDTO, CreatorProfileDTO } from "@qoe/db/types"
@@ -81,7 +80,7 @@ export function ArticleCard({
 
   const formattedDate = new Date(article.createdAt).toLocaleDateString("fr-FR", {
     month: "short",
-    day: "numeric"
+    day: "numeric",
   })
 
   const rawExcerpt = article.content ? article.content.replace(/<[^>]*>?/gm, "") : ""
@@ -90,18 +89,21 @@ export function ArticleCard({
     <article
       onClick={handleCardClick}
       className={cn(
-        "group relative pt-5 pb-5 first:pt-2 font-sans select-none",
-        "border-b border-border/40 last:border-b-0",
+        "group relative pt-6 pb-6 first:pt-0 font-sans antialiased select-none",
         isMicroPost ? "cursor-pointer" : ""
       )}
     >
-      <div className="flex items-start gap-3.5 sm:gap-4">
+      {/* Top subtle gradient divider line */}
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-border/30 to-transparent" />
+
+      <div className="flex items-start gap-4">
         {/* Author Avatar */}
         <button
+          type="button"
           onClick={handleOpenProfile}
           className="shrink-0 outline-none group/avatar cursor-pointer"
         >
-          <div className="w-10 h-10 rounded-full overflow-hidden ring-1 ring-border/60 group-hover/avatar:ring-primary/50 transition-all duration-200">
+          <div className="w-10 h-10 rounded-full overflow-hidden ring-1 ring-border/40 group-hover/avatar:ring-primary/50 transition-all">
             {article.author.logoUrl ? (
               <img
                 src={article.author.logoUrl}
@@ -109,7 +111,7 @@ export function ArticleCard({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">
+              <div className="w-full h-full bg-primary/10 flex items-center justify-center font-semibold text-xs text-primary">
                 {(article.author.name || "A").substring(0, 2).toUpperCase()}
               </div>
             )}
@@ -117,23 +119,27 @@ export function ArticleCard({
         </button>
 
         {/* Content Body */}
-        <div className="flex-1 min-w-0 space-y-1.5">
+        <div className="flex-1 space-y-2 min-w-0">
           {/* Header Metadata */}
           <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1.5 truncate">
+            <div className="flex items-center gap-2 truncate">
               <button
+                type="button"
                 onClick={handleOpenProfile}
-                className="font-semibold text-foreground hover:text-primary transition-colors truncate outline-none cursor-pointer"
+                className="font-medium text-foreground hover:text-primary transition-colors truncate outline-none cursor-pointer"
               >
                 {article.author.name || "Auteur"}
               </button>
-              <span className="text-muted-foreground/70 truncate">
+              <span className="text-muted-foreground truncate">
                 @{article.author.username || article.author.subdomain || "qoe"}
               </span>
+              {!isMicroPost && (
+                <span className="px-2 py-0.5 text-[10px] bg-primary/10 text-primary rounded-full border border-primary/20 font-medium">
+                  Article
+                </span>
+              )}
             </div>
-            <span className="text-[11px] text-muted-foreground/70 shrink-0">
-              {formattedDate}
-            </span>
+            <span className="text-muted-foreground shrink-0">{formattedDate}</span>
           </div>
 
           {/* Article Title (if long-form article) */}
@@ -142,22 +148,22 @@ export function ArticleCard({
               href={url}
               target={article.author.subdomain ? "_blank" : "_self"}
               rel="noreferrer"
-              className="block group/title pt-0.5"
+              className="block group/title pt-1"
             >
-              <h2 className="text-base sm:text-lg font-semibold tracking-tight text-foreground group-hover/title:text-primary transition-colors leading-snug">
+              <h2 className="text-lg font-medium text-foreground tracking-tight leading-snug group-hover/title:text-primary transition-colors">
                 {article.title}
               </h2>
             </a>
           )}
 
           {/* Excerpt Text */}
-          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed font-normal line-clamp-3">
+          <p className="text-sm text-muted-foreground leading-relaxed font-normal line-clamp-3">
             {rawExcerpt}
           </p>
 
           {/* Optional Hero Image Preview */}
           {article.imageUrl && (
-            <div className="mt-2.5 rounded-xl overflow-hidden border border-border/40 max-h-64 bg-muted">
+            <div className="mt-2.5 rounded-xl overflow-hidden border border-border/40 max-h-64 bg-muted/40">
               <img
                 src={article.imageUrl}
                 alt=""
@@ -166,34 +172,37 @@ export function ArticleCard({
             </div>
           )}
 
-          {/* Footer Actions Row (Rauno / Apple Hybrid Style) */}
-          <div className="flex items-center justify-between pt-2 text-xs text-muted-foreground/80">
-            <div className="flex items-center gap-5 sm:gap-6">
+          {/* Footer Actions Row (Exact Rauno Apple Geometry) */}
+          <div className="flex items-center justify-between pt-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-6">
               {/* Comment / Thread */}
               <button
+                type="button"
                 onClick={() => onOpenPost && onOpenPost(article.id)}
                 className="flex items-center gap-1.5 hover:text-foreground transition-colors outline-none cursor-pointer"
                 title="Commenter"
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-medium">{article.repliesCount || 0}</span>
+                <span>{article.repliesCount || 0}</span>
               </button>
 
               {/* Repost */}
               <button
+                type="button"
                 onClick={handleRepost}
                 className={cn(
                   "flex items-center gap-1.5 transition-colors outline-none cursor-pointer",
-                  reposted ? "text-emerald-500" : "hover:text-emerald-500"
+                  reposted ? "text-emerald-400" : "hover:text-emerald-400"
                 )}
                 title="Reposter"
               >
                 <Repeat className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-medium">{repostsCount}</span>
+                <span>{repostsCount}</span>
               </button>
 
               {/* Like */}
               <button
+                type="button"
                 onClick={handleLike}
                 className={cn(
                   "flex items-center gap-1.5 transition-colors outline-none cursor-pointer",
@@ -202,21 +211,18 @@ export function ArticleCard({
                 title="Aimer"
               >
                 <Heart className={cn("w-3.5 h-3.5", liked ? "fill-primary text-primary" : "")} />
-                <span className="text-[11px] font-medium">{likesCount}</span>
+                <span>{likesCount}</span>
               </button>
             </div>
 
             {/* Right: Reading time & Bookmark */}
             <div className="flex items-center gap-3">
               {article.readingTime > 0 && (
-                <span className="text-[11px] text-muted-foreground/60 flex items-center gap-1 font-medium">
-                  <Clock className="w-3 h-3" />
-                  {article.readingTime} min
-                </span>
+                <span className="text-[11px] text-muted-foreground">{article.readingTime} min read</span>
               )}
-
               {handleBookmarkToggle && (
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
