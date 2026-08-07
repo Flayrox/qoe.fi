@@ -23,14 +23,19 @@ export function useCommandMenu() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) {
+      if (
+        (e.key === "k" || e.key === "K" || e.code === "KeyK") &&
+        (e.metaKey || e.ctrlKey)
+      ) {
         e.preventDefault();
+        e.stopPropagation();
         setCommandMenuOpen(!globalIsOpen);
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () =>
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
   }, []);
 
   const setIsOpen = (open: boolean | ((prev: boolean) => boolean)) => {

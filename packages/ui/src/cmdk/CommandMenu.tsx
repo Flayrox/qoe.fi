@@ -189,18 +189,15 @@ export function CommandMenu({
         className="fixed inset-0 bg-background/60 backdrop-blur-sm transition-opacity duration-200"
       />
 
-      {/* Centered Rectangular Modal Card with Explicit Max-Width 580px */}
-      <div
-        style={{ maxWidth: "580px", width: "100%" }}
-        className="relative z-50 flex flex-col overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200"
-      >
+      {/* Classic Standard Shadcn CmdK Dialog Container */}
+      <div className="relative z-50 flex flex-col w-full max-w-lg overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200">
         <Command
           label="Console Search"
           className="flex h-auto w-full flex-col overflow-hidden bg-transparent"
           shouldFilter={true}
         >
           {/* Header Search Field */}
-          <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border/60 shrink-0">
+          <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-border">
             <Search className="w-4 h-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
             <Command.Input
               value={query}
@@ -210,7 +207,7 @@ export function CommandMenu({
                 "search_header_placeholder",
                 "Rechercher des écrits, réglages, actions..."
               )}
-              className="flex-1 text-xs bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60"
+              className="flex-1 text-sm bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60"
             />
             <button
               onClick={() => onOpenChange(false)}
@@ -221,7 +218,7 @@ export function CommandMenu({
           </div>
 
           {/* Results List */}
-          <Command.List className="max-h-[290px] overflow-y-auto p-2 custom-scrollbar space-y-2 shrink-0">
+          <Command.List className="max-h-[300px] overflow-y-auto p-2 custom-scrollbar space-y-2">
             <Command.Empty className="text-center py-6 text-muted-foreground text-xs font-medium">
               {t("common.no_results", "Aucun résultat trouvé.")}
             </Command.Empty>
@@ -229,7 +226,7 @@ export function CommandMenu({
             {/* GROUP 1: Visual Preferences (Themes) */}
             <Command.Group
               heading={t("ask_group_theme", "Préférences visuelles") as string}
-              className="px-2 py-0.5 text-xs font-semibold text-muted-foreground/80 mb-1"
+              className="px-2 py-1 text-xs font-semibold text-muted-foreground/80 mb-1"
             >
               <CommandItem
                 icon={Sun}
@@ -254,7 +251,7 @@ export function CommandMenu({
             {/* GROUP 2: Console Quick Shortcuts */}
             <Command.Group
               heading={t("ask_group_action", "Raccourcis de la console") as string}
-              className="px-2 py-0.5 text-xs font-semibold text-muted-foreground/80 mb-1"
+              className="px-2 py-1 text-xs font-semibold text-muted-foreground/80 mb-1"
             >
               {quickActions.map((action) => (
                 <CommandItem
@@ -273,7 +270,7 @@ export function CommandMenu({
                 heading={
                   t("ask_group_articles", "Articles & Brouillons") as string
                 }
-                className="px-2 py-0.5 text-xs font-semibold text-muted-foreground/80 mb-1"
+                className="px-2 py-1 text-xs font-semibold text-muted-foreground/80 mb-1"
               >
                 {searchResults.map((article) => (
                   <CommandItem
@@ -292,7 +289,7 @@ export function CommandMenu({
             {items.length > 0 && (
               <Command.Group
                 heading={t("ask_group_settings", "Réglages du Studio") as string}
-                className="px-2 py-0.5 text-xs font-semibold text-muted-foreground/80 mb-1"
+                className="px-2 py-1 text-xs font-semibold text-muted-foreground/80 mb-1"
               >
                 {items.map((item) => {
                   const translated = t(item.titleKey as string);
@@ -322,7 +319,7 @@ export function CommandMenu({
           </Command.List>
 
           {/* Footer Navigation Hints */}
-          <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-t border-border/50 text-[10px] text-muted-foreground select-none shrink-0">
+          <div className="flex items-center justify-between px-4 py-2.5 bg-muted/40 border-t border-border text-[10px] text-muted-foreground select-none">
             <span>
               Sélectionner avec{" "}
               <kbd className="border border-border/60 rounded px-1 font-medium bg-background">Entrée</kbd>
@@ -356,10 +353,10 @@ const CommandItem = ({
     <Command.Item
       value={value || label}
       onSelect={onSelect}
-      className="w-full flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg hover:bg-muted aria-selected:bg-muted transition-colors cursor-pointer mb-0.5 select-none group"
+      className="w-full flex items-center justify-between text-left px-2.5 py-2 rounded-lg hover:bg-muted aria-selected:bg-muted transition-colors cursor-pointer mb-0.5 select-none group"
     >
-      <div className="flex items-center gap-2.5 min-w-0 pr-2">
-        <div className="w-6 h-6 rounded-md bg-muted/80 flex items-center justify-center border border-border/60 shrink-0">
+      <div className="flex items-center gap-3 min-w-0 pr-2">
+        <div className="w-7 h-7 rounded-md bg-muted/80 flex items-center justify-center border border-border/60 shrink-0">
           <Icon className="w-3.5 h-3.5 text-muted-foreground group-aria-selected:text-primary transition-colors" strokeWidth={1.5} />
         </div>
         <div className="flex flex-col min-w-0">
@@ -374,7 +371,7 @@ const CommandItem = ({
         </div>
       </div>
       {category && (
-        <span className="text-[10px] font-medium bg-muted/80 text-muted-foreground px-2 py-0.5 rounded-md shrink-0">
+        <span className="text-[9px] font-medium bg-muted/80 text-muted-foreground px-1.5 py-0.5 rounded shrink-0">
           {category}
         </span>
       )}
