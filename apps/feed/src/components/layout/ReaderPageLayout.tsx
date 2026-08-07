@@ -23,7 +23,7 @@ export function ReaderPageLayout({
   return (
     <div className="relative min-h-screen bg-background text-foreground selection:bg-primary/10 selection:text-primary">
       {/* ── SEAMLESS FULL-VIEWPORT BACKGROUND CANVAS (STATIC) ── */}
-      <div className="fixed inset-0 pointer-events-none z-0 flex flex-col justify-start px-6 pt-16 overflow-hidden bg-background">
+      <div className="fixed inset-0 pointer-events-none z-0 flex flex-col justify-start overflow-hidden bg-background">
         {/* Soft continuous ambient radial glow */}
         <div
           className="absolute top-[5%] left-[20%] w-[60%] h-[50%] rounded-full opacity-45 dark:opacity-25 pointer-events-none"
@@ -34,8 +34,8 @@ export function ReaderPageLayout({
           }}
         />
 
-        {/* Static Background "Lire" giant title & manifesto header */}
-        <div className="max-w-[580px] mx-auto w-full space-y-3 pt-6 select-none">
+        {/* Static Background "Lire" giant title & manifesto header (aligned with timeline sheet) */}
+        <div className="max-w-[580px] mx-auto px-3 sm:px-4 w-full space-y-3 pt-12 sm:pt-14 select-none">
           {giantTitle && (
             <div className="flex items-center gap-2">
               <span className="font-sans text-5xl sm:text-6xl font-extrabold text-primary tracking-tighter">
@@ -48,11 +48,11 @@ export function ReaderPageLayout({
           <p className="text-sm sm:text-base text-muted-foreground font-normal leading-relaxed max-w-lg">
             Plateforme souveraine de lecture, d&apos;écriture et d&apos;échanges créateurs. Le flux glissant ci-dessous réunit articles longs et micro-posts en une expérience unifiée.
           </p>
-        </div>
 
-        {headerWidgets && (
-          <div className="max-w-[580px] mx-auto w-full pt-4">{headerWidgets}</div>
-        )}
+          {headerWidgets && (
+            <div className="w-full pt-2">{headerWidgets}</div>
+          )}
+        </div>
       </div>
 
       {/* ── FOREGROUND SLIDING FEED SHEET ── */}
