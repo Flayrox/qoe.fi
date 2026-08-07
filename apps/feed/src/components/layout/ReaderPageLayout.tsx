@@ -11,34 +11,36 @@ interface ReaderPageLayoutProps {
   children: React.ReactNode
 }
 
-export function ReaderPageLayout({ 
-  giantTitle, 
-  giantTitleSuffix = ".", 
+export function ReaderPageLayout({
+  giantTitle,
+  giantTitleSuffix = ".",
   headerWidgets,
-  children 
+  children,
 }: ReaderPageLayoutProps) {
   const pathname = usePathname()
   const isTimeline = pathname.endsWith("/home") || pathname.endsWith("/home/")
 
   return (
-    <div className="relative min-h-screen bg-background text-foreground selection:bg-accent-brand/10 selection:text-accent-brand">
-      {/* ── IMMERSIVE BACKGROUND CANVAS / "LIRE" MANIFESTO LAYER ── */}
-      <div className="fixed top-0 left-0 right-0 h-screen pointer-events-none z-0 flex flex-col justify-start px-6 pt-12 overflow-hidden">
-        {/* Soft background ambient glow */}
-        <div 
-          className="absolute top-[10%] left-[20%] w-[50%] h-[40%] rounded-full opacity-40 dark:opacity-20 pointer-events-none"
+    <div className="relative min-h-screen bg-background text-foreground selection:bg-primary/10 selection:text-primary">
+      {/* ── SEAMLESS FULL-VIEWPORT BACKGROUND CANVAS (STATIC) ── */}
+      <div className="fixed inset-0 pointer-events-none z-0 flex flex-col justify-start px-6 pt-16 overflow-hidden bg-background">
+        {/* Soft continuous ambient radial glow */}
+        <div
+          className="absolute top-[5%] left-[20%] w-[60%] h-[50%] rounded-full opacity-45 dark:opacity-25 pointer-events-none"
           style={{
-            background: "radial-gradient(ellipse at center, var(--accent-brand, rgba(238,75,43,0.15)) 0%, transparent 70%)",
-            filter: "blur(100px)",
+            background:
+              "radial-gradient(ellipse at center, var(--primary, rgba(238,75,43,0.22)) 0%, transparent 70%)",
+            filter: "blur(120px)",
           }}
         />
 
-        {/* Background "Lire" giant title & manifesto header */}
-        <div className="max-w-[580px] mx-auto w-full space-y-3 pt-6 select-none opacity-90 transition-opacity">
+        {/* Static Background "Lire" giant title & manifesto header */}
+        <div className="max-w-[580px] mx-auto w-full space-y-3 pt-6 select-none">
           {giantTitle && (
             <div className="flex items-center gap-2">
-              <span className="font-sans text-5xl sm:text-6xl font-extrabold text-accent-brand tracking-tighter">
-                {giantTitle}<span className="text-foreground">{giantTitleSuffix}</span>
+              <span className="font-sans text-5xl sm:text-6xl font-extrabold text-primary tracking-tighter">
+                {giantTitle}
+                <span className="text-foreground">{giantTitleSuffix}</span>
               </span>
             </div>
           )}
@@ -49,9 +51,7 @@ export function ReaderPageLayout({
         </div>
 
         {headerWidgets && (
-          <div className="max-w-[580px] mx-auto w-full pt-4">
-            {headerWidgets}
-          </div>
+          <div className="max-w-[580px] mx-auto w-full pt-4">{headerWidgets}</div>
         )}
       </div>
 

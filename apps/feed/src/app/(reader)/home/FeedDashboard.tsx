@@ -221,8 +221,8 @@ export function FeedDashboard({
 
   return (
     <ReaderPageLayout giantTitle="Lire">
-      {/* ── RAUNO-STYLE SLIDING FEED SHEET ── */}
-      <main className="mt-[220px] sm:mt-[260px] bg-card text-card-foreground rounded-t-2xl border-t border-x border-border/40 shadow-[0_-20px_50px_rgba(0,0,0,0.12)] dark:shadow-[0_-20px_50px_rgba(0,0,0,0.6)] min-h-screen relative z-10 transition-all">
+      {/* ── SLIDING FEED SHEET ── */}
+      <main className="mt-48 sm:mt-52 bg-card/95 backdrop-blur-2xl text-card-foreground rounded-t-2xl border-t border-x border-border/40 shadow-2xl min-h-screen relative z-10 transition-all">
         
         {/* Opaque Sticky Header of the Sheet (No Background Bleed-Through) */}
         <div className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 py-3 bg-card border-b border-border/40 rounded-t-2xl">
