@@ -19,6 +19,9 @@ import {
   User,
   Palette,
   Search,
+  Bookmark,
+  Highlighter,
+  Wallet,
 } from "lucide-react"
 
 /* ─────────────────────────────────────────────
@@ -35,6 +38,9 @@ const iconRegistry: Record<
   PieChart,
   Code,
   Settings,
+  Bookmark,
+  Highlighter,
+  Wallet,
 }
 
 /* ─────────────────────────────────────────────
@@ -71,7 +77,8 @@ export interface SidebarProps {
   /** Primary CTA action */
   primaryAction?: {
     label: string
-    href: string
+    href?: string
+    onClick?: () => void
     icon?: React.ComponentType<{ className?: string }>
   }
   /** Optional search change handler */
@@ -372,23 +379,44 @@ export function Sidebar({
               {/* ── FOOTER: PRIMARY ACTION & ACCOUNT ── */}
               <SidebarFooter>
                 {primaryAction && (
-                  <Link
-                    href={primaryAction.href}
-                    className={cn(
-                      "w-full flex items-center justify-between px-2.5 py-2 rounded-[12px] text-[13px] font-medium transition-all duration-200",
-                      "bg-sidebar-accent/60 hover:bg-sidebar-accent border border-sidebar-border/60 text-sidebar-foreground active:scale-[0.98]"
-                    )}
-                  >
-                    <span className="text-sidebar-primary flex items-center justify-center shrink-0 w-[22px] h-[22px]">
-                      <Plus className="w-4 h-4" strokeWidth={2.5} />
-                    </span>
-                    <span className="flex-1 text-left ml-2 truncate font-medium text-[13px] tracking-[-0.1px]">
-                      {primaryAction.label}
-                    </span>
-                    <span className="text-sidebar-foreground/45 shrink-0 hover:text-sidebar-foreground transition-colors">
-                      <ArrowSVG />
-                    </span>
-                  </Link>
+                  primaryAction.onClick ? (
+                    <button
+                      type="button"
+                      onClick={primaryAction.onClick}
+                      className={cn(
+                        "w-full flex items-center justify-between px-2.5 py-2 rounded-[12px] text-[13px] font-medium transition-all duration-200 cursor-pointer outline-none",
+                        "bg-sidebar-accent/60 hover:bg-sidebar-accent border border-sidebar-border/60 text-sidebar-foreground active:scale-[0.98]"
+                      )}
+                    >
+                      <span className="text-sidebar-primary flex items-center justify-center shrink-0 w-[22px] h-[22px]">
+                        <Plus className="w-4 h-4" strokeWidth={2.5} />
+                      </span>
+                      <span className="flex-1 text-left ml-2 truncate font-medium text-[13px] tracking-[-0.1px]">
+                        {primaryAction.label}
+                      </span>
+                      <span className="text-sidebar-foreground/45 shrink-0 hover:text-sidebar-foreground transition-colors">
+                        <ArrowSVG />
+                      </span>
+                    </button>
+                  ) : (
+                    <Link
+                      href={primaryAction.href || "#"}
+                      className={cn(
+                        "w-full flex items-center justify-between px-2.5 py-2 rounded-[12px] text-[13px] font-medium transition-all duration-200",
+                        "bg-sidebar-accent/60 hover:bg-sidebar-accent border border-sidebar-border/60 text-sidebar-foreground active:scale-[0.98]"
+                      )}
+                    >
+                      <span className="text-sidebar-primary flex items-center justify-center shrink-0 w-[22px] h-[22px]">
+                        <Plus className="w-4 h-4" strokeWidth={2.5} />
+                      </span>
+                      <span className="flex-1 text-left ml-2 truncate font-medium text-[13px] tracking-[-0.1px]">
+                        {primaryAction.label}
+                      </span>
+                      <span className="text-sidebar-foreground/45 shrink-0 hover:text-sidebar-foreground transition-colors">
+                        <ArrowSVG />
+                      </span>
+                    </Link>
+                  )
                 )}
 
                 {/* Profile Popover */}
