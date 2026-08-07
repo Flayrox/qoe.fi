@@ -8,7 +8,7 @@ import {
 } from "lucide-react"
 import { toggleFollowCreatorHome, toggleBookmarkArticleHome } from "./actions"
 import { ArticleCard, LoginModal, GuestFloatingBar, type AuthActionContext } from "@qoe/ui"
-import { MicroPostComposer } from "./components/MicroPostComposer"
+import { ComposerModal } from "./components/ComposerModal"
 import { FeedTabsHeader } from "./components/FeedTabsHeader"
 import { ExpandedPostView } from "./components/ExpandedPostView"
 import { useTranslate } from "@qoe/i18n"
@@ -85,6 +85,7 @@ export function FeedDashboard({
   const [activeFeed, setActiveFeed] = useState<string>("recommandation")
   const [activePostId, setActivePostId] = useState<string | null>(null)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
+  const [isComposerModalOpen, setIsComposerModalOpen] = useState(false)
   const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login")
   const [authActionContext, setAuthActionContext] = useState<AuthActionContext | undefined>(undefined)
 
@@ -93,6 +94,30 @@ export function FeedDashboard({
     setAuthActionContext(options?.actionContext)
     setIsLoginModalOpen(true)
   }
+
+  React.useEffect(() => {
+    const handleOpenComposer = () => {
+      if (!dbUser) {
+        openAuth({ mode: "signup", actionContext: "bookmark" })
+        return
+      }
+      setIsComposerModalOpen(true)
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "n")) {
+        e.preventDefault()
+        handleOpenComposer()
+      }
+    }
+
+    window.addEventListener("open-composer", handleOpenComposer)
+    window.addEventListener("keydown", handleKeyDown)
+    return () => {
+      window.removeEventListener("open-composer", handleOpenComposer)
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [dbUser])
   
   const [bookmarks, setBookmarks] = useState<Article[]>(initialBookmarks)
   const [followedCreators, setFollowedCreators] = useState<any[]>(initialFollowedCreators)
@@ -242,7 +267,7 @@ export function FeedDashboard({
         </div>
 
         {/* List of Stream Items */}
-        <div className="px-6 py-8 space-y-8">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-8">
           <AnimatePresence mode="wait">
             {activePostId ? (
               <motion.div
@@ -280,15 +305,6 @@ export function FeedDashboard({
                 transition={springs.card}
                 className="space-y-6"
               >
-                {activeFeed !== "bookmarks" && (
-                  <MicroPostComposer 
-                    dbUser={dbUser}
-                    tagsList={tagsList}
-                    onPostCreated={(post) => setLocalPosts(prev => [post, ...prev])}
-                    onLoginRequired={() => setIsLoginModalOpen(true)}
-                  />
-                )}
-
                 <div className="space-y-2">
                   <AnimatePresence mode="popLayout">
                     {activeFeed === "bookmarks" && currentFeedArticles.length === 0 && (
@@ -356,6 +372,14 @@ export function FeedDashboard({
         </div>
       </main>
 
+      <ComposerModal
+        isOpen={isComposerModalOpen}
+        onClose={() => setIsComposerModalOpen(false)}
+        dbUser={dbUser}
+        tagsList={tagsList}
+        onPostCreated={(post) => setLocalPosts(prev => [post, ...prev])}
+        onLoginRequired={() => openAuth({ mode: "signup", actionContext: "bookmark" })}
+      />
       <LoginModal 
         isOpen={isLoginModalOpen} 
         onClose={() => setIsLoginModalOpen(false)} 
