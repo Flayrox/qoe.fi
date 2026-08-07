@@ -201,12 +201,9 @@ export function ArticleCard({
           "border-b border-[var(--border-default)] pb-8 mb-8"
         )}
       >
-        {/* À LA UNE badge */}
-        <div className="absolute top-4 left-4 z-10">
-          <span
-            className="text-[8px] font-black uppercase tracking-[0.14em] bg-[var(--qoe-vermillion)] text-white px-2.5 py-1 rounded-full"
-            style={{ boxShadow: "0 2px 8px var(--qoe-vermillion-glow)" }}
-          >
+        {/* À LA UNE indicator */}
+        <div className="mb-2">
+          <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary font-sans">
             {t("feed.featured_badge", "À la une")}
           </span>
         </div>
