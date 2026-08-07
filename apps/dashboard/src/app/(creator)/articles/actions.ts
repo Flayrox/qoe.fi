@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache"
 import { prisma } from "@qoe/db/client"
 import { requireUser } from "@qoe/auth/current-user"
 import { slugify, shortId } from "@qoe/utils"
+import { searchQueue } from "@/lib/queue"
 
 /**
  * ðŸ”’ RÃ©cupÃ¨re l'utilisateur connectÃ© ou redirige vers la page de connexion.
@@ -102,7 +103,7 @@ export async function saveArticleAction(data: {
   }
 
   // 3. VÃ©rification de l'unicitÃ© globale du slug
-  let isSlugTaken = await prisma.article.findFirst({
+  const isSlugTaken = await prisma.article.findFirst({
     where: {
       slug: finalSlug,
       NOT: id ? { id } : undefined,
@@ -150,6 +151,10 @@ export async function saveArticleAction(data: {
 
     revalidatePath("/articles")
     revalidatePath(`/articles/${id}`)
+
+    // Sync Meilisearch
+    await searchQueue.add("sync-article", { articleId: id, action: "upsert" })
+
     return updated
   } else {
     // CrÃ©ation d'un nouvel article
@@ -169,6 +174,10 @@ export async function saveArticleAction(data: {
     })
 
     revalidatePath("/articles")
+
+    // Sync Meilisearch
+    await searchQueue.add("sync-article", { articleId: created.id, action: "upsert" })
+
     return created
   }
 }
@@ -196,6 +205,10 @@ export async function deleteArticleAction(id: string) {
   })
 
   revalidatePath("/articles")
+
+  // Sync Meilisearch
+  await searchQueue.add("sync-article", { articleId: id, action: "delete" })
+
   return { success: true }
 }
 
