@@ -58,29 +58,40 @@ export function CommandMenu({
   const [debouncedQuery] = useDebounce(query, 300);
   const [searchResults, setSearchResults] = useState<MeiliSearchResult[]>([]);
 
-  // Fetch articles from Meilisearch API when typing
+  // Safe async fetch with AbortController and try/catch
   useEffect(() => {
-    if (!debouncedQuery) {
+    const trimmed = debouncedQuery.trim();
+    if (!trimmed || trimmed.length < 2) {
       setSearchResults([]);
       return;
     }
 
     let isMounted = true;
-    const searchUrl = `${URLS.API}/search/articles?q=${encodeURIComponent(
-      debouncedQuery
-    )}`;
+    const controller = new AbortController();
 
-    fetch(searchUrl)
-      .then((res) => res.json())
-      .then((data) => {
-        if (isMounted && data.hits) {
-          setSearchResults(data.hits);
+    async function fetchResults() {
+      try {
+        const searchUrl = `${URLS.API}/search/articles?q=${encodeURIComponent(trimmed)}`;
+        const res = await fetch(searchUrl, { signal: controller.signal });
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data.hits) {
+            setSearchResults(data.hits);
+          }
         }
-      })
-      .catch((err) => console.error("Search error:", err));
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          // Catch fetch errors silently so Next.js dev overlay is not triggered if API is offline
+          setSearchResults([]);
+        }
+      }
+    }
+
+    fetchResults();
 
     return () => {
       isMounted = false;
+      controller.abort();
     };
   }, [debouncedQuery]);
 
@@ -173,18 +184,18 @@ export function CommandMenu({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] sm:pt-[14vh] p-4 select-none font-sans">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 select-none font-sans">
       {/* Backdrop */}
       <div
         onClick={() => onOpenChange(false)}
         className="fixed inset-0 bg-background/50 backdrop-blur-sm transition-opacity duration-200"
       />
 
-      {/* Top Navbar Style Search Modal Container (Compact Auto-fit Height) */}
+      {/* Centered Compact Search Modal Container */}
       <Command
         label="Console Search"
         className={cn(
-          "relative z-50 flex h-auto max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl shadow-2xl shrink-0",
+          "relative z-50 flex h-auto max-h-[75vh] w-full max-w-[480px] flex-col overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl shadow-2xl shrink-0",
           "animate-in fade-in-0 zoom-in-95 duration-200"
         )}
         shouldFilter={true}
@@ -211,12 +222,12 @@ export function CommandMenu({
         </div>
 
         {/* Results List */}
-        <Command.List className="max-h-[320px] overflow-y-auto p-2 custom-scrollbar space-y-3 shrink-0">
+        <Command.List className="max-h-[260px] overflow-y-auto p-2 custom-scrollbar space-y-2.5 shrink-0">
           <Command.Empty className="text-center py-6 text-muted-foreground text-xs font-medium">
             {t("common.no_results", "Aucun résultat trouvé.")}
           </Command.Empty>
 
-          {/* GROUP 1: Ergonomic Order -> Visual Preferences (Themes) */}
+          {/* GROUP 1: Visual Preferences (Themes) */}
           <Command.Group
             heading={t("ask_group_theme", "Préférences visuelles") as string}
             className="px-2 py-0.5 text-xs font-semibold text-muted-foreground/80 mb-1"
@@ -257,7 +268,7 @@ export function CommandMenu({
             ))}
           </Command.Group>
 
-          {/* GROUP 3: Articles & Drafts (Meilisearch, shown when searching) */}
+          {/* GROUP 3: Articles & Drafts (Meilisearch) */}
           {searchResults.length > 0 && (
             <Command.Group
               heading={
