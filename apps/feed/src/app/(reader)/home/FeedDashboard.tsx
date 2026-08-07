@@ -1,19 +1,16 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { ReaderPageLayout } from "@/components/layout/ReaderPageLayout"
 import { 
   BookMarked, AlertCircle
 } from "lucide-react"
 import { toggleFollowCreatorHome, toggleBookmarkArticleHome } from "./actions"
-import { cn } from "@qoe/utils"
-import { ArticleCard, LoginModal, GuestFloatingBar, useOptimisticMutation, type AuthActionContext } from "@qoe/ui"
+import { ArticleCard, LoginModal, GuestFloatingBar, type AuthActionContext } from "@qoe/ui"
 import { MicroPostComposer } from "./components/MicroPostComposer"
 import { FeedTabsHeader } from "./components/FeedTabsHeader"
 import { ExpandedPostView } from "./components/ExpandedPostView"
-import { HomeWidgets } from "./components/HomeWidgets"
 import { useTranslate } from "@qoe/i18n"
 import { trackEvent } from "@/lib/analytics"
 
@@ -70,7 +67,7 @@ interface FeedDashboardProps {
   promos: any[]
 }
 
-// Spring physics — Rauno-style, never ease-in-out
+// Spring physics — Rauno-style
 const springs = {
   card: { type: "spring" as const, stiffness: 350, damping: 28 },
 }
@@ -82,15 +79,7 @@ export function FeedDashboard({
   discoverArticles,
   bookmarks: initialBookmarks,
   followedCreators: initialFollowedCreators,
-  suggestedCreators,
-  initialFollowsCount,
-  initialBookmarksCount,
-  initialHighlightsCount,
   mutedWords = [],
-  featuredArticle,
-  recommendedArticles,
-  trends,
-  promos,
 }: FeedDashboardProps) {
   const { t } = useTranslate()
   const [activeFeed, setActiveFeed] = useState<string>("recommandation")
@@ -107,13 +96,11 @@ export function FeedDashboard({
   
   const [bookmarks, setBookmarks] = useState<Article[]>(initialBookmarks)
   const [followedCreators, setFollowedCreators] = useState<any[]>(initialFollowedCreators)
-  const [followsCount, setFollowsCount] = useState<number>(initialFollowsCount)
-  const [bookmarksCount, setBookmarksCount] = useState<number>(initialBookmarksCount)
 
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   
   const [localPosts, setLocalPosts] = useState<Article[]>([])
-  const [deletedPostIds, setDeletedPostIds] = useState<Set<string>>(new Set())
+  const [deletedPostIds] = useState<Set<string>>(new Set())
   const [interactions, setInteractions] = useState<Record<string, { liked?: boolean; likesCount?: number; bookmarked?: boolean; repliesCount?: number }>>({})
   
   const isCreatorFollowed = (creatorId: string) => followedCreators.some(f => f.id === creatorId)
@@ -133,25 +120,14 @@ export function FeedDashboard({
     
     if (isCurrentlyFollowed) {
       setFollowedCreators(prev => prev.filter(f => f.id !== creator.id))
-      setFollowsCount(prev => Math.max(0, prev - 1))
     } else {
       setFollowedCreators(prev => [creator, ...prev])
-      setFollowsCount(prev => prev + 1)
     }
 
     const res = await toggleFollowCreatorHome(creator.id)
     if (!res.ok) {
       if (isCurrentlyFollowed) {
         setFollowedCreators(prev => [creator, ...prev])
-        setFollowsCount(prev => prev + 1)
-      } else {
-        setFollowedCreators(prev => prev.filter(f => f.id !== creator.id))
-        setFollowsCount(prev => Math.max(0, prev - 1))
-      }
-    } else if (res.data) {
-      const actualFollowed = res.data.followed
-      if (actualFollowed) {
-        setFollowedCreators(prev => prev.some(f => f.id === creator.id) ? prev : [creator, ...prev])
       } else {
         setFollowedCreators(prev => prev.filter(f => f.id !== creator.id))
       }
@@ -165,7 +141,6 @@ export function FeedDashboard({
     }
     const isCurrentlyBookmarked = isArticleBookmarked(article.id)
     
-    // Optimistic local state update
     setInteractions(prev => ({
       ...prev,
       [article.id]: {
@@ -178,15 +153,12 @@ export function FeedDashboard({
     
     if (isCurrentlyBookmarked) {
       setBookmarks(prev => prev.filter(b => b.id !== article.id))
-      setBookmarksCount(prev => Math.max(0, prev - 1))
     } else {
       setBookmarks(prev => [article, ...prev])
-      setBookmarksCount(prev => prev + 1)
     }
 
     const res = await toggleBookmarkArticleHome(article.id)
     if (!res.ok) {
-      // Rollback
       setInteractions(prev => ({
         ...prev,
         [article.id]: {
@@ -196,10 +168,8 @@ export function FeedDashboard({
       }))
       if (isCurrentlyBookmarked) {
         setBookmarks(prev => [article, ...prev])
-        setBookmarksCount(prev => prev + 1)
       } else {
         setBookmarks(prev => prev.filter(b => b.id !== article.id))
-        setBookmarksCount(prev => Math.max(0, prev - 1))
       }
     }
   }
@@ -216,7 +186,6 @@ export function FeedDashboard({
       list = bookmarks
     }
 
-    // Filter out posts and articles containing any of the user's muted words
     if (mutedWords && mutedWords.length > 0) {
       list = list.filter(art => {
         if (!art) return false
@@ -251,19 +220,12 @@ export function FeedDashboard({
   const tagsList = ["#souverainete", "#anti-ia", "#attention", "#philosophie", "#design", "#creators"]
 
   return (
-    <ReaderPageLayout 
-      giantTitle="Lire"
-      headerWidgets={
-        <HomeWidgets
-          featuredArticle={featuredArticle}
-          recommendedArticles={recommendedArticles}
-          trends={trends}
-          promos={promos}
-        />
-      }
-    >
-        {/* ── STICKY TABS WRAPPER (z-30) ── */}
-        <div className="sticky top-0 z-30 w-full flex items-baseline justify-center py-4 px-6 bg-transparent pointer-events-auto">
+    <ReaderPageLayout giantTitle="Lire">
+      {/* ── RAUNO-STYLE SLIDING FEED SHEET ── */}
+      <main className="mt-[220px] sm:mt-[260px] bg-card text-card-foreground rounded-t-2xl border-t border-x border-border/40 shadow-[0_-20px_50px_rgba(0,0,0,0.12)] dark:shadow-[0_-20px_50px_rgba(0,0,0,0.6)] min-h-screen relative z-10 transition-all">
+        
+        {/* Opaque Sticky Header of the Sheet (No Background Bleed-Through) */}
+        <div className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 py-3 bg-card border-b border-border/40 rounded-t-2xl">
           <FeedTabsHeader 
             activeFeed={activeFeed}
             onTabChange={(id) => {
@@ -272,141 +234,135 @@ export function FeedDashboard({
               } else {
                 setActiveFeed(id)
                 setSelectedTag(null)
-                setActivePostId(null) // Reset expanded post view on tab change
+                setActivePostId(null)
                 trackEvent("feed_tab_changed", { tab: id })
               }
             }}
           />
         </div>
 
-        {/* Main timeline white bento sheet */}
-        <div className="bg-white shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-neutral-200/40 rounded-t-xl min-h-screen mt-12 relative z-20">
-
-          {/* Sticky header of the sheet itself to mask scroll items and provide background for the tabs */}
-          <div className="sticky top-0 z-10 h-[44px] bg-white rounded-t-xl border-t border-x border-neutral-200/40 -mx-[1px] -mt-[1px]" />
-
-          <div className="px-6 pt-2 pb-6">
-            <AnimatePresence mode="wait">
-              {activePostId ? (
-                <motion.div
-                  key="expanded-post"
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -15 }}
-                  transition={springs.card}
-                >
-                  <ExpandedPostView
-                    postId={activePostId}
-                    currentUserId={dbUser?.id || null}
-                    onClose={() => setActivePostId(null)}
-                    onOpenProfile={(username) => {
-                      window.location.href = `/profile/${username}`
-                    }}
-                    onInteractionUpdate={(postId, update) => {
-                      setInteractions(prev => ({
-                        ...prev,
-                        [postId]: {
-                          ...prev[postId],
-                          ...update
-                        }
-                      }))
-                    }}
+        {/* List of Stream Items */}
+        <div className="p-4 sm:p-6 space-y-6">
+          <AnimatePresence mode="wait">
+            {activePostId ? (
+              <motion.div
+                key="expanded-post"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={springs.card}
+              >
+                <ExpandedPostView
+                  postId={activePostId}
+                  currentUserId={dbUser?.id || null}
+                  onClose={() => setActivePostId(null)}
+                  onOpenProfile={(username) => {
+                    window.location.href = `/profile/${username}`
+                  }}
+                  onInteractionUpdate={(postId, update) => {
+                    setInteractions(prev => ({
+                      ...prev,
+                      [postId]: {
+                        ...prev[postId],
+                        ...update
+                      }
+                    }))
+                  }}
+                  onLoginRequired={() => setIsLoginModalOpen(true)}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="feed-list"
+                initial={{ opacity: 0, y: -15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 15 }}
+                transition={springs.card}
+                className="space-y-6"
+              >
+                {activeFeed !== "bookmarks" && (
+                  <MicroPostComposer 
+                    dbUser={dbUser}
+                    tagsList={tagsList}
+                    onPostCreated={(post) => setLocalPosts(prev => [post, ...prev])}
                     onLoginRequired={() => setIsLoginModalOpen(true)}
                   />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="feed-list"
-                  initial={{ opacity: 0, y: -15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 15 }}
-                  transition={springs.card}
-                  className="space-y-6"
-                >
-                  {activeFeed !== "bookmarks" && activeFeed !== "following_creators" && activeFeed !== "notifications" && (
-                    <MicroPostComposer 
-                      dbUser={dbUser}
-                      tagsList={tagsList}
-                      onPostCreated={(post) => setLocalPosts(prev => [post, ...prev])}
-                      onLoginRequired={() => setIsLoginModalOpen(true)}
-                    />
-                  )}
+                )}
 
-                  <div className="space-y-4">
-                    <AnimatePresence mode="popLayout">
-                      {activeFeed === "bookmarks" && currentFeedArticles.length === 0 && (
-                        <motion.div
-                          key="bookmarks-empty"
-                          initial={{ opacity: 0, scale: 0.99 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.99 }}
-                          transition={springs.card}
-                          className="bg-white/60 backdrop-blur-sm border border-[var(--border-subtle)] rounded-md p-12 text-center flex flex-col items-center justify-center gap-3 text-[var(--text-secondary)]"
-                        >
-                          <BookMarked className="w-8 h-8 text-[var(--text-tertiary)]" />
-                          <h4 className="font-bold text-xs text-[var(--text-primary)]">{t("feed.empty_sanctuary", "Votre Sanctuaire est vide")}</h4>
-                          <p className="text-[11px] text-[var(--text-tertiary)] max-w-xs leading-relaxed">
-                            {t("feed.empty_sanctuary_desc", "Enregistrez des articles en cliquant sur l'icône de signet pour les conserver ici.")}
-                          </p>
-                        </motion.div>
-                      )}
+                <div className="space-y-2">
+                  <AnimatePresence mode="popLayout">
+                    {activeFeed === "bookmarks" && currentFeedArticles.length === 0 && (
+                      <motion.div
+                        key="bookmarks-empty"
+                        initial={{ opacity: 0, scale: 0.99 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.99 }}
+                        transition={springs.card}
+                        className="bg-muted/40 border border-border/40 rounded-xl p-10 text-center flex flex-col items-center justify-center gap-2.5 text-muted-foreground"
+                      >
+                        <BookMarked className="w-7 h-7 text-muted-foreground/60" />
+                        <h4 className="font-semibold text-xs text-foreground">{t("feed.empty_sanctuary", "Votre Sanctuaire est vide")}</h4>
+                        <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
+                          {t("feed.empty_sanctuary_desc", "Enregistrez des articles en cliquant sur l'icône de signet pour les conserver ici.")}
+                        </p>
+                      </motion.div>
+                    )}
 
-                      {activeFeed !== "following_creators" && activeFeed !== "notifications" && (
-                        currentFeedArticles.length === 0 ? (
-                          <motion.div
-                            key="empty-state"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="bg-white/60 backdrop-blur-sm border border-[var(--border-subtle)] rounded-md p-16 text-center flex flex-col items-center justify-center gap-3"
-                          >
-                            <AlertCircle className="w-8 h-8 text-[var(--text-quaternary)]" />
-                            <h4 className="font-bold text-xs text-[var(--text-primary)]">{t("feed.no_article_found", "Aucun article trouvé")}</h4>
-                            <p className="text-[11px] text-[var(--text-tertiary)] max-w-xs leading-relaxed">
-                              {t("feed.no_article_found_desc", "Essayez d'effacer le tag filtre ou de suivre de nouveaux créateurs dans la liste Explorer.")}
-                            </p>
-                          </motion.div>
-                        ) : (
-                          <div key={`feed-${activeFeed}`} className="space-y-0">
-                            {currentFeedArticles.map((article, idx) => {
-                              const isBookmarked = isArticleBookmarked(article.id)
-                              const isFollowed = isCreatorFollowed(article.author.id)
+                    {currentFeedArticles.length === 0 && activeFeed !== "bookmarks" ? (
+                      <motion.div
+                        key="empty-state"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="bg-muted/40 border border-border/40 rounded-xl p-12 text-center flex flex-col items-center justify-center gap-2.5"
+                      >
+                        <AlertCircle className="w-7 h-7 text-muted-foreground/60" />
+                        <h4 className="font-semibold text-xs text-foreground">{t("feed.no_article_found", "Aucun article trouvé")}</h4>
+                        <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
+                          {t("feed.no_article_found_desc", "Essayez d'effacer le tag filtre ou de suivre de nouveaux créateurs dans la liste Explorer.")}
+                        </p>
+                      </motion.div>
+                    ) : (
+                      <div key={`feed-${activeFeed}`} className="divide-y divide-border/40">
+                        {currentFeedArticles.map((article, idx) => {
+                          const isBookmarked = isArticleBookmarked(article.id)
+                          const isFollowed = isCreatorFollowed(article.author.id)
 
-                              return (
-                                <ArticleCard 
-                                  key={article.id}
-                                  article={article}
-                                  idx={idx}
-                                  dbUser={dbUser}
-                                  isBookmarked={isBookmarked}
-                                  isFollowed={isFollowed}
-                                  handleFollowToggle={handleFollowToggle}
-                                  handleBookmarkToggle={handleBookmarkToggle}
-                                  featured={idx === 0 && activeFeed === "recommandation"}
-                                  onOpenPost={setActivePostId}
-                                  onOpenProfile={(username) => {
-                                    window.location.href = `/profile/${username}`
-                                  }}
-                                />
-                              )
-                            })}
-                          </div>
-                        )
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                          return (
+                            <ArticleCard 
+                              key={article.id}
+                              article={article}
+                              idx={idx}
+                              dbUser={dbUser}
+                              isBookmarked={isBookmarked}
+                              isFollowed={isFollowed}
+                              handleFollowToggle={handleFollowToggle}
+                              handleBookmarkToggle={handleBookmarkToggle}
+                              featured={idx === 0 && activeFeed === "recommandation"}
+                              onOpenPost={setActivePostId}
+                              onOpenProfile={(username) => {
+                                window.location.href = `/profile/${username}`
+                              }}
+                            />
+                          )
+                        })}
+                      </div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-        <LoginModal 
-          isOpen={isLoginModalOpen} 
-          onClose={() => setIsLoginModalOpen(false)} 
-          initialMode={authModalMode}
-          actionContext={authActionContext}
-        />
-        {!dbUser && <GuestFloatingBar onOpenAuth={openAuth} />}
+      </main>
+
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+        initialMode={authModalMode}
+        actionContext={authActionContext}
+      />
+      {!dbUser && <GuestFloatingBar onOpenAuth={openAuth} />}
     </ReaderPageLayout>
   )
 }
