@@ -22,6 +22,16 @@ export { GuestFloatingBar, type AuthActionContext } from "./GuestFloatingBar";
 export { LoginModal } from "./LoginModal";
 export { ArticleCard } from "./ArticleCard";
 export { MicroPostCard } from "./MicroPostCard";
-export { AppleSidebar, type AppleSidebarItem, type AppleSidebarProps } from "./AppleSidebar";
+export {
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarGroup,
+  SidebarItem,
+  SidebarFooter,
+  useSidebarContext,
+  type SidebarItemData,
+  type SidebarProps,
+} from "./sidebar";
 export { useOptimisticMutation, type UseOptimisticMutationOptions } from "./hooks/useOptimisticMutation";
 export * from "./cmdk";
