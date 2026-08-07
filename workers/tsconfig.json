@@ -5,7 +5,10 @@
     "noEmit": false,
     "outDir": "./dist",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@qoe/db/client": ["../packages/db/src/client.ts"],
+      "@qoe/db/*": ["../packages/db/src/*"],
+      "@qoe/db": ["../packages/db/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts"],
