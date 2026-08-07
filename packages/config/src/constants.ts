@@ -96,8 +96,8 @@ export type MonorepoApp = "feed" | "dashboard" | "admin" | "landing" | "api" | "
 export function getMonorepoUrl(app: MonorepoApp, hostname?: string, tenantSubdomain?: string): string {
   // Auto-détection côté navigateur si l'hôte n'est pas passé explicitement
   let host = hostname;
-  if (!host && typeof window !== "undefined" && window.location) {
-    host = window.location.host;
+  if (!host && typeof globalThis !== "undefined" && (globalThis as any).window?.location) {
+    host = (globalThis as any).window.location.host;
   }
 
   // 1. Mode Production
