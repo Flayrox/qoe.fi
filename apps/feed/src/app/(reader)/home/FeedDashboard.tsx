@@ -242,7 +242,7 @@ export function FeedDashboard({
         </div>
 
         {/* List of Stream Items */}
-        <div className="p-4 sm:p-6 space-y-6">
+        <div className="px-6 py-8 space-y-8">
           <AnimatePresence mode="wait">
             {activePostId ? (
               <motion.div
@@ -323,7 +323,7 @@ export function FeedDashboard({
                         </p>
                       </motion.div>
                     ) : (
-                      <div key={`feed-${activeFeed}`} className="divide-y divide-border/40">
+                      <div key={`feed-${activeFeed}`} className="space-y-1">
                         {currentFeedArticles.map((article, idx) => {
                           const isBookmarked = isArticleBookmarked(article.id)
                           const isFollowed = isCreatorFollowed(article.author.id)
