@@ -1,6 +1,7 @@
 export type SettingsNode = {
   id: string;
   titleKey: string;
+  label: string;
   path?: string;
   hash?: string;
   keywordsKey?: string[];
@@ -10,95 +11,111 @@ export type SettingsNode = {
 export type SearchableSetting = {
   id: string;
   titleKey: string;
+  label: string;
   keywordsKey: string[];
   path: string;
   breadcrumbs: string[];
+  breadcrumbLabels: string[];
 };
 
 export const settingsTree: SettingsNode = {
   id: "settings",
-  titleKey: "nav_settings",
+  titleKey: "sidebar.nav_settings",
+  label: "Paramètres",
   path: "/settings",
   children: [
     {
       id: "general",
-      titleKey: "settings_general_title",
+      titleKey: "dashboard.settings.general_title",
+      label: "Général",
       path: "#general",
       children: [
         {
           id: "profile-name",
-          titleKey: "settings_profile_name",
+          titleKey: "dashboard.settings.profile_name",
+          label: "Nom de la publication",
           hash: "#name",
-          keywordsKey: ["nom", "pseudo", "name", "username"],
+          keywordsKey: ["nom", "pseudo", "name", "username", "titre"],
         },
         {
           id: "profile-hero",
-          titleKey: "settings_profile_hero",
+          titleKey: "dashboard.settings.profile_hero",
+          label: "Slogan & Présentation",
           hash: "#hero",
-          keywordsKey: ["bio", "description", "hero", "pitch"],
+          keywordsKey: ["bio", "description", "hero", "pitch", "slogan"],
         },
         {
           id: "profile-brand",
-          titleKey: "settings_profile_brand",
+          titleKey: "dashboard.settings.profile_brand",
+          label: "Couleur d'accentuation & Logos",
           hash: "#brand",
-          keywordsKey: ["logo", "couleur", "color", "brand", "marque", "image", "banner"],
+          keywordsKey: ["logo", "couleur", "color", "brand", "marque", "image", "banner", "police", "typo"],
         },
       ],
     },
     {
       id: "domain",
-      titleKey: "settings_domain_title",
+      titleKey: "dashboard.settings.domain_title",
+      label: "Domaine & DNS",
       path: "#domain",
       children: [
         {
           id: "domain-subdomain",
-          titleKey: "settings_domain_subdomain",
+          titleKey: "dashboard.settings.domain_subdomain",
+          label: "Sous-domaine qoe.fi",
           hash: "#subdomain",
           keywordsKey: ["sous-domaine", "subdomain", "url", "lien", "qoe.fi"],
         },
         {
           id: "domain-custom",
-          titleKey: "settings_domain_custom",
+          titleKey: "dashboard.settings.domain_custom",
+          label: "Domaine personnalisé",
           hash: "#custom",
-          keywordsKey: ["domaine personnalisé", "custom domain", "www", "site"],
+          keywordsKey: ["domaine personnalisé", "custom domain", "www", "site", "cname", "dns"],
         },
       ],
     },
     {
       id: "navigation",
-      titleKey: "settings_navigation_title",
+      titleKey: "dashboard.settings.navigation_title",
+      label: "Navigation & Réseaux",
       path: "#navigation",
       children: [
         {
           id: "navigation-links",
-          titleKey: "settings_navigation_links",
+          titleKey: "dashboard.settings.navigation_links",
+          label: "Menu de navigation principal",
           hash: "#links",
-          keywordsKey: ["menu", "liens", "links", "navigation", "header"],
+          keywordsKey: ["menu", "liens", "links", "navigation", "header", "onglets"],
         },
         {
           id: "navigation-social",
-          titleKey: "settings_navigation_social",
+          titleKey: "dashboard.settings.navigation_social",
+          label: "Réseaux sociaux",
           hash: "#social",
-          keywordsKey: ["reseaux", "social", "twitter", "instagram", "linkedin", "github"],
+          keywordsKey: ["reseaux", "social", "twitter", "instagram", "linkedin", "github", "x"],
         },
       ],
     },
     {
       id: "seo",
-      titleKey: "settings_seo_title",
+      titleKey: "dashboard.settings.seo_title",
+      label: "SEO & Pied de page",
       path: "#seo",
       children: [
         {
           id: "seo-meta",
-          titleKey: "settings_seo_meta",
+          titleKey: "dashboard.settings.seo_meta",
+          label: "Balises META (Titre & Description)",
           hash: "#meta",
           keywordsKey: ["seo", "meta", "titre", "description", "google", "recherche"],
         },
         {
           id: "seo-indexing",
-          titleKey: "settings_seo_indexing",
+          titleKey: "dashboard.settings.seo_indexing",
+          label: "Indexation moteurs de recherche",
           hash: "#indexing",
-          keywordsKey: ["indexation", "indexing", "robots", "moteurs"],
+          keywordsKey: ["indexation", "indexing", "robots", "moteurs", "referencement"],
         },
       ],
     },
@@ -108,7 +125,8 @@ export const settingsTree: SettingsNode = {
 export function flattenSettingsTree(
   node: SettingsNode,
   currentPath = "",
-  currentBreadcrumbs: string[] = []
+  currentBreadcrumbs: string[] = [],
+  currentBreadcrumbLabels: string[] = []
 ): SearchableSetting[] {
   const results: SearchableSetting[] = [];
 
@@ -117,14 +135,17 @@ export function flattenSettingsTree(
     : `${currentPath}${node.path || ""}${node.hash || ""}`;
 
   const newBreadcrumbs = [...currentBreadcrumbs, node.titleKey];
+  const newBreadcrumbLabels = [...currentBreadcrumbLabels, node.label];
 
   if (node.keywordsKey) {
     results.push({
       id: node.id,
       titleKey: node.titleKey,
+      label: node.label,
       keywordsKey: node.keywordsKey,
       path: fullPath,
       breadcrumbs: currentBreadcrumbs,
+      breadcrumbLabels: currentBreadcrumbLabels,
     });
   }
 
@@ -135,7 +156,9 @@ export function flattenSettingsTree(
         childBase = `${currentPath}${node.path}`;
       }
 
-      results.push(...flattenSettingsTree(child, childBase, newBreadcrumbs));
+      results.push(
+        ...flattenSettingsTree(child, childBase, newBreadcrumbs, newBreadcrumbLabels)
+      );
     });
   }
 
