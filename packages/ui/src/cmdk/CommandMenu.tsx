@@ -84,6 +84,18 @@ export function CommandMenu({
     };
   }, [debouncedQuery]);
 
+  // Handle Escape key listener to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && open) {
+        e.preventDefault();
+        onOpenChange(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onOpenChange]);
+
   // Lock body scroll when open
   useEffect(() => {
     if (open) {
@@ -161,24 +173,24 @@ export function CommandMenu({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh] sm:pt-[15vh] p-4 select-none font-sans">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] sm:pt-[14vh] p-4 select-none font-sans">
       {/* Backdrop */}
       <div
         onClick={() => onOpenChange(false)}
         className="fixed inset-0 bg-background/50 backdrop-blur-sm transition-opacity duration-200"
       />
 
-      {/* Top Navbar Style Search Modal Container (Compact Height) */}
+      {/* Top Navbar Style Search Modal Container (Compact Auto-fit Height) */}
       <Command
         label="Console Search"
         className={cn(
-          "relative z-50 flex h-full w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl shadow-2xl sm:h-auto max-h-[310px]",
+          "relative z-50 flex h-auto max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl shadow-2xl shrink-0",
           "animate-in fade-in-0 zoom-in-95 duration-200"
         )}
         shouldFilter={true}
       >
         {/* Header Search Field */}
-        <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border/60">
+        <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border/60 shrink-0">
           <Search className="w-4 h-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
           <Command.Input
             value={query}
@@ -192,14 +204,14 @@ export function CommandMenu({
           />
           <button
             onClick={() => onOpenChange(false)}
-            className="text-[10px] font-sans font-medium border border-border/50 rounded px-1.5 py-0.5 text-muted-foreground bg-muted/60 hover:bg-muted transition-colors cursor-pointer"
+            className="text-[10px] font-sans font-medium border border-border/50 rounded px-1.5 py-0.5 text-muted-foreground bg-muted/60 hover:bg-muted transition-colors cursor-pointer shrink-0"
           >
             Échap
           </button>
         </div>
 
         {/* Results List */}
-        <Command.List className="max-h-[230px] overflow-y-auto p-2 custom-scrollbar space-y-3">
+        <Command.List className="max-h-[320px] overflow-y-auto p-2 custom-scrollbar space-y-3 shrink-0">
           <Command.Empty className="text-center py-6 text-muted-foreground text-xs font-medium">
             {t("common.no_results", "Aucun résultat trouvé.")}
           </Command.Empty>
@@ -300,7 +312,7 @@ export function CommandMenu({
         </Command.List>
 
         {/* Footer Navigation Hints */}
-        <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-t border-border/50 text-[10px] text-muted-foreground select-none">
+        <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-t border-border/50 text-[10px] text-muted-foreground select-none shrink-0">
           <span>
             Sélectionner avec{" "}
             <kbd className="border border-border/60 rounded px-1 font-medium bg-background">Entrée</kbd>
