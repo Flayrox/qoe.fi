@@ -49,8 +49,8 @@ if (Get-Command caddy -ErrorAction SilentlyContinue) {
     throw "Ni Caddy ni Docker ne sont disponibles. Installe l'un des deux, puis relance: pnpm dev:win"
 }
 
-Write-Host "[1/3] Démarrage de Postgres + Redis..."
-docker compose -f docker-compose.dev.yml up -d db redis
+Write-Host "[1/3] Démarrage de Postgres + Redis + Meilisearch..."
+docker compose -f docker-compose.dev.yml up -d db redis meilisearch
 
 Write-Host "[2/3] Proxy local prêt..."
 
