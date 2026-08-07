@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Search, Command } from "lucide-react"
+import { Search, Command, Menu } from "lucide-react"
 import { toast } from "sonner"
 import { useCommandMenu } from "@qoe/ui"
 
@@ -34,11 +34,19 @@ export function HeaderClient() {
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center bg-background/80 px-4 backdrop-blur-md select-none font-sans">
       <div className="w-full flex items-center justify-between">
-        {/* Left: Search Bar */}
-        <div className="flex items-center gap-4">
+        {/* Left: Mobile Trigger & Search Bar */}
+        <div className="flex items-center gap-2.5 md:gap-4">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent("toggle-mobile-sidebar"))}
+            className="md:hidden p-2 text-muted-foreground hover:text-foreground rounded-lg bg-muted/50 border border-border/30 active:scale-95 transition-all"
+            aria-label="Ouvrir la navigation"
+          >
+            <Menu className="w-4 h-4 shrink-0" strokeWidth={1.5} />
+          </button>
+
           <button
             onClick={() => setIsOpen(true)}
-            className="w-80 md:w-96 flex items-center justify-between font-sans text-xs text-muted-foreground/80 bg-muted/50 border border-transparent rounded-lg py-1.5 px-3.5 hover:bg-muted hover:text-foreground transition-all duration-200 cursor-pointer"
+            className="w-56 sm:w-80 md:w-96 flex items-center justify-between font-sans text-xs text-muted-foreground/80 bg-muted/50 border border-transparent rounded-lg py-1.5 px-3.5 hover:bg-muted hover:text-foreground transition-all duration-200 cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
               <Search className="w-3.5 h-3.5 shrink-0 text-muted-foreground/70" strokeWidth={1.5} />

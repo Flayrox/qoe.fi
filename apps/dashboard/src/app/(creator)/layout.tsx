@@ -1,5 +1,4 @@
 import { GlobalCommandMenu } from "@/features/dashboard/components/GlobalCommandMenu"
-import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/features/dashboard/components/app-sidebar"
 import { DashboardLayoutContent } from "@/features/dashboard/components/DashboardLayoutContent"
 import { requireUser } from "@qoe/auth/current-user"
@@ -20,12 +19,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <SidebarProvider>
+    <div className="relative flex min-h-screen bg-background">
       <AppSidebar />
       <DashboardLayoutContent>
         <GlobalCommandMenu />
         {children}
       </DashboardLayoutContent>
-    </SidebarProvider>
+    </div>
   )
 }
