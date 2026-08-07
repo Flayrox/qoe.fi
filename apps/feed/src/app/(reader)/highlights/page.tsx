@@ -26,7 +26,7 @@ export default async function HighlightsPage() {
 
   return (
     <ReaderPageLayout giantTitle="Surlignages">
-      <div className="bg-white shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-neutral-200/40 rounded-t-xl min-h-screen mt-24 relative z-20">
+      <div className="bg-white shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-neutral-200/40 rounded-t-xl min-h-screen mt-0 relative z-20">
         
         <div className="px-6 pt-6 pb-6 space-y-6">
             
