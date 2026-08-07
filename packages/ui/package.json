@@ -13,6 +13,7 @@
     "./SocialIcon": "./src/SocialIcon.tsx",
     "./TenantHeader": "./src/TenantHeader.tsx",
     "./SubscribeForm": "./src/SubscribeForm.tsx",
+    "./sidebar": "./src/sidebar.tsx",
     "./devtools-actions": "./src/devtools/actions.ts"
   },
   "scripts": {
