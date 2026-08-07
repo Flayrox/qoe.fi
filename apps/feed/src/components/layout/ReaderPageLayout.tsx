@@ -34,8 +34,8 @@ export function ReaderPageLayout({
           }}
         />
 
-        {/* Static Background "Lire" giant title & manifesto header (aligned with timeline sheet) */}
-        <div className="max-w-[580px] mx-auto px-3 sm:px-4 w-full space-y-3 pt-12 sm:pt-14 select-none">
+        {/* Static Background "Lire" giant title & manifesto header (aligned 1:1 with max-w-3xl timeline sheet) */}
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 w-full space-y-3 pt-12 sm:pt-14 select-none">
           {giantTitle && (
             <div className="flex items-center gap-2">
               <span className="font-sans text-5xl sm:text-6xl font-extrabold text-primary tracking-tighter">
@@ -45,7 +45,7 @@ export function ReaderPageLayout({
             </div>
           )}
 
-          <p className="text-sm sm:text-base text-muted-foreground font-normal leading-relaxed max-w-lg">
+          <p className="text-sm sm:text-base text-muted-foreground font-normal leading-relaxed max-w-xl">
             Plateforme souveraine de lecture, d&apos;écriture et d&apos;échanges créateurs. Le flux glissant ci-dessous réunit articles longs et micro-posts en une expérience unifiée.
           </p>
 
@@ -55,9 +55,9 @@ export function ReaderPageLayout({
         </div>
       </div>
 
-      {/* ── FOREGROUND SLIDING FEED SHEET ── */}
+      {/* ── FOREGROUND SLIDING FEED SHEET (MAX-W-3XL / 768PX) ── */}
       <div className="relative z-10 w-full min-h-screen">
-        <div className={cn("max-w-[580px] mx-auto px-3 sm:px-4 w-full", isTimeline ? "pt-0" : "pt-8")}>
+        <div className={cn("max-w-3xl mx-auto px-3 sm:px-6 w-full", isTimeline ? "pt-0" : "pt-8")}>
           {children}
         </div>
       </div>
