@@ -12,6 +12,25 @@ console.log("⚙️ qoe.fi workers — Démarrage...");
 
 const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
   maxRetriesPerRequest: null,
+  retryStrategy(times) {
+    return Math.min(times * 1000, 15000);
+  },
+});
+
+let isRedisConnected = false;
+connection.on("connect", () => {
+  isRedisConnected = true;
+  console.log("⚙️ [Workers] Connecté à Redis avec succès.");
+});
+
+connection.on("error", (err: any) => {
+  if (err?.code === "ECONNREFUSED") {
+    if (!isRedisConnected) {
+      console.warn("⚠️ [Workers] En attente de Redis sur 127.0.0.1:6379 (Démarre Docker/Redis avec `docker compose -f docker-compose.dev.yml up -d db redis meilisearch`)");
+    }
+  } else {
+    console.error("❌ [Workers] Erreur Redis:", err.message);
+  }
 });
 
 // Initialiser Meilisearch
