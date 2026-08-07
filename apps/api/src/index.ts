@@ -20,6 +20,7 @@ import { createHash } from "node:crypto";
 
 import { verifyWebhook, handleWebhookEvent } from "@qoe/billing";
 import { prisma } from "@qoe/db/client";
+import { searchApp } from "./search";
 
 const app = new Hono<{
   Variables: {
@@ -299,6 +300,8 @@ app.get("/v1/categories", apiAuth, async (c) => {
 app.get("/v1/users/:username", (c) =>
   c.json({ user: null, message: "Use Creator API routes" })
 );
+
+app.route("/search", searchApp);
 
 // ─── Démarrage ───────────────────────────────────────────────
 const port = Number(process.env.PORT) || 3002;

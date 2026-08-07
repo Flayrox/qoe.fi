@@ -54,6 +54,21 @@ services:
       retries: 5
 
   # ───────────────────────────────────────────────────────────────────
+  # 🔍 MEILISEARCH : Moteur de recherche
+  # ───────────────────────────────────────────────────────────────────
+  meilisearch:
+    image: getmeili/meilisearch:v1.12
+    container_name: qoefi-meilisearch
+    restart: unless-stopped
+    ports:
+      - "7700:7700"
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-qoe_master_key_123}
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - meilisearch_data:/meili_data
+
+  # ───────────────────────────────────────────────────────────────────
   # 🔄 REDIS (dev)
   # ───────────────────────────────────────────────────────────────────
   redis:
@@ -417,3 +432,5 @@ services:
 volumes:
   postgres_dev_data:
     name: qoefi-dev-postgres-data
+  meilisearch_data:
+    name: qoefi-dev-meilisearch-data

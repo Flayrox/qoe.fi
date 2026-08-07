@@ -142,6 +142,43 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
 
+  // Ecoute des events depuis le CmdK
+  useEffect(() => {
+    const handleHashChange = (hashToUse?: string) => {
+      const hash = hashToUse || window.location.hash;
+      if (!hash) return;
+
+      const tabMatch = hash.match(/^#(general|domain|navigation|seo)/);
+      if (tabMatch) {
+        setActiveTab(tabMatch[1] as TabType);
+      }
+
+      // On scroll jusqu'à l'ancre spécifique (ex: #name)
+      setTimeout(() => {
+        const el = document.getElementById(hash.substring(1));
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("bg-muted/50", "transition-colors", "duration-500");
+          setTimeout(() => el.classList.remove("bg-muted/50"), 2000);
+        }
+      }, 300);
+    };
+
+    const handleCustomNavigate = (e: any) => {
+      handleHashChange("#" + e.detail.hash);
+    };
+
+    window.addEventListener("hashchange", () => handleHashChange());
+    window.addEventListener("cmdKNavigate", handleCustomNavigate);
+
+    handleHashChange();
+
+    return () => {
+      window.removeEventListener("hashchange", () => handleHashChange());
+      window.removeEventListener("cmdKNavigate", handleCustomNavigate);
+    };
+  }, []);
+
   useEffect(() => {
     setIsMounted(true)
   }, [])
@@ -434,7 +471,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
             >
               <div className="divide-y divide-border/30">
                 {/* Title */}
-                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                <div id="name" className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
                   <div>
                     <label className="text-xs font-semibold text-foreground block">Nom de la publication</label>
                     <span className="text-xs text-muted-foreground block mt-0.5">
@@ -453,7 +490,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
                 </div>
 
                 {/* Slogan */}
-                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                <div id="hero" className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
                   <div>
                     <label className="text-xs font-semibold text-foreground block">Slogan (Hero Tagline)</label>
                     <span className="text-xs text-muted-foreground block mt-0.5">
@@ -472,7 +509,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
                 </div>
 
                 {/* Accent Color Swatches */}
-                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                <div id="brand" className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
                   <div>
                     <label className="text-xs font-semibold text-foreground block">Couleur d'accentuation</label>
                     <span className="text-xs text-muted-foreground block mt-0.5">
@@ -602,7 +639,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
             >
               <div className="divide-y divide-border/30">
                 {/* Subdomain */}
-                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                <div id="subdomain" className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
                   <div>
                     <label className="text-xs font-semibold text-foreground block">Sous-domaine qoe.fi</label>
                     <span className="text-xs text-muted-foreground block mt-0.5">
@@ -648,7 +685,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
                 </div>
 
                 {/* Custom Domain */}
-                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                <div id="custom" className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
                   <div>
                     <label className="text-xs font-semibold text-foreground block">Domaine personnalisé</label>
                     <span className="text-xs text-muted-foreground block mt-0.5">
@@ -704,7 +741,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
               className="space-y-8"
             >
               {/* Header Links */}
-              <div className="space-y-4">
+              <div id="links" className="space-y-4">
                 <div className="flex items-center justify-between pb-2 border-b border-border/30">
                   <div>
                     <h2 className="text-sm font-semibold text-foreground">Menu de navigation principal</h2>
@@ -781,7 +818,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
               </div>
 
               {/* Social Networks */}
-              <div className="space-y-4 pt-6 border-t border-border/30">
+              <div id="social" className="space-y-4 pt-6 border-t border-border/30">
                 <div className="pb-2 border-b border-border/30">
                   <h2 className="text-sm font-semibold text-foreground">Réseaux sociaux</h2>
                   <p className="text-xs text-muted-foreground">Liens vers vos profils externes.</p>
@@ -851,7 +888,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
             >
               <div className="divide-y divide-border/30">
                 {/* Meta Title */}
-                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                <div id="meta" className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
                   <div>
                     <label className="text-xs font-semibold text-foreground block">Titre META (SEO)</label>
                     <span className="text-xs text-muted-foreground block mt-0.5">
@@ -889,7 +926,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
                 </div>
 
                 {/* Search Engine Indexing */}
-                <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                <div id="indexing" className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
                   <div>
                     <label className="text-xs font-semibold text-foreground block">Indexation moteur</label>
                     <span className="text-xs text-muted-foreground block mt-0.5">

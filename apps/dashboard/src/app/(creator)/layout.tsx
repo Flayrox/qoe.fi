@@ -1,3 +1,4 @@
+import { GlobalCommandMenu } from "@/features/dashboard/components/GlobalCommandMenu"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/features/dashboard/components/app-sidebar"
 import { DashboardLayoutContent } from "@/features/dashboard/components/DashboardLayoutContent"
@@ -22,6 +23,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <SidebarProvider>
       <AppSidebar />
       <DashboardLayoutContent>
+        <GlobalCommandMenu />
         {children}
       </DashboardLayoutContent>
     </SidebarProvider>

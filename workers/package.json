@@ -13,9 +13,11 @@
   },
   "dependencies": {
     "@qoe/config": "workspace:*",
+    "@qoe/db": "workspace:*",
     "@qoe/utils": "workspace:*",
     "bullmq": "^5.34.0",
-    "ioredis": "^5.4.1"
+    "ioredis": "^5.4.1",
+    "meilisearch": "^0.44.0"
   },
   "devDependencies": {
     "@qoe/tsconfig": "workspace:*",
