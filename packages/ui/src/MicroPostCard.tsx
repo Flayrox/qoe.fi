@@ -3,7 +3,7 @@
 import React from "react"
 import { motion } from "framer-motion"
 import { cn } from "@qoe/utils"
-import { routes } from "@qoe/config/routes"
+import { routes } from "@qoe/config"
 import { Pin } from "lucide-react"
 import type { FeedPostDTO } from "@qoe/db/types"
 

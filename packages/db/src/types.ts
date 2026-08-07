@@ -66,6 +66,9 @@ export interface FeedArticleDTO {
   author: CreatorProfileDTO;
   category: { name: string } | null;
   tags?: string[];
+  likesCount?: number;
+  repliesCount?: number;
+  liked?: boolean;
 }
 
 /**

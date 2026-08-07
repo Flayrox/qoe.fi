@@ -2,7 +2,6 @@
 
 import React from "react"
 import { usePathname } from "next/navigation"
-
 import { cn } from "@qoe/utils"
 
 interface ReaderPageLayoutProps {
@@ -22,69 +21,46 @@ export function ReaderPageLayout({
   const isTimeline = pathname.endsWith("/home") || pathname.endsWith("/home/")
 
   return (
-    <>
-      {/* ── IMMERSIVE BACKGROUND BLURS ── */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[#faf7f5]" />
-        
+    <div className="relative min-h-screen bg-background text-foreground selection:bg-accent-brand/10 selection:text-accent-brand">
+      {/* ── IMMERSIVE BACKGROUND CANVAS / "LIRE" MANIFESTO LAYER ── */}
+      <div className="fixed top-0 left-0 md:left-[260px] right-0 h-screen pointer-events-none z-0 flex flex-col justify-start px-6 pt-12 overflow-hidden">
+        {/* Soft background ambient glow */}
         <div 
-          className="absolute bottom-[-20%] left-[-15%] w-[80%] h-[70%] rounded-full"
+          className="absolute top-[10%] left-[20%] w-[50%] h-[40%] rounded-full opacity-40 dark:opacity-20 pointer-events-none"
           style={{
-            background: "radial-gradient(ellipse at center, rgba(238,75,43,0.12) 0%, rgba(238,75,43,0.06) 35%, rgba(238,75,43,0.02) 60%, transparent 80%)",
-            filter: "blur(60px)",
-          }}
-        />
-        
-        <div 
-          className="absolute top-[-10%] right-[-10%] w-[60%] h-[50%] rounded-full"
-          style={{
-            background: "radial-gradient(ellipse at center, rgba(255,180,140,0.15) 0%, rgba(255,200,170,0.08) 40%, transparent 70%)",
-            filter: "blur(80px)",
-          }}
-        />
-
-        <div 
-          className="absolute top-[30%] left-[30%] w-[50%] h-[50%] rounded-full"
-          style={{
-            background: "radial-gradient(ellipse at center, rgba(255,230,215,0.2) 0%, transparent 60%)",
+            background: "radial-gradient(ellipse at center, var(--accent-brand, rgba(238,75,43,0.15)) 0%, transparent 70%)",
             filter: "blur(100px)",
           }}
         />
 
-        <div 
-          className="absolute top-0 right-0 bottom-0 w-[35%]"
-          style={{
-            background: "linear-gradient(to left, rgba(250,247,245,0.95) 0%, transparent 100%)",
-          }}
-        />
-      </div>
+        {/* Background "Lire" giant title & manifesto header */}
+        <div className="max-w-[580px] mx-auto w-full space-y-3 pt-6 select-none opacity-90 transition-opacity">
+          {giantTitle && (
+            <div className="flex items-center gap-2">
+              <span className="font-sans text-5xl sm:text-6xl font-extrabold text-accent-brand tracking-tighter">
+                {giantTitle}<span className="text-foreground">{giantTitleSuffix}</span>
+              </span>
+            </div>
+          )}
 
-      {/* ── CENTERED CONTAINER ── */}
-      <div className={cn(
-        "pb-24 max-w-[640px] mx-auto selection:bg-[var(--qoe-vermillion-10)] selection:text-[var(--qoe-vermillion)] relative z-20 px-4 sm:px-6",
-        isTimeline ? "pt-[30vh]" : "pt-5"
-      )}>
-        
-        {/* Render headerWidgets if present - absolute positioned in the background of the title, full-screen width */}
+          <p className="text-sm sm:text-base text-muted-foreground font-normal leading-relaxed max-w-lg">
+            Plateforme souveraine de lecture, d&apos;écriture et d&apos;échanges créateurs. Le flux glissant ci-dessous réunit articles longs et micro-posts en une expérience unifiée.
+          </p>
+        </div>
+
         {headerWidgets && (
-          <div className="absolute top-12 left-1/2 -translate-x-1/2 w-screen z-0 overflow-hidden">
+          <div className="max-w-[580px] mx-auto w-full pt-4">
             {headerWidgets}
           </div>
         )}
-
-        {/* ── STICKY TITLE ── */}
-        {giantTitle && (
-          <div className={cn("sticky h-0 z-10 pointer-events-none select-none", isTimeline ? "top-0" : "top-[48px]")}>
-            <div className="absolute left-2 top-1">
-              <span className="font-sans text-5xl font-extrabold text-[var(--qoe-vermillion)] tracking-tighter">
-                {giantTitle}<span className="text-[var(--text-primary)]">{giantTitleSuffix}</span>
-              </span>
-            </div>
-          </div>
-        )}
-
-        {children}
       </div>
-    </>
+
+      {/* ── FOREGROUND SLIDING FEED SHEET ── */}
+      <div className="relative z-10 w-full min-h-screen">
+        <div className={cn("max-w-[580px] mx-auto px-3 sm:px-4 w-full", isTimeline ? "pt-0" : "pt-8")}>
+          {children}
+        </div>
+      </div>
+    </div>
   )
 }
