@@ -97,3 +97,4 @@ scripts/zip.sh
 # /plans/ contains drafts, design explorations, internal roadmaps
 # that should not be pushed to the public repo.
 plans/
+gemini-code.html
