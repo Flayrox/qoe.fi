@@ -5,12 +5,13 @@ import { motion } from "framer-motion"
 import { ExternalLink, UserPlus, UserCheck, Bookmark, FileText, Clock, Crown } from "lucide-react"
 import { cn } from "@qoe/utils"
 
-import { MicroPostCard } from "@/components/social/MicroPostCard"
+import { ThoughtCard } from "@/components/social/ThoughtCard"
 import { useTranslate } from "@qoe/i18n"
 import { routes } from "@qoe/config/routes"
 import { Balancer } from "react-wrap-balancer"
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card"
 import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
+import { CertifiedBadge } from "@/components/ui/CertifiedBadge"
 
 interface Author {
   id: string
@@ -36,6 +37,8 @@ interface Article {
   author: Author
   category: { name: string } | null
   tags?: string[]
+  parent?: any
+  repost?: any
 }
 
 interface ArticleCardProps {
@@ -114,7 +117,7 @@ export function ArticleCard({
         exit={{ opacity: 0, scale: 0.99 }}
         transition={{ duration: 0.25, delay: idx * 0.03, ease: [0.16, 1, 0.3, 1] }}
       >
-        <MicroPostCard post={article} currentUserId={dbUser?.id || null} onOpenPost={onOpenPost} onOpenProfile={onOpenProfile} />
+        <ThoughtCard post={article} currentUserId={dbUser?.id || null} onOpenPost={onOpenPost} onOpenProfile={onOpenProfile} />
       </motion.div>
     )
   }
@@ -408,16 +411,6 @@ export function ArticleCard({
 }
 
 // ── Sub-components ───────────────────────────────────────────────────────────
-
-function CertifiedBadge() {
-  const { t } = useTranslate()
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label={t("feed.certified_author", "Auteur certifié")}>
-      <circle cx="7" cy="7" r="7" fill="var(--qoe-vermillion)" />
-      <path d="M4.5 7L6.3 8.8L9.5 5.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
 
 function FollowButton({ isFollowed, onToggle }: { isFollowed: boolean; onToggle: () => void }) {
   const { t } = useTranslate()

@@ -33,19 +33,29 @@ const getImages = (url: string | null | undefined): string[] => {
   return [url]
 }
 
-interface MicroPostComposerProps {
+import { QuotedThoughtCard } from "@/components/social/QuotedThoughtCard"
+import type { ThoughtData } from "@/components/social/ThoughtCard"
+
+interface ThoughtComposerProps {
   dbUser: any
   tagsList: string[]
+  quotedThought?: ThoughtData | null
   onPostCreated?: (post: any) => void
   onLoginRequired?: () => void
 }
 
-export function MicroPostComposer({
+export function ThoughtComposer({
   dbUser,
   tagsList,
+  quotedThought: initialQuotedThought = null,
   onPostCreated,
   onLoginRequired,
-}: MicroPostComposerProps) {
+}: ThoughtComposerProps) {
+  const [quotedThought, setQuotedThought] = useState<ThoughtData | null>(initialQuotedThought)
+
+  useEffect(() => {
+    setQuotedThought(initialQuotedThought)
+  }, [initialQuotedThought])
   const [isComposerExpanded, setIsComposerExpanded] = useState<boolean>(false)
   const [postText, setPostText] = useState<string>("")
   const [images, setImages] = useState<ComposerImage[]>([])
@@ -418,7 +428,8 @@ export function MicroPostComposer({
         visibility,
         isDraft: isDraftSubmit,
         scheduledAt: isScheduled && scheduledDate ? getScheduledDateTimeString() : null,
-        triggerWarning: isTriggerWarning && triggerWarning.trim() ? triggerWarning.trim() : null
+        triggerWarning: isTriggerWarning && triggerWarning.trim() ? triggerWarning.trim() : null,
+        repostId: quotedThought?.id || null,
       })
 
       if (res.ok && res.data?.post) {
@@ -454,8 +465,23 @@ export function MicroPostComposer({
             createdAt: post.createdAt,
             author: {
               ...post.author,
-              isCertified: false
+              isCertified: post.author?.isCertified || false
             },
+            repost: post.repost ? {
+              ...post.repost,
+              createdAt: post.repost.createdAt || post.createdAt,
+              author: {
+                ...post.repost.author,
+                isCertified: post.repost.author?.isCertified || false
+              }
+            } : null,
+            parent: post.parent ? {
+              ...post.parent,
+              author: {
+                ...post.parent.author,
+                isCertified: post.parent.author?.isCertified || false
+              }
+            } : null,
             category: { name: "Micro-post" },
             tags: post.tags || []
           })
@@ -465,6 +491,7 @@ export function MicroPostComposer({
 
         setPostText("")
         setImages([])
+        setQuotedThought(null)
         setVisibility("public")
         setIsScheduled(false)
         setScheduledDate(undefined)
@@ -552,6 +579,20 @@ export function MicroPostComposer({
           )}
           style={{ height: isComposerExpanded ? "auto" : "48px" }}
         />
+
+        {quotedThought && (
+          <div className="relative my-2">
+            <button
+              type="button"
+              onClick={() => setQuotedThought(null)}
+              className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-neutral-900/80 text-white hover:bg-neutral-900 transition-colors cursor-pointer"
+              title="Retirer la citation"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <QuotedThoughtCard post={quotedThought} />
+          </div>
+        )}
 
         <AnimatePresence>
           {isComposerExpanded && (
