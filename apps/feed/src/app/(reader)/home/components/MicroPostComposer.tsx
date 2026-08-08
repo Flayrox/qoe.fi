@@ -203,7 +203,7 @@ export function MicroPostComposer({
       return
     }
 
-    const tempId = replaceId || Math.random().toString(36).substring(7)
+    const tempId = replaceId || crypto.randomUUID()
     const initialBlobUrl = URL.createObjectURL(file)
 
     if (replaceId) {
@@ -304,7 +304,7 @@ export function MicroPostComposer({
     
     const imageUrls = getImages(draft.imageUrl)
     const composerImages = imageUrls.map(url => ({
-      id: Math.random().toString(36).substring(7),
+      id: crypto.randomUUID(),
       url,
       isUploading: false
     }))
