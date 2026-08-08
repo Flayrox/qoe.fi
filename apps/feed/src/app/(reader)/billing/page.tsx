@@ -4,6 +4,8 @@ import { prisma } from "@qoe/db/client"
 import { Wallet, CreditCard, ShieldX, ArrowRight, Receipt } from "lucide-react"
 import { ReaderPageLayout } from "@/components/layout/ReaderPageLayout"
 
+import { routes } from "@qoe/config/routes"
+
 export default async function BillingPage() {
   const supabase = await createClient()
   const {
@@ -91,7 +93,7 @@ export default async function BillingPage() {
                       className="flex items-center justify-between border border-border/60 p-4 rounded-xl bg-muted/30 hover:bg-muted/60 transition-colors"
                     >
                       <a
-                        href={sub.creator.username ? `/@${sub.creator.username}` : "#"}
+                        href={sub.creator.username ? routes.feed.profile(sub.creator.username) : "#"}
                         className="flex items-center gap-3 min-w-0 group"
                       >
                         {sub.creator.logoUrl ? (
