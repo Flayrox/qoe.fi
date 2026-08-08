@@ -135,45 +135,45 @@ function FeaturedCard({ article }: { article: Article }) {
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.985 }}
       transition={springs.card}
-      className="flex-shrink-0 w-[300px] h-[160px] bg-white border border-neutral-200/40 rounded-xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.015)] flex flex-col justify-between cursor-pointer"
+      className="flex-shrink-0 w-[300px] h-[160px] bg-card border border-border/40 rounded-xl p-4 shadow-xs flex flex-col justify-between cursor-pointer"
       onClick={() => window.open(url, "_blank", "noreferrer")}
     >
       <div className="space-y-2">
         {/* Top Meta */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-sm overflow-hidden border border-neutral-200/30">
+            <div className="w-5 h-5 rounded-sm overflow-hidden border border-border/40">
               {article.author.logoUrl ? (
                 <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
               ) : (
-                <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-[9px] text-[var(--qoe-vermillion)]">
+                <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-[9px] text-brand">
                   {article.author.name?.substring(0, 2) || "NA"}
                 </div>
               )}
             </div>
-            <span className="text-[10px] font-bold text-neutral-850 truncate max-w-[120px]">
+            <span className="text-[10px] font-bold text-foreground truncate max-w-[120px]">
               {article.author.name}
             </span>
             {article.author.isCertified && (
-              <span className="w-2.5 h-2.5 rounded-full bg-[var(--qoe-vermillion)] flex items-center justify-center text-[6px] text-white font-bold">
+              <span className="w-2.5 h-2.5 rounded-full bg-brand flex items-center justify-center text-[6px] text-background font-bold">
                 ✓
               </span>
             )}
           </div>
           
-          <span className="text-[8px] font-black uppercase tracking-[0.1em] bg-[var(--qoe-vermillion)] text-white px-2 py-0.5 rounded-full">
+          <span className="text-[8px] font-black uppercase tracking-[0.1em] bg-brand text-background px-2 py-0.5 rounded-full">
             À la une
           </span>
         </div>
 
         {/* Title */}
-        <h4 className="font-sans text-xs font-bold text-[var(--text-primary)] leading-snug tracking-tight line-clamp-3 hover:text-[var(--qoe-vermillion)] transition-colors">
+        <h4 className="font-sans text-xs font-bold text-foreground leading-snug tracking-tight line-clamp-3 hover:text-brand transition-colors">
           {article.title}
         </h4>
       </div>
 
       {/* Footer info */}
-      <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)] text-[9px] text-[var(--text-tertiary)] font-sans">
+      <div className="flex items-center justify-between pt-2 border-t border-border/30 text-[9px] text-muted-foreground font-sans">
         <span className="uppercase font-bold tracking-wider">{article.category?.name || "Général"}</span>
         <span className="flex items-center gap-1">
           <Clock className="w-2.5 h-2.5" />
@@ -199,41 +199,41 @@ function RecommendedCard({ article }: { article: Article }) {
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.985 }}
       transition={springs.card}
-      className="flex-shrink-0 w-[280px] h-[160px] bg-white border border-neutral-200/40 rounded-xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.015)] flex flex-col justify-between cursor-pointer"
+      className="flex-shrink-0 w-[280px] h-[160px] bg-card border border-border/40 rounded-xl p-4 shadow-xs flex flex-col justify-between cursor-pointer"
       onClick={() => window.open(url, "_blank", "noreferrer")}
     >
       <div className="space-y-2">
         {/* Top Meta */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-sm overflow-hidden border border-neutral-200/30">
+            <div className="w-5 h-5 rounded-sm overflow-hidden border border-border/40">
               {article.author.logoUrl ? (
                 <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
               ) : (
-                <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-[9px] text-[var(--qoe-vermillion)]">
+                <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-[9px] text-brand">
                   {article.author.name?.substring(0, 2) || "NA"}
                 </div>
               )}
             </div>
-            <span className="text-[10px] font-semibold text-[var(--text-secondary)] truncate max-w-[120px]">
+            <span className="text-[10px] font-semibold text-muted-foreground truncate max-w-[120px]">
               {article.author.name}
             </span>
           </div>
 
-          <span className="text-[8px] font-bold uppercase tracking-[0.1em] text-[var(--qoe-vermillion)] bg-[var(--qoe-vermillion-08)] px-2 py-0.5 rounded-full flex items-center gap-0.5">
+          <span className="text-[8px] font-bold uppercase tracking-[0.1em] text-brand bg-brand/10 px-2 py-0.5 rounded-full flex items-center gap-0.5">
             <Sparkles className="w-2 h-2" />
             Pour vous
           </span>
         </div>
 
         {/* Title */}
-        <h4 className="font-sans text-xs font-bold text-[var(--text-primary)] leading-snug tracking-tight line-clamp-3 hover:text-[var(--qoe-vermillion)] transition-colors">
+        <h4 className="font-sans text-xs font-bold text-foreground leading-snug tracking-tight line-clamp-3 hover:text-brand transition-colors">
           {article.title}
         </h4>
       </div>
 
       {/* Footer Info */}
-      <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)] text-[9px] text-[var(--text-tertiary)] font-sans">
+      <div className="flex items-center justify-between pt-2 border-t border-border/30 text-[9px] text-muted-foreground font-sans">
         <span className="uppercase font-bold tracking-wider">{article.category?.name || "Recommandation"}</span>
         <span className="flex items-center gap-1">
           <Clock className="w-2.5 h-2.5" />
@@ -250,13 +250,13 @@ function TrendsCard({ trends }: { trends: Trend[] }) {
     <motion.div
       whileHover={{ y: -4 }}
       transition={springs.card}
-      className="flex-shrink-0 w-[260px] h-[160px] bg-white border border-neutral-200/40 rounded-xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.015)] flex flex-col justify-between"
+      className="flex-shrink-0 w-[260px] h-[160px] bg-card border border-border/40 rounded-xl p-4 shadow-xs flex flex-col justify-between"
     >
       <div className="space-y-1.5 flex-1 overflow-hidden">
         {/* Top Header */}
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[9px] font-black uppercase tracking-[0.12em] text-[var(--text-secondary)] flex items-center gap-1">
-            <TrendingUp className="w-3 h-3 text-[var(--qoe-vermillion)]" />
+          <span className="text-[9px] font-black uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1">
+            <TrendingUp className="w-3 h-3 text-brand" />
             Tendances
           </span>
         </div>
@@ -270,17 +270,17 @@ function TrendsCard({ trends }: { trends: Trend[] }) {
                 // If it is #attention, filter or link to explorer
                 window.location.href = `/home?tag=${encodeURIComponent(trend.hashtag)}`
               }}
-              className="flex items-center justify-between group/trend cursor-pointer hover:bg-neutral-50 p-1.5 rounded transition-all duration-150"
+              className="flex items-center justify-between group/trend cursor-pointer hover:bg-muted/50 p-1.5 rounded transition-all duration-150"
             >
               <div className="flex flex-col min-w-0">
-                <span className="text-[11px] font-bold text-neutral-900 truncate tracking-tight group-hover/trend:text-[var(--qoe-vermillion)] transition-colors">
+                <span className="text-[11px] font-bold text-foreground truncate tracking-tight group-hover/trend:text-brand transition-colors">
                   {trend.hashtag}
                 </span>
-                <span className="text-[9px] text-neutral-400 font-sans">
+                <span className="text-[9px] text-muted-foreground font-sans">
                   {trend.count} lectures
                 </span>
               </div>
-              <ArrowUpRight className="w-3 h-3 text-neutral-300 opacity-0 group-hover/trend:opacity-100 group-hover/trend:text-[var(--qoe-vermillion)] transition-all" />
+              <ArrowUpRight className="w-3 h-3 text-muted-foreground/60 opacity-0 group-hover/trend:opacity-100 group-hover/trend:text-brand transition-all" />
             </div>
           ))}
         </div>
@@ -296,7 +296,7 @@ function PromoCard({ promo }: { promo: PartnerPromo }) {
       whileHover={{ y: -4 }}
       whileTap={{ scale: 0.985 }}
       transition={springs.card}
-      className="flex-shrink-0 w-[260px] h-[160px] bg-white border border-neutral-200/40 rounded-xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.015)] flex flex-col justify-between cursor-pointer"
+      className="flex-shrink-0 w-[260px] h-[160px] bg-card border border-border/40 rounded-xl p-4 shadow-xs flex flex-col justify-between cursor-pointer"
       onClick={() => {
         if (promo.ctaUrl) {
           window.location.href = promo.ctaUrl
@@ -306,12 +306,12 @@ function PromoCard({ promo }: { promo: PartnerPromo }) {
       <div className="space-y-1">
         {/* Top Header */}
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[8px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary)] flex items-center gap-1">
-            <Megaphone className="w-2.5 h-2.5 text-neutral-400" />
+          <span className="text-[8px] font-bold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1">
+            <Megaphone className="w-2.5 h-2.5 text-muted-foreground" />
             Partenaire
           </span>
           {promo.ctaText && (
-            <span className="text-[8px] font-bold text-[var(--qoe-vermillion)] hover:underline flex items-center gap-0.5">
+            <span className="text-[8px] font-bold text-brand hover:underline flex items-center gap-0.5">
               {promo.ctaText}
               <ArrowUpRight className="w-2.5 h-2.5" />
             </span>

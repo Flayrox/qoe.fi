@@ -19,8 +19,8 @@ export const FEATURE_FLAGS = {
   /** Surlignage sur articles activé */
   HIGHLIGHTS_ENABLED: process.env.FEATURE_HIGHLIGHTS !== "false",
 
-  /** Micro-posts activés (sinon feed = articles uniquement) */
-  MICROPOSTS_ENABLED: process.env.FEATURE_MICROPOSTS !== "false",
+  /** Pensées (Thoughts) activées (sinon feed = articles uniquement) */
+  THOUGHTS_ENABLED: process.env.FEATURE_THOUGHTS !== "false" && process.env.FEATURE_MICROPOSTS !== "false",
 
   /** Recherche sémantique (pgvector) activée */
   SEMANTIC_SEARCH_ENABLED: process.env.FEATURE_SEMANTIC_SEARCH === "true",

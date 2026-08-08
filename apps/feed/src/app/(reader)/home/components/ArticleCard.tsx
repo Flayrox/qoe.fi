@@ -97,19 +97,20 @@ export function ArticleCard({
     setTilt({ x: 0, y: 0 })
   }
 
-  const isMicroPost = !article.title  const isProd = typeof window !== "undefined"
+  const isThought = !article.title
+  const isProd = typeof window !== "undefined"
     ? window.location.hostname.endsWith("qoe.fi")
     : process.env.NODE_ENV === "production"
   const suffix = isProd ? "qoe.fi" : "localhost"
   const host = article.author.customDomain || (article.author.subdomain ? `${article.author.subdomain}.${suffix}` : null)
-  const url = isMicroPost
+  const url = isThought
     ? "#"
     : article.author.subdomain
     ? routes.tenant.article(article.author.subdomain, article.slug)
     : routes.feed.article(article.slug)
 
-  // Micro-post rendering delegated
-  if (isMicroPost) {
+  // Thought rendering delegated
+  if (isThought) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -123,31 +124,31 @@ export function ArticleCard({
   }
 
   const renderAuthorHoverCard = () => (
-    <HoverCardContent className="w-72 p-4 bg-white border border-neutral-200/50 rounded-lg shadow-xl z-50">
+    <HoverCardContent className="w-72 p-4 bg-card border border-border/40 rounded-xl shadow-xl z-50">
       <div className="flex justify-between space-x-4">
-        <div className="w-10 h-10 rounded-sm overflow-hidden border border-neutral-200/30 shrink-0">
+        <div className="w-10 h-10 rounded-md overflow-hidden border border-border/40 shrink-0">
           {article.author.logoUrl ? (
             <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
           ) : (
-            <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)]">
+            <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-xs text-brand">
               {article.author.name?.substring(0, 2) || "NA"}
             </div>
           )}
         </div>
         <div className="space-y-1.5 flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <h4 className="text-xs font-bold text-neutral-900 leading-none">{article.author.name}</h4>
+            <h4 className="text-xs font-bold text-foreground leading-none">{article.author.name}</h4>
             {article.author.isCertified && <CertifiedBadge />}
           </div>
-          <p className="text-[10px] text-neutral-450 leading-none">@{article.author.username || article.author.subdomain}</p>
+          <p className="text-[10px] text-muted-foreground leading-none">@{article.author.username || article.author.subdomain}</p>
           {article.author.heroText && (
-            <p className="text-[10px] text-neutral-600 leading-normal line-clamp-2 pt-0.5">
+            <p className="text-[10px] text-muted-foreground leading-normal line-clamp-2 pt-0.5">
               {article.author.heroText}
             </p>
           )}
-          <div className="flex items-center pt-2 gap-4 text-[9px] font-bold uppercase tracking-wider text-neutral-400">
-            <span className="text-[var(--qoe-vermillion)]">Écrits certifiés</span>
-            <span>12.5k abonnés</span>
+          <div className="flex items-center pt-2 gap-4 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+            <span className="text-brand">Écrits certifiés</span>
+            <span>Abonnés</span>
           </div>
         </div>
       </div>
@@ -481,21 +482,21 @@ function CardFooter({
       </div>
 
       {/* Right : Floating Action Hub */}
-      <div className="flex items-center gap-1 bg-white/95 backdrop-blur-xs border border-neutral-200/40 rounded-full p-1 shadow-[0_3px_10px_rgba(0,0,0,0.03)] opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-0.5 group-hover:translate-y-0">
+      <div className="flex items-center gap-1 bg-card/95 backdrop-blur-xs border border-border/40 rounded-full p-1 shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-0.5 group-hover:translate-y-0">
         <MagneticButton
           onClick={handleOpenInTab}
-          className="p-1.5 text-neutral-450 hover:text-[var(--qoe-vermillion)] hover:bg-[var(--qoe-vermillion-08)] rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
+          className="p-1.5 text-muted-foreground hover:text-brand hover:bg-brand/10 rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
           title={t("feed.tab_label", "Onglet")}
         >
           <FileText className="w-3.5 h-3.5" strokeWidth={1.5} />
         </MagneticButton>
-        <span className="w-[1px] h-3 bg-neutral-200" />
+        <span className="w-[1px] h-3 bg-border/60" />
         <MagneticButton
           onClick={(e) => {
             e.preventDefault()
             window.open(url, "_blank", "noreferrer")
           }}
-          className="p-1.5 text-neutral-450 hover:text-[var(--qoe-vermillion)] hover:bg-[var(--qoe-vermillion-08)] rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
+          className="p-1.5 text-muted-foreground hover:text-brand hover:bg-brand/10 rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
           title={t("feed.read_btn", "Lire")}
         >
           <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.5} />
