@@ -6,6 +6,7 @@ import { useTranslate } from "@qoe/i18n"
 import { motion } from "framer-motion"
 import { trackServerEvent } from "@qoe/analytics"
 import { ReaderPageLayout } from "@/components/layout/ReaderPageLayout"
+import { routes } from "@qoe/config/routes"
 
 interface LibraryClientProps {
   bookmarks: any[]
@@ -73,7 +74,7 @@ export function LibraryClient({ bookmarks }: LibraryClientProps) {
                       <div>
                         <div className="flex items-center justify-between mb-3">
                           <a
-                            href={b.article.author.username ? `/@${b.article.author.username}` : "#"}
+                            href={b.article.author.username ? routes.feed.profile(b.article.author.username) : "#"}
                             className="flex items-center gap-2 group/auth"
                           >
                             {b.article.author.logoUrl ? (

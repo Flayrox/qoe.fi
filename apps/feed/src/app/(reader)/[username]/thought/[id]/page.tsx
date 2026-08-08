@@ -12,7 +12,7 @@ interface ThoughtPageProps {
   }>
 }
 
-export async function generateMetadata({ params }: ThoughtPageProps): Metadata {
+export async function generateMetadata({ params }: ThoughtPageProps): Promise<Metadata> {
   const resolvedParams = await params
   const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, "")
   const postId = resolvedParams.id

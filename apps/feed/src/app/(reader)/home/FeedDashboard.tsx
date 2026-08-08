@@ -405,7 +405,7 @@ export function FeedDashboard({
                               handleFollowToggle={handleFollowToggle}
                               handleBookmarkToggle={handleBookmarkToggle}
                               featured={idx === 0 && activeFeed === "recommandation"}
-                              onOpenPost={(id, authorUsername) => handleOpenPost(id, authorUsername)}
+                              onOpenPost={handleOpenPost}
                               onOpenProfile={(username) => {
                                 window.location.href = routes.feed.profile(username)
                               }}

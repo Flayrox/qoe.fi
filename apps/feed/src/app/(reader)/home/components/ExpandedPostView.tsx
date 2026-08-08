@@ -304,6 +304,20 @@ export function ExpandedPostView({
     )
   }
 
+  const displayAuthor = post.repost ? post.repost.author : post.author
+  const displayContent = post.repost ? post.repost.content : post.content
+  const displayImageUrl = post.repost ? post.repost.imageUrl : post.imageUrl
+
+  const handleBack = () => {
+    if (onClose) {
+      onClose()
+    } else if (typeof window !== "undefined" && window.history.length > 1) {
+      window.history.back()
+    } else {
+      window.location.href = routes.feed.home()
+    }
+  }
+
   return (
     <>
       <motion.div 
@@ -315,14 +329,11 @@ export function ExpandedPostView({
         {/* Navigation top bar */}
         <div className="flex items-center justify-between border-b border-border/40 pb-3">
           <button
-            onClick={() => {
-              if (onClose) onClose()
-              else window.location.href = routes.feed.home()
-            }}
+            onClick={handleBack}
             className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>{t("feed.back_to_feed", "Retour au flux")}</span>
+            <span>{t("feed.back_to_feed", "Retour")}</span>
           </button>
 
           {currentUserId === post.authorId && (
@@ -378,31 +389,38 @@ export function ExpandedPostView({
           </div>
         )}
 
-        {/* ── MAIN FOCUS POST (MATCHES TIMELINE ITEM EXACTLY) ── */}
+        {/* ── MAIN FOCUS POST ── */}
         <div className="py-2 border-b border-border/40 flex flex-col gap-4">
+          {post.repost && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground pl-1 mb-1">
+              <Repeat className="w-3.5 h-3.5 text-emerald-500" />
+              <span><strong className="font-semibold text-foreground">@{post.author.username || post.author.subdomain}</strong> a repartagé</span>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <HoverCard>
               <HoverCardTrigger
                 render={
                   <button 
-                    onClick={() => handleOpenProfile(post.author)}
+                    onClick={() => handleOpenProfile(displayAuthor)}
                     className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author text-left outline-none"
                   >
                     <div className="w-9 h-9 rounded-md overflow-hidden bg-muted shrink-0 transition-transform duration-300 group-hover/author:scale-105">
-                      {post.author.logoUrl ? (
-                        <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
+                      {displayAuthor.logoUrl ? (
+                        <img src={displayAuthor.logoUrl} className="w-full h-full object-cover" alt="" />
                       ) : (
                         <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-xs text-brand">
-                          {post.author.name?.charAt(0) || "U"}
+                          {displayAuthor.name?.charAt(0) || "U"}
                         </div>
                       )}
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-foreground block leading-none group-hover/author:text-brand transition-colors">{post.author.name}</span>
-                        {post.author.isCertified && <span className="text-brand text-xs font-black">✓</span>}
+                        <span className="text-sm font-semibold text-foreground block leading-none group-hover/author:text-brand transition-colors">{displayAuthor.name}</span>
+                        {displayAuthor.isCertified && <span className="text-brand text-xs font-black">✓</span>}
                       </div>
-                      <span className="text-xs text-muted-foreground block mt-1">@{post.author.username || post.author.subdomain}</span>
+                      <span className="text-xs text-muted-foreground block mt-1">@{displayAuthor.username || displayAuthor.subdomain}</span>
                     </div>
                   </button>
                 }
@@ -411,20 +429,20 @@ export function ExpandedPostView({
               <HoverCardContent className="w-72 p-4 bg-card border border-border/40 rounded-lg shadow-xl z-50">
                 <div className="flex justify-between space-x-4">
                   <div className="w-10 h-10 rounded-md overflow-hidden bg-muted shrink-0">
-                    {post.author.logoUrl ? (
-                      <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
+                    {displayAuthor.logoUrl ? (
+                      <img src={displayAuthor.logoUrl} className="w-full h-full object-cover" alt="" />
                     ) : (
                       <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-sm text-brand">
-                        {post.author.name?.charAt(0) || "U"}
+                        {displayAuthor.name?.charAt(0) || "U"}
                       </div>
                     )}
                   </div>
                   <div className="space-y-1 flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <h4 className="text-xs font-bold text-foreground leading-none">{post.author.name}</h4>
-                      {post.author.isCertified && <span className="text-brand text-xs font-black">✓</span>}
+                      <h4 className="text-xs font-bold text-foreground leading-none">{displayAuthor.name}</h4>
+                      {displayAuthor.isCertified && <span className="text-brand text-xs font-black">✓</span>}
                     </div>
-                    <p className="text-xs text-muted-foreground leading-none">@{post.author.username || post.author.subdomain}</p>
+                    <p className="text-xs text-muted-foreground leading-none">@{displayAuthor.username || displayAuthor.subdomain}</p>
                   </div>
                 </div>
               </HoverCardContent>
@@ -441,34 +459,18 @@ export function ExpandedPostView({
               (post.triggerWarning && !isWarningRevealed) && "blur-md pointer-events-none select-none"
             )}>
               <div className="text-base text-foreground leading-relaxed font-sans">
-                <TextParser content={post.content} />
+                <TextParser content={displayContent} />
               </div>
 
-              {getUrls(post.content).length > 0 && (
+              {getUrls(displayContent).length > 0 && (
                 <div className="mt-2">
-                  <LinkPreview urls={getUrls(post.content)} />
+                  <LinkPreview urls={getUrls(displayContent)} />
                 </div>
               )}
 
-              {post.imageUrl && (
+              {displayImageUrl && (
                 <div className="mt-2">
-                  <ImageGrid urls={getImages(post.imageUrl)} onImageClick={(url) => setLightboxImage(url)} />
-                </div>
-              )}
-
-              {post.repost && (
-                <div 
-                  onClick={() => navigateToThought(post.repost.id, post.repost.author.username || post.repost.author.subdomain)}
-                  className="mt-3 p-3 bg-muted/30 border-l-2 border-border/60 hover:border-brand transition-colors cursor-pointer space-y-1"
-                >
-                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                    <Repeat className="w-3.5 h-3.5" />
-                    <span className="font-semibold text-foreground">{post.repost.author.name}</span>
-                    <span>@{post.repost.author.username || post.repost.author.subdomain}</span>
-                  </div>
-                  <p className="text-xs text-foreground/80 line-clamp-2">
-                    {post.repost.content}
-                  </p>
+                  <ImageGrid urls={getImages(displayImageUrl)} onImageClick={(url) => setLightboxImage(url)} />
                 </div>
               )}
             </div>
