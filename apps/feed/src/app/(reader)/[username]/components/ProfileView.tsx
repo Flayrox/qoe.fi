@@ -4,7 +4,7 @@ import React, { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { MapPin, Calendar, Link as LinkIcon, ArrowLeft, Edit3, Repeat, MessageSquare, FileText, Image as ImageIcon } from "lucide-react"
 import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
-import { MicroPostCard } from "@/components/social/MicroPostCard"
+import { ThoughtCard } from "@/components/social/ThoughtCard"
 import { ArticleCard } from "@/app/(reader)/home/components/ArticleCard"
 import { EditProfileModal } from "@/components/profile/EditProfileModal"
 import { toggleFollowCreator } from "@/app/(reader)/home/actions"
@@ -84,10 +84,10 @@ export function ProfileView({
   }
 
   // Filter content for tabs
-  const rootThoughts = user.posts?.filter((p: any) => !p.parentId && !p.repostId) || []
+  const rootThoughts = user.posts?.filter((p: any) => !p.parentId) || []
   const replyThoughts = user.posts?.filter((p: any) => !!p.parentId) || []
   const articlesList = user.articles || []
-  const repostsList = user.posts?.filter((p: any) => !!p.repostId && !!p.repost).map((p: any) => p.repost) || []
+  const repostsList = user.posts?.filter((p: any) => !!p.repostId && !!p.repost) || []
   const mediaThoughts = user.posts?.filter((p: any) => !!p.imageUrl) || []
 
   const formattedJoinedDate = new Date(user.createdAt).toLocaleDateString("fr-FR", {
@@ -255,12 +255,13 @@ export function ProfileView({
                 <EmptyTabMessage message="Aucune pensée originale publiée pour le moment." />
               ) : (
                 rootThoughts.map((post: any) => (
-                  <MicroPostCard
+                  <ThoughtCard
                     key={post.id}
                     post={post}
                     currentUserId={currentUserId}
                     onOpenPost={(id, authorUsername) => {
-                      window.location.href = routes.feed.thought(authorUsername || user.username || "user", id)
+                      const handle = authorUsername || user.username || user.subdomain || user.id
+                      window.location.href = routes.feed.thought(handle, id)
                     }}
                   />
                 ))
@@ -274,12 +275,13 @@ export function ProfileView({
                 <EmptyTabMessage message="Aucune réponse publiée pour le moment." />
               ) : (
                 replyThoughts.map((post: any) => (
-                  <MicroPostCard
+                  <ThoughtCard
                     key={post.id}
                     post={post}
                     currentUserId={currentUserId}
                     onOpenPost={(id, authorUsername) => {
-                      window.location.href = routes.feed.thought(authorUsername || user.username || "user", id)
+                      const handle = authorUsername || user.username || user.subdomain || user.id
+                      window.location.href = routes.feed.thought(handle, id)
                     }}
                   />
                 ))
@@ -314,12 +316,13 @@ export function ProfileView({
                 <EmptyTabMessage message="Aucun contenu repartagé." />
               ) : (
                 repostsList.map((post: any) => (
-                  <MicroPostCard
+                  <ThoughtCard
                     key={post.id}
                     post={post}
                     currentUserId={currentUserId}
                     onOpenPost={(id, authorUsername) => {
-                      window.location.href = routes.feed.thought(authorUsername || post.author.username || "user", id)
+                      const handle = authorUsername || post.author?.username || post.author?.subdomain || user.username || user.subdomain || user.id
+                      window.location.href = routes.feed.thought(handle, id)
                     }}
                   />
                 ))
@@ -333,12 +336,13 @@ export function ProfileView({
                 <EmptyTabMessage message="Aucun média partagé." />
               ) : (
                 mediaThoughts.map((post: any) => (
-                  <MicroPostCard
+                  <ThoughtCard
                     key={post.id}
                     post={post}
                     currentUserId={currentUserId}
                     onOpenPost={(id, authorUsername) => {
-                      window.location.href = routes.feed.thought(authorUsername || user.username || "user", id)
+                      const handle = authorUsername || user.username || user.subdomain || user.id
+                      window.location.href = routes.feed.thought(handle, id)
                     }}
                   />
                 ))

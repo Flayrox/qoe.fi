@@ -1,9 +1,10 @@
 import { createClient } from "@qoe/supabase/server"
 import { posts } from "@qoe/db"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import type { Metadata } from "next"
 import { ReaderPageLayout } from "@/components/layout/ReaderPageLayout"
-import { ExpandedPostView } from "@/app/(reader)/home/components/ExpandedPostView"
+import { ThoughtThreadView } from "@/app/(reader)/home/components/ThoughtThreadView"
+import { routes } from "@qoe/config/routes"
 
 interface ThoughtPageProps {
   params: Promise<{
@@ -24,22 +25,24 @@ export async function generateMetadata({ params }: ThoughtPageProps): Promise<Me
     }
   }
 
-  const authorName = post.author.name || `@${rawUsername}`
-  const shortContent = post.content.length > 80 ? `${post.content.slice(0, 80)}...` : post.content
+  // If this post is a pure repost pointer, use the original post for metadata
+  const targetPost = post.repost || post
+  const authorName = targetPost.author.name || `@${targetPost.author.username || targetPost.author.subdomain}`
+  const shortContent = targetPost.content.length > 80 ? `${targetPost.content.slice(0, 80)}...` : targetPost.content
 
   return {
     title: `${authorName} sur qoe.fi : "${shortContent}"`,
-    description: post.content,
+    description: targetPost.content,
     openGraph: {
       title: `${authorName} sur qoe.fi`,
-      description: post.content,
-      images: post.imageUrl ? [{ url: post.imageUrl }] : undefined,
+      description: targetPost.content,
+      images: targetPost.imageUrl ? [{ url: targetPost.imageUrl }] : undefined,
     },
     twitter: {
-      card: post.imageUrl ? "summary_large_image" : "summary",
+      card: targetPost.imageUrl ? "summary_large_image" : "summary",
       title: `${authorName} sur qoe.fi`,
-      description: post.content,
-      images: post.imageUrl ? [post.imageUrl] : undefined,
+      description: targetPost.content,
+      images: targetPost.imageUrl ? [targetPost.imageUrl] : undefined,
     },
   }
 }
@@ -57,11 +60,23 @@ export default async function ThoughtPage({ params }: ThoughtPageProps) {
     notFound()
   }
 
+  // 1. If this is a pure repost record, redirect to the original post's canonical URL
+  if (post.repost) {
+    const originalAuthorHandle = post.repost.author.username || post.repost.author.subdomain || post.repost.author.id
+    redirect(routes.feed.thought(originalAuthorHandle, post.repost.id))
+  }
+
+  // 2. If the URL username does not match the actual post author, redirect to canonical URL
+  const canonicalAuthorHandle = post.author.username || post.author.subdomain || post.author.id
+  if (rawUsername.toLowerCase() !== canonicalAuthorHandle.toLowerCase()) {
+    redirect(routes.feed.thought(canonicalAuthorHandle, post.id))
+  }
+
   return (
     <ReaderPageLayout giantTitle="Pensée">
       <main className="mt-64 sm:mt-72 bg-card/95 backdrop-blur-2xl text-card-foreground rounded-t-2xl border-t border-x border-border/40 shadow-2xl min-h-screen relative z-10 transition-all">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-          <ExpandedPostView
+          <ThoughtThreadView
             postId={postId}
             currentUserId={user?.id || null}
             initialPost={post}

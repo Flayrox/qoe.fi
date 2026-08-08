@@ -9,11 +9,18 @@ import { FeedDashboard } from "./FeedDashboard"
 type PostWithDetails = Prisma.PostGetPayload<{
   include: {
     author: { select: { id: true; name: true; username: true; subdomain: true; customDomain: true; logoUrl: true; heroText: true; isCertified: true } };
-    parent: { select: { id: true; author: { select: { id: true; name: true; username: true; subdomain: true } } } };
+    parent: {
+      select: {
+        id: true;
+        content: true;
+        createdAt: true;
+        author: { select: { id: true; name: true; username: true; subdomain: true; logoUrl: true; isCertified: true } };
+      };
+    };
     repost: {
       include: {
-        author: { select: { id: true; name: true; username: true; subdomain: true; customDomain: true; logoUrl: true; heroText: true; isCertified: true } }
-      }
+        author: { select: { id: true; name: true; username: true; subdomain: true; customDomain: true; logoUrl: true; heroText: true; isCertified: true } };
+      };
     };
     likes: { select: { userId: true } };
     _count: { select: { likes: true; replies: true } };
@@ -29,7 +36,14 @@ type ArticleWithDetails = Prisma.ArticleGetPayload<{
 
 const postIncludeSelect = {
   author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
-  parent: { select: { id: true, author: { select: { id: true, name: true, username: true, subdomain: true } } } },
+  parent: {
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+      author: { select: { id: true, name: true, username: true, subdomain: true, logoUrl: true, isCertified: true } }
+    }
+  },
   repost: {
     include: {
       author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } }
@@ -74,9 +88,17 @@ export default async function ReaderHomePage() {
       ...post.author,
       isCertified: post.author.isCertified || false
     },
-    parent: post.parent || null,
+    parent: post.parent ? {
+      ...post.parent,
+      createdAt: post.parent.createdAt ? post.parent.createdAt.toISOString() : undefined,
+      author: {
+        ...post.parent.author,
+        isCertified: post.parent.author.isCertified || false
+      }
+    } : null,
     repost: post.repost ? {
       ...post.repost,
+      createdAt: post.repost.createdAt ? post.repost.createdAt.toISOString() : post.createdAt.toISOString(),
       author: {
         ...post.repost.author,
         isCertified: post.repost.author.isCertified || false

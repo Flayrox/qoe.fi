@@ -21,7 +21,7 @@ export { BentoPlateau, BentoItem } from "./BentoPlateau";
 export { GuestFloatingBar, type AuthActionContext } from "./GuestFloatingBar";
 export { LoginModal } from "./LoginModal";
 export { ArticleCard } from "./ArticleCard";
-export { MicroPostCard } from "./MicroPostCard";
+export { ThoughtCard } from "./ThoughtCard";
 export {
   Sidebar,
   SidebarHeader,
