@@ -5,13 +5,14 @@ import { motion } from "framer-motion"
 
 import { TextParser } from "@/components/ui/TextParser"
 import { cn } from "@qoe/utils"
-import { MoreHorizontal, Pin, CornerDownRight, Repeat, Quote } from "lucide-react"
+import { MoreHorizontal, Pin, CornerDownRight, Repeat, Quote, Flag } from "lucide-react"
 import { LikeIcon, CommentIcon, RepostIcon, ShareIcon } from "@/components/icons/CustomIcons"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { LinkPreview } from "./LinkPreview"
 import { QuotedThoughtCard } from "./QuotedThoughtCard"
+import { ModerationReportModal } from "./ModerationReportModal"
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card"
 import { routes } from "@qoe/config/routes"
 import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
@@ -151,6 +152,7 @@ export function ThoughtCard({ post, currentUserId: propUserId, onOpenProfile, on
   }
 
   const [showRepostPopover, setShowRepostPopover] = React.useState<boolean>(false)
+  const [showReportModal, setShowReportModal] = React.useState<boolean>(false)
 
   const handleDirectRepost = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -308,66 +310,79 @@ export function ThoughtCard({ post, currentUserId: propUserId, onOpenProfile, on
             }
           />
           
-          <HoverCardContent className="w-72 p-4 bg-white border border-neutral-200/50 rounded-lg shadow-xl z-50">
+          <HoverCardContent className="w-72 p-4 bg-card border border-border/40 rounded-xl shadow-xl z-50">
             <div className="flex justify-between space-x-4">
-              <div className="w-10 h-10 rounded-sm overflow-hidden border border-neutral-200/30 shrink-0">
+              <div className="w-10 h-10 rounded-md overflow-hidden border border-border/40 shrink-0">
                 {displayAuthor.logoUrl ? (
                   <img src={displayAuthor.logoUrl} className="w-full h-full object-cover" alt="" />
                 ) : (
-                  <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-sm text-[var(--qoe-vermillion)]">
+                  <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-sm text-brand">
                     {displayAuthor.name?.charAt(0) || "U"}
                   </div>
                 )}
               </div>
               <div className="space-y-1.5 flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <h4 className="text-xs font-bold text-neutral-900 leading-none">{displayAuthor.name}</h4>
-                  {displayAuthor.isCertified && <span className="text-[var(--qoe-vermillion)] text-[10px] font-black">✓</span>}
+                  <h4 className="text-xs font-bold text-foreground leading-none">{displayAuthor.name}</h4>
+                  {displayAuthor.isCertified && <span className="text-brand text-[10px] font-black">✓</span>}
                 </div>
-                <p className="text-[10px] text-neutral-450 leading-none">@{displayAuthor.username || displayAuthor.subdomain}</p>
-                <div className="flex items-center pt-2 gap-4 text-[9px] font-bold uppercase tracking-wider text-neutral-400">
-                  <span className="text-[var(--qoe-vermillion)] font-sans">Auteur certifié</span>
-                  <span className="font-sans">8.4k abonnés</span>
+                <p className="text-[10px] text-muted-foreground leading-none">@{displayAuthor.username || displayAuthor.subdomain}</p>
+                <div className="flex items-center pt-2 gap-4 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <span className="text-brand font-sans">Auteur certifié</span>
+                  <span className="font-sans">Abonnés</span>
                 </div>
               </div>
             </div>
           </HoverCardContent>
         </HoverCard>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-neutral-400 font-medium">
+          <span className="text-[10px] text-muted-foreground font-medium">
             {new Date(displayCreatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
           </span>
           
-          {currentUserId === displayAuthor.id && (
-            <Popover open={showPopover} onOpenChange={setShowPopover}>
-              <PopoverTrigger
-                render={
-                  <button
-                    type="button"
-                    className="p-1 rounded-[var(--radius-button)] hover:bg-[var(--surface-2)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors cursor-pointer flex items-center justify-center outline-none"
-                    title="Options"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setShowPopover(true)
-                    }}
-                  >
-                    <MoreHorizontal className="w-3.5 h-3.5" />
-                  </button>
-                }
-              />
-              <PopoverContent align="end" className="w-44 p-1.5 space-y-0.5 bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-button)] shadow-lg z-50">
+          <Popover open={showPopover} onOpenChange={setShowPopover}>
+            <PopoverTrigger
+              render={
+                <button
+                  type="button"
+                  className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center justify-center outline-none"
+                  title="Options"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setShowPopover(true)
+                  }}
+                >
+                  <MoreHorizontal className="w-3.5 h-3.5" />
+                </button>
+              }
+            />
+            <PopoverContent align="end" className="w-44 p-1.5 space-y-0.5 bg-card border border-border/40 rounded-xl shadow-lg z-50">
+              {currentUserId === displayAuthor.id && (
                 <button
                   type="button"
                   onClick={handlePinToggle}
-                  className="w-full text-left px-2.5 py-1.5 rounded-[var(--radius-button)] text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-2 cursor-pointer"
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer"
                 >
                   <Pin className="w-3.5 h-3.5 rotate-45" />
                   <span>{post.isPinned ? "Désépingler" : "Épingler"}</span>
                 </button>
-              </PopoverContent>
-            </Popover>
-          )}
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setShowPopover(false)
+                  setShowReportModal(true)
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-amber-500 hover:bg-amber-500/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
+              >
+                <Flag className="w-3.5 h-3.5" />
+                <span>Signaler</span>
+              </button>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
@@ -378,7 +393,7 @@ export function ThoughtCard({ post, currentUserId: propUserId, onOpenProfile, on
         )}>
           <div 
             onClick={handleOpenPost}
-            className="text-[15px] sm:text-[16px] text-neutral-800 leading-relaxed font-sans cursor-pointer hover:text-neutral-950 transition-colors duration-200 pt-1"
+            className="text-[15px] sm:text-[16px] text-foreground/90 leading-relaxed font-sans cursor-pointer hover:text-foreground transition-colors duration-200 pt-1"
           >
             <TextParser content={displayContent} />
           </div>
@@ -412,14 +427,14 @@ export function ThoughtCard({ post, currentUserId: propUserId, onOpenProfile, on
         </div>
 
         {hasWarning && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/40 dark:bg-black/40 backdrop-blur-md transition-all duration-300 p-4">
-            <span className="text-[11px] uppercase tracking-wider text-amber-600 mb-2 font-bold">Avertissement</span>
-            <p className="text-[13px] font-medium text-neutral-900 dark:text-neutral-100 text-center max-w-[280px] mb-3.5 leading-snug">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/80 backdrop-blur-md transition-all duration-300 p-4">
+            <span className="text-[11px] uppercase tracking-wider text-amber-500 mb-2 font-bold">Avertissement</span>
+            <p className="text-[13px] font-medium text-foreground text-center max-w-[280px] mb-3.5 leading-snug">
               {post.triggerWarning}
             </p>
             <button
               onClick={() => setIsRevealed(true)}
-              className="px-3.5 py-2 bg-neutral-900 hover:bg-neutral-850 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-black hover:opacity-90 text-[10px] font-bold rounded-[var(--radius-button)] transition-all cursor-pointer shadow-sm uppercase tracking-wider"
+              className="px-3.5 py-2 bg-foreground text-background hover:opacity-90 text-[10px] font-bold rounded-lg transition-all cursor-pointer shadow-sm uppercase tracking-wider"
             >
               Afficher
             </button>
@@ -432,12 +447,12 @@ export function ThoughtCard({ post, currentUserId: propUserId, onOpenProfile, on
         <button
           onClick={handleLikeToggle}
           className={cn(
-            "flex items-center gap-1.5 hover:text-[var(--qoe-vermillion)] transition-colors cursor-pointer outline-none",
-            liked && "text-[var(--qoe-vermillion)] font-semibold"
+            "flex items-center gap-1.5 hover:text-brand transition-colors cursor-pointer outline-none",
+            liked && "text-brand font-semibold"
           )}
         >
           <motion.div whileTap={{ scale: 1.3 }}>
-            <LikeIcon className="w-3.5 h-3.5" style={{ fill: liked ? "var(--qoe-vermillion)" : "transparent" }} />
+            <LikeIcon className="w-3.5 h-3.5" style={{ fill: liked ? "var(--accent-brand, #EE4B2B)" : "transparent" }} />
           </motion.div>
           <span>{likesCount}</span>
         </button>
@@ -498,6 +513,13 @@ export function ThoughtCard({ post, currentUserId: propUserId, onOpenProfile, on
           <span>Partager</span>
         </button>
       </div>
+
+      <ModerationReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        targetId={displayPostId}
+        targetType="thought"
+      />
     </motion.div>
   )
 }
@@ -519,15 +541,15 @@ function ImageGrid({ urls }: { urls: string[] }) {
 
   return (
     <div className={cn(
-      "grid gap-3 overflow-hidden rounded-md",
+      "grid gap-3 overflow-hidden rounded-xl",
       urls.length === 1 ? "grid-cols-1" : "grid-cols-2"
     )}>
       {urls.map((url) => (
         <div
           key={url}
-          className="relative overflow-hidden bg-white p-0.5 border border-neutral-200/60 shadow-[0_1px_4px_rgba(0,0,0,0.02)] rounded-md group/img"
+          className="relative overflow-hidden bg-card p-0.5 border border-border/40 shadow-xs rounded-xl group/img"
         >
-          <div className="relative overflow-hidden aspect-video rounded-sm border border-neutral-100/50">
+          <div className="relative overflow-hidden aspect-video rounded-lg border border-border/30">
             <img
               src={url}
               alt=""
