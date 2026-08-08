@@ -37,6 +37,7 @@ export const createMicroPost = safeAction<{
   isDraft?: boolean;
   scheduledAt?: string | null;
   triggerWarning?: string | null;
+  repostId?: string | null;
 }, { post: any }>(async (rawInput, user) => {
   const input = createMicroPostSchema.parse(rawInput)
   const cleanContent = input.content
@@ -66,7 +67,8 @@ export const createMicroPost = safeAction<{
     visibility: input.visibility,
     isDraft: input.isDraft,
     scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
-    triggerWarning: input.triggerWarning || null
+    triggerWarning: input.triggerWarning || null,
+    repostId: input.repostId || null,
   })
 
   revalidatePath("/home")
@@ -98,6 +100,10 @@ export const getArticleThread = safeAction<string, { article: any }>(async (slug
 
 export const repostPost = safeAction<string, { repost: any }>(async (postId, user) => {
   const repost = await posts.repostPost(postId, user.id)
+  revalidatePath("/home")
+  if (user.username) {
+    revalidatePath(routes.feed.profile(user.username))
+  }
   return { repost }
 })
 
@@ -180,7 +186,20 @@ export const getProfileData = safeAction<string, {
       })
     },
     include: {
-      author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } },
+      author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true, subdomain: true } },
+      parent: {
+        select: {
+          id: true,
+          content: true,
+          createdAt: true,
+          author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true, subdomain: true } }
+        }
+      },
+      repost: {
+        include: {
+          author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true, subdomain: true } }
+        }
+      },
       likes: { select: { userId: true } },
       _count: { select: { likes: true, replies: true } }
     },
@@ -222,6 +241,22 @@ export const getProfileData = safeAction<string, {
     posts: dbPosts.map(p => ({
       ...p,
       createdAt: p.createdAt.toISOString(),
+      parent: p.parent ? {
+        ...p.parent,
+        createdAt: p.parent.createdAt ? p.parent.createdAt.toISOString() : undefined,
+        author: {
+          ...p.parent.author,
+          isCertified: p.parent.author.isCertified || false
+        }
+      } : null,
+      repost: p.repost ? {
+        ...p.repost,
+        createdAt: p.repost.createdAt ? p.repost.createdAt.toISOString() : p.createdAt.toISOString(),
+        author: {
+          ...p.repost.author,
+          isCertified: p.repost.author.isCertified || false
+        }
+      } : null,
       likesCount: p._count.likes,
       repliesCount: p._count.replies,
       liked: p.likes.some(l => l.userId === currentUserId)
