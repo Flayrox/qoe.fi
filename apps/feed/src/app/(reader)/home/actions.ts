@@ -6,6 +6,10 @@ export async function toggleFollowCreatorHome(creatorId: string) {
   return feedActions.toggleFollowCreatorHome(creatorId)
 }
 
+export async function toggleFollowCreator(creatorId: string) {
+  return feedActions.toggleFollowCreatorHome(creatorId)
+}
+
 export async function toggleBookmarkArticleHome(articleId: string) {
   return feedActions.toggleBookmarkArticleHome(articleId)
 }

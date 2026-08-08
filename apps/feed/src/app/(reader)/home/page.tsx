@@ -9,6 +9,7 @@ import { FeedDashboard } from "./FeedDashboard"
 type PostWithDetails = Prisma.PostGetPayload<{
   include: {
     author: { select: { id: true; name: true; username: true; subdomain: true; customDomain: true; logoUrl: true; heroText: true; isCertified: true } };
+    parent: { select: { id: true; author: { select: { id: true; name: true; username: true; subdomain: true } } } };
     likes: { select: { userId: true } };
     _count: { select: { likes: true; replies: true } };
   };
@@ -56,6 +57,7 @@ export default async function ReaderHomePage() {
       ...post.author,
       isCertified: post.author.isCertified || false
     },
+    parent: post.parent || null,
     category: { name: "Micro-post" },
     tags: post.tags || [],
     likesCount: post._count?.likes || 0,
@@ -112,6 +114,7 @@ export default async function ReaderHomePage() {
         },
         include: {
           author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
+          parent: { select: { id: true, author: { select: { id: true, name: true, username: true, subdomain: true } } } },
           likes: { select: { userId: true } },
           _count: { select: { likes: true, replies: true } }
         },
@@ -157,6 +160,7 @@ export default async function ReaderHomePage() {
     },
     include: {
       author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
+      parent: { select: { id: true, author: { select: { id: true, name: true, username: true, subdomain: true } } } },
       likes: { select: { userId: true } },
       _count: { select: { likes: true, replies: true } }
     },
@@ -199,6 +203,7 @@ export default async function ReaderHomePage() {
     },
     include: {
       author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
+      parent: { select: { id: true, author: { select: { id: true, name: true, username: true, subdomain: true } } } },
       likes: { select: { userId: true } },
       _count: { select: { likes: true, replies: true } }
     },

@@ -10,6 +10,7 @@ import { useTranslate } from "@qoe/i18n"
 import { routes } from "@qoe/config/routes"
 import { Balancer } from "react-wrap-balancer"
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card"
+import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
 
 interface Author {
   id: string
@@ -237,15 +238,7 @@ export function ArticleCard({
                       whileTap={{ scale: 0.98 }}
                       className="flex items-center gap-2.5 hover:opacity-85 transition-opacity group/author outline-none cursor-pointer"
                     >
-                      <div className="w-8 h-8 rounded-sm overflow-hidden border border-[var(--border-default)] shrink-0">
-                        {article.author.logoUrl ? (
-                          <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
-                        ) : (
-                          <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)]">
-                            {article.author.name?.substring(0, 2) || "NA"}
-                          </div>
-                        )}
-                      </div>
+                      <AuthorAvatar user={article.author} size="sm" showBadge={false} />
                       <div>
                         <div className="flex items-center gap-1.5">
                           <span className="text-[13px] font-bold text-[var(--text-primary)] tracking-tight group-hover/author:text-[var(--qoe-vermillion)] transition-colors">
@@ -340,15 +333,7 @@ export function ArticleCard({
                   whileTap={{ scale: 0.98 }}
                   className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 rounded-[var(--radius-icon)]"
                 >
-                  <div className="w-9 h-9 rounded-sm overflow-hidden border border-[var(--border-default)] shrink-0 transition-transform duration-500 ease-[0.16,1,0.3,1] group-hover/author:scale-105">
-                    {article.author.logoUrl ? (
-                      <img src={article.author.logoUrl} className="w-full h-full object-cover" alt="" />
-                    ) : (
-                      <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-xs text-[var(--qoe-vermillion)]">
-                        {article.author.name?.substring(0, 2) || "NA"}
-                      </div>
-                    )}
-                  </div>
+                  <AuthorAvatar user={article.author} size="md" showBadge={false} />
                   <div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[13px] font-bold text-[var(--text-primary)] tracking-tight leading-none group-hover/author:text-[var(--qoe-vermillion)] transition-colors duration-200">

@@ -5,13 +5,14 @@ import { motion } from "framer-motion"
 
 import { TextParser } from "@/components/ui/TextParser"
 import { cn } from "@qoe/utils"
-import { MoreHorizontal, Pin } from "lucide-react"
+import { MoreHorizontal, Pin, CornerDownRight } from "lucide-react"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { LinkPreview } from "./LinkPreview"
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card"
 import { routes } from "@qoe/config/routes"
+import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
 
 export interface MicroPostData {
   id: string
@@ -20,6 +21,15 @@ export interface MicroPostData {
   createdAt: string | Date
   triggerWarning?: string | null
   isPinned?: boolean
+  parent?: {
+    id: string
+    author: {
+      id: string
+      name: string | null
+      username: string | null
+      subdomain?: string | null
+    }
+  } | null
   author: {
     id: string
     name: string | null
@@ -35,7 +45,7 @@ const getUrls = (text: string): string[] => {
   return text.match(urlRegex) || []
 }
 
-export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, onOpenPost }: { post: MicroPostData; currentUserId?: string | null; onOpenProfile?: (username: string) => void; onOpenPost?: (postId: string) => void }) {
+export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, onOpenPost }: { post: MicroPostData; currentUserId?: string | null; onOpenProfile?: (username: string) => void; onOpenPost?: (postId: string, authorUsername?: string) => void }) {
   const [isRevealed, setIsRevealed] = React.useState<boolean>(false)
   const [currentUserId, setCurrentUserId] = React.useState<string | null>(propUserId || null)
   const [showPopover, setShowPopover] = React.useState<boolean>(false)
@@ -108,7 +118,17 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
 
   const handleOpenPost = () => {
     if (onOpenPost) {
-      onOpenPost(post.id)
+      const username = post.author.username || post.author.subdomain || "user"
+      onOpenPost(post.id, username)
+    }
+  }
+
+  const handleOpenParentPost = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (post.parent && onOpenPost) {
+      const parentUsername = post.parent.author.username || post.parent.author.subdomain || "user"
+      onOpenPost(post.parent.id, parentUsername)
     }
   }
 
@@ -127,14 +147,25 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
         perspective: 1000,
         transformStyle: "preserve-3d"
       }}
-      className="py-4 border-b border-neutral-100/70 flex flex-col gap-5 hover:scale-[1.001] transition-all duration-500 ease-[0.16,1,0.3,1]"
+      className="py-4 border-b border-border/40 flex flex-col gap-3 hover:scale-[1.001] transition-all duration-500 ease-[0.16,1,0.3,1]"
     >
       {post.isPinned && (
-        <div className="flex items-center gap-1.5 text-[9px] font-bold text-[var(--qoe-vermillion)] uppercase tracking-wider pl-1">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-brand pl-1">
           <Pin className="w-3 h-3 fill-current rotate-45" />
-          <span>Lien Maison (Épinglé)</span>
+          <span>Épinglé</span>
         </div>
       )}
+
+      {post.parent && (
+        <button
+          onClick={handleOpenParentPost}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer pl-1 text-left outline-none"
+        >
+          <CornerDownRight className="w-3.5 h-3.5 text-brand" />
+          <span>En réponse à <strong className="font-semibold text-foreground">@{post.parent.author.username || post.parent.author.subdomain}</strong></span>
+        </button>
+      )}
+
       <div className="flex items-center justify-between">
         <HoverCard>
           <HoverCardTrigger
@@ -143,21 +174,13 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
                 onClick={handleOpenProfile}
                 className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left"
               >
-                <div className="w-9 h-9 rounded-sm overflow-hidden border-[0.5px] border-neutral-200/50 shrink-0 transition-transform duration-500 group-hover/author:scale-105">
-                  {post.author.logoUrl ? (
-                    <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
-                  ) : (
-                    <div className="w-full h-full bg-[#EE4B2B]/5 flex items-center justify-center font-bold text-xs text-[#EE4B2B]">
-                      {post.author.name?.charAt(0) || "U"}
-                    </div>
-                  )}
-                </div>
+                <AuthorAvatar user={post.author} size="md" showBadge={false} />
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[13px] font-bold text-neutral-900 block leading-none group-hover/author:text-[#EE4B2B] transition-colors">{post.author.name}</span>
-                    {post.author.isCertified && <span className="text-[#EE4B2B] text-[10px] font-black">✓</span>}
+                    <span className="text-sm font-semibold text-foreground block leading-none group-hover/author:text-brand transition-colors">{post.author.name}</span>
+                    {post.author.isCertified && <span className="text-brand text-xs font-black">✓</span>}
                   </div>
-                  <span className="text-[10px] text-neutral-450 block mt-1 uppercase tracking-wider font-sans">@{post.author.username || post.author.subdomain}</span>
+                  <span className="text-xs text-muted-foreground block mt-1 font-sans">@{post.author.username || post.author.subdomain}</span>
                 </div>
               </button>
             }
