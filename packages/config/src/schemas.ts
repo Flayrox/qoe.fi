@@ -15,12 +15,14 @@ export const createMicroPostSchema = z.object({
   isDraft: z.boolean().default(false),
   scheduledAt: z.string().nullable().optional(),
   triggerWarning: z.string().nullable().optional(),
+  repostId: z.string().nullable().optional(),
 }).refine((data) => {
   const hasContent = data.content.length > 0
   const hasImage = !!(data.imageUrl && data.imageUrl.trim() && data.imageUrl !== "[]" && data.imageUrl !== "null")
-  return hasContent || hasImage
+  const hasRepost = !!data.repostId
+  return hasContent || hasImage || hasRepost
 }, {
-  message: "Le contenu ou une image est requis pour publier un post.",
+  message: "Le contenu, une image ou une citation est requis pour publier un post.",
   path: ["content"]
 })
 

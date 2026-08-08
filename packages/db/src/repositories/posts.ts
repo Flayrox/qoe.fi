@@ -31,7 +31,7 @@ export async function findFollowingFeed(
       ],
       visibility: { in: [POST_VISIBILITY.PUBLIC, POST_VISIBILITY.FOLLOWERS] },
     },
-    orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
+    orderBy: [{ createdAt: "desc" }],
     take: options?.take ?? 20,
     skip: options?.skip ?? 0,
     include: {
@@ -44,6 +44,38 @@ export async function findFollowingFeed(
           customDomain: true,
           logoUrl: true,
           isCertified: true,
+        },
+      },
+      parent: {
+        select: {
+          id: true,
+          content: true,
+          createdAt: true,
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              subdomain: true,
+              logoUrl: true,
+              isCertified: true,
+            },
+          },
+        },
+      },
+      repost: {
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              subdomain: true,
+              customDomain: true,
+              logoUrl: true,
+              isCertified: true,
+            },
+          },
         },
       },
       _count: { select: { likes: true, replies: true, reposts: true } },
@@ -77,6 +109,38 @@ export async function findTrending(limit: number = 20) {
           isCertified: true,
         },
       },
+      parent: {
+        select: {
+          id: true,
+          content: true,
+          createdAt: true,
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              subdomain: true,
+              logoUrl: true,
+              isCertified: true,
+            },
+          },
+        },
+      },
+      repost: {
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              subdomain: true,
+              customDomain: true,
+              logoUrl: true,
+              isCertified: true,
+            },
+          },
+        },
+      },
       _count: { select: { likes: true, replies: true, reposts: true } },
     },
   });
@@ -94,6 +158,7 @@ export async function createMicroPost(data: {
   isDraft?: boolean;
   scheduledAt?: Date | null;
   triggerWarning?: string | null;
+  repostId?: string | null;
 }) {
   return prisma.post.create({
     data: {
@@ -105,6 +170,7 @@ export async function createMicroPost(data: {
       isDraft: data.isDraft ?? false,
       scheduledAt: data.scheduledAt || null,
       triggerWarning: data.triggerWarning || null,
+      repostId: data.repostId || null,
     },
     include: {
       author: {
@@ -116,6 +182,22 @@ export async function createMicroPost(data: {
           logoUrl: true,
           heroText: true,
           username: true,
+          isCertified: true,
+        },
+      },
+      repost: {
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              subdomain: true,
+              customDomain: true,
+              logoUrl: true,
+              username: true,
+              isCertified: true,
+            },
+          },
         },
       },
     },
@@ -279,6 +361,35 @@ export async function repostPost(postId: string, authorId: string) {
       content: "",
       authorId,
       repostId: postId,
+    },
+    include: {
+      author: {
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          subdomain: true,
+          customDomain: true,
+          logoUrl: true,
+          heroText: true,
+          isCertified: true,
+        },
+      },
+      repost: {
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              subdomain: true,
+              customDomain: true,
+              logoUrl: true,
+              isCertified: true,
+            },
+          },
+        },
+      },
     },
   });
 }

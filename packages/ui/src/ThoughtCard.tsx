@@ -7,9 +7,9 @@ import { routes } from "@qoe/config"
 import { Pin } from "lucide-react"
 import type { FeedPostDTO } from "@qoe/db/types"
 
-export type { FeedPostDTO as MicroPostData }
+export type { FeedPostDTO as ThoughtData }
 
-export function MicroPostCard({
+export function ThoughtCard({
   post,
   currentUserId,
   isPreview,

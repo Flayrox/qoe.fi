@@ -23,7 +23,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Sparkles, TrendingUp } from "lucide-react";
-import { ArticleCard, MicroPostCard, LoginModal } from "@qoe/ui";
+import { ArticleCard, ThoughtCard, LoginModal } from "@qoe/ui";
 import { Button } from "@qoe/ui/button";
 import { Logo } from "@/components/ui/Logo";
 import { isFeatureEnabled } from "@qoe/config/features";
@@ -191,7 +191,7 @@ export function PublicFeedPreview({
               </h2>
               <div className="space-y-4">
                 {trendingPosts.slice(0, 3).map((post) => (
-                  <MicroPostCard
+                  <ThoughtCard
                     key={post.id}
                     post={{
                       id: post.id,

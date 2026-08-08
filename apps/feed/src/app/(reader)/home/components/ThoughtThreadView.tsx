@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowLeft, Send, Loader2, AlertCircle, Trash2, X, Repeat, CornerDownRight, MoreHorizontal, Pin } from "lucide-react"
+import { ArrowLeft, Send, Loader2, AlertCircle, Trash2, X, Repeat, CornerDownRight, MoreHorizontal, Pin, Quote } from "lucide-react"
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 
 import { getPostThread, toggleLikePost, replyToPost, deletePost, repostPost } from "../actions"
 import { LikeIcon, CommentIcon, RepostIcon, ShareIcon } from "@/components/icons/CustomIcons"
@@ -10,7 +11,9 @@ import { cn } from "@qoe/utils"
 import { toast } from "sonner"
 
 import { TextParser } from "@/components/ui/TextParser"
+import { CertifiedBadge } from "@/components/ui/CertifiedBadge"
 import { LinkPreview } from "@/components/social/LinkPreview"
+import { QuotedThoughtCard } from "@/components/social/QuotedThoughtCard"
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card"
 import { useTranslate } from "@qoe/i18n"
 import { trackEvent } from "@/lib/analytics"
@@ -21,7 +24,7 @@ const getUrls = (text: string): string[] => {
   return text.match(urlRegex) || []
 }
 
-interface ExpandedPostViewProps {
+interface ThoughtThreadViewProps {
   postId: string
   currentUserId: string | null
   initialPost?: any
@@ -34,20 +37,20 @@ interface ExpandedPostViewProps {
 
 const springs = {
   enter: { type: "spring" as const, stiffness: 450, damping: 30 },
-  like: { type: "spring" as const, stiffness: 600, damping: 25 },
-  lightbox: { type: "spring" as const, stiffness: 350, damping: 30 }
+  like: { type: "spring" as const, stiffness: 500, damping: 15 },
+  lightbox: { type: "spring" as const, stiffness: 350, damping: 25 }
 }
 
-export function ExpandedPostView({
+export function ThoughtThreadView({
   postId,
   currentUserId,
   initialPost,
   standalone = false,
   onClose,
-  onOpenProfile: onOpenProfileProp,
+  onOpenProfile,
   onInteractionUpdate,
-  onLoginRequired
-}: ExpandedPostViewProps) {
+  onLoginRequired,
+}: ThoughtThreadViewProps) {
   const { t } = useTranslate()
   const [post, setPost] = useState<any | null>(initialPost || null)
   const [loading, setLoading] = useState(!initialPost)
@@ -64,16 +67,16 @@ export function ExpandedPostView({
   const handleOpenProfile = (author: any) => {
     const targetUsername = author?.username || author?.subdomain
     if (!targetUsername) return
-    if (onOpenProfileProp) {
-      onOpenProfileProp(targetUsername)
+    if (onOpenProfile) {
+      onOpenProfile(targetUsername)
     } else {
       window.location.href = routes.feed.profile(targetUsername)
     }
   }
 
   const navigateToThought = (targetPostId: string, authorUsername?: string) => {
-    const username = authorUsername || "user"
-    const newUrl = routes.feed.thought(username, targetPostId)
+    const handle = authorUsername || post?.author?.username || post?.author?.subdomain || post?.author?.id || "author"
+    const newUrl = routes.feed.thought(handle, targetPostId)
     window.history.pushState({ postId: targetPostId }, "", newUrl)
     
     setLoading(true)
@@ -155,7 +158,10 @@ export function ExpandedPostView({
     }
   }
 
-  const handleRepost = async () => {
+  const [showRepostPopover, setShowRepostPopover] = useState(false)
+
+  const handleDirectRepost = async () => {
+    setShowRepostPopover(false)
     if (!currentUserId) {
       if (onLoginRequired) onLoginRequired()
       return
@@ -166,6 +172,16 @@ export function ExpandedPostView({
     trackEvent("post_repost", { postId })
     const res = await repostPost(postId)
     if (!res.ok) setReposted(false)
+  }
+
+  const handleQuoteThought = () => {
+    setShowRepostPopover(false)
+    if (!currentUserId) {
+      if (onLoginRequired) onLoginRequired()
+      return
+    }
+    const quoteTarget = post.repost ? post.repost : post
+    window.dispatchEvent(new CustomEvent("open-composer", { detail: { quotedThought: quoteTarget } }))
   }
 
   const handleDelete = async () => {
@@ -184,7 +200,7 @@ export function ExpandedPostView({
   }
 
   const handleShare = async () => {
-    const authorHandle = post.author.username || post.author.subdomain || "user"
+    const authorHandle = post.author.username || post.author.subdomain || post.author.id
     const shareUrl = `${window.location.origin}${routes.feed.thought(authorHandle, post.id)}`
     
     const shareData = {
@@ -304,9 +320,12 @@ export function ExpandedPostView({
     )
   }
 
-  const displayAuthor = post.repost ? post.repost.author : post.author
-  const displayContent = post.repost ? post.repost.content : post.content
-  const displayImageUrl = post.repost ? post.repost.imageUrl : post.imageUrl
+  const isPureRepost = !!post.repost && !post.content.trim()
+  const isQuotePost = !!post.repost && !!post.content.trim()
+
+  const displayAuthor = isPureRepost ? post.repost.author : post.author
+  const displayContent = isPureRepost ? post.repost.content : post.content
+  const displayImageUrl = isPureRepost ? post.repost.imageUrl : post.imageUrl
 
   const handleBack = () => {
     if (onClose) {
@@ -373,9 +392,9 @@ export function ExpandedPostView({
                   <div>
                     <div className="flex items-center gap-1">
                       <span className="text-xs font-semibold text-foreground group-hover/parent:text-brand transition-colors">{post.parent.author.name}</span>
-                      {post.parent.author.isCertified && <span className="text-brand text-xs font-black">✓</span>}
+                      {post.parent.author.isCertified && <CertifiedBadge />}
                     </div>
-                    <span className="text-xs text-muted-foreground">@{post.parent.author.username || post.parent.author.subdomain}</span>
+                    <span className="text-xs text-muted-foreground">@{post.parent.author.username || post.parent.author.subdomain || post.parent.author.id.slice(0, 8)}</span>
                   </div>
                 </div>
                 <span className="text-xs text-muted-foreground">
@@ -391,10 +410,17 @@ export function ExpandedPostView({
 
         {/* ── MAIN FOCUS POST ── */}
         <div className="py-2 border-b border-border/40 flex flex-col gap-4">
-          {post.repost && (
+          {(isPureRepost || isQuotePost) && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground pl-1 mb-1">
               <Repeat className="w-3.5 h-3.5 text-emerald-500" />
-              <span><strong className="font-semibold text-foreground">@{post.author.username || post.author.subdomain}</strong> a repartagé</span>
+              <span>
+                <strong 
+                  onClick={() => handleOpenProfile(post.author)}
+                  className="font-semibold text-foreground hover:underline cursor-pointer"
+                >
+                  @{post.author.username || post.author.subdomain || post.author.id.slice(0, 8)}
+                </strong> {isQuotePost ? "a cité une pensée" : "a repartagé"}
+              </span>
             </div>
           )}
 
@@ -418,9 +444,9 @@ export function ExpandedPostView({
                     <div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-semibold text-foreground block leading-none group-hover/author:text-brand transition-colors">{displayAuthor.name}</span>
-                        {displayAuthor.isCertified && <span className="text-brand text-xs font-black">✓</span>}
+                        {displayAuthor.isCertified && <CertifiedBadge />}
                       </div>
-                      <span className="text-xs text-muted-foreground block mt-1">@{displayAuthor.username || displayAuthor.subdomain}</span>
+                      <span className="text-xs text-muted-foreground block mt-1">@{displayAuthor.username || displayAuthor.subdomain || displayAuthor.id.slice(0, 8)}</span>
                     </div>
                   </button>
                 }
@@ -440,9 +466,9 @@ export function ExpandedPostView({
                   <div className="space-y-1 flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <h4 className="text-xs font-bold text-foreground leading-none">{displayAuthor.name}</h4>
-                      {displayAuthor.isCertified && <span className="text-brand text-xs font-black">✓</span>}
+                      {displayAuthor.isCertified && <CertifiedBadge />}
                     </div>
-                    <p className="text-xs text-muted-foreground leading-none">@{displayAuthor.username || displayAuthor.subdomain}</p>
+                    <p className="text-xs text-muted-foreground leading-none">@{displayAuthor.username || displayAuthor.subdomain || displayAuthor.id.slice(0, 8)}</p>
                   </div>
                 </div>
               </HoverCardContent>
@@ -461,6 +487,13 @@ export function ExpandedPostView({
               <div className="text-base text-foreground leading-relaxed font-sans">
                 <TextParser content={displayContent} />
               </div>
+
+              {/* Embedded Quoted Thought Card if Quote Post */}
+              {isQuotePost && (
+                <div className="mt-3">
+                  <QuotedThoughtCard post={post.repost} onOpenPost={(id, authorUsername) => navigateToThought(id, authorUsername)} />
+                </div>
+              )}
 
               {getUrls(displayContent).length > 0 && (
                 <div className="mt-2">
@@ -511,16 +544,45 @@ export function ExpandedPostView({
               <span>{post.replies?.length || 0}</span>
             </div>
 
-            <button 
-              onClick={handleRepost}
-              className={cn(
-                "flex items-center gap-1.5 hover:text-emerald-500 transition-colors cursor-pointer",
-                reposted && "text-emerald-500 font-semibold"
-              )}
-            >
-              <RepostIcon className="w-4 h-4" />
-              <span>{reposted ? "Reposté" : "Repost"}</span>
-            </button>
+            <Popover open={showRepostPopover} onOpenChange={setShowRepostPopover}>
+              <PopoverTrigger
+                render={
+                  <button 
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setShowRepostPopover(true)
+                    }}
+                    className={cn(
+                      "flex items-center gap-1.5 hover:text-emerald-500 transition-colors cursor-pointer",
+                      reposted && "text-emerald-500 font-semibold"
+                    )}
+                  >
+                    <RepostIcon className="w-4 h-4" />
+                    <span>{reposted ? "Reposté" : "Repost"}</span>
+                  </button>
+                }
+              />
+              <PopoverContent align="center" className="w-48 p-1.5 space-y-1 bg-card border border-border/60 rounded-xl shadow-xl z-50">
+                <button
+                  type="button"
+                  onClick={handleDirectRepost}
+                  className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-muted transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <Repeat className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Partager direct</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleQuoteThought}
+                  className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-muted transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <Quote className="w-3.5 h-3.5 text-brand" />
+                  <span>Citer la pensée</span>
+                </button>
+              </PopoverContent>
+            </Popover>
 
             <button
               onClick={handleShare}
@@ -730,9 +792,9 @@ function CommentThread({
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-semibold text-foreground">{reply.author.name}</span>
-                {reply.author.isCertified && <span className="text-brand text-xs font-black">✓</span>}
+                {reply.author.isCertified && <CertifiedBadge />}
               </div>
-              <span className="text-xs text-muted-foreground block">@{reply.author.username || reply.author.subdomain}</span>
+              <span className="text-xs text-muted-foreground block">@{reply.author.username || reply.author.subdomain || reply.author.id.slice(0, 8)}</span>
             </div>
           </div>
           

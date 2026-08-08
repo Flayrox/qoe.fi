@@ -11,7 +11,7 @@ interface Post {
   _count?: { likes: number; replies: number; reposts: number };
 }
 
-export function MicroPostCard({ post, isPreview }: { post: any; isPreview?: boolean }) {
+export function ThoughtCard({ post, isPreview }: { post: any; isPreview?: boolean }) {
   return (
     <div className="p-4 border border-border/40 rounded-lg">
       <div className="flex items-start gap-3">

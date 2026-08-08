@@ -1,16 +1,17 @@
-"use client"
-
-import React, { useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Sparkles } from "lucide-react"
-import { MicroPostComposer } from "./MicroPostComposer"
+import { X, Sparkles, MessageSquare, FileText, ExternalLink } from "lucide-react"
+import { ThoughtComposer } from "./ThoughtComposer"
 import { cn } from "@qoe/utils"
+import { routes } from "@qoe/config/routes"
 
 interface ComposerModalProps {
   isOpen: boolean
   onClose: () => void
   dbUser: any
   tagsList: string[]
+  quotedThought?: any
+  initialMode?: "thought" | "article"
   onPostCreated?: (post: any) => void
   onLoginRequired?: () => void
 }
@@ -20,9 +21,17 @@ export function ComposerModal({
   onClose,
   dbUser,
   tagsList,
+  quotedThought = null,
+  initialMode = "thought",
   onPostCreated,
   onLoginRequired,
 }: ComposerModalProps) {
+  const [activeMode, setActiveMode] = useState<"thought" | "article">(initialMode)
+
+  useEffect(() => {
+    setActiveMode(initialMode)
+  }, [initialMode, isOpen])
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
@@ -32,6 +41,8 @@ export function ComposerModal({
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [isOpen, onClose])
+
+  const studioUrl = process.env.NEXT_PUBLIC_STUDIO_URL || "http://localhost:3020/dashboard/articles/new"
 
   return (
     <AnimatePresence>
@@ -44,7 +55,7 @@ export function ComposerModal({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/20 dark:bg-black/40 backdrop-blur-xs"
+            className="fixed inset-0 bg-black/30 dark:bg-black/60 backdrop-blur-xs"
             aria-hidden="true"
           />
 
@@ -59,15 +70,35 @@ export function ComposerModal({
               "bg-card border border-border/60 text-card-foreground"
             )}
           >
-            {/* Header Bar */}
+            {/* Header Bar with Mode Switcher */}
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-border/40">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-lg bg-primary/10 text-primary">
-                  <Sparkles className="w-4 h-4" />
-                </span>
-                <h3 className="font-bold text-sm tracking-tight text-foreground">
-                  Nouvelle pensée
-                </h3>
+              <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setActiveMode("thought")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                    activeMode === "thought"
+                      ? "bg-card text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-brand" />
+                  <span>Pensée</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveMode("article")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                    activeMode === "article"
+                      ? "bg-card text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <FileText className="w-3.5 h-3.5 text-brand" />
+                  <span>Article / Newsletter</span>
+                </button>
               </div>
 
               <div className="flex items-center gap-2">
@@ -85,19 +116,43 @@ export function ComposerModal({
               </div>
             </div>
 
-            {/* MicroPostComposer Inside Modal */}
-            <MicroPostComposer
-              dbUser={dbUser}
-              tagsList={tagsList}
-              onPostCreated={(post) => {
-                if (onPostCreated) onPostCreated(post)
-                onClose()
-              }}
-              onLoginRequired={() => {
-                onClose()
-                if (onLoginRequired) onLoginRequired()
-              }}
-            />
+            {/* Mode Content */}
+            {activeMode === "thought" ? (
+              <ThoughtComposer
+                dbUser={dbUser}
+                tagsList={tagsList}
+                quotedThought={quotedThought}
+                onPostCreated={(post) => {
+                  if (onPostCreated) onPostCreated(post)
+                  onClose()
+                }}
+                onLoginRequired={() => {
+                  onClose()
+                  if (onLoginRequired) onLoginRequired()
+                }}
+              />
+            ) : (
+              <div className="py-6 flex flex-col items-center justify-center text-center space-y-4 font-sans">
+                <div className="w-12 h-12 rounded-2xl bg-brand/10 text-brand flex items-center justify-center">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div className="space-y-1 max-w-sm">
+                  <h4 className="text-base font-bold text-foreground">Rédiger une publication longue</h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Les articles et newsletters sont rédigés dans l'Espace Studio pour vous offrir l'expérience d'écriture enrichie.
+                  </p>
+                </div>
+                <a
+                  href={studioUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-5 py-2.5 bg-foreground text-background font-bold text-xs rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2 cursor-pointer shadow-md"
+                >
+                  <span>Ouvrir l'Éditeur Studio</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            )}
           </motion.div>
         </div>
       )}

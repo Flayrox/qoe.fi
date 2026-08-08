@@ -58,7 +58,14 @@ export default async function UserProfileTabPage({ params }: { params: Promise<{
         where: { isDraft: false },
         include: {
           author: { select: { id: true, name: true, username: true, subdomain: true, logoUrl: true, isCertified: true } },
-          parent: { select: { id: true, author: { select: { id: true, name: true, username: true, subdomain: true } } } },
+          parent: {
+            select: {
+              id: true,
+              content: true,
+              createdAt: true,
+              author: { select: { id: true, name: true, username: true, subdomain: true, logoUrl: true, isCertified: true } }
+            }
+          },
           likes: { select: { userId: true } },
           repost: {
             include: {
