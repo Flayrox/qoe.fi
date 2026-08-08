@@ -8,9 +8,10 @@ import {
 } from "lucide-react"
 import { toggleFollowCreatorHome, toggleBookmarkArticleHome } from "./actions"
 import { ArticleCard, LoginModal, GuestFloatingBar, type AuthActionContext } from "@qoe/ui"
+import { ThoughtCard } from "@/components/social/ThoughtCard"
 import { ComposerModal } from "./components/ComposerModal"
 import { FeedTabsHeader } from "./components/FeedTabsHeader"
-import { ExpandedPostView } from "./components/ExpandedPostView"
+import { ThoughtThreadView } from "./components/ThoughtThreadView"
 import { useTranslate } from "@qoe/i18n"
 import { trackEvent } from "@/lib/analytics"
 import { routes } from "@qoe/config/routes"
@@ -102,8 +103,9 @@ export function FeedDashboard({
   const handleOpenPost = (postId: string, authorUsername?: string) => {
     const scroll = window.scrollY
     setSavedScrollPosition(scroll)
-    const username = authorUsername || "user"
-    const newUrl = routes.feed.thought(username, postId)
+    const foundItem = currentFeedArticles.find(item => item.id === postId)
+    const handle = authorUsername || foundItem?.author?.username || foundItem?.author?.subdomain || foundItem?.author?.id || "author"
+    const newUrl = routes.feed.thought(handle, postId)
     window.history.pushState({ postId, scroll }, "", newUrl)
     setActivePostId(postId)
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -135,11 +137,24 @@ export function FeedDashboard({
     return () => window.removeEventListener("popstate", handlePopState)
   }, [])
 
+  const [composerQuotedThought, setComposerQuotedThought] = useState<any | null>(null)
+  const [composerInitialMode, setComposerInitialMode] = useState<"thought" | "article">("thought")
+
   React.useEffect(() => {
-    const handleOpenComposer = () => {
+    const handleOpenComposer = (e: Event) => {
       if (!dbUser) {
         openAuth({ mode: "signup", actionContext: "bookmark" })
         return
+      }
+      const customDetail = (e as CustomEvent)?.detail
+      if (customDetail?.quotedThought) {
+        setComposerQuotedThought(customDetail.quotedThought)
+        setComposerInitialMode("thought")
+      } else if (customDetail?.mode) {
+        setComposerInitialMode(customDetail.mode)
+      } else {
+        setComposerQuotedThought(null)
+        setComposerInitialMode("thought")
       }
       setIsComposerModalOpen(true)
     }
@@ -147,7 +162,7 @@ export function FeedDashboard({
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "n")) {
         e.preventDefault()
-        handleOpenComposer()
+        handleOpenComposer(e)
       }
     }
 
@@ -318,16 +333,16 @@ export function FeedDashboard({
 
         {/* List of Stream Items */}
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="popLayout">
             {activePostId ? (
               <motion.div
                 key="expanded-post"
-                initial={{ opacity: 0, y: 15 }}
+                initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-                transition={springs.card}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1, ease: "easeOut" }}
               >
-                <ExpandedPostView
+                <ThoughtThreadView
                   postId={activePostId}
                   currentUserId={dbUser?.id || null}
                   onClose={handleClosePost}
@@ -349,10 +364,10 @@ export function FeedDashboard({
             ) : (
               <motion.div
                 key="feed-list"
-                initial={{ opacity: 0, y: -15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 15 }}
-                transition={springs.card}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1, ease: "easeOut" }}
                 className="space-y-6"
               >
                 <div className="space-y-2">
@@ -360,10 +375,10 @@ export function FeedDashboard({
                     {activeFeed === "bookmarks" && currentFeedArticles.length === 0 && (
                       <motion.div
                         key="bookmarks-empty"
-                        initial={{ opacity: 0, scale: 0.99 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.99 }}
-                        transition={springs.card}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.1 }}
                         className="bg-muted/40 border border-border/40 rounded-xl p-10 text-center flex flex-col items-center justify-center gap-2.5 text-muted-foreground"
                       >
                         <BookMarked className="w-7 h-7 text-muted-foreground/60" />
@@ -393,6 +408,27 @@ export function FeedDashboard({
                         {currentFeedArticles.map((article, idx) => {
                           const isBookmarked = isArticleBookmarked(article.id)
                           const isFollowed = isCreatorFollowed(article.author.id)
+
+                          if (!article.title) {
+                            return (
+                              <motion.div
+                                key={article.id}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.1, ease: "easeOut" }}
+                              >
+                                <ThoughtCard
+                                  post={article as any}
+                                  currentUserId={dbUser?.id || null}
+                                  onOpenPost={handleOpenPost}
+                                  onOpenProfile={(username) => {
+                                    window.location.href = routes.feed.profile(username)
+                                  }}
+                                />
+                              </motion.div>
+                            )
+                          }
 
                           return (
                             <ArticleCard 
@@ -424,9 +460,14 @@ export function FeedDashboard({
 
       <ComposerModal
         isOpen={isComposerModalOpen}
-        onClose={() => setIsComposerModalOpen(false)}
+        onClose={() => {
+          setIsComposerModalOpen(false)
+          setComposerQuotedThought(null)
+        }}
         dbUser={dbUser}
         tagsList={tagsList}
+        quotedThought={composerQuotedThought}
+        initialMode={composerInitialMode}
         onPostCreated={(post) => setLocalPosts(prev => [post, ...prev])}
         onLoginRequired={() => openAuth({ mode: "signup", actionContext: "bookmark" })}
       />

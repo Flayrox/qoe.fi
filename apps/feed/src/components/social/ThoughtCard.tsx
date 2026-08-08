@@ -5,22 +5,28 @@ import { motion } from "framer-motion"
 
 import { TextParser } from "@/components/ui/TextParser"
 import { cn } from "@qoe/utils"
-import { MoreHorizontal, Pin, CornerDownRight, Repeat } from "lucide-react"
+import { MoreHorizontal, Pin, CornerDownRight, Repeat, Quote } from "lucide-react"
+import { LikeIcon, CommentIcon, RepostIcon, ShareIcon } from "@/components/icons/CustomIcons"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { LinkPreview } from "./LinkPreview"
+import { QuotedThoughtCard } from "./QuotedThoughtCard"
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card"
 import { routes } from "@qoe/config/routes"
 import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
+import { CertifiedBadge } from "@/components/ui/CertifiedBadge"
 
-export interface MicroPostData {
+export interface ThoughtData {
   id: string
   content: string
   imageUrl?: string | null
   createdAt: string | Date
   triggerWarning?: string | null
   isPinned?: boolean
+  likesCount?: number
+  repliesCount?: number
+  liked?: boolean
   parent?: {
     id: string
     author: {
@@ -59,11 +65,16 @@ const getUrls = (text: string): string[] => {
   return text.match(urlRegex) || []
 }
 
-export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, onOpenPost }: { post: MicroPostData; currentUserId?: string | null; onOpenProfile?: (username: string) => void; onOpenPost?: (postId: string, authorUsername?: string) => void }) {
+export function ThoughtCard({ post, currentUserId: propUserId, onOpenProfile, onOpenPost }: { post: ThoughtData; currentUserId?: string | null; onOpenProfile?: (username: string) => void; onOpenPost?: (postId: string, authorUsername?: string) => void }) {
   const [isRevealed, setIsRevealed] = React.useState<boolean>(false)
   const [currentUserId, setCurrentUserId] = React.useState<string | null>(propUserId || null)
   const [showPopover, setShowPopover] = React.useState<boolean>(false)
   const [tilt, setTilt] = React.useState({ x: 0, y: 0 })
+
+  const [liked, setLiked] = React.useState<boolean>(post.liked || false)
+  const [likesCount, setLikesCount] = React.useState<number>(post.likesCount || 0)
+  const [reposted, setReposted] = React.useState<boolean>(false)
+  const repliesCount = post.repliesCount || 0
 
   const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
     const card = e.currentTarget
@@ -118,16 +129,89 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
     }
   }
 
-  const displayAuthor = post.repost ? post.repost.author : post.author
-  const displayContent = post.repost ? post.repost.content : post.content
-  const displayImageUrl = post.repost ? post.repost.imageUrl : post.imageUrl
-  const displayPostId = post.repost ? post.repost.id : post.id
-  const displayCreatedAt = post.repost?.createdAt || post.createdAt
+  const handleLikeToggle = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const newLiked = !liked
+    const newLikesCount = liked ? likesCount - 1 : likesCount + 1
+    setLiked(newLiked)
+    setLikesCount(newLikesCount)
+
+    try {
+      const { toggleLikePost } = await import("@/app/(reader)/home/actions")
+      const res = await toggleLikePost(post.id)
+      if (!res.ok) {
+        setLiked(liked)
+        setLikesCount(likesCount)
+      }
+    } catch (err) {
+      setLiked(liked)
+      setLikesCount(likesCount)
+    }
+  }
+
+  const [showRepostPopover, setShowRepostPopover] = React.useState<boolean>(false)
+
+  const handleDirectRepost = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setShowRepostPopover(false)
+    if (reposted) return
+    setReposted(true)
+    toast.success("Post repartagé dans votre profil.")
+
+    try {
+      const { repostPost } = await import("@/app/(reader)/home/actions")
+      const res = await repostPost(displayPostId)
+      if (!res.ok) setReposted(false)
+    } catch (err) {
+      setReposted(false)
+    }
+  }
+
+  const handleQuoteThought = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setShowRepostPopover(false)
+    const quoteTarget = isPureRepost ? post.repost : post
+    window.dispatchEvent(new CustomEvent("open-composer", { detail: { quotedThought: quoteTarget } }))
+  }
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const authorHandle = displayAuthor.username || displayAuthor.subdomain || displayAuthor.id
+    const shareUrl = `${window.location.origin}${routes.feed.thought(authorHandle, displayPostId)}`
+
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: `Pensée de ${displayAuthor.name}`, url: shareUrl })
+      } catch (err) {
+        console.log("Share cancelled:", err)
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl)
+        toast.success("Lien copié dans le presse-papier !")
+      } catch (err) {
+        console.error("Copy error:", err)
+      }
+    }
+  }
+
+  const isPureRepost = !!post.repost && !post.content.trim()
+  const isQuotePost = !!post.repost && !!post.content.trim()
+
+  const displayAuthor = isPureRepost ? post.repost!.author : post.author
+  const displayContent = isPureRepost ? post.repost!.content : post.content
+  const displayImageUrl = isPureRepost ? post.repost!.imageUrl : post.imageUrl
+  const displayPostId = isPureRepost ? post.repost!.id : post.id
+  const displayCreatedAt = isPureRepost ? (post.repost!.createdAt || post.createdAt) : post.createdAt
 
   const handleOpenProfile = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    const targetUsername = displayAuthor.username || displayAuthor.subdomain
+    const targetUsername = displayAuthor.username || displayAuthor.subdomain || displayAuthor.id
     if (!targetUsername) return
     if (onOpenProfile) {
       onOpenProfile(targetUsername)
@@ -138,7 +222,7 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
 
   const handleOpenPost = () => {
     if (onOpenPost) {
-      const username = displayAuthor.username || displayAuthor.subdomain || "user"
+      const username = displayAuthor.username || displayAuthor.subdomain || displayAuthor.id
       onOpenPost(displayPostId, username)
     }
   }
@@ -147,7 +231,7 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
     e.preventDefault()
     e.stopPropagation()
     if (post.parent && onOpenPost) {
-      const parentUsername = post.parent.author.username || post.parent.author.subdomain || "user"
+      const parentUsername = post.parent.author.username || post.parent.author.subdomain || post.parent.author.id
       onOpenPost(post.parent.id, parentUsername)
     }
   }
@@ -169,7 +253,7 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
       }}
       className="py-4 border-b border-border/40 flex flex-col gap-3 hover:scale-[1.001] transition-all duration-500 ease-[0.16,1,0.3,1]"
     >
-      {post.repost && (
+      {isPureRepost && (
         <button
           onClick={(e) => {
             e.preventDefault()
@@ -183,7 +267,7 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer pl-1 text-left outline-none"
         >
           <Repeat className="w-3.5 h-3.5 text-emerald-500" />
-          <span><strong className="font-semibold text-foreground">@{post.author.username || post.author.subdomain}</strong> a repartagé</span>
+          <span><strong className="font-semibold text-foreground">@{post.author.username || post.author.subdomain || post.author.id.slice(0, 8)}</strong> a repartagé</span>
         </button>
       )}
 
@@ -200,7 +284,7 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer pl-1 text-left outline-none"
         >
           <CornerDownRight className="w-3.5 h-3.5 text-brand" />
-          <span>En réponse à <strong className="font-semibold text-foreground">@{post.parent.author.username || post.parent.author.subdomain}</strong></span>
+          <span>En réponse à <strong className="font-semibold text-foreground">@{post.parent.author.username || post.parent.author.subdomain || post.parent.author.id.slice(0, 8)}</strong></span>
         </button>
       )}
 
@@ -216,9 +300,9 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
                 <div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-semibold text-foreground block leading-none group-hover/author:text-brand transition-colors">{displayAuthor.name}</span>
-                    {displayAuthor.isCertified && <span className="text-brand text-xs font-black">✓</span>}
+                    {displayAuthor.isCertified && <CertifiedBadge />}
                   </div>
-                  <span className="text-xs text-muted-foreground block mt-1 font-sans">@{displayAuthor.username || displayAuthor.subdomain}</span>
+                  <span className="text-xs text-muted-foreground block mt-1 font-sans">@{displayAuthor.username || displayAuthor.subdomain || displayAuthor.id.slice(0, 8)}</span>
                 </div>
               </button>
             }
@@ -299,6 +383,11 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
             <TextParser content={displayContent} />
           </div>
 
+          {/* Embedded Quote Card if Quote Post */}
+          {isQuotePost && (
+            <QuotedThoughtCard post={post.repost || null} onOpenPost={onOpenPost} />
+          )}
+
           {getUrls(displayContent).length > 0 && (
             <div className="mt-2">
               <LinkPreview 
@@ -336,6 +425,78 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
             </button>
           </div>
         )}
+      </div>
+
+      {/* Social Actions Footer Bar */}
+      <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-border/30 text-xs text-muted-foreground">
+        <button
+          onClick={handleLikeToggle}
+          className={cn(
+            "flex items-center gap-1.5 hover:text-[var(--qoe-vermillion)] transition-colors cursor-pointer outline-none",
+            liked && "text-[var(--qoe-vermillion)] font-semibold"
+          )}
+        >
+          <motion.div whileTap={{ scale: 1.3 }}>
+            <LikeIcon className="w-3.5 h-3.5" style={{ fill: liked ? "var(--qoe-vermillion)" : "transparent" }} />
+          </motion.div>
+          <span>{likesCount}</span>
+        </button>
+
+        <button
+          onClick={handleOpenPost}
+          className="flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer outline-none"
+        >
+          <CommentIcon className="w-3.5 h-3.5" />
+          <span>{repliesCount}</span>
+        </button>
+
+        <Popover open={showRepostPopover} onOpenChange={setShowRepostPopover}>
+          <PopoverTrigger
+            render={
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setShowRepostPopover(true)
+                }}
+                className={cn(
+                  "flex items-center gap-1.5 hover:text-emerald-500 transition-colors cursor-pointer outline-none",
+                  reposted && "text-emerald-500 font-semibold"
+                )}
+              >
+                <RepostIcon className="w-3.5 h-3.5" />
+                <span>{reposted ? "Reposté" : "Repost"}</span>
+              </button>
+            }
+          />
+          <PopoverContent align="center" className="w-48 p-1.5 space-y-1 bg-card border border-border/60 rounded-xl shadow-xl z-50">
+            <button
+              type="button"
+              onClick={handleDirectRepost}
+              className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-muted transition-colors flex items-center gap-2 cursor-pointer"
+            >
+              <Repeat className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Partager direct</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleQuoteThought}
+              className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-muted transition-colors flex items-center gap-2 cursor-pointer"
+            >
+              <Quote className="w-3.5 h-3.5 text-brand" />
+              <span>Citer la pensée</span>
+            </button>
+          </PopoverContent>
+        </Popover>
+
+        <button
+          onClick={handleShare}
+          className="flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer outline-none"
+        >
+          <ShareIcon className="w-3.5 h-3.5" />
+          <span>Partager</span>
+        </button>
       </div>
     </motion.div>
   )
