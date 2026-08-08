@@ -1,9 +1,9 @@
 import { createClient } from "@qoe/supabase/server"
 import { notFound } from "next/navigation"
 import { prisma } from "@qoe/db/client"
-import { ProfileView } from "./components/ProfileView"
+import { ProfileView } from "../components/ProfileView"
 
-export async function generateMetadata({ params }: { params: Promise<{ username: string }> }) {
+export async function generateMetadata({ params }: { params: Promise<{ username: string; tab: string }> }) {
   const resolvedParams = await params
   const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '')
   
@@ -32,9 +32,15 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
   }
 }
 
-export default async function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
+export default async function UserProfileTabPage({ params }: { params: Promise<{ username: string; tab: string }> }) {
   const resolvedParams = await params
   const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '')
+  const rawTab = resolvedParams.tab
+
+  const validTabs = ["thoughts", "with_replies", "articles", "reposts", "media"]
+  if (!validTabs.includes(rawTab)) {
+    notFound()
+  }
 
   const supabase = await createClient()
   const { data: { user: currentUser } } = await supabase.auth.getUser()
@@ -99,7 +105,7 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
       currentUserId={currentUser?.id || null}
       isOwnProfile={isOwnProfile}
       initialIsFollowing={isFollowing}
-      initialTab="thoughts"
+      initialTab={rawTab}
     />
   )
 }

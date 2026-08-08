@@ -2,6 +2,7 @@
 
 import React from "react"
 import { cn } from "@qoe/utils"
+import { routes } from "@qoe/config/routes"
 
 interface TextParserProps {
   content: string
@@ -28,7 +29,7 @@ export function TextParser({ content, className, onMentionClick }: TextParserPro
                 if (onMentionClick) {
                   onMentionClick(username)
                 } else {
-                  window.location.href = `/profile/${username}`
+                  window.location.href = routes.feed.profile(username)
                 }
               }}
               className="text-[#EE4B2B] font-semibold hover:underline cursor-pointer"

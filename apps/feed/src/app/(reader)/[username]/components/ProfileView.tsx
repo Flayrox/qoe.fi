@@ -18,21 +18,50 @@ interface ProfileViewProps {
   currentUserId: string | null
   isOwnProfile: boolean
   initialIsFollowing: boolean
+  initialTab?: string
 }
 
-type ProfileTab = "thoughts" | "replies" | "articles" | "reposts" | "media"
+type ProfileTab = "thoughts" | "with_replies" | "articles" | "reposts" | "media"
 
 export function ProfileView({
   profileUser: initialProfileUser,
   currentUserId,
   isOwnProfile,
-  initialIsFollowing
+  initialIsFollowing,
+  initialTab = "thoughts"
 }: ProfileViewProps) {
   const [user, setUser] = useState(initialProfileUser)
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
   const [followersCount, setFollowersCount] = useState(user._count?.followers || 0)
-  const [activeTab, setActiveTab] = useState<ProfileTab>("thoughts")
+  const [activeTab, setActiveTab] = useState<ProfileTab>(
+    ["thoughts", "with_replies", "articles", "reposts", "media"].includes(initialTab) 
+      ? (initialTab as ProfileTab) 
+      : "thoughts"
+  )
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+
+  const handleTabChange = (tab: ProfileTab) => {
+    setActiveTab(tab)
+    const username = user.username || user.subdomain || "user"
+    const newUrl = routes.feed.profile(username, tab)
+    window.history.pushState({ tab }, "", newUrl)
+  }
+
+  React.useEffect(() => {
+    const handlePopState = () => {
+      const pathname = window.location.pathname
+      const parts = pathname.split("/").filter(Boolean)
+      const lastPart = parts[parts.length - 1]
+      if (["with_replies", "articles", "reposts", "media"].includes(lastPart)) {
+        setActiveTab(lastPart as ProfileTab)
+      } else {
+        setActiveTab("thoughts")
+      }
+    }
+
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [])
 
   const handleFollowToggle = async () => {
     if (!currentUserId) {
@@ -42,12 +71,12 @@ export function ProfileView({
 
     const nextState = !isFollowing
     setIsFollowing(nextState)
-    setFollowersCount(prev => nextState ? prev + 1 : prev - 1)
+    setFollowersCount((prev: number) => nextState ? prev + 1 : prev - 1)
 
     const res = await toggleFollowCreator(user.id)
     if (!res.ok) {
       setIsFollowing(!nextState)
-      setFollowersCount(prev => !nextState ? prev + 1 : prev - 1)
+      setFollowersCount((prev: number) => !nextState ? prev + 1 : prev - 1)
       toast.error("Erreur lors de la modification du suivi.")
     } else {
       toast.success(nextState ? `Vous suivez maintenant ${user.name}` : `Abonnement retiré.`)
@@ -71,11 +100,17 @@ export function ProfileView({
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 font-sans space-y-6">
         {/* Back navigation */}
         <button
-          onClick={() => window.location.href = routes.feed.home()}
+          onClick={() => {
+            if (typeof window !== "undefined" && window.history.length > 1) {
+              window.history.back()
+            } else {
+              window.location.href = routes.feed.home()
+            }
+          }}
           className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Retour au flux</span>
+          <span>Retour</span>
         </button>
 
         {/* Profile Card Header */}
@@ -176,35 +211,35 @@ export function ProfileView({
           <div className="flex items-center gap-1 border-t border-border/40 px-3 overflow-x-auto no-scrollbar">
             <TabButton 
               active={activeTab === "thoughts"} 
-              onClick={() => setActiveTab("thoughts")} 
+              onClick={() => handleTabChange("thoughts")} 
               icon={<MessageSquare className="w-3.5 h-3.5" />}
               label="Pensées" 
               count={rootThoughts.length} 
             />
             <TabButton 
-              active={activeTab === "replies"} 
-              onClick={() => setActiveTab("replies")} 
+              active={activeTab === "with_replies"} 
+              onClick={() => handleTabChange("with_replies")} 
               icon={<MessageSquare className="w-3.5 h-3.5 opacity-60" />}
               label="Réponses" 
               count={replyThoughts.length} 
             />
             <TabButton 
               active={activeTab === "articles"} 
-              onClick={() => setActiveTab("articles")} 
+              onClick={() => handleTabChange("articles")} 
               icon={<FileText className="w-3.5 h-3.5" />}
               label="Articles" 
               count={articlesList.length} 
             />
             <TabButton 
               active={activeTab === "reposts"} 
-              onClick={() => setActiveTab("reposts")} 
+              onClick={() => handleTabChange("reposts")} 
               icon={<Repeat className="w-3.5 h-3.5" />}
               label="Reposts" 
               count={repostsList.length} 
             />
             <TabButton 
               active={activeTab === "media"} 
-              onClick={() => setActiveTab("media")} 
+              onClick={() => handleTabChange("media")} 
               icon={<ImageIcon className="w-3.5 h-3.5" />}
               label="Médias" 
               count={mediaThoughts.length} 
@@ -212,106 +247,104 @@ export function ProfileView({
           </div>
         </div>
 
-        {/* Tab Content Stream */}
+        {/* Tab Content Stream — Instant, Snappy Rendering without Fade Lag */}
         <div className="space-y-4">
-          <AnimatePresence mode="wait">
-            {activeTab === "thoughts" && (
-              <motion.div key="thoughts-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-2">
-                {rootThoughts.length === 0 ? (
-                  <EmptyTabMessage message="Aucune pensée originale publiée pour le moment." />
-                ) : (
-                  rootThoughts.map((post: any) => (
-                    <MicroPostCard
-                      key={post.id}
-                      post={post}
-                      currentUserId={currentUserId}
-                      onOpenPost={(id, authorUsername) => {
-                        window.location.href = routes.feed.thought(authorUsername || user.username || "user", id)
-                      }}
-                    />
-                  ))
-                )}
-              </motion.div>
-            )}
+          {activeTab === "thoughts" && (
+            <div className="space-y-2">
+              {rootThoughts.length === 0 ? (
+                <EmptyTabMessage message="Aucune pensée originale publiée pour le moment." />
+              ) : (
+                rootThoughts.map((post: any) => (
+                  <MicroPostCard
+                    key={post.id}
+                    post={post}
+                    currentUserId={currentUserId}
+                    onOpenPost={(id, authorUsername) => {
+                      window.location.href = routes.feed.thought(authorUsername || user.username || "user", id)
+                    }}
+                  />
+                ))
+              )}
+            </div>
+          )}
 
-            {activeTab === "replies" && (
-              <motion.div key="replies-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-2">
-                {replyThoughts.length === 0 ? (
-                  <EmptyTabMessage message="Aucune réponse publiée pour le moment." />
-                ) : (
-                  replyThoughts.map((post: any) => (
-                    <MicroPostCard
-                      key={post.id}
-                      post={post}
-                      currentUserId={currentUserId}
-                      onOpenPost={(id, authorUsername) => {
-                        window.location.href = routes.feed.thought(authorUsername || user.username || "user", id)
-                      }}
-                    />
-                  ))
-                )}
-              </motion.div>
-            )}
+          {activeTab === "with_replies" && (
+            <div className="space-y-2">
+              {replyThoughts.length === 0 ? (
+                <EmptyTabMessage message="Aucune réponse publiée pour le moment." />
+              ) : (
+                replyThoughts.map((post: any) => (
+                  <MicroPostCard
+                    key={post.id}
+                    post={post}
+                    currentUserId={currentUserId}
+                    onOpenPost={(id, authorUsername) => {
+                      window.location.href = routes.feed.thought(authorUsername || user.username || "user", id)
+                    }}
+                  />
+                ))
+              )}
+            </div>
+          )}
 
-            {activeTab === "articles" && (
-              <motion.div key="articles-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-2">
-                {articlesList.length === 0 ? (
-                  <EmptyTabMessage message="Aucun article rédigé pour le moment." />
-                ) : (
-                  articlesList.map((article: any, idx: number) => (
-                    <ArticleCard
-                      key={article.id}
-                      article={article}
-                      idx={idx}
-                      dbUser={{ id: currentUserId }}
-                      isBookmarked={false}
-                      isFollowed={isFollowing}
-                      handleFollowToggle={handleFollowToggle}
-                      handleBookmarkToggle={() => {}}
-                    />
-                  ))
-                )}
-              </motion.div>
-            )}
+          {activeTab === "articles" && (
+            <div className="space-y-2">
+              {articlesList.length === 0 ? (
+                <EmptyTabMessage message="Aucun article rédigé pour le moment." />
+              ) : (
+                articlesList.map((article: any, idx: number) => (
+                  <ArticleCard
+                    key={article.id}
+                    article={article}
+                    idx={idx}
+                    dbUser={{ id: currentUserId }}
+                    isBookmarked={false}
+                    isFollowed={isFollowing}
+                    handleFollowToggle={handleFollowToggle}
+                    handleBookmarkToggle={() => {}}
+                  />
+                ))
+              )}
+            </div>
+          )}
 
-            {activeTab === "reposts" && (
-              <motion.div key="reposts-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-2">
-                {repostsList.length === 0 ? (
-                  <EmptyTabMessage message="Aucun contenu repartagé." />
-                ) : (
-                  repostsList.map((post: any) => (
-                    <MicroPostCard
-                      key={post.id}
-                      post={post}
-                      currentUserId={currentUserId}
-                      onOpenPost={(id, authorUsername) => {
-                        window.location.href = routes.feed.thought(authorUsername || post.author.username || "user", id)
-                      }}
-                    />
-                  ))
-                )}
-              </motion.div>
-            )}
+          {activeTab === "reposts" && (
+            <div className="space-y-2">
+              {repostsList.length === 0 ? (
+                <EmptyTabMessage message="Aucun contenu repartagé." />
+              ) : (
+                repostsList.map((post: any) => (
+                  <MicroPostCard
+                    key={post.id}
+                    post={post}
+                    currentUserId={currentUserId}
+                    onOpenPost={(id, authorUsername) => {
+                      window.location.href = routes.feed.thought(authorUsername || post.author.username || "user", id)
+                    }}
+                  />
+                ))
+              )}
+            </div>
+          )}
 
-            {activeTab === "media" && (
-              <motion.div key="media-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-2">
-                {mediaThoughts.length === 0 ? (
-                  <EmptyTabMessage message="Aucun média partagé." />
-                ) : (
-                  mediaThoughts.map((post: any) => (
-                    <MicroPostCard
-                      key={post.id}
-                      post={post}
-                      currentUserId={currentUserId}
-                      onOpenPost={(id, authorUsername) => {
-                        window.location.href = routes.feed.thought(authorUsername || user.username || "user", id)
-                      }}
-                    />
-                  ))
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {activeTab === "media" && (
+            <div className="space-y-2">
+              {mediaThoughts.length === 0 ? (
+                <EmptyTabMessage message="Aucun média partagé." />
+              ) : (
+                mediaThoughts.map((post: any) => (
+                  <MicroPostCard
+                    key={post.id}
+                    post={post}
+                    currentUserId={currentUserId}
+                    onOpenPost={(id, authorUsername) => {
+                      window.location.href = routes.feed.thought(authorUsername || user.username || "user", id)
+                    }}
+                  />
+                ))
+              )}
+            </div>
+          )}
         </div>
       </div>
 
