@@ -39,8 +39,8 @@ export function ArticleCard({
   const [reposted, setReposted] = useState(false)
   const [repostsCount, setRepostsCount] = useState(0)
 
-  const isMicroPost = !article.title
-  const url = isMicroPost
+  const isThought = !article.title
+  const url = isThought
     ? "#"
     : article.author.subdomain
     ? routes.tenant.article(article.author.subdomain, article.slug)
@@ -59,7 +59,7 @@ export function ArticleCard({
   }
 
   const handleCardClick = () => {
-    if (isMicroPost && onOpenPost) {
+    if (isThought && onOpenPost) {
       onOpenPost(article.id)
     }
   }
@@ -90,7 +90,7 @@ export function ArticleCard({
       onClick={handleCardClick}
       className={cn(
         "group relative pt-6 pb-6 first:pt-0 font-sans antialiased select-none",
-        isMicroPost ? "cursor-pointer" : ""
+        isThought ? "cursor-pointer" : ""
       )}
     >
       {/* Top subtle gradient divider line */}
@@ -133,7 +133,7 @@ export function ArticleCard({
               <span className="text-muted-foreground truncate">
                 @{article.author.username || article.author.subdomain || "qoe"}
               </span>
-              {!isMicroPost && (
+              {!isThought && (
                 <span className="px-2 py-0.5 text-[10px] bg-primary/10 text-primary rounded-full border border-primary/20 font-medium">
                   Article
                 </span>
