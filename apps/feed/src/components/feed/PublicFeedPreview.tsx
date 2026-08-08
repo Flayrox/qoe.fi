@@ -184,7 +184,7 @@ export function PublicFeedPreview({
           </div>
 
           {/* Mix Posts + Articles trending */}
-          {isFeatureEnabled("MICROPOSTS_ENABLED") && trendingPosts.length > 0 && (
+          {isFeatureEnabled("THOUGHTS_ENABLED") && trendingPosts.length > 0 && (
             <section>
               <h2 className="mb-4 flex items-center gap-2 px-2 text-lg font-semibold">
                 🔥 Trending aujourd'hui

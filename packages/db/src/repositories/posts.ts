@@ -11,7 +11,7 @@ import { POST_VISIBILITY } from "@qoe/config";
  */
 export async function findFollowingFeed(
   readerId: string,
-  options?: { take?: number; skip?: number }
+  options?: { take?: number; skip?: number; cursor?: string }
 ) {
   const follows = await prisma.follows.findMany({
     where: { readerId },
@@ -20,6 +20,8 @@ export async function findFollowingFeed(
   const creatorIds = follows.map((f: any) => f.creatorId);
 
   if (creatorIds.length === 0) return [];
+
+  const take = options?.take ?? 20
 
   return prisma.post.findMany({
     where: {
@@ -32,8 +34,9 @@ export async function findFollowingFeed(
       visibility: { in: [POST_VISIBILITY.PUBLIC, POST_VISIBILITY.FOLLOWERS] },
     },
     orderBy: [{ createdAt: "desc" }],
-    take: options?.take ?? 20,
-    skip: options?.skip ?? 0,
+    take: take + 1,
+    cursor: options?.cursor ? { id: options.cursor } : undefined,
+    skip: options?.cursor ? 1 : (options?.skip ?? 0),
     include: {
       author: {
         select: {
@@ -147,9 +150,9 @@ export async function findTrending(limit: number = 20) {
 }
 
 /**
- * ✍️ Crée un micro-post avec auteur inclus.
+ * ✍️ Crée une pensée (Thought) avec auteur inclus.
  */
-export async function createMicroPost(data: {
+export async function createThought(data: {
   content: string;
   authorId: string;
   tags?: string[];
@@ -203,6 +206,9 @@ export async function createMicroPost(data: {
     },
   });
 }
+
+/** @deprecated Utiliser createThought */
+export const createMicroPost = createThought;
 
 /**
  * ❤️ Toggle like sur un post.

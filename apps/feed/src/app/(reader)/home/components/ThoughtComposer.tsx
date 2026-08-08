@@ -93,7 +93,7 @@ export function ThoughtComposer({
   // Load draft from localStorage on mount
   useEffect(() => {
     if (!dbUser) return
-    const saved = localStorage.getItem("qoe_micro_post_draft")
+    const saved = localStorage.getItem("qoe_thought_draft") || localStorage.getItem("qoe_micro_post_draft")
     if (saved) {
       setPostText(saved)
       setIsComposerExpanded(true)
@@ -117,7 +117,7 @@ export function ThoughtComposer({
     }
     const val = e.target.value
     setPostText(val)
-    localStorage.setItem("qoe_micro_post_draft", val)
+    localStorage.setItem("qoe_thought_draft", val)
     if (val.trim()) {
       setIsComposerExpanded(true)
     }
@@ -420,8 +420,8 @@ export function ThoughtComposer({
       const imagePayload = uploadedUrls.length > 0 ? JSON.stringify(uploadedUrls) : null
       const tags = textContent.match(/#[a-zA-Z0-9_-]+/g) || []
 
-      const { createMicroPost } = await import("../actions")
-      const res = await createMicroPost({
+      const { createThought } = await import("../actions")
+      const res = await createThought({
         content: textContent,
         tags,
         imageUrl: imagePayload,
@@ -482,7 +482,7 @@ export function ThoughtComposer({
                 isCertified: post.parent.author?.isCertified || false
               }
             } : null,
-            category: { name: "Micro-post" },
+            category: { name: "Thought" },
             tags: post.tags || []
           })
         }
@@ -502,6 +502,7 @@ export function ThoughtComposer({
         setShowScheduleDropdown(false)
         setShowWarningDropdown(false)
         setOverflowStyle("hidden")
+        localStorage.removeItem("qoe_thought_draft")
         localStorage.removeItem("qoe_micro_post_draft")
         setIsComposerExpanded(false)
       } else {
@@ -518,13 +519,13 @@ export function ThoughtComposer({
   }
 
   return (
-    <div className="pb-6 border-b border-[var(--border-subtle)] flex flex-col gap-4">
+    <div className="pb-6 border-b border-border/30 flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-sm overflow-hidden border border-[var(--border-default)] shrink-0">
+        <div className="w-8 h-8 rounded-md overflow-hidden border border-border/40 shrink-0">
           {dbUser?.logoUrl ? (
             <img src={dbUser.logoUrl} className="w-full h-full object-cover" alt="" />
           ) : (
-            <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-[var(--qoe-vermillion)] text-[10px]">
+            <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-brand text-[10px]">
               {dbUser?.name?.charAt(0).toUpperCase() || "L"}
             </div>
           )}
@@ -609,7 +610,7 @@ export function ThoughtComposer({
               style={{ overflow: overflowStyle }}
             >
               {submitError && (
-                <div className="bg-red-50 text-[var(--qoe-vermillion)] text-[11px] font-semibold p-3 rounded-[var(--radius-button)] flex items-center gap-2 border border-red-100/50">
+                <div className="bg-destructive/10 text-destructive text-[11px] font-semibold p-3 rounded-lg flex items-center gap-2 border border-destructive/20">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   <span>{submitError}</span>
                 </div>
@@ -628,7 +629,7 @@ export function ThoughtComposer({
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                        className="relative aspect-video bg-neutral-100 border border-neutral-200/40 group overflow-hidden rounded-[var(--radius-button)]"
+                        className="relative aspect-video bg-muted/40 border border-border/40 group overflow-hidden rounded-xl"
                       >
                         <img
                           src={img.url}

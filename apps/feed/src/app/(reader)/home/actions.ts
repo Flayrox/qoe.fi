@@ -14,6 +14,11 @@ export async function toggleBookmarkArticleHome(articleId: string) {
   return feedActions.toggleBookmarkArticleHome(articleId)
 }
 
+export async function createThought(input: Parameters<typeof feedActions.createThought>[0]) {
+  return feedActions.createThought(input)
+}
+
+/** @deprecated Utiliser createThought */
 export async function createMicroPost(input: Parameters<typeof feedActions.createMicroPost>[0]) {
   return feedActions.createMicroPost(input)
 }

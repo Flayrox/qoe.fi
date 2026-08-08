@@ -21,7 +21,7 @@
 import Link from "next/link";
 import { ArrowRight, Sparkles, TrendingUp } from "lucide-react";
 import { ArticleCard } from "@/components/feed/ArticleCard";
-import { MicroPostCard } from "@/components/feed/MicroPostCard";
+import { ThoughtCard } from "@/components/feed/ThoughtCard";
 import { Button } from "@qoe/ui/button";
 import { Logo } from "@/components/ui/Logo";
 import { isFeatureEnabled } from "@qoe/config/features";
@@ -174,14 +174,14 @@ export function PublicFeedPreview({
           </div>
 
           {/* Mix Posts + Articles trending */}
-          {isFeatureEnabled("MICROPOSTS_ENABLED") && trendingPosts.length > 0 && (
+          {isFeatureEnabled("THOUGHTS_ENABLED") && trendingPosts.length > 0 && (
             <section>
               <h2 className="mb-4 flex items-center gap-2 px-2 text-lg font-semibold">
                 🔥 Trending aujourd'hui
               </h2>
               <div className="space-y-4">
                 {trendingPosts.slice(0, 3).map((post) => (
-                  <MicroPostCard
+                  <ThoughtCard
                     key={post.id}
                     post={{
                       id: post.id,

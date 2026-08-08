@@ -1,7 +1,7 @@
 "use server"
 
 import { follows, bookmarks, posts, articles } from "@qoe/db"
-import { createMicroPostSchema, replyToPostSchema } from "@qoe/config"
+import { createThoughtSchema, replyToPostSchema } from "@qoe/config"
 import { createClient } from "@qoe/supabase/server"
 import { revalidatePath } from "next/cache"
 import { safeAction } from "@/lib/safe-action"
@@ -29,7 +29,7 @@ export const toggleBookmarkArticleHome = safeAction<string, { bookmarked: boolea
   return bookmarks.toggleBookmark(user.id, articleId)
 })
 
-export const createMicroPost = safeAction<{
+export const createThought = safeAction<{
   content: string;
   tags: string[];
   imageUrl?: string | null;
@@ -39,7 +39,7 @@ export const createMicroPost = safeAction<{
   triggerWarning?: string | null;
   repostId?: string | null;
 }, { post: any }>(async (rawInput, user) => {
-  const input = createMicroPostSchema.parse(rawInput)
+  const input = createThoughtSchema.parse(rawInput)
   const cleanContent = input.content
   
   // Calculate characters with link rules:
@@ -49,7 +49,7 @@ export const createMicroPost = safeAction<{
   let charLength = cleanContent.length
   for (const url of urls) {
     charLength -= url.length
-    const isInternal = url.includes("/post/") || url.includes("/article/")
+    const isInternal = url.includes("/post/") || url.includes("/article/") || url.includes("/thought/")
     if (!isInternal) {
       charLength += 20
     }
@@ -59,7 +59,7 @@ export const createMicroPost = safeAction<{
     throw new Error("INVALID_CONTENT_LENGTH")
   }
 
-  const newPost = await posts.createMicroPost({
+  const newPost = await posts.createThought({
     content: cleanContent,
     authorId: user.id,
     tags: input.tags,
@@ -77,6 +77,9 @@ export const createMicroPost = safeAction<{
   }
   return { post: newPost }
 })
+
+/** @deprecated Utiliser createThought */
+export const createMicroPost = createThought
 
 export const toggleLikePost = safeAction<string, { liked: boolean }>(async (postId, user) => {
   return posts.toggleLike(postId, user.id)
@@ -97,6 +100,13 @@ export const getArticleThread = safeAction<string, { article: any }>(async (slug
   const article = await articles.findBySlug(slug)
   return { article }
 }, false)
+
+export const reportTargetAction = safeAction<any, { success: boolean }>(async (rawInput, user) => {
+  const { targetId, targetType, reason, details } = createReportSchema.parse(rawInput)
+  // Store report log in TranslationAuditLog or console/database
+  console.log(`[MODERATION REPORT] User ${user.id} reported ${targetType} ${targetId} for ${reason}: ${details || "No details"}`)
+  return { success: true }
+})
 
 export const repostPost = safeAction<string, { repost: any }>(async (postId, user) => {
   const repost = await posts.repostPost(postId, user.id)
