@@ -186,6 +186,52 @@ export async function findThreadById(postId: string) {
         },
       },
       likes: { select: { userId: true } },
+      parent: {
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              logoUrl: true,
+              isCertified: true,
+              subdomain: true,
+              customDomain: true,
+            },
+          },
+          _count: { select: { likes: true, replies: true } },
+          parent: {
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  username: true,
+                  logoUrl: true,
+                  isCertified: true,
+                  subdomain: true,
+                  customDomain: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      repost: {
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              logoUrl: true,
+              isCertified: true,
+              subdomain: true,
+              customDomain: true,
+            },
+          },
+        },
+      },
       replies: {
         include: {
           author: {
@@ -195,9 +241,12 @@ export async function findThreadById(postId: string) {
               username: true,
               logoUrl: true,
               isCertified: true,
+              subdomain: true,
+              customDomain: true,
             },
           },
           likes: { select: { userId: true } },
+          _count: { select: { likes: true, replies: true } },
           replies: {
             include: {
               author: {
@@ -207,8 +256,11 @@ export async function findThreadById(postId: string) {
                   username: true,
                   logoUrl: true,
                   isCertified: true,
+                  subdomain: true,
+                  customDomain: true,
                 },
               },
+              _count: { select: { likes: true, replies: true } },
             },
           },
         },

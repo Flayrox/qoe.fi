@@ -28,6 +28,7 @@ export const routes = {
     profile: (username: string) => `/profile/${encodeURIComponent(username.replace(/^@/, ""))}`,
     article: (slug: string) => `/article/${encodeURIComponent(slug)}`,
     post: (id: string) => `/post/${encodeURIComponent(id)}`,
+    thought: (username: string, id: string) => `/@${encodeURIComponent(username.replace(/^@/, ""))}/thought/${encodeURIComponent(id)}`,
   },
 
   /** 🎨 Creator Studio Dashboard App (`apps/dashboard`) */

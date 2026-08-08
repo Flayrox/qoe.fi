@@ -396,3 +396,29 @@ export const unfurlUrl = safeAction<string, {
     }
   }
 }, false)
+
+export const updateProfile = safeAction<{
+  name?: string
+  heroText?: string
+  onboardingText?: string
+  logoUrl?: string
+  headerImageUrl?: string
+}, { user: any }>(async (input, user) => {
+  const { prisma } = await import("@qoe/db/client")
+  const updatedUser = await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.heroText !== undefined ? { heroText: input.heroText } : {}),
+      ...(input.onboardingText !== undefined ? { onboardingText: input.onboardingText } : {}),
+      ...(input.logoUrl !== undefined ? { logoUrl: input.logoUrl } : {}),
+      ...(input.headerImageUrl !== undefined ? { headerImageUrl: input.headerImageUrl } : {}),
+    }
+  })
+  revalidatePath("/home")
+  if (updatedUser.username) {
+    revalidatePath(`/@${updatedUser.username}`)
+    revalidatePath(`/profile/${updatedUser.username}`)
+  }
+  return { user: updatedUser }
+})
