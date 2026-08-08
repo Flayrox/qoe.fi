@@ -2,16 +2,19 @@
 
 import React, { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowLeft, Send, Loader2, AlertCircle, Trash2, X } from "lucide-react"
+import { ArrowLeft, Send, Loader2, AlertCircle, Trash2, X, Repeat, CornerDownRight, MoreHorizontal, Pin } from "lucide-react"
 
 import { getPostThread, toggleLikePost, replyToPost, deletePost, repostPost } from "../actions"
 import { LikeIcon, CommentIcon, RepostIcon, ShareIcon } from "@/components/icons/CustomIcons"
 import { cn } from "@qoe/utils"
+import { toast } from "sonner"
 
 import { TextParser } from "@/components/ui/TextParser"
 import { LinkPreview } from "@/components/social/LinkPreview"
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card"
 import { useTranslate } from "@qoe/i18n"
 import { trackEvent } from "@/lib/analytics"
+import { routes } from "@qoe/config/routes"
 
 const getUrls = (text: string): string[] => {
   const urlRegex = /https?:\/\/[^\s]+/gi
@@ -21,6 +24,8 @@ const getUrls = (text: string): string[] => {
 interface ExpandedPostViewProps {
   postId: string
   currentUserId: string | null
+  initialPost?: any
+  standalone?: boolean
   onClose?: () => void
   onOpenProfile?: (username: string) => void
   onInteractionUpdate?: (postId: string, update: { liked?: boolean; likesCount?: number; repliesCount?: number }) => void
@@ -33,48 +38,94 @@ const springs = {
   lightbox: { type: "spring" as const, stiffness: 350, damping: 30 }
 }
 
-export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile: onOpenProfileProp, onInteractionUpdate, onLoginRequired }: ExpandedPostViewProps) {
+export function ExpandedPostView({
+  postId,
+  currentUserId,
+  initialPost,
+  standalone = false,
+  onClose,
+  onOpenProfile: onOpenProfileProp,
+  onInteractionUpdate,
+  onLoginRequired
+}: ExpandedPostViewProps) {
   const { t } = useTranslate()
-  const [post, setPost] = useState<any | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [post, setPost] = useState<any | null>(initialPost || null)
+  const [loading, setLoading] = useState(!initialPost)
   const [replyText, setReplyText] = useState("")
   const [sendingReply, setSendingReply] = useState(false)
-  const [liked, setLiked] = useState(false)
-  const [likesCount, setLikesCount] = useState(0)
+  const [liked, setLiked] = useState(initialPost?.likes?.some((l: any) => l.userId === currentUserId) || false)
+  const [likesCount, setLikesCount] = useState(initialPost?.likes?.length || 0)
   
-  // New social states
   const [reposted, setReposted] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [lightboxImage, setLightboxImage] = useState<string | null>(null)
   const [isWarningRevealed, setIsWarningRevealed] = useState(false)
 
-  const handleOpenProfile = () => {
-    const targetUsername = post?.author?.username || post?.author?.subdomain
+  const handleOpenProfile = (author: any) => {
+    const targetUsername = author?.username || author?.subdomain
     if (!targetUsername) return
     if (onOpenProfileProp) {
       onOpenProfileProp(targetUsername)
     } else {
-      window.location.href = `/profile/${targetUsername}`
+      window.location.href = routes.feed.profile(targetUsername)
     }
   }
 
+  const navigateToThought = (targetPostId: string, authorUsername?: string) => {
+    const username = authorUsername || "user"
+    const newUrl = routes.feed.thought(username, targetPostId)
+    window.history.pushState({ postId: targetPostId }, "", newUrl)
+    
+    setLoading(true)
+    getPostThread(targetPostId).then(res => {
+      if (res.ok && res.data?.post) {
+        setPost(res.data.post)
+        setLiked(res.data.post.likes?.some((l: any) => l.userId === currentUserId) || false)
+        setLikesCount(res.data.post.likes?.length || 0)
+      }
+      setLoading(false)
+    })
+  }
+
   useEffect(() => {
+    if (initialPost && initialPost.id === postId) {
+      setPost(initialPost)
+      setLoading(false)
+      return
+    }
+
     async function loadThread() {
       setLoading(true)
       const res = await getPostThread(postId)
       if (res.ok && res.data?.post) {
         const postData = res.data.post
         setPost(postData)
-        const userHasLiked = postData.likes.some((l: any) => l.userId === currentUserId)
+        const userHasLiked = postData.likes?.some((l: any) => l.userId === currentUserId)
         setLiked(userHasLiked)
-        setLikesCount(postData.likes.length)
+        setLikesCount(postData.likes?.length || 0)
         const userHasReposted = postData.reposts?.some((r: any) => r.authorId === currentUserId) || false
         setReposted(userHasReposted)
+      } else {
+        setPost(null)
       }
       setLoading(false)
     }
     loadThread()
-  }, [postId, currentUserId])
+  }, [postId, currentUserId, initialPost])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (lightboxImage) {
+          setLightboxImage(null)
+        } else if (onClose) {
+          onClose()
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [lightboxImage, onClose])
 
   const handleLikeToggle = async () => {
     if (!currentUserId) {
@@ -96,7 +147,6 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
 
     const res = await toggleLikePost(postId)
     if (!res.ok) {
-      // Rollback
       setLiked(liked)
       setLikesCount(likesCount)
       if (onInteractionUpdate) {
@@ -112,6 +162,7 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
     }
     if (reposted) return
     setReposted(true)
+    toast.success(t("feed.repost_success", "Post repartagé."))
     trackEvent("post_repost", { postId })
     const res = await repostPost(postId)
     if (!res.ok) setReposted(false)
@@ -123,18 +174,21 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
     trackEvent("post_delete", { postId })
     const res = await deletePost(postId)
     if (res.ok) {
-      // Close the view
+      toast.success(t("feed.delete_success", "Post supprimé."))
       if (onClose) onClose()
+      else window.location.href = routes.feed.home()
     } else {
       setDeleting(false)
-      alert(t("feed.msg_error_delete", "Erreur lors de la suppression."))
+      toast.error(t("feed.msg_error_delete", "Erreur lors de la suppression."))
     }
   }
 
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/@${post.author.username || post.author.subdomain}/post/${post.id}`
+    const authorHandle = post.author.username || post.author.subdomain || "user"
+    const shareUrl = `${window.location.origin}${routes.feed.thought(authorHandle, post.id)}`
+    
     const shareData = {
-      title: t("feed.share_title", { name: post.author.name }),
+      title: `${post.author.name} sur qoe.fi`,
       text: post.content,
       url: shareUrl
     }
@@ -145,12 +199,12 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
       try {
         await navigator.share(shareData)
       } catch (err) {
-        console.log("Share failed or cancelled:", err)
+        console.log("Share cancelled:", err)
       }
     } else {
       try {
         await navigator.clipboard.writeText(shareUrl)
-        alert(t("feed.msg_link_copied", "Lien copié dans le presse-papiers !"))
+        toast.success(t("feed.msg_link_copied", "Lien copié !"))
       } catch (err) {
         console.error("Copy error:", err)
       }
@@ -167,6 +221,7 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
     setSendingReply(false)
 
     if (res.ok && res.data?.reply) {
+      toast.success(t("feed.reply_success", "Réponse publiée."))
       setReplyText("")
       setPost((prev: any) => ({
         ...prev,
@@ -175,6 +230,8 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
       if (onInteractionUpdate) {
         onInteractionUpdate(postId, { repliesCount: (post.replies?.length || 0) + 1 })
       }
+    } else {
+      toast.error(t("feed.reply_error", "Erreur de publication."))
     }
   }
 
@@ -226,21 +283,23 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
   }
 
   if (loading || deleting) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3 bg-white border border-neutral-200/50 rounded-[var(--radius-card)] shadow-xs">
-        <Loader2 className="w-5 h-5 animate-spin text-[var(--qoe-vermillion)]" />
-        <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">
-          {deleting ? t("feed.loading_post_deleting", "Suppression en cours...") : t("feed.loading_post", "Chargement du fil social...")}
-        </span>
-      </div>
-    )
+    return <ExpandedPostSkeleton standalone={standalone} />
   }
 
   if (!post) {
     return (
-      <div className="bg-white border border-neutral-200/50 rounded-[var(--radius-card)] p-8 text-center text-neutral-500 shadow-xs">
-        <AlertCircle className="w-8 h-8 text-neutral-300 mx-auto mb-3" />
-        <p className="text-xs">{t("feed.post_not_found", "Le contenu demandé est introuvable ou a été supprimé.")}</p>
+      <div className="py-12 text-center text-muted-foreground">
+        <AlertCircle className="w-7 h-7 text-muted-foreground/40 mx-auto mb-2" />
+        <p className="text-xs">{t("feed.post_not_found", "Contenu introuvable ou supprimé.")}</p>
+        <button
+          onClick={() => {
+            if (onClose) onClose()
+            else window.location.href = routes.feed.home()
+          }}
+          className="mt-3 text-xs font-semibold text-foreground hover:underline cursor-pointer"
+        >
+          {t("feed.back_to_feed", "Retour au flux")}
+        </button>
       </div>
     )
   }
@@ -248,67 +307,140 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
   return (
     <>
       <motion.div 
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springs.enter}
-        className="bg-white border border-neutral-200/50 rounded-[var(--radius-card)] p-6 shadow-xs flex flex-col gap-6"
+        className="flex flex-col gap-4 font-sans"
       >
-        {/* Thread Header */}
-        <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
-          <motion.button
-            onClick={() => onClose?.()}
-            whileTap={{ scale: 0.98 }}
-            className="flex items-center gap-2 text-xs font-semibold text-neutral-500 hover:text-neutral-800 transition-colors cursor-pointer px-2 py-1.5 -ml-2 rounded-[var(--radius-button)] hover:bg-neutral-50"
+        {/* Navigation top bar */}
+        <div className="flex items-center justify-between border-b border-border/40 pb-3">
+          <button
+            onClick={() => {
+              if (onClose) onClose()
+              else window.location.href = routes.feed.home()
+            }}
+            className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> {t("feed.back_to_feed", "Retour au flux")}
-          </motion.button>
-          
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">{t("feed.social_thread", "Fil social")}</span>
-            {currentUserId === post.authorId && (
-              <motion.button
-                onClick={handleDelete}
-                whileTap={{ scale: 0.95 }}
-                className="w-11 h-11 -my-3.5 -mr-3.5 flex items-center justify-center rounded-[var(--radius-button)] text-neutral-400 hover:text-red-500 hover:bg-neutral-50 transition-colors cursor-pointer"
-                title={t("feed.delete_post", "Supprimer le post")}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </motion.button>
-            )}
-          </div>
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>{t("feed.back_to_feed", "Retour au flux")}</span>
+          </button>
+
+          {currentUserId === post.authorId && (
+            <button
+              onClick={handleDelete}
+              className="text-muted-foreground hover:text-destructive transition-colors p-1 cursor-pointer"
+              title={t("feed.delete_post", "Supprimer")}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
-        {/* Main post layout */}
-        <div className="space-y-4">
-          <motion.button
-            onClick={handleOpenProfile}
-            whileTap={{ scale: 0.98 }}
-            className="flex items-center gap-3 text-left hover:opacity-90 transition-opacity cursor-pointer outline-none group/author"
-          >
-            <div className="w-10 h-10 rounded-[var(--radius-icon)] overflow-hidden border border-neutral-200/40 shrink-0 shadow-xs">
-              {post.author.logoUrl ? (
-                <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
-              ) : (
-                <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-sm text-[var(--qoe-vermillion)]">
-                  {post.author.name?.charAt(0)}
+        {/* ── PARENT ANCESTOR CHAIN (If reply) ── */}
+        {post.parent && (
+          <div className="pb-3 border-b border-border/40 pl-3 border-l-2 border-border/50">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
+              <CornerDownRight className="w-3 h-3 text-brand" />
+              <span>{t("feed.replying_to", "En réponse à")}</span>
+            </div>
+            
+            <div 
+              onClick={() => navigateToThought(post.parent.id, post.parent.author.username || post.parent.author.subdomain)}
+              className="cursor-pointer group/parent space-y-1.5"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-md overflow-hidden bg-muted shrink-0">
+                    {post.parent.author.logoUrl ? (
+                      <img src={post.parent.author.logoUrl} className="w-full h-full object-cover" alt="" />
+                    ) : (
+                      <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-xs text-brand">
+                        {post.parent.author.name?.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-semibold text-foreground group-hover/parent:text-brand transition-colors">{post.parent.author.name}</span>
+                      {post.parent.author.isCertified && <span className="text-brand text-xs font-black">✓</span>}
+                    </div>
+                    <span className="text-xs text-muted-foreground">@{post.parent.author.username || post.parent.author.subdomain}</span>
+                  </div>
                 </div>
-              )}
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-semibold text-neutral-800 group-hover/author:text-[var(--qoe-vermillion)] transition-colors">{post.author.name}</span>
-                {post.author.isCertified && <span className="text-[var(--qoe-vermillion)] text-[9px] font-black">✓</span>}
+                <span className="text-xs text-muted-foreground">
+                  {new Date(post.parent.createdAt).toLocaleDateString("fr-FR", { month: "short", day: "numeric" })}
+                </span>
               </div>
-              <span className="text-xs text-neutral-400 block mt-0.5">@{post.author.username || post.author.subdomain}</span>
+              <p className="text-sm text-foreground/80 leading-relaxed font-sans line-clamp-2">
+                {post.parent.content}
+              </p>
             </div>
-          </motion.button>
- 
+          </div>
+        )}
+
+        {/* ── MAIN FOCUS POST (MATCHES TIMELINE ITEM EXACTLY) ── */}
+        <div className="py-2 border-b border-border/40 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <HoverCard>
+              <HoverCardTrigger
+                render={
+                  <button 
+                    onClick={() => handleOpenProfile(post.author)}
+                    className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author text-left outline-none"
+                  >
+                    <div className="w-9 h-9 rounded-md overflow-hidden bg-muted shrink-0 transition-transform duration-300 group-hover/author:scale-105">
+                      {post.author.logoUrl ? (
+                        <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
+                      ) : (
+                        <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-xs text-brand">
+                          {post.author.name?.charAt(0) || "U"}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-semibold text-foreground block leading-none group-hover/author:text-brand transition-colors">{post.author.name}</span>
+                        {post.author.isCertified && <span className="text-brand text-xs font-black">✓</span>}
+                      </div>
+                      <span className="text-xs text-muted-foreground block mt-1">@{post.author.username || post.author.subdomain}</span>
+                    </div>
+                  </button>
+                }
+              />
+              
+              <HoverCardContent className="w-72 p-4 bg-card border border-border/40 rounded-lg shadow-xl z-50">
+                <div className="flex justify-between space-x-4">
+                  <div className="w-10 h-10 rounded-md overflow-hidden bg-muted shrink-0">
+                    {post.author.logoUrl ? (
+                      <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
+                    ) : (
+                      <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-sm text-brand">
+                        {post.author.name?.charAt(0) || "U"}
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1 flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold text-foreground leading-none">{post.author.name}</h4>
+                      {post.author.isCertified && <span className="text-brand text-xs font-black">✓</span>}
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-none">@{post.author.username || post.author.subdomain}</p>
+                  </div>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
+
+            <span className="text-xs text-muted-foreground">
+              {new Date(post.createdAt).toLocaleDateString("fr-FR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+            </span>
+          </div>
+
           <div className="relative">
             <div className={cn(
               "transition-all duration-300",
-              (post.triggerWarning && !isWarningRevealed) && "blur-[16px] pointer-events-none select-none"
+              (post.triggerWarning && !isWarningRevealed) && "blur-md pointer-events-none select-none"
             )}>
-              <div className="text-base text-neutral-800 leading-relaxed font-sans font-light">
+              <div className="text-base text-foreground leading-relaxed font-sans">
                 <TextParser content={post.content} />
               </div>
 
@@ -317,79 +449,88 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
                   <LinkPreview urls={getUrls(post.content)} />
                 </div>
               )}
- 
+
               {post.imageUrl && (
-                <ImageGrid urls={getImages(post.imageUrl)} onImageClick={(url) => setLightboxImage(url)} />
+                <div className="mt-2">
+                  <ImageGrid urls={getImages(post.imageUrl)} onImageClick={(url) => setLightboxImage(url)} />
+                </div>
+              )}
+
+              {post.repost && (
+                <div 
+                  onClick={() => navigateToThought(post.repost.id, post.repost.author.username || post.repost.author.subdomain)}
+                  className="mt-3 p-3 bg-muted/30 border-l-2 border-border/60 hover:border-brand transition-colors cursor-pointer space-y-1"
+                >
+                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    <Repeat className="w-3.5 h-3.5" />
+                    <span className="font-semibold text-foreground">{post.repost.author.name}</span>
+                    <span>@{post.repost.author.username || post.repost.author.subdomain}</span>
+                  </div>
+                  <p className="text-xs text-foreground/80 line-clamp-2">
+                    {post.repost.content}
+                  </p>
+                </div>
               )}
             </div>
- 
+
             {post.triggerWarning && !isWarningRevealed && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/40 dark:bg-black/40 backdrop-blur-md transition-all duration-300 p-4">
-                <span className="text-[11px] uppercase tracking-wider text-amber-600 mb-2 font-bold">{t("feed.warning_label", "Avertissement")}</span>
-                <p className="text-[13px] font-medium text-neutral-900 dark:text-neutral-100 text-center max-w-[280px] mb-3.5 leading-snug">
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/90 backdrop-blur-xs p-4">
+                <span className="text-xs font-semibold text-amber-500 mb-1">Avertissement</span>
+                <p className="text-xs text-muted-foreground text-center max-w-[280px] mb-3">
                   {post.triggerWarning}
                 </p>
                 <button
                   onClick={() => setIsWarningRevealed(true)}
-                  className="px-3.5 py-2 bg-neutral-900 hover:bg-neutral-850 dark:bg-white dark:hover:bg-neutral-100 text-white dark:text-black hover:opacity-90 text-[10px] font-bold rounded-[var(--radius-button)] transition-all cursor-pointer shadow-sm uppercase tracking-wider"
+                  className="px-3 py-1.5 bg-foreground text-background hover:opacity-90 text-xs font-semibold rounded-md transition-opacity cursor-pointer"
                 >
-                  {t("feed.warning_show", "Afficher")}
+                  Afficher
                 </button>
               </div>
             )}
           </div>
- 
-          <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-semibold pt-2">
-            <span>{new Date(post.createdAt).toLocaleDateString(undefined, { hour: "numeric", minute: "numeric" })}</span>
-            <span>•</span>
-            <span>{t("feed.qoe_sovereignty", "Souveraineté QOE")}</span>
+
+          {/* Actions Bar — Identical to timeline */}
+          <div className="flex items-center justify-between pt-3 border-t border-border/30 text-xs text-muted-foreground">
+            <button 
+              onClick={handleLikeToggle}
+              className={cn(
+                "flex items-center gap-1.5 hover:text-brand transition-colors cursor-pointer",
+                liked && "text-brand font-semibold"
+              )}
+            >
+              <motion.div whileTap={{ scale: 1.3 }} transition={springs.like}>
+                <LikeIcon className="w-4 h-4" style={{ fill: liked ? "var(--accent-brand, #EE4B2B)" : "transparent" }} />
+              </motion.div>
+              <span>{likesCount}</span>
+            </button>
+
+            <div className="flex items-center gap-1.5">
+              <CommentIcon className="w-4 h-4" />
+              <span>{post.replies?.length || 0}</span>
+            </div>
+
+            <button 
+              onClick={handleRepost}
+              className={cn(
+                "flex items-center gap-1.5 hover:text-emerald-500 transition-colors cursor-pointer",
+                reposted && "text-emerald-500 font-semibold"
+              )}
+            >
+              <RepostIcon className="w-4 h-4" />
+              <span>{reposted ? "Reposté" : "Repost"}</span>
+            </button>
+
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer"
+            >
+              <ShareIcon className="w-4 h-4" />
+              <span>Partager</span>
+            </button>
           </div>
         </div>
 
-        {/* Actions bar */}
-        <div className="flex items-center justify-between border-y border-neutral-100 py-3 px-1 text-neutral-400 text-xs font-semibold">
-          <motion.button 
-            onClick={handleLikeToggle}
-            whileTap={{ scale: 0.98 }}
-            className={cn(
-              "flex items-center gap-2 cursor-pointer transition-colors px-2 py-1.5 rounded-[var(--radius-button)] hover:bg-neutral-50",
-              liked ? "text-[var(--qoe-vermillion)]" : "hover:text-[var(--qoe-vermillion)]"
-            )}
-          >
-            <motion.div whileTap={{ scale: 1.4 }} transition={springs.like}>
-              <LikeIcon className="w-4 h-4" style={{ fill: liked ? "var(--qoe-vermillion)" : "transparent" }} />
-            </motion.div>
-            <span>{likesCount} Likes</span>
-          </motion.button>
-
-          <div className="flex items-center gap-2">
-            <CommentIcon className="w-4 h-4 text-neutral-400" />
-            <span>{post.replies?.length || 0} Réponses</span>
-          </div>
-
-          <motion.button 
-            onClick={handleRepost}
-            whileTap={{ scale: 0.98 }}
-            className={cn(
-              "flex items-center gap-2 cursor-pointer transition-colors px-2 py-1.5 rounded-[var(--radius-button)] hover:bg-neutral-50",
-              reposted ? "text-emerald-500" : "hover:text-emerald-500"
-            )}
-          >
-            <RepostIcon className="w-4 h-4" />
-            <span>{reposted ? t("feed.reposted_btn", "Reposté") : t("feed.repost_btn", "Repost")}</span>
-          </motion.button>
-
-          <motion.button
-            onClick={handleShare}
-            whileTap={{ scale: 0.98 }}
-            className="flex items-center gap-2 hover:text-neutral-700 cursor-pointer px-2 py-1.5 rounded-[var(--radius-button)] hover:bg-neutral-50"
-          >
-            <ShareIcon className="w-4 h-4" />
-            <span>{t("feed.share_btn", "Partager")}</span>
-          </motion.button>
-        </div>
-
-        {/* Reply Composer */}
+        {/* ── REPLY INPUT COMPOSER ── */}
         <form 
           onSubmit={(e) => {
             if (!currentUserId) {
@@ -399,9 +540,10 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
             }
             handleReplySubmit(e)
           }} 
-          className="flex gap-3 items-end"
+          className="flex gap-2 items-center pt-2"
         >
-          <textarea
+          <input
+            type="text"
             value={replyText}
             onChange={(e) => {
               if (!currentUserId) {
@@ -416,46 +558,41 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
                 if (onLoginRequired) onLoginRequired()
               }
             }}
-            placeholder={t("feed.reply_publish", "Publiez votre réponse...")}
-            rows={1}
-            className="flex-1 text-[13px] border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-[var(--radius-element)] p-2.5 h-10 resize-none outline-none transition-all"
+            placeholder={t("feed.reply_publish", "Écrire une réponse...")}
+            className="flex-1 text-xs border-b border-border/40 focus:border-foreground bg-transparent text-foreground placeholder:text-muted-foreground py-2 outline-none transition-colors"
             required
           />
-          <motion.button
+          <button
             type="submit"
-            whileTap={{ scale: 0.95 }}
             disabled={sendingReply || !!(currentUserId && !replyText.trim())}
-            className="bg-neutral-900 text-white p-2.5 rounded-[var(--radius-button)] flex items-center justify-center cursor-pointer h-10 w-10 shrink-0 hover:bg-neutral-800 transition-colors disabled:opacity-40"
+            className="text-xs font-semibold text-foreground hover:text-brand disabled:opacity-40 transition-colors cursor-pointer px-2 py-1"
           >
-            {sendingReply ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-          </motion.button>
+            {sendingReply ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Publier"}
+          </button>
         </form>
 
-        {/* Recursive Comments list */}
-        <div className="space-y-4 pt-2">
-          <h4 className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2.5">{t("feed.replies_header", "Fils de discussion")}</h4>
-          <div className="space-y-4">
-            {post.replies && post.replies.length === 0 ? (
-              <p className="text-[11px] text-neutral-400 font-medium italic py-2 pl-1">{t("feed.no_replies", "Aucune réponse pour le moment. Engagez la discussion !")}</p>
-            ) : (
-              post.replies?.map((reply: any) => (
-                <CommentThread 
-                  key={reply.id}
-                  reply={reply}
-                  depth={0}
-                  currentUserId={currentUserId}
-                  onReplyAdded={handleNestedReplyAdded}
-                  onReplyDeleted={handleNestedReplyDeleted}
-                  onLoginRequired={onLoginRequired}
-                />
-              ))
-            )}
-          </div>
+        {/* ── REPLIES LIST ── */}
+        <div className="space-y-3 pt-2">
+          {post.replies && post.replies.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic py-2">{t("feed.no_replies", "Aucune réponse pour le moment.")}</p>
+          ) : (
+            post.replies?.map((reply: any) => (
+              <CommentThread 
+                key={reply.id}
+                reply={reply}
+                depth={0}
+                currentUserId={currentUserId}
+                onSelectThought={(replyId, username) => navigateToThought(replyId, username)}
+                onReplyAdded={handleNestedReplyAdded}
+                onReplyDeleted={handleNestedReplyDeleted}
+                onLoginRequired={onLoginRequired}
+              />
+            ))
+          )}
         </div>
-
       </motion.div>
 
-      {/* Immersive Image Lightbox Overlay */}
+      {/* Lightbox Overlay */}
       <AnimatePresence>
         {lightboxImage && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -464,25 +601,25 @@ export function ExpandedPostView({ postId, currentUserId, onClose, onOpenProfile
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setLightboxImage(null)}
-              className="absolute inset-0 bg-neutral-900/80 backdrop-blur-xl cursor-zoom-out"
+              className="absolute inset-0 bg-background/80 backdrop-blur-xl cursor-zoom-out"
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
               transition={springs.lightbox}
-              className="relative z-10 max-w-5xl w-full max-h-[90vh] flex flex-col items-center justify-center"
+              className="relative z-10 max-w-4xl w-full max-h-[90vh] flex flex-col items-center justify-center"
             >
               <button 
                 onClick={() => setLightboxImage(null)}
-                className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 rounded-full transition-all cursor-pointer"
+                className="absolute -top-10 right-0 p-1 text-foreground hover:opacity-80 transition-opacity cursor-pointer"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
               <img 
                 src={lightboxImage} 
-                alt="Fullscreen post image" 
-                className="w-auto h-auto max-w-full max-h-[85vh] object-contain rounded-[var(--radius-card)] shadow-2xl" 
+                alt="" 
+                className="w-auto h-auto max-w-full max-h-[85vh] object-contain rounded-md shadow-2xl" 
               />
             </motion.div>
           </div>
@@ -496,13 +633,15 @@ function CommentThread({
   reply, 
   depth = 0, 
   currentUserId, 
+  onSelectThought,
   onReplyAdded,
   onReplyDeleted,
   onLoginRequired
 }: { 
   reply: any; 
   depth?: number; 
-  currentUserId: string | null; 
+  currentUserId: string | null;
+  onSelectThought: (replyId: string, username?: string) => void;
   onReplyAdded: (parentId: string, newReply: any) => void;
   onReplyDeleted: (deletedId: string) => void;
   onLoginRequired?: () => void;
@@ -515,13 +654,8 @@ function CommentThread({
   const [likesCount, setLikesCount] = useState(reply.likes?.length || 0)
   const { t } = useTranslate()
 
-  const handleOpenProfile = () => {
-    const targetUsername = reply.author.username || reply.author.subdomain
-    if (!targetUsername) return
-    window.location.href = `/profile/${targetUsername}`
-  }
-
-  const handleLike = async () => {
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation()
     if (!currentUserId) {
       if (onLoginRequired) onLoginRequired()
       return
@@ -544,99 +678,106 @@ function CommentThread({
     const res = await replyToPost({ postId: reply.id, content: replyText })
     setSending(false)
     if (res.ok && res.data?.reply) {
+      toast.success(t("feed.reply_success", "Réponse publiée."))
       setReplyText("")
       setShowReplyForm(false)
       onReplyAdded(reply.id, res.data.reply)
+    } else {
+      toast.error(t("feed.reply_error", "Erreur."))
     }
   }
 
-  const handleDelete = async () => {
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation()
     if (!confirm(t("feed.msg_confirm_delete_reply", "Voulez-vous supprimer cette réponse ?"))) return
     setDeleting(true)
     trackEvent("comment_delete", { replyId: reply.id })
     const res = await deletePost(reply.id)
     if (res.ok) {
+      toast.success(t("feed.delete_success", "Réponse supprimée."))
       onReplyDeleted(reply.id)
     } else {
       setDeleting(false)
-      alert(t("feed.msg_error_delete", "Erreur lors de la suppression."))
+      toast.error(t("feed.msg_error_delete", "Erreur lors de la suppression."))
     }
   }
 
   if (deleting) return null
 
+  const handleThreadClick = () => {
+    onSelectThought(reply.id, reply.author.username || reply.author.subdomain)
+  }
+
   return (
-    <div className="space-y-3 pl-3 border-l border-neutral-100 relative group/comment mt-4">
-      <div className="flex items-center gap-2.5">
-        <motion.button 
-          onClick={handleOpenProfile} 
-          whileTap={{ scale: 0.98 }}
-          className="w-6 h-6 rounded-[var(--radius-icon)] overflow-hidden border border-neutral-200/30 shrink-0 shadow-xs cursor-pointer hover:opacity-85 transition-opacity outline-none"
-        >
-          {reply.author.logoUrl ? (
-            <img src={reply.author.logoUrl} className="w-full h-full object-cover" alt="" />
-          ) : (
-            <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-[9px] text-[var(--qoe-vermillion)]">
-              {reply.author.name?.charAt(0)}
+    <div className="py-3 border-b border-border/30 pl-3 border-l-2 border-border/40 relative group/comment">
+      <div 
+        onClick={handleThreadClick}
+        className="cursor-pointer space-y-2"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-md overflow-hidden bg-muted shrink-0">
+              {reply.author.logoUrl ? (
+                <img src={reply.author.logoUrl} className="w-full h-full object-cover" alt="" />
+              ) : (
+                <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-xs text-brand">
+                  {reply.author.name?.charAt(0)}
+                </div>
+              )}
             </div>
-          )}
-        </motion.button>
-        <motion.button 
-          onClick={handleOpenProfile} 
-          whileTap={{ scale: 0.98 }}
-          className="flex items-center text-left hover:text-[var(--qoe-vermillion)] transition-colors cursor-pointer outline-none"
-        >
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-semibold text-neutral-800 block leading-none">{reply.author.name}</span>
-            {reply.author.isCertified && <span className="text-[var(--qoe-vermillion)] text-[8px] font-black">✓</span>}
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-foreground">{reply.author.name}</span>
+                {reply.author.isCertified && <span className="text-brand text-xs font-black">✓</span>}
+              </div>
+              <span className="text-xs text-muted-foreground block">@{reply.author.username || reply.author.subdomain}</span>
+            </div>
           </div>
-          <span className="text-[9px] text-neutral-400 ml-2">@{reply.author.username}</span>
-        </motion.button>
-        
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-[9px] text-neutral-400">{new Date(reply.createdAt).toLocaleDateString()}</span>
-          {currentUserId === reply.authorId && (
-            <motion.button
-              onClick={handleDelete}
-              whileTap={{ scale: 0.95 }}
-              className="w-11 h-11 -my-4 -mr-4 flex items-center justify-center rounded-[var(--radius-button)] text-neutral-400 hover:text-red-500 transition-colors opacity-0 group-hover/comment:opacity-100 cursor-pointer"
-              title={t("feed.delete_post", "Supprimer le post")}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </motion.button>
-          )}
+          
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs text-muted-foreground">
+              {new Date(reply.createdAt).toLocaleDateString("fr-FR", { month: "short", day: "numeric" })}
+            </span>
+            {currentUserId === reply.authorId && (
+              <button
+                onClick={handleDelete}
+                className="text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover/comment:opacity-100 p-1 cursor-pointer"
+                title={t("feed.delete_post", "Supprimer")}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      <p className="text-[13px] text-neutral-700 leading-relaxed font-sans pl-8">
-        {reply.content}
-      </p>
+        <p className="text-sm text-foreground/90 leading-relaxed font-sans">
+          {reply.content}
+        </p>
 
-      {/* Sub-comment actions */}
-      <div className="flex items-center gap-4 pl-8 text-[10px] text-neutral-400 font-semibold">
-        <motion.button 
-          onClick={handleLike}
-          whileTap={{ scale: 0.98 }}
-          className={cn("flex items-center gap-1.5 hover:text-[var(--qoe-vermillion)] transition-colors cursor-pointer px-2 py-1 rounded-[var(--radius-button)] hover:bg-neutral-50", liked && "text-[var(--qoe-vermillion)]")}
-        >
-          <LikeIcon className="w-3.5 h-3.5" style={{ fill: liked ? "var(--qoe-vermillion)" : "transparent" }} />
-          <span>{likesCount}</span>
-        </motion.button>
+        <div className="flex items-center gap-4 pt-1 text-xs text-muted-foreground font-medium">
+          <button 
+            onClick={handleLike}
+            className={cn("flex items-center gap-1 hover:text-brand transition-colors cursor-pointer", liked && "text-brand font-semibold")}
+          >
+            <LikeIcon className="w-3.5 h-3.5" style={{ fill: liked ? "var(--accent-brand, #EE4B2B)" : "transparent" }} />
+            <span>{likesCount}</span>
+          </button>
 
-        <motion.button 
-          onClick={() => {
-            if (!currentUserId) {
-              if (onLoginRequired) onLoginRequired()
-              return
-            }
-            setShowReplyForm(prev => !prev)
-          }}
-          whileTap={{ scale: 0.98 }}
-          className="flex items-center gap-1.5 hover:text-neutral-700 transition-colors cursor-pointer px-2 py-1 rounded-[var(--radius-button)] hover:bg-neutral-50"
-        >
-          <CommentIcon className="w-3.5 h-3.5" />
-          <span>{t("feed.reply_btn", "Répondre")}</span>
-        </motion.button>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation()
+              if (!currentUserId) {
+                if (onLoginRequired) onLoginRequired()
+                return
+              }
+              setShowReplyForm(prev => !prev)
+            }}
+            className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
+          >
+            <CommentIcon className="w-3.5 h-3.5" />
+            <span>Répondre</span>
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>
@@ -646,29 +787,28 @@ function CommentThread({
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             onSubmit={handleSubmit}
-            className="flex gap-2 pl-8 pt-1"
+            className="flex gap-2 pt-2"
           >
             <input
               type="text"
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               placeholder={t("feed.reply_placeholder", "Écrire une réponse...")}
-              className="flex-1 text-[11px] border border-neutral-200 focus:border-neutral-300 focus:outline-none bg-neutral-50/50 focus:bg-white rounded-[var(--radius-element)] p-2 h-8 outline-none transition-all"
+              className="flex-1 text-xs border-b border-border/40 focus:border-foreground bg-transparent text-foreground placeholder:text-muted-foreground py-1 outline-none transition-colors"
               required
             />
-            <motion.button
+            <button
               type="submit"
-              whileTap={{ scale: 0.95 }}
               disabled={sending}
-              className="bg-neutral-900 text-white p-2 rounded-[var(--radius-button)] h-8 w-8 flex items-center justify-center cursor-pointer disabled:opacity-40"
+              className="text-xs font-semibold text-foreground hover:text-brand disabled:opacity-40 transition-colors cursor-pointer"
             >
-              {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            </motion.button>
+              {sending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Envoyer"}
+            </button>
           </motion.form>
         )}
       </AnimatePresence>
 
-      {/* Children replies */}
+      {/* Nested Child Replies */}
       {reply.replies && reply.replies.length > 0 && depth < 3 && (
         <div className="space-y-2 mt-2">
           {reply.replies.map((childReply: any) => (
@@ -677,6 +817,7 @@ function CommentThread({
               reply={childReply} 
               depth={depth + 1} 
               currentUserId={currentUserId}
+              onSelectThought={onSelectThought}
               onReplyAdded={onReplyAdded}
               onReplyDeleted={onReplyDeleted}
               onLoginRequired={onLoginRequired}
@@ -684,6 +825,29 @@ function CommentThread({
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function ExpandedPostSkeleton({ standalone = false }: { standalone?: boolean }) {
+  return (
+    <div className={cn(
+      "py-6 space-y-4 animate-pulse font-sans",
+      standalone && "max-w-2xl mx-auto"
+    )}>
+      <div className="h-4 w-24 bg-muted/60 rounded-md" />
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-md bg-muted/60" />
+        <div className="space-y-1.5">
+          <div className="h-3.5 w-32 bg-muted/60 rounded-md" />
+          <div className="h-2.5 w-20 bg-muted/60 rounded-md" />
+        </div>
+      </div>
+      <div className="space-y-2 pt-2">
+        <div className="h-4 w-full bg-muted/60 rounded-md" />
+        <div className="h-4 w-5/6 bg-muted/60 rounded-md" />
+        <div className="h-4 w-3/4 bg-muted/60 rounded-md" />
+      </div>
     </div>
   )
 }
@@ -705,14 +869,14 @@ function ImageGrid({ urls, onImageClick }: { urls: string[]; onImageClick?: (url
 
   return (
     <div className={cn(
-      "grid gap-2 overflow-hidden rounded-[var(--radius-element)] mt-2",
+      "grid gap-2 overflow-hidden rounded-md mt-2",
       urls.length === 1 ? "grid-cols-1" : "grid-cols-2"
     )}>
       {urls.map((url) => (
         <div
           key={url}
           onClick={() => onImageClick?.(url)}
-          className="relative overflow-hidden bg-[var(--surface-2)] aspect-video border border-[var(--border-default)] cursor-zoom-in"
+          className="relative overflow-hidden bg-muted aspect-video rounded-md border border-border/30 cursor-zoom-in"
         >
           <img
             src={url}

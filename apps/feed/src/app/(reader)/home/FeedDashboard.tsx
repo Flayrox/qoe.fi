@@ -13,6 +13,8 @@ import { FeedTabsHeader } from "./components/FeedTabsHeader"
 import { ExpandedPostView } from "./components/ExpandedPostView"
 import { useTranslate } from "@qoe/i18n"
 import { trackEvent } from "@/lib/analytics"
+import { routes } from "@qoe/config/routes"
+import { cn } from "@qoe/utils"
 
 interface Author {
   id: string
@@ -94,6 +96,44 @@ export function FeedDashboard({
     setAuthActionContext(options?.actionContext)
     setIsLoginModalOpen(true)
   }
+
+  const [savedScrollPosition, setSavedScrollPosition] = useState<number>(0)
+
+  const handleOpenPost = (postId: string, authorUsername?: string) => {
+    const scroll = window.scrollY
+    setSavedScrollPosition(scroll)
+    const username = authorUsername || "user"
+    const newUrl = routes.feed.thought(username, postId)
+    window.history.pushState({ postId, scroll }, "", newUrl)
+    setActivePostId(postId)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  const handleClosePost = () => {
+    setActivePostId(null)
+    if (window.location.pathname.includes("/thought/")) {
+      window.history.pushState(null, "", routes.feed.home())
+    }
+    setTimeout(() => {
+      window.scrollTo({ top: savedScrollPosition, behavior: "instant" })
+    }, 50)
+  }
+
+  React.useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state?.postId) {
+        setActivePostId(e.state.postId)
+      } else {
+        setActivePostId(null)
+        if (e.state?.scroll !== undefined) {
+          window.scrollTo({ top: e.state.scroll, behavior: "instant" })
+        }
+      }
+    }
+
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [])
 
   React.useEffect(() => {
     const handleOpenComposer = () => {
@@ -245,9 +285,19 @@ export function FeedDashboard({
   const tagsList = ["#souverainete", "#anti-ia", "#attention", "#philosophie", "#design", "#creators"]
 
   return (
-    <ReaderPageLayout giantTitle="Lire">
+    <ReaderPageLayout giantTitle="Lire" hideHeader={!!activePostId}>
       {/* ── SLIDING FEED SHEET ── */}
-      <main className="mt-64 sm:mt-72 bg-card/95 backdrop-blur-2xl text-card-foreground rounded-t-2xl border-t border-x border-border/40 shadow-2xl min-h-screen relative z-10 transition-all">
+      <motion.main 
+        initial={false}
+        animate={{
+          marginTop: activePostId ? 0 : 256
+        }}
+        transition={{ type: "spring", stiffness: 350, damping: 32 }}
+        className={cn(
+          "bg-card/95 backdrop-blur-2xl text-card-foreground border-x border-border/40 shadow-2xl min-h-screen relative z-10 transition-colors",
+          activePostId ? "rounded-none border-t-0" : "rounded-t-2xl border-t"
+        )}
+      >
         
         {/* Opaque Sticky Header of the Sheet (No Background Bleed-Through) */}
         <div className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 py-3 bg-card border-b border-border/40 rounded-t-2xl">
@@ -280,9 +330,9 @@ export function FeedDashboard({
                 <ExpandedPostView
                   postId={activePostId}
                   currentUserId={dbUser?.id || null}
-                  onClose={() => setActivePostId(null)}
+                  onClose={handleClosePost}
                   onOpenProfile={(username) => {
-                    window.location.href = `/profile/${username}`
+                    window.location.href = routes.feed.profile(username)
                   }}
                   onInteractionUpdate={(postId, update) => {
                     setInteractions(prev => ({
@@ -355,9 +405,9 @@ export function FeedDashboard({
                               handleFollowToggle={handleFollowToggle}
                               handleBookmarkToggle={handleBookmarkToggle}
                               featured={idx === 0 && activeFeed === "recommandation"}
-                              onOpenPost={setActivePostId}
+                              onOpenPost={(id, authorUsername) => handleOpenPost(id, authorUsername)}
                               onOpenProfile={(username) => {
-                                window.location.href = `/profile/${username}`
+                                window.location.href = routes.feed.profile(username)
                               }}
                             />
                           )
@@ -370,7 +420,7 @@ export function FeedDashboard({
             )}
           </AnimatePresence>
         </div>
-      </main>
+      </motion.main>
 
       <ComposerModal
         isOpen={isComposerModalOpen}
