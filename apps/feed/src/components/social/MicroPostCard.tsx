@@ -5,7 +5,7 @@ import { motion } from "framer-motion"
 
 import { TextParser } from "@/components/ui/TextParser"
 import { cn } from "@qoe/utils"
-import { MoreHorizontal, Pin, CornerDownRight } from "lucide-react"
+import { MoreHorizontal, Pin, CornerDownRight, Repeat } from "lucide-react"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
@@ -28,6 +28,20 @@ export interface MicroPostData {
       name: string | null
       username: string | null
       subdomain?: string | null
+    }
+  } | null
+  repost?: {
+    id: string
+    content: string
+    imageUrl?: string | null
+    createdAt?: string | Date
+    author: {
+      id: string
+      name: string | null
+      username: string | null
+      subdomain?: string | null
+      logoUrl: string | null
+      isCertified?: boolean
     }
   } | null
   author: {
@@ -104,22 +118,28 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
     }
   }
 
+  const displayAuthor = post.repost ? post.repost.author : post.author
+  const displayContent = post.repost ? post.repost.content : post.content
+  const displayImageUrl = post.repost ? post.repost.imageUrl : post.imageUrl
+  const displayPostId = post.repost ? post.repost.id : post.id
+  const displayCreatedAt = post.repost?.createdAt || post.createdAt
+
   const handleOpenProfile = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    const targetUsername = post.author.username || post.author.subdomain
+    const targetUsername = displayAuthor.username || displayAuthor.subdomain
     if (!targetUsername) return
     if (onOpenProfile) {
       onOpenProfile(targetUsername)
     } else {
-      window.location.href = `/profile/${targetUsername}`
+      window.location.href = routes.feed.profile(targetUsername)
     }
   }
 
   const handleOpenPost = () => {
     if (onOpenPost) {
-      const username = post.author.username || post.author.subdomain || "user"
-      onOpenPost(post.id, username)
+      const username = displayAuthor.username || displayAuthor.subdomain || "user"
+      onOpenPost(displayPostId, username)
     }
   }
 
@@ -149,6 +169,24 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
       }}
       className="py-4 border-b border-border/40 flex flex-col gap-3 hover:scale-[1.001] transition-all duration-500 ease-[0.16,1,0.3,1]"
     >
+      {post.repost && (
+        <button
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            const targetUsername = post.author.username || post.author.subdomain
+            if (targetUsername) {
+              if (onOpenProfile) onOpenProfile(targetUsername)
+              else window.location.href = routes.feed.profile(targetUsername)
+            }
+          }}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer pl-1 text-left outline-none"
+        >
+          <Repeat className="w-3.5 h-3.5 text-emerald-500" />
+          <span><strong className="font-semibold text-foreground">@{post.author.username || post.author.subdomain}</strong> a repartagé</span>
+        </button>
+      )}
+
       {post.isPinned && (
         <div className="flex items-center gap-1.5 text-xs font-semibold text-brand pl-1">
           <Pin className="w-3 h-3 fill-current rotate-45" />
@@ -174,13 +212,13 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
                 onClick={handleOpenProfile}
                 className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left"
               >
-                <AuthorAvatar user={post.author} size="md" showBadge={false} />
+                <AuthorAvatar user={displayAuthor} size="md" showBadge={false} />
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-semibold text-foreground block leading-none group-hover/author:text-brand transition-colors">{post.author.name}</span>
-                    {post.author.isCertified && <span className="text-brand text-xs font-black">✓</span>}
+                    <span className="text-sm font-semibold text-foreground block leading-none group-hover/author:text-brand transition-colors">{displayAuthor.name}</span>
+                    {displayAuthor.isCertified && <span className="text-brand text-xs font-black">✓</span>}
                   </div>
-                  <span className="text-xs text-muted-foreground block mt-1 font-sans">@{post.author.username || post.author.subdomain}</span>
+                  <span className="text-xs text-muted-foreground block mt-1 font-sans">@{displayAuthor.username || displayAuthor.subdomain}</span>
                 </div>
               </button>
             }
@@ -189,20 +227,20 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
           <HoverCardContent className="w-72 p-4 bg-white border border-neutral-200/50 rounded-lg shadow-xl z-50">
             <div className="flex justify-between space-x-4">
               <div className="w-10 h-10 rounded-sm overflow-hidden border border-neutral-200/30 shrink-0">
-                {post.author.logoUrl ? (
-                  <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
+                {displayAuthor.logoUrl ? (
+                  <img src={displayAuthor.logoUrl} className="w-full h-full object-cover" alt="" />
                 ) : (
                   <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-sm text-[var(--qoe-vermillion)]">
-                    {post.author.name?.charAt(0) || "U"}
+                    {displayAuthor.name?.charAt(0) || "U"}
                   </div>
                 )}
               </div>
               <div className="space-y-1.5 flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <h4 className="text-xs font-bold text-neutral-900 leading-none">{post.author.name}</h4>
-                  {post.author.isCertified && <span className="text-[var(--qoe-vermillion)] text-[10px] font-black">✓</span>}
+                  <h4 className="text-xs font-bold text-neutral-900 leading-none">{displayAuthor.name}</h4>
+                  {displayAuthor.isCertified && <span className="text-[var(--qoe-vermillion)] text-[10px] font-black">✓</span>}
                 </div>
-                <p className="text-[10px] text-neutral-450 leading-none">@{post.author.username || post.author.subdomain}</p>
+                <p className="text-[10px] text-neutral-450 leading-none">@{displayAuthor.username || displayAuthor.subdomain}</p>
                 <div className="flex items-center pt-2 gap-4 text-[9px] font-bold uppercase tracking-wider text-neutral-400">
                   <span className="text-[var(--qoe-vermillion)] font-sans">Auteur certifié</span>
                   <span className="font-sans">8.4k abonnés</span>
@@ -213,10 +251,10 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
         </HoverCard>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-neutral-400 font-medium">
-            {new Date(post.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            {new Date(displayCreatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
           </span>
           
-          {currentUserId === post.author.id && (
+          {currentUserId === displayAuthor.id && (
             <Popover open={showPopover} onOpenChange={setShowPopover}>
               <PopoverTrigger
                 render={
@@ -258,18 +296,18 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
             onClick={handleOpenPost}
             className="text-[15px] sm:text-[16px] text-neutral-800 leading-relaxed font-sans cursor-pointer hover:text-neutral-950 transition-colors duration-200 pt-1"
           >
-            <TextParser content={post.content} />
+            <TextParser content={displayContent} />
           </div>
 
-          {getUrls(post.content).length > 0 && (
+          {getUrls(displayContent).length > 0 && (
             <div className="mt-2">
               <LinkPreview 
-                urls={getUrls(post.content)} 
+                urls={getUrls(displayContent)} 
                 onNavigate={(target) => {
                   if (target.type === "post" && onOpenPost) {
                     onOpenPost(target.id)
                   } else if (target.type === "article" && target.slug) {
-                    const articleUrl = routes.tenant.article(post.author.subdomain || "demo", target.slug)
+                    const articleUrl = routes.tenant.article(displayAuthor.subdomain || "demo", target.slug)
                     window.open(articleUrl, "_blank")
                   }
                 }}
@@ -277,9 +315,9 @@ export function MicroPostCard({ post, currentUserId: propUserId, onOpenProfile, 
             </div>
           )}
 
-          {post.imageUrl && (
+          {displayImageUrl && (
             <div className="overflow-hidden cursor-pointer mt-1" onClick={handleOpenPost}>
-              <ImageGrid urls={getImages(post.imageUrl)} />
+              <ImageGrid urls={getImages(displayImageUrl)} />
             </div>
           )}
         </div>

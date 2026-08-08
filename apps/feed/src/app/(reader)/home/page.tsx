@@ -10,6 +10,11 @@ type PostWithDetails = Prisma.PostGetPayload<{
   include: {
     author: { select: { id: true; name: true; username: true; subdomain: true; customDomain: true; logoUrl: true; heroText: true; isCertified: true } };
     parent: { select: { id: true; author: { select: { id: true; name: true; username: true; subdomain: true } } } };
+    repost: {
+      include: {
+        author: { select: { id: true; name: true; username: true; subdomain: true; customDomain: true; logoUrl: true; heroText: true; isCertified: true } }
+      }
+    };
     likes: { select: { userId: true } };
     _count: { select: { likes: true; replies: true } };
   };
@@ -21,6 +26,18 @@ type ArticleWithDetails = Prisma.ArticleGetPayload<{
     category: { select: { name: true } };
   };
 }>
+
+const postIncludeSelect = {
+  author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
+  parent: { select: { id: true, author: { select: { id: true, name: true, username: true, subdomain: true } } } },
+  repost: {
+    include: {
+      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } }
+    }
+  },
+  likes: { select: { userId: true } },
+  _count: { select: { likes: true, replies: true } }
+}
 
 export default async function ReaderHomePage() {
   const supabase = await createClient()
@@ -58,6 +75,13 @@ export default async function ReaderHomePage() {
       isCertified: post.author.isCertified || false
     },
     parent: post.parent || null,
+    repost: post.repost ? {
+      ...post.repost,
+      author: {
+        ...post.repost.author,
+        isCertified: post.repost.author.isCertified || false
+      }
+    } : null,
     category: { name: "Micro-post" },
     tags: post.tags || [],
     likesCount: post._count?.likes || 0,
@@ -112,12 +136,7 @@ export default async function ReaderHomePage() {
             }
           ]
         },
-        include: {
-          author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
-          parent: { select: { id: true, author: { select: { id: true, name: true, username: true, subdomain: true } } } },
-          likes: { select: { userId: true } },
-          _count: { select: { likes: true, replies: true } }
-        },
+        include: postIncludeSelect,
         orderBy: { createdAt: 'desc' },
         take: 20
       })
@@ -158,12 +177,7 @@ export default async function ReaderHomePage() {
         }
       ]
     },
-    include: {
-      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
-      parent: { select: { id: true, author: { select: { id: true, name: true, username: true, subdomain: true } } } },
-      likes: { select: { userId: true } },
-      _count: { select: { likes: true, replies: true } }
-    },
+    include: postIncludeSelect,
     orderBy: { createdAt: 'desc' },
     take: 20
   })
@@ -201,12 +215,7 @@ export default async function ReaderHomePage() {
         } : {})
       }
     },
-    include: {
-      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
-      parent: { select: { id: true, author: { select: { id: true, name: true, username: true, subdomain: true } } } },
-      likes: { select: { userId: true } },
-      _count: { select: { likes: true, replies: true } }
-    },
+    include: postIncludeSelect,
     orderBy: { createdAt: 'desc' },
     take: 20
   })

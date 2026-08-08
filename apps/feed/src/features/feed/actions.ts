@@ -5,6 +5,7 @@ import { createMicroPostSchema, replyToPostSchema } from "@qoe/config"
 import { createClient } from "@qoe/supabase/server"
 import { revalidatePath } from "next/cache"
 import { safeAction } from "@/lib/safe-action"
+import { routes } from "@qoe/config/routes"
 
 // Cache global en mémoire pour les aperçus d'URLs (unfurling) pour éviter le scraping à chaque appel et les bannissements d'IP
 const unfurlCache = new Map<string, {
@@ -70,7 +71,7 @@ export const createMicroPost = safeAction<{
 
   revalidatePath("/home")
   if (newPost.author.username) {
-    revalidatePath(`/@${newPost.author.username}`)
+    revalidatePath(routes.feed.profile(newPost.author.username))
   }
   return { post: newPost }
 })
@@ -243,7 +244,7 @@ export const pinPost = safeAction<string, { success: boolean }>(async (postId, u
 
   revalidatePath("/home")
   if (user.username) {
-    revalidatePath(`/@${user.username}`)
+    revalidatePath(routes.feed.profile(user.username))
   }
   return { success: true }
 })
@@ -254,7 +255,7 @@ export const unpinPost = safeAction<string, { success: boolean }>(async (postId,
 
   revalidatePath("/home")
   if (user.username) {
-    revalidatePath(`/@${user.username}`)
+    revalidatePath(routes.feed.profile(user.username))
   }
   return { success: true }
 })
@@ -417,8 +418,7 @@ export const updateProfile = safeAction<{
   })
   revalidatePath("/home")
   if (updatedUser.username) {
-    revalidatePath(`/@${updatedUser.username}`)
-    revalidatePath(`/profile/${updatedUser.username}`)
+    revalidatePath(routes.feed.profile(updatedUser.username))
   }
   return { user: updatedUser }
 })

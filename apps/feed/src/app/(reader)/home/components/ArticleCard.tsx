@@ -49,7 +49,7 @@ interface ArticleCardProps {
   featured?: boolean
   onOpenArticle?: (article: Article) => void
   onOpenProfile?: (username: string) => void
-  onOpenPost?: (postId: string) => void
+  onOpenPost?: (postId: string, authorUsername?: string) => void
 }
 
 // Generates a subtle gradient based on the author name for articles without a cover image

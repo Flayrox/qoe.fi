@@ -25,10 +25,14 @@ export const routes = {
     billing: () => "/billing",
     settings: () => "/settings",
     onboarding: () => "/onboarding",
-    profile: (username: string) => `/profile/${encodeURIComponent(username.replace(/^@/, ""))}`,
+    profile: (username: string, tab?: "thoughts" | "with_replies" | "articles" | "reposts" | "media") => {
+      const clean = encodeURIComponent(username.replace(/^@/, ""));
+      if (!tab || tab === "thoughts") return `/${clean}`;
+      return `/${clean}/${tab}`;
+    },
     article: (slug: string) => `/article/${encodeURIComponent(slug)}`,
     post: (id: string) => `/post/${encodeURIComponent(id)}`,
-    thought: (username: string, id: string) => `/@${encodeURIComponent(username.replace(/^@/, ""))}/thought/${encodeURIComponent(id)}`,
+    thought: (username: string, id: string) => `/${encodeURIComponent(username.replace(/^@/, ""))}/thought/${encodeURIComponent(id)}`,
   },
 
   /** 🎨 Creator Studio Dashboard App (`apps/dashboard`) */

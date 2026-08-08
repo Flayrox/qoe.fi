@@ -99,6 +99,7 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
       currentUserId={currentUser?.id || null}
       isOwnProfile={isOwnProfile}
       initialIsFollowing={isFollowing}
+      initialTab="thoughts"
     />
   )
 }

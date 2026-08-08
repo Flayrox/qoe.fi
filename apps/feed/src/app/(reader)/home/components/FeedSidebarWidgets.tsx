@@ -6,6 +6,8 @@ import { Compass, TrendingUp, UserCheck, UserPlus, BookOpen, Highlighter, Users 
 import { cn } from "@qoe/utils"
 import { useTranslate } from "@qoe/i18n"
 
+import { routes } from "@qoe/config/routes"
+
 interface SuggestedCreator {
   id: string
   name: string | null
@@ -102,7 +104,7 @@ export function FeedSidebarWidgets({
                       if (onOpenProfile) {
                         onOpenProfile(username)
                       } else {
-                        window.location.href = `/profile/${username}`
+                        window.location.href = routes.feed.profile(username)
                       }
                     }}
                     whileTap={{ scale: 0.98 }}
