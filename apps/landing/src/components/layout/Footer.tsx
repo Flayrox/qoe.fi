@@ -112,7 +112,7 @@ export const Footer = async ({ config, locale }: FooterProps) => {
         {/* Dynamic Link columns */}
         {footerSections.map((section, idx) => (
           <div key={idx} className="flex flex-col gap-4">
-            <h4 className="font-mono text-[10px] tracking-widest text-neutral-400 uppercase mb-2">
+            <h4 className="font-sans text-[11px] font-semibold tracking-wider text-muted-foreground uppercase mb-2">
               {section.title}
             </h4>
             {section.links?.map((link, linkIdx) => {

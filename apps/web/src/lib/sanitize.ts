@@ -1,24 +1,24 @@
+import DOMPurify from "isomorphic-dompurify"
+
 /**
- * Surgical sanitization of untrusted HTML strings to prevent Cross-Site Scripting (XSS) (Feature 13).
+ * Robust AST DOM sanitization of untrusted HTML strings to prevent Cross-Site Scripting (XSS).
  * Operates on both Server and Client environments.
  */
 export function sanitizeHtml(html: string): string {
   if (!html) return ""
-  
-  return html
-    // 1. Strip script tags and their inner content
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    
-    // 2. Strip inline event handlers (e.g., onload, onerror, onclick, etc.)
-    .replace(/\s+on\w+\s*=\s*(['"][^']*['"]|["'][^"]*["']|[^\s>]+)/gi, "")
-    
-    // 3. Prevent javascript: pseudo-protocol URIs
-    .replace(/href\s*=\s*(['"])\s*javascript:[^'"]*\1/gi, 'href="#"')
-    
-    // 4. Strip dangerous document embedding tags (iframe, object, embed, applet)
-    .replace(/<(iframe|object|embed|applet)[^>]*>[\s\S]*?<\/\1>/gi, "")
-    .replace(/<(iframe|object|embed|applet)[^>]*\/?>/gi, "")
-    
-    // 5. Block IE expression styles
-    .replace(/expression\s*\((.*?)\)/gi, "")
+
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      "p", "br", "b", "i", "em", "strong", "a", "h1", "h2", "h3", "h4", "h5", "h6",
+      "ul", "ol", "li", "blockquote", "code", "pre", "img", "figure", "figcaption",
+      "hr", "div", "span", "mark", "section"
+    ],
+    ALLOWED_ATTR: [
+      "href", "target", "rel", "src", "alt", "title", "class", "style",
+      "data-type", "data-annotation-note", "data-highlight-id", "data-highlight-text"
+    ],
+    ALLOW_DATA_ATTR: true,
+    ADD_ATTR: ["target"],
+    FORBID_TAGS: ["script", "style", "iframe", "object", "embed", "form", "input"],
+  })
 }
