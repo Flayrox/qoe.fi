@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@qoe/billing": "workspace:*",
     "@qoe/config": "workspace:*",
     "@qoe/db": "workspace:*",
     "@qoe/utils": "workspace:*",
