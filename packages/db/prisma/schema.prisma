@@ -48,6 +48,7 @@ model User {
   // Custom Domain & Multi-tenant Config
   subdomain      String?   @unique
   customDomain   String?   @unique
+  umamiWebsiteId String?
   
   // Advanced Theming
   accentColor    String?
@@ -94,6 +95,10 @@ model User {
   mutedWords            MutedWord[]
   blockedBy             BlockedUser[]   @relation("BlockedReader")
   blockedUsers          BlockedUser[]   @relation("CreatorBlocker")
+
+  // Substack Network Effect Recommendations
+  givenRecommendations  Recommendation[] @relation("RecommendingCreator")
+  receivedRecommendations Recommendation[] @relation("RecommendedCreator")
   
   sentLetters           Letter[]        @relation("LetterSender")
   receivedLetters       Letter[]        @relation("LetterRecipient")
@@ -105,6 +110,20 @@ model User {
   
   // AI Recs
   embedding Unsupported("vector(1536)")?
+}
+
+model Recommendation {
+  id            String   @id @default(cuid())
+  recommenderId String   @db.Uuid
+  recommender   User     @relation("RecommendingCreator", fields: [recommenderId], references: [id], onDelete: Cascade)
+  recommendedId String   @db.Uuid
+  recommended   User     @relation("RecommendedCreator", fields: [recommendedId], references: [id], onDelete: Cascade)
+  description   String?  @db.Text
+  createdAt     DateTime @default(now())
+
+  @@unique([recommenderId, recommendedId])
+  @@index([recommenderId])
+  @@index([recommendedId])
 }
 
 model Tier {
