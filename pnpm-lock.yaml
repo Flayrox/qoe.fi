@@ -374,6 +374,9 @@ importers:
       '@qoe/analytics':
         specifier: workspace:*
         version: link:../../packages/analytics
+      '@qoe/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@qoe/auth':
         specifier: workspace:*
         version: link:../../packages/auth
