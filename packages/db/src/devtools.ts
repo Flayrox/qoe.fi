@@ -1,9 +1,8 @@
 "use server";
 
-import { prisma } from "@qoe/db/client";
+import { prisma } from "./client";
 import { createServiceClient } from "@qoe/supabase/server";
 import crypto from "crypto";
-import { revalidatePath } from "next/cache";
 
 export interface DevtoolsUser {
   id: string;
@@ -133,11 +132,11 @@ export async function createMockUserAction({
   }
 
   try {
-    const cleanSubdomain = subdomain ? subdomain.trim().toLowerCase() : null;
+    const cleanSubdomain = subdomain ? subdomain.trim().toLowerCase() : undefined;
 
     // 2. Créer ou mettre à jour dans notre table PostgreSQL via Prisma
     const dbUser = await prisma.user.upsert({
-      where: { id: userId },
+      where: { id: userId! },
       update: {
         name,
         email,
@@ -149,7 +148,7 @@ export async function createMockUserAction({
         themeMode: "system",
       },
       create: {
-        id: userId,
+        id: userId!,
         name,
         email,
         username,
@@ -570,4 +569,23 @@ export async function resetOnboardingAction() {
     console.error("Error in resetOnboardingAction:", error);
     return { success: false, error: error?.message || "Failed to reset onboarding" };
   }
+}
+
+/**
+ * 🔑 Se connecter sous l'identité d'un utilisateur par email (développement local).
+ */
+export async function impersonateLoginAction(email: string) {
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return { success: false, error: "Utilisateur introuvable dans PostgreSQL" };
+    }
+    return { success: true, user };
+  } catch (error: any) {
+    return { success: false, error: error?.message || "Impersonation error" };
+  }
+}
+
+export async function logoutAction() {
+  return { success: true };
 }

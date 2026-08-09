@@ -104,7 +104,7 @@ export const getPostThread = safeAction<string, { post: any }>(async (postId) =>
 }, false) // No auth required for thread view
 
 export const getArticleThread = safeAction<string, { article: any }>(async (slug) => {
-  const article = await articles.findBySlug(slug)
+  const article = await articles.findFirstBySlug(slug)
   return { article }
 }, false)
 
@@ -418,7 +418,7 @@ export const unfurlUrl = safeAction<string, {
       const articleMatch = parsedUrl.pathname.match(/\/article\/([a-zA-Z0-9_-]+)/)
       if (articleMatch) {
         const slug = articleMatch[1]
-        const article = await articles.findBySlug(slug)
+        const article = await articles.findFirstBySlug(slug)
         if (article) {
           const result = { isInternal: true, postType: "article" as const, data: article }
           unfurlCache.set(url, result)

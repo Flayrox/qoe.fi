@@ -13,8 +13,7 @@
     "./SocialIcon": "./src/SocialIcon.tsx",
     "./TenantHeader": "./src/TenantHeader.tsx",
     "./SubscribeForm": "./src/SubscribeForm.tsx",
-    "./sidebar": "./src/sidebar.tsx",
-    "./devtools-actions": "./src/devtools/actions.ts"
+    "./sidebar": "./src/sidebar.tsx"
   },
   "scripts": {
     "lint": "echo skip",
@@ -22,9 +21,7 @@
   },
   "dependencies": {
     "@qoe/config": "workspace:*",
-    "@qoe/db": "workspace:*",
     "@qoe/i18n": "workspace:*",
-    "@qoe/supabase": "workspace:*",
     "@qoe/theme": "workspace:*",
     "@qoe/utils": "workspace:*",
     "class-variance-authority": "^0.7.1",
