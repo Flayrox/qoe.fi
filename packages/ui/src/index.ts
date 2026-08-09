@@ -34,4 +34,6 @@ export {
   type SidebarProps,
 } from "./sidebar";
 export { useOptimisticMutation, type UseOptimisticMutationOptions } from "./hooks/useOptimisticMutation";
+export { TextSelectionPopover, type SelectionState, type TextSelectionPopoverProps } from "./TextSelectionPopover";
 export * from "./cmdk";
+

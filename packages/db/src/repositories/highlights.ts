@@ -99,6 +99,26 @@ export async function toggleHighlightPrivacy(highlightId: string, readerId: stri
 }
 
 /**
+ * ✏️ Modifie le contenu textuel de la note d'une annotation.
+ */
+export async function updateHighlightNote(highlightId: string, readerId: string, note: string | null) {
+  const existing = await prisma.highlight.findUnique({
+    where: { id: highlightId }
+  })
+
+  if (!existing || existing.readerId !== readerId) {
+    throw new Error("Action non autorisée.")
+  }
+
+  return prisma.highlight.update({
+    where: { id: highlightId },
+    data: {
+      note
+    }
+  })
+}
+
+/**
  * 👍 Ingréments le compteur de votes d'une annotation publique.
  */
 export async function upvoteHighlight(highlightId: string) {

@@ -99,6 +99,26 @@ export async function toggleHighlightPrivacyAction(highlightId: string, isPublic
 }
 
 /**
+ * ✏️ Modifie le contenu d'une note d'annotation.
+ */
+export async function updateHighlightNoteAction(highlightId: string, note: string | null) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "UNAUTHORIZED" }
+  }
+
+  try {
+    const updated = await highlights.updateHighlightNote(highlightId, user.id, note)
+    return { success: true, highlight: updated }
+  } catch (error: any) {
+    console.error("Error in updateHighlightNoteAction:", error)
+    return { success: false, error: "DATABASE_ERROR" }
+  }
+}
+
+/**
  * 👍 Upvote une annotation publique.
  */
 export async function upvoteHighlightAction(highlightId: string) {
