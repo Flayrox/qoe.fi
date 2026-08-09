@@ -426,6 +426,24 @@ services:
       db:
         condition: service_healthy
 
+  # ───────────────────────────────────────────────────────────────────
+  # 📊 UMAMI ANALYTICS (Auto-hébergé local dev)
+  # ───────────────────────────────────────────────────────────────────
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    container_name: qoefi-dev-umami
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
+      DATABASE_TYPE: postgresql
+      HASH_SALT: qoe_umami_dev_salt_32_chars_long
+      APP_SECRET: qoe_umami_app_secret_dev_32_chars
+    depends_on:
+      db:
+        condition: service_healthy
+
 # =====================================================================
 # 📦 VOLUMES
 # =====================================================================

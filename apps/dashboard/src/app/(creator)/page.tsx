@@ -2,33 +2,55 @@ import React from "react"
 import { prisma } from "@qoe/db/client"
 import { requireUser } from "@qoe/auth/current-user"
 import { getTranslate } from "@qoe/i18n/server"
+import { fetchUmamiWebsiteStats } from "@qoe/analytics/server"
 import {
   Eye,
   TrendingUp,
-  TrendingDown,
-  Heart,
+  Users,
+  CreditCard,
   Sparkles,
   Calendar,
   Clock,
   Plus,
   FileText,
   ArrowUpRight,
-  BookOpen,
+  Bookmark,
+  Zap,
+  BarChart3,
   MessageSquare,
+  Edit3,
 } from "lucide-react"
 
 export default async function CreatorDashboardPage() {
   const user = await requireUser()
   const t = await getTranslate()
 
-  // Fetch real database metrics in parallel
+  // Fetch creator profile details for Umami website ID
+  const creator = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: {
+      id: true,
+      name: true,
+      umamiWebsiteId: true,
+    }
+  })
+
+  const targetWebsiteId = creator?.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || ""
+  const now = Date.now()
+  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000
+
+  // Fetch real database & telemetry metrics in parallel
   const [
     articlesCount,
     publishedCount,
     subscribersCount,
     premiumSubscribersCount,
     subscribersList,
-    recentArticles
+    recentArticles,
+    draftArticles,
+    scheduledThoughts,
+    latestPublishedArticle,
+    telemetryStats
   ] = await Promise.all([
     prisma.article.count({ where: { authorId: user.id } }),
     prisma.article.count({ where: { authorId: user.id, published: true } }),
@@ -36,19 +58,67 @@ export default async function CreatorDashboardPage() {
     prisma.subscriber.count({ where: { creatorId: user.id, isActive: true, isPremium: true } }),
     prisma.subscriber.findMany({
       where: { creatorId: user.id, isActive: true },
-      select: { createdAt: true, ltvCents: true }
+      select: { ltvCents: true, createdAt: true }
     }),
     prisma.article.findMany({
       where: { authorId: user.id },
       orderBy: { updatedAt: "desc" },
       take: 4,
       include: { category: true }
-    })
+    }),
+    prisma.article.findMany({
+      where: { authorId: user.id, published: false },
+      orderBy: { updatedAt: "desc" },
+      take: 4,
+    }),
+    prisma.thought.findMany({
+      where: { authorId: user.id, scheduledAt: { not: null } },
+      orderBy: { scheduledAt: "asc" },
+      take: 4,
+    }),
+    prisma.article.findFirst({
+      where: { authorId: user.id, published: true },
+      orderBy: { createdAt: "desc" },
+      include: {
+        category: true,
+        _count: {
+          select: {
+            bookmarks: true,
+            highlights: true,
+            letters: true
+          }
+        }
+      }
+    }),
+    fetchUmamiWebsiteStats(targetWebsiteId, thirtyDaysAgo, now)
   ])
 
-  const draftCount = articlesCount - publishedCount
+  // Combine scheduled thoughts & draft articles into unified schedule items
+  const scheduleItems = [
+    ...scheduledThoughts.map((t) => ({
+      id: t.id,
+      title: t.content.substring(0, 40) + "...",
+      type: "Pensée programmée",
+      date: t.scheduledAt ? new Date(t.scheduledAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : "Programmée",
+      isScheduled: true,
+      href: "/feed"
+    })),
+    ...draftArticles.map((a) => ({
+      id: a.id,
+      title: a.title,
+      type: "Brouillon d'article",
+      date: new Date(a.updatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }),
+      isScheduled: false,
+      href: `/articles/${a.id}`
+    }))
+  ]
 
-  // Helper for relative time formatting
+  const realPageviews = telemetryStats?.pageviews || 0
+  const realVisitors = telemetryStats?.visitors || 0
+  const totalLtvCents = subscribersList.reduce((acc, sub) => acc + (sub.ltvCents || 0), 0)
+  const mrrEur = (totalLtvCents / 100).toFixed(2)
+  const topArticle = recentArticles.find((a) => a.published)
+
   const getRelativeTimeString = (date: Date) => {
     const diffMs = Date.now() - new Date(date).getTime()
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
@@ -61,13 +131,9 @@ export default async function CreatorDashboardPage() {
     return new Date(date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
   }
 
-  // Sample schedule items aligned with user's content
-  const scheduleItems = [
-    { date: "OCT 24", title: "iPhone 16 Pro Review", type: "Article • 10:00 AM" },
-    { date: "OCT 26", title: "Weekly Tech Roundup", type: "Newsletter • 9:00 AM" },
-    { date: "OCT 28", title: "AI in 2025 Deep Dive", type: "Article • 2:00 PM" },
-    { date: "OCT 30", title: "Creator Q&A Live", type: "Live • 5:00 PM" },
-  ]
+  const latestReactionsCount = latestPublishedArticle
+    ? (latestPublishedArticle._count.bookmarks || 0) + (latestPublishedArticle._count.highlights || 0) + (latestPublishedArticle._count.letters || 0)
+    : 0
 
   return (
     <main className="w-full space-y-8 pb-24 md:pb-12 text-foreground font-sans selection:bg-primary/20 selection:text-primary">
@@ -75,126 +141,91 @@ export default async function CreatorDashboardPage() {
       {/* Main Stage Headline */}
       <section className="pt-2 space-y-0.5">
         <h2 className="text-3xl font-bold tracking-tight text-foreground font-sans">
-          {t("dashboard.welcome_home", "Home")}
+          {t("dashboard.welcome_home", "Accueil Studio")}
         </h2>
         <p className="text-muted-foreground/80 text-sm font-sans">
-          {t("dashboard.welcome_subtitle", "Welcome back. Here's a snapshot of your studio performance.", { name: user.name || "Créateur" })}
+          {t("dashboard.welcome_subtitle", "Bienvenue, {{name}}. Voici l'aperçu réel de votre studio créateur.", { name: user.name || "Créateur" })}
         </p>
       </section>
 
-      {/* Live Metrics */}
+      {/* Real Live Metrics Cards */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
         
-        {/* Card 1: Total Views / Écrits */}
-        <div className="bg-card rounded-xl border border-border/50 shadow-[0_2px_8px_rgba(0,0,0,0.02)] p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
+        {/* Card 1: Total Pageviews (Umami Real Telemetry) */}
+        <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              {t("dashboard.metrics.total_views", "Total Views")}
+              {t("dashboard.metrics.total_views", "Vues totales (30j)")}
             </span>
             <Eye className="w-4.5 h-4.5 text-muted-foreground stroke-[1.5]" />
           </div>
           <div className="mt-4">
             <div className="text-3xl font-bold text-foreground leading-tight tracking-tight">
-              {publishedCount > 0 ? `${publishedCount * 120 + 400}` : "0"}
+              {realPageviews.toLocaleString()}
             </div>
-            <div className="text-xs text-primary flex items-center gap-1 mt-1 font-medium">
+            <div className="text-xs text-emerald-500 flex items-center gap-1 mt-1 font-medium">
               <TrendingUp className="w-3.5 h-3.5 stroke-[1.5]" />
-              <span>+12.5% {t("dashboard.metrics.this_week", "cette semaine")}</span>
+              <span>{realVisitors.toLocaleString()} lecteurs uniques</span>
             </div>
           </div>
         </div>
 
-        {/* Card 2: Avg Retention (Circular Progress) */}
-        <div className="bg-card rounded-xl border border-border/50 shadow-[0_2px_8px_rgba(0,0,0,0.02)] p-5 flex items-center gap-5 hover:border-border/80 transition-all duration-200">
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                {t("dashboard.metrics.avg_retention", "Avg Retention")}
-              </span>
-            </div>
-            <div className="text-2xl font-bold text-foreground leading-tight tracking-tight mb-1">
-              42%
-            </div>
-            <div className="text-xs text-muted-foreground flex items-center gap-1 font-medium">
-              <TrendingDown className="w-3.5 h-3.5 stroke-[1.5]" />
-              <span>-2.1% {t("dashboard.metrics.this_week", "cette semaine")}</span>
-            </div>
-          </div>
-
-          <div className="relative w-14 h-14 shrink-0">
-            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-              <path
-                className="text-muted/40"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3.8"
-              />
-              <path
-                className="text-primary"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                fill="none"
-                stroke="currentColor"
-                strokeDasharray="42, 100"
-                strokeLinecap="round"
-                strokeWidth="3.8"
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center font-bold text-foreground text-xs">
-              42%
-            </div>
-          </div>
-        </div>
-
-        {/* Card 3: Engagement (Sparkline Bar Chart) */}
-        <div className="bg-card rounded-xl border border-border/50 shadow-[0_2px_8px_rgba(0,0,0,0.02)] p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
+        {/* Card 2: Active Subscribers & Paid Members (Real DB) */}
+        <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              {t("dashboard.metrics.engagement", "Engagement")}
+              {t("dashboard.metrics.subscribers", "Abonnés Réseau")}
             </span>
-            <Heart className="w-4.5 h-4.5 text-muted-foreground stroke-[1.5]" />
+            <Users className="w-4.5 h-4.5 text-muted-foreground stroke-[1.5]" />
           </div>
-          <div className="flex items-end justify-between mt-4">
-            <div>
-              <div className="text-3xl font-bold text-foreground leading-tight tracking-tight">
-                {subscribersCount > 0 ? `${subscribersCount}` : "8.4k"}
-              </div>
-              <div className="text-xs text-primary flex items-center gap-1 mt-1 font-medium">
-                <TrendingUp className="w-3.5 h-3.5 stroke-[1.5]" />
-                <span>+5.2%</span>
-              </div>
+          <div className="mt-4">
+            <div className="text-3xl font-bold text-foreground leading-tight tracking-tight">
+              {subscribersCount.toLocaleString()}
             </div>
-            {/* 5 Vertical Bar Chart Sparklines */}
-            <div className="w-16 h-9 flex items-end gap-1 opacity-90">
-              <div className="w-full bg-primary/20 rounded-t-sm h-1/3" />
-              <div className="w-full bg-primary/40 rounded-t-sm h-1/2" />
-              <div className="w-full bg-primary/60 rounded-t-sm h-3/4" />
-              <div className="w-full bg-primary/80 rounded-t-sm h-2/3" />
-              <div className="w-full bg-primary rounded-t-sm h-full" />
+            <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1 font-medium">
+              <Zap className="w-3.5 h-3.5 text-primary stroke-[1.5]" />
+              <span>{premiumSubscribersCount} abonnés payants</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Estimated Revenue / MRR (Real DB) */}
+        <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+              {t("dashboard.metrics.revenue", "Revenu Estimé (LTV)")}
+            </span>
+            <CreditCard className="w-4.5 h-4.5 text-muted-foreground stroke-[1.5]" />
+          </div>
+          <div className="mt-4">
+            <div className="text-3xl font-bold text-foreground leading-tight tracking-tight">
+              {mrrEur} €
+            </div>
+            <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1 font-medium">
+              <span>{publishedCount} écrits publiés</span>
             </div>
           </div>
         </div>
 
       </section>
 
-      {/* Recent Drafts */}
+      {/* Recent Articles */}
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-bold text-foreground tracking-tight">
-            {t("dashboard.recent_drafts.title", "Recent Drafts")}
+            {t("dashboard.recent_drafts.title", "Publications récentes")}
           </h3>
           <a
             href="/articles"
             className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
           >
-            <span>{t("common.view_all", "View All")}</span>
+            <span>{t("common.view_all", "Voir tout")}</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
           </a>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {recentArticles.length === 0 ? (
-            // CTA Placeholder when no articles exist yet
             <a
               href="/articles/new"
               className="group border border-dashed border-border/80 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-3 hover:border-primary/50 hover:bg-muted/30 transition-all aspect-video"
@@ -225,7 +256,9 @@ export default async function CreatorDashboardPage() {
                   {art.title}
                 </h4>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 font-sans">
-                  <span>{art.published ? t("dashboard.articles.status_published", "Publié") : t("dashboard.articles.status_draft", "Brouillon")}</span>
+                  <span className={art.published ? "text-emerald-500 font-medium" : "text-muted-foreground"}>
+                    {art.published ? t("dashboard.articles.status_published", "Publié") : t("dashboard.articles.status_draft", "Brouillon")}
+                  </span>
                   <span>•</span>
                   <span>{getRelativeTimeString(art.updatedAt)}</span>
                 </div>
@@ -233,7 +266,6 @@ export default async function CreatorDashboardPage() {
             ))
           )}
 
-          {/* Fill remaining slots to maintain a balanced 4-card grid layout */}
           {recentArticles.length > 0 && recentArticles.length < 4 && (
             <a
               href="/articles/new"
@@ -254,75 +286,167 @@ export default async function CreatorDashboardPage() {
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-bold text-foreground tracking-tight">
-            {t("dashboard.insights.title", "Creator Insights")}
+            {t("dashboard.insights.title", "Analyses & Conseils Créateur")}
           </h3>
           <Sparkles className="w-5 h-5 text-primary stroke-[1.5]" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
           <div className="bg-card rounded-xl border border-border/40 p-6 flex items-start gap-4 hover:border-border/80 transition-colors">
             <div className="p-2.5 bg-primary/10 text-primary rounded-lg shrink-0">
-              <Clock className="w-5 h-5 stroke-[1.5]" />
+              <FileText className="w-5 h-5 stroke-[1.5]" />
             </div>
             <div>
               <h4 className="text-sm font-semibold text-foreground">
-                {t("dashboard.insights.time_title", "Best time to post")}
+                {topArticle ? "Dernière publication phare" : "Prêt à publier ?"}
               </h4>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                {t("dashboard.insights.time_desc", "Your audience is most active on Tuesdays at 6:00 PM EST.")}
+                {topArticle
+                  ? `Votre publication "${topArticle.title}" est en ligne. Pensez à la partager sur vos réseaux.`
+                  : "Vous n'avez pas encore d'article publié. Rédigez votre premier contenu pour attirer vos premiers lecteurs."}
               </p>
             </div>
           </div>
 
           <div className="bg-card rounded-xl border border-border/40 p-6 flex items-start gap-4 hover:border-border/80 transition-colors">
             <div className="p-2.5 bg-primary/10 text-primary rounded-lg shrink-0">
-              <TrendingUp className="w-5 h-5 stroke-[1.5]" />
+              <Users className="w-5 h-5 stroke-[1.5]" />
             </div>
             <div>
               <h4 className="text-sm font-semibold text-foreground">
-                {t("dashboard.insights.growth_title", "Audience growth tip")}
+                Engagement de votre communauté
               </h4>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                {t("dashboard.insights.growth_desc", "Collaborating with tech creators or publishing twice a month could increase reach by 15%.")}
+                Vous comptez actuellement {subscribersCount} abonnés inscrits. Proposez du contenu exclusif pour augmenter vos abonnements payants.
               </p>
             </div>
           </div>
-
         </div>
       </section>
 
-      {/* Upcoming Schedule */}
+      {/* Upcoming / Scheduled & Draft Content */}
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-bold text-foreground tracking-tight">
-            {t("dashboard.schedule.title", "Upcoming Schedule")}
+            {t("dashboard.schedule.title", "Écrits programmés & Brouillons")}
           </h3>
           <a
             href="/articles"
             className="text-xs font-semibold text-primary hover:underline"
           >
-            {t("dashboard.schedule.calendar", "Calendar")}
+            {t("dashboard.schedule.calendar", "Calendrier des écrits")}
           </a>
         </div>
 
-        <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 snap-x hide-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {scheduleItems.map((item, idx) => (
-            <div
-              key={idx}
-              className="snap-start shrink-0 w-[240px] bg-card rounded-xl border border-border/40 p-4 hover:border-border/80 transition-colors"
+        {scheduleItems.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-xl border-border/40 bg-card text-center">
+            <Clock className="w-8 h-8 text-muted-foreground/40 mb-2 stroke-[1.5]" />
+            <p className="text-sm font-medium text-muted-foreground">Aucun écrit programmé ni brouillon en cours</p>
+            <a
+              href="/articles/new"
+              className="mt-3 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
             >
-              <div className="text-primary font-bold text-xs uppercase tracking-widest mb-2">
-                {item.date}
+              + Programmer une publication
+            </a>
+          </div>
+        ) : (
+          <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 snap-x hide-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {scheduleItems.map((item) => (
+              <a
+                key={item.id}
+                href={item.href}
+                className="snap-start shrink-0 w-[240px] bg-card rounded-xl border border-border/40 p-4 hover:border-border/80 transition-colors block"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${item.isScheduled ? "text-emerald-500" : "text-primary"}`}>
+                    {item.date}
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+                    {item.type}
+                  </span>
+                </div>
+                <h4 className="text-sm font-semibold text-foreground truncate">
+                  {item.title}
+                </h4>
+              </a>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ─── Latest Post Performance Banner (Bottom of Dashboard) ─── */}
+      <section className="pt-4 border-t border-border/30">
+        <div className="bg-card border border-border/40 rounded-2xl p-6 sm:p-8 space-y-6 shadow-none">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <BarChart3 className="h-5 w-5 stroke-[1.5]" />
               </div>
-              <h4 className="text-sm font-semibold text-foreground truncate">
-                {item.title}
-              </h4>
-              <p className="text-xs text-muted-foreground mt-1">
-                {item.type}
-              </p>
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Performance de votre dernier écrit</span>
+                <h3 className="text-lg font-bold text-foreground truncate max-w-lg">
+                  {latestPublishedArticle ? latestPublishedArticle.title : "Aucun écrit publié"}
+                </h3>
+              </div>
             </div>
-          ))}
+
+            {latestPublishedArticle && (
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/articles/${latestPublishedArticle.id}`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border/40 text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                >
+                  <Edit3 className="h-3.5 w-3.5 stroke-[1.5]" />
+                  <span>Éditer</span>
+                </a>
+                <a
+                  href="/analytics"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
+                >
+                  <span>Analyses complètes</span>
+                  <ArrowUpRight className="h-3.5 w-3.5 stroke-[1.5]" />
+                </a>
+              </div>
+            )}
+          </div>
+
+          {latestPublishedArticle ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+              <div className="p-4 rounded-xl bg-muted/20 border border-border/30">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Statut</span>
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="text-sm font-bold text-emerald-500">En ligne</span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-muted/20 border border-border/30">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Thème</span>
+                <p className="text-sm font-bold text-foreground mt-1 truncate">
+                  {latestPublishedArticle.category ? latestPublishedArticle.category.name : "Général"}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-muted/20 border border-border/30">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Temps de lecture</span>
+                <p className="text-sm font-bold text-foreground mt-1">
+                  {latestPublishedArticle.readingTime || 1} min
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-muted/20 border border-border/30">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Réactions Lecteurs</span>
+                <p className="text-sm font-bold text-foreground mt-1 flex items-center gap-1.5">
+                  <MessageSquare className="w-4 h-4 text-primary stroke-[1.5]" />
+                  <span>{latestReactionsCount}</span>
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-6 text-xs text-muted-foreground font-sans">
+              Publiez votre premier article pour suivre ses performances en temps réel ici.
+            </div>
+          )}
         </div>
       </section>
 

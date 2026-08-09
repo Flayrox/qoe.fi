@@ -62,6 +62,7 @@ model User {
   advancedSettingsMode Boolean @default(false)
   hasCompletedOnboarding Boolean @default(false)
   allowIndexing  Boolean   @default(true) // SEO Google Indexing
+  allowPublicAnnotations Boolean @default(true) // Genius-style public annotations setting
 
   // API Access Application
   apiAccessStatus      String    @default("none") // "none", "pending", "approved", "rejected", "revoked"
@@ -107,6 +108,7 @@ model User {
   likes                 Like[]
   apiKeys               ApiKey[]
   translationLogs       TranslationAuditLog[]
+  articleComments       ArticleComment[]     @relation("CommentAuthor")
   
   // AI Recs
   embedding Unsupported("vector(1536)")?
@@ -237,14 +239,35 @@ model Highlight {
   id          String   @id @default(cuid())
   text        String   @db.Text
   note        String?  @db.Text
+  isPublic    Boolean  @default(false)
+  isOfficial  Boolean  @default(false)
+  upvotesCount Int     @default(0)
+
   readerId    String   @db.Uuid
   reader      User     @relation(fields: [readerId], references: [id], onDelete: Cascade)
   articleId   String
   article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
 
-  @@index([articleId])
+  comments    AnnotationComment[]
+
+  @@index([articleId, isPublic])
   @@index([readerId])
+}
+
+model AnnotationComment {
+  id          String   @id @default(cuid())
+  content     String   @db.Text
+  createdAt   DateTime @default(now())
+
+  highlightId String
+  highlight   Highlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
+
+  authorId    String   @db.Uuid
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([highlightId, createdAt])
+  @@index([authorId])
 }
 
 model Letter {
@@ -316,6 +339,7 @@ model Article {
   completionRate Float             @default(0.0) // 0.0 to 1.0
   semanticTags   String[] 
   isEditorPick   Boolean           @default(false)
+  allowPublicAnnotations Boolean     @default(true) // Article-level annotation toggle
   
   // L'auteur principal
   authorId       String            @db.Uuid
@@ -338,6 +362,7 @@ model Article {
   bookmarks      Bookmark[]
   highlights     Highlight[]
   letters        Letter[]
+  comments       ArticleComment[]
 
   embedding Unsupported("vector(1536)")?
 
@@ -451,3 +476,25 @@ model TranslationAuditLog {
   author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
 }
+
+model ArticleComment {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  articleId String
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  authorId  String   @db.Uuid
+  author    User     @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  parentId  String?
+  parent    ArticleComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   ArticleComment[] @relation("CommentReplies")
+
+  @@index([articleId, createdAt])
+  @@index([authorId])
+  @@index([parentId])
+}
+
