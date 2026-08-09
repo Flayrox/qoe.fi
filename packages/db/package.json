@@ -12,6 +12,7 @@
     "./repositories/articles": "./src/repositories/articles.ts",
     "./repositories/users": "./src/repositories/users.ts",
     "./repositories/posts": "./src/repositories/posts.ts",
+    "./repositories/subscriptions": "./src/repositories/subscriptions.ts",
     "./devtools": "./src/devtools.ts"
   },
   "scripts": {

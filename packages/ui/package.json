@@ -21,7 +21,9 @@
   },
   "dependencies": {
     "@qoe/config": "workspace:*",
+    "@qoe/db": "workspace:*",
     "@qoe/i18n": "workspace:*",
+    "@qoe/supabase": "workspace:*",
     "@qoe/theme": "workspace:*",
     "@qoe/utils": "workspace:*",
     "class-variance-authority": "^0.7.1",

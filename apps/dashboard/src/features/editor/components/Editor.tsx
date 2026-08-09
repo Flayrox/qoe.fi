@@ -33,6 +33,7 @@ import {
 } from "lucide-react"
 import { cn } from "@qoe/utils"
 import { compressImage } from "@/lib/image-compressor"
+import { useAutoSaveArticle } from "@qoe/api-client"
 
 export interface EditorProps {
   initialTitle?: string
@@ -121,12 +122,43 @@ export function Editor({
     }
   })
 
-  // Watch for state changes to mark as unsaved
+  const { scheduleAutoSave, status: autoSaveStatus, lastSavedAt: autoSaveLastSavedAt } = useAutoSaveArticle({
+    delay: 2500,
+    onSave: async (payload: Record<string, any>) => {
+      await onSave({
+        title: payload.title,
+        content: payload.content,
+        slug: payload.slug || slug,
+        published: payload.published ?? published,
+        isPremium: payload.isPremium ?? isPremium,
+        categoryId: payload.categoryId ?? categoryId,
+        seoTitle: payload.seoTitle ?? seoTitle,
+        seoDescription: payload.seoDescription ?? seoDescription,
+      })
+      setLastSaved(new Date())
+      setHasUnsavedChanges(false)
+      return { id: initialTitle ? "existing" : "new", updatedAt: new Date() }
+    },
+  })
+
+  // Watch for state changes to trigger debounced auto-save
   useEffect(() => {
     if (title !== initialTitle || slug !== initialSlug || categoryId !== initialCategoryId || seoTitle !== (initialSeoTitle || "") || seoDescription !== (initialSeoDescription || "")) {
       setHasUnsavedChanges(true)
+      if (title.trim() && editor) {
+        scheduleAutoSave({
+          title,
+          content: editor.getHTML(),
+          slug,
+          published,
+          isPremium,
+          categoryId,
+          seoTitle,
+          seoDescription,
+        })
+      }
     }
-  }, [title, slug, categoryId, seoTitle, seoDescription])
+  }, [title, slug, categoryId, seoTitle, seoDescription, published, isPremium])
 
   // Generate slug automatically
   useEffect(() => {
@@ -258,15 +290,24 @@ export function Editor({
           <div>
             <h2 className="text-xl font-medium text-zinc-900 font-sans tracking-tight flex items-center gap-3">
               {initialTitle ? "Édition" : "Nouvel écrit"}
-              {isSaving && <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />}
-              {lastSaved && !isSaving && (
+              {(isSaving || autoSaveStatus === "saving") && (
+                <span className="text-xs text-zinc-400 font-sans flex items-center gap-1.5">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" /> Auto-sauvegarde...
+                </span>
+              )}
+              {autoSaveStatus === "saved" && (
+                <span className="text-[11px] font-normal text-emerald-600 bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 rounded-md flex items-center gap-1.5 font-sans">
+                  <Check className="w-3 h-3 text-emerald-600" /> Brouillon auto-enregistré
+                </span>
+              )}
+              {lastSaved && autoSaveStatus !== "saved" && !isSaving && (
                 <span className="text-[11px] font-normal text-zinc-400 flex items-center gap-1.5 font-sans">
                   <Check className="w-3.5 h-3.5 text-zinc-400" /> Sauvegardé à {lastSaved.toLocaleTimeString()}
                 </span>
               )}
-              {hasUnsavedChanges && !isSaving && (
+              {hasUnsavedChanges && autoSaveStatus !== "saving" && autoSaveStatus !== "saved" && !isSaving && (
                 <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200/50 px-2 py-0.5 rounded-md font-sans">
-                  Modifications non enregistrées (Cmd+S)
+                  Modifications en cours... (Cmd+S)
                 </span>
               )}
             </h2>
@@ -465,6 +506,15 @@ export function Editor({
                 icon={isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500" /> : <ImageIcon className="h-3.5 w-3.5" />}
                 tooltip="Image"
                 disabled={isUploading}
+              />
+
+              <div className="h-4 w-[1px] bg-zinc-200 mx-2" />
+
+              {/* Paywall Divider Insertion */}
+              <ToolbarButton
+                onClick={() => (editor.chain().focus() as any).setPaywallDivider().run()}
+                icon={<Lock className="h-3.5 w-3.5 text-amber-600" />}
+                tooltip="Insérer la limite Paywall (Contenu Premium)"
               />
             </div>
 
