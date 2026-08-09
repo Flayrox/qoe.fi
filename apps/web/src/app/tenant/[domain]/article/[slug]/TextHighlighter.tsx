@@ -390,14 +390,15 @@ export function TextHighlighter({
         isLocked={showNoteInput || saving}
       >
         {({ text: selectedText, range, clearSelection }) => (
-          /* 🌟 MASTERCLASS SHARED LAYOUT ELEMENT TRANSITION (framer-motion FLIP) */
+          /* 🌟 MASTERCLASS SHARED LAYOUT ELEMENT TRANSITION (Centered origin, no directional offset drift) */
           <motion.div
             layout
             layoutId="selection-popover-shared-card"
+            style={{ transformOrigin: "center center" }}
             transition={
               shouldReduceMotion
                 ? { duration: 0 }
-                : { type: "spring", stiffness: 360, damping: 26, mass: 0.8 }
+                : { type: "spring", stiffness: 400, damping: 28, mass: 0.8 }
             }
             className={cn(
               "bg-popover/95 text-popover-foreground border border-border/40 backdrop-blur-2xl shadow-2xl overflow-hidden font-sans",
@@ -406,13 +407,13 @@ export function TextHighlighter({
           >
             <AnimatePresence mode="wait" initial={false}>
               {!showNoteInput ? (
-                /* STATE A: Compact Floating Pill Toolbar (Icons fade/scale out) */
+                /* STATE A: Compact Floating Pill Toolbar */
                 <motion.div
                   key="toolbar-state"
-                  initial={{ opacity: 0, scale: 0.92 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.92 }}
-                  transition={{ duration: 0.12 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.1 }}
                   className="flex items-center gap-1"
                 >
                   {/* 1-Click Instant Highlight */}
@@ -460,13 +461,13 @@ export function TextHighlighter({
                   </button>
                 </motion.div>
               ) : (
-                /* STATE B: Expanded Annotation Card (Text & Form fade + slide in) */
+                /* STATE B: Expanded Annotation Card */
                 <motion.form
                   key="form-state"
-                  initial={{ opacity: 0, y: 6, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -6, scale: 0.96 }}
-                  transition={{ duration: 0.18, delay: 0.04 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.12 }}
                   onSubmit={(e) => handleHighlightSubmit(e, selectedText, clearSelection)}
                   className="flex flex-col gap-3 text-left"
                 >
@@ -521,7 +522,7 @@ export function TextHighlighter({
                             ? "bg-emerald-500 text-white shadow-xs"
                             : "bg-muted text-foreground hover:bg-muted/80"
                       )}
-                      title={!allowPublicAnnotations ? "Les annotations publiques sont désactivées par l'auteur" : "Changer la confidentialité"}
+                      title={!allowPublicAnnotations ? "Les annotations publiques me désactivées par l'auteur" : "Changer la confidentialité"}
                     >
                       {isPublicChoice ? "Publique" : "Privée"}
                     </button>
