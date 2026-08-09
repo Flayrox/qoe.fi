@@ -1,12 +1,9 @@
 "use client"
 
 import React from "react"
-import { motion } from "framer-motion"
-
 import { TextParser } from "@/components/ui/TextParser"
 import { cn } from "@qoe/utils"
-import { MoreHorizontal, Pin, CornerDownRight, Repeat, Quote, Flag } from "lucide-react"
-import { LikeIcon, CommentIcon, RepostIcon, ShareIcon } from "@/components/icons/CustomIcons"
+import { MoreHorizontal, Pin, CornerDownRight, Repeat, Flag } from "lucide-react"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
@@ -17,6 +14,10 @@ import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/h
 import { routes } from "@qoe/config/routes"
 import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
 import { CertifiedBadge } from "@/components/ui/CertifiedBadge"
+import { pinPost, unpinPost, toggleLikePost, toggleRepostPost } from "@/app/(reader)/home/actions"
+import { ThoughtActions } from "./ThoughtActions"
+
+export type ThoughtVariant = "timeline" | "focus" | "parent" | "reply"
 
 export interface ThoughtData {
   id: string
@@ -25,9 +26,17 @@ export interface ThoughtData {
   createdAt: string | Date
   triggerWarning?: string | null
   isPinned?: boolean
+  isDeleted?: boolean
   likesCount?: number
   repliesCount?: number
+  repostsCount?: number
   liked?: boolean
+  reposted?: boolean
+  _count?: {
+    likes?: number
+    replies?: number
+    reposts?: number
+  }
   parent?: {
     id: string
     author: {
@@ -66,34 +75,44 @@ const getUrls = (text: string): string[] => {
   return text.match(urlRegex) || []
 }
 
-export function ThoughtCard({ post, currentUserId: propUserId, onOpenProfile, onOpenPost }: { post: ThoughtData; currentUserId?: string | null; onOpenProfile?: (username: string) => void; onOpenPost?: (postId: string, authorUsername?: string) => void }) {
-  const [isRevealed, setIsRevealed] = React.useState<boolean>(false)
+const getImages = (url: string | null | undefined): string[] => {
+  if (!url) return []
+  if (url.startsWith("[")) {
+    try {
+      return JSON.parse(url)
+    } catch {
+      return [url]
+    }
+  }
+  return [url]
+}
+
+export interface ThoughtCardProps {
+  post: ThoughtData
+  variant?: ThoughtVariant
+  depth?: number
+  currentUserId?: string | null
+  onOpenProfile?: (username: string) => void
+  onOpenPost?: (postId: string, authorUsername?: string) => void
+  onLikeToggle?: (postId: string) => void
+  onRepostToggle?: (postId: string) => void
+  className?: string
+}
+
+export function ThoughtCard({
+  post,
+  variant = "timeline",
+  depth = 0,
+  currentUserId: propUserId,
+  onOpenProfile,
+  onOpenPost,
+  onLikeToggle,
+  onRepostToggle,
+  className,
+}: ThoughtCardProps) {
   const [currentUserId, setCurrentUserId] = React.useState<string | null>(propUserId || null)
+  const [showReportModal, setShowReportModal] = React.useState<boolean>(false)
   const [showPopover, setShowPopover] = React.useState<boolean>(false)
-  const [tilt, setTilt] = React.useState({ x: 0, y: 0 })
-
-  const [liked, setLiked] = React.useState<boolean>(post.liked || false)
-  const [likesCount, setLikesCount] = React.useState<number>(post.likesCount || 0)
-  const [reposted, setReposted] = React.useState<boolean>(false)
-  const repliesCount = post.repliesCount || 0
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
-    const card = e.currentTarget
-    const rect = card.getBoundingClientRect()
-    const width = rect.width
-    const height = rect.height
-    const mouseX = e.clientX - rect.left - width / 2
-    const mouseY = e.clientY - rect.top - height / 2
-
-    const rX = -(mouseY / (height / 2)) * 0.8
-    const rY = (mouseX / (width / 2)) * 0.8
-
-    setTilt({ x: rX, y: rY })
-  }
-
-  const handleMouseLeave = () => {
-    setTilt({ x: 0, y: 0 })
-  }
 
   React.useEffect(() => {
     if (propUserId) return
@@ -105,104 +124,8 @@ export function ThoughtCard({ post, currentUserId: propUserId, onOpenProfile, on
     })
   }, [propUserId])
 
-  const handlePinToggle = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setShowPopover(false)
-    try {
-      const { pinPost, unpinPost } = await import("@/app/(reader)/home/actions")
-      if (post.isPinned) {
-        const res = await unpinPost(post.id)
-        if (res.ok) {
-          toast.success("Post désépinglé du profil.")
-          window.location.reload()
-        }
-      } else {
-        const res = await pinPost(post.id)
-        if (res.ok) {
-          toast.success("Post épinglé sur le profil.")
-          window.location.reload()
-        }
-      }
-    } catch (err) {
-      console.error(err)
-      toast.error("Erreur lors de la modification de l'état épinglé.")
-    }
-  }
-
-  const handleLikeToggle = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const newLiked = !liked
-    const newLikesCount = liked ? likesCount - 1 : likesCount + 1
-    setLiked(newLiked)
-    setLikesCount(newLikesCount)
-
-    try {
-      const { toggleLikePost } = await import("@/app/(reader)/home/actions")
-      const res = await toggleLikePost(post.id)
-      if (!res.ok) {
-        setLiked(liked)
-        setLikesCount(likesCount)
-      }
-    } catch (err) {
-      setLiked(liked)
-      setLikesCount(likesCount)
-    }
-  }
-
-  const [showRepostPopover, setShowRepostPopover] = React.useState<boolean>(false)
-  const [showReportModal, setShowReportModal] = React.useState<boolean>(false)
-
-  const handleDirectRepost = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setShowRepostPopover(false)
-    if (reposted) return
-    setReposted(true)
-    toast.success("Post repartagé dans votre profil.")
-
-    try {
-      const { repostPost } = await import("@/app/(reader)/home/actions")
-      const res = await repostPost(displayPostId)
-      if (!res.ok) setReposted(false)
-    } catch (err) {
-      setReposted(false)
-    }
-  }
-
-  const handleQuoteThought = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setShowRepostPopover(false)
-    const quoteTarget = isPureRepost ? post.repost : post
-    window.dispatchEvent(new CustomEvent("open-composer", { detail: { quotedThought: quoteTarget } }))
-  }
-
-  const handleShare = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const authorHandle = displayAuthor.username || displayAuthor.subdomain || displayAuthor.id
-    const shareUrl = `${window.location.origin}${routes.feed.thought(authorHandle, displayPostId)}`
-
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-      try {
-        await navigator.share({ title: `Pensée de ${displayAuthor.name}`, url: shareUrl })
-      } catch (err) {
-        console.log("Share cancelled:", err)
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(shareUrl)
-        toast.success("Lien copié dans le presse-papier !")
-      } catch (err) {
-        console.error("Copy error:", err)
-      }
-    }
-  }
-
-  const isPureRepost = !!post.repost && !post.content.trim()
-  const isQuotePost = !!post.repost && !!post.content.trim()
+  const isPureRepost = !!post.repost && !post.content?.trim()
+  const isQuotePost = !!post.repost && !!post.content?.trim()
 
   const displayAuthor = isPureRepost ? post.repost!.author : post.author
   const displayContent = isPureRepost ? post.repost!.content : post.content
@@ -210,136 +133,161 @@ export function ThoughtCard({ post, currentUserId: propUserId, onOpenProfile, on
   const displayPostId = isPureRepost ? post.repost!.id : post.id
   const displayCreatedAt = isPureRepost ? (post.repost!.createdAt || post.createdAt) : post.createdAt
 
-  const handleOpenProfile = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const targetUsername = displayAuthor.username || displayAuthor.subdomain || displayAuthor.id
-    if (!targetUsername) return
-    if (onOpenProfile) {
-      onOpenProfile(targetUsername)
-    } else {
-      window.location.href = routes.feed.profile(targetUsername)
-    }
-  }
+  const authorHandle = displayAuthor.username || displayAuthor.subdomain || displayAuthor.id?.slice(0, 8) || "auteur"
 
   const handleOpenPost = () => {
+    if (variant === "focus") return
     if (onOpenPost) {
-      const username = displayAuthor.username || displayAuthor.subdomain || displayAuthor.id
-      onOpenPost(displayPostId, username)
+      onOpenPost(displayPostId, authorHandle)
     }
   }
 
-  const handleOpenParentPost = (e: React.MouseEvent) => {
+  const handleProfileClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    if (post.parent && onOpenPost) {
-      const parentUsername = post.parent.author.username || post.parent.author.subdomain || post.parent.author.id
-      onOpenPost(post.parent.id, parentUsername)
+    if (onOpenProfile) {
+      onOpenProfile(authorHandle)
+    } else {
+      window.location.href = routes.feed.profile(authorHandle)
     }
   }
 
-  const hasWarning = !!post.triggerWarning && !isRevealed
+  const handlePinToggle = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setShowPopover(false)
+    try {
+      if (post.isPinned) {
+        const res = await unpinPost(post.id)
+        if (res.ok) toast.success("Pensée désépinglée du profil.")
+      } else {
+        const res = await pinPost(post.id)
+        if (res.ok) toast.success("Pensée épinglée sur le profil.")
+      }
+    } catch {
+      toast.error("Erreur lors de la modification de l'état épinglé.")
+    }
+  }
+
+  const isFocus = variant === "focus"
+  const isParent = variant === "parent"
+  const isReply = variant === "reply"
 
   return (
-    <motion.div
-      animate={{
-        rotateX: tilt.x,
-        rotateY: tilt.y,
-      }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{
-        perspective: 1000,
-        transformStyle: "preserve-3d"
-      }}
-      className="py-4 border-b border-border/40 flex flex-col gap-3 hover:scale-[1.001] transition-all duration-500 ease-[0.16,1,0.3,1]"
+    <article
+      onClick={handleOpenPost}
+      className={cn(
+        "group relative flex gap-3 transition-colors font-sans select-none",
+        !isFocus && "cursor-pointer hover:bg-white/[0.02]",
+        variant === "timeline" && "py-4 border-b border-border/40",
+        variant === "parent" && "pt-3 pb-1",
+        variant === "focus" && "p-5 bg-card border border-border/40 rounded-xl my-2 shadow-sm",
+        variant === "reply" && depth > 0 && "pl-4 border-l border-border/30 mt-2 py-2",
+        variant === "reply" && depth === 0 && "py-3 border-b border-border/20",
+        className
+      )}
     >
-      {isPureRepost && (
-        <button
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            const targetUsername = post.author.username || post.author.subdomain
-            if (targetUsername) {
-              if (onOpenProfile) onOpenProfile(targetUsername)
-              else window.location.href = routes.feed.profile(targetUsername)
-            }
-          }}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer pl-1 text-left outline-none"
-        >
-          <Repeat className="w-3.5 h-3.5 text-emerald-500" />
-          <span><strong className="font-semibold text-foreground">@{post.author.username || post.author.subdomain || post.author.id.slice(0, 8)}</strong> a repartagé</span>
-        </button>
-      )}
-
-      {post.isPinned && (
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-brand pl-1">
-          <Pin className="w-3 h-3 fill-current rotate-45" />
-          <span>Épinglé</span>
+      {/* COLUMN 1: Avatar & Thread Line Connectors for Parent Ancestors */}
+      <div className="relative flex flex-col items-center shrink-0">
+        <div onClick={handleProfileClick} className="relative z-10 cursor-pointer">
+          <AuthorAvatar user={displayAuthor} size={isFocus ? "md" : "sm"} showBadge={false} />
         </div>
-      )}
 
-      {post.parent && (
-        <button
-          onClick={handleOpenParentPost}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer pl-1 text-left outline-none"
-        >
-          <CornerDownRight className="w-3.5 h-3.5 text-brand" />
-          <span>En réponse à <strong className="font-semibold text-foreground">@{post.parent.author.username || post.parent.author.subdomain || post.parent.author.id.slice(0, 8)}</strong></span>
-        </button>
-      )}
+        {/* Thread connector line running down for parent ancestor cards */}
+        {isParent && (
+          <div className="w-[2px] bg-border/50 flex-1 my-1 rounded-full min-h-[24px]" />
+        )}
+      </div>
 
-      <div className="flex items-center justify-between">
-        <HoverCard>
-          <HoverCardTrigger
-            render={
-              <button 
-                onClick={handleOpenProfile}
-                className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left"
-              >
-                <AuthorAvatar user={displayAuthor} size="md" showBadge={false} />
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-semibold text-foreground block leading-none group-hover/author:text-brand transition-colors">{displayAuthor.name}</span>
-                    {displayAuthor.isCertified && <CertifiedBadge />}
+      {/* COLUMN 2: Main Content Area */}
+      <div className="flex-1 min-w-0 space-y-1.5">
+        {/* Pure Repost Banner */}
+        {isPureRepost && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground pb-0.5">
+            <Repeat className="w-3.5 h-3.5 text-emerald-500" />
+            <span>
+              <strong className="font-semibold text-foreground">
+                @{post.author.username || post.author.subdomain || post.author.id.slice(0, 8)}
+              </strong>{" "}
+              a repartagé
+            </span>
+          </div>
+        )}
+
+        {/* Pinned Badge */}
+        {post.isPinned && (
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-brand pb-0.5">
+            <Pin className="w-3 h-3 fill-current rotate-45" />
+            <span>Épinglé</span>
+          </div>
+        )}
+
+        {/* Reply Context Banner */}
+        {post.parent && !isParent && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground pb-0.5">
+            <CornerDownRight className="w-3.5 h-3.5 text-brand" />
+            <span>
+              En réponse à{" "}
+              <strong className="font-semibold text-foreground">
+                @{post.parent.author.username || post.parent.author.subdomain || post.parent.author.id.slice(0, 8)}
+              </strong>
+            </span>
+          </div>
+        )}
+
+        {/* Author Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+            <HoverCard>
+              <HoverCardTrigger
+                render={
+                  <span
+                    onClick={handleProfileClick}
+                    className={cn(
+                      "font-bold text-foreground hover:text-brand transition-colors cursor-pointer truncate",
+                      isFocus ? "text-base" : "text-sm"
+                    )}
+                  >
+                    {displayAuthor.name || "Auteur"}
+                  </span>
+                }
+              />
+              <HoverCardContent className="w-72 p-4 bg-card border border-border/40 rounded-xl shadow-xl z-50 font-sans">
+                <div className="flex justify-between space-x-4">
+                  <div className="w-10 h-10 rounded-md overflow-hidden border border-border/40 shrink-0">
+                    {displayAuthor.logoUrl ? (
+                      <img src={displayAuthor.logoUrl} className="w-full h-full object-cover" alt="" />
+                    ) : (
+                      <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-sm text-brand">
+                        {displayAuthor.name?.charAt(0) || "U"}
+                      </div>
+                    )}
                   </div>
-                  <span className="text-xs text-muted-foreground block mt-1 font-sans">@{displayAuthor.username || displayAuthor.subdomain || displayAuthor.id.slice(0, 8)}</span>
-                </div>
-              </button>
-            }
-          />
-          
-          <HoverCardContent className="w-72 p-4 bg-card border border-border/40 rounded-xl shadow-xl z-50">
-            <div className="flex justify-between space-x-4">
-              <div className="w-10 h-10 rounded-md overflow-hidden border border-border/40 shrink-0">
-                {displayAuthor.logoUrl ? (
-                  <img src={displayAuthor.logoUrl} className="w-full h-full object-cover" alt="" />
-                ) : (
-                  <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-sm text-brand">
-                    {displayAuthor.name?.charAt(0) || "U"}
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold text-foreground leading-none">{displayAuthor.name}</h4>
+                      {displayAuthor.isCertified && <span className="text-brand text-[10px] font-black">✓</span>}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground leading-none">@{authorHandle}</p>
                   </div>
-                )}
-              </div>
-              <div className="space-y-1.5 flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h4 className="text-xs font-bold text-foreground leading-none">{displayAuthor.name}</h4>
-                  {displayAuthor.isCertified && <span className="text-brand text-[10px] font-black">✓</span>}
                 </div>
-                <p className="text-[10px] text-muted-foreground leading-none">@{displayAuthor.username || displayAuthor.subdomain}</p>
-                <div className="flex items-center pt-2 gap-4 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <span className="text-brand font-sans">Auteur certifié</span>
-                  <span className="font-sans">Abonnés</span>
-                </div>
-              </div>
-            </div>
-          </HoverCardContent>
-        </HoverCard>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground font-medium">
-            {new Date(displayCreatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-          </span>
-          
+              </HoverCardContent>
+            </HoverCard>
+
+            {displayAuthor.isCertified && <CertifiedBadge />}
+            <span className="text-xs text-muted-foreground truncate">@{authorHandle}</span>
+
+            {!isFocus && displayCreatedAt && (
+              <>
+                <span className="text-xs text-muted-foreground">·</span>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(displayCreatedAt).toLocaleDateString("fr-FR", { month: "short", day: "numeric" })}
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Options Popover */}
           <Popover open={showPopover} onOpenChange={setShowPopover}>
             <PopoverTrigger
               render={
@@ -384,166 +332,118 @@ export function ThoughtCard({ post, currentUserId: propUserId, onOpenProfile, on
             </PopoverContent>
           </Popover>
         </div>
-      </div>
 
-      <div className="relative">
-        <div className={cn(
-          "transition-all duration-300",
-          hasWarning && "blur-[16px] pointer-events-none select-none"
-        )}>
-          <div 
-            onClick={handleOpenPost}
-            className="text-[15px] sm:text-[16px] text-foreground/90 leading-relaxed font-sans cursor-pointer hover:text-foreground transition-colors duration-200 pt-1"
-          >
-            <TextParser content={displayContent} />
-          </div>
-
-          {/* Embedded Quote Card if Quote Post */}
-          {isQuotePost && (
-            <QuotedThoughtCard post={post.repost || null} onOpenPost={onOpenPost} />
+        {/* Text Body Content */}
+        <div
+          className={cn(
+            "text-foreground/90 leading-relaxed font-sans pt-0.5",
+            isFocus ? "text-lg py-1" : "text-xs sm:text-sm"
           )}
-
-          {getUrls(displayContent).length > 0 && (
-            <div className="mt-2">
-              <LinkPreview 
-                urls={getUrls(displayContent)} 
-                onNavigate={(target) => {
-                  if (target.type === "post" && onOpenPost) {
-                    onOpenPost(target.id)
-                  } else if (target.type === "article" && target.slug) {
-                    const articleUrl = routes.tenant.article(displayAuthor.subdomain || "demo", target.slug)
-                    window.open(articleUrl, "_blank")
-                  }
-                }}
-              />
-            </div>
-          )}
-
-          {displayImageUrl && (
-            <div className="overflow-hidden cursor-pointer mt-1" onClick={handleOpenPost}>
-              <ImageGrid urls={getImages(displayImageUrl)} />
-            </div>
-          )}
+        >
+          <TextParser content={displayContent} />
         </div>
 
-        {hasWarning && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/80 backdrop-blur-md transition-all duration-300 p-4">
-            <span className="text-[11px] uppercase tracking-wider text-amber-500 mb-2 font-bold">Avertissement</span>
-            <p className="text-[13px] font-medium text-foreground text-center max-w-[280px] mb-3.5 leading-snug">
-              {post.triggerWarning}
-            </p>
-            <button
-              onClick={() => setIsRevealed(true)}
-              className="px-3.5 py-2 bg-foreground text-background hover:opacity-90 text-[10px] font-bold rounded-lg transition-all cursor-pointer shadow-sm uppercase tracking-wider"
-            >
-              Afficher
-            </button>
+        {/* Embedded Quote Card if Quote Post */}
+        {isQuotePost && (
+          <QuotedThoughtCard post={post.repost || null} onOpenPost={handleOpenPost} />
+        )}
+
+        {/* Link Previews */}
+        {getUrls(displayContent).length > 0 && (
+          <div className="mt-2">
+            <LinkPreview
+              urls={getUrls(displayContent)}
+              onNavigate={(target) => {
+                if (target.type === "post") {
+                  handleOpenPost()
+                } else if (target.type === "article" && target.slug) {
+                  const articleUrl = routes.tenant.article(displayAuthor.subdomain || "demo", target.slug)
+                  window.open(articleUrl, "_blank")
+                }
+              }}
+            />
           </div>
         )}
-      </div>
 
-      {/* Social Actions Footer Bar */}
-      <div className="flex items-center justify-between pt-2.5 mt-1 border-t border-border/30 text-xs text-muted-foreground">
-        <button
-          onClick={handleLikeToggle}
-          className={cn(
-            "flex items-center gap-1.5 hover:text-brand transition-colors cursor-pointer outline-none",
-            liked && "text-brand font-semibold"
-          )}
-        >
-          <motion.div whileTap={{ scale: 1.3 }}>
-            <LikeIcon className="w-3.5 h-3.5" style={{ fill: liked ? "var(--accent-brand, #EE4B2B)" : "transparent" }} />
-          </motion.div>
-          <span>{likesCount}</span>
-        </button>
+        {/* Image Grid */}
+        {displayImageUrl && (
+          <div className="overflow-hidden cursor-pointer mt-1" onClick={handleOpenPost}>
+            <ImageGrid urls={getImages(displayImageUrl)} />
+          </div>
+        )}
 
-        <button
-          onClick={handleOpenPost}
-          className="flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer outline-none"
-        >
-          <CommentIcon className="w-3.5 h-3.5" />
-          <span>{repliesCount}</span>
-        </button>
+        {/* Focus Mode Full Date & Time Header */}
+        {isFocus && (
+          <div className="py-2.5 my-1 border-y border-border/40 text-xs text-muted-foreground">
+            {new Date(displayCreatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+            {" · "}
+            {new Date(displayCreatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+          </div>
+        )}
 
-        <Popover open={showRepostPopover} onOpenChange={setShowRepostPopover}>
-          <PopoverTrigger
-            render={
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setShowRepostPopover(true)
-                }}
-                className={cn(
-                  "flex items-center gap-1.5 hover:text-emerald-500 transition-colors cursor-pointer outline-none",
-                  reposted && "text-emerald-500 font-semibold"
-                )}
-              >
-                <RepostIcon className="w-3.5 h-3.5" />
-                <span>{reposted ? "Reposté" : "Repost"}</span>
-              </button>
+        {/* Centralized Action Bar */}
+        <ThoughtActions
+          post={post}
+          variant={isFocus ? "lg" : isParent || isReply ? "sm" : "md"}
+          onLike={async (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (onLikeToggle) {
+              onLikeToggle(displayPostId)
+            } else {
+              await toggleLikePost(displayPostId)
             }
-          />
-          <PopoverContent align="center" className="w-48 p-1.5 space-y-1 bg-card border border-border/60 rounded-xl shadow-xl z-50">
-            <button
-              type="button"
-              onClick={handleDirectRepost}
-              className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-muted transition-colors flex items-center gap-2 cursor-pointer"
-            >
-              <Repeat className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Partager direct</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleQuoteThought}
-              className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-muted transition-colors flex items-center gap-2 cursor-pointer"
-            >
-              <Quote className="w-3.5 h-3.5 text-brand" />
-              <span>Citer la pensée</span>
-            </button>
-          </PopoverContent>
-        </Popover>
+          }}
+          onReply={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            window.dispatchEvent(
+              new CustomEvent("open-composer", {
+                detail: { replyToThought: isPureRepost ? post.repost : post, mode: "thought" },
+              })
+            )
+          }}
+          onRepost={async (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (onRepostToggle) {
+              onRepostToggle(displayPostId)
+            } else {
+              await toggleRepostPost(displayPostId)
+            }
+          }}
+          onQuote={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            window.dispatchEvent(
+              new CustomEvent("open-composer", {
+                detail: { quotedThought: isPureRepost ? post.repost : post, mode: "thought" },
+              })
+            )
+          }}
+        />
 
-        <button
-          onClick={handleShare}
-          className="flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer outline-none"
-        >
-          <ShareIcon className="w-3.5 h-3.5" />
-          <span>Partager</span>
-        </button>
+        <ModerationReportModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          targetId={displayPostId}
+          targetType="thought"
+        />
       </div>
-
-      <ModerationReportModal
-        isOpen={showReportModal}
-        onClose={() => setShowReportModal(false)}
-        targetId={displayPostId}
-        targetType="thought"
-      />
-    </motion.div>
+    </article>
   )
-}
-
-const getImages = (url: string | null | undefined): string[] => {
-  if (!url) return []
-  if (url.startsWith("[")) {
-    try {
-      return JSON.parse(url)
-    } catch (e) {
-      return [url]
-    }
-  }
-  return [url]
 }
 
 function ImageGrid({ urls }: { urls: string[] }) {
   if (urls.length === 0) return null
 
   return (
-    <div className={cn(
-      "grid gap-3 overflow-hidden rounded-xl",
-      urls.length === 1 ? "grid-cols-1" : "grid-cols-2"
-    )}>
+    <div
+      className={cn(
+        "grid gap-3 overflow-hidden rounded-xl",
+        urls.length === 1 ? "grid-cols-1" : "grid-cols-2"
+      )}
+    >
       {urls.map((url) => (
         <div
           key={url}

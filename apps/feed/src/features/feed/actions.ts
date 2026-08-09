@@ -1,7 +1,7 @@
 "use server"
 
 import { follows, bookmarks, posts, articles } from "@qoe/db"
-import { createThoughtSchema, replyToPostSchema } from "@qoe/config"
+import { createThoughtSchema, replyToPostSchema, createReportSchema } from "@qoe/config"
 import { createClient } from "@qoe/supabase/server"
 import { revalidatePath } from "next/cache"
 import { safeAction } from "@/lib/safe-action"
@@ -38,6 +38,7 @@ export const createThought = safeAction<{
   scheduledAt?: string | null;
   triggerWarning?: string | null;
   repostId?: string | null;
+  parentId?: string | null;
 }, { post: any }>(async (rawInput, user) => {
   const input = createThoughtSchema.parse(rawInput)
   const cleanContent = input.content
@@ -69,6 +70,7 @@ export const createThought = safeAction<{
     scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
     triggerWarning: input.triggerWarning || null,
     repostId: input.repostId || null,
+    parentId: input.parentId || null,
   })
 
   revalidatePath("/home")
@@ -82,17 +84,22 @@ export const createThought = safeAction<{
 export const createMicroPost = createThought
 
 export const toggleLikePost = safeAction<string, { liked: boolean }>(async (postId, user) => {
-  return posts.toggleLike(postId, user.id)
+  const res = await posts.toggleLike(postId, user.id)
+  revalidatePath("/", "layout")
+  return res
 })
 
 export const replyToPost = safeAction<{ postId: string; content: string }, { reply: any }>(async (rawInput, user) => {
   const { postId, content } = replyToPostSchema.parse(rawInput)
   const reply = await posts.replyToPost(postId, user.id, content)
+  revalidatePath("/", "layout")
   return { reply }
 })
 
 export const getPostThread = safeAction<string, { post: any }>(async (postId) => {
-  const post = await posts.findThreadById(postId)
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const post = await posts.findThreadById(postId, user?.id)
   return { post }
 }, false) // No auth required for thread view
 
@@ -103,18 +110,23 @@ export const getArticleThread = safeAction<string, { article: any }>(async (slug
 
 export const reportTargetAction = safeAction<any, { success: boolean }>(async (rawInput, user) => {
   const { targetId, targetType, reason, details } = createReportSchema.parse(rawInput)
-  // Store report log in TranslationAuditLog or console/database
   console.log(`[MODERATION REPORT] User ${user.id} reported ${targetType} ${targetId} for ${reason}: ${details || "No details"}`)
   return { success: true }
 })
 
+export const toggleRepostPost = safeAction<string, { reposted: boolean; canonicalId: string; post?: any }>(async (postId, user) => {
+  const result = await posts.toggleRepost(postId, user.id)
+  revalidatePath("/", "layout")
+  return result
+})
+
 export const repostPost = safeAction<string, { repost: any }>(async (postId, user) => {
-  const repost = await posts.repostPost(postId, user.id)
+  const res = await posts.toggleRepost(postId, user.id)
   revalidatePath("/home")
   if (user.username) {
     revalidatePath(routes.feed.profile(user.username))
   }
-  return { repost }
+  return { repost: res.post }
 })
 
 export const deletePost = safeAction<string, { success: boolean }>(async (postId, user) => {
@@ -169,7 +181,7 @@ export const getProfileData = safeAction<string, {
   const followingCount = await follows.countFollowing(profileUser.id)
   const isOwnProfile = currentUserId === profileUser.id
 
-  const postsCount = await prisma.post.count({
+  const postsCount = await prisma.thought.count({
     where: {
       authorId: profileUser.id,
       ...(isOwnProfile ? {} : {
@@ -183,7 +195,7 @@ export const getProfileData = safeAction<string, {
     }
   })
 
-  const dbPosts = await prisma.post.findMany({
+  const dbPosts = await prisma.thought.findMany({
     where: {
       authorId: profileUser.id,
       ...(isOwnProfile ? {} : {
@@ -211,7 +223,8 @@ export const getProfileData = safeAction<string, {
         }
       },
       likes: { select: { userId: true } },
-      _count: { select: { likes: true, replies: true } }
+      reposts: currentUserId ? { where: { authorId: currentUserId, deletedAt: null }, select: { id: true, authorId: true, content: true } } : false,
+      _count: { select: { likes: true, replies: true, reposts: true } }
     },
     orderBy: { createdAt: 'desc' }
   })
@@ -248,29 +261,44 @@ export const getProfileData = safeAction<string, {
     followersCount,
     followingCount,
     postsCount,
-    posts: dbPosts.map(p => ({
-      ...p,
-      createdAt: p.createdAt.toISOString(),
-      parent: p.parent ? {
-        ...p.parent,
-        createdAt: p.parent.createdAt ? p.parent.createdAt.toISOString() : undefined,
-        author: {
-          ...p.parent.author,
-          isCertified: p.parent.author.isCertified || false
-        }
-      } : null,
-      repost: p.repost ? {
-        ...p.repost,
-        createdAt: p.repost.createdAt ? p.repost.createdAt.toISOString() : p.createdAt.toISOString(),
-        author: {
-          ...p.repost.author,
-          isCertified: p.repost.author.isCertified || false
-        }
-      } : null,
-      likesCount: p._count.likes,
-      repliesCount: p._count.replies,
-      liked: p.likes.some(l => l.userId === currentUserId)
-    })),
+    posts: dbPosts.map((p: any) => {
+      const canonicalPost = p.repost || p
+      const likesCount = canonicalPost._count?.likes ?? p._count?.likes ?? 0
+      const repliesCount = canonicalPost._count?.replies ?? p._count?.replies ?? 0
+      const repostsCount = canonicalPost._count?.reposts ?? p._count?.reposts ?? 0
+
+      const liked = (canonicalPost.likes && Array.isArray(canonicalPost.likes) && canonicalPost.likes.some((l: any) => l.userId === currentUserId)) ||
+                    (p.likes && Array.isArray(p.likes) && p.likes.some((l: any) => l.userId === currentUserId)) || false
+
+      const reposted = (canonicalPost.reposts && Array.isArray(canonicalPost.reposts) && canonicalPost.reposts.some((r: any) => r.authorId === currentUserId && (!r.content || !r.content.trim()))) ||
+                       (p.reposts && Array.isArray(p.reposts) && p.reposts.some((r: any) => r.authorId === currentUserId && (!r.content || !r.content.trim()))) || false
+
+      return {
+        ...p,
+        createdAt: p.createdAt.toISOString(),
+        parent: p.parent ? {
+          ...p.parent,
+          createdAt: p.parent.createdAt ? p.parent.createdAt.toISOString() : undefined,
+          author: {
+            ...p.parent.author,
+            isCertified: p.parent.author.isCertified || false
+          }
+        } : null,
+        repost: p.repost ? {
+          ...p.repost,
+          createdAt: p.repost.createdAt ? p.repost.createdAt.toISOString() : p.createdAt.toISOString(),
+          author: {
+            ...p.repost.author,
+            isCertified: p.repost.author.isCertified || false
+          }
+        } : null,
+        likesCount,
+        repliesCount,
+        repostsCount,
+        liked,
+        reposted
+      }
+    }),
     articles: dbArticles.map(a => ({ ...a, createdAt: a.createdAt.toISOString(), updatedAt: (a as any).updatedAt ? (a as any).updatedAt.toISOString() : new Date().toISOString() })),
     highlights: dbHighlights.map(h => ({ ...h, createdAt: h.createdAt.toISOString() })),
     letters: dbLetters.map(l => ({ ...l, createdAt: l.createdAt.toISOString() })),
@@ -305,6 +333,36 @@ export const unpinPost = safeAction<string, { success: boolean }>(async (postId,
   return { success: true }
 })
 
+// Helper pour sécuriser unfurlUrl contre les attaques SSRF (OWASP API7:2023)
+function isPrivateHost(hostname: string): boolean {
+  const host = hostname.toLowerCase()
+  if (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "0.0.0.0" ||
+    host === "::1" ||
+    host === "169.254.169.254" || // AWS / Cloud metadata endpoint
+    host.endsWith(".local") ||
+    host.endsWith(".internal")
+  ) {
+    return true
+  }
+
+  // Vérification d'IPv4 privée (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10)
+  const ipMatch = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+  if (ipMatch) {
+    const [, p1, p2] = ipMatch.map(Number)
+    if (p1 === 10) return true
+    if (p1 === 172 && p2 >= 16 && p2 <= 31) return true
+    if (p1 === 192 && p2 === 168) return true
+    if (p1 === 100 && p2 >= 64 && p2 <= 127) return true
+    if (p1 === 127) return true
+    if (p1 === 169 && p2 === 254) return true
+  }
+
+  return false
+}
+
 export const unfurlUrl = safeAction<string, {
   isInternal: boolean
   postType?: "post" | "article"
@@ -323,11 +381,23 @@ export const unfurlUrl = safeAction<string, {
       url = "https://" + url
     }
 
+    // Gestion de la taille max de la cache (Max 500 items pour éviter le Memory Leak RAM)
+    if (unfurlCache.size > 500) {
+      const firstKey = unfurlCache.keys().next().value
+      if (firstKey) unfurlCache.delete(firstKey)
+    }
+
     if (unfurlCache.has(url)) {
       return unfurlCache.get(url)!
     }
 
     const parsedUrl = new URL(url)
+
+    // Bloquer les protocoles non HTTP(S)
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+      throw new Error("INVALID_PROTOCOL")
+    }
+
     const isInternalHost = parsedUrl.hostname.endsWith("qoe.fi") || 
                            parsedUrl.hostname === "localhost" || 
                            parsedUrl.hostname.endsWith(".localhost") ||
@@ -355,6 +425,13 @@ export const unfurlUrl = safeAction<string, {
           return result
         }
       }
+    }
+
+    // Protection SSRF : Rejeter les adresses IP privées / hôtes internes non-qoe
+    if (isPrivateHost(parsedUrl.hostname)) {
+      const blockedResult = { isInternal: false, externalMetadata: { title: parsedUrl.hostname, description: null, image: null, siteName: parsedUrl.hostname, url } }
+      unfurlCache.set(url, blockedResult)
+      return blockedResult
     }
 
     const controller = new AbortController()
@@ -395,7 +472,17 @@ export const unfurlUrl = safeAction<string, {
 
     const title = getMeta("og:title") || getMeta("twitter:title") || getTitle() || parsedUrl.hostname
     const description = getMeta("og:description") || getMeta("twitter:description") || getMeta("description")
-    const image = getMeta("og:image") || getMeta("twitter:image")
+    let image = getMeta("og:image") || getMeta("twitter:image")
+    
+    // Résolution canonique des URLs d'images relatives
+    if (image && image.startsWith("/")) {
+      try {
+        image = new URL(image, parsedUrl.origin).href
+      } catch {
+        // En cas d'échec, conserver la chaîne brute
+      }
+    }
+
     const siteName = getMeta("og:site_name") || parsedUrl.hostname
 
     const successResult = {
