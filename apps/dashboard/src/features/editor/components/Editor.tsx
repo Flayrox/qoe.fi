@@ -33,6 +33,7 @@ import {
   BarChart3,
   Sparkles,
   X,
+  ExternalLink,
 } from "lucide-react"
 import { cn } from "@qoe/utils"
 import { compressImage } from "@/lib/image-compressor"
@@ -48,6 +49,7 @@ export interface EditorProps {
   initialCategoryId?: string | null
   initialSeoTitle?: string | null
   initialSeoDescription?: string | null
+  subdomain?: string
   categories?: { id: string; name: string }[]
   isSaving?: boolean
   onSave: (data: {
@@ -72,6 +74,7 @@ export function Editor({
   initialCategoryId = null,
   initialSeoTitle = "",
   initialSeoDescription = "",
+  subdomain,
   categories = [],
   isSaving = false,
   onSave,
@@ -383,6 +386,20 @@ export function Editor({
             {published ? <Globe className="h-3 w-3 text-emerald-500" /> : <Lock className="h-3 w-3" />}
             <span>{published ? "Publié" : "Brouillon"}</span>
           </button>
+
+          {/* Public Article Page Preview Link */}
+          {slug && (
+            <a
+              href={`http://${subdomain || "heheheh"}.lvh.me:3001/article/${slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-semibold bg-muted/50 text-foreground hover:bg-muted border border-border/40 transition-all cursor-pointer shadow-xs"
+              title="Ouvrir la page publique ou la prévisualisation de l'écrit"
+            >
+              <ExternalLink className="h-3.5 w-3.5 text-primary" />
+              <span>Aperçu</span>
+            </a>
+          )}
 
           {/* Save Action */}
           <button
