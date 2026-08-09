@@ -12,6 +12,7 @@
     "./hooks/*": "./src/hooks/*.ts"
   },
   "scripts": {
+    "test": "vitest run",
     "lint": "echo skip",
     "typecheck": "tsc --noEmit"
   },
@@ -25,7 +26,9 @@
   },
   "devDependencies": {
     "@qoe/tsconfig": "workspace:*",
+    "@types/node": "^20",
     "@types/react": "^19",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.7"
   }
 }
