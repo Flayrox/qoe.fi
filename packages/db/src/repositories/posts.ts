@@ -21,11 +21,12 @@ export async function findFollowingFeed(
 
   if (creatorIds.length === 0) return [];
 
-  const take = options?.take ?? 20
+  const take = options?.take ?? 20;
 
   return prisma.thought.findMany({
     where: {
       authorId: { in: creatorIds },
+      author: { isShadowbanned: false, isSuspended: false },
       isDraft: false,
       deletedAt: null,
       OR: [
@@ -34,7 +35,7 @@ export async function findFollowingFeed(
       ],
       visibility: { in: [POST_VISIBILITY.PUBLIC, POST_VISIBILITY.FOLLOWERS] },
     },
-    orderBy: [{ createdAt: "desc" }],
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: take + 1,
     cursor: options?.cursor ? { id: options.cursor } : undefined,
     skip: options?.cursor ? 1 : (options?.skip ?? 0),
@@ -95,11 +96,12 @@ export async function findTrending(limit: number = 20) {
   return prisma.thought.findMany({
     where: {
       isDraft: false,
+      deletedAt: null,
       visibility: POST_VISIBILITY.PUBLIC,
       createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
       author: { isShadowbanned: false, isSuspended: false },
     },
-    orderBy: [{ likes: { _count: "desc" } }, { createdAt: "desc" }],
+    orderBy: [{ likes: { _count: "desc" } }, { createdAt: "desc" }, { id: "desc" }],
     take: limit,
     include: {
       author: {
@@ -350,7 +352,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
             },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       },
     },
   });

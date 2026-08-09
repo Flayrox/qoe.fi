@@ -146,13 +146,14 @@ export default async function ReaderHomePage() {
     ? prisma.article.findMany({
         where: { 
           authorId: { in: creatorIds },
-          published: true 
+          published: true,
+          author: { isShadowbanned: false, isSuspended: false }
         },
         include: {
           author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
           category: { select: { name: true } }
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: 20
       })
     : Promise.resolve([])
@@ -161,6 +162,8 @@ export default async function ReaderHomePage() {
     ? prisma.thought.findMany({
         where: {
           isDraft: false,
+          deletedAt: null,
+          author: { isShadowbanned: false, isSuspended: false },
           OR: [
             { scheduledAt: null },
             { scheduledAt: { lte: new Date() } }
@@ -178,14 +181,15 @@ export default async function ReaderHomePage() {
           ]
         },
         include: postIncludeSelect,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: 20
       })
     : Promise.resolve([])
 
   const dbRecArticlesPromise = prisma.article.findMany({
     where: { 
-      published: true 
+      published: true,
+      author: { isShadowbanned: false, isSuspended: false }
     },
     include: {
       author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
@@ -193,7 +197,8 @@ export default async function ReaderHomePage() {
     },
     orderBy: [
       { isEditorPick: 'desc' },
-      { createdAt: 'desc' }
+      { createdAt: 'desc' },
+      { id: 'desc' }
     ],
     take: 20
   })
@@ -201,6 +206,8 @@ export default async function ReaderHomePage() {
   const dbRecPostsPromise = prisma.thought.findMany({
     where: {
       isDraft: false,
+      deletedAt: null,
+      author: { isShadowbanned: false, isSuspended: false },
       OR: [
         { scheduledAt: null },
         { scheduledAt: { lte: new Date() } }
@@ -219,7 +226,7 @@ export default async function ReaderHomePage() {
       ]
     },
     include: postIncludeSelect,
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: 20
   })
 
@@ -229,6 +236,8 @@ export default async function ReaderHomePage() {
       author: {
         role: 'creator',
         isCertified: true,
+        isShadowbanned: false,
+        isSuspended: false,
         id: creatorIds.length > 0 ? { notIn: creatorIds } : undefined
       }
     },
@@ -236,13 +245,14 @@ export default async function ReaderHomePage() {
       author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
       category: { select: { name: true } }
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: 20
   })
 
   const dbDiscoverPostsPromise = prisma.thought.findMany({
     where: {
       isDraft: false,
+      deletedAt: null,
       OR: [
         { scheduledAt: null },
         { scheduledAt: { lte: new Date() } }
@@ -251,13 +261,15 @@ export default async function ReaderHomePage() {
       author: {
         role: 'creator',
         isCertified: true,
+        isShadowbanned: false,
+        isSuspended: false,
         ...(user ? {
           id: creatorIds.length > 0 ? { notIn: [...creatorIds, user.id] } : { not: user.id }
         } : {})
       }
     },
     include: postIncludeSelect,
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: 20
   })
 

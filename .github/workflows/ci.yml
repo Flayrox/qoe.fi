@@ -43,6 +43,9 @@ jobs:
 
       - name: Generate Prisma Client
         run: pnpm prisma:generate
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/qoe?schema=public"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/qoe?schema=public"
 
       - name: Typecheck Monorepo
         run: pnpm typecheck
