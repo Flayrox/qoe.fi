@@ -3,13 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "noEmit": false,
-    "outDir": "./dist",
-    "paths": {
-      "@/*": ["./src/*"],
-      "@qoe/db/client": ["../packages/db/src/client.ts"],
-      "@qoe/db/*": ["../packages/db/src/*"],
-      "@qoe/db": ["../packages/db/src/index.ts"]
-    }
+    "outDir": "./dist"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
