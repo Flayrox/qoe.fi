@@ -9,12 +9,13 @@ import {
   offset,
   autoUpdate,
 } from "@floating-ui/react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
 import { cn } from "@qoe/utils"
 
 export interface SelectionState {
   text: string
   range: Range
+  placement: string
   clearSelection: () => void
 }
 
@@ -46,12 +47,13 @@ export function TextSelectionPopover({
   const [virtualElement, setVirtualElement] = useState<any>(null)
 
   const popoverRef = useRef<HTMLDivElement>(null)
+  const shouldReduceMotion = useReducedMotion()
 
   const { refs, floatingStyles, placement } = useFloating({
     open: Boolean(virtualElement),
     placement: "top",
     middleware: [
-      offset(10),
+      offset(12),
       inline(),
       flip({
         fallbackPlacements: ["bottom", "top-start", "top-end", "bottom-start", "bottom-end"],
@@ -122,9 +124,10 @@ export function TextSelectionPopover({
     onSelectionChange?.({
       text,
       range,
+      placement,
       clearSelection,
     })
-  }, [containerId, minSelectionLength, isLocked, clearSelection, onSelectionChange, refs])
+  }, [containerId, minSelectionLength, isLocked, clearSelection, onSelectionChange, refs, placement])
 
   useEffect(() => {
     const handleMouseUp = (e: MouseEvent) => {
@@ -178,16 +181,24 @@ export function TextSelectionPopover({
         <AnimatePresence mode="wait">
           <motion.div
             key={placement}
-            initial={{ scale: 0.96, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.96, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 420, damping: 28 }}
-            style={{ transformOrigin: placement.startsWith("top") ? "bottom center" : "top center" }}
+            initial={{ scale: 0.92, opacity: 0, filter: "blur(4px)" }}
+            animate={{ scale: 1, opacity: 1, filter: "blur(0px)" }}
+            exit={{ scale: 0.92, opacity: 0, filter: "blur(4px)" }}
+            transition={
+              shouldReduceMotion
+                ? { duration: 0 }
+                : { type: "spring", stiffness: 500, damping: 32, mass: 0.6 }
+            }
+            style={{
+              originX: 0.5,
+              originY: placement.startsWith("top") ? 1 : 0,
+            }}
             className="relative"
           >
             {children({
               text: selectedText,
               range: selectionRange,
+              placement,
               clearSelection,
             })}
           </motion.div>
