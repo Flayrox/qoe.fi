@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "./client";
-import { createServiceClient } from "@qoe/supabase/server";
+import { createServiceClient, createClient } from "@qoe/supabase/server";
 import crypto from "crypto";
 
 export interface DevtoolsUser {
@@ -571,15 +571,57 @@ export async function resetOnboardingAction() {
   }
 }
 
-/**
- * 🔑 Se connecter sous l'identité d'un utilisateur par email (développement local).
- */
 export async function impersonateLoginAction(email: string) {
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       return { success: false, error: "Utilisateur introuvable dans PostgreSQL" };
     }
+
+    const supabase = await createClient();
+
+    // 1. Tenter la connexion Supabase avec le mot de passe universel dev
+    let signInResult = await supabase.auth.signInWithPassword({
+      email,
+      password: "password123",
+    });
+
+    if (signInResult.error) {
+      // Si l'utilisateur n'a pas le mot de passe "password123" dans Supabase Auth,
+      // le réinitialiser/créer via le service client admin
+      try {
+        const adminSupabase = createServiceClient();
+        const { data: listData } = await adminSupabase.auth.admin.listUsers();
+        const authUser = listData?.users?.find((u) => u.email === email);
+
+        if (authUser) {
+          await adminSupabase.auth.admin.updateUserById(authUser.id, {
+            password: "password123",
+            email_confirm: true,
+          });
+        } else {
+          await adminSupabase.auth.admin.createUser({
+            email,
+            password: "password123",
+            email_confirm: true,
+            user_metadata: { name: user.name, username: user.username },
+          });
+        }
+
+        // Réessayer la connexion
+        signInResult = await supabase.auth.signInWithPassword({
+          email,
+          password: "password123",
+        });
+      } catch (adminErr: any) {
+        console.error("Admin user sync error in impersonateLoginAction:", adminErr);
+      }
+    }
+
+    if (signInResult.error) {
+      return { success: false, error: signInResult.error.message };
+    }
+
     return { success: true, user };
   } catch (error: any) {
     return { success: false, error: error?.message || "Impersonation error" };
@@ -587,5 +629,11 @@ export async function impersonateLoginAction(email: string) {
 }
 
 export async function logoutAction() {
-  return { success: true };
+  try {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error?.message || "Logout error" };
+  }
 }

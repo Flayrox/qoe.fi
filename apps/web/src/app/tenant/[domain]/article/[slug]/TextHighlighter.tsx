@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react"
 import { createHighlight, quotePassageToFeedAction } from "./actions"
-import { Highlighter, Check, Loader2, X, Plus, Globe, Lock, Share2, Quote } from "lucide-react"
+import { Highlighter, Check, Loader2, X, Plus, Globe, Lock, Share2, Quote, Eye, EyeOff, Sparkles } from "lucide-react"
 import { cn } from "@qoe/utils"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { TextSelectionPopover } from "@qoe/ui"
@@ -33,8 +33,12 @@ interface TextHighlighterProps {
   initialHighlights: HighlightItem[]
   publicHighlights?: AnnotationItem[]
   currentUserId?: string | null
+  currentUserProfile?: { id: string; name: string | null; username: string | null; logoUrl: string | null } | null
+  articleAuthorId?: string | null
   mainAppUrl: string
 }
+
+export type AnnotationFilterMode = "all" | "official" | "none"
 
 export function TextHighlighter({
   articleId,
@@ -44,10 +48,23 @@ export function TextHighlighter({
   initialHighlights,
   publicHighlights = [],
   currentUserId,
+  currentUserProfile,
+  articleAuthorId,
   mainAppUrl,
 }: TextHighlighterProps) {
+  const defaultReader = {
+    id: currentUserId || "anon",
+    name: currentUserProfile?.name || currentUserProfile?.username || "Lecteur",
+    username: currentUserProfile?.username || "lecteur",
+    logoUrl: currentUserProfile?.logoUrl || null,
+    subdomain: null,
+  }
+
   const [highlights, setHighlights] = useState<HighlightItem[]>(initialHighlights)
   const [allPublic, setAllPublic] = useState<AnnotationItem[]>(publicHighlights)
+
+  // Universal Reader Annotation Filter Mode (persisted across all tenants in localStorage)
+  const [filterMode, setFilterMode] = useState<AnnotationFilterMode>("all")
 
   // Motion accessibility preference
   const shouldReduceMotion = useReducedMotion()
@@ -67,9 +84,74 @@ export function TextHighlighter({
 
   const tempMarkRef = useRef<HTMLSpanElement | null>(null)
 
+  // Load persisted reader filter mode on mount
   useEffect(() => {
-    highlightExisting()
-  }, [highlights, allPublic])
+    const savedMode = localStorage.getItem("qoe_annotation_filter_mode") as AnnotationFilterMode | null
+    if (savedMode && ["all", "official", "none"].includes(savedMode)) {
+      setFilterMode(savedMode)
+    }
+  }, [])
+
+  // Attach interactivity to HTML-embedded <mark data-annotation-note="..."> author marks
+  const setupHtmlMarksInDOM = () => {
+    const articleEl = document.getElementById("article-content")
+    if (!articleEl) return
+
+    const htmlMarks = articleEl.querySelectorAll("mark[data-annotation-note]")
+    htmlMarks.forEach((mark, index) => {
+      const note = mark.getAttribute("data-annotation-note") || ""
+      const text = mark.textContent || ""
+      const existingId = mark.getAttribute("data-highlight-id")
+      const generatedId = existingId || `official-html-mark-${index}`
+
+      mark.setAttribute("data-highlight-id", generatedId)
+      mark.className =
+        "bg-amber-500/20 text-foreground cursor-pointer border-b border-amber-500 hover:bg-amber-500/30 transition-all relative group rounded-xs font-medium"
+
+      const officialAnnot: AnnotationItem = {
+        id: generatedId,
+        text,
+        note,
+        isPublic: true,
+        isOfficial: true,
+        upvotesCount: 0,
+        createdAt: new Date().toISOString(),
+        reader: {
+          id: "creator",
+          name: creatorName,
+          username: "creator",
+          logoUrl: null,
+          subdomain: null,
+        },
+      }
+
+      setAllPublic((prev) => {
+        if (!prev.some((p) => p.id === generatedId || (p.isOfficial && p.text === text))) {
+          return [...prev, officialAnnot]
+        }
+        return prev
+      })
+
+      ;(mark as HTMLElement).onclick = (e) => {
+        e.stopPropagation()
+        setSelectedAnnotationForDrawer(officialAnnot)
+      }
+    })
+  }
+
+  // Re-apply DOM highlights whenever highlights list, public list, or filterMode changes
+  useEffect(() => {
+    removeAllMarksFromDOM()
+    setupHtmlMarksInDOM()
+    if (filterMode !== "none") {
+      highlightExisting()
+    }
+  }, [highlights, allPublic, filterMode])
+
+  const changeFilterMode = (mode: AnnotationFilterMode) => {
+    setFilterMode(mode)
+    localStorage.setItem("qoe_annotation_filter_mode", mode)
+  }
 
   const clearForm = () => {
     removeTempDraftMark()
@@ -111,17 +193,45 @@ export function TextHighlighter({
     tempMarkRef.current = null
   }
 
-  // Highlight all stored text passages in DOM
+  // Strip all rendered highlights from DOM cleanly
+  const removeAllMarksFromDOM = () => {
+    const articleEl = document.getElementById("article-content")
+    if (!articleEl) return
+
+    const marks = articleEl.querySelectorAll("mark[data-highlight-id]")
+    marks.forEach((mark) => {
+      const parent = mark.parentNode
+      if (parent) {
+        while (mark.firstChild) {
+          parent.insertBefore(mark.firstChild, mark)
+        }
+        parent.removeChild(mark)
+      }
+    })
+  }
+
+  // Highlight stored text passages in DOM based on active reader filterMode
   const highlightExisting = () => {
     const articleEl = document.getElementById("article-content")
     if (!articleEl) return
 
-    // Apply reader private highlights
+    if (filterMode === "official") {
+      // Render ONLY official creator highlights
+      allPublic
+        .filter((pub) => pub.isOfficial)
+        .forEach((pub) => {
+          applyHighlightToDOM(articleEl, pub.text, pub.note || undefined, pub.isPublic, pub.isOfficial, pub.id, pub)
+        })
+      return
+    }
+
+    // Render all (private + public + official)
+    // 1. Reader private highlights
     highlights.forEach((hl) => {
       applyHighlightToDOM(articleEl, hl.text, hl.note || undefined, false, false, hl.id)
     })
 
-    // Apply public & official creator highlights
+    // 2. Public & official creator highlights
     allPublic.forEach((pub) => {
       applyHighlightToDOM(articleEl, pub.text, pub.note || undefined, pub.isPublic, pub.isOfficial, pub.id, pub)
     })
@@ -191,13 +301,7 @@ export function TextHighlighter({
             isOfficial,
             upvotesCount: 0,
             createdAt: new Date(),
-            reader: {
-              id: currentUserId || "anon",
-              name: creatorName,
-              username: "creator",
-              logoUrl: null,
-              subdomain: null,
-            },
+            reader: defaultReader,
           }
 
           // Gather all annotations in the article
@@ -223,13 +327,7 @@ export function TextHighlighter({
                 isOfficial: false,
                 upvotesCount: 0,
                 createdAt: prvMatch.createdAt || new Date(),
-                reader: {
-                  id: currentUserId || "anon",
-                  name: creatorName,
-                  username: "creator",
-                  logoUrl: null,
-                  subdomain: null,
-                },
+                reader: defaultReader,
               })
             }
           })
@@ -335,12 +433,23 @@ export function TextHighlighter({
       const res = await createHighlight(articleId, targetText, noteText || undefined, isPublicChoice)
       if (res.success && res.highlight) {
         removeTempDraftMark()
-        setHighlights((prev) => [...prev, res.highlight])
 
-        const articleEl = document.getElementById("article-content")
-        if (articleEl) {
-          applyHighlightToDOM(articleEl, targetText, noteText || undefined, isPublicChoice, false, res.highlight.id)
+        // 🌟 Ensure public highlight is in BOTH allPublic and highlights state so it NEVER disappears for author or readers!
+        const createdItem: AnnotationItem = {
+          id: res.highlight.id,
+          text: targetText,
+          note: noteText || null,
+          isPublic: isPublicChoice,
+          isOfficial: false,
+          upvotesCount: 0,
+          createdAt: new Date().toISOString(),
+          reader: res.highlight.reader || defaultReader,
         }
+
+        if (isPublicChoice) {
+          setAllPublic((prev) => [...prev, createdItem])
+        }
+        setHighlights((prev) => [...prev, res.highlight])
 
         setSavedSuccess(true)
         setTimeout(() => {
@@ -384,6 +493,57 @@ export function TextHighlighter({
 
   return (
     <>
+      {/* 🌍 UNIVERSAL TENANT ANNOTATION READER FILTER BAR */}
+      <div className="my-4 flex items-center justify-between border-b border-border/20 pb-3">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+          <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+          <span>Affichage des annotations :</span>
+        </div>
+
+        <div className="flex items-center gap-1 p-1 rounded-full bg-muted/50 border border-border/20 text-xs font-sans">
+          <button
+            onClick={() => changeFilterMode("all")}
+            className={cn(
+              "px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer",
+              filterMode === "all"
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            title="Afficher toutes les annotations (publiques, officielles et privées)"
+          >
+            Toutes
+          </button>
+
+          <button
+            onClick={() => changeFilterMode("official")}
+            className={cn(
+              "px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center gap-1",
+              filterMode === "official"
+                ? "bg-amber-500 text-white shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            title="Afficher uniquement les annotations officielles de l'auteur"
+          >
+            <Sparkles className="w-3 h-3" />
+            <span>Officielles</span>
+          </button>
+
+          <button
+            onClick={() => changeFilterMode("none")}
+            className={cn(
+              "px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center gap-1",
+              filterMode === "none"
+                ? "bg-muted text-foreground font-semibold"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            title="Masquer toutes les annotations pour une lecture épurée sans interruption"
+          >
+            <EyeOff className="w-3 h-3" />
+            <span>Aucune</span>
+          </button>
+        </div>
+      </div>
+
       <TextSelectionPopover
         containerId="article-content"
         minSelectionLength={1}
@@ -622,10 +782,37 @@ export function TextHighlighter({
         allowPublicAnnotations={allowPublicAnnotations}
         isAuthenticated={isAuthenticated}
         currentUserId={currentUserId}
+        articleAuthorId={articleAuthorId}
         mainAppUrl={mainAppUrl}
         onClose={() => {
           setSelectedAnnotationForDrawer(null)
           setArticleAnnotations([])
+        }}
+        onUpdateAnnotation={(updated) => {
+          setAllPublic((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+          setHighlights((prev) =>
+            prev.map((h) =>
+              h.id === updated.id
+                ? { ...h, note: updated.note ?? null, isPublic: updated.isPublic }
+                : h
+            )
+          )
+          setSelectedAnnotationForDrawer(updated)
+        }}
+        onDeleteAnnotation={(deletedId) => {
+          setAllPublic((prev) => prev.filter((a) => a.id !== deletedId))
+          setHighlights((prev) => prev.filter((h) => h.id !== deletedId))
+          const marks = document.querySelectorAll(`mark[data-highlight-id="${deletedId}"]`)
+          marks.forEach((mark) => {
+            const parent = mark.parentNode
+            if (parent) {
+              while (mark.firstChild) {
+                parent.insertBefore(mark.firstChild, mark)
+              }
+              parent.removeChild(mark)
+            }
+          })
+          setSelectedAnnotationForDrawer(null)
         }}
       />
     </>
