@@ -20,6 +20,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@floating-ui/react": "^0.27.20",
     "@qoe/config": "workspace:*",
     "@qoe/db": "workspace:*",
     "@qoe/i18n": "workspace:*",
