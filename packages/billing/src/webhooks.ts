@@ -146,7 +146,7 @@ export const WEBHOOK_HANDLERS: Record<string, (event: Stripe.Event) => Promise<v
     if (user) {
       await prisma.user.update({
         where: { id: user.id },
-        data: { stripeEnabled: !!stripeEnabled },
+        data: { stripeAccountId: account.id },
       });
       console.log(`✅ Statut de paiement Stripe mis à jour pour le créateur ${user.id} (${user.email}) -> Stripe Activé: ${!!stripeEnabled}`);
     }
