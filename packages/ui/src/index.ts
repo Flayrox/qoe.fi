@@ -20,6 +20,15 @@ export { ThemeProvider } from "./theme-provider";
 export { BentoPlateau, BentoItem } from "./BentoPlateau";
 export { GuestFloatingBar, type AuthActionContext } from "./GuestFloatingBar";
 export { LoginModal } from "./LoginModal";
+export { LoginFormBento, type LoginFormBentoProps } from "./LoginFormBento";
+export {
+  AuthModalProvider,
+  useAuthModal,
+  useRequireAuth,
+  type AuthModalState,
+  type AuthModalContextValue,
+} from "./auth/AuthModalContext";
+export { GlobalAuthModalProvider } from "./auth/GlobalAuthModalProvider";
 export { ArticleCard } from "./ArticleCard";
 export { ThoughtCard } from "./ThoughtCard";
 export {
