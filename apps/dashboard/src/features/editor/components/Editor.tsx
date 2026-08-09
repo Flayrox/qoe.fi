@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit"
 import Underline from "@tiptap/extension-underline"
 import Image from "@tiptap/extension-image"
 import { PaywallDivider } from "../extensions/PaywallDivider"
+import { AnnotationMark } from "../extensions/AnnotationMark"
 import {
   Bold,
   Italic,
@@ -29,11 +30,12 @@ import {
   FolderOpen,
   Search,
   Eye,
-  CornerDownRight
+  BarChart3,
 } from "lucide-react"
 import { cn } from "@qoe/utils"
 import { compressImage } from "@/lib/image-compressor"
 import { useAutoSaveArticle } from "@qoe/api-client"
+import { ArticleInspectorModal } from "@/app/(creator)/analytics/components/ArticleInspectorModal"
 
 export interface EditorProps {
   initialTitle?: string
@@ -87,6 +89,7 @@ export function Editor({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   
   const [showSettings, setShowSettings] = useState(false)
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -95,9 +98,10 @@ export function Editor({
       StarterKit, 
       Underline,
       PaywallDivider,
+      AnnotationMark,
       Image.configure({
         HTMLAttributes: {
-          class: 'rounded-2xl border border-zinc-150 my-10 max-w-full h-auto shadow-sm',
+          class: 'rounded-2xl border border-border/40 my-10 max-w-full h-auto shadow-sm',
         },
       })
     ],
@@ -105,7 +109,7 @@ export function Editor({
     editorProps: {
       attributes: {
         class:
-          "prose prose-zinc max-w-none focus:outline-none min-h-[500px] text-zinc-800 text-[17px] font-classical leading-relaxed placeholder:text-zinc-300",
+          "prose prose-zinc dark:prose-invert max-w-none focus:outline-none min-h-[500px] text-foreground text-[17px] leading-relaxed placeholder:text-muted-foreground/40 font-sans",
       },
       handleDrop: (view, event, slice, moved) => {
         if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) {
@@ -122,7 +126,7 @@ export function Editor({
     }
   })
 
-  const { scheduleAutoSave, status: autoSaveStatus, lastSavedAt: autoSaveLastSavedAt } = useAutoSaveArticle({
+  const { scheduleAutoSave, status: autoSaveStatus } = useAutoSaveArticle({
     delay: 2500,
     onSave: async (payload: Record<string, any>) => {
       await onSave({
@@ -185,9 +189,7 @@ export function Editor({
       setIsUploading(true);
       setError(null);
 
-      // Compresse l'image côté client
       const compressedFile = await compressImage(file);
-
       const formData = new FormData();
       formData.append("file", compressedFile);
 
@@ -275,95 +277,105 @@ export function Editor({
   }
 
   return (
-    <div className="w-full space-y-12 pb-32">
-      {/* Sleek, spaced header with absolute minimal decorations */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-zinc-100">
+    <div className="w-full space-y-10 pb-32 font-sans text-foreground">
+      {/* Sleek Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40">
         <div className="flex items-center gap-4">
           {onBack && (
             <button
               onClick={onBack}
-              className="h-8 w-8 rounded-full flex items-center justify-center border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-500 hover:text-zinc-900 transition-all cursor-pointer"
+              className="h-8 w-8 rounded-full flex items-center justify-center border border-border/40 bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
           )}
           <div>
-            <h2 className="text-xl font-medium text-zinc-900 font-sans tracking-tight flex items-center gap-3">
+            <h2 className="text-xl font-bold text-foreground font-sans tracking-tight flex items-center gap-3">
               {initialTitle ? "Édition" : "Nouvel écrit"}
               {(isSaving || autoSaveStatus === "saving") && (
-                <span className="text-xs text-zinc-400 font-sans flex items-center gap-1.5">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" /> Auto-sauvegarde...
+                <span className="text-xs text-muted-foreground font-sans flex items-center gap-1.5">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" /> Auto-sauvegarde...
                 </span>
               )}
               {autoSaveStatus === "saved" && (
-                <span className="text-[11px] font-normal text-emerald-600 bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 rounded-md flex items-center gap-1.5 font-sans">
-                  <Check className="w-3 h-3 text-emerald-600" /> Brouillon auto-enregistré
+                <span className="text-[11px] font-normal text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md flex items-center gap-1.5 font-sans">
+                  <Check className="w-3 h-3 text-emerald-500" /> Brouillon auto-enregistré
                 </span>
               )}
               {lastSaved && autoSaveStatus !== "saved" && !isSaving && (
-                <span className="text-[11px] font-normal text-zinc-400 flex items-center gap-1.5 font-sans">
-                  <Check className="w-3.5 h-3.5 text-zinc-400" /> Sauvegardé à {lastSaved.toLocaleTimeString()}
+                <span className="text-[11px] font-normal text-muted-foreground flex items-center gap-1.5 font-sans">
+                  <Check className="w-3.5 h-3.5 text-muted-foreground" /> Sauvegardé à {lastSaved.toLocaleTimeString()}
                 </span>
               )}
               {hasUnsavedChanges && autoSaveStatus !== "saving" && autoSaveStatus !== "saved" && !isSaving && (
-                <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200/50 px-2 py-0.5 rounded-md font-sans">
+                <span className="text-[10px] font-medium text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md font-sans">
                   Modifications en cours... (Cmd+S)
                 </span>
               )}
             </h2>
-            <p className="text-xs text-zinc-400 font-sans mt-0.5">
+            <p className="text-xs text-muted-foreground font-sans mt-0.5">
               Rédigez sans bruit ni distraction
             </p>
           </div>
         </div>
 
-        {/* Action Controls - minimal layout, no borders on buttons where possible */}
+        {/* Action Controls */}
         <div className="flex items-center gap-3 flex-wrap">
+          {/* Analytics Inspector Button */}
+          <button
+            onClick={() => setShowAnalyticsModal(true)}
+            className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-border/40 bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            title="Inspecter les statistiques réelles de cet article"
+          >
+            <BarChart3 className="h-3.5 w-3.5 stroke-[1.5]" />
+            <span>Analyses</span>
+          </button>
+
           {/* Options Button */}
           <button
             onClick={() => setShowSettings(!showSettings)}
             className={cn(
-              "h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-zinc-200",
+              "h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-border/40",
               showSettings
-                ? "bg-zinc-100 text-zinc-900"
-                : "bg-white text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                ? "bg-muted text-foreground font-semibold"
+                : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
             )}
           >
-            <Settings className="h-3.5 w-3.5" />
+            <Settings className="h-3.5 w-3.5 stroke-[1.5]" />
             <span>Options</span>
           </button>
 
-          {/* Premium / Free */}
+          {/* Premium / Free Toggle */}
           <button
             onClick={() => {
               setIsPremium(!isPremium);
               setHasUnsavedChanges(true)
             }}
             className={cn(
-              "h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border",
+              "h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-border/40",
               isPremium
-                ? "bg-zinc-900 border-zinc-900 text-white hover:bg-zinc-800"
-                : "bg-white border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                ? "bg-amber-500/10 border-amber-500/30 text-amber-500 font-semibold"
+                : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
             )}
           >
-            {isPremium ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+            {isPremium ? <Lock className="h-3 w-3 text-amber-500" /> : <Unlock className="h-3 w-3" />}
             <span>{isPremium ? "Premium" : "Gratuit"}</span>
           </button>
 
-          {/* Published / Draft */}
+          {/* Published / Draft Toggle */}
           <button
             onClick={() => {
               setPublished(!published);
               setHasUnsavedChanges(true)
             }}
             className={cn(
-              "h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border",
+              "h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-border/40",
               published
-                ? "bg-zinc-900 border-zinc-900 text-white hover:bg-zinc-800"
-                : "bg-white border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50"
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 font-semibold"
+                : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
             )}
           >
-            {published ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+            {published ? <Globe className="h-3 w-3 text-emerald-500" /> : <Lock className="h-3 w-3" />}
             <span>{published ? "Publié" : "Brouillon"}</span>
           </button>
 
@@ -371,7 +383,7 @@ export function Editor({
           <button
             onClick={handleManualSave}
             disabled={isSaving}
-            className="h-8 px-4 bg-primary text-white font-sans text-xs font-semibold rounded-lg flex items-center gap-1.5 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer shadow-sm"
+            className="h-8 px-4 bg-primary text-primary-foreground font-sans text-xs font-bold rounded-lg flex items-center gap-1.5 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer shadow-sm"
           >
             <span>Enregistrer</span>
           </button>
@@ -379,120 +391,120 @@ export function Editor({
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200/60 text-red-700 p-4 font-sans text-xs rounded-xl">
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive p-4 font-sans text-xs rounded-xl">
           {error}
         </div>
       )}
 
-      {/* Main Content Area - Wide spaces, Rauno-style */}
+      {/* Main Content Area */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
-        {/* Editor column */}
-        <div className={cn("transition-all space-y-12", showSettings ? "lg:col-span-2" : "lg:col-span-3")}>
-          {/* Title Area - completely borderless, large and elegant typography */}
-          <div className="space-y-4">
+        {/* Editor Column */}
+        <div className={cn("transition-all space-y-8", showSettings ? "lg:col-span-2" : "lg:col-span-3")}>
+          {/* Title Area */}
+          <div className="space-y-3">
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Titre de votre œuvre..."
-              className="w-full bg-transparent border-0 text-3xl font-bold tracking-tight text-zinc-900 focus:outline-none focus:ring-0 placeholder:text-zinc-200 font-sans leading-tight"
+              placeholder="Titre de votre publication..."
+              className="w-full bg-transparent border-0 text-3xl md:text-4xl font-bold tracking-tight text-foreground focus:outline-none placeholder:text-muted-foreground/30 font-sans leading-tight"
             />
             
-            <div className="flex items-center gap-2 text-xs text-zinc-400 font-mono">
-              <span>slug :</span>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+              <span className="text-muted-foreground/60">slug :</span>
               <input
                 type="text"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, "-"))}
                 placeholder="slug-url"
-                className="bg-transparent border-0 p-0 text-xs font-mono text-zinc-500 focus:outline-none focus:ring-0 w-full"
+                className="bg-transparent border-0 p-0 text-xs font-mono text-muted-foreground focus:outline-none w-full"
               />
             </div>
           </div>
 
           {/* Text Editor Core */}
-          <div className="space-y-6">
-            {/* Ultra minimal formatting toolbar, pure light theme, no borders between buttons */}
-            <div className="flex flex-wrap items-center gap-0.5 py-1.5 border-b border-zinc-100 sticky top-0 bg-white/80 backdrop-blur-md z-10">
+          <div className="space-y-4">
+            {/* Theme-agnostic Sticky Formatting Toolbar */}
+            <div className="flex flex-wrap items-center gap-0.5 py-2 px-3 border border-border/40 rounded-xl sticky top-4 bg-background/95 backdrop-blur-md z-20 shadow-sm">
               <ToolbarButton
                 active={editor.isActive("bold")}
                 onClick={() => editor.chain().focus().toggleBold().run()}
-                icon={<Bold className="h-3.5 w-3.5" />}
+                icon={<Bold className="h-3.5 w-3.5 stroke-[2]" />}
                 tooltip="Gras"
               />
               <ToolbarButton
                 active={editor.isActive("italic")}
                 onClick={() => editor.chain().focus().toggleItalic().run()}
-                icon={<Italic className="h-3.5 w-3.5" />}
+                icon={<Italic className="h-3.5 w-3.5 stroke-[2]" />}
                 tooltip="Italique"
               />
               <ToolbarButton
                 active={editor.isActive("underline")}
                 onClick={() => editor.chain().focus().toggleUnderline().run()}
-                icon={<UnderlineIcon className="h-3.5 w-3.5" />}
+                icon={<UnderlineIcon className="h-3.5 w-3.5 stroke-[2]" />}
                 tooltip="Souligné"
               />
               <ToolbarButton
                 active={editor.isActive("strike")}
                 onClick={() => editor.chain().focus().toggleStrike().run()}
-                icon={<Strikethrough className="h-3.5 w-3.5" />}
+                icon={<Strikethrough className="h-3.5 w-3.5 stroke-[2]" />}
                 tooltip="Barré"
               />
 
-              <div className="h-4 w-[1px] bg-zinc-200 mx-2" />
+              <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
 
               <ToolbarButton
                 active={editor.isActive("heading", { level: 1 })}
                 onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                icon={<Heading1 className="h-3.5 w-3.5" />}
+                icon={<Heading1 className="h-3.5 w-3.5 stroke-[2]" />}
                 tooltip="Titre 1"
               />
               <ToolbarButton
                 active={editor.isActive("heading", { level: 2 })}
                 onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                icon={<Heading2 className="h-3.5 w-3.5" />}
+                icon={<Heading2 className="h-3.5 w-3.5 stroke-[2]" />}
                 tooltip="Titre 2"
               />
               <ToolbarButton
                 active={editor.isActive("heading", { level: 3 })}
                 onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                icon={<Heading3 className="h-3.5 w-3.5" />}
+                icon={<Heading3 className="h-3.5 w-3.5 stroke-[2]" />}
                 tooltip="Titre 3"
               />
 
-              <div className="h-4 w-[1px] bg-zinc-200 mx-2" />
+              <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
 
               <ToolbarButton
                 active={editor.isActive("bulletList")}
                 onClick={() => editor.chain().focus().toggleBulletList().run()}
-                icon={<List className="h-3.5 w-3.5" />}
-                tooltip="Liste puces"
+                icon={<List className="h-3.5 w-3.5 stroke-[2]" />}
+                tooltip="Liste à puces"
               />
               <ToolbarButton
                 active={editor.isActive("orderedList")}
                 onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                icon={<ListOrdered className="h-3.5 w-3.5" />}
-                tooltip="Liste numéros"
+                icon={<ListOrdered className="h-3.5 w-3.5 stroke-[2]" />}
+                tooltip="Liste numérotée"
               />
 
-              <div className="h-4 w-[1px] bg-zinc-200 mx-2" />
+              <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
 
               <ToolbarButton
                 active={editor.isActive("blockquote")}
                 onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                icon={<Quote className="h-3.5 w-3.5" />}
+                icon={<Quote className="h-3.5 w-3.5 stroke-[2]" />}
                 tooltip="Citation"
               />
               <ToolbarButton
                 active={editor.isActive("codeBlock")}
                 onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-                icon={<Code className="h-3.5 w-3.5" />}
-                tooltip="Code"
+                icon={<Code className="h-3.5 w-3.5 stroke-[2]" />}
+                tooltip="Bloc de Code"
               />
 
-              <div className="h-4 w-[1px] bg-zinc-200 mx-2" />
+              <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
 
-              {/* Media selection */}
+              {/* Media Selection */}
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -503,45 +515,65 @@ export function Editor({
               />
               <ToolbarButton
                 onClick={() => fileInputRef.current?.click()}
-                icon={isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500" /> : <ImageIcon className="h-3.5 w-3.5" />}
-                tooltip="Image"
+                icon={isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /> : <ImageIcon className="h-3.5 w-3.5 stroke-[2]" />}
+                tooltip="Insérer une Image"
                 disabled={isUploading}
               />
 
-              <div className="h-4 w-[1px] bg-zinc-200 mx-2" />
+              <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
+
+              {/* Official Author Annotation Insertion */}
+              <ToolbarButton
+                onClick={() => {
+                  const selection = editor.state.selection
+                  if (selection.empty) {
+                    alert("Veuillez sélectionner un passage de texte à annoter en tant qu'auteur.")
+                    return
+                  }
+                  const note = prompt("Saisissez votre note officielle d'auteur pour ce passage :")
+                  if (note && note.trim()) {
+                    editor.chain().focus().setAnnotationMark({ note: note.trim() }).run()
+                    setHasUnsavedChanges(true)
+                  }
+                }}
+                icon={<Eye className="h-3.5 w-3.5 text-amber-500 stroke-[2]" />}
+                tooltip="Ajouter une Annotation Officielle d'Auteur"
+              />
+
+              <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
 
               {/* Paywall Divider Insertion */}
               <ToolbarButton
                 onClick={() => (editor.chain().focus() as any).setPaywallDivider().run()}
-                icon={<Lock className="h-3.5 w-3.5 text-amber-600" />}
+                icon={<Lock className="h-3.5 w-3.5 text-amber-500 stroke-[2]" />}
                 tooltip="Insérer la limite Paywall (Contenu Premium)"
               />
             </div>
 
-            {/* TipTap main body with classical light font */}
+            {/* TipTap Main Body */}
             <div className="py-4">
               <EditorContent editor={editor} />
             </div>
           </div>
         </div>
 
-        {/* Options / Settings Panel - Clean, Spacious, pure white */}
+        {/* Options / Settings Sidebar */}
         {showSettings && (
-          <div className="space-y-12 lg:col-span-1 animate-in fade-in-50 duration-200 lg:sticky lg:top-24">
-            {/* Category selection */}
-            <div className="space-y-4">
-              <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider font-sans flex items-center gap-2">
-                <FolderOpen className="h-3.5 w-3.5 text-zinc-500" />
+          <div className="space-y-8 lg:col-span-1 animate-in fade-in-50 duration-200 lg:sticky lg:top-24 bg-card border border-border/40 rounded-2xl p-6 shadow-none">
+            {/* Category Selection */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
+                <FolderOpen className="h-3.5 w-3.5 text-muted-foreground stroke-[1.5]" />
                 Catégorie
               </h3>
               
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <select
                   value={categoryId || ""}
                   onChange={(e) => {
                     setCategoryId(e.target.value || null);
                   }}
-                  className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-xs text-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors font-sans cursor-pointer"
+                  className="w-full bg-background border border-border/40 rounded-lg p-2.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans cursor-pointer"
                 >
                   <option value="">-- Sans catégorie --</option>
                   {categories.map((cat) => (
@@ -550,22 +582,22 @@ export function Editor({
                     </option>
                   ))}
                 </select>
-                <p className="text-[11px] text-zinc-400 leading-relaxed font-sans">
-                  Associez cet écrit à un thème pour l'organiser sur votre blog.
+                <p className="text-[11px] text-muted-foreground leading-relaxed font-sans">
+                  Associez cet écrit à un thème pour l'organiser sur votre espace créateur.
                 </p>
               </div>
             </div>
 
             {/* SEO Optimization */}
-            <div className="space-y-4">
-              <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider font-sans flex items-center gap-2">
-                <Search className="h-3.5 w-3.5 text-zinc-500" />
+            <div className="space-y-4 pt-4 border-t border-border/30">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
+                <Search className="h-3.5 w-3.5 text-muted-foreground stroke-[1.5]" />
                 Optimisation SEO
               </h3>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] text-zinc-400 font-sans uppercase tracking-wider font-semibold">
+                  <label className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider font-semibold">
                     Titre alternatif
                   </label>
                   <input
@@ -573,12 +605,12 @@ export function Editor({
                     value={seoTitle}
                     onChange={(e) => setSeoTitle(e.target.value)}
                     placeholder={title || "Titre d'origine"}
-                    className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-xs text-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors font-sans"
+                    className="w-full bg-background border border-border/40 rounded-lg p-2.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary transition-colors font-sans"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] text-zinc-400 font-sans uppercase tracking-wider font-semibold">
+                  <label className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider font-semibold">
                     Description SEO
                   </label>
                   <textarea
@@ -586,17 +618,17 @@ export function Editor({
                     value={seoDescription}
                     onChange={(e) => setSeoDescription(e.target.value)}
                     placeholder="Une courte accroche pour les moteurs de recherche..."
-                    className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-xs text-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors font-sans resize-none"
+                    className="w-full bg-background border border-border/40 rounded-lg p-2.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary transition-colors font-sans resize-none"
                   />
                 </div>
 
-                {/* Google Preview - clean simulated search result */}
-                <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100 space-y-1 font-sans">
-                  <span className="text-[9px] text-zinc-400 font-mono block">Aperçu Google</span>
-                  <span className="text-xs font-medium text-zinc-900 block truncate">
+                {/* Google Preview */}
+                <div className="p-4 bg-muted/30 rounded-xl border border-border/30 space-y-1 font-sans">
+                  <span className="text-[9px] text-muted-foreground font-mono block uppercase">Aperçu Google</span>
+                  <span className="text-xs font-semibold text-foreground block truncate">
                     {seoTitle || title || "Titre de l'écrit"}
                   </span>
-                  <span className="text-[10px] text-zinc-400 block line-clamp-2 leading-relaxed">
+                  <span className="text-[10px] text-muted-foreground block line-clamp-2 leading-relaxed">
                     {seoDescription || "Aucune description SEO saisie. Google utilisera le début de votre article."}
                   </span>
                 </div>
@@ -605,6 +637,15 @@ export function Editor({
           </div>
         )}
       </div>
+
+      {/* Article Inspector Drawer Modal */}
+      {showAnalyticsModal && (
+        <ArticleInspectorModal
+          urlPath={slug ? `/article/${slug}` : null}
+          onClose={() => setShowAnalyticsModal(false)}
+          onEdit={() => setShowAnalyticsModal(false)}
+        />
+      )}
     </div>
   )
 }
@@ -627,8 +668,8 @@ function ToolbarButton({ active, onClick, icon, tooltip, disabled }: ToolbarButt
       className={cn(
         "h-8 w-8 flex items-center justify-center rounded-lg transition-all font-sans text-sm cursor-pointer",
         active
-          ? "bg-zinc-900 text-white font-medium"
-          : "text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50",
+          ? "bg-primary/15 text-primary font-semibold"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
         disabled && "opacity-50 cursor-not-allowed"
       )}
     >
