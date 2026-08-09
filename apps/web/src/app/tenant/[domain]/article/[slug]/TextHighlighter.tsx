@@ -389,31 +389,34 @@ export function TextHighlighter({
         minSelectionLength={1}
         isLocked={showNoteInput || saving}
       >
-        {({ text: selectedText, range, clearSelection }) => (
-          /* 🌟 MASTERCLASS SHARED LAYOUT ELEMENT TRANSITION (Centered origin, no directional offset drift) */
+        {({ text: selectedText, range, placement, clearSelection }) => (
+          /* 🍏 RAUNO FREIBERG SIGNATURE MORPHING SURFACE (Stiffness 480 / Damping 30 / Blur Crossfade) */
           <motion.div
             layout
-            layoutId="selection-popover-shared-card"
-            style={{ transformOrigin: "center center" }}
+            layoutId="rauno-morphing-surface"
+            style={{
+              originX: 0.5,
+              originY: placement.startsWith("top") ? 1 : 0,
+            }}
             transition={
               shouldReduceMotion
                 ? { duration: 0 }
-                : { type: "spring", stiffness: 400, damping: 28, mass: 0.8 }
+                : { type: "spring", stiffness: 480, damping: 30, mass: 0.55 }
             }
             className={cn(
               "bg-popover/95 text-popover-foreground border border-border/40 backdrop-blur-2xl shadow-2xl overflow-hidden font-sans",
               showNoteInput ? "rounded-2xl w-80 p-4" : "rounded-full p-1"
             )}
           >
-            <AnimatePresence mode="wait" initial={false}>
+            <AnimatePresence mode="popLayout" initial={false}>
               {!showNoteInput ? (
-                /* STATE A: Compact Floating Pill Toolbar */
+                /* STATE A: Compact Pill Toolbar (Rauno Blur/Scale Exit) */
                 <motion.div
                   key="toolbar-state"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.1 }}
+                  initial={{ opacity: 0, scale: 0.88, filter: "blur(3px)" }}
+                  animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                  exit={{ opacity: 0, scale: 0.88, filter: "blur(3px)" }}
+                  transition={{ duration: 0.12 }}
                   className="flex items-center gap-1"
                 >
                   {/* 1-Click Instant Highlight */}
@@ -461,13 +464,13 @@ export function TextHighlighter({
                   </button>
                 </motion.div>
               ) : (
-                /* STATE B: Expanded Annotation Card */
+                /* STATE B: Expanded Note Surface (Rauno Blur/Scale Enter) */
                 <motion.form
                   key="form-state"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.12 }}
+                  initial={{ opacity: 0, scale: 0.94, filter: "blur(3px)" }}
+                  animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                  exit={{ opacity: 0, scale: 0.94, filter: "blur(3px)" }}
+                  transition={{ duration: 0.14 }}
                   onSubmit={(e) => handleHighlightSubmit(e, selectedText, clearSelection)}
                   className="flex flex-col gap-3 text-left"
                 >
@@ -522,7 +525,7 @@ export function TextHighlighter({
                             ? "bg-emerald-500 text-white shadow-xs"
                             : "bg-muted text-foreground hover:bg-muted/80"
                       )}
-                      title={!allowPublicAnnotations ? "Les annotations publiques me désactivées par l'auteur" : "Changer la confidentialité"}
+                      title={!allowPublicAnnotations ? "Les annotations publiques sont désactivées par l'auteur" : "Changer la confidentialité"}
                     >
                       {isPublicChoice ? "Publique" : "Privée"}
                     </button>
