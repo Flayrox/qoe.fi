@@ -28,7 +28,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@qoe/config": "workspace:*"
+    "@qoe/config": "workspace:*",
+    "@qoe/db": "workspace:*"
   },
   "peerDependencies": {
     "react": "^19"
