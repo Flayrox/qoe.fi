@@ -52,7 +52,7 @@ export default async function BillingPage() {
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold block">
                     Solde Disponible
                   </span>
-                  <span className="text-3xl font-black font-mono text-foreground block mt-1 tracking-tight">
+                  <span className="text-3xl font-black font-sans text-foreground block mt-1 tracking-tight">
                     {((dbUser?.walletBalanceCents || 0) / 100).toFixed(2)} €
                   </span>
                 </div>
@@ -160,13 +160,13 @@ export default async function BillingPage() {
                         </div>
                         <div>
                           <span className="text-xs font-bold text-foreground block">{tx.type}</span>
-                          <span className="text-[10px] text-muted-foreground font-mono">
+                          <span className="text-[10px] text-muted-foreground font-sans font-medium">
                             {new Date(tx.createdAt).toLocaleDateString()}
                           </span>
                         </div>
                       </div>
                       <span
-                        className={`text-sm font-bold font-mono ${
+                        className={`text-sm font-bold font-sans ${
                           tx.amountCents > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
                         }`}
                       >

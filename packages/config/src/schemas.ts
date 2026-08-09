@@ -16,11 +16,13 @@ export const createThoughtSchema = z.object({
   scheduledAt: z.string().nullable().optional(),
   triggerWarning: z.string().nullable().optional(),
   repostId: z.string().nullable().optional(),
+  parentId: z.string().nullable().optional(),
 }).refine((data) => {
   const hasContent = data.content.length > 0
   const hasImage = !!(data.imageUrl && data.imageUrl.trim() && data.imageUrl !== "[]" && data.imageUrl !== "null")
   const hasRepost = !!data.repostId
-  return hasContent || hasImage || hasRepost
+  const hasParent = !!data.parentId
+  return hasContent || hasImage || hasRepost || hasParent
 }, {
   message: "Le contenu, une image ou une citation est requis pour publier une pensée.",
   path: ["content"]

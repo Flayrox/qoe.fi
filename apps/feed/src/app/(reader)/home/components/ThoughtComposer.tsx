@@ -35,11 +35,16 @@ const getImages = (url: string | null | undefined): string[] => {
 
 import { QuotedThoughtCard } from "@/components/social/QuotedThoughtCard"
 import type { ThoughtData } from "@/components/social/ThoughtCard"
+import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
+import { CertifiedBadge } from "@/components/ui/CertifiedBadge"
 
 interface ThoughtComposerProps {
   dbUser: any
   tagsList: string[]
   quotedThought?: ThoughtData | null
+  replyToThought?: ThoughtData | null
+  parentId?: string | null
+  placeholder?: string
   onPostCreated?: (post: any) => void
   onLoginRequired?: () => void
 }
@@ -48,14 +53,22 @@ export function ThoughtComposer({
   dbUser,
   tagsList,
   quotedThought: initialQuotedThought = null,
+  replyToThought: initialReplyToThought = null,
+  parentId = null,
+  placeholder,
   onPostCreated,
   onLoginRequired,
 }: ThoughtComposerProps) {
   const [quotedThought, setQuotedThought] = useState<ThoughtData | null>(initialQuotedThought)
+  const [replyToThought, setReplyToThought] = useState<ThoughtData | null>(initialReplyToThought)
 
   useEffect(() => {
     setQuotedThought(initialQuotedThought)
-  }, [initialQuotedThought])
+    setReplyToThought(initialReplyToThought)
+    if (initialReplyToThought) {
+      setIsComposerExpanded(true)
+    }
+  }, [initialQuotedThought, initialReplyToThought])
   const [isComposerExpanded, setIsComposerExpanded] = useState<boolean>(false)
   const [postText, setPostText] = useState<string>("")
   const [images, setImages] = useState<ComposerImage[]>([])
@@ -123,7 +136,7 @@ export function ThoughtComposer({
     }
   }
 
-  const CHAR_LIMIT = 280
+  const CHAR_LIMIT = 500
   const getUrls = (text: string) => {
     const urlRegex = /https?:\/\/[^\s]+/gi
     return text.match(urlRegex) || []
@@ -389,7 +402,7 @@ export function ThoughtComposer({
       }
       const formData = new FormData()
       formData.append("file", img.file)
-      const res = await fetch("/api/articles/upload", {
+      const res = await fetch("/api/upload", {
         method: "POST",
         body: formData
       })
@@ -430,6 +443,7 @@ export function ThoughtComposer({
         scheduledAt: isScheduled && scheduledDate ? getScheduledDateTimeString() : null,
         triggerWarning: isTriggerWarning && triggerWarning.trim() ? triggerWarning.trim() : null,
         repostId: quotedThought?.id || null,
+        parentId: replyToThought?.id || parentId || null,
       })
 
       if (res.ok && res.data?.post) {
@@ -518,37 +532,85 @@ export function ThoughtComposer({
     }
   }
 
-  return (
-    <div className="pb-6 border-b border-border/30 flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-md overflow-hidden border border-border/40 shrink-0">
-          {dbUser?.logoUrl ? (
-            <img src={dbUser.logoUrl} className="w-full h-full object-cover" alt="" />
-          ) : (
-            <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-brand text-[10px]">
-              {dbUser?.name?.charAt(0).toUpperCase() || "L"}
-            </div>
-          )}
-        </div>
-        <span className="text-xs font-semibold text-foreground/80 tracking-tight">Partagez une pensée</span>
-      </div>
+  const defaultPlaceholder = placeholder || (replyToThought || parentId ? "Poster votre réponse" : "Quelle est votre pensée du jour ?")
 
-      <form onSubmit={(e) => handlePostSubmit(e)} className="space-y-3.5">
-        <textarea
-          ref={textareaRef}
-          placeholder="Quelle est votre pensée du jour ?"
-          value={postText}
-          onChange={handleTextChange}
-          onFocus={() => {
-            if (!dbUser) {
-              textareaRef.current?.blur()
-              if (onLoginRequired) {
-                onLoginRequired()
-              }
-              return
-            }
-            setIsComposerExpanded(true)
-          }}
+  return (
+    <div className="pb-4 border-b border-border/30 flex flex-col gap-2 font-sans transition-all duration-200">
+      {/* Reply Context Header (Twitter/X Style) */}
+      {replyToThought && (
+        <div className="flex flex-col gap-0 mb-2 font-sans">
+          <div className="flex items-start gap-3 relative">
+            <div className="flex flex-col items-center shrink-0">
+              <AuthorAvatar
+                user={replyToThought.author}
+                size="sm"
+                showBadge={false}
+              />
+              {/* Continuous vertical line extending down to current user avatar */}
+              <div className="w-[2px] bg-border/50 flex-1 my-1 rounded-full min-h-[28px]" />
+            </div>
+
+            <div className="flex-1 min-w-0 pb-2 space-y-1">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                  <span className="font-bold text-foreground">{replyToThought.author?.name || "Auteur"}</span>
+                  {replyToThought.author?.isCertified && <CertifiedBadge />}
+                  <span className="text-muted-foreground text-[11px]">
+                    @{replyToThought.author?.username || replyToThought.author?.subdomain || "utilisateur"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReplyToThought(null)}
+                  className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  title="Annuler la réponse"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <p className="text-xs text-foreground/90 leading-relaxed font-sans line-clamp-3">
+                {replyToThought.content}
+              </p>
+
+              <div className="text-[11px] text-muted-foreground pt-1">
+                En réponse à <span className="text-brand font-medium">@{replyToThought.author?.username || replyToThought.author?.subdomain || "utilisateur"}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Composer Row */}
+      <form onSubmit={(e) => handlePostSubmit(e)} className="space-y-3 font-sans">
+        <div className="flex gap-3 items-start">
+          {/* User Avatar */}
+          <div className="w-9 h-9 rounded-full overflow-hidden border border-border/40 shrink-0 bg-muted">
+            {dbUser?.logoUrl ? (
+              <img src={dbUser.logoUrl} className="w-full h-full object-cover" alt="" />
+            ) : (
+              <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-brand text-xs">
+                {dbUser?.name?.charAt(0).toUpperCase() || "U"}
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <textarea
+              ref={textareaRef}
+              placeholder={defaultPlaceholder}
+              value={postText}
+              onChange={handleTextChange}
+              onFocus={() => {
+                if (!dbUser) {
+                  textareaRef.current?.blur()
+                  if (onLoginRequired) {
+                    onLoginRequired()
+                  }
+                  return
+                }
+                setIsComposerExpanded(true)
+              }}
           onKeyDown={(e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
               e.preventDefault()
@@ -1029,7 +1091,7 @@ export function ThoughtComposer({
                   <button
                     type="submit"
                     disabled={(!postText.trim() && images.length === 0) || isSubmitting || isOverLimit}
-                    className="bg-[var(--qoe-vermillion)] text-white hover:bg-[#d63d20] disabled:bg-[var(--surface-2)] disabled:text-[var(--text-quaternary)] transition-all duration-300 px-4 py-2 rounded-[var(--radius-button)] text-xs font-bold flex items-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none animate-fade-in"
+                    className="bg-[var(--qoe-vermillion,#EE4B2B)] text-white hover:bg-[#d63d20] disabled:bg-muted disabled:text-muted-foreground transition-all duration-200 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer outline-none shadow-sm"
                     style={{ boxShadow: "0 2px 8px var(--qoe-vermillion-glow)" }}
                   >
                     {isSubmitting ? (
@@ -1038,7 +1100,7 @@ export function ThoughtComposer({
                       </>
                     ) : (
                       <>
-                        Publier <Send className="w-3 h-3" />
+                        {replyToThought || parentId ? "Répondre" : "Publier"} <Send className="w-3 h-3" />
                       </>
                     )}
                   </button>
@@ -1048,6 +1110,8 @@ export function ThoughtComposer({
             </motion.div>
           )}
         </AnimatePresence>
+          </div>
+        </div>
       </form>
 
       <Sheet open={isDraftsOpen} onOpenChange={setIsDraftsOpen}>
