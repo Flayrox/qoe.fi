@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
     "./plans": "./src/plans.ts",
-    "./webhooks": "./src/webhooks.ts"
+    "./webhooks": "./src/webhooks.ts",
+    "./checkout": "./src/checkout.ts"
   },
   "scripts": {
     "lint": "echo skip",
