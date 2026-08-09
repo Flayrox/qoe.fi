@@ -13,7 +13,7 @@ export function BentoPlateau({ children, className }: BentoPlateauProps) {
   return (
     <div
       className={cn(
-        "w-full rounded-[36px] bg-[var(--qoe-vermillion,#EE4B2B)] flex flex-col md:flex-row overflow-hidden shadow-2xl p-2 md:p-3 gap-2 md:gap-3",
+        "w-full rounded-2xl bg-card/80 backdrop-blur-xl border border-border/40 flex flex-col md:flex-row overflow-hidden shadow-xs p-2 md:p-3 gap-2 md:gap-3",
         className
       )}
     >
@@ -50,21 +50,22 @@ export function BentoItem({
       layout
       onMouseEnter={onMouseEnter}
       onClick={onClick}
-      transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       style={{ flexBasis: active ? flexBasisActive : flexBasisInactive, flexShrink: 0, flexGrow: active ? 0 : 1 }}
       className={cn(
-        "relative rounded-[28px] overflow-hidden cursor-pointer",
+        "relative rounded-xl overflow-hidden cursor-pointer border border-border/30 transition-all duration-200",
+        active ? "bg-muted/60" : "bg-muted/20 hover:bg-muted/40",
         className
       )}
     >
-      {/* Active State (Card background token) */}
+      {/* Active State */}
       <div
         className={cn(
-          "absolute inset-0 transition-opacity duration-400",
+          "absolute inset-0 transition-opacity duration-300",
           active ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       >
-        <div className={cn("w-full h-full bg-card text-card-foreground rounded-[24px] flex flex-col overflow-hidden", innerClassName)}>
+        <div className={cn("w-full h-full rounded-xl flex flex-col overflow-hidden text-foreground", innerClassName)}>
           {children}
         </div>
       </div>
@@ -72,7 +73,7 @@ export function BentoItem({
       {/* Inactive State */}
       <div
         className={cn(
-          "absolute inset-0 flex flex-col justify-end p-6 md:p-8 transition-opacity duration-400",
+          "absolute inset-0 flex flex-col justify-end p-6 md:p-8 transition-opacity duration-300 text-muted-foreground",
           active ? "opacity-0 pointer-events-none" : "opacity-100"
         )}
       >

@@ -36,18 +36,21 @@ export async function middleware(request: NextRequest) {
   if (isProtectedRoute && !user) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
-    redirectUrl.searchParams.set("redirect", request.nextUrl.href);
+    redirectUrl.searchParams.set("redirect", request.nextUrl.pathname + request.nextUrl.search);
     return NextResponse.redirect(redirectUrl);
   }
 
   // 3. Si connecté et qu'on va sur /login, redirige vers la cible de retour (ou /home)
   if ((pathname === "/login" || pathname === "/register") && user) {
     const customRedirect = request.nextUrl.searchParams.get("redirect") || request.nextUrl.searchParams.get("next");
-    if (customRedirect && customRedirect.startsWith("/") && !customRedirect.startsWith("//")) {
-      try {
-        return NextResponse.redirect(new URL(customRedirect, request.url));
-      } catch {
-        // Fallback si l'URL est invalide
+    if (customRedirect) {
+      const trimmed = customRedirect.trim();
+      if (trimmed.startsWith("/") && !trimmed.startsWith("//") && !trimmed.startsWith("/\\") && !/^[a-z0-9]+:/i.test(trimmed.substring(1))) {
+        try {
+          return NextResponse.redirect(new URL(trimmed, request.url));
+        } catch {
+          // Fallback si l'URL est invalide
+        }
       }
     }
     const homeUrl = request.nextUrl.clone();

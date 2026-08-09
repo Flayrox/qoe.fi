@@ -216,7 +216,7 @@ function ActivitySparkline() {
               </div>
               <span
                 className={cn(
-                  "text-[9px] font-medium transition-colors font-mono",
+                  "text-[9px] font-medium transition-colors font-sans font-medium",
                   isHovered ? "text-primary" : "text-muted-foreground"
                 )}
               >

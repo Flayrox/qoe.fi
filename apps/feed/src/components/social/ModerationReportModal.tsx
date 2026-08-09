@@ -43,7 +43,7 @@ export function ModerationReportModal({
     const parsed = createReportSchema.safeParse(payload)
 
     if (!parsed.success) {
-      toast.error(parsed.error.errors[0]?.message || "Champs invalides")
+      toast.error(parsed.error.issues[0]?.message || "Champs invalides")
       setSubmitting(false)
       return
     }
@@ -59,7 +59,8 @@ export function ModerationReportModal({
         onClose()
       }, 1500)
     } else {
-      toast.error(res.error || "Erreur lors de l'envoi du signalement.")
+      const errorMessage = typeof res.error === "string" ? res.error : res.error?.message || "Erreur lors de l'envoi du signalement."
+      toast.error(errorMessage)
     }
   }
 
