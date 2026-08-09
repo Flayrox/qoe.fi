@@ -9,3 +9,4 @@ export * from './hooks/useSubscriptionStatus';
 export * from './hooks/useRecommendations';
 export * from './hooks/useAutoSaveArticle';
 export * from './hooks/useSubscriptionCheckout';
+export * from './utils/authError';

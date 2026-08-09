@@ -1,6 +1,7 @@
 {
   "extends": "@qoe/tsconfig/react-library.json",
   "compilerOptions": {
+    "rootDir": "..",
     "baseUrl": ".",
     "outDir": "./dist",
     "paths": {
