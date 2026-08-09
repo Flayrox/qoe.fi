@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { Bookmark, UserPlus, UserCheck, BookmarkCheck, HelpCircle } from "lucide-react"
+import { Bookmark, UserPlus, UserCheck, BookmarkCheck, HelpCircle, MessageSquare } from "lucide-react"
 import { toggleFollowCreator, toggleBookmarkArticle } from "./actions"
 import { cn } from "@qoe/utils"
 import { motion } from "framer-motion"
@@ -70,6 +70,13 @@ export function ReaderActions({
     }
   }
 
+  const scrollToComments = () => {
+    const el = document.getElementById("comments")
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" })
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -90,6 +97,15 @@ export function ReaderActions({
         title="Sauvegarder dans le sanctuaire"
       >
         {bookmarked ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+      </button>
+
+      {/* Comment Scroll Action */}
+      <button
+        onClick={scrollToComments}
+        className="w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer hover:bg-neutral-100 dark:hover:bg-zinc-800 text-muted-foreground hover:text-foreground"
+        title="Voir & laisser un commentaire"
+      >
+        <MessageSquare className="w-5 h-5" />
       </button>
 
       <div className="w-px h-5 bg-neutral-200 dark:bg-zinc-800" />
@@ -121,7 +137,7 @@ export function ReaderActions({
       {/* Tooltip highlighting instruction */}
       <div className="hidden sm:flex items-center gap-1 text-[10px] text-muted-foreground px-2 font-medium">
         <HelpCircle className="w-3 h-3 text-neutral-400 shrink-0" />
-        <span>Surlignez du texte pour l'ajouter à vos notes</span>
+        <span>Surlignez du texte pour annoter</span>
       </div>
     </motion.div>
   )
