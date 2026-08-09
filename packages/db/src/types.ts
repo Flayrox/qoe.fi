@@ -84,8 +84,30 @@ export interface FeedPostDTO {
   triggerWarning?: string | null;
   isPinned?: boolean;
   tags?: string[];
+  likeCount?: number;
+  replyCount?: number;
+  repostCount?: number;
+  liked?: boolean;
+  isLiked?: boolean;
+  reposted?: boolean;
   _count?: { likes?: number; replies?: number; reposts?: number };
   author: CreatorProfileDTO;
+}
+
+/**
+ * 📊 Enveloppe Réponse API Standardisée
+ */
+export interface ApiResponse<T> {
+  data: T;
+  meta: {
+    cursor: string | null;
+    hasMore: boolean;
+    total?: number;
+  };
+  error?: {
+    code: string;
+    message: string;
+  };
 }
 
 /**

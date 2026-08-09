@@ -25,3 +25,8 @@ export const subscriptionKeys = {
   status: (creatorId: string, email?: string) => [...subscriptionKeys.all, 'status', creatorId, email || 'anonymous'] as const,
   tiers: (creatorId: string) => [...subscriptionKeys.all, 'tiers', creatorId] as const,
 };
+
+export const recommendationKeys = {
+  all: ['recommendations'] as const,
+  creator: (recommenderId: string) => [...recommendationKeys.all, 'creator', recommenderId] as const,
+};

@@ -6,6 +6,8 @@
       "@/*": ["./src/*"],
       "@qoe/config": ["../../packages/config/src/index.ts"],
       "@qoe/config/*": ["../../packages/config/src/*"],
+      "@qoe/api-client": ["../../packages/api-client/src/index.ts"],
+      "@qoe/api-client/*": ["../../packages/api-client/src/*"],
       "@prisma/client": ["../../node_modules/.prisma/client/default"]
     }
   },
