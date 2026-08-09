@@ -1,10 +1,24 @@
 "use server"
 
+import { createClient as createServerClient } from "@qoe/supabase/server"
 import { prisma } from "@qoe/db/client"
 import { revalidatePath } from "next/cache"
 
+async function verifySuperadmin() {
+  const supabase = await createServerClient()
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) throw new Error("Unauthorized")
+
+  const dbUser = await prisma.user.findUnique({ where: { id: authUser.id } })
+  if (dbUser?.role !== "superadmin") throw new Error("Forbidden")
+  
+  return dbUser
+}
+
 // ── Article à la une ──────────────────────────────────────────────────────────
 export async function toggleFeaturedArticle(articleId: string) {
+  await verifySuperadmin()
+
   try {
     const article = await prisma.article.findUnique({
       where: { id: articleId },
@@ -39,6 +53,8 @@ export async function toggleFeaturedArticle(articleId: string) {
 
 // ── Tendances ────────────────────────────────────────────────────────────────
 export async function addTrend(hashtag: string, count: number) {
+  await verifySuperadmin()
+
   try {
     if (!hashtag.startsWith("#")) {
       hashtag = "#" + hashtag.trim()
@@ -66,6 +82,8 @@ export async function addTrend(hashtag: string, count: number) {
 }
 
 export async function deleteTrend(id: string) {
+  await verifySuperadmin()
+
   try {
     await prisma.trend.delete({ where: { id } })
     revalidatePath("/admin/widgets")
@@ -78,6 +96,8 @@ export async function deleteTrend(id: string) {
 }
 
 export async function updateTrendCount(id: string, count: number) {
+  await verifySuperadmin()
+
   try {
     await prisma.trend.update({
       where: { id },
@@ -101,6 +121,8 @@ export async function savePromo(
   ctaUrl: string | null,
   isActive: boolean
 ) {
+  await verifySuperadmin()
+
   try {
     if (!title || !description) {
       return { success: false, error: "Titre et description requis" }
@@ -127,6 +149,8 @@ export async function savePromo(
 }
 
 export async function deletePromo(id: string) {
+  await verifySuperadmin()
+
   try {
     await prisma.partnerPromo.delete({ where: { id } })
     revalidatePath("/admin/widgets")
@@ -139,6 +163,8 @@ export async function deletePromo(id: string) {
 }
 
 export async function togglePromoActive(id: string, isActive: boolean) {
+  await verifySuperadmin()
+
   try {
     await prisma.partnerPromo.update({
       where: { id },

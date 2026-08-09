@@ -35,14 +35,18 @@ export async function GET(request: Request) {
   const { data: { session } } = await supabase.auth.getSession();
 
   if (session && session.access_token && session.refresh_token) {
-    const secret = process.env.SSO_JWT_SECRET || "sso-jwt-secret-key-32-chars-at-least-super-safe";
+    const secret = process.env.SSO_JWT_SECRET;
+    if (!secret && process.env.NODE_ENV === "production") {
+      throw new Error("SSO_JWT_SECRET variable is required in production");
+    }
+    const jwtSecret = secret || "sso-jwt-secret-key-32-chars-at-least-super-safe";
     const token = await signJWT(
       {
         access_token: session.access_token,
         refresh_token: session.refresh_token,
         userId: session.user.id,
       },
-      secret,
+      jwtSecret,
       30
     );
 

@@ -85,14 +85,14 @@ export const createMicroPost = createThought
 
 export const toggleLikePost = safeAction<string, { liked: boolean }>(async (postId, user) => {
   const res = await posts.toggleLike(postId, user.id)
-  revalidatePath("/", "layout")
+  revalidatePath("/home")
   return res
 })
 
 export const replyToPost = safeAction<{ postId: string; content: string }, { reply: any }>(async (rawInput, user) => {
   const { postId, content } = replyToPostSchema.parse(rawInput)
   const reply = await posts.replyToPost(postId, user.id, content)
-  revalidatePath("/", "layout")
+  revalidatePath("/home")
   return { reply }
 })
 
@@ -116,7 +116,7 @@ export const reportTargetAction = safeAction<any, { success: boolean }>(async (r
 
 export const toggleRepostPost = safeAction<string, { reposted: boolean; canonicalId: string; post?: any }>(async (postId, user) => {
   const result = await posts.toggleRepost(postId, user.id)
-  revalidatePath("/", "layout")
+  revalidatePath("/home")
   return result
 })
 
