@@ -10,6 +10,21 @@ datasource db {
   extensions = [vector]
 }
 
+enum ContentVisibility {
+  PUBLIC          // Accessible to everyone
+  MEMBERS_ONLY    // Free registered subscribers (email provided)
+  PAID_SUBSCRIBERS// Paid tier subscribers only
+  TIER_SPECIFIC   // Specific custom subscription tier
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  INCOMPLETE
+}
+
 model SystemConfig {
   key         String   @id
   value       String   // JSON stringified or plain text
@@ -45,43 +60,40 @@ model User {
   layoutStyle    String?   @default("minimal")
   advancedSettingsMode Boolean @default(false)
   hasCompletedOnboarding Boolean @default(false)
-  
-  // API Config
+  allowIndexing  Boolean   @default(true) // SEO Google Indexing
+
+  // API Access Application
   apiAccessStatus      String    @default("none") // "none", "pending", "approved", "rejected", "revoked"
   apiApplicationReason String?   @db.Text
   
-  // SEO & Metadata
+  // Custom Monestisation & Support
+  supportUrl     String?
+  stripeAccountId String?  // Connected Stripe Account ID
+  walletBalanceCents Int   @default(0) // Internal credits wallet in cents
+  
+  // SEO & Social Defaults
   seoTitle       String?
   seoDescription String?
-  allowIndexing  Boolean   @default(true)
-
-  // Monetization & Wallet
-  stripeAccountId    String?
-  stripeEnabled      Boolean  @default(false)
-  supportUrl         String?
-  walletBalanceCents Int      @default(0)
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  // Relationships
+  // Relations
   articles              Article[]       @relation("PrimaryAuthor")
   coAuthoredArticles    Article[]       @relation("CoAuthors")
+  navigation            NavigationItem[]
   socialLinks           SocialLink[]
   categories            Category[]
-  navigation            NavigationItem[]
-  
-  // Creator CRM
   subscribers           Subscriber[]    @relation("CreatorSubscribers")
-  blockedUsers          BlockedUser[]   @relation("CreatorBlocker")
-  
-  // Reader features
+  userSubscriptions     Subscriber[]    @relation("UserSubscriptions")
+  createdTiers          Tier[]
   following             Follows[]       @relation("ReaderFollowing")
   followers             Follows[]       @relation("CreatorFollowers")
   bookmarks             Bookmark[]
   highlights            Highlight[]
   mutedWords            MutedWord[]
   blockedBy             BlockedUser[]   @relation("BlockedReader")
+  blockedUsers          BlockedUser[]   @relation("CreatorBlocker")
   
   sentLetters           Letter[]        @relation("LetterSender")
   receivedLetters       Letter[]        @relation("LetterRecipient")
@@ -93,6 +105,27 @@ model User {
   
   // AI Recs
   embedding Unsupported("vector(1536)")?
+}
+
+model Tier {
+  id                   String   @id @default(cuid())
+  name                 String
+  description          String?  @db.Text
+  monthlyPriceCents    Int
+  yearlyPriceCents     Int?
+  stripePriceIdMonthly String?
+  stripePriceIdYearly  String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  creatorId            String   @db.Uuid
+  creator              User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  subscribers          Subscriber[]
+  articles             Article[]
+  thoughts             Thought[]
+
+  @@index([creatorId])
 }
 
 model MutedWord {
@@ -123,24 +156,38 @@ model WalletTransaction {
   amountCents Int
   type        String   // "DEPOSIT", "SUBSCRIPTION_PAYMENT", "WITHDRAWAL", "REFUND"
   createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model Subscriber {
-  id          String   @id @default(cuid())
-  email       String
-  isActive    Boolean  @default(true)
-  isPremium   Boolean  @default(false)
-  ltvCents    Int      @default(0) // Lifetime value in cents
-  receiveArticles Boolean @default(true)
-  receivePosts    Boolean @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  creatorId   String   @db.Uuid
-  creator     User     @relation("CreatorSubscribers", fields: [creatorId], references: [id], onDelete: Cascade)
+  id                   String             @id @default(cuid())
+  email                String
+  status               SubscriptionStatus @default(ACTIVE)
+  isActive             Boolean            @default(true)
+  isPremium            Boolean            @default(false)
+  ltvCents             Int                @default(0) // Lifetime value in cents
+  receiveArticles      Boolean            @default(true)
+  receivePosts         Boolean            @default(false)
+  currentPeriodEnd     DateTime?
+  stripeSubscriptionId String?            @unique
+  stripeCustomerId     String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  creatorId            String             @db.Uuid
+  creator              User               @relation("CreatorSubscribers", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  userId               String?            @db.Uuid
+  user                 User?              @relation("UserSubscriptions", fields: [userId], references: [id], onDelete: SetNull)
+
+  tierId               String?
+  tier                 Tier?              @relation(fields: [tierId], references: [id], onDelete: SetNull)
 
   @@unique([email, creatorId])
-  @@index([creatorId])
+  @@index([creatorId, email, status])
+  @@index([userId, creatorId])
+  @@index([stripeSubscriptionId])
 }
 
 model Follows {
@@ -239,31 +286,35 @@ model NavigationItem {
 }
 
 model Article {
-  id             String   @id @default(cuid())
+  id             String            @id @default(cuid())
   title          String
   slug           String
-  content        String   @db.Text
-  published      Boolean  @default(false)
-  isPremium      Boolean  @default(false)
-  readingTime    Int      @default(5) // en minutes
-  completionRate Float    @default(0.0) // 0.0 to 1.0
+  content        String            @db.Text
+  published      Boolean           @default(false)
+  isPremium      Boolean           @default(false)
+  visibility     ContentVisibility @default(PUBLIC)
+  readingTime    Int               @default(5) // en minutes
+  completionRate Float             @default(0.0) // 0.0 to 1.0
   semanticTags   String[] 
-  isEditorPick   Boolean  @default(false)
+  isEditorPick   Boolean           @default(false)
   
   // L'auteur principal
-  authorId       String   @db.Uuid
-  author         User     @relation("PrimaryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  authorId       String            @db.Uuid
+  author         User              @relation("PrimaryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   
-  coAuthors      User[]   @relation("CoAuthors")
+  coAuthors      User[]            @relation("CoAuthors")
   
   categoryId     String?
-  category       Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  category       Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  tierId         String?
+  tier           Tier?             @relation(fields: [tierId], references: [id], onDelete: SetNull)
   
   seoTitle       String?
   seoDescription String?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
   
   bookmarks      Bookmark[]
   highlights     Highlight[]
@@ -280,20 +331,24 @@ model Article {
 }
 
 model Thought {
-  id        String   @id @default(cuid())
-  content   String   @db.Text
-  authorId  String   @db.Uuid
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  tags      String[]
-  imageUrl  String?  @db.Text
-  visibility     String    @default("public")
-  isDraft        Boolean   @default(false)
+  id             String            @id @default(cuid())
+  content        String            @db.Text
+  authorId       String            @db.Uuid
+  author         User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  tags           String[]
+  imageUrl       String?           @db.Text
+  visibility     String            @default("public")
+  contentVisibility ContentVisibility @default(PUBLIC)
+  isDraft        Boolean           @default(false)
   scheduledAt    DateTime?
-  triggerWarning String?   @db.Text
-  isPinned       Boolean   @default(false)
+  triggerWarning String?           @db.Text
+  isPinned       Boolean           @default(false)
   deletedAt      DateTime?
+
+  tierId         String?
+  tier           Tier?             @relation(fields: [tierId], references: [id], onDelete: SetNull)
 
   // Counter caches for zero-latency feeds
   likeCount   Int      @default(0)
