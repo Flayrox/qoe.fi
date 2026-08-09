@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { recommendationKeys } from '../query-keys';
 
 export interface CreatorRecommendation {
   id: string;
@@ -18,11 +19,6 @@ export interface CreatorRecommendation {
   };
 }
 
-export const recommendationKeys = {
-  all: ['recommendations'] as const,
-  creator: (recommenderId: string) => [...recommendationKeys.all, 'creator', recommenderId] as const,
-};
-
 /**
  * Hook for fetching Substack-style recommended creators for a tenant site.
  */
@@ -38,5 +34,6 @@ export function useRecommendations(recommenderId: string) {
     },
     enabled: Boolean(recommenderId),
     staleTime: 10 * 60 * 1000, // 10 minutes cache
+    gcTime: 15 * 60 * 1000,
   });
 }

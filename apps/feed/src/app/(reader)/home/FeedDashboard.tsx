@@ -6,9 +6,18 @@ import { ReaderPageLayout } from "@/components/layout/ReaderPageLayout"
 import { 
   BookMarked, AlertCircle
 } from "lucide-react"
-import { toggleFollowCreatorHome, toggleBookmarkArticleHome } from "./actions"
+import { toggleFollowCreatorHome, toggleBookmarkArticleHome, toggleLikePost, toggleRepostPost } from "./actions"
 import { ArticleCard, LoginModal, GuestFloatingBar, type AuthActionContext } from "@qoe/ui"
 import { ThoughtCard } from "@/components/social/ThoughtCard"
+import { VirtualizedFeedList } from "@/components/feed/VirtualizedFeedList"
+import { RealtimeFeedPill } from "@/components/feed/RealtimeFeedPill"
+import { useRealtimeFeedBuffer } from "@/hooks/useRealtimeFeedBuffer"
+import { 
+  useOptimisticLike, 
+  useOptimisticRepost, 
+  useOptimisticBookmark, 
+  useOptimisticFollow 
+} from "@qoe/api-client"
 import { ComposerModal } from "./components/ComposerModal"
 import { FeedTabsHeader } from "./components/FeedTabsHeader"
 import { ThoughtThreadView } from "./components/ThoughtThreadView"
@@ -91,6 +100,16 @@ export function FeedDashboard({
   const [isComposerModalOpen, setIsComposerModalOpen] = useState(false)
   const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login")
   const [authActionContext, setAuthActionContext] = useState<AuthActionContext | undefined>(undefined)
+
+  const { mutate: mutateLike } = useOptimisticLike()
+  const { mutate: mutateRepost } = useOptimisticRepost()
+  const { mutate: mutateBookmark } = useOptimisticBookmark()
+  const { mutate: mutateFollow } = useOptimisticFollow()
+
+  const { unreadCount, flushBuffer } = useRealtimeFeedBuffer({
+    enabled: activeFeed === "recommandation" || activeFeed === "abonnement",
+    type: activeFeed === "abonnement" ? "following" : "for-you",
+  })
 
   const openAuth = (options?: { mode?: "login" | "signup"; actionContext?: AuthActionContext }) => {
     setAuthModalMode(options?.mode || "login")
@@ -196,13 +215,75 @@ export function FeedDashboard({
   
   const [localPosts, setLocalPosts] = useState<Article[]>([])
   const [deletedPostIds] = useState<Set<string>>(new Set())
-  const [interactions, setInteractions] = useState<Record<string, { liked?: boolean; likesCount?: number; bookmarked?: boolean; repliesCount?: number }>>({})
+  const [interactions, setInteractions] = useState<Record<string, { liked?: boolean; likesCount?: number; bookmarked?: boolean; repliesCount?: number; reposted?: boolean; repostsCount?: number }>>({})
   
   const isCreatorFollowed = (creatorId: string) => followedCreators.some(f => f.id === creatorId)
   const isArticleBookmarked = (articleId: string) => {
     const inter = interactions[articleId]
     if (inter?.bookmarked !== undefined) return inter.bookmarked
     return bookmarks.some(b => b.id === articleId)
+  }
+
+  const handleLikeToggle = (postId: string) => {
+    if (!dbUser) {
+      openAuth({ mode: "signup", actionContext: "bookmark" })
+      return
+    }
+    const currentItem = currentFeedArticles.find((item) => item.id === postId) as any
+    const isLikedCurrent = currentItem?.liked || currentItem?.isLiked || false
+
+    setInteractions((prev) => ({
+      ...prev,
+      [postId]: {
+        ...prev[postId],
+        liked: !isLikedCurrent,
+        likesCount: Math.max(
+          0,
+          (prev[postId]?.likesCount ?? currentItem?.likeCount ?? currentItem?.likesCount ?? 0) +
+            (isLikedCurrent ? -1 : 1)
+        ),
+      },
+    }))
+
+    mutateLike({
+      thoughtId: postId,
+      isLikedCurrent,
+      likeMutationFn: async (id: string) => {
+        const res = await toggleLikePost(id)
+        return { success: res.ok }
+      },
+    })
+  }
+
+  const handleRepostToggle = (postId: string) => {
+    if (!dbUser) {
+      openAuth({ mode: "signup", actionContext: "bookmark" })
+      return
+    }
+    const currentItem = currentFeedArticles.find((item) => item.id === postId) as any
+    const isRepostedCurrent = currentItem?.reposted || currentItem?.isReposted || false
+
+    setInteractions((prev) => ({
+      ...prev,
+      [postId]: {
+        ...prev[postId],
+        reposted: !isRepostedCurrent,
+        repostsCount: Math.max(
+          0,
+          (prev[postId]?.repostsCount ?? currentItem?.repostCount ?? currentItem?.repostsCount ?? 0) +
+            (isRepostedCurrent ? -1 : 1)
+        ),
+      },
+    }))
+
+    mutateRepost({
+      thoughtId: postId,
+      isRepostedCurrent,
+      repostMutationFn: async (id: string) => {
+        const res = await toggleRepostPost(id)
+        return { success: res.ok }
+      },
+    })
   }
 
   const handleFollowToggle = async (creator: any) => {
@@ -219,14 +300,14 @@ export function FeedDashboard({
       setFollowedCreators(prev => [creator, ...prev])
     }
 
-    const res = await toggleFollowCreatorHome(creator.id)
-    if (!res.ok) {
-      if (isCurrentlyFollowed) {
-        setFollowedCreators(prev => [creator, ...prev])
-      } else {
-        setFollowedCreators(prev => prev.filter(f => f.id !== creator.id))
+    mutateFollow({
+      creatorId: creator.id,
+      isFollowedCurrent: isCurrentlyFollowed,
+      followMutationFn: async (id: string) => {
+        const res = await toggleFollowCreatorHome(id)
+        return { success: res.ok }
       }
-    }
+    })
   }
 
   const handleBookmarkToggle = async (article: Article) => {
@@ -252,21 +333,14 @@ export function FeedDashboard({
       setBookmarks(prev => [article, ...prev])
     }
 
-    const res = await toggleBookmarkArticleHome(article.id)
-    if (!res.ok) {
-      setInteractions(prev => ({
-        ...prev,
-        [article.id]: {
-          ...prev[article.id],
-          bookmarked: isCurrentlyBookmarked
-        }
-      }))
-      if (isCurrentlyBookmarked) {
-        setBookmarks(prev => [article, ...prev])
-      } else {
-        setBookmarks(prev => prev.filter(b => b.id !== article.id))
+    mutateBookmark({
+      articleId: article.id,
+      isBookmarkedCurrent: isCurrentlyBookmarked,
+      bookmarkMutationFn: async (id: string) => {
+        const res = await toggleBookmarkArticleHome(id)
+        return { success: res.ok }
       }
-    }
+    })
   }
 
   const currentFeedArticles = useMemo(() => {
@@ -419,51 +493,60 @@ export function FeedDashboard({
                         </p>
                       </motion.div>
                     ) : (
-                      <div key={`feed-${activeFeed}`} className="space-y-1">
-                        {currentFeedArticles.map((article, idx) => {
-                          const isBookmarked = isArticleBookmarked(article.id)
-                          const isFollowed = isCreatorFollowed(article.author.id)
+                      <div key={`feed-${activeFeed}`} className="space-y-4">
+                        <RealtimeFeedPill unreadCount={unreadCount} onFlush={flushBuffer} />
+                        <VirtualizedFeedList
+                          items={currentFeedArticles}
+                          keyExtractor={(article) => article.id}
+                          estimateSize={180}
+                          renderItem={(article, idx) => {
+                            const isBookmarked = isArticleBookmarked(article.id)
+                            const isFollowed = isCreatorFollowed(article.author.id)
 
-                          if (!article.title) {
-                            return (
-                              <motion.div
-                                key={article.id}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                transition={{ duration: 0.1, ease: "easeOut" }}
-                              >
+                            if (!article.title) {
+                              const inter = interactions[article.id]
+                              const postData = {
+                                ...article,
+                                liked: inter?.liked !== undefined ? inter.liked : (article as any).liked,
+                                likesCount: inter?.likesCount !== undefined ? inter.likesCount : (article as any).likeCount || (article as any).likesCount,
+                                reposted: inter?.reposted !== undefined ? inter.reposted : (article as any).reposted,
+                                repostsCount: inter?.repostsCount !== undefined ? inter.repostsCount : (article as any).repostCount || (article as any).repostsCount,
+                              }
+
+                              return (
                                 <ThoughtCard
-                                  post={article as any}
+                                  post={postData as any}
                                   variant="timeline"
                                   currentUserId={dbUser?.id || null}
                                   onOpenPost={handleOpenPost}
                                   onOpenProfile={(username) => {
                                     window.location.href = routes.feed.profile(username)
                                   }}
+                                  onLikeToggle={handleLikeToggle}
+                                  onRepostToggle={handleRepostToggle}
                                 />
-                              </motion.div>
-                            )
-                          }
+                              )
+                            }
 
-                          return (
-                            <ArticleCard 
-                              key={article.id}
-                              article={article}
-                              idx={idx}
-                              dbUser={dbUser}
-                              isBookmarked={isBookmarked}
-                              isFollowed={isFollowed}
-                              handleFollowToggle={handleFollowToggle}
-                              handleBookmarkToggle={handleBookmarkToggle}
-                              featured={idx === 0 && activeFeed === "recommandation"}
-                              onOpenPost={handleOpenPost}
-                              onOpenProfile={(username) => {
-                                window.location.href = routes.feed.profile(username)
-                              }}
-                            />
-                          )
-                        })}
+                            return (
+                              <ArticleCard 
+                                key={article.id}
+                                article={article}
+                                idx={idx}
+                                dbUser={dbUser}
+                                isBookmarked={isBookmarked}
+                                isFollowed={isFollowed}
+                                handleFollowToggle={handleFollowToggle}
+                                handleBookmarkToggle={handleBookmarkToggle}
+                                featured={idx === 0 && activeFeed === "recommandation"}
+                                onOpenPost={handleOpenPost}
+                                onOpenProfile={(username) => {
+                                  window.location.href = routes.feed.profile(username)
+                                }}
+                              />
+                            )
+                          }}
+                        />
                       </div>
                     )}
                   </AnimatePresence>
