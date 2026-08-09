@@ -109,6 +109,7 @@ model User {
   apiKeys               ApiKey[]
   translationLogs       TranslationAuditLog[]
   articleComments       ArticleComment[]     @relation("CommentAuthor")
+  annotationComments    AnnotationComment[]
   
   // AI Recs
   embedding Unsupported("vector(1536)")?
