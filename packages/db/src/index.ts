@@ -11,3 +11,5 @@ export * as follows from "./repositories/follows";
 export * as bookmarks from "./repositories/bookmarks";
 export * as subscriptions from "./repositories/subscriptions";
 export * as recommendations from "./repositories/recommendations";
+export * as articleComments from "./repositories/articleComments";
+export * as highlights from "./repositories/highlights";
