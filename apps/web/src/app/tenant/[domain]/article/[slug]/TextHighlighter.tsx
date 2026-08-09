@@ -278,6 +278,34 @@ export function TextHighlighter({
     }
   }
 
+  const handleInstantHighlight = async () => {
+    if (!isAuthenticated) {
+      window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`
+      return
+    }
+
+    setSaving(true)
+    try {
+      const res = await createHighlight(articleId, selectedText, undefined, false)
+      if (res.success && res.highlight) {
+        setHighlights(prev => [...prev, res.highlight])
+        const articleEl = document.getElementById("article-content")
+        if (articleEl) {
+          applyHighlightToDOM(articleEl, selectedText, undefined, false, false, res.highlight.id)
+        }
+        setSavedSuccess(true)
+        setTimeout(() => {
+          clearSelection()
+          window.getSelection()?.removeAllRanges()
+        }, 800)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <>
       {popoverCoords && (
@@ -297,8 +325,22 @@ export function TextHighlighter({
                 initial={{ scale: 0.8, opacity: 0, y: 10 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.8, opacity: 0, y: 10 }}
-                className="flex items-center gap-1.5 p-1 bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border border-zinc-800 dark:border-zinc-200 rounded-full shadow-2xl"
+                className="flex items-center gap-1 p-1 bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border border-zinc-800 dark:border-zinc-200 rounded-full shadow-2xl"
               >
+                {/* Instant 1-Click Highlight */}
+                <button
+                  onClick={handleInstantHighlight}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors cursor-pointer"
+                  title="Surligner ce passage"
+                >
+                  <Highlighter className="w-3.5 h-3.5" />
+                  <span>Surligner</span>
+                </button>
+
+                <div className="w-[1px] h-4 bg-zinc-800 dark:bg-zinc-200" />
+
+                {/* Add Note Popover Trigger */}
                 <button
                   onClick={() => {
                     if (!isAuthenticated) {
@@ -308,13 +350,15 @@ export function TextHighlighter({
                     }
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors cursor-pointer"
+                  title="Ajouter une note ou annotation publique"
                 >
-                  <Highlighter className="w-3.5 h-3.5" />
+                  <Plus className="w-3.5 h-3.5" />
                   <span>Annoter</span>
                 </button>
 
                 <div className="w-[1px] h-4 bg-zinc-800 dark:bg-zinc-200" />
 
+                {/* 1-Click Feed Crosspost */}
                 <button
                   onClick={handleDirectCrosspostToFeed}
                   disabled={saving}
