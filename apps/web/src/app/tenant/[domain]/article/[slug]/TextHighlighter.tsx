@@ -208,12 +208,17 @@ export function TextHighlighter({
         parent.removeChild(mark)
       }
     })
+    // 🌟 Merge adjacent text nodes after unwrapping marks so indexOf string matching stays 100% reliable
+    articleEl.normalize()
   }
 
   // Highlight stored text passages in DOM based on active reader filterMode
   const highlightExisting = () => {
     const articleEl = document.getElementById("article-content")
     if (!articleEl) return
+
+    // Ensure DOM text nodes are normalized before scanning
+    articleEl.normalize()
 
     if (filterMode === "official") {
       // Render ONLY official creator highlights
@@ -246,6 +251,11 @@ export function TextHighlighter({
     id?: string,
     fullAnnotation?: AnnotationItem
   ) => {
+    if (!textToHighlight || !textToHighlight.trim()) return
+
+    root.normalize()
+
+    const targetText = textToHighlight.trim()
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
     const nodesToReplace: { textNode: Text; parent: HTMLElement; matches: { index: number; text: string }[] }[] = []
 
@@ -253,13 +263,13 @@ export function TextHighlighter({
     while ((node = walker.nextNode())) {
       const textNode = node as Text
       const textContent = textNode.textContent || ""
-      const index = textContent.indexOf(textToHighlight)
+      const index = textContent.indexOf(targetText)
 
       if (index !== -1) {
         nodesToReplace.push({
           textNode,
           parent: textNode.parentElement!,
-          matches: [{ index, text: textToHighlight }],
+          matches: [{ index, text: targetText }],
         })
       }
     }
