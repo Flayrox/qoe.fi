@@ -13,6 +13,7 @@
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "@qoe/analytics": "workspace:*",
+    "@qoe/api-client": "workspace:*",
     "@qoe/auth": "workspace:*",
     "@qoe/billing": "workspace:*",
     "@qoe/config": "workspace:*",
