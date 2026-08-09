@@ -51,3 +51,35 @@ export const getCachedStandardArticles = unstable_cache(
     revalidate: 1800 // Cache for 30 minutes fallback
   }
 )
+
+export const getCachedTrends = unstable_cache(
+  async () => prisma.trend.findMany({
+    orderBy: { count: 'desc' },
+    take: 5
+  }),
+  ["home-widget-trends"],
+  { revalidate: 120 }
+)
+
+export const getCachedPromos = unstable_cache(
+  async () => prisma.partnerPromo.findMany({
+    where: { isActive: true },
+    orderBy: { createdAt: 'desc' },
+    take: 3
+  }),
+  ["home-widget-promos"],
+  { revalidate: 300 }
+)
+
+export const getCachedFeaturedArticle = unstable_cache(
+  async () => prisma.article.findFirst({
+    where: { published: true, isEditorPick: true },
+    include: {
+      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
+      category: { select: { name: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  }),
+  ["home-widget-featured-article"],
+  { revalidate: 120 }
+)

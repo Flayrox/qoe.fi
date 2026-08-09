@@ -13,7 +13,7 @@ export function BentoPlateau({ children, className }: BentoPlateauProps) {
   return (
     <div
       className={cn(
-        "w-full rounded-2xl bg-card/80 backdrop-blur-xl border border-border/40 flex flex-col md:flex-row overflow-hidden shadow-xs p-2 md:p-3 gap-2 md:gap-3",
+        "w-full rounded-3xl bg-[#EE4B2B] flex flex-col md:flex-row overflow-hidden p-2 md:p-3 gap-2 md:gap-3 shadow-2xl text-white",
         className
       )}
     >
@@ -53,8 +53,8 @@ export function BentoItem({
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       style={{ flexBasis: active ? flexBasisActive : flexBasisInactive, flexShrink: 0, flexGrow: active ? 0 : 1 }}
       className={cn(
-        "relative rounded-xl overflow-hidden cursor-pointer border border-border/30 transition-all duration-200",
-        active ? "bg-muted/60" : "bg-muted/20 hover:bg-muted/40",
+        "relative rounded-2xl overflow-hidden transition-all duration-200",
+        active ? "bg-white text-zinc-950 shadow-md" : "bg-[#EE4B2B] text-white",
         className
       )}
     >
@@ -65,7 +65,7 @@ export function BentoItem({
           active ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       >
-        <div className={cn("w-full h-full rounded-xl flex flex-col overflow-hidden text-foreground", innerClassName)}>
+        <div className={cn("w-full h-full rounded-2xl flex flex-col overflow-hidden text-zinc-950 bg-white", innerClassName)}>
           {children}
         </div>
       </div>
@@ -73,7 +73,7 @@ export function BentoItem({
       {/* Inactive State */}
       <div
         className={cn(
-          "absolute inset-0 flex flex-col justify-end p-6 md:p-8 transition-opacity duration-300 text-muted-foreground",
+          "absolute inset-0 flex flex-col justify-end p-6 md:p-8 transition-opacity duration-300 text-white",
           active ? "opacity-0 pointer-events-none" : "opacity-100"
         )}
       >
