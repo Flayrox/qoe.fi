@@ -11,7 +11,8 @@
     "./format": "./src/format.ts",
     "./slugify": "./src/slugify.ts",
     "./validation": "./src/validation.ts",
-    "./action": "./src/action.ts"
+    "./action": "./src/action.ts",
+    "./paywall": "./src/paywall.ts"
   },
   "scripts": {
     "lint": "echo skip",
