@@ -10,3 +10,4 @@ export * as posts from "./repositories/posts";
 export * as follows from "./repositories/follows";
 export * as bookmarks from "./repositories/bookmarks";
 export * as subscriptions from "./repositories/subscriptions";
+export * as recommendations from "./repositories/recommendations";

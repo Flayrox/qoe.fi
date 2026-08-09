@@ -13,6 +13,9 @@ export const FEATURE_FLAGS = {
   /** Paiements Stripe activés */
   BILLING_ENABLED: process.env.FEATURE_BILLING !== "false",
 
+  /** Paywall & abonnementsSubstack activés */
+  PAYWALL_ENABLED: process.env.FEATURE_PAYWALL !== "false",
+
   /** Editeur TipTap activé (sinon fallback textarea) */
   RICH_EDITOR_ENABLED: process.env.FEATURE_RICH_EDITOR !== "false",
 
@@ -30,6 +33,9 @@ export const FEATURE_FLAGS = {
 
   /** Newsletters email activées */
   NEWSLETTERS_ENABLED: process.env.FEATURE_NEWSLETTERS !== "false",
+
+  /** Recommandations créateurs style Substack activées */
+  RECOMMENDATIONS_ENABLED: process.env.FEATURE_RECOMMENDATIONS !== "false",
 
   /** Multi-tenants custom domains activé */
   CUSTOM_DOMAINS_ENABLED: process.env.FEATURE_CUSTOM_DOMAINS !== "false",
@@ -51,4 +57,16 @@ export type FeatureFlag = keyof typeof FEATURE_FLAGS;
  */
 export function isFeatureEnabled(feature: FeatureFlag): boolean {
   return FEATURE_FLAGS[feature] === true;
+}
+
+/**
+ * ⚙️ Helper : retourne les toggles de fonctionnalites pour un créateur.
+ */
+export function getCreatorFeatureToggles(overrides?: Partial<Record<FeatureFlag, boolean>>) {
+  return {
+    hasPaywallEnabled: overrides?.PAYWALL_ENABLED ?? isFeatureEnabled("PAYWALL_ENABLED"),
+    hasNewsletterEnabled: overrides?.NEWSLETTERS_ENABLED ?? isFeatureEnabled("NEWSLETTERS_ENABLED"),
+    hasSocialFeedEnabled: overrides?.THOUGHTS_ENABLED ?? isFeatureEnabled("THOUGHTS_ENABLED"),
+    hasRecommendationsEnabled: overrides?.RECOMMENDATIONS_ENABLED ?? isFeatureEnabled("RECOMMENDATIONS_ENABLED"),
+  };
 }

@@ -1,12 +1,14 @@
 // =====================================================================
 // ⚙️ Workers — Background jobs runner
 // =====================================================================
-// 📖 BullMQ = file de jobs basée sur Redis. Plus robuste que node-cron.
+// 📖 BullMQ = file de jobs basée sur Redis pour Stripe, Newsletters, Meilisearch.
 // =====================================================================
 
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import { processMeilisearchSyncJob, setupMeilisearch } from "./jobs/meilisearchSync";
+import { processStripeWebhookSyncJob } from "./jobs/stripeWebhookSync";
+import { processPublishNewsletterJob } from "./jobs/publishNewsletterJob";
 
 console.log("⚙️ qoe.fi workers — Démarrage...");
 
@@ -26,7 +28,7 @@ connection.on("connect", () => {
 connection.on("error", (err: any) => {
   if (err?.code === "ECONNREFUSED") {
     if (!isRedisConnected) {
-      console.warn("⚠️ [Workers] En attente de Redis sur 127.0.0.1:6379 (Démarre Docker/Redis avec `docker compose -f docker-compose.dev.yml up -d db redis meilisearch`)");
+      console.warn("⚠️ [Workers] En attente de Redis sur 127.0.0.1:6379");
     }
   } else {
     console.error("❌ [Workers] Erreur Redis:", err.message);
@@ -36,24 +38,39 @@ connection.on("error", (err: any) => {
 // Initialiser Meilisearch
 setupMeilisearch();
 
+// 1. Worker Meilisearch Search Index Sync
 const searchWorker = new Worker("search-sync", processMeilisearchSyncJob, { connection: connection as any });
 
-searchWorker.on("completed", (job) => {
-  console.log(`[Worker] Job ${job.id} terminé avec succès.`);
-});
+// 2. Worker Stripe Webhook Asynchronous Sync
+const stripeWorker = new Worker("stripe-webhooks", processStripeWebhookSyncJob, { connection: connection as any });
 
-searchWorker.on("failed", (job, err) => {
-  console.error(`[Worker] Job ${job?.id} a échoué:`, err);
+// 3. Worker Bulk Newsletter Dispatch
+const newsletterWorker = new Worker("domain-events", async (job) => {
+  if (job.name === "ARTICLE_PUBLISHED") {
+    await processPublishNewsletterJob(job as any);
+  }
+}, { connection: connection as any });
+
+const allWorkers = [searchWorker, stripeWorker, newsletterWorker];
+
+allWorkers.forEach((w) => {
+  w.on("completed", (job) => {
+    console.log(`[Worker:${w.name}] Job ${job.id} terminé avec succès.`);
+  });
+
+  w.on("failed", (job, err) => {
+    console.error(`[Worker:${w.name}] Job ${job?.id} a échoué:`, err);
+  });
 });
 
 process.on("SIGTERM", async () => {
   console.log("⚙️ Workers: SIGTERM reçu, arrêt propre...");
-  await searchWorker.close();
+  await Promise.all(allWorkers.map((w) => w.close()));
   process.exit(0);
 });
 
 process.on("SIGINT", async () => {
   console.log("⚙️ Workers: SIGINT reçu, arrêt propre...");
-  await searchWorker.close();
+  await Promise.all(allWorkers.map((w) => w.close()));
   process.exit(0);
 });

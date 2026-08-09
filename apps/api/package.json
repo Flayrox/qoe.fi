@@ -14,6 +14,7 @@
   "dependencies": {
     "@hono/node-server": "^1.13.7",
     "@hono/zod-validator": "^0.4.1",
+    "@qoe/analytics": "workspace:*",
     "@qoe/billing": "workspace:*",
     "@qoe/config": "workspace:*",
     "@qoe/db": "workspace:*",

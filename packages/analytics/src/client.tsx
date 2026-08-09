@@ -1,10 +1,7 @@
 // =====================================================================
 // 📊 Client Analytics — Browser side
 // =====================================================================
-// 📖 Wrapper léger autour de Umami (self-hosted) ou autre provider.
-//
-// 🎯 Usage :
-//   trackEvent('signup_completed', { method: 'email' });
+// 📖 Wrapper léger autour de Umami (self-hosted / cloud) avec support multi-tenant.
 // =====================================================================
 
 "use client";
@@ -21,23 +18,35 @@ declare global {
 }
 
 /**
- * 📊 Composant à inclure UNE FOIS dans le root layout.
- * Charge le script Umami si configuré.
+ * 📊 Composant script Umami avec support du websiteId dynamic par tenant.
  */
-export function AnalyticsScript() {
-  const websiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
-  const scriptUrl = process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL;
+export function AnalyticsScript({ websiteId }: { websiteId?: string }) {
+  const targetId = websiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
+  const scriptUrl = process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL || "https://cloud.umami.is/script.js";
 
-  if (!websiteId) return null;
+  if (!targetId) return null;
 
   return (
     <Script
       defer
-      src={scriptUrl || "https://cloud.umami.is/script.js"}
-      data-website-id={websiteId}
+      src={scriptUrl}
+      data-website-id={targetId}
       strategy="afterInteractive"
     />
   );
+}
+
+/**
+ * 📊 Fonction globale d'envoi d'évènement Umami.
+ */
+export function trackEvent(event: string, data?: Record<string, unknown>) {
+  if (typeof window !== "undefined" && window.umami) {
+    try {
+      window.umami.track(event, data);
+    } catch (e) {
+      console.warn("Umami tracking failed:", e);
+    }
+  }
 }
 
 /**
@@ -45,8 +54,6 @@ export function AnalyticsScript() {
  */
 export function useTrackEvent(event: string, data?: Record<string, unknown>) {
   useEffect(() => {
-    if (typeof window !== "undefined" && window.umami) {
-      window.umami.track(event, data);
-    }
+    trackEvent(event, data);
   }, [event, data]);
 }
