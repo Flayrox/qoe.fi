@@ -44,14 +44,14 @@ export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
   ];
 
   return (
-    <section className="py-32 px-6 bg-black">
+    <section className="py-32 px-6 bg-background border-y border-border/30">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-24">
           <motion.span
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="font-mono text-[10px] tracking-[0.4em] text-white/40 uppercase font-semibold mb-6 block"
+            className="font-sans text-[11px] tracking-[0.4em] text-muted-foreground uppercase font-semibold mb-6 block"
           >
             {t("features_tagline", "L'infrastructure de l'esprit")}
           </motion.span>
@@ -60,7 +60,7 @@ export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
-            className="font-classical text-4xl md:text-6xl text-white font-medium tracking-tight"
+            className="font-classical text-4xl md:text-6xl text-foreground font-medium tracking-tight"
           >
             {t("features_title", "Une ingénierie de la conscience.")}
           </motion.h2>
@@ -75,26 +75,26 @@ export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
               whileHover={{ y: -5 }}
-              className={`group relative overflow-hidden rounded-[2.5rem] p-8 md:p-12 bg-neutral-900/40 backdrop-blur-2xl border border-white/5 hover:border-primary/30 transition-all duration-500 ${feature.size}`}
+              className={`group relative overflow-hidden rounded-[2.5rem] p-8 md:p-12 bg-card/60 backdrop-blur-2xl border border-border/40 hover:border-primary/40 transition-all duration-500 shadow-sm ${feature.size}`}
             >
               <div className="relative z-10 flex flex-col h-full">
-                <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-all duration-500">
+                <div className="w-12 h-12 rounded-2xl bg-muted border border-border/40 flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary transition-all duration-500">
                   <feature.icon className="w-6 h-6" />
                 </div>
                 
-                <h3 className="font-classical text-2xl md:text-3xl text-white mb-6 group-hover:translate-x-2 transition-transform duration-500">
+                <h3 className="font-classical text-2xl md:text-3xl text-foreground mb-6 group-hover:translate-x-2 transition-transform duration-500">
                   {feature.title}
                 </h3>
                 
-                <p className="font-sans text-white/40 group-hover:text-white/70 leading-relaxed transition-colors duration-500">
+                <p className="font-sans text-muted-foreground group-hover:text-foreground leading-relaxed transition-colors duration-500">
                   {feature.description}
                 </p>
 
                 <div className="mt-auto pt-12">
-                  <div className="h-px w-full bg-white/5 group-hover:bg-white/10 transition-colors" />
+                  <div className="h-px w-full bg-border/20 group-hover:bg-border/40 transition-colors" />
                   <div className="flex items-center justify-between mt-6">
-                    <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">{feature.id}</span>
-                    <Zap className="w-4 h-4 text-white/10 group-hover:text-white/40 group-hover:rotate-12 transition-all" />
+                    <span className="text-[10px] font-sans text-muted-foreground uppercase tracking-widest">{feature.id}</span>
+                    <Zap className="w-4 h-4 text-muted-foreground/40 group-hover:text-foreground group-hover:rotate-12 transition-all" />
                   </div>
                 </div>
               </div>

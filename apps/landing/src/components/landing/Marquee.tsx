@@ -7,7 +7,7 @@ export const Marquee = () => {
   return (
     <section className="py-12 border-y border-border/10 bg-muted/30 backdrop-blur-sm overflow-hidden">
       <div className="max-w-5xl mx-auto px-6 text-center mb-8">
-        <span className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground/60 uppercase font-semibold">
+        <span className="font-sans text-[11px] tracking-[0.2em] text-muted-foreground uppercase font-semibold">
           Trusted by independent voices across Europe
         </span>
       </div>

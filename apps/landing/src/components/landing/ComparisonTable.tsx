@@ -82,7 +82,7 @@ export const ComparisonTable = ({ config }: ComparisonTableProps) => {
           <motion.span
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
-            className="font-mono text-[10px] tracking-[0.4em] text-muted-foreground uppercase font-semibold mb-4 block"
+            className="font-sans text-[11px] tracking-[0.4em] text-muted-foreground uppercase font-semibold mb-4 block"
           >
             {tagline}
           </motion.span>
@@ -98,7 +98,7 @@ export const ComparisonTable = ({ config }: ComparisonTableProps) => {
         {/* Comparison Grid (Responsive Card/Table hybrid) */}
         <div className="mt-12 bg-card/40 backdrop-blur-md border border-border/40 rounded-[2.5rem] overflow-hidden shadow-2xl">
           {/* Header Row (Hidden on small screens) */}
-          <div className="hidden md:grid grid-cols-12 border-b border-border/40 bg-muted/30 px-8 py-6 font-mono text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+          <div className="hidden md:grid grid-cols-12 border-b border-border/40 bg-muted/30 px-8 py-6 font-sans text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
             <div className="col-span-4 flex items-center gap-2">
               <Shield className="w-3.5 h-3.5 text-primary" />
               <span>Dimension</span>
@@ -132,14 +132,14 @@ export const ComparisonTable = ({ config }: ComparisonTableProps) => {
 
                 {/* Substack Column */}
                 <div className="col-span-1 md:col-span-4 md:text-center flex items-start md:justify-center gap-3 text-muted-foreground text-sm font-sans md:px-4">
-                  <span className="md:hidden font-mono text-[9px] uppercase tracking-wider text-muted-foreground/60 mt-1">Substack:</span>
+                  <span className="md:hidden font-sans text-[10px] uppercase font-semibold tracking-wider text-muted-foreground/60 mt-1">Substack:</span>
                   <X className="w-4 h-4 text-red-500/60 mt-0.5 flex-shrink-0" />
                   <span className="leading-relaxed">{row.substack}</span>
                 </div>
 
                 {/* qoe.fi Column */}
                 <div className="col-span-1 md:col-span-4 md:text-center flex items-start md:justify-center gap-3 text-foreground text-sm font-sans font-medium md:px-4 md:border-x md:border-border/10 md:-my-6 md:py-6 bg-primary/[0.02]">
-                  <span className="md:hidden font-mono text-[9px] uppercase tracking-wider text-primary mt-1">qoe.fi:</span>
+                  <span className="md:hidden font-sans text-[10px] uppercase font-semibold tracking-wider text-primary mt-1">qoe.fi:</span>
                   <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
                   <span className="leading-relaxed">{row.qoefi}</span>
                 </div>

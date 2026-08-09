@@ -362,14 +362,12 @@ export const Hero = ({ config }: HeroProps) => {
     document.body.classList.add("hero-closed");
   }, []);
 
-  // Intercept wheel — auto-close after 5 cumulative wheel events
+  // Auto-close demo window after 5 cumulative wheel events without blocking page scroll
   useEffect(() => {
     const el = heroRef.current;
     if (!el) return;
-    const onWheel = (e: WheelEvent) => {
+    const onWheel = () => {
       if (closedRef.current) return;
-      e.preventDefault();
-      e.stopPropagation();
       setShowChrome(true);
       wheelCountRef.current += 1;
 
@@ -389,7 +387,7 @@ export const Hero = ({ config }: HeroProps) => {
         }, 1600);
       }
     };
-    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("wheel", onWheel, { passive: true });
     return () => el.removeEventListener("wheel", onWheel);
   }, [autoClosePhase, handleClose]);
 

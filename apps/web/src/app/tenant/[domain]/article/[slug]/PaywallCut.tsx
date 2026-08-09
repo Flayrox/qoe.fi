@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Lock, Wallet, Loader2, AlertCircle } from "lucide-react"
 import { unlockArticleWithWallet, getCurrentUser } from "./actions"
 import { cn } from "@qoe/utils"
+import { sanitizeHtml } from "@/lib/sanitize"
 
 interface PaywallCutProps {
   contentHtml: string;
@@ -25,18 +26,20 @@ export function PaywallCut({
   mainAppUrl,
   creatorId
 }: PaywallCutProps) {
+  const safeHtml = sanitizeHtml(contentHtml);
+
   // If not premium, render full content
   if (!isPremium) {
-    return <div dangerouslySetInnerHTML={{ __html: contentHtml }} />;
+    return <div dangerouslySetInnerHTML={{ __html: safeHtml }} />;
   }
 
   // Find the paywall divider
-  const paywallIndex = contentHtml.indexOf('<div data-type="paywall-divider"></div>');
+  const paywallIndex = safeHtml.indexOf('<div data-type="paywall-divider"></div>');
   
   // If premium but no divider found, fallback to old behavior (cut at 30%)
   if (paywallIndex === -1) {
-    const truncateIndex = Math.floor(contentHtml.length * 0.3);
-    const truncatedContent = contentHtml.substring(0, truncateIndex) + '<p>...</p>';
+    const truncateIndex = Math.floor(safeHtml.length * 0.3);
+    const truncatedContent = safeHtml.substring(0, truncateIndex) + '<p>...</p>';
     
     return (
       <>
@@ -53,7 +56,7 @@ export function PaywallCut({
   }
 
   // Split content at the paywall
-  const freeContent = contentHtml.substring(0, paywallIndex);
+  const freeContent = safeHtml.substring(0, paywallIndex);
 
   return (
     <>
