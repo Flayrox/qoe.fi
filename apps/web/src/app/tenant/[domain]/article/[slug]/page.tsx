@@ -57,7 +57,50 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   });
 
   if (!article) {
-    notFound();
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 text-center font-sans select-none">
+        <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black text-xl mb-4 shadow-sm">
+          qoe
+        </div>
+        <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-semibold uppercase tracking-wider mb-3">
+          404 • Écrit introuvable
+        </span>
+        <h1 className="text-3xl font-bold tracking-tight mb-2 text-foreground">Cet écrit n'existe pas</h1>
+        <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
+          Le lien que vous avez suivi est incorrect ou l'écrit a été retiré par <strong className="text-foreground">{creator.name || creator.username}</strong>.
+        </p>
+        <Link
+          href="/"
+          className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:opacity-90 transition-opacity shadow-sm"
+        >
+          Retourner au blog de {creator.name || creator.username}
+        </Link>
+      </div>
+    );
+  }
+
+  // If article is unpublished draft and visitor is NOT the creator
+  if (!article.published && user?.id !== article.authorId) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 text-center font-sans select-none">
+        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center font-black text-xl mb-4 shadow-sm">
+          qoe
+        </div>
+        <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 text-xs font-bold uppercase tracking-wider mb-3">
+          Écrit Privé • Brouillon en cours
+        </span>
+        <h1 className="text-3xl font-bold tracking-tight mb-2 text-foreground">Cet écrit n'est pas encore publié</h1>
+        <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
+          <strong className="text-foreground">{creator.name || creator.username}</strong> peaufine actuellement cet écrit. Il sera disponible en lecture dès sa publication officielle.
+        </p>
+        <Link
+          href="/"
+          className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:opacity-90 transition-opacity shadow-sm"
+        >
+          Explorer le blog de {creator.name || creator.username}
+        </Link>
+      </div>
+    );
   }
 
   // 4. Fetch initial reader interactions, comments, and Genius public/official highlights
