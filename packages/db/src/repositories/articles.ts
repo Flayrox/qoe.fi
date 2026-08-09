@@ -151,3 +151,25 @@ function estimateReadingTime(content: string): number {
 }
 
 export type { Article };
+
+/**
+ * 🆔 Trouve un article par son ID unique.
+ */
+export async function findById(id: string) {
+  return prisma.article.findUnique({
+    where: { id },
+    include: {
+      author: {
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          subdomain: true,
+          customDomain: true,
+          allowPublicAnnotations: true,
+        },
+      },
+    },
+  });
+}
+

@@ -30,3 +30,20 @@ export const recommendationKeys = {
   all: ['recommendations'] as const,
   creator: (recommenderId: string) => [...recommendationKeys.all, 'creator', recommenderId] as const,
 };
+
+export const articleKeys = {
+  all: ['articles'] as const,
+  comments: (articleId: string) => [...articleKeys.all, articleId, 'comments'] as const,
+  highlights: (articleId: string) => [...articleKeys.all, articleId, 'highlights'] as const,
+};
+
+export const commentKeys = {
+  all: ['comments'] as const,
+  list: (articleId: string) => [...commentKeys.all, 'list', articleId] as const,
+};
+
+export const annotationKeys = {
+  all: ['annotations'] as const,
+  article: (articleId: string) => [...annotationKeys.all, 'article', articleId] as const,
+};
+
