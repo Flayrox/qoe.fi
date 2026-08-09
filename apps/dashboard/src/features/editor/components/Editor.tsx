@@ -645,6 +645,8 @@ export function Editor({
           onClose={() => setShowAnalyticsModal(false)}
           onEdit={() => setShowAnalyticsModal(false)}
         />
+      )}
+
       {/* Toast Notification */}
       {annotationToast && (
         <div className="fixed bottom-6 right-6 z-50 bg-amber-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xl animate-in fade-in-50 slide-in-from-bottom-2 duration-200">
