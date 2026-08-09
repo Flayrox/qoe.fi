@@ -42,11 +42,40 @@ export async function findPublishedByAuthor(
 }
 
 /**
- * 🔍 Trouve un article par son slug (lecture publique).
+ * 🔍 Trouve un article par son auteur et son slug (lecture publique tenant).
  */
-export async function findBySlug(slug: string) {
-  return prisma.article.findUnique({
-    where: { slug },
+export async function findBySlug(authorId: string, slug: string, options?: { includeDrafts?: boolean }) {
+  const article = await prisma.article.findUnique({
+    where: { authorId_slug: { authorId, slug } },
+    include: {
+      author: {
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          logoUrl: true,
+          isCertified: true,
+          subdomain: true,
+          customDomain: true,
+          heroText: true,
+          accentColor: true,
+        },
+      },
+      category: true,
+    },
+  });
+
+  if (!article) return null;
+  if (!options?.includeDrafts && !article.published) return null;
+  return article;
+}
+
+/**
+ * 🔍 Trouve le premier article publié par slug (quand l'auteur n'est pas encore connu).
+ */
+export async function findFirstBySlug(slug: string) {
+  return prisma.article.findFirst({
+    where: { slug, published: true },
     include: {
       author: {
         select: {

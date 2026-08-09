@@ -8,28 +8,34 @@ import { prisma } from "../client"
  * ⚡ Bascule l'état d'abonnement d'un lecteur envers un créateur.
  */
 export async function toggleFollow(readerId: string, creatorId: string): Promise<{ followed: boolean }> {
-  const existing = await prisma.follows.findUnique({
-    where: {
-      readerId_creatorId: {
-        readerId,
-        creatorId
-      }
-    }
-  })
+  try {
+    const existing = await prisma.follows.findUnique({
+      where: {
+        readerId_creatorId: {
+          readerId,
+          creatorId,
+        },
+      },
+    });
 
-  if (existing) {
-    await prisma.follows.delete({
-      where: { id: existing.id }
-    })
-    return { followed: false }
-  } else {
-    await prisma.follows.create({
-      data: {
-        readerId,
-        creatorId
-      }
-    })
-    return { followed: true }
+    if (existing) {
+      await prisma.follows.deleteMany({
+        where: { readerId, creatorId },
+      });
+      return { followed: false };
+    } else {
+      await prisma.follows.create({
+        data: {
+          readerId,
+          creatorId,
+        },
+      });
+      return { followed: true };
+    }
+  } catch (error: any) {
+    if (error?.code === "P2002") return { followed: true };
+    if (error?.code === "P2025") return { followed: false };
+    throw error;
   }
 }
 

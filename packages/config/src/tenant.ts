@@ -58,6 +58,10 @@ export function parseTenantHost(hostname: string): TenantInfo {
   } else if (hostWithoutPort.endsWith(".qoe.fi")) {
     subdomain = hostWithoutPort.replace(".qoe.fi", "")
     baseDomain = "qoe.fi"
+  } else if (!(SYSTEM_DOMAINS as readonly string[]).includes(hostWithoutPort)) {
+    // 🌐 Custom Domain resolution (e.g. blog.alice.com)
+    subdomain = hostWithoutPort
+    baseDomain = hostWithoutPort
   }
 
   const isReserved = subdomain ? (RESERVED_SUBDOMAINS as readonly string[]).includes(subdomain) : false

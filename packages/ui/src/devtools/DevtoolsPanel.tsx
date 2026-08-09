@@ -1,9 +1,26 @@
 "use client";
 
 import React, { useState, useEffect, useTransition, useCallback } from "react";
-import { createClient } from "@qoe/supabase/client";
+export interface DevtoolsUser {
+  id: string;
+  name: string | null;
+  email: string;
+  username: string | null;
+  role: string;
+  subdomain: string | null;
+  customDomain: string | null;
+  accentColor: string | null;
+  layoutStyle: string | null;
+  createdAt: string;
+}
 
-import type { DevtoolsUser, DevtoolsStats } from "./actions";
+export interface DevtoolsStats {
+  users: number;
+  articles: number;
+  posts: number;
+  likes: number;
+  subscribers: number;
+}
 import "./Devtools.css";
 
 import {
@@ -69,6 +86,8 @@ export interface DevtoolsActions {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   simulateLikeAction?: (data: { postId: string; userId: string }) => Promise<{ success: boolean; error?: string }>;
   addMockFundsAction: (data: { userId: string; amountCents: number }) => Promise<{ success: boolean; balanceCents?: number; error?: string }>;
+  impersonateLoginAction?: (email: string) => Promise<{ success: boolean; error?: string }>;
+  logoutAction?: () => Promise<{ success: boolean; error?: string }>;
 }
 
 export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
@@ -120,8 +139,6 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
   });
   const [simWallet, setSimWallet] = useState({ userId: "", amountEuros: "50" });
   const [screenSize, setScreenSize] = useState("");
-
-  const supabase = createClient();
 
   const refreshData = useCallback(async () => {
     setIsRefreshing(true);
@@ -194,17 +211,13 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
   const handleImpersonateLogin = async (email: string) => {
     startTransition(async () => {
       try {
-        await supabase.auth.signOut();
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password: "password123",
-        });
-
-        if (error) {
-          triggerAlert("error", `Supabase Auth: ${error.message}`);
-          return;
+        if (actions.impersonateLoginAction) {
+          const res = await actions.impersonateLoginAction(email);
+          if (!res.success) {
+            triggerAlert("error", res.error || "Erreur de connexion");
+            return;
+          }
         }
-
         triggerAlert("success", `Connecté: ${email}`);
         setTimeout(() => {
           window.location.reload();
@@ -218,7 +231,9 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
 
   const handleLogout = async () => {
     startTransition(async () => {
-      await supabase.auth.signOut();
+      if (actions.logoutAction) {
+        await actions.logoutAction();
+      }
       triggerAlert("success", "Déconnecté");
       setTimeout(() => {
         window.location.reload();
