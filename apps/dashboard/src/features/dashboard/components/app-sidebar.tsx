@@ -61,6 +61,11 @@ export async function AppSidebar() {
       url: "/settings",
       iconName: "Settings",
     },
+    {
+      title: "Importation (Substack)",
+      url: "/import",
+      iconName: "Upload",
+    },
   ]
 
   return (
