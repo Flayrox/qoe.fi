@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react"
 import { createHighlight, quotePassageToFeedAction } from "./actions"
-import { Highlighter, Check, Loader2, X, Plus, Globe, Lock, Share2, Quote } from "lucide-react"
+import { Highlighter, Check, Loader2, X, Plus, Globe, Lock, Share2, Quote, Pencil } from "lucide-react"
 import { cn } from "@qoe/utils"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { TextSelectionPopover } from "@qoe/ui"
@@ -390,7 +390,7 @@ export function TextHighlighter({
         isLocked={showNoteInput || saving}
       >
         {({ text: selectedText, range, placement, clearSelection }) => (
-          /* 🍏 RAUNO FREIBERG SIGNATURE MORPHING SURFACE (Stiffness 480 / Damping 30 / Blur Crossfade) */
+          /* 🍏 RAUNO FREIBERG SIGNATURE MORPHING SURFACE (Centered originX: 0.5, originY: dynamic) */
           <motion.div
             layout
             layoutId="rauno-morphing-surface"
@@ -404,13 +404,13 @@ export function TextHighlighter({
                 : { type: "spring", stiffness: 480, damping: 30, mass: 0.55 }
             }
             className={cn(
-              "bg-popover/95 text-popover-foreground border border-border/40 backdrop-blur-2xl shadow-2xl overflow-hidden font-sans",
-              showNoteInput ? "rounded-2xl w-80 p-4" : "rounded-full p-1"
+              "bg-popover text-popover-foreground border border-border/30 backdrop-blur-2xl shadow-2xl overflow-hidden font-sans",
+              showNoteInput ? "rounded-2xl w-80 sm:w-84 p-4 space-y-3" : "rounded-full p-1"
             )}
           >
             <AnimatePresence mode="popLayout" initial={false}>
               {!showNoteInput ? (
-                /* STATE A: Compact Pill Toolbar (Rauno Blur/Scale Exit) */
+                /* STATE A: Compact Pill Toolbar */
                 <motion.div
                   key="toolbar-state"
                   initial={{ opacity: 0, scale: 0.88, filter: "blur(3px)" }}
@@ -464,7 +464,7 @@ export function TextHighlighter({
                   </button>
                 </motion.div>
               ) : (
-                /* STATE B: Expanded Note Surface (Rauno Blur/Scale Enter) */
+                /* STATE B: Expanded Premium Annotation Card (Exact User Screenshot Redesign) */
                 <motion.form
                   key="form-state"
                   initial={{ opacity: 0, scale: 0.94, filter: "blur(3px)" }}
@@ -474,9 +474,10 @@ export function TextHighlighter({
                   onSubmit={(e) => handleHighlightSubmit(e, selectedText, clearSelection)}
                   className="flex flex-col gap-3 text-left"
                 >
+                  {/* Header: Title + Circular Close Button */}
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-medium text-foreground/80 flex items-center gap-1.5">
-                      <Highlighter className="w-3.5 h-3.5 text-amber-500" />
+                    <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Pencil className="w-4 h-4 text-foreground/80" />
                       <span>Nouvelle annotation</span>
                     </span>
                     <button
@@ -485,65 +486,78 @@ export function TextHighlighter({
                         clearForm()
                         clearSelection()
                       }}
-                      className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors cursor-pointer"
+                      className="w-6 h-6 rounded-full bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
-                  {/* Passage quote preview */}
-                  <div className="p-2.5 rounded-xl bg-muted/40 border border-border/20 text-xs text-foreground/90 flex items-start gap-2 max-h-20 overflow-y-auto">
-                    <Quote className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
-                    <p className="font-sans italic text-[11px] leading-relaxed line-clamp-3">
-                      « {activeDraftText || selectedText} »
+                  {/* Quote Preview Pill Box */}
+                  <div className="p-3 rounded-xl bg-muted/50 border border-border/20 text-xs text-foreground/90 flex items-center gap-2.5 overflow-hidden">
+                    <Quote className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <p className="font-sans italic text-xs font-medium truncate text-foreground/90">
+                      “ "{activeDraftText || selectedText}" ”
                     </p>
                   </div>
 
+                  {/* Textarea Input */}
                   <textarea
                     autoFocus
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
                     placeholder="Écrivez votre réflexion sur ce passage..."
-                    className="w-full bg-muted/40 border border-border/30 rounded-xl p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 font-sans resize-none h-20 leading-relaxed"
+                    className="w-full bg-background border border-border/30 rounded-xl p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 font-sans resize-none h-20 leading-relaxed"
                   />
 
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/30 border border-border/20 text-xs">
-                    <span className="text-muted-foreground text-[11px] font-medium flex items-center gap-1.5">
-                      {isPublicChoice ? <Globe className="w-3.5 h-3.5 text-emerald-500" /> : <Lock className="w-3.5 h-3.5" />}
-                      <span>{isPublicChoice ? "Annotation publique" : "Note privée"}</span>
-                    </span>
+                  {/* Segmented Control Pill (Privée / Publique Tabs) */}
+                  <div className="p-1 rounded-xl bg-muted/60 border border-border/20 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsPublicChoice(false)}
+                      className={cn(
+                        "flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer",
+                        !isPublicChoice
+                          ? "bg-primary text-primary-foreground shadow-xs"
+                          : "text-muted-foreground hover:text-foreground font-medium"
+                      )}
+                    >
+                      <span>Privée</span>
+                      <Lock className="w-3.5 h-3.5" />
+                    </button>
 
                     <button
                       type="button"
                       disabled={!allowPublicAnnotations}
-                      onClick={() => setIsPublicChoice(!isPublicChoice)}
+                      onClick={() => setIsPublicChoice(true)}
                       className={cn(
-                        "px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer",
+                        "flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer",
                         !allowPublicAnnotations
-                          ? "opacity-40 cursor-not-allowed bg-muted text-muted-foreground"
+                          ? "opacity-40 cursor-not-allowed text-muted-foreground"
                           : isPublicChoice
-                            ? "bg-emerald-500 text-white shadow-xs"
-                            : "bg-muted text-foreground hover:bg-muted/80"
+                            ? "bg-primary text-primary-foreground shadow-xs"
+                            : "text-muted-foreground hover:text-foreground font-medium"
                       )}
-                      title={!allowPublicAnnotations ? "Les annotations publiques sont désactivées par l'auteur" : "Changer la confidentialité"}
+                      title={!allowPublicAnnotations ? "Les annotations publiques sont désactivées par l'auteur" : "Annotation publique"}
                     >
-                      {isPublicChoice ? "Publique" : "Privée"}
+                      <Globe className="w-3.5 h-3.5" />
+                      <span>Publique</span>
                     </button>
                   </div>
 
                   {!allowPublicAnnotations && (
-                    <p className="text-[10px] text-muted-foreground italic">
-                      Note : Les annotations publiques sont désactivées sur cet écrit.
+                    <p className="text-[10px] text-muted-foreground italic text-center">
+                      Les annotations publiques sont désactivées par l'auteur.
                     </p>
                   )}
 
-                  {errorMessage && <p className="text-[11px] text-destructive font-medium">{errorMessage}</p>}
+                  {errorMessage && <p className="text-[11px] text-destructive font-medium text-center">{errorMessage}</p>}
 
+                  {/* Primary Action Button */}
                   <button
                     type="submit"
                     disabled={saving || savedSuccess}
                     className={cn(
-                      "w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm",
+                      "w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs",
                       savedSuccess
                         ? "bg-emerald-500 text-white"
                         : "bg-primary text-primary-foreground hover:opacity-90"
