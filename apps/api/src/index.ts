@@ -64,6 +64,17 @@ app.get("/health", (c) =>
   })
 );
 
+import { Queue } from "bullmq";
+import IORedis from "ioredis";
+import { fetchUmamiWebsiteStats, fetchUmamiTopPages } from "@qoe/analytics/server";
+
+const stripeRedisConnection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
+  lazyConnect: true,
+  maxRetriesPerRequest: null,
+});
+
+const stripeQueue = new Queue("stripe-webhooks", { connection: stripeRedisConnection as any });
+
 // ─── Webhooks ───────────────────────────────────────────────
 app.post("/webhooks/stripe", async (c) => {
   const signature = c.req.header("stripe-signature");
@@ -74,13 +85,25 @@ app.post("/webhooks/stripe", async (c) => {
   try {
     const rawBody = await c.req.text();
     const event = await verifyWebhook(rawBody, signature);
-    await handleWebhookEvent(event);
-    return c.text("Webhook processed successfully", 200);
+
+    // Async processing via BullMQ with jobId deduplication
+    await stripeQueue.add(
+      event.type,
+      {
+        eventId: event.id,
+        eventType: event.type,
+        data: event.data.object,
+      },
+      { jobId: event.id }
+    );
+
+    return c.text("Webhook queued successfully", 200);
   } catch (err: any) {
     console.error(`❌ Webhook Error: ${err.message}`);
     return c.text(`Webhook Error: ${err.message}`, 400);
   }
 });
+
 
 app.post("/webhooks/supabase", (c) => c.text("ok", 200));
 
@@ -315,6 +338,31 @@ app.get("/v1/categories", apiAuth, async (c) => {
     return c.json({ error: "Internal Server Error" }, 500);
   }
 });
+
+// Get creator telemetry stats (Umami)
+app.get("/v1/analytics/stats", apiAuth, async (c) => {
+  const creator = c.get("creator");
+  const websiteId = creator.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || "";
+  const startAt = Number(c.req.query("startAt")) || Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const endAt = Number(c.req.query("endAt")) || Date.now();
+
+  if (!websiteId) {
+    return c.json({
+      data: {
+        stats: { pageviews: 0, visitors: 0, visits: 0, bounces: 0, totaltime: 0 },
+        topPages: [],
+      },
+    });
+  }
+
+  const [stats, topPages] = await Promise.all([
+    fetchUmamiWebsiteStats(websiteId, startAt, endAt),
+    fetchUmamiTopPages(websiteId, startAt, endAt, 10),
+  ]);
+
+  return c.json({ data: { stats, topPages } });
+});
+
 
 // Keep legacy routes for compatibility
 app.get("/v1/users/:username", (c) =>
