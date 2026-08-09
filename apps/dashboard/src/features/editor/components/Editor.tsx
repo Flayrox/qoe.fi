@@ -90,6 +90,9 @@ export function Editor({
   
   const [showSettings, setShowSettings] = useState(false)
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false)
+  const [showAuthorAnnotationModal, setShowAuthorAnnotationModal] = useState(false)
+  const [authorNoteInput, setAuthorNoteInput] = useState("")
+  const [annotationToast, setAnnotationToast] = useState<string | null>(null)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -527,14 +530,11 @@ export function Editor({
                 onClick={() => {
                   const selection = editor.state.selection
                   if (selection.empty) {
-                    alert("Veuillez sélectionner un passage de texte à annoter en tant qu'auteur.")
+                    setAnnotationToast("Sélectionnez d'abord un passage de texte à annoter.")
+                    setTimeout(() => setAnnotationToast(null), 3000)
                     return
                   }
-                  const note = prompt("Saisissez votre note officielle d'auteur pour ce passage :")
-                  if (note && note.trim()) {
-                    editor.chain().focus().setAnnotationMark({ note: note.trim() }).run()
-                    setHasUnsavedChanges(true)
-                  }
+                  setShowAuthorAnnotationModal(true)
                 }}
                 icon={<Eye className="h-3.5 w-3.5 text-amber-500 stroke-[2]" />}
                 tooltip="Ajouter une Annotation Officielle d'Auteur"
@@ -645,6 +645,66 @@ export function Editor({
           onClose={() => setShowAnalyticsModal(false)}
           onEdit={() => setShowAnalyticsModal(false)}
         />
+      {/* Toast Notification */}
+      {annotationToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-amber-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xl animate-in fade-in-50 slide-in-from-bottom-2 duration-200">
+          {annotationToast}
+        </div>
+      )}
+
+      {/* Custom UI Modal for Official Author Annotation (No window.prompt!) */}
+      {showAuthorAnnotationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-xs font-sans">
+          <div className="bg-card border border-border/40 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl animate-in fade-in-50 zoom-in-95 duration-150">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <h3 className="text-sm font-bold text-foreground">Annotation Officielle D'Auteur</h3>
+              </div>
+              <button onClick={() => setShowAuthorAnnotationModal(false)} className="text-muted-foreground hover:text-foreground cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Ajoutez une note d'auteur certifiée qui apparaîtra sous forme de marge dorée interactive pour vos lecteurs.
+            </p>
+
+            <textarea
+              autoFocus
+              rows={3}
+              value={authorNoteInput}
+              onChange={(e) => setAuthorNoteInput(e.target.value)}
+              placeholder="Explication, contexte ou commentaire d'auteur..."
+              className="w-full bg-background border border-border/40 rounded-xl p-3 text-xs text-foreground focus:outline-none focus:border-amber-500 resize-none font-sans"
+            />
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowAuthorAnnotationModal(false)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                disabled={!authorNoteInput.trim()}
+                onClick={() => {
+                  if (authorNoteInput.trim() && editor) {
+                    editor.chain().focus().setAnnotationMark({ note: authorNoteInput.trim() }).run()
+                    setHasUnsavedChanges(true)
+                    setAuthorNoteInput("")
+                    setShowAuthorAnnotationModal(false)
+                  }
+                }}
+                className="px-4 py-1.5 rounded-xl bg-amber-500 text-white font-bold text-xs hover:bg-amber-600 cursor-pointer disabled:opacity-50 transition-colors"
+              >
+                Attacher l'annotation
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
