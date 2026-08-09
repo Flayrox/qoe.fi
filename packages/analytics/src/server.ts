@@ -140,8 +140,8 @@ export async function fetchUmamiPageviewsSeries(
       }
       return [];
     }
-    const data = await res.json();
-    return (data.pageviews || data || []) as UmamiTimeseriesPoint[];
+    const data = (await res.json()) as any;
+    return (data?.pageviews || data || []) as UmamiTimeseriesPoint[];
   } catch (error) {
     console.error("Failed to fetch Umami pageviews series:", error);
     if (isDev) {
