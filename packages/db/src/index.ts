@@ -13,3 +13,5 @@ export * as subscriptions from "./repositories/subscriptions";
 export * as recommendations from "./repositories/recommendations";
 export * as articleComments from "./repositories/articleComments";
 export * as highlights from "./repositories/highlights";
+export * as wallet from "./repositories/wallet";
+
