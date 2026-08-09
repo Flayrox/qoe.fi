@@ -390,7 +390,7 @@ export function TextHighlighter({
         isLocked={showNoteInput || saving}
       >
         {({ text: selectedText, range, placement, clearSelection }) => (
-          /* 🍏 RAUNO FREIBERG SIGNATURE MORPHING SURFACE (Centered originX: 0.5, originY: dynamic) */
+          /* 🍏 RAUNO FREIBERG SIGNATURE MORPHING SURFACE */
           <motion.div
             layout
             layoutId="rauno-morphing-surface"
@@ -426,7 +426,7 @@ export function TextHighlighter({
                     className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium hover:bg-muted/70 text-foreground transition-all cursor-pointer"
                     title="Surligner ce passage"
                   >
-                    <Highlighter className="w-3.5 h-3.5 text-amber-500" />
+                    <Highlighter className="w-3.5 h-3.5 text-amber-500 fill-amber-500/20" />
                     <span>Surligner</span>
                   </button>
 
@@ -464,7 +464,7 @@ export function TextHighlighter({
                   </button>
                 </motion.div>
               ) : (
-                /* STATE B: Expanded Premium Annotation Card (Exact User Screenshot Redesign) */
+                /* STATE B: Expanded Premium Annotation Card (Centered Header, Filled SVGs & Sliding Pill Indicator) */
                 <motion.form
                   key="form-state"
                   initial={{ opacity: 0, scale: 0.94, filter: "blur(3px)" }}
@@ -474,12 +474,15 @@ export function TextHighlighter({
                   onSubmit={(e) => handleHighlightSubmit(e, selectedText, clearSelection)}
                   className="flex flex-col gap-3 text-left"
                 >
-                  {/* Header: Title + Circular Close Button */}
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <Pencil className="w-4 h-4 text-foreground/80" />
+                  {/* Header: Centered Title + Filled Pencil SVG + Circular Close Button */}
+                  <div className="flex items-center justify-between">
+                    <div className="w-6 h-6" /> {/* Left balancer spacer */}
+                    
+                    <span className="text-sm font-semibold text-foreground flex items-center justify-center gap-1.5">
+                      <Pencil className="w-4 h-4 fill-foreground text-foreground" />
                       <span>Nouvelle annotation</span>
                     </span>
+
                     <button
                       type="button"
                       onClick={() => {
@@ -492,9 +495,9 @@ export function TextHighlighter({
                     </button>
                   </div>
 
-                  {/* Quote Preview Pill Box */}
+                  {/* Quote Preview Pill Box with Filled Quote SVG */}
                   <div className="p-3 rounded-xl bg-muted/50 border border-border/20 text-xs text-foreground/90 flex items-center gap-2.5 overflow-hidden">
-                    <Quote className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <Quote className="w-4 h-4 fill-muted-foreground text-muted-foreground shrink-0" />
                     <p className="font-sans italic text-xs font-medium truncate text-foreground/90">
                       “ "{activeDraftText || selectedText}" ”
                     </p>
@@ -509,20 +512,25 @@ export function TextHighlighter({
                     className="w-full bg-background border border-border/30 rounded-xl p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 font-sans resize-none h-20 leading-relaxed"
                   />
 
-                  {/* Segmented Control Pill (Privée / Publique Tabs) */}
-                  <div className="p-1 rounded-xl bg-muted/60 border border-border/20 flex items-center gap-1">
+                  {/* Apple-Style Segmented Pill Control with Sliding Active Background (layoutId='privacy-pill-indicator') */}
+                  <div className="p-1 rounded-full bg-muted/60 border border-border/20 flex items-center relative select-none">
                     <button
                       type="button"
                       onClick={() => setIsPublicChoice(false)}
                       className={cn(
-                        "flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer",
-                        !isPublicChoice
-                          ? "bg-primary text-primary-foreground shadow-xs"
-                          : "text-muted-foreground hover:text-foreground font-medium"
+                        "relative z-10 flex-1 py-1.5 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer",
+                        !isPublicChoice ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                       )}
                     >
                       <span>Privée</span>
                       <Lock className="w-3.5 h-3.5" />
+                      {!isPublicChoice && (
+                        <motion.div
+                          layoutId="privacy-pill-indicator"
+                          className="absolute inset-0 bg-primary rounded-full shadow-xs -z-10"
+                          transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                        />
+                      )}
                     </button>
 
                     <button
@@ -530,17 +538,21 @@ export function TextHighlighter({
                       disabled={!allowPublicAnnotations}
                       onClick={() => setIsPublicChoice(true)}
                       className={cn(
-                        "flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer",
-                        !allowPublicAnnotations
-                          ? "opacity-40 cursor-not-allowed text-muted-foreground"
-                          : isPublicChoice
-                            ? "bg-primary text-primary-foreground shadow-xs"
-                            : "text-muted-foreground hover:text-foreground font-medium"
+                        "relative z-10 flex-1 py-1.5 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer",
+                        !allowPublicAnnotations && "opacity-40 cursor-not-allowed",
+                        isPublicChoice ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                       )}
                       title={!allowPublicAnnotations ? "Les annotations publiques sont désactivées par l'auteur" : "Annotation publique"}
                     >
                       <Globe className="w-3.5 h-3.5" />
                       <span>Publique</span>
+                      {isPublicChoice && (
+                        <motion.div
+                          layoutId="privacy-pill-indicator"
+                          className="absolute inset-0 bg-primary rounded-full shadow-xs -z-10"
+                          transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                        />
+                      )}
                     </button>
                   </div>
 
