@@ -168,7 +168,7 @@ export function TextSelectionPopover({
     <div
       ref={refs.setFloating}
       style={floatingStyles}
-      className={cn("z-50 pointer-events-auto select-none font-sans", className)}
+      className={cn("z-50 pointer-events-auto select-none font-sans flex items-center justify-center", className)}
       onMouseDown={(e) => {
         if (isLocked) return
         const target = e.target as HTMLElement
@@ -177,7 +177,7 @@ export function TextSelectionPopover({
         }
       }}
     >
-      <div ref={popoverRef}>
+      <div ref={popoverRef} className="flex items-center justify-center">
         <AnimatePresence mode="wait">
           <motion.div
             key={placement}
