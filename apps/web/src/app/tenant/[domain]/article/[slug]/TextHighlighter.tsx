@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState, useRef } from "react"
 import { createHighlight, quotePassageToFeedAction } from "./actions"
-import { Highlighter, Check, Loader2, X, Plus, Globe, Lock, Share2, Sparkles } from "lucide-react"
+import { Highlighter, Check, Loader2, X, Plus, Globe, Lock, Share2, Quote } from "lucide-react"
 import { cn } from "@qoe/utils"
 import { AnimatePresence, motion } from "framer-motion"
+import { TextSelectionPopover } from "@qoe/ui"
 import { AnnotationSideDrawer, AnnotationItem } from "./AnnotationSideDrawer"
 
 interface HighlightItem {
@@ -43,16 +44,14 @@ export function TextHighlighter({
   initialHighlights,
   publicHighlights = [],
   currentUserId,
-  mainAppUrl
+  mainAppUrl,
 }: TextHighlighterProps) {
   const [highlights, setHighlights] = useState<HighlightItem[]>(initialHighlights)
   const [allPublic, setAllPublic] = useState<AnnotationItem[]>(publicHighlights)
-  const [selectionRange, setSelectionRange] = useState<Range | null>(null)
-  const [selectedText, setSelectedText] = useState("")
-  const [popoverCoords, setPopoverCoords] = useState<{ top: number; left: number } | null>(null)
-  
-  // Note input popover states
+
+  // Note input form state
   const [showNoteInput, setShowNoteInput] = useState(false)
+  const [activeDraftText, setActiveDraftText] = useState("")
   const [noteText, setNoteText] = useState("")
   const [isPublicChoice, setIsPublicChoice] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -61,59 +60,52 @@ export function TextHighlighter({
 
   // Drawer state for clicked highlight
   const [selectedAnnotationForDrawer, setSelectedAnnotationForDrawer] = useState<AnnotationItem | null>(null)
+  const [articleAnnotations, setArticleAnnotations] = useState<AnnotationItem[]>([])
 
-  const popoverRef = useRef<HTMLDivElement>(null)
+  const tempMarkRef = useRef<HTMLSpanElement | null>(null)
 
   useEffect(() => {
-    // Highlight existing text on mount
     highlightExisting()
+  }, [highlights, allPublic])
 
-    const handleSelection = () => {
-      const selection = window.getSelection()
-      if (!selection || selection.isCollapsed) {
-        if (!showNoteInput) clearSelection()
-        return
-      }
-
-      const text = selection.toString().trim()
-      if (text.length < 5) {
-        if (!showNoteInput) clearSelection()
-        return
-      }
-
-      // Verify selection is inside article element
-      const range = selection.getRangeAt(0)
-      const articleEl = document.getElementById("article-content")
-      if (!articleEl || !articleEl.contains(range.commonAncestorContainer)) {
-        if (!showNoteInput) clearSelection()
-        return
-      }
-
-      setSelectedText(text)
-      setSelectionRange(range)
-
-      const rect = range.getBoundingClientRect()
-      setPopoverCoords({
-        top: rect.top + window.scrollY - 58,
-        left: rect.left + window.scrollX + rect.width / 2
-      })
-    }
-
-    document.addEventListener("selectionchange", handleSelection)
-    return () => {
-      document.removeEventListener("selectionchange", handleSelection)
-    }
-  }, [showNoteInput])
-
-  const clearSelection = () => {
-    setPopoverCoords(null)
-    setSelectedText("")
-    setSelectionRange(null)
+  const clearForm = () => {
+    removeTempDraftMark()
     setShowNoteInput(false)
+    setActiveDraftText("")
     setNoteText("")
     setIsPublicChoice(false)
     setSavedSuccess(false)
     setErrorMessage(null)
+  }
+
+  // Create temporary active visual mark in DOM so text stays highlighted while typing note
+  const applyTempDraftMark = (range: Range) => {
+    removeTempDraftMark()
+    try {
+      const mark = document.createElement("mark")
+      mark.id = "temp-draft-annotation-mark"
+      mark.className = "bg-amber-500/25 text-foreground border-b-2 border-amber-500 transition-all rounded-xs font-medium animate-pulse"
+      
+      const contents = range.extractContents()
+      mark.appendChild(contents)
+      range.insertNode(mark)
+      tempMarkRef.current = mark
+    } catch (e) {
+      console.warn("Could not insert temporary draft mark:", e)
+    }
+  }
+
+  // Remove temporary active mark from DOM
+  const removeTempDraftMark = () => {
+    const el = document.getElementById("temp-draft-annotation-mark")
+    if (el && el.parentNode) {
+      const fragment = document.createDocumentFragment()
+      while (el.firstChild) {
+        fragment.appendChild(el.firstChild)
+      }
+      el.parentNode.replaceChild(fragment, el)
+    }
+    tempMarkRef.current = null
   }
 
   // Highlight all stored text passages in DOM
@@ -122,12 +114,12 @@ export function TextHighlighter({
     if (!articleEl) return
 
     // Apply reader private highlights
-    highlights.forEach(hl => {
+    highlights.forEach((hl) => {
       applyHighlightToDOM(articleEl, hl.text, hl.note || undefined, false, false, hl.id)
     })
 
     // Apply public & official creator highlights
-    allPublic.forEach(pub => {
+    allPublic.forEach((pub) => {
       applyHighlightToDOM(articleEl, pub.text, pub.note || undefined, pub.isPublic, pub.isOfficial, pub.id, pub)
     })
   }
@@ -149,12 +141,12 @@ export function TextHighlighter({
       const textNode = node as Text
       const textContent = textNode.textContent || ""
       const index = textContent.indexOf(textToHighlight)
-      
+
       if (index !== -1) {
         nodesToReplace.push({
           textNode,
           parent: textNode.parentElement!,
-          matches: [{ index, text: textToHighlight }]
+          matches: [{ index, text: textToHighlight }],
         })
       }
     }
@@ -170,20 +162,22 @@ export function TextHighlighter({
         }
 
         const mark = document.createElement("mark")
-        
+
         if (isOfficial) {
-          mark.className = "bg-amber-500/20 text-foreground cursor-pointer border-b-2 border-amber-500 hover:bg-amber-500/30 transition-all relative group rounded-xs font-medium"
+          mark.className =
+            "bg-amber-500/20 text-foreground cursor-pointer border-b border-amber-500 hover:bg-amber-500/30 transition-all relative group rounded-xs font-medium"
         } else if (isPublic) {
-          mark.className = "bg-primary/20 text-foreground cursor-pointer border-b border-primary/50 hover:bg-primary/30 transition-all relative group rounded-xs"
+          mark.className =
+            "bg-primary/20 text-foreground cursor-pointer border-b border-primary/50 hover:bg-primary/30 transition-all relative group rounded-xs"
         } else {
-          mark.className = "bg-amber-500/15 text-foreground cursor-pointer border-b border-dashed border-amber-400/60 hover:bg-amber-500/25 transition-all relative group rounded-xs"
+          mark.className =
+            "bg-amber-500/15 text-foreground cursor-pointer border-b border-dashed border-amber-400/60 hover:bg-amber-500/25 transition-all relative group rounded-xs"
         }
 
         mark.textContent = text
         mark.setAttribute("data-highlight-text", text)
         if (id) mark.setAttribute("data-highlight-id", id)
 
-        // Click on mark opens Genius Side Drawer!
         mark.onclick = (e) => {
           e.stopPropagation()
           const targetAnnot = fullAnnotation || {
@@ -199,14 +193,94 @@ export function TextHighlighter({
               name: creatorName,
               username: "creator",
               logoUrl: null,
-              subdomain: null
-            }
+              subdomain: null,
+            },
           }
+
+          // Gather all annotations in the article
+          const rawList: AnnotationItem[] = []
+          const allMarks = document.querySelectorAll("#article-content mark[data-highlight-id]")
+          allMarks.forEach((m) => {
+            const hId = m.getAttribute("data-highlight-id")
+            if (!hId) return
+
+            const pubMatch = allPublic.find((p) => p.id === hId)
+            if (pubMatch && !rawList.some((a) => a.id === pubMatch.id)) {
+              rawList.push(pubMatch)
+              return
+            }
+
+            const prvMatch = highlights.find((h) => h.id === hId)
+            if (prvMatch && !rawList.some((a) => a.id === prvMatch.id)) {
+              rawList.push({
+                id: prvMatch.id,
+                text: prvMatch.text,
+                note: prvMatch.note,
+                isPublic: false,
+                isOfficial: false,
+                upvotesCount: 0,
+                createdAt: prvMatch.createdAt || new Date(),
+                reader: {
+                  id: currentUserId || "anon",
+                  name: creatorName,
+                  username: "creator",
+                  logoUrl: null,
+                  subdomain: null,
+                },
+              })
+            }
+          })
+
+          if (!rawList.some((a) => a.id === targetAnnot.id)) {
+            rawList.push(targetAnnot)
+          }
+
+          const articleElText = document.getElementById("article-content")?.textContent || ""
+
+          // 🎯 STRIKT LOGIQUE DE TRI DEMANDÉE :
+          // 1. Commence le plus tôt (position offset dans le DOM)
+          // 2. Finit le plus tôt (offset de fin)
+          // 3. La plus courte (longueur de la chaîne)
+          // 4. La plus ancienne puis la plus récente (createdAt ascendant)
+          const sortedList = rawList.sort((a, b) => {
+            const cleanA = a.text.trim()
+            const cleanB = b.text.trim()
+
+            const startA = articleElText.indexOf(cleanA)
+            const startB = articleElText.indexOf(cleanB)
+            const validStartA = startA !== -1 ? startA : 999999
+            const validStartB = startB !== -1 ? startB : 999999
+
+            // 1. Commence le plus tôt
+            if (validStartA !== validStartB) {
+              return validStartA - validStartB
+            }
+
+            const endA = validStartA + cleanA.length
+            const endB = validStartB + cleanB.length
+
+            // 2. Finit le plus tôt
+            if (endA !== endB) {
+              return endA - endB
+            }
+
+            // 3. La plus courte
+            if (cleanA.length !== cleanB.length) {
+              return cleanA.length - cleanB.length
+            }
+
+            // 4. La plus ancienne puis la plus récente
+            const dateA = new Date(a.createdAt).getTime()
+            const dateB = new Date(b.createdAt).getTime()
+            return dateA - dateB
+          })
+
+          setArticleAnnotations(sortedList)
           setSelectedAnnotationForDrawer(targetAnnot)
         }
 
         if (note) {
-          mark.title = `${isOfficial ? "Annotation Officielle" : isPublic ? "Annotation Publique" : "Note Privée"} : ${note}`
+          mark.title = `${isOfficial ? "Annotation officielle" : isPublic ? "Annotation publique" : "Note privée"} : ${note}`
         }
 
         fragment.appendChild(mark)
@@ -221,30 +295,67 @@ export function TextHighlighter({
     })
   }
 
-  const handleHighlightSubmit = async (e?: React.FormEvent) => {
-    e?.preventDefault()
+  const handleInstantHighlight = async (selectedText: string, clearSelection: () => void) => {
     if (!isAuthenticated) {
       window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`
       return
     }
 
-    setErrorMessage(null)
     setSaving(true)
     try {
-      const res = await createHighlight(articleId, selectedText, noteText || undefined, isPublicChoice)
+      const res = await createHighlight(articleId, selectedText, undefined, false)
       if (res.success && res.highlight) {
-        setHighlights(prev => [...prev, res.highlight])
-        
+        setHighlights((prev) => [...prev, res.highlight])
         const articleEl = document.getElementById("article-content")
         if (articleEl) {
-          applyHighlightToDOM(articleEl, selectedText, noteText || undefined, isPublicChoice, false, res.highlight.id)
+          applyHighlightToDOM(articleEl, selectedText, undefined, false, false, res.highlight.id)
         }
-        
         setSavedSuccess(true)
         setTimeout(() => {
           clearSelection()
+          clearForm()
           window.getSelection()?.removeAllRanges()
-        }, 1000)
+        }, 600)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleHighlightSubmit = async (
+    e: React.FormEvent,
+    selectedText: string,
+    clearSelection: () => void
+  ) => {
+    e.preventDefault()
+    if (!isAuthenticated) {
+      window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`
+      return
+    }
+
+    const targetText = activeDraftText || selectedText
+
+    setErrorMessage(null)
+    setSaving(true)
+    try {
+      const res = await createHighlight(articleId, targetText, noteText || undefined, isPublicChoice)
+      if (res.success && res.highlight) {
+        removeTempDraftMark()
+        setHighlights((prev) => [...prev, res.highlight])
+
+        const articleEl = document.getElementById("article-content")
+        if (articleEl) {
+          applyHighlightToDOM(articleEl, targetText, noteText || undefined, isPublicChoice, false, res.highlight.id)
+        }
+
+        setSavedSuccess(true)
+        setTimeout(() => {
+          clearSelection()
+          clearForm()
+          window.getSelection()?.removeAllRanges()
+        }, 800)
       } else if (res.error === "PUBLIC_ANNOTATIONS_DISABLED") {
         setErrorMessage("Le créateur a désactivé les annotations publiques sur cet écrit.")
       }
@@ -255,7 +366,7 @@ export function TextHighlighter({
     }
   }
 
-  const handleDirectCrosspostToFeed = async () => {
+  const handleDirectCrosspostToFeed = async (selectedText: string, clearSelection: () => void) => {
     if (!isAuthenticated) {
       window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`
       return
@@ -268,34 +379,7 @@ export function TextHighlighter({
         setSavedSuccess(true)
         setTimeout(() => {
           clearSelection()
-          window.getSelection()?.removeAllRanges()
-        }, 1000)
-      }
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleInstantHighlight = async () => {
-    if (!isAuthenticated) {
-      window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`
-      return
-    }
-
-    setSaving(true)
-    try {
-      const res = await createHighlight(articleId, selectedText, undefined, false)
-      if (res.success && res.highlight) {
-        setHighlights(prev => [...prev, res.highlight])
-        const articleEl = document.getElementById("article-content")
-        if (articleEl) {
-          applyHighlightToDOM(articleEl, selectedText, undefined, false, false, res.highlight.id)
-        }
-        setSavedSuccess(true)
-        setTimeout(() => {
-          clearSelection()
+          clearForm()
           window.getSelection()?.removeAllRanges()
         }, 800)
       }
@@ -308,172 +392,190 @@ export function TextHighlighter({
 
   return (
     <>
-      {popoverCoords && (
-        <div
-          ref={popoverRef}
-          style={{
-            position: "absolute",
-            top: `${popoverCoords.top}px`,
-            left: `${popoverCoords.left}px`,
-            transform: "translateX(-50%)",
-          }}
-          className="z-50 pointer-events-auto font-sans"
-        >
-          <AnimatePresence>
-            {!showNoteInput ? (
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0, y: 10 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.8, opacity: 0, y: 10 }}
-                className="flex items-center gap-1 p-1 bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border border-zinc-800 dark:border-zinc-200 rounded-full shadow-2xl"
-              >
-                {/* Instant 1-Click Highlight */}
-                <button
-                  onClick={handleInstantHighlight}
-                  disabled={saving}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors cursor-pointer"
-                  title="Surligner ce passage"
+      <TextSelectionPopover
+        containerId="article-content"
+        minSelectionLength={1}
+        isLocked={showNoteInput || saving}
+      >
+        {({ text: selectedText, range, clearSelection }) => (
+          <motion.div
+            layout
+            layoutId="popover-morph-wrapper"
+            transition={{ type: "spring", stiffness: 380, damping: 28 }}
+            className="bg-popover/95 text-popover-foreground border border-border/40 backdrop-blur-2xl shadow-2xl overflow-hidden font-sans rounded-2xl"
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              {!showNoteInput ? (
+                <motion.div
+                  key="toolbar"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="p-1 flex items-center gap-1 rounded-full"
                 >
-                  <Highlighter className="w-3.5 h-3.5" />
-                  <span>Surligner</span>
-                </button>
-
-                <div className="w-[1px] h-4 bg-zinc-800 dark:bg-zinc-200" />
-
-                {/* Add Note Popover Trigger */}
-                <button
-                  onClick={() => {
-                    if (!isAuthenticated) {
-                      window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`
-                    } else {
-                      setShowNoteInput(true)
-                    }
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors cursor-pointer"
-                  title="Ajouter une note ou annotation publique"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Annoter</span>
-                </button>
-
-                <div className="w-[1px] h-4 bg-zinc-800 dark:bg-zinc-200" />
-
-                {/* 1-Click Feed Crosspost */}
-                <button
-                  onClick={handleDirectCrosspostToFeed}
-                  disabled={saving}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors cursor-pointer text-amber-400 dark:text-amber-600"
-                  title="Citer ce passage sur le Feed"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>Citer</span>
-                </button>
-              </motion.div>
-            ) : (
-              <motion.form
-                initial={{ scale: 0.95, opacity: 0, y: 10 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                onSubmit={handleHighlightSubmit}
-                className="bg-card border border-border/40 shadow-2xl rounded-2xl p-3.5 flex flex-col gap-3 w-72 text-left"
-              >
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Nouvelle Annotation
-                  </span>
-                  <button 
-                    type="button" 
-                    onClick={clearSelection} 
-                    className="text-muted-foreground hover:text-foreground cursor-pointer"
+                  {/* 1-Click Instant Highlight */}
+                  <button
+                    onClick={() => handleInstantHighlight(selectedText, clearSelection)}
+                    disabled={saving}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium hover:bg-muted/70 text-foreground transition-all cursor-pointer"
+                    title="Surligner ce passage"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <Highlighter className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Surligner</span>
                   </button>
-                </div>
 
-                {/* Textarea */}
-                <textarea
-                  autoFocus
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
-                  placeholder="Écrivez votre réflexion sur ce passage..."
-                  className="w-full bg-background border border-border/40 rounded-xl p-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none h-16 leading-relaxed font-sans"
-                />
+                  <div className="w-px h-4 bg-border/40" />
 
-                {/* Privacy Choice (Private vs Public Genius) */}
-                <div className="flex items-center justify-between p-2 rounded-xl bg-muted/30 border border-border/30 text-xs">
-                  <span className="text-muted-foreground text-[11px] font-medium flex items-center gap-1">
-                    {isPublicChoice ? <Globe className="w-3 h-3 text-emerald-500" /> : <Lock className="w-3 h-3" />}
-                    <span>{isPublicChoice ? "Annotation Publique" : "Note Privée"}</span>
-                  </span>
+                  {/* Add Note Trigger */}
+                  <button
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`
+                      } else {
+                        setActiveDraftText(selectedText)
+                        applyTempDraftMark(range)
+                        setShowNoteInput(true)
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium hover:bg-muted/70 text-foreground transition-all cursor-pointer"
+                    title="Ajouter une note ou annotation publique"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-primary" />
+                    <span>Annoter</span>
+                  </button>
+
+                  <div className="w-px h-4 bg-border/40" />
+
+                  {/* 1-Click Feed Crosspost */}
+                  <button
+                    onClick={() => handleDirectCrosspostToFeed(selectedText, clearSelection)}
+                    disabled={saving}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium hover:bg-muted/70 text-foreground transition-all cursor-pointer"
+                    title="Citer ce passage sur le Feed"
+                  >
+                    <Share2 className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Citer</span>
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.form
+                  key="form"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  onSubmit={(e) => handleHighlightSubmit(e, selectedText, clearSelection)}
+                  className="p-4 flex flex-col gap-3 w-80 text-left"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-medium text-foreground/80 flex items-center gap-1.5">
+                      <Highlighter className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Nouvelle annotation</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clearForm()
+                        clearSelection()
+                      }}
+                      className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Passage quote preview */}
+                  <div className="p-2.5 rounded-xl bg-muted/40 border border-border/20 text-xs text-foreground/90 flex items-start gap-2 max-h-20 overflow-y-auto">
+                    <Quote className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                    <p className="font-sans italic text-[11px] leading-relaxed line-clamp-3">
+                      « {activeDraftText || selectedText} »
+                    </p>
+                  </div>
+
+                  <textarea
+                    autoFocus
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder="Écrivez votre réflexion sur ce passage..."
+                    className="w-full bg-muted/40 border border-border/30 rounded-xl p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 font-sans resize-none h-20 leading-relaxed"
+                  />
+
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/30 border border-border/20 text-xs">
+                    <span className="text-muted-foreground text-[11px] font-medium flex items-center gap-1.5">
+                      {isPublicChoice ? <Globe className="w-3.5 h-3.5 text-emerald-500" /> : <Lock className="w-3.5 h-3.5" />}
+                      <span>{isPublicChoice ? "Annotation publique" : "Note privée"}</span>
+                    </span>
+
+                    <button
+                      type="button"
+                      disabled={!allowPublicAnnotations}
+                      onClick={() => setIsPublicChoice(!isPublicChoice)}
+                      className={cn(
+                        "px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer",
+                        !allowPublicAnnotations
+                          ? "opacity-40 cursor-not-allowed bg-muted text-muted-foreground"
+                          : isPublicChoice
+                            ? "bg-emerald-500 text-white shadow-xs"
+                            : "bg-muted text-foreground hover:bg-muted/80"
+                      )}
+                      title={!allowPublicAnnotations ? "Les annotations publiques sont désactivées par l'auteur" : "Changer la confidentialité"}
+                    >
+                      {isPublicChoice ? "Publique" : "Privée"}
+                    </button>
+                  </div>
+
+                  {!allowPublicAnnotations && (
+                    <p className="text-[10px] text-muted-foreground italic">
+                      Note : Les annotations publiques sont désactivées sur cet écrit.
+                    </p>
+                  )}
+
+                  {errorMessage && <p className="text-[11px] text-destructive font-medium">{errorMessage}</p>}
 
                   <button
-                    type="button"
-                    disabled={!allowPublicAnnotations}
-                    onClick={() => setIsPublicChoice(!isPublicChoice)}
+                    type="submit"
+                    disabled={saving || savedSuccess}
                     className={cn(
-                      "px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer",
-                      !allowPublicAnnotations
-                        ? "opacity-40 cursor-not-allowed bg-muted text-muted-foreground"
-                        : isPublicChoice
-                          ? "bg-emerald-500 text-white"
-                          : "bg-muted text-foreground hover:bg-muted/80"
+                      "w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm",
+                      savedSuccess
+                        ? "bg-emerald-500 text-white"
+                        : "bg-primary text-primary-foreground hover:opacity-90"
                     )}
-                    title={!allowPublicAnnotations ? "Le créateur a désactivé les annotations publiques" : "Changer la confidentialité"}
                   >
-                    {isPublicChoice ? "Publique" : "Privée"}
+                    {saving ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : savedSuccess ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-white" /> Enregistré !
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-3.5 h-3.5" /> Enregistrer l'annotation
+                      </>
+                    )}
                   </button>
-                </div>
+                </motion.form>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </TextSelectionPopover>
 
-                {!allowPublicAnnotations && (
-                  <p className="text-[10px] text-muted-foreground italic">
-                    Note : Les annotations publiques sont désactivées par l'auteur sur cet écrit.
-                  </p>
-                )}
-
-                {errorMessage && (
-                  <p className="text-[11px] text-destructive font-medium">
-                    {errorMessage}
-                  </p>
-                )}
-
-                {/* Submit button */}
-                <button
-                  type="submit"
-                  disabled={saving || savedSuccess}
-                  className={cn(
-                    "w-full py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer text-white shadow-xs",
-                    savedSuccess 
-                      ? "bg-emerald-500"
-                      : "bg-primary hover:opacity-90"
-                  )}
-                >
-                  {saving ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : savedSuccess ? (
-                    <>
-                      <Check className="w-3.5 h-3.5" /> Enregistré !
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-3.5 h-3.5" /> Enregistrer l'annotation
-                    </>
-                  )}
-                </button>
-              </motion.form>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
-
-      {/* Genius Right Slide-Over Side Drawer when clicking any mark */}
+      {/* Side Drawer when clicking any mark */}
       <AnnotationSideDrawer
         articleId={articleId}
         annotation={selectedAnnotationForDrawer}
+        allArticleAnnotations={articleAnnotations}
         creatorName={creatorName}
         allowPublicAnnotations={allowPublicAnnotations}
         isAuthenticated={isAuthenticated}
         currentUserId={currentUserId}
         mainAppUrl={mainAppUrl}
-        onClose={() => setSelectedAnnotationForDrawer(null)}
+        onClose={() => {
+          setSelectedAnnotationForDrawer(null)
+          setArticleAnnotations([])
+        }}
       />
     </>
   )
