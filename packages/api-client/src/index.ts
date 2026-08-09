@@ -7,3 +7,4 @@ export * from './hooks/useOptimisticBookmark';
 export * from './hooks/useOptimisticFollow';
 export * from './hooks/useSubscriptionStatus';
 export * from './hooks/useRecommendations';
+export * from './hooks/useAutoSaveArticle';
