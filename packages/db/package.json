@@ -11,7 +11,8 @@
     "./types": "./src/types.ts",
     "./repositories/articles": "./src/repositories/articles.ts",
     "./repositories/users": "./src/repositories/users.ts",
-    "./repositories/posts": "./src/repositories/posts.ts"
+    "./repositories/posts": "./src/repositories/posts.ts",
+    "./devtools": "./src/devtools.ts"
   },
   "scripts": {
     "lint": "echo skip",
@@ -25,7 +26,8 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.3"
+    "@prisma/client": "^6.19.3",
+    "@qoe/supabase": "workspace:*"
   },
   "devDependencies": {
     "@qoe/tsconfig": "workspace:*",
