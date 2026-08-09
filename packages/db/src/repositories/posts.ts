@@ -1,13 +1,13 @@
 // =====================================================================
-// 📝 Posts Repository — Micro-posts (timeline)
+// 📝 Thoughts Repository — Micro-posts / Thoughts (timeline)
 // =====================================================================
 
 import { prisma } from "../client";
-import type { Post } from "@prisma/client";
+import type { Thought } from "@prisma/client";
 import { POST_VISIBILITY } from "@qoe/config";
 
 /**
- * 📰 Feed : posts des créateurs suivis par un user.
+ * 📰 Feed : pensées des créateurs suivis par un utilisateur.
  */
 export async function findFollowingFeed(
   readerId: string,
@@ -23,10 +23,11 @@ export async function findFollowingFeed(
 
   const take = options?.take ?? 20
 
-  return prisma.post.findMany({
+  return prisma.thought.findMany({
     where: {
       authorId: { in: creatorIds },
       isDraft: false,
+      deletedAt: null,
       OR: [
         { scheduledAt: null },
         { scheduledAt: { lte: new Date() } },
@@ -88,10 +89,10 @@ export async function findFollowingFeed(
 }
 
 /**
- * 🔥 Posts trending (les plus likés/relayés récemment).
+ * 🔥 Pensées trending (les plus likés/relayés récemment).
  */
 export async function findTrending(limit: number = 20) {
-  return prisma.post.findMany({
+  return prisma.thought.findMany({
     where: {
       isDraft: false,
       visibility: POST_VISIBILITY.PUBLIC,
@@ -162,8 +163,9 @@ export async function createThought(data: {
   scheduledAt?: Date | null;
   triggerWarning?: string | null;
   repostId?: string | null;
+  parentId?: string | null;
 }) {
-  return prisma.post.create({
+  return prisma.thought.create({
     data: {
       content: data.content,
       authorId: data.authorId,
@@ -174,6 +176,7 @@ export async function createThought(data: {
       scheduledAt: data.scheduledAt || null,
       triggerWarning: data.triggerWarning || null,
       repostId: data.repostId || null,
+      parentId: data.parentId || null,
     },
     include: {
       author: {
@@ -211,11 +214,12 @@ export async function createThought(data: {
 export const createMicroPost = createThought;
 
 /**
- * ❤️ Toggle like sur un post.
+ * ❤️ Toggle like sur une pensée canonique.
  */
 export async function toggleLike(postId: string, userId: string): Promise<{ liked: boolean }> {
+  const canonicalId = await getCanonicalPostId(postId);
   const existing = await prisma.like.findUnique({
-    where: { postId_userId: { postId, userId } },
+    where: { postId_userId: { postId: canonicalId, userId } },
   });
 
   if (existing) {
@@ -225,17 +229,17 @@ export async function toggleLike(postId: string, userId: string): Promise<{ like
     return { liked: false };
   } else {
     await prisma.like.create({
-      data: { postId, userId },
+      data: { postId: canonicalId, userId },
     });
     return { liked: true };
   }
 }
 
 /**
- * 💬 Réponse à un post.
+ * 💬 Réponse à une pensée.
  */
 export async function replyToPost(postId: string, authorId: string, content: string) {
-  return prisma.post.create({
+  return prisma.thought.create({
     data: {
       content,
       authorId,
@@ -256,99 +260,70 @@ export async function replyToPost(postId: string, authorId: string, content: str
 }
 
 /**
- * 🧵 Trouve le thread d'un post par ID.
+ * 🧵 Trouve le thread d'une pensée par ID avec calcul canonique des likes/reposts.
  */
-export async function findThreadById(postId: string) {
-  return prisma.post.findUnique({
+export async function findThreadById(postId: string, currentUserId?: string | null) {
+  const authorSelect = {
+    select: {
+      id: true,
+      name: true,
+      username: true,
+      logoUrl: true,
+      isCertified: true,
+      subdomain: true,
+      customDomain: true,
+    },
+  };
+
+  const likesInclude = { select: { userId: true } };
+  const repostsInclude = currentUserId
+    ? { where: { authorId: currentUserId, deletedAt: null }, select: { id: true, authorId: true } }
+    : false;
+  const countSelect = { select: { likes: true, replies: true, reposts: true } };
+
+  const thread = await prisma.thought.findUnique({
     where: { id: postId },
     include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          logoUrl: true,
-          isCertified: true,
-          subdomain: true,
-          customDomain: true,
-        },
-      },
-      likes: { select: { userId: true } },
+      author: authorSelect,
+      likes: likesInclude,
+      reposts: repostsInclude,
+      _count: countSelect,
       parent: {
         include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              logoUrl: true,
-              isCertified: true,
-              subdomain: true,
-              customDomain: true,
-            },
-          },
-          _count: { select: { likes: true, replies: true } },
+          author: authorSelect,
+          likes: likesInclude,
+          reposts: repostsInclude,
+          _count: countSelect,
           parent: {
             include: {
-              author: {
-                select: {
-                  id: true,
-                  name: true,
-                  username: true,
-                  logoUrl: true,
-                  isCertified: true,
-                  subdomain: true,
-                  customDomain: true,
-                },
-              },
+              author: authorSelect,
+              likes: likesInclude,
+              reposts: repostsInclude,
+              _count: countSelect,
             },
           },
         },
       },
       repost: {
         include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              logoUrl: true,
-              isCertified: true,
-              subdomain: true,
-              customDomain: true,
-            },
-          },
+          author: authorSelect,
+          likes: likesInclude,
+          reposts: repostsInclude,
+          _count: countSelect,
         },
       },
       replies: {
         include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              logoUrl: true,
-              isCertified: true,
-              subdomain: true,
-              customDomain: true,
-            },
-          },
-          likes: { select: { userId: true } },
-          _count: { select: { likes: true, replies: true } },
+          author: authorSelect,
+          likes: likesInclude,
+          reposts: repostsInclude,
+          _count: countSelect,
           replies: {
             include: {
-              author: {
-                select: {
-                  id: true,
-                  name: true,
-                  username: true,
-                  logoUrl: true,
-                  isCertified: true,
-                  subdomain: true,
-                  customDomain: true,
-                },
-              },
-              _count: { select: { likes: true, replies: true } },
+              author: authorSelect,
+              likes: likesInclude,
+              reposts: repostsInclude,
+              _count: countSelect,
             },
           },
         },
@@ -356,58 +331,146 @@ export async function findThreadById(postId: string) {
       },
     },
   });
+
+  if (!thread) return null;
+
+  // 🛡️ Helper de sanitisation & transformation de nœuds de thread
+  const processPostNode = (node: any): any => {
+    if (!node) return null;
+
+    if (node.deletedAt) {
+      node.content = "Cette pensée a été supprimée par son auteur.";
+      node.imageUrl = null;
+      node.isDeleted = true;
+    }
+
+    const canonicalNode = node.repost || node;
+
+    const liked = currentUserId
+      ? (Array.isArray(canonicalNode.likes) && canonicalNode.likes.some((l: any) => l.userId === currentUserId)) ||
+        (Array.isArray(node.likes) && node.likes.some((l: any) => l.userId === currentUserId))
+      : false;
+
+    const reposted = currentUserId
+      ? (Array.isArray(canonicalNode.reposts) && canonicalNode.reposts.length > 0) ||
+        (Array.isArray(node.reposts) && node.reposts.length > 0)
+      : false;
+
+    node.liked = liked;
+    node.reposted = reposted;
+    node.likesCount = canonicalNode._count?.likes ?? node._count?.likes ?? 0;
+    node.repliesCount = canonicalNode._count?.replies ?? node._count?.replies ?? 0;
+    node.repostsCount = canonicalNode._count?.reposts ?? node._count?.reposts ?? 0;
+
+    if (node.parent) {
+      node.parent = processPostNode(node.parent);
+    }
+    if (node.replies && Array.isArray(node.replies)) {
+      node.replies = node.replies.map(processPostNode);
+    }
+
+    return node;
+  };
+
+  return processPostNode(thread);
 }
 
 /**
- * 🔄 Repost (Partage) d'un post.
+ * 🔄 Résolution canonique de l'ID d'origine (pour éviter les chaînes de reposts).
  */
-export async function repostPost(postId: string, authorId: string) {
-  return prisma.post.create({
-    data: {
-      content: "",
+export async function getCanonicalPostId(postId: string): Promise<string> {
+  const target = await prisma.thought.findUnique({
+    where: { id: postId },
+    select: { id: true, repostId: true },
+  });
+  if (!target) return postId;
+  return target.repostId || target.id;
+}
+
+/**
+ * 🔄 Bascule Repost / Un-repost atomique (Clic 1 = Republier, Clic 2 = Annuler).
+ */
+export async function toggleRepost(postId: string, authorId: string): Promise<{ reposted: boolean; canonicalId: string; post?: any }> {
+  const canonicalId = await getCanonicalPostId(postId);
+
+  // Recherche de tous les pure reposts existants par le même utilisateur
+  const existingReposts = await prisma.thought.findMany({
+    where: {
       authorId,
-      repostId: postId,
+      repostId: canonicalId,
+      deletedAt: null,
+      OR: [{ content: "" }, { content: " " }],
     },
-    include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          subdomain: true,
-          customDomain: true,
-          logoUrl: true,
-          heroText: true,
-          isCertified: true,
-        },
+    select: { id: true },
+  });
+
+  if (existingReposts.length > 0) {
+    // UN-REPOST ATOMIQUE : suppression de tous les doublons de repost
+    await prisma.thought.deleteMany({
+      where: {
+        id: { in: existingReposts.map((r) => r.id) },
       },
-      repost: {
-        include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              subdomain: true,
-              customDomain: true,
-              logoUrl: true,
-              isCertified: true,
+    });
+    return { reposted: false, canonicalId };
+  } else {
+    // REPOST : création du pure repost canonique unique
+    const newRepost = await prisma.thought.create({
+      data: {
+        content: "",
+        authorId,
+        repostId: canonicalId,
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            subdomain: true,
+            customDomain: true,
+            logoUrl: true,
+            heroText: true,
+            isCertified: true,
+          },
+        },
+        repost: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                subdomain: true,
+                customDomain: true,
+                logoUrl: true,
+                isCertified: true,
+              },
             },
           },
         },
       },
-    },
-  });
+    });
+    return { reposted: true, canonicalId, post: newRepost };
+  }
+}
+
+/** @deprecated Utiliser toggleRepost */
+export async function repostPost(postId: string, authorId: string) {
+  const res = await toggleRepost(postId, authorId);
+  return res.post;
 }
 
 /**
- * 🗑️ Supprime un post après vérification de l'auteur.
+ * 🗑️ Supprime une pensée après vérification de l'auteur.
  */
 export async function deletePost(postId: string, authorId: string): Promise<boolean> {
-  const post = await prisma.post.findUnique({ where: { id: postId } });
+  const post = await prisma.thought.findUnique({ where: { id: postId } });
   if (!post || post.authorId !== authorId) return false;
 
-  await prisma.post.delete({ where: { id: postId } });
+  await prisma.thought.update({
+    where: { id: postId },
+    data: { deletedAt: new Date() },
+  });
   return true;
 }
 
@@ -415,7 +478,7 @@ export async function deletePost(postId: string, authorId: string): Promise<bool
  * 📝 Récupère les brouillons d'un utilisateur.
  */
 export async function getUserDrafts(authorId: string) {
-  return prisma.post.findMany({
+  return prisma.thought.findMany({
     where: { authorId, isDraft: true },
     include: {
       author: {
@@ -433,20 +496,20 @@ export async function getUserDrafts(authorId: string) {
 }
 
 /**
- * 📌 Épingle ou désépingle un post sur le profil de l'utilisateur.
+ * 📌 Épingle ou désépingle une pensée sur le profil de l'utilisateur.
  */
 export async function setPinStatus(postId: string, authorId: string, isPinned: boolean): Promise<boolean> {
-  const post = await prisma.post.findUnique({ where: { id: postId } });
+  const post = await prisma.thought.findUnique({ where: { id: postId } });
   if (!post || post.authorId !== authorId) return false;
 
   if (isPinned) {
-    await prisma.post.updateMany({
+    await prisma.thought.updateMany({
       where: { authorId, isPinned: true },
       data: { isPinned: false },
     });
   }
 
-  await prisma.post.update({
+  await prisma.thought.update({
     where: { id: postId },
     data: { isPinned },
   });
@@ -454,4 +517,4 @@ export async function setPinStatus(postId: string, authorId: string, isPinned: b
   return true;
 }
 
-export type { Post };
+export type { Thought };

@@ -5,10 +5,12 @@
 //    Si demain on change de provider (ex: Drizzle), on change juste ici.
 // =====================================================================
 
+import type { Thought as PrismaThought } from "@prisma/client";
+
 export type {
   User,
   Article,
-  Post,
+  Thought,
   Subscriber,
   Follows,
   Bookmark,
@@ -27,13 +29,13 @@ export type {
   Prisma,
 } from "@prisma/client";
 
+/** @deprecated Utiliser Thought */
+export type Post = PrismaThought;
+
 export { ROLES } from "@qoe/config";
 
 // =====================================================================
 // 📦 DTOs MÉTIER CANONIQUES (Silicon Valley Standard)
-// =====================================================================
-// 📖 Évite la duplication d'interfaces ad-hoc dans les composants UI.
-//    Permet une inférence 100% type-safe et synchronisée avec Prisma.
 // =====================================================================
 
 /**
@@ -72,7 +74,7 @@ export interface FeedArticleDTO {
 }
 
 /**
- * 💬 DTO Micro-Post / Feed Item
+ * 💬 DTO Thought / Feed Item
  */
 export interface FeedPostDTO {
   id: string;

@@ -55,7 +55,7 @@ export default async function ThoughtPage({ params }: ThoughtPageProps) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const post = await posts.findThreadById(postId)
+  const post = await posts.findThreadById(postId, user?.id)
   if (!post) {
     notFound()
   }

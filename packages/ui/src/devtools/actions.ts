@@ -50,7 +50,7 @@ export async function getDevtoolsData() {
     const stats: DevtoolsStats = {
       users: await prisma.user.count(),
       articles: await prisma.article.count(),
-      posts: await prisma.post.count(),
+      posts: await prisma.thought.count(),
       likes: await prisma.like.count(),
       subscribers: await prisma.subscriber.count(),
     };
@@ -288,7 +288,7 @@ export async function generateMockFeedPostsAction() {
       const quote = quotes[Math.floor(Math.random() * quotes.length)];
       const tags = tagsOptions[Math.floor(Math.random() * tagsOptions.length)];
 
-      await prisma.post.create({
+      await prisma.thought.create({
         data: {
           content: `${quote} #${tags.join(" #")}`,
           authorId: author.id,
@@ -314,7 +314,7 @@ export async function resetDatabaseAction() {
   try {
     // Ordre strict pour éviter de briser l'intégrité référentielle
     await prisma.like.deleteMany({});
-    await prisma.post.deleteMany({});
+    await prisma.thought.deleteMany({});
     await prisma.navigationItem.deleteMany({});
     await prisma.socialLink.deleteMany({});
     await prisma.highlight.deleteMany({});

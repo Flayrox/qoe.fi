@@ -11,6 +11,7 @@ interface ComposerModalProps {
   dbUser: any
   tagsList: string[]
   quotedThought?: any
+  replyToThought?: any
   initialMode?: "thought" | "article"
   onPostCreated?: (post: any) => void
   onLoginRequired?: () => void
@@ -22,6 +23,7 @@ export function ComposerModal({
   dbUser,
   tagsList,
   quotedThought = null,
+  replyToThought = null,
   initialMode = "thought",
   onPostCreated,
   onLoginRequired,
@@ -70,35 +72,11 @@ export function ComposerModal({
               "bg-card border border-border/60 text-card-foreground"
             )}
           >
-            {/* Header Bar with Mode Switcher */}
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-border/40">
-              <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => setActiveMode("thought")}
-                  className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
-                    activeMode === "thought"
-                      ? "bg-card text-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-brand" />
-                  <span>Pensée</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveMode("article")}
-                  className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
-                    activeMode === "article"
-                      ? "bg-card text-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <FileText className="w-3.5 h-3.5 text-brand" />
-                  <span>Article / Newsletter</span>
-                </button>
+            {/* Header Bar */}
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-border/40">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-brand" />
+                <span className="text-xs font-bold text-foreground">Nouvelle publication</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -116,43 +94,21 @@ export function ComposerModal({
               </div>
             </div>
 
-            {/* Mode Content */}
-            {activeMode === "thought" ? (
-              <ThoughtComposer
-                dbUser={dbUser}
-                tagsList={tagsList}
-                quotedThought={quotedThought}
-                onPostCreated={(post) => {
-                  if (onPostCreated) onPostCreated(post)
-                  onClose()
-                }}
-                onLoginRequired={() => {
-                  onClose()
-                  if (onLoginRequired) onLoginRequired()
-                }}
-              />
-            ) : (
-              <div className="py-6 flex flex-col items-center justify-center text-center space-y-4 font-sans">
-                <div className="w-12 h-12 rounded-2xl bg-brand/10 text-brand flex items-center justify-center">
-                  <FileText className="w-6 h-6" />
-                </div>
-                <div className="space-y-1 max-w-sm">
-                  <h4 className="text-base font-bold text-foreground">Rédiger une publication longue</h4>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Les articles et newsletters sont rédigés dans l'Espace Studio pour vous offrir l'expérience d'écriture enrichie.
-                  </p>
-                </div>
-                <a
-                  href={studioUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-5 py-2.5 bg-foreground text-background font-bold text-xs rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2 cursor-pointer shadow-md"
-                >
-                  <span>Ouvrir l'Éditeur Studio</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              </div>
-            )}
+            {/* Unified Core Composer */}
+            <ThoughtComposer
+              dbUser={dbUser}
+              tagsList={tagsList}
+              quotedThought={quotedThought}
+              replyToThought={replyToThought}
+              onPostCreated={(post) => {
+                if (onPostCreated) onPostCreated(post)
+                onClose()
+              }}
+              onLoginRequired={() => {
+                onClose()
+                if (onLoginRequired) onLoginRequired()
+              }}
+            />
           </motion.div>
         </div>
       )}
