@@ -18,7 +18,7 @@ import {
   simulateFollowAction,
   simulateLikeAction,
   addMockFundsAction
-} from "@qoe/ui/devtools-actions";
+} from "@qoe/db/devtools";
 
 // CSS global unifié — source unique dans @qoe/theme
 import "@qoe/theme/styles";

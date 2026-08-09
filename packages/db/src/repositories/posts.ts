@@ -218,20 +218,36 @@ export const createMicroPost = createThought;
  */
 export async function toggleLike(postId: string, userId: string): Promise<{ liked: boolean }> {
   const canonicalId = await getCanonicalPostId(postId);
-  const existing = await prisma.like.findUnique({
-    where: { postId_userId: { postId: canonicalId, userId } },
-  });
 
-  if (existing) {
-    await prisma.like.delete({
-      where: { id: existing.id },
+  try {
+    const existing = await prisma.like.findUnique({
+      where: { postId_userId: { postId: canonicalId, userId } },
     });
-    return { liked: false };
-  } else {
-    await prisma.like.create({
-      data: { postId: canonicalId, userId },
-    });
-    return { liked: true };
+
+    if (existing) {
+      await prisma.$transaction([
+        prisma.like.delete({ where: { id: existing.id } }),
+        prisma.thought.update({
+          where: { id: canonicalId },
+          data: { likeCount: { decrement: 1 } },
+        }),
+      ]);
+      return { liked: false };
+    } else {
+      await prisma.$transaction([
+        prisma.like.create({ data: { postId: canonicalId, userId } }),
+        prisma.thought.update({
+          where: { id: canonicalId },
+          data: { likeCount: { increment: 1 } },
+        }),
+      ]);
+      return { liked: true };
+    }
+  } catch (error: any) {
+    if (error?.code === "P2002") {
+      return { liked: true };
+    }
+    throw error;
   }
 }
 
@@ -239,24 +255,31 @@ export async function toggleLike(postId: string, userId: string): Promise<{ like
  * 💬 Réponse à une pensée.
  */
 export async function replyToPost(postId: string, authorId: string, content: string) {
-  return prisma.thought.create({
-    data: {
-      content,
-      authorId,
-      parentId: postId,
-    },
-    include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          logoUrl: true,
-          isCertified: true,
+  const [reply] = await prisma.$transaction([
+    prisma.thought.create({
+      data: {
+        content,
+        authorId,
+        parentId: postId,
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            logoUrl: true,
+            isCertified: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.thought.update({
+      where: { id: postId },
+      data: { replyCount: { increment: 1 } },
+    }),
+  ]);
+  return reply;
 }
 
 /**
@@ -358,9 +381,9 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
 
     node.liked = liked;
     node.reposted = reposted;
-    node.likesCount = canonicalNode._count?.likes ?? node._count?.likes ?? 0;
-    node.repliesCount = canonicalNode._count?.replies ?? node._count?.replies ?? 0;
-    node.repostsCount = canonicalNode._count?.reposts ?? node._count?.reposts ?? 0;
+    node.likesCount = canonicalNode.likeCount ?? canonicalNode._count?.likes ?? node._count?.likes ?? 0;
+    node.repliesCount = canonicalNode.replyCount ?? canonicalNode._count?.replies ?? node._count?.replies ?? 0;
+    node.repostsCount = canonicalNode.repostCount ?? canonicalNode._count?.reposts ?? node._count?.reposts ?? 0;
 
     if (node.parent) {
       node.parent = processPostNode(node.parent);
@@ -405,51 +428,61 @@ export async function toggleRepost(postId: string, authorId: string): Promise<{ 
   });
 
   if (existingReposts.length > 0) {
-    // UN-REPOST ATOMIQUE : suppression de tous les doublons de repost
-    await prisma.thought.deleteMany({
-      where: {
-        id: { in: existingReposts.map((r) => r.id) },
-      },
-    });
+    // UN-REPOST ATOMIQUE : suppression de tous les doublons de repost et décrémentation
+    await prisma.$transaction([
+      prisma.thought.deleteMany({
+        where: { id: { in: existingReposts.map((r) => r.id) } },
+      }),
+      prisma.thought.update({
+        where: { id: canonicalId },
+        data: { repostCount: { decrement: existingReposts.length } },
+      }),
+    ]);
     return { reposted: false, canonicalId };
   } else {
-    // REPOST : création du pure repost canonique unique
-    const newRepost = await prisma.thought.create({
-      data: {
-        content: "",
-        authorId,
-        repostId: canonicalId,
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            subdomain: true,
-            customDomain: true,
-            logoUrl: true,
-            heroText: true,
-            isCertified: true,
-          },
+    // REPOST : création du pure repost canonique unique et incrémentation atomique
+    const [newRepost] = await prisma.$transaction([
+      prisma.thought.create({
+        data: {
+          content: "",
+          authorId,
+          repostId: canonicalId,
         },
-        repost: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                name: true,
-                username: true,
-                subdomain: true,
-                customDomain: true,
-                logoUrl: true,
-                isCertified: true,
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              subdomain: true,
+              customDomain: true,
+              logoUrl: true,
+              heroText: true,
+              isCertified: true,
+            },
+          },
+          repost: {
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  username: true,
+                  subdomain: true,
+                  customDomain: true,
+                  logoUrl: true,
+                  isCertified: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      }),
+      prisma.thought.update({
+        where: { id: canonicalId },
+        data: { repostCount: { increment: 1 } },
+      }),
+    ]);
     return { reposted: true, canonicalId, post: newRepost };
   }
 }

@@ -140,6 +140,7 @@ model Subscriber {
   creator     User     @relation("CreatorSubscribers", fields: [creatorId], references: [id], onDelete: Cascade)
 
   @@unique([email, creatorId])
+  @@index([creatorId])
 }
 
 model Follows {
@@ -151,6 +152,7 @@ model Follows {
   createdAt   DateTime @default(now())
 
   @@unique([readerId, creatorId])
+  @@index([creatorId])
 }
 
 model Bookmark {
@@ -162,6 +164,7 @@ model Bookmark {
   createdAt   DateTime @default(now())
 
   @@unique([readerId, articleId])
+  @@index([articleId])
 }
 
 model Highlight {
@@ -173,6 +176,9 @@ model Highlight {
   articleId   String
   article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
+
+  @@index([articleId])
+  @@index([readerId])
 }
 
 model Letter {
@@ -187,6 +193,9 @@ model Letter {
   recipient   User     @relation("LetterRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
   articleId   String?
   article     Article? @relation(fields: [articleId], references: [id], onDelete: SetNull)
+
+  @@index([recipientId])
+  @@index([senderId])
 }
 
 model SocialLink {
@@ -232,7 +241,7 @@ model NavigationItem {
 model Article {
   id             String   @id @default(cuid())
   title          String
-  slug           String   @unique
+  slug           String
   content        String   @db.Text
   published      Boolean  @default(false)
   isPremium      Boolean  @default(false)
@@ -261,6 +270,13 @@ model Article {
   letters        Letter[]
 
   embedding Unsupported("vector(1536)")?
+
+  @@unique([authorId, slug])
+  @@index([slug])
+  @@index([authorId, published, createdAt])
+  @@index([authorId, createdAt])
+  @@index([published, createdAt])
+  @@index([categoryId])
 }
 
 model Thought {
@@ -279,6 +295,11 @@ model Thought {
   isPinned       Boolean   @default(false)
   deletedAt      DateTime?
 
+  // Counter caches for zero-latency feeds
+  likeCount   Int      @default(0)
+  repostCount Int      @default(0)
+  replyCount  Int      @default(0)
+
   // Social interactions
   parentId  String?
   parent    Thought?  @relation("ThoughtReplies", fields: [parentId], references: [id], onDelete: Cascade)
@@ -290,6 +311,12 @@ model Thought {
 
   likes     Like[]
 
+  @@index([authorId, createdAt])
+  @@index([deletedAt, isDraft, authorId, createdAt])
+  @@index([authorId, isDraft, updatedAt])
+  @@index([parentId])
+  @@index([repostId])
+  @@index([deletedAt, isDraft])
   @@map("Post")
 }
 
@@ -302,6 +329,7 @@ model Like {
   createdAt DateTime @default(now())
 
   @@unique([postId, userId])
+  @@index([userId])
 }
 
 model Trend {
@@ -335,6 +363,7 @@ model ApiKey {
   userId      String   @db.Uuid
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@index([keyHash])
 }
 
