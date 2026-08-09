@@ -32,7 +32,7 @@ export function TextParser({ content, className, onMentionClick }: TextParserPro
                   window.location.href = routes.feed.profile(username)
                 }
               }}
-              className="text-[#EE4B2B] font-semibold hover:underline cursor-pointer"
+              className="text-brand font-semibold hover:underline cursor-pointer"
             >
               {part}
             </span>
@@ -41,7 +41,7 @@ export function TextParser({ content, className, onMentionClick }: TextParserPro
         
         if (part.startsWith("#") && part.length > 1) {
           return (
-            <span key={i} className="text-[#EE4B2B]/80 font-mono font-medium">
+            <span key={i} className="text-brand/80 font-sans font-semibold">
               {part}
             </span>
           )

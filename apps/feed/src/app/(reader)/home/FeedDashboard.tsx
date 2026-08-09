@@ -138,6 +138,7 @@ export function FeedDashboard({
   }, [])
 
   const [composerQuotedThought, setComposerQuotedThought] = useState<any | null>(null)
+  const [composerReplyToThought, setComposerReplyToThought] = useState<any | null>(null)
   const [composerInitialMode, setComposerInitialMode] = useState<"thought" | "article">("thought")
 
   React.useEffect(() => {
@@ -147,16 +148,28 @@ export function FeedDashboard({
         return
       }
       const customDetail = (e as CustomEvent)?.detail
-      if (customDetail?.quotedThought) {
+      if (customDetail?.replyToThought) {
+        setComposerReplyToThought(customDetail.replyToThought)
+        setComposerQuotedThought(null)
+        setComposerInitialMode("thought")
+      } else if (customDetail?.quotedThought) {
         setComposerQuotedThought(customDetail.quotedThought)
+        setComposerReplyToThought(null)
         setComposerInitialMode("thought")
       } else if (customDetail?.mode) {
         setComposerInitialMode(customDetail.mode)
+        setComposerQuotedThought(null)
+        setComposerReplyToThought(null)
       } else {
         setComposerQuotedThought(null)
+        setComposerReplyToThought(null)
         setComposerInitialMode("thought")
       }
       setIsComposerModalOpen(true)
+    }
+
+    const handleResetFeedView = () => {
+      setActivePostId(null)
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -167,9 +180,11 @@ export function FeedDashboard({
     }
 
     window.addEventListener("open-composer", handleOpenComposer)
+    window.addEventListener("reset-feed-view", handleResetFeedView)
     window.addEventListener("keydown", handleKeyDown)
     return () => {
       window.removeEventListener("open-composer", handleOpenComposer)
+      window.removeEventListener("reset-feed-view", handleResetFeedView)
       window.removeEventListener("keydown", handleKeyDown)
     }
   }, [dbUser])
@@ -420,6 +435,7 @@ export function FeedDashboard({
                               >
                                 <ThoughtCard
                                   post={article as any}
+                                  variant="timeline"
                                   currentUserId={dbUser?.id || null}
                                   onOpenPost={handleOpenPost}
                                   onOpenProfile={(username) => {
@@ -463,10 +479,12 @@ export function FeedDashboard({
         onClose={() => {
           setIsComposerModalOpen(false)
           setComposerQuotedThought(null)
+          setComposerReplyToThought(null)
         }}
         dbUser={dbUser}
         tagsList={tagsList}
         quotedThought={composerQuotedThought}
+        replyToThought={composerReplyToThought}
         initialMode={composerInitialMode}
         onPostCreated={(post) => setLocalPosts(prev => [post, ...prev])}
         onLoginRequired={() => openAuth({ mode: "signup", actionContext: "bookmark" })}

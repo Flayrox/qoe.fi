@@ -110,7 +110,7 @@ export const AskQoeBar = () => {
                     {t("ask_empty", "Aucun résultat trouvé.")}
                   </Command.Empty>
 
-                  <Command.Group heading={t("ask_group_nav", "Raccourcis")} className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/60 px-3 mb-2">
+                  <Command.Group heading={t("ask_group_nav", "Raccourcis")} className="text-[10px] font-sans font-bold uppercase tracking-wider text-muted-foreground/80 px-3 mb-2">
                     <CommandItem
                       icon={<Compass className="w-4 h-4 text-primary" />}
                       label="Explorer les publications"
@@ -131,7 +131,7 @@ export const AskQoeBar = () => {
                     />
                   </Command.Group>
 
-                  <Command.Group heading={t("ask_group_action", "Actions rapides")} className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/60 px-3 mb-2">
+                  <Command.Group heading={t("ask_group_action", "Actions rapides")} className="text-[10px] font-sans font-bold uppercase tracking-wider text-muted-foreground/80 px-3 mb-2">
                     <CommandItem
                       icon={<Mail className="w-4 h-4 text-primary" />}
                       label="S'abonner aux newsletters"
@@ -152,7 +152,7 @@ export const AskQoeBar = () => {
                     />
                   </Command.Group>
 
-                  <Command.Group heading={t("ask_group_theme", "Préférences")} className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/60 px-3 mb-2">
+                  <Command.Group heading={t("ask_group_theme", "Préférences")} className="text-[10px] font-sans font-bold uppercase tracking-wider text-muted-foreground/80 px-3 mb-2">
                     <CommandItem
                       icon={<Sun className="w-4 h-4 text-amber-500" />}
                       label="Passer en Mode Clair (Nuages & Lumière)"
@@ -173,7 +173,7 @@ export const AskQoeBar = () => {
                 </Command.List>
 
                 {/* Footer hints */}
-                <div className="px-6 py-4 bg-muted/20 border-t border-border/40 flex items-center justify-between text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+                <div className="px-6 py-4 bg-muted/20 border-t border-border/40 flex items-center justify-between text-[10px] font-sans font-medium text-muted-foreground uppercase tracking-widest">
                   <div className="flex items-center gap-4">
                     <span>↑↓ Naviguer</span>
                     <span>⏎ Valider</span>

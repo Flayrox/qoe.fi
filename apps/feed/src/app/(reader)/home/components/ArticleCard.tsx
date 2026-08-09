@@ -1,8 +1,8 @@
 "use client"
 
-import React from "react"
+import React, { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { ExternalLink, UserPlus, UserCheck, Bookmark, FileText, Clock, Crown } from "lucide-react"
+import { ExternalLink, UserPlus, UserCheck, Bookmark, BookMarked, FileText, Clock, Crown } from "lucide-react"
 import { cn } from "@qoe/utils"
 
 import { ThoughtCard } from "@/components/social/ThoughtCard"
@@ -41,7 +41,7 @@ interface Article {
   repost?: any
 }
 
-interface ArticleCardProps {
+export interface ArticleCardProps {
   article: Article
   idx: number
   dbUser: any
@@ -55,13 +55,16 @@ interface ArticleCardProps {
   onOpenPost?: (postId: string, authorUsername?: string) => void
 }
 
-// Generates a subtle gradient based on the author name for articles without a cover image
 function getAuthorGradient(name: string | null): string {
   const hues = [12, 200, 260, 140, 30, 340]
   const idx = (name?.charCodeAt(0) || 0) % hues.length
   return `linear-gradient(135deg, hsl(${hues[idx]}, 60%, 96%) 0%, hsl(${hues[(idx + 2) % hues.length]}, 40%, 98%) 100%)`
 }
 
+/**
+ * 📰 ArticleCard — Carte d'article principale avec 0ms Optimistic UI
+ * Conforme au Compound Component Pattern & Onyx Theme Tokens (AGENTS.md)
+ */
 export function ArticleCard({
   article,
   idx,
@@ -76,7 +79,33 @@ export function ArticleCard({
   onOpenPost,
 }: ArticleCardProps) {
   const { t } = useTranslate()
-  const [tilt, setTilt] = React.useState({ x: 0, y: 0 })
+  const [tilt, setTilt] = useState({ x: 0, y: 0 })
+
+  // ⚡ 0ms Optimistic UI States
+  const [localBookmarked, setLocalBookmarked] = useState(isBookmarked)
+  const [localFollowed, setLocalFollowed] = useState(isFollowed)
+
+  useEffect(() => {
+    setLocalBookmarked(isBookmarked)
+  }, [isBookmarked])
+
+  useEffect(() => {
+    setLocalFollowed(isFollowed)
+  }, [isFollowed])
+
+  const onToggleBookmarkLocal = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setLocalBookmarked(prev => !prev)
+    handleBookmarkToggle(article)
+  }
+
+  const onToggleFollowLocal = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setLocalFollowed(prev => !prev)
+    handleFollowToggle(article.author)
+  }
 
   const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
     const card = e.currentTarget
@@ -86,10 +115,8 @@ export function ArticleCard({
     const mouseX = e.clientX - rect.left - width / 2
     const mouseY = e.clientY - rect.top - height / 2
 
-    // Calcul de l'inclinaison max 0.8 degré
     const rX = -(mouseY / (height / 2)) * 0.8
     const rY = (mouseX / (width / 2)) * 0.8
-
     setTilt({ x: rX, y: rY })
   }
 
@@ -109,7 +136,6 @@ export function ArticleCard({
     ? routes.tenant.article(article.author.subdomain, article.slug)
     : routes.feed.article(article.slug)
 
-  // Thought rendering delegated
   if (isThought) {
     return (
       <motion.div
@@ -124,7 +150,7 @@ export function ArticleCard({
   }
 
   const renderAuthorHoverCard = () => (
-    <HoverCardContent className="w-72 p-4 bg-card border border-border/40 rounded-xl shadow-xl z-50">
+    <HoverCardContent className="w-72 p-4 bg-card border border-border/40 rounded-xl shadow-xl z-50 font-sans">
       <div className="flex justify-between space-x-4">
         <div className="w-10 h-10 rounded-md overflow-hidden border border-border/40 shrink-0">
           {article.author.logoUrl ? (
@@ -180,7 +206,7 @@ export function ArticleCard({
 
   const hasHeroImage = !!article.imageUrl
 
-  // ── FEATURED CARD (idx=0) — Layout horizontal éditorial ──────────────────────
+  // ── FEATURED CARD ────────────────────────────────────────────────────────────
   if (featured) {
     return (
       <motion.article
@@ -196,83 +222,76 @@ export function ArticleCard({
         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        style={{
-          perspective: 1000,
-          transformStyle: "preserve-3d"
-        }}
         className={cn(
-          "group relative overflow-hidden cursor-pointer",
-          "transition-all duration-500 ease-[0.16,1,0.3,1]",
-          "border-b border-[var(--border-default)] pb-8 mb-8"
+          "group relative rounded-2xl bg-card border border-border/40 shadow-xs overflow-hidden",
+          "hover:border-border/80 transition-all duration-300 font-sans"
         )}
       >
-        {/* À LA UNE indicator */}
-        <div className="mb-2">
-          <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary font-sans">
-            {t("feed.featured_badge", "À la une")}
-          </span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row">
-          {/* Image / Gradient — Cinémascope format */}
-          <div className="sm:w-[42%] shrink-0">
-            <div
-              className="w-full h-48 sm:h-full min-h-[180px] aspect-[21/9] sm:aspect-auto overflow-hidden rounded-sm border border-[var(--border-subtle)] bg-neutral-100"
-              style={{ background: hasHeroImage ? undefined : getAuthorGradient(article.author.name) }}
-            >
-              {hasHeroImage && (
-                <img
-                  src={article.imageUrl!}
-                  alt={article.title}
-                  className="w-full h-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03]"
-                />
-              )}
+        <div className="flex flex-col md:flex-row items-stretch">
+          {/* Cover Hero */}
+          <div className="w-full md:w-5/12 relative min-h-[220px] md:min-h-full overflow-hidden bg-muted">
+            {hasHeroImage ? (
+              <img
+                src={article.imageUrl!}
+                alt={article.title}
+                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
+              />
+            ) : (
+              <div 
+                className="w-full h-full min-h-[220px] flex items-center justify-center p-8 relative overflow-hidden"
+                style={{ background: getAuthorGradient(article.author.name) }}
+              >
+                <span className="font-serif text-[70px] md:text-[90px] font-black text-foreground/10 select-none leading-none">
+                  {article.title.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
+            <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
+              <span className="px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-md text-[10px] font-bold text-foreground tracking-wider uppercase border border-border/40">
+                À la une
+              </span>
             </div>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 flex flex-col justify-between py-2 pl-0 sm:pl-6">
+          {/* Body */}
+          <div className="w-full md:w-7/12 p-6 md:p-8 flex flex-col justify-between gap-4">
             {/* Author */}
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center justify-between">
               <HoverCard>
-                <HoverCardTrigger
-                  render={
-                    <motion.button
-                      onClick={handleOpenProfile}
-                      whileTap={{ scale: 0.98 }}
-                      className="flex items-center gap-2.5 hover:opacity-85 transition-opacity group/author outline-none cursor-pointer"
-                    >
-                      <AuthorAvatar user={article.author} size="sm" showBadge={false} />
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[13px] font-bold text-[var(--text-primary)] tracking-tight group-hover/author:text-[var(--qoe-vermillion)] transition-colors">
-                            {article.author.name}
-                          </span>
-                          {article.author.isCertified && (
-                            <CertifiedBadge />
-                          )}
-                        </div>
-                        <span className="text-[9px] text-[var(--text-tertiary)] uppercase tracking-wider block mt-0.5">
-                          @{article.author.username || article.author.subdomain} · {formattedDate}
+                <HoverCardTrigger>
+                  <motion.button
+                    onClick={handleOpenProfile}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center gap-2.5 hover:opacity-85 transition-opacity group/author outline-none cursor-pointer"
+                  >
+                    <AuthorAvatar user={article.author} size="sm" showBadge={false} />
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[13px] font-bold text-foreground tracking-tight group-hover/author:text-brand transition-colors">
+                          {article.author.name}
                         </span>
+                        {article.author.isCertified && <CertifiedBadge />}
                       </div>
-                    </motion.button>
-                  }
-                />
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider block mt-0.5">
+                        @{article.author.username || article.author.subdomain} · {formattedDate}
+                      </span>
+                    </div>
+                  </motion.button>
+                </HoverCardTrigger>
                 {renderAuthorHoverCard()}
               </HoverCard>
 
               {dbUser && dbUser.id !== article.author.id && (
-                <FollowButton isFollowed={isFollowed} onToggle={() => handleFollowToggle(article.author)} />
+                <FollowButton isFollowed={localFollowed} onToggle={onToggleFollowLocal} />
               )}
             </div>
 
-            {/* Title + Excerpt */}
+            {/* Title + Content */}
             <a href={url} target="_blank" rel="noreferrer" onClick={handleOpenInTab} className="block group/title flex-1">
-              <h3 className="font-serif text-[22px] sm:text-[26px] font-bold text-[var(--text-primary)] leading-[1.2] tracking-tight mb-3 group-hover/title:text-[var(--qoe-vermillion)] transition-colors duration-300">
+              <h3 className="font-serif text-[22px] sm:text-[26px] font-bold text-foreground leading-[1.2] tracking-tight mb-3 group-hover/title:text-brand transition-colors duration-300">
                 <Balancer>{article.title}</Balancer>
               </h3>
-              <p className="font-serif text-[14px] text-[var(--text-secondary)] leading-[1.75] line-clamp-3 text-fade-gradient font-editorial">
+              <p className="font-serif text-[14px] text-muted-foreground leading-[1.75] line-clamp-3">
                 {article.content.replace(/<[^>]*>?/gm, "").substring(0, 260)}
               </p>
             </a>
@@ -280,8 +299,8 @@ export function ArticleCard({
             {/* Footer */}
             <CardFooter
               article={article}
-              isBookmarked={isBookmarked}
-              handleBookmarkToggle={handleBookmarkToggle}
+              isBookmarked={localBookmarked}
+              handleBookmarkToggle={onToggleBookmarkLocal}
               handleOpenInTab={handleOpenInTab}
               url={url}
             />
@@ -295,143 +314,105 @@ export function ArticleCard({
   return (
     <motion.article
       initial={{ opacity: 0, y: 10 }}
-      animate={{ 
-        opacity: 1, 
-        y: 0,
-        rotateX: tilt.x,
-        rotateY: tilt.y,
-      }}
-      whileTap={{ scale: 0.99 }}
+      animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.985 }}
-      transition={{ duration: 0.25, delay: idx * 0.04, ease: [0.16, 1, 0.3, 1] }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{
-        perspective: 1000,
-        transformStyle: "preserve-3d"
-      }}
+      transition={{ duration: 0.25, delay: idx * 0.03, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
-        "group relative overflow-hidden",
-        "transition-all duration-500 ease-[0.16,1,0.3,1]",
-        "border-b border-[var(--border-default)] pb-8 mb-8"
+        "group relative rounded-2xl bg-card border border-border/40 shadow-xs overflow-hidden flex flex-col justify-between p-6",
+        "hover:border-border/80 transition-all duration-300 font-sans"
       )}
     >
-      {/* Cover image — Cinémascope 21/9 */}
-      {hasHeroImage && (
-        <div className="w-full aspect-[21/9] overflow-hidden rounded-sm border border-[var(--border-subtle)] bg-neutral-100">
-          <img
-            src={article.imageUrl!}
-            alt={article.title}
-            className="w-full h-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03]"
-          />
-        </div>
-      )}
+      <div className="space-y-4">
+        {/* Cover Hero */}
+        {hasHeroImage && (
+          <div className="w-full h-44 rounded-xl overflow-hidden bg-muted border border-border/20 mb-4">
+            <img
+              src={article.imageUrl!}
+              alt={article.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+            />
+          </div>
+        )}
 
-      <div className="py-4 flex flex-col gap-5">
+        {/* Header Author */}
         <div className="flex items-center justify-between">
           <HoverCard>
-            <HoverCardTrigger
-              render={
-                <motion.button
-                  onClick={handleOpenProfile}
-                  whileTap={{ scale: 0.98 }}
-                  className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer group/author outline-none text-left focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 rounded-[var(--radius-icon)]"
-                >
-                  <AuthorAvatar user={article.author} size="md" showBadge={false} />
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[13px] font-bold text-[var(--text-primary)] tracking-tight leading-none group-hover/author:text-[var(--qoe-vermillion)] transition-colors duration-200">
-                        {article.author.name}
-                      </span>
-                      {article.author.isCertified && <CertifiedBadge />}
-                    </div>
-                    <span className="text-[9px] text-[var(--text-tertiary)] block mt-1 uppercase tracking-wider">
-                      @{article.author.username || article.author.subdomain} · {formattedDate}
+            <HoverCardTrigger>
+              <motion.button
+                onClick={handleOpenProfile}
+                whileTap={{ scale: 0.98 }}
+                className="flex items-center gap-2.5 hover:opacity-85 transition-opacity group/author outline-none cursor-pointer"
+              >
+                <AuthorAvatar user={article.author} size="sm" showBadge={false} />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-foreground truncate group-hover/author:text-brand transition-colors">
+                      {article.author.name}
                     </span>
+                    {article.author.isCertified && <CertifiedBadge />}
                   </div>
-                </motion.button>
-              }
-            />
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider block mt-0.5">
+                    @{article.author.username || article.author.subdomain} · {formattedDate}
+                  </span>
+                </div>
+              </motion.button>
+            </HoverCardTrigger>
             {renderAuthorHoverCard()}
           </HoverCard>
 
-          {/* Actions header */}
-          <div className="flex items-center gap-1.5">
-            {dbUser && dbUser.id !== article.author.id && (
-              <FollowButton isFollowed={isFollowed} onToggle={() => handleFollowToggle(article.author)} />
-            )}
-            {/* Bookmark */}
-            <MagneticButton
-              onClick={() => handleBookmarkToggle(article)}
-              className={cn(
-                "p-2 rounded-[var(--radius-button)] transition-all duration-300 cursor-pointer",
-                "focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none",
-                "opacity-0 group-hover:opacity-100",
-                isBookmarked
-                  ? "!opacity-100 bg-[var(--qoe-vermillion-08)] text-[var(--qoe-vermillion)]"
-                  : "bg-transparent text-[var(--text-tertiary)] hover:bg-[var(--surface-2)] hover:text-[var(--qoe-vermillion)]"
-              )}
-              aria-label={isBookmarked ? t("feed.bookmark_remove", "Retirer le signet") : t("feed.bookmark_add", "Ajouter aux signets")}
-            >
-              <Bookmark
-                className="w-3.5 h-3.5"
-                style={{ fill: isBookmarked ? "currentColor" : "transparent" }}
-                strokeWidth={1.5}
-              />
-            </MagneticButton>
-          </div>
+          {dbUser && dbUser.id !== article.author.id && (
+            <FollowButton isFollowed={localFollowed} onToggle={onToggleFollowLocal} />
+          )}
         </div>
 
-        {/* Content — title + abstract */}
-        <div className="space-y-2.5">
-          <a href={url} target="_blank" rel="noreferrer" className="block group/title">
-            <h3 className={cn(
-              "font-serif font-bold text-[var(--text-primary)] leading-[1.25] tracking-tight",
-              "group-hover/title:text-[var(--qoe-vermillion)] transition-colors duration-300",
-              "text-[20px] sm:text-[22px]"
-            )}>
-              <Balancer>{article.title}</Balancer>
-            </h3>
-          </a>
-          <p className="font-serif text-[14px] text-[var(--text-secondary)] leading-[1.75] line-clamp-2 text-fade-gradient font-editorial">
-            {article.content.replace(/<[^>]*>?/gm, "").substring(0, 200)}
+        {/* Title + Content */}
+        <a href={url} target="_blank" rel="noreferrer" onClick={handleOpenInTab} className="block group/title">
+          <h3 className="font-serif text-lg font-bold text-foreground leading-snug tracking-tight mb-2 group-hover/title:text-brand transition-colors duration-200">
+            <Balancer>{article.title}</Balancer>
+          </h3>
+          <p className="font-serif text-xs text-muted-foreground leading-relaxed line-clamp-3">
+            {article.content.replace(/<[^>]*>?/gm, "").substring(0, 180)}
           </p>
-        </div>
-
-        {/* Footer */}
-        <CardFooter
-          article={article}
-          isBookmarked={isBookmarked}
-          handleBookmarkToggle={handleBookmarkToggle}
-          handleOpenInTab={handleOpenInTab}
-          url={url}
-        />
+        </a>
       </div>
+
+      {/* Footer */}
+      <CardFooter
+        article={article}
+        isBookmarked={localBookmarked}
+        handleBookmarkToggle={onToggleBookmarkLocal}
+        handleOpenInTab={handleOpenInTab}
+        url={url}
+      />
     </motion.article>
   )
 }
 
-// ── Sub-components ───────────────────────────────────────────────────────────
-
-function FollowButton({ isFollowed, onToggle }: { isFollowed: boolean; onToggle: () => void }) {
+function FollowButton({ isFollowed, onToggle }: { isFollowed: boolean; onToggle: (e: React.MouseEvent) => void }) {
   const { t } = useTranslate()
   return (
     <motion.button
       onClick={onToggle}
       whileTap={{ scale: 0.98 }}
       className={cn(
-        "flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1.5 rounded-[var(--radius-button)]",
-        "transition-all duration-300 ease-[0.16,1,0.3,1] cursor-pointer",
-        "focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none",
+        "flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full",
+        "transition-all duration-200 cursor-pointer outline-none select-none",
         isFollowed
-          ? "bg-[var(--surface-2)] text-[var(--text-tertiary)] hover:bg-red-50 hover:text-red-400"
-          : "bg-[var(--surface-2)] text-[var(--text-secondary)] hover:bg-[var(--qoe-vermillion)] hover:text-white"
+          ? "bg-muted text-muted-foreground hover:bg-muted/80"
+          : "bg-primary text-primary-foreground hover:opacity-90 shadow-xs"
       )}
     >
-      {isFollowed
-        ? <><UserCheck className="w-3 h-3" /><span>{t("feed.subscribed", "Abonné")}</span></>
-        : <><UserPlus className="w-3 h-3" /><span>{t("feed.subscribe", "Suivre")}</span></>
-      }
+      {isFollowed ? (
+        <>
+          <UserCheck className="w-3 h-3 text-emerald-500" />
+          <span>{t("feed.subscribed", "Abonné")}</span>
+        </>
+      ) : (
+        <>
+          <UserPlus className="w-3 h-3" />
+          <span>{t("feed.subscribe", "Suivre")}</span>
+        </>
+      )}
     </motion.button>
   )
 }
@@ -445,26 +426,26 @@ function CardFooter({
 }: {
   article: Article
   isBookmarked: boolean
-  handleBookmarkToggle: (a: Article) => void
+  handleBookmarkToggle: (e: React.MouseEvent) => void
   handleOpenInTab: () => void
   url: string
 }) {
   const { t } = useTranslate()
   return (
-    <div className="flex items-center justify-between pt-4 border-t border-[var(--border-subtle)] mt-2">
+    <div className="flex items-center justify-between pt-4 border-t border-border/30 mt-4">
       {/* Left : Category · Time · Premium */}
       <div className="flex items-center gap-2">
         {article.category && (
-          <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary)] font-sans">
+          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
             {article.category.name}
           </span>
         )}
 
         {article.readingTime > 0 && (
           <>
-            {article.category && <span className="text-[var(--text-quaternary)] text-xs">·</span>}
-            <span className="flex items-center gap-1 text-[9px] text-[var(--text-tertiary)] font-sans">
-              <Clock className="w-2.5 h-2.5" strokeWidth={2} />
+            {article.category && <span className="text-muted-foreground/60 text-xs">·</span>}
+            <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
+              <Clock className="w-2.5 h-2.5" strokeWidth={1.5} />
               {t("feed.reading_time", { count: article.readingTime })}
             </span>
           </>
@@ -472,8 +453,8 @@ function CardFooter({
 
         {article.isPremium && (
           <>
-            <span className="text-[var(--text-quaternary)] text-xs">·</span>
-            <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--qoe-vermillion)] font-sans">
+            <span className="text-muted-foreground/60 text-xs">·</span>
+            <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-amber-500">
               <Crown className="w-2.5 h-2.5" />
               {t("feed.premium_badge", "Premium")}
             </span>
@@ -481,70 +462,38 @@ function CardFooter({
         )}
       </div>
 
-      {/* Right : Floating Action Hub */}
-      <div className="flex items-center gap-1 bg-card/95 backdrop-blur-xs border border-border/40 rounded-full p-1 shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-0.5 group-hover:translate-y-0">
-        <MagneticButton
+      {/* Right : Action Buttons (0ms) */}
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <button
+          type="button"
+          onClick={handleBookmarkToggle}
+          className={cn(
+            "p-1.5 rounded-lg transition-colors cursor-pointer",
+            isBookmarked
+              ? "text-primary bg-primary/10"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+          )}
+          title={isBookmarked ? "Retirer de la bibliothèque" : "Mettre en signet"}
+        >
+          {isBookmarked ? (
+            <BookMarked className="w-3.5 h-3.5 fill-primary" />
+          ) : (
+            <Bookmark className="w-3.5 h-3.5" />
+          )}
+        </button>
+        <button
+          type="button"
           onClick={handleOpenInTab}
-          className="p-1.5 text-muted-foreground hover:text-brand hover:bg-brand/10 rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
-          title={t("feed.tab_label", "Onglet")}
+          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+          title="Lire"
         >
-          <FileText className="w-3.5 h-3.5" strokeWidth={1.5} />
-        </MagneticButton>
-        <span className="w-[1px] h-3 bg-border/60" />
-        <MagneticButton
-          onClick={(e) => {
-            e.preventDefault()
-            window.open(url, "_blank", "noreferrer")
-          }}
-          className="p-1.5 text-muted-foreground hover:text-brand hover:bg-brand/10 rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
-          title={t("feed.read_btn", "Lire")}
-        >
-          <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.5} />
-        </MagneticButton>
+          <FileText className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   )
 }
 
-interface MagneticButtonProps {
-  children: React.ReactNode
-  className?: string
-  range?: number
-  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void
-  title?: string
-  "aria-label"?: string
-}
-
-export function MagneticButton({ children, className, range = 15, onClick, title, "aria-label": ariaLabel }: MagneticButtonProps) {
-  const [position, setPosition] = React.useState({ x: 0, y: 0 })
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const { clientX, clientY, currentTarget } = e
-    const { left, top, width, height } = currentTarget.getBoundingClientRect()
-    const centerX = left + width / 2
-    const centerY = top + height / 2
-    const distanceX = clientX - centerX
-    const distanceY = clientY - centerY
-
-    setPosition({ x: distanceX * 0.35, y: distanceY * 0.35 })
-  }
-
-  const handleMouseLeave = () => {
-    setPosition({ x: 0, y: 0 })
-  }
-
-  return (
-    <motion.button
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onClick={onClick}
-      title={title}
-      aria-label={ariaLabel}
-      animate={{ x: position.x, y: position.y }}
-      transition={{ type: "spring", stiffness: 450, damping: 28, mass: 0.6 }}
-      className={className}
-    >
-      {children}
-    </motion.button>
-  )
-}
+// 🧩 Compound Component Pattern Exports
+ArticleCard.Root = ArticleCard
+ArticleCard.Footer = CardFooter

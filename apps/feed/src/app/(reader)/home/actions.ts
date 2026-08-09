@@ -39,6 +39,10 @@ export async function getArticleThread(slug: string) {
   return feedActions.getArticleThread(slug)
 }
 
+export async function toggleRepostPost(postId: string) {
+  return feedActions.toggleRepostPost(postId)
+}
+
 export async function repostPost(postId: string) {
   return feedActions.repostPost(postId)
 }

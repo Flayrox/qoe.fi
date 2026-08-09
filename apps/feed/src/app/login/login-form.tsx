@@ -202,7 +202,7 @@ export function LoginForm() {
                   {authMode === 'magic-link' && (
                     <form onSubmit={handleMagicLinkSubmit} className="space-y-4">
                       <div className="space-y-1">
-                        <label className="text-xs uppercase tracking-wider font-mono text-muted-foreground block mb-1">{t('login.label_email', 'Email')}</label>
+                        <label className="text-xs uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-1">{t('login.label_email', 'Email')}</label>
                         <Input
                           type="email"
                           required
@@ -210,13 +210,13 @@ export function LoginForm() {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder={t('login.placeholder_email', 'vous@exemple.com')}
-                          className="h-11 w-full rounded-xl bg-neutral-50/50 border-neutral-200"
+                          className="h-11 w-full rounded-xl bg-muted/40 border-border/40 text-xs"
                         />
                       </div>
                       <Button
                         type="submit"
                         disabled={loading}
-                        className="w-full h-11 font-sans font-semibold mt-2 rounded-xl bg-[#EE4B2B] hover:bg-[#d63d20] text-white transition-colors"
+                        className="w-full h-11 font-sans font-semibold mt-2 rounded-xl bg-brand hover:opacity-90 text-background transition-all"
                       >
                         {loading ? t('login.loading_state', 'Chargement...') : t('login.button_magic_link', 'Recevoir un lien magique')}
                       </Button>
@@ -229,7 +229,7 @@ export function LoginForm() {
                       {authMode === 'signup' && (
                         <>
                           <div className="space-y-1">
-                            <label className="text-xs uppercase tracking-wider font-mono text-muted-foreground block mb-1">{t('login.label_name', 'Nom complet')}</label>
+                            <label className="text-xs uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-1">{t('login.label_name', 'Nom complet')}</label>
                             <Input
                               name="name"
                               type="text"
@@ -237,11 +237,11 @@ export function LoginForm() {
                               value={name}
                               onChange={(e) => setName(e.target.value)}
                               placeholder={t('login.placeholder_name', 'Marc Dutronc')}
-                              className="h-11 w-full rounded-xl bg-neutral-50/50 border-neutral-200"
+                              className="h-11 w-full rounded-xl bg-muted/40 border-border/40 text-xs"
                             />
                           </div>
                           <div className="space-y-1">
-                            <label className="text-xs uppercase tracking-wider font-mono text-muted-foreground block mb-1">{t('login.label_username', 'Nom d\'utilisateur')}</label>
+                            <label className="text-xs uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-1">{t('login.label_username', 'Nom d\'utilisateur')}</label>
                             <Input
                               name="username"
                               type="text"
@@ -249,14 +249,14 @@ export function LoginForm() {
                               value={username}
                               onChange={(e) => setUsername(e.target.value)}
                               placeholder={t('login.placeholder_username', '@marcdutronc')}
-                              className="h-11 w-full rounded-xl bg-neutral-50/50 border-neutral-200"
+                              className="h-11 w-full rounded-xl bg-muted/40 border-border/40 text-xs"
                             />
                           </div>
                         </>
                       )}
 
                       <div className="space-y-1">
-                        <label className="text-xs uppercase tracking-wider font-mono text-muted-foreground block mb-1">{t('login.label_email', 'Email')}</label>
+                        <label className="text-xs uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-1">{t('login.label_email', 'Email')}</label>
                         <Input
                           name="email"
                           type="email"
@@ -264,12 +264,12 @@ export function LoginForm() {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder={t('login.placeholder_email', 'vous@exemple.com')}
-                          className="h-11 w-full rounded-xl bg-neutral-50/50 border-neutral-200"
+                          className="h-11 w-full rounded-xl bg-muted/40 border-border/40 text-xs"
                         />
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-xs uppercase tracking-wider font-mono text-muted-foreground block mb-1">{t('login.label_password', 'Mot de passe')}</label>
+                        <label className="text-xs uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-1">{t('login.label_password', 'Mot de passe')}</label>
                         <Input
                           name="password"
                           type="password"
@@ -277,7 +277,7 @@ export function LoginForm() {
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           placeholder={t('login.placeholder_password', '••••••••')}
-                          className="h-11 w-full rounded-xl bg-neutral-50/50 border-neutral-200"
+                          className="h-11 w-full rounded-xl bg-muted/40 border-border/40 text-xs"
                         />
                       </div>
 

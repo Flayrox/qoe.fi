@@ -272,7 +272,7 @@ export function LoginModal({ isOpen, onClose, initialMode = "login", actionConte
                         {authMode === 'magic-link' && (
                           <form onSubmit={handleMagicLinkSubmit} className="space-y-3">
                             <div className="space-y-1">
-                              <label className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground block mb-0.5">{t('login.label_email', 'Email')}</label>
+                              <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">{t('login.label_email', 'Email')}</label>
                               <Input
                                 type="email"
                                 required
@@ -286,7 +286,7 @@ export function LoginModal({ isOpen, onClose, initialMode = "login", actionConte
                             <Button
                               type="submit"
                               disabled={loading}
-                              className="w-full h-10 font-sans font-semibold mt-2 rounded-xl bg-[#EE4B2B] hover:bg-[#d63d20] text-white transition-colors text-xs cursor-pointer"
+                              className="w-full h-10 font-sans font-semibold mt-2 rounded-xl bg-brand hover:opacity-90 text-background transition-all text-xs cursor-pointer"
                             >
                               {loading ? t('login.loading_state', 'Chargement...') : t('login.button_magic_link', 'Recevoir un lien magique')}
                             </Button>
@@ -298,7 +298,7 @@ export function LoginModal({ isOpen, onClose, initialMode = "login", actionConte
                             {authMode === 'signup' && (
                               <>
                                 <div className="space-y-1">
-                                  <label className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground block mb-0.5">{t('login.label_name', 'Nom complet')}</label>
+                                  <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">{t('login.label_name', 'Nom complet')}</label>
                                   <Input
                                     name="name"
                                     type="text"
@@ -310,7 +310,7 @@ export function LoginModal({ isOpen, onClose, initialMode = "login", actionConte
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground block mb-0.5">{t('login.label_username', 'Nom d\'utilisateur')}</label>
+                                  <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">{t('login.label_username', 'Nom d\'utilisateur')}</label>
                                   <Input
                                     name="username"
                                     type="text"
@@ -325,7 +325,7 @@ export function LoginModal({ isOpen, onClose, initialMode = "login", actionConte
                             )}
 
                             <div className="space-y-1">
-                              <label className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground block mb-0.5">{t('login.label_email', 'Email')}</label>
+                              <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">{t('login.label_email', 'Email')}</label>
                               <Input
                                 name="email"
                                 type="email"
@@ -338,7 +338,7 @@ export function LoginModal({ isOpen, onClose, initialMode = "login", actionConte
                             </div>
 
                             <div className="space-y-1">
-                              <label className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground block mb-0.5">{t('login.label_password', 'Mot de passe')}</label>
+                              <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">{t('login.label_password', 'Mot de passe')}</label>
                               <Input
                                 name="password"
                                 type="password"

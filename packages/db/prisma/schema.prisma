@@ -86,7 +86,7 @@ model User {
   sentLetters           Letter[]        @relation("LetterSender")
   receivedLetters       Letter[]        @relation("LetterRecipient")
   walletTransactions    WalletTransaction[]
-  posts                 Post[]
+  posts                 Thought[]
   likes                 Like[]
   apiKeys               ApiKey[]
   translationLogs       TranslationAuditLog[]
@@ -263,7 +263,7 @@ model Article {
   embedding Unsupported("vector(1536)")?
 }
 
-model Post {
+model Thought {
   id        String   @id @default(cuid())
   content   String   @db.Text
   authorId  String   @db.Uuid
@@ -277,23 +277,26 @@ model Post {
   scheduledAt    DateTime?
   triggerWarning String?   @db.Text
   isPinned       Boolean   @default(false)
+  deletedAt      DateTime?
 
   // Social interactions
   parentId  String?
-  parent    Post?    @relation("PostReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies   Post[]   @relation("PostReplies")
+  parent    Thought?  @relation("ThoughtReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Thought[] @relation("ThoughtReplies")
 
   repostId  String?
-  repost    Post?    @relation("PostReposts", fields: [repostId], references: [id], onDelete: SetNull)
-  reposts   Post[]   @relation("PostReposts")
+  repost    Thought?  @relation("ThoughtReposts", fields: [repostId], references: [id], onDelete: SetNull)
+  reposts   Thought[] @relation("ThoughtReposts")
 
   likes     Like[]
+
+  @@map("Post")
 }
 
 model Like {
   id        String   @id @default(cuid())
-  postId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String   @map("postId")
+  post      Thought  @relation(fields: [postId], references: [id], onDelete: Cascade)
   userId    String   @db.Uuid
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())

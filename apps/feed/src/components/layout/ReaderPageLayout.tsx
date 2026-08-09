@@ -27,16 +27,6 @@ export function ReaderPageLayout({
     <div className="relative min-h-screen bg-background text-foreground selection:bg-primary/10 selection:text-primary">
       {/* ── SEAMLESS FULL-VIEWPORT BACKGROUND CANVAS (STATIC) ── */}
       <div className="fixed top-0 bottom-0 right-0 left-0 md:left-[256px] pointer-events-none z-0 flex flex-col justify-start overflow-hidden bg-background">
-        {/* Soft continuous ambient radial glow */}
-        <div
-          className="absolute top-[5%] left-[20%] w-[60%] h-[50%] rounded-full opacity-45 dark:opacity-25 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse at center, var(--primary, rgba(238,75,43,0.22)) 0%, transparent 70%)",
-            filter: "blur(120px)",
-          }}
-        />
-
         {/* Static Background "Lire" giant title & manifesto header */}
         <AnimatePresence>
           {!hideHeader && (

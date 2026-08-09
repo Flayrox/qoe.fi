@@ -161,6 +161,11 @@ export function SidebarItem({
     <li className="relative">
       <Link
         href={href}
+        onClick={() => {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("reset-feed-view"))
+          }
+        }}
         aria-current={active ? "page" : undefined}
         className={cn(
           "relative flex items-center gap-3 px-3 py-2 rounded-[10px] transition-colors duration-150 outline-none z-10",

@@ -275,7 +275,7 @@ export function LoginModal({
                         {authMode === 'magic-link' && (
                           <form onSubmit={handleMagicLinkSubmit} className="space-y-3">
                             <div className="space-y-1">
-                              <label className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground block mb-0.5">Email</label>
+                              <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">Email</label>
                               <input
                                 type="email"
                                 required
@@ -301,7 +301,7 @@ export function LoginModal({
                             {authMode === 'signup' && (
                               <>
                                 <div className="space-y-1">
-                                  <label className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground block mb-0.5">Nom complet</label>
+                                  <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">Nom complet</label>
                                   <input
                                     name="name"
                                     type="text"
@@ -313,7 +313,7 @@ export function LoginModal({
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground block mb-0.5">Nom d'utilisateur</label>
+                                  <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">Nom d'utilisateur</label>
                                   <input
                                     name="username"
                                     type="text"
@@ -328,7 +328,7 @@ export function LoginModal({
                             )}
 
                             <div className="space-y-1">
-                              <label className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground block mb-0.5">Email</label>
+                              <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">Email</label>
                               <input
                                 name="email"
                                 type="email"
@@ -341,7 +341,7 @@ export function LoginModal({
                             </div>
 
                             <div className="space-y-1">
-                              <label className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground block mb-0.5">Mot de passe</label>
+                              <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">Mot de passe</label>
                               <input
                                 name="password"
                                 type="password"

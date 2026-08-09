@@ -1,10 +1,25 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@qoe/supabase/server'
 
+function sanitizeNextPath(target: string | null): string {
+  if (!target) return '/home'
+  // Interdire les URLs absolues, les schémas, les double-slashes et les antislashs (Open Redirect OWASP A01:2021)
+  const trimmed = target.trim()
+  if (
+    trimmed.startsWith('/') &&
+    !trimmed.startsWith('//') &&
+    !trimmed.startsWith('/\\') &&
+    !/^[a-z0-9]+:/i.test(trimmed.substring(1))
+  ) {
+    return trimmed
+  }
+  return '/home'
+}
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  let next = searchParams.get('next') ?? '/home'
+  let next = sanitizeNextPath(searchParams.get('next'))
 
   if (code) {
     const supabase = await createClient()
@@ -27,7 +42,7 @@ export async function GET(request: Request) {
             where: { username: finalUsername }
           })
           if (existingUsername) {
-            finalUsername = `${baseUsername}_${Math.random().toString(36).substring(2, 8)}`
+            finalUsername = `${baseUsername}_${crypto.randomUUID().replace(/-/g, '').substring(0, 6)}`
           }
 
           dbUser = await prisma.user.create({
@@ -44,8 +59,6 @@ export async function GET(request: Request) {
         } else {
           if (dbUser.role === 'user' && !dbUser.hasCompletedOnboarding) {
             next = '/onboarding'
-          } else {
-            next = '/home'
           }
         }
       }

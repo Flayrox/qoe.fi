@@ -6,7 +6,7 @@ import { unstable_cache } from "next/cache"
 import { getRequestDbUser } from "@/lib/cached-queries"
 import { FeedDashboard } from "./FeedDashboard"
 
-type PostWithDetails = Prisma.PostGetPayload<{
+type PostWithDetails = Prisma.ThoughtGetPayload<{
   include: {
     author: { select: { id: true; name: true; username: true; subdomain: true; customDomain: true; logoUrl: true; heroText: true; isCertified: true } };
     parent: {
@@ -34,7 +34,7 @@ type ArticleWithDetails = Prisma.ArticleGetPayload<{
   };
 }>
 
-const postIncludeSelect = {
+const getPostIncludeSelect = (userId?: string) => ({
   author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
   parent: {
     select: {
@@ -46,12 +46,16 @@ const postIncludeSelect = {
   },
   repost: {
     include: {
-      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } }
+      author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
+      likes: userId ? { where: { userId }, select: { userId: true } } : false,
+      reposts: userId ? { where: { authorId: userId, deletedAt: null }, select: { id: true, authorId: true, content: true } } : false,
+      _count: { select: { likes: true, replies: true, reposts: true } }
     }
   },
-  likes: { select: { userId: true } },
-  _count: { select: { likes: true, replies: true } }
-}
+  likes: userId ? { where: { userId }, select: { userId: true } } : false,
+  reposts: userId ? { where: { authorId: userId, deletedAt: null }, select: { id: true, authorId: true, content: true } } : false,
+  _count: { select: { likes: true, replies: true, reposts: true } }
+})
 
 export default async function ReaderHomePage() {
   const supabase = await createClient()
@@ -71,45 +75,61 @@ export default async function ReaderHomePage() {
       ])
     : [null, []]
 
-  const creatorIds = followedCreators.map(f => f.creatorId)
+  const creatorIds = followedCreators.map((f: any) => f.creatorId)
+  const postIncludeSelect = getPostIncludeSelect(user?.id)
 
   // Fonctions utilitaires de remappage typées strictement
-  const mapPostToFeedItem = (post: PostWithDetails) => ({
-    id: post.id,
-    title: "", // Un titre vide identifie un micro-post (tweet) dans FeedDashboard
-    slug: `post-${post.id}`,
-    content: post.content,
-    imageUrl: post.imageUrl || null,
-    published: true,
-    isPremium: false,
-    readingTime: 1,
-    createdAt: post.createdAt.toISOString(),
-    author: {
-      ...post.author,
-      isCertified: post.author.isCertified || false
-    },
-    parent: post.parent ? {
-      ...post.parent,
-      createdAt: post.parent.createdAt ? post.parent.createdAt.toISOString() : undefined,
+  const mapPostToFeedItem = (post: any) => {
+    const canonicalPost = post.repost || post
+    const likesCount = canonicalPost._count?.likes ?? post._count?.likes ?? 0
+    const repliesCount = canonicalPost._count?.replies ?? post._count?.replies ?? 0
+    const repostsCount = canonicalPost._count?.reposts ?? post._count?.reposts ?? 0
+
+    const liked = (canonicalPost.likes && Array.isArray(canonicalPost.likes) && canonicalPost.likes.length > 0) ||
+                  (post.likes && Array.isArray(post.likes) && post.likes.length > 0) || false
+
+    const reposted = (canonicalPost.reposts && Array.isArray(canonicalPost.reposts) && canonicalPost.reposts.some((r: any) => !r.content || !r.content.trim())) ||
+                     (post.reposts && Array.isArray(post.reposts) && post.reposts.some((r: any) => !r.content || !r.content.trim())) || false
+
+    return {
+      id: post.id,
+      title: "", // Un titre vide identifie un micro-post dans FeedDashboard
+      slug: `post-${post.id}`,
+      content: post.content,
+      imageUrl: post.imageUrl || null,
+      published: true,
+      isPremium: false,
+      readingTime: 1,
+      createdAt: post.createdAt.toISOString(),
       author: {
-        ...post.parent.author,
-        isCertified: post.parent.author.isCertified || false
-      }
-    } : null,
-    repost: post.repost ? {
-      ...post.repost,
-      createdAt: post.repost.createdAt ? post.repost.createdAt.toISOString() : post.createdAt.toISOString(),
-      author: {
-        ...post.repost.author,
-        isCertified: post.repost.author.isCertified || false
-      }
-    } : null,
-    category: { name: "Micro-post" },
-    tags: post.tags || [],
-    likesCount: post._count?.likes || 0,
-    repliesCount: post._count?.replies || 0,
-    liked: post.likes?.some((l) => l.userId === user?.id) || false
-  })
+        ...post.author,
+        isCertified: post.author?.isCertified || false
+      },
+      parent: post.parent ? {
+        ...post.parent,
+        createdAt: post.parent.createdAt ? post.parent.createdAt.toISOString() : undefined,
+        author: {
+          ...post.parent.author,
+          isCertified: post.parent.author?.isCertified || false
+        }
+      } : null,
+      repost: post.repost ? {
+        ...post.repost,
+        createdAt: post.repost.createdAt ? post.repost.createdAt.toISOString() : post.createdAt.toISOString(),
+        author: {
+          ...post.repost.author,
+          isCertified: post.repost.author?.isCertified || false
+        }
+      } : null,
+      category: { name: "Micro-post" },
+      tags: post.tags || [],
+      likesCount,
+      repliesCount,
+      repostsCount,
+      liked,
+      reposted
+    }
+  }
 
   const mapArticleToFeedItem = (art: ArticleWithDetails) => ({
     ...art,
@@ -120,7 +140,6 @@ export default async function ReaderHomePage() {
     },
     tags: art.semanticTags || []
   })
-
 
   // Étape 2 : Définir les promesses de base de données parallèles
   const dbFollowingArticlesPromise = creatorIds.length > 0
@@ -139,7 +158,7 @@ export default async function ReaderHomePage() {
     : Promise.resolve([])
 
   const dbFollowingPostsPromise = creatorIds.length > 0 && user
-    ? prisma.post.findMany({
+    ? prisma.thought.findMany({
         where: {
           isDraft: false,
           OR: [
@@ -179,7 +198,7 @@ export default async function ReaderHomePage() {
     take: 20
   })
 
-  const dbRecPostsPromise = prisma.post.findMany({
+  const dbRecPostsPromise = prisma.thought.findMany({
     where: {
       isDraft: false,
       OR: [
@@ -221,7 +240,7 @@ export default async function ReaderHomePage() {
     take: 20
   })
 
-  const dbDiscoverPostsPromise = prisma.post.findMany({
+  const dbDiscoverPostsPromise = prisma.thought.findMany({
     where: {
       isDraft: false,
       OR: [
@@ -253,7 +272,8 @@ export default async function ReaderHomePage() {
             }
           }
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        take: 20
       })
     : Promise.resolve([])
 
@@ -314,7 +334,6 @@ export default async function ReaderHomePage() {
     { revalidate: 120 }
   )()
 
-
   // Étape 2 : Exécuter toutes les promesses de base de données en parallèle
   const [
     dbFollowingArticles,
@@ -364,7 +383,7 @@ export default async function ReaderHomePage() {
 
   const followsCount = followedCreators.length
   const bookmarksCount = bookmarks.length
-  const mutedWordsList = mutedWords.map(w => w.word.toLowerCase())
+  const mutedWordsList = mutedWords.map((w: any) => w.word.toLowerCase())
 
   // Déterminer l'article à la une pour le widget
   const featuredArticle = dbFeaturedArticle || dbRecArticles[0] || null
@@ -372,7 +391,7 @@ export default async function ReaderHomePage() {
 
   // Déterminer les articles recommandés pour le widget (exclure l'article à la une)
   const widgetRecArticles = dbRecArticles
-    .filter(art => art.id !== featuredArticle?.id)
+    .filter((art: any) => art.id !== featuredArticle?.id)
     .slice(0, 5)
     .map(mapArticleToFeedItem)
 
@@ -381,18 +400,17 @@ export default async function ReaderHomePage() {
     followingArticles,
     recommendationArticles,
     discoverArticles,
-    bookmarks: bookmarks.map(b => mapArticleToFeedItem(b.article)),
-    followedCreators: followedCreators.map(f => f.creator),
+    bookmarks: bookmarks.map((b: any) => mapArticleToFeedItem(b.article)),
+    followedCreators: followedCreators.map((f: any) => f.creator),
     suggestedCreators,
     initialFollowsCount: followsCount,
     initialBookmarksCount: bookmarksCount,
     initialHighlightsCount: highlightsCount,
     mutedWords: mutedWordsList,
-    // Widget props
     featuredArticle: widgetFeaturedArticle,
     recommendedArticles: widgetRecArticles,
-    trends: trends.map(t => ({ id: t.id, hashtag: t.hashtag, count: t.count })),
-    promos: promos.map(p => ({
+    trends: trends.map((t: any) => ({ id: t.id, hashtag: t.hashtag, count: t.count })),
+    promos: promos.map((p: any) => ({
       id: p.id,
       title: p.title,
       description: p.description,
