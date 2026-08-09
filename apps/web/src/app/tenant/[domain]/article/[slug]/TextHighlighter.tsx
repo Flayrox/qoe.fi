@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react"
 import { createHighlight, quotePassageToFeedAction } from "./actions"
-import { Highlighter, Check, Loader2, X, Plus, Globe, Lock, Share2, Quote, Pencil } from "lucide-react"
+import { Highlighter, Check, Loader2, X, Plus, Globe, Lock, Share2, Quote } from "lucide-react"
 import { cn } from "@qoe/utils"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { TextSelectionPopover } from "@qoe/ui"
@@ -464,7 +464,7 @@ export function TextHighlighter({
                   </button>
                 </motion.div>
               ) : (
-                /* STATE B: Expanded Premium Annotation Card (Centered Header, Filled SVGs & Sliding Pill Indicator) */
+                /* STATE B: Expanded Card with Unified Quoted Block & Separator */
                 <motion.form
                   key="form-state"
                   initial={{ opacity: 0, scale: 0.94, filter: "blur(3px)" }}
@@ -474,12 +474,25 @@ export function TextHighlighter({
                   onSubmit={(e) => handleHighlightSubmit(e, selectedText, clearSelection)}
                   className="flex flex-col gap-3 text-left"
                 >
-                  {/* Header: Centered Title + Filled Pencil SVG + Circular Close Button */}
+                  {/* Header: Centered Title + Pencil SVG with Gomme Separation Line */}
                   <div className="flex items-center justify-between">
-                    <div className="w-6 h-6" /> {/* Left balancer spacer */}
+                    <div className="w-6 h-6" /> {/* Left spacer */}
                     
-                    <span className="text-sm font-semibold text-foreground flex items-center justify-center gap-1.5">
-                      <Pencil className="w-4 h-4 fill-foreground text-foreground" />
+                    <span className="text-sm font-semibold text-foreground flex items-center justify-center gap-2">
+                      <svg
+                        className="w-4 h-4 text-foreground shrink-0"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        {/* Pencil body filled */}
+                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" fill="currentColor" fillOpacity="0.25" />
+                        {/* Distinct Eraser / Gomme separation line */}
+                        <line x1="15" y1="5" x2="19" y2="9" stroke="currentColor" strokeWidth="2" />
+                      </svg>
                       <span>Nouvelle annotation</span>
                     </span>
 
@@ -495,24 +508,30 @@ export function TextHighlighter({
                     </button>
                   </div>
 
-                  {/* Quote Preview Pill Box with Filled Quote SVG */}
-                  <div className="p-3 rounded-xl bg-muted/50 border border-border/20 text-xs text-foreground/90 flex items-center gap-2.5 overflow-hidden">
-                    <Quote className="w-4 h-4 fill-muted-foreground text-muted-foreground shrink-0" />
-                    <p className="font-sans italic text-xs font-medium truncate text-foreground/90">
-                      “ "{activeDraftText || selectedText}" ”
-                    </p>
+                  {/* Single Unified Card: Quoted Block + Capillary Line + Textarea */}
+                  <div className="rounded-2xl border border-border/30 bg-gradient-to-b from-muted/60 via-muted/20 to-transparent overflow-hidden shadow-xs">
+                    {/* Top Quoted Passage */}
+                    <div className="p-3 text-xs text-foreground/90 flex items-center gap-2.5">
+                      <Quote className="w-4 h-4 fill-muted-foreground/30 text-muted-foreground shrink-0" />
+                      <p className="font-sans italic text-xs font-medium truncate text-foreground/90">
+                        “ "{activeDraftText || selectedText}" ”
+                      </p>
+                    </div>
+
+                    {/* Ultra-subtle Capillary Line Separator */}
+                    <div className="w-full h-px bg-border/25" />
+
+                    {/* Bottom Textarea Input */}
+                    <textarea
+                      autoFocus
+                      value={noteText}
+                      onChange={(e) => setNoteText(e.target.value)}
+                      placeholder="Écrivez votre réflexion sur ce passage..."
+                      className="w-full bg-transparent p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none font-sans resize-none h-20 leading-relaxed border-none"
+                    />
                   </div>
 
-                  {/* Textarea Input */}
-                  <textarea
-                    autoFocus
-                    value={noteText}
-                    onChange={(e) => setNoteText(e.target.value)}
-                    placeholder="Écrivez votre réflexion sur ce passage..."
-                    className="w-full bg-background border border-border/30 rounded-xl p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 font-sans resize-none h-20 leading-relaxed"
-                  />
-
-                  {/* Apple-Style Segmented Pill Control with Sliding Active Background (layoutId='privacy-pill-indicator') */}
+                  {/* Apple-Style Segmented Pill Control with Sliding Active Background */}
                   <div className="p-1 rounded-full bg-muted/60 border border-border/20 flex items-center relative select-none">
                     <button
                       type="button"
