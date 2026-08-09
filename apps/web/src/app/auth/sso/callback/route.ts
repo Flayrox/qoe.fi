@@ -27,8 +27,12 @@ export async function GET(request: Request) {
   }
 
   if (token) {
-    const secret = process.env.SSO_JWT_SECRET || "sso-jwt-secret-key-32-chars-at-least-super-safe";
-    const payload = await verifyJWT(token, secret);
+    const secret = process.env.SSO_JWT_SECRET;
+    if (!secret && process.env.NODE_ENV === "production") {
+      throw new Error("SSO_JWT_SECRET variable is required in production");
+    }
+    const jwtSecret = secret || "sso-jwt-secret-key-32-chars-at-least-super-safe";
+    const payload = await verifyJWT(token, jwtSecret);
 
     if (payload && payload.access_token && payload.refresh_token) {
       const supabase = await createClient();
