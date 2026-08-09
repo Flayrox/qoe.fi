@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from "react"
 import { createHighlight, quotePassageToFeedAction } from "./actions"
 import { Highlighter, Check, Loader2, X, Plus, Globe, Lock, Share2, Quote } from "lucide-react"
 import { cn } from "@qoe/utils"
-import { AnimatePresence, motion } from "framer-motion"
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { TextSelectionPopover } from "@qoe/ui"
 import { AnnotationSideDrawer, AnnotationItem } from "./AnnotationSideDrawer"
 
@@ -48,6 +48,9 @@ export function TextHighlighter({
 }: TextHighlighterProps) {
   const [highlights, setHighlights] = useState<HighlightItem[]>(initialHighlights)
   const [allPublic, setAllPublic] = useState<AnnotationItem[]>(publicHighlights)
+
+  // Motion accessibility preference
+  const shouldReduceMotion = useReducedMotion()
 
   // Note input form state
   const [showNoteInput, setShowNoteInput] = useState(false)
@@ -237,10 +240,10 @@ export function TextHighlighter({
 
           const articleElText = document.getElementById("article-content")?.textContent || ""
 
-          // 🎯 STRIKT LOGIQUE DE TRI DEMANDÉE :
-          // 1. Commence le plus tôt (position offset dans le DOM)
-          // 2. Finit le plus tôt (offset de fin)
-          // 3. La plus courte (longueur de la chaîne)
+          // 🎯 LOGIQUE DE TRI DÉTERMINISTE :
+          // 1. Commence le plus tôt (DOM offset)
+          // 2. Finit le plus tôt
+          // 3. La plus courte
           // 4. La plus ancienne puis la plus récente (createdAt ascendant)
           const sortedList = rawList.sort((a, b) => {
             const cleanA = a.text.trim()
@@ -251,25 +254,14 @@ export function TextHighlighter({
             const validStartA = startA !== -1 ? startA : 999999
             const validStartB = startB !== -1 ? startB : 999999
 
-            // 1. Commence le plus tôt
-            if (validStartA !== validStartB) {
-              return validStartA - validStartB
-            }
+            if (validStartA !== validStartB) return validStartA - validStartB
 
             const endA = validStartA + cleanA.length
             const endB = validStartB + cleanB.length
+            if (endA !== endB) return endA - endB
 
-            // 2. Finit le plus tôt
-            if (endA !== endB) {
-              return endA - endB
-            }
+            if (cleanA.length !== cleanB.length) return cleanA.length - cleanB.length
 
-            // 3. La plus courte
-            if (cleanA.length !== cleanB.length) {
-              return cleanA.length - cleanB.length
-            }
-
-            // 4. La plus ancienne puis la plus récente
             const dateA = new Date(a.createdAt).getTime()
             const dateB = new Date(b.createdAt).getTime()
             return dateA - dateB
@@ -398,21 +390,30 @@ export function TextHighlighter({
         isLocked={showNoteInput || saving}
       >
         {({ text: selectedText, range, clearSelection }) => (
+          /* 🌟 MASTERCLASS SHARED LAYOUT ELEMENT TRANSITION (framer-motion FLIP) */
           <motion.div
             layout
-            layoutId="popover-morph-wrapper"
-            transition={{ type: "spring", stiffness: 380, damping: 28 }}
-            className="bg-popover/95 text-popover-foreground border border-border/40 backdrop-blur-2xl shadow-2xl overflow-hidden font-sans rounded-2xl"
+            layoutId="selection-popover-shared-card"
+            transition={
+              shouldReduceMotion
+                ? { duration: 0 }
+                : { type: "spring", stiffness: 360, damping: 26, mass: 0.8 }
+            }
+            className={cn(
+              "bg-popover/95 text-popover-foreground border border-border/40 backdrop-blur-2xl shadow-2xl overflow-hidden font-sans",
+              showNoteInput ? "rounded-2xl w-80 p-4" : "rounded-full p-1"
+            )}
           >
             <AnimatePresence mode="wait" initial={false}>
               {!showNoteInput ? (
+                /* STATE A: Compact Floating Pill Toolbar (Icons fade/scale out) */
                 <motion.div
-                  key="toolbar"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="p-1 flex items-center gap-1 rounded-full"
+                  key="toolbar-state"
+                  initial={{ opacity: 0, scale: 0.92 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.92 }}
+                  transition={{ duration: 0.12 }}
+                  className="flex items-center gap-1"
                 >
                   {/* 1-Click Instant Highlight */}
                   <button
@@ -427,7 +428,7 @@ export function TextHighlighter({
 
                   <div className="w-px h-4 bg-border/40" />
 
-                  {/* Add Note Trigger */}
+                  {/* Add Note Trigger (Morph to State B) */}
                   <button
                     onClick={() => {
                       if (!isAuthenticated) {
@@ -459,14 +460,15 @@ export function TextHighlighter({
                   </button>
                 </motion.div>
               ) : (
+                /* STATE B: Expanded Annotation Card (Text & Form fade + slide in) */
                 <motion.form
-                  key="form"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18 }}
+                  key="form-state"
+                  initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                  transition={{ duration: 0.18, delay: 0.04 }}
                   onSubmit={(e) => handleHighlightSubmit(e, selectedText, clearSelection)}
-                  className="p-4 flex flex-col gap-3 w-80 text-left"
+                  className="flex flex-col gap-3 text-left"
                 >
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-medium text-foreground/80 flex items-center gap-1.5">
