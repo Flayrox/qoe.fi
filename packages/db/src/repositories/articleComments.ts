@@ -17,6 +17,21 @@ export interface CreateArticleCommentInput {
 export async function createArticleComment(input: CreateArticleCommentInput) {
   const { articleId, authorId, content, parentId = null } = input
 
+  const article = await prisma.article.findUnique({
+    where: { id: articleId },
+    select: {
+      allowComments: true,
+      author: {
+        select: { allowComments: true }
+      }
+    }
+  })
+
+  const isCommentsAllowed = (article?.allowComments ?? true) && (article?.author?.allowComments ?? true)
+  if (!isCommentsAllowed) {
+    throw new Error("Le créateur a désactivé les commentaires sur cet écrit.")
+  }
+
   return prisma.articleComment.create({
     data: {
       articleId,

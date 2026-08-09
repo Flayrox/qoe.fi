@@ -26,6 +26,10 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   // 1. Fetch current authenticated user (if any)
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const currentUserProfile = user ? await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { id: true, name: true, username: true, logoUrl: true }
+  }) : null;
 
   // 2. Resolve creator by subdomain or custom domain (case-insensitive)
   const creator = await (prisma as any).user.findFirst({
@@ -190,6 +194,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   } = creator;
 
   const allowPublicAnnotations = (creator.allowPublicAnnotations ?? true) && (article.allowPublicAnnotations ?? true);
+  const allowComments = (creator.allowComments ?? true) && (article.allowComments ?? true);
   const mainAppUrl = getMainAppUrl(domain);
   const isBrutalist = layoutStyle === "brutalist";
 
@@ -280,6 +285,8 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
           initialHighlights={initialHighlights}
           publicHighlights={publicHighlights}
           currentUserId={user?.id || null}
+          currentUserProfile={currentUserProfile}
+          articleAuthorId={article.authorId}
           mainAppUrl={mainAppUrl}
         />
 
@@ -289,6 +296,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
           initialComments={initialComments as any}
           isAuthenticated={!!user}
           currentUserId={user?.id || null}
+          allowComments={allowComments}
           mainAppUrl={mainAppUrl}
           isBrutalist={isBrutalist}
         />

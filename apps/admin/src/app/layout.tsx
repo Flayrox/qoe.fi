@@ -25,7 +25,9 @@ import {
   simulateSubscriberAction,
   simulateFollowAction,
   simulateLikeAction,
-  addMockFundsAction
+  addMockFundsAction,
+  impersonateLoginAction,
+  logoutAction
 } from "@qoe/db/devtools";
 
 // CSS global unifié — source unique dans @qoe/theme
@@ -60,7 +62,9 @@ export default async function RootLayout({
     simulateSubscriberAction,
     simulateFollowAction,
     simulateLikeAction,
-    addMockFundsAction
+    addMockFundsAction,
+    impersonateLoginAction,
+    logoutAction
   };
 
   return (

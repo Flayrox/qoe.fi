@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { MessageSquare, Send, Reply, Trash2, Loader2, User } from "lucide-react"
 import { postArticleCommentAction, deleteArticleCommentAction } from "./actions"
 import { cn } from "@qoe/utils"
+import { useRequireAuth } from "@qoe/ui"
 
 export interface CommentAuthor {
   id: string
@@ -34,6 +35,7 @@ interface ArticleCommentsSectionProps {
   initialComments: CommentItem[]
   isAuthenticated: boolean
   currentUserId?: string | null
+  allowComments?: boolean
   mainAppUrl: string
   isBrutalist?: boolean
 }
@@ -43,9 +45,11 @@ export function ArticleCommentsSection({
   initialComments,
   isAuthenticated,
   currentUserId,
+  allowComments = true,
   mainAppUrl,
   isBrutalist = false
 }: ArticleCommentsSectionProps) {
+  const { openAuthModal } = useRequireAuth()
   const [comments, setComments] = useState<CommentItem[]>(initialComments)
   const [newCommentText, setNewCommentText] = useState("")
   const [submitting, setSubmitting] = useState(false)
@@ -55,7 +59,7 @@ export function ArticleCommentsSection({
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const handleLoginRedirect = () => {
-    window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`
+    openAuthModal({ mode: "signup", actionContext: "comment" })
   }
 
   // Handle top-level comment submission
@@ -180,48 +184,54 @@ export function ArticleCommentsSection({
         </div>
       </div>
 
-      {/* Write Comment Form */}
-      <form onSubmit={handleSubmitComment} className="space-y-3">
-        <div className={`p-4 rounded-2xl ${isBrutalist ? 'border-4 border-foreground bg-card' : 'bg-card border border-border/40 shadow-xs'}`}>
-          <textarea
-            rows={3}
-            value={newCommentText}
-            onChange={(e) => setNewCommentText(e.target.value)}
-            onClick={() => {
-              if (!isAuthenticated) handleLoginRedirect()
-            }}
-            placeholder={
-              isAuthenticated
-                ? "Partagez votre réflexion sur cet écrit..."
-                : "Connectez-vous pour laisser un commentaire..."
-            }
-            className="w-full bg-transparent border-0 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none resize-none leading-relaxed font-sans"
-          />
-          <div className="flex items-center justify-between pt-3 border-t border-border/30">
-            <span className="text-xs text-muted-foreground">
-              {!isAuthenticated && "Rejoignez la discussion"}
-            </span>
+      {/* Write Comment Form or Disabled Notice */}
+      {allowComments ? (
+        <form onSubmit={handleSubmitComment} className="space-y-3">
+          <div className={`p-4 rounded-2xl ${isBrutalist ? 'border-4 border-foreground bg-card' : 'bg-card border border-border/40 shadow-xs'}`}>
+            <textarea
+              rows={3}
+              value={newCommentText}
+              onChange={(e) => setNewCommentText(e.target.value)}
+              onClick={() => {
+                if (!isAuthenticated) handleLoginRedirect()
+              }}
+              placeholder={
+                isAuthenticated
+                  ? "Partagez votre réflexion sur cet écrit..."
+                  : "Connectez-vous pour laisser un commentaire..."
+              }
+              className="w-full bg-transparent border-0 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none resize-none leading-relaxed font-sans"
+            />
+            <div className="flex items-center justify-between pt-3 border-t border-border/30">
+              <span className="text-xs text-muted-foreground">
+                {!isAuthenticated && "Rejoignez la discussion"}
+              </span>
 
-            <button
-              type="submit"
-              disabled={submitting || (!isAuthenticated ? false : !newCommentText.trim())}
-              className={cn(
-                "px-4 py-2 rounded-xl text-xs font-bold text-white transition-all flex items-center gap-1.5 cursor-pointer",
-                isBrutalist ? "border-2 border-foreground uppercase bg-foreground" : "bg-[var(--tenant-accent)] hover:opacity-90 shadow-sm"
-              )}
-            >
-              {submitting ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <>
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Publier</span>
-                </>
-              )}
-            </button>
+              <button
+                type="submit"
+                disabled={submitting || (!isAuthenticated ? false : !newCommentText.trim())}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-xs font-bold text-white transition-all flex items-center gap-1.5 cursor-pointer",
+                  isBrutalist ? "border-2 border-foreground uppercase bg-foreground" : "bg-[var(--tenant-accent)] hover:opacity-90 shadow-sm"
+                )}
+              >
+                {submitting ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Publier</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
+        </form>
+      ) : (
+        <div className="p-4 rounded-2xl bg-muted/30 border border-border/30 text-center text-xs text-muted-foreground font-medium italic font-sans">
+          Les commentaires ont été désactivés par l'auteur sur cet écrit.
         </div>
-      </form>
+      )}
 
       {/* Comments List */}
       <div className="space-y-6">

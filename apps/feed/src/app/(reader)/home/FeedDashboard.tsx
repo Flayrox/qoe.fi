@@ -7,7 +7,7 @@ import {
   BookMarked, AlertCircle
 } from "lucide-react"
 import { toggleFollowCreatorHome, toggleBookmarkArticleHome, toggleLikePost, toggleRepostPost } from "./actions"
-import { ArticleCard, LoginModal, GuestFloatingBar, type AuthActionContext } from "@qoe/ui"
+import { ArticleCard, GuestFloatingBar, useAuthModal, type AuthActionContext } from "@qoe/ui"
 import { ThoughtCard } from "@/components/social/ThoughtCard"
 import { VirtualizedFeedList } from "@/components/feed/VirtualizedFeedList"
 import { RealtimeFeedPill } from "@/components/feed/RealtimeFeedPill"
@@ -111,10 +111,10 @@ export function FeedDashboard({
     type: activeFeed === "abonnement" ? "following" : "for-you",
   })
 
+  const { openAuthModal } = useAuthModal()
+
   const openAuth = (options?: { mode?: "login" | "signup"; actionContext?: AuthActionContext }) => {
-    setAuthModalMode(options?.mode || "login")
-    setAuthActionContext(options?.actionContext)
-    setIsLoginModalOpen(true)
+    openAuthModal({ mode: options?.mode || "login", actionContext: options?.actionContext })
   }
 
   const [savedScrollPosition, setSavedScrollPosition] = useState<number>(0)
@@ -226,7 +226,7 @@ export function FeedDashboard({
 
   const handleLikeToggle = (postId: string) => {
     if (!dbUser) {
-      openAuth({ mode: "signup", actionContext: "bookmark" })
+      openAuth({ mode: "signup", actionContext: "like" })
       return
     }
     const currentItem = currentFeedArticles.find((item) => item.id === postId) as any
@@ -257,7 +257,7 @@ export function FeedDashboard({
 
   const handleRepostToggle = (postId: string) => {
     if (!dbUser) {
-      openAuth({ mode: "signup", actionContext: "bookmark" })
+      openAuth({ mode: "signup", actionContext: "repost" })
       return
     }
     const currentItem = currentFeedArticles.find((item) => item.id === postId) as any
@@ -447,7 +447,7 @@ export function FeedDashboard({
                       }
                     }))
                   }}
-                  onLoginRequired={() => setIsLoginModalOpen(true)}
+                  onLoginRequired={() => openAuthModal({ mode: "login" })}
                 />
               </motion.div>
             ) : (
@@ -570,15 +570,9 @@ export function FeedDashboard({
         replyToThought={composerReplyToThought}
         initialMode={composerInitialMode}
         onPostCreated={(post) => setLocalPosts(prev => [post, ...prev])}
-        onLoginRequired={() => openAuth({ mode: "signup", actionContext: "bookmark" })}
+        onLoginRequired={() => openAuthModal({ mode: "signup", actionContext: "comment" })}
       />
-      <LoginModal 
-        isOpen={isLoginModalOpen} 
-        onClose={() => setIsLoginModalOpen(false)} 
-        initialMode={authModalMode}
-        actionContext={authActionContext}
-      />
-      {!dbUser && <GuestFloatingBar onOpenAuth={openAuth} />}
+      {!dbUser && <GuestFloatingBar onOpenAuth={(opts) => openAuthModal({ mode: opts?.mode, actionContext: opts?.actionContext })} />}
     </ReaderPageLayout>
   )
 }

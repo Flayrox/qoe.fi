@@ -119,14 +119,44 @@ export async function updateHighlightNoteAction(highlightId: string, note: strin
 }
 
 /**
- * 👍 Upvote une annotation publique.
+ * 👍 Bascule l'upvote (toggle) d'une annotation publique.
  */
 export async function upvoteHighlightAction(highlightId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "UNAUTHORIZED" }
+  }
+
   try {
-    const updated = await highlights.upvoteHighlight(highlightId)
-    return { success: true, upvotesCount: updated.upvotesCount }
+    const res = await highlights.upvoteHighlight(highlightId, user.id)
+    return { success: true, upvotesCount: res.upvotesCount, hasUpvoted: res.hasUpvoted }
   } catch (error) {
     console.error("Error in upvoteHighlightAction:", error)
+    return { success: false, error: "DATABASE_ERROR" }
+  }
+}
+
+/**
+ * ❌ Supprime un surlignage / une annotation.
+ */
+export async function deleteHighlightAction(highlightId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "UNAUTHORIZED" }
+  }
+
+  try {
+    await highlights.deleteHighlight(highlightId, user.id)
+    return { success: true }
+  } catch (error: any) {
+    console.error("Error in deleteHighlightAction:", error)
+    if (error?.message?.includes("introuvable") || error?.message?.includes("non autorisée")) {
+      return { success: false, error: "FORBIDDEN" }
+    }
     return { success: false, error: "DATABASE_ERROR" }
   }
 }
@@ -245,8 +275,11 @@ export async function postArticleCommentAction(articleId: string, content: strin
     })
 
     return { success: true, comment }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in postArticleCommentAction:", error)
+    if (error?.message?.includes("désactivé")) {
+      return { success: false, error: "COMMENTS_DISABLED" }
+    }
     return { success: false, error: "DATABASE_ERROR" }
   }
 }

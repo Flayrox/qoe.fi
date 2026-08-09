@@ -15,8 +15,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AnalyticsScript } from "@qoe/analytics/client";
 import { cn } from "@qoe/utils";
-import { DevtoolsPanel, ThemeProvider } from "@qoe/ui";
+import { DevtoolsPanel, ThemeProvider, GlobalAuthModalProvider } from "@qoe/ui";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+import { getCurrentUser } from "@qoe/auth";
 import {
   getDevtoolsData,
   createMockUserAction,
@@ -26,7 +27,9 @@ import {
   simulateSubscriberAction,
   simulateFollowAction,
   simulateLikeAction,
-  addMockFundsAction
+  addMockFundsAction,
+  impersonateLoginAction,
+  logoutAction
 } from "@qoe/db/devtools";
 
 // CSS global unifié — source unique dans @qoe/theme
@@ -51,6 +54,7 @@ export default async function RootLayout({
   const locale = await getLanguage();
   const tolgee = await getTolgee();
   const staticData = await tolgee.loadRequired();
+  const currentUser = await getCurrentUser().catch(() => null);
 
   const devtoolsActions = {
     getDevtoolsData,
@@ -61,7 +65,9 @@ export default async function RootLayout({
     simulateSubscriberAction,
     simulateFollowAction,
     simulateLikeAction,
-    addMockFundsAction
+    addMockFundsAction,
+    impersonateLoginAction,
+    logoutAction
   };
 
   return (
@@ -72,11 +78,13 @@ export default async function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <TolgeeNextProvider language={locale} staticData={staticData as any}>
             <QueryProvider>
-              <TooltipProvider>
-                {children}
-                <Toaster />
-                {process.env.NODE_ENV === "development" && <DevtoolsPanel actions={devtoolsActions} />}
-              </TooltipProvider>
+              <GlobalAuthModalProvider isAuthenticated={!!currentUser}>
+                <TooltipProvider>
+                  {children}
+                  <Toaster />
+                  {process.env.NODE_ENV === "development" && <DevtoolsPanel actions={devtoolsActions} />}
+                </TooltipProvider>
+              </GlobalAuthModalProvider>
             </QueryProvider>
           </TolgeeNextProvider>
         </ThemeProvider>

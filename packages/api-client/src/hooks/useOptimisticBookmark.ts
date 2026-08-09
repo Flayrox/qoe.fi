@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { feedKeys } from '../query-keys';
+import { isUnauthorizedError, notifyUnauthorized } from '../utils/authError';
 
 export interface ToggleBookmarkVariables {
   articleId: string;
@@ -85,6 +86,9 @@ export function createOptimisticBookmarkMutationOptions(
         context.previousQueries.forEach(([key, data]) => {
           queryClient.setQueryData(key, data);
         });
+      }
+      if (isUnauthorizedError(err)) {
+        notifyUnauthorized(err);
       }
       options?.onError?.(err);
     },

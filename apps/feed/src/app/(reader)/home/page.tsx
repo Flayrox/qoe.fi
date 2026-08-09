@@ -3,7 +3,12 @@ import { redirect } from "next/navigation"
 import { prisma } from "@qoe/db/client"
 import type { Prisma, FeedArticleDTO, FeedPostDTO } from "@qoe/db/types"
 import { unstable_cache } from "next/cache"
-import { getRequestDbUser } from "@/lib/cached-queries"
+import { 
+  getRequestDbUser, 
+  getCachedTrends, 
+  getCachedPromos, 
+  getCachedFeaturedArticle 
+} from "@/lib/cached-queries"
 import { FeedDashboard } from "./FeedDashboard"
 
 type PostWithDetails = Prisma.ThoughtGetPayload<{
@@ -313,38 +318,10 @@ export default async function ReaderHomePage() {
       })
     : Promise.resolve([])
 
-  // Promesses pour les Widgets (mises en cache pour éviter la surcharge DB)
-  const trendsPromise = unstable_cache(
-    async () => prisma.trend.findMany({
-      orderBy: { count: 'desc' },
-      take: 5
-    }),
-    ["home-widget-trends"],
-    { revalidate: 120 }
-  )()
-
-  const promosPromise = unstable_cache(
-    async () => prisma.partnerPromo.findMany({
-      where: { isActive: true },
-      orderBy: { createdAt: 'desc' },
-      take: 3
-    }),
-    ["home-widget-promos"],
-    { revalidate: 300 }
-  )()
-
-  const featuredArticlePromise = unstable_cache(
-    async () => prisma.article.findFirst({
-      where: { published: true, isEditorPick: true },
-      include: {
-        author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
-        category: { select: { name: true } }
-      },
-      orderBy: { createdAt: 'desc' }
-    }),
-    ["home-widget-featured-article"],
-    { revalidate: 120 }
-  )()
+  // Promesses pour les Widgets (mises en cache au niveau du module)
+  const trendsPromise = getCachedTrends()
+  const promosPromise = getCachedPromos()
+  const featuredArticlePromise = getCachedFeaturedArticle()
 
   // Étape 2 : Exécuter toutes les promesses de base de données en parallèle
   const [

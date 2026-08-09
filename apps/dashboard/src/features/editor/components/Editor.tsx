@@ -34,6 +34,7 @@ import {
   Sparkles,
   X,
   ExternalLink,
+  MessageSquare,
 } from "lucide-react"
 import { cn } from "@qoe/utils"
 import { compressImage } from "@/lib/image-compressor"
@@ -49,6 +50,8 @@ export interface EditorProps {
   initialCategoryId?: string | null
   initialSeoTitle?: string | null
   initialSeoDescription?: string | null
+  initialAllowPublicAnnotations?: boolean
+  initialAllowComments?: boolean
   subdomain?: string
   categories?: { id: string; name: string }[]
   isSaving?: boolean
@@ -61,6 +64,8 @@ export interface EditorProps {
     categoryId: string | null
     seoTitle: string | null
     seoDescription: string | null
+    allowPublicAnnotations?: boolean
+    allowComments?: boolean
   }) => Promise<void>
   onBack?: () => void
 }
@@ -74,6 +79,8 @@ export function Editor({
   initialCategoryId = null,
   initialSeoTitle = "",
   initialSeoDescription = "",
+  initialAllowPublicAnnotations = true,
+  initialAllowComments = true,
   subdomain,
   categories = [],
   isSaving = false,
@@ -87,6 +94,8 @@ export function Editor({
   const [categoryId, setCategoryId] = useState<string | null>(initialCategoryId)
   const [seoTitle, setSeoTitle] = useState(initialSeoTitle || "")
   const [seoDescription, setSeoDescription] = useState(initialSeoDescription || "")
+  const [allowPublicAnnotations, setAllowPublicAnnotations] = useState(initialAllowPublicAnnotations)
+  const [allowComments, setAllowComments] = useState(initialAllowComments)
   
   const [error, setError] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -146,6 +155,8 @@ export function Editor({
         categoryId: payload.categoryId ?? categoryId,
         seoTitle: payload.seoTitle ?? seoTitle,
         seoDescription: payload.seoDescription ?? seoDescription,
+        allowPublicAnnotations: payload.allowPublicAnnotations ?? allowPublicAnnotations,
+        allowComments: payload.allowComments ?? allowComments,
       })
       setLastSaved(new Date())
       setHasUnsavedChanges(false)
@@ -259,7 +270,9 @@ export function Editor({
         isPremium,
         categoryId,
         seoTitle: seoTitle || null,
-        seoDescription: seoDescription || null
+        seoDescription: seoDescription || null,
+        allowPublicAnnotations,
+        allowComments
       })
       setLastSaved(new Date())
       setHasUnsavedChanges(false)
@@ -544,19 +557,27 @@ export function Editor({
 
               <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
 
-              {/* Official Author Annotation Insertion */}
+              {/* Official Author Annotation Insertion & Edition */}
               <ToolbarButton
+                active={editor.isActive("annotationMark")}
                 onClick={() => {
+                  if (editor.isActive("annotationMark")) {
+                    const attrs = editor.getAttributes("annotationMark")
+                    setAuthorNoteInput(attrs.note || "")
+                    setShowAuthorAnnotationModal(true)
+                    return
+                  }
                   const selection = editor.state.selection
                   if (selection.empty) {
                     setAnnotationToast("Sélectionnez d'abord un passage de texte à annoter.")
                     setTimeout(() => setAnnotationToast(null), 3000)
                     return
                   }
+                  setAuthorNoteInput("")
                   setShowAuthorAnnotationModal(true)
                 }}
                 icon={<Eye className="h-3.5 w-3.5 text-amber-500 stroke-[2]" />}
-                tooltip="Ajouter une Annotation Officielle d'Auteur"
+                tooltip={editor.isActive("annotationMark") ? "Modifier / Supprimer l'Annotation Officielle" : "Ajouter une Annotation Officielle d'Auteur"}
               />
 
               <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
@@ -604,6 +625,42 @@ export function Editor({
                 <p className="text-[11px] text-muted-foreground leading-relaxed font-sans">
                   Associez cet écrit à un thème pour l'organiser sur votre espace créateur.
                 </p>
+              </div>
+            </div>
+
+            {/* Community Interaction Permissions */}
+            <div className="space-y-3 pt-4 border-t border-border/30 font-sans">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground stroke-[1.5]" />
+                Interactions Lecteurs
+              </h3>
+
+              <div className="space-y-2.5">
+                <label className="flex items-center justify-between gap-3 text-xs text-foreground cursor-pointer select-none">
+                  <span>Annotations publiques</span>
+                  <input
+                    type="checkbox"
+                    checked={allowPublicAnnotations}
+                    onChange={(e) => {
+                      setAllowPublicAnnotations(e.target.checked)
+                      setHasUnsavedChanges(true)
+                    }}
+                    className="w-4 h-4 rounded-md text-primary border-border/40 focus:ring-primary cursor-pointer"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between gap-3 text-xs text-foreground cursor-pointer select-none">
+                  <span>Espace commentaires</span>
+                  <input
+                    type="checkbox"
+                    checked={allowComments}
+                    onChange={(e) => {
+                      setAllowComments(e.target.checked)
+                      setHasUnsavedChanges(true)
+                    }}
+                    className="w-4 h-4 rounded-md text-primary border-border/40 focus:ring-primary cursor-pointer"
+                  />
+                </label>
               </div>
             </div>
 
@@ -700,29 +757,50 @@ export function Editor({
               className="w-full bg-background border border-border/40 rounded-xl p-3 text-xs text-foreground focus:outline-none focus:border-amber-500 resize-none font-sans"
             />
 
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowAuthorAnnotationModal(false)}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                disabled={!authorNoteInput.trim()}
-                onClick={() => {
-                  if (authorNoteInput.trim() && editor) {
-                    editor.chain().focus().setAnnotationMark({ note: authorNoteInput.trim() }).run()
-                    setHasUnsavedChanges(true)
-                    setAuthorNoteInput("")
-                    setShowAuthorAnnotationModal(false)
-                  }
-                }}
-                className="px-4 py-1.5 rounded-xl bg-amber-500 text-white font-bold text-xs hover:bg-amber-600 cursor-pointer disabled:opacity-50 transition-colors"
-              >
-                Attacher l'annotation
-              </button>
+            <div className="flex items-center justify-between gap-2 pt-2">
+              {editor?.isActive("annotationMark") ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (editor) {
+                      editor.chain().focus().unsetAnnotationMark().run()
+                      setHasUnsavedChanges(true)
+                      setAuthorNoteInput("")
+                      setShowAuthorAnnotationModal(false)
+                    }
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-semibold cursor-pointer transition-colors"
+                >
+                  Supprimer l'annotation
+                </button>
+              ) : (
+                <div />
+              )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAuthorAnnotationModal(false)}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={!authorNoteInput.trim()}
+                  onClick={() => {
+                    if (authorNoteInput.trim() && editor) {
+                      editor.chain().focus().setAnnotationMark({ note: authorNoteInput.trim() }).run()
+                      setHasUnsavedChanges(true)
+                      setAuthorNoteInput("")
+                      setShowAuthorAnnotationModal(false)
+                    }
+                  }}
+                  className="px-4 py-1.5 rounded-xl bg-amber-500 text-white font-bold text-xs hover:bg-amber-600 cursor-pointer disabled:opacity-50 transition-colors"
+                >
+                  {editor?.isActive("annotationMark") ? "Mettre à jour" : "Attacher l'annotation"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

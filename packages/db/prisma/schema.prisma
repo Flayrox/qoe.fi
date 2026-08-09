@@ -63,6 +63,7 @@ model User {
   hasCompletedOnboarding Boolean @default(false)
   allowIndexing  Boolean   @default(true) // SEO Google Indexing
   allowPublicAnnotations Boolean @default(true) // Genius-style public annotations setting
+  allowComments          Boolean @default(true) // Global creator comments setting
 
   // API Access Application
   apiAccessStatus      String    @default("none") // "none", "pending", "approved", "rejected", "revoked"
@@ -93,6 +94,7 @@ model User {
   followers             Follows[]       @relation("CreatorFollowers")
   bookmarks             Bookmark[]
   highlights            Highlight[]
+  annotationUpvotes     AnnotationUpvote[]
   mutedWords            MutedWord[]
   blockedBy             BlockedUser[]   @relation("BlockedReader")
   blockedUsers          BlockedUser[]   @relation("CreatorBlocker")
@@ -251,8 +253,11 @@ model Highlight {
   createdAt   DateTime @default(now())
 
   comments    AnnotationComment[]
+  upvotes     AnnotationUpvote[]
 
   @@index([articleId, isPublic])
+  @@index([articleId, isOfficial])
+  @@index([articleId, readerId])
   @@index([readerId])
 }
 
@@ -269,6 +274,20 @@ model AnnotationComment {
 
   @@index([highlightId, createdAt])
   @@index([authorId])
+}
+
+model AnnotationUpvote {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  highlightId String
+  highlight   Highlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
+
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([highlightId, userId])
+  @@index([userId])
 }
 
 model Letter {
@@ -341,6 +360,7 @@ model Article {
   semanticTags   String[] 
   isEditorPick   Boolean           @default(false)
   allowPublicAnnotations Boolean     @default(true) // Article-level annotation toggle
+  allowComments          Boolean     @default(true) // Article-level comments toggle
   
   // L'auteur principal
   authorId       String            @db.Uuid
@@ -495,6 +515,7 @@ model ArticleComment {
   replies   ArticleComment[] @relation("CommentReplies")
 
   @@index([articleId, createdAt])
+  @@index([articleId, parentId, createdAt])
   @@index([authorId])
   @@index([parentId])
 }

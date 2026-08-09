@@ -5,6 +5,7 @@ import { motion } from "framer-motion"
 import { Heart, MessageSquare, Repeat, Share2, Quote } from "lucide-react"
 import { cn } from "@qoe/utils"
 import { toast } from "sonner"
+import { useRequireAuth } from "@qoe/ui"
 import {
   Popover,
   PopoverContent,
@@ -33,7 +34,24 @@ export function ThoughtActions({
   onShare,
   className,
 }: ThoughtActionsProps) {
+  const { withAuth } = useRequireAuth()
   const [popoverOpen, setPopoverContentOpen] = useState(false)
+
+  const handleLikeClick = withAuth((e: React.MouseEvent) => {
+    if (onLike) onLike(e)
+  }, { actionContext: "like" })
+
+  const handleReplyClick = withAuth((e: React.MouseEvent) => {
+    if (onReply) onReply(e)
+  }, { actionContext: "comment" })
+
+  const handleRepostClick = withAuth((e: React.MouseEvent) => {
+    if (onRepost) onRepost(e)
+  }, { actionContext: "repost" })
+
+  const handleQuoteClick = withAuth((e: React.MouseEvent) => {
+    if (onQuote) onQuote(e)
+  }, { actionContext: "repost" })
 
   const authorHandle =
     post.author?.username ||

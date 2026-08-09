@@ -5,6 +5,7 @@ import { MessageSquare, Repeat, Heart, Bookmark } from "lucide-react"
 import { cn } from "@qoe/utils"
 import { routes } from "@qoe/config"
 import type { FeedArticleDTO, CreatorProfileDTO } from "@qoe/db/types"
+import { useRequireAuth } from "./auth/AuthModalContext"
 
 export type { FeedArticleDTO as Article }
 
@@ -34,6 +35,7 @@ export function ArticleCard({
   onOpenProfile,
   onOpenPost,
 }: ArticleCardProps) {
+  const { withAuth } = useRequireAuth()
   const [liked, setLiked] = useState(article.liked || false)
   const [likesCount, setLikesCount] = useState(article.likesCount || 0)
   const [reposted, setReposted] = useState(false)
@@ -64,19 +66,19 @@ export function ArticleCard({
     }
   }
 
-  const handleLike = (e: React.MouseEvent) => {
+  const handleLike = withAuth((e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setLiked((prev: boolean) => !prev)
     setLikesCount((prev: number) => (liked ? Math.max(0, prev - 1) : prev + 1))
-  }
+  }, { actionContext: "like" })
 
-  const handleRepost = (e: React.MouseEvent) => {
+  const handleRepost = withAuth((e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setReposted((prev: boolean) => !prev)
     setRepostsCount((prev: number) => (reposted ? Math.max(0, prev - 1) : prev + 1))
-  }
+  }, { actionContext: "repost" })
 
   const formattedDate = new Date(article.createdAt).toLocaleDateString("fr-FR", {
     month: "short",

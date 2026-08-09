@@ -17,11 +17,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Pencil,
+  Trash2,
   RotateCcw
 } from "lucide-react"
 import {
   toggleHighlightPrivacyAction,
   upvoteHighlightAction,
+  deleteHighlightAction,
   createAnnotationCommentAction,
   quotePassageToFeedAction,
   updateHighlightNoteAction
@@ -47,6 +49,7 @@ export interface AnnotationItem {
   isPublic: boolean
   isOfficial: boolean
   upvotesCount: number
+  hasUpvoted?: boolean
   createdAt: Date | string
   updatedAt?: Date | string
   reader: {
@@ -67,9 +70,11 @@ interface AnnotationSideDrawerProps {
   allowPublicAnnotations: boolean
   isAuthenticated: boolean
   currentUserId?: string | null
+  articleAuthorId?: string | null
   mainAppUrl: string
   onClose: () => void
   onUpdateAnnotation?: (updated: AnnotationItem) => void
+  onDeleteAnnotation?: (annotationId: string) => void
 }
 
 export function AnnotationSideDrawer({
@@ -80,9 +85,11 @@ export function AnnotationSideDrawer({
   allowPublicAnnotations,
   isAuthenticated,
   currentUserId,
+  articleAuthorId,
   mainAppUrl,
   onClose,
-  onUpdateAnnotation
+  onUpdateAnnotation,
+  onDeleteAnnotation
 }: AnnotationSideDrawerProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [annotationsList, setAnnotationsList] = useState<AnnotationItem[]>([])
@@ -132,7 +139,7 @@ export function AnnotationSideDrawer({
       setComments(activeAnnotation.comments || [])
       setEditNoteContent(activeAnnotation.note || "")
       setIsEditingNote(false)
-      setHasUpvoted(false)
+      setHasUpvoted(Boolean(activeAnnotation.hasUpvoted))
       setPrivacyError(null)
       setShowCrosspostForm(false)
 
@@ -252,17 +259,52 @@ export function AnnotationSideDrawer({
   // Handle upvote (toggleable like)
   const handleUpvote = async () => {
     if (!activeAnnotation) return
-    if (hasUpvoted) {
-      setHasUpvoted(false)
-      setUpvotes((prev) => Math.max(0, prev - 1))
-    } else {
-      setHasUpvoted(true)
-      setUpvotes((prev) => prev + 1)
-      try {
-        await upvoteHighlightAction(activeAnnotation.id)
-      } catch (e) {
-        console.error(e)
+    if (!isAuthenticated) {
+      handleLoginRedirect()
+      return
+    }
+
+    const nextState = !hasUpvoted
+    setHasUpvoted(nextState)
+    setUpvotes((prev) => (nextState ? prev + 1 : Math.max(0, prev - 1)))
+
+    try {
+      const res = await upvoteHighlightAction(activeAnnotation.id)
+      if (res.success && res.upvotesCount !== undefined) {
+        setUpvotes(res.upvotesCount)
+        setHasUpvoted(Boolean(res.hasUpvoted))
       }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  // Handle deletion of annotation
+  const handleDeleteAnnotation = async () => {
+    if (!activeAnnotation) return
+    if (!isAuthenticated) {
+      handleLoginRedirect()
+      return
+    }
+
+    if (!confirm("Voulez-vous vraiment supprimer cette annotation ?")) return
+
+    try {
+      const res = await deleteHighlightAction(activeAnnotation.id)
+      if (res.success) {
+        const deletedId = activeAnnotation.id
+        const newList = annotationsList.filter((a) => a.id !== deletedId)
+        setAnnotationsList(newList)
+        if (onDeleteAnnotation) onDeleteAnnotation(deletedId)
+
+        if (newList.length === 0) {
+          onClose()
+        } else {
+          setCurrentIndex((prev) => Math.min(prev, newList.length - 1))
+        }
+      }
+    } catch (err) {
+      console.error(err)
     }
   }
 
@@ -448,13 +490,28 @@ export function AnnotationSideDrawer({
 
                   <div className="flex items-center gap-1.5">
                     {/* Inline Edit Button if author of highlight */}
-                    {currentUserId === activeAnnotation.reader.id && (
+                    {Boolean(currentUserId && activeAnnotation.reader?.id && currentUserId === activeAnnotation.reader.id) && (
                       <button
                         onClick={() => setIsEditingNote(!isEditingNote)}
                         className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
                         title="Modifier cette annotation"
                       >
                         <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    {/* Delete Button if author of highlight OR creator of article */}
+                    {Boolean(
+                      currentUserId &&
+                        ((activeAnnotation.reader?.id && currentUserId === activeAnnotation.reader.id) ||
+                          (articleAuthorId && currentUserId === articleAuthorId))
+                    ) && (
+                      <button
+                        onClick={handleDeleteAnnotation}
+                        className="p-1 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                        title="Supprimer cette annotation"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
 

@@ -121,6 +121,8 @@ export async function findTrending(limit: number = 9) {
   });
 }
 
+import { syncOfficialAnnotationsFromHtml } from "./highlights";
+
 /**
  * ✍️ Crée un article (utilisé par le dashboard créateur).
  */
@@ -132,12 +134,18 @@ export async function create(data: {
   categoryId?: string;
   isPremium?: boolean;
 }) {
-  return prisma.article.create({
+  const article = await prisma.article.create({
     data: {
       ...data,
       readingTime: estimateReadingTime(data.content),
     },
   });
+
+  if (data.content && data.content.includes("data-annotation-note")) {
+    await syncOfficialAnnotationsFromHtml(article.id, data.authorId, data.content);
+  }
+
+  return article;
 }
 
 /**

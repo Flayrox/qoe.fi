@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { feedKeys, userKeys } from '../query-keys';
+import { isUnauthorizedError, notifyUnauthorized } from '../utils/authError';
 
 export interface ToggleFollowVariables {
   creatorId: string;
@@ -58,6 +59,9 @@ export function createOptimisticFollowMutationOptions(
         context.previousUserQueries.forEach(([key, data]) => {
           queryClient.setQueryData(key, data);
         });
+      }
+      if (isUnauthorizedError(err)) {
+        notifyUnauthorized(err);
       }
       options?.onError?.(err);
     },

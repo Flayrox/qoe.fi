@@ -7,7 +7,8 @@ import { Inter, JetBrains_Mono, Geist } from "next/font/google";
 import { TolgeeNextProvider } from "@qoe/i18n/provider";
 import { getTolgee, getLanguage } from "@qoe/i18n/server";
 import { cn } from "@qoe/utils";
-import { DevtoolsPanel, ThemeProvider } from "@qoe/ui";
+import { DevtoolsPanel, ThemeProvider, GlobalAuthModalProvider } from "@qoe/ui";
+import { getCurrentUser } from "@qoe/auth";
 import {
   getDevtoolsData,
   createMockUserAction,
@@ -17,7 +18,9 @@ import {
   simulateSubscriberAction,
   simulateFollowAction,
   simulateLikeAction,
-  addMockFundsAction
+  addMockFundsAction,
+  impersonateLoginAction,
+  logoutAction
 } from "@qoe/db/devtools";
 
 // CSS global unifié — source unique dans @qoe/theme
@@ -41,6 +44,7 @@ export default async function RootLayout({
 }>) {
   const locale = await getLanguage();
   const tolgee = await getTolgee();
+  const currentUser = await getCurrentUser().catch(() => null);
   // Tolgee tolère un objet vide pour staticData en dev
   let staticData: any = {};
   try {
@@ -58,7 +62,9 @@ export default async function RootLayout({
     simulateSubscriberAction,
     simulateFollowAction,
     simulateLikeAction,
-    addMockFundsAction
+    addMockFundsAction,
+    impersonateLoginAction,
+    logoutAction
   };
 
   return (
@@ -68,8 +74,10 @@ export default async function RootLayout({
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <TolgeeNextProvider language={locale} staticData={staticData}>
-            {children}
-            {process.env.NODE_ENV === "development" && <DevtoolsPanel actions={devtoolsActions} />}
+            <GlobalAuthModalProvider isAuthenticated={!!currentUser}>
+              {children}
+              {process.env.NODE_ENV === "development" && <DevtoolsPanel actions={devtoolsActions} />}
+            </GlobalAuthModalProvider>
           </TolgeeNextProvider>
         </ThemeProvider>
       </body>
