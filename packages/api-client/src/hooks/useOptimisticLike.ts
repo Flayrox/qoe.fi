@@ -11,10 +11,11 @@ export interface UseOptimisticLikeOptions {
   onError?: (error: Error) => void;
 }
 
-export function useOptimisticLike(options?: UseOptimisticLikeOptions) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
+export function createOptimisticLikeMutationOptions(
+  queryClient: ReturnType<typeof useQueryClient>,
+  options?: UseOptimisticLikeOptions
+) {
+  return {
     mutationFn: async ({ thoughtId, isLikedCurrent, likeMutationFn }: ToggleLikeVariables) => {
       const response = await likeMutationFn(thoughtId, isLikedCurrent);
       if (!response.success) {
@@ -23,7 +24,7 @@ export function useOptimisticLike(options?: UseOptimisticLikeOptions) {
       return response;
     },
 
-    onMutate: async ({ thoughtId, isLikedCurrent }) => {
+    onMutate: async ({ thoughtId, isLikedCurrent }: ToggleLikeVariables) => {
       // Cancel all feed queries to prevent race conditions during optimistic update
       await queryClient.cancelQueries({ queryKey: feedKeys.all });
 
@@ -90,7 +91,7 @@ export function useOptimisticLike(options?: UseOptimisticLikeOptions) {
       return { previousQueries };
     },
 
-    onError: (err: Error, _variables, context) => {
+    onError: (err: Error, _variables: ToggleLikeVariables, context?: { previousQueries?: Array<[readonly unknown[], unknown]> }) => {
       // Rollback all query snapshots on failure
       if (context?.previousQueries) {
         context.previousQueries.forEach(([key, data]) => {
@@ -103,5 +104,10 @@ export function useOptimisticLike(options?: UseOptimisticLikeOptions) {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: feedKeys.all });
     },
-  });
+  };
+}
+
+export function useOptimisticLike(options?: UseOptimisticLikeOptions) {
+  const queryClient = useQueryClient();
+  return useMutation(createOptimisticLikeMutationOptions(queryClient, options));
 }
