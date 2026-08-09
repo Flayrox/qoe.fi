@@ -31,6 +31,8 @@ import {
   Search,
   Eye,
   BarChart3,
+  Sparkles,
+  X,
 } from "lucide-react"
 import { cn } from "@qoe/utils"
 import { compressImage } from "@/lib/image-compressor"
