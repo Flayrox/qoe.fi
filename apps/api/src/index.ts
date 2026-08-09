@@ -9,7 +9,7 @@
 //    POST /webhooks/stripe → Stripe webhooks
 //    POST /webhooks/supabase → Supabase auth webhooks
 //    /trpc/*              → tRPC (type-safe API pour le front)
-//    /v1/articles         → REST public API (futur)
+//    /v1/articles         → REST public API (avec tronquage paywall zero-leak)
 // =====================================================================
 
 import { serve } from "@hono/node-server";
@@ -20,6 +20,7 @@ import { createHash } from "node:crypto";
 
 import { verifyWebhook, handleWebhookEvent } from "@qoe/billing";
 import { prisma } from "@qoe/db/client";
+import { sliceContentAtPaywall } from "@qoe/utils";
 import { searchApp } from "./search";
 
 const app = new Hono<{
@@ -111,9 +112,6 @@ const apiAuth = async (c: any, next: any) => {
     }
 
     const user = apiKeyRecord.user;
-    if (user.apiAccessStatus !== "approved") {
-      return c.json({ error: "Forbidden: API access has not been approved or is suspended" }, 403);
-    }
 
     // Update lastUsedAt asynchronously
     prisma.apiKey.update({
@@ -178,18 +176,30 @@ app.get("/v1/articles", apiAuth, async (c) => {
       }),
     ]);
 
-    // Format output
-    const formattedArticles = articles.map(article => ({
-      id: article.id,
-      title: article.title,
-      slug: article.slug,
-      contentHtml: article.content, // HTML stored in DB
-      readingTime: article.readingTime,
-      isPremium: article.isPremium,
-      createdAt: article.createdAt,
-      updatedAt: article.updatedAt,
-      category: article.category,
-    }));
+    // Format output with zero-leak AST paywall truncation
+    const formattedArticles = articles.map(article => {
+      const cutResult = sliceContentAtPaywall(
+        article.content,
+        { isMember: false, isPaidSubscriber: false },
+        article.visibility,
+        article.tierId
+      );
+
+      return {
+        id: article.id,
+        title: article.title,
+        slug: article.slug,
+        contentHtml: cutResult.content,
+        isTruncated: cutResult.isTruncated,
+        visibility: article.visibility,
+        readingTime: article.readingTime,
+        isPremium: article.isPremium,
+        createdAt: article.createdAt,
+        updatedAt: article.updatedAt,
+        category: article.category,
+        paywallMeta: cutResult.paywallMeta,
+      };
+    });
 
     return c.json({
       data: formattedArticles,
@@ -234,17 +244,27 @@ app.get("/v1/articles/:slug", apiAuth, async (c) => {
       return c.json({ error: "Article not found" }, 404);
     }
 
+    const cutResult = sliceContentAtPaywall(
+      article.content,
+      { isMember: false, isPaidSubscriber: false },
+      article.visibility,
+      article.tierId
+    );
+
     return c.json({
       data: {
         id: article.id,
         title: article.title,
         slug: article.slug,
-        contentHtml: article.content,
+        contentHtml: cutResult.content,
+        isTruncated: cutResult.isTruncated,
+        visibility: article.visibility,
         readingTime: article.readingTime,
         isPremium: article.isPremium,
         createdAt: article.createdAt,
         updatedAt: article.updatedAt,
         category: article.category,
+        paywallMeta: cutResult.paywallMeta,
       },
     });
   } catch (error) {

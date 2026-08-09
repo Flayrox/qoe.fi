@@ -19,3 +19,9 @@ export const tenantKeys = {
   articles: (domain: string) => [...tenantKeys.all, 'articles', domain] as const,
   article: (domain: string, slug: string) => [...tenantKeys.all, 'article', domain, slug] as const,
 };
+
+export const subscriptionKeys = {
+  all: ['subscriptions'] as const,
+  status: (creatorId: string, email?: string) => [...subscriptionKeys.all, 'status', creatorId, email || 'anonymous'] as const,
+  tiers: (creatorId: string) => [...subscriptionKeys.all, 'tiers', creatorId] as const,
+};
