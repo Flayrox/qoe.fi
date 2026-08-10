@@ -17,7 +17,7 @@ export function HeaderWorkspaceSwitcher() {
         
         // Load saved workspace from localStorage or default to personal
         const savedId = localStorage.getItem("qoe_active_workspace_id")
-        const found = all.find(w => w.id === savedId) || res.personal
+        const found = all.find(w => w?.id === savedId) || res.personal
         setActiveWorkspace(found)
       }
     })
