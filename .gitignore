@@ -99,3 +99,4 @@ scripts/zip.sh
 plans/
 gemini-code.html
 .reference/
+mcp-config.json
