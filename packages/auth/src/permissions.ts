@@ -129,5 +129,31 @@ export class PermissionError extends Error {
   }
 }
 
+/**
+ * 📝 Vérifie si un utilisateur a le droit d'éditer un article donné.
+ */
+export function canEditArticle(
+  user: { id: string; role: Role } | null,
+  article: { authorId: string }
+): boolean {
+  if (!user) return false;
+  if (user.role === ROLES.SUPERADMIN) return true;
+  if (can(user.role, "article:edit:own") && user.id === article.authorId) return true;
+  return can(user.role, "article:edit:any");
+}
+
+/**
+ * 🏛️ Vérifie si un utilisateur a le droit de gérer la configuration d'un tenant.
+ */
+export function canManageTenant(
+  user: { id: string; role: Role } | null,
+  tenant: { ownerId: string }
+): boolean {
+  if (!user) return false;
+  if (user.role === ROLES.SUPERADMIN) return true;
+  if (can(user.role, "tenant:configure:own") && user.id === tenant.ownerId) return true;
+  return can(user.role, "tenant:configure:any");
+}
+
 // Re-exports pratiques
 export { isCreator, isSuperadmin };

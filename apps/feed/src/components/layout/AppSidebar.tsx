@@ -4,6 +4,7 @@ import React from "react"
 import { Sidebar } from "@qoe/ui/sidebar"
 import { Logo } from "@qoe/ui"
 import { routes } from "@qoe/config/routes"
+import { useTranslate } from "@qoe/i18n"
 
 interface AppSidebarProps {
   userName?: string
@@ -20,26 +21,27 @@ export function AppSidebar({
   userRole = "reader",
   onLogout,
 }: AppSidebarProps) {
+  const { t } = useTranslate()
   const userFallback = userName.slice(0, 2).toUpperCase()
 
   const menuItems = [
     {
-      title: "Accueil",
+      title: t("feed.home", "Accueil"),
       url: routes.feed.home(),
       iconName: "Home",
     },
     {
-      title: "Signets",
+      title: t("feed.tab_library", "Signets"),
       url: routes.feed.library(),
       iconName: "Bookmark",
     },
     {
-      title: "Surlignages",
+      title: t("highlights.title", "Surlignages"),
       url: routes.feed.highlights(),
       iconName: "Highlighter",
     },
     {
-      title: "Portefeuille",
+      title: t("settings_reader.tab_billing", "Portefeuille"),
       url: routes.feed.billing(),
       iconName: "Wallet",
     },
@@ -60,9 +62,10 @@ export function AppSidebar({
       userAvatar={userAvatar}
       onLogout={onLogout}
       primaryAction={{
-        label: "Publier une pensée",
+        label: t("feed.publish_thought", "Publier une pensée"),
         onClick: handleOpenComposer,
       }}
     />
   )
 }
+

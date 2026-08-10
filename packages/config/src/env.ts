@@ -140,6 +140,8 @@ export function parseEnv() {
   if (
     cleanServerEnv.SKIP_ENV_VALIDATION === "true" ||
     cleanServerEnv.SKIP_ENV_VALIDATION === "1" ||
+    cleanServerEnv.NODE_ENV === "test" ||
+    cleanServerEnv.VITEST === "true" ||
     cleanServerEnv.NEXT_PHASE === "phase-production-build"
   ) {
     const parsedMock = envSchema.safeParse({

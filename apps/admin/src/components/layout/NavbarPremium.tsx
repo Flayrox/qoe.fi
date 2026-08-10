@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useTranslate } from "@qoe/i18n";
 import { motion } from "framer-motion";
 import { cn } from "@qoe/utils";
-import { Logo } from "@/components/ui/Logo";
+import { Logo } from "@qoe/ui/ui/Logo";
 import { getCurrentUser, logout } from "@/app/login/actions";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuGroup } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuGroup } from "@qoe/ui/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@qoe/ui/ui/avatar";
 import { Activity, BookMarked, Highlighter, Wallet, LogOut, LayoutDashboard, ShieldAlert } from "lucide-react";
 
 export const NavbarPremium = () => {

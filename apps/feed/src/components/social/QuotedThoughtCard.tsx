@@ -1,8 +1,8 @@
 "use client"
 
 import React from "react"
-import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
-import { TextParser } from "@/components/ui/TextParser"
+import { AuthorAvatar } from "@qoe/ui/ui/AuthorAvatar"
+import { TextParser } from "@qoe/ui/ui/TextParser"
 import { routes } from "@qoe/config/routes"
 import { AlertCircle } from "lucide-react"
 

@@ -6,7 +6,7 @@ import { X, Camera, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { updateProfileAction as updateProfile } from "@qoe/api-client/actions/feed"
 
-import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
+import { AuthorAvatar } from "@qoe/ui/ui/AuthorAvatar"
 import { useTranslate } from "@qoe/i18n"
 
 interface EditProfileModalProps {

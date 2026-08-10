@@ -1,19 +1,19 @@
 "use client"
 
 import React from "react"
-import { TextParser } from "@/components/ui/TextParser"
+import { TextParser } from "@qoe/ui/ui/TextParser"
 import { cn } from "@qoe/utils"
 import { MoreHorizontal, Pin, CornerDownRight, Repeat, Flag } from "lucide-react"
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
+import { Popover, PopoverTrigger, PopoverContent } from "@qoe/ui/ui/popover"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { LinkPreview } from "./LinkPreview"
 import { QuotedThoughtCard } from "./QuotedThoughtCard"
 import { ModerationReportModal } from "./ModerationReportModal"
-import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card"
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@qoe/ui/ui/hover-card"
 import { routes } from "@qoe/config/routes"
-import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
-import { CertifiedBadge } from "@/components/ui/CertifiedBadge"
+import { AuthorAvatar } from "@qoe/ui/ui/AuthorAvatar"
+import { CertifiedBadge } from "@qoe/ui/ui/CertifiedBadge"
 import { 
   pinPostAction as pinPost, 
   unpinPostAction as unpinPost, 

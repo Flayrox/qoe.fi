@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation"
 import { useTranslate } from "@qoe/i18n"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@qoe/utils"
-import { BentoPlateau, BentoItem } from "@/components/ui/BentoPlateau"
-import { Logo } from "@/components/ui/Logo"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { BentoPlateau, BentoItem } from "@qoe/ui/ui/BentoPlateau"
+import { Logo } from "@qoe/ui/ui/Logo"
+import { Button } from "@qoe/ui/ui/button"
+import { Input } from "@qoe/ui/ui/input"
 import { completeOnboarding } from "./actions"
 import { Check, X, ShieldAlert, Loader2, Sparkles, UserPlus, UserCheck, EyeOff } from "lucide-react"
 
@@ -249,7 +249,7 @@ export function OnboardingFlow({ categories, suggestedCreators, userId }: Onboar
                       <form onSubmit={handleAddMutedWord} className="flex gap-2">
                         <Input
                           value={mutedInput}
-                          onChange={(e) => setMutedInput(e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMutedInput(e.target.value)}
                           placeholder={t("onboarding_reader.s3_input_placeholder", "Ex: Buzz, Polémique...")}
                           className="h-10 rounded-xl bg-neutral-50/50 border-neutral-200 flex-1"
                         />

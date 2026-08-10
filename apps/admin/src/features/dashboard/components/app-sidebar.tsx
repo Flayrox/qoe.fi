@@ -11,9 +11,9 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
-} from "@/components/ui/sidebar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+} from "@qoe/ui/ui/sidebar"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@qoe/ui/ui/dropdown-menu"
+import { Avatar, AvatarFallback } from "@qoe/ui/ui/avatar"
 
 import { createClient } from "@qoe/supabase/server"
 import { prisma } from "@qoe/db/client"

@@ -9,9 +9,9 @@ import { ThoughtCard } from "@/components/social/ThoughtCard"
 import { useTranslate } from "@qoe/i18n"
 import { routes } from "@qoe/config/routes"
 import { Balancer } from "react-wrap-balancer"
-import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card"
-import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
-import { CertifiedBadge } from "@/components/ui/CertifiedBadge"
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@qoe/ui/ui/hover-card"
+import { AuthorAvatar } from "@qoe/ui/ui/AuthorAvatar"
+import { CertifiedBadge } from "@qoe/ui/ui/CertifiedBadge"
 
 interface Author {
   id: string

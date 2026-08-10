@@ -6,6 +6,7 @@ import { cn } from "@qoe/utils"
 import { routes } from "@qoe/config"
 import { Pin } from "lucide-react"
 import type { FeedPostDTO } from "@qoe/db/types"
+import { useTranslate } from "@qoe/i18n"
 
 export type { FeedPostDTO as ThoughtData }
 
@@ -22,6 +23,7 @@ export function ThoughtCard({
   onOpenProfile?: (username: string) => void
   onOpenPost?: (postId: string) => void
 }) {
+  const { t } = useTranslate()
   const [isRevealed, setIsRevealed] = React.useState<boolean>(false)
   const [tilt, setTilt] = React.useState({ x: 0, y: 0 })
 
@@ -81,7 +83,7 @@ export function ThoughtCard({
       {post.isPinned && (
         <div className="flex items-center gap-1.5 text-[9px] font-bold text-[#EE4B2B] uppercase tracking-wider pl-1">
           <Pin className="w-3 h-3 fill-current rotate-45" />
-          <span>Épinglé</span>
+          <span>{t("feed.pinned", "Épinglé")}</span>
         </div>
       )}
 
@@ -142,7 +144,7 @@ export function ThoughtCard({
 
         {hasWarning && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/60 backdrop-blur-md transition-all duration-300 p-4 rounded-xl">
-            <span className="text-[11px] uppercase tracking-wider text-amber-500 mb-2 font-bold">Avertissement</span>
+            <span className="text-[11px] uppercase tracking-wider text-amber-500 mb-2 font-bold">{t("feed.warning_label", "Avertissement")}</span>
             <p className="text-[13px] font-medium text-foreground text-center max-w-[280px] mb-3.5 leading-snug">
               {post.triggerWarning}
             </p>
@@ -150,7 +152,7 @@ export function ThoughtCard({
               onClick={() => setIsRevealed(true)}
               className="px-3.5 py-2 bg-primary text-primary-foreground hover:opacity-90 text-[10px] font-bold rounded-xl transition-all cursor-pointer shadow-xs uppercase tracking-wider"
             >
-              Afficher
+              {t("feed.warning_show", "Afficher")}
             </button>
           </div>
         )}
@@ -158,3 +160,4 @@ export function ThoughtCard({
     </motion.div>
   )
 }
+

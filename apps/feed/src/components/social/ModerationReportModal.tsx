@@ -6,7 +6,7 @@ import { ShieldAlert, X, Check, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { createReportSchema, type CreateReportInput } from "@qoe/config/schemas"
 import { reportTargetAction } from "@qoe/api-client/actions/feed"
-
+import { useTranslate } from "@qoe/i18n"
 
 export interface ModerationReportModalProps {
   isOpen: boolean
@@ -15,26 +15,27 @@ export interface ModerationReportModalProps {
   targetType?: "thought" | "article" | "user"
 }
 
-const REPORT_REASONS = [
-  { id: "spam", label: "Spam ou publicité indésirable" },
-  { id: "harassment", label: "Harcèlement ou intimidation" },
-  { id: "hate_speech", label: "Discours haineux ou injurieux" },
-  { id: "misleading", label: "Fausse information / Désinformation" },
-  { id: "other", label: "Autre raison" },
-] as const
-
 export function ModerationReportModal({
   isOpen,
   onClose,
   targetId,
   targetType = "thought",
 }: ModerationReportModalProps) {
+  const { t } = useTranslate()
   const [reason, setReason] = useState<CreateReportInput["reason"]>("spam")
   const [details, setDetails] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
   if (!isOpen) return null
+
+  const reportReasons = [
+    { id: "spam", label: t("moderation.reasons.spam", "Spam ou publicité indésirable") },
+    { id: "harassment", label: t("moderation.reasons.harassment", "Harcèlement ou intimidation") },
+    { id: "hate_speech", label: t("moderation.reasons.hate_speech", "Discours haineux ou injurieux") },
+    { id: "misleading", label: t("moderation.reasons.misleading", "Fausse information / Désinformation") },
+    { id: "other", label: t("moderation.reasons.other", "Autre raison") },
+  ] as const
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,7 +45,7 @@ export function ModerationReportModal({
     const parsed = createReportSchema.safeParse(payload)
 
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message || "Champs invalides")
+      toast.error(parsed.error.issues[0]?.message || t("login.error_missing_fields", "Champs invalides"))
       setSubmitting(false)
       return
     }
@@ -54,13 +55,13 @@ export function ModerationReportModal({
 
     if (res.ok) {
       setSubmitted(true)
-      toast.success("Merci. Votre signalement a été transmis à la modération.")
+      toast.success(t("moderation.msg_success", "Merci. Votre signalement a été transmis à la modération."))
       setTimeout(() => {
         setSubmitted(false)
         onClose()
       }, 1500)
     } else {
-      const errorMessage = typeof res.error === "string" ? res.error : res.error?.message || "Erreur lors de l'envoi du signalement."
+      const errorMessage = typeof res.error === "string" ? res.error : res.error?.message || t("moderation.msg_error", "Erreur lors de l'envoi du signalement.")
       toast.error(errorMessage)
     }
   }
@@ -86,8 +87,8 @@ export function ModerationReportModal({
               <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 flex items-center justify-center mx-auto text-xl font-bold">
                 <Check className="w-6 h-6" />
               </div>
-              <h3 className="text-base font-bold text-foreground">Signalement envoyé</h3>
-              <p className="text-xs text-muted-foreground">Notre équipe de modération va analyser cet élément dans les plus brefs délais.</p>
+              <h3 className="text-base font-bold text-foreground">{t("moderation.submitted_title", "Signalement envoyé")}</h3>
+              <p className="text-xs text-muted-foreground">{t("moderation.submitted_desc", "Notre équipe de modération va analyser cet élément dans les plus brefs délais.")}</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -96,13 +97,13 @@ export function ModerationReportModal({
                   <ShieldAlert className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-foreground">Signaler un contenu</h3>
-                  <p className="text-xs text-muted-foreground">Pourquoi souhaitez-vous signaler cette publication ?</p>
+                  <h3 className="text-sm font-bold text-foreground">{t("moderation.title", "Signaler un contenu")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("moderation.subtitle", "Pourquoi souhaitez-vous signaler cette publication ?")}</p>
                 </div>
               </div>
 
               <div className="space-y-2">
-                {REPORT_REASONS.map((r) => (
+                {reportReasons.map((r) => (
                   <label
                     key={r.id}
                     className={`flex items-center gap-3 p-3 rounded-xl border text-xs cursor-pointer transition-all ${
@@ -129,7 +130,7 @@ export function ModerationReportModal({
                   rows={3}
                   value={details}
                   onChange={(e) => setDetails(e.target.value)}
-                  placeholder="Détails complémentaires (optionnel)..."
+                  placeholder={t("moderation.placeholder_details", "Détails complémentaires (optionnel)...")}
                   className="w-full bg-muted/20 border border-border/40 rounded-xl p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-brand resize-none font-sans"
                 />
               </div>
@@ -140,7 +141,7 @@ export function ModerationReportModal({
                   onClick={onClose}
                   className="px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
                 >
-                  Annuler
+                  {t("common.cancel", "Annuler")}
                 </button>
                 <button
                   type="submit"
@@ -148,7 +149,7 @@ export function ModerationReportModal({
                   className="px-4 py-2 rounded-xl bg-destructive text-destructive-foreground font-medium text-xs hover:opacity-90 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>Signaler</span>
+                  <span>{t("moderation.btn_submit", "Signaler")}</span>
                 </button>
               </div>
             </form>
@@ -158,3 +159,4 @@ export function ModerationReportModal({
     </AnimatePresence>
   )
 }
+
