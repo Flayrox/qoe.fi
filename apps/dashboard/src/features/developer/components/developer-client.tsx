@@ -26,7 +26,8 @@ import {
   submitApiApplicationAction,
   generateApiKeyAction,
   revokeApiKeyAction
-} from "../actions"
+} from "@qoe/api-client/actions/dashboard"
+
 
 interface ApiKeyType {
   id: string
@@ -113,8 +114,8 @@ export function DeveloperClient({
     setIsSubmittingApp(true)
     try {
       const res = await submitApiApplicationAction(reason)
-      if (res.success) {
-        setStatus(res.apiAccessStatus)
+      if (res.ok) {
+        setStatus("pending")
         toast.success("Votre demande d'accès API a bien été soumise !")
       }
     } catch (err: any) {
@@ -135,9 +136,9 @@ export function DeveloperClient({
     setIsGeneratingKey(true)
     try {
       const res = await generateApiKeyAction(newKeyName)
-      if (res.success && res.rawKey && res.apiKey) {
-        setGeneratedKey(res.rawKey)
-        setKeys([res.apiKey as unknown as ApiKeyType, ...keys])
+      if (res.ok && res.data?.apiKey) {
+        setGeneratedKey(res.data.apiKey)
+        setKeys([res.data.apiKey as unknown as ApiKeyType, ...keys])
         setShowKeyModal(true)
 
         setNewKeyName("")
@@ -155,11 +156,12 @@ export function DeveloperClient({
     setIsRevokingKeyId(id)
     try {
       const res = await revokeApiKeyAction(id)
-      if (res.success) {
+      if (res.ok) {
         setKeys(keys.filter(k => k.id !== id))
         setConfirmDeleteId(null)
         toast.success("Clé d'API révoquée avec succès.")
       }
+
     } catch (err: any) {
       toast.error(err.message || "Erreur lors de la révocation de la clé.")
     } finally {

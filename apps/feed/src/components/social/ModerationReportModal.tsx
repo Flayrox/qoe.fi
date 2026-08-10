@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from "framer-motion"
 import { ShieldAlert, X, Check, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { createReportSchema, type CreateReportInput } from "@qoe/config/schemas"
-import { reportTargetAction } from "@/features/feed/actions"
+import { reportTargetAction } from "@qoe/api-client/actions/feed"
+
 
 export interface ModerationReportModalProps {
   isOpen: boolean

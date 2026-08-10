@@ -3,7 +3,8 @@
 import React, { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { MessageSquare, Send, Reply, Trash2, Loader2, User } from "lucide-react"
-import { postArticleCommentAction, deleteArticleCommentAction } from "./actions"
+import { postArticleCommentAction, deleteArticleCommentAction } from "@qoe/api-client/actions/articles"
+
 import { cn } from "@qoe/utils"
 import { useRequireAuth } from "@qoe/ui"
 
@@ -74,13 +75,13 @@ export function ArticleCommentsSection({
 
     setSubmitting(true)
     try {
-      const res = await postArticleCommentAction(articleId, newCommentText)
-      if (res.success && res.comment) {
+      const res = await postArticleCommentAction({ articleId, content: newCommentText })
+      if (res.ok && res.data) {
         const formattedComment: CommentItem = {
-          id: res.comment.id,
-          content: res.comment.content,
-          createdAt: res.comment.createdAt,
-          author: res.comment.author,
+          id: res.data.id,
+          content: res.data.content,
+          createdAt: res.data.createdAt,
+          author: res.data.author,
           replies: []
         }
         setComments(prev => [formattedComment, ...prev])
@@ -104,13 +105,13 @@ export function ArticleCommentsSection({
 
     setSubmittingReply(true)
     try {
-      const res = await postArticleCommentAction(articleId, replyText, parentId)
-      if (res.success && res.comment) {
+      const res = await postArticleCommentAction({ articleId, content: replyText, parentId })
+      if (res.ok && res.data) {
         const formattedReply: CommentReplyItem = {
-          id: res.comment.id,
-          content: res.comment.content,
-          createdAt: res.comment.createdAt,
-          author: res.comment.author
+          id: res.data.id,
+          content: res.data.content,
+          createdAt: res.data.createdAt,
+          author: res.data.author
         }
 
         setComments(prev =>
@@ -141,7 +142,8 @@ export function ArticleCommentsSection({
     setDeletingId(commentId)
     try {
       const res = await deleteArticleCommentAction(commentId)
-      if (res.success) {
+      if (res.ok) {
+
         if (parentId) {
           setComments(prev =>
             prev.map(c => {

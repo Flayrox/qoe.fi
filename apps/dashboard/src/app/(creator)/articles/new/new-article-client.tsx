@@ -3,7 +3,8 @@
 import React, { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Editor } from "@/features/editor/components/Editor"
-import { saveArticleAction } from "../actions"
+import { saveArticleAction } from "@qoe/api-client/actions/articles"
+
 
 interface NewArticleClientProps {
   categories: { id: string; name: string }[]
@@ -24,12 +25,17 @@ export function NewArticleClient({ categories }: NewArticleClientProps) {
     seoDescription: string | null
   }) => {
     try {
-      setIsSaving(true)
-      const created = await saveArticleAction(data)
-      
-      // Redirect to the edit page for this new article once created
-      router.push(`/articles/${created.id}`)
-      router.refresh()
+      const res = await saveArticleAction(data)
+      if (res.ok && res.data) {
+        router.push(`/articles/${res.data.id}`)
+        router.refresh()
+      } else if (!res.ok) {
+        throw new Error(res.error.message)
+      } else {
+        throw new Error("Échec de l'enregistrement.")
+      }
+
+
     } catch (err: any) {
       throw new Error(err?.message || "Échec de l'enregistrement.")
     } finally {
