@@ -6,6 +6,8 @@ import { Search, Command, Menu } from "lucide-react"
 import { toast } from "sonner"
 import { useCommandMenu } from "@qoe/ui"
 
+import { HeaderWorkspaceSwitcher } from "./HeaderWorkspaceSwitcher"
+
 const segmentMap: Record<string, string> = {
   articles: "Écrits",
   new: "Nouveau",
@@ -13,6 +15,7 @@ const segmentMap: Record<string, string> = {
   newsletters: "Newsletters",
   analytics: "Analyses",
   settings: "Réglages",
+  advanced: "Avancé",
 }
 
 export function HeaderClient() {
@@ -46,7 +49,7 @@ export function HeaderClient() {
 
           <button
             onClick={() => setIsOpen(true)}
-            className="w-56 sm:w-80 md:w-96 flex items-center justify-between font-sans text-xs text-muted-foreground/80 bg-muted/50 border border-transparent rounded-lg py-1.5 px-3.5 hover:bg-muted hover:text-foreground transition-all duration-200 cursor-pointer"
+            className="w-48 sm:w-72 md:w-80 flex items-center justify-between font-sans text-xs text-muted-foreground/80 bg-muted/50 border border-transparent rounded-lg py-1.5 px-3.5 hover:bg-muted hover:text-foreground transition-all duration-200 cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
               <Search className="w-3.5 h-3.5 shrink-0 text-muted-foreground/70" strokeWidth={1.5} />
@@ -59,21 +62,29 @@ export function HeaderClient() {
           </button>
         </div>
 
-        {/* Right: Navigation Links */}
-        <div className="flex items-center gap-6 font-sans text-xs font-semibold">
-          <nav className="hidden lg:flex items-center gap-6">
+        {/* Right: Workspace Switcher & Navigation Links */}
+        <div className="flex items-center gap-3 md:gap-6 font-sans text-xs font-semibold">
+          <HeaderWorkspaceSwitcher />
+
+          <nav className="hidden lg:flex items-center gap-5">
             <button
               onClick={() => router.push("/")}
-              className="text-primary border-b-2 border-primary py-1.5 transition-colors cursor-pointer"
+              className={pathname === "/" ? "text-primary border-b-2 border-primary py-1.5 transition-colors cursor-pointer" : "text-muted-foreground hover:text-foreground py-1.5 transition-colors cursor-pointer"}
             >
               Writer
             </button>
-            <span className="text-muted-foreground/50 py-1.5 cursor-not-allowed opacity-60" title="Prochainement">
-              Creator
-            </span>
-            <span className="text-muted-foreground/50 py-1.5 cursor-not-allowed opacity-60" title="Prochainement">
+            <button
+              onClick={() => router.push("/audience")}
+              className={pathname.startsWith("/audience") || pathname.startsWith("/analytics") ? "text-primary border-b-2 border-primary py-1.5 transition-colors cursor-pointer" : "text-muted-foreground hover:text-foreground py-1.5 transition-colors cursor-pointer"}
+            >
+              Studio
+            </button>
+            <button
+              onClick={() => router.push("/advanced")}
+              className={pathname.startsWith("/advanced") ? "text-primary border-b-2 border-primary py-1.5 transition-colors cursor-pointer" : "text-muted-foreground hover:text-foreground py-1.5 transition-colors cursor-pointer"}
+            >
               Advanced
-            </span>
+            </button>
           </nav>
         </div>
       </div>
