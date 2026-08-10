@@ -1,4 +1,4 @@
-import { ContentVisibility } from "@prisma/client";
+import { ContentVisibility } from "@qoe/db/types";
 
 export interface UserEntitlements {
   isMember: boolean;          // Registered free subscriber (has provided email)

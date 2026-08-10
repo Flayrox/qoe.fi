@@ -7,6 +7,7 @@
 
 import type { Thought as PrismaThought } from "@prisma/client";
 
+export { ContentVisibility } from "@prisma/client";
 export type {
   User,
   Article,
