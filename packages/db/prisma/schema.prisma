@@ -112,6 +112,10 @@ model User {
   translationLogs       TranslationAuditLog[]
   articleComments       ArticleComment[]     @relation("CommentAuthor")
   annotationComments    AnnotationComment[]
+
+  mediaMemberships            MediaMember[]
+  sentCollaborationRequests     CollaborationRequest[] @relation("SentCollaborationRequests")
+  receivedCollaborationRequests CollaborationRequest[] @relation("ReceivedCollaborationRequests")
   
   // AI Recs
   embedding Unsupported("vector(1536)")?
@@ -362,6 +366,13 @@ model Article {
   allowPublicAnnotations Boolean     @default(true) // Article-level annotation toggle
   allowComments          Boolean     @default(true) // Article-level comments toggle
   
+  // Scheduling & Collaboration
+  scheduledAt    DateTime?
+  status         String            @default("DRAFT") // "DRAFT", "SCHEDULED", "PUBLISHED"
+  
+  mediaId        String?
+  media          Media?            @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  
   // L'auteur principal
   authorId       String            @db.Uuid
   author         User              @relation("PrimaryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
@@ -384,6 +395,7 @@ model Article {
   highlights     Highlight[]
   letters        Letter[]
   comments       ArticleComment[]
+  collaborationRequests CollaborationRequest[]
 
   embedding Unsupported("vector(1536)")?
 
@@ -393,6 +405,57 @@ model Article {
   @@index([authorId, createdAt])
   @@index([published, createdAt])
   @@index([categoryId])
+  @@index([mediaId])
+  @@index([status, scheduledAt])
+}
+
+model Media {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  bio            String?  @db.Text
+  logoUrl        String?
+  subdomain      String?  @unique
+  customDomain   String?  @unique
+  accentColor    String?  @default("#EE4B2B")
+  allowIndexing  Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  members        MediaMember[]
+  articles       Article[]
+}
+
+model MediaMember {
+  id        String   @id @default(cuid())
+  mediaId   String
+  media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("writer") // "owner", "editor", "writer"
+  createdAt DateTime @default(now())
+
+  @@unique([mediaId, userId])
+  @@index([userId])
+  @@index([mediaId])
+}
+
+model CollaborationRequest {
+  id                  String   @id @default(cuid())
+  articleId           String
+  article             Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  inviterId           String   @db.Uuid
+  inviter             User     @relation("SentCollaborationRequests", fields: [inviterId], references: [id], onDelete: Cascade)
+  inviteeId           String   @db.Uuid
+  invitee             User     @relation("ReceivedCollaborationRequests", fields: [inviteeId], references: [id], onDelete: Cascade)
+  status              String   @default("PENDING") // "PENDING", "ACCEPTED", "DECLINED"
+  showOnPublicProfile Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([articleId, inviteeId])
+  @@index([inviteeId, status])
+  @@index([articleId])
 }
 
 model Thought {
