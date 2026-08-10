@@ -9,7 +9,8 @@ import { PaywallCut } from './PaywallCut';
 import { TextHighlighter } from './TextHighlighter';
 import { ReaderActions } from './ReaderActions';
 import { ArticleCommentsSection } from './ArticleCommentsSection';
-import { getArticleCommentsAction } from './actions';
+import { getArticleCommentsAction } from '@qoe/api-client/actions/articles';
+
 
 interface TenantArticlePageProps {
   params: Promise<{
@@ -185,7 +186,8 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   initialHighlights = hl;
   publicHighlights = publicHl;
 
-  const initialComments = commentsRes.success && commentsRes.comments ? commentsRes.comments : [];
+  const initialComments = commentsRes.ok && commentsRes.data ? commentsRes.data : [];
+
 
   const {
     name, heroText, accentColor, fontFamily, logoUrl,

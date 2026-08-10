@@ -21,3 +21,13 @@ export function actionErr<T = never>(
 ): ActionResult<T> {
   return { ok: false, error: { code, message } }
 }
+
+/**
+ * 📦 Extrait les données d'un ActionResult ou lève une erreur explicite.
+ */
+export function unwrapAction<T>(result: ActionResult<T>): T {
+  if (!result.ok) {
+    throw new Error(result.error.message);
+  }
+  return result.data;
+}

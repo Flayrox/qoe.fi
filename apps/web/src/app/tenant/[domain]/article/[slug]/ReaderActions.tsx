@@ -2,7 +2,9 @@
 
 import React, { useState } from "react"
 import { Bookmark, UserPlus, UserCheck, BookmarkCheck, HelpCircle, MessageSquare, Sparkles } from "lucide-react"
-import { toggleFollowCreator, toggleBookmarkArticle } from "./actions"
+import { toggleFollowCreatorAction, toggleBookmarkArticleAction } from "@qoe/api-client/actions/tenant"
+
+
 import { cn } from "@qoe/utils"
 import { motion } from "framer-motion"
 import { useRequireAuth } from "@qoe/ui"
@@ -39,9 +41,9 @@ export function ReaderActions({
     }
     setLoadingBookmark(true)
     try {
-      const res = await toggleBookmarkArticle(articleId)
-      if (res.success) {
-        setBookmarked(!!res.bookmarked)
+      const res = await toggleBookmarkArticleAction(articleId)
+      if (res.ok) {
+        setBookmarked(!!res.data.bookmarked)
       }
     } catch (e) {
       console.error(e)
@@ -57,10 +59,11 @@ export function ReaderActions({
     }
     setLoadingFollow(true)
     try {
-      const res = await toggleFollowCreator(creatorId)
-      if (res.success) {
-        setFollowed(!!res.followed)
+      const res = await toggleFollowCreatorAction(creatorId)
+      if (res.ok) {
+        setFollowed(!!res.data.followed)
       }
+
     } catch (e) {
       console.error(e)
     } finally {

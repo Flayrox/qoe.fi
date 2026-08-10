@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useEffect, useState, useRef } from "react"
-import { createHighlight, quotePassageToFeedAction } from "./actions"
+import { createHighlightAction as createHighlight, quotePassageToFeedAction } from "@qoe/api-client/actions/tenant"
+
 import { Highlighter, Check, Loader2, X, Plus, Globe, Lock, Share2, Quote, Eye, EyeOff, Sparkles } from "lucide-react"
 import { cn } from "@qoe/utils"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
@@ -403,12 +404,12 @@ export function TextHighlighter({
 
     setSaving(true)
     try {
-      const res = await createHighlight(articleId, selectedText, undefined, false)
-      if (res.success && res.highlight) {
-        setHighlights((prev) => [...prev, res.highlight])
+      const res = await createHighlight({ articleId, text: selectedText, note: undefined, isPublic: false })
+      if (res.ok && res.data) {
+        setHighlights((prev) => [...prev, res.data])
         const articleEl = document.getElementById("article-content")
         if (articleEl) {
-          applyHighlightToDOM(articleEl, selectedText, undefined, false, false, res.highlight.id)
+          applyHighlightToDOM(articleEl, selectedText, undefined, false, false, res.data.id)
         }
         setSavedSuccess(true)
         setTimeout(() => {
@@ -440,26 +441,26 @@ export function TextHighlighter({
     setErrorMessage(null)
     setSaving(true)
     try {
-      const res = await createHighlight(articleId, targetText, noteText || undefined, isPublicChoice)
-      if (res.success && res.highlight) {
+      const res = await createHighlight({ articleId, text: targetText, note: noteText || undefined, isPublic: isPublicChoice })
+      if (res.ok && res.data) {
         removeTempDraftMark()
 
         // 🌟 Ensure public highlight is in BOTH allPublic and highlights state so it NEVER disappears for author or readers!
         const createdItem: AnnotationItem = {
-          id: res.highlight.id,
+          id: res.data.id,
           text: targetText,
           note: noteText || null,
           isPublic: isPublicChoice,
           isOfficial: false,
           upvotesCount: 0,
           createdAt: new Date().toISOString(),
-          reader: res.highlight.reader || defaultReader,
+          reader: res.data.reader || defaultReader,
         }
 
         if (isPublicChoice) {
           setAllPublic((prev) => [...prev, createdItem])
         }
-        setHighlights((prev) => [...prev, res.highlight])
+        setHighlights((prev) => [...prev, res.data])
 
         setSavedSuccess(true)
         setTimeout(() => {
@@ -467,7 +468,7 @@ export function TextHighlighter({
           clearForm()
           window.getSelection()?.removeAllRanges()
         }, 800)
-      } else if (res.error === "PUBLIC_ANNOTATIONS_DISABLED") {
+      } else if (!res.ok && res.error?.code === "PUBLIC_ANNOTATIONS_DISABLED") {
         setErrorMessage("Le créateur a désactivé les annotations publiques sur cet écrit.")
       }
     } catch (e) {
@@ -485,8 +486,8 @@ export function TextHighlighter({
 
     setSaving(true)
     try {
-      const res = await quotePassageToFeedAction(articleId, selectedText)
-      if (res.success) {
+      const res = await quotePassageToFeedAction({ articleId, text: selectedText })
+      if (res.ok) {
         setSavedSuccess(true)
         setTimeout(() => {
           clearSelection()
@@ -494,6 +495,7 @@ export function TextHighlighter({
           window.getSelection()?.removeAllRanges()
         }, 800)
       }
+
     } catch (e) {
       console.error(e)
     } finally {

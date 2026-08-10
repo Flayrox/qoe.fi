@@ -354,8 +354,8 @@ export function ThoughtComposer({
     }
 
     try {
-      const { deletePost } = await import("../actions")
-      const res = await deletePost(draftId)
+      const { deletePostAction } = await import("@qoe/api-client/actions/feed")
+      const res = await deletePostAction(draftId)
       if (res.ok) {
         toast.success("Brouillon supprimé.")
       } else {
@@ -372,8 +372,8 @@ export function ThoughtComposer({
   const loadDrafts = async () => {
     setLoadingDrafts(true)
     try {
-      const { getUserDrafts } = await import("../actions")
-      const res = await getUserDrafts()
+      const { getUserDraftsAction } = await import("@qoe/api-client/actions/feed")
+      const res = await getUserDraftsAction()
       if (res.ok && res.data?.drafts) {
         setDrafts(res.data.drafts)
       } else {
@@ -433,8 +433,8 @@ export function ThoughtComposer({
       const imagePayload = uploadedUrls.length > 0 ? JSON.stringify(uploadedUrls) : null
       const tags = textContent.match(/#[a-zA-Z0-9_-]+/g) || []
 
-      const { createThought } = await import("../actions")
-      const res = await createThought({
+      const { createThoughtAction, deletePostAction } = await import("@qoe/api-client/actions/feed")
+      const res = await createThoughtAction({
         content: textContent,
         tags,
         imageUrl: imagePayload,
@@ -457,13 +457,13 @@ export function ThoughtComposer({
         
         if (loadedDraftId) {
           try {
-            const { deletePost } = await import("../actions")
-            await deletePost(loadedDraftId)
+            await deletePostAction(loadedDraftId)
           } catch (err) {
             console.error("Failed to delete original draft post after publishing:", err)
           }
           setLoadedDraftId(null)
         }
+
         
         const isFuture = isScheduled && scheduledDate && new Date(getScheduledDateTimeString() || "") > new Date()
         if (!isDraftSubmit && !isFuture && onPostCreated) {

@@ -16,7 +16,8 @@ import {
   Calendar,
   AlertCircle
 } from "lucide-react"
-import { updateCreatorApiAccessAction } from "../actions"
+import { updateCreatorApiAccessAction } from "@qoe/api-client/actions/admin"
+
 
 export interface ApiApplicant {
   id: string
@@ -43,8 +44,9 @@ export function ApiRequestsClient({ initialApplicants }: ApiRequestsClientProps)
   const handleUpdateStatus = async (userId: string, newStatus: "approved" | "rejected" | "revoked" | "none") => {
     setLoadingId(userId)
     try {
-      const res = await updateCreatorApiAccessAction(userId, newStatus)
-      if (res.success) {
+      const res = await updateCreatorApiAccessAction({ userId, status: newStatus })
+      if (res.ok) {
+
         setApplicants(
           applicants.map((app) =>
             app.id === userId ? { ...app, apiAccessStatus: newStatus } : app

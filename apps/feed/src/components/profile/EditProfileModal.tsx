@@ -4,7 +4,8 @@ import React, { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Camera, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import { updateProfile } from "@/features/feed/actions"
+import { updateProfileAction as updateProfile } from "@qoe/api-client/actions/feed"
+
 import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
 import { useTranslate } from "@qoe/i18n"
 

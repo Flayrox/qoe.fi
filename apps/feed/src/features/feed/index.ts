@@ -1,7 +1,5 @@
 // =====================================================================
-// 📰 Feature: Feed
+// 📦 Feed Feature Entry Point
 // =====================================================================
-
-export { PublicFeedPreview } from "@/components/feed/PublicFeedPreview"
-export * from "./actions"
-
+// All actions are imported directly from @qoe/api-client/actions/feed
+export {}

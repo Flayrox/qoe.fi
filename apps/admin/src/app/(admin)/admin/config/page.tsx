@@ -1,6 +1,7 @@
 import { prisma } from "@qoe/db/client"
 import { Trash2, Save, Plus, Settings } from "lucide-react"
-import { saveConfig, deleteConfig } from "./actions"
+import { setSystemConfigAction, deleteSystemConfigAction } from "@qoe/api-client/actions/admin"
+
 
 export default async function AdminConfig() {
   const configs = await prisma.systemConfig.findMany({
@@ -15,7 +16,7 @@ export default async function AdminConfig() {
     const description = formData.get("description") as string
     
     if (!key || !value) return
-    await saveConfig(key, value, description)
+    await setSystemConfigAction({ key: key.trim().toUpperCase(), value: value.trim(), description: description?.trim() })
   }
 
   async function handleUpdateConfig(formData: FormData) {
@@ -25,15 +26,16 @@ export default async function AdminConfig() {
     const description = formData.get("description") as string
     
     if (!key || !value) return
-    await saveConfig(key, value, description)
+    await setSystemConfigAction({ key: key.trim().toUpperCase(), value: value.trim(), description: description?.trim() })
   }
 
   async function handleDeleteConfig(formData: FormData) {
     "use server"
     const key = formData.get("key") as string
     if (!key) return
-    await deleteConfig(key)
+    await deleteSystemConfigAction(key)
   }
+
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-12">

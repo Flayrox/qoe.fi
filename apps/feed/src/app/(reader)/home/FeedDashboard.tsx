@@ -6,7 +6,13 @@ import { ReaderPageLayout } from "@/components/layout/ReaderPageLayout"
 import { 
   BookMarked, AlertCircle
 } from "lucide-react"
-import { toggleFollowCreatorHome, toggleBookmarkArticleHome, toggleLikePost, toggleRepostPost } from "./actions"
+import { 
+  toggleFollowCreatorHomeAction as toggleFollowCreatorHome, 
+  toggleBookmarkArticleHomeAction as toggleBookmarkArticleHome, 
+  toggleLikePostAction as toggleLikePost, 
+  toggleRepostPostAction as toggleRepostPost 
+} from "@qoe/api-client/actions/feed"
+
 import { ArticleCard, GuestFloatingBar, useAuthModal, type AuthActionContext } from "@qoe/ui"
 import { ThoughtCard } from "@/components/social/ThoughtCard"
 import { VirtualizedFeedList } from "@/components/feed/VirtualizedFeedList"
