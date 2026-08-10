@@ -100,3 +100,7 @@ plans/
 gemini-code.html
 .reference/
 mcp-config.json
+
+# ─── Excluded experimental / work directories ─────────────
+apps/mobile/
+jules_2/
