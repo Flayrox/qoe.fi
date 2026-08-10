@@ -8,3 +8,4 @@ export * from "./slugify";
 export * from "./validation";
 export * from "./action";
 export * from "./paywall";
+export * from "./redirect";

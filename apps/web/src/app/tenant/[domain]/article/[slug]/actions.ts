@@ -1,321 +1,144 @@
 "use server"
 
-import { follows, bookmarks, highlights, articleComments, articles, posts, wallet } from "@qoe/db"
-import { createClient } from "@qoe/supabase/server"
+import {
+  toggleFollowCreatorAction,
+  toggleBookmarkArticleAction,
+  createHighlightAction,
+  toggleHighlightPrivacyAction as rawToggleHighlightPrivacy,
+  updateHighlightNoteAction as rawUpdateHighlightNote,
+  upvoteHighlightAction as rawUpvoteHighlight,
+  deleteHighlightAction as rawDeleteHighlight,
+  createAnnotationCommentAction as rawCreateAnnotationComment,
+  quotePassageToFeedAction as rawQuotePassageToFeed,
+  unlockArticleWithWalletAction,
+  getCurrentUserWalletAction,
+} from "@qoe/api-client/actions/tenant"
+import {
+  postArticleCommentAction as rawPostArticleComment,
+  deleteArticleCommentAction as rawDeleteArticleComment,
+  getArticleCommentsAction as rawGetArticleComments,
+} from "@qoe/api-client/actions/articles"
 
-/**
- * ⚡ Bascule l'état de suivi d'un créateur.
- */
 export async function toggleFollowCreator(creatorId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: "UNAUTHORIZED" }
-  }
-
-  try {
-    const res = await follows.toggleFollow(user.id, creatorId)
-    return { success: true, followed: res.followed }
-  } catch (error) {
-    console.error("Error in toggleFollowCreator:", error)
-    return { success: false, error: "DATABASE_ERROR" }
-  }
+  const res = await toggleFollowCreatorAction(creatorId)
+  if (!res.ok) return { success: false, error: res.error.code }
+  return { success: true, followed: res.data.followed }
 }
 
-/**
- * 🔖 Bascule l'état de mise en favori d'un article.
- */
 export async function toggleBookmarkArticle(articleId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: "UNAUTHORIZED" }
-  }
-
-  try {
-    const res = await bookmarks.toggleBookmark(user.id, articleId)
-    return { success: true, bookmarked: res.bookmarked }
-  } catch (error) {
-    console.error("Error in toggleBookmarkArticle:", error)
-    return { success: false, error: "DATABASE_ERROR" }
-  }
+  const res = await toggleBookmarkArticleAction(articleId)
+  if (!res.ok) return { success: false, error: res.error.code }
+  return { success: true, bookmarked: res.data.bookmarked }
 }
 
-/**
- * 🖍️ Crée un surlignage ou une annotation sur un article.
- */
 export async function createHighlight(articleId: string, text: string, note?: string, isPublic: boolean = false) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: "UNAUTHORIZED" }
-  }
-
-  try {
-    const highlight = await highlights.createHighlight({
-      articleId,
-      readerId: user.id,
-      text,
-      note,
-      isPublic,
-    })
-    return { success: true, highlight }
-  } catch (error: any) {
-    console.error("Error in createHighlight:", error)
-    if (error?.message?.includes("désactivé")) {
-      return { success: false, error: "PUBLIC_ANNOTATIONS_DISABLED" }
-    }
-    return { success: false, error: "DATABASE_ERROR" }
-  }
+  const res = await createHighlightAction({ articleId, text, note, isPublic })
+  if (!res.ok) throw new Error(res.error.message)
+  return res.data
 }
 
-/**
- * 🔒 Bascule la confidentialité d'une annotation (Privé <-> Public).
- */
+export async function toggleHighlightPrivacy(highlightId: string, isPublic: boolean) {
+  const res = await rawToggleHighlightPrivacy({ highlightId, isPublic })
+  if (!res.ok) throw new Error(res.error.message)
+  return res.data
+}
+
 export async function toggleHighlightPrivacyAction(highlightId: string, isPublic: boolean) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: "UNAUTHORIZED" }
-  }
-
-  try {
-    const updated = await highlights.toggleHighlightPrivacy(highlightId, user.id, isPublic)
-    return { success: true, highlight: updated }
-  } catch (error: any) {
-    console.error("Error in toggleHighlightPrivacyAction:", error)
-    if (error?.message?.includes("introuvable") || error?.message?.includes("non autorisée")) {
-      return { success: false, error: "FORBIDDEN" }
-    }
-    if (error?.message?.includes("désactivé")) {
-      return { success: false, error: "PUBLIC_ANNOTATIONS_DISABLED" }
-    }
-    return { success: false, error: "DATABASE_ERROR" }
-  }
+  return toggleHighlightPrivacy(highlightId, isPublic)
 }
 
-/**
- * ✏️ Modifie le contenu d'une note d'annotation.
- */
+export async function updateHighlightNote(highlightId: string, note: string | null) {
+  const res = await rawUpdateHighlightNote({ highlightId, note })
+  if (!res.ok) throw new Error(res.error.message)
+  return res.data
+}
+
 export async function updateHighlightNoteAction(highlightId: string, note: string | null) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: "UNAUTHORIZED" }
-  }
-
-  try {
-    const updated = await highlights.updateHighlightNote(highlightId, user.id, note)
-    return { success: true, highlight: updated }
-  } catch (error: any) {
-    console.error("Error in updateHighlightNoteAction:", error)
-    return { success: false, error: "DATABASE_ERROR" }
-  }
+  return updateHighlightNote(highlightId, note)
 }
 
-/**
- * 👍 Bascule l'upvote (toggle) d'une annotation publique.
- */
+export async function upvoteHighlight(highlightId: string) {
+  const res = await rawUpvoteHighlight(highlightId)
+  if (!res.ok) throw new Error(res.error.message)
+  return res.data
+}
+
 export async function upvoteHighlightAction(highlightId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: "UNAUTHORIZED" }
-  }
-
-  try {
-    const res = await highlights.upvoteHighlight(highlightId, user.id)
-    return { success: true, upvotesCount: res.upvotesCount, hasUpvoted: res.hasUpvoted }
-  } catch (error) {
-    console.error("Error in upvoteHighlightAction:", error)
-    return { success: false, error: "DATABASE_ERROR" }
-  }
+  return upvoteHighlight(highlightId)
 }
 
-/**
- * ❌ Supprime un surlignage / une annotation.
- */
+export async function deleteHighlight(highlightId: string) {
+  const res = await rawDeleteHighlight(highlightId)
+  if (!res.ok) return { success: false, error: res.error.code }
+  return { success: true }
+}
+
 export async function deleteHighlightAction(highlightId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: "UNAUTHORIZED" }
-  }
-
-  try {
-    await highlights.deleteHighlight(highlightId, user.id)
-    return { success: true }
-  } catch (error: any) {
-    console.error("Error in deleteHighlightAction:", error)
-    if (error?.message?.includes("introuvable") || error?.message?.includes("non autorisée")) {
-      return { success: false, error: "FORBIDDEN" }
-    }
-    return { success: false, error: "DATABASE_ERROR" }
-  }
+  return deleteHighlight(highlightId)
 }
 
-/**
- * 💬 Commente une annotation publique.
- */
+export async function createAnnotationComment(highlightId: string, content: string) {
+  const res = await rawCreateAnnotationComment({ highlightId, content })
+  if (!res.ok) return { success: false, error: res.error.message }
+  return { success: true, comment: res.data }
+}
+
 export async function createAnnotationCommentAction(highlightId: string, content: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: "UNAUTHORIZED" }
-  }
-
-  if (!content || !content.trim()) {
-    return { success: false, error: "EMPTY_CONTENT" }
-  }
-
-  try {
-    const comment = await highlights.createAnnotationComment(highlightId, user.id, content.trim())
-    return { success: true, comment }
-  } catch (error) {
-    console.error("Error in createAnnotationCommentAction:", error)
-    return { success: false, error: "DATABASE_ERROR" }
-  }
+  return createAnnotationComment(highlightId, content)
 }
 
-/**
- * 📌 Cite un passage d'article vers le flux (Thought).
- */
+export async function quotePassageToFeed(articleId: string, text: string, commentary?: string) {
+  const res = await rawQuotePassageToFeed({ articleId, text, commentary })
+  if (!res.ok) return { success: false, error: res.error.code }
+  return { success: true, post: res.data.post }
+}
+
 export async function quotePassageToFeedAction(articleId: string, text: string, commentary?: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: "UNAUTHORIZED" }
-  }
-
-  try {
-    const article = await articles.findById(articleId)
-
-    if (!article) {
-      return { success: false, error: "ARTICLE_NOT_FOUND" }
-    }
-
-    const host = article.author.subdomain ? `${article.author.subdomain}.qoe.fi` : "qoe.fi"
-    const articleUrl = `https://${host}/article/${article.slug}`
-    const formattedContent = `« ${text.trim()} »\n\n${commentary ? commentary.trim() + "\n\n" : ""}📌 Extrait de "${article.title}" — ${articleUrl}`
-
-    const thought = await posts.createThought({
-      authorId: user.id,
-      content: formattedContent,
-    })
-
-    return { success: true, thought }
-  } catch (error) {
-    console.error("Error in quotePassageToFeedAction:", error)
-    return { success: false, error: "DATABASE_ERROR" }
-  }
+  return quotePassageToFeed(articleId, text, commentary)
 }
 
-/**
- * 💳 Déverrouille un article avec le portefeuille virtuel.
- */
-export async function unlockArticleWithWallet(creatorId: string, costCents: number = 200) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: "UNAUTHORIZED" }
-  }
-
-  return wallet.unlockArticleWithWallet(user.id, creatorId, costCents)
+export async function unlockArticleWithWallet(creatorId: string, costCents: number = 100) {
+  const res = await unlockArticleWithWalletAction({ creatorId, costCents })
+  if (!res.ok) return { success: false, error: res.error.code }
+  return { success: true }
 }
 
-/**
- * 💳 Récupère les données de portefeuille de l'utilisateur actif.
- */
 export async function getCurrentUserWallet() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return null
-  }
-
-  return wallet.getUserWallet(user.id)
+  const res = await getCurrentUserWalletAction()
+  if (!res.ok) return null
+  return res.data
 }
 
 export async function getCurrentUser() {
   return getCurrentUserWallet()
 }
 
-/**
- * 💬 Publie un commentaire sous un article.
- */
+export async function postArticleComment(articleId: string, content: string, parentId?: string | null) {
+  const res = await rawPostArticleComment({ articleId, content, parentId })
+  if (!res.ok) return { success: false, error: res.error.message }
+  return { success: true, comment: res.data }
+}
+
 export async function postArticleCommentAction(articleId: string, content: string, parentId?: string | null) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: "UNAUTHORIZED" }
-  }
-
-  if (!content || !content.trim()) {
-    return { success: false, error: "EMPTY_CONTENT" }
-  }
-
-  try {
-    const comment = await articleComments.createArticleComment({
-      articleId,
-      authorId: user.id,
-      content: content.trim(),
-      parentId: parentId || null,
-    })
-
-    return { success: true, comment }
-  } catch (error: any) {
-    console.error("Error in postArticleCommentAction:", error)
-    if (error?.message?.includes("désactivé")) {
-      return { success: false, error: "COMMENTS_DISABLED" }
-    }
-    return { success: false, error: "DATABASE_ERROR" }
-  }
+  return postArticleComment(articleId, content, parentId)
 }
 
-/**
- * ❌ Supprime un commentaire d'article.
- */
+export async function deleteArticleComment(commentId: string) {
+  const res = await rawDeleteArticleComment(commentId)
+  if (!res.ok) return { success: false, error: res.error.message }
+  return { success: true }
+}
+
 export async function deleteArticleCommentAction(commentId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: "UNAUTHORIZED" }
-  }
-
-  try {
-    await articleComments.deleteArticleComment(commentId, user.id)
-    return { success: true }
-  } catch (error: any) {
-    console.error("Error in deleteArticleCommentAction:", error)
-    if (error?.message?.includes("introuvable") || error?.message?.includes("non autorisée")) {
-      return { success: false, error: "FORBIDDEN" }
-    }
-    return { success: false, error: "DATABASE_ERROR" }
-  }
+  return deleteArticleComment(commentId)
 }
 
-/**
- * 📖 Récupère les commentaires d'un article.
- */
+export async function getArticleComments(articleId: string) {
+  const res = await rawGetArticleComments(articleId)
+  if (!res.ok) return { success: false, comments: [] }
+  return { success: true, comments: res.data }
+}
+
 export async function getArticleCommentsAction(articleId: string) {
-  try {
-    const comments = await articleComments.getArticleComments(articleId)
-    return { success: true, comments }
-  } catch (error) {
-    console.error("Error in getArticleCommentsAction:", error)
-    return { success: false, comments: [] }
-  }
+  return getArticleComments(articleId)
 }

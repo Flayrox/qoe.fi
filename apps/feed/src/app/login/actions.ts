@@ -2,12 +2,15 @@
 
 import { createClient } from '@qoe/supabase/server'
 import { redirect } from 'next/navigation'
+import { getSafeRedirectUrl } from '@qoe/utils'
+import { getCurrentUserAction, logoutAction } from '@qoe/api-client/actions/auth'
 
 export async function login(formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
-  const redirectTo = formData.get('redirect') as string
-  
+  const rawRedirect = formData.get('redirect') as string
+  const redirectTo = getSafeRedirectUrl(rawRedirect, '/home')
+
   if (!email || !password) {
     redirect('/login?error=Missing+credentials')
   }
@@ -67,32 +70,14 @@ export async function signup(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error?.message || 'Signup failed')}`)
   }
 
-  // Redirect to onboarding for new signups
   redirect('/onboarding')
 }
 
 export async function logout() {
-  const supabase = await createClient()
-  await supabase.auth.signOut()
+  await logoutAction()
   redirect('/login')
 }
 
 export async function getCurrentUser() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { prisma } = await import('@qoe/db/client')
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-      subdomain: true,
-      customDomain: true,
-    }
-  })
-  return dbUser
+  return getCurrentUserAction()
 }

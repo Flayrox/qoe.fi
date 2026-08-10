@@ -8,6 +8,12 @@
       "@qoe/config/*": ["../../packages/config/src/*"],
       "@qoe/api-client": ["../../packages/api-client/src/index.ts"],
       "@qoe/api-client/*": ["../../packages/api-client/src/*"],
+      "@qoe/db": ["../../packages/db/src/index.ts"],
+      "@qoe/db/*": ["../../packages/db/src/*"],
+      "@qoe/supabase": ["../../packages/supabase/src/index.ts"],
+      "@qoe/supabase/*": ["../../packages/supabase/src/*"],
+      "@qoe/utils": ["../../packages/utils/src/index.ts"],
+      "@qoe/utils/*": ["../../packages/utils/src/*"],
       "@prisma/client": ["../../node_modules/.prisma/client/default"]
     }
   },

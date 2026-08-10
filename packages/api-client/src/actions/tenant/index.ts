@@ -1,0 +1,131 @@
+"use server";
+
+import { prisma } from "@qoe/db/client";
+import { follows, bookmarks, highlights, posts, wallet } from "@qoe/db";
+import { safeAction } from "../utils/safe-action";
+
+export const subscribeToNewsletterAction = safeAction<
+  { email: string; creatorId: string },
+  { success: boolean }
+>(async ({ email, creatorId }) => {
+  const cleanEmail = email.trim().toLowerCase();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(cleanEmail)) {
+    throw new Error("Veuillez saisir une adresse email valide.");
+  }
+
+  await prisma.subscriber.upsert({
+    where: {
+      email_creatorId: {
+        email: cleanEmail,
+        creatorId,
+      },
+    },
+    update: {
+      isActive: true,
+    },
+    create: {
+      creatorId,
+      email: cleanEmail,
+      isActive: true,
+    },
+  });
+
+  return { success: true };
+}, { requireAuth: false });
+
+export const toggleFollowCreatorAction = safeAction<string, { followed: boolean }>(
+  async (creatorId, user) => {
+    return follows.toggleFollow(user.id, creatorId);
+  }
+);
+
+export const toggleBookmarkArticleAction = safeAction<string, { bookmarked: boolean }>(
+  async (articleId, user) => {
+    return bookmarks.toggleBookmark(user.id, articleId);
+  }
+);
+
+export const createHighlightAction = safeAction<
+  { articleId: string; text: string; note?: string; isPublic?: boolean },
+  any
+>(async (data, user) => {
+  const { articleId, text, note, isPublic = true } = data;
+  return highlights.createHighlight({
+    articleId,
+    readerId: user.id,
+    text,
+    note: note || null,
+    isPublic,
+  });
+});
+
+export const toggleHighlightPrivacyAction = safeAction<
+  { highlightId: string; isPublic: boolean },
+  any
+>(async (data, user) => {
+  return highlights.toggleHighlightPrivacy(data.highlightId, user.id, data.isPublic);
+});
+
+export const updateHighlightNoteAction = safeAction<
+  { highlightId: string; note: string | null },
+  any
+>(async (data, user) => {
+  return highlights.updateHighlightNote(data.highlightId, user.id, data.note);
+});
+
+export const upvoteHighlightAction = safeAction<string, any>(async (highlightId, user) => {
+  return highlights.upvoteHighlight(highlightId, user.id);
+});
+
+export const deleteHighlightAction = safeAction<string, { success: boolean }>(async (highlightId, user) => {
+  const deleted = await highlights.deleteHighlight(highlightId, user.id);
+  if (!deleted) throw new Error("UNAUTHORIZED");
+  return { success: true };
+});
+
+export const createAnnotationCommentAction = safeAction<
+  { highlightId: string; content: string },
+  any
+>(async (data, user) => {
+  return highlights.createAnnotationComment(data.highlightId, user.id, data.content);
+});
+
+export const quotePassageToFeedAction = safeAction<
+  { articleId: string; text: string; commentary?: string },
+  { post: any }
+>(async (data, user) => {
+  const { articleId, text, commentary } = data;
+  const article = await prisma.article.findUnique({
+    where: { id: articleId },
+    select: { title: true, slug: true },
+  });
+  if (!article) throw new Error("ARTICLE_NOT_FOUND");
+
+  const quoteContent = commentary
+    ? `"${text}" — Article: ${article.title}\n\n${commentary}`
+    : `"${text}" — Article: ${article.title}`;
+
+  const post = await posts.createThought({
+    content: quoteContent,
+    authorId: user.id,
+  });
+
+  return { post };
+});
+
+export const unlockArticleWithWalletAction = safeAction<
+  { creatorId: string; costCents?: number },
+  { success: boolean }
+>(async ({ creatorId, costCents = 100 }, user) => {
+  const result = await wallet.unlockArticleWithWallet(user.id, creatorId, costCents);
+  if (!result.success) {
+    throw new Error(result.error || "TRANSACTION_FAILED");
+  }
+  return { success: true };
+});
+
+export const getCurrentUserWalletAction = safeAction<void, any>(async (_, user) => {
+  const userWallet = await wallet.getUserWallet(user.id);
+  return userWallet;
+});

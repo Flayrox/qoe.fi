@@ -2,6 +2,8 @@
 
 > **INSTRUCTION FOR AI AGENTS IN IDE:**
 > Before writing or modifying any code in this repository, locate your target file in Section 3 and review its dependencies in Section 5 (Blast Radius). Always respect the architectural rules listed in Section 6.
+> Detailed API & Mobile specs: [.agents/docs/API_AND_MOBILE_ARCHITECTURE.md](file:///d:/Files/DEV/Main/qoe.fi/.agents/docs/API_AND_MOBILE_ARCHITECTURE.md)
+
 
 ---
 

@@ -27,9 +27,13 @@ export async function middleware(request: NextRequest) {
 
   // 2. Refresh Supabase session (toujours)
   const { supabaseResponse, user } = await updateSession(request);
+  if (supabaseResponse.status === 307 || supabaseResponse.status === 308) {
+    return supabaseResponse;
+  }
 
   // 2.5 Set locale header on response
   supabaseResponse.headers.set("x-locale", localeCookie);
+
 
   // 3. Multi-tenancy check via @qoe/config
   const hostname = request.headers.get("host") || "";
