@@ -4,7 +4,8 @@
 // 📖 Page d'édition d'un article existant avec l'éditeur riche.
 // =====================================================================
 
-import { getArticleByIdAction, getCategoriesAction } from "../actions"
+import { getArticleByIdAction, getCategoriesAction } from "@qoe/api-client/actions/articles"
+
 import { EditArticleClient } from "./edit-article-client"
 import { notFound } from "next/navigation"
 
@@ -16,21 +17,25 @@ export default async function ArticleEditPage({ params }: PageProps) {
   const { id } = await params
 
   try {
-    const [article, categories] = await Promise.all([
+    const [articleRes, categoriesRes] = await Promise.all([
       getArticleByIdAction(id),
       getCategoriesAction(),
     ])
 
-    if (!article) {
+    if (!articleRes.ok || !articleRes.data) {
       notFound()
     }
+
+    const article = articleRes.data
+    const categoriesList = categoriesRes.ok ? categoriesRes.data : []
 
     return (
       <EditArticleClient
         article={article}
-        categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+        categories={categoriesList.map((c: any) => ({ id: c.id, name: c.name }))}
       />
     )
+
   } catch (error) {
     console.error("Error loading article:", error)
     notFound()

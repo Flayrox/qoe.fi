@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { Lock, Wallet, Loader2, AlertCircle } from "lucide-react"
-import { unlockArticleWithWallet, getCurrentUser } from "./actions"
+import { unlockArticleWithWalletAction as unlockArticleWithWallet, getCurrentUserWalletAction as getCurrentUser } from "@qoe/api-client/actions/tenant"
+
 import { cn } from "@qoe/utils"
 import { sanitizeHtml } from "@/lib/sanitize"
 
@@ -110,17 +111,18 @@ function PaywallOverlay({
     setErrorMessage(null)
 
     try {
-      const res = await unlockArticleWithWallet(creatorId, 200) // 2.00 € = 200 cents
-      if (res.success) {
+      const res = await unlockArticleWithWallet({ creatorId, costCents: 200 }) // 2.00 € = 200 cents
+      if (res.ok) {
         // Reload to reveal full content
         window.location.reload()
       } else {
-        if (res.error === "INSUFFICIENT_FUNDS") {
+        if (res.error?.code === "INSUFFICIENT_FUNDS") {
           setErrorMessage("Solde insuffisant dans votre portefeuille. Veuillez recharger votre compte sur l'application principale.")
         } else {
           setErrorMessage("Une erreur est survenue lors du paiement. Veuillez réessayer.")
         }
       }
+
     } catch (err) {
       console.error(err)
       setErrorMessage("Erreur réseau. Impossible de contacter le serveur de paiement.")

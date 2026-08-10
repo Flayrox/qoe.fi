@@ -36,7 +36,8 @@ import {
   updateSubdomainAction,
   saveNavigationLinksAction,
   saveSocialLinksAction
-} from "../actions"
+} from "@qoe/api-client/actions/dashboard"
+
 
 // =====================================================================
 // 🎨 TYPES & DATA DEFINITIONS
@@ -207,10 +208,11 @@ export default function SettingsClient({ initialCreator }: SettingsClientProps) 
       try {
         const res = await checkSubdomainAvailabilityAction(debouncedSubdomain)
         setSubdomainCheckResult({
-          available: res.available,
-          error: res.error,
+          available: res.ok ? res.data.available : false,
+          error: res.ok ? (res.data.reason || null) : (res.error?.message || "Sous-domaine indisponible."),
           loading: false
         })
+
       } catch (err: any) {
         setSubdomainCheckResult({
           available: false,
