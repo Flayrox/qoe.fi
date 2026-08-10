@@ -8,11 +8,11 @@ import type { Crop, PixelCrop } from "react-image-crop"
 import "react-image-crop/dist/ReactCrop.css"
 import { cn } from "@qoe/utils"
 
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { TimePickerInput } from "@/components/ui/time-picker/time-picker-input"
+import { Popover, PopoverTrigger, PopoverContent } from "@qoe/ui/ui/popover"
+import { Calendar } from "@qoe/ui/ui/calendar"
+import { TimePickerInput } from "@qoe/ui/ui/time-picker-input"
 import { toast } from "sonner"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@qoe/ui/ui/sheet"
 
 interface ComposerImage {
   id: string
@@ -35,8 +35,8 @@ const getImages = (url: string | null | undefined): string[] => {
 
 import { QuotedThoughtCard } from "@/components/social/QuotedThoughtCard"
 import type { ThoughtData } from "@/components/social/ThoughtCard"
-import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
-import { CertifiedBadge } from "@/components/ui/CertifiedBadge"
+import { AuthorAvatar } from "@qoe/ui/ui/AuthorAvatar"
+import { CertifiedBadge } from "@qoe/ui/ui/CertifiedBadge"
 
 interface ThoughtComposerProps {
   dbUser: any
@@ -842,7 +842,7 @@ export function ThoughtComposer({
                   </Popover>
 
                   {/* 2. Planification Dropdown (Shadcn Popover & Calendar) */}
-                  <Popover open={showScheduleDropdown} onOpenChange={(open) => {
+                  <Popover open={showScheduleDropdown} onOpenChange={(open: boolean) => {
                     setShowScheduleDropdown(open)
                     if (open && !scheduledDate) {
                       const now = new Date()
@@ -873,7 +873,7 @@ export function ThoughtComposer({
                         <Calendar
                           mode="single"
                           selected={scheduledDate}
-                          onSelect={(dateVal) => {
+                          onSelect={(dateVal: Date | undefined) => {
                             if (!dateVal) {
                               setScheduledDate(undefined)
                               return

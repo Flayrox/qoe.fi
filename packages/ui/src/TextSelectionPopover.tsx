@@ -167,7 +167,7 @@ export function TextSelectionPopover({
   return (
     <div
       ref={refs.setFloating}
-      style={floatingStyles}
+      style={floatingStyles as React.CSSProperties}
       className={cn("z-50 pointer-events-auto select-none font-sans flex items-center justify-center", className)}
       onMouseDown={(e) => {
         if (isLocked) return

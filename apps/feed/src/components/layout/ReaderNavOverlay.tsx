@@ -18,6 +18,7 @@ import { cn } from "@qoe/utils"
 import { Logo } from "@qoe/ui"
 import { routes } from "@qoe/config/routes"
 import { URLS } from "@qoe/config"
+import { useTranslate } from "@qoe/i18n"
 
 interface ReaderNavOverlayProps {
   userName?: string
@@ -34,6 +35,7 @@ export function ReaderNavOverlay({
   userRole,
   onLogout,
 }: ReaderNavOverlayProps) {
+  const { t } = useTranslate()
   const pathname = usePathname()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
@@ -43,10 +45,10 @@ export function ReaderNavOverlay({
   }, [])
 
   const navItems = [
-    { label: "Accueil", href: routes.feed.home(), icon: Home },
-    { label: "Signets", href: routes.feed.library(), icon: Bookmark },
-    { label: "Surlignages", href: routes.feed.highlights(), icon: Highlighter },
-    { label: "Portefeuille", href: routes.feed.billing(), icon: Wallet },
+    { label: t("feed.home", "Accueil"), href: routes.feed.home(), icon: Home },
+    { label: t("feed.tab_library", "Signets"), href: routes.feed.library(), icon: Bookmark },
+    { label: t("highlights.title", "Surlignages"), href: routes.feed.highlights(), icon: Highlighter },
+    { label: t("settings_reader.tab_billing", "Portefeuille"), href: routes.feed.billing(), icon: Wallet },
   ]
 
   const isItemActive = (href: string) => {
@@ -166,7 +168,7 @@ export function ReaderNavOverlay({
                     onClick={() => setIsProfileOpen(false)}
                   >
                     <LayoutDashboard className="w-3.5 h-3.5" />
-                    <span>Studio Créateur</span>
+                    <span>{t("settings_reader.creator_go_dashboard", "Studio Créateur")}</span>
                   </a>
                 )}
 
@@ -184,7 +186,7 @@ export function ReaderNavOverlay({
                       className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-destructive rounded-xl hover:bg-destructive/10 transition-colors text-left cursor-pointer"
                     >
                       <LogOut className="w-3.5 h-3.5" />
-                      <span>Se déconnecter</span>
+                      <span>{t("sidebar.user_logout", "Se déconnecter")}</span>
                     </button>
                   </form>
                 )}
@@ -196,3 +198,4 @@ export function ReaderNavOverlay({
     </header>
   )
 }
+

@@ -18,9 +18,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+} from "@qoe/ui/ui/table"
+import { Button } from "@qoe/ui/ui/button"
+import { Input } from "@qoe/ui/ui/input"
 import { Search } from "lucide-react"
 
 interface DataTableProps<TData, TValue> {

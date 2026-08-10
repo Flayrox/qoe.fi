@@ -23,7 +23,7 @@ import { ArrowRight, Sparkles, TrendingUp } from "lucide-react";
 import { ArticleCard } from "@/components/feed/ArticleCard";
 import { ThoughtCard } from "@/components/feed/ThoughtCard";
 import { Button } from "@qoe/ui/button";
-import { Logo } from "@/components/ui/Logo";
+import { Logo } from "@qoe/ui/ui/Logo";
 import { isFeatureEnabled } from "@qoe/config/features";
 import { EVENTS } from "@qoe/analytics/events";
 

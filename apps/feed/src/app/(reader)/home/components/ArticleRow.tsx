@@ -3,8 +3,8 @@
 import React from "react"
 import { motion } from "framer-motion"
 import { BookMarked, Bookmark, Share2, ArrowUpRight, Clock } from "lucide-react"
-import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
-import { CertifiedBadge } from "@/components/ui/CertifiedBadge"
+import { AuthorAvatar } from "@qoe/ui/ui/AuthorAvatar"
+import { CertifiedBadge } from "@qoe/ui/ui/CertifiedBadge"
 import { cn } from "@qoe/utils"
 import { routes } from "@qoe/config/routes"
 

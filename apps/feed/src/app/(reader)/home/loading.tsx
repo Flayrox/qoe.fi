@@ -1,5 +1,5 @@
 import React from "react"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Skeleton } from "@qoe/ui/ui/skeleton"
 
 export default function HomeLoading() {
   return (

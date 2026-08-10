@@ -4,7 +4,7 @@ import { getRequestDbUser } from "../../lib/cached-queries"
 import { AppSidebar } from "@/components/layout/AppSidebar"
 import { ReaderNavOverlay } from "@/components/layout/ReaderNavOverlay"
 import { MainContentWrapper } from "@/components/layout/MainContentWrapper"
-import { Toaster } from "@/components/ui/sonner"
+import { Toaster } from "@qoe/ui/ui/sonner"
 import { logout } from "@/app/login/actions"
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {

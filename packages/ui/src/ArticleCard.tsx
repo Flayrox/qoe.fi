@@ -6,6 +6,7 @@ import { cn } from "@qoe/utils"
 import { routes } from "@qoe/config"
 import type { FeedArticleDTO, CreatorProfileDTO } from "@qoe/db/types"
 import { useRequireAuth } from "./auth/AuthModalContext"
+import { useTranslate } from "@qoe/i18n"
 
 export type { FeedArticleDTO as Article }
 
@@ -35,6 +36,7 @@ export function ArticleCard({
   onOpenProfile,
   onOpenPost,
 }: ArticleCardProps) {
+  const { t } = useTranslate()
   const { withAuth } = useRequireAuth()
   const [liked, setLiked] = useState(article.liked || false)
   const [likesCount, setLikesCount] = useState(article.likesCount || 0)
@@ -137,7 +139,7 @@ export function ArticleCard({
               </span>
               {!isThought && (
                 <span className="px-2 py-0.5 text-[10px] bg-primary/10 text-primary rounded-full border border-primary/20 font-medium">
-                  Article
+                  {t("feed.article_badge", "Article")}
                 </span>
               )}
             </div>
@@ -182,7 +184,7 @@ export function ArticleCard({
                 type="button"
                 onClick={() => onOpenPost && onOpenPost(article.id)}
                 className="flex items-center gap-1.5 hover:text-foreground transition-colors outline-none cursor-pointer"
-                title="Commenter"
+                title={t("feed.reply_btn", "Commenter")}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
                 <span>{article.repliesCount || 0}</span>
@@ -196,7 +198,7 @@ export function ArticleCard({
                   "flex items-center gap-1.5 transition-colors outline-none cursor-pointer",
                   reposted ? "text-emerald-400" : "hover:text-emerald-400"
                 )}
-                title="Reposter"
+                title={t("feed.repost_btn", "Reposter")}
               >
                 <Repeat className="w-3.5 h-3.5" />
                 <span>{repostsCount}</span>
@@ -210,7 +212,7 @@ export function ArticleCard({
                   "flex items-center gap-1.5 transition-colors outline-none cursor-pointer",
                   liked ? "text-primary" : "hover:text-primary"
                 )}
-                title="Aimer"
+                title={t("feed.like", "Aimer")}
               >
                 <Heart className={cn("w-3.5 h-3.5", liked ? "fill-primary text-primary" : "")} />
                 <span>{likesCount}</span>
@@ -220,7 +222,9 @@ export function ArticleCard({
             {/* Right: Reading time & Bookmark */}
             <div className="flex items-center gap-3">
               {article.readingTime > 0 && (
-                <span className="text-[11px] text-muted-foreground">{article.readingTime} min read</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {t("feed.reading_time", "{count} min de lecture", { count: article.readingTime })}
+                </span>
               )}
               {handleBookmarkToggle && (
                 <button
@@ -234,7 +238,7 @@ export function ArticleCard({
                     "p-1 hover:text-foreground transition-colors outline-none cursor-pointer",
                     isBookmarked ? "text-primary" : ""
                   )}
-                  title={isBookmarked ? "Retirer des signets" : "Mettre en signet"}
+                  title={isBookmarked ? t("feed.bookmark_remove", "Retirer le signet") : t("feed.bookmark_add", "Ajouter aux signets")}
                 >
                   <Bookmark className={cn("w-3.5 h-3.5", isBookmarked ? "fill-primary text-primary" : "")} />
                 </button>
@@ -246,3 +250,4 @@ export function ArticleCard({
     </article>
   )
 }
+

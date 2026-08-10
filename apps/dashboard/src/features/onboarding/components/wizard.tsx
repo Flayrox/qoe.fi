@@ -19,7 +19,7 @@ import {
   Settings,
   Plus
 } from "lucide-react"
-import { BentoPlateau, BentoItem } from "@/components/ui/BentoPlateau"
+import { BentoPlateau, BentoItem } from "@qoe/ui/ui/BentoPlateau"
 
 type WizardData = {
   name: string

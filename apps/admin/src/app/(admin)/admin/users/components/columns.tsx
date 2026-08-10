@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuGroup,
-} from "@/components/ui/dropdown-menu"
+} from "@qoe/ui/ui/dropdown-menu"
 import {
   toggleUserCertificationAction as toggleUserCertification,
   toggleUserShadowbanAction as toggleUserShadowban,
