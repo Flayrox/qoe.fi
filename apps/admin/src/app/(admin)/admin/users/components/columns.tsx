@@ -11,7 +11,13 @@ import {
   DropdownMenuTrigger,
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu"
-import { toggleUserCertification, toggleUserShadowban, suspendUser, unsuspendUser } from "../../actions"
+import {
+  toggleUserCertificationAction as toggleUserCertification,
+  toggleUserShadowbanAction as toggleUserShadowban,
+  suspendUserAction as suspendUser,
+  unsuspendUserAction as unsuspendUser
+} from "@qoe/api-client/actions/admin"
+
 
 export type AdminUser = {
   id: string
@@ -101,7 +107,7 @@ export const columns: ColumnDef<AdminUser>[] = [
               </DropdownMenuItem>
 
               <DropdownMenuItem 
-                onClick={() => toggleUserCertification(user.id, !user.isCertified)}
+                onClick={() => toggleUserCertification({ userId: user.id, isCertified: !user.isCertified })}
                 className="cursor-pointer hover:bg-neutral-50 focus:bg-neutral-50 rounded-xl px-3 py-2 text-sm font-medium"
               >
                 <ShieldCheck className="mr-2 h-4 w-4 opacity-70" />
@@ -109,7 +115,7 @@ export const columns: ColumnDef<AdminUser>[] = [
               </DropdownMenuItem>
 
               <DropdownMenuItem 
-                onClick={() => toggleUserShadowban(user.id, !user.isShadowbanned)}
+                onClick={() => toggleUserShadowban({ userId: user.id, isShadowbanned: !user.isShadowbanned })}
                 className="cursor-pointer hover:bg-amber-50 focus:bg-amber-50 text-amber-600 focus:text-amber-700 rounded-xl px-3 py-2 text-sm font-medium"
               >
                 <ShieldAlert className="mr-2 h-4 w-4 opacity-70" />
@@ -124,9 +130,10 @@ export const columns: ColumnDef<AdminUser>[] = [
                     unsuspendUser(user.id)
                   } else {
                     const reason = prompt("Raison du bannissement :")
-                    if (reason) suspendUser(user.id, reason)
+                    if (reason) suspendUser({ userId: user.id, reason })
                   }
                 }}
+
                 className="cursor-pointer hover:bg-red-50 focus:bg-red-50 text-red-600 focus:text-red-700 rounded-xl px-3 py-2 text-sm font-medium"
               >
                 {user.isSuspended ? (

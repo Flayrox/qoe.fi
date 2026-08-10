@@ -2,7 +2,14 @@
 
 import React, { useState, useEffect, useCallback } from "react"
 import { toast } from "sonner"
-import { getPostThread, toggleLikePost, replyToPost, deletePost, toggleRepostPost } from "../../actions"
+import { 
+  getPostThreadAction as getPostThread, 
+  toggleLikePostAction as toggleLikePost, 
+  replyToPostAction as replyToPost, 
+  deletePostAction as deletePost, 
+  toggleRepostPostAction as toggleRepostPost 
+} from "@qoe/api-client/actions/feed"
+
 import { routes } from "@qoe/config/routes"
 import { trackEvent } from "@/lib/analytics"
 import { ThoughtThreadProvider, type OptimisticThought, type ThoughtThreadContextValue } from "./ThoughtThreadContext"

@@ -4,15 +4,18 @@
 // 📖 Page de création d'un nouvel article avec l'éditeur riche.
 // =====================================================================
 
-import { getCategoriesAction } from "../actions"
+import { getCategoriesAction } from "@qoe/api-client/actions/articles"
+
 import { NewArticleClient } from "./new-article-client"
 
 export default async function NewArticlePage() {
-  const categories = await getCategoriesAction()
+  const categoriesRes = await getCategoriesAction()
+  const categoriesList = categoriesRes.ok ? categoriesRes.data : []
 
   return (
     <NewArticleClient 
-      categories={categories.map((c) => ({ id: c.id, name: c.name }))} 
+      categories={categoriesList.map((c: any) => ({ id: c.id, name: c.name }))} 
     />
   )
+
 }
