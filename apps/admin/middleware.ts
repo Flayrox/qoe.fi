@@ -22,10 +22,14 @@ export async function middleware(request: NextRequest) {
   request.headers.set("x-locale", localeCookie);
 
   const { supabaseResponse, user } = await updateSession(request);
+  if (supabaseResponse.status === 307 || supabaseResponse.status === 308) {
+    return supabaseResponse;
+  }
   supabaseResponse.headers.set("x-locale", localeCookie);
 
   // 2. Protection de l'espace admin avec résolution universelle getMonorepoUrl
   if (!user) {
+
     const loginBase = `${getMonorepoUrl("feed", host)}/login`;
     const currentTarget = request.nextUrl.href;
     const redirectTarget = `${loginBase}?redirect=${encodeURIComponent(currentTarget)}`;
