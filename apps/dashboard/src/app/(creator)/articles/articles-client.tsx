@@ -25,7 +25,8 @@ import {
   deleteArticleAction,
   saveCategoryAction,
   deleteCategoryAction
-} from "./actions"
+} from "@qoe/api-client/actions/articles"
+
 import { ArticleInspectorModal } from "../analytics/components/ArticleInspectorModal"
 
 interface ArticleWithCategory {
@@ -119,11 +120,16 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
       setCategorySuccess(false)
       setIsCreatingCategory(true)
 
-      const created = await saveCategoryAction({
+      const res = await saveCategoryAction({
         name: newCatName,
         slug: newCatSlug || undefined,
         description: newCatDesc || null,
       })
+
+      if (!res.ok) throw new Error(res.error.message)
+      if (!res.data) throw new Error("Échec de création de la catégorie.")
+      const created = res.data
+
 
       const newCatWithCount: CategoryWithCount = {
         id: created.id,
@@ -132,6 +138,7 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
         description: created.description,
         _count: { articles: 0 }
       }
+
       
       setCategories(prev => [...prev, newCatWithCount].sort((a, b) => a.name.localeCompare(b.name)))
       

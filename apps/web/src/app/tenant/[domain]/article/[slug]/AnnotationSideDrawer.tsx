@@ -27,7 +27,8 @@ import {
   createAnnotationCommentAction,
   quotePassageToFeedAction,
   updateHighlightNoteAction
-} from "./actions"
+} from "@qoe/api-client/actions/tenant"
+
 import { cn } from "@qoe/utils"
 
 export interface AnnotationCommentItem {
@@ -205,8 +206,8 @@ export function AnnotationSideDrawer({
 
     setSavingEdit(true)
     try {
-      const res = await updateHighlightNoteAction(activeAnnotation.id, editNoteContent || null)
-      if (res.success && res.highlight) {
+      const res = await updateHighlightNoteAction({ highlightId: activeAnnotation.id, note: editNoteContent || null })
+      if (res.ok && res.data) {
         const updated: AnnotationItem = {
           ...activeAnnotation,
           note: editNoteContent || null,
@@ -238,15 +239,15 @@ export function AnnotationSideDrawer({
     const targetPublic = !isPublicState
 
     try {
-      const res = await toggleHighlightPrivacyAction(activeAnnotation.id, targetPublic)
-      if (res.success) {
+      const res = await toggleHighlightPrivacyAction({ highlightId: activeAnnotation.id, isPublic: targetPublic })
+      if (res.ok) {
         setIsPublicState(targetPublic)
         const updated = { ...activeAnnotation, isPublic: targetPublic }
         const newList = [...annotationsList]
         newList[currentIndex] = updated
         setAnnotationsList(newList)
         if (onUpdateAnnotation) onUpdateAnnotation(updated)
-      } else if (res.error === "PUBLIC_ANNOTATIONS_DISABLED") {
+      } else if (!res.ok && res.error?.code === "PUBLIC_ANNOTATIONS_DISABLED") {
         setPrivacyError("Le créateur a désactivé les annotations publiques sur cet écrit.")
       }
     } catch (err) {
@@ -270,9 +271,9 @@ export function AnnotationSideDrawer({
 
     try {
       const res = await upvoteHighlightAction(activeAnnotation.id)
-      if (res.success && res.upvotesCount !== undefined) {
-        setUpvotes(res.upvotesCount)
-        setHasUpvoted(Boolean(res.hasUpvoted))
+      if (res.ok && res.data?.upvotesCount !== undefined) {
+        setUpvotes(res.data.upvotesCount)
+        setHasUpvoted(Boolean(res.data.hasUpvoted))
       }
     } catch (e) {
       console.error(e)
@@ -291,7 +292,7 @@ export function AnnotationSideDrawer({
 
     try {
       const res = await deleteHighlightAction(activeAnnotation.id)
-      if (res.success) {
+      if (res.ok) {
         const deletedId = activeAnnotation.id
         const newList = annotationsList.filter((a) => a.id !== deletedId)
         setAnnotationsList(newList)
@@ -321,9 +322,9 @@ export function AnnotationSideDrawer({
 
     setSubmittingComment(true)
     try {
-      const res = await createAnnotationCommentAction(activeAnnotation.id, newCommentText)
-      if (res.success && res.comment) {
-        setComments(prev => [...prev, res.comment as AnnotationCommentItem])
+      const res = await createAnnotationCommentAction({ highlightId: activeAnnotation.id, content: newCommentText })
+      if (res.ok && res.data) {
+        setComments(prev => [...prev, res.data as AnnotationCommentItem])
         setNewCommentText("")
       }
     } catch (err) {
@@ -344,12 +345,13 @@ export function AnnotationSideDrawer({
     setIsCrossposting(true)
     setCrosspostSuccess(false)
     try {
-      const res = await quotePassageToFeedAction(articleId, activeAnnotation.text, crosspostCommentary)
-      if (res.success) {
+      const res = await quotePassageToFeedAction({ articleId, text: activeAnnotation.text, commentary: crosspostCommentary })
+      if (res.ok) {
         setCrosspostSuccess(true)
         setShowCrosspostForm(false)
         setCrosspostCommentary("")
       }
+
     } catch (err) {
       console.error(err)
     } finally {

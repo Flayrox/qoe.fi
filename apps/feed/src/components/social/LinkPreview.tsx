@@ -25,11 +25,12 @@ export function LinkPreview({ urls, onNavigate }: LinkPreviewProps) {
       setLoading(true)
 
       try {
-        const { unfurlUrl } = await import("@/app/(reader)/home/actions")
+        const { unfurlUrlAction } = await import("@qoe/api-client/actions/feed")
 
         for (const url of urls) {
           if (!active) break
-          const res = await unfurlUrl(url)
+          const res = await unfurlUrlAction(url)
+
           if (res.ok && res.data) {
             const previewData = res.data
             // We count as "valid" if it is an internal post/article or has rich metadata (image or description)

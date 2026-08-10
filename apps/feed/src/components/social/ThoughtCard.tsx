@@ -14,7 +14,13 @@ import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/h
 import { routes } from "@qoe/config/routes"
 import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
 import { CertifiedBadge } from "@/components/ui/CertifiedBadge"
-import { pinPost, unpinPost, toggleLikePost, toggleRepostPost } from "@/app/(reader)/home/actions"
+import { 
+  pinPostAction as pinPost, 
+  unpinPostAction as unpinPost, 
+  toggleLikePostAction as toggleLikePost, 
+  toggleRepostPostAction as toggleRepostPost 
+} from "@qoe/api-client/actions/feed"
+
 import { ThoughtActions } from "./ThoughtActions"
 
 export type ThoughtVariant = "timeline" | "focus" | "parent" | "reply"

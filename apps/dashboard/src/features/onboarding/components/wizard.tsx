@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useTransition } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { checkSubdomainAction, completeOnboardingAction } from "../actions"
+import { checkSubdomainAvailabilityAction as checkSubdomainAction, completeOnboardingAction } from "@qoe/api-client/actions/dashboard"
+
 import { useRouter } from "next/navigation"
 import {
   Loader2,
@@ -152,15 +153,16 @@ export function OnboardingWizard() {
       const timeout = setTimeout(async () => {
         try {
           const res = await checkSubdomainAction(data.subdomain)
-          if (res.available) {
+          if (res.ok && res.data.available) {
             setDomainStatus("valid")
             setDomainError("")
             setDomainSuggestions([])
           } else {
             setDomainStatus("invalid")
-            setDomainError(res.error || "Indisponible")
-            setDomainSuggestions(res.suggestions || [])
+            setDomainError(res.ok ? (res.data.reason || "Indisponible") : (res.error?.message || "Indisponible"))
+            setDomainSuggestions([])
           }
+
         } catch (err) {
           setDomainStatus("invalid")
           setDomainError("Erreur de vérification")

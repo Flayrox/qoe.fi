@@ -2,7 +2,8 @@
 
 import React, { useState, useTransition } from "react";
 import { Search, Save, Trash2, Globe, AlertCircle, Sparkles, Filter, X, Download, Upload } from "lucide-react";
-import { saveTranslationOverrides } from "../actions";
+import { setSystemConfigAction } from "@qoe/api-client/actions/admin";
+
 
 interface TranslationCMSProps {
   defaultFr: Record<string, string>;
@@ -238,8 +239,13 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
           oldValue: d.oldVal,
           newValue: d.newVal
         }));
-        const res = await saveTranslationOverrides(overrides, changesSummaryList);
-        if (res.success) {
+        const res = await setSystemConfigAction({
+          key: "TRANSLATION_OVERRIDES",
+          value: typeof overrides === "string" ? overrides : JSON.stringify(overrides),
+          description: "System translation overrides",
+        });
+        if (res.ok) {
+
           setSaveStatus("success");
           setTimeout(() => setSaveStatus("idle"), 3000);
         } else {

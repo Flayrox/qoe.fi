@@ -3,7 +3,8 @@
 import React, { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Editor } from "@/features/editor/components/Editor"
-import { saveArticleAction } from "../actions"
+import { saveArticleAction } from "@qoe/api-client/actions/articles"
+
 
 interface ArticleData {
   id: string
