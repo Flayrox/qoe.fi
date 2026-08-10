@@ -9,7 +9,13 @@
     ".": "./src/index.ts",
     "./query-keys": "./src/query-keys.ts",
     "./types": "./src/types.ts",
-    "./hooks/*": "./src/hooks/*.ts"
+    "./hooks/*": "./src/hooks/*.ts",
+    "./actions/auth": "./src/actions/auth/index.ts",
+    "./actions/feed": "./src/actions/feed/index.ts",
+    "./actions/articles": "./src/actions/articles/index.ts",
+    "./actions/dashboard": "./src/actions/dashboard/index.ts",
+    "./actions/admin": "./src/actions/admin/index.ts",
+    "./actions/tenant": "./src/actions/tenant/index.ts"
   },
   "scripts": {
     "test": "vitest run",
@@ -18,6 +24,8 @@
   },
   "dependencies": {
     "@qoe/config": "workspace:*",
+    "@qoe/db": "workspace:*",
+    "@qoe/supabase": "workspace:*",
     "@qoe/utils": "workspace:*",
     "@tanstack/react-query": "^5.62.7"
   },

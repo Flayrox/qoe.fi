@@ -137,8 +137,9 @@ export function DeveloperClient({
       const res = await generateApiKeyAction(newKeyName)
       if (res.success && res.rawKey && res.apiKey) {
         setGeneratedKey(res.rawKey)
-        setKeys([res.apiKey as ApiKeyType, ...keys])
+        setKeys([res.apiKey as unknown as ApiKeyType, ...keys])
         setShowKeyModal(true)
+
         setNewKeyName("")
         toast.success("Nouvelle clé d'API générée avec succès !")
       }

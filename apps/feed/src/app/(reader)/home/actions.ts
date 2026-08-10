@@ -1,72 +1,87 @@
 "use server"
 
-import * as feedActions from "@/features/feed/actions"
+import {
+  toggleFollowCreatorHomeAction,
+  toggleBookmarkArticleHomeAction,
+  createThoughtAction,
+  toggleLikePostAction,
+  replyToPostAction,
+  getPostThreadAction,
+  getArticleThreadAction,
+  toggleRepostPostAction,
+  repostPostAction,
+  deletePostAction,
+  getProfileDataAction,
+  getUserDraftsAction,
+  pinPostAction,
+  unpinPostAction,
+  unfurlUrlAction,
+} from "@qoe/api-client/actions/feed"
 
 export async function toggleFollowCreatorHome(creatorId: string) {
-  return feedActions.toggleFollowCreatorHome(creatorId)
+  return toggleFollowCreatorHomeAction(creatorId)
 }
 
 export async function toggleFollowCreator(creatorId: string) {
-  return feedActions.toggleFollowCreatorHome(creatorId)
+  return toggleFollowCreatorHomeAction(creatorId)
 }
 
 export async function toggleBookmarkArticleHome(articleId: string) {
-  return feedActions.toggleBookmarkArticleHome(articleId)
+  return toggleBookmarkArticleHomeAction(articleId)
 }
 
-export async function createThought(input: Parameters<typeof feedActions.createThought>[0]) {
-  return feedActions.createThought(input)
+export async function createThought(input: Parameters<typeof createThoughtAction>[0]) {
+  return createThoughtAction(input)
 }
 
-/** @deprecated Utiliser createThought */
-export async function createMicroPost(input: Parameters<typeof feedActions.createMicroPost>[0]) {
-  return feedActions.createMicroPost(input)
+export async function createMicroPost(input: Parameters<typeof createThoughtAction>[0]) {
+  return createThoughtAction(input)
 }
 
 export async function toggleLikePost(postId: string) {
-  return feedActions.toggleLikePost(postId)
+  return toggleLikePostAction(postId)
 }
 
-export async function replyToPost(input: Parameters<typeof feedActions.replyToPost>[0]) {
-  return feedActions.replyToPost(input)
+export async function replyToPost(input: Parameters<typeof replyToPostAction>[0]) {
+  return replyToPostAction(input)
 }
 
 export async function getPostThread(postId: string) {
-  return feedActions.getPostThread(postId)
+  return getPostThreadAction(postId)
 }
 
 export async function getArticleThread(slug: string) {
-  return feedActions.getArticleThread(slug)
+  return getArticleThreadAction(slug)
 }
 
 export async function toggleRepostPost(postId: string) {
-  return feedActions.toggleRepostPost(postId)
+  return toggleRepostPostAction(postId)
 }
 
 export async function repostPost(postId: string) {
-  return feedActions.repostPost(postId)
+  return repostPostAction(postId)
 }
 
 export async function deletePost(postId: string) {
-  return feedActions.deletePost(postId)
+  return deletePostAction(postId)
 }
 
 export async function getProfileData(username: string) {
-  return feedActions.getProfileData(username)
+  return getProfileDataAction(username)
 }
 
 export async function getUserDrafts() {
-  return feedActions.getUserDrafts()
+  return getUserDraftsAction()
 }
 
 export async function pinPost(postId: string) {
-  return feedActions.pinPost(postId)
+  return pinPostAction(postId)
 }
 
 export async function unpinPost(postId: string) {
-  return feedActions.unpinPost(postId)
+  return unpinPostAction(postId)
 }
 
 export async function unfurlUrl(urlStr: string) {
-  return feedActions.unfurlUrl(urlStr)
+  return unfurlUrlAction(urlStr)
 }
