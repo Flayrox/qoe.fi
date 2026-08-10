@@ -3,6 +3,7 @@ import { prisma } from "@qoe/db/client";
 import Link from "next/link";
 import { Metadata } from "next";
 import { SocialIcon, TenantHeader, SubscribeForm } from "@qoe/ui";
+import { getTranslate } from "@qoe/i18n/server";
 
 interface PageProps {
   params: Promise<{ domain: string }>;
@@ -40,6 +41,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function TenantHomepage({ params }: PageProps) {
+  const t = await getTranslate();
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
   
@@ -115,7 +117,7 @@ export default async function TenantHomepage({ params }: PageProps) {
             {heroText || `Welcome to ${name}'s digital space`}
           </h2>
           <p className={`text-xl md:text-2xl max-w-2xl mx-auto leading-relaxed mb-10 ${headerImageUrl ? 'text-zinc-200' : 'text-muted-foreground'}`}>
-            A premium sanctuary for profound insights, carefully curated stories, and independent thought.
+            {t("tenant.hero_subtitle", "Un sanctuaire dédié aux idées profondes, histoires choisies et à la pensée libre.")}
           </p>
           
           {socialLinks.length > 0 && (
@@ -140,15 +142,17 @@ export default async function TenantHomepage({ params }: PageProps) {
       <main id="articles" className="container mx-auto px-4 lg:px-8 py-16 md:py-24 max-w-6xl">
         <div className="flex items-center justify-between mb-12 border-b pb-4">
           <h3 className={`text-3xl ${isBrutalist ? 'font-black uppercase' : 'font-semibold tracking-tight'}`}>
-            Latest Publications
+            {t("tenant.latest_publications", "Dernières publications")}
           </h3>
-          <span className="text-sm text-muted-foreground">{articles.length} articles</span>
+          <span className="text-sm text-muted-foreground">
+            {t("tenant.articles_count", "{count} articles", { count: articles.length })}
+          </span>
         </div>
 
         {articles.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-center border-2 border-dashed rounded-3xl">
-            <p className="text-xl text-muted-foreground font-medium">No articles published yet.</p>
-            <p className="text-sm text-muted-foreground mt-2">Check back later for new content.</p>
+            <p className="text-xl text-muted-foreground font-medium">{t("tenant.no_articles", "Aucun article publié pour le moment.")}</p>
+            <p className="text-sm text-muted-foreground mt-2">{t("tenant.check_back_later", "Revenez plus tard pour découvrir les nouvelles parutions.")}</p>
           </div>
         ) : (
           <div className={`grid gap-8 md:gap-12 ${isMagazine ? 'grid-cols-1 md:grid-cols-12' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
@@ -166,7 +170,7 @@ export default async function TenantHomepage({ params }: PageProps) {
                 <div className={`w-full ${isMagazine && i === 0 ? 'md:w-1/2' : ''}`}>
                   <div className="flex items-center gap-x-4 text-sm mb-4">
                     <time dateTime={article.createdAt.toISOString()} className="text-[var(--tenant-accent)] font-medium uppercase tracking-wider text-xs">
-                      {new Date(article.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {new Date(article.createdAt).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </time>
                     {article.category && (
                       <span className={`px-2 py-1 text-xs font-semibold ${isBrutalist ? 'border border-foreground uppercase' : 'bg-muted rounded-md'} text-muted-foreground`}>
@@ -195,7 +199,7 @@ export default async function TenantHomepage({ params }: PageProps) {
             </svg>
           </div>
           <h3 className={`text-3xl md:text-4xl ${isBrutalist ? 'font-black uppercase' : 'font-bold'}`}>
-            Join the inner circle
+            {t("tenant.join_inner_circle", "Rejoignez le cercle restreint")}
           </h3>
           <p className="text-lg text-muted-foreground">
             {footerText || `Subscribe to receive the latest stories and insights from ${name} directly in your inbox.`}
@@ -219,7 +223,7 @@ export default async function TenantHomepage({ params }: PageProps) {
                </div>
             )}
             <div className="text-sm font-medium text-muted-foreground">
-              &copy; {new Date().getFullYear()} {name}. Powered by <Link href="https://qoe.fi" className="underline hover:text-[var(--tenant-accent)] transition-colors">qoe.fi</Link>
+              &copy; {new Date().getFullYear()} {name}. {t("tenant.powered_by", "Propulsé par")} <Link href="https://qoe.fi" className="underline hover:text-[var(--tenant-accent)] transition-colors">qoe.fi</Link>
             </div>
           </div>
         </div>

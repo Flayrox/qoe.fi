@@ -5,10 +5,10 @@ import { motion, AnimatePresence } from "framer-motion"
 import { X, AlertCircle } from "lucide-react"
 import { createClient } from "@qoe/supabase/client"
 import { cn } from "@qoe/utils"
-import { BentoPlateau, BentoItem } from "@/components/ui/BentoPlateau"
-import { Logo } from "@/components/ui/Logo"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { BentoPlateau, BentoItem } from "@qoe/ui/ui/BentoPlateau"
+import { Logo } from "@qoe/ui/ui/Logo"
+import { Button } from "@qoe/ui/ui/button"
+import { Input } from "@qoe/ui/ui/input"
 import { useTranslate, useTolgee } from "@qoe/i18n"
 import { login, signup } from "@/app/login/actions"
 
@@ -278,7 +278,7 @@ export function LoginModal({ isOpen, onClose, initialMode = "login", actionConte
                                 required
                                 disabled={loading}
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                                 placeholder={t('login.placeholder_email', 'vous@exemple.com')}
                                 className="h-10 w-full rounded-xl bg-muted/40 border-border text-xs"
                               />
@@ -304,7 +304,7 @@ export function LoginModal({ isOpen, onClose, initialMode = "login", actionConte
                                     type="text"
                                     required
                                     value={name}
-                                    onChange={(e) => setName(e.target.value)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                                     placeholder={t('login.placeholder_name', 'Marc Dutronc')}
                                     className="h-10 w-full rounded-xl bg-muted/40 border-border text-xs"
                                   />
@@ -316,7 +316,7 @@ export function LoginModal({ isOpen, onClose, initialMode = "login", actionConte
                                     type="text"
                                     required
                                     value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
                                     placeholder={t('login.placeholder_username', '@marcdutronc')}
                                     className="h-10 w-full rounded-xl bg-muted/40 border-border text-xs"
                                   />
@@ -331,7 +331,7 @@ export function LoginModal({ isOpen, onClose, initialMode = "login", actionConte
                                 type="email"
                                 required
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                                 placeholder={t('login.placeholder_email', 'vous@exemple.com')}
                                 className="h-10 w-full rounded-xl bg-muted/40 border-border text-xs"
                               />
@@ -344,7 +344,7 @@ export function LoginModal({ isOpen, onClose, initialMode = "login", actionConte
                                 type="password"
                                 required
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                                 placeholder={t('login.placeholder_password', '••••••••')}
                                 className="h-10 w-full rounded-xl bg-muted/40 border-border text-xs"
                               />

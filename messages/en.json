@@ -79,16 +79,23 @@
     "user_logout": "Log out"
   },
   "dashboard": {
+    "welcome_home": "Studio Home",
+    "welcome_subtitle": "Welcome, {name}. Here is your creator studio live overview.",
+    "metrics": {
+      "total_views": "Total Views (30d)",
+      "subscribers": "Network Subscribers",
+      "revenue": "Estimated Revenue (LTV)"
+    },
     "overview": "Overview",
     "welcome": "Welcome back to your creator dashboard, {name}. You have {count} articles.",
     "metric_subscribers": "Total Subscribers",
     "metric_mrr": "MRR",
-    "metric_read_time": "Avg Read Time",
+    "metric_read_time": "Avg. Reading Time",
     "metric_open_rate": "Open Rate",
-    "compare_month": "from last month",
-    "compare_week": "from last week",
-    "compare_newsletter": "from last newsletter",
-    "analytics_placeholder": "Analytics chart will appear here.",
+    "compare_month": "compared to last month",
+    "compare_week": "compared to last week",
+    "compare_newsletter": "compared to last newsletter",
+    "analytics_placeholder": "Analytics charts will appear here.",
     "analytics": {
       "title": "Analytics",
       "description": "Measure content performance, conversion dynamics, and reach metrics",
@@ -336,5 +343,42 @@
     "article_not_found": "The requested article cannot be found or is unpublished.",
     "reading_time": "{count} min read",
     "read_tab_title": "Reading article"
+  },
+  "profile": {
+    "joined_at": "Joined {date}",
+    "tab_thoughts": "Thoughts",
+    "tab_replies": "Replies",
+    "tab_articles": "Articles",
+    "tab_reposts": "Reposts",
+    "tab_media": "Media"
+  },
+  "moderation": {
+    "title": "Report Content",
+    "subtitle": "Why do you want to report this post?",
+    "submitted_title": "Report Submitted",
+    "submitted_desc": "Our moderation team will review this item as soon as possible.",
+    "msg_success": "Thank you. Your report has been submitted to moderation.",
+    "msg_error": "Error submitting report.",
+    "placeholder_details": "Additional details (optional)...",
+    "btn_submit": "Report",
+    "reasons": {
+      "spam": "Spam or unwanted advertisement",
+      "harassment": "Harassment or intimidation",
+      "hate_speech": "Hate speech or abusive language",
+      "misleading": "False information / Misinformation",
+      "other": "Other reason"
+    }
+  },
+  "tenant": {
+    "latest_publications": "Latest Publications",
+    "articles_count": "{count} articles",
+    "no_articles": "No articles published yet.",
+    "check_back_later": "Check back later for new content.",
+    "join_inner_circle": "Join the inner circle",
+    "powered_by": "Powered by",
+    "hero_subtitle": "A premium sanctuary for profound insights, carefully curated stories, and independent thought."
   }
 }
+
+
+

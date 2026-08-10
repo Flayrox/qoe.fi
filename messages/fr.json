@@ -79,6 +79,13 @@
     "user_logout": "Se déconnecter"
   },
   "dashboard": {
+    "welcome_home": "Accueil Studio",
+    "welcome_subtitle": "Bienvenue, {name}. Voici l'aperçu réel de votre studio créateur.",
+    "metrics": {
+      "total_views": "Vues totales (30j)",
+      "subscribers": "Abonnés Réseau",
+      "revenue": "Revenu Estimé (LTV)"
+    },
     "overview": "Vue d'ensemble",
     "welcome": "Ravi de vous revoir sur votre tableau de bord de créateur, {name}. Vous avez {count} articles.",
     "metric_subscribers": "Abonnés totaux",
@@ -89,6 +96,7 @@
     "compare_week": "par rapport à la semaine dernière",
     "compare_newsletter": "par rapport à la dernière newsletter",
     "analytics_placeholder": "Les graphiques d'analyses apparaîtront ici.",
+
     "analytics": {
       "title": "Analyses",
       "description": "Mesurez la performance de vos contenus, la dynamique de conversion et les métriques de portée",
@@ -348,5 +356,42 @@
     "article_not_found": "L'article demandé est introuvable ou a été dépublié.",
     "reading_time": "{count} min de lecture",
     "read_tab_title": "Lecture de l'écrit"
+  },
+  "profile": {
+    "joined_at": "A rejoint en {date}",
+    "tab_thoughts": "Pensées",
+    "tab_replies": "Réponses",
+    "tab_articles": "Articles",
+    "tab_reposts": "Reposts",
+    "tab_media": "Médias"
+  },
+  "moderation": {
+    "title": "Signaler un contenu",
+    "subtitle": "Pourquoi souhaitez-vous signaler cette publication ?",
+    "submitted_title": "Signalement envoyé",
+    "submitted_desc": "Notre équipe de modération va analyser cet élément dans les plus brefs délais.",
+    "msg_success": "Merci. Votre signalement a été transmis à la modération.",
+    "msg_error": "Erreur lors de l'envoi du signalement.",
+    "placeholder_details": "Détails complémentaires (optionnel)...",
+    "btn_submit": "Signaler",
+    "reasons": {
+      "spam": "Spam ou publicité indésirable",
+      "harassment": "Harcèlement ou intimidation",
+      "hate_speech": "Discours haineux ou injurieux",
+      "misleading": "Fausse information / Désinformation",
+      "other": "Autre raison"
+    }
+  },
+  "tenant": {
+    "latest_publications": "Dernières publications",
+    "articles_count": "{count} articles",
+    "no_articles": "Aucun article publié pour le moment.",
+    "check_back_later": "Revenez plus tard pour découvrir les nouvelles parutions.",
+    "join_inner_circle": "Rejoignez le cercle restreint",
+    "powered_by": "Propulsé par",
+    "hero_subtitle": "Un sanctuaire dédié aux idées profondes, histoires choisies et à la pensée libre."
   }
 }
+
+
+

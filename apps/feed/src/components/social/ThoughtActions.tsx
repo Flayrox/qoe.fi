@@ -10,7 +10,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
+} from "@qoe/ui/ui/popover"
 import type { ThoughtData } from "./ThoughtCard"
 
 export interface ThoughtActionsProps {
@@ -179,7 +179,7 @@ export function ThoughtActions({
         <PopoverContent
           align="start"
           className="w-48 p-1.5 bg-zinc-950/90 backdrop-blur-2xl border border-white/[0.08] shadow-2xl rounded-xl font-sans"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
           <button
             onClick={(e) => {

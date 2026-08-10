@@ -3,7 +3,7 @@
 import React, { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { MapPin, Calendar, Link as LinkIcon, ArrowLeft, Edit3, Repeat, MessageSquare, FileText, Image as ImageIcon } from "lucide-react"
-import { AuthorAvatar } from "@/components/ui/AuthorAvatar"
+import { AuthorAvatar } from "@qoe/ui/ui/AuthorAvatar"
 import { ThoughtCard } from "@/components/social/ThoughtCard"
 import { ArticleCard } from "@/app/(reader)/home/components/ArticleCard"
 import { EditProfileModal } from "@/components/profile/EditProfileModal"

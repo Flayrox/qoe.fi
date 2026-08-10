@@ -13,7 +13,8 @@
                 },
     "scripts":  {
                     "lint":  "echo skip",
-                    "typecheck":  "tsc --noEmit"
+                    "typecheck":  "tsc --noEmit",
+                    "test": "vitest run"
                 },
     "dependencies":  {
                          "@qoe/config":  "workspace:*",

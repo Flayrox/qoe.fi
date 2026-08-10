@@ -13,11 +13,11 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel,
   DropdownMenuGroup
-} from "@/components/ui/dropdown-menu"
+} from "@qoe/ui/ui/dropdown-menu"
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
-} from "@/components/ui/tooltip"
-import { Logo } from "@/components/ui/Logo"
+} from "@qoe/ui/ui/tooltip"
+import { Logo } from "@qoe/ui/ui/Logo"
 import { cn } from "@qoe/utils"
 
 

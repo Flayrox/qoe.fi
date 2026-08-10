@@ -42,6 +42,7 @@
   "scripts": {
     "lint": "echo skip",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "prisma:generate": "prisma generate",
     "prisma:seed": "prisma db seed",
     "prebuild": "prisma generate",
