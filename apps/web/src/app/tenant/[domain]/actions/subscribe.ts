@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma } from "@qoe/db/client"
+import { subscribeToNewsletterAction } from "@qoe/api-client/actions/tenant"
 
 export async function subscribeToNewsletter(formData: FormData) {
   const email = formData.get("email") as string
@@ -10,33 +10,10 @@ export async function subscribeToNewsletter(formData: FormData) {
     return { error: "Missing required fields." }
   }
 
-  // Basic email validation
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { error: "Invalid email address." }
+  const res = await subscribeToNewsletterAction({ email, creatorId })
+  if (!res.ok) {
+    return { error: res.error.message }
   }
 
-  try {
-    // We use upsert so if they resubscribe, we just set isActive to true
-    await prisma.subscriber.upsert({
-      where: {
-        email_creatorId: {
-          email,
-          creatorId
-        }
-      },
-      update: {
-        isActive: true
-      },
-      create: {
-        email,
-        creatorId,
-        isActive: true
-      }
-    })
-
-    return { success: true }
-  } catch (error) {
-    console.error("Subscription error:", error)
-    return { error: "An error occurred while subscribing. Please try again." }
-  }
+  return { success: true }
 }
