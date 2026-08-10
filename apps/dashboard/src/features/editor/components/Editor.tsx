@@ -46,6 +46,8 @@ export interface EditorProps {
   initialSlug?: string
   initialContent?: string
   initialPublished?: boolean
+  initialScheduledAt?: string | null
+  initialStatus?: string
   initialIsPremium?: boolean
   initialCategoryId?: string | null
   initialSeoTitle?: string | null
@@ -60,6 +62,8 @@ export interface EditorProps {
     content: string
     slug: string
     published: boolean
+    scheduledAt?: string | null
+    status?: string
     isPremium: boolean
     categoryId: string | null
     seoTitle: string | null
