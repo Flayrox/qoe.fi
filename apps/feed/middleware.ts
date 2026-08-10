@@ -4,6 +4,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@qoe/supabase/middleware";
+import { getSafeRedirectUrl } from "@qoe/utils";
 
 export async function middleware(request: NextRequest) {
   const host = request.headers.get("host") || "";
@@ -25,6 +26,9 @@ export async function middleware(request: NextRequest) {
 
   // Refresh Supabase session (toujours)
   const { supabaseResponse, user } = await updateSession(request);
+  if (supabaseResponse.status === 307 || supabaseResponse.status === 308) {
+    return supabaseResponse;
+  }
 
   // Set the locale header on the response
   supabaseResponse.headers.set("x-locale", localeCookie);
@@ -44,10 +48,10 @@ export async function middleware(request: NextRequest) {
   if ((pathname === "/login" || pathname === "/register") && user) {
     const customRedirect = request.nextUrl.searchParams.get("redirect") || request.nextUrl.searchParams.get("next");
     if (customRedirect) {
-      const trimmed = customRedirect.trim();
-      if (trimmed.startsWith("/") && !trimmed.startsWith("//") && !trimmed.startsWith("/\\") && !/^[a-z0-9]+:/i.test(trimmed.substring(1))) {
+      const safeRedirect = getSafeRedirectUrl(customRedirect, "");
+      if (safeRedirect) {
         try {
-          return NextResponse.redirect(new URL(trimmed, request.url));
+          return NextResponse.redirect(new URL(safeRedirect, request.url));
         } catch {
           // Fallback si l'URL est invalide
         }
@@ -62,6 +66,7 @@ export async function middleware(request: NextRequest) {
 
   return supabaseResponse;
 }
+
 
 export const config = {
   matcher: [

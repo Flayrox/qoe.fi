@@ -2,8 +2,17 @@
   "extends": "@qoe/tsconfig/react-library.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "rootDir": "./src",
-    "outDir": "./dist"
+    "noEmit": true,
+    "paths": {
+      "@qoe/db": ["../db/src/index.ts"],
+      "@qoe/db/client": ["../db/src/client.ts"],
+      "@qoe/db/*": ["../db/src/*"],
+      "@qoe/supabase": ["../supabase/src/index.ts"],
+      "@qoe/supabase/server": ["../supabase/src/server.ts"],
+      "@qoe/supabase/*": ["../supabase/src/*"],
+      "@qoe/utils": ["../utils/src/index.ts"],
+      "@qoe/utils/*": ["../utils/src/*"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "dist"]

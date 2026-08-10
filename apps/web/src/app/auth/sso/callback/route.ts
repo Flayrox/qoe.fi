@@ -1,44 +1,52 @@
 import { createClient } from "@qoe/supabase/server";
-import { verifyJWT } from "@qoe/supabase";
+import { verifyJWT, getCookieDomain } from "@qoe/supabase";
 import { NextResponse } from "next/server";
+import { getSafeRedirectUrl } from "@qoe/utils";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const token = searchParams.get("sso_token");
   const error = searchParams.get("error");
   const redirectTo = searchParams.get("redirect_to") || "/";
-  
-  const host = request.headers.get("host") || "localhost:3000";
+
+  const host = request.headers.get("host") || "lvh.me:3001";
+  const hostname = host.split(":")[0];
   const protocol = request.headers.get("x-forwarded-proto") || "http";
-  
-  const redirectUrl = new URL(`${protocol}://${host}${redirectTo}`);
+
+  const safePath = getSafeRedirectUrl(redirectTo, "/");
+  const redirectUrl = new URL(`${protocol}://${host}${safePath}`);
 
   const response = NextResponse.redirect(redirectUrl.toString());
 
+  const cookieDomain = getCookieDomain(hostname);
+  const isUnauthenticated = error === "unauthenticated";
+
+  // If unauthenticated, keep sso_checked short (15s) so logging in adjacent tab is not blocked for 5 minutes
   response.cookies.set("sso_checked", "true", {
     path: "/",
+    domain: cookieDomain,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    maxAge: 300, // 5 minutes
+    maxAge: isUnauthenticated ? 15 : 300,
   });
 
-  if (error === "unauthenticated") {
+  if (isUnauthenticated) {
     return response;
   }
 
   if (token) {
-    const secret = process.env.SSO_JWT_SECRET;
-    if (!secret && process.env.NODE_ENV === "production") {
-      throw new Error("SSO_JWT_SECRET variable is required in production");
+    const jwtSecret = process.env.SSO_JWT_SECRET || process.env.SUPABASE_JWT_SECRET || "dev-only-sso-secret-min-32-chars-qoe";
+    if (process.env.NODE_ENV === "production" && !process.env.SSO_JWT_SECRET) {
+      throw new Error("SSO_JWT_SECRET environment variable is strictly required in production");
     }
-    const jwtSecret = secret || "sso-jwt-secret-key-32-chars-at-least-super-safe";
+
     const payload = await verifyJWT(token, jwtSecret);
 
     if (payload && payload.access_token && payload.refresh_token) {
       const supabase = await createClient();
       const { error: sessionError } = await supabase.auth.setSession({
-        access_token: payload.access_token,
-        refresh_token: payload.refresh_token,
+        access_token: payload.access_token as string,
+        refresh_token: payload.refresh_token as string,
       });
 
       if (sessionError) {
