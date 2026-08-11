@@ -86,6 +86,7 @@ export async function findFollowingFeed(
       attachments: { orderBy: { order: "asc" } },
       _count: { select: { likes: true, replies: true, reposts: true } },
       likes: { where: { userId: readerId }, select: { userId: true } },
+      reposts: { where: { authorId: readerId, deletedAt: null }, select: { id: true } },
     },
   });
 }
@@ -93,7 +94,7 @@ export async function findFollowingFeed(
 /**
  * 🔥 Pensées trending (les plus likés/relayés récemment).
  */
-export async function findTrending(limit: number = 20) {
+export async function findTrending(limit: number = 20, currentUserId?: string) {
   return prisma.thought.findMany({
     where: {
       isDraft: false,
@@ -150,6 +151,8 @@ export async function findTrending(limit: number = 20) {
         },
       },
       _count: { select: { likes: true, replies: true, reposts: true } },
+      likes: currentUserId ? { where: { userId: currentUserId }, select: { userId: true } } : false,
+      reposts: currentUserId ? { where: { authorId: currentUserId, deletedAt: null }, select: { id: true } } : false,
     },
   });
 }
@@ -405,7 +408,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
     },
   };
 
-  const likesInclude = { select: { userId: true } };
+  const likesInclude = currentUserId ? { where: { userId: currentUserId }, select: { userId: true } } : false;
   const repostsInclude = currentUserId
     ? { where: { authorId: currentUserId, deletedAt: null }, select: { id: true, authorId: true } }
     : false;

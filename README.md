@@ -1,6 +1,6 @@
 # 🚀 qoe.fi Platform — Master README
 
-Welcome to the qoe.fi Monorepo. This README serves as the single source of truth for understanding the architecture, packages, applications, and running environment of the platform. 
+Welcome to the qoe.fi Monorepo. This README serves as the single source of truth for understanding the architecture, packages, applications, and running environment of the platform.
 
 This repository has undergone a strict architectural audit to ensure a robust, Google-grade scalable standard.
 

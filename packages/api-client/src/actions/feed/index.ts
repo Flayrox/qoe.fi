@@ -7,7 +7,7 @@ import { ContentVisibility } from "@qoe/db/types";
 
 import { createThoughtSchema, replyToPostSchema, createReportSchema } from "@qoe/config";
 import { createClient } from "@qoe/supabase/server";
-import { revalidatePath } from "next/cache";
+
 import { safeAction } from "../utils/safe-action";
 import { routes } from "@qoe/config/routes";
 
@@ -88,10 +88,8 @@ export const createThoughtAction = safeAction<
     }
   }
 
-  revalidatePath("/home");
-  if (newPost.author.username) {
-    revalidatePath(routes.feed.profile(newPost.author.username));
-  }
+
+
   return { post: { ...newPost, poll: createdPoll } };
 });
 
@@ -99,7 +97,6 @@ export const createThoughtAction = safeAction<
 export const toggleLikePostAction = safeAction<string, { liked: boolean }>(
   async (postId, user) => {
     const res = await posts.toggleLike(postId, user.id);
-    revalidatePath("/home");
     return res;
   }
 );
@@ -110,7 +107,7 @@ export const replyToPostAction = safeAction<
 >(async (rawInput, user) => {
   const { postId, content } = replyToPostSchema.parse(rawInput);
   const reply = await posts.replyToPost(postId, user.id, content);
-  revalidatePath("/home");
+
   return { reply };
 });
 
@@ -205,17 +202,13 @@ export const toggleRepostPostAction = safeAction<
   { reposted: boolean; canonicalId: string; post?: any }
 >(async (postId, user) => {
   const result = await posts.toggleRepost(postId, user.id);
-  revalidatePath("/home");
   return result;
 });
 
 export const repostPostAction = safeAction<string, { repost: any }>(
   async (postId, user) => {
     const res = await posts.toggleRepost(postId, user.id);
-    revalidatePath("/home");
-    if (user.username) {
-      revalidatePath(routes.feed.profile(user.username));
-    }
+
     return { repost: res.post };
   }
 );
@@ -420,10 +413,7 @@ export const pinPostAction = safeAction<string, { success: boolean }>(async (pos
   const success = await posts.setPinStatus(postId, user.id, true);
   if (!success) throw new Error("UNAUTHORIZED");
 
-  revalidatePath("/home");
-  if (user.username) {
-    revalidatePath(routes.feed.profile(user.username));
-  }
+
   return { success: true };
 });
 
@@ -431,10 +421,7 @@ export const unpinPostAction = safeAction<string, { success: boolean }>(async (p
   const success = await posts.setPinStatus(postId, user.id, false);
   if (!success) throw new Error("UNAUTHORIZED");
 
-  revalidatePath("/home");
-  if (user.username) {
-    revalidatePath(routes.feed.profile(user.username));
-  }
+
   return { success: true };
 });
 
@@ -647,10 +634,8 @@ export const updateProfileAction = safeAction<
       ...(input.headerImageUrl !== undefined ? { headerImageUrl: input.headerImageUrl } : {}),
     },
   });
-  revalidatePath("/home");
-  if (updatedUser.username) {
-    revalidatePath(routes.feed.profile(updatedUser.username));
-  }
+
+
   return { user: updatedUser };
 });
 
@@ -686,7 +671,7 @@ export const getFeedItemsAction = safeAction<
         cursor: cursor || undefined,
       });
     } else {
-      rawPosts = await posts.findTrending(fetchLimit + 1);
+      rawPosts = await posts.findTrending(fetchLimit + 1, user?.id);
     }
 
     const hasMore = rawPosts.length > fetchLimit;
