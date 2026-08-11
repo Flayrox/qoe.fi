@@ -117,6 +117,10 @@ model User {
   sentCollaborationRequests     CollaborationRequest[] @relation("SentCollaborationRequests")
   receivedCollaborationRequests CollaborationRequest[] @relation("ReceivedCollaborationRequests")
   
+  receivedNotifications         Notification[]         @relation("UserNotifications")
+  sentNotifications             Notification[]         @relation("NotificationSender")
+  notificationPreference        NotificationPreference?
+  
   // AI Recs
   embedding Unsupported("vector(1536)")?
 }
@@ -396,6 +400,7 @@ model Article {
   letters        Letter[]
   comments       ArticleComment[]
   collaborationRequests CollaborationRequest[]
+  notifications  Notification[]
 
   embedding Unsupported("vector(1536)")?
 
@@ -478,6 +483,8 @@ model Thought {
   tierId         String?
   tier           Tier?             @relation(fields: [tierId], references: [id], onDelete: SetNull)
 
+  replyRestriction String          @default("everyone") // "everyone", "subscribers", "following", "mentioned"
+
   // Counter caches for zero-latency feeds
   likeCount   Int      @default(0)
   repostCount Int      @default(0)
@@ -493,6 +500,8 @@ model Thought {
   reposts   Thought[] @relation("ThoughtReposts")
 
   likes     Like[]
+  notifications Notification[]
+  attachments MediaAttachment[]
 
   @@index([authorId, createdAt])
   @@index([deletedAt, isDraft, authorId, createdAt])
@@ -577,9 +586,77 @@ model ArticleComment {
   parent    ArticleComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies   ArticleComment[] @relation("CommentReplies")
 
+  notifications Notification[]
+
   @@index([articleId, createdAt])
   @@index([articleId, parentId, createdAt])
   @@index([authorId])
   @@index([parentId])
 }
+
+enum NotificationType {
+  LIKE
+  REPOST
+  REPLY
+  MENTION
+  FOLLOW
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  recipientId String           @db.Uuid
+  recipient   User             @relation("UserNotifications", fields: [recipientId], references: [id], onDelete: Cascade)
+  senderId    String           @db.Uuid
+  sender      User             @relation("NotificationSender", fields: [senderId], references: [id], onDelete: Cascade)
+  type        NotificationType
+
+  thoughtId   String?
+  thought     Thought?         @relation(fields: [thoughtId], references: [id], onDelete: Cascade)
+  articleId   String?
+  article     Article?         @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  commentId   String?
+  comment     ArticleComment?  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  @@index([recipientId, isRead, createdAt])
+  @@index([thoughtId])
+  @@index([senderId])
+}
+
+model NotificationPreference {
+  id             String   @id @default(cuid())
+  userId         String   @unique @db.Uuid
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailLikes     Boolean  @default(true)
+  pushLikes      Boolean  @default(true)
+  emailReplies   Boolean  @default(true)
+  pushReplies    Boolean  @default(true)
+  emailMentions  Boolean  @default(true)
+  pushMentions   Boolean  @default(true)
+  emailFollows   Boolean  @default(true)
+  pushFollows    Boolean  @default(true)
+  emailReposts   Boolean  @default(true)
+  pushReposts    Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model MediaAttachment {
+  id          String   @id @default(cuid())
+  thoughtId   String
+  thought     Thought  @relation(fields: [thoughtId], references: [id], onDelete: Cascade)
+  type        String   @default("IMAGE") // "IMAGE" or "VIDEO"
+  url         String   @db.Text
+  altText     String?  @db.Text
+  width       Int?
+  height      Int?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([thoughtId, order])
+}
+
+
 

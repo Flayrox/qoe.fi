@@ -22,6 +22,7 @@ import {
   Bookmark,
   Highlighter,
   Wallet,
+  Bell,
 } from "lucide-react"
 
 /* ─────────────────────────────────────────────
@@ -41,7 +42,11 @@ const iconRegistry: Record<
   Bookmark,
   Highlighter,
   Wallet,
+  Bell,
+  Search,
 }
+
+
 
 /* ─────────────────────────────────────────────
    Types & Interfaces

@@ -32,6 +32,8 @@ export const createThoughtAction = safeAction<
     triggerWarning?: string | null;
     repostId?: string | null;
     parentId?: string | null;
+    replyRestriction?: string | null;
+    attachments?: Array<{ url: string; type?: string; altText?: string; order?: number }>;
   },
   { post: any }
 >(async (rawInput, user) => {
@@ -49,7 +51,7 @@ export const createThoughtAction = safeAction<
     }
   }
 
-  if (charLength > 280) {
+  if (charLength > 500) {
     throw new Error("INVALID_CONTENT_LENGTH");
   }
 
@@ -58,13 +60,16 @@ export const createThoughtAction = safeAction<
     authorId: user.id,
     tags: input.tags,
     imageUrl: input.imageUrl || null,
+    attachments: rawInput.attachments || [],
     visibility: input.visibility,
     isDraft: input.isDraft,
     scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
     triggerWarning: input.triggerWarning || null,
     repostId: input.repostId || null,
     parentId: input.parentId || null,
+    replyRestriction: rawInput.replyRestriction || "everyone",
   });
+
 
   revalidatePath("/home");
   if (newPost.author.username) {
@@ -579,6 +584,46 @@ export const searchUsersAction = safeAction<string, { users: any[] }>(
   async (query) => {
     const list = await users.searchUsers(query);
     return { users: list };
+  },
+  { requireAuth: false }
+);
+
+export const getFeedItemsAction = safeAction<
+  {
+    feedType?: string;
+    cursor?: string | null;
+    limit?: number;
+    username?: string;
+  },
+  { items: any[]; nextCursor: string | null; hasMore: boolean }
+>(
+  async ({ feedType = "recommandation", cursor = null, limit = 20, username }) => {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const fetchLimit = Math.min(limit, 50);
+
+    let rawPosts: any[] = [];
+    if (feedType === "following" && user) {
+      rawPosts = await posts.findFollowingFeed(user.id, {
+        take: fetchLimit,
+        cursor: cursor || undefined,
+      });
+    } else {
+      rawPosts = await posts.findTrending(fetchLimit + 1);
+    }
+
+    const hasMore = rawPosts.length > fetchLimit;
+    const itemsList = hasMore ? rawPosts.slice(0, fetchLimit) : rawPosts;
+    const nextCursor = hasMore && itemsList.length > 0 ? itemsList[itemsList.length - 1].id : null;
+
+    return {
+      items: itemsList,
+      nextCursor,
+      hasMore,
+    };
   },
   { requireAuth: false }
 );
