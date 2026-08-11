@@ -9,9 +9,8 @@ import { PaywallCut } from './PaywallCut';
 import { TextHighlighter } from './TextHighlighter';
 import { ReaderActions } from './ReaderActions';
 import { ArticleCommentsSection } from './ArticleCommentsSection';
-import { getArticleCommentsAction } from '@qoe/api-client/actions/articles';
-
-
+import { sliceContentAtPaywall } from '@qoe/utils';
+import { ContentVisibility } from '@qoe/db/types';
 interface TenantArticlePageProps {
   params: Promise<{
     domain: string;
@@ -213,6 +212,42 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   const wordCount = plainText.split(/\s+/).length;
   const readingTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
 
+  // 4. Check paywall entitlements & perform server-side zero-leak truncation
+  const isAuthor = user?.id === article.authorId;
+  let isPaidSubscriber = isAuthor;
+  let isMember = isAuthor;
+
+  if (user) {
+    const [sub, subscriberRecord] = await Promise.all([
+      (prisma as any).subscription?.findFirst ? (prisma as any).subscription.findFirst({
+        where: {
+          userId: user.id,
+          creatorId: creator.id,
+          status: "active",
+        },
+      }) : null,
+      prisma.subscriber.findFirst({
+        where: {
+          creatorId: creator.id,
+          email: user.email || "",
+          isActive: true,
+        },
+      }),
+    ]);
+    isPaidSubscriber = isAuthor || !!sub;
+    isMember = isPaidSubscriber || !!subscriberRecord;
+  }
+
+  const visibility = article.isPremium
+    ? ContentVisibility.PAID_SUBSCRIBERS
+    : ContentVisibility.PUBLIC;
+
+  const paywallCutResult = sliceContentAtPaywall(
+    article.content || "",
+    { isMember, isPaidSubscriber },
+    visibility
+  );
+
   return (
     <div
       className={`min-h-screen ${themeMode === "dark" ? "dark bg-zinc-950 text-zinc-50" : "bg-background text-foreground"} selection:bg-[var(--tenant-accent)] selection:text-white transition-colors duration-300 relative`}
@@ -268,11 +303,11 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
           </div>
         </header>
 
-        {/* Article Body Container with TextHighlighter */}
+        {/* Article Body Container with Server-side Zero-Leak PaywallCut */}
         <div id="article-content" className="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6">
           <PaywallCut
-            contentHtml={article.content}
-            isPremium={article.isPremium}
+            contentHtml={paywallCutResult.content}
+            isPremium={article.isPremium && !paywallCutResult.accessGranted}
             name={name || creator.username}
             isBrutalist={isBrutalist}
             accentColor={accentColor}

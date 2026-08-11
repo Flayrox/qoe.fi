@@ -35,13 +35,20 @@ export function useAutoSaveArticle({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const latestPayloadRef = useRef<AutoSavePayload | null>(null);
   const isSavingRef = useRef<boolean>(false);
+  const pendingSaveRef = useRef<boolean>(false);
 
   const triggerSave = useCallback(
     async (payload: AutoSavePayload) => {
-      if (isSavingRef.current || !payload.title.trim()) return;
+      if (isSavingRef.current) {
+        pendingSaveRef.current = true;
+        return;
+      }
+
+      if (!payload.title.trim()) return;
 
       try {
         isSavingRef.current = true;
+        pendingSaveRef.current = false;
         setStatus('saving');
         setErrorMessage(null);
 
@@ -64,6 +71,10 @@ export function useAutoSaveArticle({
         onError?.(error);
       } finally {
         isSavingRef.current = false;
+        if (pendingSaveRef.current && latestPayloadRef.current) {
+          pendingSaveRef.current = false;
+          triggerSave(latestPayloadRef.current);
+        }
       }
     },
     [articleId, onSave, onError]
@@ -88,6 +99,7 @@ export function useAutoSaveArticle({
     },
     [delay, enabled, triggerSave]
   );
+
 
   useEffect(() => {
     return () => {

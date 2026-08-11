@@ -112,6 +112,7 @@ model User {
   translationLogs       TranslationAuditLog[]
   articleComments       ArticleComment[]     @relation("CommentAuthor")
   annotationComments    AnnotationComment[]
+  reportsSubmitted      ModerationReport[]   @relation("ReportsSubmitted")
 
   mediaMemberships            MediaMember[]
   sentCollaborationRequests     CollaborationRequest[] @relation("SentCollaborationRequests")
@@ -727,3 +728,21 @@ model PollVote {
   @@index([optionId])
   @@index([userId])
 }
+
+model ModerationReport {
+  id         String   @id @default(cuid())
+  reporterId String   @db.Uuid
+  reporter   User     @relation("ReportsSubmitted", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetId   String
+  targetType String   // "thought" | "article" | "user" | "comment"
+  reason     String
+  details    String?  @db.Text
+  status     String   @default("pending") // "pending" | "reviewed" | "dismissed" | "actioned"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([targetId, targetType])
+  @@index([reporterId])
+  @@index([status])
+}
+

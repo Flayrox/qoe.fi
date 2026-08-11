@@ -19,6 +19,8 @@ export * as search from "./repositories/search";
 export * as starterPacks from "./repositories/starterPacks";
 export * as polls from "./repositories/polls";
 export * as threadgates from "./repositories/threadgates";
+export * as moderation from "./repositories/moderation";
+
 
 
 
