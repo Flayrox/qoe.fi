@@ -17,6 +17,7 @@ export * from './actions/search';
 export * from './actions/starterPacks';
 export * from './actions/polls';
 export * from './actions/threadgates';
+export * from './actions/highlights';
 export * from './utils/authError';
 
 export * from './components/ThoughtCardContainer';
