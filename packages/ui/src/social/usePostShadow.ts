@@ -35,7 +35,6 @@ export function updatePostShadow(postId: string, newState: Partial<PostShadowSta
   if (!postId) return;
   const current = shadowMap.get(postId) || {};
   const updated = { ...current, ...newState };
-  shadowMap.get(postId);
   shadowMap.set(postId, updated);
   notify(postId);
 }

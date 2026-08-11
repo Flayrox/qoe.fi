@@ -42,11 +42,34 @@ export function QuotedArticleCard({
 
   if (highlightTarget && rawText.includes(highlightTarget)) {
     const idx = rawText.indexOf(highlightTarget)
-    beforeContext = rawText.substring(Math.max(0, idx - 70), idx)
-    if (idx - 70 > 0) beforeContext = "..." + beforeContext
+
+    // Find the nearest word boundary before
+    let startIdx = Math.max(0, idx - 80);
+    while (startIdx > 0 && rawText[startIdx] !== ' ') {
+      startIdx++;
+      if (startIdx >= idx) {
+        startIdx = Math.max(0, idx - 80);
+        break;
+      }
+    }
+
+    // Find the nearest word boundary after
+    let endIdx = Math.min(rawText.length, idx + highlightTarget.length + 80);
+    while (endIdx < rawText.length && rawText[endIdx] !== ' ' && rawText[endIdx] !== '.') {
+      endIdx--;
+      if (endIdx <= idx + highlightTarget.length) {
+        endIdx = Math.min(rawText.length, idx + highlightTarget.length + 80);
+        break;
+      }
+    }
+
+    beforeContext = rawText.substring(startIdx, idx).trim()
+    if (startIdx > 0) beforeContext = "... " + beforeContext
+
     highlightedText = highlightTarget
-    afterContext = rawText.substring(idx + highlightTarget.length, idx + highlightTarget.length + 70)
-    if (idx + highlightTarget.length + 70 < rawText.length) afterContext += "..."
+
+    afterContext = rawText.substring(idx + highlightTarget.length, endIdx).trim()
+    if (endIdx < rawText.length && !afterContext.endsWith('.')) afterContext += "..."
   } else if (highlightTarget) {
     highlightedText = highlightTarget
     afterContext = rawText ? " ... " + rawText.substring(0, 90) + "..." : ""
