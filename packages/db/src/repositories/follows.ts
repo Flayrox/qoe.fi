@@ -3,6 +3,7 @@
 // =====================================================================
 
 import { prisma } from "../client"
+import { createNotification, deleteNotification } from "./notifications"
 
 /**
  * ⚡ Bascule l'état d'abonnement d'un lecteur envers un créateur.
@@ -22,6 +23,11 @@ export async function toggleFollow(readerId: string, creatorId: string): Promise
       await prisma.follows.deleteMany({
         where: { readerId, creatorId },
       });
+      deleteNotification({
+        recipientId: creatorId,
+        senderId: readerId,
+        type: "FOLLOW",
+      }).catch((err) => console.error("Error deleting follow notification:", err));
       return { followed: false };
     } else {
       await prisma.follows.create({
@@ -30,6 +36,11 @@ export async function toggleFollow(readerId: string, creatorId: string): Promise
           creatorId,
         },
       });
+      createNotification({
+        recipientId: creatorId,
+        senderId: readerId,
+        type: "FOLLOW",
+      }).catch((err) => console.error("Error creating follow notification:", err));
       return { followed: true };
     }
   } catch (error: any) {
@@ -38,6 +49,7 @@ export async function toggleFollow(readerId: string, creatorId: string): Promise
     throw error;
   }
 }
+
 
 /**
  * 🔍 Vérifie si un lecteur suit un créateur.

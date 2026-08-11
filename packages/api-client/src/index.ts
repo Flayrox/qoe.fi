@@ -10,7 +10,13 @@ export * from './hooks/useSubscriptionStatus';
 export * from './hooks/useRecommendations';
 export * from './hooks/useAutoSaveArticle';
 export * from './hooks/useSubscriptionCheckout';
+export * from './hooks/useNotifications';
+export * from './actions/notifications';
+export * from './hooks/useSearch';
+export * from './actions/search';
 export * from './utils/authError';
+
 export * from './components/ThoughtCardContainer';
 export * from './shadow';
+
 
