@@ -26,7 +26,7 @@ export function ThoughtThreadComposer({ placeholder = "Exprimer votre réponse..
   }
 
   return (
-    <div className="py-2 border-y border-border/30 font-sans my-2">
+    <div className="pt-2 font-sans">
       <ThoughtComposer
         dbUser={dbUser}
         tagsList={[]}

@@ -11,4 +11,6 @@ export * from './hooks/useRecommendations';
 export * from './hooks/useAutoSaveArticle';
 export * from './hooks/useSubscriptionCheckout';
 export * from './utils/authError';
+export * from './components/ThoughtCardContainer';
+export * from './shadow';
 

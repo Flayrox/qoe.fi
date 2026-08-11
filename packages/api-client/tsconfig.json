@@ -11,7 +11,9 @@
       "@qoe/supabase/server": ["../supabase/src/server.ts"],
       "@qoe/supabase/*": ["../supabase/src/*"],
       "@qoe/utils": ["../utils/src/index.ts"],
-      "@qoe/utils/*": ["../utils/src/*"]
+      "@qoe/utils/*": ["../utils/src/*"],
+      "@qoe/ui": ["../ui/src/index.ts"],
+      "@qoe/ui/*": ["../ui/src/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],

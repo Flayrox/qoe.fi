@@ -2,6 +2,7 @@
 
 import React from "react"
 import { cn } from "@qoe/utils"
+import { ProfileHoverCard } from "../social/ProfileHoverCard"
 
 interface TextParserProps {
   content: string
@@ -20,27 +21,19 @@ export function TextParser({ content, className, onMentionClick }: TextParserPro
       {parts.map((part, i) => {
         if (part.startsWith("@") && part.length > 1) {
           const username = part.slice(1)
+
           return (
-            <span
-              key={i}
-              onClick={(e) => {
-                e.stopPropagation()
-                if (onMentionClick) {
-                  onMentionClick(username)
-                } else {
-                  window.location.href = `/profile/${username}`
-                }
-              }}
-              className="text-[#EE4B2B] font-semibold hover:underline cursor-pointer"
-            >
-              {part}
-            </span>
+            <ProfileHoverCard key={i} username={username} onOpenProfile={onMentionClick}>
+              <span className="text-brand font-normal hover:underline cursor-pointer">
+                {part}
+              </span>
+            </ProfileHoverCard>
           )
         }
         
         if (part.startsWith("#") && part.length > 1) {
           return (
-            <span key={i} className="text-[#EE4B2B]/80 font-mono font-medium">
+            <span key={i} className="text-brand/80 font-medium hover:underline cursor-pointer">
               {part}
             </span>
           )

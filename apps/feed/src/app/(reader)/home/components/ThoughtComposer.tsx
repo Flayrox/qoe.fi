@@ -13,6 +13,7 @@ import { Calendar } from "@qoe/ui/ui/calendar"
 import { TimePickerInput } from "@qoe/ui/ui/time-picker-input"
 import { toast } from "sonner"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@qoe/ui/ui/sheet"
+import { ProfileHoverCard } from "@qoe/ui/social/ProfileHoverCard"
 
 interface ComposerImage {
   id: string
@@ -103,6 +104,130 @@ export function ThoughtComposer({
   const [croppingImage, setCroppingImage] = useState<ComposerImage | null>(null)
   const [showDraftPopover, setShowDraftPopover] = useState<boolean>(false)
 
+  // Universal Typeahead State (@mentions, #hashtags, :emojis:)
+  const [typeaheadType, setTypeaheadType] = useState<"profile" | "tag" | "emoji" | null>(null)
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([])
+  const [mentionSelectedIndex, setMentionSelectedIndex] = useState<number>(0)
+  const [mentionPosition, setMentionPosition] = useState<{ start: number; end: number } | null>(null)
+
+  const EMOJI_MAP: Record<string, string> = {
+    fire: "🔥",
+    heart: "❤️",
+    rocket: "🚀",
+    sparkles: "✨",
+    "100": "💯",
+    thumbsup: "👍",
+    check: "✅",
+    star: "⭐",
+    smile: "😊",
+    laughing: "😂",
+    clap: "👏",
+    eyes: "👀",
+  }
+
+  const checkMentionTrigger = (text: string, selectionStart: number) => {
+    const textBeforeCursor = text.substring(0, selectionStart)
+
+    // 1. @Profile match
+    const profileMatch = textBeforeCursor.match(/@([a-zA-Z0-9_.-]*)$/)
+    if (profileMatch) {
+      setTypeaheadType("profile")
+      setMentionQuery(profileMatch[1])
+      setMentionPosition({ start: selectionStart - profileMatch[0].length, end: selectionStart })
+      setMentionSelectedIndex(0)
+      return
+    }
+
+    // 2. #Hashtag match
+    const tagMatch = textBeforeCursor.match(/#([a-zA-Z0-9_-]*)$/)
+    if (tagMatch) {
+      setTypeaheadType("tag")
+      setMentionQuery(tagMatch[1])
+      setMentionPosition({ start: selectionStart - tagMatch[0].length, end: selectionStart })
+      setMentionSelectedIndex(0)
+      return
+    }
+
+    // 3. :Emoji: match
+    const emojiMatch = textBeforeCursor.match(/:([a-zA-Z0-9_+-]*)$/)
+    if (emojiMatch) {
+      setTypeaheadType("emoji")
+      setMentionQuery(emojiMatch[1])
+      setMentionPosition({ start: selectionStart - emojiMatch[0].length, end: selectionStart })
+      setMentionSelectedIndex(0)
+      return
+    }
+
+    setTypeaheadType(null)
+    setMentionQuery(null)
+    setMentionPosition(null)
+    setMentionSuggestions([])
+  }
+
+  useEffect(() => {
+    if (mentionQuery === null || typeaheadType === null) {
+      setMentionSuggestions([])
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      if (typeaheadType === "profile") {
+        try {
+          const { searchUsersAction } = await import("@qoe/api-client/actions/feed")
+          const res = await searchUsersAction(mentionQuery)
+          if (res.ok && res.data?.users) {
+            setMentionSuggestions(res.data.users.map(u => ({ ...u, _type: "profile" })))
+          }
+        } catch (err) {
+          console.error("Mention search error:", err)
+        }
+      } else if (typeaheadType === "tag") {
+        const q = mentionQuery.toLowerCase()
+        const defaultTags = tagsList.length > 0 ? tagsList : ["design", "tech", "qoe", "dev", "crypto", "ia"]
+        const matches = defaultTags.filter(t => t.toLowerCase().includes(q))
+        setMentionSuggestions(matches.map(tag => ({ id: tag, name: `#${tag}`, _type: "tag", value: tag })))
+      } else if (typeaheadType === "emoji") {
+        const q = mentionQuery.toLowerCase()
+        const matches = Object.entries(EMOJI_MAP).filter(([name]) => name.includes(q))
+        setMentionSuggestions(matches.map(([name, char]) => ({ id: name, name: `:${name}:`, _type: "emoji", char, value: char })))
+      }
+    }, 100)
+
+    return () => clearTimeout(timer)
+  }, [mentionQuery, typeaheadType, tagsList])
+
+  const insertMention = (item: any) => {
+    if (!mentionPosition || !textareaRef.current) return
+    let textToInsert = ""
+    if (item._type === "profile") {
+      const handle = item.username || item.subdomain || item.id.slice(0, 8)
+      textToInsert = `@${handle} `
+    } else if (item._type === "tag") {
+      textToInsert = `#${item.value} `
+    } else if (item._type === "emoji") {
+      textToInsert = `${item.char} `
+    }
+
+    const before = postText.substring(0, mentionPosition.start)
+    const after = postText.substring(mentionPosition.end)
+    const newText = `${before}${textToInsert}${after}`
+    setPostText(newText)
+    setTypeaheadType(null)
+    setMentionQuery(null)
+    setMentionPosition(null)
+    setMentionSuggestions([])
+    localStorage.setItem("qoe_thought_draft", newText)
+
+    setTimeout(() => {
+      if (textareaRef.current) {
+        const newCursor = mentionPosition.start + textToInsert.length
+        textareaRef.current.focus()
+        textareaRef.current.setSelectionRange(newCursor, newCursor)
+      }
+    }, 10)
+  }
+
   // Load draft from localStorage on mount
   useEffect(() => {
     if (!dbUser) return
@@ -134,6 +259,7 @@ export function ThoughtComposer({
     if (val.trim()) {
       setIsComposerExpanded(true)
     }
+    checkMentionTrigger(val, e.target.selectionStart || val.length)
   }
 
   const CHAR_LIMIT = 500
@@ -553,11 +679,17 @@ export function ThoughtComposer({
             <div className="flex-1 min-w-0 pb-2 space-y-1">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs flex-wrap">
-                  <span className="font-bold text-foreground">{replyToThought.author?.name || "Auteur"}</span>
+                  <ProfileHoverCard user={replyToThought.author}>
+                    <span className="font-bold text-foreground hover:text-brand transition-colors cursor-pointer">
+                      {replyToThought.author?.name || "Auteur"}
+                    </span>
+                  </ProfileHoverCard>
                   {replyToThought.author?.isCertified && <CertifiedBadge />}
-                  <span className="text-muted-foreground text-[11px]">
-                    @{replyToThought.author?.username || replyToThought.author?.subdomain || "utilisateur"}
-                  </span>
+                  <ProfileHoverCard user={replyToThought.author}>
+                    <span className="text-muted-foreground text-[11px] hover:text-brand transition-colors cursor-pointer">
+                      @{replyToThought.author?.username || replyToThought.author?.subdomain || "utilisateur"}
+                    </span>
+                  </ProfileHoverCard>
                 </div>
                 <button
                   type="button"
@@ -574,7 +706,12 @@ export function ThoughtComposer({
               </p>
 
               <div className="text-[11px] text-muted-foreground pt-1">
-                En réponse à <span className="text-brand font-medium">@{replyToThought.author?.username || replyToThought.author?.subdomain || "utilisateur"}</span>
+                En réponse à{" "}
+                <ProfileHoverCard user={replyToThought.author}>
+                  <span className="text-brand font-medium hover:underline cursor-pointer">
+                    @{replyToThought.author?.username || replyToThought.author?.subdomain || "utilisateur"}
+                  </span>
+                </ProfileHoverCard>
               </div>
             </div>
           </div>
@@ -585,15 +722,11 @@ export function ThoughtComposer({
       <form onSubmit={(e) => handlePostSubmit(e)} className="space-y-3 font-sans">
         <div className="flex gap-3 items-start">
           {/* User Avatar */}
-          <div className="w-9 h-9 rounded-full overflow-hidden border border-border/40 shrink-0 bg-muted">
-            {dbUser?.logoUrl ? (
-              <img src={dbUser.logoUrl} className="w-full h-full object-cover" alt="" />
-            ) : (
-              <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-brand text-xs">
-                {dbUser?.name?.charAt(0).toUpperCase() || "U"}
-              </div>
-            )}
-          </div>
+          <AuthorAvatar
+            user={dbUser}
+            size="md"
+            showBadge={false}
+          />
 
           <div className="flex-1 min-w-0">
             <textarea
@@ -612,6 +745,30 @@ export function ThoughtComposer({
                 setIsComposerExpanded(true)
               }}
           onKeyDown={(e) => {
+            if (mentionSuggestions.length > 0) {
+              if (e.key === "ArrowDown") {
+                e.preventDefault()
+                setMentionSelectedIndex((prev) => (prev + 1) % mentionSuggestions.length)
+                return
+              }
+              if (e.key === "ArrowUp") {
+                e.preventDefault()
+                setMentionSelectedIndex((prev) => (prev - 1 + mentionSuggestions.length) % mentionSuggestions.length)
+                return
+              }
+              if (e.key === "Enter" || e.key === "Tab") {
+                e.preventDefault()
+                insertMention(mentionSuggestions[mentionSelectedIndex])
+                return
+              }
+              if (e.key === "Escape") {
+                e.preventDefault()
+                setMentionSuggestions([])
+                setMentionQuery(null)
+                return
+              }
+            }
+
             if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
               e.preventDefault()
               handlePostSubmit(e)
@@ -629,6 +786,8 @@ export function ThoughtComposer({
               setShowScheduleDropdown(false)
               setShowWarningDropdown(false)
               setOverflowStyle("hidden")
+              setMentionSuggestions([])
+              setMentionQuery(null)
               localStorage.removeItem("qoe_micro_post_draft")
             }
           }}
@@ -642,6 +801,54 @@ export function ThoughtComposer({
           )}
           style={{ height: isComposerExpanded ? "auto" : "48px" }}
         />
+
+        {/* Universal Typeahead Suggestions Dropdown (Absolute Floating Popover — Zero Layout Shift) */}
+        {mentionSuggestions.length > 0 && (
+          <div className="relative font-sans z-50">
+            <div className="absolute top-1 left-0 w-64 max-h-56 overflow-y-auto bg-popover text-popover-foreground border border-border/60 rounded-xl shadow-2xl p-1 font-sans animate-in fade-in-0 zoom-in-95 duration-100">
+              {mentionSuggestions.map((item, idx) => {
+                const isSelected = idx === mentionSelectedIndex
+                return (
+                  <div
+                    key={item.id || idx}
+                    onClick={() => insertMention(item)}
+                    className={cn(
+                      "flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-colors text-xs select-none",
+                      isSelected
+                        ? "bg-brand/10 text-brand font-semibold border-l-2 border-brand"
+                        : "hover:bg-muted/60 text-muted-foreground"
+                    )}
+                  >
+                    {item._type === "profile" && (
+                      <>
+                        <AuthorAvatar user={item} size="xs" showBadge={false} />
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <div className="flex items-center gap-1">
+                            <span className={cn("font-bold truncate", isSelected ? "text-brand" : "text-foreground")}>{item.name || "Auteur"}</span>
+                            {item.isCertified && <CertifiedBadge />}
+                          </div>
+                          <span className={cn("text-[11px] truncate", isSelected ? "text-brand/80" : "text-muted-foreground")}>@{item.username || item.subdomain}</span>
+                        </div>
+                      </>
+                    )}
+                    {item._type === "tag" && (
+                      <div className="flex items-center gap-2 font-medium text-brand">
+                        <span className="font-bold">#</span>
+                        <span className="text-foreground">{item.value}</span>
+                      </div>
+                    )}
+                    {item._type === "emoji" && (
+                      <div className="flex items-center gap-2 font-medium">
+                        <span className="text-base">{item.char}</span>
+                        <span className="text-muted-foreground text-xs">{item.name}</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {quotedThought && (
           <div className="relative my-2">

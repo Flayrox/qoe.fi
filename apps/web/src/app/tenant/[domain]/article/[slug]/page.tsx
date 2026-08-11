@@ -50,11 +50,14 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
     notFound();
   }
 
-  // 3. Fetch article by slug and authorId
+  // 3. Fetch article by slug or id and authorId
   const article = await (prisma as any).article.findFirst({
     where: {
       authorId: creator.id,
-      slug: { equals: decodedSlug, mode: "insensitive" },
+      OR: [
+        { slug: { equals: decodedSlug, mode: "insensitive" } },
+        { id: decodedSlug },
+      ],
     },
     include: {
       category: true,
