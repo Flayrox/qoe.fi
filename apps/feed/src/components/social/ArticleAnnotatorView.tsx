@@ -176,7 +176,7 @@ export function ArticleAnnotatorView({ article, onClose }: ArticleAnnotatorViewP
       : myHighlights;
 
   return (
-    <div className="relative min-h-screen bg-background text-foreground grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 max-w-7xl mx-auto">
+    <div className="relative w-full bg-background text-foreground grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto font-sans">
       {/* Floating Selection Popover */}
       {popoverPos && selectedText && (
         <div
@@ -205,19 +205,6 @@ export function ArticleAnnotatorView({ article, onClose }: ArticleAnnotatorViewP
             className="p-1 rounded-full hover:bg-muted text-muted-foreground"
           >
             <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
-      {onClose && (
-        <div className="lg:col-span-12 flex items-center justify-between pb-3 border-b border-border/40 mb-2 sticky top-14 z-30 bg-background/90 backdrop-blur-md px-2 py-2 rounded-xl">
-          <button
-            onClick={onClose}
-            type="button"
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-foreground bg-muted/70 hover:bg-muted transition-colors cursor-pointer outline-none border border-border/50 shadow-2xs"
-          >
-            <ArrowLeft className="w-4 h-4 text-primary" />
-            <span className="whitespace-nowrap">Retour au fil</span>
           </button>
         </div>
       )}

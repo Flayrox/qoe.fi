@@ -46,15 +46,15 @@ export function ArticleReaderDrawer({ isOpen, article, onClose }: ArticleReaderD
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end pointer-events-auto select-text">
-          {/* Backdrop Blur Overlay */}
+        <div className="fixed inset-0 md:left-64 z-50 flex flex-col justify-end pointer-events-auto select-text">
+          {/* Backdrop Blur Overlay (Bounded right of sidebar) */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"
+            className="fixed inset-0 md:left-64 bg-black/40 backdrop-blur-xs cursor-pointer"
           />
 
           {/* Bottom Sheet Drawer Panel */}
@@ -63,7 +63,7 @@ export function ArticleReaderDrawer({ isOpen, article, onClose }: ArticleReaderD
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
-            className="relative z-10 w-full h-[92vh] max-h-[92vh] flex flex-col bg-background text-foreground border-t border-border/50 rounded-t-3xl shadow-2xl overflow-hidden font-sans"
+            className="relative z-10 w-full h-[94vh] max-h-[94vh] flex flex-col bg-background text-foreground border-t border-l border-border/50 rounded-t-3xl shadow-2xl overflow-hidden font-sans"
           >
             {/* Top Drag Handle Bar */}
             <div className="w-full py-2.5 flex items-center justify-center shrink-0 bg-background cursor-grab active:cursor-grabbing">
