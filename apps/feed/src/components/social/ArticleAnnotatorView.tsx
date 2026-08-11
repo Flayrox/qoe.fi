@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { Lock } from "lucide-react";
 import { createClient } from "@qoe/supabase/client";
 import {
   TextHighlighter,
@@ -27,6 +28,8 @@ export interface ArticleAnnotatorViewProps {
     content: string;
     readingTime?: number;
     createdAt: string | Date;
+    isPremium?: boolean;
+    accessGranted?: boolean;
     author: {
       id: string;
       name?: string | null;
@@ -111,15 +114,24 @@ export function ArticleAnnotatorView({ article, onClose }: ArticleAnnotatorViewP
       return res;
     },
     onCrosspost: async ({ articleId, text, commentary }) => {
-      const res = await quotePassageToFeedAction({
-        articleId: articleId || article.id,
-        text,
-        commentary,
-      });
-      if (res.ok) {
-        return { ok: true, data: res.data };
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("open-composer", {
+            detail: {
+              quotedArticle: {
+                id: article.id,
+                title: article.title,
+                slug: article.slug,
+                content: article.content,
+                author: article.author,
+              },
+              quotedExcerpt: text,
+              initialText: commentary || "",
+            },
+          })
+        );
       }
-      return res;
+      return { ok: true };
     },
   };
 
@@ -134,6 +146,24 @@ export function ArticleAnnotatorView({ article, onClose }: ArticleAnnotatorViewP
         logoUrl: user.user_metadata?.avatar_url || null,
       }
     : null;
+
+  if ((article as any)?.isLoading || !article.content) {
+    return (
+      <div className="relative w-full bg-background text-foreground space-y-6 max-w-4xl mx-auto font-sans pb-12 animate-pulse">
+        <div className="space-y-3 border-b border-border/40 pb-5">
+          <div className="h-8 bg-muted rounded-xl w-3/4" />
+          <div className="h-4 bg-muted rounded-lg w-1/3" />
+        </div>
+        <div className="space-y-4 pt-4">
+          <div className="h-4 bg-muted/80 rounded-lg w-full" />
+          <div className="h-4 bg-muted/80 rounded-lg w-11/12" />
+          <div className="h-4 bg-muted/80 rounded-lg w-4/5" />
+          <div className="h-4 bg-muted/80 rounded-lg w-full" />
+          <div className="h-4 bg-muted/80 rounded-lg w-3/4" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full bg-background text-foreground space-y-6 max-w-4xl mx-auto font-sans pb-12">
@@ -187,6 +217,30 @@ export function ArticleAnnotatorView({ article, onClose }: ArticleAnnotatorViewP
         className="prose prose-sm sm:prose-base dark:prose-invert max-w-none leading-relaxed text-foreground/90 selection:bg-amber-500/30 cursor-text space-y-4 pt-2"
         dangerouslySetInnerHTML={{ __html: article.content }}
       />
+
+      {/* Paywall Cut Overlay for Premium Articles */}
+      {article.isPremium && article.accessGranted === false && (
+        <div className="relative mt-8 p-6 sm:p-8 rounded-2xl bg-card border border-amber-500/30 shadow-xl text-center space-y-4 not-prose">
+          <div className="w-12 h-12 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto shadow-sm">
+            <Lock className="w-6 h-6" />
+          </div>
+          <h3 className="text-xl font-bold text-foreground tracking-tight">Écrit réservé aux membres Premium</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+            La suite de cette publication est exclusivement réservée aux abonnés de <strong className="text-foreground">{article.author.name || article.author.username}</strong>.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <a
+              href={article.author.subdomain ? `https://${article.author.subdomain}.qoe.fi/article/${article.slug}` : `/article/${article.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-500 text-black font-bold text-xs sm:text-sm hover:bg-amber-400 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Lock className="w-4 h-4" />
+              S'abonner pour débloquer
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -98,13 +98,29 @@ export const quotePassageToFeedAction = safeAction<
   const { articleId, text, commentary } = data;
   const article = await prisma.article.findUnique({
     where: { id: articleId },
-    select: { title: true, slug: true },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      author: {
+        select: {
+          subdomain: true,
+          name: true,
+          username: true,
+        },
+      },
+    },
   });
   if (!article) throw new Error("ARTICLE_NOT_FOUND");
 
+  const subdomain = article.author?.subdomain;
+  const articleUrl = subdomain
+    ? `https://${subdomain}.qoe.fi/article/${article.slug}`
+    : `https://qoe.fi/article/${article.slug}`;
+
   const quoteContent = commentary
-    ? `"${text}" — Article: ${article.title}\n\n${commentary}`
-    : `"${text}" — Article: ${article.title}`;
+    ? `« ${text} »\n\n${commentary}\n\n${articleUrl}`
+    : `« ${text} »\n\n${articleUrl}`;
 
   const post = await posts.createThought({
     content: quoteContent,

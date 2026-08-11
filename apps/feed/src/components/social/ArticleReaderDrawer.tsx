@@ -20,10 +20,24 @@ export interface ArticleReaderDrawerProps {
 }
 
 export function ArticleReaderDrawer({ isOpen, article, onClose }: ArticleReaderDrawerProps) {
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [scrollProgress, setScrollProgress] = React.useState(0);
+
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+      const totalScroll = scrollHeight - clientHeight;
+      if (totalScroll > 0) {
+        setScrollProgress(Math.min(100, Math.max(0, (scrollTop / totalScroll) * 100)));
+      }
+    }
+  };
+
   // Lock body scroll when drawer is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
+      setScrollProgress(0);
     } else {
       document.body.style.overflow = "";
     }
@@ -53,7 +67,7 @@ export function ArticleReaderDrawer({ isOpen, article, onClose }: ArticleReaderD
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 md:left-64 z-50 flex flex-col justify-end pointer-events-auto select-text">
+        <div className="fixed inset-y-0 right-0 left-0 md:left-[256px] z-50 flex flex-col justify-end pointer-events-auto select-text">
           {/* Backdrop Blur Overlay (Bounded right of sidebar) */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -61,7 +75,7 @@ export function ArticleReaderDrawer({ isOpen, article, onClose }: ArticleReaderD
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={onClose}
-            className="fixed inset-0 md:left-64 bg-black/40 backdrop-blur-xs cursor-pointer"
+            className="absolute inset-0 bg-black/40 backdrop-blur-xs cursor-pointer"
           />
 
           {/* Bottom Sheet Drawer Panel */}
@@ -73,12 +87,12 @@ export function ArticleReaderDrawer({ isOpen, article, onClose }: ArticleReaderD
             className="relative z-10 w-full h-[94vh] max-h-[94vh] flex flex-col bg-background text-foreground border-t border-l border-border/50 rounded-t-3xl shadow-2xl overflow-hidden font-sans"
           >
             {/* Top Drag Handle Bar */}
-            <div className="w-full py-2.5 flex items-center justify-center shrink-0 bg-background cursor-grab active:cursor-grabbing">
+            <div className="w-full py-2 flex items-center justify-center shrink-0 bg-background cursor-grab active:cursor-grabbing">
               <div className="w-12 h-1.5 bg-muted-foreground/30 rounded-full" />
             </div>
 
             {/* Sticky Drawer Header */}
-            <div className="flex items-center justify-between px-6 py-3 border-b border-border/40 shrink-0 bg-background/95 backdrop-blur-md z-20">
+            <div className="flex items-center justify-between px-6 py-2.5 border-b border-border/40 shrink-0 bg-background/95 backdrop-blur-md z-20">
               <div className="flex items-center gap-3 min-w-0 pr-4">
                 <span className="px-2.5 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
                   Lecture & Annotation
@@ -109,8 +123,20 @@ export function ArticleReaderDrawer({ isOpen, article, onClose }: ArticleReaderD
               </div>
             </div>
 
+            {/* 2026 Reading Scroll Progress Line */}
+            <div className="w-full h-1 bg-muted/20 overflow-hidden shrink-0">
+              <div
+                className="h-full bg-gradient-to-r from-amber-500 via-primary to-emerald-500 transition-all duration-100 ease-out"
+                style={{ width: `${scrollProgress}%` }}
+              />
+            </div>
+
             {/* Drawer Scroll Container */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-6">
+            <div
+              ref={scrollRef}
+              onScroll={handleScroll}
+              className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-6 scroll-smooth"
+            >
               <div className="max-w-6xl mx-auto">
                 <ArticleAnnotatorView article={article} onClose={onClose} />
               </div>
