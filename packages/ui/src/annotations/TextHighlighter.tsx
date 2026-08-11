@@ -1,45 +1,20 @@
 "use client"
 
 import React, { useEffect, useState, useRef } from "react"
-import { createHighlightAction as createHighlight, quotePassageToFeedAction } from "@qoe/api-client/actions/tenant"
-
 import { Highlighter, Check, Loader2, X, Plus, Globe, Lock, Share2, Quote, Eye, EyeOff, Sparkles } from "lucide-react"
 import { cn } from "@qoe/utils"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
-import { TextSelectionPopover } from "@qoe/ui"
-import { AnnotationSideDrawer, AnnotationItem } from "./AnnotationSideDrawer"
+import { TextSelectionPopover } from "./TextSelectionPopover"
+import { AnnotationSideDrawer } from "./AnnotationSideDrawer"
+import {
+  AnnotationFilterMode,
+  AnnotationItem,
+  HighlightItem,
+  TextHighlighterProps,
+  MARK_STYLE_CLASSES
+} from "./types"
 
-interface HighlightItem {
-  id: string
-  text: string
-  note: string | null
-  isPublic?: boolean
-  isOfficial?: boolean
-  upvotesCount?: number
-  createdAt?: Date | string
-  reader?: {
-    id: string
-    name: string | null
-    username: string | null
-    logoUrl: string | null
-    subdomain: string | null
-  }
-}
-
-interface TextHighlighterProps {
-  articleId: string
-  creatorName: string
-  allowPublicAnnotations: boolean
-  isAuthenticated: boolean
-  initialHighlights: HighlightItem[]
-  publicHighlights?: AnnotationItem[]
-  currentUserId?: string | null
-  currentUserProfile?: { id: string; name: string | null; username: string | null; logoUrl: string | null } | null
-  articleAuthorId?: string | null
-  mainAppUrl: string
-}
-
-export type AnnotationFilterMode = "all" | "official" | "none"
+export type { AnnotationFilterMode }
 
 export function TextHighlighter({
   articleId,
@@ -52,6 +27,9 @@ export function TextHighlighter({
   currentUserProfile,
   articleAuthorId,
   mainAppUrl,
+  containerId = "article-content",
+  callbacks,
+  onRequireAuth,
 }: TextHighlighterProps) {
   const defaultReader = {
     id: currentUserId || "anon",
@@ -61,8 +39,16 @@ export function TextHighlighter({
     subdomain: null,
   }
 
-  const [highlights, setHighlights] = useState<HighlightItem[]>(initialHighlights)
+  const [highlights, setHighlights] = useState<HighlightItem[]>(initialHighlights as HighlightItem[])
   const [allPublic, setAllPublic] = useState<AnnotationItem[]>(publicHighlights)
+
+  useEffect(() => {
+    setHighlights(initialHighlights as HighlightItem[])
+  }, [initialHighlights])
+
+  useEffect(() => {
+    setAllPublic(publicHighlights)
+  }, [publicHighlights])
 
   // Universal Reader Annotation Filter Mode (persisted across all tenants in localStorage)
   const [filterMode, setFilterMode] = useState<AnnotationFilterMode>("all")
@@ -87,15 +73,19 @@ export function TextHighlighter({
 
   // Load persisted reader filter mode on mount
   useEffect(() => {
-    const savedMode = localStorage.getItem("qoe_annotation_filter_mode") as AnnotationFilterMode | null
-    if (savedMode && ["all", "official", "none"].includes(savedMode)) {
-      setFilterMode(savedMode)
+    try {
+      const savedMode = localStorage.getItem("qoe_annotation_filter_mode") as AnnotationFilterMode | null
+      if (savedMode && ["all", "official", "none"].includes(savedMode)) {
+        setFilterMode(savedMode)
+      }
+    } catch {
+      // Ignore localStorage access restrictions
     }
   }, [])
 
   // Attach interactivity to HTML-embedded <mark data-annotation-note="..."> author marks
   const setupHtmlMarksInDOM = () => {
-    const articleEl = document.getElementById("article-content")
+    const articleEl = document.getElementById(containerId)
     if (!articleEl) return
 
     const htmlMarks = articleEl.querySelectorAll("mark[data-annotation-note]")
@@ -106,8 +96,7 @@ export function TextHighlighter({
       const generatedId = existingId || `official-html-mark-${index}`
 
       mark.setAttribute("data-highlight-id", generatedId)
-      mark.className =
-        "bg-amber-500/20 text-foreground cursor-pointer border-b border-amber-500 hover:bg-amber-500/30 transition-all relative group rounded-xs font-medium"
+      mark.className = MARK_STYLE_CLASSES.official
 
       const officialAnnot: AnnotationItem = {
         id: generatedId,
@@ -147,11 +136,15 @@ export function TextHighlighter({
     if (filterMode !== "none") {
       highlightExisting()
     }
-  }, [highlights, allPublic, filterMode])
+  }, [highlights, allPublic, filterMode, containerId])
 
   const changeFilterMode = (mode: AnnotationFilterMode) => {
     setFilterMode(mode)
-    localStorage.setItem("qoe_annotation_filter_mode", mode)
+    try {
+      localStorage.setItem("qoe_annotation_filter_mode", mode)
+    } catch {
+      // Ignore localStorage write restriction
+    }
   }
 
   const clearForm = () => {
@@ -196,7 +189,7 @@ export function TextHighlighter({
 
   // Strip all rendered highlights from DOM cleanly
   const removeAllMarksFromDOM = () => {
-    const articleEl = document.getElementById("article-content")
+    const articleEl = document.getElementById(containerId)
     if (!articleEl) return
 
     const marks = articleEl.querySelectorAll("mark[data-highlight-id]")
@@ -215,7 +208,7 @@ export function TextHighlighter({
 
   // Highlight stored text passages in DOM based on active reader filterMode
   const highlightExisting = () => {
-    const articleEl = document.getElementById("article-content")
+    const articleEl = document.getElementById(containerId)
     if (!articleEl) return
 
     // Ensure DOM text nodes are normalized before scanning
@@ -288,14 +281,11 @@ export function TextHighlighter({
         const mark = document.createElement("mark")
 
         if (isOfficial) {
-          mark.className =
-            "bg-amber-500/20 text-foreground cursor-pointer border-b border-amber-500 hover:bg-amber-500/30 transition-all relative group rounded-xs font-medium"
+          mark.className = MARK_STYLE_CLASSES.official
         } else if (isPublic) {
-          mark.className =
-            "bg-primary/20 text-foreground cursor-pointer border-b border-primary/50 hover:bg-primary/30 transition-all relative group rounded-xs"
+          mark.className = MARK_STYLE_CLASSES.public
         } else {
-          mark.className =
-            "bg-amber-500/15 text-foreground cursor-pointer border-b border-dashed border-amber-400/60 hover:bg-amber-500/25 transition-all relative group rounded-xs"
+          mark.className = MARK_STYLE_CLASSES.private
         }
 
         mark.textContent = text
@@ -317,7 +307,7 @@ export function TextHighlighter({
 
           // Gather all annotations in the article
           const rawList: AnnotationItem[] = []
-          const allMarks = document.querySelectorAll("#article-content mark[data-highlight-id]")
+          const allMarks = document.querySelectorAll(`#${containerId} mark[data-highlight-id]`)
           allMarks.forEach((m) => {
             const hId = m.getAttribute("data-highlight-id")
             if (!hId) return
@@ -347,7 +337,7 @@ export function TextHighlighter({
             rawList.push(targetAnnot)
           }
 
-          const articleElText = document.getElementById("article-content")?.textContent || ""
+          const articleElText = document.getElementById(containerId)?.textContent || ""
 
           // 🎯 LOGIQUE DE TRI DÉTERMINISTE :
           // 1. Commence le plus tôt (DOM offset)
@@ -396,18 +386,31 @@ export function TextHighlighter({
     })
   }
 
+  const handleLoginRedirect = () => {
+    if (onRequireAuth) {
+      onRequireAuth()
+    } else if (callbacks?.onLoginRedirect) {
+      callbacks.onLoginRedirect()
+    } else if (mainAppUrl) {
+      window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`
+    }
+  }
+
   const handleInstantHighlight = async (selectedText: string, clearSelection: () => void) => {
     if (!isAuthenticated) {
-      window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`
+      handleLoginRedirect()
       return
     }
 
     setSaving(true)
     try {
-      const res = await createHighlight({ articleId, text: selectedText, note: undefined, isPublic: false })
-      if (res.ok && res.data) {
+      const res = callbacks?.onHighlightCreate
+        ? await callbacks.onHighlightCreate({ articleId, text: selectedText, note: null, isPublic: false })
+        : { ok: true, data: { id: `hl-${Date.now()}`, text: selectedText, note: null } }
+
+      if (res?.ok && res.data) {
         setHighlights((prev) => [...prev, res.data])
-        const articleEl = document.getElementById("article-content")
+        const articleEl = document.getElementById(containerId)
         if (articleEl) {
           applyHighlightToDOM(articleEl, selectedText, undefined, false, false, res.data.id)
         }
@@ -432,7 +435,7 @@ export function TextHighlighter({
   ) => {
     e.preventDefault()
     if (!isAuthenticated) {
-      window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`
+      handleLoginRedirect()
       return
     }
 
@@ -441,8 +444,11 @@ export function TextHighlighter({
     setErrorMessage(null)
     setSaving(true)
     try {
-      const res = await createHighlight({ articleId, text: targetText, note: noteText || undefined, isPublic: isPublicChoice })
-      if (res.ok && res.data) {
+      const res = callbacks?.onHighlightCreate
+        ? await callbacks.onHighlightCreate({ articleId, text: targetText, note: noteText || null, isPublic: isPublicChoice })
+        : { ok: true, data: { id: `hl-${Date.now()}`, text: targetText, note: noteText || null, reader: defaultReader } }
+
+      if (res?.ok && res.data) {
         removeTempDraftMark()
 
         // 🌟 Ensure public highlight is in BOTH allPublic and highlights state so it NEVER disappears for author or readers!
@@ -468,7 +474,7 @@ export function TextHighlighter({
           clearForm()
           window.getSelection()?.removeAllRanges()
         }, 800)
-      } else if (!res.ok && res.error?.code === "PUBLIC_ANNOTATIONS_DISABLED") {
+      } else if (res && !res.ok && res.error?.code === "PUBLIC_ANNOTATIONS_DISABLED") {
         setErrorMessage("Le créateur a désactivé les annotations publiques sur cet écrit.")
       }
     } catch (e) {
@@ -480,14 +486,17 @@ export function TextHighlighter({
 
   const handleDirectCrosspostToFeed = async (selectedText: string, clearSelection: () => void) => {
     if (!isAuthenticated) {
-      window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`
+      handleLoginRedirect()
       return
     }
 
     setSaving(true)
     try {
-      const res = await quotePassageToFeedAction({ articleId, text: selectedText })
-      if (res.ok) {
+      const res = callbacks?.onCrosspost
+        ? await callbacks.onCrosspost({ articleId, text: selectedText })
+        : { ok: true }
+
+      if (res?.ok) {
         setSavedSuccess(true)
         setTimeout(() => {
           clearSelection()
@@ -495,7 +504,6 @@ export function TextHighlighter({
           window.getSelection()?.removeAllRanges()
         }, 800)
       }
-
     } catch (e) {
       console.error(e)
     } finally {
@@ -557,7 +565,7 @@ export function TextHighlighter({
       </div>
 
       <TextSelectionPopover
-        containerId="article-content"
+        containerId={containerId}
         minSelectionLength={1}
         isLocked={showNoteInput || saving}
       >
@@ -573,7 +581,7 @@ export function TextHighlighter({
             transition={
               shouldReduceMotion
                 ? { duration: 0 }
-                : { type: "spring", stiffness: 480, damping: 30, mass: 0.55 }
+                : { type: "spring", stiffness: 500, damping: 32 }
             }
             className={cn(
               "bg-popover text-popover-foreground border border-border/30 backdrop-blur-2xl shadow-2xl overflow-hidden font-sans",
@@ -608,7 +616,7 @@ export function TextHighlighter({
                   <button
                     onClick={() => {
                       if (!isAuthenticated) {
-                        window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`
+                        handleLoginRedirect()
                       } else {
                         setActiveDraftText(selectedText)
                         applyTempDraftMark(range)
@@ -796,6 +804,8 @@ export function TextHighlighter({
         currentUserId={currentUserId}
         articleAuthorId={articleAuthorId}
         mainAppUrl={mainAppUrl}
+        callbacks={callbacks}
+        onRequireAuth={onRequireAuth}
         onClose={() => {
           setSelectedAnnotationForDrawer(null)
           setArticleAnnotations([])

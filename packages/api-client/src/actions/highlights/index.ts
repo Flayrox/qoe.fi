@@ -69,3 +69,5 @@ export const deleteHighlightAction = safeAction<
   revalidatePath("/article");
   return { success: true };
 });
+
+export { quotePassageToFeedAction } from "../tenant";
