@@ -11,7 +11,7 @@ export interface ThoughtThreadItemProps {
 }
 
 export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) {
-  const { currentUserId, toggleLike, repostThought, onOpenPost, onOpenProfile } = useThoughtThreadContext()
+  const { currentUserId, toggleLike, repostThought, onOpenPost, onOpenProfile, onOpenArticle } = useThoughtThreadContext()
 
   if (reply.isDeleted) {
     return (
@@ -37,6 +37,7 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
         currentUserId={currentUserId}
         onOpenPost={onOpenPost}
         onOpenProfile={onOpenProfile}
+        onOpenArticle={onOpenArticle}
         onLikeToggle={(id) => toggleLike(id)}
         onRepostToggle={(id) => repostThought(id)}
       />
