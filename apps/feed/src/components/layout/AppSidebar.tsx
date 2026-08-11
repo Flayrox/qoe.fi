@@ -40,7 +40,11 @@ export function AppSidebar({
       url: "/notifications",
       iconName: "Bell",
     },
-
+    {
+      title: t("feed.starter_packs", "Starter Packs"),
+      url: routes.feed.starterPacks(),
+      iconName: "Compass",
+    },
     {
       title: t("feed.tab_library", "Signets"),
       url: routes.feed.library(),
