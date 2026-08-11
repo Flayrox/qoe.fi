@@ -27,7 +27,13 @@ interface OnboardingFlowProps {
 export function OnboardingFlow({ categories, suggestedCreators, userId }: OnboardingFlowProps) {
   const { t } = useTranslate()
   const router = useRouter()
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("qoe_onboarding_step")
+      return saved ? parseInt(saved, 10) || 1 : 1
+    }
+    return 1
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -43,6 +49,12 @@ export function OnboardingFlow({ categories, suggestedCreators, userId }: Onboar
 
   // Step 4: Creators to follow
   const [followedCreators, setFollowedCreators] = useState<string[]>([])
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("qoe_onboarding_step", String(step))
+    }
+  }, [step])
 
   const handleToggleInterest = (id: string) => {
     setSelectedInterests((prev) =>
@@ -93,7 +105,11 @@ export function OnboardingFlow({ categories, suggestedCreators, userId }: Onboar
         mutedWords,
         creatorsToFollow: followedCreators,
       })
-      window.location.href = "/"
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("qoe_onboarding_step")
+      }
+      router.push("/")
+      router.refresh()
     } catch (err: any) {
       setError(err.message || "Failed to save preferences")
       setLoading(false)
@@ -113,9 +129,9 @@ export function OnboardingFlow({ categories, suggestedCreators, userId }: Onboar
       case 2:
         return {
           label: t("onboarding_reader.step_label", "Étape") + " 2 / 4",
-          title: t("onboarding_reader.s2_bento_title", "Recommandation Sémantique"),
-          desc: t("onboarding_reader.s2_bento_desc", "Contrairement aux flux de buzz compulsifs, nous vectorisons vos écrits et les comparons à la distance cosinusoïdale des articles."),
-          footer: t("onboarding_reader.s2_bento_footer", "DIMENSIONS VECTORIELLES : 1536\nMOTEUR : PGVECTOR + EMBEDDINGS"),
+          title: "Profil & Alignement Thématique",
+          desc: "Décrivez vos sujets d'intérêt et votre vision pour personnaliser les suggestions de publications et les recommandations de créateurs.",
+          footer: "QOE.FI — ALIGNEMENT THÉMATIQUE SUR MESURE",
         }
       case 3:
         return {
