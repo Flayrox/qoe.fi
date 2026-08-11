@@ -67,6 +67,8 @@ export interface ThoughtData {
   attachments?: Array<{ id?: string; url: string; type?: string; altText?: string | null }> | null
   articleQuote?: QuotedArticleData | null
   quotedExcerpt?: string
+  poll?: any
+  replyRestriction?: string
 }
 
 export interface ThoughtCardProps {
@@ -76,6 +78,8 @@ export interface ThoughtCardProps {
   currentUserId?: string | null
   isPreview?: boolean
   unfurlFn?: (url: string) => Promise<any>
+  pollSlot?: React.ReactNode
+  threadgateBadge?: React.ReactNode
   onOpenProfile?: (username: string) => void
   onOpenPost?: (postId: string, authorUsername?: string) => void
   onOpenArticle?: (article: QuotedArticleData) => void
@@ -102,6 +106,8 @@ export function ThoughtCard({
   currentUserId,
   isPreview,
   unfurlFn,
+  pollSlot,
+  threadgateBadge,
   onOpenProfile,
   onOpenPost,
   onOpenArticle,
@@ -233,6 +239,9 @@ export function ThoughtCard({
           onReportClick={onReportClick}
         />
 
+        {/* Threadgate Badge */}
+        {threadgateBadge}
+
         {/* Text Body Content */}
         <ThoughtBody
           content={displayContent}
@@ -241,6 +250,9 @@ export function ThoughtCard({
           triggerWarning={post.triggerWarning}
           isFocus={isFocus}
         />
+
+        {/* Poll Slot */}
+        {pollSlot}
 
         {/* Quoted Thought Card (if quoting another thought) */}
         {isQuotePost && (

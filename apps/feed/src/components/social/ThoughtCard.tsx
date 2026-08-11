@@ -12,6 +12,9 @@ import {
   toggleLikePostAction as toggleLikePost, 
   toggleRepostPostAction as toggleRepostPost 
 } from "@qoe/api-client/actions/feed"
+import { PollCard } from "./PollCard"
+import { ThreadgateBadge } from "./ThreadgateBadge"
+import { HiddenReplyCard } from "./HiddenReplyCard"
 
 export type { ThoughtData, ThoughtVariant } from "@qoe/ui"
 
@@ -93,33 +96,53 @@ export function ThoughtCard({
     }
   }
 
+  const pollSlot = post.poll ? <PollCard poll={post.poll} /> : null
+  const threadgateBadge = post.replyRestriction && post.replyRestriction !== "everyone" ? (
+    <ThreadgateBadge restriction={post.replyRestriction as any} />
+  ) : null
+
+  const isHidden = (post as any).isHiddenByAuthor === true
+  const isParentAuthor = currentUserId === post.parent?.author.id
+
+  const cardElement = (
+    <ThoughtCardContainer
+      post={post}
+      variant={variant}
+      depth={depth}
+      currentUserId={currentUserId}
+      pollSlot={pollSlot}
+      threadgateBadge={threadgateBadge}
+      onOpenProfile={handleOpenProfile}
+      onOpenPost={handleOpenPost}
+      onReplyClick={handleReplyClick}
+      onPinToggle={handlePinToggle}
+      onReportClick={() => setShowReportModal(true)}
+      onLikeToggleOverride={handleLikeToggleOverride}
+      onRepostToggleOverride={handleRepostToggleOverride}
+      likeMutationFn={async (id) => {
+        const res = await toggleLikePost(id)
+        const msg = res.ok ? undefined : typeof res.error === "string" ? res.error : res.error?.message
+        return { success: res.ok, message: msg }
+      }}
+      repostMutationFn={async (id) => {
+        const res = await toggleRepostPost(id)
+        const msg = res.ok ? undefined : typeof res.error === "string" ? res.error : res.error?.message
+        return { success: res.ok, message: msg }
+      }}
+      className={className}
+      {...restProps}
+    />
+  )
+
   return (
     <>
-      <ThoughtCardContainer
-        post={post}
-        variant={variant}
-        depth={depth}
-        currentUserId={currentUserId}
-        onOpenProfile={handleOpenProfile}
-        onOpenPost={handleOpenPost}
-        onReplyClick={handleReplyClick}
-        onPinToggle={handlePinToggle}
-        onReportClick={() => setShowReportModal(true)}
-        onLikeToggleOverride={handleLikeToggleOverride}
-        onRepostToggleOverride={handleRepostToggleOverride}
-        likeMutationFn={async (id) => {
-          const res = await toggleLikePost(id)
-          const msg = res.ok ? undefined : typeof res.error === "string" ? res.error : res.error?.message
-          return { success: res.ok, message: msg }
-        }}
-        repostMutationFn={async (id) => {
-          const res = await toggleRepostPost(id)
-          const msg = res.ok ? undefined : typeof res.error === "string" ? res.error : res.error?.message
-          return { success: res.ok, message: msg }
-        }}
-        className={className}
-        {...restProps}
-      />
+      {isHidden ? (
+        <HiddenReplyCard replyId={post.id} isHiddenByAuthor={true} isParentAuthor={isParentAuthor}>
+          {cardElement}
+        </HiddenReplyCard>
+      ) : (
+        cardElement
+      )}
 
       <ModerationReportModal
         isOpen={showReportModal}
