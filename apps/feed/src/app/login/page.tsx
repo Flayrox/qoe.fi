@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { Suspense } from 'react'
 import { LoginForm } from './login-form'
 import { getTranslate } from "@qoe/i18n/server"
