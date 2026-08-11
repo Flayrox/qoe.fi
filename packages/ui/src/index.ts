@@ -48,4 +48,6 @@ export * from "./cmdk";
 export * from "./ui/dialog";
 export * from "./ui/hover-card";
 export { HotkeyHelpModal, type HotkeyHelpModalProps } from "./shortcuts/HotkeyHelpModal";
+export * from "./annotations";
+
 

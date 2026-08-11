@@ -17,78 +17,29 @@ import {
   ChevronLeft,
   ChevronRight,
   Pencil,
-  Trash2,
-  RotateCcw
+  Trash2
 } from "lucide-react"
-import {
-  toggleHighlightPrivacyAction,
-  upvoteHighlightAction,
-  deleteHighlightAction,
-  createAnnotationCommentAction,
-  quotePassageToFeedAction,
-  updateHighlightNoteAction
-} from "@qoe/api-client/actions/tenant"
-
 import { cn } from "@qoe/utils"
-
-export interface AnnotationCommentItem {
-  id: string
-  content: string
-  createdAt: Date | string
-  author: {
-    id: string
-    name: string | null
-    username: string | null
-    logoUrl: string | null
-  }
-}
-
-export interface AnnotationItem {
-  id: string
-  text: string
-  note?: string | null
-  isPublic: boolean
-  isOfficial: boolean
-  upvotesCount: number
-  hasUpvoted?: boolean
-  createdAt: Date | string
-  updatedAt?: Date | string
-  reader: {
-    id: string
-    name: string | null
-    username: string | null
-    logoUrl: string | null
-    subdomain: string | null
-  }
-  comments?: AnnotationCommentItem[]
-}
-
-interface AnnotationSideDrawerProps {
-  articleId: string
-  annotation: AnnotationItem | null
-  allArticleAnnotations?: AnnotationItem[]
-  creatorName: string
-  allowPublicAnnotations: boolean
-  isAuthenticated: boolean
-  currentUserId?: string | null
-  articleAuthorId?: string | null
-  mainAppUrl: string
-  onClose: () => void
-  onUpdateAnnotation?: (updated: AnnotationItem) => void
-  onDeleteAnnotation?: (annotationId: string) => void
-}
+import type {
+  AnnotationItem,
+  CommentItem,
+  AnnotationSideDrawerProps
+} from "./types"
 
 export function AnnotationSideDrawer({
   articleId,
   annotation,
   allArticleAnnotations = [],
   creatorName,
-  allowPublicAnnotations,
-  isAuthenticated,
+  allowPublicAnnotations = true,
+  isAuthenticated = false,
   currentUserId,
   articleAuthorId,
-  mainAppUrl,
+  mainAppUrl = "",
+  isOpen,
   onClose,
+  callbacks,
+  onRequireAuth,
   onUpdateAnnotation,
   onDeleteAnnotation
 }: AnnotationSideDrawerProps) {
@@ -109,7 +60,7 @@ export function AnnotationSideDrawer({
   const [savingEdit, setSavingEdit] = useState(false)
 
   // Comment thread state
-  const [comments, setComments] = useState<AnnotationCommentItem[]>(activeAnnotation?.comments || [])
+  const [comments, setComments] = useState<CommentItem[]>(activeAnnotation?.comments || [])
   const [newCommentText, setNewCommentText] = useState("")
   const [submittingComment, setSubmittingComment] = useState(false)
 
@@ -150,9 +101,10 @@ export function AnnotationSideDrawer({
 
         // Apply spotlight light pulse effect on document mark
         mark.classList.add("ring-2", "ring-primary/80", "bg-amber-500/40", "shadow-lg", "shadow-amber-500/30", "transition-all", "duration-500")
-        setTimeout(() => {
+        const timer = setTimeout(() => {
           mark.classList.remove("ring-2", "ring-primary/80", "bg-amber-500/40", "shadow-lg", "shadow-amber-500/30", "transition-all", "duration-500")
         }, 1200)
+        return () => clearTimeout(timer)
       }
     }
   }, [currentIndex, activeAnnotation?.id])
@@ -176,7 +128,7 @@ export function AnnotationSideDrawer({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!activeAnnotation || isEditingNote) return
       const target = e.target as HTMLElement
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return
 
       if (e.key === "ArrowLeft") {
         handlePrev()
@@ -192,7 +144,13 @@ export function AnnotationSideDrawer({
   if (!activeAnnotation) return null
 
   const handleLoginRedirect = () => {
-    window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`
+    if (onRequireAuth) {
+      onRequireAuth()
+    } else if (callbacks?.onLoginRedirect) {
+      callbacks.onLoginRedirect()
+    } else if (mainAppUrl) {
+      window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`
+    }
   }
 
   // Handle Note Inline Edit Save
@@ -206,8 +164,11 @@ export function AnnotationSideDrawer({
 
     setSavingEdit(true)
     try {
-      const res = await updateHighlightNoteAction({ highlightId: activeAnnotation.id, note: editNoteContent || null })
-      if (res.ok && res.data) {
+      const res = callbacks?.onUpdateNote
+        ? await callbacks.onUpdateNote({ highlightId: activeAnnotation.id, note: editNoteContent || null })
+        : { ok: true }
+
+      if (res?.ok) {
         const updated: AnnotationItem = {
           ...activeAnnotation,
           note: editNoteContent || null,
@@ -239,15 +200,18 @@ export function AnnotationSideDrawer({
     const targetPublic = !isPublicState
 
     try {
-      const res = await toggleHighlightPrivacyAction({ highlightId: activeAnnotation.id, isPublic: targetPublic })
-      if (res.ok) {
+      const res = callbacks?.onTogglePrivacy
+        ? await callbacks.onTogglePrivacy({ highlightId: activeAnnotation.id, isPublic: targetPublic })
+        : { ok: true }
+
+      if (res?.ok) {
         setIsPublicState(targetPublic)
-        const updated = { ...activeAnnotation, isPublic: targetPublic }
+        const updated: AnnotationItem = { ...activeAnnotation, isPublic: targetPublic }
         const newList = [...annotationsList]
         newList[currentIndex] = updated
         setAnnotationsList(newList)
         if (onUpdateAnnotation) onUpdateAnnotation(updated)
-      } else if (!res.ok && res.error?.code === "PUBLIC_ANNOTATIONS_DISABLED") {
+      } else if (res && !res.ok && res.error?.code === "PUBLIC_ANNOTATIONS_DISABLED") {
         setPrivacyError("Le créateur a désactivé les annotations publiques sur cet écrit.")
       }
     } catch (err) {
@@ -270,8 +234,8 @@ export function AnnotationSideDrawer({
     setUpvotes((prev) => (nextState ? prev + 1 : Math.max(0, prev - 1)))
 
     try {
-      const res = await upvoteHighlightAction(activeAnnotation.id)
-      if (res.ok && res.data?.upvotesCount !== undefined) {
+      const res = callbacks?.onUpvote ? await callbacks.onUpvote(activeAnnotation.id) : null
+      if (res?.ok && res.data?.upvotesCount !== undefined) {
         setUpvotes(res.data.upvotesCount)
         setHasUpvoted(Boolean(res.data.hasUpvoted))
       }
@@ -291,8 +255,8 @@ export function AnnotationSideDrawer({
     if (!confirm("Voulez-vous vraiment supprimer cette annotation ?")) return
 
     try {
-      const res = await deleteHighlightAction(activeAnnotation.id)
-      if (res.ok) {
+      const res = callbacks?.onDelete ? await callbacks.onDelete(activeAnnotation.id) : { ok: true }
+      if (res?.ok) {
         const deletedId = activeAnnotation.id
         const newList = annotationsList.filter((a) => a.id !== deletedId)
         setAnnotationsList(newList)
@@ -322,9 +286,12 @@ export function AnnotationSideDrawer({
 
     setSubmittingComment(true)
     try {
-      const res = await createAnnotationCommentAction({ highlightId: activeAnnotation.id, content: newCommentText })
-      if (res.ok && res.data) {
-        setComments(prev => [...prev, res.data as AnnotationCommentItem])
+      const res = callbacks?.onComment
+        ? await callbacks.onComment({ highlightId: activeAnnotation.id, content: newCommentText })
+        : null
+
+      if (res?.ok && res.data) {
+        setComments((prev) => [...prev, res.data as CommentItem])
         setNewCommentText("")
       }
     } catch (err) {
@@ -345,13 +312,15 @@ export function AnnotationSideDrawer({
     setIsCrossposting(true)
     setCrosspostSuccess(false)
     try {
-      const res = await quotePassageToFeedAction({ articleId, text: activeAnnotation.text, commentary: crosspostCommentary })
-      if (res.ok) {
+      const res = callbacks?.onCrosspost
+        ? await callbacks.onCrosspost({ articleId, text: activeAnnotation.text, commentary: crosspostCommentary })
+        : { ok: true }
+
+      if (res?.ok) {
         setCrosspostSuccess(true)
         setShowCrosspostForm(false)
         setCrosspostCommentary("")
       }
-
     } catch (err) {
       console.error(err)
     } finally {
@@ -359,7 +328,6 @@ export function AnnotationSideDrawer({
     }
   }
 
-  // Format sophisticated modification date
   const isEdited = Boolean(
     activeAnnotation.updatedAt &&
       new Date(activeAnnotation.updatedAt).getTime() - new Date(activeAnnotation.createdAt).getTime() > 3000
@@ -436,7 +404,7 @@ export function AnnotationSideDrawer({
             {/* Main Scrollable Content */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               
-              {/* Quoted Passage: High Legibility Apple Typography with subtle capillary accent line */}
+              {/* Quoted Passage */}
               <div className="space-y-1 py-1">
                 <span className="text-[11px] font-medium text-muted-foreground">
                   Passage cité
@@ -475,7 +443,6 @@ export function AnnotationSideDrawer({
                           })}
                         </span>
 
-                        {/* Sophisticated Modification timestamp badge if edited */}
                         {isEdited && (
                           <span
                             className="text-[10px] text-muted-foreground/80 flex items-center gap-1 italic"
@@ -491,7 +458,6 @@ export function AnnotationSideDrawer({
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    {/* Inline Edit Button if author of highlight */}
                     {Boolean(currentUserId && activeAnnotation.reader?.id && currentUserId === activeAnnotation.reader.id) && (
                       <button
                         onClick={() => setIsEditingNote(!isEditingNote)}
@@ -502,7 +468,6 @@ export function AnnotationSideDrawer({
                       </button>
                     )}
 
-                    {/* Delete Button if author of highlight OR creator of article */}
                     {Boolean(
                       currentUserId &&
                         ((activeAnnotation.reader?.id && currentUserId === activeAnnotation.reader.id) ||
@@ -517,7 +482,6 @@ export function AnnotationSideDrawer({
                       </button>
                     )}
 
-                    {/* Privacy Badge / Toggle if author of highlight */}
                     {currentUserId === activeAnnotation.reader.id && !activeAnnotation.isOfficial && (
                       <button
                         onClick={handleTogglePrivacy}
@@ -595,7 +559,7 @@ export function AnnotationSideDrawer({
                 )}
               </div>
 
-              {/* Action Bar (Upvotes & Quote to Feed) */}
+              {/* Action Bar */}
               <div className="flex items-center justify-between pt-2.5 border-t border-border/20">
                 <button
                   onClick={handleUpvote}
@@ -699,7 +663,7 @@ export function AnnotationSideDrawer({
                       <div key={cmt.id} className="p-3 rounded-2xl bg-muted/30 border border-border/20 space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-medium text-foreground">
-                            {cmt.author.name || cmt.author.username || "Lecteur"}
+                            {cmt.author?.name || cmt.author?.username || "Lecteur"}
                           </span>
                           <span className="text-[10px] text-muted-foreground">
                             {new Date(cmt.createdAt).toLocaleDateString("fr-FR", { month: "short", day: "numeric" })}

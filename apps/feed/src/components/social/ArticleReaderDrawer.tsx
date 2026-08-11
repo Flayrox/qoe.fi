@@ -5,6 +5,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, ExternalLink } from "lucide-react";
 import { ArticleAnnotatorView } from "./ArticleAnnotatorView";
 import { routes } from "@qoe/config/routes";
+import {
+  TextHighlighter,
+  AnnotationSideDrawer,
+  TextSelectionPopover,
+  type AnnotationItem,
+  type AnnotationActionCallbacks,
+} from "@qoe/ui/annotations";
 
 export interface ArticleReaderDrawerProps {
   isOpen: boolean;

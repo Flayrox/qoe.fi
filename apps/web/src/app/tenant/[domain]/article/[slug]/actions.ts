@@ -4,15 +4,25 @@ import {
   toggleFollowCreatorAction,
   toggleBookmarkArticleAction,
   createHighlightAction,
-  toggleHighlightPrivacyAction as rawToggleHighlightPrivacy,
-  updateHighlightNoteAction as rawUpdateHighlightNote,
-  upvoteHighlightAction as rawUpvoteHighlight,
-  deleteHighlightAction as rawDeleteHighlight,
-  createAnnotationCommentAction as rawCreateAnnotationComment,
-  quotePassageToFeedAction as rawQuotePassageToFeed,
+  toggleHighlightPrivacyAction,
+  updateHighlightNoteAction,
+  upvoteHighlightAction,
+  deleteHighlightAction,
+  createAnnotationCommentAction,
+  quotePassageToFeedAction,
   unlockArticleWithWalletAction,
   getCurrentUserWalletAction,
 } from "@qoe/api-client/actions/tenant"
+
+export {
+  createHighlightAction,
+  toggleHighlightPrivacyAction,
+  updateHighlightNoteAction,
+  upvoteHighlightAction,
+  deleteHighlightAction,
+  createAnnotationCommentAction,
+  quotePassageToFeedAction,
+}
 import {
   postArticleCommentAction as rawPostArticleComment,
   deleteArticleCommentAction as rawDeleteArticleComment,
@@ -38,63 +48,39 @@ export async function createHighlight(articleId: string, text: string, note?: st
 }
 
 export async function toggleHighlightPrivacy(highlightId: string, isPublic: boolean) {
-  const res = await rawToggleHighlightPrivacy({ highlightId, isPublic })
+  const res = await toggleHighlightPrivacyAction({ highlightId, isPublic })
   if (!res.ok) throw new Error(res.error.message)
   return res.data
-}
-
-export async function toggleHighlightPrivacyAction(highlightId: string, isPublic: boolean) {
-  return toggleHighlightPrivacy(highlightId, isPublic)
 }
 
 export async function updateHighlightNote(highlightId: string, note: string | null) {
-  const res = await rawUpdateHighlightNote({ highlightId, note })
+  const res = await updateHighlightNoteAction({ highlightId, note })
   if (!res.ok) throw new Error(res.error.message)
   return res.data
-}
-
-export async function updateHighlightNoteAction(highlightId: string, note: string | null) {
-  return updateHighlightNote(highlightId, note)
 }
 
 export async function upvoteHighlight(highlightId: string) {
-  const res = await rawUpvoteHighlight(highlightId)
+  const res = await upvoteHighlightAction(highlightId)
   if (!res.ok) throw new Error(res.error.message)
   return res.data
 }
 
-export async function upvoteHighlightAction(highlightId: string) {
-  return upvoteHighlight(highlightId)
-}
-
 export async function deleteHighlight(highlightId: string) {
-  const res = await rawDeleteHighlight(highlightId)
+  const res = await deleteHighlightAction(highlightId)
   if (!res.ok) return { success: false, error: res.error.code }
   return { success: true }
 }
 
-export async function deleteHighlightAction(highlightId: string) {
-  return deleteHighlight(highlightId)
-}
-
 export async function createAnnotationComment(highlightId: string, content: string) {
-  const res = await rawCreateAnnotationComment({ highlightId, content })
+  const res = await createAnnotationCommentAction({ highlightId, content })
   if (!res.ok) return { success: false, error: res.error.message }
   return { success: true, comment: res.data }
 }
 
-export async function createAnnotationCommentAction(highlightId: string, content: string) {
-  return createAnnotationComment(highlightId, content)
-}
-
 export async function quotePassageToFeed(articleId: string, text: string, commentary?: string) {
-  const res = await rawQuotePassageToFeed({ articleId, text, commentary })
+  const res = await quotePassageToFeedAction({ articleId, text, commentary })
   if (!res.ok) return { success: false, error: res.error.code }
   return { success: true, post: res.data.post }
-}
-
-export async function quotePassageToFeedAction(articleId: string, text: string, commentary?: string) {
-  return quotePassageToFeed(articleId, text, commentary)
 }
 
 export async function unlockArticleWithWallet(creatorId: string, costCents: number = 100) {
