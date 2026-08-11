@@ -33,6 +33,7 @@ export function ArticleCard({
   isFollowed = false,
   handleFollowToggle,
   handleBookmarkToggle,
+  onOpenArticle,
   onOpenProfile,
   onOpenPost,
 }: ArticleCardProps) {
