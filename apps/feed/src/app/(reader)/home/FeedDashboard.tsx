@@ -209,6 +209,137 @@ export function FeedDashboard({
     return list
   }, [activeFeed, localPosts, recommendationArticles, followingArticles, discoverArticles, bookmarks, selectedTag, followedCreators, deletedPostIds, mutedWords])
 
+  const handleLikeToggle = (postId: string) => {
+    if (!dbUser) {
+      openAuth({ mode: "signup", actionContext: "like" })
+      return
+    }
+    const currentItem = currentFeedArticles.find((item) => item.id === postId) as any
+
+    setInteractions((prev) => {
+      const prevInter = prev[postId]
+      const wasLiked = prevInter?.liked !== undefined ? prevInter.liked : (currentItem?.liked || currentItem?.isLiked || false)
+      const baseCount = currentItem?.likeCount ?? currentItem?.likesCount ?? 0
+      const prevCount = prevInter?.likesCount !== undefined ? prevInter.likesCount : baseCount
+      const nowLiked = !wasLiked
+      const newCount = nowLiked ? prevCount + 1 : Math.max(0, prevCount - 1)
+
+      updateThoughtShadow(postId, { isLiked: nowLiked, likeCount: newCount })
+
+      mutateLike({
+        thoughtId: postId,
+        isLikedCurrent: wasLiked,
+        likeMutationFn: async (id: string) => {
+          const res = await toggleLikePost(id)
+          return { success: res.ok }
+        },
+      })
+
+      return {
+        ...prev,
+        [postId]: {
+          ...prevInter,
+          liked: nowLiked,
+          likesCount: newCount,
+        },
+      }
+    })
+  }
+
+  const handleRepostToggle = (postId: string) => {
+    if (!dbUser) {
+      openAuth({ mode: "signup", actionContext: "repost" })
+      return
+    }
+    const currentItem = currentFeedArticles.find((item) => item.id === postId) as any
+
+    setInteractions((prev) => {
+      const prevInter = prev[postId]
+      const wasReposted = prevInter?.reposted !== undefined ? prevInter.reposted : (currentItem?.reposted || currentItem?.isReposted || false)
+      const baseCount = currentItem?.repostCount ?? currentItem?.repostsCount ?? 0
+      const prevCount = prevInter?.repostsCount !== undefined ? prevInter.repostsCount : baseCount
+      const nowReposted = !wasReposted
+      const newCount = nowReposted ? prevCount + 1 : Math.max(0, prevCount - 1)
+
+      updateThoughtShadow(postId, { reposted: nowReposted, repostCount: newCount })
+
+      mutateRepost({
+        thoughtId: postId,
+        isRepostedCurrent: wasReposted,
+        repostMutationFn: async (id: string) => {
+          const res = await toggleRepostPost(id)
+          return { success: res.ok }
+        },
+      })
+
+      return {
+        ...prev,
+        [postId]: {
+          ...prevInter,
+          reposted: nowReposted,
+          repostsCount: newCount,
+        },
+      }
+    })
+  }
+
+  const handleFollowToggle = async (creator: any) => {
+    if (!dbUser) {
+      openAuth({ mode: "signup", actionContext: "follow" })
+      return
+    }
+    const isCurrentlyFollowed = isCreatorFollowed(creator.id)
+    trackEvent("follow_creator_toggled", { creatorId: creator.id, followed: !isCurrentlyFollowed })
+    
+    if (isCurrentlyFollowed) {
+      setFollowedCreators(prev => prev.filter(f => f.id !== creator.id))
+    } else {
+      setFollowedCreators(prev => [creator, ...prev])
+    }
+
+    mutateFollow({
+      creatorId: creator.id,
+      isFollowedCurrent: isCurrentlyFollowed,
+      followMutationFn: async (id: string) => {
+        const res = await toggleFollowCreatorHome(id)
+        return { success: res.ok }
+      }
+    })
+  }
+
+  const handleBookmarkToggle = async (article: Article) => {
+    if (!dbUser) {
+      openAuth({ mode: "signup", actionContext: "bookmark" })
+      return
+    }
+    const isCurrentlyBookmarked = isArticleBookmarked(article.id)
+    
+    setInteractions(prev => ({
+      ...prev,
+      [article.id]: {
+        ...prev[article.id],
+        bookmarked: !isCurrentlyBookmarked
+      }
+    }))
+    
+    trackEvent("bookmark_toggled", { articleId: article.id, bookmarked: !isCurrentlyBookmarked })
+    
+    if (isCurrentlyBookmarked) {
+      setBookmarks(prev => prev.filter(b => b.id !== article.id))
+    } else {
+      setBookmarks(prev => [article, ...prev])
+    }
+
+    mutateBookmark({
+      articleId: article.id,
+      isBookmarkedCurrent: isCurrentlyBookmarked,
+      bookmarkMutationFn: async (id: string) => {
+        const res = await toggleBookmarkArticleHome(id)
+        return { success: res.ok }
+      }
+    })
+  }
+
   const [savedScrollPosition, setSavedScrollPosition] = useState<number>(0)
 
   const handleOpenPost = (postId: string, authorUsername?: string) => {
