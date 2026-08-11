@@ -13,6 +13,9 @@ interface ComposerModalProps {
   tagsList?: string[]
   quotedThought?: any
   replyToThought?: any
+  quotedArticle?: any
+  quotedExcerpt?: string | null
+  initialText?: string
   initialMode?: "thought" | "article"
   onPostCreated?: (post: any) => void
   onLoginRequired?: () => void
@@ -25,6 +28,9 @@ export function ComposerModal({
   tagsList = [],
   quotedThought = null,
   replyToThought = null,
+  quotedArticle = null,
+  quotedExcerpt = null,
+  initialText = "",
   initialMode = "thought",
   onPostCreated,
   onLoginRequired,
@@ -70,6 +76,9 @@ export function ComposerModal({
           dbUser={dbUser}
           tagsList={tagsList}
           quotedThought={quotedThought}
+          quotedArticle={quotedArticle}
+          quotedExcerpt={quotedExcerpt}
+          initialText={initialText}
           onPostCreated={(post) => {
             if (onPostCreated) onPostCreated(post)
             onClose()

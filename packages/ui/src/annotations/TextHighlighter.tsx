@@ -6,6 +6,7 @@ import { cn } from "@qoe/utils"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { TextSelectionPopover } from "./TextSelectionPopover"
 import { AnnotationSideDrawer } from "./AnnotationSideDrawer"
+import { toast } from "sonner"
 import {
   AnnotationFilterMode,
   AnnotationItem,
@@ -498,14 +499,18 @@ export function TextHighlighter({
 
       if (res?.ok) {
         setSavedSuccess(true)
+        toast.success("Passage cité avec succès sur le Feed !")
         setTimeout(() => {
           clearSelection()
           clearForm()
           window.getSelection()?.removeAllRanges()
-        }, 800)
+        }, 1000)
+      } else {
+        toast.error("Impossible de citer ce passage")
       }
     } catch (e) {
       console.error(e)
+      toast.error("Une erreur est survenue")
     } finally {
       setSaving(false)
     }
@@ -636,11 +641,25 @@ export function TextHighlighter({
                   <button
                     onClick={() => handleDirectCrosspostToFeed(selectedText, clearSelection)}
                     disabled={saving}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium hover:bg-muted/70 text-foreground transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium hover:bg-muted/70 text-foreground transition-all cursor-pointer disabled:opacity-50"
                     title="Citer ce passage sur le Feed"
                   >
-                    <Share2 className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Citer</span>
+                    {saving ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />
+                        <span className="text-muted-foreground">Publication...</span>
+                      </>
+                    ) : savedSuccess ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        <span className="text-emerald-500 font-semibold">Cité !</span>
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Citer</span>
+                      </>
+                    )}
                   </button>
                 </motion.div>
               ) : (

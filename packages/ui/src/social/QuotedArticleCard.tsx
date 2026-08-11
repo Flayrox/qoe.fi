@@ -8,6 +8,7 @@ export interface QuotedArticleData {
   id: string
   title: string
   slug: string
+  isPremium?: boolean
   content?: string | null
   author?: {
     name?: string | null
@@ -86,6 +87,11 @@ export function QuotedArticleCard({
           <span className="text-[11px] uppercase tracking-wider text-muted-foreground/80 font-medium">
             Article
           </span>
+          {article.isPremium && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-500 border border-amber-500/30 shrink-0">
+              Premium
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-0.5 text-xs font-medium text-muted-foreground group-hover/quote:text-brand transition-colors shrink-0">

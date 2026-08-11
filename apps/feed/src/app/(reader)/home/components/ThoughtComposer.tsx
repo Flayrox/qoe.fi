@@ -38,6 +38,7 @@ const getImages = (url: string | null | undefined): string[] => {
 }
 
 import { QuotedThoughtCard } from "@/components/social/QuotedThoughtCard"
+import { QuotedArticleCard, type QuotedArticleData } from "@qoe/ui/social"
 import type { ThoughtData } from "@/components/social/ThoughtCard"
 import { AuthorAvatar } from "@qoe/ui/ui/AuthorAvatar"
 import { CertifiedBadge } from "@qoe/ui/ui/CertifiedBadge"
@@ -47,7 +48,10 @@ interface ThoughtComposerProps {
   tagsList: string[]
   quotedThought?: ThoughtData | null
   replyToThought?: ThoughtData | null
+  quotedArticle?: QuotedArticleData | null
+  quotedExcerpt?: string | null
   parentId?: string | null
+  initialText?: string
   placeholder?: string
   onPostCreated?: (post: any) => void
   onLoginRequired?: () => void
@@ -58,21 +62,32 @@ export function ThoughtComposer({
   tagsList,
   quotedThought: initialQuotedThought = null,
   replyToThought: initialReplyToThought = null,
+  quotedArticle: initialQuotedArticle = null,
+  quotedExcerpt: initialQuotedExcerpt = null,
   parentId = null,
+  initialText = "",
   placeholder,
   onPostCreated,
   onLoginRequired,
 }: ThoughtComposerProps) {
   const [quotedThought, setQuotedThought] = useState<ThoughtData | null>(initialQuotedThought)
   const [replyToThought, setReplyToThought] = useState<ThoughtData | null>(initialReplyToThought)
+  const [quotedArticle, setQuotedArticle] = useState<QuotedArticleData | null>(initialQuotedArticle)
+  const [quotedExcerpt, setQuotedExcerpt] = useState<string | null>(initialQuotedExcerpt)
 
   useEffect(() => {
     setQuotedThought(initialQuotedThought)
     setReplyToThought(initialReplyToThought)
-    if (initialReplyToThought) {
+    setQuotedArticle(initialQuotedArticle)
+    setQuotedExcerpt(initialQuotedExcerpt)
+    if (initialText) {
+      setPostText(initialText)
       setIsComposerExpanded(true)
     }
-  }, [initialQuotedThought, initialReplyToThought])
+    if (initialReplyToThought || initialQuotedThought || initialQuotedArticle) {
+      setIsComposerExpanded(true)
+    }
+  }, [initialQuotedThought, initialReplyToThought, initialQuotedArticle, initialQuotedExcerpt, initialText])
   const [isComposerExpanded, setIsComposerExpanded] = useState<boolean>(false)
   const [postText, setPostText] = useState<string>("")
   const [images, setImages] = useState<ComposerImage[]>([])
@@ -583,8 +598,26 @@ export function ThoughtComposer({
           ? { options: validPollOptions, durationHours: pollDurationHours }
           : null
 
+      let contentToSubmit = textContent
+      if (quotedArticle) {
+        const subdomain = quotedArticle.author?.subdomain
+        const articleUrl = subdomain
+          ? `https://${subdomain}.qoe.fi/article/${quotedArticle.slug}`
+          : `https://qoe.fi/article/${quotedArticle.slug}`
+
+        if (quotedExcerpt) {
+          contentToSubmit = contentToSubmit
+            ? `${contentToSubmit}\n\n« ${quotedExcerpt} »\n\n${articleUrl}`
+            : `« ${quotedExcerpt} »\n\n${articleUrl}`
+        } else {
+          contentToSubmit = contentToSubmit
+            ? `${contentToSubmit}\n\n${articleUrl}`
+            : articleUrl
+        }
+      }
+
       const res = await createThoughtAction({
-        content: textContent,
+        content: contentToSubmit,
         tags,
         imageUrl: imagePayload,
         attachments: attachmentPayload,
@@ -891,6 +924,23 @@ export function ThoughtComposer({
               <X className="w-3.5 h-3.5" />
             </button>
             <QuotedThoughtCard post={quotedThought} />
+          </div>
+        )}
+
+        {quotedArticle && (
+          <div className="relative my-2">
+            <button
+              type="button"
+              onClick={() => {
+                setQuotedArticle(null)
+                setQuotedExcerpt(null)
+              }}
+              className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-neutral-900/80 text-white hover:bg-neutral-900 transition-colors cursor-pointer shadow-md"
+              title="Retirer la citation"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <QuotedArticleCard article={quotedArticle} quotedExcerpt={quotedExcerpt || undefined} />
           </div>
         )}
 
