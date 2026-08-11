@@ -54,6 +54,8 @@ interface Article {
   imageUrl?: string | null
   published: boolean
   isPremium: boolean
+  accessGranted?: boolean
+  isLoading?: boolean
   readingTime: number
   createdAt: Date | string
   author: Author
@@ -365,31 +367,47 @@ export function FeedDashboard({
     }, 50)
   }
 
-  const handleOpenArticle = async (article: any) => {
+  const handleOpenArticle = async (articleInput: any) => {
     const scroll = window.scrollY
     setSavedScrollPosition(scroll)
-    const slug = article.slug || article.id
-    if (slug) {
-      window.history.pushState({ articleSlug: slug, scroll }, "", routes.feed.article(slug))
-    }
+    const slug = articleInput?.slug || articleInput?.id
+    if (!slug) return
 
-    if (article && article.content && article.title && article.author) {
-      setActiveArticle(article)
+    window.history.pushState({ articleSlug: slug, scroll }, "", routes.feed.article(slug))
+
+    if (articleInput && articleInput.content && articleInput.title && articleInput.author) {
+      setActiveArticle(articleInput)
       setActivePostId(null)
       window.scrollTo({ top: 0, behavior: "smooth" })
-    } else if (slug) {
-      setActivePostId(null)
-      try {
-        const res = await getArticleThread(slug)
-        if (res.ok && res.data?.article) {
-          setActiveArticle(res.data.article)
-          window.scrollTo({ top: 0, behavior: "smooth" })
-        } else {
-          window.location.href = routes.feed.article(slug)
-        }
-      } catch {
+      return
+    }
+
+    // Immediately open drawer with loading state while fetching full article thread
+    setActiveArticle({
+      id: articleInput.id || slug,
+      title: articleInput.title || "Chargement...",
+      slug: slug,
+      content: "",
+      readingTime: articleInput.readingTime || 3,
+      createdAt: articleInput.createdAt || new Date(),
+      author: articleInput.author || { id: "loading", name: "Chargement...", username: "..." },
+      category: null,
+      published: true,
+      isPremium: articleInput.isPremium || false,
+      isLoading: true,
+    })
+    setActivePostId(null)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+
+    try {
+      const res = await getArticleThread(slug)
+      if (res.ok && res.data?.article) {
+        setActiveArticle(res.data.article)
+      } else {
         window.location.href = routes.feed.article(slug)
       }
+    } catch {
+      window.location.href = routes.feed.article(slug)
     }
   }
 
@@ -429,6 +447,9 @@ export function FeedDashboard({
 
   const [composerQuotedThought, setComposerQuotedThought] = useState<any | null>(null)
   const [composerReplyToThought, setComposerReplyToThought] = useState<any | null>(null)
+  const [composerQuotedArticle, setComposerQuotedArticle] = useState<any | null>(null)
+  const [composerQuotedExcerpt, setComposerQuotedExcerpt] = useState<string | null>(null)
+  const [composerInitialText, setComposerInitialText] = useState<string>("")
   const [composerInitialMode, setComposerInitialMode] = useState<"thought" | "article">("thought")
 
   React.useEffect(() => {
@@ -441,18 +462,44 @@ export function FeedDashboard({
       if (customDetail?.replyToThought) {
         setComposerReplyToThought(customDetail.replyToThought)
         setComposerQuotedThought(null)
+        setComposerQuotedArticle(null)
+        setComposerQuotedExcerpt(null)
+        setComposerInitialText(customDetail.initialText || "")
         setComposerInitialMode("thought")
       } else if (customDetail?.quotedThought) {
         setComposerQuotedThought(customDetail.quotedThought)
         setComposerReplyToThought(null)
+        setComposerQuotedArticle(null)
+        setComposerQuotedExcerpt(null)
+        setComposerInitialText(customDetail.initialText || "")
+        setComposerInitialMode("thought")
+      } else if (customDetail?.quotedArticle) {
+        setComposerQuotedArticle(customDetail.quotedArticle)
+        setComposerQuotedExcerpt(customDetail.quotedExcerpt || null)
+        setComposerQuotedThought(null)
+        setComposerReplyToThought(null)
+        setComposerInitialText(customDetail.initialText || "")
+        setComposerInitialMode("thought")
+      } else if (customDetail?.initialText) {
+        setComposerInitialText(customDetail.initialText)
+        setComposerQuotedThought(null)
+        setComposerReplyToThought(null)
+        setComposerQuotedArticle(null)
+        setComposerQuotedExcerpt(null)
         setComposerInitialMode("thought")
       } else if (customDetail?.mode) {
         setComposerInitialMode(customDetail.mode)
         setComposerQuotedThought(null)
         setComposerReplyToThought(null)
+        setComposerQuotedArticle(null)
+        setComposerQuotedExcerpt(null)
+        setComposerInitialText("")
       } else {
         setComposerQuotedThought(null)
         setComposerReplyToThought(null)
+        setComposerQuotedArticle(null)
+        setComposerQuotedExcerpt(null)
+        setComposerInitialText("")
         setComposerInitialMode("thought")
       }
       setIsComposerModalOpen(true)
@@ -474,11 +521,20 @@ export function FeedDashboard({
       }
     }
 
+    const handleThoughtCreated = (e: Event) => {
+      const customDetail = (e as CustomEvent)?.detail
+      if (customDetail && customDetail.id) {
+        setLocalPosts(prev => [customDetail, ...prev])
+      }
+    }
+
     window.addEventListener("open-composer", handleOpenComposer)
+    window.addEventListener("thought-created", handleThoughtCreated)
     window.addEventListener("reset-feed-view", handleResetFeedView)
     window.addEventListener("keydown", handleKeyDown)
     return () => {
       window.removeEventListener("open-composer", handleOpenComposer)
+      window.removeEventListener("thought-created", handleThoughtCreated)
       window.removeEventListener("reset-feed-view", handleResetFeedView)
       window.removeEventListener("keydown", handleKeyDown)
     }
@@ -671,11 +727,17 @@ export function FeedDashboard({
           setIsComposerModalOpen(false)
           setComposerQuotedThought(null)
           setComposerReplyToThought(null)
+          setComposerQuotedArticle(null)
+          setComposerQuotedExcerpt(null)
+          setComposerInitialText("")
         }}
         dbUser={dbUser}
         tagsList={tagsList}
         quotedThought={composerQuotedThought}
         replyToThought={composerReplyToThought}
+        quotedArticle={composerQuotedArticle}
+        quotedExcerpt={composerQuotedExcerpt}
+        initialText={composerInitialText}
         initialMode={composerInitialMode}
         onPostCreated={(post) => setLocalPosts(prev => [post, ...prev])}
         onLoginRequired={() => openAuthModal({ mode: "signup", actionContext: "comment" })}

@@ -133,6 +133,20 @@ export function ThoughtCard({
   const urls = getUrls(displayContent || "")
   const quotedExcerpt = post.quotedExcerpt
 
+  const handleQuoteClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (onQuoteClick) {
+      onQuoteClick(e)
+    } else if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("open-composer", {
+          detail: { quotedThought: post },
+        })
+      )
+    }
+  }
+
   const handleOpenPost = () => {
     if (variant === "focus") return
     if (onOpenPost) {
@@ -307,7 +321,7 @@ export function ThoughtCard({
           onLike={onLikeToggle}
           onReply={handleReplyClick}
           onRepost={onRepostToggle}
-          onQuote={onQuoteClick}
+          onQuote={handleQuoteClick}
           onShare={onShareClick}
         />
       </div>

@@ -1,6 +1,9 @@
 "use server";
 
 import { follows, bookmarks, posts, articles, users, moderation } from "@qoe/db";
+import { prisma } from "@qoe/db/client";
+import { sliceContentAtPaywall } from "@qoe/utils";
+import { ContentVisibility } from "@qoe/db/types";
 
 import { createThoughtSchema, replyToPostSchema, createReportSchema } from "@qoe/config";
 import { createClient } from "@qoe/supabase/server";
@@ -124,9 +127,60 @@ export const getPostThreadAction = safeAction<string, { post: any }>(
 );
 
 export const getArticleThreadAction = safeAction<string, { article: any }>(
-  async (slug) => {
+  async (slug, user) => {
     const article = await articles.findFirstBySlug(slug);
-    return { article };
+    if (!article) return { article: null };
+
+    let isPaidSubscriber = false;
+    let isMember = false;
+
+    if (user) {
+      if (user.id === article.authorId) {
+        isPaidSubscriber = true;
+        isMember = true;
+      } else {
+        const [sub, subscriberRecord] = await Promise.all([
+          (prisma as any).subscription?.findFirst
+            ? (prisma as any).subscription.findFirst({
+                where: {
+                  userId: user.id,
+                  creatorId: article.authorId,
+                  status: "active",
+                },
+              })
+            : null,
+          prisma.subscriber.findFirst({
+            where: {
+              creatorId: article.authorId,
+              email: user.email || "",
+              isActive: true,
+            },
+          }),
+        ]);
+        isPaidSubscriber = !!sub;
+        isMember = isPaidSubscriber || !!subscriberRecord;
+      }
+    }
+
+    const visibility = article.isPremium
+      ? ContentVisibility.PAID_SUBSCRIBERS
+      : ContentVisibility.PUBLIC;
+
+    const paywallCutResult = sliceContentAtPaywall(
+      article.content || "",
+      { isMember, isPaidSubscriber },
+      visibility
+    );
+
+    return {
+      article: {
+        ...article,
+        content: paywallCutResult.content,
+        isTruncated: paywallCutResult.isTruncated,
+        accessGranted: paywallCutResult.accessGranted,
+        paywallMeta: paywallCutResult.paywallMeta,
+      },
+    };
   },
   { requireAuth: false }
 );
