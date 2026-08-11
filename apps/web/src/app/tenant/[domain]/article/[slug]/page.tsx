@@ -9,6 +9,7 @@ import { PaywallCut } from './PaywallCut';
 import { TextHighlighter } from './TextHighlighter';
 import { ReaderActions } from './ReaderActions';
 import { ArticleCommentsSection } from './ArticleCommentsSection';
+import { getArticleCommentsAction } from './actions';
 import { sliceContentAtPaywall } from '@qoe/utils';
 import { ContentVisibility } from '@qoe/db/types';
 interface TenantArticlePageProps {
@@ -188,7 +189,11 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   initialHighlights = hl;
   publicHighlights = publicHl;
 
-  const initialComments = commentsRes.ok && commentsRes.data ? commentsRes.data : [];
+  const initialComments = commentsRes?.comments
+    ? commentsRes.comments
+    : commentsRes?.ok && commentsRes?.data
+    ? commentsRes.data
+    : [];
 
 
   const {
