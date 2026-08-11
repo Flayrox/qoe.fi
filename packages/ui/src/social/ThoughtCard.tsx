@@ -1,0 +1,304 @@
+"use client"
+
+import React from "react"
+import { ProfileHoverCard } from "./ProfileHoverCard"
+import { cn } from "@qoe/utils"
+import { Pin, CornerDownRight, Repeat } from "lucide-react"
+import { AuthorAvatar } from "../ui/AuthorAvatar"
+import { ThoughtHeader } from "./ThoughtHeader"
+import { ThoughtBody } from "./ThoughtBody"
+import { QuotedThoughtCard } from "./QuotedThoughtCard"
+import { QuotedArticleCard, type QuotedArticleData } from "./QuotedArticleCard"
+import { LinkPreview } from "./LinkPreview"
+import { ThoughtActions } from "./ThoughtActions"
+
+export type ThoughtVariant = "timeline" | "focus" | "parent" | "reply"
+
+export interface ThoughtData {
+  id: string
+  content: string
+  imageUrl?: string | null
+  createdAt: string | Date
+  triggerWarning?: string | null
+  isPinned?: boolean
+  isDeleted?: boolean
+  likesCount?: number
+  repliesCount?: number
+  repostsCount?: number
+  liked?: boolean
+  reposted?: boolean
+  _count?: {
+    likes?: number
+    replies?: number
+    reposts?: number
+  }
+  parent?: {
+    id: string
+    author: {
+      id: string
+      name: string | null
+      username: string | null
+      subdomain?: string | null
+    }
+  } | null
+  repost?: {
+    id: string
+    content: string
+    imageUrl?: string | null
+    createdAt?: string | Date
+    author: {
+      id: string
+      name: string | null
+      username: string | null
+      subdomain?: string | null
+      logoUrl?: string | null
+      isCertified?: boolean
+    }
+  } | null
+  author: {
+    id: string
+    name: string | null
+    username: string | null
+    subdomain?: string | null
+    logoUrl?: string | null
+    isCertified?: boolean
+  }
+  tags?: string[]
+  articleQuote?: QuotedArticleData | null
+  quotedExcerpt?: string
+}
+
+export interface ThoughtCardProps {
+  post: ThoughtData
+  variant?: ThoughtVariant
+  depth?: number
+  currentUserId?: string | null
+  isPreview?: boolean
+  unfurlFn?: (url: string) => Promise<any>
+  onOpenProfile?: (username: string) => void
+  onOpenPost?: (postId: string, authorUsername?: string) => void
+  onOpenArticle?: (article: QuotedArticleData) => void
+  onLikeToggle?: (e: React.MouseEvent) => void
+  onReplyClick?: (e: React.MouseEvent) => void
+  onRepostToggle?: (e: React.MouseEvent) => void
+  onQuoteClick?: (e: React.MouseEvent) => void
+  onShareClick?: (e: React.MouseEvent) => void
+  onPinToggle?: (e: React.MouseEvent) => void
+  onReportClick?: (e: React.MouseEvent) => void
+  className?: string
+}
+
+const getUrls = (text: string): string[] => {
+  if (!text) return []
+  const urlRegex = /https?:\/\/[^\s]+/gi
+  return text.match(urlRegex) || []
+}
+
+export function ThoughtCard({
+  post,
+  variant = "timeline",
+  depth = 0,
+  currentUserId,
+  isPreview,
+  unfurlFn,
+  onOpenProfile,
+  onOpenPost,
+  onOpenArticle,
+  onLikeToggle,
+  onReplyClick,
+  onRepostToggle,
+  onQuoteClick,
+  onShareClick,
+  onPinToggle,
+  onReportClick,
+  className,
+}: ThoughtCardProps) {
+  const isPureRepost = !!post.repost && !post.content?.trim()
+  const isQuotePost = !!post.repost && !!post.content?.trim()
+
+  const displayAuthor = isPureRepost ? post.repost!.author : post.author
+  const displayContent = isPureRepost ? post.repost!.content : post.content
+  const displayImageUrl = isPureRepost ? post.repost!.imageUrl : post.imageUrl
+  const displayPostId = isPureRepost ? post.repost!.id : post.id
+  const displayCreatedAt = isPureRepost ? (post.repost!.createdAt || post.createdAt) : post.createdAt
+
+  const authorHandle = displayAuthor.username || displayAuthor.subdomain || displayAuthor.id?.slice(0, 8) || "auteur"
+  const urls = getUrls(displayContent || "")
+  const quotedExcerpt = post.quotedExcerpt
+
+  const handleOpenPost = () => {
+    if (variant === "focus") return
+    if (onOpenPost) {
+      onOpenPost(displayPostId, authorHandle)
+    }
+  }
+
+  const handleProfileClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (onOpenProfile) {
+      onOpenProfile(authorHandle)
+    }
+  }
+
+  const isFocus = variant === "focus"
+  const isParent = variant === "parent"
+  const isReply = variant === "reply"
+
+  const handleReplyClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (onReplyClick) {
+      onReplyClick(e)
+    } else if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("open-composer", { detail: { replyToThought: post } }))
+    } else {
+      handleOpenPost()
+    }
+  }
+
+  return (
+    <article
+      onClick={handleOpenPost}
+      className={cn(
+        "group relative flex gap-3 transition-colors font-sans select-none",
+        !isFocus && "cursor-pointer hover:bg-muted/20",
+        variant === "timeline" && "py-4 border-b border-border/30",
+        variant === "parent" && "pt-3 pb-1",
+        variant === "focus" && "py-4 border-b border-border/20 my-0",
+        variant === "reply" && depth > 0 && "pl-4 border-l border-border/30 mt-2 py-2",
+        variant === "reply" && depth === 0 && "py-3 border-b border-border/20",
+        className
+      )}
+    >
+      {/* COLUMN 1: Avatar & Thread Line Connectors */}
+      <div className="relative flex flex-col items-center shrink-0">
+        <ProfileHoverCard user={displayAuthor} onOpenProfile={onOpenProfile}>
+          <AuthorAvatar
+            user={displayAuthor}
+            size={isFocus ? "md" : "sm"}
+            showBadge={false}
+          />
+        </ProfileHoverCard>
+
+        {isParent && (
+          <div className="w-[2px] bg-border/50 flex-1 my-1 rounded-full min-h-[24px]" />
+        )}
+      </div>
+
+      {/* COLUMN 2: Main Content Area */}
+      <div className="flex-1 min-w-0 space-y-1.5">
+        {/* Pure Repost Banner */}
+        {isPureRepost && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground pb-0.5 font-sans">
+            <Repeat className="w-3.5 h-3.5 text-emerald-500" />
+            <span>
+              <strong className="font-semibold text-foreground">
+                @{post.author.username || post.author.subdomain || post.author.id.slice(0, 8)}
+              </strong>{" "}
+              a repartagé
+            </span>
+          </div>
+        )}
+
+        {/* Pinned Badge */}
+        {post.isPinned && (
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-brand pb-0.5">
+            <Pin className="w-3 h-3 fill-current rotate-45" />
+            <span>Épinglé</span>
+          </div>
+        )}
+
+        {/* Reply Context Banner */}
+        {post.parent && !isParent && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground pb-0.5 font-sans">
+            <CornerDownRight className="w-3.5 h-3.5 text-brand" />
+            <span>
+              En réponse à{" "}
+              <strong className="font-semibold text-foreground">
+                @{post.parent.author.username || post.parent.author.subdomain || post.parent.author.id.slice(0, 8)}
+              </strong>
+            </span>
+          </div>
+        )}
+
+        {/* Author Header */}
+        <ThoughtHeader
+          author={displayAuthor}
+          createdAt={displayCreatedAt}
+          isPinned={post.isPinned}
+          isFocus={isFocus}
+          currentUserId={currentUserId}
+          onOpenProfile={onOpenProfile}
+          onPinToggle={onPinToggle}
+          onReportClick={onReportClick}
+        />
+
+        {/* Text Body Content */}
+        <ThoughtBody
+          content={displayContent}
+          imageUrl={displayImageUrl}
+          triggerWarning={post.triggerWarning}
+          isFocus={isFocus}
+        />
+
+        {/* Quoted Thought Card (if quoting another thought) */}
+        {isQuotePost && (
+          <QuotedThoughtCard
+            post={post.repost || null}
+            onOpenPost={(id) => {
+              if (onOpenPost) onOpenPost(id)
+            }}
+          />
+        )}
+
+        {/* Quoted Article Card (Explicit prop) */}
+        {post.articleQuote && (
+          <QuotedArticleCard
+            article={post.articleQuote}
+            quotedExcerpt={quotedExcerpt}
+            onOpenArticle={onOpenArticle}
+          />
+        )}
+
+        {/* Unfurled Link Preview (Apple Reader Highlight if article link, or external link preview) */}
+        {!post.articleQuote && urls.length > 0 && (
+          <LinkPreview
+            urls={urls}
+            quotedExcerpt={quotedExcerpt}
+            unfurlFn={unfurlFn}
+            onNavigate={(target) => {
+              if (target.type === "post") {
+                if (onOpenPost) onOpenPost(target.id)
+              } else if (target.type === "article") {
+                if (onOpenArticle) {
+                  onOpenArticle({ id: target.id, slug: target.slug || "", title: "" })
+                }
+              }
+            }}
+          />
+        )}
+
+        {/* Focus Mode Date & Time Footer */}
+        {isFocus && (
+          <div className="py-2.5 my-1 border-y border-border/40 text-xs text-muted-foreground font-sans">
+            {new Date(displayCreatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+            {" · "}
+            {new Date(displayCreatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+          </div>
+        )}
+
+        {/* Centralized Action Bar */}
+        <ThoughtActions
+          post={post}
+          variant={isFocus ? "lg" : isParent || isReply ? "sm" : "md"}
+          onLike={onLikeToggle}
+          onReply={handleReplyClick}
+          onRepost={onRepostToggle}
+          onQuote={onQuoteClick}
+          onShare={onShareClick}
+        />
+      </div>
+    </article>
+  )
+}
