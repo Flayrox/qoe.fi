@@ -181,9 +181,19 @@ export function ArticleCard({
     </HoverCardContent>
   )
 
-  const handleOpenInTab = () => {
+  const handleOpenInTab = (e?: React.MouseEvent) => {
     if (onOpenArticle) {
+      if (e) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
       onOpenArticle(article)
+    } else if (onOpenPost) {
+      if (e) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+      onOpenPost(article.id)
     }
   }
 

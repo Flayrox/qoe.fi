@@ -62,8 +62,22 @@ export function ArticleCard({
     }
   }
 
-  const handleCardClick = () => {
-    if (isThought && onOpenPost) {
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (onOpenArticle) {
+      onOpenArticle(article)
+    } else if (isThought && onOpenPost) {
+      onOpenPost(article.id)
+    }
+  }
+
+  const handleTitleClick = (e: React.MouseEvent) => {
+    if (onOpenArticle) {
+      e.preventDefault()
+      e.stopPropagation()
+      onOpenArticle(article)
+    } else if (onOpenPost) {
+      e.preventDefault()
+      e.stopPropagation()
       onOpenPost(article.id)
     }
   }
@@ -94,7 +108,7 @@ export function ArticleCard({
       onClick={handleCardClick}
       className={cn(
         "group relative pt-6 pb-6 first:pt-0 font-sans antialiased select-none",
-        isThought ? "cursor-pointer" : ""
+        (isThought || onOpenArticle) ? "cursor-pointer" : ""
       )}
     >
       {/* Top subtle gradient divider line */}
@@ -150,9 +164,10 @@ export function ArticleCard({
           {article.title && (
             <a
               href={url}
-              target={article.author.subdomain ? "_blank" : "_self"}
+              onClick={handleTitleClick}
+              target={article.author.subdomain && !onOpenArticle ? "_blank" : "_self"}
               rel="noreferrer"
-              className="block group/title pt-1"
+              className="block group/title pt-1 cursor-pointer"
             >
               <h2 className="text-lg font-medium text-foreground tracking-tight leading-snug group-hover/title:text-primary transition-colors">
                 {article.title}
