@@ -152,6 +152,63 @@ export function FeedDashboard({
     openAuthModal({ mode: options?.mode || "login", actionContext: options?.actionContext })
   }
 
+  const [bookmarks, setBookmarks] = useState<Article[]>(initialBookmarks)
+  const [followedCreators, setFollowedCreators] = useState<any[]>(initialFollowedCreators)
+  const [selectedTag, setSelectedTag] = useState<string | null>(null)
+  const [localPosts, setLocalPosts] = useState<Article[]>([])
+  const [deletedPostIds] = useState<Set<string>>(new Set())
+  const [interactions, setInteractions] = useState<Record<string, { liked?: boolean; likesCount?: number; bookmarked?: boolean; repliesCount?: number; reposted?: boolean; repostsCount?: number }>>({})
+  
+  const isCreatorFollowed = (creatorId: string) => followedCreators.some(f => f.id === creatorId)
+  const isArticleBookmarked = (articleId: string) => {
+    const inter = interactions[articleId]
+    if (inter?.bookmarked !== undefined) return inter.bookmarked
+    return bookmarks.some(b => b.id === articleId)
+  }
+
+  const currentFeedArticles = useMemo(() => {
+    let list: Article[] = []
+    if (activeFeed === "recommandation") {
+      list = [...localPosts, ...recommendationArticles]
+    } else if (activeFeed === "abonnement") {
+      list = [...localPosts.filter(p => isCreatorFollowed(p.author.id)), ...followingArticles]
+    } else if (activeFeed === "decouvrir") {
+      list = discoverArticles
+    } else if (activeFeed === "bookmarks") {
+      list = bookmarks
+    }
+
+    if (mutedWords && mutedWords.length > 0) {
+      list = list.filter(art => {
+        if (!art) return false
+        const contentLower = (art.content || "").toLowerCase()
+        const titleLower = (art.title || "").toLowerCase()
+        return !mutedWords.some(word => contentLower.includes(word) || titleLower.includes(word))
+      })
+    }
+
+    list = list.filter(art => art && art.id && !deletedPostIds.has(art.id))
+
+    const seenIds = new Set<string>()
+    list = list.filter(art => {
+      if (!art || !art.id) return false
+      const idStr = String(art.id)
+      if (seenIds.has(idStr)) return false
+      seenIds.add(idStr)
+      return true
+    })
+
+    if (selectedTag) {
+      list = list.filter(art => 
+        art.title.toLowerCase().includes(selectedTag.toLowerCase()) || 
+        art.content.toLowerCase().includes(selectedTag.toLowerCase()) || 
+        (art.category && art.category.name.toLowerCase() === selectedTag.toLowerCase())
+      )
+    }
+
+    return list
+  }, [activeFeed, localPosts, recommendationArticles, followingArticles, discoverArticles, bookmarks, selectedTag, followedCreators, deletedPostIds, mutedWords])
+
   const [savedScrollPosition, setSavedScrollPosition] = useState<number>(0)
 
   const handleOpenPost = (postId: string, authorUsername?: string) => {
@@ -276,196 +333,6 @@ export function FeedDashboard({
     }
   }, [dbUser])
   
-  const [bookmarks, setBookmarks] = useState<Article[]>(initialBookmarks)
-  const [followedCreators, setFollowedCreators] = useState<any[]>(initialFollowedCreators)
-
-  const [selectedTag, setSelectedTag] = useState<string | null>(null)
-  
-  const [localPosts, setLocalPosts] = useState<Article[]>([])
-  const [deletedPostIds] = useState<Set<string>>(new Set())
-  const [interactions, setInteractions] = useState<Record<string, { liked?: boolean; likesCount?: number; bookmarked?: boolean; repliesCount?: number; reposted?: boolean; repostsCount?: number }>>({})
-  
-  const isCreatorFollowed = (creatorId: string) => followedCreators.some(f => f.id === creatorId)
-  const isArticleBookmarked = (articleId: string) => {
-    const inter = interactions[articleId]
-    if (inter?.bookmarked !== undefined) return inter.bookmarked
-    return bookmarks.some(b => b.id === articleId)
-  }
-
-  const handleLikeToggle = (postId: string) => {
-    if (!dbUser) {
-      openAuth({ mode: "signup", actionContext: "like" })
-      return
-    }
-    const currentItem = currentFeedArticles.find((item) => item.id === postId) as any
-
-    setInteractions((prev) => {
-      const prevInter = prev[postId]
-      const wasLiked = prevInter?.liked !== undefined ? prevInter.liked : (currentItem?.liked || currentItem?.isLiked || false)
-      const baseCount = currentItem?.likeCount ?? currentItem?.likesCount ?? 0
-      const prevCount = prevInter?.likesCount !== undefined ? prevInter.likesCount : baseCount
-      const nowLiked = !wasLiked
-      const newCount = nowLiked ? prevCount + 1 : Math.max(0, prevCount - 1)
-
-      updateThoughtShadow(postId, { isLiked: nowLiked, likeCount: newCount })
-
-      mutateLike({
-        thoughtId: postId,
-        isLikedCurrent: wasLiked,
-        likeMutationFn: async (id: string) => {
-          const res = await toggleLikePost(id)
-          return { success: res.ok }
-        },
-      })
-
-      return {
-        ...prev,
-        [postId]: {
-          ...prevInter,
-          liked: nowLiked,
-          likesCount: newCount,
-        },
-      }
-    })
-  }
-
-  const handleRepostToggle = (postId: string) => {
-    if (!dbUser) {
-      openAuth({ mode: "signup", actionContext: "repost" })
-      return
-    }
-    const currentItem = currentFeedArticles.find((item) => item.id === postId) as any
-
-    setInteractions((prev) => {
-      const prevInter = prev[postId]
-      const wasReposted = prevInter?.reposted !== undefined ? prevInter.reposted : (currentItem?.reposted || currentItem?.isReposted || false)
-      const baseCount = currentItem?.repostCount ?? currentItem?.repostsCount ?? 0
-      const prevCount = prevInter?.repostsCount !== undefined ? prevInter.repostsCount : baseCount
-      const nowReposted = !wasReposted
-      const newCount = nowReposted ? prevCount + 1 : Math.max(0, prevCount - 1)
-
-      updateThoughtShadow(postId, { reposted: nowReposted, repostCount: newCount })
-
-      mutateRepost({
-        thoughtId: postId,
-        isRepostedCurrent: wasReposted,
-        repostMutationFn: async (id: string) => {
-          const res = await toggleRepostPost(id)
-          return { success: res.ok }
-        },
-      })
-
-      return {
-        ...prev,
-        [postId]: {
-          ...prevInter,
-          reposted: nowReposted,
-          repostsCount: newCount,
-        },
-      }
-    })
-  }
-
-  const handleFollowToggle = async (creator: any) => {
-    if (!dbUser) {
-      openAuth({ mode: "signup", actionContext: "follow" })
-      return
-    }
-    const isCurrentlyFollowed = isCreatorFollowed(creator.id)
-    trackEvent("follow_creator_toggled", { creatorId: creator.id, followed: !isCurrentlyFollowed })
-    
-    if (isCurrentlyFollowed) {
-      setFollowedCreators(prev => prev.filter(f => f.id !== creator.id))
-    } else {
-      setFollowedCreators(prev => [creator, ...prev])
-    }
-
-    mutateFollow({
-      creatorId: creator.id,
-      isFollowedCurrent: isCurrentlyFollowed,
-      followMutationFn: async (id: string) => {
-        const res = await toggleFollowCreatorHome(id)
-        return { success: res.ok }
-      }
-    })
-  }
-
-  const handleBookmarkToggle = async (article: Article) => {
-    if (!dbUser) {
-      openAuth({ mode: "signup", actionContext: "bookmark" })
-      return
-    }
-    const isCurrentlyBookmarked = isArticleBookmarked(article.id)
-    
-    setInteractions(prev => ({
-      ...prev,
-      [article.id]: {
-        ...prev[article.id],
-        bookmarked: !isCurrentlyBookmarked
-      }
-    }))
-    
-    trackEvent("bookmark_toggled", { articleId: article.id, bookmarked: !isCurrentlyBookmarked })
-    
-    if (isCurrentlyBookmarked) {
-      setBookmarks(prev => prev.filter(b => b.id !== article.id))
-    } else {
-      setBookmarks(prev => [article, ...prev])
-    }
-
-    mutateBookmark({
-      articleId: article.id,
-      isBookmarkedCurrent: isCurrentlyBookmarked,
-      bookmarkMutationFn: async (id: string) => {
-        const res = await toggleBookmarkArticleHome(id)
-        return { success: res.ok }
-      }
-    })
-  }
-
-  const currentFeedArticles = useMemo(() => {
-    let list: Article[] = []
-    if (activeFeed === "recommandation") {
-      list = [...localPosts, ...recommendationArticles]
-    } else if (activeFeed === "abonnement") {
-      list = [...localPosts.filter(p => isCreatorFollowed(p.author.id)), ...followingArticles]
-    } else if (activeFeed === "decouvrir") {
-      list = discoverArticles
-    } else if (activeFeed === "bookmarks") {
-      list = bookmarks
-    }
-
-    if (mutedWords && mutedWords.length > 0) {
-      list = list.filter(art => {
-        if (!art) return false
-        const contentLower = (art.content || "").toLowerCase()
-        const titleLower = (art.title || "").toLowerCase()
-        return !mutedWords.some(word => contentLower.includes(word) || titleLower.includes(word))
-      })
-    }
-
-    list = list.filter(art => art && art.id && !deletedPostIds.has(art.id))
-
-    const seenIds = new Set<string>()
-    list = list.filter(art => {
-      if (!art || !art.id) return false
-      const idStr = String(art.id)
-      if (seenIds.has(idStr)) return false
-      seenIds.add(idStr)
-      return true
-    })
-
-    if (selectedTag) {
-      list = list.filter(art => 
-        art.title.toLowerCase().includes(selectedTag.toLowerCase()) || 
-        art.content.toLowerCase().includes(selectedTag.toLowerCase()) || 
-        (art.category && art.category.name.toLowerCase() === selectedTag.toLowerCase())
-      )
-    }
-
-    return list
-  }, [activeFeed, localPosts, recommendationArticles, followingArticles, discoverArticles, bookmarks, selectedTag, followedCreators, deletedPostIds, mutedWords])
-
   const tagsList = ["#souverainete", "#anti-ia", "#attention", "#philosophie", "#design", "#creators"]
 
   return (
