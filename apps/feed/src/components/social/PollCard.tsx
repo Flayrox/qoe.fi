@@ -31,8 +31,22 @@ export function PollCard({ poll: initialPoll, onVoteSuccess }: PollCardProps) {
   const [poll, setPoll] = useState<PollData>(initialPoll);
   const [isVoting, setIsVoting] = useState(false);
   const [votingOptionId, setVotingOptionId] = useState<string | null>(null);
+  const [, setNow] = useState(Date.now());
 
-  const isExpired = poll.isExpired || new Date(poll.expiresAt) <= new Date();
+  // Synchronize state if props change
+  React.useEffect(() => {
+    setPoll(initialPoll);
+  }, [initialPoll]);
+
+  // Live timer interval to update countdown every 10 seconds and flip to expired mode automatically
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 10000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const isExpired = poll.isExpired || new Date(poll.expiresAt).getTime() <= Date.now();
   const hasVoted = Boolean(poll.userVotedOptionId);
   const showResults = hasVoted || isExpired;
 
@@ -42,14 +56,41 @@ export function PollCard({ poll: initialPoll, onVoteSuccess }: PollCardProps) {
     setIsVoting(true);
     setVotingOptionId(optionId);
 
+    // Optimistic UI Update
+    const prevPoll = { ...poll };
+    const newTotalVotes = poll.totalVotes + 1;
+    const updatedOptions = poll.options.map((opt) => {
+      const isThisOpt = opt.id === optionId;
+      const count = opt.voteCount + (isThisOpt ? 1 : 0);
+      return {
+        ...opt,
+        voteCount: count,
+        percentage: Math.round((count / newTotalVotes) * 100),
+      };
+    });
+
+    const optimisticPoll: PollData = {
+      ...poll,
+      totalVotes: newTotalVotes,
+      userVotedOptionId: optionId,
+      options: updatedOptions,
+    };
+
+    setPoll(optimisticPoll);
+
     try {
       const res = await votePollAction({ pollId: poll.id, optionId });
       if (res.ok && res.data.poll) {
         setPoll(res.data.poll);
         if (onVoteSuccess) onVoteSuccess(res.data.poll);
+      } else {
+        // Rollback on failure
+        setPoll(prevPoll);
       }
     } catch (err) {
       console.error("Error voting on poll:", err);
+      // Rollback on failure
+      setPoll(prevPoll);
     } finally {
       setIsVoting(false);
       setVotingOptionId(null);
@@ -59,6 +100,8 @@ export function PollCard({ poll: initialPoll, onVoteSuccess }: PollCardProps) {
   const getTimeRemainingText = () => {
     if (isExpired) return "Sondage terminé";
     const diffMs = new Date(poll.expiresAt).getTime() - Date.now();
+    if (diffMs <= 0) return "Sondage terminé";
+
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     if (hours >= 24) {
       const days = Math.floor(hours / 24);
@@ -70,7 +113,11 @@ export function PollCard({ poll: initialPoll, onVoteSuccess }: PollCardProps) {
   };
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card/50 backdrop-blur-md p-4 space-y-3 shadow-2xs font-sans my-2">
+    <div
+      role="radiogroup"
+      aria-label="Sondage interactif"
+      className="rounded-2xl border border-border/60 bg-card/50 backdrop-blur-md p-4 space-y-3 shadow-2xs font-sans my-2"
+    >
       <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground pb-1">
         <BarChart2 className="w-3.5 h-3.5 text-primary" />
         <span>Sondage</span>
@@ -84,6 +131,9 @@ export function PollCard({ poll: initialPoll, onVoteSuccess }: PollCardProps) {
             return (
               <div
                 key={option.id}
+                role="radio"
+                aria-checked={isSelected}
+                aria-label={`${option.text}, ${option.percentage}% des votes`}
                 className="relative overflow-hidden rounded-xl border border-border/50 bg-background/60 p-3 flex items-center justify-between text-xs font-medium"
               >
                 {/* Progress bar background fill */}
@@ -111,9 +161,12 @@ export function PollCard({ poll: initialPoll, onVoteSuccess }: PollCardProps) {
           return (
             <button
               key={option.id}
+              role="radio"
+              aria-checked={false}
+              aria-label={`Voter pour ${option.text}`}
               onClick={() => handleVote(option.id)}
               disabled={isVoting}
-              className="w-full text-left p-3 rounded-xl border border-border/60 bg-background/80 hover:bg-primary/10 hover:border-primary/40 text-xs font-semibold text-foreground transition-all duration-150 flex items-center justify-between group active:scale-[0.99] disabled:opacity-50"
+              className="w-full text-left p-3 rounded-xl border border-border/60 bg-background/80 hover:bg-primary/10 hover:border-primary/40 text-xs font-semibold text-foreground transition-all duration-150 flex items-center justify-between group active:scale-[0.99] disabled:opacity-50 cursor-pointer"
             >
               <span className="group-hover:text-primary transition-colors line-clamp-1 pr-2">
                 {option.text}
@@ -139,3 +192,4 @@ export function PollCard({ poll: initialPoll, onVoteSuccess }: PollCardProps) {
     </div>
   );
 }
+

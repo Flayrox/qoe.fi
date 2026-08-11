@@ -69,17 +69,28 @@ export async function getPollByThoughtId(thoughtId: string, userId?: string) {
   const isExpired = new Date() > poll.expiresAt;
   const userVotedOptionId = userId && poll.votes && poll.votes.length > 0 ? poll.votes[0].optionId : null;
 
-  const formattedOptions = poll.options.map((opt) => {
+  const rawPercentages = poll.options.map((opt) => {
     const voteCount = opt._count.votes;
-    const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
-    return {
-      id: opt.id,
-      text: opt.text,
-      order: opt.order,
-      voteCount,
-      percentage,
-    };
+    const raw = totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
+    const floor = Math.floor(raw);
+    const remainder = raw - floor;
+    return { id: opt.id, text: opt.text, order: opt.order, voteCount, floor, remainder };
   });
+
+  const sumFloor = rawPercentages.reduce((acc, curr) => acc + curr.floor, 0);
+  const diff = totalVotes > 0 ? 100 - sumFloor : 0;
+
+  const sortedByRemainder = [...rawPercentages].sort((a, b) => b.remainder - a.remainder);
+  const extraAllocatedIds = new Set(sortedByRemainder.slice(0, diff).map((x) => x.id));
+
+  const formattedOptions = rawPercentages.map((opt) => ({
+    id: opt.id,
+    text: opt.text,
+    order: opt.order,
+    voteCount: opt.voteCount,
+    percentage: totalVotes > 0 ? opt.floor + (extraAllocatedIds.has(opt.id) ? 1 : 0) : 0,
+  }));
+
 
   return {
     id: poll.id,

@@ -37,8 +37,10 @@ export interface ThoughtActionsProps {
   className?: string
 }
 
+import { usePostShadow, updatePostShadow } from "./usePostShadow"
+
 export function ThoughtActions({
-  post,
+  post: rawPost,
   variant = "md",
   onLike,
   onReply,
@@ -47,6 +49,7 @@ export function ThoughtActions({
   onShare,
   className,
 }: ThoughtActionsProps) {
+  const post = usePostShadow(rawPost)
   const [popoverOpen, setPopoverContentOpen] = useState(false)
 
   const authorHandle =
@@ -60,6 +63,25 @@ export function ThoughtActions({
   const reposted = post.reposted || false
   const repostsCount = post.repostsCount ?? post._count?.reposts ?? 0
   const repliesCount = post.repliesCount ?? post._count?.replies ?? 0
+
+  const handleLikeClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const nextLiked = !liked
+    const nextCount = Math.max(0, likesCount + (nextLiked ? 1 : -1))
+    updatePostShadow(post.id, { liked: nextLiked, likesCount: nextCount })
+    if (onLike) onLike(e)
+  }
+
+  const handleRepostClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const nextReposted = !reposted
+    const nextCount = Math.max(0, repostsCount + (nextReposted ? 1 : -1))
+    updatePostShadow(post.id, { reposted: nextReposted, repostsCount: nextCount })
+    if (onRepost) onRepost(e)
+  }
+
 
   const handleShareClick = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -120,7 +142,7 @@ export function ThoughtActions({
       {/* 1. LIKE BUTTON */}
       <button
         type="button"
-        onClick={onLike}
+        onClick={handleLikeClick}
         className={cn(
           "flex items-center gap-1.5 transition-colors cursor-pointer outline-none group/like",
           liked ? "text-brand font-semibold" : "hover:text-brand"
@@ -183,10 +205,11 @@ export function ThoughtActions({
             onClick={(e) => {
               e.stopPropagation()
               setPopoverContentOpen(false)
-              if (onRepost) onRepost(e)
+              handleRepostClick(e)
             }}
             className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer"
           >
+
             <Repeat className="w-3.5 h-3.5 text-emerald-500" />
             <span>{reposted ? "Annuler le repartage" : "Repartager"}</span>
           </button>

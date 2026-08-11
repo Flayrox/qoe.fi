@@ -159,6 +159,7 @@ export async function findTrending(limit: number = 20) {
  * ✍️ Crée une pensée (Thought) avec auteur inclus.
  */
 import { recordHashtags } from "./search";
+import { canUserReplyToThought } from "./threadgates";
 
 export async function createThought(data: {
   content: string;
@@ -174,6 +175,13 @@ export async function createThought(data: {
   parentId?: string | null;
   replyRestriction?: string;
 }) {
+  if (data.parentId) {
+    const replyCheck = await canUserReplyToThought(data.parentId, data.authorId);
+    if (!replyCheck.canReply) {
+      throw new Error(replyCheck.reason || "THREADGATE_RESTRICTED");
+    }
+  }
+
   const newPost = await prisma.thought.create({
     data: {
       content: data.content,
@@ -308,10 +316,16 @@ export async function toggleLike(postId: string, userId: string): Promise<{ like
  * 💬 Réponse à une pensée.
  */
 export async function replyToPost(postId: string, authorId: string, content: string) {
+  const replyCheck = await canUserReplyToThought(postId, authorId);
+  if (!replyCheck.canReply) {
+    throw new Error(replyCheck.reason || "THREADGATE_RESTRICTED");
+  }
+
   const targetPost = await prisma.thought.findUnique({
     where: { id: postId },
     select: { authorId: true },
   });
+
 
   const [reply] = await prisma.$transaction([
     prisma.thought.create({

@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Send, Trash2, Loader2, Image, AlertCircle, Globe, Calendar as CalendarIcon, AlertTriangle, FileText, Crop as CropIcon, RefreshCw, ArrowLeft, ArrowRight, X, MessageSquare, Users, AtSign } from "lucide-react"
+import { Send, Trash2, Loader2, Image, AlertCircle, Globe, Calendar as CalendarIcon, AlertTriangle, FileText, Crop as CropIcon, RefreshCw, ArrowLeft, ArrowRight, X, MessageSquare, Users, AtSign, BarChart2 } from "lucide-react"
+
 import ReactCrop, { centerCrop, makeAspectCrop } from "react-image-crop"
 import type { Crop, PixelCrop } from "react-image-crop"
 import "react-image-crop/dist/ReactCrop.css"
@@ -107,6 +108,11 @@ export function ThoughtComposer({
   const [replacingImageId, setReplacingImageId] = useState<string | null>(null)
   const [croppingImage, setCroppingImage] = useState<ComposerImage | null>(null)
   const [showDraftPopover, setShowDraftPopover] = useState<boolean>(false)
+  const [showPollEditor, setShowPollEditor] = useState<boolean>(false)
+  const [pollOptions, setPollOptions] = useState<string[]>(["", ""])
+  const [pollDurationHours, setPollDurationHours] = useState<number>(24)
+
+
 
   // Universal Typeahead State (@mentions, #hashtags, :emojis:)
   const [typeaheadType, setTypeaheadType] = useState<"profile" | "tag" | "emoji" | null>(null)
@@ -571,6 +577,12 @@ export function ThoughtComposer({
       const tags = textContent.match(/#[a-zA-Z0-9_-]+/g) || []
 
       const { createThoughtAction, deletePostAction } = await import("@qoe/api-client/actions/feed")
+      const validPollOptions = pollOptions.map((o) => o.trim()).filter(Boolean)
+      const pollPayload =
+        showPollEditor && validPollOptions.length >= 2
+          ? { options: validPollOptions, durationHours: pollDurationHours }
+          : null
+
       const res = await createThoughtAction({
         content: textContent,
         tags,
@@ -583,8 +595,8 @@ export function ThoughtComposer({
         repostId: quotedThought?.id || null,
         parentId: replyToThought?.id || parentId || null,
         replyRestriction,
+        poll: pollPayload,
       })
-
 
       if (res.ok && res.data?.post) {
         const post = res.data.post
@@ -603,6 +615,10 @@ export function ThoughtComposer({
           }
           setLoadedDraftId(null)
         }
+
+        setShowPollEditor(false)
+        setPollOptions(["", ""])
+
 
         
         const isFuture = isScheduled && scheduledDate && new Date(getScheduledDateTimeString() || "") > new Date()
@@ -996,13 +1012,19 @@ export function ThoughtComposer({
                           <div className="flex justify-end">
                             <button
                               type="button"
-                              onClick={() => setImages(prev => prev.filter(i => i.id !== img.id))}
+                              onClick={() => {
+                                if (img.url.startsWith("blob:")) {
+                                  URL.revokeObjectURL(img.url)
+                                }
+                                setImages(prev => prev.filter(i => i.id !== img.id))
+                              }}
                               className="bg-red-600/80 hover:bg-red-700 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors"
                               title="Supprimer l'image"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
+
                         </div>
                       </motion.div>
                     ))}
@@ -1019,6 +1041,85 @@ export function ThoughtComposer({
                 className="hidden"
               />
 
+              {/* Poll Editor Panel */}
+              {showPollEditor && (
+                <div className="p-3.5 rounded-xl border border-primary/30 bg-primary/5 space-y-3 font-sans my-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                      <BarChart2 className="w-4 h-4" />
+                      Créer un sondage
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPollEditor(false)
+                        setPollOptions(["", ""])
+                      }}
+                      className="p-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
+                      title="Retirer le sondage"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {pollOptions.map((opt, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder={`Option ${idx + 1}`}
+                          value={opt}
+                          onChange={(e) => {
+                            const updated = [...pollOptions]
+                            updated[idx] = e.target.value
+                            setPollOptions(updated)
+                          }}
+                          maxLength={80}
+                          className="flex-1 bg-background/80 border border-border/60 rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
+                        />
+                        {pollOptions.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() => setPollOptions(pollOptions.filter((_, i) => i !== idx))}
+                            className="p-1.5 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                            title="Supprimer cette option"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 text-xs">
+                    {pollOptions.length < 4 ? (
+                      <button
+                        type="button"
+                        onClick={() => setPollOptions([...pollOptions, ""])}
+                        className="text-primary font-semibold hover:underline flex items-center gap-1 text-[11px] cursor-pointer"
+                      >
+                        + Ajouter une option
+                      </button>
+                    ) : <span />}
+
+                    <div className="flex items-center gap-1 text-muted-foreground text-[11px]">
+                      <span>Durée :</span>
+                      <select
+                        value={pollDurationHours}
+                        onChange={(e) => setPollDurationHours(Number(e.target.value))}
+                        className="bg-background border border-border/60 rounded px-1.5 py-0.5 text-xs text-foreground focus:outline-none cursor-pointer"
+                      >
+                        <option value={1}>1 heure</option>
+                        <option value={6}>6 heures</option>
+                        <option value={24}>1 jour</option>
+                        <option value={72}>3 jours</option>
+                        <option value={168}>7 jours</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center justify-between pt-3.5 border-t border-[var(--border-subtle)] bg-transparent">
                 <div className="flex items-center gap-2">
                   <label className="cursor-pointer p-2 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-1)] hover:bg-[var(--surface-2)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-all flex items-center justify-center" title="Ajouter des images">
@@ -1032,6 +1133,27 @@ export function ThoughtComposer({
                       disabled={isSubmitting || images.length >= 4}
                     />
                   </label>
+
+                  {/* Poll Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPollEditor(!showPollEditor)
+                      if (!showPollEditor && pollOptions.length < 2) {
+                        setPollOptions(["", ""])
+                      }
+                    }}
+                    className={cn(
+                      "p-2 rounded-[var(--radius-button)] border transition-all cursor-pointer flex items-center justify-center text-xs",
+                      showPollEditor
+                        ? "bg-primary/10 border-primary text-primary"
+                        : "border-[var(--border-default)] bg-[var(--surface-1)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+                    )}
+                    title="Ajouter un sondage"
+                  >
+                    <BarChart2 className="w-3.5 h-3.5" />
+                  </button>
+
 
                   {/* 1. Visibilité Dropdown (Shadcn Popover) */}
                   <Popover open={showVisibilityDropdown} onOpenChange={setShowVisibilityDropdown}>

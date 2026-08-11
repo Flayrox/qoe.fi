@@ -7,3 +7,5 @@ export * from "./ThoughtActions"
 export * from "./ThoughtCard"
 export * from "./ProfileHoverCard"
 export * from "./MediaLightbox"
+export * from "./usePostShadow"
+

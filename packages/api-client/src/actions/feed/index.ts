@@ -1,6 +1,7 @@
 "use server";
 
-import { follows, bookmarks, posts, articles, users } from "@qoe/db";
+import { follows, bookmarks, posts, articles, users, moderation } from "@qoe/db";
+
 import { createThoughtSchema, replyToPostSchema, createReportSchema } from "@qoe/config";
 import { createClient } from "@qoe/supabase/server";
 import { revalidatePath } from "next/cache";
@@ -34,6 +35,7 @@ export const createThoughtAction = safeAction<
     parentId?: string | null;
     replyRestriction?: string | null;
     attachments?: Array<{ url: string; type?: string; altText?: string; order?: number }>;
+    poll?: { options: string[]; durationHours?: number } | null;
   },
   { post: any }
 >(async (rawInput, user) => {
@@ -70,13 +72,26 @@ export const createThoughtAction = safeAction<
     replyRestriction: rawInput.replyRestriction || "everyone",
   });
 
+  let createdPoll: any = null;
+  if (rawInput.poll && Array.isArray(rawInput.poll.options)) {
+    const validOpts = rawInput.poll.options.map((o) => o.trim()).filter(Boolean);
+    if (validOpts.length >= 2) {
+      const { polls } = await import("@qoe/db");
+      createdPoll = await polls.createPollForThought({
+        thoughtId: newPost.id,
+        options: validOpts,
+        durationHours: rawInput.poll.durationHours || 24,
+      });
+    }
+  }
 
   revalidatePath("/home");
   if (newPost.author.username) {
     revalidatePath(routes.feed.profile(newPost.author.username));
   }
-  return { post: newPost };
+  return { post: { ...newPost, poll: createdPoll } };
 });
+
 
 export const toggleLikePostAction = safeAction<string, { liked: boolean }>(
   async (postId, user) => {
@@ -119,12 +134,17 @@ export const getArticleThreadAction = safeAction<string, { article: any }>(
 export const reportTargetAction = safeAction<any, { success: boolean }>(
   async (rawInput, user) => {
     const { targetId, targetType, reason, details } = createReportSchema.parse(rawInput);
-    console.log(
-      `[MODERATION REPORT] User ${user.id} reported ${targetType} ${targetId} for ${reason}: ${details || "No details"}`
-    );
+    await moderation.createReport({
+      reporterId: user.id,
+      targetId,
+      targetType: targetType as "thought" | "article" | "user" | "comment",
+      reason,
+      details: details || null,
+    });
     return { success: true };
   }
 );
+
 
 export const toggleRepostPostAction = safeAction<
   string,

@@ -34,34 +34,11 @@ export function PaywallCut({
     return <div dangerouslySetInnerHTML={{ __html: safeHtml }} />;
   }
 
-  // Find the paywall divider
-  const paywallIndex = safeHtml.indexOf('<div data-type="paywall-divider"></div>');
-  
-  // If premium but no divider found, fallback to old behavior (cut at 30%)
-  if (paywallIndex === -1) {
-    const truncateIndex = Math.floor(safeHtml.length * 0.3);
-    const truncatedContent = safeHtml.substring(0, truncateIndex) + '<p>...</p>';
-    
-    return (
-      <>
-        <div dangerouslySetInnerHTML={{ __html: truncatedContent }} />
-        <PaywallOverlay 
-          name={name} 
-          isBrutalist={isBrutalist} 
-          accentColor={accentColor} 
-          mainAppUrl={mainAppUrl}
-          creatorId={creatorId}
-        />
-      </>
-    );
-  }
-
-  // Split content at the paywall
-  const freeContent = safeHtml.substring(0, paywallIndex);
-
+  // If isPremium is true, the contentHtml has already been safely truncated on the server (RSC).
+  // Render the teaser HTML and the PaywallOverlay directly.
   return (
     <>
-      <div dangerouslySetInnerHTML={{ __html: freeContent }} />
+      <div dangerouslySetInnerHTML={{ __html: safeHtml }} />
       <PaywallOverlay 
         name={name} 
         isBrutalist={isBrutalist} 

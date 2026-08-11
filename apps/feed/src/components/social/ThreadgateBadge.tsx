@@ -10,7 +10,11 @@ export interface ThreadgateBadgeProps {
   className?: string;
 }
 
+import { useTranslate } from "@qoe/i18n";
+
 export function ThreadgateBadge({ restriction, className = "" }: ThreadgateBadgeProps) {
+  const { t } = useTranslate();
+
   if (!restriction || restriction === "everyone") {
     return null;
   }
@@ -19,26 +23,26 @@ export function ThreadgateBadge({ restriction, className = "" }: ThreadgateBadge
     switch (restriction) {
       case "subscribers":
         return {
-          label: "Abonnés uniquement",
-          description: "Seuls les abonnés à cet auteur peuvent répondre.",
+          label: t("threadgate.subscribers_label", "Abonnés uniquement"),
+          description: t("threadgate.subscribers_desc", "Seuls les abonnés à cet auteur peuvent répondre."),
           icon: Users,
         };
       case "following":
         return {
-          label: "Comptes suivis",
-          description: "Seules les personnes suivies par l'auteur peuvent répondre.",
+          label: t("threadgate.following_label", "Comptes suivis"),
+          description: t("threadgate.following_desc", "Seules les personnes suivies par l'auteur peuvent répondre."),
           icon: UserCheck,
         };
       case "mentioned":
         return {
-          label: "Personnes mentionnées",
-          description: "Seules les personnes mentionnées dans ce message peuvent répondre.",
+          label: t("threadgate.mentioned_label", "Personnes mentionnées"),
+          description: t("threadgate.mentioned_desc", "Seules les personnes mentionnées dans ce message peuvent répondre."),
           icon: AtSign,
         };
       default:
         return {
-          label: "Réponses restreintes",
-          description: "Les réponses à cette publication sont restreintes.",
+          label: t("threadgate.restricted_label", "Réponses restreintes"),
+          description: t("threadgate.restricted_desc", "Les réponses à cette publication sont restreintes."),
           icon: Lock,
         };
     }
@@ -46,6 +50,7 @@ export function ThreadgateBadge({ restriction, className = "" }: ThreadgateBadge
 
   const config = getConfig();
   const Icon = config.icon;
+
 
   return (
     <div

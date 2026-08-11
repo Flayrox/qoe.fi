@@ -88,11 +88,12 @@ export function ArticleAnnotatorView({ article }: ArticleAnnotatorViewProps) {
       const rect = range.getBoundingClientRect();
       setSelectedText(text);
       setPopoverPos({
-        top: rect.top + window.scrollY - 48,
-        left: rect.left + window.scrollX + rect.width / 2,
+        top: Math.max(12, rect.top - 52),
+        left: rect.left + rect.width / 2,
       });
     }
   };
+
 
   const handleCreateHighlight = async (isPublic: boolean) => {
     if (!selectedText || isSubmittingHighlight) return;
@@ -221,9 +222,11 @@ export function ArticleAnnotatorView({ article }: ArticleAnnotatorViewProps) {
         <div
           ref={articleRef}
           onMouseUp={handleTextSelection}
-          className="prose prose-sm dark:prose-invert max-w-none leading-relaxed text-foreground/90 selection:bg-amber-500/30"
+          onTouchEnd={handleTextSelection}
+          className="prose prose-sm dark:prose-invert max-w-none leading-relaxed text-foreground/90 selection:bg-amber-500/30 cursor-text"
           dangerouslySetInnerHTML={{ __html: article.content }}
         />
+
       </main>
 
       {/* Side Annotations Drawer (4 cols) */}

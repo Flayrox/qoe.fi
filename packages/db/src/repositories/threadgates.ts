@@ -90,7 +90,8 @@ export async function canUserReplyToThought(
       select: { username: true },
     });
     if (replyingUser?.username) {
-      const mentionRegex = new RegExp(`@${replyingUser.username}\\b`, "i");
+      const escapedUsername = replyingUser.username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const mentionRegex = new RegExp(`@${escapedUsername}\\b`, "i");
       if (mentionRegex.test(thought.content)) {
         return { canReply: true, restriction };
       }
