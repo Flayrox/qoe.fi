@@ -70,4 +70,8 @@ export const deleteHighlightAction = safeAction<
   return { success: true };
 });
 
-export { quotePassageToFeedAction } from "../tenant";
+import { quotePassageToFeedAction as quotePassageToFeedActionImpl } from "../tenant";
+
+export async function quotePassageToFeedAction(input: any) {
+  return quotePassageToFeedActionImpl(input);
+}

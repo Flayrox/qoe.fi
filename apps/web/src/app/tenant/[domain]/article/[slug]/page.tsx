@@ -5,25 +5,12 @@ import { createClient } from '@qoe/supabase/server';
 import { getMainAppUrl } from '@qoe/config';
 import Link from 'next/link';
 import { TenantHeader, SubscribeForm, SocialIcon } from '@qoe/ui';
-import {
-  TextHighlighter,
-  AnnotationSideDrawer,
-  type AnnotationItem,
-  type AnnotationActionCallbacks,
-} from '@qoe/ui/annotations';
+import { type AnnotationItem } from '@qoe/ui/annotations';
+import { TenantArticleHighlighter } from './TenantArticleHighlighter';
 import { PaywallCut } from './PaywallCut';
 import { ReaderActions } from './ReaderActions';
 import { ArticleCommentsSection } from './ArticleCommentsSection';
-import {
-  getArticleCommentsAction,
-  createHighlightAction,
-  upvoteHighlightAction,
-  createAnnotationCommentAction,
-  toggleHighlightPrivacyAction,
-  deleteHighlightAction,
-  quotePassageToFeedAction,
-  updateHighlightNoteAction,
-} from './actions';
+import { getArticleCommentsAction } from './actions';
 import { sliceContentAtPaywall } from '@qoe/utils';
 import { ContentVisibility } from '@qoe/db/types';
 interface TenantArticlePageProps {
@@ -332,7 +319,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
         </div>
 
         {/* Interactive Genius Text Selection Highlighter & Side Drawer Engine */}
-        <TextHighlighter
+        <TenantArticleHighlighter
           articleId={article.id}
           creatorName={name || creator.username || "L'Auteur"}
           allowPublicAnnotations={allowPublicAnnotations}
@@ -343,41 +330,6 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
           currentUserProfile={currentUserProfile}
           articleAuthorId={article.authorId}
           mainAppUrl={mainAppUrl}
-          callbacks={{
-            onHighlightCreate: async (params) =>
-              createHighlightAction({
-                articleId: params.articleId || article.id,
-                text: params.text,
-                note: params.note || undefined,
-                isPublic: params.isPublic,
-              }),
-            onUpvote: async (highlightId: string) => upvoteHighlightAction(highlightId),
-            onComment: async (params) =>
-              createAnnotationCommentAction({
-                highlightId: params.highlightId,
-                content: params.content,
-              }),
-            onTogglePrivacy: async (params) =>
-              toggleHighlightPrivacyAction({
-                highlightId: params.highlightId,
-                isPublic: params.isPublic,
-              }),
-            onUpdateNote: async (params) =>
-              updateHighlightNoteAction({
-                highlightId: params.highlightId,
-                note: params.note,
-              }),
-            onDelete: async (highlightId: string) => {
-              const res = await deleteHighlightAction(highlightId);
-              return res.ok ? { ok: true } : { ok: false, error: res.error };
-            },
-            onCrosspost: async (params) =>
-              quotePassageToFeedAction({
-                articleId: params.articleId || article.id,
-                text: params.text,
-                commentary: params.commentary,
-              }),
-          }}
         />
 
         {/* Article Comments & Nested Replies Section */}
