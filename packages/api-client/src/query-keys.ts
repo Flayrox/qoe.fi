@@ -47,3 +47,18 @@ export const annotationKeys = {
   article: (articleId: string) => [...annotationKeys.all, 'article', articleId] as const,
 };
 
+export const notificationKeys = {
+  all: ['notifications'] as const,
+  list: (filter?: string) => [...notificationKeys.all, 'list', filter || 'all'] as const,
+  unreadCount: () => [...notificationKeys.all, 'unreadCount'] as const,
+  preferences: () => [...notificationKeys.all, 'preferences'] as const,
+};
+
+export const searchKeys = {
+  all: ['search'] as const,
+  results: (query: string, type?: string) => [...searchKeys.all, 'results', query, type || 'all'] as const,
+  trending: () => [...searchKeys.all, 'trending'] as const,
+};
+
+
+

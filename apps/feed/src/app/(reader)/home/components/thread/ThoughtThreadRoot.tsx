@@ -110,45 +110,49 @@ export function ThoughtThreadRoot({
       return
     }
 
-    // Save snapshot for rollback
-    const previousPost = post ? JSON.parse(JSON.stringify(post)) : null
+    let previousPostSnapshot: OptimisticThought | null = null
+    let targetNewLiked = false
+    let targetNewCount = 0
 
-    // Helper to mutate target recursively
-    const mutateLike = (item: OptimisticThought): OptimisticThought => {
-      if (item.id === targetId) {
-        const isLiked = !item.liked
-        const count = item.likesCount || 0
+    setPost((prevPost) => {
+      if (!prevPost) return null
+      previousPostSnapshot = JSON.parse(JSON.stringify(prevPost))
+
+      const mutateLike = (item: OptimisticThought): OptimisticThought => {
+        if (item.id === targetId) {
+          const isLiked = !item.liked
+          const count = item.likesCount || 0
+          targetNewLiked = isLiked
+          targetNewCount = isLiked ? count + 1 : Math.max(0, count - 1)
+          return {
+            ...item,
+            liked: isLiked,
+            likesCount: targetNewCount,
+          }
+        }
         return {
           ...item,
-          liked: isLiked,
-          likesCount: isLiked ? count + 1 : Math.max(0, count - 1),
+          parent: item.parent ? mutateLike(item.parent) : null,
+          replies: item.replies ? item.replies.map(mutateLike) : [],
         }
       }
-      return {
-        ...item,
-        parent: item.parent ? mutateLike(item.parent) : null,
-        replies: item.replies ? item.replies.map(mutateLike) : [],
-      }
-    }
 
-    if (post) setPost(mutateLike(post))
+      return mutateLike(prevPost)
+    })
 
+    // Side effects outside render phase
     if (onInteractionUpdate) {
-      const targetItem = post?.id === targetId ? post : post?.replies?.find(r => r.id === targetId)
-      const newLiked = !targetItem?.liked
-      const currentCount = targetItem?.likesCount || 0
-      onInteractionUpdate(targetId, { liked: newLiked, likesCount: newLiked ? currentCount + 1 : Math.max(0, currentCount - 1) })
+      onInteractionUpdate(targetId, { liked: targetNewLiked, likesCount: targetNewCount })
     }
 
     trackEvent("thought_like", { targetId })
-    const res = await toggleLikePost(targetId)
 
+    const res = await toggleLikePost(targetId)
     if (!res.ok) {
-      // Rollback
-      if (previousPost) setPost(previousPost)
+      if (previousPostSnapshot) setPost(previousPostSnapshot)
       toast.error("Erreur lors de la mise à jour du J'aime")
     }
-  }, [currentUserId, post, onInteractionUpdate, onLoginRequired])
+  }, [currentUserId, onInteractionUpdate, onLoginRequired])
 
   // 0ms Optimistic Repost Handler with Rollback
   const handleRepostThought = useCallback(async (targetId: string) => {
@@ -157,37 +161,42 @@ export function ThoughtThreadRoot({
       return
     }
 
-    const previousPost = post ? JSON.parse(JSON.stringify(post)) : null
+    let previousPostSnapshot: OptimisticThought | null = null
 
-    const mutateRepost = (item: OptimisticThought): OptimisticThought => {
-      if (item.id === targetId) {
-        const isReposted = !item.reposted
-        const count = item.repostsCount || 0
+    setPost((prevPost) => {
+      if (!prevPost) return null
+      previousPostSnapshot = JSON.parse(JSON.stringify(prevPost))
+
+      const mutateRepost = (item: OptimisticThought): OptimisticThought => {
+        if (item.id === targetId) {
+          const isReposted = !item.reposted
+          const count = item.repostsCount || 0
+          return {
+            ...item,
+            reposted: isReposted,
+            repostsCount: isReposted ? count + 1 : Math.max(0, count - 1),
+          }
+        }
         return {
           ...item,
-          reposted: isReposted,
-          repostsCount: isReposted ? count + 1 : Math.max(0, count - 1),
+          parent: item.parent ? mutateRepost(item.parent) : null,
+          replies: item.replies ? item.replies.map(mutateRepost) : [],
         }
       }
-      return {
-        ...item,
-        parent: item.parent ? mutateRepost(item.parent) : null,
-        replies: item.replies ? item.replies.map(mutateRepost) : [],
-      }
-    }
 
-    if (post) setPost(mutateRepost(post))
+      return mutateRepost(prevPost)
+    })
 
     trackEvent("thought_repost", { targetId })
-    const res = await toggleRepostPost(targetId)
 
+    const res = await toggleRepostPost(targetId)
     if (!res.ok) {
-      if (previousPost) setPost(previousPost)
+      if (previousPostSnapshot) setPost(previousPostSnapshot)
       toast.error("Impossible de repartager la pensée.")
     } else {
       toast.success(res.data?.reposted ? "Pensée repartagée !" : "Repartage annulé.")
     }
-  }, [currentUserId, post, onLoginRequired])
+  }, [currentUserId, onLoginRequired])
 
   // 0ms Optimistic Reply Handler
   const handleSubmitReply = useCallback(async (parentId: string, content: string): Promise<boolean> => {

@@ -84,6 +84,7 @@ export interface FeedPostDTO {
   createdAt: Date | string;
   triggerWarning?: string | null;
   isPinned?: boolean;
+  replyRestriction?: string;
   tags?: string[];
   likeCount?: number;
   replyCount?: number;
@@ -94,6 +95,9 @@ export interface FeedPostDTO {
   _count?: { likes?: number; replies?: number; reposts?: number };
   author: CreatorProfileDTO;
 }
+
+/** 💬 Alias DDD Canonique pour FeedPostDTO */
+export type FeedThoughtDTO = FeedPostDTO;
 
 /**
  * 📊 Enveloppe Réponse API Standardisée

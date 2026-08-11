@@ -14,4 +14,8 @@ export * as recommendations from "./repositories/recommendations";
 export * as articleComments from "./repositories/articleComments";
 export * as highlights from "./repositories/highlights";
 export * as wallet from "./repositories/wallet";
+export * as notifications from "./repositories/notifications";
+export * as search from "./repositories/search";
+
+
 

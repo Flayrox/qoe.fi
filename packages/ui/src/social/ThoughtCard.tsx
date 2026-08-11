@@ -64,6 +64,7 @@ export interface ThoughtData {
     isCertified?: boolean
   }
   tags?: string[]
+  attachments?: Array<{ id?: string; url: string; type?: string; altText?: string | null }> | null
   articleQuote?: QuotedArticleData | null
   quotedExcerpt?: string
 }
@@ -161,12 +162,10 @@ export function ThoughtCard({
     <article
       onClick={handleOpenPost}
       className={cn(
-        "group relative flex gap-3 transition-colors font-sans select-none",
-        !isFocus && "cursor-pointer hover:bg-muted/20",
-        variant === "timeline" && "py-4 border-b border-border/30",
-        variant === "parent" && "pt-3 pb-1",
-        variant === "focus" && "py-4 border-b border-border/20 my-0",
-        variant === "reply" && depth > 0 && "pl-4 border-l border-border/30 mt-2 py-2",
+        "group relative flex gap-3 p-3.5 sm:p-4 transition-colors duration-200 cursor-pointer select-none",
+        "bg-card/40 hover:bg-muted/30 border-b border-border/40",
+        isFocus && "bg-card border-none hover:bg-card cursor-default py-5",
+        isParent && "pb-1 border-none",
         variant === "reply" && depth === 0 && "py-3 border-b border-border/20",
         className
       )}
@@ -238,6 +237,7 @@ export function ThoughtCard({
         <ThoughtBody
           content={displayContent}
           imageUrl={displayImageUrl}
+          attachments={post.attachments}
           triggerWarning={post.triggerWarning}
           isFocus={isFocus}
         />

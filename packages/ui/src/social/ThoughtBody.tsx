@@ -7,22 +7,34 @@ import { TextParser } from "../ui/TextParser"
 export interface ThoughtBodyProps {
   content?: string | null
   imageUrl?: string | null
+  attachments?: Array<{ url: string; type?: string; altText?: string | null }> | null
   triggerWarning?: string | null
   isFocus?: boolean
   onOpenMedia?: (url: string) => void
   className?: string
 }
 
-const getImages = (url: string | null | undefined): string[] => {
-  if (!url) return []
-  if (url.startsWith("[")) {
+const getImages = (
+  imageUrl: string | null | undefined,
+  attachments?: Array<{ url: string; type?: string; altText?: string | null }> | null
+): Array<{ url: string; type: string; altText: string | null }> => {
+  if (attachments && attachments.length > 0) {
+    return attachments.map((a) => ({
+      url: a.url,
+      type: a.type || "IMAGE",
+      altText: a.altText || null,
+    }))
+  }
+  if (!imageUrl) return []
+  if (imageUrl.startsWith("[")) {
     try {
-      return JSON.parse(url)
+      const parsed: string[] = JSON.parse(imageUrl)
+      return parsed.map((url) => ({ url, type: "IMAGE", altText: null }))
     } catch {
-      return [url]
+      return [{ url: imageUrl, type: "IMAGE", altText: null }]
     }
   }
-  return [url]
+  return [{ url: imageUrl, type: "IMAGE", altText: null }]
 }
 
 const cleanThoughtContent = (text: string | null | undefined): string => {
@@ -33,6 +45,7 @@ const cleanThoughtContent = (text: string | null | undefined): string => {
 export function ThoughtBody({
   content,
   imageUrl,
+  attachments,
   triggerWarning,
   isFocus = false,
   onOpenMedia,
@@ -41,10 +54,10 @@ export function ThoughtBody({
   const [isRevealed, setIsRevealed] = React.useState<boolean>(false)
 
   const cleanedText = cleanThoughtContent(content || "")
-  const images = getImages(imageUrl)
+  const items = getImages(imageUrl, attachments)
   const hasWarning = !!triggerWarning && !isRevealed
 
-  if (!cleanedText && images.length === 0) return null
+  if (!cleanedText && items.length === 0) return null
 
   return (
     <div className={cn("relative space-y-2 font-sans", className)}>
@@ -60,9 +73,9 @@ export function ThoughtBody({
           </div>
         )}
 
-        {images.length > 0 && (
+        {items.length > 0 && (
           <div className="overflow-hidden cursor-pointer mt-2">
-            <ImageGrid urls={images} onOpenMedia={onOpenMedia} />
+            <ImageGrid items={items} onOpenMedia={onOpenMedia} />
           </div>
         )}
       </div>
@@ -93,42 +106,69 @@ export function ThoughtBody({
 }
 
 function ImageGrid({
-  urls,
+  items,
   onOpenMedia,
 }: {
-  urls: string[]
+  items: Array<{ url: string; type: string; altText: string | null }>
   onOpenMedia?: (url: string) => void
 }) {
-  if (urls.length === 0) return null
+  const [activeAlt, setActiveAlt] = React.useState<string | null>(null)
+
+  if (items.length === 0) return null
+
+  const gridColsClass =
+    items.length === 1
+      ? "grid-cols-1"
+      : items.length === 2
+      ? "grid-cols-2"
+      : items.length === 3
+      ? "grid-cols-2"
+      : "grid-cols-2"
 
   return (
-    <div
-      className={cn(
-        "grid gap-2 overflow-hidden rounded-xl",
-        urls.length === 1 ? "grid-cols-1" : "grid-cols-2"
-      )}
-    >
-      {urls.map((url) => (
-        <div
-          key={url}
-          onClick={(e) => {
-            if (onOpenMedia) {
-              e.preventDefault()
-              e.stopPropagation()
-              onOpenMedia(url)
-            }
-          }}
-          className="relative overflow-hidden bg-card border border-border/40 shadow-2xs rounded-xl group/img"
-        >
-          <div className="relative overflow-hidden aspect-video rounded-lg">
-            <img
-              src={url}
-              alt=""
-              className="w-full h-full object-cover transition-transform duration-700 ease-[0.16,1,0.3,1] group-hover/img:scale-[1.02]"
-            />
-          </div>
+    <div className="space-y-1">
+      {activeAlt && (
+        <div className="p-2.5 bg-card/95 backdrop-blur-md border border-border text-xs text-foreground rounded-lg flex items-start justify-between gap-2">
+          <p className="text-xs text-muted-foreground"><strong className="text-foreground">ALT :</strong> {activeAlt}</p>
+          <button onClick={() => setActiveAlt(null)} className="text-xs text-muted-foreground hover:text-foreground font-bold">✕</button>
         </div>
-      ))}
+      )}
+
+      <div className={cn("grid gap-1.5 overflow-hidden rounded-xl", gridColsClass)}>
+        {items.map((item, idx) => (
+          <div
+            key={item.url + idx}
+            onClick={(e) => {
+              if (onOpenMedia) {
+                e.preventDefault()
+                e.stopPropagation()
+                onOpenMedia(item.url)
+              }
+            }}
+            className="relative overflow-hidden bg-card border border-border/40 shadow-2xs rounded-xl group/img aspect-video"
+          >
+            <img
+              src={item.url}
+              alt={item.altText || ""}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-[1.02]"
+            />
+            {item.altText && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setActiveAlt(activeAlt === item.altText ? null : item.altText)
+                }}
+                className="absolute bottom-2 left-2 z-10 px-1.5 py-0.5 text-[10px] font-bold text-white bg-black/75 backdrop-blur-xs rounded border border-white/20 hover:bg-black/95 transition-colors"
+              >
+                ALT
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
+

@@ -13,7 +13,7 @@ import {
   toggleRepostPostAction as toggleRepostPost 
 } from "@qoe/api-client/actions/feed"
 
-import { ArticleCard, GuestFloatingBar, useAuthModal, type AuthActionContext } from "@qoe/ui"
+import { ArticleCard, GuestFloatingBar, useAuthModal, MediaLightbox, HotkeyHelpModal, type AuthActionContext } from "@qoe/ui"
 import { ThoughtCard } from "@/components/social/ThoughtCard"
 import { VirtualizedFeedList } from "@/components/feed/VirtualizedFeedList"
 import { RealtimeFeedPill } from "@/components/feed/RealtimeFeedPill"
@@ -22,7 +22,8 @@ import {
   useOptimisticLike, 
   useOptimisticRepost, 
   useOptimisticBookmark, 
-  useOptimisticFollow 
+  useOptimisticFollow,
+  updateThoughtShadow
 } from "@qoe/api-client"
 import { ComposerModal } from "./components/ComposerModal"
 import { FeedTabsHeader } from "./components/FeedTabsHeader"
@@ -104,8 +105,34 @@ export function FeedDashboard({
   const [activePostId, setActivePostId] = useState<string | null>(null)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   const [isComposerModalOpen, setIsComposerModalOpen] = useState(false)
+  const [isHotkeyModalOpen, setIsHotkeyModalOpen] = useState(false)
+  const [lightboxImages, setLightboxImages] = useState<{ url: string; alt?: string | null }[]>([])
+  const [lightboxIndex, setLightboxIndex] = useState(0)
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false)
   const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login")
   const [authActionContext, setAuthActionContext] = useState<AuthActionContext | undefined>(undefined)
+
+  // Global Hotkeys Listener
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger hotkeys if typing inside an input/textarea
+      const target = e.target as HTMLElement
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return
+      }
+
+      if (e.key === "n" || e.key === "N") {
+        e.preventDefault()
+        setIsComposerModalOpen(true)
+      } else if (e.key === "?") {
+        e.preventDefault()
+        setIsHotkeyModalOpen(true)
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [])
 
   const { mutate: mutateLike } = useOptimisticLike()
   const { mutate: mutateRepost } = useOptimisticRepost()
@@ -195,6 +222,10 @@ export function FeedDashboard({
 
     const handleResetFeedView = () => {
       setActivePostId(null)
+      if (window.location.pathname.includes("/thought/")) {
+        window.history.pushState(null, "", routes.feed.home())
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" })
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -236,28 +267,34 @@ export function FeedDashboard({
       return
     }
     const currentItem = currentFeedArticles.find((item) => item.id === postId) as any
-    const isLikedCurrent = currentItem?.liked || currentItem?.isLiked || false
 
-    setInteractions((prev) => ({
-      ...prev,
-      [postId]: {
-        ...prev[postId],
-        liked: !isLikedCurrent,
-        likesCount: Math.max(
-          0,
-          (prev[postId]?.likesCount ?? currentItem?.likeCount ?? currentItem?.likesCount ?? 0) +
-            (isLikedCurrent ? -1 : 1)
-        ),
-      },
-    }))
+    setInteractions((prev) => {
+      const prevInter = prev[postId]
+      const wasLiked = prevInter?.liked !== undefined ? prevInter.liked : (currentItem?.liked || currentItem?.isLiked || false)
+      const baseCount = currentItem?.likeCount ?? currentItem?.likesCount ?? 0
+      const prevCount = prevInter?.likesCount !== undefined ? prevInter.likesCount : baseCount
+      const nowLiked = !wasLiked
+      const newCount = nowLiked ? prevCount + 1 : Math.max(0, prevCount - 1)
 
-    mutateLike({
-      thoughtId: postId,
-      isLikedCurrent,
-      likeMutationFn: async (id: string) => {
-        const res = await toggleLikePost(id)
-        return { success: res.ok }
-      },
+      updateThoughtShadow(postId, { isLiked: nowLiked, likeCount: newCount })
+
+      mutateLike({
+        thoughtId: postId,
+        isLikedCurrent: wasLiked,
+        likeMutationFn: async (id: string) => {
+          const res = await toggleLikePost(id)
+          return { success: res.ok }
+        },
+      })
+
+      return {
+        ...prev,
+        [postId]: {
+          ...prevInter,
+          liked: nowLiked,
+          likesCount: newCount,
+        },
+      }
     })
   }
 
@@ -267,28 +304,34 @@ export function FeedDashboard({
       return
     }
     const currentItem = currentFeedArticles.find((item) => item.id === postId) as any
-    const isRepostedCurrent = currentItem?.reposted || currentItem?.isReposted || false
 
-    setInteractions((prev) => ({
-      ...prev,
-      [postId]: {
-        ...prev[postId],
-        reposted: !isRepostedCurrent,
-        repostsCount: Math.max(
-          0,
-          (prev[postId]?.repostsCount ?? currentItem?.repostCount ?? currentItem?.repostsCount ?? 0) +
-            (isRepostedCurrent ? -1 : 1)
-        ),
-      },
-    }))
+    setInteractions((prev) => {
+      const prevInter = prev[postId]
+      const wasReposted = prevInter?.reposted !== undefined ? prevInter.reposted : (currentItem?.reposted || currentItem?.isReposted || false)
+      const baseCount = currentItem?.repostCount ?? currentItem?.repostsCount ?? 0
+      const prevCount = prevInter?.repostsCount !== undefined ? prevInter.repostsCount : baseCount
+      const nowReposted = !wasReposted
+      const newCount = nowReposted ? prevCount + 1 : Math.max(0, prevCount - 1)
 
-    mutateRepost({
-      thoughtId: postId,
-      isRepostedCurrent,
-      repostMutationFn: async (id: string) => {
-        const res = await toggleRepostPost(id)
-        return { success: res.ok }
-      },
+      updateThoughtShadow(postId, { reposted: nowReposted, repostCount: newCount })
+
+      mutateRepost({
+        thoughtId: postId,
+        isRepostedCurrent: wasReposted,
+        repostMutationFn: async (id: string) => {
+          const res = await toggleRepostPost(id)
+          return { success: res.ok }
+        },
+      })
+
+      return {
+        ...prev,
+        [postId]: {
+          ...prevInter,
+          reposted: nowReposted,
+          repostsCount: newCount,
+        },
+      }
     })
   }
 
@@ -577,6 +620,16 @@ export function FeedDashboard({
         initialMode={composerInitialMode}
         onPostCreated={(post) => setLocalPosts(prev => [post, ...prev])}
         onLoginRequired={() => openAuthModal({ mode: "signup", actionContext: "comment" })}
+      />
+      <MediaLightbox
+        isOpen={isLightboxOpen}
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
+        onClose={() => setIsLightboxOpen(false)}
+      />
+      <HotkeyHelpModal
+        isOpen={isHotkeyModalOpen}
+        onClose={() => setIsHotkeyModalOpen(false)}
       />
       {!dbUser && <GuestFloatingBar onOpenAuth={(opts) => openAuthModal({ mode: opts?.mode, actionContext: opts?.actionContext })} />}
     </ReaderPageLayout>

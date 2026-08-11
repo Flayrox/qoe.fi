@@ -31,6 +31,17 @@ export function AppSidebar({
       iconName: "Home",
     },
     {
+      title: t("feed.search", "Recherche"),
+      url: "/search",
+      iconName: "Search",
+    },
+    {
+      title: t("feed.notifications", "Notifications"),
+      url: "/notifications",
+      iconName: "Bell",
+    },
+
+    {
       title: t("feed.tab_library", "Signets"),
       url: routes.feed.library(),
       iconName: "Bookmark",
@@ -46,6 +57,7 @@ export function AppSidebar({
       iconName: "Wallet",
     },
   ]
+
 
   const handleOpenComposer = () => {
     window.dispatchEvent(new CustomEvent("open-composer"))

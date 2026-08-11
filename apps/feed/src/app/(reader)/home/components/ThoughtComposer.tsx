@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Send, Trash2, Loader2, Image, AlertCircle, Globe, Calendar as CalendarIcon, AlertTriangle, FileText, Crop as CropIcon, RefreshCw, ArrowLeft, ArrowRight, X } from "lucide-react"
+import { Send, Trash2, Loader2, Image, AlertCircle, Globe, Calendar as CalendarIcon, AlertTriangle, FileText, Crop as CropIcon, RefreshCw, ArrowLeft, ArrowRight, X, MessageSquare, Users, AtSign } from "lucide-react"
 import ReactCrop, { centerCrop, makeAspectCrop } from "react-image-crop"
 import type { Crop, PixelCrop } from "react-image-crop"
 import "react-image-crop/dist/ReactCrop.css"
@@ -20,7 +20,9 @@ interface ComposerImage {
   url: string
   file?: File
   isUploading?: boolean
+  altText?: string
 }
+
 
 const getImages = (url: string | null | undefined): string[] => {
   if (!url) return []
@@ -84,12 +86,14 @@ export function ThoughtComposer({
 
   // Popover controls
   const [showVisibilityDropdown, setShowVisibilityDropdown] = useState<boolean>(false)
+  const [showReplyRestrictionDropdown, setShowReplyRestrictionDropdown] = useState<boolean>(false)
   const [showScheduleDropdown, setShowScheduleDropdown] = useState<boolean>(false)
   const [showWarningDropdown, setShowWarningDropdown] = useState<boolean>(false)
   const [overflowStyle, setOverflowStyle] = useState<"hidden" | "visible">("hidden")
 
   // Publishing options state
   const [visibility, setVisibility] = useState<string>("public")
+  const [replyRestriction, setReplyRestriction] = useState<string>("everyone")
   const [isScheduled, setIsScheduled] = useState<boolean>(false)
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined)
   const [isTriggerWarning, setIsTriggerWarning] = useState<boolean>(false)
@@ -557,6 +561,13 @@ export function ThoughtComposer({
     try {
       const uploadedUrls = await uploadComposerImages(images)
       const imagePayload = uploadedUrls.length > 0 ? JSON.stringify(uploadedUrls) : null
+      const attachmentPayload = images.map((img, idx) => ({
+        url: uploadedUrls[idx] || img.url,
+        type: "IMAGE",
+        altText: img.altText || undefined,
+        order: idx,
+      }))
+
       const tags = textContent.match(/#[a-zA-Z0-9_-]+/g) || []
 
       const { createThoughtAction, deletePostAction } = await import("@qoe/api-client/actions/feed")
@@ -564,13 +575,16 @@ export function ThoughtComposer({
         content: textContent,
         tags,
         imageUrl: imagePayload,
+        attachments: attachmentPayload,
         visibility,
         isDraft: isDraftSubmit,
         scheduledAt: isScheduled && scheduledDate ? getScheduledDateTimeString() : null,
         triggerWarning: isTriggerWarning && triggerWarning.trim() ? triggerWarning.trim() : null,
         repostId: quotedThought?.id || null,
         parentId: replyToThought?.id || parentId || null,
+        replyRestriction,
       })
+
 
       if (res.ok && res.data?.post) {
         const post = res.data.post
@@ -802,10 +816,10 @@ export function ThoughtComposer({
           style={{ height: isComposerExpanded ? "auto" : "48px" }}
         />
 
-        {/* Universal Typeahead Suggestions Dropdown (Absolute Floating Popover — Zero Layout Shift) */}
+        {/* Universal Typeahead Suggestions Dropdown */}
         {mentionSuggestions.length > 0 && (
-          <div className="relative font-sans z-50">
-            <div className="absolute top-1 left-0 w-64 max-h-56 overflow-y-auto bg-popover text-popover-foreground border border-border/60 rounded-xl shadow-2xl p-1 font-sans animate-in fade-in-0 zoom-in-95 duration-100">
+          <div className="relative font-sans z-[100]">
+            <div className="absolute top-1 left-0 w-72 max-h-56 overflow-y-auto bg-popover text-popover-foreground border border-border/80 rounded-xl shadow-2xl p-1 font-sans animate-in fade-in-0 zoom-in-95 duration-100">
               {mentionSuggestions.map((item, idx) => {
                 const isSelected = idx === mentionSelectedIndex
                 return (
@@ -815,8 +829,8 @@ export function ThoughtComposer({
                     className={cn(
                       "flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-colors text-xs select-none",
                       isSelected
-                        ? "bg-brand/10 text-brand font-semibold border-l-2 border-brand"
-                        : "hover:bg-muted/60 text-muted-foreground"
+                        ? "bg-accent text-accent-foreground font-semibold"
+                        : "hover:bg-muted/60 text-muted-foreground hover:text-foreground"
                     )}
                   >
                     {item._type === "profile" && (
@@ -824,16 +838,16 @@ export function ThoughtComposer({
                         <AuthorAvatar user={item} size="xs" showBadge={false} />
                         <div className="flex flex-col min-w-0 flex-1">
                           <div className="flex items-center gap-1">
-                            <span className={cn("font-bold truncate", isSelected ? "text-brand" : "text-foreground")}>{item.name || "Auteur"}</span>
+                            <span className="font-bold truncate text-foreground">{item.name || "Auteur"}</span>
                             {item.isCertified && <CertifiedBadge />}
                           </div>
-                          <span className={cn("text-[11px] truncate", isSelected ? "text-brand/80" : "text-muted-foreground")}>@{item.username || item.subdomain}</span>
+                          <span className="text-[11px] truncate text-muted-foreground">@{item.username || item.subdomain}</span>
                         </div>
                       </>
                     )}
                     {item._type === "tag" && (
-                      <div className="flex items-center gap-2 font-medium text-brand">
-                        <span className="font-bold">#</span>
+                      <div className="flex items-center gap-2 font-medium">
+                        <span className="font-bold text-primary">#</span>
                         <span className="text-foreground">{item.value}</span>
                       </div>
                     )}
@@ -936,8 +950,26 @@ export function ThoughtComposer({
                               )}
                             </div>
 
-                            {/* Crop & Replace actions */}
+                             {/* ALT, Crop & Replace actions */}
                             <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newAlt = prompt("Saisissez la description Alt-Text d'accessibilité pour cette image :", img.altText || "")
+                                  if (newAlt !== null) {
+                                    setImages(prev => prev.map(i => i.id === img.id ? { ...i, altText: newAlt.trim() } : i))
+                                  }
+                                }}
+                                className={cn(
+                                  "px-2 py-1 rounded-[var(--radius-button)] text-[11px] font-bold cursor-pointer transition-colors border",
+                                  img.altText
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-black/60 hover:bg-black/85 text-white border-white/20"
+                                )}
+                                title={img.altText ? `Alt-text: ${img.altText}` : "Ajouter un texte d'accessibilité"}
+                              >
+                                ALT
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => setCroppingImage(img)}
@@ -959,6 +991,7 @@ export function ThoughtComposer({
                               </button>
                             </div>
                           </div>
+
 
                           <div className="flex justify-end">
                             <button
@@ -1044,6 +1077,93 @@ export function ThoughtComposer({
                         )}
                       >
                         Followers uniquement
+                      </button>
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* 1b. Restriction des réponses Dropdown (Threadgate) */}
+                  <Popover open={showReplyRestrictionDropdown} onOpenChange={setShowReplyRestrictionDropdown}>
+                    <PopoverTrigger
+                      render={
+                        <button
+                          type="button"
+                          className={cn(
+                            "p-2 rounded-[var(--radius-button)] border transition-all cursor-pointer flex items-center justify-center gap-1.5 text-xs text-[var(--text-secondary)]",
+                            replyRestriction !== "everyone"
+                              ? "bg-[var(--surface-2)] border-[var(--border-default)] text-[var(--text-primary)]"
+                              : "border-transparent bg-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+                          )}
+                          title="Qui peut répondre"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>
+                            {replyRestriction === "everyone" && "Réponses libres"}
+                            {replyRestriction === "subscribers" && "Abonnés"}
+                            {replyRestriction === "following" && "Suivis"}
+                            {replyRestriction === "mentioned" && "Mentionnés"}
+                          </span>
+                        </button>
+                      }
+                    />
+                    <PopoverContent align="start" className="w-56 p-1.5 space-y-0.5 bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-button)] shadow-lg z-50">
+                      <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Qui peut répondre ?
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReplyRestriction("everyone")
+                          setShowReplyRestrictionDropdown(false)
+                        }}
+                        className={cn(
+                          "w-full text-left px-2.5 py-1.5 rounded-[var(--radius-button)] text-xs transition-colors flex items-center gap-2",
+                          replyRestriction === "everyone" ? "bg-[var(--surface-2)] text-[var(--text-primary)] font-medium" : "hover:bg-[var(--surface-1)] text-[var(--text-secondary)]"
+                        )}
+                      >
+                        <Globe className="w-3.5 h-3.5" />
+                        <span>Tout le monde</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReplyRestriction("subscribers")
+                          setShowReplyRestrictionDropdown(false)
+                        }}
+                        className={cn(
+                          "w-full text-left px-2.5 py-1.5 rounded-[var(--radius-button)] text-xs transition-colors flex items-center gap-2",
+                          replyRestriction === "subscribers" ? "bg-[var(--surface-2)] text-[var(--text-primary)] font-medium" : "hover:bg-[var(--surface-1)] text-[var(--text-secondary)]"
+                        )}
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        <span>Abonnés uniquement</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReplyRestriction("following")
+                          setShowReplyRestrictionDropdown(false)
+                        }}
+                        className={cn(
+                          "w-full text-left px-2.5 py-1.5 rounded-[var(--radius-button)] text-xs transition-colors flex items-center gap-2",
+                          replyRestriction === "following" ? "bg-[var(--surface-2)] text-[var(--text-primary)] font-medium" : "hover:bg-[var(--surface-1)] text-[var(--text-secondary)]"
+                        )}
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        <span>Personnes suivies</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReplyRestriction("mentioned")
+                          setShowReplyRestrictionDropdown(false)
+                        }}
+                        className={cn(
+                          "w-full text-left px-2.5 py-1.5 rounded-[var(--radius-button)] text-xs transition-colors flex items-center gap-2",
+                          replyRestriction === "mentioned" ? "bg-[var(--surface-2)] text-[var(--text-primary)] font-medium" : "hover:bg-[var(--surface-1)] text-[var(--text-secondary)]"
+                        )}
+                      >
+                        <AtSign className="w-3.5 h-3.5" />
+                        <span>Personnes mentionnées</span>
                       </button>
                     </PopoverContent>
                   </Popover>

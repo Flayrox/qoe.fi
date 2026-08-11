@@ -83,6 +83,7 @@ export async function findFollowingFeed(
           },
         },
       },
+      attachments: { orderBy: { order: "asc" } },
       _count: { select: { likes: true, replies: true, reposts: true } },
       likes: { where: { userId: readerId }, select: { userId: true } },
     },
@@ -104,6 +105,7 @@ export async function findTrending(limit: number = 20) {
     orderBy: [{ likes: { _count: "desc" } }, { createdAt: "desc" }, { id: "desc" }],
     take: limit,
     include: {
+      attachments: { orderBy: { order: "asc" } },
       author: {
         select: {
           id: true,
@@ -152,35 +154,53 @@ export async function findTrending(limit: number = 20) {
   });
 }
 
+
 /**
  * ✍️ Crée une pensée (Thought) avec auteur inclus.
  */
+import { recordHashtags } from "./search";
+
 export async function createThought(data: {
   content: string;
   authorId: string;
   tags?: string[];
   imageUrl?: string | null;
+  attachments?: Array<{ url: string; type?: string; altText?: string; order?: number }>;
   visibility?: string;
   isDraft?: boolean;
   scheduledAt?: Date | null;
   triggerWarning?: string | null;
   repostId?: string | null;
   parentId?: string | null;
+  replyRestriction?: string;
 }) {
-  return prisma.thought.create({
+  const newPost = await prisma.thought.create({
     data: {
       content: data.content,
       authorId: data.authorId,
       tags: data.tags ?? [],
       imageUrl: data.imageUrl || null,
+      attachments:
+        data.attachments && data.attachments.length > 0
+          ? {
+              create: data.attachments.map((att, idx) => ({
+                url: att.url,
+                type: att.type || "IMAGE",
+                altText: att.altText || null,
+                order: att.order ?? idx,
+              })),
+            }
+          : undefined,
       visibility: data.visibility ?? POST_VISIBILITY.PUBLIC,
       isDraft: data.isDraft ?? false,
       scheduledAt: data.scheduledAt || null,
       triggerWarning: data.triggerWarning || null,
       repostId: data.repostId || null,
       parentId: data.parentId || null,
+      replyRestriction: data.replyRestriction || "everyone",
     },
     include: {
+      attachments: { orderBy: { order: "asc" } },
       author: {
         select: {
           id: true,
@@ -210,7 +230,15 @@ export async function createThought(data: {
       },
     },
   });
+
+  if (data.tags && data.tags.length > 0) {
+    recordHashtags(data.tags).catch((err) => console.error("Error recording hashtags:", err));
+  }
+
+  return newPost;
 }
+
+
 
 /** @deprecated Utiliser createThought */
 export const createMicroPost = createThought;
@@ -218,10 +246,17 @@ export const createMicroPost = createThought;
 /**
  * ❤️ Toggle like sur une pensée canonique.
  */
+import { createNotification, deleteNotification } from "./notifications";
+
 export async function toggleLike(postId: string, userId: string): Promise<{ liked: boolean }> {
   const canonicalId = await getCanonicalPostId(postId);
 
   try {
+    const targetPost = await prisma.thought.findUnique({
+      where: { id: canonicalId },
+      select: { authorId: true },
+    });
+
     const existing = await prisma.like.findUnique({
       where: { postId_userId: { postId: canonicalId, userId } },
     });
@@ -234,6 +269,14 @@ export async function toggleLike(postId: string, userId: string): Promise<{ like
           data: { likeCount: { decrement: 1 } },
         }),
       ]);
+      if (targetPost?.authorId) {
+        deleteNotification({
+          recipientId: targetPost.authorId,
+          senderId: userId,
+          type: "LIKE",
+          thoughtId: canonicalId,
+        }).catch((err) => console.error("Error deleting like notification:", err));
+      }
       return { liked: false };
     } else {
       await prisma.$transaction([
@@ -243,6 +286,14 @@ export async function toggleLike(postId: string, userId: string): Promise<{ like
           data: { likeCount: { increment: 1 } },
         }),
       ]);
+      if (targetPost?.authorId) {
+        createNotification({
+          recipientId: targetPost.authorId,
+          senderId: userId,
+          type: "LIKE",
+          thoughtId: canonicalId,
+        }).catch((err) => console.error("Error creating like notification:", err));
+      }
       return { liked: true };
     }
   } catch (error: any) {
@@ -257,6 +308,11 @@ export async function toggleLike(postId: string, userId: string): Promise<{ like
  * 💬 Réponse à une pensée.
  */
 export async function replyToPost(postId: string, authorId: string, content: string) {
+  const targetPost = await prisma.thought.findUnique({
+    where: { id: postId },
+    select: { authorId: true },
+  });
+
   const [reply] = await prisma.$transaction([
     prisma.thought.create({
       data: {
@@ -281,8 +337,43 @@ export async function replyToPost(postId: string, authorId: string, content: str
       data: { replyCount: { increment: 1 } },
     }),
   ]);
+
+  if (targetPost?.authorId) {
+    createNotification({
+      recipientId: targetPost.authorId,
+      senderId: authorId,
+      type: "REPLY",
+      thoughtId: reply.id,
+    }).catch((err) => console.error("Error creating reply notification:", err));
+  }
+
+  // Parse mentions (@username)
+  const mentions = content.match(/@([a-zA-Z0-9_]+)/g);
+  if (mentions && mentions.length > 0) {
+    const usernames = Array.from(new Set(mentions.map((m) => m.slice(1))));
+    prisma.user
+      .findMany({
+        where: { username: { in: usernames } },
+        select: { id: true },
+      })
+      .then((mentionedUsers) => {
+        for (const u of mentionedUsers) {
+          if (u.id !== authorId && u.id !== targetPost?.authorId) {
+            createNotification({
+              recipientId: u.id,
+              senderId: authorId,
+              type: "MENTION",
+              thoughtId: reply.id,
+            }).catch((err) => console.error("Error creating mention notification:", err));
+          }
+        }
+      })
+      .catch((err) => console.error("Error finding mentioned users:", err));
+  }
+
   return reply;
 }
+
 
 /**
  * 🧵 Trouve le thread d'une pensée par ID avec calcul canonique des likes/reposts.
