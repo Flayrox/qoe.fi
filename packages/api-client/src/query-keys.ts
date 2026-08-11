@@ -60,5 +60,21 @@ export const searchKeys = {
   trending: () => [...searchKeys.all, 'trending'] as const,
 };
 
+export const starterPackKeys = {
+  all: ['starterPacks'] as const,
+  list: () => [...starterPackKeys.all, 'list'] as const,
+  detail: (id: string) => [...starterPackKeys.all, 'detail', id] as const,
+};
+
+export const pollKeys = {
+  all: ['polls'] as const,
+  detail: (thoughtId: string) => [...pollKeys.all, 'detail', thoughtId] as const,
+};
+
+export const threadgateKeys = {
+  all: ['threadgates'] as const,
+  canReply: (thoughtId: string) => [...threadgateKeys.all, 'canReply', thoughtId] as const,
+};
+
 
 
