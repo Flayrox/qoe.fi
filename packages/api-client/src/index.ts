@@ -14,6 +14,9 @@ export * from './hooks/useNotifications';
 export * from './actions/notifications';
 export * from './hooks/useSearch';
 export * from './actions/search';
+export * from './actions/starterPacks';
+export * from './actions/polls';
+export * from './actions/threadgates';
 export * from './utils/authError';
 
 export * from './components/ThoughtCardContainer';

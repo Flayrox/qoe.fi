@@ -16,6 +16,9 @@ export * as highlights from "./repositories/highlights";
 export * as wallet from "./repositories/wallet";
 export * as notifications from "./repositories/notifications";
 export * as search from "./repositories/search";
+export * as starterPacks from "./repositories/starterPacks";
+export * as polls from "./repositories/polls";
+export * as threadgates from "./repositories/threadgates";
 
 
 

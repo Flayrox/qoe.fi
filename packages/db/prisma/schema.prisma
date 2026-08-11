@@ -123,6 +123,10 @@ model User {
   
   // AI Recs
   embedding Unsupported("vector(1536)")?
+  
+  createdStarterPacks StarterPack[]
+  starterPackItems    StarterPackItem[]
+  pollVotes           PollVote[]
 }
 
 model Recommendation {
@@ -484,6 +488,7 @@ model Thought {
   tier           Tier?             @relation(fields: [tierId], references: [id], onDelete: SetNull)
 
   replyRestriction String          @default("everyone") // "everyone", "subscribers", "following", "mentioned"
+  isHiddenByAuthor Boolean         @default(false)
 
   // Counter caches for zero-latency feeds
   likeCount   Int      @default(0)
@@ -502,6 +507,7 @@ model Thought {
   likes     Like[]
   notifications Notification[]
   attachments MediaAttachment[]
+  poll        Poll?
 
   @@index([authorId, createdAt])
   @@index([deletedAt, isDraft, authorId, createdAt])
@@ -658,5 +664,66 @@ model MediaAttachment {
   @@index([thoughtId, order])
 }
 
+model StarterPack {
+  id          String            @id @default(cuid())
+  title       String
+  description String?           @db.Text
+  icon        String?           @default("🚀")
+  creatorId   String            @db.Uuid
+  creator     User              @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  items       StarterPackItem[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
+  @@index([creatorId])
+}
 
+model StarterPackItem {
+  id            String      @id @default(cuid())
+  starterPackId String
+  starterPack   StarterPack @relation(fields: [starterPackId], references: [id], onDelete: Cascade)
+  userId        String      @db.Uuid
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@unique([starterPackId, userId])
+  @@index([starterPackId])
+  @@index([userId])
+}
+
+model Poll {
+  id        String       @id @default(cuid())
+  thoughtId String       @unique
+  thought   Thought      @relation(fields: [thoughtId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime     @default(now())
+
+  options   PollOption[]
+  votes     PollVote[]
+}
+
+model PollOption {
+  id        String     @id @default(cuid())
+  pollId    String
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  text      String
+  order     Int        @default(0)
+  votes     PollVote[]
+
+  @@index([pollId, order])
+}
+
+model PollVote {
+  id        String     @id @default(cuid())
+  pollId    String
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId  String
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  userId    String     @db.Uuid
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@unique([pollId, userId])
+  @@index([optionId])
+  @@index([userId])
+}

@@ -33,6 +33,10 @@ export const routes = {
     article: (slug: string) => `/article/${encodeURIComponent(slug)}`,
     post: (id: string) => `/post/${encodeURIComponent(id)}`,
     thought: (username: string, id: string) => `/${encodeURIComponent(username.replace(/^@/, ""))}/thought/${encodeURIComponent(id)}`,
+    notifications: () => "/notifications",
+    search: () => "/search",
+    starterPacks: () => "/starter-packs",
+    starterPack: (id: string) => `/starter-packs/${encodeURIComponent(id)}`,
   },
 
   /** 🎨 Creator Studio Dashboard App (`apps/dashboard`) */
