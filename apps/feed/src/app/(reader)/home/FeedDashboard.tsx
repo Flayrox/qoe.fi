@@ -28,6 +28,7 @@ import {
 import { ComposerModal } from "./components/ComposerModal"
 import { FeedTabsHeader } from "./components/FeedTabsHeader"
 import { ThoughtThreadView } from "./components/ThoughtThreadView"
+import { ArticleAnnotatorView } from "@/components/social/ArticleAnnotatorView"
 import { useTranslate } from "@qoe/i18n"
 import { trackEvent } from "@/lib/analytics"
 import { routes } from "@qoe/config/routes"
@@ -103,6 +104,7 @@ export function FeedDashboard({
   const { t } = useTranslate()
   const [activeFeed, setActiveFeed] = useState<string>("recommandation")
   const [activePostId, setActivePostId] = useState<string | null>(null)
+  const [activeArticle, setActiveArticle] = useState<Article | null>(null)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   const [isComposerModalOpen, setIsComposerModalOpen] = useState(false)
   const [isHotkeyModalOpen, setIsHotkeyModalOpen] = useState(false)
@@ -160,6 +162,7 @@ export function FeedDashboard({
     const newUrl = routes.feed.thought(handle, postId)
     window.history.pushState({ postId, scroll }, "", newUrl)
     setActivePostId(postId)
+    setActiveArticle(null)
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
@@ -173,12 +176,39 @@ export function FeedDashboard({
     }, 50)
   }
 
+  const handleOpenArticle = (article: Article) => {
+    const scroll = window.scrollY
+    setSavedScrollPosition(scroll)
+    window.history.pushState({ articleSlug: article.slug, scroll }, "", routes.feed.article(article.slug))
+    setActiveArticle(article)
+    setActivePostId(null)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  const handleCloseArticle = () => {
+    setActiveArticle(null)
+    if (window.location.pathname.includes("/article/")) {
+      window.history.pushState(null, "", routes.feed.home())
+    }
+    setTimeout(() => {
+      window.scrollTo({ top: savedScrollPosition, behavior: "instant" })
+    }, 50)
+  }
+
   React.useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
       if (e.state?.postId) {
         setActivePostId(e.state.postId)
+        setActiveArticle(null)
+      } else if (e.state?.articleSlug) {
+        const found = currentFeedArticles.find(item => item.slug === e.state.articleSlug)
+        if (found) {
+          setActiveArticle(found)
+        }
+        setActivePostId(null)
       } else {
         setActivePostId(null)
+        setActiveArticle(null)
         if (e.state?.scroll !== undefined) {
           window.scrollTo({ top: e.state.scroll, behavior: "instant" })
         }
@@ -187,7 +217,7 @@ export function FeedDashboard({
 
     window.addEventListener("popstate", handlePopState)
     return () => window.removeEventListener("popstate", handlePopState)
-  }, [])
+  }, [currentFeedArticles])
 
   const [composerQuotedThought, setComposerQuotedThought] = useState<any | null>(null)
   const [composerReplyToThought, setComposerReplyToThought] = useState<any | null>(null)
@@ -222,7 +252,8 @@ export function FeedDashboard({
 
     const handleResetFeedView = () => {
       setActivePostId(null)
-      if (window.location.pathname.includes("/thought/")) {
+      setActiveArticle(null)
+      if (window.location.pathname.includes("/thought/") || window.location.pathname.includes("/article/")) {
         window.history.pushState(null, "", routes.feed.home())
       }
       window.scrollTo({ top: 0, behavior: "smooth" })
@@ -438,17 +469,17 @@ export function FeedDashboard({
   const tagsList = ["#souverainete", "#anti-ia", "#attention", "#philosophie", "#design", "#creators"]
 
   return (
-    <ReaderPageLayout giantTitle="Lire" hideHeader={!!activePostId}>
+    <ReaderPageLayout giantTitle="Lire" hideHeader={!!activePostId || !!activeArticle}>
       {/* ── SLIDING FEED SHEET ── */}
       <motion.main 
         initial={false}
         animate={{
-          marginTop: activePostId ? 0 : 256
+          marginTop: (activePostId || activeArticle) ? 0 : 256
         }}
         transition={{ type: "spring", stiffness: 350, damping: 32 }}
         className={cn(
           "bg-card/95 backdrop-blur-2xl text-card-foreground border-x border-border/40 shadow-2xl min-h-screen relative z-10 transition-colors",
-          activePostId ? "rounded-none border-t-0" : "rounded-t-2xl border-t"
+          (activePostId || activeArticle) ? "rounded-none border-t-0" : "rounded-t-2xl border-t"
         )}
       >
         
@@ -463,6 +494,7 @@ export function FeedDashboard({
                 setActiveFeed(id)
                 setSelectedTag(null)
                 setActivePostId(null)
+                setActiveArticle(null)
                 trackEvent("feed_tab_changed", { tab: id })
               }
             }}
@@ -472,7 +504,20 @@ export function FeedDashboard({
         {/* List of Stream Items */}
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-8">
           <AnimatePresence mode="popLayout">
-            {activePostId ? (
+            {activeArticle ? (
+              <motion.div
+                key="expanded-article"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1, ease: "easeOut" }}
+              >
+                <ArticleAnnotatorView
+                  article={activeArticle}
+                  onClose={handleCloseArticle}
+                />
+              </motion.div>
+            ) : activePostId ? (
               <motion.div
                 key="expanded-post"
                 initial={{ opacity: 0, y: 4 }}
@@ -588,6 +633,7 @@ export function FeedDashboard({
                                 handleFollowToggle={handleFollowToggle}
                                 handleBookmarkToggle={handleBookmarkToggle}
                                 featured={idx === 0 && activeFeed === "recommandation"}
+                                onOpenArticle={handleOpenArticle}
                                 onOpenPost={handleOpenPost}
                                 onOpenProfile={(username) => {
                                   window.location.href = routes.feed.profile(username)

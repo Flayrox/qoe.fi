@@ -15,6 +15,7 @@ import {
   Loader2,
   ExternalLink,
   ShieldCheck,
+  ArrowLeft,
 } from "lucide-react";
 import {
   getArticleHighlightsAction,
@@ -40,9 +41,10 @@ export interface ArticleAnnotatorViewProps {
       customDomain?: string | null;
     };
   };
+  onClose?: () => void;
 }
 
-export function ArticleAnnotatorView({ article }: ArticleAnnotatorViewProps) {
+export function ArticleAnnotatorView({ article, onClose }: ArticleAnnotatorViewProps) {
   const [highlights, setHighlights] = useState<any[]>([]);
   const [isLoadingHighlights, setIsLoadingHighlights] = useState(true);
   const [activeTab, setActiveTab] = useState<"official" | "community" | "my">("official");
@@ -203,6 +205,19 @@ export function ArticleAnnotatorView({ article }: ArticleAnnotatorViewProps) {
             className="p-1 rounded-full hover:bg-muted text-muted-foreground"
           >
             <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {onClose && (
+        <div className="lg:col-span-12 flex items-center justify-between pb-3 border-b border-border/40 mb-2">
+          <button
+            onClick={onClose}
+            type="button"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Retour au fil</span>
           </button>
         </div>
       )}
