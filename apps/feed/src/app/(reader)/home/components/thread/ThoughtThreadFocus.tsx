@@ -12,6 +12,7 @@ export function ThoughtThreadFocus() {
     repostThought,
     onOpenPost,
     onOpenProfile,
+    onOpenArticle,
   } = useThoughtThreadContext()
 
   if (!post) return null
@@ -31,6 +32,7 @@ export function ThoughtThreadFocus() {
       currentUserId={currentUserId}
       onOpenProfile={onOpenProfile}
       onOpenPost={onOpenPost}
+      onOpenArticle={onOpenArticle}
       onLikeToggle={(id) => toggleLike(id)}
       onRepostToggle={(id) => repostThought(id)}
     />

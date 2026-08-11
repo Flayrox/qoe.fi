@@ -20,6 +20,7 @@ export interface ThoughtThreadRootProps {
   initialPost?: OptimisticThought | null
   onClose?: () => void
   onOpenProfile?: (username: string) => void
+  onOpenArticle?: (article: any) => void
   onInteractionUpdate?: (postId: string, update: { liked?: boolean; likesCount?: number; repliesCount?: number }) => void
   onLoginRequired?: () => void
   children: React.ReactNode
@@ -31,6 +32,7 @@ export function ThoughtThreadRoot({
   initialPost = null,
   onClose,
   onOpenProfile,
+  onOpenArticle,
   onInteractionUpdate,
   onLoginRequired,
   children,
@@ -345,6 +347,7 @@ export function ThoughtThreadRoot({
     onClose,
     onOpenProfile,
     onOpenPost: handleOpenPost,
+    onOpenArticle,
     onLoginRequired,
   }
 
