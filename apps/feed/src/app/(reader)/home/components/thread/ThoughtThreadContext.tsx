@@ -30,6 +30,7 @@ export interface ThoughtThreadContextValue {
   onClose?: () => void
   onOpenProfile?: (username: string) => void
   onOpenPost?: (targetPostId: string, authorUsername?: string) => void
+  onOpenArticle?: (article: any) => void
   onLoginRequired?: () => void
 }
 

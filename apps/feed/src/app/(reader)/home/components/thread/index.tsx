@@ -43,6 +43,7 @@ export function ThoughtThreadView({
   standalone = false,
   onClose,
   onOpenProfile,
+  onOpenArticle,
   onInteractionUpdate,
   onLoginRequired,
 }: {
@@ -52,6 +53,7 @@ export function ThoughtThreadView({
   standalone?: boolean
   onClose?: () => void
   onOpenProfile?: (username: string) => void
+  onOpenArticle?: (article: any) => void
   onInteractionUpdate?: (postId: string, update: { liked?: boolean; likesCount?: number; repliesCount?: number }) => void
   onLoginRequired?: () => void
 }) {
@@ -62,6 +64,7 @@ export function ThoughtThreadView({
       initialPost={initialPost}
       onClose={onClose}
       onOpenProfile={onOpenProfile}
+      onOpenArticle={onOpenArticle}
       onInteractionUpdate={onInteractionUpdate}
       onLoginRequired={onLoginRequired}
     >

@@ -210,14 +210,14 @@ export function ArticleAnnotatorView({ article, onClose }: ArticleAnnotatorViewP
       )}
 
       {onClose && (
-        <div className="lg:col-span-12 flex items-center justify-between pb-3 border-b border-border/40 mb-2">
+        <div className="lg:col-span-12 flex items-center justify-between pb-3 border-b border-border/40 mb-2 sticky top-14 z-30 bg-background/90 backdrop-blur-md px-2 py-2 rounded-xl">
           <button
             onClick={onClose}
             type="button"
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-foreground bg-muted/70 hover:bg-muted transition-colors cursor-pointer outline-none border border-border/50 shadow-2xs"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Retour au fil</span>
+            <ArrowLeft className="w-4 h-4 text-primary" />
+            <span className="whitespace-nowrap">Retour au fil</span>
           </button>
         </div>
       )}

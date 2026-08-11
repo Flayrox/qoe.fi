@@ -6,7 +6,7 @@ import { useThoughtThreadContext } from "./ThoughtThreadContext"
 import { ThoughtCard } from "@/components/social/ThoughtCard"
 
 export function ThoughtThreadParentContext() {
-  const { post, onOpenPost, onOpenProfile, currentUserId, toggleLike, repostThought } = useThoughtThreadContext()
+  const { post, onOpenPost, onOpenProfile, onOpenArticle, currentUserId, toggleLike, repostThought } = useThoughtThreadContext()
 
   if (!post || !post.parent) return null
 
@@ -38,6 +38,7 @@ export function ThoughtThreadParentContext() {
           currentUserId={currentUserId}
           onOpenPost={onOpenPost}
           onOpenProfile={onOpenProfile}
+          onOpenArticle={onOpenArticle}
           onLikeToggle={(id) => toggleLike(id)}
           onRepostToggle={(id) => repostThought(id)}
         />

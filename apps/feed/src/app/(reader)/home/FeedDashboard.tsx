@@ -10,7 +10,8 @@ import {
   toggleFollowCreatorHomeAction as toggleFollowCreatorHome, 
   toggleBookmarkArticleHomeAction as toggleBookmarkArticleHome, 
   toggleLikePostAction as toggleLikePost, 
-  toggleRepostPostAction as toggleRepostPost 
+  toggleRepostPostAction as toggleRepostPost,
+  getArticleThreadAction as getArticleThread
 } from "@qoe/api-client/actions/feed"
 
 import { ArticleCard, GuestFloatingBar, useAuthModal, MediaLightbox, HotkeyHelpModal, type AuthActionContext } from "@qoe/ui"
@@ -28,7 +29,7 @@ import {
 import { ComposerModal } from "./components/ComposerModal"
 import { FeedTabsHeader } from "./components/FeedTabsHeader"
 import { ThoughtThreadView } from "./components/ThoughtThreadView"
-import { ArticleAnnotatorView } from "@/components/social/ArticleAnnotatorView"
+import { ArticleReaderDrawer } from "@/components/social/ArticleReaderDrawer"
 import { useTranslate } from "@qoe/i18n"
 import { trackEvent } from "@/lib/analytics"
 import { routes } from "@qoe/config/routes"
@@ -364,13 +365,32 @@ export function FeedDashboard({
     }, 50)
   }
 
-  const handleOpenArticle = (article: Article) => {
+  const handleOpenArticle = async (article: any) => {
     const scroll = window.scrollY
     setSavedScrollPosition(scroll)
-    window.history.pushState({ articleSlug: article.slug, scroll }, "", routes.feed.article(article.slug))
-    setActiveArticle(article)
-    setActivePostId(null)
-    window.scrollTo({ top: 0, behavior: "smooth" })
+    const slug = article.slug || article.id
+    if (slug) {
+      window.history.pushState({ articleSlug: slug, scroll }, "", routes.feed.article(slug))
+    }
+
+    if (article && article.content && article.title && article.author) {
+      setActiveArticle(article)
+      setActivePostId(null)
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    } else if (slug) {
+      setActivePostId(null)
+      try {
+        const res = await getArticleThread(slug)
+        if (res.ok && res.data?.article) {
+          setActiveArticle(res.data.article)
+          window.scrollTo({ top: 0, behavior: "smooth" })
+        } else {
+          window.location.href = routes.feed.article(slug)
+        }
+      } catch {
+        window.location.href = routes.feed.article(slug)
+      }
+    }
   }
 
   const handleCloseArticle = () => {
@@ -502,20 +522,7 @@ export function FeedDashboard({
         {/* List of Stream Items */}
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-8">
           <AnimatePresence mode="popLayout">
-            {activeArticle ? (
-              <motion.div
-                key="expanded-article"
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1, ease: "easeOut" }}
-              >
-                <ArticleAnnotatorView
-                  article={activeArticle}
-                  onClose={handleCloseArticle}
-                />
-              </motion.div>
-            ) : activePostId ? (
+            {activePostId ? (
               <motion.div
                 key="expanded-post"
                 initial={{ opacity: 0, y: 4 }}
@@ -527,6 +534,7 @@ export function FeedDashboard({
                   postId={activePostId}
                   currentUserId={dbUser?.id || null}
                   onClose={handleClosePost}
+                  onOpenArticle={handleOpenArticle}
                   onOpenProfile={(username) => {
                     window.location.href = routes.feed.profile(username)
                   }}
@@ -611,6 +619,7 @@ export function FeedDashboard({
                                   variant="timeline"
                                   currentUserId={dbUser?.id || null}
                                   onOpenPost={handleOpenPost}
+                                  onOpenArticle={handleOpenArticle}
                                   onOpenProfile={(username) => {
                                     window.location.href = routes.feed.profile(username)
                                   }}
@@ -649,6 +658,12 @@ export function FeedDashboard({
           </AnimatePresence>
         </div>
       </motion.main>
+
+      <ArticleReaderDrawer
+        isOpen={!!activeArticle}
+        article={activeArticle}
+        onClose={handleCloseArticle}
+      />
 
       <ComposerModal
         isOpen={isComposerModalOpen}
