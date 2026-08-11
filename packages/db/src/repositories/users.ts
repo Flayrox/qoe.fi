@@ -100,4 +100,32 @@ export async function findPublicById(id: string) {
   });
 }
 
+/**
+ * 🔍 Recherche des utilisateurs par username ou nom pour l'autocomplétion des mentions @.
+ */
+export async function searchUsers(query: string, limit: number = 8) {
+  if (!query || !query.trim()) return [];
+  const q = query.trim().replace(/^@/, "");
+  return prisma.user.findMany({
+    where: {
+      isSuspended: false,
+      OR: [
+        { username: { contains: q, mode: "insensitive" } },
+        { name: { contains: q, mode: "insensitive" } },
+        { subdomain: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    select: {
+      id: true,
+      name: true,
+      username: true,
+      subdomain: true,
+      logoUrl: true,
+      isCertified: true,
+    },
+    take: limit,
+    orderBy: { isCertified: "desc" },
+  });
+}
+
 export type { User };

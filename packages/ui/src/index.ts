@@ -30,7 +30,7 @@ export {
 } from "./auth/AuthModalContext";
 export { GlobalAuthModalProvider } from "./auth/GlobalAuthModalProvider";
 export { ArticleCard } from "./ArticleCard";
-export { ThoughtCard } from "./ThoughtCard";
+export * from "./social";
 export {
   Sidebar,
   SidebarHeader,
@@ -45,4 +45,6 @@ export {
 export { useOptimisticMutation, type UseOptimisticMutationOptions } from "./hooks/useOptimisticMutation";
 export { TextSelectionPopover, type SelectionState, type TextSelectionPopoverProps } from "./TextSelectionPopover";
 export * from "./cmdk";
+export * from "./ui/dialog";
+export * from "./ui/hover-card";
 

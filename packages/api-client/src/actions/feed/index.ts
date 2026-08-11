@@ -1,6 +1,6 @@
 "use server";
 
-import { follows, bookmarks, posts, articles } from "@qoe/db";
+import { follows, bookmarks, posts, articles, users } from "@qoe/db";
 import { createThoughtSchema, replyToPostSchema, createReportSchema } from "@qoe/config";
 import { createClient } from "@qoe/supabase/server";
 import { revalidatePath } from "next/cache";
@@ -574,3 +574,11 @@ export const updateProfileAction = safeAction<
   }
   return { user: updatedUser };
 });
+
+export const searchUsersAction = safeAction<string, { users: any[] }>(
+  async (query) => {
+    const list = await users.searchUsers(query);
+    return { users: list };
+  },
+  { requireAuth: false }
+);

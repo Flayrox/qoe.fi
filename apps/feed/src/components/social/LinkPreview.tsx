@@ -4,14 +4,16 @@ import React, { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Globe, FileText, Loader2, ArrowUpRight } from "lucide-react"
 import { cn } from "@qoe/utils"
+import { routes } from "@qoe/config/routes"
 
 
 interface LinkPreviewProps {
   urls: string[]
+  quotedExcerpt?: string
   onNavigate?: (target: { type: 'post' | 'article' | 'profile'; id: string; slug?: string }) => void
 }
 
-export function LinkPreview({ urls, onNavigate }: LinkPreviewProps) {
+export function LinkPreview({ urls, quotedExcerpt, onNavigate }: LinkPreviewProps) {
   const [preview, setPreview] = useState<any | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
 
@@ -120,10 +122,33 @@ export function LinkPreview({ urls, onNavigate }: LinkPreviewProps) {
     )
   }
 
-  // 2. Rendu d'un Article interne (Quoted Article)
+  // 2. Rendu d'un Article interne (Quoted Article - Apple Reader Highlight Style)
   if (preview.isInternal && preview.postType === "article") {
     const article = preview.data
-    const authorName = article.author.name || "Auteur"
+    const authorName = article.author?.name || article.author?.username || "Auteur"
+    const subdomain = article.author?.subdomain ? `${article.author.subdomain}.qoe.fi` : "qoe.fi"
+
+    const rawText = article.content ? article.content.replace(/<[^>]*>?/gm, "") : ""
+    const highlightTarget = quotedExcerpt || ""
+    
+    let beforeContext = ""
+    let highlightedText = ""
+    let afterContext = ""
+
+    if (highlightTarget && rawText.includes(highlightTarget)) {
+      const idx = rawText.indexOf(highlightTarget)
+      beforeContext = rawText.substring(Math.max(0, idx - 80), idx)
+      if (idx - 80 > 0) beforeContext = "..." + beforeContext
+      highlightedText = highlightTarget
+      afterContext = rawText.substring(idx + highlightTarget.length, idx + highlightTarget.length + 80)
+      if (idx + highlightTarget.length + 80 < rawText.length) afterContext += "..."
+    } else if (highlightTarget) {
+      highlightedText = highlightTarget
+      afterContext = rawText ? " ... " + rawText.substring(0, 100) + "..." : ""
+    } else {
+      highlightedText = rawText.substring(0, 140)
+      afterContext = rawText.length > 140 ? "..." : ""
+    }
 
     return (
       <div
@@ -132,23 +157,61 @@ export function LinkPreview({ urls, onNavigate }: LinkPreviewProps) {
           e.stopPropagation()
           if (onNavigate) {
             onNavigate({ type: 'article', id: article.id, slug: article.slug })
+          } else {
+            const articleUrl = routes.tenant.article(article.author?.subdomain || "demo", article.slug)
+            window.open(articleUrl, "_blank")
           }
         }}
-        className="group/quote border border-[var(--border-default)] rounded-[var(--radius-card)] p-4 bg-[var(--surface-0)] hover:bg-[var(--surface-2)] transition-all duration-300 cursor-pointer flex flex-col gap-1.5 mt-2"
+        className="group/quote relative overflow-hidden border border-border/50 hover:border-brand/40 rounded-2xl p-4 bg-muted/20 hover:bg-muted/40 transition-all duration-300 cursor-pointer flex flex-col gap-3 mt-3 shadow-xs font-sans"
       >
-        <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-[var(--qoe-vermillion)]">
-          <FileText className="w-3.5 h-3.5" />
-          <span>Article</span>
+        {/* Left Accent Bar */}
+        <div className="absolute top-0 left-0 w-1 h-full bg-brand/80 rounded-l-2xl" />
+
+        {/* Card Header: Tenant & Badge */}
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5 font-semibold text-muted-foreground">
+            <FileText className="w-3.5 h-3.5 text-brand shrink-0" />
+            <span className="font-bold text-foreground truncate">{subdomain}</span>
+            <span className="opacity-40">/</span>
+            <span className="bg-brand/10 text-brand text-[10px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
+              Article
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground group-hover/quote:text-brand transition-colors shrink-0">
+            <span>Ouvrir</span>
+            <ArrowUpRight className="w-3 h-3" />
+          </div>
         </div>
-        <h4 className="text-[14px] font-serif font-bold text-[var(--text-primary)] leading-snug group-hover/quote:text-[var(--qoe-vermillion)] transition-colors">
+
+        {/* Article Title */}
+        <h4 className="text-base font-serif font-bold text-foreground leading-snug group-hover/quote:text-brand transition-colors">
           {article.title}
         </h4>
-        <p className="text-[12px] text-[var(--text-tertiary)] font-serif leading-relaxed line-clamp-2">
-          {article.content.replace(/<[^>]*>?/gm, "").substring(0, 160)}…
-        </p>
-        <span className="text-[9px] text-[var(--text-tertiary)] mt-1 block">
-          Par {authorName}
-        </span>
+
+        {/* Excerpt Container with Highlight & Context */}
+        <div className="relative bg-card/90 border border-border/40 rounded-xl p-3.5 space-y-1">
+          <span className="absolute -top-2 right-3 font-serif text-4xl text-muted-foreground/15 select-none pointer-events-none">“</span>
+          <p className="text-xs sm:text-sm font-serif leading-relaxed text-foreground">
+            {beforeContext && <span className="text-muted-foreground/75">{beforeContext}</span>}
+            <mark className="bg-amber-200/80 dark:bg-amber-500/30 text-amber-950 dark:text-amber-100 px-1.5 py-0.5 rounded font-medium shadow-2xs mx-0.5">
+              {highlightedText}
+            </mark>
+            {afterContext && <span className="text-muted-foreground/75">{afterContext}</span>}
+          </p>
+        </div>
+
+        {/* Footer Credit & Action */}
+        <div className="flex items-center justify-between text-xs pt-1 border-t border-border/30">
+          <div className="text-muted-foreground">
+            Par <span className="font-semibold text-foreground">{authorName}</span>
+          </div>
+
+          <div className="flex items-center gap-1 font-bold text-xs text-brand group-hover/quote:translate-x-0.5 transition-transform">
+            <span>Lire la suite</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </div>
+        </div>
       </div>
     )
   }
