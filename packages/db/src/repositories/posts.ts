@@ -734,7 +734,66 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
     return node;
   };
 
-  return processPostNode(thread);
+  const processed = processPostNode(thread);
+  if (processed) {
+    let isFollowingAuthor = false;
+    let knownLikers: any[] = [];
+    let knownLikersTotal = 0;
+
+    if (currentUserId) {
+      if (processed.authorId) {
+        const followCheck = await prisma.follows.findFirst({
+          where: {
+            readerId: currentUserId,
+            creatorId: processed.authorId,
+          },
+        });
+        isFollowingAuthor = !!followCheck;
+      }
+
+      const follows = await prisma.follows.findMany({
+        where: { readerId: currentUserId },
+        select: { creatorId: true },
+      });
+      const creatorIds = follows.map((f: any) => f.creatorId);
+
+      if (creatorIds.length > 0) {
+        const canonicalId = processed.repostId || processed.id;
+        const likersRaw = await prisma.like.findMany({
+          where: {
+            postId: canonicalId,
+            userId: { in: creatorIds },
+          },
+          take: 5,
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                subdomain: true,
+                logoUrl: true,
+              },
+            },
+          },
+        });
+
+        knownLikers = likersRaw.map((l: any) => l.user).filter(Boolean);
+        knownLikersTotal = await prisma.like.count({
+          where: {
+            postId: canonicalId,
+            userId: { in: creatorIds },
+          },
+        });
+      }
+    }
+
+    processed.isFollowingAuthor = isFollowingAuthor;
+    processed.knownLikers = knownLikers;
+    processed.knownLikersTotal = knownLikersTotal;
+  }
+
+  return processed;
 }
 
 

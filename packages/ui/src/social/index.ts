@@ -9,5 +9,6 @@ export * from "./ProfileHoverCard"
 export * from "./MediaLightbox"
 export * from "./ReportModal"
 export * from "./usePostShadow"
+export * from "./KnownLikers"
 
 
