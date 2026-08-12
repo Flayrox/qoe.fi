@@ -3,21 +3,18 @@
 import React from "react"
 import { MessageSquare } from "lucide-react"
 import { ThoughtCard } from "@/components/social/ThoughtCard"
-import type { FeedSlice } from "@qoe/api-client/actions/feed"
+import type { FeedSlice } from "@qoe/db/repositories/posts"
 
 export interface ThoughtFeedSliceProps {
-  slice: FeedSlice | any
+  slice: FeedSlice
   currentUserId?: string | null
-  onOpenPost?: (postId: string, authorHandle?: string) => void
-  onOpenProfile?: (handle: string) => void
+  onOpenPost?: (postId: string) => void
+  onOpenProfile?: (userId: string) => void
   onOpenArticle?: (article: { id: string; slug: string; title: string }) => void
   onOpenMedia?: (url: string) => void
-  onLikeToggle?: (id: string) => void
-  onRepostToggle?: (id: string) => void
-  onReportClick?: (postId: string) => void
-  onPinToggle?: (postId: string) => void
-  onHideReplyToggle?: (postId: string) => void
-  onBlockUserToggle?: (authorId: string) => void
+  onLikeToggle?: (postId: string) => void
+  onRepostToggle?: (postId: string) => void
+  onPinToggle?: (postId: string, isPinned: boolean) => void
 }
 
 export function ThoughtFeedSlice({
@@ -29,17 +26,24 @@ export function ThoughtFeedSlice({
   onOpenMedia,
   onLikeToggle,
   onRepostToggle,
-  onReportClick,
   onPinToggle,
-  onHideReplyToggle,
-  onBlockUserToggle,
 }: ThoughtFeedSliceProps) {
-  // If no parent/root post in slice, render as standalone post card
-  if (!slice || (!slice.parentPost && !slice.rootPost)) {
-    const post = slice?.targetPost || slice
+  const { rootPost, parentPost, targetPost, isIncompleteThread, hiddenIntermediateCount } = slice
+
+  const handleOpenRootThread = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const targetId = rootPost?.id || parentPost?.id || targetPost.id
+    if (onOpenPost) {
+      onOpenPost(targetId)
+    }
+  }
+
+  // Case 1: Standalone post (no parent or root)
+  if (!parentPost && !rootPost) {
     return (
       <ThoughtCard
-        post={post}
+        post={targetPost}
         variant="timeline"
         currentUserId={currentUserId}
         onOpenPost={onOpenPost}
@@ -48,23 +52,19 @@ export function ThoughtFeedSlice({
         onOpenMedia={onOpenMedia}
         onLikeToggle={onLikeToggle}
         onRepostToggle={onRepostToggle}
-        onReportClick={onReportClick ? () => onReportClick(post.id) : undefined}
-        onPinToggle={onPinToggle ? () => onPinToggle(post.id) : undefined}
-        onHideReplyToggle={onHideReplyToggle ? () => onHideReplyToggle(post.id) : undefined}
-        onBlockUserToggle={onBlockUserToggle ? () => onBlockUserToggle(post.author?.id) : undefined}
+        onPinToggle={onPinToggle}
       />
     )
   }
 
-  const { rootPost, parentPost, targetPost, isIncompleteThread } = slice
-
+  // Case 2: Multi-post Feed Slice (Root -> [Dotted Divider] -> Parent -> Target)
   return (
-    <div className="border-b border-border/40 divide-y-0 font-sans">
-      {/* 1. Root Post */}
+    <div className="border-b border-border/40 font-sans">
+      {/* 1. Root Post (if distinct from parent) */}
       {rootPost && (
         <ThoughtCard
           post={rootPost}
-          variant="parent"
+          variant="timeline"
           isThreadParent={true}
           currentUserId={currentUserId}
           onOpenPost={onOpenPost}
@@ -73,32 +73,36 @@ export function ThoughtFeedSlice({
           onOpenMedia={onOpenMedia}
           onLikeToggle={onLikeToggle}
           onRepostToggle={onRepostToggle}
+          onPinToggle={onPinToggle}
+          className="border-none"
         />
       )}
 
-      {/* 2. Incomplete Thread Divider ("Afficher plus de réponses") */}
-      {isIncompleteThread && rootPost && parentPost && (
+      {/* 2. Dotted Thread Divider for Incomplete Threads */}
+      {isIncompleteThread && (
         <div
-          className="relative flex items-center gap-3 px-4 py-2 bg-card/20 text-xs text-brand font-medium hover:bg-muted/30 transition-colors cursor-pointer"
-          onClick={() => onOpenPost && onOpenPost(rootPost.id)}
+          onClick={handleOpenRootThread}
+          className="flex items-center gap-3 px-3.5 sm:px-4 py-1 hover:bg-muted/30 cursor-pointer transition-colors"
         >
-          <div className="w-10 sm:w-[42px] flex justify-center shrink-0">
-            <div className="w-[2px] h-full bg-border/40 border-dashed border-l border-border/60" />
+          <div className="flex flex-col items-center shrink-0 w-10">
+            <div className="w-[2px] border-l-2 border-dashed border-border/80 h-7" />
           </div>
-          <div className="flex items-center gap-1.5 py-1">
-            <MessageSquare className="w-3.5 h-3.5 text-brand" />
-            <span>Afficher plus de réponses</span>
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline py-1">
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>
+              Afficher la suite du fil ({hiddenIntermediateCount || 1} message{hiddenIntermediateCount && hiddenIntermediateCount > 1 ? "s" : ""} de plus)
+            </span>
           </div>
         </div>
       )}
 
-      {/* 3. Direct Parent Post */}
-      {parentPost && parentPost.id !== rootPost?.id && (
+      {/* 3. Immediate Parent Post */}
+      {parentPost && (
         <ThoughtCard
           post={parentPost}
-          variant="parent"
-          isThreadParent={true}
+          variant="timeline"
           isThreadChild={Boolean(rootPost)}
+          isThreadParent={true}
           currentUserId={currentUserId}
           onOpenPost={onOpenPost}
           onOpenProfile={onOpenProfile}
@@ -106,29 +110,27 @@ export function ThoughtFeedSlice({
           onOpenMedia={onOpenMedia}
           onLikeToggle={onLikeToggle}
           onRepostToggle={onRepostToggle}
+          onPinToggle={onPinToggle}
+          className="border-none"
         />
       )}
 
-      {/* 4. Target Reply Post */}
-      {targetPost && (
-        <ThoughtCard
-          post={targetPost}
-          variant="reply"
-          isThreadChild={true}
-          isThreadLastChild={true}
-          currentUserId={currentUserId}
-          onOpenPost={onOpenPost}
-          onOpenProfile={onOpenProfile}
-          onOpenArticle={onOpenArticle}
-          onOpenMedia={onOpenMedia}
-          onLikeToggle={onLikeToggle}
-          onRepostToggle={onRepostToggle}
-          onReportClick={onReportClick ? () => onReportClick(targetPost.id) : undefined}
-          onPinToggle={onPinToggle ? () => onPinToggle(targetPost.id) : undefined}
-          onHideReplyToggle={onHideReplyToggle ? () => onHideReplyToggle(targetPost.id) : undefined}
-          onBlockUserToggle={onBlockUserToggle ? () => onBlockUserToggle(targetPost.author?.id) : undefined}
-        />
-      )}
+      {/* 4. Target Post (Reply) */}
+      <ThoughtCard
+        post={targetPost}
+        variant="timeline"
+        isThreadChild={Boolean(parentPost || rootPost)}
+        isThreadLastChild={true}
+        currentUserId={currentUserId}
+        onOpenPost={onOpenPost}
+        onOpenProfile={onOpenProfile}
+        onOpenArticle={onOpenArticle}
+        onOpenMedia={onOpenMedia}
+        onLikeToggle={onLikeToggle}
+        onRepostToggle={onRepostToggle}
+        onPinToggle={onPinToggle}
+        className="border-none"
+      />
     </div>
   )
 }
