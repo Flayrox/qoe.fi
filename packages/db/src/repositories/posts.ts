@@ -842,6 +842,8 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
     return node;
   };
 
+  if (!thread) return null;
+
   if (thread.parent) {
     thread.parent = await fetchParentAncestors(thread.parent);
   }

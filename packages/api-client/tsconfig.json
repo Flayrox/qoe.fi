@@ -4,6 +4,8 @@
     "baseUrl": ".",
     "noEmit": true,
     "paths": {
+      "@qoe/api-client": ["./src/index.ts"],
+      "@qoe/api-client/*": ["./src/*"],
       "@qoe/db": ["../db/src/index.ts"],
       "@qoe/db/client": ["../db/src/client.ts"],
       "@qoe/db/*": ["../db/src/*"],
