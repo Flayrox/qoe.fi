@@ -633,6 +633,29 @@ export function ThoughtComposer({
 
       if (res.ok && res.data?.post) {
         const post = res.data.post
+
+        if (threadItems.length > 0) {
+          let currentParentId = post.id
+          for (const threadItem of threadItems) {
+            if (threadItem.text.trim()) {
+              try {
+                const threadRes = await createThoughtAction({
+                  content: threadItem.text.trim(),
+                  parentId: currentParentId,
+                  visibility,
+                  replyRestriction,
+                })
+                if (threadRes.ok && threadRes.data?.post) {
+                  currentParentId = threadRes.data.post.id
+                }
+              } catch (err) {
+                console.error("Error creating sequential thread post:", err)
+              }
+            }
+          }
+          setThreadItems([])
+        }
+
         
         images.forEach(img => {
           if (img.url.startsWith("blob:")) {
@@ -867,8 +890,36 @@ export function ThoughtComposer({
             "bg-transparent border-0 p-0 focus:ring-0 leading-relaxed",
             isComposerExpanded ? "" : "h-12"
           )}
-          style={{ height: isComposerExpanded ? "auto" : "48px" }}
-        />
+        {/* Multi-Post Thread Secondary Textareas */}
+        {threadItems.length > 0 && (
+          <div className="space-y-3 pt-2 pl-4 border-l-2 border-primary/40 my-2">
+            {threadItems.map((item, idx) => (
+              <div key={item.id} className="flex gap-2.5 items-start bg-muted/20 p-2.5 rounded-xl border border-border/40">
+                <AuthorAvatar user={dbUser} size="xs" showBadge={false} />
+                <div className="flex-1 min-w-0 flex items-center gap-2">
+                  <textarea
+                    placeholder={`Pensée suivante dans le fil (${idx + 2})...`}
+                    value={item.text}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setThreadItems((prev) => prev.map((t) => (t.id === item.id ? { ...t, text: val } : t)))
+                    }}
+                    className="w-full font-sans text-xs focus:outline-none resize-none bg-transparent border-0 p-0 focus:ring-0 leading-relaxed text-foreground placeholder:text-muted-foreground/60 min-h-[32px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setThreadItems((prev) => prev.filter((t) => t.id !== item.id))}
+                    className="p-1 text-muted-foreground hover:text-destructive cursor-pointer transition-colors"
+                    title="Retirer cette pensée"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
 
         {/* Universal Typeahead Suggestions Dropdown */}
         {mentionSuggestions.length > 0 && (
