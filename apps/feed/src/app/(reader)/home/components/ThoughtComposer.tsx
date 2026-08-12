@@ -91,6 +91,7 @@ export function ThoughtComposer({
   const [isComposerExpanded, setIsComposerExpanded] = useState<boolean>(false)
   const [postText, setPostText] = useState<string>("")
   const [images, setImages] = useState<ComposerImage[]>([])
+  const [threadItems, setThreadItems] = useState<Array<{ id: string; text: string }>>([])
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
 
