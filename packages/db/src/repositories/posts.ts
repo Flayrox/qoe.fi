@@ -77,7 +77,7 @@ async function buildFeedSlices(rawPosts: any[], currentUserId?: string): Promise
     }
   }
 
-  return rawPosts.map((p) => {
+  const allSlices = rawPosts.map((p) => {
     const targetPost = { ...p, poll: formatPollData(p.poll, currentUserId) };
     const parentPost = p.parentId ? extraPosts.get(p.parentId) : undefined;
     const rootPost = p.rootId && p.rootId !== p.parentId ? extraPosts.get(p.rootId) : undefined;
@@ -100,7 +100,19 @@ async function buildFeedSlices(rawPosts: any[], currentUserId?: string): Promise
       hiddenIntermediateCount,
     };
   });
+
+  // 🧵 Bluesky dedupThreads: deduplicate by thread root to render 1 slice per conversation
+  const seenRootIds = new Set<string>();
+  return allSlices.filter((slice) => {
+    const conversationRootId = slice.rootPost?.id || slice.targetPost.rootId || slice.parentPost?.id || slice.targetPost.id;
+    if (seenRootIds.has(conversationRootId)) {
+      return false; // Discard redundant slice for a conversation thread already represented
+    }
+    seenRootIds.add(conversationRootId);
+    return true;
+  });
 }
+
 
 
 /**
