@@ -659,7 +659,8 @@ export function FeedDashboard({
                           estimateSize={180}
                           renderItem={(article, idx) => {
                             const isBookmarked = isArticleBookmarked(article.id)
-                            const isFollowed = isCreatorFollowed(article.author.id)
+                            const authorId = (article as any).author?.id || (article as any).targetPost?.author?.id
+                            const isFollowed = authorId ? isCreatorFollowed(authorId) : false
 
                             if (!article.title) {
                               const isSlice = "targetPost" in article
