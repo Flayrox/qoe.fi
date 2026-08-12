@@ -532,6 +532,14 @@ export async function createThoughtThread(
         },
       });
 
+      // Si ce post est une réponse, on incrémente le compteur de réponses du parent
+      if (lastPostId) {
+        await tx.thought.update({
+          where: { id: lastPostId },
+          data: { replyCount: { increment: 1 } },
+        });
+      }
+
       // Gestion du sondage
       let createdPoll: any = null;
       if (node.poll && Array.isArray(node.poll.options)) {
