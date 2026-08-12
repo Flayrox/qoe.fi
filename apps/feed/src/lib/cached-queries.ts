@@ -3,7 +3,7 @@ import { unstable_cache } from "next/cache"
 import { prisma } from "@qoe/db/client"
 
 export const getRequestDbUser = cache(async (id: string) => {
-  return await prisma.user.findUnique({
+  let dbUser = await prisma.user.findUnique({
     where: { id },
     select: {
       id: true,
@@ -16,6 +16,40 @@ export const getRequestDbUser = cache(async (id: string) => {
       onboardingText: true
     }
   })
+
+  if (!dbUser && id) {
+    try {
+      const { createClient } = await import("@qoe/supabase/server")
+      const supabase = await createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (authUser?.email && authUser.id === id) {
+        const matchByEmail = await prisma.user.findFirst({
+          where: { email: authUser.email },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            logoUrl: true,
+            username: true,
+            walletBalanceCents: true,
+            onboardingText: true
+          }
+        })
+        if (matchByEmail) {
+          await prisma.user.update({
+            where: { id: matchByEmail.id },
+            data: { id: authUser.id }
+          })
+          dbUser = { ...matchByEmail, id: authUser.id }
+        }
+      }
+    } catch {
+      // Ignore if server auth context not available
+    }
+  }
+
+  return dbUser
 })
 
 export const getCachedSystemConfig = unstable_cache(

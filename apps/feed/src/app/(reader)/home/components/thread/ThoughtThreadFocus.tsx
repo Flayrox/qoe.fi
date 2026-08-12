@@ -1,6 +1,8 @@
 "use client"
 
 import React from "react"
+import { pinPostAction, unpinPostAction } from "@qoe/api-client/actions/feed"
+import { toast } from "sonner"
 import { ThoughtCard } from "@/components/social/ThoughtCard"
 import { useThoughtThreadContext } from "./ThoughtThreadContext"
 
@@ -10,6 +12,7 @@ export function ThoughtThreadFocus() {
     currentUserId,
     toggleLike,
     repostThought,
+    setLightboxImage,
     onOpenPost,
     onOpenProfile,
     onOpenArticle,
@@ -25,6 +28,26 @@ export function ThoughtThreadFocus() {
     )
   }
 
+  const handlePinToggle = async () => {
+    if (post.isPinned) {
+      const res = await unpinPostAction(post.id)
+      if (res.ok) {
+        toast.success("Pensée détachée du profil.")
+        post.isPinned = false
+      } else {
+        toast.error("Erreur lors de la mise à jour.")
+      }
+    } else {
+      const res = await pinPostAction(post.id)
+      if (res.ok) {
+        toast.success("Pensée épinglée sur le profil.")
+        post.isPinned = true
+      } else {
+        toast.error("Erreur lors de l'épinglage.")
+      }
+    }
+  }
+
   return (
     <ThoughtCard
       post={post}
@@ -33,8 +56,10 @@ export function ThoughtThreadFocus() {
       onOpenProfile={onOpenProfile}
       onOpenPost={onOpenPost}
       onOpenArticle={onOpenArticle}
-      onLikeToggle={(id) => toggleLike(id)}
-      onRepostToggle={(id) => repostThought(id)}
+      onOpenMedia={(url) => setLightboxImage(url)}
+      onLikeToggle={() => toggleLike(post.id)}
+      onRepostToggle={() => repostThought(post.id)}
+      onPinToggle={handlePinToggle}
     />
   )
 }

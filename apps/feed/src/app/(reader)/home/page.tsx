@@ -9,6 +9,7 @@ import {
   getCachedPromos, 
   getCachedFeaturedArticle 
 } from "@/lib/cached-queries"
+import { formatPollData } from "@qoe/db/repositories/posts"
 import { FeedDashboard } from "./FeedDashboard"
 
 type PostWithDetails = Prisma.ThoughtGetPayload<{
@@ -59,6 +60,15 @@ const getPostIncludeSelect = (userId?: string) => ({
   },
   likes: userId ? { where: { userId }, select: { userId: true } } : false,
   reposts: userId ? { where: { authorId: userId, deletedAt: null }, select: { id: true, authorId: true, content: true } } : false,
+  poll: {
+    include: {
+      options: {
+        orderBy: { order: "asc" as const },
+        include: { _count: { select: { votes: true } } },
+      },
+      votes: { select: { optionId: true, userId: true } },
+    },
+  },
   _count: { select: { likes: true, replies: true, reposts: true } }
 })
 
@@ -132,7 +142,8 @@ export default async function ReaderHomePage() {
       repliesCount,
       repostsCount,
       liked,
-      reposted
+      reposted,
+      poll: canonicalPost.poll ? formatPollData(canonicalPost.poll, user?.id) : post.poll ? formatPollData(post.poll, user?.id) : null
     }
   }
 

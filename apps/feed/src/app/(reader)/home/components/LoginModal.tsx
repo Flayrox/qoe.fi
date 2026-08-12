@@ -159,11 +159,11 @@ export function LoginModal({ isOpen, onClose, initialMode = "login", actionConte
 
           {/* Modal Container — Full Bento Plateau Layout */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 15 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            initial={{ opacity: 0, scale: 0.82, y: 15 }}
+            animate={{ opacity: 1, scale: 0.88, y: 0 }}
+            exit={{ opacity: 0, scale: 0.82, y: 15 }}
             transition={springs.modal}
-            className="relative z-10 w-full max-w-5xl mx-auto my-auto"
+            className="relative z-10 w-full max-w-5xl mx-auto my-auto origin-center"
           >
             {/* Floating Close Button */}
             {!loading && (
@@ -176,7 +176,7 @@ export function LoginModal({ isOpen, onClose, initialMode = "login", actionConte
               </button>
             )}
 
-            <BentoPlateau className="md:h-[600px] shadow-2xl rounded-3xl overflow-hidden border border-border/50">
+            <BentoPlateau className="md:h-[560px] shadow-2xl rounded-3xl overflow-hidden border border-border/50">
               {/* Auth Side (Left) */}
               <BentoItem 
                 active={true} 

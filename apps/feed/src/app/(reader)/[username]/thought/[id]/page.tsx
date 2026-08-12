@@ -1,5 +1,6 @@
 import { createClient } from "@qoe/supabase/server"
 import { posts } from "@qoe/db"
+import { getRequestDbUser } from "@/lib/cached-queries"
 import { notFound, redirect } from "next/navigation"
 import type { Metadata } from "next"
 import { ReaderPageLayout } from "@/components/layout/ReaderPageLayout"
@@ -55,7 +56,11 @@ export default async function ThoughtPage({ params }: ThoughtPageProps) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const post = await posts.findThreadById(postId, user?.id)
+  const [post, dbUser] = await Promise.all([
+    posts.findThreadById(postId, user?.id),
+    user ? getRequestDbUser(user.id) : null,
+  ])
+
   if (!post) {
     notFound()
   }
@@ -79,6 +84,7 @@ export default async function ThoughtPage({ params }: ThoughtPageProps) {
           <ThoughtThreadView
             postId={postId}
             currentUserId={user?.id || null}
+            dbUser={dbUser}
             initialPost={post}
             standalone={true}
           />

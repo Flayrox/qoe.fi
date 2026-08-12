@@ -2,7 +2,7 @@
 
 import React from "react"
 import { cn } from "@qoe/utils"
-import { MoreHorizontal, Pin, Flag } from "lucide-react"
+import { MoreHorizontal, Pin, Flag, EyeOff, Eye, Ban } from "lucide-react"
 import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover"
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "../ui/hover-card"
 import { ProfileHoverCard } from "./ProfileHoverCard"
@@ -24,9 +24,14 @@ export interface ThoughtHeaderProps {
   isPinned?: boolean
   isFocus?: boolean
   currentUserId?: string | null
+  canHideReply?: boolean
+  isHiddenByAuthor?: boolean
+  isBlocked?: boolean
   onOpenProfile?: (username: string) => void
   onPinToggle?: (e: React.MouseEvent) => void
   onReportClick?: (e: React.MouseEvent) => void
+  onHideReplyToggle?: (e: React.MouseEvent) => void
+  onBlockUserToggle?: (e: React.MouseEvent) => void
   className?: string
 }
 
@@ -36,9 +41,14 @@ export function ThoughtHeader({
   isPinned,
   isFocus = false,
   currentUserId,
+  canHideReply,
+  isHiddenByAuthor,
+  isBlocked,
   onOpenProfile,
   onPinToggle,
   onReportClick,
+  onHideReplyToggle,
+  onBlockUserToggle,
   className,
 }: ThoughtHeaderProps) {
   const [showPopover, setShowPopover] = React.useState<boolean>(false)
@@ -102,7 +112,7 @@ export function ThoughtHeader({
             </button>
           }
         />
-        <PopoverContent align="end" className="w-44 p-1.5 space-y-0.5 bg-popover border border-border/40 rounded-xl shadow-lg z-50 font-sans">
+        <PopoverContent align="end" className="w-48 p-1.5 space-y-0.5 bg-popover border border-border/40 rounded-xl shadow-lg z-50 font-sans">
           {currentUserId === author.id && onPinToggle && (
             <button
               type="button"
@@ -116,6 +126,35 @@ export function ThoughtHeader({
               <span>{isPinned ? "Désépingler" : "Épingler"}</span>
             </button>
           )}
+
+          {canHideReply && onHideReplyToggle && (
+            <button
+              type="button"
+              onClick={(e) => {
+                setShowPopover(false)
+                onHideReplyToggle(e)
+              }}
+              className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer font-medium"
+            >
+              {isHiddenByAuthor ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              <span>{isHiddenByAuthor ? "Afficher cette réponse" : "Masquer cette réponse"}</span>
+            </button>
+          )}
+
+          {currentUserId !== author.id && onBlockUserToggle && (
+            <button
+              type="button"
+              onClick={(e) => {
+                setShowPopover(false)
+                onBlockUserToggle(e)
+              }}
+              className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-rose-500 hover:bg-rose-500/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
+            >
+              <Ban className="w-3.5 h-3.5" />
+              <span>{isBlocked ? "Débloquer" : "Bloquer"} @{authorHandle}</span>
+            </button>
+          )}
+
           {onReportClick && (
             <button
               type="button"
