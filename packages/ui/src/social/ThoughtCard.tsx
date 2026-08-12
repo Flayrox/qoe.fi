@@ -386,30 +386,37 @@ export function ThoughtCard({
               {new Date(displayCreatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
             </div>
           )}
+          {/* Detailed stats & KnownLikers in Focus mode */}
+          {isFocus && ((post.repostsCount ?? 0) > 0 || (post.likesCount ?? 0) > 0 || (knownLikers && knownLikers.length > 0)) && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5 px-1 border-b border-border/40 text-xs text-muted-foreground font-sans">
+              <div className="flex items-center gap-4">
+                {(post.repostsCount ?? 0) > 0 && (
+                  <span>
+                    <strong className="font-semibold text-foreground">{post.repostsCount}</strong> repost{ (post.repostsCount ?? 0) > 1 ? "s" : "" }
+                  </span>
+                )}
+                {(post.likesCount ?? 0) > 0 && (
+                  <span>
+                    <strong className="font-semibold text-foreground">{post.likesCount}</strong> j'aime
+                  </span>
+                )}
+              </div>
 
-          {/* Detailed stats in Focus mode */}
-          {isFocus && (post.repostsCount !== undefined || post.likesCount !== undefined) && (
-            <div className="flex gap-4 py-2.5 px-1 border-b border-border/40 text-xs text-muted-foreground font-sans">
-              {(post.repostsCount ?? 0) > 0 && (
-                <span>
-                  <strong className="font-semibold text-foreground">{post.repostsCount}</strong> repost{ (post.repostsCount ?? 0) > 1 ? "s" : "" }
-                </span>
+              {/* Dot Separator if there are both stats and known likers */}
+              {((post.repostsCount ?? 0) > 0 || (post.likesCount ?? 0) > 0) && knownLikers && knownLikers.length > 0 && (
+                <span className="text-muted-foreground/30 font-sans select-none shrink-0">•</span>
               )}
-              {(post.likesCount ?? 0) > 0 && (
-                <span>
-                  <strong className="font-semibold text-foreground">{post.likesCount}</strong> j'aime
-                </span>
+
+              {knownLikers && knownLikers.length > 0 && (
+                <KnownLikers
+                  likers={knownLikers}
+                  totalCount={knownLikersTotal ?? knownLikers.length}
+                  onOpenProfile={onOpenProfile}
+                  variant="inline"
+                  className="shrink-0"
+                />
               )}
             </div>
-          )}
-
-          {/* Known Likers Social Proof Facepile */}
-          {isFocus && knownLikers && knownLikers.length > 0 && (
-            <KnownLikers
-              likers={knownLikers}
-              totalCount={knownLikersTotal ?? knownLikers.length}
-              onOpenProfile={onOpenProfile}
-            />
           )}
 
           {/* Centralized Action Bar */}
