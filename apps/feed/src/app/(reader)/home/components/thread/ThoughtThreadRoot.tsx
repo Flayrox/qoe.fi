@@ -57,11 +57,11 @@ export function ThoughtThreadRoot({
       const res = await getPostThread(postId)
       if (res.ok && res.data?.post) {
         const postData = res.data.post
-        const userHasLiked = postData.likes?.some((l: any) => l.userId === currentUserId)
+        const userHasLiked = typeof postData.liked === "boolean" ? postData.liked : postData.likes?.some((l: any) => l.userId === currentUserId)
         setPost({
           ...postData,
           liked: userHasLiked,
-          likesCount: postData.likes?.length || 0,
+          likesCount: typeof postData.likesCount === "number" ? postData.likesCount : (postData.likes?.length || 0),
         })
       } else {
         setPost(null)
@@ -97,10 +97,11 @@ export function ThoughtThreadRoot({
     getPostThread(targetPostId).then(res => {
       if (res.ok && res.data?.post) {
         const p = res.data.post
+        const userHasLiked = typeof p.liked === "boolean" ? p.liked : p.likes?.some((l: any) => l.userId === currentUserId)
         setPost({
           ...p,
-          liked: p.likes?.some((l: any) => l.userId === currentUserId),
-          likesCount: p.likes?.length || 0,
+          liked: userHasLiked,
+          likesCount: typeof p.likesCount === "number" ? p.likesCount : (p.likes?.length || 0),
         })
       }
       setLoading(false)
