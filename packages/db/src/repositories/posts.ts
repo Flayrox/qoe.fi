@@ -14,11 +14,23 @@ export interface FeedSlice {
   isIncompleteThread: boolean;
 }
 
+function findRootFromParents(startPost: any, extraPosts: Map<string, any>): any {
+  if (!startPost || !startPost.parentId) return undefined;
+  let curr = extraPosts.get(startPost.parentId);
+  let depth = 0;
+  while (curr && curr.parentId && depth < 10) {
+    const parent = extraPosts.get(curr.parentId);
+    if (!parent) break;
+    curr = parent;
+    depth++;
+  }
+  return curr;
+}
+
 async function buildFeedSlices(rawPosts: any[], currentUserId?: string): Promise<FeedSlice[]> {
   const missingIds = new Set<string>();
   for (const p of rawPosts) {
     if (p.parentId) missingIds.add(p.parentId);
-    if (p.rootId && p.rootId !== p.parentId) missingIds.add(p.rootId);
   }
 
   const extraPosts = new Map<string, any>();
@@ -74,7 +86,6 @@ async function buildFeedSlices(rawPosts: any[], currentUserId?: string): Promise
         poll: formatPollData(e.poll, currentUserId),
       });
       if (e.parentId) missingIds.add(e.parentId);
-      if (e.rootId) missingIds.add(e.rootId);
     }
 
     const secondaryMissing = Array.from(missingIds).filter((id) => !extraPosts.has(id));
@@ -136,11 +147,10 @@ async function buildFeedSlices(rawPosts: any[], currentUserId?: string): Promise
   return rawPosts.map((p) => {
     const targetPost = { ...p, poll: formatPollData(p.poll, currentUserId) };
     const parentPost = p.parentId ? extraPosts.get(p.parentId) : undefined;
-    const rootId = p.rootId || (parentPost ? parentPost.rootId || parentPost.parentId : undefined);
-    let rootPost = rootId && rootId !== p.parentId && rootId !== p.id ? extraPosts.get(rootId) : undefined;
+    let rootPost = parentPost ? findRootFromParents(p, extraPosts) : undefined;
 
-    if (!rootPost && parentPost && parentPost.parentId && parentPost.parentId !== p.id) {
-      rootPost = extraPosts.get(parentPost.parentId);
+    if (rootPost && rootPost.id === parentPost?.id) {
+      rootPost = undefined;
     }
 
     let isIncompleteThread = false;
@@ -383,18 +393,10 @@ export async function createThought(data: {
   parentId?: string | null;
   replyRestriction?: string;
 }) {
-  let computedRootId: string | null = null;
   if (data.parentId) {
     const replyCheck = await canUserReplyToThought(data.parentId, data.authorId);
     if (!replyCheck.canReply) {
       throw new Error(replyCheck.reason || "THREADGATE_RESTRICTED");
-    }
-    const parentPost = await prisma.thought.findUnique({
-      where: { id: data.parentId },
-      select: { id: true, rootId: true },
-    });
-    if (parentPost) {
-      computedRootId = parentPost.rootId || parentPost.id;
     }
   }
 
@@ -421,7 +423,6 @@ export async function createThought(data: {
       triggerWarning: data.triggerWarning || null,
       repostId: data.repostId || null,
       parentId: data.parentId || null,
-      ...(computedRootId ? { rootId: computedRootId } : {}),
       replyRestriction: data.replyRestriction || "everyone",
     },
     include: {
@@ -538,10 +539,8 @@ export async function replyToPost(postId: string, authorId: string, content: str
 
   const targetPost = await prisma.thought.findUnique({
     where: { id: postId },
-    select: { id: true, authorId: true, rootId: true },
+    select: { id: true, authorId: true, parentId: true },
   });
-
-  const computedRootId = targetPost ? (targetPost.rootId || targetPost.id) : null;
 
   const [reply] = await prisma.$transaction([
     prisma.thought.create({
@@ -549,7 +548,6 @@ export async function replyToPost(postId: string, authorId: string, content: str
         content,
         authorId,
         parentId: postId,
-        rootId: computedRootId,
       },
       include: {
         author: {
