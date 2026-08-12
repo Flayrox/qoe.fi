@@ -790,11 +790,13 @@ export function ThoughtComposer({
       <form onSubmit={(e) => handlePostSubmit(e)} className="space-y-3 font-sans">
         <div className="flex gap-3 items-start">
           {/* User Avatar */}
-          <AuthorAvatar
-            user={dbUser}
-            size="md"
-            showBadge={false}
-          />
+          <div className="flex flex-col items-center shrink-0 w-10">
+            <AuthorAvatar
+              user={dbUser}
+              size="md"
+              showBadge={false}
+            />
+          </div>
 
           <div className="flex-1 min-w-0">
             <textarea

@@ -208,6 +208,13 @@ export function ThoughtCard({
     post.parent && currentUserId && post.parent.author && post.parent.author.id === currentUserId
   )
 
+  const hasTopBanner = Boolean(
+    isPureRepost ||
+      post.isPinned ||
+      (post.parent && !isParent && !isFocus && variant === "timeline") ||
+      (post.parent && (variant === "reply" || isFocus) && depth > 0)
+  )
+
   return (
     <>
       <article
@@ -222,10 +229,10 @@ export function ThoughtCard({
         )}
       >
         {/* COLUMN 1: Avatar & Thread Line Connectors */}
-        <div className="relative flex flex-col items-center shrink-0 w-10">
+        <div className={cn("relative flex flex-col items-center shrink-0 w-10", hasTopBanner && "pt-5")}>
           {/* Top Line Connector */}
           {isThreadChild && (
-            <div className="w-[2px] bg-border/60 flex-1 -mt-3.5 mb-1 rounded-full min-h-[12px]" />
+            <div className={cn("w-[2px] bg-border/60 shrink-0 mb-1 rounded-full", hasTopBanner ? "h-8 -mt-8" : "h-3.5 -mt-3.5")} />
           )}
 
           <ProfileHoverCard user={displayAuthor} onOpenProfile={onOpenProfile}>

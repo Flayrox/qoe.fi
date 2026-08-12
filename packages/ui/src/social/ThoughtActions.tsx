@@ -59,10 +59,10 @@ export function ThoughtActions({
     "auteur"
 
   const liked = post.liked || false
-  const likesCount = post.likesCount ?? post._count?.likes ?? 0
+  const likesCount = post.likesCount ?? (post as any).likeCount ?? post._count?.likes ?? 0
   const reposted = post.reposted || false
-  const repostsCount = post.repostsCount ?? post._count?.reposts ?? 0
-  const repliesCount = post.repliesCount ?? post._count?.replies ?? 0
+  const repostsCount = post.repostsCount ?? (post as any).repostCount ?? post._count?.reposts ?? 0
+  const repliesCount = post.repliesCount ?? (post as any).replyCount ?? post._count?.replies ?? 0
 
   const handleLikeClick = (e: React.MouseEvent) => {
     e.preventDefault()
