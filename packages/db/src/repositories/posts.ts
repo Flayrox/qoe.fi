@@ -421,7 +421,7 @@ export async function createThought(data: {
       triggerWarning: data.triggerWarning || null,
       repostId: data.repostId || null,
       parentId: data.parentId || null,
-      rootId: computedRootId,
+      ...(computedRootId ? { rootId: computedRootId } : {}),
       replyRestriction: data.replyRestriction || "everyone",
     },
     include: {
