@@ -76,6 +76,9 @@ export interface ThoughtData {
 export interface ThoughtCardProps {
   post: ThoughtData
   variant?: ThoughtVariant
+  isThreadParent?: boolean
+  isThreadChild?: boolean
+  isThreadLastChild?: boolean
   depth?: number
   currentUserId?: string | null
   isPreview?: boolean
@@ -108,6 +111,9 @@ export function ThoughtCard({
   post,
   variant = "timeline",
   depth = 0,
+  isThreadParent,
+  isThreadChild,
+  isThreadLastChild,
   currentUserId,
   isPreview,
   unfurlFn,
@@ -210,23 +216,32 @@ export function ThoughtCard({
           "group relative flex gap-3 p-3.5 sm:p-4 transition-colors duration-200 cursor-pointer select-none",
           "bg-card/40 hover:bg-muted/30 border-b border-border/40",
           isFocus && "bg-card border-none hover:bg-card cursor-default py-5",
-          isParent && "pb-1 border-none",
-          variant === "reply" && depth === 0 && "py-3 border-b border-border/20",
+          (isParent || isThreadParent) && "pb-0 sm:pb-0 border-none",
+          isThreadChild && "pt-1 sm:pt-1",
+          variant === "reply" && depth === 0 && !isThreadChild && "py-3 border-b border-border/20",
           className
         )}
       >
         {/* COLUMN 1: Avatar & Thread Line Connectors */}
-        <div className="relative flex flex-col items-center shrink-0">
-          <ProfileHoverCard user={displayAuthor} onOpenProfile={onOpenProfile}>
-            <AuthorAvatar
-              user={displayAuthor}
-              size={isFocus ? "lg" : "md"}
-              showBadge={false}
-            />
-          </ProfileHoverCard>
+        <div className="relative flex flex-col items-center shrink-0 w-10 sm:w-[42px]">
+          {/* Top Line for child posts */}
+          {isThreadChild && (
+            <div className="absolute -top-[5px] sm:-top-[5px] w-[2px] h-[5px] sm:h-[5px] bg-border/50 z-0" />
+          )}
 
-          {isParent && (
-            <div className="w-[2px] bg-border/50 flex-1 my-1 rounded-full min-h-[24px]" />
+          <div className="relative z-10">
+            <ProfileHoverCard user={displayAuthor} onOpenProfile={onOpenProfile}>
+              <AuthorAvatar
+                user={displayAuthor}
+                size={isFocus ? "lg" : "md"}
+                showBadge={false}
+              />
+            </ProfileHoverCard>
+          </div>
+
+          {/* Bottom Line for parent posts */}
+          {(isParent || isThreadParent) && (
+            <div className="w-[2px] bg-border/50 flex-1 mt-1.5 rounded-full min-h-[24px] z-0" />
           )}
         </div>
 
@@ -345,12 +360,32 @@ export function ThoughtCard({
             />
           )}
 
-          {/* Focus Mode Date & Time Footer */}
+          {/* Focus Mode Date, Engagement Stats & Facepile Footer */}
           {isFocus && (
-            <div className="py-2.5 my-1 border-y border-border/40 text-xs text-muted-foreground font-sans">
-              {new Date(displayCreatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-              {" · "}
-              {new Date(displayCreatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+            <div className="space-y-2.5 my-2 border-y border-border/40 py-3 font-sans">
+              {/* Date & Time */}
+              <div className="text-xs text-muted-foreground">
+                {new Date(displayCreatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                {" · "}
+                {new Date(displayCreatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+              </div>
+
+              {/* Engagement Stats Bar */}
+              <div className="flex items-center gap-4 text-xs pt-1 border-t border-border/30">
+                {(post.repostsCount || 0) > 0 && (
+                  <span className="text-muted-foreground">
+                    <strong className="font-bold text-foreground">{post.repostsCount}</strong> republiques
+                  </span>
+                )}
+                {(post.repliesCount || 0) > 0 && (
+                  <span className="text-muted-foreground">
+                    <strong className="font-bold text-foreground">{post.repliesCount}</strong> réponses
+                  </span>
+                )}
+                <span className="text-muted-foreground">
+                  <strong className="font-bold text-foreground">{post.likesCount || 0}</strong> J'aime
+                </span>
+              </div>
             </div>
           )}
 

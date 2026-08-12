@@ -6,6 +6,98 @@ import { prisma } from "../client";
 import type { Thought } from "@prisma/client";
 import { POST_VISIBILITY } from "@qoe/config";
 
+export interface FeedSlice {
+  id: string;
+  rootPost?: any;
+  parentPost?: any;
+  targetPost: any;
+  isIncompleteThread: boolean;
+}
+
+async function buildFeedSlices(rawPosts: any[], currentUserId?: string): Promise<FeedSlice[]> {
+  const missingIds = new Set<string>();
+  for (const p of rawPosts) {
+    if (p.parentId) missingIds.add(p.parentId);
+    if (p.rootId && p.rootId !== p.parentId) missingIds.add(p.rootId);
+  }
+
+  const extraPosts = new Map<string, any>();
+  if (missingIds.size > 0) {
+    const extras = await prisma.thought.findMany({
+      where: { id: { in: Array.from(missingIds) } },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            subdomain: true,
+            customDomain: true,
+            logoUrl: true,
+            isCertified: true,
+          },
+        },
+        repost: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                subdomain: true,
+                customDomain: true,
+                logoUrl: true,
+                isCertified: true,
+              },
+            },
+          },
+        },
+        attachments: { orderBy: { order: "asc" } },
+        poll: {
+          include: {
+            options: {
+              orderBy: { order: "asc" },
+              include: { _count: { select: { votes: true } } },
+            },
+            votes: { select: { optionId: true, userId: true } },
+          },
+        },
+        _count: { select: { likes: true, replies: true, reposts: true } },
+        likes: currentUserId ? { where: { userId: currentUserId }, select: { userId: true } } : false,
+        reposts: currentUserId ? { where: { authorId: currentUserId, deletedAt: null }, select: { id: true } } : false,
+      },
+    });
+
+    for (const e of extras) {
+      extraPosts.set(e.id, {
+        ...e,
+        poll: formatPollData(e.poll, currentUserId),
+      });
+    }
+  }
+
+  return rawPosts.map((p) => {
+    const targetPost = { ...p, poll: formatPollData(p.poll, currentUserId) };
+    const parentPost = p.parentId ? extraPosts.get(p.parentId) : undefined;
+    const rootPost = p.rootId && p.rootId !== p.parentId ? extraPosts.get(p.rootId) : undefined;
+
+    let isIncompleteThread = false;
+    if (parentPost && p.rootId) {
+      if (parentPost.parentId !== p.rootId && parentPost.id !== p.rootId) {
+        isIncompleteThread = true;
+      }
+    }
+
+    return {
+      id: p.id,
+      rootPost,
+      parentPost,
+      targetPost,
+      isIncompleteThread,
+    };
+  });
+}
+
 /**
  * 📰 Feed : pensées des créateurs suivis par un utilisateur.
  */
@@ -99,10 +191,7 @@ export async function findFollowingFeed(
     },
   });
 
-  return rawPosts.map((p) => ({
-    ...p,
-    poll: formatPollData(p.poll, readerId),
-  }));
+  return buildFeedSlices(rawPosts, readerId);
 }
 
 export function formatPollData(rawPoll: any, currentUserId?: string | null) {
@@ -208,10 +297,7 @@ export async function findTrending(limit: number = 20, currentUserId?: string) {
     },
   });
 
-  return rawPosts.map((p) => ({
-    ...p,
-    poll: formatPollData(p.poll, currentUserId),
-  }));
+  return buildFeedSlices(rawPosts, currentUserId);
 }
 
 
