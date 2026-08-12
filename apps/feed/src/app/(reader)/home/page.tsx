@@ -9,7 +9,7 @@ import {
   getCachedPromos, 
   getCachedFeaturedArticle 
 } from "@/lib/cached-queries"
-import { formatPollData } from "@qoe/db/repositories/posts"
+import { buildFeedSlices, formatPollData } from "@qoe/db/repositories/posts"
 import { FeedDashboard } from "./FeedDashboard"
 
 type PostWithDetails = Prisma.ThoughtGetPayload<{
@@ -365,20 +365,41 @@ export default async function ReaderHomePage() {
     featuredArticlePromise
   ])
 
+  const [followingSlices, recSlices, discoverSlices] = await Promise.all([
+    buildFeedSlices(dbFollowingPosts, user?.id),
+    buildFeedSlices(dbRecPosts, user?.id),
+    buildFeedSlices(dbDiscoverPosts, user?.id),
+  ])
+
+  const mapSliceToFeedItem = (slice: any) => {
+    const target = slice.targetPost
+    return {
+      id: slice.id,
+      title: "",
+      slug: `post-${slice.id}`,
+      createdAt: target.createdAt instanceof Date ? target.createdAt.toISOString() : target.createdAt,
+      targetPost: mapPostToFeedItem(target),
+      parentPost: slice.parentPost ? mapPostToFeedItem(slice.parentPost) : null,
+      rootPost: slice.rootPost ? mapPostToFeedItem(slice.rootPost) : null,
+      isIncompleteThread: slice.isIncompleteThread,
+      hiddenIntermediateCount: slice.hiddenIntermediateCount,
+    }
+  }
+
   // Combiner et trier les éléments de la timeline
   const followingArticles = [
     ...dbFollowingArticles.map(mapArticleToFeedItem),
-    ...dbFollowingPosts.map(mapPostToFeedItem)
+    ...followingSlices.map(mapSliceToFeedItem)
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   const recommendationArticles = [
     ...dbRecArticles.map(mapArticleToFeedItem),
-    ...dbRecPosts.map(mapPostToFeedItem)
+    ...recSlices.map(mapSliceToFeedItem)
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   const discoverArticles = [
     ...dbDiscoverArticles.map(mapArticleToFeedItem),
-    ...dbDiscoverPosts.map(mapPostToFeedItem)
+    ...discoverSlices.map(mapSliceToFeedItem)
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   const followsCount = followedCreators.length
