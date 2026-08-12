@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Send, Trash2, Loader2, Image, AlertCircle, Globe, Calendar as CalendarIcon, AlertTriangle, FileText, Crop as CropIcon, RefreshCw, ArrowLeft, ArrowRight, X, MessageSquare, Users, AtSign, BarChart2, Plus } from "lucide-react"
+import { Send, Trash2, Loader2, Image, AlertCircle, Globe, Calendar as CalendarIcon, AlertTriangle, FileText, Crop as CropIcon, RefreshCw, ArrowLeft, ArrowRight, X, MessageSquare, Users, AtSign, BarChart2 } from "lucide-react"
 
 import ReactCrop, { centerCrop, makeAspectCrop } from "react-image-crop"
 import type { Crop, PixelCrop } from "react-image-crop"
@@ -91,7 +91,6 @@ export function ThoughtComposer({
   const [isComposerExpanded, setIsComposerExpanded] = useState<boolean>(false)
   const [postText, setPostText] = useState<string>("")
   const [images, setImages] = useState<ComposerImage[]>([])
-  const [threadItems, setThreadItems] = useState<Array<{ id: string; text: string }>>([])
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
 
@@ -634,29 +633,6 @@ export function ThoughtComposer({
 
       if (res.ok && res.data?.post) {
         const post = res.data.post
-
-        if (threadItems.length > 0) {
-          let currentParentId = post.id
-          for (const threadItem of threadItems) {
-            if (threadItem.text.trim()) {
-              try {
-                const threadRes = await createThoughtAction({
-                  content: threadItem.text.trim(),
-                  parentId: currentParentId,
-                  visibility,
-                  replyRestriction,
-                })
-                if (threadRes.ok && threadRes.data?.post) {
-                  currentParentId = threadRes.data.post.id
-                }
-              } catch (err) {
-                console.error("Error creating sequential thread post:", err)
-              }
-            }
-          }
-          setThreadItems([])
-        }
-
         
         images.forEach(img => {
           if (img.url.startsWith("blob:")) {
@@ -893,37 +869,6 @@ export function ThoughtComposer({
           )}
           style={{ height: isComposerExpanded ? "auto" : "48px" }}
         />
-
-        {/* Multi-Post Thread Secondary Textareas */}
-        {threadItems.length > 0 && (
-          <div className="space-y-3 pt-2 pl-4 border-l-2 border-primary/40 my-2">
-            {threadItems.map((item, idx) => (
-              <div key={item.id} className="flex gap-2.5 items-start bg-muted/20 p-2.5 rounded-xl border border-border/40">
-                <AuthorAvatar user={dbUser} size="xs" showBadge={false} />
-                <div className="flex-1 min-w-0 flex items-center gap-2">
-                  <textarea
-                    placeholder={`Pensée suivante dans le fil (${idx + 2})...`}
-                    value={item.text}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      setThreadItems((prev) => prev.map((t) => (t.id === item.id ? { ...t, text: val } : t)))
-                    }}
-                    className="w-full font-sans text-xs focus:outline-none resize-none bg-transparent border-0 p-0 focus:ring-0 leading-relaxed text-foreground placeholder:text-muted-foreground/60 min-h-[32px]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setThreadItems((prev) => prev.filter((t) => t.id !== item.id))}
-                    className="p-1 text-muted-foreground hover:text-destructive cursor-pointer transition-colors"
-                    title="Retirer cette pensée"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
 
         {/* Universal Typeahead Suggestions Dropdown */}
         {mentionSuggestions.length > 0 && (
@@ -1626,19 +1571,6 @@ export function ThoughtComposer({
                     </PopoverContent>
                   </Popover>
 
-                  {/* Multi-Post Thread Add Button */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setThreadItems((prev) => [...prev, { id: Math.random().toString(36).slice(2), text: "" }])
-                    }}
-                    className="p-2 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-all cursor-pointer flex items-center gap-1 text-xs active:scale-95"
-                    title="Ajouter une autre pensée au fil"
-                  >
-                    <Plus className="w-4 h-4 text-primary" />
-                    <span className="hidden sm:inline font-semibold">Ajouter une pensée</span>
-                  </button>
-
                   {/* PRIMARY ACTION SUBMIT BUTTON */}
                   <button
                     type="submit"
@@ -1651,12 +1583,7 @@ export function ThoughtComposer({
                       </>
                     ) : (
                       <>
-                        {threadItems.length > 0
-                          ? `Tout publier (${threadItems.length + 1})`
-                          : replyToThought || parentId
-                          ? "Répondre"
-                          : "Publier"}{" "}
-                        <Send className="w-3 h-3" />
+                        {replyToThought || parentId ? "Répondre" : "Publier"} <Send className="w-3 h-3" />
                       </>
                     )}
                   </button>

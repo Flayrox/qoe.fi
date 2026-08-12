@@ -12,25 +12,14 @@ export interface FeedSlice {
   parentPost?: any;
   targetPost: any;
   isIncompleteThread: boolean;
-}
-
-function findRootFromParents(startPost: any, extraPosts: Map<string, any>): any {
-  if (!startPost || !startPost.parentId) return undefined;
-  let curr = extraPosts.get(startPost.parentId);
-  let depth = 0;
-  while (curr && curr.parentId && depth < 10) {
-    const parent = extraPosts.get(curr.parentId);
-    if (!parent) break;
-    curr = parent;
-    depth++;
-  }
-  return curr;
+  hiddenIntermediateCount?: number;
 }
 
 async function buildFeedSlices(rawPosts: any[], currentUserId?: string): Promise<FeedSlice[]> {
   const missingIds = new Set<string>();
   for (const p of rawPosts) {
     if (p.parentId) missingIds.add(p.parentId);
+    if (p.rootId && p.rootId !== p.parentId) missingIds.add(p.rootId);
   }
 
   const extraPosts = new Map<string, any>();
@@ -85,78 +74,20 @@ async function buildFeedSlices(rawPosts: any[], currentUserId?: string): Promise
         ...e,
         poll: formatPollData(e.poll, currentUserId),
       });
-      if (e.parentId) missingIds.add(e.parentId);
-    }
-
-    const secondaryMissing = Array.from(missingIds).filter((id) => !extraPosts.has(id));
-    if (secondaryMissing.length > 0) {
-      const secondaryExtras = await prisma.thought.findMany({
-        where: { id: { in: secondaryMissing } },
-        include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              subdomain: true,
-              customDomain: true,
-              logoUrl: true,
-              isCertified: true,
-            },
-          },
-          repost: {
-            include: {
-              author: {
-                select: {
-                  id: true,
-                  name: true,
-                  username: true,
-                  subdomain: true,
-                  customDomain: true,
-                  logoUrl: true,
-                  isCertified: true,
-                },
-              },
-            },
-          },
-          attachments: { orderBy: { order: "asc" } },
-          poll: {
-            include: {
-              options: {
-                orderBy: { order: "asc" },
-                include: { _count: { select: { votes: true } } },
-              },
-              votes: { select: { optionId: true, userId: true } },
-            },
-          },
-          _count: { select: { likes: true, replies: true, reposts: true } },
-          likes: currentUserId ? { where: { userId: currentUserId }, select: { userId: true } } : false,
-          reposts: currentUserId ? { where: { authorId: currentUserId, deletedAt: null }, select: { id: true } } : false,
-        },
-      });
-
-      for (const e of secondaryExtras) {
-        extraPosts.set(e.id, {
-          ...e,
-          poll: formatPollData(e.poll, currentUserId),
-        });
-      }
     }
   }
 
   return rawPosts.map((p) => {
     const targetPost = { ...p, poll: formatPollData(p.poll, currentUserId) };
     const parentPost = p.parentId ? extraPosts.get(p.parentId) : undefined;
-    let rootPost = parentPost ? findRootFromParents(p, extraPosts) : undefined;
-
-    if (rootPost && rootPost.id === parentPost?.id) {
-      rootPost = undefined;
-    }
+    const rootPost = p.rootId && p.rootId !== p.parentId ? extraPosts.get(p.rootId) : undefined;
 
     let isIncompleteThread = false;
-    if (parentPost && rootPost) {
-      if (parentPost.parentId && parentPost.parentId !== rootPost.id && parentPost.id !== rootPost.id) {
+    let hiddenIntermediateCount = 0;
+    if (parentPost && p.rootId) {
+      if (parentPost.parentId !== p.rootId && parentPost.id !== p.rootId) {
         isIncompleteThread = true;
+        hiddenIntermediateCount = Math.max(1, (targetPost.replyCount || 1));
       }
     }
 
@@ -166,9 +97,11 @@ async function buildFeedSlices(rawPosts: any[], currentUserId?: string): Promise
       parentPost,
       targetPost,
       isIncompleteThread,
+      hiddenIntermediateCount,
     };
   });
 }
+
 
 /**
  * 📰 Feed : pensées des créateurs suivis par un utilisateur.
@@ -393,10 +326,18 @@ export async function createThought(data: {
   parentId?: string | null;
   replyRestriction?: string;
 }) {
+  let computedRootId: string | null = null;
   if (data.parentId) {
     const replyCheck = await canUserReplyToThought(data.parentId, data.authorId);
     if (!replyCheck.canReply) {
       throw new Error(replyCheck.reason || "THREADGATE_RESTRICTED");
+    }
+    const parentPost = await prisma.thought.findUnique({
+      where: { id: data.parentId },
+      select: { id: true, rootId: true },
+    });
+    if (parentPost) {
+      computedRootId = parentPost.rootId || parentPost.id;
     }
   }
 
@@ -423,6 +364,7 @@ export async function createThought(data: {
       triggerWarning: data.triggerWarning || null,
       repostId: data.repostId || null,
       parentId: data.parentId || null,
+      rootId: computedRootId,
       replyRestriction: data.replyRestriction || "everyone",
     },
     include: {
@@ -539,8 +481,10 @@ export async function replyToPost(postId: string, authorId: string, content: str
 
   const targetPost = await prisma.thought.findUnique({
     where: { id: postId },
-    select: { id: true, authorId: true, parentId: true },
+    select: { id: true, authorId: true, rootId: true },
   });
+
+  const computedRootId = targetPost ? (targetPost.rootId || targetPost.id) : null;
 
   const [reply] = await prisma.$transaction([
     prisma.thought.create({
@@ -548,6 +492,7 @@ export async function replyToPost(postId: string, authorId: string, content: str
         content,
         authorId,
         parentId: postId,
+        rootId: computedRootId,
       },
       include: {
         author: {
