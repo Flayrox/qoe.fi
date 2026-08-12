@@ -52,6 +52,7 @@ export function ThoughtThreadFocus() {
     <ThoughtCard
       post={post}
       variant="focus"
+      isThreadChild={Boolean(post.parent)}
       currentUserId={currentUserId}
       onOpenProfile={onOpenProfile}
       onOpenPost={onOpenPost}
@@ -63,3 +64,4 @@ export function ThoughtThreadFocus() {
     />
   )
 }
+
