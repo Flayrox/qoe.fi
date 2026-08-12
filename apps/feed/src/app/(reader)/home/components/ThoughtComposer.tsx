@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Send, Trash2, Loader2, Image, AlertCircle, Globe, Calendar as CalendarIcon, AlertTriangle, FileText, Crop as CropIcon, RefreshCw, ArrowLeft, ArrowRight, X, MessageSquare, Users, AtSign, BarChart2 } from "lucide-react"
+import { Send, Trash2, Loader2, Image, AlertCircle, Globe, Calendar as CalendarIcon, AlertTriangle, FileText, Crop as CropIcon, RefreshCw, ArrowLeft, ArrowRight, X, MessageSquare, Users, AtSign, BarChart2, Plus } from "lucide-react"
 
 import ReactCrop, { centerCrop, makeAspectCrop } from "react-image-crop"
 import type { Crop, PixelCrop } from "react-image-crop"
@@ -57,6 +57,17 @@ interface ThoughtComposerProps {
   onLoginRequired?: () => void
 }
 
+export interface ThreadNode {
+  id: string
+  text: string
+  images: ComposerImage[]
+  isTriggerWarning: boolean
+  triggerWarning: string
+  showPollEditor: boolean
+  pollOptions: string[]
+  pollDurationHours: number
+}
+
 export function ThoughtComposer({
   dbUser,
   tagsList,
@@ -75,19 +86,6 @@ export function ThoughtComposer({
   const [quotedArticle, setQuotedArticle] = useState<QuotedArticleData | null>(initialQuotedArticle)
   const [quotedExcerpt, setQuotedExcerpt] = useState<string | null>(initialQuotedExcerpt)
 
-  useEffect(() => {
-    setQuotedThought(initialQuotedThought)
-    setReplyToThought(initialReplyToThought)
-    setQuotedArticle(initialQuotedArticle)
-    setQuotedExcerpt(initialQuotedExcerpt)
-    if (initialText) {
-      setPostText(initialText)
-      setIsComposerExpanded(true)
-    }
-    if (initialReplyToThought || initialQuotedThought || initialQuotedArticle) {
-      setIsComposerExpanded(true)
-    }
-  }, [initialQuotedThought, initialReplyToThought, initialQuotedArticle, initialQuotedExcerpt, initialText])
   const [isComposerExpanded, setIsComposerExpanded] = useState<boolean>(false)
   const [postText, setPostText] = useState<string>("")
   const [images, setImages] = useState<ComposerImage[]>([])
@@ -126,6 +124,275 @@ export function ThoughtComposer({
   const [showPollEditor, setShowPollEditor] = useState<boolean>(false)
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""])
   const [pollDurationHours, setPollDurationHours] = useState<number>(24)
+
+  // Brique 3 States & Refs
+  const createEmptyNode = (): ThreadNode => ({
+    id: crypto.randomUUID(),
+    text: "",
+    images: [],
+    isTriggerWarning: false,
+    triggerWarning: "",
+    showPollEditor: false,
+    pollOptions: ["", ""],
+    pollDurationHours: 24,
+  })
+
+  const [threadNodes, setThreadNodes] = useState<ThreadNode[]>([])
+  const [activeNodeIndex, setActiveNodeIndex] = useState<number>(0)
+  const isSwitchingRef = useRef<boolean>(false)
+  const [submitProgress, setSubmitProgress] = useState<string | null>(null)
+
+  useEffect(() => {
+    setQuotedThought(initialQuotedThought)
+    setReplyToThought(initialReplyToThought)
+    setQuotedArticle(initialQuotedArticle)
+    setQuotedExcerpt(initialQuotedExcerpt)
+    if (initialText) {
+      setPostText(initialText)
+      setIsComposerExpanded(true)
+    }
+    if (initialReplyToThought || initialQuotedThought || initialQuotedArticle) {
+      setIsComposerExpanded(true)
+    }
+
+    setThreadNodes(prev => {
+      if (prev.length > 0 && (prev[0].text !== "" || prev.length > 1)) return prev
+      return [{
+        id: crypto.randomUUID(),
+        text: initialText || "",
+        images: [],
+        isTriggerWarning: false,
+        triggerWarning: "",
+        showPollEditor: false,
+        pollOptions: ["", ""],
+        pollDurationHours: 24,
+      }]
+    })
+    setActiveNodeIndex(0)
+  }, [initialQuotedThought, initialReplyToThought, initialQuotedArticle, initialQuotedExcerpt, initialText])
+
+  // 1. Synchroniser le buffer actif vers threadNodes en continu
+  useEffect(() => {
+    if (isSwitchingRef.current) return
+    if (threadNodes.length === 0) return
+
+    setThreadNodes(prev => {
+      const copy = [...prev]
+      if (copy[activeNodeIndex]) {
+        copy[activeNodeIndex] = {
+          ...copy[activeNodeIndex],
+          text: postText,
+          images,
+          isTriggerWarning,
+          triggerWarning,
+          showPollEditor,
+          pollOptions,
+          pollDurationHours,
+        }
+      }
+      return copy
+    })
+  }, [
+    postText,
+    images,
+    isTriggerWarning,
+    triggerWarning,
+    showPollEditor,
+    pollOptions,
+    pollDurationHours,
+    activeNodeIndex
+  ])
+
+  // 2. Sauvegarde automatique des brouillons locaux de fils
+  useEffect(() => {
+    if (threadNodes.length <= 1 && (!postText.trim() && images.length === 0)) {
+      return
+    }
+    const timer = setTimeout(() => {
+      const finalNodes = [...threadNodes]
+      if (finalNodes[activeNodeIndex]) {
+        finalNodes[activeNodeIndex] = {
+          id: threadNodes[activeNodeIndex].id,
+          text: postText,
+          images,
+          isTriggerWarning,
+          triggerWarning,
+          showPollEditor,
+          pollOptions,
+          pollDurationHours,
+        }
+      }
+      localStorage.setItem("qoe_multi_thought_drafts", JSON.stringify(finalNodes))
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [
+    postText,
+    images,
+    isTriggerWarning,
+    triggerWarning,
+    showPollEditor,
+    pollOptions,
+    pollDurationHours,
+    activeNodeIndex,
+    threadNodes
+  ])
+
+  // 3. Ajouter une pensée au fil
+  const addThreadNode = () => {
+    const currentNodes = [...threadNodes]
+    currentNodes[activeNodeIndex] = {
+      id: threadNodes[activeNodeIndex].id,
+      text: postText,
+      images,
+      isTriggerWarning,
+      triggerWarning,
+      showPollEditor,
+      pollOptions,
+      pollDurationHours,
+    }
+
+    const newNode = createEmptyNode()
+    const nextNodes = [...currentNodes, newNode]
+    const nextIndex = nextNodes.length - 1
+
+    setThreadNodes(nextNodes)
+    
+    isSwitchingRef.current = true
+    setPostText("")
+    setImages([])
+    setIsTriggerWarning(false)
+    setTriggerWarning("")
+    setShowPollEditor(false)
+    setPollOptions(["", ""])
+    setPollDurationHours(24)
+    
+    setActiveNodeIndex(nextIndex)
+    
+    setTimeout(() => {
+      isSwitchingRef.current = false
+    }, 50)
+
+    toast.success("Nouvelle pensée ajoutée au fil.")
+  }
+
+  // 4. Retirer une pensée du fil
+  const removeThreadNode = (nodeId: string) => {
+    if (threadNodes.length <= 1) return
+
+    const indexToRemove = threadNodes.findIndex(n => n.id === nodeId)
+    if (indexToRemove === -1) return
+
+    const targetNode = threadNodes[indexToRemove]
+    if ((targetNode.text.trim().length > 0 || targetNode.images.length > 0) && indexToRemove === activeNodeIndex) {
+      if (!confirm("Voulez-vous vraiment supprimer cette pensée et son contenu ?")) {
+        return
+      }
+    }
+
+    const nextNodes = threadNodes.filter(n => n.id !== nodeId)
+    
+    let nextIndex = activeNodeIndex
+    if (activeNodeIndex === indexToRemove) {
+      nextIndex = Math.max(0, indexToRemove - 1)
+    } else if (activeNodeIndex > indexToRemove) {
+      nextIndex = activeNodeIndex - 1
+    }
+
+    const nextActiveNode = nextNodes[nextIndex]
+    isSwitchingRef.current = true
+    setPostText(nextActiveNode.text)
+    setImages(nextActiveNode.images)
+    setIsTriggerWarning(nextActiveNode.isTriggerWarning)
+    setTriggerWarning(nextActiveNode.triggerWarning)
+    setShowPollEditor(nextActiveNode.showPollEditor)
+    setPollOptions(nextActiveNode.pollOptions)
+    setPollDurationHours(nextActiveNode.pollDurationHours)
+
+    setThreadNodes(nextNodes)
+    setActiveNodeIndex(nextIndex)
+
+    setTimeout(() => {
+      isSwitchingRef.current = false
+    }, 50)
+
+    toast.success("Pensée retirée du fil.")
+  }
+
+  // 5. Basculer de nœud d'édition
+  const handleSwitchNode = (targetIndex: number) => {
+    if (targetIndex === activeNodeIndex) return
+
+    setThreadNodes(prev => {
+      const copy = [...prev]
+      if (copy[activeNodeIndex]) {
+        copy[activeNodeIndex] = {
+          id: threadNodes[activeNodeIndex].id,
+          text: postText,
+          images,
+          isTriggerWarning,
+          triggerWarning,
+          showPollEditor,
+          pollOptions,
+          pollDurationHours,
+        }
+      }
+      
+      const targetNode = copy[targetIndex]
+      if (targetNode) {
+        isSwitchingRef.current = true
+        setPostText(targetNode.text)
+        setImages(targetNode.images)
+        setIsTriggerWarning(targetNode.isTriggerWarning)
+        setTriggerWarning(targetNode.triggerWarning)
+        setShowPollEditor(targetNode.showPollEditor)
+        setPollOptions(targetNode.pollOptions)
+        setPollDurationHours(targetNode.pollDurationHours)
+        
+        setTimeout(() => {
+          isSwitchingRef.current = false
+        }, 50)
+      }
+      
+      return copy
+    })
+    
+    setActiveNodeIndex(targetIndex)
+  }
+
+  // 6. Charger un brouillon local de fil entier
+  const handleLoadLocalThreadDraft = () => {
+    try {
+      const raw = localStorage.getItem("qoe_multi_thought_drafts")
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed) || parsed.length === 0) return
+
+      setThreadNodes(parsed)
+      
+      const node0 = parsed[0]
+      isSwitchingRef.current = true
+      setPostText(node0.text)
+      setImages(node0.images)
+      setIsTriggerWarning(node0.isTriggerWarning)
+      setTriggerWarning(node0.triggerWarning)
+      setShowPollEditor(node0.showPollEditor)
+      setPollOptions(node0.pollOptions)
+      setPollDurationHours(node0.pollDurationHours)
+      
+      setActiveNodeIndex(0)
+      setIsComposerExpanded(true)
+      setIsDraftsOpen(false)
+
+      setTimeout(() => {
+        isSwitchingRef.current = false
+      }, 50)
+
+      toast.success("Fil de discussion restauré avec succès !")
+    } catch (e) {
+      toast.error("Impossible de restaurer le fil.")
+    }
+  }
 
 
 
@@ -571,153 +838,228 @@ export function ThoughtComposer({
 
   const handlePostSubmit = async (e: React.FormEvent, forceDraft?: boolean) => {
     e.preventDefault()
-    const textContent = postText.trim()
-    const isDraftSubmit = forceDraft !== undefined ? forceDraft : isDraft
     
-    if ((!textContent && images.length === 0) || !dbUser || isSubmitting || isOverLimit) return
+    // 1. Sauvegarder d'abord les modifications du nœud d'édition actif dans le tableau threadNodes
+    const finalNodes = [...threadNodes]
+    if (finalNodes[activeNodeIndex]) {
+      finalNodes[activeNodeIndex] = {
+        id: threadNodes[activeNodeIndex].id,
+        text: postText,
+        images,
+        isTriggerWarning,
+        triggerWarning,
+        showPollEditor,
+        pollOptions,
+        pollDurationHours,
+      }
+    }
+
+    const isDraftSubmit = forceDraft !== undefined ? forceDraft : isDraft
+
+    // Validation : Au moins un nœud doit contenir du texte ou une image
+    const hasContent = finalNodes.some((n) => n.text.trim().length > 0 || n.images.length > 0)
+    if (!hasContent || !dbUser || isSubmitting) return
 
     setSubmitError(null)
     setIsSubmitting(true)
+    setSubmitProgress("Préparation de la publication du fil...")
 
     try {
-      const uploadedUrls = await uploadComposerImages(images)
-      const imagePayload = uploadedUrls.length > 0 ? JSON.stringify(uploadedUrls) : null
-      const attachmentPayload = images.map((img, idx) => ({
-        url: uploadedUrls[idx] || img.url,
-        type: "IMAGE",
-        altText: img.altText || undefined,
-        order: idx,
-      }))
-
-      const tags = textContent.match(/#[a-zA-Z0-9_-]+/g) || []
-
       const { createThoughtAction, deletePostAction } = await import("@qoe/api-client/actions/feed")
-      const validPollOptions = pollOptions.map((o) => o.trim()).filter(Boolean)
-      const pollPayload =
-        showPollEditor && validPollOptions.length >= 2
-          ? { options: validPollOptions, durationHours: pollDurationHours }
-          : null
+      
+      let lastPostId = replyToThought?.id || parentId || null
+      let firstCreatedPost: any = null
 
-      let contentToSubmit = textContent
-      if (quotedArticle) {
-        const subdomain = quotedArticle.author?.subdomain
-        const articleUrl = subdomain
-          ? `https://${subdomain}.qoe.fi/article/${quotedArticle.slug}`
-          : `https://qoe.fi/article/${quotedArticle.slug}`
+      // Boucle séquentielle ordonnée sur chaque nœud du fil
+      for (let i = 0; i < finalNodes.length; i++) {
+        const node = finalNodes[i]
+        const textContent = node.text.trim()
+        
+        // Mettre à jour la progression
+        setSubmitProgress(
+          isDraftSubmit
+            ? `Enregistrement du brouillon ${i + 1}/${finalNodes.length}...`
+            : `Publication du message ${i + 1}/${finalNodes.length}...`
+        )
 
-        if (quotedExcerpt) {
-          contentToSubmit = contentToSubmit
-            ? `${contentToSubmit}\n\n« ${quotedExcerpt} »\n\n${articleUrl}`
-            : `« ${quotedExcerpt} »\n\n${articleUrl}`
-        } else {
-          contentToSubmit = contentToSubmit
-            ? `${contentToSubmit}\n\n${articleUrl}`
-            : articleUrl
+        // Upload des images associées à ce nœud spécifique
+        const uploadedUrls = await uploadComposerImages(node.images)
+        const imagePayload = uploadedUrls.length > 0 ? JSON.stringify(uploadedUrls) : null
+        const attachmentPayload = node.images.map((img, idx) => ({
+          url: uploadedUrls[idx] || img.url,
+          type: "IMAGE",
+          altText: img.altText || undefined,
+          order: idx,
+        }))
+
+        // Tags spécifiques
+        const tags = textContent.match(/#[a-zA-Z0-9_-]+/g) || []
+
+        // Sondage spécifique
+        const validPollOptions = node.pollOptions.map((o) => o.trim()).filter(Boolean)
+        const pollPayload =
+          node.showPollEditor && validPollOptions.length >= 2
+            ? { options: validPollOptions, durationHours: node.pollDurationHours }
+            : null
+
+        // Préparer la citation (seulement sur la toute première pensée du fil)
+        const nodeQuotedThoughtId = i === 0 && quotedThought?.id ? quotedThought.id : null
+
+        let contentToSubmit = textContent
+        if (i === 0 && quotedArticle) {
+          const subdomain = quotedArticle.author?.subdomain
+          const articleUrl = subdomain
+            ? `https://${subdomain}.qoe.fi/article/${quotedArticle.slug}`
+            : `https://qoe.fi/article/${quotedArticle.slug}`
+
+          if (quotedExcerpt) {
+            contentToSubmit = contentToSubmit
+              ? `${contentToSubmit}\n\n« ${quotedExcerpt} »\n\n${articleUrl}`
+              : `« ${quotedExcerpt} »\n\n${articleUrl}`
+          } else {
+            contentToSubmit = contentToSubmit
+              ? `${contentToSubmit}\n\n${articleUrl}`
+              : articleUrl
+          }
         }
+
+        const res = await createThoughtAction({
+          content: contentToSubmit,
+          tags,
+          imageUrl: imagePayload,
+          attachments: attachmentPayload,
+          visibility, // thread-level
+          isDraft: isDraftSubmit, // thread-level
+          scheduledAt: i === 0 && isScheduled && scheduledDate ? getScheduledDateTimeString() : null, // Seul le post racine est planifié
+          triggerWarning: node.isTriggerWarning && node.triggerWarning.trim() ? node.triggerWarning.trim() : null,
+          repostId: nodeQuotedThoughtId,
+          parentId: lastPostId, // Lie la pensée actuelle au post parent (ou au post précédent !)
+          replyRestriction, // thread-level
+          poll: pollPayload,
+        })
+
+        if (!res.ok) {
+          throw new Error(res.error?.message || `Impossible de publier la pensée ${i + 1}.`)
+        }
+        if (!res.data?.post) {
+          throw new Error(`Impossible de publier la pensée ${i + 1} (données de publication manquantes).`)
+        }
+
+        const createdPost = res.data.post
+        if (i === 0) {
+          firstCreatedPost = createdPost
+        }
+
+        // Parent pour la pensée suivante = l'id que l'on vient de créer !
+        lastPostId = createdPost.id
       }
 
-      const res = await createThoughtAction({
-        content: contentToSubmit,
-        tags,
-        imageUrl: imagePayload,
-        attachments: attachmentPayload,
-        visibility,
-        isDraft: isDraftSubmit,
-        scheduledAt: isScheduled && scheduledDate ? getScheduledDateTimeString() : null,
-        triggerWarning: isTriggerWarning && triggerWarning.trim() ? triggerWarning.trim() : null,
-        repostId: quotedThought?.id || null,
-        parentId: replyToThought?.id || parentId || null,
-        replyRestriction,
-        poll: pollPayload,
-      })
-
-      if (res.ok && res.data?.post) {
-        const post = res.data.post
-        
-        images.forEach(img => {
+      // Nettoyer les objets blobs
+      finalNodes.forEach(node => {
+        node.images.forEach(img => {
           if (img.url.startsWith("blob:")) {
             URL.revokeObjectURL(img.url)
           }
         })
-        
-        if (loadedDraftId) {
-          try {
-            await deletePostAction(loadedDraftId)
-          } catch (err) {
-            console.error("Failed to delete original draft post after publishing:", err)
-          }
-          setLoadedDraftId(null)
+      })
+
+      // Supprimer le brouillon d'origine s'il était chargé
+      if (loadedDraftId) {
+        try {
+          await deletePostAction(loadedDraftId)
+        } catch (err) {
+          console.error("Failed to delete original draft post after publishing:", err)
         }
-
-        setShowPollEditor(false)
-        setPollOptions(["", ""])
-
-
-        
-        const isFuture = isScheduled && scheduledDate && new Date(getScheduledDateTimeString() || "") > new Date()
-        if (!isDraftSubmit && !isFuture && onPostCreated) {
-          onPostCreated({
-            id: post.id,
-            title: "",
-            slug: `post-${post.id}`,
-            content: post.content,
-            imageUrl: post.imageUrl || null,
-            published: true,
-            isPremium: false,
-            readingTime: 1,
-            createdAt: post.createdAt,
-            author: {
-              ...post.author,
-              isCertified: post.author?.isCertified || false
-            },
-            repost: post.repost ? {
-              ...post.repost,
-              createdAt: post.repost.createdAt || post.createdAt,
-              author: {
-                ...post.repost.author,
-                isCertified: post.repost.author?.isCertified || false
-              }
-            } : null,
-            parent: post.parent ? {
-              ...post.parent,
-              author: {
-                ...post.parent.author,
-                isCertified: post.parent.author?.isCertified || false
-              }
-            } : null,
-            category: { name: "Thought" },
-            tags: post.tags || []
-          })
-        }
-
-        toast.success(isDraftSubmit ? "Brouillon enregistré." : "Pensée publiée.")
-
-        setPostText("")
-        setImages([])
-        setQuotedThought(null)
-        setVisibility("public")
-        setIsScheduled(false)
-        setScheduledDate(undefined)
-        setIsTriggerWarning(false)
-        setTriggerWarning("")
-        setIsDraft(false)
-        setShowVisibilityDropdown(false)
-        setShowScheduleDropdown(false)
-        setShowWarningDropdown(false)
-        setOverflowStyle("hidden")
-        localStorage.removeItem("qoe_thought_draft")
-        localStorage.removeItem("qoe_micro_post_draft")
-        setIsComposerExpanded(false)
-      } else {
-        setSubmitError("Impossible de publier la pensée. Veuillez réessayer.")
-        toast.error("Impossible de publier la pensée. Veuillez réessayer.")
+        setLoadedDraftId(null)
       }
+
+      // Réinitialiser les états
+      setShowPollEditor(false)
+      setPollOptions(["", ""])
+
+      const isFuture = isScheduled && scheduledDate && new Date(getScheduledDateTimeString() || "") > new Date()
+      
+      // Déclencher le callback feed local (seulement si publié immédiatement, et on injecte le premier post)
+      if (!isDraftSubmit && !isFuture && onPostCreated && firstCreatedPost) {
+        onPostCreated({
+          id: firstCreatedPost.id,
+          title: "",
+          slug: `post-${firstCreatedPost.id}`,
+          content: firstCreatedPost.content,
+          imageUrl: firstCreatedPost.imageUrl || null,
+          published: true,
+          isPremium: false,
+          readingTime: 1,
+          createdAt: firstCreatedPost.createdAt,
+          author: {
+            ...firstCreatedPost.author,
+            isCertified: firstCreatedPost.author?.isCertified || false
+          },
+          repost: firstCreatedPost.repost ? {
+            ...firstCreatedPost.repost,
+            createdAt: firstCreatedPost.repost.createdAt || firstCreatedPost.createdAt,
+            author: {
+              ...firstCreatedPost.repost.author,
+              isCertified: firstCreatedPost.repost.author?.isCertified || false
+            }
+          } : null,
+          parent: firstCreatedPost.parent ? {
+            ...firstCreatedPost.parent,
+            author: {
+              ...firstCreatedPost.parent.author,
+              isCertified: firstCreatedPost.parent.author?.isCertified || false
+            }
+          } : null,
+          category: { name: "Thought" },
+          tags: firstCreatedPost.tags || []
+        })
+      }
+
+      toast.success(isDraftSubmit ? "Brouillon de fil enregistré." : "Fil de discussion publié !")
+
+      // Remise à zéro complète
+      setPostText("")
+      setImages([])
+      setQuotedThought(null)
+      setQuotedArticle(null)
+      setQuotedExcerpt(null)
+      setVisibility("public")
+      setIsScheduled(false)
+      setScheduledDate(undefined)
+      setIsTriggerWarning(false)
+      setTriggerWarning("")
+      setIsDraft(false)
+      setShowVisibilityDropdown(false)
+      setShowScheduleDropdown(false)
+      setShowWarningDropdown(false)
+      setOverflowStyle("hidden")
+      
+      // Nettoyage des brouillons en cache local
+      localStorage.removeItem("qoe_multi_thought_drafts")
+      localStorage.removeItem("qoe_thought_draft")
+      localStorage.removeItem("qoe_micro_post_draft")
+      
+      // Réinitialisation des nœuds du fil
+      setThreadNodes([{
+        id: crypto.randomUUID(),
+        text: "",
+        images: [],
+        isTriggerWarning: false,
+        triggerWarning: "",
+        showPollEditor: false,
+        pollOptions: ["", ""],
+        pollDurationHours: 24,
+      }])
+      setActiveNodeIndex(0)
+      setIsComposerExpanded(false)
+
     } catch (err: any) {
       console.error(err)
-      setSubmitError(err.message || "Erreur de connexion avec le serveur. Veuillez réessayer.")
-      toast.error(err.message || "Erreur de connexion avec le serveur. Veuillez réessayer.")
+      setSubmitError(err.message || "Erreur de publication du fil. Veuillez réessayer.")
+      toast.error(err.message || "Erreur de publication du fil. Veuillez réessayer.")
     } finally {
       setIsSubmitting(false)
+      setSubmitProgress(null)
     }
   }
 
@@ -787,184 +1129,256 @@ export function ThoughtComposer({
       )}
 
       {/* Main Composer Row */}
-      <form onSubmit={(e) => handlePostSubmit(e)} className="space-y-3 font-sans">
-        <div className="flex gap-3 items-start">
-          {/* User Avatar */}
-          <div className="flex flex-col items-center shrink-0 w-10">
-            <AuthorAvatar
-              user={dbUser}
-              size="md"
-              showBadge={false}
-            />
-          </div>
+      <form onSubmit={(e) => handlePostSubmit(e)} className="space-y-4 font-sans">
+        <div className="flex flex-col gap-4">
+          {threadNodes.map((node, idx) => {
+            const isActive = idx === activeNodeIndex
+            const isLast = idx === threadNodes.length - 1
+            
+            // On récupère soit l'état "buffer actif" (si actif), soit l'état gelé stocké dans threadNodes
+            const displayText = isActive ? postText : node.text
+            const displayImages = isActive ? images : node.images
+            const displayShowPoll = isActive ? showPollEditor : node.showPollEditor
+            const displayPollOptions = isActive ? pollOptions : node.pollOptions
+            const displayIsWarning = isActive ? isTriggerWarning : node.isTriggerWarning
+            const displayWarningText = isActive ? triggerWarning : node.triggerWarning
 
-          <div className="flex-1 min-w-0">
-            <textarea
-              ref={textareaRef}
-              placeholder={defaultPlaceholder}
-              value={postText}
-              onChange={handleTextChange}
-              onFocus={() => {
-                if (!dbUser) {
-                  textareaRef.current?.blur()
-                  if (onLoginRequired) {
-                    onLoginRequired()
-                  }
-                  return
-                }
-                setIsComposerExpanded(true)
-              }}
-          onKeyDown={(e) => {
-            if (mentionSuggestions.length > 0) {
-              if (e.key === "ArrowDown") {
-                e.preventDefault()
-                setMentionSelectedIndex((prev) => (prev + 1) % mentionSuggestions.length)
-                return
-              }
-              if (e.key === "ArrowUp") {
-                e.preventDefault()
-                setMentionSelectedIndex((prev) => (prev - 1 + mentionSuggestions.length) % mentionSuggestions.length)
-                return
-              }
-              if (e.key === "Enter" || e.key === "Tab") {
-                e.preventDefault()
-                insertMention(mentionSuggestions[mentionSelectedIndex])
-                return
-              }
-              if (e.key === "Escape") {
-                e.preventDefault()
-                setMentionSuggestions([])
-                setMentionQuery(null)
-                return
-              }
-            }
+            return (
+              <div key={node.id} className="flex gap-3 items-start relative group">
+                {/* Left Column: Avatar & Continuous Connecting Thread Line */}
+                <div className="flex flex-col items-center shrink-0 w-10 relative">
+                  <AuthorAvatar
+                    user={dbUser}
+                    size="md"
+                    showBadge={false}
+                  />
+                  
+                  {/* Vertical connector line (Bluesky style) */}
+                  {!isLast && (
+                    <div className="absolute top-10 bottom-[-24px] left-[19px] w-[2px] bg-border/40" />
+                  )}
+                </div>
 
-            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-              e.preventDefault()
-              handlePostSubmit(e)
-            } else if (e.key === "Escape") {
-              setIsComposerExpanded(false)
-              setImages([])
-              setPostText("")
-              setVisibility("public")
-              setIsScheduled(false)
-              setScheduledDate(undefined)
-              setIsTriggerWarning(false)
-              setTriggerWarning("")
-              setIsDraft(false)
-              setShowVisibilityDropdown(false)
-              setShowScheduleDropdown(false)
-              setShowWarningDropdown(false)
-              setOverflowStyle("hidden")
-              setMentionSuggestions([])
-              setMentionQuery(null)
-              localStorage.removeItem("qoe_micro_post_draft")
-            }
-          }}
-          onPaste={handlePaste}
-          disabled={isSubmitting}
-          className={cn(
-            "w-full font-sans text-sm focus:outline-none resize-none transition-all duration-200",
-            "placeholder:text-muted-foreground/60 text-foreground font-normal",
-            "bg-transparent border-0 p-0 focus:ring-0 leading-relaxed",
-            isComposerExpanded ? "" : "h-12"
-          )}
-          style={{ height: isComposerExpanded ? "auto" : "48px" }}
-        />
+                {/* Right Column: Text editor / static content */}
+                <div className="flex-1 min-w-0 pb-1">
+                  {isActive ? (
+                    // 1. ACTIVE NODE (Editable Textarea + Active Attachments)
+                    <div className="space-y-2">
+                      <textarea
+                        ref={textareaRef}
+                        placeholder={idx === 0 ? defaultPlaceholder : "Ajouter une autre pensée à ce fil..."}
+                        value={displayText}
+                        onChange={handleTextChange}
+                        onFocus={() => {
+                          if (!dbUser) {
+                            textareaRef.current?.blur()
+                            if (onLoginRequired) {
+                              onLoginRequired()
+                            }
+                            return
+                          }
+                          setIsComposerExpanded(true)
+                        }}
+                        onKeyDown={(e) => {
+                          if (mentionSuggestions.length > 0) {
+                            if (e.key === "ArrowDown") {
+                              e.preventDefault()
+                              setMentionSelectedIndex((prev) => (prev + 1) % mentionSuggestions.length)
+                              return
+                            }
+                            if (e.key === "ArrowUp") {
+                              e.preventDefault()
+                              setMentionSelectedIndex((prev) => (prev - 1 + mentionSuggestions.length) % mentionSuggestions.length)
+                              return
+                            }
+                            if (e.key === "Enter" || e.key === "Tab") {
+                              e.preventDefault()
+                              insertMention(mentionSuggestions[mentionSelectedIndex])
+                              return
+                            }
+                            if (e.key === "Escape") {
+                              e.preventDefault()
+                              setMentionSuggestions([])
+                              setMentionQuery(null)
+                              return
+                            }
+                          }
 
-        {/* Universal Typeahead Suggestions Dropdown */}
-        {mentionSuggestions.length > 0 && (
-          <div className="relative font-sans z-[100]">
-            <div className="absolute top-1 left-0 w-72 max-h-56 overflow-y-auto bg-popover text-popover-foreground border border-border/80 rounded-xl shadow-2xl p-1 font-sans animate-in fade-in-0 zoom-in-95 duration-100">
-              {mentionSuggestions.map((item, idx) => {
-                const isSelected = idx === mentionSelectedIndex
-                return (
-                  <div
-                    key={item.id || idx}
-                    onClick={() => insertMention(item)}
-                    className={cn(
-                      "flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-colors text-xs select-none",
-                      isSelected
-                        ? "bg-accent text-accent-foreground font-semibold"
-                        : "hover:bg-muted/60 text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {item._type === "profile" && (
-                      <>
-                        <AuthorAvatar user={item} size="xs" showBadge={false} />
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <div className="flex items-center gap-1">
-                            <span className="font-bold truncate text-foreground">{item.name || "Auteur"}</span>
-                            {item.isCertified && <CertifiedBadge />}
+                          if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                            e.preventDefault()
+                            handlePostSubmit(e)
+                          } else if (e.key === "Escape") {
+                            setIsComposerExpanded(false)
+                            setImages([])
+                            setPostText("")
+                            setVisibility("public")
+                            setIsScheduled(false)
+                            setScheduledDate(undefined)
+                            setIsTriggerWarning(false)
+                            setTriggerWarning("")
+                            setIsDraft(false)
+                            setShowVisibilityDropdown(false)
+                            setShowScheduleDropdown(false)
+                            setShowWarningDropdown(false)
+                            setOverflowStyle("hidden")
+                            setMentionSuggestions([])
+                            setMentionQuery(null)
+                            localStorage.removeItem("qoe_micro_post_draft")
+                          }
+                        }}
+                        onPaste={handlePaste}
+                        disabled={isSubmitting}
+                        className={cn(
+                          "w-full font-sans text-sm focus:outline-none resize-none transition-all duration-200",
+                          "placeholder:text-muted-foreground/60 text-foreground font-normal p-0",
+                          "bg-transparent border-0 focus:ring-0 leading-relaxed min-h-[44px]"
+                        )}
+                        style={{ height: "auto" }}
+                      />
+
+                      {/* Universal Typeahead Suggestions Dropdown */}
+                      {mentionSuggestions.length > 0 && (
+                        <div className="relative font-sans z-[100]">
+                          <div className="absolute top-1 left-0 w-72 max-h-56 overflow-y-auto bg-popover text-popover-foreground border border-border/80 rounded-xl shadow-2xl p-1 font-sans animate-in fade-in-0 zoom-in-95 duration-100">
+                            {mentionSuggestions.map((item, idx) => {
+                              const isSelected = idx === mentionSelectedIndex
+                              return (
+                                <div
+                                  key={item.id || idx}
+                                  onClick={() => insertMention(item)}
+                                  className={cn(
+                                    "flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-colors text-xs select-none",
+                                    isSelected
+                                      ? "bg-accent text-accent-foreground font-semibold"
+                                      : "hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+                                  )}
+                                >
+                                  {item._type === "profile" && (
+                                    <>
+                                      <AuthorAvatar user={item} size="xs" showBadge={false} />
+                                      <div className="flex flex-col min-w-0 flex-1">
+                                        <div className="flex items-center gap-1">
+                                          <span className="font-bold truncate text-foreground">{item.name || "Auteur"}</span>
+                                          {item.isCertified && <CertifiedBadge />}
+                                        </div>
+                                        <span className="text-[11px] truncate text-muted-foreground">@{item.username || item.subdomain}</span>
+                                      </div>
+                                    </>
+                                  )}
+                                  {item._type === "tag" && (
+                                    <div className="flex items-center gap-2 font-medium">
+                                      <span className="font-bold text-primary">#</span>
+                                      <span className="text-foreground">{item.value}</span>
+                                    </div>
+                                  )}
+                                  {item._type === "emoji" && (
+                                    <div className="flex items-center gap-2 font-medium">
+                                      <span className="text-base">{item.char}</span>
+                                      <span className="text-muted-foreground text-xs">{item.name}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
                           </div>
-                          <span className="text-[11px] truncate text-muted-foreground">@{item.username || item.subdomain}</span>
                         </div>
-                      </>
-                    )}
-                    {item._type === "tag" && (
-                      <div className="flex items-center gap-2 font-medium">
-                        <span className="font-bold text-primary">#</span>
-                        <span className="text-foreground">{item.value}</span>
-                      </div>
-                    )}
-                    {item._type === "emoji" && (
-                      <div className="flex items-center gap-2 font-medium">
-                        <span className="text-base">{item.char}</span>
-                        <span className="text-muted-foreground text-xs">{item.name}</span>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
+                      )}
+                    </div>
+                  ) : (
+                    // 2. INACTIVE NODE (Static Preview + Switching onClick)
+                    <div
+                      onClick={() => handleSwitchNode(idx)}
+                      className="cursor-pointer py-1.5 min-h-[44px] text-foreground/85 hover:text-foreground transition-all text-sm font-sans"
+                    >
+                      <p className="whitespace-pre-wrap leading-relaxed">
+                        {displayText || (
+                          <span className="text-muted-foreground/35 italic">
+                            Ajouter un post au fil...
+                          </span>
+                        )}
+                      </p>
+                      
+                      {/* Static images for inactive nodes */}
+                      {displayImages.length > 0 && (
+                        <div className={cn(
+                          "grid gap-1.5 mt-2 max-w-md pointer-events-none opacity-80",
+                          displayImages.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                        )}>
+                          {displayImages.map((img) => (
+                            <div key={img.id} className="relative aspect-video bg-muted/20 border border-border/20 overflow-hidden rounded-xl">
+                              <img src={img.url} className="w-full h-full object-cover" alt="" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-        {quotedThought && (
-          <div className="relative my-2">
-            <button
-              type="button"
-              onClick={() => setQuotedThought(null)}
-              className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-neutral-900/80 text-white hover:bg-neutral-900 transition-colors cursor-pointer"
-              title="Retirer la citation"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-            <QuotedThoughtCard post={quotedThought} />
-          </div>
-        )}
+                  {/* Quote Post and Article Quote Previews (Only applicable on the root post / idx === 0) */}
+                  {idx === 0 && quotedThought && (
+                    <div className="relative my-2">
+                      <button
+                        type="button"
+                        onClick={() => setQuotedThought(null)}
+                        className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-neutral-900/80 text-white hover:bg-neutral-900 transition-colors cursor-pointer"
+                        title="Retirer la citation"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      <QuotedThoughtCard post={quotedThought} />
+                    </div>
+                  )}
 
-        {quotedArticle && (
-          <div className="relative my-2">
-            <button
-              type="button"
-              onClick={() => {
-                setQuotedArticle(null)
-                setQuotedExcerpt(null)
-              }}
-              className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-neutral-900/80 text-white hover:bg-neutral-900 transition-colors cursor-pointer shadow-md"
-              title="Retirer la citation"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-            <QuotedArticleCard article={quotedArticle} quotedExcerpt={quotedExcerpt || undefined} />
-          </div>
-        )}
+                  {idx === 0 && quotedArticle && (
+                    <div className="relative my-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuotedArticle(null)
+                          setQuotedExcerpt(null)
+                        }}
+                        className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-neutral-900/80 text-white hover:bg-neutral-900 transition-colors cursor-pointer shadow-md"
+                        title="Retirer la citation"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      <QuotedArticleCard article={quotedArticle} quotedExcerpt={quotedExcerpt || undefined} />
+                    </div>
+                  )}
+                </div>
 
+                {/* Individual Trash Node Action (only if thread is multi-node) */}
+                {threadNodes.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeThreadNode(node.id)}
+                    className="p-1.5 rounded-full text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 cursor-pointer shrink-0 self-start mt-0.5 transition-all outline-none"
+                    title="Supprimer cette pensée du fil"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Global Thread Bottom Controls (Expandable Toolbar, Character Counter, Submit, + Add thread node) */}
         <AnimatePresence>
-          {isComposerExpanded && (
+          {(isComposerExpanded || threadNodes.length > 1) && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               onAnimationStart={() => setOverflowStyle("hidden")}
               onAnimationComplete={() => {
-                if (isComposerExpanded) setOverflowStyle("visible")
+                if (isComposerExpanded || threadNodes.length > 1) setOverflowStyle("visible")
               }}
               transition={{ duration: 0.22, ease: "easeOut" }}
-              className="flex flex-col gap-3.5"
+              className="flex flex-col gap-3.5 mt-2"
               style={{ overflow: overflowStyle }}
             >
+              {/* Submit Error message */}
               {submitError && (
                 <div className="bg-destructive/10 text-destructive text-[11px] font-semibold p-3 rounded-lg flex items-center gap-2 border border-destructive/20">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -972,6 +1386,15 @@ export function ThoughtComposer({
                 </div>
               )}
 
+              {/* Progress message for multi-post publication */}
+              {submitProgress && (
+                <div className="bg-primary/10 text-primary text-[11px] font-semibold p-3 rounded-lg flex items-center gap-2.5 border border-primary/20 animate-pulse">
+                  <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+                  <span>{submitProgress}</span>
+                </div>
+              )}
+
+              {/* ACTIVE IMAGES PREVIEW GRID (Only for currently active node index) */}
               {images.length > 0 && (
                 <div className={cn(
                   "grid gap-2",
@@ -996,10 +1419,9 @@ export function ThoughtComposer({
                           alt=""
                         />
 
-                        {/* Premium Hover Actions Overlay */}
+                        {/* Hover Actions Overlay */}
                         <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-2.5 z-10">
                           <div className="flex items-center justify-between w-full">
-                            {/* Reorder actions */}
                             <div className="flex items-center gap-1">
                               {idx > 0 && (
                                 <button
@@ -1023,7 +1445,6 @@ export function ThoughtComposer({
                               )}
                             </div>
 
-                             {/* ALT, Crop & Replace actions */}
                             <div className="flex items-center gap-1.5">
                               <button
                                 type="button"
@@ -1065,7 +1486,6 @@ export function ThoughtComposer({
                             </div>
                           </div>
 
-
                           <div className="flex justify-end">
                             <button
                               type="button"
@@ -1081,7 +1501,6 @@ export function ThoughtComposer({
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
-
                         </div>
                       </motion.div>
                     ))}
@@ -1089,7 +1508,7 @@ export function ThoughtComposer({
                 </div>
               )}
 
-              {/* Hidden file input for replacement */}
+              {/* Hidden file inputs */}
               <input
                 type="file"
                 ref={replaceInputRef}
@@ -1098,7 +1517,7 @@ export function ThoughtComposer({
                 className="hidden"
               />
 
-              {/* Poll Editor Panel */}
+              {/* ACTIVE POLL EDITOR */}
               {showPollEditor && (
                 <div className="p-3.5 rounded-xl border border-primary/30 bg-primary/5 space-y-3 font-sans my-2">
                   <div className="flex items-center justify-between">
@@ -1177,9 +1596,9 @@ export function ThoughtComposer({
                 </div>
               )}
 
-              {/* Bluesky-style Threadgate & Visibility sub-row */}
+              {/* Threadgate & Visibility settings */}
               <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-subtle)]/60 text-xs">
-                {/* 1b. Restriction des réponses Dropdown (Threadgate) */}
+                {/* Reply Restriction Dropdown (Threadgate) */}
                 <Popover open={showReplyRestrictionDropdown} onOpenChange={setShowReplyRestrictionDropdown}>
                   <PopoverTrigger
                     render={
@@ -1266,7 +1685,7 @@ export function ThoughtComposer({
                   </PopoverContent>
                 </Popover>
 
-                {/* Visibilité Dropdown */}
+                {/* Visibility Dropdown */}
                 <Popover open={showVisibilityDropdown} onOpenChange={setShowVisibilityDropdown}>
                   <PopoverTrigger
                     render={
@@ -1351,7 +1770,7 @@ export function ThoughtComposer({
                     <BarChart2 className="w-4 h-4" />
                   </button>
 
-                  {/* Planification Dropdown */}
+                  {/* Schedule Dropdown */}
                   <Popover open={showScheduleDropdown} onOpenChange={(open: boolean) => {
                     setShowScheduleDropdown(open)
                     if (open && !scheduledDate) {
@@ -1451,7 +1870,7 @@ export function ThoughtComposer({
                     </PopoverContent>
                   </Popover>
 
-                  {/* Avertissement Dropdown */}
+                  {/* Warning Dropdown */}
                   <Popover open={showWarningDropdown} onOpenChange={setShowWarningDropdown}>
                     <PopoverTrigger
                       render={
@@ -1494,7 +1913,7 @@ export function ThoughtComposer({
 
                 {/* Right Action Tools & Primary Submit Button */}
                 <div className="flex items-center gap-2 shrink-0">
-                  {/* Radial Character Counter */}
+                  {/* radial character counter */}
                   {postText.length > 0 && (
                     <div className="flex items-center gap-1 pr-1">
                       {charsRemaining <= 30 && (
@@ -1536,6 +1955,17 @@ export function ThoughtComposer({
                     </div>
                   )}
 
+                  {/* Plus Button to add a thread post (Brique 3) */}
+                  <button
+                    type="button"
+                    onClick={addThreadNode}
+                    disabled={isSubmitting}
+                    className="p-2 rounded-xl border border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all cursor-pointer flex items-center justify-center active:scale-95 shrink-0"
+                    title="Ajouter une autre pensée à ce fil de discussion"
+                  >
+                    <Plus className="w-4 h-4 text-primary" />
+                  </button>
+
                   {/* Unified Drafts Popover */}
                   <Popover open={showDraftPopover} onOpenChange={setShowDraftPopover}>
                     <PopoverTrigger
@@ -1558,7 +1988,7 @@ export function ThoughtComposer({
                         }}
                         className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-muted/60 text-foreground disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                       >
-                        Enregistrer le brouillon actuel
+                        Enregistrer le brouillon de fil
                       </button>
                       <button
                         type="button"
@@ -1576,7 +2006,7 @@ export function ThoughtComposer({
                   {/* PRIMARY ACTION SUBMIT BUTTON */}
                   <button
                     type="submit"
-                    disabled={(!postText.trim() && images.length === 0) || isSubmitting || isOverLimit}
+                    disabled={(!postText.trim() && images.length === 0 && threadNodes.length <= 1) || isSubmitting || isOverLimit}
                     className="bg-primary text-primary-foreground hover:opacity-95 disabled:bg-muted disabled:text-muted-foreground transition-all duration-150 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer outline-none shadow-sm shrink-0 active:scale-[0.98]"
                   >
                     {isSubmitting ? (
@@ -1585,18 +2015,15 @@ export function ThoughtComposer({
                       </>
                     ) : (
                       <>
-                        {replyToThought || parentId ? "Répondre" : "Publier"} <Send className="w-3 h-3" />
+                        {replyToThought || parentId ? "Répondre" : threadNodes.length > 1 ? "Tout publier" : "Publier"} <Send className="w-3 h-3" />
                       </>
                     )}
                   </button>
                 </div>
               </div>
-
             </motion.div>
           )}
         </AnimatePresence>
-          </div>
-        </div>
       </form>
 
       <Sheet open={isDraftsOpen} onOpenChange={setIsDraftsOpen}>
@@ -1608,7 +2035,58 @@ export function ThoughtComposer({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 font-sans">
+            {/* Brouillons de fil locaux (Brique 3) */}
+            {typeof window !== "undefined" && localStorage.getItem("qoe_multi_thought_drafts") && (
+              <div className="border border-primary/25 bg-primary/5 rounded-[var(--radius-card)] p-4 space-y-2.5 flex flex-col justify-between mb-4">
+                <div className="space-y-1.5">
+                  <span className="text-[9px] uppercase tracking-wider text-primary font-bold block">Brouillon de Fil Local (Multi-Post)</span>
+                  <p className="text-xs text-[var(--text-primary)] font-serif leading-relaxed line-clamp-3">
+                    {(() => {
+                      try {
+                        const parsed = JSON.parse(localStorage.getItem("qoe_multi_thought_drafts") || "[]")
+                        return parsed.map((n: any) => n.text).filter(Boolean).join(" → ") || "Contenu du fil vide ou images uniquement"
+                      } catch {
+                        return "Restaurer votre brouillon de fil de discussion."
+                      }
+                    })()}
+                  </p>
+                </div>
+                <div className="flex justify-between items-center pt-2.5 border-t border-primary/10">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.removeItem("qoe_multi_thought_drafts")
+                      toast.success("Brouillon local supprimé.")
+                      setThreadNodes([{
+                        id: crypto.randomUUID(),
+                        text: "",
+                        images: [],
+                        isTriggerWarning: false,
+                        triggerWarning: "",
+                        showPollEditor: false,
+                        pollOptions: ["", ""],
+                        pollDurationHours: 24,
+                      }])
+                    }}
+                    className="text-[10px] font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10 px-2 py-1 rounded-[var(--radius-button)] transition-colors cursor-pointer"
+                  >
+                    Effacer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleLoadLocalThreadDraft()
+                      setIsDraftsOpen(false)
+                    }}
+                    className="text-[10px] font-bold text-white bg-primary hover:opacity-95 px-2.5 py-1 rounded-[var(--radius-button)] transition-all cursor-pointer"
+                  >
+                    Restaurer le fil
+                  </button>
+                </div>
+              </div>
+            )}
+
             {loadingDrafts ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <Loader2 className="w-5 h-5 animate-spin text-[var(--qoe-vermillion)]" />
