@@ -93,6 +93,71 @@ export const createThoughtAction = safeAction<
   return { post: { ...newPost, poll: createdPoll } };
 });
 
+export const createThoughtThreadAction = safeAction<
+  {
+    thoughts: Array<{
+      content: string;
+      tags: string[];
+      imageUrl?: string | null;
+      attachments?: Array<{ url: string; type?: string; altText?: string; order?: number }>;
+      triggerWarning?: string | null;
+      poll?: { options: string[]; durationHours?: number } | null;
+    }>;
+    visibility?: string;
+    isDraft?: boolean;
+    scheduledAt?: string | null;
+    replyRestriction?: string | null;
+    parentId?: string | null;
+  },
+  { posts: any[] }
+>(async (rawInput, user) => {
+  const { thoughts, visibility, isDraft, scheduledAt, replyRestriction, parentId } = rawInput;
+
+  if (!thoughts || !Array.isArray(thoughts) || thoughts.length === 0) {
+    throw new Error("EMPTY_THREAD");
+  }
+
+  // 1. Validation de la longueur pour chaque pensée (500 caractères, hors URLs)
+  for (let i = 0; i < thoughts.length; i++) {
+    const node = thoughts[i];
+    const cleanContent = node.content || "";
+
+    const urlRegex = /https?:\/\/[^\s]+/gi;
+    const urls = cleanContent.match(urlRegex) || [];
+    let charLength = cleanContent.length;
+    for (const url of urls) {
+      charLength -= url.length;
+      const isInternal = url.includes("/post/") || url.includes("/article/") || url.includes("/thought/");
+      if (!isInternal) {
+        charLength += 20;
+      }
+    }
+
+    if (charLength > 500) {
+      throw new Error(`INVALID_CONTENT_LENGTH_NODE_${i}`);
+    }
+  }
+
+  // 2. Création du fil via la méthode transactionnelle atomique du dépôt
+  const createdPosts = await posts.createThoughtThread(user.id, {
+    thoughts: thoughts.map((t) => ({
+      content: t.content,
+      tags: t.tags ?? [],
+      imageUrl: t.imageUrl || null,
+      attachments: t.attachments ?? [],
+      triggerWarning: t.triggerWarning || null,
+      poll: t.poll ?? null,
+    })),
+    visibility: visibility ?? "public",
+    isDraft: isDraft ?? false,
+    scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+    replyRestriction: replyRestriction ?? "everyone",
+    parentId: parentId || null,
+  });
+
+  return { posts: createdPosts };
+});
+
 
 export const toggleLikePostAction = safeAction<string, { liked: boolean }>(
   async (postId, user) => {

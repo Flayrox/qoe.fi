@@ -876,24 +876,18 @@ export function ThoughtComposer({
     setSubmitProgress("Préparation de la publication du fil...")
 
     try {
-      const { createThoughtAction, deletePostAction } = await import("@qoe/api-client/actions/feed")
+      const { createThoughtThreadAction, deletePostAction } = await import("@qoe/api-client/actions/feed")
       
-      let lastPostId = replyToThought?.id || parentId || null
+      const thoughtsPayload = []
       let firstCreatedPost: any = null
 
-      // Boucle séquentielle ordonnée sur chaque nœud du fil
+      // 1. Upload des images associées à chaque nœud du fil
       for (let i = 0; i < finalNodes.length; i++) {
         const node = finalNodes[i]
         const textContent = node.text.trim()
         
-        // Mettre à jour la progression
-        setSubmitProgress(
-          isDraftSubmit
-            ? `Enregistrement du brouillon ${i + 1}/${finalNodes.length}...`
-            : `Publication du message ${i + 1}/${finalNodes.length}...`
-        )
+        setSubmitProgress(`Préparation et envoi des images (${i + 1}/${finalNodes.length})...`)
 
-        // Upload des images associées à ce nœud spécifique
         const uploadedUrls = await uploadComposerImages(node.images)
         const imagePayload = uploadedUrls.length > 0 ? JSON.stringify(uploadedUrls) : null
         const attachmentPayload = node.images.map((img, idx) => ({
@@ -934,36 +928,40 @@ export function ThoughtComposer({
           }
         }
 
-        const res = await createThoughtAction({
+        thoughtsPayload.push({
           content: contentToSubmit,
           tags,
           imageUrl: imagePayload,
           attachments: attachmentPayload,
-          visibility, // thread-level
-          isDraft: isDraftSubmit, // thread-level
-          scheduledAt: i === 0 && isScheduled && scheduledDate ? getScheduledDateTimeString() : null, // Seul le post racine est planifié
           triggerWarning: node.isTriggerWarning && node.triggerWarning.trim() ? node.triggerWarning.trim() : null,
-          repostId: nodeQuotedThoughtId,
-          parentId: lastPostId, // Lie la pensée actuelle au post parent (ou au post précédent !)
-          replyRestriction, // thread-level
           poll: pollPayload,
         })
-
-        if (!res.ok) {
-          throw new Error(res.error?.message || `Impossible de publier la pensée ${i + 1}.`)
-        }
-        if (!res.data?.post) {
-          throw new Error(`Impossible de publier la pensée ${i + 1} (données de publication manquantes).`)
-        }
-
-        const createdPost = res.data.post
-        if (i === 0) {
-          firstCreatedPost = createdPost
-        }
-
-        // Parent pour la pensée suivante = l'id que l'on vient de créer !
-        lastPostId = createdPost.id
       }
+
+      // 2. Publication atomique du fil entier côté serveur
+      setSubmitProgress(
+        isDraftSubmit
+          ? "Enregistrement du brouillon de fil..."
+          : "Publication de votre fil de discussion..."
+      )
+
+      const res = await createThoughtThreadAction({
+        thoughts: thoughtsPayload,
+        visibility, // thread-level
+        isDraft: isDraftSubmit, // thread-level
+        scheduledAt: isScheduled && scheduledDate ? getScheduledDateTimeString() : null, // thread-level
+        replyRestriction, // thread-level
+        parentId: replyToThought?.id || parentId || null,
+      })
+
+      if (!res.ok) {
+        throw new Error(res.error?.message || "Impossible de publier le fil de discussion.")
+      }
+      if (!res.data?.posts || res.data.posts.length === 0) {
+        throw new Error("Impossible de publier le fil (données de publication manquantes).")
+      }
+
+      firstCreatedPost = res.data.posts[0]
 
       // Nettoyer les objets blobs
       finalNodes.forEach(node => {
