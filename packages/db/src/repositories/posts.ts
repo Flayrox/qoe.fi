@@ -73,17 +73,79 @@ async function buildFeedSlices(rawPosts: any[], currentUserId?: string): Promise
         ...e,
         poll: formatPollData(e.poll, currentUserId),
       });
+      if (e.parentId) missingIds.add(e.parentId);
+      if (e.rootId) missingIds.add(e.rootId);
+    }
+
+    const secondaryMissing = Array.from(missingIds).filter((id) => !extraPosts.has(id));
+    if (secondaryMissing.length > 0) {
+      const secondaryExtras = await prisma.thought.findMany({
+        where: { id: { in: secondaryMissing } },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              subdomain: true,
+              customDomain: true,
+              logoUrl: true,
+              isCertified: true,
+            },
+          },
+          repost: {
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  username: true,
+                  subdomain: true,
+                  customDomain: true,
+                  logoUrl: true,
+                  isCertified: true,
+                },
+              },
+            },
+          },
+          attachments: { orderBy: { order: "asc" } },
+          poll: {
+            include: {
+              options: {
+                orderBy: { order: "asc" },
+                include: { _count: { select: { votes: true } } },
+              },
+              votes: { select: { optionId: true, userId: true } },
+            },
+          },
+          _count: { select: { likes: true, replies: true, reposts: true } },
+          likes: currentUserId ? { where: { userId: currentUserId }, select: { userId: true } } : false,
+          reposts: currentUserId ? { where: { authorId: currentUserId, deletedAt: null }, select: { id: true } } : false,
+        },
+      });
+
+      for (const e of secondaryExtras) {
+        extraPosts.set(e.id, {
+          ...e,
+          poll: formatPollData(e.poll, currentUserId),
+        });
+      }
     }
   }
 
   return rawPosts.map((p) => {
     const targetPost = { ...p, poll: formatPollData(p.poll, currentUserId) };
     const parentPost = p.parentId ? extraPosts.get(p.parentId) : undefined;
-    const rootPost = p.rootId && p.rootId !== p.parentId ? extraPosts.get(p.rootId) : undefined;
+    const rootId = p.rootId || (parentPost ? parentPost.rootId || parentPost.parentId : undefined);
+    let rootPost = rootId && rootId !== p.parentId && rootId !== p.id ? extraPosts.get(rootId) : undefined;
+
+    if (!rootPost && parentPost && parentPost.parentId && parentPost.parentId !== p.id) {
+      rootPost = extraPosts.get(parentPost.parentId);
+    }
 
     let isIncompleteThread = false;
-    if (parentPost && p.rootId) {
-      if (parentPost.parentId !== p.rootId && parentPost.id !== p.rootId) {
+    if (parentPost && rootPost) {
+      if (parentPost.parentId && parentPost.parentId !== rootPost.id && parentPost.id !== rootPost.id) {
         isIncompleteThread = true;
       }
     }
