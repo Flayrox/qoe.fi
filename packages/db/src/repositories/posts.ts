@@ -455,7 +455,7 @@ export async function createThoughtThread(
       const node = data.thoughts[i];
 
       // Vérification des restrictions de réponse (Threadgates)
-      if (lastPostId) {
+      if (lastPostId && lastPostId === data.parentId) {
         const replyCheck = await canUserReplyToThought(lastPostId, authorId);
         if (!replyCheck.canReply) {
           throw new Error(replyCheck.reason || "THREADGATE_RESTRICTED");
