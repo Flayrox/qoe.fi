@@ -13,6 +13,7 @@ export function ThoughtThreadFocus() {
     currentUserId,
     toggleLike,
     repostThought,
+    deleteThought,
     setLightboxImage,
     onOpenPost,
     onOpenProfile,
@@ -98,6 +99,7 @@ export function ThoughtThreadFocus() {
       onLikeToggle={() => toggleLike(post.id)}
       onRepostToggle={() => repostThought(post.id)}
       onPinToggle={handlePinToggle}
+      onDeletePost={async () => deleteThought(post.id)}
     />
   )
 }

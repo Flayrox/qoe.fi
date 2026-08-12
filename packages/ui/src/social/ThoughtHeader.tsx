@@ -2,7 +2,7 @@
 
 import React from "react"
 import { cn } from "@qoe/utils"
-import { MoreHorizontal, Pin, Flag, EyeOff, Eye, Ban, Copy } from "lucide-react"
+import { MoreHorizontal, Pin, Flag, EyeOff, Eye, Ban, Copy, Trash2 } from "lucide-react"
 import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover"
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "../ui/hover-card"
 import { ProfileHoverCard } from "./ProfileHoverCard"
@@ -36,6 +36,7 @@ export interface ThoughtHeaderProps {
   onReportClick?: (e: React.MouseEvent) => void
   onHideReplyToggle?: (e: React.MouseEvent) => void
   onBlockUserToggle?: (e: React.MouseEvent) => void
+  onDeleteClick?: (e: React.MouseEvent) => void
   className?: string
 }
 
@@ -57,6 +58,7 @@ export function ThoughtHeader({
   onReportClick,
   onHideReplyToggle,
   onBlockUserToggle,
+  onDeleteClick,
   className,
 }: ThoughtHeaderProps) {
   const [showPopover, setShowPopover] = React.useState<boolean>(false)
@@ -198,6 +200,20 @@ export function ThoughtHeader({
               >
                 {isHiddenByAuthor ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                 <span>{isHiddenByAuthor ? "Afficher cette réponse" : "Masquer cette réponse"}</span>
+              </button>
+            )}
+
+            {currentUserId === author.id && onDeleteClick && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  setShowPopover(false)
+                  onDeleteClick(e)
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-rose-500 hover:bg-rose-500/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Supprimer</span>
               </button>
             )}
 

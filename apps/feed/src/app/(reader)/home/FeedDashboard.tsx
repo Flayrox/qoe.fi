@@ -11,8 +11,11 @@ import {
   toggleBookmarkArticleHomeAction as toggleBookmarkArticleHome, 
   toggleLikePostAction as toggleLikePost, 
   toggleRepostPostAction as toggleRepostPost,
+  deletePostAction as deletePost,
   getArticleThreadAction as getArticleThread
 } from "@qoe/api-client/actions/feed"
+import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 import { ArticleCard, GuestFloatingBar, useAuthModal, MediaLightbox, HotkeyHelpModal, type AuthActionContext } from "@qoe/ui"
 import { ThoughtCard } from "@/components/social/ThoughtCard"
@@ -144,6 +147,7 @@ export function FeedDashboard({
   const { mutate: mutateRepost } = useOptimisticRepost()
   const { mutate: mutateBookmark } = useOptimisticBookmark()
   const { mutate: mutateFollow } = useOptimisticFollow()
+  const queryClient = useQueryClient()
 
   const { unreadCount, flushBuffer } = useRealtimeFeedBuffer({
     enabled: activeFeed === "recommandation" || activeFeed === "abonnement",
@@ -160,7 +164,7 @@ export function FeedDashboard({
   const [followedCreators, setFollowedCreators] = useState<any[]>(initialFollowedCreators)
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [localPosts, setLocalPosts] = useState<Article[]>([])
-  const [deletedPostIds] = useState<Set<string>>(new Set())
+  const [deletedPostIds, setDeletedPostIds] = useState<Set<string>>(new Set())
   const [interactions, setInteractions] = useState<Record<string, { liked?: boolean; likesCount?: number; bookmarked?: boolean; repliesCount?: number; reposted?: boolean; repostsCount?: number }>>({})
   
   const isCreatorFollowed = (creatorId: string) => followedCreators.some(f => f.id === creatorId)
@@ -342,6 +346,34 @@ export function FeedDashboard({
         return { success: res.ok }
       }
     })
+  }
+
+  const handleDeletePost = async (postId: string): Promise<boolean> => {
+    if (!dbUser) {
+      openAuth({ mode: "signup", actionContext: "delete" })
+      return false
+    }
+
+    setDeletedPostIds(prev => new Set(prev).add(postId))
+    setLocalPosts(prev => prev.filter(p => p.id !== postId))
+    updateThoughtShadow(postId, { isDeleted: true })
+    trackEvent("thought_delete", { postId })
+
+    const res = await deletePost(postId)
+
+    if (!res.ok) {
+      setDeletedPostIds(prev => {
+        const next = new Set(prev)
+        next.delete(postId)
+        return next
+      })
+      toast.error("Erreur lors de la suppression de la pensée.")
+      return false
+    }
+
+    toast.success("Pensée supprimée.")
+    queryClient.invalidateQueries({ queryKey: ["feed"] })
+    return true
   }
 
   const [savedScrollPosition, setSavedScrollPosition] = useState<number>(0)
@@ -700,6 +732,7 @@ export function FeedDashboard({
                                   }}
                                   onLikeToggle={handleLikeToggle}
                                   onRepostToggle={handleRepostToggle}
+                                  onDeletePost={handleDeletePost}
                                 />
                               )
                             }

@@ -18,6 +18,7 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
     currentUserId,
     toggleLike,
     repostThought,
+    deleteThought,
     setLightboxImage,
     onOpenPost,
     onOpenProfile,
@@ -103,6 +104,7 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
         onRepostToggle={() => repostThought(reply.id)}
         onHideReplyToggle={handleHideReplyToggle}
         onBlockUserToggle={handleBlockUserToggle}
+        onDeletePost={async () => deleteThought(reply.id)}
       />
 
       {hasChildren && (

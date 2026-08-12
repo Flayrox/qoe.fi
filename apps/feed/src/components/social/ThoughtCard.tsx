@@ -2,6 +2,7 @@
 
 import React from "react"
 import { ThoughtCardContainer, type ThoughtCardContainerProps } from "@qoe/api-client"
+import { ConfirmDeleteModal } from "@qoe/ui"
 import { ModerationReportModal } from "./ModerationReportModal"
 import { routes } from "@qoe/config/routes"
 import { toast } from "sonner"
@@ -23,6 +24,7 @@ export interface FeedThoughtCardProps extends Omit<ThoughtCardContainerProps, "l
   onOpenPost?: (postId: string, authorUsername?: string) => void
   onLikeToggle?: (postId: string) => void
   onRepostToggle?: (postId: string) => void
+  onDeletePost?: (postId: string) => Promise<boolean> | void
 }
 
 export function ThoughtCard({
@@ -34,11 +36,13 @@ export function ThoughtCard({
   onOpenPost,
   onLikeToggle,
   onRepostToggle,
+  onDeletePost,
   className,
   ...restProps
 }: FeedThoughtCardProps) {
   const [currentUserId, setCurrentUserId] = React.useState<string | null>(propUserId || null)
   const [showReportModal, setShowReportModal] = React.useState<boolean>(false)
+  const [confirmDeletePostId, setConfirmDeletePostId] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     if (propUserId) return
@@ -96,6 +100,12 @@ export function ThoughtCard({
     }
   }
 
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setConfirmDeletePostId(post.id)
+  }
+
   const pollSlot = post.poll ? <PollCard poll={post.poll} /> : null
   const threadgateBadge = post.replyRestriction && post.replyRestriction !== "everyone" ? (
     <ThreadgateBadge restriction={post.replyRestriction as any} />
@@ -117,6 +127,7 @@ export function ThoughtCard({
       onReplyClick={handleReplyClick}
       onPinToggle={handlePinToggle}
       onReportClick={() => setShowReportModal(true)}
+      onDeleteClick={onDeletePost ? handleDeleteClick : undefined}
       onLikeToggleOverride={handleLikeToggleOverride}
       onRepostToggleOverride={handleRepostToggleOverride}
       likeMutationFn={async (id) => {
@@ -149,6 +160,14 @@ export function ThoughtCard({
         onClose={() => setShowReportModal(false)}
         targetId={post.id}
         targetType="thought"
+      />
+
+      <ConfirmDeleteModal
+        isOpen={confirmDeletePostId === post.id}
+        onClose={() => setConfirmDeletePostId(null)}
+        onConfirm={() => {
+          if (confirmDeletePostId) return onDeletePost?.(confirmDeletePostId)
+        }}
       />
     </>
   )

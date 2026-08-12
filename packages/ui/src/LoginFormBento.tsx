@@ -52,6 +52,7 @@ export function LoginFormBento({
     if (actionContext === "bookmark") return "Enregistrez cet écrit dans votre sanctuaire de lecture";
     if (actionContext === "comment") return "Rejoignez la conversation et répondez à l'auteur";
     if (actionContext === "repost") return "Partagez ce post avec vos abonnés";
+    if (actionContext === "delete") return "Connectez-vous pour gérer et supprimer vos propres publications";
     if (authMode === 'signup') {
       return signupStep === 1 ? "Rejoignez le réseau souverain" : "Sécurisez vos identifiants";
     }

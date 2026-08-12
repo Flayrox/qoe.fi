@@ -6,7 +6,7 @@ import { motion } from "framer-motion"
 import { cn } from "@qoe/utils"
 import { useTranslate } from "@qoe/i18n"
 
-export type AuthActionContext = "like" | "follow" | "bookmark" | "comment" | "repost"
+export type AuthActionContext = "like" | "follow" | "bookmark" | "comment" | "repost" | "delete"
 
 interface GuestFloatingBarProps {
   onOpenAuth: (options: { mode: "login" | "signup"; actionContext?: AuthActionContext }) => void
