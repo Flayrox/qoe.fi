@@ -422,6 +422,157 @@ export async function createThought(data: {
 export const createMicroPost = createThought;
 
 /**
+ * 🧵 Crée un fil complet de pensées (Thread) de manière atomique sous transaction SQL.
+ */
+export async function createThoughtThread(
+  authorId: string,
+  data: {
+    thoughts: Array<{
+      content: string;
+      tags?: string[];
+      imageUrl?: string | null;
+      attachments?: Array<{ url: string; type?: string; altText?: string; order?: number }>;
+      triggerWarning?: string | null;
+      poll?: { options: string[]; durationHours?: number } | null;
+    }>;
+    visibility?: string;
+    isDraft?: boolean;
+    scheduledAt?: Date | null;
+    replyRestriction?: string;
+    parentId?: string | null;
+  }
+) {
+  if (!data.thoughts || data.thoughts.length === 0) {
+    throw new Error("EMPTY_THREAD");
+  }
+
+  // 1. Transaction Prisma atomique
+  return await prisma.$transaction(async (tx) => {
+    let lastPostId = data.parentId || null;
+    const list: any[] = [];
+
+    for (let i = 0; i < data.thoughts.length; i++) {
+      const node = data.thoughts[i];
+
+      // Vérification des restrictions de réponse (Threadgates)
+      if (lastPostId) {
+        const replyCheck = await canUserReplyToThought(lastPostId, authorId);
+        if (!replyCheck.canReply) {
+          throw new Error(replyCheck.reason || "THREADGATE_RESTRICTED");
+        }
+      }
+
+      // Calcul dynamique du rootId pour la cascade de fils
+      let computedRootId: string | null = null;
+      if (lastPostId) {
+        const parentPost = await tx.thought.findUnique({
+          where: { id: lastPostId },
+          select: { id: true, rootId: true },
+        });
+        if (parentPost) {
+          computedRootId = parentPost.rootId || parentPost.id;
+        }
+      }
+
+      // Création de l'enregistrement de la pensée
+      const newPost = await tx.thought.create({
+        data: {
+          content: node.content,
+          authorId,
+          tags: node.tags ?? [],
+          imageUrl: node.imageUrl || null,
+          attachments:
+            node.attachments && node.attachments.length > 0
+              ? {
+                  create: node.attachments.map((att, idx) => ({
+                    url: att.url,
+                    type: att.type || "IMAGE",
+                    altText: att.altText || null,
+                    order: att.order ?? idx,
+                  })),
+                }
+              : undefined,
+          visibility: data.visibility ?? POST_VISIBILITY.PUBLIC,
+          isDraft: data.isDraft ?? false,
+          scheduledAt: i === 0 ? data.scheduledAt || null : null, // Seul le post racine est planifié
+          triggerWarning: node.triggerWarning || null,
+          parentId: lastPostId,
+          rootId: computedRootId,
+          replyRestriction: data.replyRestriction || "everyone",
+        },
+        include: {
+          attachments: { orderBy: { order: "asc" } },
+          author: {
+            select: {
+              id: true,
+              name: true,
+              subdomain: true,
+              customDomain: true,
+              logoUrl: true,
+              heroText: true,
+              username: true,
+              isCertified: true,
+            },
+          },
+          repost: {
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  subdomain: true,
+                  customDomain: true,
+                  logoUrl: true,
+                  username: true,
+                  isCertified: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Gestion du sondage
+      let createdPoll: any = null;
+      if (node.poll && Array.isArray(node.poll.options)) {
+        const validOpts = node.poll.options.map((o) => o.trim()).filter(Boolean);
+        if (validOpts.length >= 2 && validOpts.length <= 4) {
+          const durationHours = node.poll.durationHours || 24;
+          const expiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000);
+          createdPoll = await tx.poll.create({
+            data: {
+              thoughtId: newPost.id,
+              expiresAt,
+              options: {
+                create: validOpts.map((text, index) => ({
+                  text,
+                  order: index,
+                })),
+              },
+            },
+            include: {
+              options: { orderBy: { order: "asc" } },
+            },
+          });
+        }
+      }
+
+      lastPostId = newPost.id;
+      list.push({ ...newPost, poll: createdPoll });
+
+      // Enregistrer les hashtags
+      if (node.tags && node.tags.length > 0) {
+        recordHashtags(node.tags).catch((err) =>
+          console.error("Error recording hashtags in thread:", err)
+        );
+      }
+    }
+
+    return list;
+  });
+}
+
+/**
  * ❤️ Toggle like sur une pensée canonique.
  */
 import { createNotification, deleteNotification } from "./notifications";
