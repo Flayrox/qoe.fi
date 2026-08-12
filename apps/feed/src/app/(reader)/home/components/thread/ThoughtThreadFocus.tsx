@@ -1,7 +1,8 @@
 "use client"
 
 import React from "react"
-import { pinPostAction, unpinPostAction } from "@qoe/api-client/actions/feed"
+import { pinPostAction, unpinPostAction, toggleFollowCreatorHomeAction } from "@qoe/api-client/actions/feed"
+import { useOptimisticFollow } from "@qoe/api-client/hooks/useOptimisticFollow"
 import { toast } from "sonner"
 import { ThoughtCard } from "@/components/social/ThoughtCard"
 import { useThoughtThreadContext } from "./ThoughtThreadContext"
@@ -17,6 +18,20 @@ export function ThoughtThreadFocus() {
     onOpenProfile,
     onOpenArticle,
   } = useThoughtThreadContext()
+
+  const { mutate: toggleFollow } = useOptimisticFollow({
+    onError: (err) => {
+      toast.error(err.message || "Erreur lors de la modification de l'abonnement.")
+    }
+  })
+
+  const [localFollowing, setLocalFollowing] = React.useState<boolean>(false)
+
+  React.useEffect(() => {
+    if (post) {
+      setLocalFollowing(Boolean((post as any).isFollowingAuthor))
+    }
+  }, [post, (post as any)?.isFollowingAuthor])
 
   if (!post) return null
 
@@ -48,12 +63,34 @@ export function ThoughtThreadFocus() {
     }
   }
 
+  const handleFollowToggle = () => {
+    const isCurrentlyFollowing = localFollowing
+    setLocalFollowing(!isCurrentlyFollowing)
+
+    toggleFollow({
+      creatorId: post.author.id,
+      isFollowedCurrent: isCurrentlyFollowing,
+      followMutationFn: async (creatorId) => {
+        const res = await toggleFollowCreatorHomeAction(creatorId)
+        if (res?.ok) {
+          toast.success(res.data.followed ? "Vous suivez maintenant ce créateur." : "Abonnement retiré.")
+          return { success: true }
+        }
+        return { success: false, message: "Impossible de modifier l'abonnement." }
+      }
+    })
+  }
+
   return (
     <ThoughtCard
       post={post}
       variant="focus"
       isThreadChild={Boolean(post.parent)}
       currentUserId={currentUserId}
+      knownLikers={(post as any).knownLikers}
+      knownLikersTotal={(post as any).knownLikersTotal}
+      isFollowingAuthor={localFollowing}
+      onFollowToggle={handleFollowToggle}
       onOpenProfile={onOpenProfile}
       onOpenPost={onOpenPost}
       onOpenArticle={onOpenArticle}

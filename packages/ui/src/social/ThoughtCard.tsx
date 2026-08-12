@@ -13,6 +13,8 @@ import { LinkPreview } from "./LinkPreview"
 import { ThoughtActions } from "./ThoughtActions"
 import { ReportModal } from "./ReportModal"
 
+import { KnownLikers } from "./KnownLikers"
+
 export type ThoughtVariant = "timeline" | "focus" | "parent" | "reply"
 
 export interface ThoughtData {
@@ -85,6 +87,10 @@ export interface ThoughtCardProps {
   isThreadParent?: boolean
   isThreadChild?: boolean
   isThreadLastChild?: boolean
+  knownLikers?: any[]
+  knownLikersTotal?: number
+  isFollowingAuthor?: boolean
+  onFollowToggle?: (e: React.MouseEvent) => void
   onOpenProfile?: (username: string) => void
   onOpenPost?: (postId: string, authorUsername?: string) => void
   onOpenArticle?: (article: QuotedArticleData) => void
@@ -119,6 +125,10 @@ export function ThoughtCard({
   isThreadParent,
   isThreadChild,
   isThreadLastChild,
+  knownLikers,
+  knownLikersTotal,
+  isFollowingAuthor,
+  onFollowToggle,
   onOpenProfile,
   onOpenPost,
   onOpenArticle,
@@ -304,6 +314,10 @@ export function ThoughtCard({
             currentUserId={currentUserId}
             canHideReply={canHideReply}
             isHiddenByAuthor={post.isHiddenByAuthor}
+            postId={displayPostId}
+            thoughtText={displayContent}
+            isFollowingAuthor={isFollowingAuthor}
+            onFollowToggle={onFollowToggle}
             onOpenProfile={onOpenProfile}
             onPinToggle={onPinToggle}
             onReportClick={handleReportAction}
@@ -371,6 +385,31 @@ export function ThoughtCard({
               {" · "}
               {new Date(displayCreatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
             </div>
+          )}
+
+          {/* Detailed stats in Focus mode */}
+          {isFocus && (post.repostsCount !== undefined || post.likesCount !== undefined) && (
+            <div className="flex gap-4 py-2.5 px-1 border-b border-border/40 text-xs text-muted-foreground font-sans">
+              {(post.repostsCount ?? 0) > 0 && (
+                <span>
+                  <strong className="font-semibold text-foreground">{post.repostsCount}</strong> repost{ (post.repostsCount ?? 0) > 1 ? "s" : "" }
+                </span>
+              )}
+              {(post.likesCount ?? 0) > 0 && (
+                <span>
+                  <strong className="font-semibold text-foreground">{post.likesCount}</strong> j'aime
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Known Likers Social Proof Facepile */}
+          {isFocus && knownLikers && knownLikers.length > 0 && (
+            <KnownLikers
+              likers={knownLikers}
+              totalCount={knownLikersTotal ?? knownLikers.length}
+              onOpenProfile={onOpenProfile}
+            />
           )}
 
           {/* Centralized Action Bar */}

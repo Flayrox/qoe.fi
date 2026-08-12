@@ -2,7 +2,7 @@
 
 import React from "react"
 import { cn } from "@qoe/utils"
-import { MoreHorizontal, Pin, Flag, EyeOff, Eye, Ban } from "lucide-react"
+import { MoreHorizontal, Pin, Flag, EyeOff, Eye, Ban, Copy } from "lucide-react"
 import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover"
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "../ui/hover-card"
 import { ProfileHoverCard } from "./ProfileHoverCard"
@@ -27,6 +27,10 @@ export interface ThoughtHeaderProps {
   canHideReply?: boolean
   isHiddenByAuthor?: boolean
   isBlocked?: boolean
+  postId?: string
+  thoughtText?: string
+  isFollowingAuthor?: boolean
+  onFollowToggle?: (e: React.MouseEvent) => void
   onOpenProfile?: (username: string) => void
   onPinToggle?: (e: React.MouseEvent) => void
   onReportClick?: (e: React.MouseEvent) => void
@@ -44,6 +48,10 @@ export function ThoughtHeader({
   canHideReply,
   isHiddenByAuthor,
   isBlocked,
+  postId,
+  thoughtText,
+  isFollowingAuthor = false,
+  onFollowToggle,
   onOpenProfile,
   onPinToggle,
   onReportClick,
@@ -94,82 +102,135 @@ export function ThoughtHeader({
         )}
       </div>
 
-      {/* Options Popover */}
-      <Popover open={showPopover} onOpenChange={setShowPopover}>
-        <PopoverTrigger
-          render={
-            <button
-              type="button"
-              className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center justify-center outline-none"
-              title="Options"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                setShowPopover(true)
-              }}
-            >
-              <MoreHorizontal className="w-3.5 h-3.5" />
-            </button>
-          }
-        />
-        <PopoverContent align="end" className="w-48 p-1.5 space-y-0.5 bg-popover border border-border/40 rounded-xl shadow-lg z-50 font-sans">
-          {currentUserId === author.id && onPinToggle && (
-            <button
-              type="button"
-              onClick={(e) => {
-                setShowPopover(false)
-                onPinToggle(e)
-              }}
-              className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer font-medium"
-            >
-              <Pin className="w-3.5 h-3.5 rotate-45" />
-              <span>{isPinned ? "Désépingler" : "Épingler"}</span>
-            </button>
-          )}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Contextual Follow Button */}
+        {isFocus && currentUserId && currentUserId !== author.id && onFollowToggle && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onFollowToggle(e)
+            }}
+            className={cn(
+              "px-3 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer shadow-sm hover:scale-[1.02]",
+              isFollowingAuthor
+                ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                : "bg-brand text-brand-foreground hover:bg-brand/90"
+            )}
+          >
+            {isFollowingAuthor ? "Abonné" : "Suivre"}
+          </button>
+        )}
 
-          {canHideReply && onHideReplyToggle && (
-            <button
-              type="button"
-              onClick={(e) => {
-                setShowPopover(false)
-                onHideReplyToggle(e)
-              }}
-              className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer font-medium"
-            >
-              {isHiddenByAuthor ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-              <span>{isHiddenByAuthor ? "Afficher cette réponse" : "Masquer cette réponse"}</span>
-            </button>
-          )}
+        {/* Options Popover */}
+        <Popover open={showPopover} onOpenChange={setShowPopover}>
+          <PopoverTrigger
+            render={
+              <button
+                type="button"
+                className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center justify-center outline-none"
+                title="Options"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setShowPopover(true)
+                }}
+              >
+                <MoreHorizontal className="w-3.5 h-3.5" />
+              </button>
+            }
+          />
+          <PopoverContent align="end" className="w-48 p-1.5 space-y-0.5 bg-popover border border-border/40 rounded-xl shadow-lg z-50 font-sans">
+            {thoughtText && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowPopover(false)
+                  navigator.clipboard.writeText(thoughtText)
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer font-medium"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copier le texte</span>
+              </button>
+            )}
 
-          {currentUserId !== author.id && onBlockUserToggle && (
-            <button
-              type="button"
-              onClick={(e) => {
-                setShowPopover(false)
-                onBlockUserToggle(e)
-              }}
-              className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-rose-500 hover:bg-rose-500/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
-            >
-              <Ban className="w-3.5 h-3.5" />
-              <span>{isBlocked ? "Débloquer" : "Bloquer"} @{authorHandle}</span>
-            </button>
-          )}
+            {postId && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowPopover(false)
+                  const url = `${window.location.origin}/thought/${postId}`
+                  navigator.clipboard.writeText(url)
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer font-medium"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copier le lien</span>
+              </button>
+            )}
 
-          {onReportClick && (
-            <button
-              type="button"
-              onClick={(e) => {
-                setShowPopover(false)
-                onReportClick(e)
-              }}
-              className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-amber-500 hover:bg-amber-500/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
-            >
-              <Flag className="w-3.5 h-3.5" />
-              <span>Signaler</span>
-            </button>
-          )}
-        </PopoverContent>
-      </Popover>
+            {currentUserId === author.id && onPinToggle && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  setShowPopover(false)
+                  onPinToggle(e)
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer font-medium"
+              >
+                <Pin className="w-3.5 h-3.5 rotate-45" />
+                <span>{isPinned ? "Désépingler" : "Épingler"}</span>
+              </button>
+            )}
+
+            {canHideReply && onHideReplyToggle && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  setShowPopover(false)
+                  onHideReplyToggle(e)
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer font-medium"
+              >
+                {isHiddenByAuthor ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                <span>{isHiddenByAuthor ? "Afficher cette réponse" : "Masquer cette réponse"}</span>
+              </button>
+            )}
+
+            {currentUserId !== author.id && onBlockUserToggle && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  setShowPopover(false)
+                  onBlockUserToggle(e)
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-rose-500 hover:bg-rose-500/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
+              >
+                <Ban className="w-3.5 h-3.5" />
+                <span>{isBlocked ? "Débloquer" : "Bloquer"} @{authorHandle}</span>
+              </button>
+            )}
+
+            {onReportClick && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  setShowPopover(false)
+                  onReportClick(e)
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-amber-500 hover:bg-amber-500/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
+              >
+                <Flag className="w-3.5 h-3.5" />
+                <span>Signaler</span>
+              </button>
+            )}
+          </PopoverContent>
+        </Popover>
+      </div>
     </div>
   )
 }
