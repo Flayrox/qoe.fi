@@ -890,6 +890,9 @@ export function ThoughtComposer({
             "bg-transparent border-0 p-0 focus:ring-0 leading-relaxed",
             isComposerExpanded ? "" : "h-12"
           )}
+          style={{ height: isComposerExpanded ? "auto" : "48px" }}
+        />
+
         {/* Multi-Post Thread Secondary Textareas */}
         {threadItems.length > 0 && (
           <div className="space-y-3 pt-2 pl-4 border-l-2 border-primary/40 my-2">
