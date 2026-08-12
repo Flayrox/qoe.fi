@@ -1,4 +1,5 @@
-import { useInfiniteQuery, type UseInfiniteQueryOptions } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
 import { feedKeys } from '../query-keys';
 import type { ApiResponse, ThoughtData } from '../types';
 
@@ -23,6 +24,8 @@ export interface UseInfiniteFeedOptions {
     pages: ApiResponse<ThoughtData[]>[];
     pageParams: (string | null)[];
   };
+  filterFn?: (item: ThoughtData) => boolean; // Fonction de filtrage local (ex: mots masqués, créateurs bloqués)
+  minVisibleQuota?: number; // Nombre minimum de posts visibles garantis (Défaut: 30)
 }
 
 export function useInfiniteFeed({
@@ -32,10 +35,12 @@ export function useInfiniteFeed({
   fetcher,
   enabled = true,
   initialData,
+  filterFn,
+  minVisibleQuota = 30,
 }: UseInfiniteFeedOptions) {
   const queryKey = username ? feedKeys.userPosts(username) : feedKeys.timeline(type);
 
-  return useInfiniteQuery({
+  const queryResult = useInfiniteQuery({
     queryKey,
     queryFn: async ({ pageParam }: { pageParam: string | null }) => {
       return fetcher({
@@ -56,4 +61,25 @@ export function useInfiniteFeed({
     enabled,
     initialData: initialData as any,
   });
+
+  const { data, hasNextPage, isFetching, fetchNextPage } = queryResult;
+
+  // Calcul du nombre total d'éléments visibles après filtrage local
+  const visibleCount = useMemo(() => {
+    if (!data || !data.pages) return 0;
+    const allItems = data.pages.flatMap((page) => page?.data || []);
+    if (filterFn) {
+      return allItems.filter(filterFn).length;
+    }
+    return allItems.length;
+  }, [data, filterFn]);
+
+  // Boucle d'Auto-Pagination : si le quota de confort n'est pas rempli et qu'il y a plus de pages, charger la suite
+  useEffect(() => {
+    if (enabled && hasNextPage && !isFetching && visibleCount < minVisibleQuota) {
+      fetchNextPage();
+    }
+  }, [enabled, hasNextPage, isFetching, visibleCount, minVisibleQuota, fetchNextPage]);
+
+  return queryResult;
 }

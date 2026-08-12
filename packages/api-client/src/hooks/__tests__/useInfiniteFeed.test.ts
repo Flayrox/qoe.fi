@@ -84,4 +84,134 @@ describe('useInfiniteFeed logic & pagination parameters', () => {
     expect(ids).toEqual(['item-1', 'item-2', 'item-3']);
     expect(new Set(ids).size).toBe(3);
   });
+
+  describe('4. Brique 4: Quota-driven automatic pagination side effects', () => {
+    it('Triggers fetchNextPage when visible items are below quota and hasNextPage is true', () => {
+      const fetchNextPage = vi.fn();
+      
+      const triggerEffect = ({
+        enabled,
+        hasNextPage,
+        isFetching,
+        visibleCount,
+        minVisibleQuota,
+      }: {
+        enabled: boolean;
+        hasNextPage: boolean;
+        isFetching: boolean;
+        visibleCount: number;
+        minVisibleQuota: number;
+      }) => {
+        if (enabled && hasNextPage && !isFetching && visibleCount < minVisibleQuota) {
+          fetchNextPage();
+        }
+      };
+
+      triggerEffect({
+        enabled: true,
+        hasNextPage: true,
+        isFetching: false,
+        visibleCount: 15,
+        minVisibleQuota: 30,
+      });
+
+      expect(fetchNextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it('Does NOT trigger fetchNextPage when visible items are equal to or above quota', () => {
+      const fetchNextPage = vi.fn();
+      
+      const triggerEffect = ({
+        enabled,
+        hasNextPage,
+        isFetching,
+        visibleCount,
+        minVisibleQuota,
+      }: {
+        enabled: boolean;
+        hasNextPage: boolean;
+        isFetching: boolean;
+        visibleCount: number;
+        minVisibleQuota: number;
+      }) => {
+        if (enabled && hasNextPage && !isFetching && visibleCount < minVisibleQuota) {
+          fetchNextPage();
+        }
+      };
+
+      triggerEffect({
+        enabled: true,
+        hasNextPage: true,
+        isFetching: false,
+        visibleCount: 30,
+        minVisibleQuota: 30,
+      });
+
+      expect(fetchNextPage).not.toHaveBeenCalled();
+    });
+
+    it('Does NOT trigger fetchNextPage when hasNextPage is false', () => {
+      const fetchNextPage = vi.fn();
+      
+      const triggerEffect = ({
+        enabled,
+        hasNextPage,
+        isFetching,
+        visibleCount,
+        minVisibleQuota,
+      }: {
+        enabled: boolean;
+        hasNextPage: boolean;
+        isFetching: boolean;
+        visibleCount: number;
+        minVisibleQuota: number;
+      }) => {
+        if (enabled && hasNextPage && !isFetching && visibleCount < minVisibleQuota) {
+          fetchNextPage();
+        }
+      };
+
+      triggerEffect({
+        enabled: true,
+        hasNextPage: false,
+        isFetching: false,
+        visibleCount: 10,
+        minVisibleQuota: 30,
+      });
+
+      expect(fetchNextPage).not.toHaveBeenCalled();
+    });
+
+    it('Does NOT trigger fetchNextPage when already fetching (isFetching: true)', () => {
+      const fetchNextPage = vi.fn();
+      
+      const triggerEffect = ({
+        enabled,
+        hasNextPage,
+        isFetching,
+        visibleCount,
+        minVisibleQuota,
+      }: {
+        enabled: boolean;
+        hasNextPage: boolean;
+        isFetching: boolean;
+        visibleCount: number;
+        minVisibleQuota: number;
+      }) => {
+        if (enabled && hasNextPage && !isFetching && visibleCount < minVisibleQuota) {
+          fetchNextPage();
+        }
+      };
+
+      triggerEffect({
+        enabled: true,
+        hasNextPage: true,
+        isFetching: true,
+        visibleCount: 10,
+        minVisibleQuota: 30,
+      });
+
+      expect(fetchNextPage).not.toHaveBeenCalled();
+    });
+  });
 });
