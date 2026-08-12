@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Send, Trash2, Loader2, Image, AlertCircle, Globe, Calendar as CalendarIcon, AlertTriangle, FileText, Crop as CropIcon, RefreshCw, ArrowLeft, ArrowRight, X, MessageSquare, Users, AtSign, BarChart2 } from "lucide-react"
+import { Send, Trash2, Loader2, Image, AlertCircle, Globe, Calendar as CalendarIcon, AlertTriangle, FileText, Crop as CropIcon, RefreshCw, ArrowLeft, ArrowRight, X, MessageSquare, Users, AtSign, BarChart2, Plus } from "lucide-react"
 
 import ReactCrop, { centerCrop, makeAspectCrop } from "react-image-crop"
 import type { Crop, PixelCrop } from "react-image-crop"
