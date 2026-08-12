@@ -57,6 +57,17 @@ interface ThoughtComposerProps {
   onLoginRequired?: () => void
 }
 
+const generateUUID = (): string => {
+  if (typeof window !== "undefined" && window.crypto && typeof window.crypto.randomUUID === "function") {
+    return window.crypto.randomUUID()
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === "x" ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
 export interface ThreadNode {
   id: string
   text: string
@@ -127,7 +138,7 @@ export function ThoughtComposer({
 
   // Brique 3 States & Refs
   const createEmptyNode = (): ThreadNode => ({
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     text: "",
     images: [],
     isTriggerWarning: false,
@@ -158,7 +169,7 @@ export function ThoughtComposer({
     setThreadNodes(prev => {
       if (prev.length > 0 && (prev[0].text !== "" || prev.length > 1)) return prev
       return [{
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         text: initialText || "",
         images: [],
         isTriggerWarning: false,
@@ -644,7 +655,7 @@ export function ThoughtComposer({
       return
     }
 
-    const tempId = replaceId || crypto.randomUUID()
+    const tempId = replaceId || generateUUID()
     const initialBlobUrl = URL.createObjectURL(file)
 
     if (replaceId) {
@@ -745,7 +756,7 @@ export function ThoughtComposer({
     
     const imageUrls = getImages(draft.imageUrl)
     const composerImages = imageUrls.map(url => ({
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       url,
       isUploading: false
     }))
@@ -1041,7 +1052,7 @@ export function ThoughtComposer({
       
       // Réinitialisation des nœuds du fil
       setThreadNodes([{
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         text: "",
         images: [],
         isTriggerWarning: false,
@@ -2059,7 +2070,7 @@ export function ThoughtComposer({
                       localStorage.removeItem("qoe_multi_thought_drafts")
                       toast.success("Brouillon local supprimé.")
                       setThreadNodes([{
-                        id: crypto.randomUUID(),
+                        id: generateUUID(),
                         text: "",
                         images: [],
                         isTriggerWarning: false,
