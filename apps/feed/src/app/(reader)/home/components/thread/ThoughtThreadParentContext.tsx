@@ -20,11 +20,13 @@ export function ThoughtThreadParentContext() {
 
   return (
     <div className="flex flex-col font-sans">
-      {ancestors.map((parent) => (
+      {ancestors.map((parent, idx) => (
         <ThoughtCard
           key={parent.id}
           post={parent}
           variant="parent"
+          isThreadChild={idx > 0}
+          isThreadParent={true}
           currentUserId={currentUserId}
           onOpenPost={onOpenPost}
           onOpenProfile={onOpenProfile}
@@ -37,4 +39,5 @@ export function ThoughtThreadParentContext() {
     </div>
   )
 }
+
 

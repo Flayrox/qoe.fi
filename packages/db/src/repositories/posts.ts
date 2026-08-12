@@ -651,7 +651,35 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
     },
   });
 
-  if (!thread) return null;
+  // 🔍 Helper de résolution récursive de la chaîne complète des parents
+  const fetchParentAncestors = async (node: any): Promise<any> => {
+    if (!node || !node.parentId) return node;
+
+    if (!node.parent) {
+      const parentNode = await prisma.thought.findUnique({
+        where: { id: node.parentId },
+        include: {
+          author: authorSelect,
+          likes: likesInclude,
+          reposts: repostsInclude,
+          poll: pollIncludeQuery,
+          _count: countSelect,
+        },
+      });
+
+      if (parentNode) {
+        node.parent = await fetchParentAncestors(parentNode);
+      }
+    } else {
+      node.parent = await fetchParentAncestors(node.parent);
+    }
+
+    return node;
+  };
+
+  if (thread.parent) {
+    thread.parent = await fetchParentAncestors(thread.parent);
+  }
 
   // 🛡️ Helper de sanitisation & transformation de nœuds de thread
   const processPostNode = (node: any): any => {
@@ -694,6 +722,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
 
   return processPostNode(thread);
 }
+
 
 /**
  * 🔄 Résolution canonique de l'ID d'origine (pour éviter les chaînes de reposts).
