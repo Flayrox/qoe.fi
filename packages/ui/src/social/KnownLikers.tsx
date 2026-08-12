@@ -19,6 +19,7 @@ export interface KnownLikersProps {
   onOpenProfile?: (username: string) => void
   onOpenLikersList?: () => void
   className?: string
+  variant?: "card" | "inline"
 }
 
 export function KnownLikers({
@@ -27,6 +28,7 @@ export function KnownLikers({
   onOpenProfile,
   onOpenLikersList,
   className = "",
+  variant = "card",
 }: KnownLikersProps) {
   if (!likers || likers.length === 0) return null
 
@@ -36,6 +38,55 @@ export function KnownLikers({
   const remainingCount = totalCount > displayedLikers.length ? totalCount - displayedLikers.length : 0
 
   const getHandle = (user: KnownLiker) => user.username || user.subdomain || user.id.slice(0, 8)
+
+  if (variant === "inline") {
+    return (
+      <div
+        onClick={onOpenLikersList}
+        className={`flex items-center gap-1.5 transition-all cursor-pointer select-none text-xs text-muted-foreground font-sans ${className}`}
+      >
+        {/* Overlapping Avatar Stack */}
+        <div className="flex items-center -space-x-1.5 shrink-0">
+          {displayedLikers.map((liker, idx) => (
+            <div
+              key={liker.id}
+              className="relative ring-1 ring-background rounded-full"
+              style={{ zIndex: 10 - idx }}
+            >
+              <AuthorAvatar user={liker} size="xs" showBadge={false} />
+            </div>
+          ))}
+        </div>
+
+        {/* Social Proof Text */}
+        <div className="text-[11px] leading-tight text-muted-foreground truncate">
+          <span>Aimé par </span>
+          <ProfileHoverCard user={firstLiker} onOpenProfile={onOpenProfile}>
+            <strong className="font-semibold text-foreground hover:underline hover:text-brand cursor-pointer">
+              @{getHandle(firstLiker)}
+            </strong>
+          </ProfileHoverCard>
+
+          {secondLiker && (
+            <>
+              <span> et </span>
+              <ProfileHoverCard user={secondLiker} onOpenProfile={onOpenProfile}>
+                <strong className="font-semibold text-foreground hover:underline hover:text-brand cursor-pointer">
+                  @{getHandle(secondLiker)}
+                </strong>
+              </ProfileHoverCard>
+            </>
+          )}
+
+          {remainingCount > 0 && (
+            <span>
+              {" "}et {remainingCount} autre{remainingCount > 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
