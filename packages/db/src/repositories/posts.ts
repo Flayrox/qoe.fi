@@ -15,7 +15,7 @@ export interface FeedSlice {
   hiddenIntermediateCount?: number;
 }
 
-async function buildFeedSlices(rawPosts: any[], currentUserId?: string): Promise<FeedSlice[]> {
+export async function buildFeedSlices(rawPosts: any[], currentUserId?: string): Promise<FeedSlice[]> {
   const missingIds = new Set<string>();
   for (const p of rawPosts) {
     if (p.parentId) missingIds.add(p.parentId);
