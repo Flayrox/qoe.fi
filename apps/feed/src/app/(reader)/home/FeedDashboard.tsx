@@ -16,6 +16,7 @@ import {
 
 import { ArticleCard, GuestFloatingBar, useAuthModal, MediaLightbox, HotkeyHelpModal, type AuthActionContext } from "@qoe/ui"
 import { ThoughtCard } from "@/components/social/ThoughtCard"
+import { ThoughtFeedSlice } from "./components/ThoughtFeedSlice"
 import { VirtualizedFeedList } from "@/components/feed/VirtualizedFeedList"
 import { RealtimeFeedPill } from "@/components/feed/RealtimeFeedPill"
 import { useRealtimeFeedBuffer } from "@/hooks/useRealtimeFeedBuffer"
@@ -661,19 +662,35 @@ export function FeedDashboard({
                             const isFollowed = isCreatorFollowed(article.author.id)
 
                             if (!article.title) {
-                              const inter = interactions[article.id]
-                              const postData = {
-                                ...article,
-                                liked: inter?.liked !== undefined ? inter.liked : (article as any).liked,
-                                likesCount: inter?.likesCount !== undefined ? inter.likesCount : (article as any).likeCount || (article as any).likesCount,
-                                reposted: inter?.reposted !== undefined ? inter.reposted : (article as any).reposted,
-                                repostsCount: inter?.repostsCount !== undefined ? inter.repostsCount : (article as any).repostCount || (article as any).repostsCount,
+                              const isSlice = "targetPost" in article
+                              const baseItem = isSlice ? (article as any).targetPost : article
+                              
+                              const getPostWithInteractions = (postItem: any) => {
+                                if (!postItem) return undefined
+                                const inter = interactions[postItem.id]
+                                return {
+                                  ...postItem,
+                                  liked: inter?.liked !== undefined ? inter.liked : postItem.liked,
+                                  likesCount: inter?.likesCount !== undefined ? inter.likesCount : postItem.likeCount || postItem.likesCount,
+                                  reposted: inter?.reposted !== undefined ? inter.reposted : postItem.reposted,
+                                  repostsCount: inter?.repostsCount !== undefined ? inter.repostsCount : postItem.repostCount || postItem.repostsCount,
+                                }
                               }
 
+                              const targetPostWithInteractions = getPostWithInteractions(baseItem)
+                              const sliceData = isSlice 
+                                ? {
+                                    rootPost: getPostWithInteractions((article as any).rootPost),
+                                    parentPost: getPostWithInteractions((article as any).parentPost),
+                                    targetPost: targetPostWithInteractions,
+                                    isIncompleteThread: (article as any).isIncompleteThread
+                                  }
+                                : { targetPost: targetPostWithInteractions }
+
                               return (
-                                <ThoughtCard
-                                  post={postData as any}
-                                  variant="timeline"
+                                <ThoughtFeedSlice
+                                  key={article.id}
+                                  slice={sliceData as any}
                                   currentUserId={dbUser?.id || null}
                                   onOpenPost={handleOpenPost}
                                   onOpenArticle={handleOpenArticle}

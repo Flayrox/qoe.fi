@@ -676,6 +676,14 @@ export const toggleMuteWordAction = safeAction<string, { muted: boolean; word: s
   }
 );
 
+export interface FeedSlice {
+  id: string;
+  rootPost?: any;
+  parentPost?: any;
+  targetPost: any;
+  isIncompleteThread: boolean;
+}
+
 export const getFeedItemsAction = safeAction<
   {
     feedType?: string;
@@ -683,7 +691,7 @@ export const getFeedItemsAction = safeAction<
     limit?: number;
     username?: string;
   },
-  { items: any[]; nextCursor: string | null; hasMore: boolean }
+  { items: FeedSlice[]; nextCursor: string | null; hasMore: boolean }
 >(
   async ({ feedType = "recommandation", cursor = null, limit = 20, username }) => {
     const supabase = await createClient();
@@ -693,7 +701,7 @@ export const getFeedItemsAction = safeAction<
 
     const fetchLimit = Math.min(limit, 50);
 
-    let rawPosts: any[] = [];
+    let rawPosts: FeedSlice[] = [];
     if (feedType === "following" && user) {
       rawPosts = await posts.findFollowingFeed(user.id, {
         take: fetchLimit,

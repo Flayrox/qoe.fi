@@ -1571,6 +1571,19 @@ export function ThoughtComposer({
                     </PopoverContent>
                   </Popover>
 
+                  {/* Multi-Post Thread Add Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setThreadItems((prev) => [...prev, { id: Math.random().toString(36).slice(2), text: "" }])
+                    }}
+                    className="p-2 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-all cursor-pointer flex items-center gap-1 text-xs active:scale-95"
+                    title="Ajouter une autre pensée au fil"
+                  >
+                    <Plus className="w-4 h-4 text-primary" />
+                    <span className="hidden sm:inline font-semibold">Ajouter une pensée</span>
+                  </button>
+
                   {/* PRIMARY ACTION SUBMIT BUTTON */}
                   <button
                     type="submit"
@@ -1583,7 +1596,12 @@ export function ThoughtComposer({
                       </>
                     ) : (
                       <>
-                        {replyToThought || parentId ? "Répondre" : "Publier"} <Send className="w-3 h-3" />
+                        {threadItems.length > 0
+                          ? `Tout publier (${threadItems.length + 1})`
+                          : replyToThought || parentId
+                          ? "Répondre"
+                          : "Publier"}{" "}
+                        <Send className="w-3 h-3" />
                       </>
                     )}
                   </button>
