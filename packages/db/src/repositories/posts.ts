@@ -644,6 +644,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
       replies: {
         include: {
           author: authorSelect,
+          parent: { include: { author: authorSelect } },
           likes: likesInclude,
           reposts: repostsInclude,
           poll: pollIncludeQuery,
@@ -651,6 +652,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
           replies: {
             include: {
               author: authorSelect,
+              parent: { include: { author: authorSelect } },
               likes: likesInclude,
               reposts: repostsInclude,
               poll: pollIncludeQuery,
