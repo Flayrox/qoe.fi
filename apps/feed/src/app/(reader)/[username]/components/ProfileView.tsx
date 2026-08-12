@@ -7,7 +7,7 @@ import { AuthorAvatar } from "@qoe/ui/ui/AuthorAvatar"
 import { ThoughtCard } from "@/components/social/ThoughtCard"
 import { ArticleCard } from "@/app/(reader)/home/components/ArticleCard"
 import { EditProfileModal } from "@/components/profile/EditProfileModal"
-import { toggleFollowCreatorHomeAction as toggleFollowCreator } from "@qoe/api-client/actions/feed"
+import { toggleFollowCreatorHomeAction as toggleFollowCreator, deletePostAction as deletePost } from "@qoe/api-client/actions/feed"
 
 import { routes } from "@qoe/config/routes"
 import { toast } from "sonner"
@@ -82,6 +82,25 @@ export function ProfileView({
     } else {
       toast.success(nextState ? `Vous suivez maintenant ${user.name}` : `Abonnement retiré.`)
     }
+  }
+
+  const handleDeletePost = async (postId: string): Promise<boolean> => {
+    if (!isOwnProfile) return false
+
+    const res = await deletePost(postId)
+
+    if (!res.ok) {
+      toast.error("Erreur lors de la suppression de la pensée.")
+      return false
+    }
+
+    setUser((prev: any) => ({
+      ...prev,
+      posts: prev.posts?.filter((p: any) => p.id !== postId) || [],
+      _count: prev._count ? { ...prev._count, posts: Math.max(0, (prev._count.posts || 0) - 1) } : prev._count,
+    }))
+    toast.success("Pensée supprimée.")
+    return true
   }
 
   // Filter content for tabs
@@ -260,6 +279,7 @@ export function ProfileView({
                     key={post.id}
                     post={post}
                     currentUserId={currentUserId}
+                    onDeletePost={handleDeletePost}
                     onOpenPost={(id, authorUsername) => {
                       const handle = authorUsername || user.username || user.subdomain || user.id
                       window.location.href = routes.feed.thought(handle, id)
@@ -280,6 +300,7 @@ export function ProfileView({
                     key={post.id}
                     post={post}
                     currentUserId={currentUserId}
+                    onDeletePost={handleDeletePost}
                     onOpenPost={(id, authorUsername) => {
                       const handle = authorUsername || user.username || user.subdomain || user.id
                       window.location.href = routes.feed.thought(handle, id)
@@ -321,6 +342,7 @@ export function ProfileView({
                     key={post.id}
                     post={post}
                     currentUserId={currentUserId}
+                    onDeletePost={handleDeletePost}
                     onOpenPost={(id, authorUsername) => {
                       const handle = authorUsername || post.author?.username || post.author?.subdomain || user.username || user.subdomain || user.id
                       window.location.href = routes.feed.thought(handle, id)
@@ -341,6 +363,7 @@ export function ProfileView({
                     key={post.id}
                     post={post}
                     currentUserId={currentUserId}
+                    onDeletePost={handleDeletePost}
                     onOpenPost={(id, authorUsername) => {
                       const handle = authorUsername || user.username || user.subdomain || user.id
                       window.location.href = routes.feed.thought(handle, id)

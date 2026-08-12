@@ -319,8 +319,6 @@ export function ThoughtThreadRoot({
 
   // 0ms Optimistic Delete / Tombstone Handler
   const handleDeleteThought = useCallback(async (targetId: string): Promise<boolean> => {
-    if (!confirm("Voulez-vous supprimer cette pensée ?")) return false
-
     const previousPost = post ? JSON.parse(JSON.stringify(post)) : null
 
     // Delete / Tombstone transformer

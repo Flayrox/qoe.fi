@@ -104,6 +104,7 @@ export interface ThoughtCardProps {
   onReportClick?: (e: React.MouseEvent) => void
   onHideReplyToggle?: (e: React.MouseEvent) => void
   onBlockUserToggle?: (e: React.MouseEvent) => void
+  onDeleteClick?: (e: React.MouseEvent) => void
   className?: string
 }
 
@@ -142,6 +143,7 @@ export function ThoughtCard({
   onReportClick,
   onHideReplyToggle,
   onBlockUserToggle,
+  onDeleteClick,
   className,
 }: ThoughtCardProps) {
   const [isReportModalOpen, setIsReportModalOpen] = React.useState<boolean>(false)
@@ -323,6 +325,7 @@ export function ThoughtCard({
             onReportClick={handleReportAction}
             onHideReplyToggle={onHideReplyToggle}
             onBlockUserToggle={onBlockUserToggle}
+            onDeleteClick={onDeleteClick}
           />
 
           {/* Threadgate Badge */}
