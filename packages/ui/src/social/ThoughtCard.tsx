@@ -82,6 +82,9 @@ export interface ThoughtCardProps {
   unfurlFn?: (url: string) => Promise<any>
   pollSlot?: React.ReactNode
   threadgateBadge?: React.ReactNode
+  isThreadParent?: boolean
+  isThreadChild?: boolean
+  isThreadLastChild?: boolean
   onOpenProfile?: (username: string) => void
   onOpenPost?: (postId: string, authorUsername?: string) => void
   onOpenArticle?: (article: QuotedArticleData) => void
@@ -113,6 +116,9 @@ export function ThoughtCard({
   unfurlFn,
   pollSlot,
   threadgateBadge,
+  isThreadParent,
+  isThreadChild,
+  isThreadLastChild,
   onOpenProfile,
   onOpenPost,
   onOpenArticle,
