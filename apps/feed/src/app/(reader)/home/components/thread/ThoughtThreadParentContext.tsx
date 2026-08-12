@@ -6,11 +6,11 @@ import { useThoughtThreadContext } from "./ThoughtThreadContext"
 import { ThoughtCard } from "@/components/social/ThoughtCard"
 
 export function ThoughtThreadParentContext() {
-  const { post, onOpenPost, onOpenProfile, onOpenArticle, currentUserId, toggleLike, repostThought } = useThoughtThreadContext()
+  const { post, onOpenPost, onOpenProfile, onOpenArticle, setLightboxImage, currentUserId, toggleLike, repostThought } = useThoughtThreadContext()
 
   if (!post || !post.parent) return null
 
-  // Collect all ancestors up to top parent
+  // Collect all ancestors up to top parent (root -> ... -> immediate parent)
   const ancestors: any[] = []
   let current: any = post.parent
   while (current) {
@@ -18,18 +18,8 @@ export function ThoughtThreadParentContext() {
     current = current.parent
   }
 
-  const topParentAuthor = ancestors[ancestors.length - 1]?.author
-  const topHandle = topParentAuthor?.username || topParentAuthor?.subdomain || "auteur"
-
   return (
-    <div className="flex flex-col gap-0 font-sans my-2">
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2 px-1">
-        <CornerDownRight className="w-3.5 h-3.5 text-brand" />
-        <span>
-          En réponse à <span className="text-brand font-medium">@{topHandle}</span>
-        </span>
-      </div>
-
+    <div className="flex flex-col font-sans">
       {ancestors.map((parent) => (
         <ThoughtCard
           key={parent.id}
@@ -39,10 +29,12 @@ export function ThoughtThreadParentContext() {
           onOpenPost={onOpenPost}
           onOpenProfile={onOpenProfile}
           onOpenArticle={onOpenArticle}
-          onLikeToggle={(id) => toggleLike(id)}
-          onRepostToggle={(id) => repostThought(id)}
+          onOpenMedia={(url) => setLightboxImage(url)}
+          onLikeToggle={() => toggleLike(parent.id)}
+          onRepostToggle={() => repostThought(parent.id)}
         />
       ))}
     </div>
   )
 }
+

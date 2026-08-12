@@ -39,6 +39,7 @@ export { useThoughtThreadContext }
 export function ThoughtThreadView({
   postId,
   currentUserId,
+  dbUser,
   initialPost = null,
   standalone = false,
   onClose,
@@ -49,6 +50,7 @@ export function ThoughtThreadView({
 }: {
   postId: string
   currentUserId: string | null
+  dbUser?: any | null
   initialPost?: any
   standalone?: boolean
   onClose?: () => void
@@ -61,6 +63,7 @@ export function ThoughtThreadView({
     <ThoughtThread.Root
       postId={postId}
       currentUserId={currentUserId}
+      dbUser={dbUser}
       initialPost={initialPost}
       onClose={onClose}
       onOpenProfile={onOpenProfile}

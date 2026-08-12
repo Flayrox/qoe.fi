@@ -17,6 +17,7 @@ import { ThoughtThreadProvider, type OptimisticThought, type ThoughtThreadContex
 export interface ThoughtThreadRootProps {
   postId: string
   currentUserId: string | null
+  dbUser?: any | null
   initialPost?: OptimisticThought | null
   onClose?: () => void
   onOpenProfile?: (username: string) => void
@@ -29,6 +30,7 @@ export interface ThoughtThreadRootProps {
 export function ThoughtThreadRoot({
   postId,
   currentUserId,
+  dbUser,
   initialPost = null,
   onClose,
   onOpenProfile,
@@ -221,14 +223,23 @@ export function ThoughtThreadRoot({
       likesCount: 0,
       repliesCount: 0,
       liked: false,
-      author: {
-        id: currentUserId,
-        name: "Vous",
-        username: "user",
-        subdomain: null,
-        logoUrl: null,
-        isCertified: false,
-      },
+      author: dbUser
+        ? {
+            id: dbUser.id,
+            name: dbUser.name || null,
+            username: dbUser.username || null,
+            subdomain: null,
+            logoUrl: dbUser.logoUrl || null,
+            isCertified: false,
+          }
+        : {
+            id: currentUserId || "unknown",
+            name: null,
+            username: null,
+            subdomain: null,
+            logoUrl: null,
+            isCertified: false,
+          },
     }
 
     const previousPost = post ? JSON.parse(JSON.stringify(post)) : null
@@ -277,7 +288,33 @@ export function ThoughtThreadRoot({
       toast.error("Erreur lors de la publication de la réponse.")
       return false
     }
-  }, [currentUserId, post, onInteractionUpdate, onLoginRequired])
+  }, [currentUserId, dbUser, post, onInteractionUpdate, onLoginRequired])
+
+  // Insert a server reply directly into the thread tree (no API call)
+  const handleInsertReply = useCallback((parentId: string, reply: OptimisticThought) => {
+    setPost((prevPost) => {
+      if (!prevPost) return null
+
+      const appendReply = (item: OptimisticThought): OptimisticThought => {
+        if (item.id === parentId) {
+          // Avoid duplicates: if the reply is already in the tree, skip
+          const alreadyPresent = (item.replies || []).some(r => r.id === reply.id)
+          if (alreadyPresent) return item
+          return {
+            ...item,
+            repliesCount: (item.repliesCount || 0) + 1,
+            replies: [reply, ...(item.replies || [])],
+          }
+        }
+        return {
+          ...item,
+          replies: item.replies ? item.replies.map(appendReply) : [],
+        }
+      }
+
+      return appendReply(prevPost)
+    })
+  }, [])
 
   // 0ms Optimistic Delete / Tombstone Handler
   const handleDeleteThought = useCallback(async (targetId: string): Promise<boolean> => {
@@ -335,6 +372,7 @@ export function ThoughtThreadRoot({
   const contextValue: ThoughtThreadContextValue = {
     postId,
     currentUserId,
+    dbUser,
     post,
     loading,
     sendingReply,
@@ -343,6 +381,7 @@ export function ThoughtThreadRoot({
     toggleLike: handleToggleLike,
     repostThought: handleRepostThought,
     submitReply: handleSubmitReply,
+    insertReply: handleInsertReply,
     deleteThought: handleDeleteThought,
     onClose,
     onOpenProfile,

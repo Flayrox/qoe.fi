@@ -501,6 +501,10 @@ model Thought {
   parent    Thought?  @relation("ThoughtReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies   Thought[] @relation("ThoughtReplies")
 
+  rootId    String?
+  root      Thought?  @relation("ThoughtRootReplies", fields: [rootId], references: [id], onDelete: Cascade)
+  rootReplies Thought[] @relation("ThoughtRootReplies")
+
   repostId  String?
   repost    Thought?  @relation("ThoughtReposts", fields: [repostId], references: [id], onDelete: SetNull)
   reposts   Thought[] @relation("ThoughtReposts")
@@ -514,6 +518,7 @@ model Thought {
   @@index([deletedAt, isDraft, authorId, createdAt])
   @@index([authorId, isDraft, updatedAt])
   @@index([parentId])
+  @@index([rootId])
   @@index([repostId])
   @@index([deletedAt, isDraft])
   @@map("Post")

@@ -770,11 +770,16 @@ export function ThoughtComposer({
 
               <div className="text-[11px] text-muted-foreground pt-1">
                 En réponse à{" "}
-                <ProfileHoverCard user={replyToThought.author}>
-                  <span className="text-brand font-medium hover:underline cursor-pointer">
-                    @{replyToThought.author?.username || replyToThought.author?.subdomain || "utilisateur"}
-                  </span>
-                </ProfileHoverCard>
+                <span className="text-brand font-medium">
+                  {[
+                    replyToThought.author?.username || replyToThought.author?.subdomain || "auteur",
+                    replyToThought.parent?.author?.username || replyToThought.parent?.author?.subdomain,
+                  ]
+                    .filter(Boolean)
+                    .filter((val, idx, arr) => arr.indexOf(val) === idx)
+                    .map((handle) => `@${handle}`)
+                    .join(", ")}
+                </span>
               </div>
             </div>
           </div>
@@ -1170,10 +1175,150 @@ export function ThoughtComposer({
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-3.5 border-t border-[var(--border-subtle)] bg-transparent">
-                <div className="flex items-center gap-2">
-                  <label className="cursor-pointer p-2 rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-1)] hover:bg-[var(--surface-2)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-all flex items-center justify-center" title="Ajouter des images">
-                    <Image className="w-3.5 h-3.5" />
+              {/* Bluesky-style Threadgate & Visibility sub-row */}
+              <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-subtle)]/60 text-xs">
+                {/* 1b. Restriction des réponses Dropdown (Threadgate) */}
+                <Popover open={showReplyRestrictionDropdown} onOpenChange={setShowReplyRestrictionDropdown}>
+                  <PopoverTrigger
+                    render={
+                      <button
+                        type="button"
+                        className={cn(
+                          "px-2.5 py-1 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 text-[11px] font-semibold",
+                          replyRestriction !== "everyone"
+                            ? "bg-primary/10 border-primary/40 text-primary"
+                            : "border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                        )}
+                        title="Qui peut répondre"
+                      >
+                        <Globe className="w-3 h-3 text-primary" />
+                        <span>
+                          {replyRestriction === "everyone" && "Tout le monde peut répondre"}
+                          {replyRestriction === "subscribers" && "Abonnés uniquement"}
+                          {replyRestriction === "following" && "Personnes suivies"}
+                          {replyRestriction === "mentioned" && "Personnes mentionnées"}
+                        </span>
+                      </button>
+                    }
+                  />
+                  <PopoverContent align="start" className="w-56 p-1.5 space-y-0.5 bg-popover border border-border rounded-xl shadow-xl z-[150]">
+                    <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      Qui peut répondre ?
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReplyRestriction("everyone")
+                        setShowReplyRestrictionDropdown(false)
+                      }}
+                      className={cn(
+                        "w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-2 cursor-pointer",
+                        replyRestriction === "everyone" ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      <span>Tout le monde</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReplyRestriction("subscribers")
+                        setShowReplyRestrictionDropdown(false)
+                      }}
+                      className={cn(
+                        "w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-2 cursor-pointer",
+                        replyRestriction === "subscribers" ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Abonnés uniquement</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReplyRestriction("following")
+                        setShowReplyRestrictionDropdown(false)
+                      }}
+                      className={cn(
+                        "w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-2 cursor-pointer",
+                        replyRestriction === "following" ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Personnes suivies</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReplyRestriction("mentioned")
+                        setShowReplyRestrictionDropdown(false)
+                      }}
+                      className={cn(
+                        "w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-2 cursor-pointer",
+                        replyRestriction === "mentioned" ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <AtSign className="w-3.5 h-3.5" />
+                      <span>Personnes mentionnées</span>
+                    </button>
+                  </PopoverContent>
+                </Popover>
+
+                {/* Visibilité Dropdown */}
+                <Popover open={showVisibilityDropdown} onOpenChange={setShowVisibilityDropdown}>
+                  <PopoverTrigger
+                    render={
+                      <button
+                        type="button"
+                        className={cn(
+                          "px-2.5 py-1 rounded-full border transition-all cursor-pointer flex items-center gap-1.5 text-[11px] font-semibold",
+                          visibility !== "public"
+                            ? "bg-primary/10 border-primary/40 text-primary"
+                            : "border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                        )}
+                      >
+                        <Globe className="w-3 h-3" />
+                        <span>{visibility === "public" ? "Public" : "Followers"}</span>
+                      </button>
+                    }
+                  />
+                  <PopoverContent align="start" className="w-44 p-1.5 space-y-0.5 bg-popover border border-border rounded-xl shadow-xl z-[150]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVisibility("public")
+                        setShowVisibilityDropdown(false)
+                      }}
+                      className={cn(
+                        "w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer",
+                        visibility === "public" ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      Tout le monde
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVisibility("followers")
+                        setShowVisibilityDropdown(false)
+                      }}
+                      className={cn(
+                        "w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer",
+                        visibility === "followers" ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      Followers uniquement
+                    </button>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Main Bottom Toolbar Row */}
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                {/* Left Media Tools */}
+                <div className="flex items-center gap-1.5">
+                  <label className="cursor-pointer p-2 rounded-xl border border-border/50 bg-muted/30 hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-all flex items-center justify-center active:scale-95" title="Ajouter des images">
+                    <Image className="w-4 h-4" />
                     <input
                       type="file"
                       accept="image/*"
@@ -1194,153 +1339,17 @@ export function ThoughtComposer({
                       }
                     }}
                     className={cn(
-                      "p-2 rounded-[var(--radius-button)] border transition-all cursor-pointer flex items-center justify-center text-xs",
+                      "p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-xs active:scale-95",
                       showPollEditor
-                        ? "bg-primary/10 border-primary text-primary"
-                        : "border-[var(--border-default)] bg-[var(--surface-1)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+                        ? "bg-primary/15 border-primary text-primary font-bold"
+                        : "border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60"
                     )}
                     title="Ajouter un sondage"
                   >
-                    <BarChart2 className="w-3.5 h-3.5" />
+                    <BarChart2 className="w-4 h-4" />
                   </button>
 
-
-                  {/* 1. Visibilité Dropdown (Shadcn Popover) */}
-                  <Popover open={showVisibilityDropdown} onOpenChange={setShowVisibilityDropdown}>
-                    <PopoverTrigger
-                      render={
-                        <button
-                          type="button"
-                          className={cn(
-                            "p-2 rounded-[var(--radius-button)] border transition-all cursor-pointer flex items-center justify-center gap-1.5 text-xs text-[var(--text-secondary)]",
-                            visibility !== "public"
-                              ? "bg-[var(--surface-2)] border-[var(--border-default)] text-[var(--text-primary)]"
-                              : "border-transparent bg-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-                          )}
-                        >
-                          <Globe className="w-3.5 h-3.5" />
-                          <span>{visibility === "public" ? "Public" : "Followers"}</span>
-                        </button>
-                      }
-                    />
-                    <PopoverContent align="start" className="w-44 p-1.5 space-y-0.5 bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-button)] shadow-lg">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setVisibility("public")
-                          setShowVisibilityDropdown(false)
-                        }}
-                        className={cn(
-                          "w-full text-left px-2.5 py-1.5 rounded-[var(--radius-button)] text-xs transition-colors",
-                          visibility === "public" ? "bg-[var(--surface-2)] text-[var(--text-primary)] font-medium" : "hover:bg-[var(--surface-1)] text-[var(--text-secondary)]"
-                        )}
-                      >
-                        Tout le monde
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setVisibility("followers")
-                          setShowVisibilityDropdown(false)
-                        }}
-                        className={cn(
-                          "w-full text-left px-2.5 py-1.5 rounded-[var(--radius-button)] text-xs transition-colors",
-                          visibility === "followers" ? "bg-[var(--surface-2)] text-[var(--text-primary)] font-medium" : "hover:bg-[var(--surface-1)] text-[var(--text-secondary)]"
-                        )}
-                      >
-                        Followers uniquement
-                      </button>
-                    </PopoverContent>
-                  </Popover>
-
-                  {/* 1b. Restriction des réponses Dropdown (Threadgate) */}
-                  <Popover open={showReplyRestrictionDropdown} onOpenChange={setShowReplyRestrictionDropdown}>
-                    <PopoverTrigger
-                      render={
-                        <button
-                          type="button"
-                          className={cn(
-                            "p-2 rounded-[var(--radius-button)] border transition-all cursor-pointer flex items-center justify-center gap-1.5 text-xs text-[var(--text-secondary)]",
-                            replyRestriction !== "everyone"
-                              ? "bg-[var(--surface-2)] border-[var(--border-default)] text-[var(--text-primary)]"
-                              : "border-transparent bg-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-                          )}
-                          title="Qui peut répondre"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                          <span>
-                            {replyRestriction === "everyone" && "Réponses libres"}
-                            {replyRestriction === "subscribers" && "Abonnés"}
-                            {replyRestriction === "following" && "Suivis"}
-                            {replyRestriction === "mentioned" && "Mentionnés"}
-                          </span>
-                        </button>
-                      }
-                    />
-                    <PopoverContent align="start" className="w-56 p-1.5 space-y-0.5 bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-button)] shadow-lg z-50">
-                      <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                        Qui peut répondre ?
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setReplyRestriction("everyone")
-                          setShowReplyRestrictionDropdown(false)
-                        }}
-                        className={cn(
-                          "w-full text-left px-2.5 py-1.5 rounded-[var(--radius-button)] text-xs transition-colors flex items-center gap-2",
-                          replyRestriction === "everyone" ? "bg-[var(--surface-2)] text-[var(--text-primary)] font-medium" : "hover:bg-[var(--surface-1)] text-[var(--text-secondary)]"
-                        )}
-                      >
-                        <Globe className="w-3.5 h-3.5" />
-                        <span>Tout le monde</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setReplyRestriction("subscribers")
-                          setShowReplyRestrictionDropdown(false)
-                        }}
-                        className={cn(
-                          "w-full text-left px-2.5 py-1.5 rounded-[var(--radius-button)] text-xs transition-colors flex items-center gap-2",
-                          replyRestriction === "subscribers" ? "bg-[var(--surface-2)] text-[var(--text-primary)] font-medium" : "hover:bg-[var(--surface-1)] text-[var(--text-secondary)]"
-                        )}
-                      >
-                        <Users className="w-3.5 h-3.5" />
-                        <span>Abonnés uniquement</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setReplyRestriction("following")
-                          setShowReplyRestrictionDropdown(false)
-                        }}
-                        className={cn(
-                          "w-full text-left px-2.5 py-1.5 rounded-[var(--radius-button)] text-xs transition-colors flex items-center gap-2",
-                          replyRestriction === "following" ? "bg-[var(--surface-2)] text-[var(--text-primary)] font-medium" : "hover:bg-[var(--surface-1)] text-[var(--text-secondary)]"
-                        )}
-                      >
-                        <Users className="w-3.5 h-3.5" />
-                        <span>Personnes suivies</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setReplyRestriction("mentioned")
-                          setShowReplyRestrictionDropdown(false)
-                        }}
-                        className={cn(
-                          "w-full text-left px-2.5 py-1.5 rounded-[var(--radius-button)] text-xs transition-colors flex items-center gap-2",
-                          replyRestriction === "mentioned" ? "bg-[var(--surface-2)] text-[var(--text-primary)] font-medium" : "hover:bg-[var(--surface-1)] text-[var(--text-secondary)]"
-                        )}
-                      >
-                        <AtSign className="w-3.5 h-3.5" />
-                        <span>Personnes mentionnées</span>
-                      </button>
-                    </PopoverContent>
-                  </Popover>
-
-                  {/* 2. Planification Dropdown (Shadcn Popover & Calendar) */}
+                  {/* Planification Dropdown */}
                   <Popover open={showScheduleDropdown} onOpenChange={(open: boolean) => {
                     setShowScheduleDropdown(open)
                     if (open && !scheduledDate) {
@@ -1354,21 +1363,20 @@ export function ThoughtComposer({
                         <button
                           type="button"
                           className={cn(
-                            "p-2 rounded-[var(--radius-button)] border transition-all cursor-pointer flex items-center justify-center gap-1.5 text-xs text-[var(--text-secondary)]",
+                            "p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-xs active:scale-95",
                             isScheduled
-                              ? "bg-[var(--qoe-vermillion-08)] border-[var(--qoe-vermillion)] text-[var(--qoe-vermillion)]"
-                              : "border-transparent bg-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+                              ? "bg-primary/15 border-primary text-primary font-bold"
+                              : "border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60"
                           )}
                           title="Planifier"
                         >
-                          <CalendarIcon className="w-3.5 h-3.5" />
-                          {isScheduled && <span className="text-[10px] text-[var(--text-primary)] font-medium">Planifié</span>}
+                          <CalendarIcon className="w-4 h-4" />
                         </button>
                       }
                     />
-                    <PopoverContent align="start" className="w-auto p-3.5 flex flex-col gap-3.5 bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-button)] shadow-lg z-50">
+                    <PopoverContent align="start" className="w-auto p-3.5 flex flex-col gap-3.5 bg-popover border border-border rounded-xl shadow-xl z-[150]">
                       <div className="space-y-1">
-                        <span className="text-[9px] uppercase tracking-wider text-[var(--text-tertiary)] block">Date de publication</span>
+                        <span className="text-[9px] uppercase tracking-wider text-muted-foreground block font-bold">Date de publication</span>
                         <Calendar
                           mode="single"
                           selected={scheduledDate}
@@ -1393,11 +1401,11 @@ export function ThoughtComposer({
                             setIsScheduled(true)
                           }}
                           disabled={{ before: new Date() }}
-                          className="rounded-[var(--radius-button)] border border-[var(--border-default)] bg-[var(--surface-0)]"
+                          className="rounded-xl border border-border bg-card"
                         />
                       </div>
-                      <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)] text-xs gap-4">
-                        <span className="text-[9px] uppercase tracking-wider text-[var(--text-tertiary)]">Heure de publication</span>
+                      <div className="flex items-center justify-between pt-2 border-t border-border/50 text-xs gap-4">
+                        <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Heure</span>
                         <div className="flex items-center gap-1">
                           <TimePickerInput
                             picker="hours"
@@ -1405,20 +1413,20 @@ export function ThoughtComposer({
                             setDate={setScheduledDate}
                             ref={hourRef}
                             onRightFocus={() => minuteRef.current?.focus()}
-                            className="w-10 h-7 text-xs border-[var(--border-default)] bg-[var(--surface-1)] rounded-[var(--radius-button)] text-center focus:border-[var(--qoe-vermillion)] outline-none"
+                            className="w-10 h-7 text-xs border-border bg-muted/40 rounded-lg text-center focus:border-primary outline-none"
                           />
-                          <span className="text-[var(--text-tertiary)]">:</span>
+                          <span className="text-muted-foreground">:</span>
                           <TimePickerInput
                             picker="minutes"
                             date={scheduledDate}
                             setDate={setScheduledDate}
                             ref={minuteRef}
                             onLeftFocus={() => hourRef.current?.focus()}
-                            className="w-10 h-7 text-xs border-[var(--border-default)] bg-[var(--surface-1)] rounded-[var(--radius-button)] text-center focus:border-[var(--qoe-vermillion)] outline-none"
+                            className="w-10 h-7 text-xs border-border bg-muted/40 rounded-lg text-center focus:border-primary outline-none"
                           />
                         </div>
                       </div>
-                      <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                      <div className="flex justify-end gap-2 pt-2 border-t border-border/50">
                         <button
                           type="button"
                           onClick={() => {
@@ -1426,14 +1434,14 @@ export function ThoughtComposer({
                             setScheduledDate(undefined)
                             setShowScheduleDropdown(false)
                           }}
-                          className="px-3 py-1.5 border border-[var(--border-default)] rounded-[var(--radius-button)] text-[10px] font-semibold hover:bg-[var(--surface-2)] text-[var(--text-secondary)]"
+                          className="px-3 py-1.5 border border-border rounded-lg text-[10px] font-semibold hover:bg-muted text-muted-foreground"
                         >
                           Réinitialiser
                         </button>
                         <button
                           type="button"
                           onClick={() => setShowScheduleDropdown(false)}
-                          className="px-3 py-1.5 bg-[var(--qoe-vermillion)] hover:bg-[#d63d20] text-white rounded-[var(--radius-button)] text-[10px] font-bold"
+                          className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-[10px] font-bold"
                         >
                           Valider
                         </button>
@@ -1441,33 +1449,32 @@ export function ThoughtComposer({
                     </PopoverContent>
                   </Popover>
 
-                  {/* 3. Avertissement Dropdown (Shadcn Popover) */}
+                  {/* Avertissement Dropdown */}
                   <Popover open={showWarningDropdown} onOpenChange={setShowWarningDropdown}>
                     <PopoverTrigger
                       render={
                         <button
                           type="button"
                           className={cn(
-                            "p-2 rounded-[var(--radius-button)] border transition-all cursor-pointer flex items-center justify-center gap-1.5 text-xs text-[var(--text-secondary)]",
+                            "p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center text-xs active:scale-95",
                             isTriggerWarning
-                              ? "bg-amber-500/10 border-amber-500 text-amber-600"
-                              : "border-transparent bg-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+                              ? "bg-amber-500/10 border-amber-500 text-amber-600 font-bold"
+                              : "border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60"
                           )}
-                          title="Avertissement"
+                          title="Avertissement de contenu"
                         >
-                          <AlertTriangle className="w-3.5 h-3.5" />
-                          {isTriggerWarning && <span className="text-[10px] text-[var(--text-primary)] font-medium">Masqué</span>}
+                          <AlertTriangle className="w-4 h-4" />
                         </button>
                       }
                     />
-                    <PopoverContent align="start" className="w-60 p-3.5 space-y-3 bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-button)] shadow-lg z-50 text-xs">
-                      <label className="flex items-center justify-between cursor-pointer text-xs text-[var(--text-secondary)]">
+                    <PopoverContent align="start" className="w-60 p-3.5 space-y-3 bg-popover border border-border rounded-xl shadow-xl z-[150] text-xs">
+                      <label className="flex items-center justify-between cursor-pointer text-xs text-foreground font-medium">
                         <span>Masquer le contenu</span>
                         <input
                            type="checkbox"
                            checked={isTriggerWarning}
                            onChange={(e) => setIsTriggerWarning(e.target.checked)}
-                           className="accent-[var(--qoe-vermillion)] cursor-pointer"
+                           className="accent-primary cursor-pointer"
                         />
                       </label>
                       {isTriggerWarning && (
@@ -1476,49 +1483,50 @@ export function ThoughtComposer({
                           placeholder="Motif (ex: Spoilers, Sensible)"
                           value={triggerWarning}
                           onChange={(e) => setTriggerWarning(e.target.value)}
-                          className="w-full bg-[var(--surface-1)] border border-[var(--border-default)] rounded-[var(--radius-button)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-quaternary)] outline-none focus:border-[var(--qoe-vermillion)] mt-1.5"
+                          className="w-full bg-muted/40 border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary mt-1.5"
                         />
                       )}
                     </PopoverContent>
                   </Popover>
                 </div>
 
-                <div className="flex items-center gap-3">
+                {/* Right Action Tools & Primary Submit Button */}
+                <div className="flex items-center gap-2 shrink-0">
                   {/* Radial Character Counter */}
                   {postText.length > 0 && (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1 pr-1">
                       {charsRemaining <= 30 && (
                         <span className={cn(
-                          "text-[10px] font-bold transition-colors",
-                          isOverLimit ? "text-[var(--qoe-vermillion)]" : "text-amber-500"
+                          "text-[10px] font-mono font-bold transition-colors",
+                          isOverLimit ? "text-destructive" : "text-amber-500"
                         )}>
                           {charsRemaining}
                         </span>
                       )}
-                      <svg className="w-5 h-5 transform -rotate-90">
+                      <svg className="w-4 h-4 transform -rotate-90">
                         <circle
-                          cx="10"
-                          cy="10"
-                          r={radius}
-                          className="stroke-[var(--border-default)]"
+                          cx="8"
+                          cy="8"
+                          r="6"
+                          className="stroke-border/60"
                           strokeWidth="2"
                           fill="transparent"
                         />
                         <circle
-                          cx="10"
-                          cy="10"
-                          r={radius}
+                          cx="8"
+                          cy="8"
+                          r="6"
                           className={cn(
                             "transition-all duration-150",
                             isOverLimit
-                              ? "stroke-[var(--qoe-vermillion)]"
+                              ? "stroke-destructive"
                               : charsRemaining <= 30
                               ? "stroke-amber-500"
-                              : "stroke-neutral-400"
+                              : "stroke-primary"
                           )}
                           strokeWidth="2"
-                          strokeDasharray={circumference}
-                          strokeDashoffset={strokeDashoffset}
+                          strokeDasharray={2 * Math.PI * 6}
+                          strokeDashoffset={(2 * Math.PI * 6) - ((postText.length / CHAR_LIMIT) * (2 * Math.PI * 6))}
                           strokeLinecap="round"
                           fill="transparent"
                         />
@@ -1532,13 +1540,13 @@ export function ThoughtComposer({
                       render={
                         <button
                           type="button"
-                          className="px-3.5 py-2 border border-[var(--border-default)] rounded-[var(--radius-button)] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-2)] cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none transition-colors"
+                          className="px-2.5 py-1.5 border border-border/60 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer outline-none transition-colors"
                         >
                           Brouillons
                         </button>
                       }
                     />
-                    <PopoverContent align="end" className="w-56 p-1.5 space-y-0.5 bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-button)] shadow-lg z-50">
+                    <PopoverContent align="end" className="w-56 p-1.5 space-y-0.5 bg-popover border border-border rounded-xl shadow-xl z-[150]">
                       <button
                         type="button"
                         disabled={!postText.trim() && images.length === 0}
@@ -1546,7 +1554,7 @@ export function ThoughtComposer({
                           setShowDraftPopover(false)
                           handlePostSubmit(e, true)
                         }}
-                        className="w-full text-left px-2.5 py-1.5 rounded-[var(--radius-button)] text-xs transition-colors hover:bg-[var(--surface-1)] text-[var(--text-secondary)] disabled:opacity-50 disabled:pointer-events-none cursor-pointer font-serif"
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-muted/60 text-foreground disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                       >
                         Enregistrer le brouillon actuel
                       </button>
@@ -1556,42 +1564,18 @@ export function ThoughtComposer({
                           setShowDraftPopover(false)
                           setIsDraftsOpen(true)
                         }}
-                        className="w-full text-left px-2.5 py-1.5 rounded-[var(--radius-button)] text-xs transition-colors hover:bg-[var(--surface-1)] text-[var(--text-secondary)] cursor-pointer font-serif"
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors hover:bg-muted/60 text-foreground cursor-pointer"
                       >
                         Voir tous les brouillons
                       </button>
                     </PopoverContent>
                   </Popover>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsComposerExpanded(false)
-                      setImages([])
-                      setPostText("")
-                      setLoadedDraftId(null)
-                      setVisibility("public")
-                      setIsScheduled(false)
-                      setScheduledDate(undefined)
-                      setIsTriggerWarning(false)
-                      setTriggerWarning("")
-                      setIsDraft(false)
-                      setShowVisibilityDropdown(false)
-                      setShowScheduleDropdown(false)
-                      setShowWarningDropdown(false)
-                      setOverflowStyle("hidden")
-                      localStorage.removeItem("qoe_micro_post_draft")
-                    }}
-                    className="px-3.5 py-2 border border-[var(--border-default)] rounded-[var(--radius-button)] text-xs font-semibold text-[var(--text-tertiary)] hover:bg-[var(--surface-2)] cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--qoe-vermillion)]/30 outline-none transition-colors"
-                  >
-                    Annuler
-                  </button>
-
+                  {/* PRIMARY ACTION SUBMIT BUTTON */}
                   <button
                     type="submit"
                     disabled={(!postText.trim() && images.length === 0) || isSubmitting || isOverLimit}
-                    className="bg-[var(--qoe-vermillion,#EE4B2B)] text-white hover:bg-[#d63d20] disabled:bg-muted disabled:text-muted-foreground transition-all duration-200 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer outline-none shadow-sm"
-                    style={{ boxShadow: "0 2px 8px var(--qoe-vermillion-glow)" }}
+                    className="bg-primary text-primary-foreground hover:opacity-95 disabled:bg-muted disabled:text-muted-foreground transition-all duration-150 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer outline-none shadow-sm shrink-0 active:scale-[0.98]"
                   >
                     {isSubmitting ? (
                       <>

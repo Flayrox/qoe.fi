@@ -14,6 +14,7 @@ export type OptimisticThought = ThoughtData & {
 export interface ThoughtThreadContextValue {
   postId: string
   currentUserId: string | null
+  dbUser?: any | null
   post: OptimisticThought | null
   loading: boolean
   sendingReply: boolean
@@ -24,6 +25,7 @@ export interface ThoughtThreadContextValue {
   toggleLike: (targetId: string) => Promise<void>
   repostThought: (targetId: string) => Promise<void>
   submitReply: (parentId: string, content: string) => Promise<boolean>
+  insertReply: (parentId: string, reply: OptimisticThought) => void
   deleteThought: (targetId: string) => Promise<boolean>
   
   // Navigation

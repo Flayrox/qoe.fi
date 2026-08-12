@@ -11,6 +11,7 @@ import { QuotedThoughtCard } from "./QuotedThoughtCard"
 import { QuotedArticleCard, type QuotedArticleData } from "./QuotedArticleCard"
 import { LinkPreview } from "./LinkPreview"
 import { ThoughtActions } from "./ThoughtActions"
+import { ReportModal } from "./ReportModal"
 
 export type ThoughtVariant = "timeline" | "focus" | "parent" | "reply"
 
@@ -22,6 +23,7 @@ export interface ThoughtData {
   triggerWarning?: string | null
   isPinned?: boolean
   isDeleted?: boolean
+  isHiddenByAuthor?: boolean
   likesCount?: number
   repliesCount?: number
   repostsCount?: number
@@ -83,6 +85,7 @@ export interface ThoughtCardProps {
   onOpenProfile?: (username: string) => void
   onOpenPost?: (postId: string, authorUsername?: string) => void
   onOpenArticle?: (article: QuotedArticleData) => void
+  onOpenMedia?: (url: string) => void
   onLikeToggle?: (e: React.MouseEvent) => void
   onReplyClick?: (e: React.MouseEvent) => void
   onRepostToggle?: (e: React.MouseEvent) => void
@@ -90,6 +93,8 @@ export interface ThoughtCardProps {
   onShareClick?: (e: React.MouseEvent) => void
   onPinToggle?: (e: React.MouseEvent) => void
   onReportClick?: (e: React.MouseEvent) => void
+  onHideReplyToggle?: (e: React.MouseEvent) => void
+  onBlockUserToggle?: (e: React.MouseEvent) => void
   className?: string
 }
 
@@ -111,6 +116,7 @@ export function ThoughtCard({
   onOpenProfile,
   onOpenPost,
   onOpenArticle,
+  onOpenMedia,
   onLikeToggle,
   onReplyClick,
   onRepostToggle,
@@ -118,8 +124,12 @@ export function ThoughtCard({
   onShareClick,
   onPinToggle,
   onReportClick,
+  onHideReplyToggle,
+  onBlockUserToggle,
   className,
 }: ThoughtCardProps) {
+  const [isReportModalOpen, setIsReportModalOpen] = React.useState<boolean>(false)
+
   const isPureRepost = !!post.repost && !post.content?.trim()
   const isQuotePost = !!post.repost && !!post.content?.trim()
 
@@ -178,153 +188,194 @@ export function ThoughtCard({
     }
   }
 
+  const handleReportAction = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (onReportClick) {
+      onReportClick(e)
+    } else {
+      setIsReportModalOpen(true)
+    }
+  }
+
+  const canHideReply = Boolean(
+    post.parent && currentUserId && post.parent.author && post.parent.author.id === currentUserId
+  )
+
   return (
-    <article
-      onClick={handleOpenPost}
-      className={cn(
-        "group relative flex gap-3 p-3.5 sm:p-4 transition-colors duration-200 cursor-pointer select-none",
-        "bg-card/40 hover:bg-muted/30 border-b border-border/40",
-        isFocus && "bg-card border-none hover:bg-card cursor-default py-5",
-        isParent && "pb-1 border-none",
-        variant === "reply" && depth === 0 && "py-3 border-b border-border/20",
-        className
-      )}
-    >
-      {/* COLUMN 1: Avatar & Thread Line Connectors */}
-      <div className="relative flex flex-col items-center shrink-0">
-        <ProfileHoverCard user={displayAuthor} onOpenProfile={onOpenProfile}>
-          <AuthorAvatar
-            user={displayAuthor}
-            size={isFocus ? "md" : "sm"}
-            showBadge={false}
-          />
-        </ProfileHoverCard>
-
-        {isParent && (
-          <div className="w-[2px] bg-border/50 flex-1 my-1 rounded-full min-h-[24px]" />
+    <>
+      <article
+        onClick={handleOpenPost}
+        className={cn(
+          "group relative flex gap-3 p-3.5 sm:p-4 transition-colors duration-200 cursor-pointer select-none",
+          "bg-card/40 hover:bg-muted/30 border-b border-border/40",
+          isFocus && "bg-card border-none hover:bg-card cursor-default py-5",
+          isParent && "pb-1 border-none",
+          variant === "reply" && depth === 0 && "py-3 border-b border-border/20",
+          className
         )}
-      </div>
+      >
+        {/* COLUMN 1: Avatar & Thread Line Connectors */}
+        <div className="relative flex flex-col items-center shrink-0">
+          <ProfileHoverCard user={displayAuthor} onOpenProfile={onOpenProfile}>
+            <AuthorAvatar
+              user={displayAuthor}
+              size={isFocus ? "lg" : "md"}
+              showBadge={false}
+            />
+          </ProfileHoverCard>
 
-      {/* COLUMN 2: Main Content Area */}
-      <div className="flex-1 min-w-0 space-y-1.5">
-        {/* Pure Repost Banner */}
-        {isPureRepost && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground pb-0.5 font-sans">
-            <Repeat className="w-3.5 h-3.5 text-emerald-500" />
-            <span>
-              <strong className="font-semibold text-foreground">
-                @{post.author.username || post.author.subdomain || post.author.id.slice(0, 8)}
-              </strong>{" "}
-              a repartagé
-            </span>
-          </div>
-        )}
+          {isParent && (
+            <div className="w-[2px] bg-border/50 flex-1 my-1 rounded-full min-h-[24px]" />
+          )}
+        </div>
 
-        {/* Pinned Badge */}
-        {post.isPinned && (
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-brand pb-0.5">
-            <Pin className="w-3 h-3 fill-current rotate-45" />
-            <span>Épinglé</span>
-          </div>
-        )}
+        {/* COLUMN 2: Main Content Area */}
+        <div className="flex-1 min-w-0 space-y-1.5">
+          {/* Pure Repost Banner */}
+          {isPureRepost && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground pb-0.5 font-sans">
+              <Repeat className="w-3.5 h-3.5 text-emerald-500" />
+              <span>
+                <strong className="font-semibold text-foreground">
+                  @{post.author.username || post.author.subdomain || post.author.id.slice(0, 8)}
+                </strong>{" "}
+                a repartagé
+              </span>
+            </div>
+          )}
 
-        {/* Reply Context Banner */}
-        {post.parent && !isParent && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground pb-0.5 font-sans">
-            <CornerDownRight className="w-3.5 h-3.5 text-brand" />
-            <span>
+          {/* Pinned Badge */}
+          {post.isPinned && (
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-brand pb-0.5">
+              <Pin className="w-3 h-3 fill-current rotate-45" />
+              <span>Épinglé</span>
+            </div>
+          )}
+
+          {/* Reply Context Banner (Only in main feed timeline view) */}
+          {post.parent && !isParent && !isFocus && variant === "timeline" && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground pb-0.5 font-sans">
+              <CornerDownRight className="w-3.5 h-3.5 text-brand" />
+              <span>
+                En réponse à{" "}
+                <strong className="font-semibold text-foreground">
+                  @{post.parent.author.username || post.parent.author.subdomain || post.parent.author.id.slice(0, 8)}
+                </strong>
+              </span>
+            </div>
+          )}
+
+          {/* Sub-reply target indicator (In thread view when replying to a nested reply) */}
+          {post.parent && (variant === "reply" || isFocus) && depth > 0 && (
+            <div className="text-[11px] text-muted-foreground font-sans">
               En réponse à{" "}
-              <strong className="font-semibold text-foreground">
+              <span className="text-brand font-medium">
                 @{post.parent.author.username || post.parent.author.subdomain || post.parent.author.id.slice(0, 8)}
-              </strong>
-            </span>
-          </div>
-        )}
+              </span>
+            </div>
+          )}
 
-        {/* Author Header */}
-        <ThoughtHeader
-          author={displayAuthor}
-          createdAt={displayCreatedAt}
-          isPinned={post.isPinned}
-          isFocus={isFocus}
-          currentUserId={currentUserId}
-          onOpenProfile={onOpenProfile}
-          onPinToggle={onPinToggle}
-          onReportClick={onReportClick}
-        />
-
-        {/* Threadgate Badge */}
-        {threadgateBadge}
-
-        {/* Text Body Content */}
-        <ThoughtBody
-          content={displayContent}
-          imageUrl={displayImageUrl}
-          attachments={post.attachments}
-          triggerWarning={post.triggerWarning}
-          isFocus={isFocus}
-        />
-
-        {/* Poll Slot */}
-        {pollSlot}
-
-        {/* Quoted Thought Card (if quoting another thought) */}
-        {isQuotePost && (
-          <QuotedThoughtCard
-            post={post.repost || null}
-            onOpenPost={(id) => {
-              if (onOpenPost) onOpenPost(id)
-            }}
+          {/* Author Header */}
+          <ThoughtHeader
+            author={displayAuthor}
+            createdAt={displayCreatedAt}
+            isPinned={post.isPinned}
+            isFocus={isFocus}
+            currentUserId={currentUserId}
+            canHideReply={canHideReply}
+            isHiddenByAuthor={post.isHiddenByAuthor}
+            onOpenProfile={onOpenProfile}
+            onPinToggle={onPinToggle}
+            onReportClick={handleReportAction}
+            onHideReplyToggle={onHideReplyToggle}
+            onBlockUserToggle={onBlockUserToggle}
           />
-        )}
 
-        {/* Quoted Article Card (Explicit prop) */}
-        {post.articleQuote && (
-          <QuotedArticleCard
-            article={post.articleQuote}
-            quotedExcerpt={quotedExcerpt}
-            onOpenArticle={onOpenArticle}
+          {/* Threadgate Badge */}
+          {threadgateBadge}
+
+          {/* Text Body Content */}
+          <ThoughtBody
+            content={displayContent}
+            imageUrl={displayImageUrl}
+            attachments={post.attachments}
+            triggerWarning={post.triggerWarning}
+            isFocus={isFocus}
+            onOpenMedia={onOpenMedia}
           />
-        )}
 
-        {/* Unfurled Link Preview (Apple Reader Highlight if article link, or external link preview) */}
-        {!post.articleQuote && urls.length > 0 && (
-          <LinkPreview
-            urls={urls}
-            quotedExcerpt={quotedExcerpt}
-            unfurlFn={unfurlFn}
-            onNavigate={(target) => {
-              if (target.type === "post") {
-                if (onOpenPost) onOpenPost(target.id)
-              } else if (target.type === "article") {
-                if (onOpenArticle) {
-                  onOpenArticle({ id: target.id, slug: target.slug || "", title: "" })
+          {/* Poll Slot */}
+          {pollSlot}
+
+          {/* Quoted Thought Card (if quoting another thought) */}
+          {isQuotePost && (
+            <QuotedThoughtCard
+              post={post.repost || null}
+              onOpenPost={(id) => {
+                if (onOpenPost) onOpenPost(id)
+              }}
+            />
+          )}
+
+          {/* Quoted Article Card (Explicit prop) */}
+          {post.articleQuote && (
+            <QuotedArticleCard
+              article={post.articleQuote}
+              quotedExcerpt={quotedExcerpt}
+              onOpenArticle={onOpenArticle}
+            />
+          )}
+
+          {/* Unfurled Link Preview (Apple Reader Highlight if article link, or external link preview) */}
+          {!post.articleQuote && urls.length > 0 && (
+            <LinkPreview
+              urls={urls}
+              quotedExcerpt={quotedExcerpt}
+              unfurlFn={unfurlFn}
+              onNavigate={(target) => {
+                if (target.type === "post") {
+                  if (onOpenPost) onOpenPost(target.id)
+                } else if (target.type === "article") {
+                  if (onOpenArticle) {
+                    onOpenArticle({ id: target.id, slug: target.slug || "", title: "" })
+                  }
                 }
-              }
-            }}
+              }}
+            />
+          )}
+
+          {/* Focus Mode Date & Time Footer */}
+          {isFocus && (
+            <div className="py-2.5 my-1 border-y border-border/40 text-xs text-muted-foreground font-sans">
+              {new Date(displayCreatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+              {" · "}
+              {new Date(displayCreatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+            </div>
+          )}
+
+          {/* Centralized Action Bar */}
+          <ThoughtActions
+            post={post}
+            variant={isFocus ? "lg" : isParent || isReply ? "sm" : "md"}
+            onLike={onLikeToggle}
+            onReply={handleReplyClick}
+            onRepost={onRepostToggle}
+            onQuote={handleQuoteClick}
+            onShare={onShareClick}
           />
-        )}
+        </div>
+      </article>
 
-        {/* Focus Mode Date & Time Footer */}
-        {isFocus && (
-          <div className="py-2.5 my-1 border-y border-border/40 text-xs text-muted-foreground font-sans">
-            {new Date(displayCreatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-            {" · "}
-            {new Date(displayCreatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
-          </div>
-        )}
-
-        {/* Centralized Action Bar */}
-        <ThoughtActions
-          post={post}
-          variant={isFocus ? "lg" : isParent || isReply ? "sm" : "md"}
-          onLike={onLikeToggle}
-          onReply={handleReplyClick}
-          onRepost={onRepostToggle}
-          onQuote={handleQuoteClick}
-          onShare={onShareClick}
-        />
-      </div>
-    </article>
+      {/* Internal Report Modal */}
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        targetId={displayPostId}
+        targetType="thought"
+        authorName={displayAuthor.name || displayAuthor.username || undefined}
+      />
+    </>
   )
 }
+

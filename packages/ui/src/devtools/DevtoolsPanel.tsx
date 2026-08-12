@@ -79,6 +79,7 @@ export interface DevtoolsActions {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   generateMockFeedPostsAction: () => Promise<{ success: boolean; error?: string }>;
   resetDatabaseAction: () => Promise<{ success: boolean; error?: string }>;
+  seedFullDatabaseAction?: () => Promise<{ success: boolean; error?: string }>;
   resetOnboardingAction?: () => Promise<{ success: boolean; error?: string }>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   simulateSubscriberAction: (data: { email: string; creatorId: string; isPremium?: boolean; ltvCents?: number }) => Promise<{ success: boolean; error?: string }>;
@@ -96,6 +97,7 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
     createMockUserAction,
     generateMockFeedPostsAction,
     resetDatabaseAction,
+    seedFullDatabaseAction,
     resetOnboardingAction,
     simulateSubscriberAction,
     simulateFollowAction,
@@ -268,52 +270,18 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
   };
 
   const handleSeedCompletePack = () => {
+    if (!window.confirm("Vider la DB et seeder le Pack Sanctuaire Ultime (20+ Utilisateurs avec Avatars, 25+ Articles, 60+ Thoughts, Réseau, Tiers & Commentaires) ?")) return;
     startTransition(async () => {
-      await resetDatabaseAction();
-      const creatorsToSeed = [
-        { name: "Jean-Marc Jancovici", email: "philo@qoe.fi", username: "jancovici", subdomain: "climat", style: "minimal", color: "#3ecf8e" },
-        { name: "Souveraineté Média", email: "militant@qoe.fi", username: "souverain", subdomain: "souverainete", style: "brutalist", color: "#f59e0b" },
-        { name: "Auteur Écologiste", email: "eco@qoe.fi", username: "ecologue", subdomain: "ecologie", style: "magazine", color: "#3b82f6" },
-      ];
+      const res = seedFullDatabaseAction
+        ? await seedFullDatabaseAction()
+        : await resetDatabaseAction();
 
-      for (const creator of creatorsToSeed) {
-        await createMockUserAction({
-          name: creator.name,
-          email: creator.email,
-          username: creator.username,
-          subdomain: creator.subdomain,
-          role: "creator",
-          layoutStyle: creator.style,
-          accentColor: creator.color,
-        });
+      if (res.success) {
+        triggerAlert("success", "🔥 Pack Sanctuaire Ultime injecté avec succès !");
+        await refreshData();
+      } else {
+        triggerAlert("error", res.error || "Échec du seeding complet");
       }
-
-      await createMockUserAction({
-        name: "Super Administrateur",
-        email: "admin@qoe.fi",
-        username: "admin",
-        subdomain: "admin",
-        role: "superadmin",
-      });
-
-      const readersToSeed = [
-        { name: "Lucas Le Lecteur", email: "lucas@gmail.com", username: "lucas" },
-        { name: "Sophie Curieuse", email: "sophie@gmail.com", username: "sophie" },
-      ];
-
-      for (const reader of readersToSeed) {
-        await createMockUserAction({
-          name: reader.name,
-          email: reader.email,
-          username: reader.username,
-          subdomain: "",
-          role: "user",
-        });
-      }
-
-      await generateMockFeedPostsAction();
-      triggerAlert("success", "Données de démonstration injectées");
-      await refreshData();
     });
   };
 

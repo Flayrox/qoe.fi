@@ -1,6 +1,6 @@
 "use server";
 
-import { follows, bookmarks, posts, articles, users, moderation } from "@qoe/db";
+import { follows, bookmarks, posts, articles, users, moderation, threadgates } from "@qoe/db";
 import { prisma } from "@qoe/db/client";
 import { sliceContentAtPaywall } from "@qoe/utils";
 import { ContentVisibility } from "@qoe/db/types";
@@ -647,6 +647,35 @@ export const searchUsersAction = safeAction<string, { users: any[] }>(
   { requireAuth: false }
 );
 
+export const toggleHideReplyAction = safeAction<string, { isHiddenByAuthor: boolean }>(
+  async (replyId, user) => {
+    const updated = await threadgates.toggleHideReplyByAuthor(replyId, user.id);
+    return { isHiddenByAuthor: updated.isHiddenByAuthor };
+  }
+);
+
+export const canUserReplyAction = safeAction<string, { canReply: boolean; reason?: string; restriction: string }>(
+  async (thoughtId, user) => {
+    const res = await threadgates.canUserReplyToThought(thoughtId, user.id);
+    return { canReply: res.canReply, reason: res.reason, restriction: res.restriction };
+  },
+  { requireAuth: false }
+);
+
+export const toggleBlockUserAction = safeAction<string, { blocked: boolean }>(
+  async (targetUserId, user) => {
+    const res = await moderation.toggleBlockUser(user.id, targetUserId);
+    return res;
+  }
+);
+
+export const toggleMuteWordAction = safeAction<string, { muted: boolean; word: string }>(
+  async (word, user) => {
+    const res = await moderation.toggleMuteWord(user.id, word);
+    return res;
+  }
+);
+
 export const getFeedItemsAction = safeAction<
   {
     feedType?: string;
@@ -686,3 +715,4 @@ export const getFeedItemsAction = safeAction<
   },
   { requireAuth: false }
 );
+

@@ -34,7 +34,7 @@ export function ThoughtReplyModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="max-w-xl p-5 bg-card border border-border/60 text-card-foreground rounded-2xl shadow-2xl overflow-hidden font-sans"
+        className="max-w-xl p-5 bg-card border border-border/60 text-card-foreground rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh] font-sans"
       >
         {/* Modal Top Navigation Header Bar */}
         <div className="flex items-center justify-between pb-3 mb-2 border-b border-border/30">

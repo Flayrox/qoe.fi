@@ -42,11 +42,11 @@ export function LoginModal({
 
           {/* Modal Container */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 15 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            initial={{ opacity: 0, scale: 0.85, y: 15 }}
+            animate={{ opacity: 1, scale: 0.9, y: 0 }}
+            exit={{ opacity: 0, scale: 0.85, y: 15 }}
             transition={springs.modal}
-            className="relative z-10 w-full max-w-5xl mx-auto my-auto"
+            className="relative z-10 w-full max-w-5xl mx-auto my-auto origin-center"
           >
             {/* Floating Close Button */}
             <button

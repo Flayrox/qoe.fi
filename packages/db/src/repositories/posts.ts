@@ -23,7 +23,7 @@ export async function findFollowingFeed(
 
   const take = options?.take ?? 20;
 
-  return prisma.thought.findMany({
+  const rawPosts = await prisma.thought.findMany({
     where: {
       authorId: { in: creatorIds },
       author: { isShadowbanned: false, isSuspended: false },
@@ -84,18 +84,61 @@ export async function findFollowingFeed(
         },
       },
       attachments: { orderBy: { order: "asc" } },
+      poll: {
+        include: {
+          options: {
+            orderBy: { order: "asc" },
+            include: { _count: { select: { votes: true } } },
+          },
+          votes: { select: { optionId: true, userId: true } },
+        },
+      },
       _count: { select: { likes: true, replies: true, reposts: true } },
       likes: { where: { userId: readerId }, select: { userId: true } },
       reposts: { where: { authorId: readerId, deletedAt: null }, select: { id: true } },
     },
   });
+
+  return rawPosts.map((p) => ({
+    ...p,
+    poll: formatPollData(p.poll, readerId),
+  }));
+}
+
+export function formatPollData(rawPoll: any, currentUserId?: string | null) {
+  if (!rawPoll) return null;
+  const totalVotes = rawPoll.options ? rawPoll.options.reduce((acc: number, opt: any) => acc + (opt._count?.votes || 0), 0) : 0;
+  const isExpired = new Date() > new Date(rawPoll.expiresAt);
+  const userVote = currentUserId && Array.isArray(rawPoll.votes) ? rawPoll.votes.find((v: any) => v.userId === currentUserId) : null;
+
+  const options = (rawPoll.options || []).map((opt: any) => {
+    const voteCount = opt._count?.votes ?? 0;
+    const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+    return {
+      id: opt.id,
+      text: opt.text,
+      order: opt.order,
+      voteCount,
+      percentage,
+    };
+  });
+
+  return {
+    id: rawPoll.id,
+    thoughtId: rawPoll.thoughtId,
+    expiresAt: rawPoll.expiresAt,
+    isExpired,
+    totalVotes,
+    userVotedOptionId: userVote ? userVote.optionId : null,
+    options,
+  };
 }
 
 /**
  * 🔥 Pensées trending (les plus likés/relayés récemment).
  */
 export async function findTrending(limit: number = 20, currentUserId?: string) {
-  return prisma.thought.findMany({
+  const rawPosts = await prisma.thought.findMany({
     where: {
       isDraft: false,
       deletedAt: null,
@@ -107,6 +150,15 @@ export async function findTrending(limit: number = 20, currentUserId?: string) {
     take: limit,
     include: {
       attachments: { orderBy: { order: "asc" } },
+      poll: {
+        include: {
+          options: {
+            orderBy: { order: "asc" },
+            include: { _count: { select: { votes: true } } },
+          },
+          votes: { select: { optionId: true, userId: true } },
+        },
+      },
       author: {
         select: {
           id: true,
@@ -155,6 +207,11 @@ export async function findTrending(limit: number = 20, currentUserId?: string) {
       reposts: currentUserId ? { where: { authorId: currentUserId, deletedAt: null }, select: { id: true } } : false,
     },
   });
+
+  return rawPosts.map((p) => ({
+    ...p,
+    poll: formatPollData(p.poll, currentUserId),
+  }));
 }
 
 
@@ -178,10 +235,18 @@ export async function createThought(data: {
   parentId?: string | null;
   replyRestriction?: string;
 }) {
+  let computedRootId: string | null = null;
   if (data.parentId) {
     const replyCheck = await canUserReplyToThought(data.parentId, data.authorId);
     if (!replyCheck.canReply) {
       throw new Error(replyCheck.reason || "THREADGATE_RESTRICTED");
+    }
+    const parentPost = await prisma.thought.findUnique({
+      where: { id: data.parentId },
+      select: { id: true, rootId: true },
+    });
+    if (parentPost) {
+      computedRootId = parentPost.rootId || parentPost.id;
     }
   }
 
@@ -208,6 +273,7 @@ export async function createThought(data: {
       triggerWarning: data.triggerWarning || null,
       repostId: data.repostId || null,
       parentId: data.parentId || null,
+      rootId: computedRootId,
       replyRestriction: data.replyRestriction || "everyone",
     },
     include: {
@@ -248,8 +314,6 @@ export async function createThought(data: {
 
   return newPost;
 }
-
-
 
 /** @deprecated Utiliser createThought */
 export const createMicroPost = createThought;
@@ -326,9 +390,10 @@ export async function replyToPost(postId: string, authorId: string, content: str
 
   const targetPost = await prisma.thought.findUnique({
     where: { id: postId },
-    select: { authorId: true },
+    select: { id: true, authorId: true, rootId: true },
   });
 
+  const computedRootId = targetPost ? (targetPost.rootId || targetPost.id) : null;
 
   const [reply] = await prisma.$transaction([
     prisma.thought.create({
@@ -336,6 +401,7 @@ export async function replyToPost(postId: string, authorId: string, content: str
         content,
         authorId,
         parentId: postId,
+        rootId: computedRootId,
       },
       include: {
         author: {
@@ -355,41 +421,54 @@ export async function replyToPost(postId: string, authorId: string, content: str
     }),
   ]);
 
-  if (targetPost?.authorId) {
-    createNotification({
-      recipientId: targetPost.authorId,
-      senderId: authorId,
-      type: "REPLY",
-      thoughtId: reply.id,
-    }).catch((err) => console.error("Error creating reply notification:", err));
+
+  // 🔔 Dispatch notifications to all thread participants (parent author + root author + mentions)
+  const recipientsToNotify = new Set<string>();
+  if (targetPost?.authorId && targetPost.authorId !== authorId) {
+    recipientsToNotify.add(targetPost.authorId);
+  }
+
+  if (computedRootId) {
+    const rootPost = await prisma.thought.findUnique({
+      where: { id: computedRootId },
+      select: { authorId: true },
+    });
+    if (rootPost?.authorId && rootPost.authorId !== authorId) {
+      recipientsToNotify.add(rootPost.authorId);
+    }
   }
 
   // Parse mentions (@username)
   const mentions = content.match(/@([a-zA-Z0-9_]+)/g);
   if (mentions && mentions.length > 0) {
     const usernames = Array.from(new Set(mentions.map((m) => m.slice(1))));
-    prisma.user
-      .findMany({
+    try {
+      const mentionedUsers = await prisma.user.findMany({
         where: { username: { in: usernames } },
         select: { id: true },
-      })
-      .then((mentionedUsers) => {
-        for (const u of mentionedUsers) {
-          if (u.id !== authorId && u.id !== targetPost?.authorId) {
-            createNotification({
-              recipientId: u.id,
-              senderId: authorId,
-              type: "MENTION",
-              thoughtId: reply.id,
-            }).catch((err) => console.error("Error creating mention notification:", err));
-          }
+      });
+      for (const u of mentionedUsers) {
+        if (u.id !== authorId) {
+          recipientsToNotify.add(u.id);
         }
-      })
-      .catch((err) => console.error("Error finding mentioned users:", err));
+      }
+    } catch (err) {
+      console.error("Error finding mentioned users:", err);
+    }
+  }
+
+  for (const recipientId of recipientsToNotify) {
+    createNotification({
+      recipientId,
+      senderId: authorId,
+      type: "REPLY",
+      thoughtId: reply.id,
+    }).catch((err) => console.error("Error creating participant reply notification:", err));
   }
 
   return reply;
 }
+
 
 
 /**
@@ -414,24 +493,37 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
     : false;
   const countSelect = { select: { likes: true, replies: true, reposts: true } };
 
+  const pollIncludeQuery = {
+    include: {
+      options: {
+        orderBy: { order: "asc" as const },
+        include: { _count: { select: { votes: true } } },
+      },
+      votes: { select: { optionId: true, userId: true } },
+    },
+  };
+
   const thread = await prisma.thought.findUnique({
     where: { id: postId },
     include: {
       author: authorSelect,
       likes: likesInclude,
       reposts: repostsInclude,
+      poll: pollIncludeQuery,
       _count: countSelect,
       parent: {
         include: {
           author: authorSelect,
           likes: likesInclude,
           reposts: repostsInclude,
+          poll: pollIncludeQuery,
           _count: countSelect,
           parent: {
             include: {
               author: authorSelect,
               likes: likesInclude,
               reposts: repostsInclude,
+              poll: pollIncludeQuery,
               _count: countSelect,
             },
           },
@@ -442,6 +534,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
           author: authorSelect,
           likes: likesInclude,
           reposts: repostsInclude,
+          poll: pollIncludeQuery,
           _count: countSelect,
         },
       },
@@ -450,12 +543,14 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
           author: authorSelect,
           likes: likesInclude,
           reposts: repostsInclude,
+          poll: pollIncludeQuery,
           _count: countSelect,
           replies: {
             include: {
               author: authorSelect,
               likes: likesInclude,
               reposts: repostsInclude,
+              poll: pollIncludeQuery,
               _count: countSelect,
             },
           },
@@ -494,6 +589,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
     node.likesCount = canonicalNode.likeCount ?? canonicalNode._count?.likes ?? node._count?.likes ?? 0;
     node.repliesCount = canonicalNode.replyCount ?? canonicalNode._count?.replies ?? node._count?.replies ?? 0;
     node.repostsCount = canonicalNode.repostCount ?? canonicalNode._count?.reposts ?? node._count?.reposts ?? 0;
+    node.poll = formatPollData(node.poll, currentUserId);
 
     if (node.parent) {
       node.parent = processPostNode(node.parent);

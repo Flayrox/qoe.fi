@@ -455,7 +455,7 @@ export function FeedDashboard({
   React.useEffect(() => {
     const handleOpenComposer = (e: Event) => {
       if (!dbUser) {
-        openAuth({ mode: "signup", actionContext: "bookmark" })
+        openAuthModal({ mode: "signup", actionContext: "comment" })
         return
       }
       const customDetail = (e as CustomEvent)?.detail
@@ -589,6 +589,7 @@ export function FeedDashboard({
                 <ThoughtThreadView
                   postId={activePostId}
                   currentUserId={dbUser?.id || null}
+                  dbUser={dbUser}
                   onClose={handleClosePost}
                   onOpenArticle={handleOpenArticle}
                   onOpenProfile={(username) => {

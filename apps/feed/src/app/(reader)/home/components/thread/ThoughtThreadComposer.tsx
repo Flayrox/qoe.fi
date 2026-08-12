@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { Lock } from "lucide-react"
 import { ThoughtComposer } from "../ThoughtComposer"
 import { useThoughtThreadContext } from "./ThoughtThreadContext"
 
@@ -10,19 +11,46 @@ export interface ThoughtThreadComposerProps {
 }
 
 export function ThoughtThreadComposer({ placeholder = "Exprimer votre réponse...", parentId }: ThoughtThreadComposerProps) {
-  const { post, currentUserId, submitReply, onLoginRequired } = useThoughtThreadContext()
+  const { post, currentUserId, dbUser: contextDbUser, insertReply, onLoginRequired } = useThoughtThreadContext()
 
   const targetParentId = parentId || post?.id
 
   if (!targetParentId) return null
 
-  // User object stub for ThoughtComposer avatar
-  const dbUser = currentUserId ? { id: currentUserId } : null
+  const dbUser = contextDbUser || (currentUserId ? { id: currentUserId } : null)
+
+  const isAuthor = Boolean(currentUserId && post?.author && post.author.id === currentUserId)
+  const restriction = post?.replyRestriction || "everyone"
 
   const handlePostCreated = (newPost: any) => {
-    if (newPost && newPost.content) {
-      submitReply(targetParentId, newPost.content)
+    if (newPost && newPost.id) {
+      insertReply(targetParentId, {
+        ...newPost,
+        isOptimistic: false,
+        replies: [],
+      })
     }
+  }
+
+  const authorHandle = post?.author?.username || post?.author?.subdomain || "l'auteur"
+
+  // Check threadgate restrictions if not the author
+  if (!isAuthor && restriction !== "everyone") {
+    let restrictionText = "Les réponses à cette pensée sont limitées par l'auteur."
+    if (restriction === "subscribers") {
+      restrictionText = `Seuls les abonnés à @${authorHandle} peuvent répondre.`
+    } else if (restriction === "following") {
+      restrictionText = `Seules les personnes suivies par @${authorHandle} peuvent répondre.`
+    } else if (restriction === "mentioned") {
+      restrictionText = `Seules les personnes mentionnées peuvent répondre à ce message.`
+    }
+
+    return (
+      <div className="p-3.5 my-2 rounded-2xl border border-border/40 bg-muted/20 text-xs text-muted-foreground flex items-center gap-2.5 font-sans select-none">
+        <Lock className="w-4 h-4 text-brand shrink-0" />
+        <span>{restrictionText}</span>
+      </div>
+    )
   }
 
   return (
