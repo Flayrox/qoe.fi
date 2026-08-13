@@ -298,90 +298,95 @@ export async function findFollowingFeed(
   readerId: string,
   options?: { take?: number; skip?: number; cursor?: string }
 ) {
-  const follows = await prisma.follows.findMany({
-    where: { readerId },
-    select: { creatorId: true },
-  });
-  const creatorIds = follows.map((f: { creatorId: string }) => f.creatorId);
+  // Cache Redis par lecteur : le feed "following" est stable à court terme.
+  // TTL 30s = latence massive en moins sur la home, rafraîchi à l'écriture.
+  const cacheKey = `feed:following:${readerId}:${options?.take ?? 20}:${options?.cursor ?? ''}:${options?.skip ?? 0}`;
+  return withCache(cacheKey, 30, async () => {
+    const follows = await prisma.follows.findMany({
+      where: { readerId },
+      select: { creatorId: true },
+    });
+    const creatorIds = follows.map((f: { creatorId: string }) => f.creatorId);
 
-  if (creatorIds.length === 0) return [];
+    if (creatorIds.length === 0) return [];
 
-  const take = options?.take ?? 20;
+    const take = options?.take ?? 20;
 
-  const rawPosts = await prisma.thought.findMany({
-    where: {
-      authorId: { in: creatorIds },
-      author: { isShadowbanned: false, isSuspended: false },
-      isDraft: false,
-      deletedAt: null,
-      OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
-      visibility: { in: [POST_VISIBILITY.PUBLIC, POST_VISIBILITY.FOLLOWERS] },
-    },
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    take: take + 1,
-    cursor: options?.cursor ? { id: options.cursor } : undefined,
-    skip: options?.cursor ? 1 : (options?.skip ?? 0),
-    include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          subdomain: true,
-          customDomain: true,
-          logoUrl: true,
-          isCertified: true,
-        },
+    const rawPosts = await prisma.thought.findMany({
+      where: {
+        authorId: { in: creatorIds },
+        author: { isShadowbanned: false, isSuspended: false },
+        isDraft: false,
+        deletedAt: null,
+        OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
+        visibility: { in: [POST_VISIBILITY.PUBLIC, POST_VISIBILITY.FOLLOWERS] },
       },
-      parent: {
-        select: {
-          id: true,
-          content: true,
-          createdAt: true,
-          author: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              subdomain: true,
-              logoUrl: true,
-              isCertified: true,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: take + 1,
+      cursor: options?.cursor ? { id: options.cursor } : undefined,
+      skip: options?.cursor ? 1 : (options?.skip ?? 0),
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            subdomain: true,
+            customDomain: true,
+            logoUrl: true,
+            isCertified: true,
+          },
+        },
+        parent: {
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            author: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                subdomain: true,
+                logoUrl: true,
+                isCertified: true,
+              },
             },
           },
         },
-      },
-      repost: {
-        include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              subdomain: true,
-              customDomain: true,
-              logoUrl: true,
-              isCertified: true,
+        repost: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                subdomain: true,
+                customDomain: true,
+                logoUrl: true,
+                isCertified: true,
+              },
             },
           },
         },
-      },
-      attachments: { orderBy: { order: 'asc' } },
-      poll: {
-        include: {
-          options: {
-            orderBy: { order: 'asc' },
-            include: { _count: { select: { votes: true } } },
+        attachments: { orderBy: { order: 'asc' } },
+        poll: {
+          include: {
+            options: {
+              orderBy: { order: 'asc' },
+              include: { _count: { select: { votes: true } } },
+            },
+            votes: { select: { optionId: true, userId: true } },
           },
-          votes: { select: { optionId: true, userId: true } },
         },
+        _count: { select: { likes: true, replies: true, reposts: true } },
+        likes: { where: { userId: readerId }, select: { userId: true } },
+        reposts: { where: { authorId: readerId, deletedAt: null }, select: { id: true } },
       },
-      _count: { select: { likes: true, replies: true, reposts: true } },
-      likes: { where: { userId: readerId }, select: { userId: true } },
-      reposts: { where: { authorId: readerId, deletedAt: null }, select: { id: true } },
-    },
-  });
+    });
 
-  return buildFeedSlices(rawPosts, readerId);
+    return buildFeedSlices(rawPosts, readerId);
+  });
 }
 
 export function formatPollData(
@@ -425,79 +430,86 @@ export function formatPollData(
  * 🔥 Pensées trending (les plus likés/relayés récemment).
  */
 export async function findTrending(limit: number = 20, currentUserId?: string) {
-  const rawPosts = await prisma.thought.findMany({
-    where: {
-      isDraft: false,
-      deletedAt: null,
-      visibility: POST_VISIBILITY.PUBLIC,
-      createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-      author: { isShadowbanned: false, isSuspended: false },
-    },
-    orderBy: [{ likes: { _count: 'desc' } }, { createdAt: 'desc' }, { id: 'desc' }],
-    take: limit,
-    include: {
-      attachments: { orderBy: { order: 'asc' } },
-      poll: {
-        include: {
-          options: {
-            orderBy: { order: 'asc' },
-            include: { _count: { select: { votes: true } } },
+  // Cache Redis : la requête est identique pour tous les visiteurs non connectés,
+  // et partagée par page (discover/explorer). TTL court car le trending évolue.
+  const cacheKey = `feed:trending:${limit}${currentUserId ? `:${currentUserId}` : ''}`;
+  return withCache(cacheKey, 30, async () => {
+    const rawPosts = await prisma.thought.findMany({
+      where: {
+        isDraft: false,
+        deletedAt: null,
+        visibility: POST_VISIBILITY.PUBLIC,
+        createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+        author: { isShadowbanned: false, isSuspended: false },
+      },
+      orderBy: [{ likes: { _count: 'desc' } }, { createdAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+      include: {
+        attachments: { orderBy: { order: 'asc' } },
+        poll: {
+          include: {
+            options: {
+              orderBy: { order: 'asc' },
+              include: { _count: { select: { votes: true } } },
+            },
+            votes: { select: { optionId: true, userId: true } },
           },
-          votes: { select: { optionId: true, userId: true } },
         },
-      },
-      author: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          subdomain: true,
-          customDomain: true,
-          logoUrl: true,
-          isCertified: true,
+        author: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            subdomain: true,
+            customDomain: true,
+            logoUrl: true,
+            isCertified: true,
+          },
         },
-      },
-      parent: {
-        select: {
-          id: true,
-          content: true,
-          createdAt: true,
-          author: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              subdomain: true,
-              logoUrl: true,
-              isCertified: true,
+        parent: {
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            author: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                subdomain: true,
+                logoUrl: true,
+                isCertified: true,
+              },
             },
           },
         },
-      },
-      repost: {
-        include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              subdomain: true,
-              customDomain: true,
-              logoUrl: true,
-              isCertified: true,
+        repost: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                subdomain: true,
+                customDomain: true,
+                logoUrl: true,
+                isCertified: true,
+              },
             },
           },
         },
+        _count: { select: { likes: true, replies: true, reposts: true } },
+        likes: currentUserId
+          ? { where: { userId: currentUserId }, select: { userId: true } }
+          : false,
+        reposts: currentUserId
+          ? { where: { authorId: currentUserId, deletedAt: null }, select: { id: true } }
+          : false,
       },
-      _count: { select: { likes: true, replies: true, reposts: true } },
-      likes: currentUserId ? { where: { userId: currentUserId }, select: { userId: true } } : false,
-      reposts: currentUserId
-        ? { where: { authorId: currentUserId, deletedAt: null }, select: { id: true } }
-        : false,
-    },
-  });
+    });
 
-  return buildFeedSlices(rawPosts, currentUserId);
+    return buildFeedSlices(rawPosts, currentUserId);
+  });
 }
 
 /**
@@ -598,6 +610,11 @@ export async function createThought(data: {
       logger.error('Erreur enregistrement hashtags', { err })
     );
   }
+
+  // Un nouveau post change le feed → invalide le cache des feeds concernés.
+  // Fire-and-forget : si Redis est KO, le TTL naturel du cache fera le travail.
+  void cacheInvalidateNamespace('feed:trending:').catch(() => {});
+  void cacheInvalidateNamespace(`feed:following:${data.authorId}:`).catch(() => {});
 
   return newPost;
 }
@@ -769,6 +786,7 @@ export async function createThoughtThread(
  */
 import { createNotification, deleteNotification } from './notifications';
 import { logger } from '@qoe/observability';
+import { withCache, cacheInvalidateNamespace } from '@qoe/observability/server';
 
 export async function toggleLike(postId: string, userId: string): Promise<{ liked: boolean }> {
   const canonicalId = await getCanonicalPostId(postId);
@@ -799,6 +817,8 @@ export async function toggleLike(postId: string, userId: string): Promise<{ like
           thoughtId: canonicalId,
         }).catch((err) => logger.error('Erreur suppression notification like', { err }));
       }
+      // Le trending est trié par likes → invalide le cache.
+      void cacheInvalidateNamespace('feed:trending:').catch(() => {});
       return { liked: false };
     } else {
       await prisma.$transaction([
@@ -816,6 +836,7 @@ export async function toggleLike(postId: string, userId: string): Promise<{ like
           thoughtId: canonicalId,
         }).catch((err) => logger.error('Erreur création notification like', { err }));
       }
+      void cacheInvalidateNamespace('feed:trending:').catch(() => {});
       return { liked: true };
     }
   } catch (error) {
@@ -914,6 +935,13 @@ export async function replyToPost(postId: string, authorId: string, content: str
     } catch (err) {
       logger.error('Erreur création notification réponse', { err });
     }
+  }
+
+  // Une réponse apparaît dans le feed following des participants.
+  void cacheInvalidateNamespace('feed:trending:').catch(() => {});
+  void cacheInvalidateNamespace(`feed:following:${authorId}:`).catch(() => {});
+  if (targetPost?.authorId) {
+    void cacheInvalidateNamespace(`feed:following:${targetPost.authorId}:`).catch(() => {});
   }
 
   return reply;
@@ -1195,6 +1223,8 @@ export async function toggleRepost(
         data: { repostCount: { decrement: existingReposts.length } },
       }),
     ]);
+    void cacheInvalidateNamespace('feed:trending:').catch(() => {});
+    void cacheInvalidateNamespace(`feed:following:${authorId}:`).catch(() => {});
     return { reposted: false, canonicalId };
   } else {
     // REPOST : création du pure repost canonique unique et incrémentation atomique
@@ -1240,6 +1270,8 @@ export async function toggleRepost(
         data: { repostCount: { increment: 1 } },
       }),
     ]);
+    void cacheInvalidateNamespace('feed:trending:').catch(() => {});
+    void cacheInvalidateNamespace(`feed:following:${authorId}:`).catch(() => {});
     return { reposted: true, canonicalId, post: newRepost as ThreadThought };
   }
 }
@@ -1261,6 +1293,8 @@ export async function deletePost(postId: string, authorId: string): Promise<bool
     where: { id: postId },
     data: { deletedAt: new Date() },
   });
+  void cacheInvalidateNamespace('feed:trending:').catch(() => {});
+  void cacheInvalidateNamespace(`feed:following:${authorId}:`).catch(() => {});
   return true;
 }
 

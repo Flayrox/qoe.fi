@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./logger": "./src/logger.ts",
-    "./sentry": "./src/sentry.ts"
+    "./sentry": "./src/sentry.ts",
+    "./server": "./src/server.ts"
   },
   "scripts": {
     "lint": "eslint .",
@@ -17,7 +18,8 @@
   },
   "dependencies": {
     "@sentry/nextjs": "10.65.0",
-    "@sentry/node": "10.65.0"
+    "@sentry/node": "10.65.0",
+    "ioredis": "^5.4.1"
   },
   "devDependencies": {
     "@qoe/tsconfig": "workspace:*",

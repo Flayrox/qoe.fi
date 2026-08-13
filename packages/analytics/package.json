@@ -21,6 +21,10 @@
     "./events": {
       "types": "./src/events.ts",
       "default": "./src/events.ts"
+    },
+    "./queries": {
+      "types": "./src/queries/creator-analytics.ts",
+      "default": "./src/queries/creator-analytics.ts"
     }
   },
   "scripts": {
