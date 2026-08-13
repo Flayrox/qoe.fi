@@ -901,12 +901,16 @@ export async function replyToPost(postId: string, authorId: string, content: str
   }
 
   for (const recipientId of recipientsToNotify) {
-    createNotification({
-      recipientId,
-      senderId: authorId,
-      type: 'REPLY',
-      thoughtId: reply.id,
-    }).catch((err) => console.error('Error creating participant reply notification:', err));
+    try {
+      await createNotification({
+        recipientId,
+        senderId: authorId,
+        type: 'REPLY',
+        thoughtId: reply.id,
+      });
+    } catch (err) {
+      console.error('Error creating participant reply notification:', err);
+    }
   }
 
   return reply;
