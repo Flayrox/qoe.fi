@@ -56,5 +56,9 @@ jobs:
       - name: Run Unit & Integration Tests
         run: pnpm test
 
+      - name: Run API Coverage Gate (apps/api)
+        working-directory: apps/api
+        run: pnpm exec vitest run --coverage
+
       - name: Build Production Packages & Applications
         run: pnpm build
