@@ -75,8 +75,11 @@
   "devDependencies": {
     "@lingui/babel-plugin-lingui-macro": "^6.6.0",
     "@lingui/cli": "^6.6.0",
+    "@lingui/format-po": "6.6.0",
     "@lingui/swc-plugin": "^6.6.0",
     "@playwright/test": "^1.62.1",
+    "@prisma/client": "6.19.3",
+    "@types/node": "^20.19.43",
     "@vitest/coverage-v8": "^4.1.7",
     "@vitest/ui": "^4.1.7",
     "eslint": "^9",
@@ -84,11 +87,13 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
     "prettier": "^3.9.6",
+    "prisma": "6.19.3",
     "turbo": "^2.3.0",
     "typescript": "^5",
+    "typescript-eslint": "^8.67.0",
     "vitest": "^4.1.7"
   },
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@11.21.0",
   "engines": {
     "node": ">=20"
   },
@@ -99,9 +104,5 @@
     "*{.js,.jsx,.ts,.tsx,.mjs,.cjs}": [
       "eslint --fix"
     ]
-  },
-  "dependencies": {
-    "@lingui/core": "^6.6.0",
-    "@lingui/react": "^6.6.0"
   }
 }

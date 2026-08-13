@@ -11,8 +11,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@base-ui/react": "^1.4.1",
     "@prisma/client": "^6.19.3",
+    "@base-ui/react": "^1.4.1",
+    "@lingui/core": "6.6.0",
+    "@lingui/react": "6.6.0",
     "@qoe/analytics": "workspace:*",
     "@qoe/auth": "workspace:*",
     "@qoe/billing": "workspace:*",

@@ -7,6 +7,15 @@ import { cn } from '@qoe/utils';
 import { Button, buttonVariants } from './button';
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from 'lucide-react';
 
+// cast des props spread pour éviter la collision de types CSSProperties
+// entre le @types/react du package et celui résolu par react-day-picker.
+// Les props étendent CSSProperties avec des variables custom (--rdp-*).
+function spreadDayPickerProps<P extends Record<string, unknown>>(
+  props: P
+): Record<string, unknown> {
+  return props as Record<string, unknown>;
+}
+
 function Calendar({
   className,
   classNames,
@@ -118,25 +127,37 @@ function Calendar({
               data-slot="calendar"
               ref={rootRef as React.Ref<HTMLDivElement>}
               className={cn(className)}
-              {...props}
+              {...spreadDayPickerProps(props)}
             />
           );
         },
         Chevron: ({ className, orientation, ...props }) => {
           if (orientation === 'left') {
-            return <ChevronLeftIcon className={cn('size-4', className)} {...props} />;
+            return (
+              <ChevronLeftIcon
+                className={cn('size-4', className)}
+                {...spreadDayPickerProps(props)}
+              />
+            );
           }
 
           if (orientation === 'right') {
-            return <ChevronRightIcon className={cn('size-4', className)} {...props} />;
+            return (
+              <ChevronRightIcon
+                className={cn('size-4', className)}
+                {...spreadDayPickerProps(props)}
+              />
+            );
           }
 
-          return <ChevronDownIcon className={cn('size-4', className)} {...props} />;
+          return (
+            <ChevronDownIcon className={cn('size-4', className)} {...spreadDayPickerProps(props)} />
+          );
         },
         DayButton: ({ ...props }) => <CalendarDayButton locale={locale} {...props} />,
         WeekNumber: ({ children, ...props }) => {
           return (
-            <td {...props}>
+            <td {...spreadDayPickerProps(props)}>
               <div className="flex size-(--cell-size) items-center justify-center text-center">
                 {children}
               </div>
