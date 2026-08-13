@@ -17,6 +17,8 @@
 #    Prisma Studio             : http://localhost:5555
 #    PostgreSQL                : localhost:5433 (via pgAdmin/DBeaver)
 #    Redis                     : localhost:6379
+#    GrowthBook (flags UI)     : http://localhost:3100
+#    GrowthBook (SDK/API)      : http://localhost:3200
 # =====================================================================
 
 # Indique que ce fichier étend docker-compose.yml
@@ -91,6 +93,64 @@ services:
       retries: 3
 
   # ───────────────────────────────────────────────────────────────────
+  # 🍃 MONGODB (dev) — stockage du dashboard GrowthBook
+  # ───────────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: qoefi-dev-mongodb
+    restart: unless-stopped
+
+    ports:
+      - '27018:27017'
+
+    volumes:
+      - mongodb_dev_data:/data/db
+
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.runCommand("ping").ok']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ───────────────────────────────────────────────────────────────────
+  # 🚩 GROWTHBOOK : dashboard de feature flags (self-hosté)
+  # ───────────────────────────────────────────────────────────────────
+  # 📖 UI : http://localhost:3100  (crée ton compte admin au 1er run,
+  #    puis Settings → SDK Connections pour générer la clé `sdk-...`)
+  #    API SDK : http://localhost:3200 (ce que consomment @qoe/flags)
+  # ───────────────────────────────────────────────────────────────────
+  growthbook:
+    image: growthbook/growthbook:latest
+    container_name: qoefi-dev-growthbook
+    restart: unless-stopped
+
+    ports:
+      - '3100:3000' # UI dashboard
+      - '3200:3100' # API (endpoint SDK /api/features/<key>)
+
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017/growthbook
+      REDIS_URI: redis://redis:6379
+      APP_ORIGIN: http://localhost:3100
+      API_HOST: http://localhost:3200
+      NODE_ENV: production
+      JWT_SECRET: ${GROWTHBOOK_JWT_SECRET:-qoe_growthbook_dev_jwt_secret_change_me}
+      ENCRYPTION_KEY: ${GROWTHBOOK_ENCRYPTION_KEY:-qoe_growthbook_dev_encryption_key_change_me}
+      DISABLE_TELEMETRY: 'true'
+      EMAIL_ENABLED: 'false'
+      # Origines autorisées pour le SDK navigateur (streaming SSE)
+      CORS_ALLOWED_ORIGINS: 'http://localhost:3001,http://localhost:3010,http://localhost:3020,http://localhost:3030,http://localhost:3040'
+
+    volumes:
+      - growthbook_uploads:/usr/local/src/app/packages/back-end/uploads
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ───────────────────────────────────────────────────────────────────
   # 🔄 MIGRATE (dev, one-shot)
   # ───────────────────────────────────────────────────────────────────
   # 📖 En dev, on n'utilise PAS le multi-stage Dockerfile.
@@ -125,7 +185,7 @@ services:
 
     command: >
       sh -c "corepack enable &&
-             corepack prepare pnpm@9.15.0 --activate &&
+             corepack prepare pnpm@11.21.0 --activate &&
              pnpm install --frozen-lockfile --filter @qoe/db... &&
              cd packages/db &&
              pnpm exec prisma migrate deploy --schema=prisma/schema.prisma"
@@ -175,7 +235,7 @@ services:
       - /app/apps/web/.next
       - /app/packages/*/node_modules
 
-    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile --filter @qoe/web... && cd apps/web && pnpm dev"
+    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@11.21.0 --activate && pnpm install --frozen-lockfile --filter @qoe/web... && cd apps/web && pnpm dev"
 
     depends_on:
       db:
@@ -219,7 +279,7 @@ services:
       - /app/apps/landing/.next
       - /app/packages/*/node_modules
 
-    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile --filter @qoe/landing... && cd apps/landing && pnpm dev"
+    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@11.21.0 --activate && pnpm install --frozen-lockfile --filter @qoe/landing... && cd apps/landing && pnpm dev"
 
     depends_on:
       db:
@@ -263,7 +323,7 @@ services:
       - /app/apps/feed/.next
       - /app/packages/*/node_modules
 
-    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile --filter @qoe/feed... && cd apps/feed && pnpm dev"
+    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@11.21.0 --activate && pnpm install --frozen-lockfile --filter @qoe/feed... && cd apps/feed && pnpm dev"
 
     depends_on:
       db:
@@ -307,7 +367,7 @@ services:
       - /app/apps/dashboard/.next
       - /app/packages/*/node_modules
 
-    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile --filter @qoe/dashboard... && cd apps/dashboard && pnpm dev"
+    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@11.21.0 --activate && pnpm install --frozen-lockfile --filter @qoe/dashboard... && cd apps/dashboard && pnpm dev"
 
     depends_on:
       db:
@@ -351,7 +411,7 @@ services:
       - /app/apps/admin/.next
       - /app/packages/*/node_modules
 
-    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile --filter @qoe/admin... && cd apps/admin && pnpm dev"
+    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@11.21.0 --activate && pnpm install --frozen-lockfile --filter @qoe/admin... && cd apps/admin && pnpm dev"
 
     depends_on:
       db:
@@ -391,7 +451,7 @@ services:
       - /app/apps/api/node_modules
       - /app/packages/*/node_modules
 
-    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile --filter @qoe/api... && cd apps/api && pnpm dev"
+    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@11.21.0 --activate && pnpm install --frozen-lockfile --filter @qoe/api... && cd apps/api && pnpm dev"
 
     depends_on:
       db:
@@ -420,7 +480,7 @@ services:
       - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
       - ./.npmrc:/app/.npmrc
 
-    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --frozen-lockfile && cd packages/db && pnpm prisma studio --port 5555"
+    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@11.21.0 --activate && pnpm install --frozen-lockfile && cd packages/db && pnpm prisma studio --port 5555"
 
     depends_on:
       db:
@@ -452,3 +512,7 @@ volumes:
     name: qoefi-dev-postgres-data
   meilisearch_data:
     name: qoefi-dev-meilisearch-data
+  mongodb_dev_data:
+    name: qoefi-dev-mongodb-data
+  growthbook_uploads:
+    name: qoefi-dev-growthbook-uploads

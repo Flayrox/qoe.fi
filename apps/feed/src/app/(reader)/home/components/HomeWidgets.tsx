@@ -4,6 +4,7 @@ import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { Clock, TrendingUp, Sparkles, Megaphone, ArrowUpRight } from 'lucide-react';
+import { useFlag } from '@qoe/flags';
 
 interface Author {
   id: string;
@@ -64,6 +65,9 @@ export function HomeWidgets({
   promos,
 }: HomeWidgetsProps) {
   const carouselRef = useRef<HTMLDivElement>(null);
+  // 🚩 Feature flag : le carousel "Recommandations" est piloté depuis
+  //    GrowthBook (feed-recommendations) → toggle en direct sans redéployer.
+  const showRecommendations = useFlag('feed-recommendations');
 
   // Scroll vertical de la souris traduit en scroll horizontal uniquement lors du survol
   useEffect(() => {
@@ -100,9 +104,10 @@ export function HomeWidgets({
         {featuredArticle && <FeaturedCard article={featuredArticle} />}
 
         {/* 2. ARTICLES RECOMMANDE (Recommendation) - en grand nombre */}
-        {recommendedArticles.map((article) => (
-          <RecommendedCard key={article.id} article={article} />
-        ))}
+        {showRecommendations &&
+          recommendedArticles.map((article) => (
+            <RecommendedCard key={article.id} article={article} />
+          ))}
 
         {/* 3. SUJETS D'ACTUALITE (Trends list) */}
         {trends && trends.length > 0 && <TrendsCard trends={trends} />}

@@ -11,6 +11,8 @@ import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono, Geist } from 'next/font/google';
 import { TolgeeNextProvider } from '@qoe/i18n/provider';
 import { getTolgee, getLanguage, initI18n } from '@qoe/i18n/server';
+import { GrowthBookProvider } from '@qoe/flags';
+import { getGrowthBookPayload } from '@qoe/flags/server';
 import { TooltipProvider } from '@qoe/ui/ui/tooltip';
 import { Toaster } from '@qoe/ui/ui/sonner';
 import { AnalyticsScript } from '@qoe/analytics/client';
@@ -56,6 +58,7 @@ export default async function RootLayout({
   const tolgee = await getTolgee();
   const staticData = await tolgee.loadRequired();
   const currentUser = await getCurrentUser().catch(() => null);
+  const flagsPayload = await getGrowthBookPayload();
 
   const devtoolsActions = {
     getDevtoolsData,
@@ -82,19 +85,21 @@ export default async function RootLayout({
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <TolgeeNextProvider language={locale} staticData={staticData}>
-            <QueryProvider>
-              <GlobalAuthModalProvider isAuthenticated={!!currentUser}>
-                <TooltipProvider>
-                  {children}
-                  <Toaster />
-                  {process.env.NODE_ENV === 'development' && (
-                    <DevtoolsPanel actions={devtoolsActions} />
-                  )}
-                </TooltipProvider>
-              </GlobalAuthModalProvider>
-            </QueryProvider>
-          </TolgeeNextProvider>
+          <GrowthBookProvider payload={flagsPayload}>
+            <TolgeeNextProvider language={locale} staticData={staticData}>
+              <QueryProvider>
+                <GlobalAuthModalProvider isAuthenticated={!!currentUser}>
+                  <TooltipProvider>
+                    {children}
+                    <Toaster />
+                    {process.env.NODE_ENV === 'development' && (
+                      <DevtoolsPanel actions={devtoolsActions} />
+                    )}
+                  </TooltipProvider>
+                </GlobalAuthModalProvider>
+              </QueryProvider>
+            </TolgeeNextProvider>
+          </GrowthBookProvider>
         </ThemeProvider>
 
         <AnalyticsScript />

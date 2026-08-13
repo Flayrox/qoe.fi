@@ -6,6 +6,8 @@ import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono, Geist } from 'next/font/google';
 import { TolgeeNextProvider } from '@qoe/i18n/provider';
 import { getTolgee, getLanguage, initI18n } from '@qoe/i18n/server';
+import { GrowthBookProvider } from '@qoe/flags';
+import { getGrowthBookPayload } from '@qoe/flags/server';
 import { cn } from '@qoe/utils';
 import { DevtoolsPanel, ThemeProvider } from '@qoe/ui';
 import {
@@ -51,6 +53,8 @@ export default async function RootLayout({
     staticData = {};
   }
 
+  const flagsPayload = await getGrowthBookPayload();
+
   const devtoolsActions = {
     getDevtoolsData,
     createMockUserAction,
@@ -76,10 +80,14 @@ export default async function RootLayout({
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <TolgeeNextProvider language={locale} staticData={staticData}>
-            {children}
-            {process.env.NODE_ENV === 'development' && <DevtoolsPanel actions={devtoolsActions} />}
-          </TolgeeNextProvider>
+          <GrowthBookProvider payload={flagsPayload}>
+            <TolgeeNextProvider language={locale} staticData={staticData}>
+              {children}
+              {process.env.NODE_ENV === 'development' && (
+                <DevtoolsPanel actions={devtoolsActions} />
+              )}
+            </TolgeeNextProvider>
+          </GrowthBookProvider>
         </ThemeProvider>
       </body>
     </html>

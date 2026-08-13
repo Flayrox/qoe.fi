@@ -26,6 +26,8 @@ import type { Queue, ConnectionOptions } from 'bullmq';
 import { Queue as BullQueue } from 'bullmq';
 import IORedis from 'ioredis';
 import { logger } from '@qoe/observability';
+import { createFlagsContext } from '@qoe/flags/server';
+import type { FlagKey } from '@qoe/flags/server';
 import { searchApp } from './search';
 
 export type AppDeps = {
@@ -48,6 +50,11 @@ function defaultStripeQueue(): Queue {
 export type AppVariables = {
   creator: User;
   user: User;
+  flags: FlagsContext;
+};
+
+export type FlagsContext = {
+  isOn: (key: FlagKey) => boolean;
 };
 
 export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }> {
@@ -98,6 +105,20 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
       credentials: true,
     })
   );
+
+  // ─── Feature flags (GrowthBook) ──────────────────────────────
+  // 📖 Contexte flags par requête. Toutes les routes peuvent évaluer via
+  //    c.get('flags').isOn('mon-flag'). Pour cibler par utilisateur, une
+  //    route peut recréer un contexte : createFlagsContext({ userId, plan }).
+  app.use('*', async (c, next) => {
+    const flags = await createFlagsContext({
+      tenant: c.req.header('x-tenant') || undefined,
+      url: c.req.url,
+      path: new URL(c.req.url).pathname,
+    });
+    c.set('flags', flags);
+    await next();
+  });
 
   // ─── Health check ────────────────────────────────────────────
   app.get('/health', (c) =>

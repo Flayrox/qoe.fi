@@ -11,16 +11,17 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.3",
     "@base-ui/react": "^1.4.1",
     "@lingui/core": "6.6.0",
     "@lingui/react": "6.6.0",
+    "@prisma/client": "^6.19.3",
     "@qoe/analytics": "workspace:*",
     "@qoe/api-client": "workspace:*",
     "@qoe/auth": "workspace:*",
     "@qoe/billing": "workspace:*",
     "@qoe/config": "workspace:*",
     "@qoe/db": "workspace:*",
+    "@qoe/flags": "workspace:*",
     "@qoe/i18n": "workspace:*",
     "@qoe/observability": "workspace:^",
     "@qoe/supabase": "workspace:*",

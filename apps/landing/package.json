@@ -2,7 +2,7 @@
   "name": "@qoe/landing",
   "version": "0.0.0",
   "private": true,
-  "description": "Landing page qoe.fi (start.qoe.fi) - CMS dynamique reli\u00e9 \u00e0 SystemConfig + pages l\u00e9gales",
+  "description": "Landing page qoe.fi (start.qoe.fi) - CMS dynamique relié à SystemConfig + pages légales",
   "scripts": {
     "dev": "next dev -p 3040",
     "build": "next build",
@@ -11,13 +11,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.3",
     "@base-ui/react": "^1.4.1",
     "@lingui/core": "6.6.0",
     "@lingui/react": "6.6.0",
+    "@prisma/client": "^6.19.3",
     "@qoe/analytics": "workspace:*",
     "@qoe/config": "workspace:*",
     "@qoe/db": "workspace:*",
+    "@qoe/flags": "workspace:*",
     "@qoe/i18n": "workspace:*",
     "@qoe/observability": "workspace:^",
     "@qoe/supabase": "workspace:*",
