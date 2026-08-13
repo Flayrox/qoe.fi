@@ -27,7 +27,7 @@ Plutôt que de faire tourner toute l'application (y compris Node.js et Next.js) 
    ```bash
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    ```
-2. **Node.js 20+** et **pnpm 9+** :
+2. **Node.js 20+** et **pnpm 11+** :
    ```bash
    brew install node pnpm
    ```
@@ -37,7 +37,7 @@ Plutôt que de faire tourner toute l'application (y compris Node.js et Next.js) 
 
 ### Sur Windows
 
-1. **Node.js 20+** et **pnpm 9+** (via le site officiel ou ton terminal).
+1. **Node.js 20+** et **pnpm 11+** (via le site officiel ou ton terminal).
 2. **Docker Desktop** pour Windows (avec WSL2 activé).
 3. Les entrées `hosts` suivantes doivent pointer vers `127.0.0.1` : `qoe.test`, `dashboard.qoe.test`, `admin.qoe.test`, `feed.qoe.test`.
 
@@ -120,6 +120,18 @@ C'est tout ! **Turborepo** va lancer en parallèle :
 - 🛡️ **Admin** (`admin.qoe.fi` local) sur : http://localhost:3030
 - 🌐 **Web** (`*.qoe.fi` local) sur : http://localhost:3001
 - 🔌 **API** (`api.qoe.fi` local) sur : http://localhost:3002
+
+> 💡 **Astuce performance** : pour travailler sur UNE app sans chauffer ton CPU,
+> préfère les scripts ciblés au lieu de `pnpm dev` (qui lance tout en parallèle) :
+>
+> ```bash
+> pnpm dev:feed      # feed + API (3010 + 3002)
+> pnpm dev:web       # web + API
+> pnpm dev:dashboard # dashboard + API
+> pnpm dev:landing   # landing seul
+> pnpm dev:admin     # admin seul
+> pnpm dev:api       # API seule
+> ```
 
 ---
 
