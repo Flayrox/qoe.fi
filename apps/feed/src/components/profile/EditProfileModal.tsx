@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { updateProfileAction as updateProfile } from '@qoe/api-client/actions/feed';
 
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 
 interface UpdatedUser {
   id: string;
@@ -41,7 +41,6 @@ export function EditProfileModal({
   user,
   onProfileUpdated,
 }: EditProfileModalProps) {
-  const { t } = useTranslate();
   const [name, setName] = useState(user.name || '');
   const [heroText, setHeroText] = useState(user.heroText || '');
   const [locationText, setLocationText] = useState(user.onboardingText || '');
@@ -65,17 +64,17 @@ export function EditProfileModal({
       });
 
       if (res.ok && res.data?.user) {
-        toast.success(t('profile.edit_success', 'Profil mis à jour avec succès !'));
+        toast.success(t`Profil mis à jour avec succès !`);
         if (onProfileUpdated) {
           onProfileUpdated(res.data.user);
         }
         onClose();
       } else {
-        toast.error(t('profile.edit_error', 'Erreur lors de la mise à jour.'));
+        toast.error(t`Erreur lors de la mise à jour.`);
       }
     } catch (err) {
       console.error(err);
-      toast.error(t('profile.edit_error', 'Erreur de mise à jour.'));
+      toast.error(t`Erreur de mise à jour.`);
     } finally {
       setSaving(false);
     }
@@ -92,7 +91,7 @@ export function EditProfileModal({
         >
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
-            <h3 className="font-semibold text-base text-foreground">Éditer le profil</h3>
+            <h3 className="font-semibold text-base text-foreground">{t`Éditer le profil`}</h3>
             <button
               onClick={onClose}
               className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
@@ -105,7 +104,7 @@ export function EditProfileModal({
             {/* Banner Preview & Input */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-muted-foreground">
-                Bannière (URL Image)
+                {t`Bannière (URL Image)`}
               </label>
               <div className="relative h-28 w-full rounded-lg bg-muted overflow-hidden border border-border/40 flex items-center justify-center">
                 {headerImageUrl ? (
@@ -118,7 +117,7 @@ export function EditProfileModal({
                 ) : (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Camera className="w-4 h-4" />
-                    <span>Aucune bannière</span>
+                    <span>{t`Aucune bannière`}</span>
                   </div>
                 )}
               </div>
@@ -134,7 +133,7 @@ export function EditProfileModal({
             {/* Avatar Preview & Input */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-muted-foreground">
-                Photo de profil (URL Image)
+                {t`Photo de profil (URL Image)`}
               </label>
               <div className="flex items-center gap-4">
                 <AuthorAvatar
@@ -154,12 +153,12 @@ export function EditProfileModal({
 
             {/* Name Input */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Nom complet</label>
+              <label className="text-xs font-semibold text-muted-foreground">{t`Nom complet`}</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Votre nom"
+                placeholder={t`Votre nom`}
                 required
                 className="w-full text-sm border border-border/50 focus:border-foreground bg-muted/30 focus:bg-card text-foreground rounded-lg p-2.5 outline-none transition-all font-medium"
               />
@@ -168,12 +167,12 @@ export function EditProfileModal({
             {/* Bio Input */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground">
-                Bio / Présentation
+                {t`Bio / Présentation`}
               </label>
               <textarea
                 value={heroText}
                 onChange={(e) => setHeroText(e.target.value)}
-                placeholder="Décrivez-vous en quelques mots..."
+                placeholder={t`Décrivez-vous en quelques mots...`}
                 rows={3}
                 className="w-full text-xs border border-border/50 focus:border-foreground bg-muted/30 focus:bg-card text-foreground rounded-lg p-2.5 resize-none outline-none transition-all"
               />
@@ -182,13 +181,13 @@ export function EditProfileModal({
             {/* Location Input */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground">
-                Localisation / Ville
+                {t`Localisation / Ville`}
               </label>
               <input
                 type="text"
                 value={locationText}
                 onChange={(e) => setLocationText(e.target.value)}
-                placeholder="Paris, France"
+                placeholder={t`Paris, France`}
                 className="w-full text-xs border border-border/50 focus:border-foreground bg-muted/30 focus:bg-card text-foreground rounded-lg p-2.5 outline-none transition-all"
               />
             </div>
@@ -200,7 +199,7 @@ export function EditProfileModal({
                 onClick={onClose}
                 className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
-                Annuler
+                {t`Annuler`}
               </button>
               <button
                 type="submit"
@@ -208,7 +207,7 @@ export function EditProfileModal({
                 className="px-5 py-2 bg-foreground text-background text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-opacity cursor-pointer flex items-center gap-2"
               >
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>Enregistrer</span>
+                <span>{t`Enregistrer`}</span>
               </button>
             </div>
           </form>

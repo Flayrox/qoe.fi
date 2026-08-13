@@ -12,6 +12,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { importSubscribersCsvAction, importRssFeedAction } from './actions';
+import { t } from '@lingui/core/macro';
 
 export default function CreatorImportPage() {
   const [activeTab, setActiveTab] = useState<'csv' | 'rss'>('csv');
@@ -113,7 +114,7 @@ export default function CreatorImportPage() {
           }`}
         >
           <FileText className="w-4 h-4" />
-          <span>Importer Abonnés (CSV)</span>
+          <span>{t`Importer Abonnés (CSV)`}</span>
         </button>
 
         <button

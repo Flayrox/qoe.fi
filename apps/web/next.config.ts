@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { linguiMacroSwcPlugin } from '@lingui/swc-plugin/options';
 
 /**
  * ⚙️ apps/web — Config Next.js pour le site public
@@ -8,6 +9,9 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   output: 'standalone',
   reactStrictMode: true,
+  experimental: {
+    swcPlugins: [linguiMacroSwcPlugin()],
+  },
   allowedDevOrigins: [
     'localhost',
     '192.168.1.86',

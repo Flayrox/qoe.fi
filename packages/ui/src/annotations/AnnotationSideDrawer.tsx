@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import type { AnnotationItem, CommentItem, AnnotationSideDrawerProps } from './types';
+import { t } from '@lingui/core/macro';
 
 export function AnnotationSideDrawer({
   articleId,
@@ -542,7 +543,7 @@ export function AnnotationSideDrawer({
                           ) : (
                             <>
                               <Lock className="w-3 h-3" />
-                              <span>Privée</span>
+                              <span>{t`Privée`}</span>
                             </>
                           )}
                         </button>
@@ -630,7 +631,7 @@ export function AnnotationSideDrawer({
                 <div className="bg-success/10 border border-success/20 text-success p-3 rounded-2xl text-xs flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Check className="w-4 h-4" />
-                    <span>Passage cité avec succès sur votre fil Feed !</span>
+                    <span>{t`Passage cité avec succès sur votre fil Feed !`}</span>
                   </div>
                   <a href="/feed" className="font-medium underline">
                     Voir

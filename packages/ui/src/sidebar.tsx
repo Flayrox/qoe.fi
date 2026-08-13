@@ -24,6 +24,7 @@ import {
   Wallet,
   Bell,
 } from 'lucide-react';
+import { t } from '@lingui/core/macro';
 
 /* ─────────────────────────────────────────────
    Icon Registry (Lucide)
@@ -539,7 +540,7 @@ export function Sidebar({
                           onClick={() => setIsAccountOpen(false)}
                         >
                           <Palette className="w-4 h-4" />
-                          <span>Design du Média</span>
+                          <span>{t`Design du Média`}</span>
                         </Link>
 
                         <div className="h-px my-1 bg-sidebar-border/60" />
@@ -556,7 +557,7 @@ export function Sidebar({
                               className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-destructive rounded-[8px] hover:bg-destructive/10 transition-colors text-left"
                             >
                               <LogOut className="w-4 h-4" />
-                              <span>Se déconnecter</span>
+                              <span>{t`Se déconnecter`}</span>
                             </button>
                           </form>
                         )}

@@ -8,17 +8,34 @@
 // Si la clé existe dans le catalogue chargé, Lingui la traduit.
 // Sinon, le message par défaut est compilé par Lingui (ICU complet).
 
-import { setupI18n, type I18n, type MessageDescriptor } from '@lingui/core';
+import { i18n as linguiI18n, type I18n, type MessageDescriptor } from '@lingui/core';
+import frMessages from '../../../messages/fr.js';
 
 export type I18nValue = string | number;
 export type I18nParams = Record<string, I18nValue>;
 export type MessageMap = Record<string, string>;
 
+export const DEFAULT_I18N_LOCALE = 'fr';
+
+// ⚠️ CRITICAL: the compiled Lingui macros (t`...`) call the singleton `i18n`
+// exported by @lingui/core. We must load/activate THAT instance immediately at
+// module load so server-side macros always resolve during prerender/SSR,
+// before any layout calls initI18n().
+if (linguiI18n.locale === undefined || linguiI18n.locale === '') {
+  linguiI18n.load({ fr: frMessages.messages });
+  linguiI18n.activate(DEFAULT_I18N_LOCALE);
+}
+
 let _i18n: I18n | null = null;
 
+// Returns the shared @lingui/core singleton.
 export function getI18n(): I18n {
   if (!_i18n) {
-    _i18n = setupI18n();
+    _i18n = linguiI18n;
+    if (_i18n.locale !== DEFAULT_I18N_LOCALE) {
+      _i18n.load({ fr: frMessages.messages });
+      _i18n.activate(DEFAULT_I18N_LOCALE);
+    }
   }
   return _i18n;
 }

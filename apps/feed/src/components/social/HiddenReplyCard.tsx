@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { EyeOff, Eye, ShieldAlert, Loader2 } from 'lucide-react';
 import { hideReplyAction } from '@qoe/api-client';
+import { t } from '@lingui/core/macro';
 
 export interface HiddenReplyCardProps {
   replyId: string;
@@ -67,7 +68,7 @@ export function HiddenReplyCard({
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <div className="flex items-center gap-2 font-semibold">
           <ShieldAlert className="w-4 h-4 text-highlight shrink-0" />
-          <span>Réponse masquée par l'auteur original</span>
+          <span>{t`Réponse masquée par l'auteur original`}</span>
         </div>
 
         <div className="flex items-center gap-2">

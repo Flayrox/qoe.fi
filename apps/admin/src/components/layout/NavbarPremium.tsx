@@ -2,14 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 import { motion } from 'framer-motion';
 import { cn } from '@qoe/utils';
 import { Logo } from '@qoe/ui/ui/Logo';
 import { getCurrentUser } from '@/app/login/actions';
 
 export const NavbarPremium = () => {
-  const { t } = useTranslate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isHeroClosed, setIsHeroClosed] = useState(false);
 
@@ -83,9 +82,9 @@ export const NavbarPremium = () => {
               ? 'text-white/80 hover:text-white'
               : 'text-muted-foreground hover:text-muted-foreground hover:bg-muted border border-transparent hover:border-border/60'
           )}
-          aria-label={t('navbar.search', 'Rechercher')}
+          aria-label={t`Rechercher`}
         >
-          <span>{t('navbar.search', 'Rechercher')}</span>
+          <span>{t`Rechercher`}</span>
           <kbd
             className={cn(
               'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[9px] font-mono leading-none transition-colors duration-300',
@@ -94,7 +93,7 @@ export const NavbarPremium = () => {
                 : 'bg-secondary border-border/80 text-muted-foreground'
             )}
           >
-            {t('navbar.search_shortcut', '⌘K')}
+            {t`⌘K`}
           </kbd>
         </button>
 
@@ -115,7 +114,7 @@ export const NavbarPremium = () => {
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            {t('nav_login', 'Connexion')}
+            {t`Connexion`}
           </Link>
         )}
       </motion.header>

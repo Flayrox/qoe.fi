@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 import { Type, Eye, Coffee, Accessibility } from 'lucide-react';
 
 type FontSize = 'text-base' | 'text-lg' | 'text-xl';
@@ -12,14 +12,13 @@ interface ProductPreviewProps {
 }
 
 export const ProductPreview = ({ config }: ProductPreviewProps) => {
-  const { t } = useTranslate();
   const [fontSize, setFontSize] = useState<FontSize>('text-lg');
   const [readingMode, setReadingMode] = useState<'classic' | 'sepia' | 'dyslexia'>('classic');
 
-  const previewTitle = config['preview_title'] || "L'architecture du silence";
+  const previewTitle = config['preview_title'] || t`L'architecture du silence`;
   const previewContent =
     config['preview_content'] ||
-    "Dans un monde saturé de stimuli, la lecture souveraine n'est pas un acte de consommation, mais une forme de résistance. C'est ici, dans ce Sanctuaire Elfique, que l'esprit retrouve sa trajectoire originelle, loin des algorithmes de capture de l'attention.";
+    t`Dans un monde saturé de stimuli, la lecture souveraine n'est pas un acte de consommation, mais une forme de résistance. C'est ici, dans ce Sanctuaire Elfique, que l'esprit retrouve sa trajectoire originelle, loin des algorithmes de capture de l'attention.`;
 
   const getThemeClasses = () => {
     switch (readingMode) {
@@ -44,20 +43,17 @@ export const ProductPreview = ({ config }: ProductPreviewProps) => {
                 whileInView={{ opacity: 1 }}
                 className="font-mono text-[10px] tracking-[0.4em] text-white/40 uppercase font-semibold mb-6 block"
               >
-                {t('preview_tagline', "L'expérience sensorielle")}
+                {t`L'expérience sensorielle`}
               </motion.span>
               <motion.h2
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 className="font-classical text-4xl md:text-6xl text-white font-medium tracking-tight mb-8"
               >
-                {t('preview_main_title', 'Un confort de lecture absolu.')}
+                {t`Un confort de lecture absolu.`}
               </motion.h2>
               <p className="font-sans text-white/40 text-lg leading-relaxed">
-                {t(
-                  'preview_description',
-                  "Testez en direct notre interface adaptative. Ajustez la typographie et l'ambiance pour créer votre propre espace de réflexion."
-                )}
+                {t`Testez en direct notre interface adaptative. Ajustez la typographie et l'ambiance pour créer votre propre espace de réflexion.`}
               </p>
             </div>
 
@@ -65,7 +61,7 @@ export const ProductPreview = ({ config }: ProductPreviewProps) => {
             <div className="space-y-8 p-8 rounded-[2rem] bg-foreground/40 backdrop-blur-2xl border border-white/5">
               <div className="space-y-4">
                 <label className="flex items-center gap-2 text-[10px] font-mono text-white/40 uppercase tracking-widest">
-                  <Type className="w-3 h-3" /> {t('preview_control_size', 'Taille du texte')}
+                  <Type className="w-3 h-3" /> {t`Taille du texte`}
                 </label>
                 <div className="flex gap-2">
                   {['text-base', 'text-lg', 'text-xl'].map((size) => (
@@ -86,7 +82,7 @@ export const ProductPreview = ({ config }: ProductPreviewProps) => {
 
               <div className="space-y-4">
                 <label className="flex items-center gap-2 text-[10px] font-mono text-white/40 uppercase tracking-widest">
-                  <Eye className="w-3 h-3" /> {t('preview_control_mode', "Mode d'affichage")}
+                  <Eye className="w-3 h-3" /> {t`Mode d'affichage`}
                 </label>
                 <div className="grid grid-cols-1 gap-3">
                   <button
@@ -99,7 +95,7 @@ export const ProductPreview = ({ config }: ProductPreviewProps) => {
                   >
                     <div className="w-6 h-6 rounded-full bg-[#fcfbf9] border border-border" />
                     <span className="text-white text-sm font-medium">
-                      {t('preview_mode_classic', 'Sanctuaire Elfique (Clair)')}
+                      {t`Sanctuaire Elfique (Clair)`}
                     </span>
                   </button>
                   <button
@@ -111,9 +107,7 @@ export const ProductPreview = ({ config }: ProductPreviewProps) => {
                     }`}
                   >
                     <div className="w-6 h-6 rounded-full bg-[#f4ecd8] border border-[#d3c1a5]" />
-                    <span className="text-white text-sm font-medium">
-                      {t('preview_mode_sepia', 'Sépia (Reposant)')}
-                    </span>
+                    <span className="text-white text-sm font-medium">{t`Sépia (Reposant)`}</span>
                   </button>
                   <button
                     onClick={() => setReadingMode('dyslexia')}
@@ -124,9 +118,7 @@ export const ProductPreview = ({ config }: ProductPreviewProps) => {
                     }`}
                   >
                     <Accessibility className="w-6 h-6 text-white" />
-                    <span className="text-white text-sm font-medium">
-                      {t('preview_mode_dyslexia', 'Dyslexia Friendly')}
-                    </span>
+                    <span className="text-white text-sm font-medium">{t`Dyslexia Friendly`}</span>
                   </button>
                 </div>
               </div>
@@ -149,7 +141,7 @@ export const ProductPreview = ({ config }: ProductPreviewProps) => {
                 >
                   <div className="flex items-center justify-between mb-16 opacity-40">
                     <span className="text-[10px] font-mono uppercase tracking-[0.3em]">
-                      Lecture en cours
+                      {t`Lecture en cours`}
                     </span>
                     <Coffee className="w-4 h-4" />
                   </div>
@@ -165,10 +157,7 @@ export const ProductPreview = ({ config }: ProductPreviewProps) => {
                   >
                     <p className="mb-8">{previewContent}</p>
                     <p className="opacity-60 italic">
-                      {t(
-                        'preview_continue',
-                        "Continuez à lire pour découvrir l'essence de la souveraineté numérique..."
-                      )}
+                      {t`Continuez à lire pour découvrir l'essence de la souveraineté numérique...`}
                     </p>
                   </div>
 

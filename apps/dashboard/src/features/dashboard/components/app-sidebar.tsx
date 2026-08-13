@@ -2,7 +2,7 @@ import React from 'react';
 import { createClient } from '@qoe/supabase/server';
 import { prisma } from '@qoe/db/client';
 import { logout } from '@/app/login/actions';
-import { getTranslate } from '@qoe/i18n/server';
+import { t } from '@lingui/core/macro';
 import { Sidebar } from '@qoe/ui/sidebar';
 import { Logo } from '@qoe/ui';
 
@@ -28,46 +28,44 @@ export async function AppSidebar() {
   const userAvatar =
     user?.logoUrl || (authUser?.user_metadata?.avatar_url as string | undefined) || null;
 
-  const t = await getTranslate();
-
   const menuItems = [
     {
-      title: t('sidebar.nav_overview', 'Home'),
+      title: t`Home`,
       url: '/',
       iconName: 'Home',
     },
     {
-      title: t('sidebar.nav_articles', 'Articles'),
+      title: t`Articles`,
       url: '/articles',
       iconName: 'FileText',
     },
     {
-      title: t('sidebar.nav_newsletters', 'Newsletters'),
+      title: t`Newsletters`,
       url: '/newsletters',
       iconName: 'Mail',
     },
     {
-      title: t('sidebar.nav_audience', 'Audience'),
+      title: t`Audience`,
       url: '/audience',
       iconName: 'Users',
     },
     {
-      title: t('sidebar.nav_analytics', 'Analytics'),
+      title: t`Analytics`,
       url: '/analytics',
       iconName: 'PieChart',
     },
     {
-      title: t('sidebar.nav_developer', 'Développeur / API'),
+      title: t`Développeur / API`,
       url: '/developer',
       iconName: 'Code',
     },
     {
-      title: t('sidebar.nav_settings', 'Paramètres'),
+      title: t`Paramètres`,
       url: '/settings',
       iconName: 'Settings',
     },
     {
-      title: 'Importation (Substack)',
+      title: t`Importation (Substack)`,
       url: '/import',
       iconName: 'Upload',
     },
@@ -77,14 +75,14 @@ export async function AppSidebar() {
     <Sidebar
       items={menuItems}
       logo={<Logo className="h-5 w-auto" fillColor="#EE4B2B" />}
-      brandName="Studio"
+      brandName={t`Studio`}
       userName={userName}
       userEmail={userEmail}
       userFallback={userFallback}
       userAvatar={userAvatar}
       onLogout={logout}
       primaryAction={{
-        label: 'Nouvel Écrit',
+        label: t`Nouvel Écrit`,
         href: '/articles/new',
       }}
     />

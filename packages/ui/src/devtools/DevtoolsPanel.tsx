@@ -24,6 +24,7 @@ export interface DevtoolsStats {
 import './Devtools.css';
 
 import { RefreshCw, Check, Copy, ExternalLink, X, ArrowUpRight } from 'lucide-react';
+import { t } from '@lingui/core/macro';
 
 function getMonorepoPorts() {
   if (typeof window === 'undefined') {
@@ -692,7 +693,7 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
                           setSimSubscribe({ ...simSubscribe, creatorId: e.target.value })
                         }
                       >
-                        <option value="">-- Créateur --</option>
+                        <option value="">{t`-- Créateur --`}</option>
                         {creators.map((c) => (
                           <option key={c.id} value={c.id}>
                             {c.name || c.username}

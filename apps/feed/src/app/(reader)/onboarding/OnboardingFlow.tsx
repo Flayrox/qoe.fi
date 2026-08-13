@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@qoe/utils';
 import { BentoPlateau, BentoItem } from '@qoe/ui/ui/BentoPlateau';
@@ -35,7 +35,6 @@ interface OnboardingFlowProps {
 }
 
 export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlowProps) {
-  const { t } = useTranslate();
   const router = useRouter();
   const [step, setStep] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -93,9 +92,7 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
 
   const handleNext = () => {
     if (step === 1 && selectedInterests.length < 3) {
-      setError(
-        t('onboarding_reader.s1_desc_fewer', "Veuillez sélectionner au moins 3 centres d'intérêt.")
-      );
+      setError(t`Veuillez sélectionner au moins 3 centres d'intérêt.`);
       return;
     }
     setError(null);
@@ -134,32 +131,32 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
     switch (step) {
       case 1:
         return {
-          label: t('onboarding_reader.step_label', 'Étape') + ' 1 / 4',
-          title: 'Votre Sanctuaire commence ici.',
-          desc: "Sélectionnez les matières et idées qui éveillent votre réflexion. Pas d'algorithmes publicitaires ou compulsifs, juste les thématiques que vous décidez d'explorer.",
-          footer: 'QOE.FI — ZÉRO ATTENTION COMMERCIALE',
+          label: t`Étape` + ' 1 / 4',
+          title: t`Votre Sanctuaire commence ici.`,
+          desc: t`Sélectionnez les matières et idées qui éveillent votre réflexion. Pas d'algorithmes publicitaires ou compulsifs, juste les thématiques que vous décidez d'explorer.`,
+          footer: t`QOE.FI — ZÉRO ATTENTION COMMERCIALE`,
         };
       case 2:
         return {
-          label: t('onboarding_reader.step_label', 'Étape') + ' 2 / 4',
-          title: 'Profil & Alignement Thématique',
-          desc: "Décrivez vos sujets d'intérêt et votre vision pour personnaliser les suggestions de publications et les recommandations de créateurs.",
-          footer: 'QOE.FI — ALIGNEMENT THÉMATIQUE SUR MESURE',
+          label: t`Étape` + ' 2 / 4',
+          title: t`Profil & Alignement Thématique`,
+          desc: t`Décrivez vos sujets d'intérêt et votre vision pour personnaliser les suggestions de publications et les recommandations de créateurs.`,
+          footer: t`QOE.FI — ALIGNEMENT THÉMATIQUE SUR MESURE`,
         };
       case 3:
         return {
-          label: t('onboarding_reader.step_label', 'Étape') + ' 3 / 4',
-          title: "Le Bouclier de l'Attention",
-          desc: 'Le bruit informationnel est le premier obstacle au temps long. En filtrant les concepts toxiques, vous reprenez le contrôle absolu de votre fil de lecture.',
-          footer: "FILTRAGE SOUVERAIN AU NIVEAU DE L'ÉLECTRON",
+          label: t`Étape` + ' 3 / 4',
+          title: t`Le Bouclier de l'Attention`,
+          desc: t`Le bruit informationnel est le premier obstacle au temps long. En filtrant les concepts toxiques, vous reprenez le contrôle absolu de votre fil de lecture.`,
+          footer: t`FILTRAGE SOUVERAIN AU NIVEAU DE L'ÉLECTRON`,
         };
       case 4:
       default:
         return {
-          label: t('onboarding_reader.step_label', 'Étape') + ' 4 / 4',
-          title: 'Souveraineté des Médias',
-          desc: "Sur qoe.fi, les auteurs écrivent en toute indépendance, sans dépendre de régies publicitaires capitalistes ou d'intermédiaires. Suivez-les pour enrichir votre univers.",
-          footer: "MODÈLE D'ABONNEMENT COMPATIBLE RGPD",
+          label: t`Étape` + ' 4 / 4',
+          title: t`Souveraineté des Médias`,
+          desc: t`Sur qoe.fi, les auteurs écrivent en toute indépendance, sans dépendre de régies publicitaires capitalistes ou d'intermédiaires. Suivez-les pour enrichir votre univers.`,
+          footer: t`MODÈLE D'ABONNEMENT COMPATIBLE RGPD`,
         };
     }
   };
@@ -181,33 +178,19 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight mb-1">
-                    {step === 1 && t('onboarding_reader.s1_title', "Qu'est-ce qui vous élève ?")}
-                    {step === 2 &&
-                      t('onboarding_reader.s2_title', 'Détaillez vos lectures idéales.')}
-                    {step === 3 && t('onboarding_reader.s3_title', 'Préservez votre attention.')}
-                    {step === 4 && t('onboarding_reader.s4_title', 'Choisissez vos alliés.')}
+                    {step === 1 && t`Qu'est-ce qui vous élève ?`}
+                    {step === 2 && t`Détaillez vos lectures idéales.`}
+                    {step === 3 && t`Préservez votre attention.`}
+                    {step === 4 && t`Choisissez vos alliés.`}
                   </h2>
                   <p className="text-muted-foreground text-xs">
                     {step === 1 &&
-                      t(
-                        'onboarding_reader.s1_desc',
-                        "Sélectionnez au moins 3 centres d'intérêt pour calibrer votre sanctuaire."
-                      )}
+                      t`Sélectionnez au moins 3 centres d'intérêt pour calibrer votre sanctuaire.`}
                     {step === 2 &&
-                      t(
-                        'onboarding_reader.s2_desc',
-                        'Décrivez vos sujets favoris pour calibrer vos recommandations par IA.'
-                      )}
-                    {step === 3 &&
-                      t(
-                        'onboarding_reader.s3_desc',
-                        'Bannissez les mots ou sujets qui polluent votre réflexion.'
-                      )}
+                      t`Décrivez vos sujets favoris pour calibrer vos recommandations par IA.`}
+                    {step === 3 && t`Bannissez les mots ou sujets qui polluent votre réflexion.`}
                     {step === 4 &&
-                      t(
-                        'onboarding_reader.s4_desc',
-                        'Voici quelques créateurs certifiés qui correspondent à vos affinités.'
-                      )}
+                      t`Voici quelques créateurs certifiés qui correspondent à vos affinités.`}
                   </p>
                 </div>
               </div>
@@ -275,15 +258,12 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
                         <textarea
                           value={bio}
                           onChange={(e) => setBio(e.target.value.slice(0, 1000))}
-                          placeholder={t(
-                            'onboarding_reader.s2_textarea_placeholder',
-                            "J'aime lire des articles sur l'émancipation économique, la sociologie..."
-                          )}
+                          placeholder={t`J'aime lire des articles sur l'émancipation économique, la sociologie...`}
                           rows={6}
                           className="w-full rounded-xl bg-muted/50 border border-border p-4 text-sm focus:outline-none focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] resize-none"
                         />
                         <div className="absolute bottom-3 right-3 text-[10px] text-muted-foreground font-mono">
-                          {t('onboarding_reader.s2_chars', { count: bio.length })}
+                          {t`${bio.length} / 1000 caractères`}
                         </div>
                       </div>
                     </motion.div>
@@ -304,17 +284,14 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             setMutedInput(e.target.value)
                           }
-                          placeholder={t(
-                            'onboarding_reader.s3_input_placeholder',
-                            'Ex: Buzz, Polémique...'
-                          )}
+                          placeholder={t`Ex: Buzz, Polémique...`}
                           className="h-10 rounded-xl bg-muted/50 border-border flex-1"
                         />
                         <Button
                           type="submit"
                           className="h-10 px-4 rounded-xl bg-foreground hover:bg-foreground/90 text-background font-medium text-xs"
                         >
-                          + Ajouter
+                          {t`+ Ajouter`}
                         </Button>
                       </form>
 
@@ -322,7 +299,7 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
                         {mutedWords.length === 0 ? (
                           <div className="w-full text-center py-6 text-xs text-muted-foreground font-mono flex items-center justify-center gap-1.5">
                             <EyeOff className="w-3.5 h-3.5" />
-                            Aucun mot exclu pour le moment.
+                            {t`Aucun mot exclu pour le moment.`}
                           </div>
                         ) : (
                           mutedWords.map((word) => (
@@ -381,7 +358,7 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
                             </div>
                             <div className="flex-1 min-w-0">
                               <h4 className="font-bold text-xs text-foreground truncate">
-                                {creator.name || 'Auteur'}
+                                {creator.name || t`Auteur`}
                               </h4>
                               <p className="text-[10px] text-muted-foreground font-mono truncate">
                                 @{creator.subdomain || 'creator'}
@@ -421,7 +398,7 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
                   disabled={loading}
                   className="rounded-xl px-4 py-2 text-xs font-semibold"
                 >
-                  {t('common.back', 'Retour')}
+                  {t`Retour`}
                 </Button>
               ) : (
                 <div />
@@ -432,7 +409,7 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
                   onClick={handleNext}
                   className="rounded-xl px-5 py-2 bg-[#EE4B2B] hover:bg-[#d63d20] text-white font-semibold text-xs transition-colors"
                 >
-                  {t('common.continue', 'Continuer')}
+                  {t`Continuer`}
                 </Button>
               ) : (
                 <Button
@@ -445,7 +422,7 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
                   ) : (
                     <Sparkles className="w-3.5 h-3.5" />
                   )}
-                  {t('onboarding_reader.finish_btn', 'Entrer dans le sanctuaire')}
+                  {t`Entrer dans le sanctuaire`}
                 </Button>
               )}
             </div>

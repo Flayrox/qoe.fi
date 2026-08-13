@@ -24,6 +24,7 @@ import {
   saveCategoryAction,
   deleteCategoryAction,
 } from '@qoe/api-client/actions/articles';
+import { t } from '@lingui/core/macro';
 
 import { ArticleInspectorModal } from '../analytics/components/ArticleInspectorModal';
 
@@ -356,7 +357,7 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="bg-background border border-border/30 rounded-lg px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:border-border/60 transition-colors cursor-pointer font-sans"
                 >
-                  <option value="all">Tous les thèmes</option>
+                  <option value="all">{t`Tous les thèmes`}</option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>
                       {cat.name} ({cat._count.articles})
@@ -370,7 +371,7 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                   onChange={(e) => setAccessFilter(e.target.value as AccessFilter)}
                   className="bg-background border border-border/30 rounded-lg px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:border-border/60 transition-colors cursor-pointer font-sans"
                 >
-                  <option value="all">Tous les accès</option>
+                  <option value="all">{t`Tous les accès`}</option>
                   <option value="free">Gratuits</option>
                   <option value="premium">Premium Paywall</option>
                 </select>
@@ -383,10 +384,10 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                   onChange={(e) => setSortField(e.target.value as SortField)}
                   className="bg-background border border-border/30 rounded-lg px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:border-border/60 transition-colors cursor-pointer font-sans"
                 >
-                  <option value="updatedAt">Trier par : Récents</option>
-                  <option value="createdAt">Trier par : Création</option>
+                  <option value="updatedAt">{t`Trier par : Récents`}</option>
+                  <option value="createdAt">{t`Trier par : Création`}</option>
                   <option value="title">Trier par : Titre (A-Z)</option>
-                  <option value="readingTime">Trier par : Durée</option>
+                  <option value="readingTime">{t`Trier par : Durée`}</option>
                 </select>
 
                 {/* Hairline Sort Direction Toggle */}
@@ -433,7 +434,7 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                     className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-muted text-foreground font-semibold text-xs rounded-xl hover:bg-muted/80 transition-colors cursor-pointer"
                   >
                     <FilterX className="w-3.5 h-3.5" />
-                    <span>Réinitialiser les filtres</span>
+                    <span>{t`Réinitialiser les filtres`}</span>
                   </button>
                 ) : (
                   <a
@@ -441,7 +442,7 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                     className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground font-semibold text-xs rounded-xl hover:opacity-90 transition-opacity"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Rédiger un article</span>
+                    <span>{t`Rédiger un article`}</span>
                   </a>
                 )}
               </div>

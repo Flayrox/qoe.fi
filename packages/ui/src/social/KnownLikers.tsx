@@ -3,6 +3,7 @@
 import React from 'react';
 import { AuthorAvatar } from '../ui/AuthorAvatar';
 import { ProfileHoverCard } from './ProfileHoverCard';
+import { t } from '@lingui/core/macro';
 
 export interface KnownLiker {
   id: string;
@@ -61,7 +62,7 @@ export function KnownLikers({
 
         {/* Social Proof Text */}
         <div className="text-[11px] leading-tight text-muted-foreground truncate">
-          <span>Aimé par </span>
+          <span>{t`Aimé par `}</span>
           <ProfileHoverCard user={firstLiker} onOpenProfile={onOpenProfile}>
             <strong className="font-semibold text-foreground hover:underline hover:text-brand cursor-pointer">
               @{getHandle(firstLiker)}
@@ -110,7 +111,7 @@ export function KnownLikers({
 
       {/* Social Proof Text */}
       <div className="flex-1 min-w-0 text-[11px] leading-tight text-foreground/90 truncate">
-        <span>Aimé par </span>
+        <span>{t`Aimé par `}</span>
         <ProfileHoverCard user={firstLiker} onOpenProfile={onOpenProfile}>
           <strong className="font-semibold text-foreground hover:underline hover:text-brand cursor-pointer">
             @{getHandle(firstLiker)}

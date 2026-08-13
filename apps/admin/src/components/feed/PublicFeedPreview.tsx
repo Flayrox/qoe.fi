@@ -26,6 +26,7 @@ import { Button } from '@qoe/ui/button';
 import { Logo } from '@qoe/ui/ui/Logo';
 import { isFeatureEnabled } from '@qoe/config/features';
 import { EVENTS } from '@qoe/analytics/events';
+import { t } from '@lingui/core/macro';
 
 interface Author {
   id: string;
@@ -262,7 +263,7 @@ export function PublicFeedPreview({ trendingArticles, trendingPosts }: PublicFee
             <ul className="space-y-3 text-sm">
               <li className="flex gap-2">
                 <span className="text-primary">✓</span>
-                <span>Feed personnalisé selon tes abonnements</span>
+                <span>{t`Feed personnalisé selon tes abonnements`}</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-primary">✓</span>
@@ -270,7 +271,7 @@ export function PublicFeedPreview({ trendingArticles, trendingPosts }: PublicFee
               </li>
               <li className="flex gap-2">
                 <span className="text-primary">✓</span>
-                <span>Soutiens directement les créateurs</span>
+                <span>{t`Soutiens directement les créateurs`}</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-primary">✓</span>

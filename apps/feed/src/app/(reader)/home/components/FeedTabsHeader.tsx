@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@qoe/utils';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 
 interface FeedTabsHeaderProps {
   activeFeed: string;
@@ -11,13 +11,11 @@ interface FeedTabsHeaderProps {
 }
 
 export function FeedTabsHeader({ activeFeed, onTabChange }: FeedTabsHeaderProps) {
-  const { t } = useTranslate();
-
   const tabs = [
-    { id: 'recommandation', label: t('feed.tab_for_you', 'Pour vous') },
-    { id: 'abonnement', label: t('feed.tab_following', 'Abonnements') },
-    { id: 'decouvrir', label: t('feed.tab_discover', 'Explorer') },
-    { id: 'bookmarks', label: t('feed.tab_library', 'Bibliothèque') },
+    { id: 'recommandation', label: t`Pour vous` },
+    { id: 'abonnement', label: t`Abonnements` },
+    { id: 'decouvrir', label: t`Explorer` },
+    { id: 'bookmarks', label: t`Bibliothèque` },
   ];
 
   return (

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 import { Wallet, Compass, BookOpen, ShieldCheck, Zap } from 'lucide-react';
 
 interface BentoFeaturesProps {
@@ -10,43 +10,41 @@ interface BentoFeaturesProps {
 }
 
 export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
-  const { t } = useTranslate();
-
   const features = [
     {
       id: 'wallet',
       icon: Wallet,
-      title: t('feature_wallet_title', 'Économie Circulaire'),
+      title: t`Économie Circulaire`,
       description:
         config['feature_wallet_desc'] ||
-        'Un portefeuille virtuel intégré permettant de soutenir vos auteurs préférés via WalletTransaction sans intermédiaire.',
+        t`Un portefeuille virtuel intégré permettant de soutenir vos auteurs préférés via WalletTransaction sans intermédiaire.`,
       size: 'md:col-span-2',
     },
     {
       id: 'pgvector',
       icon: Compass,
-      title: t('feature_vector_title', 'Mode Hors-Piste'),
+      title: t`Mode Hors-Piste`,
       description:
         config['feature_vector_desc'] ||
-        'Grâce à pgvector, notre IA brise votre bulle idéologique en injectant des perspectives radicalement différentes.',
+        t`Grâce à pgvector, notre IA brise votre bulle idéologique en injectant des perspectives radicalement différentes.`,
       size: 'md:col-span-1',
     },
     {
       id: 'monastic',
       icon: BookOpen,
-      title: t('feature_monastic_title', 'Lecteur Monastique'),
+      title: t`Lecteur Monastique`,
       description:
         config['feature_monastic_desc'] ||
-        'Un carnet personnel numérique où vos Highlights deviennent la matière première de votre propre pensée.',
+        t`Un carnet personnel numérique où vos Highlights deviennent la matière première de votre propre pensée.`,
       size: 'md:col-span-1',
     },
     {
       id: 'sovereign',
       icon: ShieldCheck,
-      title: t('feature_sovereign_title', 'Souveraineté Totale'),
+      title: t`Souveraineté Totale`,
       description:
         config['feature_sovereign_desc'] ||
-        'Aucun algorithme caché. Vous contrôlez chaque octet de votre expérience de lecture.',
+        t`Aucun algorithme caché. Vous contrôlez chaque octet de votre expérience de lecture.`,
       size: 'md:col-span-2',
     },
   ];
@@ -61,7 +59,7 @@ export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
             viewport={{ once: true }}
             className="font-sans text-[11px] tracking-[0.4em] text-muted-foreground uppercase font-semibold mb-6 block"
           >
-            {t('features_tagline', "L'infrastructure de l'esprit")}
+            {t`L'infrastructure de l'esprit`}
           </motion.span>
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -70,7 +68,7 @@ export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
             transition={{ delay: 0.2 }}
             className="font-classical text-4xl md:text-6xl text-foreground font-medium tracking-tight"
           >
-            {t('features_title', 'Une ingénierie de la conscience.')}
+            {t`Une ingénierie de la conscience.`}
           </motion.h2>
         </div>
 

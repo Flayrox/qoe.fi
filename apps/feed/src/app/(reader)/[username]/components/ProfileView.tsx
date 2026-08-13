@@ -25,6 +25,7 @@ import { toast } from 'sonner';
 import { cn } from '@qoe/utils';
 import { ReaderPageLayout } from '@/components/layout/ReaderPageLayout';
 import type { FeedArticleDTO } from '@qoe/db/types';
+import { t } from '@lingui/core/macro';
 
 interface ProfilePost {
   id: string;
@@ -219,7 +220,7 @@ export function ProfileView({
                   className="px-4 py-2 border border-border/60 hover:bg-muted text-foreground text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-2"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
-                  <span>Éditer le profil</span>
+                  <span>{t`Éditer le profil`}</span>
                 </button>
               ) : (
                 <button

@@ -10,7 +10,7 @@
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono, Geist } from 'next/font/google';
 import { TolgeeNextProvider } from '@qoe/i18n/provider';
-import { getTolgee, getLanguage } from '@qoe/i18n/server';
+import { getTolgee, getLanguage, initI18n } from '@qoe/i18n/server';
 import { TooltipProvider } from '@qoe/ui/ui/tooltip';
 import { Toaster } from '@qoe/ui/ui/sonner';
 import { AnalyticsScript } from '@qoe/analytics/client';
@@ -52,7 +52,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const locale = await getLanguage();
+  const locale = await initI18n();
   const tolgee = await getTolgee();
   const staticData = await tolgee.loadRequired();
   const currentUser = await getCurrentUser().catch(() => null);

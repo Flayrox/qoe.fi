@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useTranslate, useTolgee } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
+import { useTolgee } from '@qoe/i18n';
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 
@@ -11,37 +12,29 @@ interface CTAProps {
 }
 
 export const CTA = ({ config }: CTAProps) => {
-  const { t } = useTranslate();
   const tolgee = useTolgee();
   const locale = tolgee.getLanguage() || 'fr';
 
   const eyebrow =
     config[`cta_eyebrow_${locale}`] ||
     config['cta_eyebrow'] ||
-    t('cta_eyebrow', 'Pour ceux qui veulent se cultiver');
+    t`Pour ceux qui veulent se cultiver`;
   const headline =
-    config[`cta_headline_${locale}`] ||
-    config['cta_headline'] ||
-    t('cta_headline', 'Du temps bien dépensé.');
+    config[`cta_headline_${locale}`] || config['cta_headline'] || t`Du temps bien dépensé.`;
   const subline =
     config[`cta_subline_${locale}`] ||
     config['cta_subline'] ||
-    t(
-      'cta_subline',
-      "Pas de scroll toxique. Pas d'algorithme marchand. Juste du fond, du temps long, et un espace qui respecte votre intelligence."
-    );
+    t`Pas de scroll toxique. Pas d'algorithme marchand. Juste du fond, du temps long, et un espace qui respecte votre intelligence.`;
   const btnPrimary =
-    config[`cta_btn_primary_${locale}`] ||
-    config['cta_btn_primary'] ||
-    t('cta_btn_primary', 'Commencer à lire');
+    config[`cta_btn_primary_${locale}`] || config['cta_btn_primary'] || t`Commencer à lire`;
   const btnSecondary =
     config[`cta_btn_secondary_${locale}`] ||
     config['cta_btn_secondary'] ||
-    t('cta_btn_secondary', 'Se cultiver, gratuitement');
+    t`Se cultiver, gratuitement`;
   const socialProof =
     config[`cta_social_proof_${locale}`] ||
     config['cta_social_proof'] ||
-    t('cta_social_proof', 'Gratuit · Aucune carte bancaire requise · Données hébergées en Europe');
+    t`Gratuit · Aucune carte bancaire requise · Données hébergées en Europe`;
 
   return (
     <section

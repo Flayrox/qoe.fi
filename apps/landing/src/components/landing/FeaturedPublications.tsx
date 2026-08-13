@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, useAnimationFrame } from 'framer-motion';
-import { useTranslate, useTolgee } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
+import { useTolgee } from '@qoe/i18n';
 import { ArrowUpRight } from 'lucide-react';
 import { ArticlePreviewModal, type Article } from './ArticlePreviewModal';
 
@@ -132,7 +133,6 @@ function CenterFadeMask() {
 }
 
 export const FeaturedPublications = ({ articles, config }: FeaturedPublicationsProps) => {
-  const { t } = useTranslate();
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [lanes, setLanes] = useState<{
     lane1: string[];
@@ -165,13 +165,9 @@ export const FeaturedPublications = ({ articles, config }: FeaturedPublicationsP
   }, [config]);
 
   const title =
-    config[`featured_title_${locale}`] ||
-    config['featured_title'] ||
-    t('featured_pub_title', 'Publications récentes');
+    config[`featured_title_${locale}`] || config['featured_title'] || t`Publications récentes`;
   const tagline =
-    config[`featured_tagline_${locale}`] ||
-    config['featured_tagline'] ||
-    t('featured_pub_tagline', 'Écrits sélectionnés');
+    config[`featured_tagline_${locale}`] || config['featured_tagline'] || t`Écrits sélectionnés`;
 
   // Fallback mock articles
   const mockArticles = [
@@ -289,11 +285,11 @@ export const FeaturedPublications = ({ articles, config }: FeaturedPublicationsP
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2.5 mb-1.5">
                   <span className="text-[9px] text-[#EE4B2B] font-bold tracking-widest uppercase">
-                    {article.category?.name || 'Essai'}
+                    {article.category?.name || t`Essai`}
                   </span>
                   {article.isPremium && (
                     <span className="text-[8px] text-muted-foreground border border-border px-1.5 py-0.5 rounded">
-                      Premium
+                      {t`Premium`}
                     </span>
                   )}
                 </div>

@@ -6,6 +6,7 @@ import { Heart, MessageSquare, Repeat, Share2, Quote } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { t } from '@lingui/core/macro';
 
 export interface ThoughtActionsPostData {
   id: string;
@@ -217,7 +218,7 @@ export function ThoughtActions({
             className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer"
           >
             <Quote className="w-3.5 h-3.5 text-brand" />
-            <span>Citer la pensée</span>
+            <span>{t`Citer la pensée`}</span>
           </button>
         </PopoverContent>
       </Popover>

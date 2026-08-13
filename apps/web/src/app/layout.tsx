@@ -5,7 +5,7 @@
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono, Geist } from 'next/font/google';
 import { TolgeeNextProvider } from '@qoe/i18n/provider';
-import { getTolgee, getLanguage } from '@qoe/i18n/server';
+import { getTolgee, getLanguage, initI18n } from '@qoe/i18n/server';
 import { cn } from '@qoe/utils';
 import { DevtoolsPanel, ThemeProvider, GlobalAuthModalProvider } from '@qoe/ui';
 import { getCurrentUser } from '@qoe/auth';
@@ -43,7 +43,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const locale = await getLanguage();
+  const locale = await initI18n();
   const tolgee = await getTolgee();
   const currentUser = await getCurrentUser().catch(() => null);
   // Tolgee tolère un objet vide pour staticData en dev

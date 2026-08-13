@@ -23,7 +23,7 @@ import { Avatar, AvatarFallback } from '@qoe/ui/ui/avatar';
 import { createClient } from '@qoe/supabase/server';
 import { prisma } from '@qoe/db/client';
 import { logout } from '@/app/login/actions';
-import { getTranslate } from '@qoe/i18n/server';
+import { t } from '@lingui/core/macro';
 
 export async function AppSidebar() {
   const supabase = await createClient();
@@ -41,36 +41,34 @@ export async function AppSidebar() {
   const userName = user?.name || 'Creator';
   const userFallback = userName.slice(0, 2).toUpperCase();
 
-  const t = await getTranslate();
-
   const items = [
     {
-      title: t('sidebar.nav_overview'),
+      title: t`Vue d'ensemble`,
       url: '/dashboard',
       icon: Home,
     },
     {
-      title: t('sidebar.nav_articles'),
+      title: t`Articles`,
       url: '/dashboard/articles',
       icon: FileText,
     },
     {
-      title: t('sidebar.nav_newsletters'),
+      title: t`Newsletters`,
       url: '/dashboard/newsletters',
       icon: Mail,
     },
     {
-      title: t('sidebar.nav_audience'),
+      title: t`Audience`,
       url: '/dashboard/audience',
       icon: Users,
     },
     {
-      title: t('sidebar.nav_analytics'),
+      title: t`Analyses`,
       url: '/dashboard/analytics',
       icon: PieChart,
     },
     {
-      title: t('sidebar.nav_settings'),
+      title: t`Paramètres`,
       url: '/dashboard/settings',
       icon: Settings,
     },
@@ -90,7 +88,7 @@ export async function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground mt-4">
-            {t('sidebar.platform')}
+            {t`Plateforme`}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -133,14 +131,14 @@ export async function AppSidebar() {
                 align="end"
                 sideOffset={4}
               >
-                <DropdownMenuItem>{t('sidebar.user_profile')}</DropdownMenuItem>
-                <DropdownMenuItem>{t('sidebar.user_billing')}</DropdownMenuItem>
+                <DropdownMenuItem>{t`Profil`}</DropdownMenuItem>
+                <DropdownMenuItem>{t`Facturation`}</DropdownMenuItem>
                 <DropdownMenuItem render={<form action={logout} className="w-full" />}>
                   <button
                     type="submit"
                     className="w-full text-left cursor-pointer bg-transparent border-0 p-0 text-foreground font-sans text-sm"
                   >
-                    {t('sidebar.user_logout')}
+                    {t`Se déconnecter`}
                   </button>
                 </DropdownMenuItem>
               </DropdownMenuContent>

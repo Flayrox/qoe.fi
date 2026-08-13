@@ -6,8 +6,8 @@
   "scripts": {
     "test": "turbo run test",
     "test:ui": "turbo run test:ui",
-    "build": "turbo run build",
-    "dev": "node scripts/copy-env.js && turbo run dev --parallel",
+    "build": "lingui compile && turbo run build",
+    "dev": "node scripts/copy-env.js && lingui compile && turbo run dev --parallel",
     "dev:win": "powershell -ExecutionPolicy Bypass -File scripts/dev-windows.ps1",
     "start": "turbo run start",
     "lint": "turbo run lint",
@@ -15,6 +15,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
+    "intl:extract": "lingui extract",
+    "intl:compile": "lingui compile",
+    "intl:build": "lingui extract && lingui compile",
     "clean": "turbo run clean && rm -rf node_modules .turbo",
     "docker:dev": "docker compose -f docker-compose.dev.yml up",
     "docker:dev:build": "docker compose -f docker-compose.dev.yml up --build",
@@ -70,6 +73,7 @@
   "devDependencies": {
     "@lingui/babel-plugin-lingui-macro": "^6.6.0",
     "@lingui/cli": "^6.6.0",
+    "@lingui/swc-plugin": "^6.6.0",
     "@vitest/coverage-v8": "^4.1.7",
     "@vitest/ui": "^4.1.7",
     "eslint": "^9",

@@ -28,6 +28,7 @@ import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
 import type { Crop, PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { cn } from '@qoe/utils';
+import { t } from '@lingui/core/macro';
 
 import { Popover, PopoverTrigger, PopoverContent } from '@qoe/ui/ui/popover';
 import { Calendar } from '@qoe/ui/ui/calendar';
@@ -1759,7 +1760,7 @@ export function ThoughtComposer({
                     )}
 
                     <div className="flex items-center gap-1 text-muted-foreground text-[11px]">
-                      <span>Durée :</span>
+                      <span>{t`Durée :`}</span>
                       <select
                         value={pollDurationHours}
                         onChange={(e) => setPollDurationHours(Number(e.target.value))}
@@ -1842,7 +1843,7 @@ export function ThoughtComposer({
                       )}
                     >
                       <Users className="w-3.5 h-3.5" />
-                      <span>Abonnés uniquement</span>
+                      <span>{t`Abonnés uniquement`}</span>
                     </button>
                     <button
                       type="button"
@@ -1874,7 +1875,7 @@ export function ThoughtComposer({
                       )}
                     >
                       <AtSign className="w-3.5 h-3.5" />
-                      <span>Personnes mentionnées</span>
+                      <span>{t`Personnes mentionnées`}</span>
                     </button>
                   </PopoverContent>
                 </Popover>

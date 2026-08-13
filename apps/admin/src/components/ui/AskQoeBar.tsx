@@ -15,11 +15,10 @@ import {
   CornerDownLeft,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
 
 export const AskQoeBar = () => {
-  const { t } = useTranslate();
   const router = useRouter();
   const { setTheme } = useTheme();
   const [open, setOpen] = useState(false);
@@ -54,7 +53,7 @@ export const AskQoeBar = () => {
           <div className="flex items-center gap-3 pl-4 py-2">
             <Sparkles className="w-4 h-4 text-primary animate-pulse" />
             <span className="text-xs text-muted-foreground font-sans">
-              {t('ask_bar_placeholder', 'Demandez à qoe.fi ou cherchez... (⌘K)')}
+              {t`Demandez à qoe.fi ou cherchez... (⌘K)`}
             </span>
           </div>
 
@@ -99,7 +98,7 @@ export const AskQoeBar = () => {
                   <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                   <Command.Input
                     autoFocus
-                    placeholder={t('ask_modal_placeholder', 'Que recherchez-vous ?')}
+                    placeholder={t`Que recherchez-vous ?`}
                     value={searchVal}
                     onValueChange={setSearchVal}
                     className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 outline-none border-none py-1 focus:ring-0"
@@ -117,16 +116,16 @@ export const AskQoeBar = () => {
                 {/* Command Lists */}
                 <Command.List className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4">
                   <Command.Empty className="py-12 text-center text-xs text-muted-foreground italic">
-                    {t('ask_empty', 'Aucun résultat trouvé.')}
+                    {t`Aucun résultat trouvé.`}
                   </Command.Empty>
 
                   <Command.Group
-                    heading={t('ask_group_nav', 'Raccourcis')}
+                    heading={t`Raccourcis`}
                     className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/60 px-3 mb-2"
                   >
                     <CommandItem
                       icon={<Compass className="w-4 h-4 text-primary" />}
-                      label="Explorer les publications"
+                      label={t`Explorer les publications`}
                       shortcut="G P"
                       onSelect={() => {
                         setOpen(false);
@@ -135,7 +134,7 @@ export const AskQoeBar = () => {
                     />
                     <CommandItem
                       icon={<BookOpen className="w-4 h-4 text-primary" />}
-                      label="Lire le Manifeste"
+                      label={t`Lire le Manifeste`}
                       shortcut="G M"
                       onSelect={() => {
                         setOpen(false);
@@ -145,12 +144,12 @@ export const AskQoeBar = () => {
                   </Command.Group>
 
                   <Command.Group
-                    heading={t('ask_group_action', 'Actions rapides')}
+                    heading={t`Actions rapides`}
                     className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/60 px-3 mb-2"
                   >
                     <CommandItem
                       icon={<Mail className="w-4 h-4 text-primary" />}
-                      label="S'abonner aux newsletters"
+                      label={t`S'abonner aux newsletters`}
                       shortcut="S U B"
                       onSelect={() => {
                         setOpen(false);
@@ -159,7 +158,7 @@ export const AskQoeBar = () => {
                     />
                     <CommandItem
                       icon={<User className="w-4 h-4" />}
-                      label="Rejoindre en tant que créateur"
+                      label={t`Rejoindre en tant que créateur`}
                       shortcut="J O I N"
                       onSelect={() => {
                         setOpen(false);
@@ -169,12 +168,12 @@ export const AskQoeBar = () => {
                   </Command.Group>
 
                   <Command.Group
-                    heading={t('ask_group_theme', 'Préférences')}
+                    heading={t`Préférences`}
                     className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/60 px-3 mb-2"
                   >
                     <CommandItem
                       icon={<Sun className="w-4 h-4 text-highlight" />}
-                      label="Passer en Mode Clair (Nuages & Lumière)"
+                      label={t`Passer en Mode Clair (Nuages & Lumière)`}
                       onSelect={() => {
                         setTheme('light');
                         setOpen(false);
@@ -182,7 +181,7 @@ export const AskQoeBar = () => {
                     />
                     <CommandItem
                       icon={<Moon className="w-4 h-4 text-primary" />}
-                      label="Passer en Mode Sombre (Neural Expressive)"
+                      label={t`Passer en Mode Sombre (Neural Expressive)`}
                       onSelect={() => {
                         setTheme('dark');
                         setOpen(false);
@@ -194,8 +193,8 @@ export const AskQoeBar = () => {
                 {/* Footer hints */}
                 <div className="px-6 py-4 bg-muted/20 border-t border-border/40 flex items-center justify-between text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
                   <div className="flex items-center gap-4">
-                    <span>↑↓ Naviguer</span>
-                    <span>⏎ Valider</span>
+                    <span>↑↓ {t`Naviguer`}</span>
+                    <span>⏎ {t`Valider`}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span>Ask qoe.fi</span>

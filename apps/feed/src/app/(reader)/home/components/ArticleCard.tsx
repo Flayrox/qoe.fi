@@ -7,7 +7,7 @@ import { UserPlus, UserCheck, Bookmark, BookMarked, FileText, Clock, Crown } fro
 import { cn } from '@qoe/utils';
 
 import { ThoughtCard, type ThoughtData } from '@/components/social/ThoughtCard';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 import { routes } from '@qoe/config/routes';
 import { Balancer } from 'react-wrap-balancer';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@qoe/ui/ui/hover-card';
@@ -183,8 +183,8 @@ export function ArticleCard({
             </p>
           )}
           <div className="flex items-center pt-2 gap-4 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-            <span className="text-brand">Écrits certifiés</span>
-            <span>Abonnés</span>
+            <span className="text-brand">{t`Écrits certifiés`}</span>
+            <span>{t`Abonnés`}</span>
           </div>
         </div>
       </div>
@@ -270,7 +270,7 @@ export function ArticleCard({
             )}
             <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
               <span className="px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-md text-[10px] font-bold text-foreground tracking-wider uppercase border border-border/40">
-                À la une
+                {t`À la une`}
               </span>
             </div>
           </div>
@@ -429,7 +429,6 @@ function FollowButton({
   isFollowed: boolean;
   onToggle: (e: React.MouseEvent) => void;
 }) {
-  const { t } = useTranslate();
   return (
     <motion.button
       onClick={onToggle}
@@ -445,12 +444,12 @@ function FollowButton({
       {isFollowed ? (
         <>
           <UserCheck className="w-3 h-3 text-success" />
-          <span>{t('feed.subscribed', 'Abonné')}</span>
+          <span>{t`Abonné`}</span>
         </>
       ) : (
         <>
           <UserPlus className="w-3 h-3" />
-          <span>{t('feed.subscribe', 'Suivre')}</span>
+          <span>{t`Suivre`}</span>
         </>
       )}
     </motion.button>
@@ -468,7 +467,6 @@ function CardFooter({
   handleBookmarkToggle: (e: React.MouseEvent) => void;
   handleOpenInTab: () => void;
 }) {
-  const { t } = useTranslate();
   return (
     <div className="flex items-center justify-between pt-4 border-t border-border/30 mt-4">
       {/* Left : Category · Time · Premium */}
@@ -484,7 +482,7 @@ function CardFooter({
             {article.category && <span className="text-muted-foreground/60 text-xs">·</span>}
             <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
               <Clock className="w-2.5 h-2.5" strokeWidth={1.5} />
-              {t('feed.reading_time', { count: article.readingTime })}
+              {t`${article.readingTime} min de lecture`}
             </span>
           </>
         )}
@@ -494,7 +492,7 @@ function CardFooter({
             <span className="text-muted-foreground/60 text-xs">·</span>
             <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-highlight">
               <Crown className="w-2.5 h-2.5" />
-              {t('feed.premium_badge', 'Premium')}
+              {t`Premium`}
             </span>
           </>
         )}
@@ -511,7 +509,7 @@ function CardFooter({
               ? 'text-primary bg-primary/10'
               : 'text-muted-foreground hover:text-foreground hover:bg-muted'
           )}
-          title={isBookmarked ? 'Retirer de la bibliothèque' : 'Mettre en signet'}
+          title={isBookmarked ? t`Retirer de la bibliothèque` : t`Mettre en signet`}
         >
           {isBookmarked ? (
             <BookMarked className="w-3.5 h-3.5 fill-primary" />
@@ -523,7 +521,7 @@ function CardFooter({
           type="button"
           onClick={handleOpenInTab}
           className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-          title="Lire"
+          title={t`Lire`}
         >
           <FileText className="w-3.5 h-3.5" />
         </button>

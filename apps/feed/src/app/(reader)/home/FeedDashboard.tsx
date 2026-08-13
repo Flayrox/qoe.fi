@@ -28,7 +28,7 @@ import { ComposerModal } from './components/ComposerModal';
 import { FeedTabsHeader } from './components/FeedTabsHeader';
 import { ThoughtThreadView } from './components/ThoughtThreadView';
 import { ArticleReaderDrawer } from '@/components/social/ArticleReaderDrawer';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 import { trackEvent } from '@/lib/analytics';
 import { routes } from '@qoe/config/routes';
 import { cn } from '@qoe/utils';
@@ -157,7 +157,6 @@ export function FeedDashboard({
   followedCreators: initialFollowedCreators,
   mutedWords = [],
 }: FeedDashboardProps) {
-  const { t } = useTranslate();
   const [activeFeed, setActiveFeed] = useState<string>('recommandation');
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [activeArticle, setActiveArticle] = useState<Article | null>(null);
@@ -343,11 +342,11 @@ export function FeedDashboard({
     const res = await deletePostMutation(postId);
 
     if (!res.ok) {
-      toast.error('Erreur lors de la suppression de la pensée.');
+      toast.error(t`Erreur lors de la suppression de la pensée.`);
       return false;
     }
 
-    toast.success('Pensée supprimée.');
+    toast.success(t`Pensée supprimée.`);
     return true;
   };
 
@@ -398,14 +397,14 @@ export function FeedDashboard({
     // Immediately open drawer with loading state while fetching full article thread
     setActiveArticle({
       id: articleInput.id || slug,
-      title: articleInput.title || 'Chargement...',
+      title: articleInput.title || t`Chargement...`,
       slug: slug,
       content: '',
       readingTime: articleInput.readingTime || 3,
       createdAt: articleInput.createdAt || new Date(),
       author: articleInput.author || {
         id: 'loading',
-        name: 'Chargement...',
+        name: t`Chargement...`,
         username: '...',
         subdomain: null,
         customDomain: null,
@@ -574,7 +573,7 @@ export function FeedDashboard({
   ];
 
   return (
-    <ReaderPageLayout giantTitle="Lire" hideHeader={!!activePostId || !!activeArticle}>
+    <ReaderPageLayout giantTitle={t`Lire`} hideHeader={!!activePostId || !!activeArticle}>
       {/* ── SLIDING FEED SHEET ── */}
       <motion.main
         initial={false}
@@ -659,13 +658,10 @@ export function FeedDashboard({
                       >
                         <BookMarked className="w-7 h-7 text-muted-foreground/60" />
                         <h4 className="font-semibold text-xs text-foreground">
-                          {t('feed.empty_sanctuary', 'Votre Sanctuaire est vide')}
+                          {t`Votre Sanctuaire est vide`}
                         </h4>
                         <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
-                          {t(
-                            'feed.empty_sanctuary_desc',
-                            "Enregistrez des articles en cliquant sur l'icône de signet pour les conserver ici."
-                          )}
+                          {t`Enregistrez des articles en cliquant sur l'icône de signet pour les conserver ici.`}
                         </p>
                       </motion.div>
                     )}
@@ -680,13 +676,10 @@ export function FeedDashboard({
                       >
                         <AlertCircle className="w-7 h-7 text-muted-foreground/60" />
                         <h4 className="font-semibold text-xs text-foreground">
-                          {t('feed.no_article_found', 'Aucun article trouvé')}
+                          {t`Aucun article trouvé`}
                         </h4>
                         <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
-                          {t(
-                            'feed.no_article_found_desc',
-                            "Essayez d'effacer le tag filtre ou de suivre de nouveaux créateurs dans la liste Explorer."
-                          )}
+                          {t`Essayez d'effacer le tag filtre ou de suivre de nouveaux créateurs dans la liste Explorer.`}
                         </p>
                       </motion.div>
                     ) : (

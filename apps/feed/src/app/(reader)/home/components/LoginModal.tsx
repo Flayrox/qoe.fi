@@ -8,7 +8,7 @@ import { BentoPlateau, BentoItem } from '@qoe/ui/ui/BentoPlateau';
 import { Logo } from '@qoe/ui/ui/Logo';
 import { Button } from '@qoe/ui/ui/button';
 import { Input } from '@qoe/ui/ui/input';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 import { login, signup } from '@/app/login/actions';
 
 export type AuthActionContext = 'like' | 'follow' | 'bookmark' | 'comment' | 'repost';
@@ -32,8 +32,6 @@ export function LoginModal({
   initialMode = 'login',
   actionContext,
 }: LoginModalProps) {
-  const { t } = useTranslate();
-
   const [authMode, setAuthMode] = useState<'magic-link' | 'password' | 'signup'>(
     initialMode === 'signup' ? 'signup' : 'magic-link'
   );
@@ -56,44 +54,33 @@ export function LoginModal({
 
   const getContextSubtitle = () => {
     if (actionContext === 'like') {
-      return t('auth_context.like', 'Connectez-vous pour aimer ce post et soutenir cet auteur');
+      return t`Connectez-vous pour aimer ce post et soutenir cet auteur`;
     }
     if (actionContext === 'follow') {
-      return t(
-        'auth_context.follow',
-        'Abonnez-vous à cet auteur pour ne rater aucun de ses écrits'
-      );
+      return t`Abonnez-vous à cet auteur pour ne rater aucun de ses écrits`;
     }
     if (actionContext === 'bookmark') {
-      return t('auth_context.bookmark', 'Enregistrez cet article dans votre sanctuaire de lecture');
+      return t`Enregistrez cet article dans votre sanctuaire de lecture`;
     }
     if (actionContext === 'comment') {
-      return t('auth_context.comment', "Rejoignez la conversation et répondez à l'auteur");
+      return t`Rejoignez la conversation et répondez à l'auteur`;
     }
     if (actionContext === 'repost') {
-      return t('auth_context.repost', 'Partagez ce post avec vos abonnés');
+      return t`Partagez ce post avec vos abonnés`;
     }
-    return authMode === 'signup'
-      ? t('login.subtitle_signup', 'Rejoignez le réseau souverain')
-      : t('login.subtitle_login', 'Accédez à votre espace');
+    return authMode === 'signup' ? t`Rejoignez le réseau souverain` : t`Accédez à votre espace`;
   };
 
   const manifestoMessages = [
     {
-      target: t('login.manifesto_creators_target', 'Créateurs'),
-      title: t('login.manifesto_creators_title', 'Reprenez le contrôle \nde votre audience.'),
-      desc: t(
-        'login.manifesto_creators_desc',
-        "Pas de publicités. Pas d'algorithmes opaques. Juste vous et vos lecteurs, sur une infrastructure souveraine."
-      ),
+      target: t`Créateurs`,
+      title: t`Reprenez le contrôle \nde votre audience.`,
+      desc: t`Pas de publicités. Pas d'algorithmes opaques. Juste vous et vos lecteurs, sur une infrastructure souveraine.`,
     },
     {
-      target: t('login.manifesto_readers_target', 'Lecteurs'),
-      title: t('login.manifesto_readers_title', 'Retrouvez le goût \ndu temps long.'),
-      desc: t(
-        'login.manifesto_readers_desc',
-        'Un sanctuaire dédié à la lecture profonde. Fuyez le bruit constant, cultivez le silence et choisissez qui vous influence.'
-      ),
+      target: t`Lecteurs`,
+      title: t`Retrouvez le goût \ndu temps long.`,
+      desc: t`Un sanctuaire dédié à la lecture profonde. Fuyez le bruit constant, cultivez le silence et choisissez qui vous influence.`,
     },
   ];
 
@@ -119,7 +106,7 @@ export function LoginModal({
       });
       if (error) throw error;
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Une erreur est survenue.';
+      const message = err instanceof Error ? err.message : t`Une erreur est survenue.`;
       setLocalError(message);
       setLoading(false);
     }
@@ -141,7 +128,7 @@ export function LoginModal({
       if (error) throw error;
       setMagicLinkSent(true);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Une erreur est survenue.';
+      const message = err instanceof Error ? err.message : t`Une erreur est survenue.`;
       setLocalError(message);
     } finally {
       setLoading(false);
@@ -182,7 +169,7 @@ export function LoginModal({
               <button
                 onClick={handleClose}
                 className="absolute -top-3 -right-3 z-50 p-2.5 rounded-full bg-card text-foreground border border-border shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                aria-label="Fermer"
+                aria-label={t`Fermer`}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -200,9 +187,7 @@ export function LoginModal({
                     {/* Header */}
                     <div className="mb-6 text-center">
                       <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-1.5">
-                        {authMode === 'signup'
-                          ? t('login.title_signup', 'Créer un compte')
-                          : t('login.title_login', 'Connexion')}
+                        {authMode === 'signup' ? t`Créer un compte` : t`Connexion`}
                       </h2>
                       <p className="text-muted-foreground text-xs md:text-sm">
                         {getContextSubtitle()}
@@ -225,13 +210,10 @@ export function LoginModal({
                         </div>
                         <div className="space-y-2">
                           <h3 className="text-lg font-bold text-success">
-                            {t('login.magic_link_success', 'Lien magique envoyé')}
+                            {t`Lien magique envoyé`}
                           </h3>
                           <p className="text-muted-foreground text-xs leading-relaxed px-4">
-                            {t(
-                              'login.magic_link_success_desc',
-                              'Consultez votre boîte mail et cliquez sur le lien pour vous connecter.'
-                            )}
+                            {t`Consultez votre boîte mail et cliquez sur le lien pour vous connecter.`}
                           </p>
                         </div>
                         <Button
@@ -239,7 +221,7 @@ export function LoginModal({
                           variant="outline"
                           className="mt-4 text-xs font-mono"
                         >
-                          {t('login.switch_back', 'Retour')}
+                          {t`Retour`}
                         </Button>
                       </div>
                     ) : (
@@ -276,7 +258,7 @@ export function LoginModal({
                             </div>
                             <div className="flex-1 flex items-center justify-center pr-2">
                               <span className="text-[12px] font-semibold text-foreground/80 group-hover:text-foreground transition-colors">
-                                {t('login.google_btn', 'Google')}
+                                {t`Google`}
                               </span>
                             </div>
                           </button>
@@ -297,7 +279,7 @@ export function LoginModal({
                             </div>
                             <div className="flex-1 flex items-center justify-center pr-2">
                               <span className="text-[12px] font-semibold text-foreground/80 group-hover:text-foreground transition-colors">
-                                {t('login.apple_btn', 'Apple')}
+                                {t`Apple`}
                               </span>
                             </div>
                           </button>
@@ -307,7 +289,7 @@ export function LoginModal({
                         <div className="flex items-center gap-4 my-4 opacity-60">
                           <div className="flex-1 h-px bg-border"></div>
                           <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
-                            {t('login.or_separator', 'Ou')}
+                            {t`Ou`}
                           </span>
                           <div className="flex-1 h-px bg-border"></div>
                         </div>
@@ -317,7 +299,7 @@ export function LoginModal({
                           <form onSubmit={handleMagicLinkSubmit} className="space-y-3">
                             <div className="space-y-1">
                               <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                                {t('login.label_email', 'Email')}
+                                {t`Email`}
                               </label>
                               <Input
                                 type="email"
@@ -327,7 +309,7 @@ export function LoginModal({
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                   setEmail(e.target.value)
                                 }
-                                placeholder={t('login.placeholder_email', 'vous@exemple.com')}
+                                placeholder={t`vous@exemple.com`}
                                 className="h-10 w-full rounded-xl bg-muted/40 border-border text-xs"
                               />
                             </div>
@@ -336,9 +318,7 @@ export function LoginModal({
                               disabled={loading}
                               className="w-full h-10 font-sans font-semibold mt-2 rounded-xl bg-brand hover:opacity-90 text-background transition-all text-xs cursor-pointer"
                             >
-                              {loading
-                                ? t('login.loading_state', 'Chargement...')
-                                : t('login.button_magic_link', 'Recevoir un lien magique')}
+                              {loading ? t`Chargement...` : t`Recevoir un lien magique`}
                             </Button>
                           </form>
                         )}
@@ -352,7 +332,7 @@ export function LoginModal({
                               <>
                                 <div className="space-y-1">
                                   <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                                    {t('login.label_name', 'Nom complet')}
+                                    {t`Nom complet`}
                                   </label>
                                   <Input
                                     name="name"
@@ -362,13 +342,13 @@ export function LoginModal({
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                       setName(e.target.value)
                                     }
-                                    placeholder={t('login.placeholder_name', 'Marc Dutronc')}
+                                    placeholder={t`Marc Dutronc`}
                                     className="h-10 w-full rounded-xl bg-muted/40 border-border text-xs"
                                   />
                                 </div>
                                 <div className="space-y-1">
                                   <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                                    {t('login.label_username', "Nom d'utilisateur")}
+                                    {t`Nom d'utilisateur`}
                                   </label>
                                   <Input
                                     name="username"
@@ -378,7 +358,7 @@ export function LoginModal({
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                       setUsername(e.target.value)
                                     }
-                                    placeholder={t('login.placeholder_username', '@marcdutronc')}
+                                    placeholder={t`@marcdutronc`}
                                     className="h-10 w-full rounded-xl bg-muted/40 border-border text-xs"
                                   />
                                 </div>
@@ -387,7 +367,7 @@ export function LoginModal({
 
                             <div className="space-y-1">
                               <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                                {t('login.label_email', 'Email')}
+                                {t`Email`}
                               </label>
                               <Input
                                 name="email"
@@ -397,14 +377,14 @@ export function LoginModal({
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                   setEmail(e.target.value)
                                 }
-                                placeholder={t('login.placeholder_email', 'vous@exemple.com')}
+                                placeholder={t`vous@exemple.com`}
                                 className="h-10 w-full rounded-xl bg-muted/40 border-border text-xs"
                               />
                             </div>
 
                             <div className="space-y-1">
                               <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                                {t('login.label_password', 'Mot de passe')}
+                                {t`Mot de passe`}
                               </label>
                               <Input
                                 name="password"
@@ -414,7 +394,7 @@ export function LoginModal({
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                   setPassword(e.target.value)
                                 }
-                                placeholder={t('login.placeholder_password', '••••••••')}
+                                placeholder={t`••••••••`}
                                 className="h-10 w-full rounded-xl bg-muted/40 border-border text-xs"
                               />
                             </div>
@@ -425,10 +405,10 @@ export function LoginModal({
                               className="w-full h-10 font-sans font-semibold mt-3 rounded-xl bg-[#EE4B2B] hover:bg-[#d63d20] text-white transition-colors text-xs cursor-pointer"
                             >
                               {loading
-                                ? t('login.loading_state', 'Chargement...')
+                                ? t`Chargement...`
                                 : authMode === 'password'
-                                  ? t('login.button_login', 'Se connecter')
-                                  : t('login.button_signup', "S'inscrire")}
+                                  ? t`Se connecter`
+                                  : t`S'inscrire`}
                             </Button>
                           </form>
                         )}
@@ -447,8 +427,8 @@ export function LoginModal({
                             className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                           >
                             {authMode === 'magic-link'
-                              ? t('login.switch_password', 'Se connecter par mot de passe')
-                              : t('login.switch_magic_link', 'Se connecter par lien magique')}
+                              ? t`Se connecter par mot de passe`
+                              : t`Se connecter par lien magique`}
                           </button>
                         </div>
                       </div>
@@ -466,8 +446,8 @@ export function LoginModal({
                       className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                     >
                       {authMode === 'signup'
-                        ? t('login.switch_login', 'Déjà un compte ? Connexion')
-                        : t('login.switch_signup', "Pas de compte ? S'inscrire")}
+                        ? t`Déjà un compte ? Connexion`
+                        : t`Pas de compte ? S'inscrire`}
                     </button>
                   </div>
                 </div>
@@ -492,9 +472,7 @@ export function LoginModal({
                           className="absolute inset-0 flex flex-col justify-end pb-2"
                         >
                           <p className="text-white/50 text-[10px] uppercase tracking-[0.2em] mb-3">
-                            {t('login.manifesto_label', 'Pour les {target}', {
-                              target: manifestoMessages[manifestoIdx].target,
-                            })}
+                            {t`Pour les ${manifestoMessages[manifestoIdx].target}`}
                           </p>
                           <h3 className="text-white text-2xl md:text-3xl font-bold tracking-tight leading-tight mb-3 whitespace-pre-line">
                             {manifestoMessages[manifestoIdx].title}

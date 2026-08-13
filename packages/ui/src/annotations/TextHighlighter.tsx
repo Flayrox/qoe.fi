@@ -28,6 +28,7 @@ import {
   MARK_STYLE_CLASSES,
   type AnnotationReader,
 } from './types';
+import { t } from '@lingui/core/macro';
 
 export type { AnnotationFilterMode };
 
@@ -802,7 +803,7 @@ export function TextHighlighter({
                           : 'text-muted-foreground hover:text-foreground'
                       )}
                     >
-                      <span>Privée</span>
+                      <span>{t`Privée`}</span>
                       <Lock className="w-3.5 h-3.5" />
                       {!isPublicChoice && (
                         <motion.div

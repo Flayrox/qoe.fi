@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { Bookmark, Clock, ExternalLink } from 'lucide-react';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 import { motion } from 'framer-motion';
 import { trackServerEvent } from '@qoe/analytics';
 import { ReaderPageLayout } from '@/components/layout/ReaderPageLayout';
@@ -36,23 +36,19 @@ interface LibraryClientProps {
 }
 
 export function LibraryClient({ bookmarks }: LibraryClientProps) {
-  const { t } = useTranslate();
-
   const handleReadClick = (articleId: string, slug: string) => {
     trackServerEvent('library_article_read', { articleId, slug });
   };
 
   return (
-    <ReaderPageLayout giantTitle="Signets">
+    <ReaderPageLayout giantTitle={t`Signets`}>
       <div className="bg-card text-card-foreground shadow-2xl border-t border-x border-border/40 rounded-t-2xl min-h-screen mt-24 relative z-20">
         <div className="px-6 pt-6 pb-6 space-y-6">
           {/* Page header inside the sheet */}
           <div className="px-1">
-            <h1 className="text-lg font-bold tracking-tight text-foreground">
-              {t('library.title', 'Le Sanctuaire')}
-            </h1>
+            <h1 className="text-lg font-bold tracking-tight text-foreground">{t`Le Sanctuaire`}</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {t('library.subtitle', 'Vos lectures sauvegardées et articles favoris.')}
+              {t`Vos lectures sauvegardées et articles favoris.`}
             </p>
           </div>
 
@@ -62,20 +58,17 @@ export function LibraryClient({ bookmarks }: LibraryClientProps) {
               <div className="bg-muted/40 rounded-xl p-12 border border-border/40 text-center flex flex-col items-center justify-center gap-3">
                 <Bookmark className="w-10 h-10 text-muted-foreground/60" />
                 <h4 className="font-bold text-sm text-foreground">
-                  {t('library.empty_title', 'Votre sanctuaire est vide')}
+                  {t`Votre sanctuaire est vide`}
                 </h4>
                 <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
-                  {t(
-                    'library.empty_desc',
-                    "Explorez qoe.fi et sauvegardez les articles qui méritent d'être lus à tête reposée."
-                  )}
+                  {t`Explorez qoe.fi et sauvegardez les articles qui méritent d'être lus à tête reposée.`}
                 </p>
                 <motion.a
                   href="/home"
                   whileTap={{ scale: 0.98 }}
                   className="bg-primary text-primary-foreground px-5 py-2 rounded-xl text-xs font-semibold hover:opacity-90 transition-colors mt-2"
                 >
-                  {t('library.discover_articles', 'Découvrir des articles')}
+                  {t`Découvrir des articles`}
                 </motion.a>
               </div>
             ) : (
@@ -126,7 +119,7 @@ export function LibraryClient({ bookmarks }: LibraryClientProps) {
                           </a>
                           <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-mono">
                             <Clock className="w-3 h-3" />
-                            {b.article.readingTime} min
+                            {t`${b.article.readingTime} min`}
                           </div>
                         </div>
 
@@ -160,7 +153,7 @@ export function LibraryClient({ bookmarks }: LibraryClientProps) {
                           onClick={() => handleReadClick(b.article.id, b.article.slug)}
                           className="text-xs font-semibold text-primary flex items-center gap-1 hover:underline"
                         >
-                          {t('library.read', 'Lire')} <ExternalLink className="w-3 h-3" />
+                          {t`Lire`} <ExternalLink className="w-3 h-3" />
                         </motion.a>
                       </div>
                     </div>

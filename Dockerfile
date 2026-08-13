@@ -50,6 +50,9 @@ RUN if [ -f .env.docker ]; then \
       cp .env.docker apps/admin/.env; \
     fi
 
+# Compile Lingui catalogs (fr.po/en.po → fr.js/en.js) before building apps
+RUN pnpm lingui compile
+
 # Build chaque app en utilisant le cache Turborepo (mais force le build pour garantir l'injection des variables d'environnement)
 # ⚠️ Concurrency bridée à 1 et max-old-space-size à 2048 pour éviter de faire saturer les 4Go de RAM du VPS lors des compilations Next.js
 RUN --mount=type=cache,target=/app/.turbo NODE_OPTIONS="--max-old-space-size=2048" pnpm turbo build --force --concurrency=1

@@ -24,6 +24,7 @@ import {
   generateApiKeyAction,
   revokeApiKeyAction,
 } from '@qoe/api-client/actions/dashboard';
+import { t } from '@lingui/core/macro';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) return error.message;
@@ -321,8 +322,8 @@ export function DeveloperClient({
                   <li className="flex items-start gap-2">
                     <Check className="w-3.5 h-3.5 text-[#EE4B2B] shrink-0 mt-0.5" />
                     <span>
-                      <strong>Rapidité d'intégration</strong> : documentation complète fournie dès
-                      validation.
+                      <strong>{t`Rapidité d'intégration`}</strong> : documentation complète fournie
+                      dès validation.
                     </span>
                   </li>
                 </ul>

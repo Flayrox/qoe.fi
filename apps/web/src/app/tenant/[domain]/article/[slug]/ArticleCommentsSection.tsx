@@ -11,6 +11,7 @@ import {
 import { cn } from '@qoe/utils';
 import Image from 'next/image';
 import { useRequireAuth } from '@qoe/ui';
+import { t } from '@lingui/core/macro';
 
 export interface CommentAuthor {
   id: string;
@@ -140,7 +141,7 @@ export function ArticleCommentsSection({
 
   // Handle comment deletion
   const handleDeleteComment = async (commentId: string, parentId?: string) => {
-    if (!confirm('Voulez-vous vraiment supprimer ce commentaire ?')) return;
+    if (!confirm(t`Voulez-vous vraiment supprimer ce commentaire ?`)) return;
 
     setDeletingId(commentId);
     try {
@@ -182,8 +183,9 @@ export function ArticleCommentsSection({
           <h3
             className={`text-2xl ${isBrutalist ? 'font-black uppercase' : 'font-bold text-foreground'}`}
           >
-            Commentaires
+            {t`Commentaires`}
           </h3>
+
           <span className="px-2.5 py-0.5 rounded-full bg-muted text-xs font-semibold text-muted-foreground">
             {totalCount}
           </span>
@@ -205,14 +207,14 @@ export function ArticleCommentsSection({
               }}
               placeholder={
                 isAuthenticated
-                  ? 'Partagez votre réflexion sur cet écrit...'
-                  : 'Connectez-vous pour laisser un commentaire...'
+                  ? t`Partagez votre réflexion sur cet écrit...`
+                  : t`Connectez-vous pour laisser un commentaire...`
               }
               className="w-full bg-transparent border-0 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none resize-none leading-relaxed font-sans"
             />
             <div className="flex items-center justify-between pt-3 border-t border-border/30">
               <span className="text-xs text-muted-foreground">
-                {!isAuthenticated && 'Rejoignez la discussion'}
+                {!isAuthenticated && t`Rejoignez la discussion`}
               </span>
 
               <button
@@ -230,7 +232,7 @@ export function ArticleCommentsSection({
                 ) : (
                   <>
                     <Send className="w-3.5 h-3.5" />
-                    <span>Publier</span>
+                    <span>{t`Publier`}</span>
                   </>
                 )}
               </button>
@@ -239,7 +241,7 @@ export function ArticleCommentsSection({
         </form>
       ) : (
         <div className="p-4 rounded-2xl bg-muted/30 border border-border/30 text-center text-xs text-muted-foreground font-medium italic font-sans">
-          Les commentaires ont été désactivés par l'auteur sur cet écrit.
+          {t`Les commentaires ont été désactivés par l'auteur sur cet écrit.`}
         </div>
       )}
 
@@ -247,7 +249,7 @@ export function ArticleCommentsSection({
       <div className="space-y-6">
         {comments.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground text-sm border border-dashed border-border/40 rounded-2xl">
-            Aucun commentaire pour le moment. Soyez le premier à réagir !
+            {t`Aucun commentaire pour le moment. Soyez le premier à réagir !`}
           </div>
         ) : (
           comments.map((comment) => (
@@ -264,7 +266,7 @@ export function ArticleCommentsSection({
                     {comment.author.logoUrl ? (
                       <Image
                         src={comment.author.logoUrl}
-                        alt={comment.author.name || 'Auteur'}
+                        alt={comment.author.name || t`Auteur`}
                         width={36}
                         height={36}
                         className="w-full h-full object-cover"
@@ -277,7 +279,7 @@ export function ArticleCommentsSection({
                   </div>
                   <div>
                     <h4 className="text-sm font-semibold text-foreground">
-                      {comment.author.name || comment.author.username || 'Lecteur'}
+                      {comment.author.name || comment.author.username || t`Lecteur`}
                     </h4>
                     <span className="text-[11px] text-muted-foreground font-sans">
                       {new Date(comment.createdAt).toLocaleDateString('fr-FR', {
@@ -294,7 +296,7 @@ export function ArticleCommentsSection({
                     onClick={() => handleDeleteComment(comment.id)}
                     disabled={deletingId === comment.id}
                     className="p-1 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
-                    title="Supprimer"
+                    title={t`Supprimer`}
                   >
                     {deletingId === comment.id ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -323,7 +325,7 @@ export function ArticleCommentsSection({
                   className="hover:text-[var(--tenant-accent)] flex items-center gap-1 cursor-pointer transition-colors"
                 >
                   <Reply className="w-3.5 h-3.5" />
-                  <span>Répondre</span>
+                  <span>{t`Répondre`}</span>
                 </button>
               </div>
 
@@ -338,7 +340,7 @@ export function ArticleCommentsSection({
                     rows={2}
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
-                    placeholder={`Répondre à ${comment.author.name || 'ce lecteur'}...`}
+                    placeholder={t`Répondre à ${comment.author.name || t`ce lecteur`}...`}
                     className="w-full p-3 rounded-xl bg-muted/40 border border-border/40 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--tenant-accent)] resize-none"
                   />
                   <div className="flex justify-end gap-2">
@@ -347,15 +349,16 @@ export function ArticleCommentsSection({
                       onClick={() => setReplyingToId(null)}
                       className="px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
                     >
-                      Annuler
+                      {t`Annuler`}
                     </button>
+
                     <button
                       type="button"
                       disabled={submittingReply || !replyText.trim()}
                       onClick={() => handleSubmitReply(comment.id)}
                       className="px-3 py-1.5 rounded-lg bg-[var(--tenant-accent)] text-white text-xs font-bold hover:opacity-90 cursor-pointer disabled:opacity-50"
                     >
-                      {submittingReply ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Envoyer'}
+                      {submittingReply ? <Loader2 className="w-3 h-3 animate-spin" /> : t`Envoyer`}
                     </button>
                   </div>
                 </motion.div>
@@ -375,7 +378,7 @@ export function ArticleCommentsSection({
                             {reply.author.logoUrl ? (
                               <Image
                                 src={reply.author.logoUrl}
-                                alt={reply.author.name || 'Auteur'}
+                                alt={reply.author.name || t`Auteur`}
                                 width={24}
                                 height={24}
                                 className="w-full h-full object-cover"
@@ -385,7 +388,7 @@ export function ArticleCommentsSection({
                             )}
                           </div>
                           <span className="text-xs font-semibold text-foreground">
-                            {reply.author.name || reply.author.username || 'Lecteur'}
+                            {reply.author.name || reply.author.username || t`Lecteur`}
                           </span>
                           <span className="text-[10px] text-muted-foreground">
                             {new Date(reply.createdAt).toLocaleDateString('fr-FR', {

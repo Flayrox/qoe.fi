@@ -2,12 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 import { motion } from 'framer-motion';
 
 export const Navbar = () => {
-  const { t } = useTranslate();
-
   return (
     <motion.nav
       initial={{ y: -100 }}
@@ -25,19 +23,19 @@ export const Navbar = () => {
               href="#"
               className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors"
             >
-              {t('nav_manifesto', 'Manifeste')}
+              {t`Manifeste`}
             </Link>
             <Link
               href="#"
               className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors"
             >
-              {t('nav_network', 'Le Réseau')}
+              {t`Le Réseau`}
             </Link>
             <Link
               href="#"
               className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors"
             >
-              {t('nav_security', 'Souveraineté')}
+              {t`Souveraineté`}
             </Link>
           </div>
         </div>
@@ -47,13 +45,13 @@ export const Navbar = () => {
             href="/login"
             className="px-6 py-3 text-[10px] font-mono uppercase tracking-[0.2em] text-white/60 hover:text-white transition-all"
           >
-            {t('nav_login', 'Connexion')}
+            {t`Connexion`}
           </Link>
           <Link
             href="/login"
             className="px-8 py-3 bg-background text-foreground rounded-full text-[10px] font-mono uppercase tracking-[0.2em] font-bold hover:bg-border transition-all shadow-xl"
           >
-            {t('nav_cta', 'Accès Souverain')}
+            {t`Accès Souverain`}
           </Link>
         </div>
       </div>

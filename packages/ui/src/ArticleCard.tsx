@@ -6,7 +6,7 @@ import { cn } from '@qoe/utils';
 import { routes } from '@qoe/config';
 import type { FeedArticleDTO } from '@qoe/db/types';
 import { useRequireAuth } from './auth/AuthModalContext';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 
 export type { FeedArticleDTO as Article };
 
@@ -29,7 +29,6 @@ export function ArticleCard({
   onOpenProfile,
   onOpenPost,
 }: ArticleCardProps) {
-  const { t } = useTranslate();
   const { withAuth } = useRequireAuth();
   const [liked, setLiked] = useState(article.liked || false);
   const [likesCount, setLikesCount] = useState(article.likesCount || 0);
@@ -124,7 +123,7 @@ export function ArticleCard({
             {article.author.logoUrl ? (
               <img
                 src={article.author.logoUrl}
-                alt={article.author.name || 'Auteur'}
+                alt={article.author.name || t`Auteur`}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -145,14 +144,14 @@ export function ArticleCard({
                 onClick={handleOpenProfile}
                 className="font-medium text-foreground hover:text-primary transition-colors truncate outline-none cursor-pointer"
               >
-                {article.author.name || 'Auteur'}
+                {article.author.name || t`Auteur`}
               </button>
               <span className="text-muted-foreground truncate">
                 @{article.author.username || article.author.subdomain || 'qoe'}
               </span>
               {!isThought && (
                 <span className="px-2 py-0.5 text-[10px] bg-primary/10 text-primary rounded-full border border-primary/20 font-medium">
-                  {t('feed.article_badge', 'Article')}
+                  {t`Article`}
                 </span>
               )}
             </div>
@@ -194,7 +193,7 @@ export function ArticleCard({
                 type="button"
                 onClick={() => onOpenPost && onOpenPost(article.id)}
                 className="flex items-center gap-1.5 hover:text-foreground transition-colors outline-none cursor-pointer"
-                title={t('feed.reply_btn', 'Commenter')}
+                title={t`Commenter`}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
                 <span>{article.repliesCount || 0}</span>
@@ -208,7 +207,7 @@ export function ArticleCard({
                   'flex items-center gap-1.5 transition-colors outline-none cursor-pointer',
                   reposted ? 'text-success' : 'hover:text-success'
                 )}
-                title={t('feed.repost_btn', 'Reposter')}
+                title={t`Reposter`}
               >
                 <Repeat className="w-3.5 h-3.5" />
                 <span>{repostsCount}</span>
@@ -222,7 +221,7 @@ export function ArticleCard({
                   'flex items-center gap-1.5 transition-colors outline-none cursor-pointer',
                   liked ? 'text-primary' : 'hover:text-primary'
                 )}
-                title={t('feed.like', 'Aimer')}
+                title={t`Aimer`}
               >
                 <Heart className={cn('w-3.5 h-3.5', liked ? 'fill-primary text-primary' : '')} />
                 <span>{likesCount}</span>
@@ -233,7 +232,7 @@ export function ArticleCard({
             <div className="flex items-center gap-3">
               {article.readingTime > 0 && (
                 <span className="text-[11px] text-muted-foreground">
-                  {t('feed.reading_time', '{count} min de lecture', { count: article.readingTime })}
+                  {t`${article.readingTime} min de lecture`}
                 </span>
               )}
               {handleBookmarkToggle && (
@@ -248,11 +247,7 @@ export function ArticleCard({
                     'p-1 hover:text-foreground transition-colors outline-none cursor-pointer',
                     isBookmarked ? 'text-primary' : ''
                   )}
-                  title={
-                    isBookmarked
-                      ? t('feed.bookmark_remove', 'Retirer le signet')
-                      : t('feed.bookmark_add', 'Ajouter aux signets')
-                  }
+                  title={isBookmarked ? t`Retirer le signet` : t`Ajouter aux signets`}
                 >
                   <Bookmark
                     className={cn('w-3.5 h-3.5', isBookmarked ? 'fill-primary text-primary' : '')}

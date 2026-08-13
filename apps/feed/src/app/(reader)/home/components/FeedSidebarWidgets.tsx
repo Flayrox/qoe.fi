@@ -13,7 +13,7 @@ import {
   Users,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 
 import { routes } from '@qoe/config/routes';
 
@@ -46,7 +46,6 @@ export function FeedSidebarWidgets({
   onOpenProfile,
   userStats,
 }: FeedSidebarWidgetsProps) {
-  const { t } = useTranslate();
   const [followedLocally, setFollowedLocally] = useState<Set<string>>(new Set());
   const [justFollowed, setJustFollowed] = useState<string | null>(null);
 
@@ -75,24 +74,12 @@ export function FeedSidebarWidgets({
         <div className="bg-card border border-border/60 rounded-xl p-5 shadow-xs space-y-5">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <TrendingUp className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
-            {t('feed.your_week', 'Votre semaine')}
+            {t`Votre semaine`}
           </span>
           <div className="grid grid-cols-3 gap-2">
-            <StatCell
-              icon={BookOpen}
-              value={userStats.articlesRead}
-              label={t('feed.stat_read', 'Lus')}
-            />
-            <StatCell
-              icon={Highlighter}
-              value={userStats.highlights}
-              label={t('feed.stat_highlights', 'Surlignages')}
-            />
-            <StatCell
-              icon={Users}
-              value={userStats.following}
-              label={t('feed.stat_following', 'Abonnements')}
-            />
+            <StatCell icon={BookOpen} value={userStats.articlesRead} label={t`Lus`} />
+            <StatCell icon={Highlighter} value={userStats.highlights} label={t`Surlignages`} />
+            <StatCell icon={Users} value={userStats.following} label={t`Abonnements`} />
           </div>
 
           <ActivitySparkline />
@@ -105,13 +92,13 @@ export function FeedSidebarWidgets({
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
               <Compass className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
-              {t('feed.to_discover', 'À Découvrir')}
+              {t`À Découvrir`}
             </span>
             <button
               type="button"
               className="text-[10px] font-semibold text-muted-foreground hover:text-primary transition-colors cursor-pointer outline-none"
             >
-              {t('feed.see_more', 'Voir +')}
+              {t`Voir +`}
             </button>
           </div>
 
@@ -181,17 +168,17 @@ export function FeedSidebarWidgets({
                           className="flex items-center gap-1"
                         >
                           <UserCheck className="w-3.5 h-3.5" />
-                          {t('feed.subscribed_alert', 'Abonné !')}
+                          {t`Abonné !`}
                         </motion.span>
                       ) : isFollowedLocally ? (
                         <motion.span key="followed" className="flex items-center gap-1">
                           <UserCheck className="w-3.5 h-3.5" />
-                          {t('feed.subscribed', 'Abonné')}
+                          {t`Abonné`}
                         </motion.span>
                       ) : (
                         <motion.span key="follow" className="flex items-center gap-1">
                           <UserPlus className="w-3.5 h-3.5" />
-                          {t('feed.subscribe', 'Suivre')}
+                          {t`Suivre`}
                         </motion.span>
                       )}
                     </AnimatePresence>
@@ -215,9 +202,9 @@ function ActivitySparkline() {
   return (
     <div className="pt-3.5 border-t border-border/50 flex flex-col gap-2">
       <div className="flex items-center justify-between text-[10px] font-medium text-muted-foreground">
-        <span>Activité de lecture</span>
+        <span>{t`Activité de lecture`}</span>
         <span className="text-primary font-semibold">
-          {hoveredIndex !== null ? `${data[hoveredIndex]} écrits` : '7 derniers jours'}
+          {hoveredIndex !== null ? t`${data[hoveredIndex]} écrits` : t`7 derniers jours`}
         </span>
       </div>
 
