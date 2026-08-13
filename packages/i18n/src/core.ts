@@ -21,10 +21,10 @@ export const DEFAULT_I18N_LOCALE = 'fr';
 // exported by @lingui/core. We must load/activate THAT instance immediately at
 // module load so server-side macros always resolve during prerender/SSR,
 // before any layout calls initI18n().
-if (linguiI18n.locale === undefined || linguiI18n.locale === '') {
-  linguiI18n.load({ fr: frMessages.messages });
-  linguiI18n.activate(DEFAULT_I18N_LOCALE);
-}
+// Charge TOUJOURS FR au chargement (pas seulement si locale vide) pour couvrir
+// les ordres d'évaluation variables de modules (Turbopack/pnpm isolated).
+linguiI18n.load({ fr: frMessages.messages });
+linguiI18n.activate(DEFAULT_I18N_LOCALE);
 
 let _i18n: I18n | null = null;
 

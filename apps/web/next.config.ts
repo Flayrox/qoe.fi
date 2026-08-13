@@ -10,6 +10,7 @@ import { withSentryConfig } from '@sentry/nextjs';
 const nextConfig: NextConfig = {
   output: 'standalone',
   reactStrictMode: true,
+  reactCompiler: true,
   experimental: {
     swcPlugins: [linguiMacroSwcPlugin()],
   },

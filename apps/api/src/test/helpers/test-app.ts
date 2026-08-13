@@ -15,11 +15,19 @@ import { createApp } from '../../app';
 import { createMemoryDb } from './memory-db';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type Stripe from 'stripe';
-import { vi } from 'vitest';
+import { vi, type Mock } from 'vitest';
 
-export type TestContext = ReturnType<typeof createTestApp>;
+export interface TestContext {
+  app: ReturnType<typeof createApp>;
+  db: ReturnType<typeof createMemoryDb>['db'];
+  seed: ReturnType<typeof createMemoryDb>['seed'];
+  reset: ReturnType<typeof createMemoryDb>['reset'];
+  supabaseGetUser: Mock;
+  stripeQueueAdd: Mock;
+  verifyWebhook: Mock;
+}
 
-export function createTestApp() {
+export function createTestApp(): TestContext {
   const memory = createMemoryDb();
 
   const supabaseGetUser = vi.fn();

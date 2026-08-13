@@ -12,6 +12,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@lingui/core": "6.6.0",
+    "@lingui/react": "6.6.0",
     "@prisma/client": "^6.19.3",
     "@qoe/analytics": "workspace:*",
     "@qoe/api-client": "workspace:*",

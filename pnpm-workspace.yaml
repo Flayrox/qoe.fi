@@ -30,3 +30,31 @@ packages:
   - '!**/.next'
   - '!**/build'
   - '!**/.turbo'
+
+# 🔧 Build scripts (pnpm 11 → allowBuilds)
+#    true  = on autorise le postinstall (prisma génère, sharp/esbuild compilent)
+#    false = on ignore volontairement (scripts optionnels)
+allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  'prisma': true
+  'sharp': true
+  'esbuild': true
+  '@sentry/cli': true
+  'cpu-features': false
+  'msgpackr-extract': false
+  'msw': false
+  'protobufjs': false
+  'ssh2': false
+  'unrs-resolver': false
+
+# 🔗 Mode d'installation : hoisted (flat node_modules)
+#    pnpm 11 lit ce réglage ICI (plus dans .npmrc). Hoisted restaure le
+#    comportement pnpm 9 : les deps transitives sont visibles au root,
+#    ce qui évite les "Cannot find module" sur les deps non déclarées.
+nodeLinker: hoisted
+
+# 🔗 Méthode d'import des packages depuis le store : hardlink pour que les
+#    modules (ex: @lingui/core singleton) partagent le même inode → une seule
+#    instance en mémoire, même via des chemins différents (root vs package).
+packageImportMethod: hardlink

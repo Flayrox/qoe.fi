@@ -19,7 +19,8 @@
     "@qoe/utils": "workspace:*",
     "bullmq": "^5.34.0",
     "ioredis": "^5.4.1",
-    "meilisearch": "^0.44.0"
+    "meilisearch": "^0.44.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@qoe/tsconfig": "workspace:*",

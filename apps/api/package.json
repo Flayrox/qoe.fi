@@ -23,7 +23,9 @@
     "@qoe/supabase": "workspace:*",
     "@qoe/utils": "workspace:*",
     "@supabase/supabase-js": "^2.105.4",
+    "bullmq": "^5.79.3",
     "hono": "^4.6.14",
+    "ioredis": "^5.11.1",
     "meilisearch": "^0.44.0",
     "stripe": "^17.5.0",
     "zod": "^3.23.8"

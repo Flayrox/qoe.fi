@@ -1,7 +1,13 @@
 import '@testing-library/jest-dom/vitest';
 
 // Polyfills jsdom pour les libs qui les attendent
-import { vi } from 'vitest';
+import { expect, vi } from 'vitest';
+
+// @testing-library/jest-dom/vitest étend l'expect exporté. Avec globals:true,
+// les tests utilisent l'expect GLOBAL : on l'étend aussi explicitement pour
+// garantir toBeInTheDocument etc. (évite la collision de contextes vitest).
+import * as jestDomMatchers from '@testing-library/jest-dom/matchers';
+expect.extend(jestDomMatchers as Parameters<typeof expect.extend>[0]);
 
 // Les composants utilisent window.location pour les redirects de login
 Object.defineProperty(window, 'location', {
