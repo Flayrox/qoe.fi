@@ -15,4 +15,6 @@ export {
   type UmamiTimeseriesPoint,
 } from './server';
 export { EVENTS, type EventName, type EventProps } from './events';
-export * from './queries/creator-analytics';
+// NOTE : creator-analytics est server-only (importe @qoe/db complet).
+// Exposé via `@qoe/analytics/queries` pour ne pas faire fuiter Prisma/Redis
+// dans les bundles navigateur des composants client.
