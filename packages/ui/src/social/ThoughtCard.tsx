@@ -74,10 +74,10 @@ export interface ThoughtData {
     id: string;
     thoughtId: string;
     expiresAt: string | Date;
-    isExpired?: boolean;
-    totalVotes?: number;
-    userVotedOptionId?: string | null;
-    options?: Array<{
+    isExpired: boolean;
+    totalVotes: number;
+    userVotedOptionId: string | null;
+    options: Array<{
       id: string;
       text: string;
       order: number;

@@ -136,8 +136,8 @@ export interface ThreadNode {
   replyCount?: number;
   repostCount?: number;
   deletedAt?: Date | null;
-  createdAt?: Date;
-  author?: {
+  createdAt: Date;
+  author: {
     id: string;
     name: string | null;
     username: string | null;
@@ -145,14 +145,14 @@ export interface ThreadNode {
     isCertified: boolean;
     subdomain: string | null;
     customDomain: string | null;
-  } | null;
+  };
   parent?: ThreadNode | null;
   repost?: ThreadNode | null;
   replies?: ThreadNode[];
   likes?: Array<{ userId: string }> | null;
   reposts?: Array<{ id: string; authorId: string }> | null;
-  _count?: { likes?: number; replies?: number; reposts?: number } | null;
-  poll?: FeedPoll | FormattedPoll | null;
+  _count?: { likes?: number; replies?: number; reposts?: number };
+  poll?: FormattedPoll | null;
   liked?: boolean;
   reposted?: boolean;
   likesCount?: number;
@@ -180,7 +180,7 @@ export interface FeedSlice {
 }
 
 export async function buildFeedSlices(
-  rawPosts: FeedThought[],
+  rawPosts: Array<Omit<FeedThought, 'attachments'>>,
   currentUserId?: string
 ): Promise<FeedSlice[]> {
   // Drop "pure repost" rows whose source post has been soft-deleted,

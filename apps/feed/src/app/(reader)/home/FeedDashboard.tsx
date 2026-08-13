@@ -12,13 +12,13 @@ import {
 import { toast } from 'sonner';
 
 import {
-  ArticleCard,
   GuestFloatingBar,
   useAuthModal,
   MediaLightbox,
   HotkeyHelpModal,
   type AuthActionContext,
 } from '@qoe/ui';
+import { ArticleCard } from './components/ArticleCard';
 import { ThoughtFeedSlice } from './components/ThoughtFeedSlice';
 import { VirtualizedFeedList } from '@/components/feed/VirtualizedFeedList';
 import { RealtimeFeedPill } from '@/components/feed/RealtimeFeedPill';

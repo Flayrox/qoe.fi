@@ -19,7 +19,7 @@ export function NotificationSettingsForm() {
     );
   }
 
-  const handleToggle = (key: string, value: boolean) => {
+  const handleToggle = (key: PreferenceKey, value: boolean) => {
     updateMutation.mutate({ [key]: value });
   };
 
@@ -64,7 +64,11 @@ export function NotificationSettingsForm() {
       pushKey: 'pushReposts',
       description: "Alertes lorsqu'un membre republie votre pensée sur son fil.",
     },
-  ];
+  ] as const;
+
+  type EmailKey = (typeof sections)[number]['emailKey'];
+  type PushKey = (typeof sections)[number]['pushKey'];
+  type PreferenceKey = EmailKey | PushKey;
 
   return (
     <div className="w-full max-w-2xl mx-auto p-4 space-y-6">
