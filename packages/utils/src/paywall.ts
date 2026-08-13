@@ -29,7 +29,9 @@ const PAYWALL_MARKERS = [
   '<!--qoe-paywall-->',
   'data-node-type="paywall"',
   'data-node-type="paywall-divider"',
+  'data-type="paywall-divider"',
   'class="qoe-paywall-divider"',
+  'class="paywall-divider"',
 ];
 
 /**
