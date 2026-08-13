@@ -136,7 +136,19 @@
       "general_title": "General Preferences",
       "general_description": "Primary details representing your publication node",
       "label_pub_name": "Publication Name",
-      "label_email": "Support Email"
+      "label_email": "Support Email",
+      "profile_name": "Publication Name",
+      "profile_hero": "Tagline & Presentation",
+      "profile_brand": "Accent Color & Logos",
+      "domain_title": "Domain & DNS",
+      "domain_subdomain": "qoe.fi subdomain",
+      "domain_custom": "Custom domain",
+      "navigation_title": "Navigation & Social",
+      "navigation_links": "Main navigation menu",
+      "navigation_social": "Social networks",
+      "seo_title": "SEO & Footer",
+      "seo_meta": "META tags (Title & Description)",
+      "seo_indexing": "Search engine indexing"
     },
     "articles": {
       "title": "Articles",

@@ -68,6 +68,8 @@
     "zip:mac": "bash scripts/zip.sh"
   },
   "devDependencies": {
+    "@lingui/babel-plugin-lingui-macro": "^6.6.0",
+    "@lingui/cli": "^6.6.0",
     "@vitest/coverage-v8": "^4.1.7",
     "@vitest/ui": "^4.1.7",
     "eslint": "^9",
@@ -90,5 +92,9 @@
     "*{.js,.jsx,.ts,.tsx,.mjs,.cjs}": [
       "eslint --fix"
     ]
+  },
+  "dependencies": {
+    "@lingui/core": "^6.6.0",
+    "@lingui/react": "^6.6.0"
   }
 }
