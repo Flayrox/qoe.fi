@@ -1,4 +1,5 @@
 import { Job } from 'bullmq';
+import { logger } from '@qoe/observability';
 import { MeiliSearch } from 'meilisearch';
 import { prisma } from '@qoe/db/client';
 
@@ -21,9 +22,9 @@ export async function setupMeilisearch() {
         minWordSizeForTypos: { oneTypo: 5, twoTypos: 9 },
       },
     });
-    console.log('[Meilisearch] Index settings configured successfully.');
+    logger.info('Index Meilisearch configuré');
   } catch (error) {
-    console.error('[Meilisearch] Error configuring index:', error);
+    logger.error('Erreur configuration index Meilisearch', { err: error }, { capture: true });
   }
 }
 
@@ -39,7 +40,7 @@ export async function processMeilisearchSyncJob(job: Job<SyncJobData>) {
   try {
     if (action === 'delete') {
       await index.deleteDocument(articleId);
-      console.log(`[Meilisearch] Deleted document ${articleId}`);
+      logger.info('Document Meilisearch supprimé', { articleId });
       return { success: true, action };
     }
 
@@ -49,7 +50,7 @@ export async function processMeilisearchSyncJob(job: Job<SyncJobData>) {
       });
 
       if (!article) {
-        console.warn(`[Meilisearch] Article ${articleId} not found for upsert.`);
+        logger.warn('Article introuvable pour upsert', { articleId });
         await index.deleteDocument(articleId);
         return { success: true, action: 'delete' };
       }
@@ -70,11 +71,11 @@ export async function processMeilisearchSyncJob(job: Job<SyncJobData>) {
           updatedAt: article.updatedAt.getTime(),
         },
       ]);
-      console.log(`[Meilisearch] Upserted document ${articleId}`);
+      logger.info('Document Meilisearch upserté', { articleId });
       return { success: true, action };
     }
   } catch (error) {
-    console.error(`[Meilisearch] Error processing job for article ${articleId}:`, error);
+    logger.error('Erreur job Meilisearch', { articleId, err: error }, { capture: true });
     throw error;
   }
 }

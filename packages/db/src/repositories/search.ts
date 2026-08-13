@@ -4,6 +4,7 @@
 
 import { prisma } from '../client';
 import { POST_VISIBILITY } from '@qoe/config';
+import { logger } from '@qoe/observability';
 
 /**
  * 🔎 Recherche des pensées (Thoughts) par contenu texte ou hashtag.
@@ -142,7 +143,7 @@ export async function recordHashtags(tags: string[]) {
         update: { count: { increment: 1 } },
       });
     } catch (error) {
-      console.error(`Error recording trend for hashtag #${tag}:`, error);
+      logger.error('Erreur enregistrement trend hashtag', { tag, err: error });
     }
   }
 }

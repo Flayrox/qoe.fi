@@ -19,6 +19,7 @@
     "@qoe/billing": "workspace:*",
     "@qoe/config": "workspace:*",
     "@qoe/db": "workspace:*",
+    "@qoe/observability": "workspace:^",
     "@qoe/supabase": "workspace:*",
     "@qoe/utils": "workspace:*",
     "@supabase/supabase-js": "^2.105.4",

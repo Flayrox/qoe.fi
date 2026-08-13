@@ -3,6 +3,7 @@
 // =====================================================================
 
 import { prisma } from '../client';
+import { logger } from '@qoe/observability';
 
 /**
  * 💰 Déverrouille un article créateur via le solde du portefeuille virtuel du lecteur.
@@ -56,7 +57,7 @@ export async function unlockArticleWithWallet(
       return { success: true };
     });
   } catch (error) {
-    console.error('Error in unlockArticleWithWallet repository:', error);
+    logger.error('Erreur unlock wallet', { err: error }, { capture: true });
     return { success: false, error: 'TRANSACTION_FAILED' };
   }
 }

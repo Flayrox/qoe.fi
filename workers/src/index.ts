@@ -6,11 +6,15 @@
 
 import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
+import { initSentryNode, logger } from '@qoe/observability';
 import { processMeilisearchSyncJob, setupMeilisearch } from './jobs/meilisearchSync';
 import { processStripeWebhookSyncJob } from './jobs/stripeWebhookSync';
 import { processPublishNewsletterJob } from './jobs/publishNewsletterJob';
 
-console.log('⚙️ qoe.fi workers — Démarrage...');
+// Initialise Sentry (no-op silencieux sans SENTRY_DSN en dev local)
+initSentryNode();
+
+logger.info('qoe.fi workers — Démarrage...');
 
 const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
   maxRetriesPerRequest: null,
@@ -22,16 +26,20 @@ const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379'
 let isRedisConnected = false;
 connection.on('connect', () => {
   isRedisConnected = true;
-  console.log('⚙️ [Workers] Connecté à Redis avec succès.');
+  logger.info('Workers connecté à Redis');
 });
 
 connection.on('error', (err) => {
   if ((err as { code?: string })?.code === 'ECONNREFUSED') {
     if (!isRedisConnected) {
-      console.warn('⚠️ [Workers] En attente de Redis sur 127.0.0.1:6379');
+      logger.warn('Workers en attente de Redis', { url: '127.0.0.1:6379' });
     }
   } else {
-    console.error('❌ [Workers] Erreur Redis:', (err as { message?: string }).message);
+    logger.error(
+      'Workers erreur Redis',
+      { message: (err as { message?: string }).message },
+      { capture: true }
+    );
   }
 });
 
@@ -63,22 +71,22 @@ const allWorkers = [searchWorker, stripeWorker, newsletterWorker];
 
 allWorkers.forEach((w) => {
   w.on('completed', (job) => {
-    console.log(`[Worker:${w.name}] Job ${job.id} terminé avec succès.`);
+    logger.info('Job terminé', { worker: w.name, jobId: job?.id });
   });
 
   w.on('failed', (job, err) => {
-    console.error(`[Worker:${w.name}] Job ${job?.id} a échoué:`, err);
+    logger.error('Job échoué', { worker: w.name, jobId: job?.id, err }, { capture: true });
   });
 });
 
 process.on('SIGTERM', async () => {
-  console.log('⚙️ Workers: SIGTERM reçu, arrêt propre...');
+  logger.info('Workers: SIGTERM reçu, arrêt propre...');
   await Promise.all(allWorkers.map((w) => w.close()));
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
-  console.log('⚙️ Workers: SIGINT reçu, arrêt propre...');
+  logger.info('Workers: SIGINT reçu, arrêt propre...');
   await Promise.all(allWorkers.map((w) => w.close()));
   process.exit(0);
 });

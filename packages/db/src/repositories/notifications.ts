@@ -4,6 +4,7 @@
 
 import { prisma } from '../client';
 import { NotificationType, type Prisma } from '@prisma/client';
+import { logger } from '@qoe/observability';
 
 export interface GroupedNotification {
   id: string;
@@ -92,7 +93,7 @@ export async function createNotification(data: {
       },
     });
   } catch (error) {
-    console.error('Error creating notification:', error);
+    logger.error('Erreur création notification', { err: error });
     return null;
   }
 }
@@ -119,7 +120,7 @@ export async function deleteNotification(data: {
     });
     return true;
   } catch (error) {
-    console.error('Error deleting notification:', error);
+    logger.error('Erreur suppression notification', { err: error });
     return false;
   }
 }
@@ -268,7 +269,7 @@ export async function markAsRead(
     }
     return true;
   } catch (error) {
-    console.error('Error marking notifications as read:', error);
+    logger.error('Erreur marquage notifications lues', { err: error });
     return false;
   }
 }

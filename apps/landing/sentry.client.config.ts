@@ -1,5 +1,5 @@
 // =====================================================================
-// 🧑‍💻 Sentry client — apps/dashboard
+// 🧑‍💻 Sentry client — apps/<APP>
 // =====================================================================
 // 📖 Initialise Sentry côté navigateur (replays inclus).
 //    No-op silencieux si SENTRY_DSN n'est pas défini.

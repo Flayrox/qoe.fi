@@ -1,9 +1,7 @@
 // =====================================================================
-// 🪟 Sentry server — apps/dashboard
+// ⚡ Sentry edge — apps/<APP>
 // =====================================================================
-// 📖 Initialise Sentry côté serveur. No-op silencieux sans SENTRY_DSN.
-//    (Utilisé par la v10 de @sentry/nextjs quand instrumentation.ts
-//     n'est pas encore pris en charge par la config du build.)
+// 📖 Initialise Sentry pour les middleware/edge runtime.
 // =====================================================================
 
 import { initSentryServer } from '@qoe/observability';

@@ -1,0 +1,26 @@
+{
+  "name": "@qoe/observability",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./logger": "./src/logger.ts",
+    "./sentry": "./src/sentry.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sentry/nextjs": "10.65.0",
+    "@sentry/node": "10.65.0"
+  },
+  "devDependencies": {
+    "@qoe/tsconfig": "workspace:*",
+    "typescript": "^5"
+  }
+}
