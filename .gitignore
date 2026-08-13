@@ -104,3 +104,8 @@ mcp-config.json
 # ─── Excluded experimental / work directories ─────────────
 apps/mobile/
 jules_2/
+# ─── Playwright E2E artifacts ──────────────────────────────
+test-results/
+playwright-report/
+playwright/.auth/
+blob-report/

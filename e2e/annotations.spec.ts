@@ -14,19 +14,32 @@ test.describe('Tier 4: E2E Annotation Engine — Layout, Boundaries, Rauno Physi
             <style>
               body { margin: 0; padding: 0; font-family: sans-serif; }
               .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 256px; background: #1e1e2e; color: white; }
+              /* Equivalent Tailwind md:left-64 (viewport >= 768px) sans le CSS Tailwind
+                 qui n'est pas charge dans un contexte setContent isole.
+                 NB: la regle de base (inset:0) doit venir AVANT la media query
+                 pour que left ne soit pas ecrase (meme specificite, source order). */
+              .drawer-wrapper { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; justify-content: flex-end; }
+              .drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); }
+              .drawer-panel { position: relative; z-index: 10; box-sizing: border-box; width: 100%; height: 94vh; max-height: 94vh; background: #fff; border-top: 1px solid #e5e7eb; border-top-left-radius: 24px; border-top-right-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+              .drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid #e5e7eb; }
+              .drawer-content { padding: 24px; }
+              @media (min-width: 768px) {
+                .drawer-wrapper { left: 256px; right: 0; }
+                .drawer-backdrop { left: 256px; right: 0; }
+              }
             </style>
           </head>
           <body>
             <div id="sidebar" class="sidebar">Nav Sidebar (64 = 256px)</div>
             
-            <div id="drawer-wrapper" class="fixed inset-0 md:left-64 z-50 flex flex-col justify-end">
-              <div id="backdrop" class="fixed inset-0 md:left-64 bg-black/40 backdrop-blur-xs"></div>
-              <div id="drawer-panel" class="relative z-10 w-full h-[94vh] max-h-[94vh] bg-background border-t rounded-t-3xl shadow-2xl">
-                <div id="drawer-header" class="flex items-center justify-between p-4 border-b">
+            <div id="drawer-wrapper" class="drawer-wrapper">
+              <div id="backdrop" class="drawer-backdrop"></div>
+              <div id="drawer-panel" class="drawer-panel">
+                <div id="drawer-header" class="drawer-header">
                   <h3>Article Title</h3>
                   <button id="close-btn">Close</button>
                 </div>
-                <div id="article-content" class="p-6">
+                <div id="article-content" class="drawer-content">
                   <p>Feed reader article content text passage.</p>
                 </div>
               </div>
