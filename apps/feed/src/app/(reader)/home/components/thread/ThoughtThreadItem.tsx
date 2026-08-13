@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { ThoughtThreadTombstone } from './ThoughtThreadTombstone';
 import { useThoughtThreadContext, type OptimisticThought } from './ThoughtThreadContext';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
+import { t } from '@lingui/core/macro';
 
 export interface ThoughtThreadItemProps {
   reply: OptimisticThought;
@@ -69,7 +70,7 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
       <div className="py-2.5 px-3.5 rounded-2xl border border-dashed border-border/40 bg-muted/20 text-xs text-muted-foreground flex items-center justify-between font-sans my-1">
         <span className="flex items-center gap-2">
           <EyeOff className="w-3.5 h-3.5 text-muted-foreground/70" />
-          <span>Réponse masquée par l'auteur de la pensée</span>
+          <span>{t`Réponse masquée par l'auteur de la pensée`}</span>
         </span>
         <button
           onClick={() => setShowHidden(true)}

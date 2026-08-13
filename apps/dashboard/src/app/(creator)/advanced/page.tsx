@@ -18,6 +18,7 @@ import {
   sendCollaborationRequestAction,
 } from './actions';
 import { createMediaAction } from '../media/actions';
+import { t } from '@lingui/core/macro';
 
 interface CollaborationRequest {
   id: string;
@@ -113,7 +114,7 @@ export default function CreatorAdvancedPage() {
       <div className="mb-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-3">
           <Sliders className="w-3.5 h-3.5" />
-          <span>Espace Avancé & Collaboration</span>
+          <span>{t`Espace Avancé & Collaboration`}</span>
         </div>
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">
           Co-Édition, Demandes & Médias
@@ -158,7 +159,7 @@ export default function CreatorAdvancedPage() {
           {loading ? (
             <div className="py-8 text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Chargement des requêtes...</span>
+              <span>{t`Chargement des requêtes...`}</span>
             </div>
           ) : requests.received.length === 0 ? (
             <div className="py-8 text-center border border-dashed border-border/40 rounded-2xl text-xs text-muted-foreground">
@@ -267,7 +268,7 @@ export default function CreatorAdvancedPage() {
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <>
-                  <span>Envoyer la demande de co-rédaction</span>
+                  <span>{t`Envoyer la demande de co-rédaction`}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -350,7 +351,7 @@ export default function CreatorAdvancedPage() {
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <>
-                  <span>Créer le Profil Média & Espace de Travail</span>
+                  <span>{t`Créer le Profil Média & Espace de Travail`}</span>
                   <Sparkles className="w-4 h-4" />
                 </>
               )}

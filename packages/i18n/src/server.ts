@@ -5,6 +5,8 @@
 import { ALL_LANGUAGES, DEFAULT_LANGUAGE, type Language } from './locales';
 import frTranslations from '../../../messages/fr.json';
 import enTranslations from '../../../messages/en.json';
+import frCatalog from '../../../messages/fr.js';
+import enCatalog from '../../../messages/en.js';
 import { prisma } from '@qoe/db/client';
 import { unstable_cache } from 'next/cache';
 import {
@@ -15,9 +17,11 @@ import {
   type I18nParams,
 } from './core';
 
-const translations: Record<string, unknown> = {
-  fr: frTranslations,
-  en: enTranslations,
+// Compiled catalogs (macro IDs) merged with the legacy key-based JSON so both
+// migrated and legacy call sites resolve during the transition.
+const catalogs: Record<string, Record<string, string>> = {
+  fr: { ...flattenMessages(frTranslations as Record<string, unknown>), ...frCatalog.messages },
+  en: { ...flattenMessages(enTranslations as Record<string, unknown>), ...enCatalog.messages },
 };
 
 // Next.js cache for translation overrides (cleared when Tag "i18n-overrides" is revalidated)
@@ -61,15 +65,15 @@ export function translateKey(
 
   const overridden = typeof overrideVal === 'string' ? overrideVal : undefined;
 
-  // Load the catalogue (static translations) + overrides, activate Lingui
+  // Load the catalogue (compiled macros + legacy keys + overrides)
   const i18n = getI18n();
-  const staticMessages: Record<string, unknown> = {
-    ...((translations[lang] || translations[DEFAULT_LANGUAGE]) as Record<string, unknown>),
+  const staticMessages: Record<string, string> = {
+    ...(catalogs[lang] || catalogs[DEFAULT_LANGUAGE]),
   };
   if (langOverrides && Object.keys(langOverrides).length > 0) {
     deepMerge(staticMessages, langOverrides);
   }
-  setActiveLanguage(lang, flattenMessages(staticMessages));
+  setActiveLanguage(lang, staticMessages);
 
   const t = createTranslator(i18n);
   return t(key, overridden || defaultValue, params);
@@ -143,7 +147,7 @@ export async function getTolgee(lang?: Language) {
   const activeLang = lang || (await getLanguage());
   const overrides = await getCachedOverrides();
   const mergedTranslations: Record<string, unknown> = {
-    ...((translations[activeLang] || translations[DEFAULT_LANGUAGE]) as Record<string, unknown>),
+    ...(catalogs[activeLang] || catalogs[DEFAULT_LANGUAGE]),
   };
   const langOverrides: Record<string, unknown> =
     (overrides[activeLang] as Record<string, unknown>) || {};
@@ -153,4 +157,15 @@ export async function getTolgee(lang?: Language) {
   return {
     loadRequired: async () => mergedTranslations,
   };
+}
+
+/**
+ * 🌍 Active la locale sur l'instance i18n globale (requis pour les macros
+ * `t\`...\`` appelées dans les Server Components pendant le rendu SSR).
+ * À appeler dans chaque Root Layout (serveur) avant de rendre les enfants.
+ */
+export async function initI18n(lang?: Language) {
+  const activeLang = lang || (await getLanguage());
+  setActiveLanguage(activeLang, catalogs[activeLang] || catalogs[DEFAULT_LANGUAGE]);
+  return activeLang;
 }

@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useAnimationFrame } from 'framer-motion';
-import { useTranslate, useTolgee } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
+import { useTolgee } from '@qoe/i18n';
 import { ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@qoe/utils';
@@ -313,20 +314,16 @@ interface PlateauProps {
 }
 
 function PlateauPreview({ onClose, showChrome, autoClickDot, config, locale }: PlateauProps) {
-  const { t } = useTranslate();
   const [active, setActive] = useState<'writer' | 'reader'>('writer');
 
   const editorTitle =
     config[`hero_editor_title_${locale}`] ||
     config['hero_editor_title'] ||
-    t('hero.editor_title', "L'architecture du silence");
+    t`L'architecture du silence`;
   const editorBody =
     config[`hero_editor_body_${locale}`] ||
     config['hero_editor_body'] ||
-    t(
-      'hero.editor_body',
-      `Il y a dans le vide une forme d'intelligence que nos écrans ont oubliée. Écrire, c'est d'abord creuser — ôter le superflu jusqu'à ce que la phrase respire d'elle-même, sans soutien artificiel.\n\nLa clarté ne s'impose pas. Elle se révèle, lentement, comme une lumière qui filtre à travers le brouillard de nos pensées accumulées.\n\nLa page blanche n'est pas une menace. C'est une invitation.`
-    );
+    t`Il y a dans le vide une forme d'intelligence que nos écrans ont oubliée. Écrire, c'est d'abord creuser — ôter le superflu jusqu'à ce que la phrase respire d'elle-même, sans soutien artificiel.\n\nLa clarté ne s'impose pas. Elle se révèle, lentement, comme une lumière qui filtre à travers le brouillard de nos pensées accumulées.\n\nLa page blanche n'est pas une menace. C'est une invitation.`;
 
   const customReaderItemsJson =
     config[`hero_reader_items_${locale}`] || config['hero_reader_items'];
@@ -355,12 +352,12 @@ function PlateauPreview({ onClose, showChrome, autoClickDot, config, locale }: P
       >
         <MacDot
           bg="#EE4B2B"
-          label="Fermer"
+          label={t`Fermer`}
           pulsing={autoClickDot}
           onClick={() => onClose(redDotRef.current?.getBoundingClientRect() ?? null)}
         />
-        <MacDot bg="#F5BF4F" label="Réduire" />
-        <MacDot bg="#62C554" label="Plein écran" />
+        <MacDot bg="#F5BF4F" label={t`Réduire`} />
+        <MacDot bg="#62C554" label={t`Plein écran`} />
         <motion.span
           animate={{ opacity: showChrome ? 1 : 0 }}
           transition={{ duration: 0.2, delay: 0.05 }}
@@ -399,20 +396,18 @@ function PlateauPreview({ onClose, showChrome, autoClickDot, config, locale }: P
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-success" />
                   <span className="text-[10px] text-muted-foreground">
-                    {t('hero.draft_saved', 'Brouillon · Auto-sauvegardé')}
+                    {t`Brouillon · Auto-sauvegardé`}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-[10px] text-muted-foreground">
-                    {t('hero.words_count', '{count} mots', {
-                      count: typedBody.split(' ').filter(Boolean).length.toString(),
-                    })}
+                    {t`${typedBody.split(' ').filter(Boolean).length.toString()} mots`}
                   </span>
                   <Link
                     href="/login"
                     className="inline-flex items-center gap-1 bg-[#EE4B2B] hover:bg-[#d63d20] text-white text-[10px] font-semibold px-3 py-1.5 rounded-md transition-colors"
                   >
-                    {t('hero.publish', 'Publier')} <ArrowUpRight className="w-3 h-3" />
+                    {t`Publier`} <ArrowUpRight className="w-3 h-3" />
                   </Link>
                 </div>
               </div>
@@ -449,11 +444,9 @@ function PlateauPreview({ onClose, showChrome, autoClickDot, config, locale }: P
             )}
           >
             <p className="text-white/40 text-[10px] uppercase tracking-[0.2em] mb-2">
-              {t('hero.editor_label', 'Éditeur')}
+              {t`Éditeur`}
             </p>
-            <h3 className="text-white text-2xl font-bold tracking-tight">
-              {t('hero.write_label', 'Écrire.')}
-            </h3>
+            <h3 className="text-white text-2xl font-bold tracking-tight">{t`Écrire.`}</h3>
           </div>
         </motion.div>
 
@@ -474,7 +467,7 @@ function PlateauPreview({ onClose, showChrome, autoClickDot, config, locale }: P
             <div className="w-full h-full bg-white rounded-[24px] flex flex-col overflow-hidden">
               <div className="px-5 pt-4 pb-3 border-b border-border shrink-0">
                 <p className="text-[9px] text-[#EE4B2B] font-semibold tracking-widest uppercase">
-                  {t('hero.reader_label', 'qoe.fi — Lecture')}
+                  {t`qoe.fi — Lecture`}
                 </p>
               </div>
               <div className="relative flex-1 overflow-hidden">
@@ -492,8 +485,8 @@ function PlateauPreview({ onClose, showChrome, autoClickDot, config, locale }: P
               active === 'reader' ? 'opacity-0 pointer-events-none' : 'opacity-100'
             )}
           >
-            <p className="text-white/40 text-[10px] uppercase tracking-[0.2em] mb-2">Lecteur</p>
-            <h3 className="text-white text-xl font-bold tracking-tight">Lire.</h3>
+            <p className="text-white/40 text-[10px] uppercase tracking-[0.2em] mb-2">{t`Lecteur`}</p>
+            <h3 className="text-white text-xl font-bold tracking-tight">{t`Lire.`}</h3>
           </div>
         </motion.div>
       </div>
@@ -503,7 +496,6 @@ function PlateauPreview({ onClose, showChrome, autoClickDot, config, locale }: P
 
 // ─── Hero section ────────────────────────────────────────────────────────────
 export const Hero = ({ config }: HeroProps) => {
-  const { t } = useTranslate();
   const tolgee = useTolgee();
   const locale = tolgee.getLanguage() || 'fr';
   const [closed, setClosed] = useState(false);
@@ -622,7 +614,7 @@ export const Hero = ({ config }: HeroProps) => {
               className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 text-[10px] text-muted-foreground select-none pointer-events-none"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#EE4B2B]" />
-              {t('hero.close_hint', 'Cliquez × pour découvrir les publications')}
+              {t`Cliquez × pour découvrir les publications`}
             </motion.div>
           )}
         </AnimatePresence>

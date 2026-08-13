@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { saveMultipleFrontendConfigs } from '../actions';
 import { ALL_LANGUAGES, type Language } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 
 // Default presets for fallback and reset buttons
 const PRESETS = {
@@ -286,21 +287,21 @@ function ReaderSimulationBuilder({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Structure de la timeline de lecture
+          {t`Structure de la timeline de lecture`}
         </span>
         <button
           type="button"
           onClick={handleReset}
           className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground border border-border px-2.5 py-1 rounded-md bg-muted hover:bg-secondary transition-colors"
         >
-          <RefreshCw className="w-3 h-3" /> Restaurer le modèle
+          <RefreshCw className="w-3 h-3" /> {t`Restaurer le modèle`}
         </button>
       </div>
 
       <div className="border border-border/60 rounded-xl divide-y divide-border overflow-hidden bg-muted/30">
         {items.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground text-sm">
-            Aucun élément de lecture configuré.
+            {t`Aucun élément de lecture configuré.`}
           </div>
         ) : (
           items.map((item, idx) => (
@@ -314,12 +315,12 @@ function ReaderSimulationBuilder({
                 onChange={(e) => updateItemField(idx, 'type', e.target.value)}
                 className="bg-white border border-border rounded-lg py-1 px-2 text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-[#EE4B2B]/40 focus:border-[#EE4B2B] shrink-0"
               >
-                <option value="label">Surtitre / Label</option>
-                <option value="title">Titre</option>
-                <option value="section">Section</option>
-                <option value="body">Paragraphe</option>
-                <option value="quote">Citation</option>
-                <option value="divider">Séparateur</option>
+                <option value="label">{t`Surtitre / Label`}</option>
+                <option value="title">{t`Titre`}</option>
+                <option value="section">{t`Section`}</option>
+                <option value="body">{t`Paragraphe`}</option>
+                <option value="quote">{t`Citation`}</option>
+                <option value="divider">{t`Séparateur`}</option>
               </select>
 
               {/* Text Input (hidden if divider) */}
@@ -327,7 +328,7 @@ function ReaderSimulationBuilder({
                 <textarea
                   value={item.text || ''}
                   onChange={(e) => updateItemField(idx, 'text', e.target.value)}
-                  placeholder="Saisissez le texte..."
+                  placeholder={t`Saisissez le texte...`}
                   className="flex-1 min-w-0 bg-transparent border-none p-0 text-sm font-medium text-foreground focus:ring-0 focus:outline-none resize-none"
                   rows={item.text?.length > 100 ? 2 : 1}
                 />
@@ -371,7 +372,7 @@ function ReaderSimulationBuilder({
         onClick={addItem}
         className="w-full flex items-center justify-center gap-1.5 border border-dashed border-border hover:border-border text-muted-foreground hover:text-foreground text-xs font-semibold py-2.5 rounded-xl bg-white hover:bg-muted transition-colors shadow-sm"
       >
-        <Plus className="w-4 h-4" /> Ajouter un bloc de lecture
+        <Plus className="w-4 h-4" /> {t`Ajouter un bloc de lecture`}
       </button>
     </div>
   );
@@ -478,7 +479,7 @@ function CreatorHubTabsBuilder({
           onClick={handleReset}
           className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground border border-border px-2.5 py-1 rounded-md bg-muted hover:bg-secondary transition-colors"
         >
-          <RefreshCw className="w-3 h-3" /> Restaurer le modèle
+          <RefreshCw className="w-3 h-3" /> {t`Restaurer le modèle`}
         </button>
       </div>
 
@@ -487,7 +488,7 @@ function CreatorHubTabsBuilder({
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Nom de l'onglet
+              {t`Nom de l'onglet`}
             </label>
             <input
               type="text"
@@ -499,7 +500,7 @@ function CreatorHubTabsBuilder({
 
           <div className="space-y-1">
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Surtitre / Cible
+              {t`Surtitre / Cible`}
             </label>
             <input
               type="text"
@@ -512,7 +513,7 @@ function CreatorHubTabsBuilder({
 
         <div className="space-y-1">
           <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Accroche / Titre
+            {t`Accroche / Titre`}
           </label>
           <input
             type="text"
@@ -524,7 +525,7 @@ function CreatorHubTabsBuilder({
 
         <div className="space-y-1">
           <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Description
+            {t`Description`}
           </label>
           <textarea
             value={currentTab.body || ''}
@@ -537,7 +538,7 @@ function CreatorHubTabsBuilder({
         {/* Feature Checklist List Editor */}
         <div className="space-y-2.5 pt-3 border-t border-border">
           <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Liste des fonctionnalités (Puces)
+            {t`Liste des fonctionnalités (Puces)`}
           </label>
           <div className="space-y-2">
             {currentTab.features?.map((feat, featIdx) => (
@@ -564,7 +565,7 @@ function CreatorHubTabsBuilder({
             onClick={() => addFeature(activeTabIdx)}
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5"
           >
-            <Plus className="w-3.5 h-3.5" /> Ajouter une fonctionnalité
+            <Plus className="w-3.5 h-3.5" /> {t`Ajouter une fonctionnalité`}
           </button>
         </div>
 
@@ -572,7 +573,7 @@ function CreatorHubTabsBuilder({
         <div className="grid grid-cols-2 gap-4 pt-3 border-t border-border">
           <div className="space-y-1">
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Texte du CTA
+              {t`Texte du CTA`}
             </label>
             <input
               type="text"
@@ -584,7 +585,7 @@ function CreatorHubTabsBuilder({
 
           <div className="space-y-1">
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Redirection du CTA (URL)
+              {t`Redirection du CTA (URL)`}
             </label>
             <input
               type="text"
@@ -693,14 +694,14 @@ function FooterColumnsBuilder({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Groupes de liens (Colonnes)
+          {t`Groupes de liens (Colonnes)`}
         </span>
         <button
           type="button"
           onClick={handleReset}
           className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground border border-border px-2.5 py-1 rounded-md bg-muted hover:bg-secondary transition-colors"
         >
-          <RefreshCw className="w-3 h-3" /> Restaurer le modèle
+          <RefreshCw className="w-3 h-3" /> {t`Restaurer le modèle`}
         </button>
       </div>
 
@@ -716,7 +717,7 @@ function FooterColumnsBuilder({
                 type="text"
                 value={col.title}
                 onChange={(e) => updateColumnTitle(colIdx, e.target.value)}
-                placeholder="Titre du groupe"
+                placeholder={t`Titre du groupe`}
                 className="bg-transparent border-none p-0 text-sm font-bold text-foreground focus:ring-0 outline-none w-3/4"
               />
               <button
@@ -740,14 +741,14 @@ function FooterColumnsBuilder({
                       type="text"
                       value={link.label}
                       onChange={(e) => updateLinkField(colIdx, linkIdx, 'label', e.target.value)}
-                      placeholder="Libellé du lien"
+                      placeholder={t`Libellé du lien`}
                       className="flex-1 bg-white border border-border rounded-lg py-1.5 px-2.5 text-xs font-semibold text-foreground focus:ring-1 focus:ring-[#EE4B2B]/40 focus:border-[#EE4B2B] outline-none"
                     />
 
                     {/* External link indicator toggle */}
                     <button
                       type="button"
-                      title={link.isExternal ? 'Lien externe' : 'Lien interne'}
+                      title={link.isExternal ? t`Lien externe` : t`Lien interne`}
                       onClick={() =>
                         updateLinkField(colIdx, linkIdx, 'isExternal', !link.isExternal)
                       }
@@ -775,7 +776,7 @@ function FooterColumnsBuilder({
                       type="text"
                       value={link.href}
                       onChange={(e) => updateLinkField(colIdx, linkIdx, 'href', e.target.value)}
-                      placeholder="URL (ex: /login, https://...)"
+                      placeholder={t`URL (ex: /login, https://...)`}
                       className="w-full bg-transparent border-none p-0 text-[11px] font-medium text-muted-foreground focus:ring-0 focus:outline-none"
                     />
                   </div>
@@ -788,7 +789,7 @@ function FooterColumnsBuilder({
               onClick={() => addLinkToCol(colIdx)}
               className="w-full flex items-center justify-center gap-1 border border-dashed border-border hover:border-border text-[11px] font-semibold text-muted-foreground hover:text-muted-foreground py-1.5 rounded-lg bg-white/40 hover:bg-white transition-colors"
             >
-              <Plus className="w-3 h-3" /> Ajouter un lien
+              <Plus className="w-3 h-3" /> {t`Ajouter un lien`}
             </button>
           </div>
         ))}
@@ -799,7 +800,7 @@ function FooterColumnsBuilder({
         onClick={addColumn}
         className="w-full flex items-center justify-center gap-1.5 border border-dashed border-border hover:border-border text-muted-foreground hover:text-foreground text-xs font-semibold py-2.5 rounded-xl bg-white hover:bg-muted transition-colors shadow-sm"
       >
-        <Plus className="w-4 h-4" /> Ajouter un groupe de liens
+        <Plus className="w-4 h-4" /> {t`Ajouter un groupe de liens`}
       </button>
     </div>
   );
@@ -848,7 +849,7 @@ function OnboardingInterestsBuilder({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Centres d'intérêt de l'onboarding (pgvector IA)
+          {t`Centres d'intérêt de l'onboarding (pgvector IA)`}
         </span>
       </div>
 
@@ -863,7 +864,7 @@ function OnboardingInterestsBuilder({
               handleAdd(e);
             }
           }}
-          placeholder="Ajouter un centre d'intérêt (ex: Technologie, Économie...)"
+          placeholder={t`Ajouter un centre d'intérêt (ex: Technologie, Économie...)`}
           className="flex-1 bg-white border border-border rounded-lg p-2 text-sm focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] outline-none"
         />
         <button
@@ -871,13 +872,13 @@ function OnboardingInterestsBuilder({
           onClick={handleAdd}
           className="bg-foreground text-background hover:bg-secondary px-4 py-2 rounded-lg text-sm font-semibold transition-colors shrink-0"
         >
-          Ajouter
+          {t`Ajouter`}
         </button>
       </div>
 
       {interests.length === 0 ? (
         <div className="text-center py-6 text-muted-foreground text-sm border border-dashed border-border rounded-xl bg-muted/50">
-          Aucun centre d'intérêt défini.
+          {t`Aucun centre d'intérêt défini.`}
         </div>
       ) : (
         <div className="flex flex-wrap gap-2 p-4 border border-border/60 rounded-xl bg-muted/20">
@@ -1010,20 +1011,20 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
       }
     } catch (err) {
       setSaveStatus('error');
-      setErrorMessage((err as Error).message || 'Une erreur est survenue lors de la sauvegarde.');
+      setErrorMessage((err as Error).message || t`Une erreur est survenue lors de la sauvegarde.`);
     } finally {
       setIsSaving(false);
     }
   };
 
   const tabs: { key: TabKey; label: string }[] = [
-    { key: 'banner', label: 'Bannière & Global' },
-    { key: 'hero', label: 'Hero & Simulateur' },
-    { key: 'featured', label: 'Publications phares' },
-    { key: 'creator', label: 'Espace Créateurs' },
-    { key: 'cta', label: "Appel à l'action (CTA)" },
-    { key: 'footer', label: 'Pied de page (Footer)' },
-    { key: 'onboarding', label: "Onboarding (Centres d'intérêt)" },
+    { key: 'banner', label: t`Bannière & Global` },
+    { key: 'hero', label: t`Hero & Simulateur` },
+    { key: 'featured', label: t`Publications phares` },
+    { key: 'creator', label: t`Espace Créateurs` },
+    { key: 'cta', label: t`Appel à l'action (CTA)` },
+    { key: 'footer', label: t`Pied de page (Footer)` },
+    { key: 'onboarding', label: t`Onboarding (Centres d'intérêt)` },
   ];
 
   return (
@@ -1070,7 +1071,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                 <Sparkles className="w-4 h-4 text-[#EE4B2B] animate-pulse" />
               </h2>
               <p className="text-xs text-muted-foreground mt-1">
-                Configurez le contenu en base de données de cette section.
+                {t`Configurez le contenu en base de données de cette section.`}
               </p>
             </div>
 
@@ -1078,7 +1079,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
             {activeTab !== 'banner' && activeTab !== 'onboarding' && (
               <div className="flex items-center gap-2.5 bg-muted border border-border/60 rounded-xl p-1 text-xs shrink-0 select-none">
                 <span className="text-[10px] uppercase font-bold text-muted-foreground pl-1.5">
-                  Langue d'édition :
+                  {t`Langue d'édition :`}
                 </span>
                 <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg">
                   {ALL_LANGUAGES.map((lang) => (
@@ -1121,10 +1122,10 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                     <div className="flex items-center justify-between bg-muted border border-border p-4 rounded-xl">
                       <div>
                         <p className="text-sm font-semibold text-foreground">
-                          Activer la bannière globale
+                          {t`Activer la bannière globale`}
                         </p>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Elle s'affiche tout en haut de l'écran sur le site public.
+                          {t`Elle s'affiche tout en haut de l'écran sur le site public.`}
                         </p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -1145,12 +1146,12 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Texte de l'annonce
+                        {t`Texte de l'annonce`}
                       </label>
                       <textarea
                         value={formValues['GLOBAL_BANNER_TEXT'] || ''}
                         onChange={(e) => updateValue('GLOBAL_BANNER_TEXT', e.target.value)}
-                        placeholder="qoe.fi est en ligne ! Rejoignez-nous."
+                        placeholder={t`qoe.fi est en ligne ! Rejoignez-nous.`}
                         className="w-full bg-transparent border-b border-border px-0 py-2 text-base font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 resize-none transition-colors outline-none"
                         rows={2}
                       />
@@ -1158,7 +1159,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Lien optionnel
+                        {t`Lien optionnel`}
                       </label>
                       <input
                         type="text"
@@ -1176,7 +1177,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                   <div className="space-y-6">
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Titre de l'éditeur simulé ({activeLang.toUpperCase()})
+                        {t`Titre de l'éditeur simulé (${activeLang.toUpperCase()})`}
                       </label>
                       <input
                         type="text"
@@ -1184,21 +1185,21 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         onChange={(e) =>
                           updateValue(`hero_editor_title_${activeLang}`, e.target.value)
                         }
-                        placeholder="L'architecture du silence"
+                        placeholder={t`L'architecture du silence`}
                         className="w-full bg-transparent border-b border-border px-0 py-2 text-base font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                       />
                     </div>
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Contenu rédigé de l'éditeur ({activeLang.toUpperCase()})
+                        {t`Contenu rédigé de l'éditeur (${activeLang.toUpperCase()})`}
                       </label>
                       <textarea
                         value={formValues[`hero_editor_body_${activeLang}`] || ''}
                         onChange={(e) =>
                           updateValue(`hero_editor_body_${activeLang}`, e.target.value)
                         }
-                        placeholder="Écrire, c'est d'abord creuser..."
+                        placeholder={t`Écrire, c'est d'abord creuser...`}
                         className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                         rows={5}
                       />
@@ -1220,7 +1221,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                   <div className="space-y-6">
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Titre principal ({activeLang.toUpperCase()})
+                        {t`Titre principal (${activeLang.toUpperCase()})`}
                       </label>
                       <input
                         type="text"
@@ -1228,14 +1229,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         onChange={(e) =>
                           updateValue(`featured_title_${activeLang}`, e.target.value)
                         }
-                        placeholder="Publications récentes"
+                        placeholder={t`Publications récentes`}
                         className="w-full bg-transparent border-b border-border px-0 py-2 text-base font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                       />
                     </div>
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Surtitre / Tagline ({activeLang.toUpperCase()})
+                        {t`Surtitre / Tagline (${activeLang.toUpperCase()})`}
                       </label>
                       <input
                         type="text"
@@ -1243,22 +1244,22 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         onChange={(e) =>
                           updateValue(`featured_tagline_${activeLang}`, e.target.value)
                         }
-                        placeholder="Écrits sélectionnés"
+                        placeholder={t`Écrits sélectionnés`}
                         className="w-full bg-transparent border-b border-border px-0 py-2 text-base font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                       />
                     </div>
 
                     <div className="space-y-1.5 pt-4 border-t border-border">
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Mots philosophiques d'arrière-plan (Séparés par des virgules)
+                        {t`Mots philosophiques d'arrière-plan (Séparés par des virgules)`}
                       </label>
                       <p className="text-[11px] text-muted-foreground mb-2">
-                        Ces concepts défilent horizontalement en arrière-plan de la section.
+                        {t`Ces concepts défilent horizontalement en arrière-plan de la section.`}
                       </p>
                       <textarea
                         value={formValues['featured_background_words'] || ''}
                         onChange={(e) => updateValue('featured_background_words', e.target.value)}
-                        placeholder="Phénoménologie, Dialectique, Épistémologie, Herméneutique, Ontologie..."
+                        placeholder={t`Phénoménologie, Dialectique, Épistémologie, Herméneutique, Ontologie...`}
                         className="w-full bg-white border border-border rounded-xl p-3 text-sm text-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                         rows={5}
                       />
@@ -1280,14 +1281,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                           onChange={(e) =>
                             updateValue(`creator_hub_title_${activeLang}`, e.target.value)
                           }
-                          placeholder="Une infrastructure pour ceux qui pensent."
+                          placeholder={t`Une infrastructure pour ceux qui pensent.`}
                           className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                         />
                       </div>
 
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          Tagline / Surtitre ({activeLang.toUpperCase()})
+                          {t`Tagline / Surtitre (${activeLang.toUpperCase()})`}
                         </label>
                         <input
                           type="text"
@@ -1295,7 +1296,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                           onChange={(e) =>
                             updateValue(`creator_hub_tagline_${activeLang}`, e.target.value)
                           }
-                          placeholder="Rejoignez l'écosystème"
+                          placeholder={t`Rejoignez l'écosystème`}
                           className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                         />
                       </div>
@@ -1304,7 +1305,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border">
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          Titre de conviction bas de page ({activeLang.toUpperCase()})
+                          {t`Titre de conviction bas de page (${activeLang.toUpperCase()})`}
                         </label>
                         <input
                           type="text"
@@ -1312,14 +1313,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                           onChange={(e) =>
                             updateValue(`creator_hub_conviction_${activeLang}`, e.target.value)
                           }
-                          placeholder="Zéro VC. Zéro GAFAM. Zéro compromis."
+                          placeholder={t`Zéro VC. Zéro GAFAM. Zéro compromis.`}
                           className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                         />
                       </div>
 
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          Label du bouton manifeste ({activeLang.toUpperCase()})
+                          {t`Label du bouton manifeste (${activeLang.toUpperCase()})`}
                         </label>
                         <input
                           type="text"
@@ -1327,7 +1328,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                           onChange={(e) =>
                             updateValue(`creator_hub_manifesto_${activeLang}`, e.target.value)
                           }
-                          placeholder="Lire le manifeste"
+                          placeholder={t`Lire le manifeste`}
                           className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                         />
                       </div>
@@ -1335,14 +1336,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Texte de conviction ({activeLang.toUpperCase()})
+                        {t`Texte de conviction (${activeLang.toUpperCase()})`}
                       </label>
                       <textarea
                         value={formValues[`creator_hub_conviction_sub_${activeLang}`] || ''}
                         onChange={(e) =>
                           updateValue(`creator_hub_conviction_sub_${activeLang}`, e.target.value)
                         }
-                        placeholder="Bootstrapé par conviction. Hébergé en Allemagne..."
+                        placeholder={t`Bootstrapé par conviction. Hébergé en Allemagne...`}
                         className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                         rows={2}
                       />
@@ -1365,20 +1366,20 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          Surtitre Eyebrow ({activeLang.toUpperCase()})
+                          {t`Surtitre Eyebrow (${activeLang.toUpperCase()})`}
                         </label>
                         <input
                           type="text"
                           value={formValues[`cta_eyebrow_${activeLang}`] || ''}
                           onChange={(e) => updateValue(`cta_eyebrow_${activeLang}`, e.target.value)}
-                          placeholder="Pour ceux qui veulent se cultiver"
+                          placeholder={t`Pour ceux qui veulent se cultiver`}
                           className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                         />
                       </div>
 
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          Titre H2 ({activeLang.toUpperCase()})
+                          {t`Titre H2 (${activeLang.toUpperCase()})`}
                         </label>
                         <input
                           type="text"
@@ -1386,7 +1387,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                           onChange={(e) =>
                             updateValue(`cta_headline_${activeLang}`, e.target.value)
                           }
-                          placeholder="Du temps bien dépensé."
+                          placeholder={t`Du temps bien dépensé.`}
                           className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                         />
                       </div>
@@ -1394,12 +1395,12 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Description / Paragraphe ({activeLang.toUpperCase()})
+                        {t`Description / Paragraphe (${activeLang.toUpperCase()})`}
                       </label>
                       <textarea
                         value={formValues[`cta_subline_${activeLang}`] || ''}
                         onChange={(e) => updateValue(`cta_subline_${activeLang}`, e.target.value)}
-                        placeholder="Pas de scroll toxique. Pas d'algorithme marchand..."
+                        placeholder={t`Pas de scroll toxique. Pas d'algorithme marchand...`}
                         className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                         rows={3}
                       />
@@ -1408,7 +1409,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border">
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          Bouton Principal ({activeLang.toUpperCase()})
+                          {t`Bouton Principal (${activeLang.toUpperCase()})`}
                         </label>
                         <input
                           type="text"
@@ -1416,14 +1417,14 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                           onChange={(e) =>
                             updateValue(`cta_btn_primary_${activeLang}`, e.target.value)
                           }
-                          placeholder="Commencer à lire"
+                          placeholder={t`Commencer à lire`}
                           className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                         />
                       </div>
 
                       <div className="space-y-1.5">
                         <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          Bouton Secondaire ({activeLang.toUpperCase()})
+                          {t`Bouton Secondaire (${activeLang.toUpperCase()})`}
                         </label>
                         <input
                           type="text"
@@ -1431,7 +1432,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                           onChange={(e) =>
                             updateValue(`cta_btn_secondary_${activeLang}`, e.target.value)
                           }
-                          placeholder="Se cultiver, gratuitement"
+                          placeholder={t`Se cultiver, gratuitement`}
                           className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                         />
                       </div>
@@ -1439,7 +1440,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Mentions de rassurance en bas de page ({activeLang.toUpperCase()})
+                        {t`Mentions de rassurance en bas de page (${activeLang.toUpperCase()})`}
                       </label>
                       <input
                         type="text"
@@ -1447,7 +1448,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                         onChange={(e) =>
                           updateValue(`cta_social_proof_${activeLang}`, e.target.value)
                         }
-                        placeholder="Gratuit · Aucune carte bancaire requise · Données hébergées en Europe"
+                        placeholder={t`Gratuit · Aucune carte bancaire requise · Données hébergées en Europe`}
                         className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                       />
                     </div>
@@ -1459,12 +1460,12 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                   <div className="space-y-6">
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Texte de Copyright global
+                        {t`Texte de Copyright global`}
                       </label>
                       <textarea
                         value={formValues['footer_copyright'] || ''}
                         onChange={(e) => updateValue('footer_copyright', e.target.value)}
-                        placeholder="© 2024 QOE.FI. Crafted for the curious minds in the European creator economy."
+                        placeholder={t`© 2024 QOE.FI. Crafted for the curious minds in the European creator economy.`}
                         className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                         rows={2}
                       />
@@ -1505,7 +1506,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                     exit={{ opacity: 0 }}
                     className="text-xs font-semibold text-success flex items-center gap-1.5"
                   >
-                    ✓ Changements enregistrés et cache régénéré instantanément !
+                    ✓ {t`Changements enregistrés et cache régénéré instantanément !`}
                   </motion.p>
                 )}
                 {saveStatus === 'error' && (
@@ -1533,11 +1534,11 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
             >
               {isSaving ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin" /> Enregistrement...
+                  <RefreshCw className="w-4 h-4 animate-spin" /> {t`Enregistrement...`}
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4" /> Enregistrer la section
+                  <Save className="w-4 h-4" /> {t`Enregistrer la section`}
                 </>
               )}
             </button>

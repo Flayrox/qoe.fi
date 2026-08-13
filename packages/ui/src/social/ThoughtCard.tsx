@@ -13,6 +13,7 @@ import { LinkPreview, type UnfurlPreview } from './LinkPreview';
 import { ThoughtActions } from './ThoughtActions';
 
 import { KnownLikers } from './KnownLikers';
+import { t } from '@lingui/core/macro';
 
 export type ThoughtVariant = 'timeline' | 'focus' | 'parent' | 'reply';
 
@@ -293,7 +294,7 @@ export function ThoughtCard({
           {post.isPinned && (
             <div className="flex items-center gap-1.5 text-xs font-semibold text-brand pb-0.5">
               <Pin className="w-3 h-3 fill-current rotate-45" />
-              <span>Épinglé</span>
+              <span>{t`Épinglé`}</span>
             </div>
           )}
 

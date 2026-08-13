@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Calendar, Clock, Share2, AlertCircle, Bookmark } from 'lucide-react';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 import { sanitizeHtml } from '@/lib/sanitize';
 
 export interface Article {
@@ -28,8 +28,6 @@ interface ArticlePreviewModalProps {
 }
 
 export const ArticlePreviewModal = ({ article, onClose }: ArticlePreviewModalProps) => {
-  const { t } = useTranslate();
-
   // Close on Escape press
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -62,12 +60,12 @@ export const ArticlePreviewModal = ({ article, onClose }: ArticlePreviewModalPro
         <div className="flex justify-between items-center px-8 py-6 border-b border-border/40 bg-muted/20">
           <div className="flex items-center gap-3">
             <span className="px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-[9px] font-sans font-bold uppercase tracking-wider rounded-full">
-              {t('preview_mode', 'Mode Lecture Intégrale')}
+              {t`Mode Lecture Intégrale`}
             </span>
           </div>
           <button
             onClick={onClose}
-            aria-label="Close modal"
+            aria-label={t`Close modal`}
             className="p-2 hover:bg-muted rounded-full transition-all border border-border/50 text-muted-foreground hover:text-foreground"
           >
             <X className="w-5 h-5" />
@@ -84,7 +82,7 @@ export const ArticlePreviewModal = ({ article, onClose }: ArticlePreviewModalPro
                 {new Date(article.createdAt).toLocaleDateString()}
               </span>
               <span className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" /> 5 min read
+                <Clock className="w-3.5 h-3.5" /> {t`5 min read`}
               </span>
             </div>
 
@@ -101,7 +99,7 @@ export const ArticlePreviewModal = ({ article, onClose }: ArticlePreviewModalPro
                   {article.author.name}
                 </span>
                 <span className="block text-[10px] text-muted-foreground">
-                  Média Certifié Souverain
+                  {t`Média Certifié Souverain`}
                 </span>
               </div>
             </div>
@@ -121,19 +119,15 @@ export const ArticlePreviewModal = ({ article, onClose }: ArticlePreviewModalPro
             <div className="p-8 rounded-[2rem] bg-primary/5 border border-primary/20 flex gap-4 my-10 items-start">
               <AlertCircle className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
               <div className="font-sans text-sm space-y-2">
-                <h4 className="font-bold text-primary">
-                  {t('preview_callout_title', 'Note de la rédaction')}
-                </h4>
+                <h4 className="font-bold text-primary">{t`Note de la rédaction`}</h4>
                 <p className="text-muted-foreground leading-relaxed">
-                  Cet article est libre de toute influence corporative ou étatique. qoe.fi est
-                  entièrement financé par ses lecteurs, nous permettant de produire un travail
-                  intègre et indépendant.
+                  {t`Cet article est libre de toute influence corporative ou étatique. qoe.fi est entièrement financé par ses lecteurs, nous permettant de produire un travail intègre et indépendant.`}
                 </p>
               </div>
             </div>
 
             <p className="opacity-60 italic text-base text-center pt-8">
-              {t('preview_footer_note', "Fin de la démonstration de l'article.")}
+              {t`Fin de la démonstration de l'article.`}
             </p>
           </div>
         </div>
@@ -142,10 +136,10 @@ export const ArticlePreviewModal = ({ article, onClose }: ArticlePreviewModalPro
         <div className="px-8 py-5 border-t border-border/40 bg-card flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
             <button className="flex items-center gap-2 px-4 py-2 border border-border/50 rounded-lg hover:bg-muted text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer">
-              <Share2 className="w-3.5 h-3.5" /> {t('common_share', 'Partager')}
+              <Share2 className="w-3.5 h-3.5" /> {t`Partager`}
             </button>
             <button className="flex items-center gap-2 px-4 py-2 border border-border/50 rounded-lg hover:bg-muted text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer">
-              <Bookmark className="w-3.5 h-3.5" /> {t('common_bookmark', 'Sauvegarder')}
+              <Bookmark className="w-3.5 h-3.5" /> {t`Sauvegarder`}
             </button>
           </div>
 
@@ -153,7 +147,7 @@ export const ArticlePreviewModal = ({ article, onClose }: ArticlePreviewModalPro
             onClick={onClose}
             className="px-6 py-2 bg-primary text-white font-semibold text-xs rounded-lg hover:opacity-90 active:scale-95 transition-all cursor-pointer"
           >
-            {t('common_subscribe', "S'abonner à l'auteur")}
+            {t`S'abonner à l'auteur`}
           </button>
         </div>
       </motion.div>

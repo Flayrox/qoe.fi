@@ -1,7 +1,7 @@
 import React from 'react';
 import { prisma } from '@qoe/db/client';
 import { requireUser } from '@qoe/auth/current-user';
-import { getTranslate } from '@qoe/i18n/server';
+import { t } from '@lingui/core/macro';
 import { fetchUmamiWebsiteStats } from '@qoe/analytics/server';
 import {
   Eye,
@@ -21,7 +21,6 @@ import {
 
 export default async function CreatorDashboardPage() {
   const user = await requireUser();
-  const t = await getTranslate();
 
   // Fetch creator profile details for Umami website ID
   const creator = await prisma.user.findUnique({
@@ -91,20 +90,23 @@ export default async function CreatorDashboardPage() {
 
   // Combine scheduled thoughts & draft articles into unified schedule items
   const scheduleItems = [
-    ...scheduledThoughts.map((t) => ({
-      id: t.id,
-      title: t.content.substring(0, 40) + '...',
-      type: 'Pensée programmée',
-      date: t.scheduledAt
-        ? new Date(t.scheduledAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-        : 'Programmée',
+    ...scheduledThoughts.map((thought) => ({
+      id: thought.id,
+      title: thought.content.substring(0, 40) + '...',
+      type: t`Pensée programmée`,
+      date: thought.scheduledAt
+        ? new Date(thought.scheduledAt).toLocaleDateString('fr-FR', {
+            day: 'numeric',
+            month: 'short',
+          })
+        : t`Programmée`,
       isScheduled: true,
       href: '/feed',
     })),
     ...draftArticles.map((a) => ({
       id: a.id,
       title: a.title,
-      type: "Brouillon d'article",
+      type: t`Brouillon d'article`,
       date: new Date(a.updatedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
       isScheduled: false,
       href: `/articles/${a.id}`,
@@ -122,12 +124,10 @@ export default async function CreatorDashboardPage() {
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffHours < 1) return t('common.relative_time_now', "Modifié à l'instant");
-    if (diffHours < 24)
-      return t('common.relative_time_hours', `Modifié il y a ${diffHours}h`, { count: diffHours });
-    if (diffDays === 1) return t('common.relative_time_yesterday', 'Modifié hier');
-    if (diffDays < 7)
-      return t('common.relative_time_days', `Modifié il y a ${diffDays}j`, { count: diffDays });
+    if (diffHours < 1) return t`Modifié à l'instant`;
+    if (diffHours < 24) return t`Modifié il y a ${diffHours}h`;
+    if (diffDays === 1) return t`Modifié hier`;
+    if (diffDays < 7) return t`Modifié il y a ${diffDays}j`;
     return new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   };
 
@@ -142,14 +142,10 @@ export default async function CreatorDashboardPage() {
       {/* Main Stage Headline */}
       <section className="pt-2 space-y-0.5">
         <h2 className="text-3xl font-bold tracking-tight text-foreground font-sans">
-          {t('dashboard.welcome_home', 'Accueil Studio')}
+          {t`Accueil Studio`}
         </h2>
         <p className="text-muted-foreground/80 text-sm font-sans">
-          {t(
-            'dashboard.welcome_subtitle',
-            "Bienvenue, {{name}}. Voici l'aperçu réel de votre studio créateur.",
-            { name: user.name || 'Créateur' }
-          )}
+          {t`Bienvenue, ${user.name || t`Créateur`}. Voici l'aperçu réel de votre studio créateur.`}
         </p>
       </section>
 
@@ -159,7 +155,7 @@ export default async function CreatorDashboardPage() {
         <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              {t('dashboard.metrics.total_views', 'Vues totales (30j)')}
+              {t`Vues totales (30j)`}
             </span>
             <Eye className="w-4.5 h-4.5 text-muted-foreground stroke-[1.5]" />
           </div>
@@ -169,7 +165,9 @@ export default async function CreatorDashboardPage() {
             </div>
             <div className="text-xs text-success flex items-center gap-1 mt-1 font-medium">
               <TrendingUp className="w-3.5 h-3.5 stroke-[1.5]" />
-              <span>{realVisitors.toLocaleString()} lecteurs uniques</span>
+              <span>
+                {realVisitors.toLocaleString()} {t`lecteurs uniques`}
+              </span>
             </div>
           </div>
         </div>
@@ -178,7 +176,7 @@ export default async function CreatorDashboardPage() {
         <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              {t('dashboard.metrics.subscribers', 'Abonnés Réseau')}
+              {t`Abonnés Réseau`}
             </span>
             <Users className="w-4.5 h-4.5 text-muted-foreground stroke-[1.5]" />
           </div>
@@ -188,7 +186,9 @@ export default async function CreatorDashboardPage() {
             </div>
             <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1 font-medium">
               <Zap className="w-3.5 h-3.5 text-primary stroke-[1.5]" />
-              <span>{premiumSubscribersCount} abonnés payants</span>
+              <span>
+                {premiumSubscribersCount} {t`abonnés payants`}
+              </span>
             </div>
           </div>
         </div>
@@ -197,7 +197,7 @@ export default async function CreatorDashboardPage() {
         <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              {t('dashboard.metrics.revenue', 'Revenu Estimé (LTV)')}
+              {t`Revenu Estimé (LTV)`}
             </span>
             <CreditCard className="w-4.5 h-4.5 text-muted-foreground stroke-[1.5]" />
           </div>
@@ -206,7 +206,9 @@ export default async function CreatorDashboardPage() {
               {mrrEur} €
             </div>
             <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1 font-medium">
-              <span>{publishedCount} écrits publiés</span>
+              <span>
+                {publishedCount} {t`écrits publiés`}
+              </span>
             </div>
           </div>
         </div>
@@ -216,13 +218,13 @@ export default async function CreatorDashboardPage() {
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-bold text-foreground tracking-tight">
-            {t('dashboard.recent_drafts.title', 'Publications récentes')}
+            {t`Publications récentes`}
           </h3>
           <a
             href="/articles"
             className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
           >
-            <span>{t('common.view_all', 'Voir tout')}</span>
+            <span>{t`Voir tout`}</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
           </a>
         </div>
@@ -238,9 +240,9 @@ export default async function CreatorDashboardPage() {
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                  {t('dashboard.articles.create_first', 'Créer un premier écrit')}
+                  {t`Créer un premier écrit`}
                 </h4>
-                <p className="text-xs text-muted-foreground mt-0.5">Prenez la plume et publiez.</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t`Prenez la plume et publiez.`}</p>
               </div>
             </a>
           ) : (
@@ -256,9 +258,7 @@ export default async function CreatorDashboardPage() {
                   <span
                     className={art.published ? 'text-success font-medium' : 'text-muted-foreground'}
                   >
-                    {art.published
-                      ? t('dashboard.articles.status_published', 'Publié')
-                      : t('dashboard.articles.status_draft', 'Brouillon')}
+                    {art.published ? t`Publié` : t`Brouillon`}
                   </span>
                   <span>•</span>
                   <span>{getRelativeTimeString(art.updatedAt)}</span>
@@ -276,7 +276,7 @@ export default async function CreatorDashboardPage() {
                 <Plus className="w-4 h-4 stroke-[2]" />
               </div>
               <span className="text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors">
-                {t('dashboard.articles.new_article', 'Nouveau brouillon')}
+                {t`Nouveau brouillon`}
               </span>
             </a>
           )}
@@ -287,7 +287,7 @@ export default async function CreatorDashboardPage() {
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-bold text-foreground tracking-tight">
-            {t('dashboard.insights.title', 'Analyses & Conseils Créateur')}
+            {t`Analyses & Conseils Créateur`}
           </h3>
           <Sparkles className="w-5 h-5 text-primary stroke-[1.5]" />
         </div>
@@ -299,12 +299,12 @@ export default async function CreatorDashboardPage() {
             </div>
             <div>
               <h4 className="text-sm font-semibold text-foreground">
-                {topArticle ? 'Dernière publication phare' : 'Prêt à publier ?'}
+                {topArticle ? t`Dernière publication phare` : t`Prêt à publier ?`}
               </h4>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                 {topArticle
-                  ? `Votre publication "${topArticle.title}" est en ligne. Pensez à la partager sur vos réseaux.`
-                  : "Vous n'avez pas encore d'article publié. Rédigez votre premier contenu pour attirer vos premiers lecteurs."}
+                  ? t`Votre publication "${topArticle.title}" est en ligne. Pensez à la partager sur vos réseaux.`
+                  : t`Vous n'avez pas encore d'article publié. Rédigez votre premier contenu pour attirer vos premiers lecteurs.`}
               </p>
             </div>
           </div>
@@ -315,11 +315,10 @@ export default async function CreatorDashboardPage() {
             </div>
             <div>
               <h4 className="text-sm font-semibold text-foreground">
-                Engagement de votre communauté
+                {t`Engagement de votre communauté`}
               </h4>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Vous comptez actuellement {subscribersCount} abonnés inscrits. Proposez du contenu
-                exclusif pour augmenter vos abonnements payants.
+                {t`Vous comptez actuellement ${subscribersCount} abonnés inscrits. Proposez du contenu exclusif pour augmenter vos abonnements payants.`}
               </p>
             </div>
           </div>
@@ -330,10 +329,10 @@ export default async function CreatorDashboardPage() {
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-bold text-foreground tracking-tight">
-            {t('dashboard.schedule.title', 'Écrits programmés & Brouillons')}
+            {t`Écrits programmés & Brouillons`}
           </h3>
           <a href="/articles" className="text-xs font-semibold text-primary hover:underline">
-            {t('dashboard.schedule.calendar', 'Calendrier des écrits')}
+            {t`Calendrier des écrits`}
           </a>
         </div>
 
@@ -341,13 +340,13 @@ export default async function CreatorDashboardPage() {
           <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-xl border-border/40 bg-card text-center">
             <Clock className="w-8 h-8 text-muted-foreground/40 mb-2 stroke-[1.5]" />
             <p className="text-sm font-medium text-muted-foreground">
-              Aucun écrit programmé ni brouillon en cours
+              {t`Aucun écrit programmé ni brouillon en cours`}
             </p>
             <a
               href="/articles/new"
               className="mt-3 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
             >
-              + Programmer une publication
+              + {t`Programmer une publication`}
             </a>
           </div>
         ) : (
@@ -385,10 +384,10 @@ export default async function CreatorDashboardPage() {
               </div>
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Performance de votre dernier écrit
+                  {t`Performance de votre dernier écrit`}
                 </span>
                 <h3 className="text-lg font-bold text-foreground truncate max-w-lg">
-                  {latestPublishedArticle ? latestPublishedArticle.title : 'Aucun écrit publié'}
+                  {latestPublishedArticle ? latestPublishedArticle.title : t`Aucun écrit publié`}
                 </h3>
               </div>
             </div>
@@ -400,13 +399,13 @@ export default async function CreatorDashboardPage() {
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border/40 text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors"
                 >
                   <Edit3 className="h-3.5 w-3.5 stroke-[1.5]" />
-                  <span>Éditer</span>
+                  <span>{t`Éditer`}</span>
                 </a>
                 <a
                   href="/analytics"
                   className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
                 >
-                  <span>Analyses complètes</span>
+                  <span>{t`Analyses complètes`}</span>
                   <ArrowUpRight className="h-3.5 w-3.5 stroke-[1.5]" />
                 </a>
               </div>
@@ -417,37 +416,37 @@ export default async function CreatorDashboardPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
               <div className="p-4 rounded-xl bg-muted/20 border border-border/30">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Statut
+                  {t`Statut`}
                 </span>
                 <div className="flex items-center gap-1.5 mt-1.5">
                   <span className="h-2 w-2 rounded-full bg-success" />
-                  <span className="text-sm font-bold text-success">En ligne</span>
+                  <span className="text-sm font-bold text-success">{t`En ligne`}</span>
                 </div>
               </div>
 
               <div className="p-4 rounded-xl bg-muted/20 border border-border/30">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Thème
+                  {t`Thème`}
                 </span>
                 <p className="text-sm font-bold text-foreground mt-1 truncate">
                   {latestPublishedArticle.category
                     ? latestPublishedArticle.category.name
-                    : 'Général'}
+                    : t`Général`}
                 </p>
               </div>
 
               <div className="p-4 rounded-xl bg-muted/20 border border-border/30">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Temps de lecture
+                  {t`Temps de lecture`}
                 </span>
                 <p className="text-sm font-bold text-foreground mt-1">
-                  {latestPublishedArticle.readingTime || 1} min
+                  {t`${latestPublishedArticle.readingTime || 1} min`}
                 </p>
               </div>
 
               <div className="p-4 rounded-xl bg-muted/20 border border-border/30">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Réactions Lecteurs
+                  {t`Réactions Lecteurs`}
                 </span>
                 <p className="text-sm font-bold text-foreground mt-1 flex items-center gap-1.5">
                   <MessageSquare className="w-4 h-4 text-primary stroke-[1.5]" />
@@ -457,7 +456,7 @@ export default async function CreatorDashboardPage() {
             </div>
           ) : (
             <div className="text-center py-6 text-xs text-muted-foreground font-sans">
-              Publiez votre premier article pour suivre ses performances en temps réel ici.
+              {t`Publiez votre premier article pour suivre ses performances en temps réel ici.`}
             </div>
           )}
         </div>

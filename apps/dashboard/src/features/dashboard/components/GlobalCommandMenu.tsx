@@ -6,7 +6,7 @@ import { settingsTree, flattenSettingsTree } from '../../settings/config/setting
 import { useState, useEffect, useMemo } from 'react';
 import { useDebounce } from 'use-debounce';
 import { URLS } from '@qoe/config';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
@@ -31,7 +31,6 @@ export interface MeiliSearchResult {
 
 export function GlobalCommandMenu() {
   const { isOpen, setIsOpen } = useCommandMenu();
-  const { t } = useTranslate();
   const router = useRouter();
   const { setTheme } = useTheme();
 
@@ -101,45 +100,45 @@ export function GlobalCommandMenu() {
   const quickActions = [
     {
       id: 'action-new-article',
-      label: t('ask_action_new', 'Rédiger un article'),
+      label: t`Rédiger un article`,
       path: '/articles/new',
       icon: Plus,
-      category: 'Action',
+      category: t`Action`,
     },
     {
       id: 'action-articles',
-      label: t('ask_action_articles', 'Liste des écrits'),
+      label: t`Liste des écrits`,
       path: '/articles',
       icon: FileText,
-      category: 'Écrits',
+      category: t`Écrits`,
     },
     {
       id: 'action-audience',
-      label: t('ask_action_audience', "Gérer l'audience"),
+      label: t`Gérer l'audience`,
       path: '/audience',
       icon: Users,
-      category: 'Audience',
+      category: t`Audience`,
     },
     {
       id: 'action-newsletters',
-      label: t('ask_action_newsletters', 'Envoyer une newsletter'),
+      label: t`Envoyer une newsletter`,
       path: '/newsletters',
       icon: Mail,
-      category: 'Diffusion',
+      category: t`Diffusion`,
     },
     {
       id: 'action-analytics',
-      label: t('ask_action_analytics', 'Consulter les statistiques'),
+      label: t`Consulter les statistiques`,
       path: '/analytics',
       icon: PieChart,
-      category: 'Analyses',
+      category: t`Analyses`,
     },
     {
       id: 'action-settings',
-      label: t('ask_action_settings', 'Réglages de la console'),
+      label: t`Réglages de la console`,
       path: '/settings',
       icon: Settings,
-      category: 'Réglages',
+      category: t`Réglages`,
     },
   ];
 
@@ -148,21 +147,15 @@ export function GlobalCommandMenu() {
       <CmdKInput
         value={query}
         onValueChange={setQuery}
-        placeholder={t('search_header_placeholder', 'Rechercher des écrits, réglages, actions...')}
+        placeholder={t`Rechercher des écrits, réglages, actions...`}
         onEscape={() => setIsOpen(false)}
       />
 
-      <CmdKList
-        emptyText={
-          isFetching
-            ? (t('common.loading', 'Recherche en cours...') as string)
-            : (t('common.no_results', 'Aucun résultat trouvé.') as string)
-        }
-      >
+      <CmdKList emptyText={isFetching ? t`Recherche en cours...` : t`Aucun résultat trouvé.`}>
         {/* Only show default UI if there's no query, or if it's very short */}
         {debouncedQuery.length < 2 && (
           <>
-            <CmdKGroup heading={t('ask_group_action', 'Raccourcis de la console') as string}>
+            <CmdKGroup heading={t`Raccourcis de la console`}>
               {quickActions.map((action) => (
                 <CmdKItem
                   key={action.id}
@@ -174,11 +167,11 @@ export function GlobalCommandMenu() {
               ))}
             </CmdKGroup>
 
-            <CmdKGroup heading={t('ask_group_theme', 'Préférences visuelles') as string}>
+            <CmdKGroup heading={t`Préférences visuelles`}>
               <CmdKItem
                 icon={Sun}
-                label={t('theme_light', 'Passer en Mode Clair') as string}
-                category="Thème"
+                label={t`Passer en Mode Clair`}
+                category={t`Thème`}
                 onSelect={() => {
                   setTheme('light');
                   setIsOpen(false);
@@ -186,8 +179,8 @@ export function GlobalCommandMenu() {
               />
               <CmdKItem
                 icon={Moon}
-                label={t('theme_dark', 'Passer en Mode Sombre') as string}
-                category="Thème"
+                label={t`Passer en Mode Sombre`}
+                category={t`Thème`}
                 onSelect={() => {
                   setTheme('dark');
                   setIsOpen(false);
@@ -198,14 +191,14 @@ export function GlobalCommandMenu() {
         )}
 
         {searchResults.length > 0 && (
-          <CmdKGroup heading={t('ask_group_articles', 'Articles & Brouillons') as string}>
+          <CmdKGroup heading={t`Articles & Brouillons`}>
             {searchResults.map((article) => (
               <CmdKItem
                 key={article.id}
                 icon={FileCode2}
                 label={article.title}
                 subtitle={article.content?.replace(/<[^>]*>?/gm, '')}
-                category="Article"
+                category={t`Article`}
                 onSelect={() => handleSelect(`/articles/${article.id}`)}
               />
             ))}
@@ -213,15 +206,9 @@ export function GlobalCommandMenu() {
         )}
 
         {items.length > 0 && (
-          <CmdKGroup heading={t('ask_group_settings', 'Réglages du Studio') as string}>
+          <CmdKGroup heading={t`Réglages du Studio`}>
             {items.map((item) => {
-              const translated = t(item.titleKey as string);
-              const displayTitle =
-                translated &&
-                !translated.startsWith('dashboard.') &&
-                !translated.startsWith('settings_')
-                  ? translated
-                  : item.label;
+              const displayTitle = item.label;
               const breadcrumbStr = item.breadcrumbLabels?.length
                 ? item.breadcrumbLabels.join(' → ')
                 : undefined;
@@ -232,7 +219,7 @@ export function GlobalCommandMenu() {
                   icon={Sliders}
                   label={displayTitle as string}
                   subtitle={breadcrumbStr}
-                  category="Réglage"
+                  category={t`Réglage`}
                   onSelect={() => handleSelect(item.path)}
                 />
               );

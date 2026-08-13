@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 import { FileText, Mail, Volume2, BarChart2, Zap, Circle, Maximize2, Terminal } from 'lucide-react';
 
 interface FormatPreviewProps {
@@ -10,68 +10,62 @@ interface FormatPreviewProps {
 }
 
 export const FormatPreview = ({ config }: FormatPreviewProps) => {
-  const { t } = useTranslate();
   const [activeFormat, setActiveFormat] = useState('essay');
 
-  const title = config['format_title'] || t('format_preview_title', 'Cinq Formats de Récits');
-  const tagline =
-    config['format_tagline'] || t('format_preview_tagline', 'Au-delà du simple mur de texte');
+  const title = config['format_title'] || t`Cinq Formats de Récits`;
+  const tagline = config['format_tagline'] || t`Au-delà du simple mur de texte`;
 
   const formats = [
     {
       id: 'essay',
-      label: 'Essais Profonds',
+      label: t`Essais Profonds`,
       icon: FileText,
       color: 'text-primary',
       bg: 'bg-primary/10',
       content: {
-        title: 'Éloge de la lenteur attentionnelle',
-        badge: 'ESSAI RECHERCHE',
-        preview:
-          "L'essai sur qoe.fi privilégie la structure monastique : de grands espaces de respiration, une typographie classique Serif hautement lisible, et l'exclusion de tout distraction pour plonger le lecteur dans un état de flow intellectuel.",
-        meta: '12 min read • Publié dans Philosophie',
+        title: t`Éloge de la lenteur attentionnelle`,
+        badge: t`ESSAI RECHERCHE`,
+        preview: t`L'essai sur qoe.fi privilégie la structure monastique : de grands espaces de respiration, une typographie classique Serif hautement lisible, et l'exclusion de tout distraction pour plonger le lecteur dans un état de flow intellectuel.`,
+        meta: t`12 min de lecture • Publié dans Philosophie`,
       },
     },
     {
       id: 'newsletter',
-      label: 'Newsletters',
+      label: t`Newsletters`,
       icon: Mail,
       color: 'text-primary',
       bg: 'bg-primary/10',
       content: {
-        title: 'Le Courrier de la Souveraineté',
-        badge: 'NEWSLETTER HEBDOMADAIRE',
-        preview:
-          "Envoyez directement vos travaux à vos abonnés par e-mail en un clic via notre API Brevo intégrée. Les e-mails reprennent fidèlement votre style, votre logo, et vos couleurs d'accentuation, sans publicité additionnelle.",
-        meta: 'Lu par 14,000 abonnés',
+        title: t`Le Courrier de la Souveraineté`,
+        badge: t`NEWSLETTER HEBDOMADAIRE`,
+        preview: t`Envoyez directement vos travaux à vos abonnés par e-mail en un clic via notre API Brevo intégrée. Les e-mails reprennent fidèlement votre style, votre logo, et vos couleurs d'accentuation, sans publicité additionnelle.`,
+        meta: t`Lu par 14,000 abonnés`,
       },
     },
     {
       id: 'audio',
-      label: 'Audio Lectures',
+      label: t`Audio Lectures`,
       icon: Volume2,
       color: 'text-primary',
       bg: 'bg-primary/10',
       content: {
-        title: 'Version Vocale Synthétisée',
-        badge: 'PODCAST / LECTURE AUDIO',
-        preview:
-          "Permettez à vos lecteurs d'écouter vos articles lors de leurs déplacements. Intégration d'un lecteur audio flottant et épuré avec des voix synthétiques naturelles respectant le rythme éditorial.",
-        meta: 'Lecteur audio HTML5 natif',
+        title: t`Version Vocale Synthétisée`,
+        badge: t`PODCAST / LECTURE AUDIO`,
+        preview: t`Permettez à vos lecteurs d'écouter vos articles lors de leurs déplacements. Intégration d'un lecteur audio flottant et épuré avec des voix synthétiques naturelles respectant le rythme éditorial.`,
+        meta: t`Lecteur audio HTML5 natif`,
       },
     },
     {
       id: 'data',
-      label: 'Data Stories',
+      label: t`Data Stories`,
       icon: BarChart2,
       color: 'text-primary',
       bg: 'bg-primary/10',
       content: {
-        title: 'La souveraineté cloud en chiffres',
-        badge: 'INFOGRAPHIES & DATA',
-        preview:
-          "Intégrez des graphiques réactifs (Recharts) directement au fil de l'article pour étayer vos thèses. Idéal pour les journalistes de données et les rapports d'investigation complexes.",
-        meta: 'Interactive charts support',
+        title: t`La souveraineté cloud en chiffres`,
+        badge: t`INFOGRAPHIES & DATA`,
+        preview: t`Intégrez des graphiques réactifs (Recharts) directement au fil de l'article pour étayer vos thèses. Idéal pour les journalistes de données et les rapports d'investigation complexes.`,
+        meta: t`Prise en charge des graphiques interactifs`,
       },
     },
   ];
@@ -103,7 +97,7 @@ export const FormatPreview = ({ config }: FormatPreviewProps) => {
               <Circle className="w-3.5 h-3.5 fill-yellow-500/80 text-transparent" />
               <Circle className="w-3.5 h-3.5 fill-green-500/80 text-transparent" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider ml-4">
-                IDE FORMATS
+                {t`IDE FORMATS`}
               </span>
             </div>
 
@@ -131,7 +125,7 @@ export const FormatPreview = ({ config }: FormatPreviewProps) => {
             {/* Sidebar Footer */}
             <div className="p-4 border-t border-border/40 bg-muted/40 text-[10px] text-muted-foreground flex items-center gap-2">
               <Terminal className="w-3.5 h-3.5 text-primary" />
-              <span>v1.0.2 ready</span>
+              <span>{t`v1.0.2 prêt`}</span>
             </div>
           </div>
 
@@ -176,7 +170,7 @@ export const FormatPreview = ({ config }: FormatPreviewProps) => {
                   <div className="pt-4 flex items-center justify-between text-[10px] text-muted-foreground uppercase tracking-wider border-t border-border/40">
                     <span>{current.content.meta}</span>
                     <span className="flex items-center gap-1 text-primary animate-pulse">
-                      <Zap className="w-3.5 h-3.5" /> LIVE
+                      <Zap className="w-3.5 h-3.5" /> {t`EN DIRECT`}
                     </span>
                   </div>
                 </motion.div>

@@ -5,6 +5,7 @@ import { X, FileText, Loader2, Edit3 } from 'lucide-react';
 import { getArticleAnalyticsDetail, ArticleDetailData, TimePeriod } from '../actions';
 import { TimeseriesChart } from './TimeseriesChart';
 import { ReferrersBlock } from './ReferrersBlock';
+import { t } from '@lingui/core/macro';
 
 interface ArticleInspectorModalProps {
   urlPath: string | null;
@@ -84,7 +85,7 @@ export function ArticleInspectorModal({
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
               >
                 <Edit3 className="h-3.5 w-3.5 stroke-[1.5]" />
-                <span>Éditer l'article</span>
+                <span>{t`Éditer l'article`}</span>
               </button>
             )}
 

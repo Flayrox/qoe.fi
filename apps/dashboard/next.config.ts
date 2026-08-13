@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { linguiMacroSwcPlugin } from '@lingui/swc-plugin/options';
 import { withSentryConfig } from '@sentry/nextjs';
 
 /**
@@ -7,6 +8,9 @@ import { withSentryConfig } from '@sentry/nextjs';
 const nextConfig: NextConfig = {
   output: 'standalone',
   reactStrictMode: true,
+  experimental: {
+    swcPlugins: [linguiMacroSwcPlugin()],
+  },
   allowedDevOrigins: [
     'localhost',
     '192.168.1.86',

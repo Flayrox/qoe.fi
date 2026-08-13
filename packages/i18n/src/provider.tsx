@@ -7,13 +7,18 @@
 import React, { createContext, useContext } from 'react';
 import { I18nProvider } from '@lingui/react';
 import { type Language } from './locales';
-import frTranslations from '../../../messages/fr.json';
-import enTranslations from '../../../messages/en.json';
-import { getI18n, translate, flattenMessages, type I18nParams, type MessageMap } from './core';
+import frCatalog from '../../../messages/fr.js';
+import enCatalog from '../../../messages/en.js';
+import frLegacy from '../../../messages/fr.json';
+import enLegacy from '../../../messages/en.json';
+import { getI18n, translate, flattenMessages, type I18nParams } from './core';
 
-const translations: Record<string, unknown> = {
-  fr: frTranslations,
-  en: enTranslations,
+// Compiled catalogs (macro-based, hashed IDs) merged with the legacy
+// key-based JSON so both migrated (macros) and not-yet-migrated call sites
+// resolve during the transition.
+const catalogs: Record<string, Record<string, string>> = {
+  fr: { ...flattenMessages(frLegacy as Record<string, unknown>), ...frCatalog.messages },
+  en: { ...flattenMessages(enLegacy as Record<string, unknown>), ...enCatalog.messages },
 };
 
 const I18nContext = createContext<{
@@ -59,29 +64,24 @@ export function useTolgee() {
 
 /**
  * 🔌 Provider wrapping the application to supply client-side translations.
- * The API surface is kept identical to the legacy Tolgee-compatible provider.
+ * Loads the compiled Lingui catalogs (fr.js / en.js) merged with the legacy
+ * key-based JSON, and exposes a legacy `t(key, default, params)` fallback
+ * for not-yet-migrated call sites.
  */
 export function TolgeeNextProvider({
   language,
-  staticData,
   children,
 }: {
   language: Language;
   staticData?: unknown;
   children: React.ReactNode;
 }) {
-  const messages: MessageMap = flattenMessages(
-    (staticData as Record<string, unknown>) ||
-      (translations[language] as Record<string, unknown>) ||
-      (translations.fr as Record<string, unknown>)
-  );
-
-  // Create the Lingui instance and load the active locale.
+  // Load compiled catalogs into the shared Lingui instance.
   const i18n = getI18n();
   React.useMemo(() => {
-    i18n.load({ [language]: messages });
+    i18n.load({ fr: catalogs.fr, en: catalogs.en });
     i18n.activate(language);
-  }, [i18n, language, staticData]);
+  }, [i18n, language]);
 
   const t = (key: string, defaultValue?: string | I18nParams, params?: I18nParams): string =>
     translate(i18n, key, defaultValue, params);

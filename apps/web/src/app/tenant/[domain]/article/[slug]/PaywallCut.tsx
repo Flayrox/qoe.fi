@@ -10,6 +10,7 @@ import {
 
 import { cn } from '@qoe/utils';
 import { sanitizeHtml } from '@/lib/sanitize';
+import { t } from '@lingui/core/macro';
 
 interface PaywallCutProps {
   contentHtml: string;
@@ -104,15 +105,15 @@ function PaywallOverlay({
       } else {
         if (res.error?.code === 'INSUFFICIENT_FUNDS') {
           setErrorMessage(
-            "Solde insuffisant dans votre portefeuille. Veuillez recharger votre compte sur l'application principale."
+            t`Solde insuffisant dans votre portefeuille. Veuillez recharger votre compte sur l'application principale.`
           );
         } else {
-          setErrorMessage('Une erreur est survenue lors du paiement. Veuillez réessayer.');
+          setErrorMessage(t`Une erreur est survenue lors du paiement. Veuillez réessayer.`);
         }
       }
     } catch (err) {
       console.error(err);
-      setErrorMessage('Erreur réseau. Impossible de contacter le serveur de paiement.');
+      setErrorMessage(t`Erreur réseau. Impossible de contacter le serveur de paiement.`);
     } finally {
       setUnlocking(false);
     }
@@ -130,10 +131,10 @@ function PaywallOverlay({
         <h3
           className={`text-2xl md:text-3xl mb-4 ${isBrutalist ? 'font-black uppercase' : 'font-bold'}`}
         >
-          Histoire Premium
+          {t`Histoire Premium`}
         </h3>
         <p className="text-muted-foreground mb-8 text-lg">
-          La suite de cette publication est exclusivement réservée aux abonnés de{' '}
+          {t`La suite de cette publication est exclusivement réservée aux abonnés de `}
           <strong className="text-foreground">{name}</strong>.
         </p>
 
@@ -161,7 +162,7 @@ function PaywallOverlay({
             ) : (
               <>
                 <Wallet className="w-5 h-5" />
-                Débloquer pour 2,00 €
+                {t`Débloquer pour 2,00 €`}
               </>
             )}
           </button>
@@ -169,7 +170,7 @@ function PaywallOverlay({
           {/* Show wallet balance if user is logged in */}
           {user && (
             <p className="text-xs text-muted-foreground font-mono">
-              Solde actuel : {((user.walletBalanceCents || 0) / 100).toFixed(2)} €
+              {t`Solde actuel : ${((user.walletBalanceCents || 0) / 100).toFixed(2)} €`}
             </p>
           )}
 
@@ -177,25 +178,25 @@ function PaywallOverlay({
             href="#subscribe"
             className={`w-full py-3 font-semibold text-foreground bg-secondary hover:bg-muted transition-all ${isBrutalist ? 'border-4 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase tracking-wider hover:translate-y-1 hover:shadow-none' : 'rounded-xl'}`}
           >
-            Voir les formules d'abonnement
+            {t`Voir les formules d'abonnement`}
           </Link>
 
           <p className="text-sm text-muted-foreground mt-2">
             {!user ? (
               <>
-                Déjà abonné ?{' '}
+                {t`Déjà abonné ?`}{' '}
                 <button
                   onClick={() =>
                     (window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`)
                   }
                   className="underline font-semibold hover:text-[var(--tenant-accent)] cursor-pointer bg-transparent border-0 p-0 text-foreground"
                 >
-                  Se connecter
+                  {t`Se connecter`}
                 </button>
               </>
             ) : (
               <span>
-                Connecté en tant que{' '}
+                {t`Connecté en tant que `}
                 <strong className="text-foreground">{user.name || user.email}</strong>
               </span>
             )}

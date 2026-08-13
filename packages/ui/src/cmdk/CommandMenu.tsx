@@ -13,7 +13,7 @@ import {
   FileCode2,
   Sliders,
 } from 'lucide-react';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useDebounce } from 'use-debounce';
@@ -49,7 +49,6 @@ interface CommandMenuProps {
  * We kept this here so we don't break existing apps, but apps should use CmdKDialog, CmdKInput, etc.
  */
 export function CommandMenu({ open, onOpenChange, items }: CommandMenuProps) {
-  const { t } = useTranslate();
   const router = useRouter();
   const { setTheme } = useTheme();
 
@@ -107,45 +106,45 @@ export function CommandMenu({ open, onOpenChange, items }: CommandMenuProps) {
   const quickActions = [
     {
       id: 'action-new-article',
-      label: t('ask_action_new', 'Rédiger un article'),
+      label: t`Rédiger un article`,
       path: '/articles/new',
       icon: Plus,
-      category: 'Action',
+      category: t`Action`,
     },
     {
       id: 'action-articles',
-      label: t('ask_action_articles', 'Liste des écrits'),
+      label: t`Liste des écrits`,
       path: '/articles',
       icon: FileText,
-      category: 'Écrits',
+      category: t`Écrits`,
     },
     {
       id: 'action-audience',
-      label: t('ask_action_audience', "Gérer l'audience"),
+      label: t`Gérer l'audience`,
       path: '/audience',
       icon: Users,
-      category: 'Audience',
+      category: t`Audience`,
     },
     {
       id: 'action-newsletters',
-      label: t('ask_action_newsletters', 'Envoyer une newsletter'),
+      label: t`Envoyer une newsletter`,
       path: '/newsletters',
       icon: Mail,
-      category: 'Diffusion',
+      category: t`Diffusion`,
     },
     {
       id: 'action-analytics',
-      label: t('ask_action_analytics', 'Consulter les statistiques'),
+      label: t`Consulter les statistiques`,
       path: '/analytics',
       icon: PieChart,
-      category: 'Analyses',
+      category: t`Analyses`,
     },
     {
       id: 'action-settings',
-      label: t('ask_action_settings', 'Réglages de la console'),
+      label: t`Réglages de la console`,
       path: '/settings',
       icon: Settings,
-      category: 'Réglages',
+      category: t`Réglages`,
     },
   ];
 
@@ -154,16 +153,16 @@ export function CommandMenu({ open, onOpenChange, items }: CommandMenuProps) {
       <CmdKInput
         value={query}
         onValueChange={setQuery}
-        placeholder={t('search_header_placeholder', 'Rechercher des écrits, réglages, actions...')}
+        placeholder={t`Rechercher des écrits, réglages, actions...`}
         onEscape={() => onOpenChange(false)}
       />
 
-      <CmdKList emptyText={t('common.no_results', 'Aucun résultat trouvé.') as string}>
-        <CmdKGroup heading={t('ask_group_theme', 'Préférences visuelles') as string}>
+      <CmdKList emptyText={t`Aucun résultat trouvé.`}>
+        <CmdKGroup heading={t`Préférences visuelles`}>
           <CmdKItem
             icon={Sun}
-            label={t('theme_light', 'Passer en Mode Clair') as string}
-            category="Thème"
+            label={t`Passer en Mode Clair`}
+            category={t`Thème`}
             onSelect={() => {
               setTheme('light');
               onOpenChange(false);
@@ -171,8 +170,8 @@ export function CommandMenu({ open, onOpenChange, items }: CommandMenuProps) {
           />
           <CmdKItem
             icon={Moon}
-            label={t('theme_dark', 'Passer en Mode Sombre') as string}
-            category="Thème"
+            label={t`Passer en Mode Sombre`}
+            category={t`Thème`}
             onSelect={() => {
               setTheme('dark');
               onOpenChange(false);
@@ -180,12 +179,12 @@ export function CommandMenu({ open, onOpenChange, items }: CommandMenuProps) {
           />
         </CmdKGroup>
 
-        <CmdKGroup heading={t('ask_group_action', 'Raccourcis de la console') as string}>
+        <CmdKGroup heading={t`Raccourcis de la console`}>
           {quickActions.map((action) => (
             <CmdKItem
               key={action.id}
               icon={action.icon}
-              label={action.label as string}
+              label={action.label}
               category={action.category}
               onSelect={() => handleSelect(action.path)}
             />
@@ -193,14 +192,14 @@ export function CommandMenu({ open, onOpenChange, items }: CommandMenuProps) {
         </CmdKGroup>
 
         {searchResults.length > 0 && (
-          <CmdKGroup heading={t('ask_group_articles', 'Articles & Brouillons') as string}>
+          <CmdKGroup heading={t`Articles & Brouillons`}>
             {searchResults.map((article) => (
               <CmdKItem
                 key={article.id}
                 icon={FileCode2}
                 label={article.title}
                 subtitle={article.content?.replace(/<[^>]*>?/gm, '')}
-                category="Article"
+                category={t`Article`}
                 onSelect={() => handleSelect(`/articles/${article.id}`)}
               />
             ))}
@@ -208,15 +207,9 @@ export function CommandMenu({ open, onOpenChange, items }: CommandMenuProps) {
         )}
 
         {items.length > 0 && (
-          <CmdKGroup heading={t('ask_group_settings', 'Réglages du Studio') as string}>
+          <CmdKGroup heading={t`Réglages du Studio`}>
             {items.map((item) => {
-              const translated = t(item.titleKey as string);
-              const displayTitle =
-                translated &&
-                !translated.startsWith('dashboard.') &&
-                !translated.startsWith('settings_')
-                  ? translated
-                  : item.label;
+              const displayTitle = item.label;
               const breadcrumbStr = item.breadcrumbLabels?.length
                 ? item.breadcrumbLabels.join(' → ')
                 : undefined;
@@ -225,9 +218,9 @@ export function CommandMenu({ open, onOpenChange, items }: CommandMenuProps) {
                   key={item.id}
                   value={`${displayTitle} ${item.keywordsKey?.join(' ') || ''}`}
                   icon={Sliders}
-                  label={displayTitle as string}
+                  label={displayTitle}
                   subtitle={breadcrumbStr}
-                  category="Réglage"
+                  category={t`Réglage`}
                   onSelect={() => handleSelect(item.path)}
                 />
               );

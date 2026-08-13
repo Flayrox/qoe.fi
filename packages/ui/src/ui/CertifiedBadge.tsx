@@ -1,10 +1,9 @@
 'use client';
 
 import React from 'react';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 
 export function CertifiedBadge({ className = '' }: { className?: string }) {
-  const { t } = useTranslate();
   return (
     <svg
       width="14"
@@ -12,7 +11,7 @@ export function CertifiedBadge({ className = '' }: { className?: string }) {
       viewBox="0 0 14 14"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      aria-label={t('feed.certified_author', 'Auteur certifié')}
+      aria-label={t`Auteur certifié`}
       className={className}
     >
       <circle cx="7" cy="7" r="7" fill="var(--qoe-vermillion, #EE4B2B)" />

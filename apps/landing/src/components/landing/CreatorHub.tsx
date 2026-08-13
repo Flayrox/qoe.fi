@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useTranslate, useTolgee } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
+import { useTolgee } from '@qoe/i18n';
 import Link from 'next/link';
 import { ArrowUpRight, Check } from 'lucide-react';
 
@@ -14,7 +15,6 @@ const TABS = ['Créateurs', 'Médias & CMS', 'API'] as const;
 type Tab = (typeof TABS)[number];
 
 export const CreatorHub = ({ config }: CreatorHubProps) => {
-  const { t } = useTranslate();
   const [activeTab, setActiveTab] = useState<Tab>('Créateurs');
 
   const TAB_CONTENT: Record<
@@ -29,57 +29,48 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
     }
   > = {
     Créateurs: {
-      eyebrow: t('creator_tab_eyebrow', 'Journalistes, essayistes, collectifs'),
-      headline: t('creator_tab_headline', 'Votre média en 3 minutes.'),
-      body: t(
-        'creator_tab_body',
-        "Pas de code. Pas de serveur. Pas de comptable. Vous avez une voix — nous vous donnons l'infrastructure. Sous-domaine personnalisé, SSL automatique, éditeur riche, newsletter intégrée, paiement direct."
-      ),
+      eyebrow: t`Journalistes, essayistes, collectifs`,
+      headline: t`Votre média en 3 minutes.`,
+      body: t`Pas de code. Pas de serveur. Pas de comptable. Vous avez une voix — nous vous donnons l'infrastructure. Sous-domaine personnalisé, SSL automatique, éditeur riche, newsletter intégrée, paiement direct.`,
       features: [
-        t('creator_feat_1', 'Sous-domaine media.qoe.fi ou votre propre domaine'),
-        t('creator_feat_2', 'Éditeur WYSIWYG + Markdown — auto-sauvegarde'),
-        t('creator_feat_3', 'Paywall & abonnements via Stripe Connect'),
-        t('creator_feat_4', 'Newsletter via Brevo (API française)'),
-        t('creator_feat_5', 'Analytics éthiques, sans cookies (Umami)'),
-        t('creator_feat_6', "Hébergement zéro coût jusqu'à 1 000 abonnés"),
+        t`Sous-domaine media.qoe.fi ou votre propre domaine`,
+        t`Éditeur WYSIWYG + Markdown — auto-sauvegarde`,
+        t`Paywall & abonnements via Stripe Connect`,
+        t`Newsletter via Brevo (API française)`,
+        t`Analytics éthiques, sans cookies (Umami)`,
+        t`Hébergement zéro coût jusqu'à 1 000 abonnés`,
       ],
-      cta: t('creator_cta', 'Créer mon média'),
+      cta: t`Créer mon média`,
       ctaHref: '/login',
     },
     'Médias & CMS': {
-      eyebrow: t('media_tab_eyebrow', 'Rédactions, titres indépendants'),
-      headline: t('media_tab_headline', 'Votre CMS. Votre audience. Votre ligne.'),
-      body: t(
-        'media_tab_body',
-        'Synchronisation bidirectionnelle avec vos bases existantes. Importez vos archives, continuez à publier où vous êtes, diffusez ici en temps réel. Votre audience grandit — nos serveurs absorbent.'
-      ),
+      eyebrow: t`Rédactions, titres indépendants`,
+      headline: t`Votre CMS. Votre audience. Votre ligne.`,
+      body: t`Synchronisation bidirectionnelle avec vos bases existantes. Importez vos archives, continuez à publier où vous êtes, diffusez ici en temps réel. Votre audience grandit — nos serveurs absorbent.`,
       features: [
-        t('media_feat_1', 'API REST + webhooks pour sync CMS existants'),
-        t('media_feat_2', "Import d'archives (RSS, JSON, CSV)"),
-        t('media_feat_3', 'Multi-auteurs et rôles éditoriaux'),
-        t('media_feat_4', 'Mise en avant croisée inter-médias sur qoe.fi'),
-        t('media_feat_5', 'Certification officielle (badge vérifié)'),
-        t('media_feat_6', 'Dashboard éditorial centralisé'),
+        t`API REST + webhooks pour sync CMS existants`,
+        t`Import d'archives (RSS, JSON, CSV)`,
+        t`Multi-auteurs et rôles éditoriaux`,
+        t`Mise en avant croisée inter-médias sur qoe.fi`,
+        t`Certification officielle (badge vérifié)`,
+        t`Dashboard éditorial centralisé`,
       ],
-      cta: t('media_cta', "Rejoindre l'écosystème"),
+      cta: t`Rejoindre l'écosystème`,
       ctaHref: '/login',
     },
     API: {
-      eyebrow: t('api_tab_eyebrow', 'Développeurs, intégrateurs'),
-      headline: t('api_tab_headline', 'Headless. Ouvert. Souverain.'),
-      body: t(
-        'api_tab_body',
-        "Accédez à l'intégralité de notre infrastructure via une API REST sémantique. Construisez votre front, votre app mobile, votre propre CMS. Nos données, votre interface."
-      ),
+      eyebrow: t`Développeurs, intégrateurs`,
+      headline: t`Headless. Ouvert. Souverain.`,
+      body: t`Accédez à l'intégralité de notre infrastructure via une API REST sémantique. Construisez votre front, votre app mobile, votre propre CMS. Nos données, votre interface.`,
       features: [
-        t('api_feat_1', 'API REST documentée (OpenAPI 3.0)'),
-        t('api_feat_2', 'Authentification via Supabase JWT'),
-        t('api_feat_3', 'Webhooks temps réel (publication, abonnement)'),
-        t('api_feat_4', 'SDK TypeScript open-source'),
-        t('api_feat_5', 'Sandbox de test gratuit'),
-        t('api_feat_6', 'SLA 99.9% — hébergement Hetzner (Allemagne)'),
+        t`API REST documentée (OpenAPI 3.0)`,
+        t`Authentification via Supabase JWT`,
+        t`Webhooks temps réel (publication, abonnement)`,
+        t`SDK TypeScript open-source`,
+        t`Sandbox de test gratuit`,
+        t`SLA 99.9% — hébergement Hetzner (Allemagne)`,
       ],
-      cta: t('api_cta', 'Lire la documentation'),
+      cta: t`Lire la documentation`,
       ctaHref: '/docs',
     },
   };
@@ -90,27 +81,24 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
   const sectionTitle =
     config[`creator_hub_title_${locale}`] ||
     config['creator_hub_title'] ||
-    t('creator_hub_title', 'Une infrastructure pour ceux qui pensent.');
+    t`Une infrastructure pour ceux qui pensent.`;
   const sectionTagline =
     config[`creator_hub_tagline_${locale}`] ||
     config['creator_hub_tagline'] ||
-    t('creator_hub_tagline', "Rejoignez l'écosystème");
+    t`Rejoignez l'écosystème`;
 
   const convictionHeadline =
     config[`creator_hub_conviction_${locale}`] ||
     config['creator_hub_conviction'] ||
-    t('creator_hub_conviction', 'Zéro VC. Zéro GAFAM. Zéro compromis.');
+    t`Zéro VC. Zéro GAFAM. Zéro compromis.`;
   const convictionSubtitle =
     config[`creator_hub_conviction_sub_${locale}`] ||
     config['creator_hub_conviction_sub'] ||
-    t(
-      'creator_hub_conviction_sub',
-      'Bootstrapé par conviction. Hébergé en Allemagne (Hetzner, énergie verte). Données souveraines. RGPD by design.'
-    );
+    t`Bootstrapé par conviction. Hébergé en Allemagne (Hetzner, énergie verte). Données souveraines. RGPD by design.`;
   const manifestoText =
     config[`creator_hub_manifesto_${locale}`] ||
     config['creator_hub_manifesto'] ||
-    t('creator_hub_manifesto', 'Lire le manifeste');
+    t`Lire le manifeste`;
 
   const customTabsJson = config[`creator_hub_tabs_${locale}`] || config['creator_hub_tabs'];
   let content = TAB_CONTENT[activeTab];
@@ -238,9 +226,9 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
                 <div className="p-8 min-h-[380px] flex flex-col gap-5">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                      Dashboard éditorial
+                      {t`Dashboard éditorial`}
                     </span>
-                    <span className="text-[9px] text-[#EE4B2B] font-semibold">● En direct</span>
+                    <span className="text-[9px] text-[#EE4B2B] font-semibold">{t`● En direct`}</span>
                   </div>
                   {[
                     { title: 'Vers une presse souveraine', stat: '4.2k lecteurs', prog: 82 },
@@ -267,7 +255,7 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
                     </div>
                   ))}
                   <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
-                    <span className="text-[10px] text-muted-foreground">Abonnés ce mois</span>
+                    <span className="text-[10px] text-muted-foreground">{t`Abonnés ce mois`}</span>
                     <span className="text-lg font-bold text-foreground">+248</span>
                   </div>
                 </div>
@@ -279,19 +267,19 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
                       M
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Mon Média</p>
+                      <p className="text-sm font-semibold text-foreground">{t`Mon Média`}</p>
                       <p className="text-[10px] text-muted-foreground">monmedia.qoe.fi</p>
                     </div>
                     <span className="ml-auto text-[9px] text-success font-semibold border border-success bg-success/10 px-2 py-0.5 rounded-full">
-                      Actif
+                      {t`Actif`}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { n: '12', l: 'Articles' },
-                      { n: '340', l: 'Abonnés' },
-                      { n: '2.4k€', l: 'Ce mois' },
+                      { n: '12', l: t`Articles` },
+                      { n: '340', l: t`Abonnés` },
+                      { n: '2.4k€', l: t`Ce mois` },
                     ].map((s) => (
                       <div key={s.l} className="bg-muted rounded-xl p-3 text-center">
                         <p className="text-lg font-bold text-foreground">{s.n}</p>
@@ -302,13 +290,13 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
 
                   <div className="flex-1 bg-muted rounded-xl p-4 flex flex-col gap-2">
                     <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                      Dernier brouillon
+                      {t`Dernier brouillon`}
                     </span>
                     <p className="text-sm font-semibold text-foreground line-clamp-2">
-                      L'architecture du silence — pourquoi la lenteur est un acte politique
+                      {t`L'architecture du silence — pourquoi la lenteur est un acte politique`}
                     </p>
                     <span className="text-[10px] text-muted-foreground">
-                      642 mots · Auto-sauvegardé il y a 2 min
+                      {t`642 mots · Auto-sauvegardé il y a 2 min`}
                     </span>
                   </div>
                 </div>

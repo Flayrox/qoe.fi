@@ -1,0 +1,1801 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-08-13 11:09+0200\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: fr\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+msgid "-- Créateur --"
+msgstr "-- Créateur --"
+
+msgid "-- Sans catégorie --"
+msgstr "-- Sans catégorie --"
+
+#. placeholder {0}: bio.length
+msgid "{0} / 1000 caractères"
+msgstr "{0} / 1000 caractères"
+
+#. placeholder {0}: creator.subscribers
+msgid "{0} abonnés"
+msgstr "{0} abonnés"
+
+#. placeholder {0}: articles.length
+#. placeholder {0}: creator.articles
+msgid "{0} articles"
+msgstr "{0} articles"
+
+#. placeholder {0}: data[hoveredIndex]
+msgid "{0} écrits"
+msgstr "{0} écrits"
+
+#. placeholder {0}: b.article.readingTime
+#. placeholder {0}: latestPublishedArticle.readingTime || 1
+msgid "{0} min"
+msgstr "{0} min"
+
+#. placeholder {0}: article.readingTime
+msgid "{0} min de lecture"
+msgstr "{0} min de lecture"
+
+#. placeholder {0}: typedBody.split(' ').filter(Boolean).length.toString()
+msgid "{0} mots"
+msgstr "{0} mots"
+
+msgid "{readingTimeMinutes} min de lecture"
+msgstr "{readingTimeMinutes} min de lecture"
+
+msgid "@marcdutronc"
+msgstr "@marcdutronc"
+
+msgid "••••••••"
+msgstr "••••••••"
+
+#. placeholder {0}: new Date().getFullYear()
+#. placeholder {1}: name ?? ''
+msgid "© {0} {1}. Propulsé par qoe.fi"
+msgstr "© {0} {1}. Propulsé par qoe.fi"
+
+msgid "© 2024 QOE.FI. Crafted for the curious minds in the European creator economy."
+msgstr "© 2024 QOE.FI. Crafted for the curious minds in the European creator economy."
+
+msgid "↑↓ Naviguer"
+msgstr "↑↓ Naviguer"
+
+msgid "+ Ajouter"
+msgstr "+ Ajouter"
+
+msgid "⌘K"
+msgstr "⌘K"
+
+msgid "⏎ Valider"
+msgstr "⏎ Valider"
+
+msgid "● En direct"
+msgstr "● En direct"
+
+msgid "10% de frais de plateforme directs + frais Stripe"
+msgstr "10% de frais de plateforme directs + frais Stripe"
+
+msgid "12 min de lecture • Publié dans Philosophie"
+msgstr "12 min de lecture • Publié dans Philosophie"
+
+msgid "404 • Écrit introuvable"
+msgstr "404 • Écrit introuvable"
+
+msgid "5 formats de récits (Essais, Briefings, Podcasts, Stories de données, Stories)"
+msgstr "5 formats de récits (Essais, Briefings, Podcasts, Stories de données, Stories)"
+
+msgid "5 min read"
+msgstr "5 min read"
+
+msgid "642 mots · Auto-sauvegardé il y a 2 min"
+msgstr "642 mots · Auto-sauvegardé il y a 2 min"
+
+msgid "7 derniers jours"
+msgstr "7 derniers jours"
+
+msgid "À Découvrir"
+msgstr "À Découvrir"
+
+msgid "À la une"
+msgstr "À la une"
+
+msgid "Abonné"
+msgstr "Abonné"
+
+msgid "Abonné !"
+msgstr "Abonné !"
+
+msgid "Abonnements"
+msgstr "Abonnements"
+
+msgid "Abonnés"
+msgstr "Abonnés"
+
+msgid "Abonnés ce mois"
+msgstr "Abonnés ce mois"
+
+msgid "abonnés payants"
+msgstr "abonnés payants"
+
+msgid "Abonnés Réseau"
+msgstr "Abonnés Réseau"
+
+msgid "Abonnés uniquement"
+msgstr "Abonnés uniquement"
+
+msgid "Abonnez-vous à cet auteur pour ne rater aucun de ses écrits"
+msgstr "Abonnez-vous à cet auteur pour ne rater aucun de ses écrits"
+
+msgid "Abonnez-vous gratuitement à la newsletter de "
+msgstr "Abonnez-vous gratuitement à la newsletter de "
+
+msgid "Absolue (Données 100% exportables, protocoles décentralisés)"
+msgstr "Absolue (Données 100% exportables, protocoles décentralisés)"
+
+msgid "Accédez à l'intégralité de notre infrastructure via une API REST sémantique. Construisez votre front, votre app mobile, votre propre CMS. Nos données, votre interface."
+msgstr "Accédez à l'intégralité de notre infrastructure via une API REST sémantique. Construisez votre front, votre app mobile, votre propre CMS. Nos données, votre interface."
+
+msgid "Accédez à votre espace"
+msgstr "Accédez à votre espace"
+
+msgid "Accès aux fils de commentaires VIP"
+msgstr "Accès aux fils de commentaires VIP"
+
+msgid "Accès illimité aux articles payants"
+msgstr "Accès illimité aux articles payants"
+
+msgid "Accès Souverain"
+msgstr "Accès Souverain"
+
+msgid "Accroche / Titre"
+msgstr "Accroche / Titre"
+
+msgid "Accueil"
+msgstr "Accueil"
+
+msgid "Accueil Studio"
+msgstr "Accueil Studio"
+
+msgid "Actif"
+msgstr "Actif"
+
+msgid "Action"
+msgstr "Action"
+
+msgid "Actions rapides"
+msgstr "Actions rapides"
+
+msgid "Activer la bannière globale"
+msgstr "Activer la bannière globale"
+
+msgid "Activité de lecture"
+msgstr "Activité de lecture"
+
+msgid "Aimé par "
+msgstr "Aimé par "
+
+msgid "Aimer"
+msgstr "Aimer"
+
+msgid "Ajouter"
+msgstr "Ajouter"
+
+msgid "Ajouter aux signets"
+msgstr "Ajouter aux signets"
+
+msgid "Ajouter un bloc de lecture"
+msgstr "Ajouter un bloc de lecture"
+
+msgid "Ajouter un centre d'intérêt (ex: Technologie, Économie...)"
+msgstr "Ajouter un centre d'intérêt (ex: Technologie, Économie...)"
+
+msgid "Ajouter un groupe de liens"
+msgstr "Ajouter un groupe de liens"
+
+msgid "Ajouter un lien"
+msgstr "Ajouter un lien"
+
+msgid "Ajouter une fonctionnalité"
+msgstr "Ajouter une fonctionnalité"
+
+msgid "Analyses"
+msgstr "Analyses"
+
+msgid "Analyses & Conseils Créateur"
+msgstr "Analyses & Conseils Créateur"
+
+msgid "Analyses complètes"
+msgstr "Analyses complètes"
+
+msgid "Analytics"
+msgstr "Analytics"
+
+msgid "Analytics éthiques, sans cookies (Umami)"
+msgstr "Analytics éthiques, sans cookies (Umami)"
+
+msgid "Annuler"
+msgstr "Annuler"
+
+msgid "Aperçu"
+msgstr "Aperçu"
+
+msgid "API REST + webhooks pour sync CMS existants"
+msgstr "API REST + webhooks pour sync CMS existants"
+
+msgid "API REST documentée (OpenAPI 3.0)"
+msgstr "API REST documentée (OpenAPI 3.0)"
+
+msgid "Appel à l'action (CTA)"
+msgstr "Appel à l'action (CTA)"
+
+msgid "Apple"
+msgstr "Apple"
+
+msgid "Article"
+msgstr "Article"
+
+msgid "Articles"
+msgstr "Articles"
+
+msgid "Articles & Brouillons"
+msgstr "Articles & Brouillons"
+
+msgid "Au-delà du simple mur de texte"
+msgstr "Au-delà du simple mur de texte"
+
+msgid "Aucun algorithme caché. Vous contrôlez chaque octet de votre expérience de lecture."
+msgstr "Aucun algorithme caché. Vous contrôlez chaque octet de votre expérience de lecture."
+
+msgid "Aucun article publié pour le moment."
+msgstr "Aucun article publié pour le moment."
+
+msgid "Aucun article trouvé"
+msgstr "Aucun article trouvé"
+
+msgid "Aucun centre d'intérêt défini."
+msgstr "Aucun centre d'intérêt défini."
+
+msgid "Aucun commentaire pour le moment. Soyez le premier à réagir !"
+msgstr "Aucun commentaire pour le moment. Soyez le premier à réagir !"
+
+msgid "Aucun écrit programmé ni brouillon en cours"
+msgstr "Aucun écrit programmé ni brouillon en cours"
+
+msgid "Aucun écrit publié"
+msgstr "Aucun écrit publié"
+
+msgid "Aucun élément de lecture configuré."
+msgstr "Aucun élément de lecture configuré."
+
+msgid "Aucun mot exclu pour le moment."
+msgstr "Aucun mot exclu pour le moment."
+
+msgid "Aucun passage surligné"
+msgstr "Aucun passage surligné"
+
+msgid "Aucun résultat trouvé."
+msgstr "Aucun résultat trouvé."
+
+msgid "Aucune bannière"
+msgstr "Aucune bannière"
+
+msgid "Audience"
+msgstr "Audience"
+
+msgid "Audio Lectures"
+msgstr "Audio Lectures"
+
+msgid "Auteur"
+msgstr "Auteur"
+
+msgid "Auteur certifié"
+msgstr "Auteur certifié"
+
+msgid "Authentification via Supabase JWT"
+msgstr "Authentification via Supabase JWT"
+
+msgid "Autre raison"
+msgstr "Autre raison"
+
+msgid "Bannière (URL Image)"
+msgstr "Bannière (URL Image)"
+
+msgid "Bannière & Global"
+msgstr "Bannière & Global"
+
+msgid "Bannissez les mots ou sujets qui polluent votre réflexion."
+msgstr "Bannissez les mots ou sujets qui polluent votre réflexion."
+
+msgid "Bibliothèque"
+msgstr "Bibliothèque"
+
+#. placeholder {0}: user.name || t`Créateur`
+msgid "Bienvenue, {0}. Voici l'aperçu réel de votre studio créateur."
+msgstr "Bienvenue, {0}. Voici l'aperçu réel de votre studio créateur."
+
+msgid "Bio / Présentation"
+msgstr "Bio / Présentation"
+
+msgid "Boîte noire centralisée et recommandations forcées"
+msgstr "Boîte noire centralisée et recommandations forcées"
+
+msgid "Bootstrapé par conviction. Hébergé en Allemagne (Hetzner, énergie verte). Données souveraines. RGPD by design."
+msgstr "Bootstrapé par conviction. Hébergé en Allemagne (Hetzner, énergie verte). Données souveraines. RGPD by design."
+
+msgid "Bootstrapé par conviction. Hébergé en Allemagne..."
+msgstr "Bootstrapé par conviction. Hébergé en Allemagne..."
+
+#. placeholder {0}: activeLang.toUpperCase()
+msgid "Bouton Principal ({0})"
+msgstr "Bouton Principal ({0})"
+
+#. placeholder {0}: activeLang.toUpperCase()
+msgid "Bouton Secondaire ({0})"
+msgstr "Bouton Secondaire ({0})"
+
+msgid "Brouillon"
+msgstr "Brouillon"
+
+msgid "Brouillon · Auto-sauvegardé"
+msgstr "Brouillon · Auto-sauvegardé"
+
+msgid "Brouillon d'article"
+msgstr "Brouillon d'article"
+
+msgid "Calendrier des écrits"
+msgstr "Calendrier des écrits"
+
+msgid "Carnet de Surlignages"
+msgstr "Carnet de Surlignages"
+
+msgid "ce lecteur"
+msgstr "ce lecteur"
+
+msgid "Ce mois"
+msgstr "Ce mois"
+
+msgid "Centres d'intérêt de l'onboarding (pgvector IA)"
+msgstr "Centres d'intérêt de l'onboarding (pgvector IA)"
+
+msgid "Certification officielle (badge vérifié)"
+msgstr "Certification officielle (badge vérifié)"
+
+msgid "Ces concepts défilent horizontalement en arrière-plan de la section."
+msgstr "Ces concepts défilent horizontalement en arrière-plan de la section."
+
+msgid "Cet article est libre de toute influence corporative ou étatique. qoe.fi est entièrement financé par ses lecteurs, nous permettant de produire un travail intègre et indépendant."
+msgstr "Cet article est libre de toute influence corporative ou étatique. qoe.fi est entièrement financé par ses lecteurs, nous permettant de produire un travail intègre et indépendant."
+
+msgid "Cet écrit n'est pas encore publié"
+msgstr "Cet écrit n'est pas encore publié"
+
+msgid "Cet écrit n'existe pas"
+msgstr "Cet écrit n'existe pas"
+
+msgid "Champs invalides"
+msgstr "Champs invalides"
+
+msgid "Changements enregistrés et cache régénéré instantanément !"
+msgstr "Changements enregistrés et cache régénéré instantanément !"
+
+msgid "Chargement des requêtes..."
+msgstr "Chargement des requêtes..."
+
+msgid "Chargement..."
+msgstr "Chargement..."
+
+msgid "Choisissez vos alliés."
+msgstr "Choisissez vos alliés."
+
+msgid "Cinq Formats de Récits"
+msgstr "Cinq Formats de Récits"
+
+msgid "Citation"
+msgstr "Citation"
+
+msgid "Citer la pensée"
+msgstr "Citer la pensée"
+
+msgid "Cliquez × pour découvrir les publications"
+msgstr "Cliquez × pour découvrir les publications"
+
+msgid "Close modal"
+msgstr "Close modal"
+
+msgid "Commencer à lire"
+msgstr "Commencer à lire"
+
+msgid "Commentaires"
+msgstr "Commentaires"
+
+msgid "Commenter"
+msgstr "Commenter"
+
+msgid "Commission sur vos revenus"
+msgstr "Commission sur vos revenus"
+
+msgid "Comptes suivis"
+msgstr "Comptes suivis"
+
+msgid "Configurez le contenu en base de données de cette section."
+msgstr "Configurez le contenu en base de données de cette section."
+
+msgid "Connecté en tant que "
+msgstr "Connecté en tant que "
+
+msgid "Connectez-vous pour aimer ce post et soutenir cet auteur"
+msgstr "Connectez-vous pour aimer ce post et soutenir cet auteur"
+
+msgid "Connectez-vous pour laisser un commentaire..."
+msgstr "Connectez-vous pour laisser un commentaire..."
+
+msgid "Connexion"
+msgstr "Connexion"
+
+msgid "Consulter"
+msgstr "Consulter"
+
+msgid "Consulter les statistiques"
+msgstr "Consulter les statistiques"
+
+msgid "Consultez votre boîte mail et cliquez sur le lien pour vous connecter."
+msgstr "Consultez votre boîte mail et cliquez sur le lien pour vous connecter."
+
+#. placeholder {0}: activeLang.toUpperCase()
+msgid "Contenu rédigé de l'éditeur ({0})"
+msgstr "Contenu rédigé de l'éditeur ({0})"
+
+msgid "Contenu réservé aux abonnés payants"
+msgstr "Contenu réservé aux abonnés payants"
+
+msgid "Continuer"
+msgstr "Continuer"
+
+msgid "Continuez à lire pour découvrir l'essence de la souveraineté numérique..."
+msgstr "Continuez à lire pour découvrir l'essence de la souveraineté numérique..."
+
+msgid "Contrôle souverain (Algorithme personnalisable, Muted Words)"
+msgstr "Contrôle souverain (Algorithme personnalisable, Muted Words)"
+
+msgid "Créateur"
+msgstr "Créateur"
+
+msgid "Créateurs"
+msgstr "Créateurs"
+
+msgid "Créer / Importer un Média"
+msgstr "Créer / Importer un Média"
+
+msgid "Créer le Profil Média & Espace de Travail"
+msgstr "Créer le Profil Média & Espace de Travail"
+
+msgid "Créer mon média"
+msgstr "Créer mon média"
+
+msgid "Créer un compte"
+msgstr "Créer un compte"
+
+msgid "Créer un compte sur qoe.fi"
+msgstr "Créer un compte sur qoe.fi"
+
+msgid "Créer un premier écrit"
+msgstr "Créer un premier écrit"
+
+msgid "Curation algorithmique"
+msgstr "Curation algorithmique"
+
+msgid "Dans un monde saturé de stimuli, la lecture souveraine n'est pas un acte de consommation, mais une forme de résistance. C'est ici, dans ce Sanctuaire Elfique, que l'esprit retrouve sa trajectoire originelle, loin des algorithmes de capture de l'attention."
+msgstr "Dans un monde saturé de stimuli, la lecture souveraine n'est pas un acte de consommation, mais une forme de résistance. C'est ici, dans ce Sanctuaire Elfique, que l'esprit retrouve sa trajectoire originelle, loin des algorithmes de capture de l'attention."
+
+msgid "Dashboard éditorial"
+msgstr "Dashboard éditorial"
+
+msgid "Dashboard éditorial centralisé"
+msgstr "Dashboard éditorial centralisé"
+
+msgid "Data Stories"
+msgstr "Data Stories"
+
+msgid "Débloquer pour 2,00 €"
+msgstr "Débloquer pour 2,00 €"
+
+msgid "Découvrir des articles"
+msgstr "Découvrir des articles"
+
+msgid "Décrivez vos sujets d'intérêt et votre vision pour personnaliser les suggestions de publications et les recommandations de créateurs."
+msgstr "Décrivez vos sujets d'intérêt et votre vision pour personnaliser les suggestions de publications et les recommandations de créateurs."
+
+msgid "Décrivez vos sujets favoris pour calibrer vos recommandations par IA."
+msgstr "Décrivez vos sujets favoris pour calibrer vos recommandations par IA."
+
+msgid "Décrivez-vous en quelques mots..."
+msgstr "Décrivez-vous en quelques mots..."
+
+msgid "Déjà abonné ?"
+msgstr "Déjà abonné ?"
+
+msgid "Déjà un compte ? Connexion"
+msgstr "Déjà un compte ? Connexion"
+
+msgid "Demandez à qoe.fi ou cherchez... (⌘K)"
+msgstr "Demandez à qoe.fi ou cherchez... (⌘K)"
+
+msgid "Dernier brouillon"
+msgstr "Dernier brouillon"
+
+msgid "Dernière publication phare"
+msgstr "Dernière publication phare"
+
+msgid "Dernières publications"
+msgstr "Dernières publications"
+
+msgid "Des voix libres et indépendantes"
+msgstr "Des voix libres et indépendantes"
+
+msgid "Description"
+msgstr "Description"
+
+#. placeholder {0}: activeLang.toUpperCase()
+msgid "Description / Paragraphe ({0})"
+msgstr "Description / Paragraphe ({0})"
+
+msgid "Design du Média"
+msgstr "Design du Média"
+
+msgid "Détaillez vos lectures idéales."
+msgstr "Détaillez vos lectures idéales."
+
+msgid "Détails complémentaires (optionnel)..."
+msgstr "Détails complémentaires (optionnel)..."
+
+msgid "Développeur / API"
+msgstr "Développeur / API"
+
+msgid "Développeurs, intégrateurs"
+msgstr "Développeurs, intégrateurs"
+
+msgid "Diffusion"
+msgstr "Diffusion"
+
+msgid "Dimension"
+msgstr "Dimension"
+
+msgid "Discours haineux ou injurieux"
+msgstr "Discours haineux ou injurieux"
+
+msgid "Diversité des Formats"
+msgstr "Diversité des Formats"
+
+msgid "Du temps bien dépensé."
+msgstr "Du temps bien dépensé."
+
+msgid "Durée :"
+msgstr "Durée :"
+
+msgid "Dyslexia Friendly"
+msgstr "Dyslexia Friendly"
+
+msgid "Économie Circulaire"
+msgstr "Économie Circulaire"
+
+msgid "Écrire, c'est d'abord creuser..."
+msgstr "Écrire, c'est d'abord creuser..."
+
+msgid "Écrire."
+msgstr "Écrire."
+
+msgid "Écrit Privé • Brouillon en cours"
+msgstr "Écrit Privé • Brouillon en cours"
+
+msgid "Écrits"
+msgstr "Écrits"
+
+msgid "Écrits certifiés"
+msgstr "Écrits certifiés"
+
+msgid "Écrits programmés & Brouillons"
+msgstr "Écrits programmés & Brouillons"
+
+msgid "écrits publiés"
+msgstr "écrits publiés"
+
+msgid "Écrits sélectionnés"
+msgstr "Écrits sélectionnés"
+
+msgid "Éditer"
+msgstr "Éditer"
+
+msgid "Éditer l'article"
+msgstr "Éditer l'article"
+
+msgid "Éditer le profil"
+msgstr "Éditer le profil"
+
+msgid "Éditeur"
+msgstr "Éditeur"
+
+msgid "Éditeur WYSIWYG + Markdown — auto-sauvegarde"
+msgstr "Éditeur WYSIWYG + Markdown — auto-sauvegarde"
+
+msgid "Édition newsletter complète par e-mail"
+msgstr "Édition newsletter complète par e-mail"
+
+msgid "Elle s'affiche tout en haut de l'écran sur le site public."
+msgstr "Elle s'affiche tout en haut de l'écran sur le site public."
+
+msgid "Éloge de la lenteur attentionnelle"
+msgstr "Éloge de la lenteur attentionnelle"
+
+msgid "Email"
+msgstr "Email"
+
+msgid "EN DIRECT"
+msgstr "EN DIRECT"
+
+msgid "En ligne"
+msgstr "En ligne"
+
+msgid "Engagement de votre communauté"
+msgstr "Engagement de votre communauté"
+
+msgid "Enregistrement..."
+msgstr "Enregistrement..."
+
+msgid "Enregistrer"
+msgstr "Enregistrer"
+
+msgid "Enregistrer dans le sanctuaire"
+msgstr "Enregistrer dans le sanctuaire"
+
+msgid "Enregistrer la section"
+msgstr "Enregistrer la section"
+
+msgid "Enregistrez cet article dans votre sanctuaire de lecture"
+msgstr "Enregistrez cet article dans votre sanctuaire de lecture"
+
+msgid "Enregistrez des articles en cliquant sur l'icône de signet pour les conserver ici."
+msgstr "Enregistrez des articles en cliquant sur l'icône de signet pour les conserver ici."
+
+msgid "Entrer dans le sanctuaire"
+msgstr "Entrer dans le sanctuaire"
+
+msgid "Envoyer"
+msgstr "Envoyer"
+
+msgid "Envoyer la demande de co-rédaction"
+msgstr "Envoyer la demande de co-rédaction"
+
+msgid "Envoyer une newsletter"
+msgstr "Envoyer une newsletter"
+
+msgid "Envoyez directement vos travaux à vos abonnés par e-mail en un clic via notre API Brevo intégrée. Les e-mails reprennent fidèlement votre style, votre logo, et vos couleurs d'accentuation, sans publicité additionnelle."
+msgstr "Envoyez directement vos travaux à vos abonnés par e-mail en un clic via notre API Brevo intégrée. Les e-mails reprennent fidèlement votre style, votre logo, et vos couleurs d'accentuation, sans publicité additionnelle."
+
+msgid "Épinglé"
+msgstr "Épinglé"
+
+msgid "Erreur de mise à jour."
+msgstr "Erreur de mise à jour."
+
+msgid "Erreur lors de l'envoi du signalement."
+msgstr "Erreur lors de l'envoi du signalement."
+
+msgid "Erreur lors de la mise à jour."
+msgstr "Erreur lors de la mise à jour."
+
+msgid "Erreur lors de la suppression de la pensée."
+msgstr "Erreur lors de la suppression de la pensée."
+
+msgid "Erreur lors du lancement de la souscription."
+msgstr "Erreur lors du lancement de la souscription."
+
+msgid "Erreur réseau. Impossible de contacter le serveur de paiement."
+msgstr "Erreur réseau. Impossible de contacter le serveur de paiement."
+
+msgid "Espace Avancé & Collaboration"
+msgstr "Espace Avancé & Collaboration"
+
+msgid "Espace Créateurs"
+msgstr "Espace Créateurs"
+
+msgid "Essai"
+msgstr "Essai"
+
+msgid "ESSAI RECHERCHE"
+msgstr "ESSAI RECHERCHE"
+
+msgid "Essais Profonds"
+msgstr "Essais Profonds"
+
+msgid "Essayez d'effacer le tag filtre ou de suivre de nouveaux créateurs dans la liste Explorer."
+msgstr "Essayez d'effacer le tag filtre ou de suivre de nouveaux créateurs dans la liste Explorer."
+
+msgid "et débloquez l'accès intégral à tous les écrits et archives exclusives."
+msgstr "et débloquez l'accès intégral à tous les écrits et archives exclusives."
+
+msgid "Étape"
+msgstr "Étape"
+
+msgid "Ex: Buzz, Polémique..."
+msgstr "Ex: Buzz, Polémique..."
+
+msgid "Expérience de lecture"
+msgstr "Expérience de lecture"
+
+msgid "Explorer"
+msgstr "Explorer"
+
+#. placeholder {0}: creator.name || (creator.username ?? '')
+msgid "Explorer le blog de {0}"
+msgstr "Explorer le blog de {0}"
+
+msgid "Explorer les publications"
+msgstr "Explorer les publications"
+
+msgid "Explorez qoe.fi et sauvegardez les articles qui méritent d'être lus à tête reposée."
+msgstr "Explorez qoe.fi et sauvegardez les articles qui méritent d'être lus à tête reposée."
+
+msgid "Facturation"
+msgstr "Facturation"
+
+msgid "Fausse information / Désinformation"
+msgstr "Fausse information / Désinformation"
+
+msgid "Feed personnalisé selon tes abonnements"
+msgstr "Feed personnalisé selon tes abonnements"
+
+msgid "Fermer"
+msgstr "Fermer"
+
+msgid "FILTRAGE SOUVERAIN AU NIVEAU DE L'ÉLECTRON"
+msgstr "FILTRAGE SOUVERAIN AU NIVEAU DE L'ÉLECTRON"
+
+msgid "Fin de la démonstration de l'article."
+msgstr "Fin de la démonstration de l'article."
+
+msgid "Flux encombré de recommandations d'autres auteurs, popups"
+msgstr "Flux encombré de recommandations d'autres auteurs, popups"
+
+msgid "Général"
+msgstr "Général"
+
+msgid "Gérer l'audience"
+msgstr "Gérer l'audience"
+
+msgid "Google"
+msgstr "Google"
+
+msgid "Grâce à pgvector, notre IA brise votre bulle idéologique en injectant des perspectives radicalement différentes."
+msgstr "Grâce à pgvector, notre IA brise votre bulle idéologique en injectant des perspectives radicalement différentes."
+
+msgid "Gratuit · Aucune carte bancaire requise · Données hébergées en Europe"
+msgstr "Gratuit · Aucune carte bancaire requise · Données hébergées en Europe"
+
+msgid "Groupes de liens (Colonnes)"
+msgstr "Groupes de liens (Colonnes)"
+
+msgid "Harcèlement ou intimidation"
+msgstr "Harcèlement ou intimidation"
+
+msgid "Headless. Ouvert. Souverain."
+msgstr "Headless. Ouvert. Souverain."
+
+msgid "Hébergement & Juridiction"
+msgstr "Hébergement & Juridiction"
+
+msgid "Hébergement US centralisé (Cloud Act / Non souverain)"
+msgstr "Hébergement US centralisé (Cloud Act / Non souverain)"
+
+msgid "Hébergement zéro coût jusqu'à 1 000 abonnés"
+msgstr "Hébergement zéro coût jusqu'à 1 000 abonnés"
+
+msgid "Hero & Simulateur"
+msgstr "Hero & Simulateur"
+
+msgid "Histoire Premium"
+msgstr "Histoire Premium"
+
+msgid "Home"
+msgstr "Home"
+
+msgid "IDE FORMATS"
+msgstr "IDE FORMATS"
+
+msgid "Il y a dans le vide une forme d'intelligence que nos écrans ont oubliée. Écrire, c'est d'abord creuser — ôter le superflu jusqu'à ce que la phrase respire d'elle-même, sans soutien artificiel.\n"
+"\n"
+"La clarté ne s'impose pas. Elle se révèle, lentement, comme une lumière qui filtre à travers le brouillard de nos pensées accumulées.\n"
+"\n"
+"La page blanche n'est pas une menace. C'est une invitation."
+msgstr "Il y a dans le vide une forme d'intelligence que nos écrans ont oubliée. Écrire, c'est d'abord creuser — ôter le superflu jusqu'à ce que la phrase respire d'elle-même, sans soutien artificiel.\n"
+"\n"
+"La clarté ne s'impose pas. Elle se révèle, lentement, comme une lumière qui filtre à travers le brouillard de nos pensées accumulées.\n"
+"\n"
+"La page blanche n'est pas une menace. C'est une invitation."
+
+msgid "Ils écrivent sur qoe.fi"
+msgstr "Ils écrivent sur qoe.fi"
+
+msgid "Import d'archives (RSS, JSON, CSV)"
+msgstr "Import d'archives (RSS, JSON, CSV)"
+
+msgid "Importation (Substack)"
+msgstr "Importation (Substack)"
+
+msgid "Importer Abonnés (CSV)"
+msgstr "Importer Abonnés (CSV)"
+
+msgid "INFOGRAPHIES & DATA"
+msgstr "INFOGRAPHIES & DATA"
+
+msgid "Infrastructure européenne souveraine & Option auto-hébergée"
+msgstr "Infrastructure européenne souveraine & Option auto-hébergée"
+
+msgid "Inspiré et supporté par les rédactions libres"
+msgstr "Inspiré et supporté par les rédactions libres"
+
+msgid "Intégrez des graphiques réactifs (Recharts) directement au fil de l'article pour étayer vos thèses. Idéal pour les journalistes de données et les rapports d'investigation complexes."
+msgstr "Intégrez des graphiques réactifs (Recharts) directement au fil de l'article pour étayer vos thèses. Idéal pour les journalistes de données et les rapports d'investigation complexes."
+
+msgid "J'aime lire des articles sur l'émancipation économique, la sociologie..."
+msgstr "J'aime lire des articles sur l'émancipation économique, la sociologie..."
+
+msgid "Journalistes, essayistes, collectifs"
+msgstr "Journalistes, essayistes, collectifs"
+
+msgid "L'architecture du silence"
+msgstr "L'architecture du silence"
+
+msgid "L'architecture du silence — pourquoi la lenteur est un acte politique"
+msgstr "L'architecture du silence — pourquoi la lenteur est un acte politique"
+
+msgid "L'Auteur"
+msgstr "L'Auteur"
+
+msgid "L'essai sur qoe.fi privilégie la structure monastique : de grands espaces de respiration, une typographie classique Serif hautement lisible, et l'exclusion de tout distraction pour plonger le lecteur dans un état de flow intellectuel."
+msgstr "L'essai sur qoe.fi privilégie la structure monastique : de grands espaces de respiration, une typographie classique Serif hautement lisible, et l'exclusion de tout distraction pour plonger le lecteur dans un état de flow intellectuel."
+
+msgid "L'expérience sensorielle"
+msgstr "L'expérience sensorielle"
+
+msgid "L'infrastructure de l'esprit"
+msgstr "L'infrastructure de l'esprit"
+
+msgid "La souveraineté cloud en chiffres"
+msgstr "La souveraineté cloud en chiffres"
+
+msgid "La suite de cette publication est exclusivement réservée aux abonnés de "
+msgstr "La suite de cette publication est exclusivement réservée aux abonnés de "
+
+#. placeholder {0}: activeLang.toUpperCase()
+msgid "Label du bouton manifeste ({0})"
+msgstr "Label du bouton manifeste ({0})"
+
+msgid "Langue d'édition :"
+msgstr "Langue d'édition :"
+
+msgid "Le Bouclier de l'Attention"
+msgstr "Le Bouclier de l'Attention"
+
+msgid "Le bruit informationnel est le premier obstacle au temps long. En filtrant les concepts toxiques, vous reprenez le contrôle absolu de votre fil de lecture."
+msgstr "Le bruit informationnel est le premier obstacle au temps long. En filtrant les concepts toxiques, vous reprenez le contrôle absolu de votre fil de lecture."
+
+msgid "Le Courrier de la Souveraineté"
+msgstr "Le Courrier de la Souveraineté"
+
+msgid "le créateur"
+msgstr "le créateur"
+
+msgid "Le lien que vous avez suivi est incorrect ou l'écrit a été retiré par "
+msgstr "Le lien que vous avez suivi est incorrect ou l'écrit a été retiré par "
+
+msgid "Le Réseau"
+msgstr "Le Réseau"
+
+msgid "Le Sanctuaire"
+msgstr "Le Sanctuaire"
+
+msgid "Lecteur"
+msgstr "Lecteur"
+
+msgid "Lecteur audio HTML5 natif"
+msgstr "Lecteur audio HTML5 natif"
+
+msgid "Lecteur Monastique"
+msgstr "Lecteur Monastique"
+
+msgid "Lecteurs"
+msgstr "Lecteurs"
+
+msgid "lecteurs uniques"
+msgstr "lecteurs uniques"
+
+msgid "Lecture en cours"
+msgstr "Lecture en cours"
+
+msgid "Lecture monastique (Sanctuaire silencieux sans distraction)"
+msgstr "Lecture monastique (Sanctuaire silencieux sans distraction)"
+
+msgid "Les commentaires ont été désactivés par l'auteur sur cet écrit."
+msgstr "Les commentaires ont été désactivés par l'auteur sur cet écrit."
+
+msgid "Les réponses à cette publication sont restreintes."
+msgstr "Les réponses à cette publication sont restreintes."
+
+msgid "Libellé du lien"
+msgstr "Libellé du lien"
+
+msgid "Lien externe"
+msgstr "Lien externe"
+
+msgid "Lien interne"
+msgstr "Lien interne"
+
+msgid "Lien magique envoyé"
+msgstr "Lien magique envoyé"
+
+msgid "Lien optionnel"
+msgstr "Lien optionnel"
+
+msgid "Lire"
+msgstr "Lire"
+
+msgid "Lire la documentation"
+msgstr "Lire la documentation"
+
+msgid "Lire le manifeste"
+msgstr "Lire le manifeste"
+
+msgid "Lire le Manifeste"
+msgstr "Lire le Manifeste"
+
+msgid "Lire."
+msgstr "Lire."
+
+msgid "Liste des écrits"
+msgstr "Liste des écrits"
+
+msgid "Liste des fonctionnalités (Puces)"
+msgstr "Liste des fonctionnalités (Puces)"
+
+msgid "Localisation / Ville"
+msgstr "Localisation / Ville"
+
+msgid "Lu par 14,000 abonnés"
+msgstr "Lu par 14,000 abonnés"
+
+msgid "Lus"
+msgstr "Lus"
+
+msgid "Manifeste"
+msgstr "Manifeste"
+
+msgid "Marc Dutronc"
+msgstr "Marc Dutronc"
+
+msgid "Média Certifié Souverain"
+msgstr "Média Certifié Souverain"
+
+#. placeholder {0}: activeLang.toUpperCase()
+msgid "Mentions de rassurance en bas de page ({0})"
+msgstr "Mentions de rassurance en bas de page ({0})"
+
+msgid "Menu profil"
+msgstr "Menu profil"
+
+msgid "Merci. Votre signalement a été transmis à la modération."
+msgstr "Merci. Votre signalement a été transmis à la modération."
+
+msgid "Mettre en signet"
+msgstr "Mettre en signet"
+
+msgid "Mise en avant croisée inter-médias sur qoe.fi"
+msgstr "Mise en avant croisée inter-médias sur qoe.fi"
+
+msgid "Mode d'affichage"
+msgstr "Mode d'affichage"
+
+msgid "Mode Hors-Piste"
+msgstr "Mode Hors-Piste"
+
+msgid "Mode Lecture Intégrale"
+msgstr "Mode Lecture Intégrale"
+
+msgid "MODÈLE D'ABONNEMENT COMPATIBLE RGPD"
+msgstr "MODÈLE D'ABONNEMENT COMPATIBLE RGPD"
+
+msgid "Modifié à l'instant"
+msgstr "Modifié à l'instant"
+
+msgid "Modifié hier"
+msgstr "Modifié hier"
+
+msgid "Modifié il y a {diffDays}j"
+msgstr "Modifié il y a {diffDays}j"
+
+msgid "Modifié il y a {diffHours}h"
+msgstr "Modifié il y a {diffHours}h"
+
+msgid "Mon Média"
+msgstr "Mon Média"
+
+msgid "Mot de passe"
+msgstr "Mot de passe"
+
+msgid "Mots philosophiques d'arrière-plan (Séparés par des virgules)"
+msgstr "Mots philosophiques d'arrière-plan (Séparés par des virgules)"
+
+msgid "Multi-auteurs et rôles éditoriaux"
+msgstr "Multi-auteurs et rôles éditoriaux"
+
+msgid "Naviguer"
+msgstr "Naviguer"
+
+msgid "NEWSLETTER HEBDOMADAIRE"
+msgstr "NEWSLETTER HEBDOMADAIRE"
+
+msgid "Newsletter via Brevo (API française)"
+msgstr "Newsletter via Brevo (API française)"
+
+msgid "Newsletters"
+msgstr "Newsletters"
+
+msgid "Nom complet"
+msgstr "Nom complet"
+
+msgid "Nom d'utilisateur"
+msgstr "Nom d'utilisateur"
+
+msgid "Nom de l'onglet"
+msgstr "Nom de l'onglet"
+
+msgid "Note de la rédaction"
+msgstr "Note de la rédaction"
+
+msgid "Notifications"
+msgstr "Notifications"
+
+msgid "Notre équipe de modération va analyser cet élément dans les plus brefs délais."
+msgstr "Notre équipe de modération va analyser cet élément dans les plus brefs délais."
+
+msgid "Nouveau brouillon"
+msgstr "Nouveau brouillon"
+
+msgid "Nouvel Écrit"
+msgstr "Nouvel Écrit"
+
+msgid "Onboarding (Centres d'intérêt)"
+msgstr "Onboarding (Centres d'intérêt)"
+
+msgid "Ou"
+msgstr "Ou"
+
+msgid "Paiement 100% sécurisé via Stripe • Annulation possible à tout moment"
+msgstr "Paiement 100% sécurisé via Stripe • Annulation possible à tout moment"
+
+msgid "Paragraphe"
+msgstr "Paragraphe"
+
+msgid "Paramètres"
+msgstr "Paramètres"
+
+msgid "Paris, France"
+msgstr "Paris, France"
+
+msgid "Partager"
+msgstr "Partager"
+
+msgid "Partagez ce post avec vos abonnés"
+msgstr "Partagez ce post avec vos abonnés"
+
+msgid "Partagez votre réflexion sur cet écrit..."
+msgstr "Partagez votre réflexion sur cet écrit..."
+
+msgid "Partiellement captive (relation abonné détenue par Substack)"
+msgstr "Partiellement captive (relation abonné détenue par Substack)"
+
+msgid "Pas de code. Pas de serveur. Pas de comptable. Vous avez une voix — nous vous donnons l'infrastructure. Sous-domaine personnalisé, SSL automatique, éditeur riche, newsletter intégrée, paiement direct."
+msgstr "Pas de code. Pas de serveur. Pas de comptable. Vous avez une voix — nous vous donnons l'infrastructure. Sous-domaine personnalisé, SSL automatique, éditeur riche, newsletter intégrée, paiement direct."
+
+msgid "Pas de compte ? S'inscrire"
+msgstr "Pas de compte ? S'inscrire"
+
+msgid "Pas de publicités. Pas d'algorithmes opaques. Juste vous et vos lecteurs, sur une infrastructure souveraine."
+msgstr "Pas de publicités. Pas d'algorithmes opaques. Juste vous et vos lecteurs, sur une infrastructure souveraine."
+
+msgid "Pas de scroll toxique. Pas d'algorithme marchand. Juste du fond, du temps long, et un espace qui respecte votre intelligence."
+msgstr "Pas de scroll toxique. Pas d'algorithme marchand. Juste du fond, du temps long, et un espace qui respecte votre intelligence."
+
+msgid "Pas de scroll toxique. Pas d'algorithme marchand..."
+msgstr "Pas de scroll toxique. Pas d'algorithme marchand..."
+
+msgid "Passage cité avec succès sur votre fil Feed !"
+msgstr "Passage cité avec succès sur votre fil Feed !"
+
+msgid "Passer en Mode Clair"
+msgstr "Passer en Mode Clair"
+
+msgid "Passer en Mode Clair (Nuages & Lumière)"
+msgstr "Passer en Mode Clair (Nuages & Lumière)"
+
+msgid "Passer en Mode Sombre"
+msgstr "Passer en Mode Sombre"
+
+msgid "Passer en Mode Sombre (Neural Expressive)"
+msgstr "Passer en Mode Sombre (Neural Expressive)"
+
+msgid "Paywall & abonnements via Stripe Connect"
+msgstr "Paywall & abonnements via Stripe Connect"
+
+msgid "peaufine actuellement cet écrit. Il sera disponible en lecture dès sa publication officielle."
+msgstr "peaufine actuellement cet écrit. Il sera disponible en lecture dès sa publication officielle."
+
+msgid "Pensée programmée"
+msgstr "Pensée programmée"
+
+msgid "Pensée supprimée."
+msgstr "Pensée supprimée."
+
+msgid "Performance de votre dernier écrit"
+msgstr "Performance de votre dernier écrit"
+
+msgid "Permettez à vos lecteurs d'écouter vos articles lors de leurs déplacements. Intégration d'un lecteur audio flottant et épuré avec des voix synthétiques naturelles respectant le rythme éditorial."
+msgstr "Permettez à vos lecteurs d'écouter vos articles lors de leurs déplacements. Intégration d'un lecteur audio flottant et épuré avec des voix synthétiques naturelles respectant le rythme éditorial."
+
+msgid "Personnes mentionnées"
+msgstr "Personnes mentionnées"
+
+msgid "Phénoménologie, Dialectique, Épistémologie, Herméneutique, Ontologie..."
+msgstr "Phénoménologie, Dialectique, Épistémologie, Herméneutique, Ontologie..."
+
+msgid "Photo de profil (URL Image)"
+msgstr "Photo de profil (URL Image)"
+
+msgid "Pied de page (Footer)"
+msgstr "Pied de page (Footer)"
+
+msgid "Plateforme"
+msgstr "Plateforme"
+
+msgid "Plein écran"
+msgstr "Plein écran"
+
+msgid "PODCAST / LECTURE AUDIO"
+msgstr "PODCAST / LECTURE AUDIO"
+
+msgid "Portefeuille"
+msgstr "Portefeuille"
+
+msgid "Pour ceux qui veulent se cultiver"
+msgstr "Pour ceux qui veulent se cultiver"
+
+#. placeholder {0}: manifestoMessages[manifestoIdx].target
+msgid "Pour les {0}"
+msgstr "Pour les {0}"
+
+msgid "pour recevoir les prochains écrits directement dans votre boîte mail."
+msgstr "pour recevoir les prochains écrits directement dans votre boîte mail."
+
+msgid "Pour vous"
+msgstr "Pour vous"
+
+msgid "Pourquoi qoe.fi redéfinit l'édition indépendante"
+msgstr "Pourquoi qoe.fi redéfinit l'édition indépendante"
+
+msgid "Pourquoi souhaitez-vous signaler cette publication ?"
+msgstr "Pourquoi souhaitez-vous signaler cette publication ?"
+
+msgid "Poursuivez votre lecture de « {articleTitle} »"
+msgstr "Poursuivez votre lecture de « {articleTitle} »"
+
+msgid "Préférences"
+msgstr "Préférences"
+
+msgid "Préférences visuelles"
+msgstr "Préférences visuelles"
+
+msgid "Premium"
+msgstr "Premium"
+
+msgid "Prenez la plume et publiez."
+msgstr "Prenez la plume et publiez."
+
+msgid "Près de 0% (Soutien direct via Wallet, frais de réseau uniquement)"
+msgstr "Près de 0% (Soutien direct via Wallet, frais de réseau uniquement)"
+
+msgid "Préservez votre attention."
+msgstr "Préservez votre attention."
+
+msgid "Prêt à publier ?"
+msgstr "Prêt à publier ?"
+
+msgid "Prise en charge des graphiques interactifs"
+msgstr "Prise en charge des graphiques interactifs"
+
+msgid "Privée"
+msgstr "Privée"
+
+msgid "Profil"
+msgstr "Profil"
+
+msgid "Profil & Alignement Thématique"
+msgstr "Profil & Alignement Thématique"
+
+msgid "Profil mis à jour avec succès !"
+msgstr "Profil mis à jour avec succès !"
+
+msgid "Programmée"
+msgstr "Programmée"
+
+msgid "Programmer une publication"
+msgstr "Programmer une publication"
+
+msgid "Propulsé par"
+msgstr "Propulsé par"
+
+msgid "Publications phares"
+msgstr "Publications phares"
+
+msgid "Publications récentes"
+msgstr "Publications récentes"
+
+msgid "Publié"
+msgstr "Publié"
+
+msgid "Publier"
+msgstr "Publier"
+
+msgid "Publier une pensée"
+msgstr "Publier une pensée"
+
+msgid "Publiez votre premier article pour suivre ses performances en temps réel ici."
+msgstr "Publiez votre premier article pour suivre ses performances en temps réel ici."
+
+msgid "QOE.FI — ALIGNEMENT THÉMATIQUE SUR MESURE"
+msgstr "QOE.FI — ALIGNEMENT THÉMATIQUE SUR MESURE"
+
+msgid "qoe.fi — Lecture"
+msgstr "qoe.fi — Lecture"
+
+msgid "QOE.FI — ZÉRO ATTENTION COMMERCIALE"
+msgstr "QOE.FI — ZÉRO ATTENTION COMMERCIALE"
+
+msgid "qoe.fi (Souverain)"
+msgstr "qoe.fi (Souverain)"
+
+msgid "qoe.fi est conçu pour les créateurs qui refusent le compromis de la centralisation algorithmique et de l'intermédiation financière."
+msgstr "qoe.fi est conçu pour les créateurs qui refusent le compromis de la centralisation algorithmique et de l'intermédiation financière."
+
+msgid "qoe.fi est en ligne ! Rejoignez-nous."
+msgstr "qoe.fi est en ligne ! Rejoignez-nous."
+
+msgid "qoe.fi:"
+msgstr "qoe.fi:"
+
+msgid "Qu'est-ce qui vous élève ?"
+msgstr "Qu'est-ce qui vous élève ?"
+
+msgid "Que recherchez-vous ?"
+msgstr "Que recherchez-vous ?"
+
+msgid "Raccourcis"
+msgstr "Raccourcis"
+
+msgid "Raccourcis de la console"
+msgstr "Raccourcis de la console"
+
+msgid "Rapidité d'intégration"
+msgstr "Rapidité d'intégration"
+
+msgid "Réactions Lecteurs"
+msgstr "Réactions Lecteurs"
+
+msgid "Recevoir un lien magique"
+msgstr "Recevoir un lien magique"
+
+msgid "Recherche"
+msgstr "Recherche"
+
+msgid "Recherche en cours..."
+msgstr "Recherche en cours..."
+
+msgid "Rechercher"
+msgstr "Rechercher"
+
+msgid "Rechercher des écrits, réglages, actions..."
+msgstr "Rechercher des écrits, réglages, actions..."
+
+msgid "Rédactions, titres indépendants"
+msgstr "Rédactions, titres indépendants"
+
+msgid "Rédiger un article"
+msgstr "Rédiger un article"
+
+msgid "Redirection du CTA (URL)"
+msgstr "Redirection du CTA (URL)"
+
+msgid "Réduire"
+msgstr "Réduire"
+
+msgid "Réglage"
+msgstr "Réglage"
+
+msgid "Réglages"
+msgstr "Réglages"
+
+msgid "Réglages de la console"
+msgstr "Réglages de la console"
+
+msgid "Réglages du Studio"
+msgstr "Réglages du Studio"
+
+msgid "Réinitialiser les filtres"
+msgstr "Réinitialiser les filtres"
+
+msgid "Rejoignez l'écosystème"
+msgstr "Rejoignez l'écosystème"
+
+msgid "Rejoignez la conversation et répondez à l'auteur"
+msgstr "Rejoignez la conversation et répondez à l'auteur"
+
+msgid "Rejoignez la discussion"
+msgstr "Rejoignez la discussion"
+
+msgid "Rejoignez le cercle restreint"
+msgstr "Rejoignez le cercle restreint"
+
+msgid "Rejoignez le réseau souverain"
+msgstr "Rejoignez le réseau souverain"
+
+msgid "Rejoindre en tant que créateur"
+msgstr "Rejoindre en tant que créateur"
+
+msgid "Rejoindre l'écosystème"
+msgstr "Rejoindre l'écosystème"
+
+msgid "Rejoindre qoe.fi"
+msgstr "Rejoindre qoe.fi"
+
+msgid "Répondre"
+msgstr "Répondre"
+
+#. placeholder {0}: comment.author.name || t`ce lecteur`
+msgid "Répondre à {0}..."
+msgstr "Répondre à {0}..."
+
+msgid "Réponse masquée par l'auteur de la pensée"
+msgstr "Réponse masquée par l'auteur de la pensée"
+
+msgid "Réponse masquée par l'auteur original"
+msgstr "Réponse masquée par l'auteur original"
+
+msgid "Réponses restreintes"
+msgstr "Réponses restreintes"
+
+msgid "Reposter"
+msgstr "Reposter"
+
+msgid "Reprenez le contrôle \n"
+"de votre audience."
+msgstr "Reprenez le contrôle \n"
+"de votre audience."
+
+msgid "Résiliation sans engagement en 1 clic"
+msgstr "Résiliation sans engagement en 1 clic"
+
+msgid "Restaurer le modèle"
+msgstr "Restaurer le modèle"
+
+msgid "Restez informé des prochaines publications"
+msgstr "Restez informé des prochaines publications"
+
+msgid "Retirer de la bibliothèque"
+msgstr "Retirer de la bibliothèque"
+
+msgid "Retirer le signet"
+msgstr "Retirer le signet"
+
+msgid "Retour"
+msgstr "Retour"
+
+#. placeholder {0}: creator.name || (creator.username ?? '')
+msgid "Retourner au blog de {0}"
+msgstr "Retourner au blog de {0}"
+
+msgid "Retrouvez le goût \n"
+"du temps long."
+msgstr "Retrouvez le goût \n"
+"du temps long."
+
+msgid "Revenez plus tard pour découvrir les nouvelles parutions."
+msgstr "Revenez plus tard pour découvrir les nouvelles parutions."
+
+msgid "Revenu Estimé (LTV)"
+msgstr "Revenu Estimé (LTV)"
+
+msgid "S'abonner ({formattedPrice}/mois)"
+msgstr "S'abonner ({formattedPrice}/mois)"
+
+msgid "S'abonner à l'auteur"
+msgstr "S'abonner à l'auteur"
+
+msgid "S'abonner aux newsletters"
+msgstr "S'abonner aux newsletters"
+
+msgid "S'inscrire"
+msgstr "S'inscrire"
+
+msgid "S'inscrire sur qoe.fi"
+msgstr "S'inscrire sur qoe.fi"
+
+msgid "Saisissez le texte..."
+msgstr "Saisissez le texte..."
+
+msgid "Sanctuaire Elfique (Clair)"
+msgstr "Sanctuaire Elfique (Clair)"
+
+msgid "Sandbox de test gratuit"
+msgstr "Sandbox de test gratuit"
+
+msgid "Sauvegarder"
+msgstr "Sauvegarder"
+
+msgid "Sauvegarder cet écrit"
+msgstr "Sauvegarder cet écrit"
+
+msgid "SDK TypeScript open-source"
+msgstr "SDK TypeScript open-source"
+
+msgid "Se connecter"
+msgstr "Se connecter"
+
+msgid "Se connecter par lien magique"
+msgstr "Se connecter par lien magique"
+
+msgid "Se connecter par mot de passe"
+msgstr "Se connecter par mot de passe"
+
+msgid "Se cultiver, gratuitement"
+msgstr "Se cultiver, gratuitement"
+
+msgid "Se déconnecter"
+msgstr "Se déconnecter"
+
+msgid "Section"
+msgstr "Section"
+
+msgid "Sélectionnez au moins 3 centres d'intérêt pour calibrer votre sanctuaire."
+msgstr "Sélectionnez au moins 3 centres d'intérêt pour calibrer votre sanctuaire."
+
+msgid "Sélectionnez les matières et idées qui éveillent votre réflexion. Pas d'algorithmes publicitaires ou compulsifs, juste les thématiques que vous décidez d'explorer."
+msgstr "Sélectionnez les matières et idées qui éveillent votre réflexion. Pas d'algorithmes publicitaires ou compulsifs, juste les thématiques que vous décidez d'explorer."
+
+msgid "Séparateur"
+msgstr "Séparateur"
+
+msgid "Sépia (Reposant)"
+msgstr "Sépia (Reposant)"
+
+msgid "Sera implémentée en Phase 2."
+msgstr "Sera implémentée en Phase 2."
+
+msgid "Seules les personnes mentionnées dans ce message peuvent répondre."
+msgstr "Seules les personnes mentionnées dans ce message peuvent répondre."
+
+msgid "Seules les personnes suivies par l'auteur peuvent répondre."
+msgstr "Seules les personnes suivies par l'auteur peuvent répondre."
+
+msgid "Seuls les abonnés à cet auteur peuvent répondre."
+msgstr "Seuls les abonnés à cet auteur peuvent répondre."
+
+msgid "Signalement envoyé"
+msgstr "Signalement envoyé"
+
+msgid "Signaler"
+msgstr "Signaler"
+
+msgid "Signaler un contenu"
+msgstr "Signaler un contenu"
+
+msgid "Signets"
+msgstr "Signets"
+
+msgid "SLA 99.9% — hébergement Hetzner (Allemagne)"
+msgstr "SLA 99.9% — hébergement Hetzner (Allemagne)"
+
+#. placeholder {0}: ((user.walletBalanceCents || 0) / 100).toFixed(2)
+msgid "Solde actuel : {0} €"
+msgstr "Solde actuel : {0} €"
+
+msgid "Solde insuffisant dans votre portefeuille. Veuillez recharger votre compte sur l'application principale."
+msgstr "Solde insuffisant dans votre portefeuille. Veuillez recharger votre compte sur l'application principale."
+
+msgid "Sous-domaine media.qoe.fi ou votre propre domaine"
+msgstr "Sous-domaine media.qoe.fi ou votre propre domaine"
+
+msgid "Soutenez l'indépendance de "
+msgstr "Soutenez l'indépendance de "
+
+msgid "Soutiens directement les créateurs"
+msgstr "Soutiens directement les créateurs"
+
+msgid "Souveraineté"
+msgstr "Souveraineté"
+
+msgid "Souveraineté des données"
+msgstr "Souveraineté des données"
+
+msgid "Souveraineté des Médias"
+msgstr "Souveraineté des Médias"
+
+msgid "Souveraineté ou Intermédiation ?"
+msgstr "Souveraineté ou Intermédiation ?"
+
+msgid "Souveraineté Totale"
+msgstr "Souveraineté Totale"
+
+msgid "Spam ou publicité indésirable"
+msgstr "Spam ou publicité indésirable"
+
+msgid "Starter Packs"
+msgstr "Starter Packs"
+
+msgid "Statut"
+msgstr "Statut"
+
+msgid "Structure de la timeline de lecture"
+msgstr "Structure de la timeline de lecture"
+
+msgid "Studio"
+msgstr "Studio"
+
+msgid "Studio Créateur"
+msgstr "Studio Créateur"
+
+msgid "Substack"
+msgstr "Substack"
+
+msgid "Substack:"
+msgstr "Substack:"
+
+msgid "Suivre"
+msgstr "Suivre"
+
+msgid "Suivre {creatorName}"
+msgstr "Suivre {creatorName}"
+
+msgid "Supprimer"
+msgstr "Supprimer"
+
+msgid "Sur qoe.fi, les auteurs écrivent en toute indépendance, sans dépendre de régies publicitaires capitalistes ou d'intermédiaires. Suivez-les pour enrichir votre univers."
+msgstr "Sur qoe.fi, les auteurs écrivent en toute indépendance, sans dépendre de régies publicitaires capitalistes ou d'intermédiaires. Suivez-les pour enrichir votre univers."
+
+msgid "Surlignages"
+msgstr "Surlignages"
+
+msgid "Surligné dans :"
+msgstr "Surligné dans :"
+
+msgid "Surlignez des passages dans les articles que vous lisez pour les retrouver ici."
+msgstr "Surlignez des passages dans les articles que vous lisez pour les retrouver ici."
+
+msgid "Surlignez du texte pour annoter"
+msgstr "Surlignez du texte pour annoter"
+
+msgid "Surtitre / Cible"
+msgstr "Surtitre / Cible"
+
+msgid "Surtitre / Label"
+msgstr "Surtitre / Label"
+
+#. placeholder {0}: activeLang.toUpperCase()
+msgid "Surtitre / Tagline ({0})"
+msgstr "Surtitre / Tagline ({0})"
+
+#. placeholder {0}: activeLang.toUpperCase()
+msgid "Surtitre Eyebrow ({0})"
+msgstr "Surtitre Eyebrow ({0})"
+
+msgid "Synchronisation bidirectionnelle avec vos bases existantes. Importez vos archives, continuez à publier où vous êtes, diffusez ici en temps réel. Votre audience grandit — nos serveurs absorbent."
+msgstr "Synchronisation bidirectionnelle avec vos bases existantes. Importez vos archives, continuez à publier où vous êtes, diffusez ici en temps réel. Votre audience grandit — nos serveurs absorbent."
+
+#. placeholder {0}: activeLang.toUpperCase()
+msgid "Tagline / Surtitre ({0})"
+msgstr "Tagline / Surtitre ({0})"
+
+msgid "Taille du texte"
+msgstr "Taille du texte"
+
+msgid "Temps de lecture"
+msgstr "Temps de lecture"
+
+msgid "Testez en direct notre interface adaptative. Ajustez la typographie et l'ambiance pour créer votre propre espace de réflexion."
+msgstr "Testez en direct notre interface adaptative. Ajustez la typographie et l'ambiance pour créer votre propre espace de réflexion."
+
+#. placeholder {0}: activeLang.toUpperCase()
+msgid "Texte de conviction ({0})"
+msgstr "Texte de conviction ({0})"
+
+msgid "Texte de Copyright global"
+msgstr "Texte de Copyright global"
+
+msgid "Texte de l'annonce"
+msgstr "Texte de l'annonce"
+
+msgid "Texte du CTA"
+msgstr "Texte du CTA"
+
+msgid "Texte simple / Newsletter standard uniquement"
+msgstr "Texte simple / Newsletter standard uniquement"
+
+msgid "Thème"
+msgstr "Thème"
+
+msgid "Titre"
+msgstr "Titre"
+
+#. placeholder {0}: activeLang.toUpperCase()
+msgid "Titre de conviction bas de page ({0})"
+msgstr "Titre de conviction bas de page ({0})"
+
+#. placeholder {0}: activeLang.toUpperCase()
+msgid "Titre de l'éditeur simulé ({0})"
+msgstr "Titre de l'éditeur simulé ({0})"
+
+msgid "Titre du groupe"
+msgstr "Titre du groupe"
+
+#. placeholder {0}: activeLang.toUpperCase()
+msgid "Titre H2 ({0})"
+msgstr "Titre H2 ({0})"
+
+#. placeholder {0}: activeLang.toUpperCase()
+msgid "Titre principal ({0})"
+msgstr "Titre principal ({0})"
+
+msgid "Tous les accès"
+msgstr "Tous les accès"
+
+msgid "Tous les thèmes"
+msgstr "Tous les thèmes"
+
+msgid "Trier par : Création"
+msgstr "Trier par : Création"
+
+msgid "Trier par : Durée"
+msgstr "Trier par : Durée"
+
+msgid "Trier par : Récents"
+msgstr "Trier par : Récents"
+
+msgid "Un carnet personnel numérique où vos Highlights deviennent la matière première de votre propre pensée."
+msgstr "Un carnet personnel numérique où vos Highlights deviennent la matière première de votre propre pensée."
+
+msgid "Un confort de lecture absolu."
+msgstr "Un confort de lecture absolu."
+
+msgid "Un portefeuille virtuel intégré permettant de soutenir vos auteurs préférés via WalletTransaction sans intermédiaire."
+msgstr "Un portefeuille virtuel intégré permettant de soutenir vos auteurs préférés via WalletTransaction sans intermédiaire."
+
+msgid "Un sanctuaire dédié à la lecture profonde. Fuyez le bruit constant, cultivez le silence et choisissez qui vous influence."
+msgstr "Un sanctuaire dédié à la lecture profonde. Fuyez le bruit constant, cultivez le silence et choisissez qui vous influence."
+
+msgid "Un sanctuaire dédié aux idées profondes, histoires choisies et à la pensée libre."
+msgstr "Un sanctuaire dédié aux idées profondes, histoires choisies et à la pensée libre."
+
+msgid "Une erreur est survenue lors de la sauvegarde."
+msgstr "Une erreur est survenue lors de la sauvegarde."
+
+msgid "Une erreur est survenue lors du paiement. Veuillez réessayer."
+msgstr "Une erreur est survenue lors du paiement. Veuillez réessayer."
+
+msgid "Une erreur est survenue."
+msgstr "Une erreur est survenue."
+
+msgid "Une infrastructure pour ceux qui pensent."
+msgstr "Une infrastructure pour ceux qui pensent."
+
+msgid "Une ingénierie de la conscience."
+msgstr "Une ingénierie de la conscience."
+
+msgid "URL (ex: /login, https://...)"
+msgstr "URL (ex: /login, https://...)"
+
+msgid "v1.0.2 prêt"
+msgstr "v1.0.2 prêt"
+
+msgid "Valider"
+msgstr "Valider"
+
+msgid "Version Vocale Synthétisée"
+msgstr "Version Vocale Synthétisée"
+
+msgid "Veuillez saisir une adresse e-mail valide."
+msgstr "Veuillez saisir une adresse e-mail valide."
+
+msgid "Veuillez sélectionner au moins 3 centres d'intérêt."
+msgstr "Veuillez sélectionner au moins 3 centres d'intérêt."
+
+msgid "Voici quelques créateurs certifiés qui correspondent à vos affinités."
+msgstr "Voici quelques créateurs certifiés qui correspondent à vos affinités."
+
+msgid "Voir & laisser un commentaire"
+msgstr "Voir & laisser un commentaire"
+
+msgid "Voir +"
+msgstr "Voir +"
+
+msgid "Voir les formules d'abonnement"
+msgstr "Voir les formules d'abonnement"
+
+msgid "Voir tout"
+msgstr "Voir tout"
+
+msgid "Vos citations et réflexions extraites de vos lectures."
+msgstr "Vos citations et réflexions extraites de vos lectures."
+
+msgid "Vos lectures sauvegardées et articles favoris."
+msgstr "Vos lectures sauvegardées et articles favoris."
+
+msgid "Votre CMS. Votre audience. Votre ligne."
+msgstr "Votre CMS. Votre audience. Votre ligne."
+
+msgid "Votre média en 3 minutes."
+msgstr "Votre média en 3 minutes."
+
+msgid "Votre nom"
+msgstr "Votre nom"
+
+msgid "Votre Note"
+msgstr "Votre Note"
+
+#. placeholder {0}: topArticle.title
+msgid "Votre publication \"{0}\" est en ligne. Pensez à la partager sur vos réseaux."
+msgstr "Votre publication \"{0}\" est en ligne. Pensez à la partager sur vos réseaux."
+
+msgid "Votre Sanctuaire commence ici."
+msgstr "Votre Sanctuaire commence ici."
+
+msgid "Votre sanctuaire est vide"
+msgstr "Votre sanctuaire est vide"
+
+msgid "Votre Sanctuaire est vide"
+msgstr "Votre Sanctuaire est vide"
+
+msgid "Votre semaine"
+msgstr "Votre semaine"
+
+msgid "votre.email@exemple.com"
+msgstr "votre.email@exemple.com"
+
+msgid "Voulez-vous vraiment supprimer ce commentaire ?"
+msgstr "Voulez-vous vraiment supprimer ce commentaire ?"
+
+msgid "Vous comptez actuellement {subscribersCount} abonnés inscrits. Proposez du contenu exclusif pour augmenter vos abonnements payants."
+msgstr "Vous comptez actuellement {subscribersCount} abonnés inscrits. Proposez du contenu exclusif pour augmenter vos abonnements payants."
+
+msgid "Vous n'avez pas encore d'article publié. Rédigez votre premier contenu pour attirer vos premiers lecteurs."
+msgstr "Vous n'avez pas encore d'article publié. Rédigez votre premier contenu pour attirer vos premiers lecteurs."
+
+msgid "vous@exemple.com"
+msgstr "vous@exemple.com"
+
+msgid "Vue d'ensemble"
+msgstr "Vue d'ensemble"
+
+msgid "Vues totales (30j)"
+msgstr "Vues totales (30j)"
+
+msgid "Webhooks temps réel (publication, abonnement)"
+msgstr "Webhooks temps réel (publication, abonnement)"
+
+msgid "Zéro VC. Zéro GAFAM. Zéro compromis."
+msgstr "Zéro VC. Zéro GAFAM. Zéro compromis."

@@ -40,6 +40,7 @@ import { cn } from '@qoe/utils';
 import { compressImage } from '@/lib/image-compressor';
 import { useAutoSaveArticle, type AutoSavePayload } from '@qoe/api-client';
 import { ArticleInspectorModal } from '@/app/(creator)/analytics/components/ArticleInspectorModal';
+import { t } from '@lingui/core/macro';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) return error.message;
@@ -445,7 +446,7 @@ export function Editor({
               title="Ouvrir la page publique ou la prévisualisation de l'écrit"
             >
               <ExternalLink className="h-3.5 w-3.5 text-primary" />
-              <span>Aperçu</span>
+              <span>{t`Aperçu`}</span>
             </a>
           )}
 
@@ -667,7 +668,7 @@ export function Editor({
                   }}
                   className="w-full bg-background border border-border/40 rounded-lg p-2.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans cursor-pointer"
                 >
-                  <option value="">-- Sans catégorie --</option>
+                  <option value="">{t`-- Sans catégorie --`}</option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>
                       {cat.name}

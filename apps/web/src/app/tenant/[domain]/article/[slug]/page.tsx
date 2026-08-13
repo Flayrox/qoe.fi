@@ -15,6 +15,7 @@ import { ArticleCommentsSection } from './ArticleCommentsSection';
 import { getArticleCommentsAction } from './actions';
 import { sliceContentAtPaywall } from '@qoe/utils';
 import { ContentVisibility } from '@qoe/db/types';
+import { t } from '@lingui/core/macro';
 interface TenantArticlePageProps {
   params: Promise<{
     domain: string;
@@ -75,20 +76,20 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
           qoe
         </div>
         <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-semibold uppercase tracking-wider mb-3">
-          404 • Écrit introuvable
+          {t`404 • Écrit introuvable`}
         </span>
         <h1 className="text-3xl font-bold tracking-tight mb-2 text-foreground">
-          Cet écrit n'existe pas
+          {t`Cet écrit n'existe pas`}
         </h1>
         <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
-          Le lien que vous avez suivi est incorrect ou l'écrit a été retiré par{' '}
+          {t`Le lien que vous avez suivi est incorrect ou l'écrit a été retiré par `}
           <strong className="text-foreground">{creator.name || creator.username}</strong>.
         </p>
         <Link
           href="/"
           className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:opacity-90 transition-opacity shadow-sm"
         >
-          Retourner au blog de {creator.name || creator.username}
+          {t`Retourner au blog de ${creator.name || (creator.username ?? '')}`}
         </Link>
       </div>
     );
@@ -102,20 +103,20 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
           qoe
         </div>
         <span className="px-3 py-1 rounded-full bg-highlight/10 text-highlight border border-highlight/20 text-xs font-bold uppercase tracking-wider mb-3">
-          Écrit Privé • Brouillon en cours
+          {t`Écrit Privé • Brouillon en cours`}
         </span>
         <h1 className="text-3xl font-bold tracking-tight mb-2 text-foreground">
-          Cet écrit n'est pas encore publié
+          {t`Cet écrit n'est pas encore publié`}
         </h1>
         <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
-          <strong className="text-foreground">{creator.name || creator.username}</strong> peaufine
-          actuellement cet écrit. Il sera disponible en lecture dès sa publication officielle.
+          <strong className="text-foreground">{creator.name || creator.username}</strong>{' '}
+          {t`peaufine actuellement cet écrit. Il sera disponible en lecture dès sa publication officielle.`}
         </p>
         <Link
           href="/"
           className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:opacity-90 transition-opacity shadow-sm"
         >
-          Explorer le blog de {creator.name || creator.username}
+          {t`Explorer le blog de ${creator.name || (creator.username ?? '')}`}
         </Link>
       </div>
     );
@@ -309,7 +310,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
               </span>
             )}
             <span className="text-xs text-muted-foreground font-medium">
-              {readingTimeMinutes} min de lecture
+              {t`${readingTimeMinutes} min de lecture`}
             </span>
           </div>
 
@@ -323,7 +324,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
             {logoUrl && (
               <Image
                 src={logoUrl}
-                alt={name || 'Auteur'}
+                alt={name || t`Auteur`}
                 width={40}
                 height={40}
                 className="w-10 h-10 rounded-full object-cover border border-border/40 shrink-0"
@@ -363,7 +364,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
         {/* Interactive Genius Text Selection Highlighter & Side Drawer Engine */}
         <TenantArticleHighlighter
           articleId={article.id}
-          creatorName={name || creator.username || "L'Auteur"}
+          creatorName={name || creator.username || t`L'Auteur`}
           allowPublicAnnotations={allowPublicAnnotations}
           isAuthenticated={!!user}
           initialHighlights={initialHighlights}
@@ -393,12 +394,12 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
             <h3
               className={`text-2xl md:text-3xl mb-3 ${isBrutalist ? 'font-black uppercase' : 'font-bold'}`}
             >
-              Restez informé des prochaines publications
+              {t`Restez informé des prochaines publications`}
             </h3>
             <p className="text-muted-foreground text-sm md:text-base max-w-md mx-auto mb-8">
-              Abonnez-vous gratuitement à la newsletter de{' '}
-              <strong className="text-foreground">{name}</strong> pour recevoir les prochains écrits
-              directement dans votre boîte mail.
+              {t`Abonnez-vous gratuitement à la newsletter de `}
+              <strong className="text-foreground">{name}</strong>{' '}
+              {t`pour recevoir les prochains écrits directement dans votre boîte mail.`}
             </p>
             <SubscribeForm creatorId={creator.id} isBrutalist={isBrutalist} />
           </div>
@@ -409,7 +410,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
       <ReaderActions
         articleId={article.id}
         creatorId={creator.id}
-        creatorName={name || creator.username || 'le créateur'}
+        creatorName={name || creator.username || t`le créateur`}
         isAuthenticated={!!user}
         initialBookmarked={initialBookmarked}
         initialFollowed={initialFollowed}
@@ -421,7 +422,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
         className={`py-16 px-4 text-center ${isBrutalist ? 'border-t-4 border-foreground' : 'border-t border-border/40 bg-muted/20'}`}
       >
         <div className="max-w-2xl mx-auto space-y-6 text-sm text-muted-foreground">
-          <p>{footerText || `© ${new Date().getFullYear()} ${name}. Propulsé par qoe.fi`}</p>
+          <p>{footerText || t`© ${new Date().getFullYear()} ${name ?? ''}. Propulsé par qoe.fi`}</p>
         </div>
       </footer>
     </div>

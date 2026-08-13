@@ -4,7 +4,7 @@ import React from 'react';
 import { Sidebar } from '@qoe/ui/sidebar';
 import { Logo } from '@qoe/ui';
 import { routes } from '@qoe/config/routes';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 
 interface AppSidebarProps {
   userName?: string;
@@ -15,47 +15,46 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({
-  userName = 'Lecteur',
+  userName = t`Lecteur`,
   userEmail = '',
   userAvatar = null,
   onLogout,
 }: AppSidebarProps) {
-  const { t } = useTranslate();
   const userFallback = userName.slice(0, 2).toUpperCase();
 
   const menuItems = [
     {
-      title: t('feed.home', 'Accueil'),
+      title: t`Accueil`,
       url: routes.feed.home(),
       iconName: 'Home',
     },
     {
-      title: t('feed.search', 'Recherche'),
+      title: t`Recherche`,
       url: '/search',
       iconName: 'Search',
     },
     {
-      title: t('feed.notifications', 'Notifications'),
+      title: t`Notifications`,
       url: '/notifications',
       iconName: 'Bell',
     },
     {
-      title: t('feed.starter_packs', 'Starter Packs'),
+      title: t`Starter Packs`,
       url: routes.feed.starterPacks(),
       iconName: 'Compass',
     },
     {
-      title: t('feed.tab_library', 'Signets'),
+      title: t`Signets`,
       url: routes.feed.library(),
       iconName: 'Bookmark',
     },
     {
-      title: t('highlights.title', 'Surlignages'),
+      title: t`Surlignages`,
       url: routes.feed.highlights(),
       iconName: 'Highlighter',
     },
     {
-      title: t('settings_reader.tab_billing', 'Portefeuille'),
+      title: t`Portefeuille`,
       url: routes.feed.billing(),
       iconName: 'Wallet',
     },
@@ -76,7 +75,7 @@ export function AppSidebar({
       userAvatar={userAvatar}
       onLogout={onLogout}
       primaryAction={{
-        label: t('feed.publish_thought', 'Publier une pensée'),
+        label: t`Publier une pensée`,
         onClick: handleOpenComposer,
       }}
     />

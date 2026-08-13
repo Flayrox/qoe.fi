@@ -17,6 +17,7 @@ import {
 import { cn } from '@qoe/utils';
 import { motion } from 'framer-motion';
 import { useRequireAuth } from '@qoe/ui';
+import { t } from '@lingui/core/macro';
 
 interface ReaderActionsProps {
   articleId: string;
@@ -102,7 +103,7 @@ export function ReaderActions({
             ? 'bg-highlight/10 text-highlight'
             : 'hover:bg-muted text-muted-foreground hover:text-foreground'
         )}
-        title="Sauvegarder cet écrit"
+        title={t`Sauvegarder cet écrit`}
       >
         {bookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
       </button>
@@ -111,7 +112,7 @@ export function ReaderActions({
       <button
         onClick={scrollToComments}
         className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground shrink-0"
-        title="Voir & laisser un commentaire"
+        title={t`Voir & laisser un commentaire`}
       >
         <MessageSquare className="w-4 h-4" />
       </button>
@@ -131,11 +132,11 @@ export function ReaderActions({
       >
         {followed ? (
           <>
-            <UserCheck className="w-3.5 h-3.5" /> <span>Abonné</span>
+            <UserCheck className="w-3.5 h-3.5" /> <span>{t`Abonné`}</span>
           </>
         ) : (
           <>
-            <UserPlus className="w-3.5 h-3.5" /> <span>Suivre {creatorName}</span>
+            <UserPlus className="w-3.5 h-3.5" /> <span>{t`Suivre ${creatorName}`}</span>
           </>
         )}
       </button>
@@ -147,9 +148,9 @@ export function ReaderActions({
           <button
             onClick={() => openAuthModal({ mode: 'signup' })}
             className="px-3.5 py-2 rounded-xl text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 transition-all flex items-center cursor-pointer shadow-sm shrink-0"
-            title="Créer un compte sur qoe.fi"
+            title={t`Créer un compte sur qoe.fi`}
           >
-            <span className="whitespace-nowrap">S'inscrire sur qoe.fi</span>
+            <span className="whitespace-nowrap">{t`S'inscrire sur qoe.fi`}</span>
           </button>
         </>
       )}
@@ -159,7 +160,7 @@ export function ReaderActions({
           <div className="w-px h-4 bg-border hidden sm:block shrink-0" />
           <div className="hidden sm:flex items-center gap-1 text-[10px] text-muted-foreground px-1 font-medium whitespace-nowrap">
             <HelpCircle className="w-3 h-3 text-muted-foreground shrink-0" />
-            <span>Surlignez du texte pour annoter</span>
+            <span>{t`Surlignez du texte pour annoter`}</span>
           </div>
         </>
       )}

@@ -10,7 +10,7 @@ import { cn } from '@qoe/utils';
 import { Logo } from '@qoe/ui';
 import { routes } from '@qoe/config/routes';
 import { URLS } from '@qoe/config';
-import { useTranslate } from '@qoe/i18n';
+import { t } from '@lingui/core/macro';
 
 interface ReaderNavOverlayProps {
   userName?: string;
@@ -21,13 +21,12 @@ interface ReaderNavOverlayProps {
 }
 
 export function ReaderNavOverlay({
-  userName = 'Lecteur',
+  userName = t`Lecteur`,
   userEmail = '',
   userAvatar,
   userRole,
   onLogout,
 }: ReaderNavOverlayProps) {
-  const { t } = useTranslate();
   const pathname = usePathname();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -37,15 +36,15 @@ export function ReaderNavOverlay({
   }, []);
 
   const navItems = [
-    { label: t('feed.home', 'Accueil'), href: routes.feed.home(), icon: Home },
-    { label: t('feed.tab_library', 'Signets'), href: routes.feed.library(), icon: Bookmark },
+    { label: t`Accueil`, href: routes.feed.home(), icon: Home },
+    { label: t`Signets`, href: routes.feed.library(), icon: Bookmark },
     {
-      label: t('highlights.title', 'Surlignages'),
+      label: t`Surlignages`,
       href: routes.feed.highlights(),
       icon: Highlighter,
     },
     {
-      label: t('settings_reader.tab_billing', 'Portefeuille'),
+      label: t`Portefeuille`,
       href: routes.feed.billing(),
       icon: Wallet,
     },
@@ -132,7 +131,7 @@ export function ReaderNavOverlay({
             type="button"
             onClick={() => setIsProfileOpen(!isProfileOpen)}
             className="flex items-center gap-2 p-1 rounded-xl hover:bg-muted transition-colors outline-none cursor-pointer"
-            aria-label="Menu profil"
+            aria-label={t`Menu profil`}
             aria-expanded={isProfileOpen}
           >
             <span className="w-7 h-7 rounded-lg bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden border border-primary/20">
@@ -179,7 +178,7 @@ export function ReaderNavOverlay({
                     onClick={() => setIsProfileOpen(false)}
                   >
                     <LayoutDashboard className="w-3.5 h-3.5" />
-                    <span>{t('settings_reader.creator_go_dashboard', 'Studio Créateur')}</span>
+                    <span>{t`Studio Créateur`}</span>
                   </a>
                 )}
 
@@ -197,7 +196,7 @@ export function ReaderNavOverlay({
                       className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-destructive rounded-xl hover:bg-destructive/10 transition-colors text-left cursor-pointer"
                     >
                       <LogOut className="w-3.5 h-3.5" />
-                      <span>{t('sidebar.user_logout', 'Se déconnecter')}</span>
+                      <span>{t`Se déconnecter`}</span>
                     </button>
                   </form>
                 )}

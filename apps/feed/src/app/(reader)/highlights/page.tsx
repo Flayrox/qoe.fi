@@ -2,12 +2,10 @@ import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
 import { prisma } from '@qoe/db/client';
 import { Highlighter, ExternalLink } from 'lucide-react';
-import { getTranslate } from '@qoe/i18n/server';
+import { t } from '@lingui/core/macro';
 import { ReaderPageLayout } from '@/components/layout/ReaderPageLayout';
 
 export default async function HighlightsPage() {
-  const t = await getTranslate();
-
   const supabase = await createClient();
   const {
     data: { user },
@@ -30,16 +28,16 @@ export default async function HighlightsPage() {
   });
 
   return (
-    <ReaderPageLayout giantTitle="Surlignages">
+    <ReaderPageLayout giantTitle={t`Surlignages`}>
       <div className="bg-card text-card-foreground shadow-2xl border-t border-x border-border/40 rounded-t-2xl min-h-screen mt-24 relative z-20">
         <div className="px-6 pt-6 pb-6 space-y-6">
           {/* Page header inside the sheet */}
           <div className="px-1">
             <h1 className="text-lg font-bold text-foreground tracking-tight">
-              {t('highlights.title', 'Carnet de Surlignages')}
+              {t`Carnet de Surlignages`}
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {t('highlights.subtitle', 'Vos citations et réflexions extraites de vos lectures.')}
+              {t`Vos citations et réflexions extraites de vos lectures.`}
             </p>
           </div>
 
@@ -48,14 +46,9 @@ export default async function HighlightsPage() {
             {highlights.length === 0 ? (
               <div className="bg-muted/40 rounded-xl p-12 border border-border/40 text-center flex flex-col items-center justify-center gap-3">
                 <Highlighter className="w-10 h-10 text-muted-foreground/60" />
-                <h4 className="font-bold text-sm text-foreground">
-                  {t('highlights.empty_title', 'Aucun passage surligné')}
-                </h4>
+                <h4 className="font-bold text-sm text-foreground">{t`Aucun passage surligné`}</h4>
                 <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
-                  {t(
-                    'highlights.empty_desc',
-                    'Surlignez des passages dans les articles que vous lisez pour les retrouver ici.'
-                  )}
+                  {t`Surlignez des passages dans les articles que vous lisez pour les retrouver ici.`}
                 </p>
               </div>
             ) : (
@@ -88,7 +81,7 @@ export default async function HighlightsPage() {
                     {h.note && (
                       <div className="bg-muted/50 border border-border/40 rounded-lg p-3">
                         <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground block mb-1">
-                          {t('highlights.your_note', 'Votre Note')}
+                          {t`Votre Note`}
                         </span>
                         <p className="text-xs text-foreground leading-relaxed">{h.note}</p>
                       </div>
@@ -97,14 +90,14 @@ export default async function HighlightsPage() {
                     {/* Source info */}
                     <div className="flex items-center justify-between pt-3 border-t border-border/40 text-[10px] text-muted-foreground">
                       <span className="font-medium truncate max-w-[60%]">
-                        {t('highlights.highlighted_in', 'Surligné dans :')} {h.article.title}
+                        {t`Surligné dans :`} {h.article.title}
                       </span>
                       <a
                         href={url}
                         target="_blank"
                         className="text-primary hover:underline font-semibold flex items-center gap-1 shrink-0"
                       >
-                        {t('highlights.consult', 'Consulter')} <ExternalLink className="w-3 h-3" />
+                        {t`Consulter`} <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
                   </div>

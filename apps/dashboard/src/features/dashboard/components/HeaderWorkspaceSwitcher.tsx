@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronDown, Check, Building2, User, Plus } from 'lucide-react';
 import { getUserWorkspacesAction } from '@/app/(creator)/media/actions';
 import type { WorkspaceInfo as Workspace } from '@/app/(creator)/media/actions';
+import { t } from '@lingui/core/macro';
 
 export function HeaderWorkspaceSwitcher() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -94,7 +95,7 @@ export function HeaderWorkspaceSwitcher() {
               className="flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-primary hover:bg-primary/5 rounded-xl transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Créer / Importer un Média</span>
+              <span>{t`Créer / Importer un Média`}</span>
             </a>
           </div>
         </div>

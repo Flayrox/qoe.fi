@@ -10,6 +10,7 @@
 import React, { useState } from 'react';
 import { Lock, CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
 import { useCreateCheckoutSession } from '@qoe/api-client';
+import { t } from '@lingui/core/macro';
 
 export interface PaywallCutProps {
   creatorId: string;
@@ -40,7 +41,7 @@ export function PaywallCut({
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !email.includes('@')) {
-      setEmailError('Veuillez saisir une adresse e-mail valide.');
+      setEmailError(t`Veuillez saisir une adresse e-mail valide.`);
       return;
     }
     setEmailError('');
@@ -60,7 +61,7 @@ export function PaywallCut({
       }
     } catch (err: unknown) {
       setEmailError(
-        err instanceof Error ? err.message : 'Erreur lors du lancement de la souscription.'
+        err instanceof Error ? err.message : t`Erreur lors du lancement de la souscription.`
       );
     }
   };
@@ -74,37 +75,37 @@ export function PaywallCut({
         {/* Header Badge */}
         <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-highlight/30 bg-highlight/10 px-4 py-1.5 text-xs font-medium text-highlight backdrop-blur-md">
           <Lock className="h-3.5 w-3.5 text-highlight" />
-          <span>Contenu réservé aux abonnés payants</span>
+          <span>{t`Contenu réservé aux abonnés payants`}</span>
         </div>
 
         {/* Title */}
         <h3 className="mb-3 text-2xl font-bold tracking-tight text-background md:text-3xl font-sans">
-          Poursuivez votre lecture de « {articleTitle} »
+          {t`Poursuivez votre lecture de « ${articleTitle} »`}
         </h3>
 
         <p className="mb-8 text-sm text-muted-foreground leading-relaxed font-sans">
-          Soutenez l'indépendance de{' '}
-          <span className="font-semibold text-background">{creatorName}</span> et débloquez l'accès
-          intégral à tous les écrits et archives exclusives.
+          {t`Soutenez l'indépendance de `}
+          <span className="font-semibold text-background">{creatorName}</span>{' '}
+          {t`et débloquez l'accès intégral à tous les écrits et archives exclusives.`}
         </p>
 
         {/* Features List */}
         <div className="mb-8 grid grid-cols-1 gap-3 text-left text-xs text-muted-foreground sm:grid-cols-2">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-highlight" />
-            <span>Accès illimité aux articles payants</span>
+            <span>{t`Accès illimité aux articles payants`}</span>
           </div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-highlight" />
-            <span>Édition newsletter complète par e-mail</span>
+            <span>{t`Édition newsletter complète par e-mail`}</span>
           </div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-highlight" />
-            <span>Accès aux fils de commentaires VIP</span>
+            <span>{t`Accès aux fils de commentaires VIP`}</span>
           </div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-highlight" />
-            <span>Résiliation sans engagement en 1 clic</span>
+            <span>{t`Résiliation sans engagement en 1 clic`}</span>
           </div>
         </div>
 
@@ -115,7 +116,7 @@ export function PaywallCut({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="votre.email@exemple.com"
+              placeholder={t`votre.email@exemple.com`}
               required
               className="w-full rounded-xl border border-border bg-popover/80 px-4 py-3 text-sm text-background placeholder:text-muted-foreground focus:border-highlight focus:outline-none focus:ring-1 focus:ring-highlight font-sans"
             />
@@ -128,7 +129,7 @@ export function PaywallCut({
                 <Loader2 className="h-4 w-4 animate-spin text-foreground" />
               ) : (
                 <>
-                  <span>S'abonner ({formattedPrice}/mois)</span>
+                  <span>{t`S'abonner (${formattedPrice}/mois)`}</span>
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}
@@ -141,7 +142,7 @@ export function PaywallCut({
         </form>
 
         <p className="mt-4 text-[11px] text-muted-foreground font-sans">
-          Paiement 100% sécurisé via Stripe • Annulation possible à tout moment
+          {t`Paiement 100% sécurisé via Stripe • Annulation possible à tout moment`}
         </p>
       </div>
     </div>
