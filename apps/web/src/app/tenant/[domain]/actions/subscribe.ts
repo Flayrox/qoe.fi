@@ -1,19 +1,19 @@
-"use server"
+'use server';
 
-import { subscribeToNewsletterAction } from "@qoe/api-client/actions/tenant"
+import { subscribeToNewsletterAction } from '@qoe/api-client/actions/tenant';
 
 export async function subscribeToNewsletter(formData: FormData) {
-  const email = formData.get("email") as string
-  const creatorId = formData.get("creatorId") as string
+  const email = formData.get('email') as string;
+  const creatorId = formData.get('creatorId') as string;
 
   if (!email || !creatorId) {
-    return { error: "Missing required fields." }
+    return { error: 'Missing required fields.' };
   }
 
-  const res = await subscribeToNewsletterAction({ email, creatorId })
+  const res = await subscribeToNewsletterAction({ email, creatorId });
   if (!res.ok) {
-    return { error: res.error.message }
+    return { error: res.error.message };
   }
 
-  return { success: true }
+  return { success: true };
 }

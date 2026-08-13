@@ -1,27 +1,27 @@
-"use client"
+'use client';
 
-import React from "react"
-import { usePathname } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
-import { cn } from "@qoe/utils"
+import React from 'react';
+import { usePathname } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@qoe/utils';
 
 interface ReaderPageLayoutProps {
-  giantTitle?: string
-  giantTitleSuffix?: string
-  headerWidgets?: React.ReactNode
-  hideHeader?: boolean
-  children: React.ReactNode
+  giantTitle?: string;
+  giantTitleSuffix?: string;
+  headerWidgets?: React.ReactNode;
+  hideHeader?: boolean;
+  children: React.ReactNode;
 }
 
 export function ReaderPageLayout({
   giantTitle,
-  giantTitleSuffix = ".",
+  giantTitleSuffix = '.',
   headerWidgets,
   hideHeader = false,
   children,
 }: ReaderPageLayoutProps) {
-  const pathname = usePathname()
-  const isTimeline = pathname.endsWith("/home") || pathname.endsWith("/home/")
+  const pathname = usePathname();
+  const isTimeline = pathname.endsWith('/home') || pathname.endsWith('/home/');
 
   return (
     <div className="relative min-h-screen bg-background text-foreground selection:bg-primary/10 selection:text-primary">
@@ -30,7 +30,7 @@ export function ReaderPageLayout({
         {/* Static Background "Lire" giant title & manifesto header */}
         <AnimatePresence>
           {!hideHeader && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -47,12 +47,12 @@ export function ReaderPageLayout({
               )}
 
               <p className="text-sm sm:text-base text-muted-foreground font-normal leading-relaxed max-w-xl">
-                Plateforme souveraine de lecture, d&apos;écriture et d&apos;échanges créateurs. Le flux glissant ci-dessous réunit articles longs et micro-posts en une expérience unifiée.
+                Plateforme souveraine de lecture, d&apos;écriture et d&apos;échanges créateurs. Le
+                flux glissant ci-dessous réunit articles longs et micro-posts en une expérience
+                unifiée.
               </p>
 
-              {headerWidgets && (
-                <div className="w-full pt-2">{headerWidgets}</div>
-              )}
+              {headerWidgets && <div className="w-full pt-2">{headerWidgets}</div>}
             </motion.div>
           )}
         </AnimatePresence>
@@ -60,10 +60,10 @@ export function ReaderPageLayout({
 
       {/* ── FOREGROUND SLIDING FEED SHEET (FULL STAGE WIDTH) ── */}
       <div className="relative z-10 w-full min-h-screen">
-        <div className={cn("w-full px-0 sm:px-2 md:px-4", isTimeline ? "pt-0" : "pt-8")}>
+        <div className={cn('w-full px-0 sm:px-2 md:px-4', isTimeline ? 'pt-0' : 'pt-8')}>
           {children}
         </div>
       </div>
     </div>
-  )
+  );
 }

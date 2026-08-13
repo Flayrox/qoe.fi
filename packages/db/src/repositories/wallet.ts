@@ -2,7 +2,7 @@
 // 💳 Wallet Repository — Couche d'accès typée pour le portefeuille virtuel
 // =====================================================================
 
-import { prisma } from "../client";
+import { prisma } from '../client';
 
 /**
  * 💰 Déverrouille un article créateur via le solde du portefeuille virtuel du lecteur.
@@ -20,11 +20,11 @@ export async function unlockArticleWithWallet(
       });
 
       if (!dbUser) {
-        return { success: false, error: "USER_NOT_FOUND" };
+        return { success: false, error: 'USER_NOT_FOUND' };
       }
 
       if (dbUser.walletBalanceCents < costCents) {
-        return { success: false, error: "INSUFFICIENT_FUNDS" };
+        return { success: false, error: 'INSUFFICIENT_FUNDS' };
       }
 
       await tx.user.update({
@@ -40,7 +40,7 @@ export async function unlockArticleWithWallet(
         data: {
           userId: readerId,
           amountCents: -costCents,
-          type: "PAYWALL_UNLOCK",
+          type: 'PAYWALL_UNLOCK',
         },
       });
 
@@ -56,8 +56,8 @@ export async function unlockArticleWithWallet(
       return { success: true };
     });
   } catch (error) {
-    console.error("Error in unlockArticleWithWallet repository:", error);
-    return { success: false, error: "TRANSACTION_FAILED" };
+    console.error('Error in unlockArticleWithWallet repository:', error);
+    return { success: false, error: 'TRANSACTION_FAILED' };
   }
 }
 

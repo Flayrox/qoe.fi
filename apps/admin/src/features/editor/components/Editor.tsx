@@ -1,12 +1,12 @@
-"use client"
+'use client';
 
-import React, { useState, useCallback, useRef, useEffect } from "react"
-import { useEditor, EditorContent } from "@tiptap/react"
-import StarterKit from "@tiptap/starter-kit"
-import Underline from "@tiptap/extension-underline"
-import Image from "@tiptap/extension-image"
-import { PaywallDivider } from "../extensions/PaywallDivider"
-import { useDebounce } from "use-debounce"
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import Image from '@tiptap/extension-image';
+import { PaywallDivider } from '../extensions/PaywallDivider';
+import { useDebounce } from 'use-debounce';
 import {
   Bold,
   Italic,
@@ -29,72 +29,77 @@ import {
   Loader2,
   Check,
   Send,
-  Unlock
-} from "lucide-react"
-import { cn } from "@qoe/utils"
+  Unlock,
+} from 'lucide-react';
+import { cn } from '@qoe/utils';
 
 export interface EditorProps {
-  initialTitle?: string
-  initialSlug?: string
-  initialContent?: string
-  initialPublished?: boolean
-  initialIsPremium?: boolean
-  isSaving?: boolean
+  initialTitle?: string;
+  initialSlug?: string;
+  initialContent?: string;
+  initialPublished?: boolean;
+  initialIsPremium?: boolean;
+  isSaving?: boolean;
   onSave: (data: {
-    title: string
-    content: string
-    slug: string
-    published: boolean
-    isPremium: boolean
-  }) => Promise<void>
-  onBack?: () => void
+    title: string;
+    content: string;
+    slug: string;
+    published: boolean;
+    isPremium: boolean;
+  }) => Promise<void>;
+  onBack?: () => void;
 }
 
 export function Editor({
-  initialTitle = "",
-  initialSlug = "",
-  initialContent = "",
+  initialTitle = '',
+  initialSlug = '',
+  initialContent = '',
   initialPublished = false,
   initialIsPremium = false,
   isSaving = false,
   onSave,
   onBack,
 }: EditorProps) {
-  const [title, setTitle] = useState(initialTitle)
-  const [slug, setSlug] = useState(initialSlug)
-  const [published, setPublished] = useState(initialPublished)
-  const [isPremium, setIsPremium] = useState(initialIsPremium)
-  const [error, setError] = useState<string | null>(null)
-  
-  const [isUploading, setIsUploading] = useState(false)
-  const [lastSaved, setLastSaved] = useState<Date | null>(null)
-  const [isAutoSaving, setIsAutoSaving] = useState(false)
-  
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const isFirstRender = useRef(true)
+  const [title, setTitle] = useState(initialTitle);
+  const [slug, setSlug] = useState(initialSlug);
+  const [published, setPublished] = useState(initialPublished);
+  const [isPremium, setIsPremium] = useState(initialIsPremium);
+  const [error, setError] = useState<string | null>(null);
 
-  const [debouncedTitle] = useDebounce(title, 2000)
-  const [debouncedSlug] = useDebounce(slug, 2000)
+  const [isUploading, setIsUploading] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isFirstRender = useRef(true);
+
+  const [debouncedTitle] = useDebounce(title, 2000);
+  const [debouncedSlug] = useDebounce(slug, 2000);
 
   const editor = useEditor({
-    extensions: [ /* @ts-ignore */
-      StarterKit, 
+    extensions: [
+      StarterKit,
       Underline,
       PaywallDivider,
       Image.configure({
         HTMLAttributes: {
-          class: 'rounded-xl shadow-md border border-zinc-800 my-8 max-w-full h-auto',
+          class: 'rounded-xl shadow-md border border-border my-8 max-w-full h-auto',
         },
-      })
+      }),
     ],
     content: initialContent,
     editorProps: {
       attributes: {
         class:
-          "prose prose-invert max-w-none focus:outline-none min-h-[400px] text-lg font-serif leading-relaxed placeholder:text-zinc-600",
+          'prose prose-zinc dark:prose-invert max-w-none focus:outline-none min-h-[400px] text-lg font-serif leading-relaxed placeholder:text-muted-foreground',
       },
       handleDrop: (view, event, slice, moved) => {
-        if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) {
+        if (
+          !moved &&
+          event.dataTransfer &&
+          event.dataTransfer.files &&
+          event.dataTransfer.files[0]
+        ) {
           event.preventDefault();
           const file = event.dataTransfer.files[0];
           uploadImage(file);
@@ -103,19 +108,19 @@ export function Editor({
         return false;
       },
     },
-  })
+  });
 
   useEffect(() => {
     if (!initialSlug && title && !slug) {
       const generated = title
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)+/g, "")
-      setSlug(generated)
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '');
+      setSlug(generated);
     }
-  }, [title, initialSlug, slug])
+  }, [title, initialSlug, slug]);
 
-  const editorContent = editor?.getHTML() || "";
+  const editorContent = editor?.getHTML() || '';
   const [debouncedContent] = useDebounce(editorContent, 2000);
 
   const performAutoSave = useCallback(async () => {
@@ -124,22 +129,32 @@ export function Editor({
     try {
       setIsAutoSaving(true);
       setError(null);
-      
+
       await onSave({
         title: debouncedTitle,
         content: debouncedContent,
         slug: debouncedSlug,
         published,
-        isPremium 
+        isPremium,
       });
-      
+
       setLastSaved(new Date());
-    } catch (err: any) {
-      console.error("Auto-save failed:", err);
+    } catch (err: unknown) {
+      console.error('Auto-save failed:', err);
     } finally {
       setIsAutoSaving(false);
     }
-  }, [editor, isAutoSaving, isSaving, debouncedTitle, debouncedContent, debouncedSlug, published, isPremium, onSave]);
+  }, [
+    editor,
+    isAutoSaving,
+    isSaving,
+    debouncedTitle,
+    debouncedContent,
+    debouncedSlug,
+    published,
+    isPremium,
+    onSave,
+  ]);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -151,21 +166,29 @@ export function Editor({
       return;
     }
 
-    const hasChanges = 
-      debouncedTitle !== initialTitle || 
-      debouncedSlug !== initialSlug || 
+    const hasChanges =
+      debouncedTitle !== initialTitle ||
+      debouncedSlug !== initialSlug ||
       debouncedContent !== initialContent;
 
     if (hasChanges) {
       performAutoSave();
     }
-  }, [debouncedTitle, debouncedSlug, debouncedContent, initialContent, initialSlug, initialTitle, performAutoSave]);
+  }, [
+    debouncedTitle,
+    debouncedSlug,
+    debouncedContent,
+    initialContent,
+    initialSlug,
+    initialTitle,
+    performAutoSave,
+  ]);
 
   const uploadImage = async (file: File) => {
     if (!editor) return;
-    
-    if (!file.type.startsWith("image/")) {
-      setError("Please select a valid image file");
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file');
       return;
     }
 
@@ -174,23 +197,22 @@ export function Editor({
       setError(null);
 
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append('file', file);
 
-      const response = await fetch("/api/articles/upload", {
-        method: "POST",
+      const response = await fetch('/api/articles/upload', {
+        method: 'POST',
         body: formData,
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to upload image");
+        throw new Error(data.error || 'Failed to upload image');
       }
 
       editor.chain().focus().setImage({ src: data.url }).run();
-      
-    } catch (err: any) {
-      setError(err?.message || "An error occurred while uploading the image");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred while uploading the image');
     } finally {
       setIsUploading(false);
     }
@@ -202,30 +224,30 @@ export function Editor({
       uploadImage(file);
     }
     if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      fileInputRef.current.value = '';
     }
   };
 
   if (!editor) {
-    return null
+    return null;
   }
 
   const handleManualSave = async () => {
     if (!title.trim()) {
-      setError("Title is required")
-      return
+      setError('Title is required');
+      return;
     }
-    
+
     try {
-      setError(null)
-      const htmlContent = editor.getHTML()
+      setError(null);
+      const htmlContent = editor.getHTML();
       // Ensure slug is generated if missing
       let finalSlug = slug;
       if (!finalSlug) {
         finalSlug = title
           .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/(^-|-$)+/g, "")
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)+/g, '');
         setSlug(finalSlug);
       }
 
@@ -235,47 +257,51 @@ export function Editor({
         slug: finalSlug,
         published,
         isPremium,
-      })
-      setLastSaved(new Date())
-    } catch (err: any) {
-      setError(err?.message || "Failed to save article")
+      });
+      setLastSaved(new Date());
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save article');
     }
-  }
+  };
 
   const handlePublishAndEmail = async () => {
     if (!title.trim()) {
-      setError("Title is required before sending")
-      return
+      setError('Title is required before sending');
+      return;
     }
-    setPublished(true)
-    await handleManualSave()
-    alert("Newsletter dispatch will be connected to Brevo API shortly! Article saved and published.")
-  }
+    setPublished(true);
+    await handleManualSave();
+    alert(
+      'Newsletter dispatch will be connected to Brevo API shortly! Article saved and published.'
+    );
+  };
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
       {/* Header controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
         <div className="flex items-center gap-3">
           {onBack && (
             <button
               onClick={onBack}
-              className="h-9 w-9 rounded-lg flex items-center justify-center border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 hover:text-white text-zinc-400 transition-colors cursor-pointer"
+              className="h-9 w-9 rounded-lg flex items-center justify-center border border-border bg-muted/50 hover:bg-secondary hover:text-foreground text-muted-foreground transition-colors cursor-pointer"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
           )}
           <div>
-            <h2 className="text-lg font-bold tracking-tight text-white font-sans flex items-center gap-2">
-              {initialTitle ? "Edit Article" : "New Masterpiece"}
-              {(isSaving || isAutoSaving) && <Loader2 className="w-3 h-3 animate-spin text-zinc-400" />}
+            <h2 className="text-lg font-bold tracking-tight text-foreground font-sans flex items-center gap-2">
+              {initialTitle ? 'Edit Article' : 'New Masterpiece'}
+              {(isSaving || isAutoSaving) && (
+                <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+              )}
               {lastSaved && !isSaving && !isAutoSaving && (
-                <span className="text-[10px] font-normal text-zinc-500 flex items-center gap-1">
-                  <Check className="w-3 h-3 text-green-500" /> Saved {lastSaved.toLocaleTimeString()}
+                <span className="text-[10px] font-normal text-muted-foreground flex items-center gap-1">
+                  <Check className="w-3 h-3 text-success" /> Saved {lastSaved.toLocaleTimeString()}
                 </span>
               )}
             </h2>
-            <p className="text-xs text-zinc-400 font-sans">
+            <p className="text-xs text-muted-foreground font-sans">
               Drafting a new sovereign voice
             </p>
           </div>
@@ -286,13 +312,13 @@ export function Editor({
           <button
             onClick={() => {
               setIsPremium(!isPremium);
-              setTimeout(handleManualSave, 100); 
+              setTimeout(handleManualSave, 100);
             }}
             className={cn(
-              "h-9 px-3 rounded-lg flex items-center gap-2 border border-zinc-800 font-sans text-xs font-medium transition-colors cursor-pointer",
+              'h-9 px-3 rounded-lg flex items-center gap-2 border border-border font-sans text-xs font-medium transition-colors cursor-pointer',
               isPremium
-                ? "bg-amber-950/30 border-amber-800/80 text-amber-400 hover:bg-amber-950/50"
-                : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                ? 'bg-highlight/10 border-highlight/80 text-highlight hover:bg-highlight/20'
+                : 'bg-muted text-muted-foreground hover:bg-secondary'
             )}
             title="Premium content will be hidden behind a paywall"
           >
@@ -309,19 +335,19 @@ export function Editor({
             )}
           </button>
 
-          <div className="w-[1px] h-6 bg-zinc-800 mx-1"></div>
+          <div className="w-[1px] h-6 bg-border mx-1"></div>
 
           {/* Published Toggle */}
           <button
             onClick={() => {
               setPublished(!published);
-              setTimeout(handleManualSave, 100); 
+              setTimeout(handleManualSave, 100);
             }}
             className={cn(
-              "h-9 px-3 rounded-lg flex items-center gap-2 border border-zinc-800 font-sans text-xs font-medium transition-colors cursor-pointer",
+              'h-9 px-3 rounded-lg flex items-center gap-2 border border-border font-sans text-xs font-medium transition-colors cursor-pointer',
               published
-                ? "bg-green-950/30 border-green-800/80 text-green-400 hover:bg-green-950/50"
-                : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                ? 'bg-success/10 border-success/80 text-success hover:bg-success/20'
+                : 'bg-muted text-muted-foreground hover:bg-secondary'
             )}
           >
             {published ? (
@@ -339,9 +365,9 @@ export function Editor({
 
           {/* Send Email Newsletter */}
           <button
-             onClick={handlePublishAndEmail}
-             className="h-9 px-3 rounded-lg flex items-center gap-2 border border-blue-900/50 bg-blue-950/30 text-blue-400 hover:bg-blue-900/50 font-sans text-xs font-medium transition-colors cursor-pointer"
-             title="Publish and email to subscribers"
+            onClick={handlePublishAndEmail}
+            className="h-9 px-3 rounded-lg flex items-center gap-2 border border-neural-blue/50 bg-neural-blue/10 text-neural-blue hover:bg-neural-blue/20 font-sans text-xs font-medium transition-colors cursor-pointer"
+            title="Publish and email to subscribers"
           >
             <Send className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Dispatch</span>
@@ -351,18 +377,18 @@ export function Editor({
           <button
             onClick={handleManualSave}
             disabled={isSaving || isAutoSaving}
-            className="h-9 px-4 bg-white text-black font-sans text-xs font-semibold rounded-lg flex items-center gap-2 hover:bg-zinc-100 transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+            className="h-9 px-4 bg-foreground text-background font-sans text-xs font-semibold rounded-lg flex items-center gap-2 hover:bg-foreground/80 transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
           >
             <Save className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">
-              {(isSaving || isAutoSaving) ? "Saving..." : "Save Changes"}
+              {isSaving || isAutoSaving ? 'Saving...' : 'Save Changes'}
             </span>
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-950/30 border border-red-900/50 text-red-300 p-4 font-mono text-xs rounded-lg">
+        <div className="bg-destructive/30 border border-destructive/50 text-destructive p-4 font-mono text-xs rounded-lg">
           {error}
         </div>
       )}
@@ -370,9 +396,9 @@ export function Editor({
       {/* Editor Surface */}
       <div className="grid gap-6">
         {/* Title & Slug Group */}
-        <div className="space-y-4 bg-zinc-950 p-6 border border-zinc-800 rounded-xl shadow-lg">
+        <div className="space-y-4 bg-card p-6 border border-border rounded-xl shadow-lg">
           <div className="space-y-1">
-            <label className="text-xs uppercase tracking-wider text-zinc-400 font-sans font-semibold">
+            <label className="text-xs uppercase tracking-wider text-muted-foreground font-sans font-semibold">
               Article Title
             </label>
             <input
@@ -380,137 +406,143 @@ export function Editor({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="The sovereign manifestation of independent media..."
-              className="w-full bg-zinc-900/30 border border-zinc-800 rounded-lg p-3 text-lg font-bold font-sans text-white focus:outline-none focus:border-zinc-700 placeholder:text-zinc-600 transition-colors"
+              className="w-full bg-muted/30 border border-border rounded-lg p-3 text-lg font-bold font-sans text-foreground focus:outline-none focus:border-foreground placeholder:text-muted-foreground transition-colors"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs uppercase tracking-wider text-zinc-400 font-sans font-semibold">
+            <label className="text-xs uppercase tracking-wider text-muted-foreground font-sans font-semibold">
               Slug Identifier
             </label>
             <input
               type="text"
               value={slug}
-              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, "-"))}
+              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))}
               placeholder="e.g. sovereign-manifesto"
-              className="w-full bg-zinc-900/10 border border-zinc-800 rounded-lg p-3 text-sm font-mono text-zinc-400 focus:outline-none focus:border-zinc-700 focus:text-white transition-colors"
+              className="w-full bg-muted/10 border border-border rounded-lg p-3 text-sm font-mono text-muted-foreground focus:outline-none focus:border-foreground focus:text-foreground transition-colors"
             />
           </div>
         </div>
 
         {/* Toolbar & Text Body */}
-        <div className="flex flex-col bg-zinc-950 border border-zinc-800 rounded-xl shadow-lg overflow-hidden">
+        <div className="flex flex-col bg-card border border-border rounded-xl shadow-lg overflow-hidden">
           {/* Formatting Toolbar */}
-          <div className="flex flex-wrap items-center gap-1 p-2 bg-zinc-900/50 backdrop-blur-sm border-b border-zinc-800 sticky top-0 z-10">
+          <div className="flex flex-wrap items-center gap-1 p-2 bg-muted/50 backdrop-blur-sm border-b border-border sticky top-0 z-10">
             {/* Inline styles */}
             <ToolbarButton
-              active={editor.isActive("bold")}
+              active={editor.isActive('bold')}
               onClick={() => editor.chain().focus().toggleBold().run()}
               icon={<Bold className="h-3.5 w-3.5" />}
               tooltip="Bold"
             />
             <ToolbarButton
-              active={editor.isActive("italic")}
+              active={editor.isActive('italic')}
               onClick={() => editor.chain().focus().toggleItalic().run()}
               icon={<Italic className="h-3.5 w-3.5" />}
               tooltip="Italic"
             />
             <ToolbarButton
-              active={editor.isActive("underline")}
+              active={editor.isActive('underline')}
               onClick={() => editor.chain().focus().toggleUnderline().run()}
               icon={<UnderlineIcon className="h-3.5 w-3.5" />}
               tooltip="Underline"
             />
             <ToolbarButton
-              active={editor.isActive("strike")}
+              active={editor.isActive('strike')}
               onClick={() => editor.chain().focus().toggleStrike().run()}
               icon={<Strikethrough className="h-3.5 w-3.5" />}
               tooltip="Strike"
             />
 
-            <div className="h-5 w-[1px] bg-zinc-800 mx-1" />
+            <div className="h-5 w-[1px] bg-border mx-1" />
 
             {/* Headers */}
             <ToolbarButton
-              active={editor.isActive("heading", { level: 1 })}
+              active={editor.isActive('heading', { level: 1 })}
               onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
               icon={<Heading1 className="h-3.5 w-3.5" />}
               tooltip="H1"
             />
             <ToolbarButton
-              active={editor.isActive("heading", { level: 2 })}
+              active={editor.isActive('heading', { level: 2 })}
               onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
               icon={<Heading2 className="h-3.5 w-3.5" />}
               tooltip="H2"
             />
             <ToolbarButton
-              active={editor.isActive("heading", { level: 3 })}
+              active={editor.isActive('heading', { level: 3 })}
               onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
               icon={<Heading3 className="h-3.5 w-3.5" />}
               tooltip="H3"
             />
 
-            <div className="h-5 w-[1px] bg-zinc-800 mx-1" />
+            <div className="h-5 w-[1px] bg-border mx-1" />
 
             {/* Lists */}
             <ToolbarButton
-              active={editor.isActive("bulletList")}
+              active={editor.isActive('bulletList')}
               onClick={() => editor.chain().focus().toggleBulletList().run()}
               icon={<List className="h-3.5 w-3.5" />}
               tooltip="Bullet List"
             />
             <ToolbarButton
-              active={editor.isActive("orderedList")}
+              active={editor.isActive('orderedList')}
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
               icon={<ListOrdered className="h-3.5 w-3.5" />}
               tooltip="Ordered List"
             />
 
-            <div className="h-5 w-[1px] bg-zinc-800 mx-1" />
+            <div className="h-5 w-[1px] bg-border mx-1" />
 
             {/* Block formats */}
             <ToolbarButton
-              active={editor.isActive("blockquote")}
+              active={editor.isActive('blockquote')}
               onClick={() => editor.chain().focus().toggleBlockquote().run()}
               icon={<Quote className="h-3.5 w-3.5" />}
               tooltip="Blockquote"
             />
             <ToolbarButton
-              active={editor.isActive("codeBlock")}
+              active={editor.isActive('codeBlock')}
               onClick={() => editor.chain().focus().toggleCodeBlock().run()}
               icon={<Code className="h-3.5 w-3.5" />}
               tooltip="Code Block"
             />
 
-            <div className="h-5 w-[1px] bg-zinc-800 mx-1" />
+            <div className="h-5 w-[1px] bg-border mx-1" />
 
             <ToolbarButton
               onClick={() => {
                 // .setPaywallDivider() // TODO: re-enable when extension is wired
-                void editor
+                void editor;
               }}
-              icon={<Lock className="h-3.5 w-3.5 text-amber-500" />}
+              icon={<Lock className="h-3.5 w-3.5 text-highlight" />}
               tooltip="Insert Paywall Cut"
             />
 
-            <div className="h-5 w-[1px] bg-zinc-800 mx-1" />
+            <div className="h-5 w-[1px] bg-border mx-1" />
 
             {/* Media */}
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileSelect} 
-              accept="image/*" 
-              className="hidden" 
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              accept="image/*"
+              className="hidden"
             />
             <ToolbarButton
               onClick={() => fileInputRef.current?.click()}
-              icon={isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
+              icon={
+                isUploading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ImageIcon className="h-3.5 w-3.5" />
+                )
+              }
               tooltip="Insert Image"
               disabled={isUploading}
             />
 
-            <div className="h-5 w-[1px] bg-zinc-800 mx-1" />
+            <div className="h-5 w-[1px] bg-border mx-1" />
 
             {/* History */}
             <ToolbarButton
@@ -526,21 +558,21 @@ export function Editor({
           </div>
 
           {/* Tiptap content area */}
-          <div className="p-6 md:p-8 bg-zinc-950 font-serif min-h-[450px]">
+          <div className="p-6 md:p-8 bg-card font-serif min-h-[450px]">
             <EditorContent editor={editor} />
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 interface ToolbarButtonProps {
-  active?: boolean
-  onClick: () => void
-  icon: React.ReactNode
-  tooltip: string
-  disabled?: boolean
+  active?: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  tooltip: string;
+  disabled?: boolean;
 }
 
 function ToolbarButton({ active, onClick, icon, tooltip, disabled }: ToolbarButtonProps) {
@@ -551,14 +583,14 @@ function ToolbarButton({ active, onClick, icon, tooltip, disabled }: ToolbarButt
       title={tooltip}
       disabled={disabled}
       className={cn(
-        "h-8 w-8 flex items-center justify-center rounded-md transition-colors font-sans text-sm cursor-pointer",
+        'h-8 w-8 flex items-center justify-center rounded-md transition-colors font-sans text-sm cursor-pointer',
         active
-          ? "bg-zinc-800 text-white font-medium"
-          : "text-zinc-400 hover:text-white hover:bg-zinc-800/60",
-        disabled && "opacity-50 cursor-not-allowed"
+          ? 'bg-foreground text-background font-medium'
+          : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60',
+        disabled && 'opacity-50 cursor-not-allowed'
       )}
     >
       {icon}
     </button>
-  )
+  );
 }

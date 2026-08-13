@@ -1,37 +1,37 @@
-"use client"
+'use client';
 
-import React, { createContext, useContext, useState, useCallback } from "react"
-import { CheckCircle2, AlertCircle, Info, X } from "lucide-react"
-import { cn } from "@qoe/utils"
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
+import { cn } from '@qoe/utils';
 
-export type ToastType = "success" | "error" | "info"
+export type ToastType = 'success' | 'error' | 'info';
 
 export interface ToastMessage {
-  id: string
-  message: string
-  type: ToastType
+  id: string;
+  message: string;
+  type: ToastType;
 }
 
 interface ToastContextValue {
-  toast: (message: string, type?: ToastType) => void
-  toastSuccess: (message: string) => void
-  toastError: (message: string) => void
-  toastInfo: (message: string) => void
+  toast: (message: string, type?: ToastType) => void;
+  toastSuccess: (message: string) => void;
+  toastError: (message: string) => void;
+  toastInfo: (message: string) => void;
 }
 
-const ToastContext = createContext<ToastContextValue | null>(null)
+const ToastContext = createContext<ToastContextValue | null>(null);
 
 const toastVariants = {
   success: {
-    icon: <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 stroke-[1.5]" />,
+    icon: <CheckCircle2 className="h-4 w-4 text-success shrink-0 stroke-[1.5]" />,
   },
   error: {
-    icon: <AlertCircle className="h-4 w-4 text-rose-400 shrink-0 stroke-[1.5]" />,
+    icon: <AlertCircle className="h-4 w-4 text-destructive shrink-0 stroke-[1.5]" />,
   },
   info: {
-    icon: <Info className="h-4 w-4 text-sky-400 shrink-0 stroke-[1.5]" />,
+    icon: <Info className="h-4 w-4 text-primary shrink-0 stroke-[1.5]" />,
   },
-}
+};
 
 function ToastItem({
   id,
@@ -40,21 +40,21 @@ function ToastItem({
   onDismiss,
 }: ToastMessage & { onDismiss: (id: string) => void }) {
   React.useEffect(() => {
-    const timer = setTimeout(() => onDismiss(id), 3500)
-    return () => clearTimeout(timer)
-  }, [id, onDismiss])
+    const timer = setTimeout(() => onDismiss(id), 3500);
+    return () => clearTimeout(timer);
+  }, [id, onDismiss]);
 
-  const variant = toastVariants[type] || toastVariants.info
+  const variant = toastVariants[type] || toastVariants.info;
 
   return (
     <div
       role="status"
       className={cn(
-        "relative pointer-events-auto flex items-center gap-3 px-3.5 py-2.5 rounded-xl",
-        "bg-zinc-950/85 dark:bg-zinc-900/90 backdrop-blur-2xl backdrop-saturate-150",
-        "border border-white/[0.08] shadow-2xl shadow-black/50",
-        "text-foreground text-xs font-medium tracking-tight select-none",
-        "transition-all duration-200 ease-out animate-in fade-in slide-in-from-top-3"
+        'relative pointer-events-auto flex items-center gap-3 px-3.5 py-2.5 rounded-xl',
+        'bg-foreground/85 dark:bg-foreground/90 backdrop-blur-2xl backdrop-saturate-150',
+        'border border-white/[0.08] shadow-2xl shadow-black/50',
+        'text-background text-xs font-medium tracking-tight select-none',
+        'transition-all duration-200 ease-out animate-in fade-in slide-in-from-top-3'
       )}
     >
       {/* Specular top rim light highlight */}
@@ -73,24 +73,24 @@ function ToastItem({
         <X className="h-3.5 w-3.5 stroke-[1.5]" />
       </button>
     </div>
-  )
+  );
 }
 
 export function CustomToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = useState<ToastMessage[]>([])
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  const addToast = useCallback((message: string, type: ToastType = "info") => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
-    setToasts((prev) => [{ id, message, type }, ...prev].slice(0, 3))
-  }, [])
+  const addToast = useCallback((message: string, type: ToastType = 'info') => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    setToasts((prev) => [{ id, message, type }, ...prev].slice(0, 3));
+  }, []);
 
   const dismiss = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
-  }, [])
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
-  const toastSuccess = useCallback((msg: string) => addToast(msg, "success"), [addToast])
-  const toastError = useCallback((msg: string) => addToast(msg, "error"), [addToast])
-  const toastInfo = useCallback((msg: string) => addToast(msg, "info"), [addToast])
+  const toastSuccess = useCallback((msg: string) => addToast(msg, 'success'), [addToast]);
+  const toastError = useCallback((msg: string) => addToast(msg, 'error'), [addToast]);
+  const toastInfo = useCallback((msg: string) => addToast(msg, 'info'), [addToast]);
 
   return (
     <ToastContext.Provider
@@ -109,13 +109,13 @@ export function CustomToastProvider({ children }: { children: React.ReactNode })
         ))}
       </div>
     </ToastContext.Provider>
-  )
+  );
 }
 
 export function useCustomToast() {
-  const ctx = useContext(ToastContext)
+  const ctx = useContext(ToastContext);
   if (!ctx) {
-    throw new Error("useCustomToast must be used within CustomToastProvider")
+    throw new Error('useCustomToast must be used within CustomToastProvider');
   }
-  return ctx
+  return ctx;
 }

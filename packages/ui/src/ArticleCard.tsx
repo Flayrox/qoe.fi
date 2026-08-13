@@ -1,115 +1,113 @@
-"use client"
+'use client';
 
-import React, { useState } from "react"
-import { MessageSquare, Repeat, Heart, Bookmark } from "lucide-react"
-import { cn } from "@qoe/utils"
-import { routes } from "@qoe/config"
-import type { FeedArticleDTO, CreatorProfileDTO } from "@qoe/db/types"
-import { useRequireAuth } from "./auth/AuthModalContext"
-import { useTranslate } from "@qoe/i18n"
+import React, { useState } from 'react';
+import { MessageSquare, Repeat, Heart, Bookmark } from 'lucide-react';
+import { cn } from '@qoe/utils';
+import { routes } from '@qoe/config';
+import type { FeedArticleDTO } from '@qoe/db/types';
+import { useRequireAuth } from './auth/AuthModalContext';
+import { useTranslate } from '@qoe/i18n';
 
-export type { FeedArticleDTO as Article }
+export type { FeedArticleDTO as Article };
 
 interface ArticleCardProps {
-  article: FeedArticleDTO
-  idx?: number
-  dbUser?: any
-  isBookmarked?: boolean
-  isFollowed?: boolean
-  handleFollowToggle?: (author: CreatorProfileDTO) => void
-  handleBookmarkToggle?: (article: FeedArticleDTO) => void
-  featured?: boolean
-  isPreview?: boolean
-  onOpenArticle?: (article: FeedArticleDTO) => void
-  onOpenProfile?: (username: string) => void
-  onOpenPost?: (postId: string) => void
+  article: FeedArticleDTO;
+  isBookmarked?: boolean;
+  handleBookmarkToggle?: (article: FeedArticleDTO) => void;
+  featured?: boolean;
+  isPreview?: boolean;
+  onOpenArticle?: (article: FeedArticleDTO) => void;
+  onOpenProfile?: (username: string) => void;
+  onOpenPost?: (postId: string) => void;
 }
 
 export function ArticleCard({
   article,
-  idx = 0,
-  dbUser,
   isBookmarked = false,
-  isFollowed = false,
-  handleFollowToggle,
   handleBookmarkToggle,
   onOpenArticle,
   onOpenProfile,
   onOpenPost,
 }: ArticleCardProps) {
-  const { t } = useTranslate()
-  const { withAuth } = useRequireAuth()
-  const [liked, setLiked] = useState(article.liked || false)
-  const [likesCount, setLikesCount] = useState(article.likesCount || 0)
-  const [reposted, setReposted] = useState(false)
-  const [repostsCount, setRepostsCount] = useState(0)
+  const { t } = useTranslate();
+  const { withAuth } = useRequireAuth();
+  const [liked, setLiked] = useState(article.liked || false);
+  const [likesCount, setLikesCount] = useState(article.likesCount || 0);
+  const [reposted, setReposted] = useState(false);
+  const [repostsCount, setRepostsCount] = useState(0);
 
-  const isThought = !article.title
+  const isThought = !article.title;
   const url = isThought
-    ? "#"
+    ? '#'
     : article.author.subdomain
-    ? routes.tenant.article(article.author.subdomain, article.slug)
-    : routes.feed.article(article.slug)
+      ? routes.tenant.article(article.author.subdomain, article.slug)
+      : routes.feed.article(article.slug);
 
   const handleOpenProfile = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const targetUsername = article.author.username || article.author.subdomain
-    if (!targetUsername) return
+    e.preventDefault();
+    e.stopPropagation();
+    const targetUsername = article.author.username || article.author.subdomain;
+    if (!targetUsername) return;
     if (onOpenProfile) {
-      onOpenProfile(targetUsername)
+      onOpenProfile(targetUsername);
     } else {
-      window.location.href = routes.feed.profile(targetUsername)
+      window.location.href = routes.feed.profile(targetUsername);
     }
-  }
+  };
 
-  const handleCardClick = (e: React.MouseEvent) => {
+  const handleCardClick = () => {
     if (onOpenArticle) {
-      onOpenArticle(article)
+      onOpenArticle(article);
     } else if (isThought && onOpenPost) {
-      onOpenPost(article.id)
+      onOpenPost(article.id);
     }
-  }
+  };
 
   const handleTitleClick = (e: React.MouseEvent) => {
     if (onOpenArticle) {
-      e.preventDefault()
-      e.stopPropagation()
-      onOpenArticle(article)
+      e.preventDefault();
+      e.stopPropagation();
+      onOpenArticle(article);
     } else if (onOpenPost) {
-      e.preventDefault()
-      e.stopPropagation()
-      onOpenPost(article.id)
+      e.preventDefault();
+      e.stopPropagation();
+      onOpenPost(article.id);
     }
-  }
+  };
 
-  const handleLike = withAuth((e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setLiked((prev: boolean) => !prev)
-    setLikesCount((prev: number) => (liked ? Math.max(0, prev - 1) : prev + 1))
-  }, { actionContext: "like" })
+  const handleLike = withAuth(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setLiked((prev: boolean) => !prev);
+      setLikesCount((prev: number) => (liked ? Math.max(0, prev - 1) : prev + 1));
+    },
+    { actionContext: 'like' }
+  );
 
-  const handleRepost = withAuth((e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setReposted((prev: boolean) => !prev)
-    setRepostsCount((prev: number) => (reposted ? Math.max(0, prev - 1) : prev + 1))
-  }, { actionContext: "repost" })
+  const handleRepost = withAuth(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setReposted((prev: boolean) => !prev);
+      setRepostsCount((prev: number) => (reposted ? Math.max(0, prev - 1) : prev + 1));
+    },
+    { actionContext: 'repost' }
+  );
 
-  const formattedDate = new Date(article.createdAt).toLocaleDateString("fr-FR", {
-    month: "short",
-    day: "numeric",
-  })
+  const formattedDate = new Date(article.createdAt).toLocaleDateString('fr-FR', {
+    month: 'short',
+    day: 'numeric',
+  });
 
-  const rawExcerpt = article.content ? article.content.replace(/<[^>]*>?/gm, "") : ""
+  const rawExcerpt = article.content ? article.content.replace(/<[^>]*>?/gm, '') : '';
 
   return (
     <article
       onClick={handleCardClick}
       className={cn(
-        "group relative pt-6 pb-6 first:pt-0 font-sans antialiased select-none",
-        (isThought || onOpenArticle) ? "cursor-pointer" : ""
+        'group relative pt-6 pb-6 first:pt-0 font-sans antialiased select-none',
+        isThought || onOpenArticle ? 'cursor-pointer' : ''
       )}
     >
       {/* Top subtle gradient divider line */}
@@ -126,12 +124,12 @@ export function ArticleCard({
             {article.author.logoUrl ? (
               <img
                 src={article.author.logoUrl}
-                alt={article.author.name || "Auteur"}
+                alt={article.author.name || 'Auteur'}
                 className="w-full h-full object-cover"
               />
             ) : (
               <div className="w-full h-full bg-primary/10 flex items-center justify-center font-semibold text-xs text-primary">
-                {(article.author.name || "A").substring(0, 2).toUpperCase()}
+                {(article.author.name || 'A').substring(0, 2).toUpperCase()}
               </div>
             )}
           </div>
@@ -147,14 +145,14 @@ export function ArticleCard({
                 onClick={handleOpenProfile}
                 className="font-medium text-foreground hover:text-primary transition-colors truncate outline-none cursor-pointer"
               >
-                {article.author.name || "Auteur"}
+                {article.author.name || 'Auteur'}
               </button>
               <span className="text-muted-foreground truncate">
-                @{article.author.username || article.author.subdomain || "qoe"}
+                @{article.author.username || article.author.subdomain || 'qoe'}
               </span>
               {!isThought && (
                 <span className="px-2 py-0.5 text-[10px] bg-primary/10 text-primary rounded-full border border-primary/20 font-medium">
-                  {t("feed.article_badge", "Article")}
+                  {t('feed.article_badge', 'Article')}
                 </span>
               )}
             </div>
@@ -166,7 +164,7 @@ export function ArticleCard({
             <a
               href={url}
               onClick={handleTitleClick}
-              target={article.author.subdomain && !onOpenArticle ? "_blank" : "_self"}
+              target={article.author.subdomain && !onOpenArticle ? '_blank' : '_self'}
               rel="noreferrer"
               className="block group/title pt-1 cursor-pointer"
             >
@@ -184,11 +182,7 @@ export function ArticleCard({
           {/* Optional Hero Image Preview */}
           {article.imageUrl && (
             <div className="mt-2.5 rounded-xl overflow-hidden border border-border/40 max-h-64 bg-muted/40">
-              <img
-                src={article.imageUrl}
-                alt=""
-                className="w-full h-full object-cover max-h-64"
-              />
+              <img src={article.imageUrl} alt="" className="w-full h-full object-cover max-h-64" />
             </div>
           )}
 
@@ -200,7 +194,7 @@ export function ArticleCard({
                 type="button"
                 onClick={() => onOpenPost && onOpenPost(article.id)}
                 className="flex items-center gap-1.5 hover:text-foreground transition-colors outline-none cursor-pointer"
-                title={t("feed.reply_btn", "Commenter")}
+                title={t('feed.reply_btn', 'Commenter')}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
                 <span>{article.repliesCount || 0}</span>
@@ -211,10 +205,10 @@ export function ArticleCard({
                 type="button"
                 onClick={handleRepost}
                 className={cn(
-                  "flex items-center gap-1.5 transition-colors outline-none cursor-pointer",
-                  reposted ? "text-emerald-400" : "hover:text-emerald-400"
+                  'flex items-center gap-1.5 transition-colors outline-none cursor-pointer',
+                  reposted ? 'text-success' : 'hover:text-success'
                 )}
-                title={t("feed.repost_btn", "Reposter")}
+                title={t('feed.repost_btn', 'Reposter')}
               >
                 <Repeat className="w-3.5 h-3.5" />
                 <span>{repostsCount}</span>
@@ -225,12 +219,12 @@ export function ArticleCard({
                 type="button"
                 onClick={handleLike}
                 className={cn(
-                  "flex items-center gap-1.5 transition-colors outline-none cursor-pointer",
-                  liked ? "text-primary" : "hover:text-primary"
+                  'flex items-center gap-1.5 transition-colors outline-none cursor-pointer',
+                  liked ? 'text-primary' : 'hover:text-primary'
                 )}
-                title={t("feed.like", "Aimer")}
+                title={t('feed.like', 'Aimer')}
               >
-                <Heart className={cn("w-3.5 h-3.5", liked ? "fill-primary text-primary" : "")} />
+                <Heart className={cn('w-3.5 h-3.5', liked ? 'fill-primary text-primary' : '')} />
                 <span>{likesCount}</span>
               </button>
             </div>
@@ -239,24 +233,30 @@ export function ArticleCard({
             <div className="flex items-center gap-3">
               {article.readingTime > 0 && (
                 <span className="text-[11px] text-muted-foreground">
-                  {t("feed.reading_time", "{count} min de lecture", { count: article.readingTime })}
+                  {t('feed.reading_time', '{count} min de lecture', { count: article.readingTime })}
                 </span>
               )}
               {handleBookmarkToggle && (
                 <button
                   type="button"
                   onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    handleBookmarkToggle(article)
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleBookmarkToggle(article);
                   }}
                   className={cn(
-                    "p-1 hover:text-foreground transition-colors outline-none cursor-pointer",
-                    isBookmarked ? "text-primary" : ""
+                    'p-1 hover:text-foreground transition-colors outline-none cursor-pointer',
+                    isBookmarked ? 'text-primary' : ''
                   )}
-                  title={isBookmarked ? t("feed.bookmark_remove", "Retirer le signet") : t("feed.bookmark_add", "Ajouter aux signets")}
+                  title={
+                    isBookmarked
+                      ? t('feed.bookmark_remove', 'Retirer le signet')
+                      : t('feed.bookmark_add', 'Ajouter aux signets')
+                  }
                 >
-                  <Bookmark className={cn("w-3.5 h-3.5", isBookmarked ? "fill-primary text-primary" : "")} />
+                  <Bookmark
+                    className={cn('w-3.5 h-3.5', isBookmarked ? 'fill-primary text-primary' : '')}
+                  />
                 </button>
               )}
             </div>
@@ -264,6 +264,5 @@ export function ArticleCard({
         </div>
       </div>
     </article>
-  )
+  );
 }
-

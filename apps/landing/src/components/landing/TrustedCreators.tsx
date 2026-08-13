@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import React from "react";
-import { motion } from "framer-motion";
-import { useTranslate } from "@qoe/i18n";
-import { ShieldAlert, CheckCircle, Users, FileText } from "lucide-react";
+import React from 'react';
+import { motion } from 'framer-motion';
+import { useTranslate } from '@qoe/i18n';
+import { CheckCircle, Users, FileText } from 'lucide-react';
 
 interface TrustedCreatorsProps {
   config: Record<string, string>;
@@ -12,46 +12,49 @@ interface TrustedCreatorsProps {
 export const TrustedCreators = ({ config }: TrustedCreatorsProps) => {
   const { t } = useTranslate();
 
-  const title = config["creators_title"] || t("trusted_creators_title", "Ils écrivent sur qoe.fi");
-  const tagline = config["creators_tagline"] || t("trusted_creators_tagline", "Des voix libres et indépendantes");
+  const title = config['creators_title'] || t('trusted_creators_title', 'Ils écrivent sur qoe.fi');
+  const tagline =
+    config['creators_tagline'] || t('trusted_creators_tagline', 'Des voix libres et indépendantes');
 
   const mediaLogos = [
-    { name: "Mediapart", desc: "Média d'investigation" },
-    { name: "Basta!", desc: "Média écologiste" },
-    { name: "StreetPress", desc: "Journalisme de terrain" },
-    { name: "L'Humanité", desc: "Quotidien engagé" }
+    { name: 'Mediapart', desc: "Média d'investigation" },
+    { name: 'Basta!', desc: 'Média écologiste' },
+    { name: 'StreetPress', desc: 'Journalisme de terrain' },
+    { name: "L'Humanité", desc: 'Quotidien engagé' },
   ];
 
   const creators = [
     {
-      name: "Maxime Vivas",
+      name: 'Maxime Vivas',
       role: "Journaliste d'enquête",
-      subscribers: "12.4k",
+      subscribers: '12.4k',
       articles: 184,
-      desc: "Ancien reporter, spécialisé dans l'impact écologique des infrastructures numériques."
+      desc: "Ancien reporter, spécialisé dans l'impact écologique des infrastructures numériques.",
     },
     {
-      name: "Chloé Dufour",
-      role: "Sociologue & Écrivaine",
-      subscribers: "8.1k",
+      name: 'Chloé Dufour',
+      role: 'Sociologue & Écrivaine',
+      subscribers: '8.1k',
       articles: 92,
-      desc: "Chroniqueuse sur la décroissance attentionnelle et l'auto-suffisance technologique."
+      desc: "Chroniqueuse sur la décroissance attentionnelle et l'auto-suffisance technologique.",
     },
     {
-      name: "David Graber",
-      role: "Philosophe indépendant",
-      subscribers: "24.9k",
+      name: 'David Graber',
+      role: 'Philosophe indépendant',
+      subscribers: '24.9k',
       articles: 301,
-      desc: "Auteur d'essais sur la réappropriation du temps de cerveau disponible."
-    }
+      desc: "Auteur d'essais sur la réappropriation du temps de cerveau disponible.",
+    },
   ];
 
   return (
-    <section className="py-32 px-6 bg-muted/20 border-y border-border/30 relative overflow-hidden" id="creators">
+    <section
+      className="py-32 px-6 bg-muted/20 border-y border-border/30 relative overflow-hidden"
+      id="creators"
+    >
       {/* Glow decorations removed */}
 
       <div className="max-w-6xl mx-auto relative z-10 space-y-24">
-        
         {/* Header Title */}
         <div className="text-center max-w-2xl mx-auto space-y-4">
           <span className="text-[10px] tracking-wider text-muted-foreground uppercase font-semibold block">
@@ -105,7 +108,6 @@ export const TrustedCreators = ({ config }: TrustedCreatorsProps) => {
               {/* Subtle hover gradient shifts removed */}
 
               <div className="relative z-10 space-y-6">
-                
                 {/* Profile Header */}
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-xl bg-muted border border-border/50 flex items-center justify-center text-xl font-bold text-foreground overflow-hidden">
@@ -113,7 +115,8 @@ export const TrustedCreators = ({ config }: TrustedCreatorsProps) => {
                   </div>
                   <div>
                     <h4 className="text-xl text-foreground font-semibold flex items-center gap-1.5">
-                      {creator.name} <CheckCircle className="w-4 h-4 text-primary fill-primary/10 flex-shrink-0" />
+                      {creator.name}{' '}
+                      <CheckCircle className="w-4 h-4 text-primary fill-primary/10 flex-shrink-0" />
                     </h4>
                     <span className="text-xs text-muted-foreground">{creator.role}</span>
                   </div>

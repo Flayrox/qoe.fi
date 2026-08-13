@@ -1,21 +1,14 @@
-"use client";
+'use client';
 
-import React, { useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, ExternalLink } from "lucide-react";
-import { ArticleAnnotatorView } from "./ArticleAnnotatorView";
-import { routes } from "@qoe/config/routes";
-import {
-  TextHighlighter,
-  AnnotationSideDrawer,
-  TextSelectionPopover,
-  type AnnotationItem,
-  type AnnotationActionCallbacks,
-} from "@qoe/ui/annotations";
+import React, { useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, ExternalLink } from 'lucide-react';
+import { ArticleAnnotatorView, type ArticleAnnotatorViewProps } from './ArticleAnnotatorView';
+import { routes } from '@qoe/config/routes';
 
 export interface ArticleReaderDrawerProps {
   isOpen: boolean;
-  article: any | null;
+  article: ArticleAnnotatorViewProps['article'] | null;
   onClose: () => void;
 }
 
@@ -36,25 +29,25 @@ export function ArticleReaderDrawer({ isOpen, article, onClose }: ArticleReaderD
   // Lock body scroll when drawer is open
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = "hidden";
+      document.body.style.overflow = 'hidden';
       setScrollProgress(0);
     } else {
-      document.body.style.overflow = "";
+      document.body.style.overflow = '';
     }
     return () => {
-      document.body.style.overflow = "";
+      document.body.style.overflow = '';
     };
   }, [isOpen]);
 
   // ESC key listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
+      if (e.key === 'Escape' && isOpen) {
         onClose();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
   if (!article) return null;
@@ -80,10 +73,10 @@ export function ArticleReaderDrawer({ isOpen, article, onClose }: ArticleReaderD
 
           {/* Bottom Sheet Drawer Panel */}
           <motion.div
-            initial={{ y: "100%" }}
+            initial={{ y: '100%' }}
             animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", stiffness: 320, damping: 32 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', stiffness: 320, damping: 32 }}
             className="relative z-10 w-full h-[94vh] max-h-[94vh] flex flex-col bg-background text-foreground border-t border-l border-border/50 rounded-t-3xl shadow-2xl overflow-hidden font-sans"
           >
             {/* Top Drag Handle Bar */}
@@ -97,9 +90,7 @@ export function ArticleReaderDrawer({ isOpen, article, onClose }: ArticleReaderD
                 <span className="px-2.5 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
                   Lecture & Annotation
                 </span>
-                <h3 className="text-sm font-semibold text-foreground truncate">
-                  {article.title}
-                </h3>
+                <h3 className="text-sm font-semibold text-foreground truncate">{article.title}</h3>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
@@ -126,7 +117,7 @@ export function ArticleReaderDrawer({ isOpen, article, onClose }: ArticleReaderD
             {/* 2026 Reading Scroll Progress Line */}
             <div className="w-full h-1 bg-muted/20 overflow-hidden shrink-0">
               <div
-                className="h-full bg-gradient-to-r from-amber-500 via-primary to-emerald-500 transition-all duration-100 ease-out"
+                className="h-full bg-gradient-to-r from-highlight via-primary to-success transition-all duration-100 ease-out"
                 style={{ width: `${scrollProgress}%` }}
               />
             </div>

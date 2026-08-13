@@ -1,28 +1,28 @@
-"use client"
+'use client';
 
-import React from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { X, Keyboard } from "lucide-react"
+import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Keyboard } from 'lucide-react';
 
 export interface HotkeyHelpModalProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export function HotkeyHelpModal({ isOpen, onClose }: HotkeyHelpModalProps) {
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   const hotkeysList = [
-    { key: "n", description: "Rédiger une nouvelle pensée (Nouveau post)" },
-    { key: "/", description: "Activer la barre de recherche" },
-    { key: "j", description: "Naviguer vers le bas (Pensée suivante)" },
-    { key: "k", description: "Naviguer vers le haut (Pensée précédente)" },
-    { key: "l", description: "Liker / Déliker la pensée active" },
-    { key: "r", description: "Répondre à la pensée active" },
-    { key: "e", description: "Ouvrir le thread complet de la pensée" },
-    { key: "?", description: "Ouvrir cette modale d'aide des raccourcis" },
-    { key: "Échap", description: "Fermer les modales et réinitialiser la sélection" },
-  ]
+    { key: 'n', description: 'Rédiger une nouvelle pensée (Nouveau post)' },
+    { key: '/', description: 'Activer la barre de recherche' },
+    { key: 'j', description: 'Naviguer vers le bas (Pensée suivante)' },
+    { key: 'k', description: 'Naviguer vers le haut (Pensée précédente)' },
+    { key: 'l', description: 'Liker / Déliker la pensée active' },
+    { key: 'r', description: 'Répondre à la pensée active' },
+    { key: 'e', description: 'Ouvrir le thread complet de la pensée' },
+    { key: '?', description: "Ouvrir cette modale d'aide des raccourcis" },
+    { key: 'Échap', description: 'Fermer les modales et réinitialiser la sélection' },
+  ];
 
   return (
     <AnimatePresence>
@@ -34,7 +34,7 @@ export function HotkeyHelpModal({ isOpen, onClose }: HotkeyHelpModalProps) {
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           className="w-full max-w-md bg-card text-card-foreground border border-border/50 rounded-2xl p-6 shadow-2xl overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
@@ -64,9 +64,7 @@ export function HotkeyHelpModal({ isOpen, onClose }: HotkeyHelpModalProps) {
                 key={hk.key}
                 className="flex items-center justify-between p-2.5 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
               >
-                <span className="text-xs text-muted-foreground font-normal">
-                  {hk.description}
-                </span>
+                <span className="text-xs text-muted-foreground font-normal">{hk.description}</span>
                 <kbd className="px-2.5 py-1 text-xs font-semibold text-foreground bg-background border border-border rounded-md shadow-xs min-w-[28px] text-center">
                   {hk.key}
                 </kbd>
@@ -76,10 +74,14 @@ export function HotkeyHelpModal({ isOpen, onClose }: HotkeyHelpModalProps) {
 
           {/* Footer Note */}
           <div className="pt-4 mt-4 border-t border-border/40 text-center text-[11px] text-muted-foreground">
-            Appuyez sur <kbd className="px-1.5 py-0.5 border border-border rounded bg-background font-mono text-[10px]">?</kbd> à tout moment pour afficher cette aide.
+            Appuyez sur{' '}
+            <kbd className="px-1.5 py-0.5 border border-border rounded bg-background font-mono text-[10px]">
+              ?
+            </kbd>{' '}
+            à tout moment pour afficher cette aide.
           </div>
         </motion.div>
       </div>
     </AnimatePresence>
-  )
+  );
 }

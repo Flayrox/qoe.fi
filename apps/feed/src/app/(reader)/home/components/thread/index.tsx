@@ -1,15 +1,16 @@
-"use client"
+'use client';
 
-import React from "react"
-import { ThoughtThreadRoot, type ThoughtThreadRootProps } from "./ThoughtThreadRoot"
-import { ThoughtThreadParentContext } from "./ThoughtThreadParentContext"
-import { ThoughtThreadFocus } from "./ThoughtThreadFocus"
-import { ThoughtThreadComposer, type ThoughtThreadComposerProps } from "./ThoughtThreadComposer"
-import { ThoughtThreadList, type ThoughtThreadListProps } from "./ThoughtThreadList"
-import { ThoughtThreadItem, type ThoughtThreadItemProps } from "./ThoughtThreadItem"
-import { ThoughtThreadTombstone, type ThoughtThreadTombstoneProps } from "./ThoughtThreadTombstone"
-import { ThoughtThreadLightbox } from "./ThoughtThreadLightbox"
-import { useThoughtThreadContext, type OptimisticThought } from "./ThoughtThreadContext"
+import React from 'react';
+import { ThoughtThreadRoot, type ThoughtThreadRootProps } from './ThoughtThreadRoot';
+import { ThoughtThreadParentContext } from './ThoughtThreadParentContext';
+import { ThoughtThreadFocus } from './ThoughtThreadFocus';
+import { ThoughtThreadComposer, type ThoughtThreadComposerProps } from './ThoughtThreadComposer';
+import { ThoughtThreadList, type ThoughtThreadListProps } from './ThoughtThreadList';
+import { ThoughtThreadItem, type ThoughtThreadItemProps } from './ThoughtThreadItem';
+import { ThoughtThreadTombstone, type ThoughtThreadTombstoneProps } from './ThoughtThreadTombstone';
+import { ThoughtThreadLightbox } from './ThoughtThreadLightbox';
+import { useThoughtThreadContext, type OptimisticThought } from './ThoughtThreadContext';
+import type { DbUser } from '../ThoughtComposer';
 
 export const ThoughtThread = {
   Root: ThoughtThreadRoot,
@@ -20,7 +21,7 @@ export const ThoughtThread = {
   Item: ThoughtThreadItem,
   Tombstone: ThoughtThreadTombstone,
   Lightbox: ThoughtThreadLightbox,
-}
+};
 
 export type {
   ThoughtThreadRootProps,
@@ -29,9 +30,9 @@ export type {
   ThoughtThreadItemProps,
   ThoughtThreadTombstoneProps,
   OptimisticThought,
-}
+};
 
-export { useThoughtThreadContext }
+export { useThoughtThreadContext };
 
 /**
  * 🏛️ Backward-Compatible Wrapper for ThoughtThreadView
@@ -41,23 +42,25 @@ export function ThoughtThreadView({
   currentUserId,
   dbUser,
   initialPost = null,
-  standalone = false,
   onClose,
   onOpenProfile,
   onOpenArticle,
   onInteractionUpdate,
   onLoginRequired,
 }: {
-  postId: string
-  currentUserId: string | null
-  dbUser?: any | null
-  initialPost?: any
-  standalone?: boolean
-  onClose?: () => void
-  onOpenProfile?: (username: string) => void
-  onOpenArticle?: (article: any) => void
-  onInteractionUpdate?: (postId: string, update: { liked?: boolean; likesCount?: number; repliesCount?: number }) => void
-  onLoginRequired?: () => void
+  postId: string;
+  currentUserId: string | null;
+  dbUser?: DbUser | null;
+  initialPost?: OptimisticThought | null;
+  standalone?: boolean;
+  onClose?: () => void;
+  onOpenProfile?: (username: string) => void;
+  onOpenArticle?: (article: { id: string; slug: string; title: string }) => void;
+  onInteractionUpdate?: (
+    postId: string,
+    update: { liked?: boolean; likesCount?: number; repliesCount?: number }
+  ) => void;
+  onLoginRequired?: () => void;
 }) {
   return (
     <ThoughtThread.Root
@@ -79,5 +82,5 @@ export function ThoughtThreadView({
         <ThoughtThread.Lightbox />
       </div>
     </ThoughtThread.Root>
-  )
+  );
 }

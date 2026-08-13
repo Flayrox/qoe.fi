@@ -7,7 +7,11 @@
  * Compiles plural ICU rules such as:
  * "{count, plural, zero {aucun article} one {1 article} other {{count} articles}}"
  */
-export function compilePlural(text: string, lang: string, params: Record<string, any>): string {
+export function compilePlural(
+  text: string,
+  lang: string,
+  params: Record<string, string | number>
+): string {
   // Matches ICU plural blocks: {variableName, plural, rules...}
   const pluralRegex = /\{([^,]+),\s*plural,\s*([^{}]+(?:\{[^{}]*\}[^{}]*)*)\}/g;
 
@@ -20,7 +24,7 @@ export function compilePlural(text: string, lang: string, params: Record<string,
     const rules: Record<string, string> = {};
     const ruleRegex = /([\w=]+)\s*\{([^}]+)\}/g;
     let rMatch;
-    
+
     // Using a simple loop to avoid regex execution trapping
     while ((rMatch = ruleRegex.exec(rulesText)) !== null) {
       rules[rMatch[1]] = rMatch[2];
@@ -34,13 +38,13 @@ export function compilePlural(text: string, lang: string, params: Record<string,
     // 1. Exact numeric match (e.g. =0, =1, =2)
     // 2. Language-specific category (zero, one, two, few, many, other)
     // 3. Fallback to "other"
-    let ruleToUse = rules[`=${value}`] || rules[category] || rules["other"];
+    const ruleToUse = rules[`=${value}`] || rules[category] || rules['other'];
     if (!ruleToUse) return match;
 
     // Replace '#' with the numeric value
     let compiled = ruleToUse.replace(/#/g, String(value));
     // Replace {trimmedVarName} with the numeric value
-    compiled = compiled.replace(new RegExp(`{${trimmedVarName}}`, "g"), String(value));
+    compiled = compiled.replace(new RegExp(`{${trimmedVarName}}`, 'g'), String(value));
 
     return compiled;
   });
@@ -49,10 +53,10 @@ export function compilePlural(text: string, lang: string, params: Record<string,
 /**
  * Standard interpolation function to substitute variables like {name} with values
  */
-export function interpolate(text: string, params: Record<string, any>): string {
+export function interpolate(text: string, params: Record<string, string | number>): string {
   let val = text;
   Object.entries(params).forEach(([k, v]) => {
-    val = val.replace(new RegExp(`{${k}}`, "g"), String(v));
+    val = val.replace(new RegExp(`{${k}}`, 'g'), String(v));
   });
   return val;
 }

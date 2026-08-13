@@ -18,14 +18,14 @@
 //    └────────────────────────────────────────────┘
 // =====================================================================
 
-import Link from "next/link";
-import { ArrowRight, Sparkles, TrendingUp } from "lucide-react";
-import { ArticleCard } from "@/components/feed/ArticleCard";
-import { ThoughtCard } from "@/components/feed/ThoughtCard";
-import { Button } from "@qoe/ui/button";
-import { Logo } from "@qoe/ui/ui/Logo";
-import { isFeatureEnabled } from "@qoe/config/features";
-import { EVENTS } from "@qoe/analytics/events";
+import Link from 'next/link';
+import { ArrowRight, Sparkles, TrendingUp } from 'lucide-react';
+import { ArticleCard } from '@/components/feed/ArticleCard';
+import { ThoughtCard } from '@/components/feed/ThoughtCard';
+import { Button } from '@qoe/ui/button';
+import { Logo } from '@qoe/ui/ui/Logo';
+import { isFeatureEnabled } from '@qoe/config/features';
+import { EVENTS } from '@qoe/analytics/events';
 
 interface Author {
   id: string;
@@ -71,10 +71,7 @@ interface PublicFeedPreviewProps {
 /**
  * 🌐 Feed preview pour visiteurs anonymes.
  */
-export function PublicFeedPreview({
-  trendingArticles,
-  trendingPosts,
-}: PublicFeedPreviewProps) {
+export function PublicFeedPreview({ trendingArticles, trendingPosts }: PublicFeedPreviewProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* ─── Topbar minimaliste ─────────────────────────────── */}
@@ -86,7 +83,7 @@ export function PublicFeedPreview({
           </Link>
           <div className="flex items-center gap-3">
             <Link
-              href={"/start" as any}
+              href="/start"
               className="hidden text-sm text-muted-foreground hover:text-foreground md:inline-block"
             >
               Découvrir
@@ -113,16 +110,20 @@ export function PublicFeedPreview({
               </h3>
             </div>
             <div className="space-y-2">
-              {["#Investigation", "#Souveraineté", "#DesignÉthique", "#TempsLong", "#Émancipation"].map(
-                (tag) => (
-                  <div
-                    key={tag}
-                    className="cursor-pointer rounded-lg px-3 py-2 text-sm hover:bg-muted"
-                  >
-                    {tag}
-                  </div>
-                )
-              )}
+              {[
+                '#Investigation',
+                '#Souveraineté',
+                '#DesignÉthique',
+                '#TempsLong',
+                '#Émancipation',
+              ].map((tag) => (
+                <div
+                  key={tag}
+                  className="cursor-pointer rounded-lg px-3 py-2 text-sm hover:bg-muted"
+                >
+                  {tag}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -130,11 +131,9 @@ export function PublicFeedPreview({
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Créateurs
             </h3>
-            <p className="text-sm text-muted-foreground">
-              Les voix les plus suivies ce mois-ci.
-            </p>
+            <p className="text-sm text-muted-foreground">Les voix les plus suivies ce mois-ci.</p>
             <Button variant="outline" className="mt-4 w-full" asChild>
-              <Link href={"/start" as any}>Explorer</Link>
+              <Link href="/start">Explorer</Link>
             </Button>
           </div>
         </aside>
@@ -154,8 +153,8 @@ export function PublicFeedPreview({
                 Rejoins les voix qui pensent en dehors de l'algorithme.
               </h2>
               <p className="mb-6 max-w-md text-white/90">
-                Crée un compte gratuit pour suivre tes créateurs, sauvegarder des articles,
-                et participer à la conversation.
+                Crée un compte gratuit pour suivre tes créateurs, sauvegarder des articles, et
+                participer à la conversation.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Button size="lg" variant="secondary" asChild>
@@ -174,7 +173,7 @@ export function PublicFeedPreview({
           </div>
 
           {/* Mix Posts + Articles trending */}
-          {isFeatureEnabled("THOUGHTS_ENABLED") && trendingPosts.length > 0 && (
+          {isFeatureEnabled('THOUGHTS_ENABLED') && trendingPosts.length > 0 && (
             <section>
               <h2 className="mb-4 flex items-center gap-2 px-2 text-lg font-semibold">
                 🔥 Trending aujourd'hui
@@ -185,7 +184,7 @@ export function PublicFeedPreview({
                     key={post.id}
                     post={{
                       id: post.id,
-                      title: "",
+                      title: '',
                       slug: `post-${post.id}`,
                       content: post.content,
                       imageUrl: post.imageUrl ?? null,
@@ -193,14 +192,14 @@ export function PublicFeedPreview({
                       isPremium: false,
                       readingTime: 1,
                       createdAt:
-                        typeof post.createdAt === "string"
+                        typeof post.createdAt === 'string'
                           ? post.createdAt
                           : post.createdAt.toISOString(),
                       author: {
                         ...post.author,
                         isCertified: post.author.isCertified || false,
                       },
-                      category: { name: "Micro-post" },
+                      category: { name: 'Micro-post' },
                       tags: post.tags || [],
                       likesCount: post._count?.likes || 0,
                       repliesCount: post._count?.replies || 0,
@@ -225,7 +224,7 @@ export function PublicFeedPreview({
                     article={{
                       ...article,
                       createdAt:
-                        typeof article.createdAt === "string"
+                        typeof article.createdAt === 'string'
                           ? article.createdAt
                           : article.createdAt.toISOString(),
                       author: {

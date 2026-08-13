@@ -95,7 +95,7 @@ export function useCreatorTiers(creatorId: string | undefined | null) {
       if (!creatorId) return [];
       const response = await fetch(`/api/billing/tiers?creatorId=${encodeURIComponent(creatorId)}`);
       if (!response.ok) {
-        throw new Error('Échec du chargement des formules d\'abonnement.');
+        throw new Error("Échec du chargement des formules d'abonnement.");
       }
       const data = await response.json();
       return data.tiers || [];

@@ -5,6 +5,31 @@ import { createOptimisticRepostMutationOptions } from '../useOptimisticRepost';
 import { createOptimisticBookmarkMutationOptions } from '../useOptimisticBookmark';
 import { createOptimisticFollowMutationOptions } from '../useOptimisticFollow';
 
+interface RepostFeed {
+  pages: Array<{
+    data: Array<{
+      id: string;
+      content: string;
+      repostCount: number;
+      isReposted: boolean;
+      reposted: boolean;
+    }>;
+  }>;
+}
+
+interface BookmarkFeed {
+  pages: Array<{
+    data: Array<{ id: string; title: string; isBookmarked: boolean; bookmarked: boolean }>;
+  }>;
+}
+
+interface CreatorUser {
+  id: string;
+  username: string;
+  isFollowed: boolean;
+  isFollowing: boolean;
+}
+
 describe('Optimistic Mutation Hooks', () => {
   let queryClient: QueryClient;
 
@@ -22,7 +47,13 @@ describe('Optimistic Mutation Hooks', () => {
       pages: [
         {
           data: [
-            { id: 'thought-1', content: 'Hello', repostCount: 2, isReposted: false, reposted: false },
+            {
+              id: 'thought-1',
+              content: 'Hello',
+              repostCount: 2,
+              isReposted: false,
+              reposted: false,
+            },
           ],
         },
       ],
@@ -38,7 +69,7 @@ describe('Optimistic Mutation Hooks', () => {
       repostMutationFn: vi.fn().mockResolvedValue({ success: true }),
     });
 
-    const updatedFeed = queryClient.getQueryData<any>(feedKeys.timeline('for-you'));
+    const updatedFeed = queryClient.getQueryData<RepostFeed>(feedKeys.timeline('for-you'))!;
     expect(updatedFeed.pages[0].data[0].repostCount).toBe(3);
     expect(updatedFeed.pages[0].data[0].isReposted).toBe(true);
   });
@@ -47,9 +78,7 @@ describe('Optimistic Mutation Hooks', () => {
     const initialFeed = {
       pages: [
         {
-          data: [
-            { id: 'article-1', title: 'Article 1', isBookmarked: false, bookmarked: false },
-          ],
+          data: [{ id: 'article-1', title: 'Article 1', isBookmarked: false, bookmarked: false }],
         },
       ],
     };
@@ -64,7 +93,7 @@ describe('Optimistic Mutation Hooks', () => {
       bookmarkMutationFn: vi.fn().mockResolvedValue({ success: true }),
     });
 
-    const updatedFeed = queryClient.getQueryData<any>(feedKeys.timeline('for-you'));
+    const updatedFeed = queryClient.getQueryData<BookmarkFeed>(feedKeys.timeline('for-you'))!;
     expect(updatedFeed.pages[0].data[0].isBookmarked).toBe(true);
   });
 
@@ -86,7 +115,7 @@ describe('Optimistic Mutation Hooks', () => {
       followMutationFn: vi.fn().mockResolvedValue({ success: true }),
     });
 
-    const updatedUser = queryClient.getQueryData<any>(userKeys.all);
+    const updatedUser = queryClient.getQueryData<CreatorUser>(userKeys.all)!;
     expect(updatedUser.isFollowed).toBe(true);
   });
 });

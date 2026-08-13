@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 /**
  * Configuration Next.js pour qoe.fi
@@ -11,7 +11,7 @@ import type { NextConfig } from "next";
  * 📖 Documentation : https://nextjs.org/docs/app/api-reference/config/next-config-js/output
  */
 const nextConfig: NextConfig = {
-  output: "standalone",
+  output: 'standalone',
 
   // 🔧 Optimisations additionnelles pour les images Docker
   // (reactStrictMode, eslint, etc. restent à true par défaut)

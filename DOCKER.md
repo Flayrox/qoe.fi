@@ -23,34 +23,34 @@
 
 ### Services
 
-| Service | Port externe | Réseau | Build stage / Image | Description |
-|---------|--------------|--------|---------------------|-------------|
-| **caddy** | 80, 443 | public | runtime | Reverse proxy + TLS auto (Let's Encrypt) |
-| **web** | 4001→3000 | public | `web` | Next.js public (blogs créateurs / tenants) |
-| **landing** | 4040→3040 | public | `landing` | Next.js marketing (`start.qoe.fi`) |
-| **feed** | 4000→3010 | public | `feed` | Next.js reader (`qoe.fi` + auth central) |
-| **dashboard** | 4020→3020 | public | `dashboard` | Next.js creator (`dashboard.qoe.fi`) |
-| **admin** | 4030→3030 | public | `admin` | Next.js superadmin (`admin.qoe.fi`) |
-| **api** | 4002→3002 | public | `api` | Hono backend (`api.qoe.fi`) |
-| **workers** | - | private | `workers` | BullMQ jobs (emails, AI, billing) |
-| **migrate** | - | private | runtime | One-shot Prisma migrate (s'exécute puis s'arrête) |
-| **redis** | 6379 | private | redis:7-alpine | Cache + queue |
-| **db (Supabase)** | 5433→5432 | private | `supabase/postgres:17` | Postgres 17 + pgvector (hébergé dans `/var/www/supabase/`) |
+| Service           | Port externe | Réseau  | Build stage / Image    | Description                                                |
+| ----------------- | ------------ | ------- | ---------------------- | ---------------------------------------------------------- |
+| **caddy**         | 80, 443      | public  | runtime                | Reverse proxy + TLS auto (Let's Encrypt)                   |
+| **web**           | 4001→3000    | public  | `web`                  | Next.js public (blogs créateurs / tenants)                 |
+| **landing**       | 4040→3040    | public  | `landing`              | Next.js marketing (`start.qoe.fi`)                         |
+| **feed**          | 4000→3010    | public  | `feed`                 | Next.js reader (`qoe.fi` + auth central)                   |
+| **dashboard**     | 4020→3020    | public  | `dashboard`            | Next.js creator (`dashboard.qoe.fi`)                       |
+| **admin**         | 4030→3030    | public  | `admin`                | Next.js superadmin (`admin.qoe.fi`)                        |
+| **api**           | 4002→3002    | public  | `api`                  | Hono backend (`api.qoe.fi`)                                |
+| **workers**       | -            | private | `workers`              | BullMQ jobs (emails, AI, billing)                          |
+| **migrate**       | -            | private | runtime                | One-shot Prisma migrate (s'exécute puis s'arrête)          |
+| **redis**         | 6379         | private | redis:7-alpine         | Cache + queue                                              |
+| **db (Supabase)** | 5433→5432    | private | `supabase/postgres:17` | Postgres 17 + pgvector (hébergé dans `/var/www/supabase/`) |
 
 ### Domaines
 
-| Subdomain | Service interne | Description |
-|-----------|-----------------|-------------|
-| `qoe.fi` | feed | Flux lecteur & authentification centrale |
-| `www.qoe.fi` | feed | Redirection vers domaine racine |
-| `dashboard.qoe.fi` | dashboard | Dashboard créateur / studio d'édition |
-| `admin.qoe.fi` | admin | Panneau de contrôle super-administrateur |
-| `start.qoe.fi` | landing | Vitrine commerciale de l'application |
-| `*.qoe.fi` (wildcard) | web | Blogs publics des créateurs (multi-tenancy) |
-| `api.qoe.fi` | api | API Gateway REST (Hono backend) |
-| `admin-supabase.qoe.fi` | Supabase Kong | API Rest Supabase Auto-hébergée (avec proxy cache NVMe) |
-| `admin-studio.qoe.fi` | Supabase Studio | Interface GUI de la base de données (sécurisée par Basic Auth) |
-| `cdn.qoe.fi` | Nginx Host | CDN d'images & Stockage public (sécurisé avec cache local) |
+| Subdomain               | Service interne | Description                                                    |
+| ----------------------- | --------------- | -------------------------------------------------------------- |
+| `qoe.fi`                | feed            | Flux lecteur & authentification centrale                       |
+| `www.qoe.fi`            | feed            | Redirection vers domaine racine                                |
+| `dashboard.qoe.fi`      | dashboard       | Dashboard créateur / studio d'édition                          |
+| `admin.qoe.fi`          | admin           | Panneau de contrôle super-administrateur                       |
+| `start.qoe.fi`          | landing         | Vitrine commerciale de l'application                           |
+| `*.qoe.fi` (wildcard)   | web             | Blogs publics des créateurs (multi-tenancy)                    |
+| `api.qoe.fi`            | api             | API Gateway REST (Hono backend)                                |
+| `admin-supabase.qoe.fi` | Supabase Kong   | API Rest Supabase Auto-hébergée (avec proxy cache NVMe)        |
+| `admin-studio.qoe.fi`   | Supabase Studio | Interface GUI de la base de données (sécurisée par Basic Auth) |
+| `cdn.qoe.fi`            | Nginx Host      | CDN d'images & Stockage public (sécurisé avec cache local)     |
 
 ### Réseaux
 
@@ -86,18 +86,19 @@ docker compose -f docker-compose.dev.yml up
 
 ### URLs accessibles en local (Docker Dev)
 
-| URL | Service | Port local (Docker) | Port local (npm dev) |
-|-----|---------|---------------------|----------------------|
-| `http://qoe.fi:4000` | feed (flux lecteur + auth) | 4000 (interne: 3010) | 3010 |
-| `http://start.qoe.fi:4040` | landing (site vitrine) | 4040 (interne: 3040) | 3040 |
-| `http://dashboard.qoe.fi:4020` | dashboard (studio créateur) | 4020 (interne: 3020) | 3020 |
-| `http://admin.qoe.fi:4030` | admin (panel superadmin) | 4030 (interne: 3030) | 3030 |
-| `http://localhost:4001` (ou `*.qoe.fi`) | web (blogs créateurs) | 4001 (interne: 3000) | 3001 |
-| `http://localhost:4002/health` | api (Hono backend) | 4002 (interne: 3002) | 3002 |
-| `psql -h localhost -p 5433 -U qoe -d qoe` | db (Postgres direct) | 5433 (interne: 5432) | 5433 |
-| `redis-cli -h localhost -p 6379` | redis (Redis cache direct) | 6379 | 6379 |
+| URL                                       | Service                     | Port local (Docker)  | Port local (npm dev) |
+| ----------------------------------------- | --------------------------- | -------------------- | -------------------- |
+| `http://qoe.fi:4000`                      | feed (flux lecteur + auth)  | 4000 (interne: 3010) | 3010                 |
+| `http://start.qoe.fi:4040`                | landing (site vitrine)      | 4040 (interne: 3040) | 3040                 |
+| `http://dashboard.qoe.fi:4020`            | dashboard (studio créateur) | 4020 (interne: 3020) | 3020                 |
+| `http://admin.qoe.fi:4030`                | admin (panel superadmin)    | 4030 (interne: 3030) | 3030                 |
+| `http://localhost:4001` (ou `*.qoe.fi`)   | web (blogs créateurs)       | 4001 (interne: 3000) | 3001                 |
+| `http://localhost:4002/health`            | api (Hono backend)          | 4002 (interne: 3002) | 3002                 |
+| `psql -h localhost -p 5433 -U qoe -d qoe` | db (Postgres direct)        | 5433 (interne: 5432) | 5433                 |
+| `redis-cli -h localhost -p 6379`          | redis (Redis cache direct)  | 6379                 | 6379                 |
 
 > Pour utiliser les vrais subdomains en local, ajoute dans `/etc/hosts` :
+>
 > ```
 > 127.0.0.1 qoe.fi dashboard.qoe.fi admin.qoe.fi start.qoe.fi api.qoe.fi
 > ```
@@ -124,6 +125,7 @@ pnpm docker:dev:redis
 ## 🎮 Commandes dev
 
 ### Lifecycle
+
 ```bash
 pnpm docker:dev          # Lance tout (foreground, logs en direct)
 pnpm docker:dev:detached # Lance en arrière-plan
@@ -133,6 +135,7 @@ pnpm docker:dev:logs     # Tous les logs
 ```
 
 ### Par service
+
 ```bash
 pnpm docker:dev:web         # Logs web
 pnpm docker:dev:landing     # Logs landing
@@ -147,6 +150,7 @@ pnpm docker:dev:studio      # Prisma Studio (http://localhost:5555)
 ```
 
 ### Build manuel
+
 ```bash
 # Build toutes les cibles du Dockerfile multi-target
 docker build --target web -t qoefi-web:latest .
@@ -183,6 +187,7 @@ pnpm docker:prod:up
 ```
 
 ### Monitoring prod
+
 ```bash
 pnpm docker:prod:ps                          # État des containers
 pnpm docker:prod:logs                        # Tous les logs
@@ -199,11 +204,13 @@ pnpm docker:prod:db                          # psql prod
 ```
 
 ### Mise à jour
+
 ```bash
 pnpm docker:prod:rebuild    # Force recreate + rebuild
 ```
 
 ### Rollback
+
 ```bash
 # Liste les images
 docker images | grep qoefi
@@ -217,6 +224,7 @@ docker compose up -d --no-deps web:<tag-précédent>
 ## 🌐 Déploiement VPS
 
 ### Étape 1 : Préparer le VPS
+
 ```bash
 # Connexion SSH
 ssh user@ton-vps-ip
@@ -235,6 +243,7 @@ docker --version
 ```
 
 ### Étape 2 : Cloner le projet
+
 ```bash
 cd /var/www  # ou /opt, ou /home
 git clone https://github.com/ton-user/qoe.fi.git
@@ -242,6 +251,7 @@ cd qoe.fi
 ```
 
 ### Étape 3 : Configurer l'env
+
 ```bash
 cp .env.docker.example .env.docker
 nano .env.docker
@@ -258,6 +268,7 @@ nano .env.docker
 ```
 
 ### Étape 4 : Build + lancer
+
 ```bash
 pnpm docker:prod:build
 pnpm docker:prod:up
@@ -265,6 +276,7 @@ pnpm docker:prod:ps  # Vérifier healthy
 ```
 
 ### Étape 5 : Configurer le DNS
+
 Voir section suivante ⬇️
 
 ---
@@ -272,16 +284,18 @@ Voir section suivante ⬇️
 ## 🌍 DNS et SSL
 
 ### Configuration DNS
+
 Chez ton registrar (Cloudflare, OVH, etc.) :
 
-| Type | Nom | Valeur |
-|------|-----|--------|
-| A | `@` (racine) | `<IP_VPS>` |
-| A | `*` (wildcard) | `<IP_VPS>` |
-| AAAA | `@` | `<IP_V6_VPS>` (optionnel) |
-| AAAA | `*` | `<IP_V6_VPS>` (optionnel) |
+| Type | Nom            | Valeur                    |
+| ---- | -------------- | ------------------------- |
+| A    | `@` (racine)   | `<IP_VPS>`                |
+| A    | `*` (wildcard) | `<IP_VPS>`                |
+| AAAA | `@`            | `<IP_V6_VPS>` (optionnel) |
+| AAAA | `*`            | `<IP_V6_VPS>` (optionnel) |
 
 ### SSL automatique
+
 **Caddy obtient les certificats Let's Encrypt automatiquement** dès que le DNS est propagé et que les ports 80/443 sont ouverts.
 
 ```bash
@@ -293,6 +307,7 @@ nslookup start.qoe.fi 8.8.8.8
 ```
 
 ### Vérification SSL
+
 ```bash
 # Tu dois voir "CN = qoe.fi" et un issuer Let's Encrypt
 openssl s_client -connect qoe.fi:443 -servername qoe.fi < /dev/null 2>/dev/null | openssl x509 -noout -subject
@@ -335,6 +350,7 @@ pnpm docker:prod:rebuild   # Rebuild + restart
 ## 🆘 Troubleshooting
 
 ### Port 3000 / 3010 occupé
+
 ```bash
 # Trouve le process
 lsof -i :3000           # Mac/Linux
@@ -345,6 +361,7 @@ powershell -Command "Get-NetTCPConnection -LocalPort 3000"  # Windows
 ```
 
 ### Container `migrate` échoue
+
 ```bash
 # Vérifie que db est healthy
 docker compose ps
@@ -359,9 +376,11 @@ pnpm docker:dev
 ```
 
 ### HMR ne fonctionne pas (Windows/Mac)
+
 Vérifie que `CHOKIDAR_USEPOLLING=true` est dans `.env.docker` (déjà activé par défaut).
 
 ### "Caddy ne peut pas obtenir le certificat SSL"
+
 ```bash
 pnpm docker:prod:logs:caddy
 # Cherche "acme" ou "challenge" dans les logs
@@ -373,12 +392,14 @@ pnpm docker:prod:logs:caddy
 ```
 
 ### Reset complet
+
 ```bash
 pnpm docker:dev:reset
 # Supprime containers + volumes + relance
 ```
 
 ### "Out of memory" sur le VPS
+
 ```bash
 # Vérifier la conso
 docker stats
@@ -392,39 +413,46 @@ docker stats
 ## 🤔 FAQ
 
 ### Pourquoi 2 réseaux isolés ?
+
 - **Sécurité** : la DB n'est pas exposée à internet
 - **Performance** : le trafic interne ne pollue pas le réseau public
 - **Caddy seul entry point** : tout passe par le reverse proxy
 
 ### Pourquoi Caddy et pas nginx ?
+
 - **TLS automatique** : pas de config Let's Encrypt à maintenir
 - **Config simple** : 30 lignes de Caddyfile vs 100+ lignes nginx
 - **HTTP/3 ready** : par défaut
 - **Zero-downtime reload** : rechargement à chaud
 
 ### Pourquoi un seul Dockerfile multi-target ?
+
 - **Un seul fichier à maintenir** au lieu de 4
 - **Cache partagé** : les stages de base sont réutilisés entre targets
 - **CI/CD simplifié** : un seul `docker build` à automatiser
 
 ### Pourquoi Redis en plus de Postgres ?
+
 - **BullMQ** : queue de jobs (emails, AI, billing)
 - **Cache** : next.js cache, sessions
 - **Rate limiting** : protection API
 - **Realtime** : pub/sub pour features futures
 
 ### Pourquoi pgvector ?
+
 - **Embeddings IA** : recommandation de contenu, recherche sémantique
 - **Alternative open-source** à Pinecone/Weaviate
 - **Une seule DB** à gérer au lieu de 2
 
 ### Source unique Prisma : pourquoi `packages/db/prisma/` ?
+
 - **Co-localisation** : le schema est avec le client qui l'utilise
 - **Pas de duplication** : pas de `prisma/` racine à synchroniser
 - **Build pipeline** : `prebuild` lance `prisma generate` automatiquement
 - **CI/CD friendly** : un seul path à docker-copier
 
 ### Pourquoi ne pas avoir mis `prisma generate` dans `postinstall` ?
+
 - **Performance** : `postinstall` ralentit `pnpm install`
 - **Cache** : Turbo cache le `prisma generate` séparément
 - **Debug** : on voit clairement quand le client est regenéré

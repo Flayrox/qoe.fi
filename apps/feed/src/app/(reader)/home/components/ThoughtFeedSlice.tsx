@@ -1,21 +1,21 @@
-"use client"
+'use client';
 
-import React from "react"
-import { MessageSquare } from "lucide-react"
-import { ThoughtCard } from "@/components/social/ThoughtCard"
-import type { FeedSlice } from "@qoe/db/repositories/posts"
+import React from 'react';
+import { MessageSquare } from 'lucide-react';
+import { ThoughtCard } from '@/components/social/ThoughtCard';
+import type { FeedSlice } from '@qoe/db/repositories/posts';
 
 export interface ThoughtFeedSliceProps {
-  slice: FeedSlice
-  currentUserId?: string | null
-  onOpenPost?: (postId: string) => void
-  onOpenProfile?: (userId: string) => void
-  onOpenArticle?: (article: { id: string; slug: string; title: string }) => void
-  onOpenMedia?: (url: string) => void
-  onLikeToggle?: (postId: string) => void
-  onRepostToggle?: (postId: string) => void
-  onPinToggle?: (e: React.MouseEvent) => void
-  onDeletePost?: (postId: string) => Promise<boolean> | void
+  slice: FeedSlice;
+  currentUserId?: string | null;
+  onOpenPost?: (postId: string) => void;
+  onOpenProfile?: (userId: string) => void;
+  onOpenArticle?: (article: { id: string; slug: string; title: string }) => void;
+  onOpenMedia?: (url: string) => void;
+  onLikeToggle?: (postId: string) => void;
+  onRepostToggle?: (postId: string) => void;
+  onPinToggle?: (e: React.MouseEvent) => void;
+  onDeletePost?: (postId: string) => Promise<boolean> | void;
 }
 
 export function ThoughtFeedSlice({
@@ -30,16 +30,16 @@ export function ThoughtFeedSlice({
   onPinToggle,
   onDeletePost,
 }: ThoughtFeedSliceProps) {
-  const { rootPost, parentPost, targetPost, isIncompleteThread, hiddenIntermediateCount } = slice
+  const { rootPost, parentPost, targetPost, isIncompleteThread, hiddenIntermediateCount } = slice;
 
   const handleOpenRootThread = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const targetId = rootPost?.id || parentPost?.id || targetPost.id
+    e.preventDefault();
+    e.stopPropagation();
+    const targetId = rootPost?.id || parentPost?.id || targetPost.id;
     if (onOpenPost) {
-      onOpenPost(targetId)
+      onOpenPost(targetId);
     }
-  }
+  };
 
   // Case 1: Standalone post (no parent or root)
   if (!parentPost && !rootPost) {
@@ -57,7 +57,7 @@ export function ThoughtFeedSlice({
         onPinToggle={onPinToggle}
         onDeletePost={onDeletePost}
       />
-    )
+    );
   }
 
   // Case 2: Multi-post Feed Slice (Root -> [Dotted Divider] -> Parent -> Target)
@@ -94,7 +94,8 @@ export function ThoughtFeedSlice({
           <div className="flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline py-1">
             <MessageSquare className="w-3.5 h-3.5" />
             <span>
-              Afficher la suite du fil ({hiddenIntermediateCount || 1} message{hiddenIntermediateCount && hiddenIntermediateCount > 1 ? "s" : ""} de plus)
+              Afficher la suite du fil ({hiddenIntermediateCount || 1} message
+              {hiddenIntermediateCount && hiddenIntermediateCount > 1 ? 's' : ''} de plus)
             </span>
           </div>
         </div>
@@ -138,5 +139,5 @@ export function ThoughtFeedSlice({
         className="border-none"
       />
     </div>
-  )
+  );
 }

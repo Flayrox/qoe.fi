@@ -20,6 +20,7 @@
 ## 🚧 Feuilles de Route & Prochaines Étapes (Tasklist)
 
 ### 1. 📧 Configuration Backend Mailer & Triggers Supabase Prod (À configurer plus tard)
+
 - [ ] Configurer la clé d'API `RESEND_API_KEY` et l'adresse `EMAIL_FROM=security@qoe.fi` en production.
 - [ ] Personnaliser les templates e-mails par défaut de Supabase Auth (Confirmation d'inscription, Magic Link, Réinitialisation de mot de passe).
 - [ ] Raccorder le trigger de détection automatique de **Nouvelle Connexion sur un Nouvel Appareil/IP** pour expédier `sendSecurityLoginAlert`.
@@ -28,7 +29,9 @@
 ---
 
 ### 2. 🎙️ Multi-Tenancy Média & Gestion des Médias depuis le Compte Créateur
-> Références : [`VISION_MULTI_TENANT_MEDIA.md`](file:///d:/Files/DEV/Main/qoe.fi/VISION_MULTI_TENANT_MEDIA.md) & Discussion *"Redesign Creator Dashboard Settings"*
+
+> Références : [`VISION_MULTI_TENANT_MEDIA.md`](file:///d:/Files/DEV/Main/qoe.fi/VISION_MULTI_TENANT_MEDIA.md) & Discussion _"Redesign Creator Dashboard Settings"_
+
 - [ ] **Création de Média en 1 Clic** : Permettre à un utilisateur / créateur de **créer un ou plusieurs nouveaux médias** (journal, magazine, revue) directement depuis son compte principal, sans devoir créer un compte supplémentaire ou passer par un compte admin média global.
 - [ ] **Gestion des Réglages Médias Dédiés** : Réserver les réglages du Dashboard Studio (`dashboard.qoe.fi/settings`) à la configuration fine de chaque média (subdomaine `.qoe.fi`, domaine personnalisé, logo, palette, SEO, rôles d'équipe).
 - [ ] **Cas d'Usage Multi-Médias** : Gérer un créateur qui possède son média propre **ET** qui travaille simultanément en tant que rédacteur/contributeur pour 3 autres médias.
@@ -41,6 +44,7 @@
 ---
 
 ### 3. 📰 Redesign Front-End du Feed Lecteur (`apps/feed`)
+
 - [ ] Réviser le layout de la timeline principale et de la navigation lecteur selon les spécifications Apple Music Web ([`design/DESIGN.md`](file:///d:/Files/DEV/Main/qoe.fi/design/DESIGN.md)).
 - [ ] Adapter la sidebar de navigation du lecteur aux tokens sémantiques `@qoe/theme`.
 - [ ] Affichage fluide des cartes d'articles et micro-posts avec séparateurs capillaires extra-fins.
@@ -48,6 +52,7 @@
 ---
 
 ### 4. 🔑 Authentification Avancée & Sécurité Renforcée
+
 - [ ] Intégration de la **Double Authentification TOTP (2FA)** (Google Authenticator / Authy avec QR Code).
 - [ ] Support des **Passkeys / WebAuthn** pour la connexion biométrique sans mot de passe (Touch ID / Face ID).
 - [ ] Cron worker de suppression définitive des comptes planifiés après la période de grâce de 30 jours.
@@ -55,12 +60,14 @@
 ---
 
 ### 5. 💳 Stripe Connect & Monétisation Créateurs
+
 - [ ] Flux d'onboarding Stripe Connect Express pour les créateurs.
 - [ ] Recharges automatique du Wallet lecteur et payouts mensuels automatique vers les créateurs.
 
 ---
 
 ### 6. 🌑 Dark Mode "Onyx" (Apple Dark)
+
 - [ ] Valider les tokens sémantiques `.dark` dans `packages/theme/src/styles/tokens.css`.
 - [ ] Bouton de basculement de thème dans le Header (Soleil/Lune).
 - [ ] Tester le basculement sans aucun artefact visuel sur `apps/feed` et `apps/dashboard`.

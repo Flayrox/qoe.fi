@@ -12,20 +12,21 @@ qoe.fi is structured as a modern Monorepo utilizing **Turborepo** and **pnpm wor
 
 ### 📊 Tech Stack
 
-| Domain | Technology |
-|---|---|
-| **Frameworks** | Next.js 16 (App Router), Hono (API) |
-| **Package Manager** | pnpm 9.15 (Workspaces) + Turborepo 2.9 |
-| **Database Layer** | PostgreSQL 16 + pgvector, Prisma ORM, Redis (BullMQ) |
-| **Infrastructure** | Docker, Docker Compose, Caddy 2 (Reverse Proxy / TLS) |
-| **State Management** | TanStack Query (React Query) + Optimistic Updates |
-| **Typing** | TypeScript 5.9 (Strict), Zod |
+| Domain               | Technology                                            |
+| -------------------- | ----------------------------------------------------- |
+| **Frameworks**       | Next.js 16 (App Router), Hono (API)                   |
+| **Package Manager**  | pnpm 9.15 (Workspaces) + Turborepo 2.9                |
+| **Database Layer**   | PostgreSQL 16 + pgvector, Prisma ORM, Redis (BullMQ)  |
+| **Infrastructure**   | Docker, Docker Compose, Caddy 2 (Reverse Proxy / TLS) |
+| **State Management** | TanStack Query (React Query) + Optimistic Updates     |
+| **Typing**           | TypeScript 5.9 (Strict), Zod                          |
 
 ---
 
 ## 📂 Codebase Map
 
 ### Applications (`apps/*`)
+
 The front-facing and API surface areas of the platform.
 
 1. **`apps/landing` (`start.qoe.fi`)**
@@ -42,6 +43,7 @@ The front-facing and API surface areas of the platform.
    Hono-based API for public endpoints and fast internal network requests.
 
 ### Core Packages (`packages/*`)
+
 The Single Source of Truth for logic, data, and configuration.
 
 - **`@qoe/db`**: The definitive source for the Database. Contains the solitary `schema.prisma`, migrations, seeds, and typed repository patterns (Users, Articles, Posts).
@@ -60,11 +62,13 @@ The Single Source of Truth for logic, data, and configuration.
 ## 🏃 Setup & Execution
 
 ### Prerequisites
+
 - Node.js 20+
 - pnpm 9+
 - Docker & Docker Compose
 
 ### Initial Setup
+
 ```bash
 # 1. Clone the repository
 git clone <repo-url>
@@ -87,6 +91,7 @@ caddy start --config Caddyfile.dev
 ```
 
 ### Running the Stack
+
 ```bash
 # Start all apps simultaneously
 pnpm dev
@@ -97,6 +102,7 @@ pnpm --filter @qoe/dashboard dev
 ```
 
 ### Database Operations
+
 ```bash
 pnpm prisma:migrate    # Apply migrations
 pnpm prisma:studio     # Launch Prisma Studio GUI

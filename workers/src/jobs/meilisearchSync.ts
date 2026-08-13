@@ -1,35 +1,35 @@
-import { Job } from "bullmq";
-import { MeiliSearch } from "meilisearch";
-import { prisma } from "@qoe/db/client";
+import { Job } from 'bullmq';
+import { MeiliSearch } from 'meilisearch';
+import { prisma } from '@qoe/db/client';
 
 const client = new MeiliSearch({
-  host: process.env.MEILISEARCH_HOST || "http://localhost:7700",
-  apiKey: process.env.MEILI_MASTER_KEY || "qoe_master_key_123",
+  host: process.env.MEILISEARCH_HOST || 'http://localhost:7700',
+  apiKey: process.env.MEILI_MASTER_KEY || 'qoe_master_key_123',
 });
 
-export const MEILI_INDEX = "articles";
+export const MEILI_INDEX = 'articles';
 
 export async function setupMeilisearch() {
   try {
     const index = client.index(MEILI_INDEX);
     await index.updateSettings({
-      searchableAttributes: ["title", "content", "seoTitle", "seoDescription"],
-      filterableAttributes: ["authorId", "categoryId", "isPremium", "published"],
-      sortableAttributes: ["createdAt", "updatedAt"],
+      searchableAttributes: ['title', 'content', 'seoTitle', 'seoDescription'],
+      filterableAttributes: ['authorId', 'categoryId', 'isPremium', 'published'],
+      sortableAttributes: ['createdAt', 'updatedAt'],
       typoTolerance: {
         enabled: true,
         minWordSizeForTypos: { oneTypo: 5, twoTypos: 9 },
       },
     });
-    console.log("[Meilisearch] Index settings configured successfully.");
+    console.log('[Meilisearch] Index settings configured successfully.');
   } catch (error) {
-    console.error("[Meilisearch] Error configuring index:", error);
+    console.error('[Meilisearch] Error configuring index:', error);
   }
 }
 
 interface SyncJobData {
   articleId: string;
-  action: "upsert" | "delete";
+  action: 'upsert' | 'delete';
 }
 
 export async function processMeilisearchSyncJob(job: Job<SyncJobData>) {
@@ -37,13 +37,13 @@ export async function processMeilisearchSyncJob(job: Job<SyncJobData>) {
   const index = client.index(MEILI_INDEX);
 
   try {
-    if (action === "delete") {
+    if (action === 'delete') {
       await index.deleteDocument(articleId);
       console.log(`[Meilisearch] Deleted document ${articleId}`);
       return { success: true, action };
     }
 
-    if (action === "upsert") {
+    if (action === 'upsert') {
       const article = await prisma.article.findUnique({
         where: { id: articleId },
       });
@@ -51,7 +51,7 @@ export async function processMeilisearchSyncJob(job: Job<SyncJobData>) {
       if (!article) {
         console.warn(`[Meilisearch] Article ${articleId} not found for upsert.`);
         await index.deleteDocument(articleId);
-        return { success: true, action: "delete" };
+        return { success: true, action: 'delete' };
       }
 
       await index.addDocuments([

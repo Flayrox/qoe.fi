@@ -15,10 +15,8 @@
  * SSR-safe : retourne "" côté serveur (pas de document).
  */
 export function token(name: string): string {
-  if (typeof window === "undefined") return "";
-  return getComputedStyle(document.documentElement)
-    .getPropertyValue(name)
-    .trim();
+  if (typeof window === 'undefined') return '';
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
 /**
@@ -27,8 +25,8 @@ export function token(name: string): string {
  * const palette = tokens(["--chart-1", "--chart-2", "--chart-3"]);
  */
 export function tokens(names: string[]): Record<string, string> {
-  if (typeof window === "undefined") {
-    return Object.fromEntries(names.map((n) => [n, ""]));
+  if (typeof window === 'undefined') {
+    return Object.fromEntries(names.map((n) => [n, '']));
   }
   const root = document.documentElement;
   const cs = getComputedStyle(root);

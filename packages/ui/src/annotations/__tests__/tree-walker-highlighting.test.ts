@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from 'vitest';
 
 // TreeWalker DOM Range wrapping function matching requirements
 export function applyHighlightToDOM(
@@ -15,12 +15,16 @@ export function applyHighlightToDOM(
   root.normalize();
   const targetText = textToHighlight.trim();
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  const nodesToReplace: { textNode: Text; parent: HTMLElement; matches: { index: number; text: string }[] }[] = [];
+  const nodesToReplace: {
+    textNode: Text;
+    parent: HTMLElement;
+    matches: { index: number; text: string }[];
+  }[] = [];
 
   let node: Node | null;
   while ((node = walker.nextNode())) {
     const textNode = node as Text;
-    const textContent = textNode.textContent || "";
+    const textContent = textNode.textContent || '';
     const index = textContent.indexOf(targetText);
 
     if (index !== -1) {
@@ -33,7 +37,7 @@ export function applyHighlightToDOM(
   }
 
   nodesToReplace.forEach(({ textNode, parent, matches }) => {
-    const textContent = textNode.textContent || "";
+    const textContent = textNode.textContent || '';
     const fragment = document.createDocumentFragment();
     let lastIndex = 0;
 
@@ -42,24 +46,24 @@ export function applyHighlightToDOM(
         fragment.appendChild(document.createTextNode(textContent.substring(lastIndex, index)));
       }
 
-      const mark = document.createElement("mark");
+      const mark = document.createElement('mark');
 
       if (isOfficial) {
         mark.className =
-          "bg-amber-500/20 text-foreground cursor-pointer border-b border-amber-500 hover:bg-amber-500/30 transition-all relative group rounded-xs font-medium";
+          'bg-highlight/20 text-foreground cursor-pointer border-b border-highlight hover:bg-highlight/30 transition-all relative group rounded-xs font-medium';
       } else if (isPublic) {
         mark.className =
-          "bg-primary/20 text-foreground cursor-pointer border-b border-primary/50 hover:bg-primary/30 transition-all relative group rounded-xs";
+          'bg-primary/20 text-foreground cursor-pointer border-b border-primary/50 hover:bg-primary/30 transition-all relative group rounded-xs';
       } else {
         mark.className =
-          "bg-amber-500/15 text-foreground cursor-pointer border-b border-dashed border-amber-400/60 hover:bg-amber-500/25 transition-all relative group rounded-xs";
+          'bg-highlight/15 text-foreground cursor-pointer border-b border-dashed border-highlight/60 hover:bg-highlight/25 transition-all relative group rounded-xs';
       }
 
       mark.textContent = text;
-      mark.setAttribute("data-highlight-text", text);
-      if (id) mark.setAttribute("data-highlight-id", id);
+      mark.setAttribute('data-highlight-text', text);
+      if (id) mark.setAttribute('data-highlight-id', id);
       if (note) {
-        mark.title = `${isOfficial ? "Annotation officielle" : isPublic ? "Annotation publique" : "Note privée"} : ${note}`;
+        mark.title = `${isOfficial ? 'Annotation officielle' : isPublic ? 'Annotation publique' : 'Note privée'} : ${note}`;
       }
 
       fragment.appendChild(mark);
@@ -75,7 +79,7 @@ export function applyHighlightToDOM(
 }
 
 export function removeAllMarksFromDOM(root: HTMLElement) {
-  const marks = root.querySelectorAll("mark[data-highlight-id]");
+  const marks = root.querySelectorAll('mark[data-highlight-id]');
   marks.forEach((mark) => {
     const parent = mark.parentNode;
     if (parent) {
@@ -88,13 +92,13 @@ export function removeAllMarksFromDOM(root: HTMLElement) {
   root.normalize();
 }
 
-describe("Tier 1 & 2: TreeWalker DOM Range Marking Engine", () => {
+describe('Tier 1 & 2: TreeWalker DOM Range Marking Engine', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
-    document.body.innerHTML = "";
-    container = document.createElement("div");
-    container.id = "article-content";
+    document.body.innerHTML = '';
+    container = document.createElement('div');
+    container.id = 'article-content';
     container.innerHTML = `
       <p id="p1">L'intelligence artificielle transforme la création de contenu et le journalisme moderne.</p>
       <p id="p2">Les créateurs recherchent des outils de haute précision pour annoter leurs écrits.</p>
@@ -102,46 +106,53 @@ describe("Tier 1 & 2: TreeWalker DOM Range Marking Engine", () => {
     document.body.appendChild(container);
   });
 
-  it("should wrap Author/Official highlights with solid amber line styling", () => {
-    applyHighlightToDOM(container, "création de contenu", "Note auteur", true, true, "official-1");
+  it('should wrap Author/Official highlights with solid amber line styling', () => {
+    applyHighlightToDOM(container, 'création de contenu', 'Note auteur', true, true, 'official-1');
 
     const mark = container.querySelector("mark[data-highlight-id='official-1']");
     expect(mark).not.toBeNull();
-    expect(mark?.textContent).toBe("création de contenu");
-    expect(mark?.className).toContain("bg-amber-500/20");
-    expect(mark?.className).toContain("border-amber-500");
-    expect(mark?.getAttribute("title")).toBe("Annotation officielle : Note auteur");
+    expect(mark?.textContent).toBe('création de contenu');
+    expect(mark?.className).toContain('bg-highlight/20');
+    expect(mark?.className).toContain('border-highlight');
+    expect(mark?.getAttribute('title')).toBe('Annotation officielle : Note auteur');
   });
 
-  it("should wrap Public Genius highlights with primary line styling", () => {
-    applyHighlightToDOM(container, "journalisme moderne", "Note publique", true, false, "public-1");
+  it('should wrap Public Genius highlights with primary line styling', () => {
+    applyHighlightToDOM(container, 'journalisme moderne', 'Note publique', true, false, 'public-1');
 
     const mark = container.querySelector("mark[data-highlight-id='public-1']");
     expect(mark).not.toBeNull();
-    expect(mark?.textContent).toBe("journalisme moderne");
-    expect(mark?.className).toContain("bg-primary/20");
-    expect(mark?.className).toContain("border-primary/50");
-    expect(mark?.getAttribute("title")).toBe("Annotation publique : Note publique");
+    expect(mark?.textContent).toBe('journalisme moderne');
+    expect(mark?.className).toContain('bg-primary/20');
+    expect(mark?.className).toContain('border-primary/50');
+    expect(mark?.getAttribute('title')).toBe('Annotation publique : Note publique');
   });
 
-  it("should wrap Private Reader notes with dashed line styling", () => {
-    applyHighlightToDOM(container, "outils de haute précision", "Réflexion personnelle", false, false, "private-1");
+  it('should wrap Private Reader notes with dashed line styling', () => {
+    applyHighlightToDOM(
+      container,
+      'outils de haute précision',
+      'Réflexion personnelle',
+      false,
+      false,
+      'private-1'
+    );
 
     const mark = container.querySelector("mark[data-highlight-id='private-1']");
     expect(mark).not.toBeNull();
-    expect(mark?.textContent).toBe("outils de haute précision");
-    expect(mark?.className).toContain("bg-amber-500/15");
-    expect(mark?.className).toContain("border-dashed");
-    expect(mark?.getAttribute("title")).toBe("Note privée : Réflexion personnelle");
+    expect(mark?.textContent).toBe('outils de haute précision');
+    expect(mark?.className).toContain('bg-highlight/15');
+    expect(mark?.className).toContain('border-dashed');
+    expect(mark?.getAttribute('title')).toBe('Note privée : Réflexion personnelle');
   });
 
-  it("should strip marks cleanly and normalize DOM nodes", () => {
-    applyHighlightToDOM(container, "journalisme moderne", undefined, true, false, "mark-to-remove");
-    expect(container.querySelectorAll("mark").length).toBe(1);
+  it('should strip marks cleanly and normalize DOM nodes', () => {
+    applyHighlightToDOM(container, 'journalisme moderne', undefined, true, false, 'mark-to-remove');
+    expect(container.querySelectorAll('mark').length).toBe(1);
 
     removeAllMarksFromDOM(container);
-    expect(container.querySelectorAll("mark").length).toBe(0);
-    expect(container.querySelector("#p1")?.textContent).toBe(
+    expect(container.querySelectorAll('mark').length).toBe(0);
+    expect(container.querySelector('#p1')?.textContent).toBe(
       "L'intelligence artificielle transforme la création de contenu et le journalisme moderne."
     );
   });

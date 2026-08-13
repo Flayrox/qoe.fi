@@ -8,11 +8,11 @@
  * It will be removed in a future cleanup pass.
  */
 
-export { getLanguage as getLocale } from "@qoe/i18n/server"
+export { getLanguage as getLocale } from '@qoe/i18n/server';
 
 // Legacy type re-export removed — @/tolgee/shared does not exist yet.
 // When Tolgee is fully set up, re-export AppLocale from the proper path.
-export type Locale = "fr" | "en"
+export type Locale = 'fr' | 'en';
 
 // Legacy getDictionary is no longer available.
 // Use `const t = await getTranslate()` from `@/tolgee/server` instead.

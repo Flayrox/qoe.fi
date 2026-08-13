@@ -1,24 +1,27 @@
-"use client"
+'use client';
 
-import React, { useState, useEffect } from "react"
-import { Sparkles, X } from "lucide-react"
-import { Dialog, DialogContent } from "@qoe/ui"
-import { ThoughtComposer } from "./ThoughtComposer"
-import { ThoughtReplyModal } from "./ThoughtReplyModal"
+import React from 'react';
+import { X } from 'lucide-react';
+import { Dialog, DialogContent } from '@qoe/ui';
+import { ThoughtComposer, type ComposedPost } from './ThoughtComposer';
+import { ThoughtReplyModal } from './ThoughtReplyModal';
+import type { ThoughtData } from '@/components/social/ThoughtCard';
+import type { QuotedArticleData } from '@qoe/ui/social';
+import type { DbUser } from './ThoughtComposer';
 
 interface ComposerModalProps {
-  isOpen: boolean
-  onClose: () => void
-  dbUser: any
-  tagsList?: string[]
-  quotedThought?: any
-  replyToThought?: any
-  quotedArticle?: any
-  quotedExcerpt?: string | null
-  initialText?: string
-  initialMode?: "thought" | "article"
-  onPostCreated?: (post: any) => void
-  onLoginRequired?: () => void
+  isOpen: boolean;
+  onClose: () => void;
+  dbUser: DbUser | null;
+  tagsList?: string[];
+  quotedThought?: ThoughtData | null;
+  replyToThought?: ThoughtData | null;
+  quotedArticle?: QuotedArticleData | null;
+  quotedExcerpt?: string | null;
+  initialText?: string;
+  initialMode?: 'thought' | 'article';
+  onPostCreated?: (post: ComposedPost) => void;
+  onLoginRequired?: () => void;
 }
 
 export function ComposerModal({
@@ -30,8 +33,7 @@ export function ComposerModal({
   replyToThought = null,
   quotedArticle = null,
   quotedExcerpt = null,
-  initialText = "",
-  initialMode = "thought",
+  initialText = '',
   onPostCreated,
   onLoginRequired,
 }: ComposerModalProps) {
@@ -47,7 +49,7 @@ export function ComposerModal({
         onReplyCreated={onPostCreated}
         onLoginRequired={onLoginRequired}
       />
-    )
+    );
   }
 
   // Regular New Post Modal (Centered Dialog on Desktop, Bottom Sheet on Mobile)
@@ -59,7 +61,9 @@ export function ComposerModal({
       >
         {/* Modal Header Bar */}
         <div className="flex items-center justify-between pb-3 mb-3 border-b border-border/40">
-          <span className="text-sm font-semibold tracking-tight text-foreground">Nouvelle pensée</span>
+          <span className="text-sm font-semibold tracking-tight text-foreground">
+            Nouvelle pensée
+          </span>
 
           <button
             type="button"
@@ -80,15 +84,15 @@ export function ComposerModal({
           quotedExcerpt={quotedExcerpt}
           initialText={initialText}
           onPostCreated={(post) => {
-            if (onPostCreated) onPostCreated(post)
-            onClose()
+            if (onPostCreated) onPostCreated(post);
+            onClose();
           }}
           onLoginRequired={() => {
-            onClose()
-            if (onLoginRequired) onLoginRequired()
+            onClose();
+            if (onLoginRequired) onLoginRequired();
           }}
         />
       </DialogContent>
     </Dialog>
-  )
+  );
 }

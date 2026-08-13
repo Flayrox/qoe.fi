@@ -1,9 +1,7 @@
-import { redirect } from "next/navigation";
+import { redirect } from 'next/navigation';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 export default async function Home() {
-  redirect("/home");
+  redirect('/home');
 }
-
-

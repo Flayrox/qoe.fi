@@ -1,6 +1,6 @@
-"use client"
+'use client';
 
-export { ThoughtThreadView, ThoughtThread, useThoughtThreadContext } from "./thread"
+export { ThoughtThreadView, ThoughtThread, useThoughtThreadContext } from './thread';
 export type {
   ThoughtThreadRootProps,
   ThoughtThreadComposerProps,
@@ -8,4 +8,4 @@ export type {
   ThoughtThreadItemProps,
   ThoughtThreadTombstoneProps,
   OptimisticThought,
-} from "./thread"
+} from './thread';

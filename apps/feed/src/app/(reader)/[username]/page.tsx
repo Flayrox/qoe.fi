@@ -1,24 +1,24 @@
-import { createClient } from "@qoe/supabase/server"
-import { notFound } from "next/navigation"
-import { prisma } from "@qoe/db/client"
-import { ProfileView } from "./components/ProfileView"
+import { createClient } from '@qoe/supabase/server';
+import { notFound } from 'next/navigation';
+import { prisma } from '@qoe/db/client';
+import { ProfileView } from './components/ProfileView';
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }) {
-  const resolvedParams = await params
-  const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '')
-  
+  const resolvedParams = await params;
+  const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
+
   const user = await prisma.user.findFirst({
     where: {
       OR: [
         { username: { equals: rawUsername, mode: 'insensitive' } },
-        { subdomain: { equals: rawUsername, mode: 'insensitive' } }
-      ]
+        { subdomain: { equals: rawUsername, mode: 'insensitive' } },
+      ],
     },
-    select: { name: true, username: true, heroText: true, logoUrl: true }
-  })
+    select: { name: true, username: true, heroText: true, logoUrl: true },
+  });
 
   if (!user) {
-    return { title: "Profil introuvable — qoe.fi" }
+    return { title: 'Profil introuvable — qoe.fi' };
   }
 
   return {
@@ -27,58 +27,95 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
     openGraph: {
       title: `${user.name || `@${user.username}`} sur qoe.fi`,
       description: user.heroText || `Suivez ${user.name} sur qoe.fi.`,
-      images: user.logoUrl ? [{ url: user.logoUrl }] : []
-    }
-  }
+      images: user.logoUrl ? [{ url: user.logoUrl }] : [],
+    },
+  };
 }
 
-export default async function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
-  const resolvedParams = await params
-  const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '')
+export default async function UserProfilePage({
+  params,
+}: {
+  params: Promise<{ username: string }>;
+}) {
+  const resolvedParams = await params;
+  const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
 
-  const supabase = await createClient()
-  const { data: { user: currentUser } } = await supabase.auth.getUser()
+  const supabase = await createClient();
+  const {
+    data: { user: currentUser },
+  } = await supabase.auth.getUser();
 
   // Find profile user
   const profileUser = await prisma.user.findFirst({
     where: {
       OR: [
         { username: { equals: rawUsername, mode: 'insensitive' } },
-        { subdomain: { equals: rawUsername, mode: 'insensitive' } }
-      ]
+        { subdomain: { equals: rawUsername, mode: 'insensitive' } },
+      ],
     },
     include: {
       posts: {
         where: { isDraft: false },
         include: {
-          author: { select: { id: true, name: true, username: true, subdomain: true, logoUrl: true, isCertified: true } },
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              subdomain: true,
+              logoUrl: true,
+              isCertified: true,
+            },
+          },
           parent: {
             select: {
               id: true,
               content: true,
               createdAt: true,
-              author: { select: { id: true, name: true, username: true, subdomain: true, logoUrl: true, isCertified: true } }
-            }
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  username: true,
+                  subdomain: true,
+                  logoUrl: true,
+                  isCertified: true,
+                },
+              },
+            },
           },
           likes: { select: { userId: true } },
           repost: {
             include: {
-              author: { select: { id: true, name: true, username: true, subdomain: true, logoUrl: true } }
-            }
+              author: {
+                select: { id: true, name: true, username: true, subdomain: true, logoUrl: true },
+              },
+            },
           },
-          _count: { select: { likes: true, replies: true } }
+          _count: { select: { likes: true, replies: true } },
         },
         orderBy: { createdAt: 'desc' },
-        take: 50
+        take: 50,
       },
       articles: {
         where: { published: true },
         include: {
-          author: { select: { id: true, name: true, username: true, subdomain: true, customDomain: true, logoUrl: true, heroText: true, isCertified: true } },
-          category: { select: { name: true } }
+          author: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              subdomain: true,
+              customDomain: true,
+              logoUrl: true,
+              heroText: true,
+              isCertified: true,
+            },
+          },
+          category: { select: { name: true } },
         },
         orderBy: { createdAt: 'desc' },
-        take: 30
+        take: 30,
       },
       followers: { select: { readerId: true } },
       following: { select: { creatorId: true } },
@@ -87,18 +124,20 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
           followers: true,
           following: true,
           posts: true,
-          articles: true
-        }
-      }
-    }
-  })
+          articles: true,
+        },
+      },
+    },
+  });
 
   if (!profileUser) {
-    notFound()
+    notFound();
   }
 
-  const isOwnProfile = currentUser?.id === profileUser.id
-  const isFollowing = currentUser ? profileUser.followers.some(f => f.readerId === currentUser.id) : false
+  const isOwnProfile = currentUser?.id === profileUser.id;
+  const isFollowing = currentUser
+    ? profileUser.followers.some((f) => f.readerId === currentUser.id)
+    : false;
 
   return (
     <ProfileView
@@ -108,5 +147,5 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
       initialIsFollowing={isFollowing}
       initialTab="thoughts"
     />
-  )
+  );
 }

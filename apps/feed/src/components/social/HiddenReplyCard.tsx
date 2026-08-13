@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import { EyeOff, Eye, ShieldAlert, Loader2 } from "lucide-react";
-import { hideReplyAction } from "@qoe/api-client";
+import React, { useState } from 'react';
+import { EyeOff, Eye, ShieldAlert, Loader2 } from 'lucide-react';
+import { hideReplyAction } from '@qoe/api-client';
 
 export interface HiddenReplyCardProps {
   replyId: string;
@@ -34,7 +34,7 @@ export function HiddenReplyCard({
         setIsHidden(res.data.isHiddenByAuthor);
       }
     } catch (err) {
-      console.error("Error toggling reply visibility:", err);
+      console.error('Error toggling reply visibility:', err);
     } finally {
       setIsToggling(false);
     }
@@ -66,7 +66,7 @@ export function HiddenReplyCard({
     <div className="rounded-2xl border border-border/60 bg-card/40 backdrop-blur-md p-4 space-y-3 font-sans my-2">
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <div className="flex items-center gap-2 font-semibold">
-          <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
+          <ShieldAlert className="w-4 h-4 text-highlight shrink-0" />
           <span>Réponse masquée par l'auteur original</span>
         </div>
 
@@ -94,20 +94,14 @@ export function HiddenReplyCard({
               disabled={isToggling}
               className="text-xs font-semibold text-muted-foreground hover:text-foreground underline flex items-center gap-1 ml-2"
             >
-              {isToggling ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <span>Démasquer</span>
-              )}
+              {isToggling ? <Loader2 className="w-3 h-3 animate-spin" /> : <span>Démasquer</span>}
             </button>
           )}
         </div>
       </div>
 
       {showContentAnyway && (
-        <div className="pt-2 border-t border-border/40 opacity-80">
-          {children}
-        </div>
+        <div className="pt-2 border-t border-border/40 opacity-80">{children}</div>
       )}
     </div>
   );

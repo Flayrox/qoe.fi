@@ -28,12 +28,12 @@ services:
 
     # Écoute publique
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
 
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
 
     volumes:
       - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
@@ -65,13 +65,13 @@ services:
       resources:
         limits:
           memory: 256M
-          cpus: "0.5"
+          cpus: '0.5'
 
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: '10m'
+        max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
   # 🌐 WEB : Next.js public
@@ -87,7 +87,7 @@ services:
 
     # PAS de port public : seul Caddy y accède
     expose:
-      - "3000"
+      - '3000'
 
     env_file:
       - .env.docker
@@ -106,7 +106,7 @@ services:
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
 
     networks:
       - qoefi-public
@@ -121,15 +121,15 @@ services:
       resources:
         limits:
           memory: 1024M
-          cpus: "1.5"
+          cpus: '1.5'
         reservations:
           memory: 256M
 
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: '10m'
+        max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
   # 📣 LANDING : Next.js marketing (start.qoe.fi)
@@ -144,7 +144,7 @@ services:
     restart: unless-stopped
 
     expose:
-      - "3000"
+      - '3000'
 
     env_file:
       - .env.docker
@@ -161,7 +161,7 @@ services:
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
 
     networks:
       - qoefi-public
@@ -176,15 +176,15 @@ services:
       resources:
         limits:
           memory: 512M
-          cpus: "0.5"
+          cpus: '0.5'
         reservations:
           memory: 128M
 
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: '10m'
+        max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
   # 📰 FEED : Next.js public reader (qoe.fi / www.qoe.fi)
@@ -199,7 +199,7 @@ services:
     restart: unless-stopped
 
     expose:
-      - "3000"
+      - '3000'
 
     env_file:
       - .env.docker
@@ -217,7 +217,7 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
 
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
 
     networks:
       - qoefi-public
@@ -232,15 +232,15 @@ services:
       resources:
         limits:
           memory: 768M
-          cpus: "1.0"
+          cpus: '1.0'
         reservations:
           memory: 128M
 
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: '10m'
+        max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
   # 🎨 DASHBOARD : Next.js creator (dashboard.qoe.fi)
@@ -255,7 +255,7 @@ services:
     restart: unless-stopped
 
     expose:
-      - "3000"
+      - '3000'
 
     env_file:
       - .env.docker
@@ -273,7 +273,7 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
 
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
 
     networks:
       - qoefi-public
@@ -288,15 +288,15 @@ services:
       resources:
         limits:
           memory: 768M
-          cpus: "1.0"
+          cpus: '1.0'
         reservations:
           memory: 128M
 
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: '10m'
+        max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
   # 🛡️ ADMIN : Next.js platform admin (admin.qoe.fi)
@@ -311,7 +311,7 @@ services:
     restart: unless-stopped
 
     expose:
-      - "3000"
+      - '3000'
 
     env_file:
       - .env.docker
@@ -329,7 +329,7 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
 
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
 
     networks:
       - qoefi-public
@@ -344,15 +344,15 @@ services:
       resources:
         limits:
           memory: 512M
-          cpus: "0.5"
+          cpus: '0.5'
         reservations:
           memory: 128M
 
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: '10m'
+        max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
   # 🔌 API : Hono backend
@@ -367,7 +367,7 @@ services:
     restart: unless-stopped
 
     expose:
-      - "3001"
+      - '3001'
 
     env_file:
       - .env.docker
@@ -384,7 +384,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
 
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
 
     networks:
       - qoefi-public
@@ -401,13 +401,13 @@ services:
       resources:
         limits:
           memory: 512M
-          cpus: "1.0"
+          cpus: '1.0'
 
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: '10m'
+        max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
   # ⚙️ WORKERS : BullMQ background jobs
@@ -436,11 +436,11 @@ services:
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@qoe.fi}
 
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
 
     networks:
       - qoefi-private
-      - supabase_default  # ⚠️ Pas besoin d'être public
+      - supabase_default # ⚠️ Pas besoin d'être public
 
     depends_on:
       redis:
@@ -450,13 +450,13 @@ services:
       resources:
         limits:
           memory: 512M
-          cpus: "1.0"
+          cpus: '1.0'
 
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: '10m'
+        max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
   # 🐘 POSTGRES : DB principale (RÉSEAU PRIVÉ UNIQUEMENT)
@@ -465,11 +465,11 @@ services:
   #   image: pgvector/pgvector:pg16
   #   container_name: qoefi-db
   #   restart: unless-stopped
-  # 
+  #
   #   # ⚠️ PAS de port public : uniquement réseau Docker interne
   #   expose:
   #     - "5432"
-  # 
+  #
   #   environment:
   #     POSTGRES_USER: ${POSTGRES_USER:-qoe}
   #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qoe}
@@ -481,23 +481,23 @@ services:
   #     POSTGRES_EFFECTIVE_CACHE_SIZE: 1GB
   #     POSTGRES_WORK_MEM: 16MB
   #     POSTGRES_MAINTENANCE_WORK_MEM: 128MB
-  # 
+  #
   #   volumes:
   #     - postgres_data:/var/lib/postgresql/data
   #     - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
   #     # Backup local (volume séparé, monté depuis un cron)
   #     - postgres_backups:/backups
-  # 
+  #
   #   networks:
   #     - qoefi-private  # 🔒 PRIVÉ
-  # 
+  #
   #   healthcheck:
   #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qoe} -d ${POSTGRES_DB:-qoe}"]
   #     interval: 10s
   #     timeout: 5s
   #     retries: 5
   #     start_period: 10s
-  # 
+  #
   #   deploy:
   #     resources:
   #       limits:
@@ -513,7 +513,7 @@ services:
     restart: unless-stopped
 
     expose:
-      - "6379"
+      - '6379'
 
     command: >
       redis-server
@@ -531,7 +531,7 @@ services:
       - supabase_default
 
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 3s
       retries: 3
@@ -540,7 +540,7 @@ services:
       resources:
         limits:
           memory: 384M
-          cpus: "0.5"
+          cpus: '0.5'
 
   # ───────────────────────────────────────────────────────────────────
   # 🔍 MEILISEARCH : Moteur de recherche (RÉSEAU PRIVÉ)
@@ -550,7 +550,7 @@ services:
     container_name: qoefi-meilisearch
     restart: unless-stopped
     ports:
-      - "7700:7700"
+      - '7700:7700'
     environment:
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-qoe_master_key_123}
       - MEILI_NO_ANALYTICS=true
@@ -567,9 +567,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: migrate  # Stage dédié avec schema Prisma + migrations
+      target: migrate # Stage dédié avec schema Prisma + migrations
     container_name: qoefi-migrate
-    restart: "no"  # S'exécute une seule fois, ne redémarre pas
+    restart: 'no' # S'exécute une seule fois, ne redémarre pas
 
     env_file:
       - .env.docker
@@ -577,7 +577,7 @@ services:
     # Les variables d'environnement DATABASE_URL et DIRECT_URL sont héritées directement du fichier .env.docker (Supabase Pooler)
 
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
 
     networks:
       - qoefi-private
@@ -596,7 +596,7 @@ networks:
   qoefi-private:
     name: qoefi-private
     driver: bridge
-    internal: false  # Doit pouvoir downloader (npm, etc.) au build
+    internal: false # Doit pouvoir downloader (npm, etc.) au build
   supabase_default:
     external: true
 

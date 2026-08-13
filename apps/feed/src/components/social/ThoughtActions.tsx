@@ -1,1 +1,1 @@
-export { ThoughtActions, type ThoughtActionsProps } from "@qoe/ui"
+export { ThoughtActions, type ThoughtActionsProps } from '@qoe/ui';

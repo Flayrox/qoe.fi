@@ -1,10 +1,10 @@
-"use server";
+'use server';
 
-import { revalidatePath } from "next/cache";
-import { prisma } from "@qoe/db/client";
-import { createClient } from "@qoe/supabase/server";
-import { slugify, shortId } from "@qoe/utils";
-import { safeAction } from "../utils/safe-action";
+import { revalidatePath } from 'next/cache';
+import { prisma, type Article, type Category, type Prisma } from '@qoe/db/client';
+import { createClient } from '@qoe/supabase/server';
+import { slugify, shortId } from '@qoe/utils';
+import { safeAction } from '../utils/safe-action';
 
 async function authenticateUser() {
   const supabase = await createClient();
@@ -13,21 +13,27 @@ async function authenticateUser() {
     error,
   } = await supabase.auth.getUser();
   if (error || !user) {
-    throw new Error("UNAUTHORIZED");
+    throw new Error('UNAUTHORIZED');
   }
   return user;
 }
 
-export const getArticlesAction = safeAction<void, any[]>(async () => {
+export const getArticlesAction = safeAction<
+  void,
+  Prisma.ArticleGetPayload<{ include: { category: true } }>[]
+>(async () => {
   const user = await authenticateUser();
   return prisma.article.findMany({
     where: { authorId: user.id },
     include: { category: true },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: 'desc' },
   });
 });
 
-export const getArticleByIdAction = safeAction<string, any>(async (id) => {
+export const getArticleByIdAction = safeAction<
+  string,
+  Prisma.ArticleGetPayload<{ include: { category: true } }> | null
+>(async (id) => {
   const user = await authenticateUser();
   const article = await prisma.article.findUnique({
     where: { id },
@@ -51,7 +57,7 @@ export const saveArticleAction = safeAction<
     seoTitle?: string | null;
     seoDescription?: string | null;
   },
-  any
+  Article
 >(async (data) => {
   const user = await authenticateUser();
   const {
@@ -86,12 +92,15 @@ export const saveArticleAction = safeAction<
     finalSlug = `${finalSlug}-${shortId(4)}`;
   }
 
-  const wordCount = content.replace(/<[^>]*>/g, "").split(/\s+/).filter(Boolean).length;
+  const wordCount = content
+    .replace(/<[^>]*>/g, '')
+    .split(/\s+/)
+    .filter(Boolean).length;
   const readingTime = Math.max(1, Math.ceil(wordCount / 200));
 
   if (id) {
     const existing = await prisma.article.findUnique({ where: { id } });
-    if (!existing) throw new Error("Article introuvable.");
+    if (!existing) throw new Error('Article introuvable.');
     if (existing.authorId !== user.id) {
       throw new Error("Vous n'êtes pas autorisé à modifier cet article.");
     }
@@ -111,7 +120,7 @@ export const saveArticleAction = safeAction<
       },
     });
 
-    revalidatePath("/articles");
+    revalidatePath('/articles');
     revalidatePath(`/articles/${id}`);
     return updated;
   } else {
@@ -130,7 +139,7 @@ export const saveArticleAction = safeAction<
       },
     });
 
-    revalidatePath("/articles");
+    revalidatePath('/articles');
     return created;
   }
 });
@@ -138,33 +147,36 @@ export const saveArticleAction = safeAction<
 export const deleteArticleAction = safeAction<string, { success: boolean }>(async (id) => {
   const user = await authenticateUser();
   const existing = await prisma.article.findUnique({ where: { id } });
-  if (!existing) throw new Error("Article introuvable.");
+  if (!existing) throw new Error('Article introuvable.');
   if (existing.authorId !== user.id) {
     throw new Error("Vous n'êtes pas autorisé à supprimer cet article.");
   }
 
   await prisma.article.delete({ where: { id } });
-  revalidatePath("/articles");
+  revalidatePath('/articles');
   return { success: true };
 });
 
-export const getCategoriesAction = safeAction<void, any[]>(async () => {
+export const getCategoriesAction = safeAction<
+  void,
+  Prisma.CategoryGetPayload<{ include: { _count: { select: { articles: true } } } }>[]
+>(async () => {
   const user = await authenticateUser();
   return prisma.category.findMany({
     where: { userId: user.id },
     include: { _count: { select: { articles: true } } },
-    orderBy: { name: "asc" },
+    orderBy: { name: 'asc' },
   });
 });
 
 export const saveCategoryAction = safeAction<
   { id?: string; name: string; slug?: string; description?: string | null },
-  any
+  Category
 >(async (data) => {
   const user = await authenticateUser();
   const { id, name, slug, description = null } = data;
 
-  if (!name.trim()) throw new Error("Le nom de la catégorie est requis.");
+  if (!name.trim()) throw new Error('Le nom de la catégorie est requis.');
 
   let finalSlug = slugify(slug || name);
   if (!finalSlug) finalSlug = `cat-${shortId()}`;
@@ -183,7 +195,7 @@ export const saveCategoryAction = safeAction<
 
   if (id) {
     const existing = await prisma.category.findUnique({ where: { id } });
-    if (!existing) throw new Error("Catégorie introuvable.");
+    if (!existing) throw new Error('Catégorie introuvable.');
     if (existing.userId !== user.id) {
       throw new Error("Vous n'êtes pas autorisé à modifier cette catégorie.");
     }
@@ -192,13 +204,13 @@ export const saveCategoryAction = safeAction<
       where: { id },
       data: { name, slug: finalSlug, description },
     });
-    revalidatePath("/articles");
+    revalidatePath('/articles');
     return updated;
   } else {
     const created = await prisma.category.create({
       data: { name, slug: finalSlug, description, userId: user.id },
     });
-    revalidatePath("/articles");
+    revalidatePath('/articles');
     return created;
   }
 });
@@ -206,19 +218,25 @@ export const saveCategoryAction = safeAction<
 export const deleteCategoryAction = safeAction<string, { success: boolean }>(async (id) => {
   const user = await authenticateUser();
   const existing = await prisma.category.findUnique({ where: { id } });
-  if (!existing) throw new Error("Catégorie introuvable.");
+  if (!existing) throw new Error('Catégorie introuvable.');
   if (existing.userId !== user.id) {
     throw new Error("Vous n'êtes pas autorisé à supprimer cette catégorie.");
   }
 
   await prisma.category.delete({ where: { id } });
-  revalidatePath("/articles");
+  revalidatePath('/articles');
   return { success: true };
 });
 
 export const postArticleCommentAction = safeAction<
   { articleId: string; content: string; parentId?: string | null },
-  any
+  Prisma.ArticleCommentGetPayload<{
+    include: {
+      author: {
+        select: { id: true; name: true; username: true; logoUrl: true; isCertified: true };
+      };
+    };
+  }>
 >(async (data, user) => {
   const { articleId, content, parentId } = data;
   const comment = await prisma.articleComment.create({
@@ -229,29 +247,44 @@ export const postArticleCommentAction = safeAction<
       parentId: parentId || null,
     },
     include: {
-      author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } },
+      author: {
+        select: { id: true, name: true, username: true, logoUrl: true, isCertified: true },
+      },
     },
   });
   return comment;
 });
 
-export const deleteArticleCommentAction = safeAction<string, { success: boolean }>(async (commentId, user) => {
-  const comment = await prisma.articleComment.findUnique({ where: { id: commentId } });
-  if (!comment) throw new Error("COMMENT_NOT_FOUND");
-  if (comment.authorId !== user.id) throw new Error("UNAUTHORIZED");
+export const deleteArticleCommentAction = safeAction<string, { success: boolean }>(
+  async (commentId, user) => {
+    const comment = await prisma.articleComment.findUnique({ where: { id: commentId } });
+    if (!comment) throw new Error('COMMENT_NOT_FOUND');
+    if (comment.authorId !== user.id) throw new Error('UNAUTHORIZED');
 
-  await prisma.articleComment.delete({ where: { id: commentId } });
-  return { success: true };
-});
+    await prisma.articleComment.delete({ where: { id: commentId } });
+    return { success: true };
+  }
+);
 
-export const getArticleCommentsAction = safeAction<string, any[]>(
+export const getArticleCommentsAction = safeAction<
+  string,
+  Prisma.ArticleCommentGetPayload<{
+    include: {
+      author: {
+        select: { id: true; name: true; username: true; logoUrl: true; isCertified: true };
+      };
+    };
+  }>[]
+>(
   async (articleId) => {
     return prisma.articleComment.findMany({
       where: { articleId },
       include: {
-        author: { select: { id: true, name: true, username: true, logoUrl: true, isCertified: true } },
+        author: {
+          select: { id: true, name: true, username: true, logoUrl: true, isCertified: true },
+        },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: 'asc' },
     });
   },
   { requireAuth: false }

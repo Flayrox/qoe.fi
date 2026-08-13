@@ -1,15 +1,13 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
-import { Lock } from "lucide-react";
-import { createClient } from "@qoe/supabase/client";
+import React, { useState, useEffect } from 'react';
+import { Lock } from 'lucide-react';
+import { createClient } from '@qoe/supabase/client';
 import {
   TextHighlighter,
-  AnnotationSideDrawer,
-  TextSelectionPopover,
   type AnnotationItem,
   type AnnotationActionCallbacks,
-} from "@qoe/ui/annotations";
+} from '@qoe/ui/annotations';
 import {
   getArticleHighlightsAction,
   createHighlightAction,
@@ -17,8 +15,7 @@ import {
   createAnnotationCommentAction,
   toggleHighlightPrivacyAction,
   deleteHighlightAction,
-  quotePassageToFeedAction,
-} from "@qoe/api-client";
+} from '@qoe/api-client';
 
 export interface ArticleAnnotatorViewProps {
   article: {
@@ -38,14 +35,24 @@ export interface ArticleAnnotatorViewProps {
       subdomain?: string | null;
       customDomain?: string | null;
     };
+    isLoading?: boolean;
   };
   onClose?: () => void;
 }
 
-export function ArticleAnnotatorView({ article, onClose }: ArticleAnnotatorViewProps) {
-  const [user, setUser] = useState<any>(null);
-  const [highlightsList, setHighlightsList] = useState<any[]>([]);
-  const [isLoadingHighlights, setIsLoadingHighlights] = useState(true);
+interface AuthUser {
+  id: string;
+  email?: string | null;
+  user_metadata?: {
+    full_name?: string | null;
+    username?: string | null;
+    avatar_url?: string | null;
+  };
+}
+
+export function ArticleAnnotatorView({ article }: ArticleAnnotatorViewProps) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [highlightsList, setHighlightsList] = useState<AnnotationItem[]>([]);
 
   // Fetch current user auth state
   useEffect(() => {
@@ -66,9 +73,7 @@ export function ArticleAnnotatorView({ article, onClose }: ArticleAnnotatorViewP
           setHighlightsList(res.data.highlights);
         }
       } catch (err) {
-        console.error("Error loading highlights:", err);
-      } finally {
-        setIsLoadingHighlights(false);
+        console.error('Error loading highlights:', err);
       }
     }
     loadHighlights();
@@ -113,10 +118,10 @@ export function ArticleAnnotatorView({ article, onClose }: ArticleAnnotatorViewP
       }
       return res;
     },
-    onCrosspost: async ({ articleId, text, commentary }) => {
-      if (typeof window !== "undefined") {
+    onCrosspost: async ({ text, commentary }) => {
+      if (typeof window !== 'undefined') {
         window.dispatchEvent(
-          new CustomEvent("open-composer", {
+          new CustomEvent('open-composer', {
             detail: {
               quotedArticle: {
                 id: article.id,
@@ -126,7 +131,7 @@ export function ArticleAnnotatorView({ article, onClose }: ArticleAnnotatorViewP
                 author: article.author,
               },
               quotedExcerpt: text,
-              initialText: commentary || "",
+              initialText: commentary || '',
             },
           })
         );
@@ -141,13 +146,13 @@ export function ArticleAnnotatorView({ article, onClose }: ArticleAnnotatorViewP
   const currentUserProfile = user
     ? {
         id: user.id,
-        name: user.user_metadata?.full_name || user.email?.split("@")[0] || null,
+        name: user.user_metadata?.full_name || user.email?.split('@')[0] || null,
         username: user.user_metadata?.username || null,
         logoUrl: user.user_metadata?.avatar_url || null,
       }
     : null;
 
-  if ((article as any)?.isLoading || !article.content) {
+  if (article.isLoading || !article.content) {
     return (
       <div className="relative w-full bg-background text-foreground space-y-6 max-w-4xl mx-auto font-sans pb-12 animate-pulse">
         <div className="space-y-3 border-b border-border/40 pb-5">
@@ -174,22 +179,25 @@ export function ArticleAnnotatorView({ article, onClose }: ArticleAnnotatorViewP
         </h1>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <span>
-            Par <strong className="text-foreground">{article.author.name || article.author.username || "Auteur"}</strong>
+            Par{' '}
+            <strong className="text-foreground">
+              {article.author.name || article.author.username || 'Auteur'}
+            </strong>
           </span>
           <span>•</span>
           <span>{article.readingTime || 5} min de lecture</span>
           <span>•</span>
           <time
             dateTime={
-              typeof article.createdAt === "string"
+              typeof article.createdAt === 'string'
                 ? article.createdAt
                 : article.createdAt.toISOString()
             }
           >
-            {new Date(article.createdAt).toLocaleDateString("fr-FR", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
+            {new Date(article.createdAt).toLocaleDateString('fr-FR', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
             })}
           </time>
         </div>
@@ -214,26 +222,36 @@ export function ArticleAnnotatorView({ article, onClose }: ArticleAnnotatorViewP
       {/* Article Body HTML */}
       <div
         id="article-content"
-        className="prose prose-sm sm:prose-base dark:prose-invert max-w-none leading-relaxed text-foreground/90 selection:bg-amber-500/30 cursor-text space-y-4 pt-2"
+        className="prose prose-sm sm:prose-base dark:prose-invert max-w-none leading-relaxed text-foreground/90 selection:bg-highlight/30 cursor-text space-y-4 pt-2"
         dangerouslySetInnerHTML={{ __html: article.content }}
       />
 
       {/* Paywall Cut Overlay for Premium Articles */}
       {article.isPremium && article.accessGranted === false && (
-        <div className="relative mt-8 p-6 sm:p-8 rounded-2xl bg-card border border-amber-500/30 shadow-xl text-center space-y-4 not-prose">
-          <div className="w-12 h-12 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto shadow-sm">
+        <div className="relative mt-8 p-6 sm:p-8 rounded-2xl bg-card border border-highlight/30 shadow-xl text-center space-y-4 not-prose">
+          <div className="w-12 h-12 rounded-full bg-highlight/10 text-highlight flex items-center justify-center mx-auto shadow-sm">
             <Lock className="w-6 h-6" />
           </div>
-          <h3 className="text-xl font-bold text-foreground tracking-tight">Écrit réservé aux membres Premium</h3>
+          <h3 className="text-xl font-bold text-foreground tracking-tight">
+            Écrit réservé aux membres Premium
+          </h3>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-            La suite de cette publication est exclusivement réservée aux abonnés de <strong className="text-foreground">{article.author.name || article.author.username}</strong>.
+            La suite de cette publication est exclusivement réservée aux abonnés de{' '}
+            <strong className="text-foreground">
+              {article.author.name || article.author.username}
+            </strong>
+            .
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <a
-              href={article.author.subdomain ? `https://${article.author.subdomain}.qoe.fi/article/${article.slug}` : `/article/${article.slug}`}
+              href={
+                article.author.subdomain
+                  ? `https://${article.author.subdomain}.qoe.fi/article/${article.slug}`
+                  : `/article/${article.slug}`
+              }
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-500 text-black font-bold text-xs sm:text-sm hover:bg-amber-400 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-highlight text-black font-bold text-xs sm:text-sm hover:bg-highlight/90 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
               <Lock className="w-4 h-4" />
               S'abonner pour débloquer

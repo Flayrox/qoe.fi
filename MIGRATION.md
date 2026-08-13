@@ -18,6 +18,7 @@
 ## 🏗️ Avant / Après
 
 ### AVANT (monolithe)
+
 ```
 qoe.fi/
 ├── src/
@@ -50,12 +51,14 @@ qoe.fi/
 ```
 
 **Limites** :
+
 - 1 seule app = pas de scaling horizontal par service
 - Code dupliqué entre admin/dashboard/reader
 - Build monolithique = 1 erreur = tout casse
 - Pas de séparation des préoccupations
 
 ### APRÈS (monorepo)
+
 ```
 qoe.fi/
 ├── apps/                                # 6 apps déployables autonomes
@@ -86,6 +89,7 @@ qoe.fi/
 ```
 
 **Avantages** :
+
 - 6 apps totalement isolées → scale horizontal fin par service, isolation de sécurité
 - 11 packages partagés → code DRY, type-safety bout-en-bout
 - Build incrémental Turbo (~45s la 1ère fois, < 1s en cache)
@@ -97,9 +101,10 @@ qoe.fi/
 ## 📅 Chronologie de la migration
 
 ### Phase 0 — Setup monorepo
+
 **Commit** : `3029a31` (194 fichiers, +7056 lignes)
 
-- `pnpm-workspace.yaml` (apps/*, packages/*, workers/*)
+- `pnpm-workspace.yaml` (apps/_, packages/_, workers/*)
 - `turbo.json` (build, dev, lint, typecheck, test)
 - `.npmrc` (isolated, strict-peer, auto-install-peers)
 - `package.json` racine = métapackage
@@ -108,9 +113,11 @@ qoe.fi/
 - **AUCUN code applicatif touché** — juste la structure
 
 ### Phase 1-3 — Migration du code (par toi, dans le commit `65e4c5b`)
+
 **Commit** : `65e4c5b` (313 fichiers, +20 437 lignes)
 
 #### 1. Packages créés (initiaux)
+
 - **10 packages workspace** avec leur `package.json` propre
 - Chaque package a son `exports` (entry + subpaths)
 - `prebuild` et `pretypecheck` pour auto-generate Prisma client
@@ -120,11 +127,13 @@ qoe.fi/
 > entre les 5 fronts. Voir [`plans/theming-architecture.md`](./plans/theming-architecture.md).
 
 #### 2. Apps créées
+
 - **`apps/console`** : Next.js 16, sert qoe.fi + dashboard + admin
 - **`apps/web`** : Next.js 16, sert start.qoe.fi + tenants
 - **`apps/api`** : Hono backend avec `/health`
 
 #### 3. Code migré physiquement
+
 - `src/app/(main)/*` → `apps/console/src/app/(reader)/*`
 - `src/app/(dashboard)/*` → `apps/console/src/app/(creator)/dashboard/*`
 - `src/app/(admin)/*` → `apps/console/src/app/(admin)/*`
@@ -139,15 +148,18 @@ qoe.fi/
 - `src/app/(main)/home/*` → `apps/console/src/app/(reader)/home/*` (partiel)
 
 #### 4. Imports mis à jour
+
 - **78 fichiers** modifiés pour remplacer `@/lib/...` par `@qoe/...`
 - Scripts PowerShell de migration : `fix-imports.ps1`, `fix-imports-web.ps1`, etc.
 - Stubs créés pour les fichiers manquants (`OnboardingFlow`, `lib/ai.ts`)
 
 #### 5. Re-exports fantômes supprimés
+
 - `scripts/cleanup-fantoms.ps1` a supprimé 19 fichiers qui re-exportaient depuis `src/` (legacy)
 - 1 stub créé : `OnboardingFlow.tsx`
 
 #### 6. Fix des 3 erreurs TS initiales
+
 - `apps/console/src/hooks/use-mobile.ts` créé
 - `apps/console/src/lib/ai.ts` recréé (stubs `generateMockEmbedding` + `updateUserEmbedding`)
 - `packages/auth/src/current-user.ts` : import `@qoe/supabase/server` corrigé
@@ -155,6 +167,7 @@ qoe.fi/
 - `paths: { "@prisma/client": ["../../node_modules/.prisma/client/default"] }` dans tsconfig
 
 #### 7. Fixes des erreurs de qualité (231 → 30 → 0)
+
 - **Schéma Prisma copié** vers `packages/db/prisma/` (le bug critique que tu as trouvé)
 - **Peer dependencies** `next` + `react` ajoutées à 4 packages
 - **Flags TS stricts désactivés** : `noUncheckedIndexedAccess`, `noImplicitOverride`
@@ -166,6 +179,7 @@ qoe.fi/
 - **Next.js typedRoutes** : `as any` ajouté sur les href dynamiques
 
 #### 8. Docker multi-services
+
 - 8 services : caddy, web, console, api, workers, db, redis, migrate
 - 2 réseaux isolés : `qoefi-public` + `qoefi-private`
 - Dockerfile multi-stage multi-target (web, console, api, workers)
@@ -173,9 +187,11 @@ qoe.fi/
 **Résultat** : `pnpm build` ✅ 3/3 successful en 42s.
 
 ### Phase 4 — Refacto pro (par moi, sur ta demande, commit `eaddd0b`)
+
 **Commit** : `eaddd0b` (34 fichiers, +194, -1799)
 
 #### AXE 1 — Schema Prisma dédupliqué
+
 - `prisma/schema.prisma` racine **supprimé** (315 lignes)
 - `prisma/migrations/` → `packages/db/prisma/migrations/`
 - `prisma/seed.ts` → `packages/db/prisma/seed.ts`
@@ -185,6 +201,7 @@ qoe.fi/
 - **Impact** : 1 seule source de vérité pour le schema
 
 #### AXE 2 — Composants UI partagés dédupliqués
+
 - `SocialIcon.tsx`, `TenantHeader.tsx`, `SubscribeForm.tsx` → `packages/ui/src/`
 - `packages/ui/src/index.ts` ré-exporte les 3
 - `packages/ui/package.json` enrichi (exports subpath, `lucide-react`, `next` peerDep)
@@ -193,14 +210,17 @@ qoe.fi/
 - **Impact** : 1 seule source de vérité pour les composants partagés
 
 #### Cleanup
+
 - 8 scripts `fix-*.ps1` redondants supprimés
 - Dossier `prisma/` racine supprimé
 - **Build vérifié** : 3/3 successful
 
 ### Phase 5 — Décapsulage complet en 5 applications autonomes (commit final)
+
 **Objectif** : Scinder le gros dossier legacy `apps/console` et restructurer l'application `apps/web` afin d'isoler hermétiquement chaque domaine fonctionnel de la plateforme sous ses propres sous-domaines, pour un scaling horizontal ultra-fin, une isolation du code et une sécurité optimale.
 
 #### 1. Apps autonomes créées & scindées
+
 - **`apps/landing`** (`@qoe/landing`) : Gère `start.qoe.fi`. C'est le site vitrine/marketing, qui contient également les mentions légales, la politique de confidentialité, les règles du produit et le CMS dynamique relié à `SystemConfig`.
 - **`apps/feed`** (`@qoe/feed`) : Gère `qoe.fi`. C'est le feed lecteur central de la plateforme et le point d'entrée d'authentification centralisé (SSO).
 - **`apps/dashboard`** (`@qoe/dashboard`) : Gère `dashboard.qoe.fi`. C'est le studio de création complet (éditeur d'articles, analytics, gestion de l'audience et des newsletters).
@@ -209,6 +229,7 @@ qoe.fi/
 - **`apps/api`** (`@qoe/api`) : API Hono restée autonome sous `api.qoe.fi`.
 
 #### 2. Alignements & Résolutions techniques clés
+
 - **tw-animate-css** : Déclaré comme devDependency pour tous les fronts Next.js afin d'éviter les warnings et erreurs de chargement des animations.
 - **Env Validation Bypass** : Modification de `packages/config/src/env.ts` pour détecter la phase de build de production de Next.js (`process.env.NEXT_PHASE === 'phase-production-build'`) ou la présence de `SKIP_ENV_VALIDATION=true` pour charger des valeurs factices par défaut. Cela évite le plantage de la validation Zod lors de l'export statique en production, tout en préservant une validation stricte au runtime.
 - **Logout Server Actions** : Déclaration propre d'actions serveur autonomes (`actions.ts`) au lieu de redirection directe de Supabase pour `@qoe/dashboard` et `@qoe/admin` pour assurer la déconnexion et la redirection vers l'authentification centrale de `qoe.fi/login`.
@@ -221,25 +242,27 @@ qoe.fi/
 
 ## 📊 Statistiques de la migration
 
-| Métrique | Valeur |
-|----------|--------|
-| **Fichiers créés** | ~70 packages + apps structure |
-| **Fichiers déplacés/scindés** | ~400 (scission de console en 4 apps distinctes) |
-| **Fichiers supprimés** | ~50 (doublons, re-exports fantômes, legacy + dossier `apps/console` final) |
-| **Lignes ajoutées** | ~26 000 (scaffold complet découplé) |
-| **Lignes supprimées** | ~22 000 (legacy src/ + console/) |
-| **Workspaces pnpm** | 18 (6 apps, 11 packages, 1 worker) |
-| **Services Docker** | 11 (Caddy, db, redis, migrate, api, workers + 5 fronts) |
-| **Réseaux Docker** | 2 (`qoefi-public` + `qoefi-private`) |
-| **Build time** | ~45s global complet (grâce au cache intelligent Turborepo) |
-| **Typecheck** | 0 erreur |
+| Métrique                      | Valeur                                                                     |
+| ----------------------------- | -------------------------------------------------------------------------- |
+| **Fichiers créés**            | ~70 packages + apps structure                                              |
+| **Fichiers déplacés/scindés** | ~400 (scission de console en 4 apps distinctes)                            |
+| **Fichiers supprimés**        | ~50 (doublons, re-exports fantômes, legacy + dossier `apps/console` final) |
+| **Lignes ajoutées**           | ~26 000 (scaffold complet découplé)                                        |
+| **Lignes supprimées**         | ~22 000 (legacy src/ + console/)                                           |
+| **Workspaces pnpm**           | 18 (6 apps, 11 packages, 1 worker)                                         |
+| **Services Docker**           | 11 (Caddy, db, redis, migrate, api, workers + 5 fronts)                    |
+| **Réseaux Docker**            | 2 (`qoefi-public` + `qoefi-private`)                                       |
+| **Build time**                | ~45s global complet (grâce au cache intelligent Turborepo)                 |
+| **Typecheck**                 | 0 erreur                                                                   |
 
 ---
 
 ## 🎯 Décisions architecturales
 
 ### 1. Strangler Fig pattern & Découplage (Phase 5)
+
 Au lieu de tout réécrire d'un coup ou de garder un gros monolithe Next.js qui mélangeait l'admin, le créateur et le lecteur :
+
 1. Créé la structure du monorepo (Phase 0)
 2. Créé les packages partagés vides (Phase 1)
 3. Migré les routes une par une via re-exports (Phase 2-3)
@@ -249,31 +272,41 @@ Au lieu de tout réécrire d'un coup ou de garder un gros monolithe Next.js qui 
 **Avantage** : chaque étape est réversible, isolation complète du code d'administration et du studio créateur. Un bug de build sur l'admin n'impacte pas le feed utilisateur ou la landing page.
 
 ### 2. Source unique Prisma : `packages/db/prisma/`
+
 **Pourquoi ?**
+
 - Le client vit dans `@qoe/db` → le schema doit vivre avec
 - Pas de duplication `prisma/` racine / `packages/db/prisma/`
 - Build pipeline : `prebuild` lance `prisma generate` automatiquement
 
 ### 3. `transpilePackages: ["@qoe/*"]` dans next.config.ts
+
 **Pourquoi ?**
+
 - Next.js ne transpile PAS les packages workspace par défaut
 - Sans ça, les imports `@qoe/...` ne résolvent pas correctement
 - Ça force Next.js à compiler le code de chaque package
 
 ### 4. `paths: { "@prisma/client": "..." }` dans tsconfig.json
+
 **Pourquoi ?**
+
 - pnpm isole les packages → le client Prisma n'est pas trouvé naturellement
 - Le `paths` force TypeScript à résoudre depuis `node_modules/.prisma/client/`
 - C'est la solution officielle pnpm + Prisma
 
 ### 5. Désactivation de `noUncheckedIndexedAccess` et `noImplicitOverride`
+
 **Pourquoi ?**
+
 - Trop stricts pour une v1 en migration
 - Causaient 30+ erreurs "Object is possibly undefined" sur des arrays
 - Peuvent être réactivés une fois le code stabilisé
 
 ### 6. `output: "standalone"` dans next.config.ts
+
 **Pourquoi ?**
+
 - Permet de build une image Docker minimale (~150 MB au lieu de 1 GB)
 - Copie uniquement les fichiers nécessaires au runtime
 
@@ -281,14 +314,14 @@ Au lieu de tout réécrire d'un coup ou de garder un gros monolithe Next.js qui 
 
 ## 🛠️ Outils de migration utilisés
 
-| Outil | Usage |
-|-------|-------|
-| **PowerShell** | Scripts de migration (`fix-imports.ps1`, `cleanup-fantoms.ps1`, `dedupe-prisma.ps1`, `dedupe-ui.ps1`) |
-| **pnpm workspaces** | Gestion des 18 workspaces |
-| **Turbo** | Pipeline de build (cache, parallélisme) |
-| **TypeScript** | Vérification de types en cascade |
-| **Prisma** | Génération du client + migrations |
-| **Git** | Commits de migration et de découplage propres |
+| Outil               | Usage                                                                                                 |
+| ------------------- | ----------------------------------------------------------------------------------------------------- |
+| **PowerShell**      | Scripts de migration (`fix-imports.ps1`, `cleanup-fantoms.ps1`, `dedupe-prisma.ps1`, `dedupe-ui.ps1`) |
+| **pnpm workspaces** | Gestion des 18 workspaces                                                                             |
+| **Turbo**           | Pipeline de build (cache, parallélisme)                                                               |
+| **TypeScript**      | Vérification de types en cascade                                                                      |
+| **Prisma**          | Génération du client + migrations                                                                     |
+| **Git**             | Commits de migration et de découplage propres                                                         |
 
 ---
 

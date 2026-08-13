@@ -1,55 +1,52 @@
-"use client"
+'use client';
 
-import React from "react"
-import { cn } from "@qoe/utils"
-import { AuthorAvatar } from "../ui/AuthorAvatar"
-import { CertifiedBadge } from "../ui/CertifiedBadge"
-import { TextParser } from "../ui/TextParser"
-import { ProfileHoverCard } from "./ProfileHoverCard"
+import React from 'react';
+import { cn } from '@qoe/utils';
+import { AuthorAvatar } from '../ui/AuthorAvatar';
+import { CertifiedBadge } from '../ui/CertifiedBadge';
+import { TextParser } from '../ui/TextParser';
+import { ProfileHoverCard } from './ProfileHoverCard';
 
 export interface QuotedThoughtData {
-  id: string
-  content: string
-  imageUrl?: string | null
-  createdAt?: string | Date
+  id: string;
+  content: string;
+  imageUrl?: string | null;
+  createdAt?: string | Date;
   author: {
-    id: string
-    name: string | null
-    username: string | null
-    subdomain?: string | null
-    logoUrl?: string | null
-    isCertified?: boolean
-  }
+    id: string;
+    name: string | null;
+    username: string | null;
+    subdomain?: string | null;
+    logoUrl?: string | null;
+    isCertified?: boolean;
+  };
 }
 
 export interface QuotedThoughtCardProps {
-  post: QuotedThoughtData | null
-  onOpenPost?: (postId: string) => void
-  className?: string
+  post: QuotedThoughtData | null;
+  onOpenPost?: (postId: string) => void;
+  className?: string;
 }
 
-export function QuotedThoughtCard({
-  post,
-  onOpenPost,
-  className,
-}: QuotedThoughtCardProps) {
-  if (!post) return null
+export function QuotedThoughtCard({ post, onOpenPost, className }: QuotedThoughtCardProps) {
+  if (!post) return null;
 
-  const authorHandle = post.author.username || post.author.subdomain || post.author.id.slice(0, 8) || "auteur"
+  const authorHandle =
+    post.author.username || post.author.subdomain || post.author.id.slice(0, 8) || 'auteur';
 
   const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault();
+    e.stopPropagation();
     if (onOpenPost) {
-      onOpenPost(post.id)
+      onOpenPost(post.id);
     }
-  }
+  };
 
   return (
     <div
       onClick={handleClick}
       className={cn(
-        "border border-border/40 hover:border-brand/40 rounded-xl p-3 bg-muted/20 hover:bg-muted/40 transition-all duration-200 cursor-pointer space-y-2 font-sans select-none shadow-2xs mt-2",
+        'border border-border/40 hover:border-brand/40 rounded-xl p-3 bg-muted/20 hover:bg-muted/40 transition-all duration-200 cursor-pointer space-y-2 font-sans select-none shadow-2xs mt-2',
         className
       )}
     >
@@ -59,7 +56,7 @@ export function QuotedThoughtCard({
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <ProfileHoverCard user={post.author} username={authorHandle}>
             <span className="font-bold text-xs text-foreground hover:text-brand transition-colors cursor-pointer truncate">
-              {post.author.name || "Auteur"}
+              {post.author.name || 'Auteur'}
             </span>
           </ProfileHoverCard>
           {post.author.isCertified && <CertifiedBadge />}
@@ -83,5 +80,5 @@ export function QuotedThoughtCard({
         </div>
       )}
     </div>
-  )
+  );
 }

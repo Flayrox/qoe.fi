@@ -1,8 +1,8 @@
-import { NotificationSettingsForm } from "@/components/notifications/NotificationSettingsForm";
+import { NotificationSettingsForm } from '@/components/notifications/NotificationSettingsForm';
 
 export const metadata = {
-  title: "Réglages de Notifications | qoe.fi",
-  description: "Gérez vos préférences de notifications email et push sur qoe.fi.",
+  title: 'Réglages de Notifications | qoe.fi',
+  description: 'Gérez vos préférences de notifications email et push sur qoe.fi.',
 };
 
 export default function NotificationSettingsPage() {

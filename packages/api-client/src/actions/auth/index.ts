@@ -1,7 +1,7 @@
-"use server";
+'use server';
 
-import { createClient } from "@qoe/supabase/server";
-import { prisma } from "@qoe/db/client";
+import { createClient } from '@qoe/supabase/server';
+import { prisma } from '@qoe/db/client';
 
 export async function getCurrentUserAction() {
   const supabase = await createClient();

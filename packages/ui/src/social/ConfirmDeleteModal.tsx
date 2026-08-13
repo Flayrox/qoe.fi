@@ -1,47 +1,52 @@
-"use client"
+'use client';
 
-import React, { useState } from "react"
-import { Trash2, Loader2 } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog"
+import React, { useState } from 'react';
+import { Trash2, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 
 export interface ConfirmDeleteModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onConfirm: () => Promise<boolean> | boolean | void
-  title?: string
-  description?: string
-  confirmLabel?: string
-  cancelLabel?: string
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => Promise<boolean> | boolean | void;
+  title?: string;
+  description?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
 }
 
 export function ConfirmDeleteModal({
   isOpen,
   onClose,
   onConfirm,
-  title = "Supprimer cette pensée ?",
-  description = "Cette action est irréversible. La pensée et ses interactions seront définitivement retirées de la plateforme.",
-  confirmLabel = "Supprimer",
-  cancelLabel = "Annuler",
+  title = 'Supprimer cette pensée ?',
+  description = 'Cette action est irréversible. La pensée et ses interactions seront définitivement retirées de la plateforme.',
+  confirmLabel = 'Supprimer',
+  cancelLabel = 'Annuler',
 }: ConfirmDeleteModalProps) {
-  const [pending, setPending] = useState(false)
+  const [pending, setPending] = useState(false);
 
   const handleConfirm = async () => {
-    setPending(true)
+    setPending(true);
     try {
-      const ok = await onConfirm()
-      if (ok !== false) onClose()
+      const ok = await onConfirm();
+      if (ok !== false) onClose();
     } catch {
-      onClose()
+      onClose();
     } finally {
-      setPending(false)
+      setPending(false);
     }
-  }
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !pending) onClose() }}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !pending) onClose();
+      }}
+    >
       <DialogContent className="max-w-md p-6 rounded-2xl bg-card border border-border/40 shadow-2xl font-sans">
         <DialogHeader className="space-y-1.5">
-          <div className="w-11 h-11 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-500 flex items-center justify-center">
+          <div className="w-11 h-11 rounded-full bg-destructive/10 border border-destructive/30 text-destructive flex items-center justify-center">
             <Trash2 className="w-5 h-5" />
           </div>
           <DialogTitle className="text-base font-bold text-foreground pt-1">{title}</DialogTitle>
@@ -63,7 +68,7 @@ export function ConfirmDeleteModal({
             type="button"
             onClick={handleConfirm}
             disabled={pending}
-            className="px-4 py-2 rounded-xl bg-rose-600 text-white font-semibold text-xs hover:bg-rose-500 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 shadow-sm"
+            className="px-4 py-2 rounded-xl bg-destructive text-white font-semibold text-xs hover:bg-destructive/90 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 shadow-sm"
           >
             {pending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             <span>{confirmLabel}</span>
@@ -71,5 +76,5 @@ export function ConfirmDeleteModal({
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

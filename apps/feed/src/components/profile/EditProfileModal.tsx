@@ -1,48 +1,59 @@
-"use client"
+'use client';
 
-import React, { useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { X, Camera, Loader2 } from "lucide-react"
-import { toast } from "sonner"
-import { updateProfileAction as updateProfile } from "@qoe/api-client/actions/feed"
+import React, { useState } from 'react';
+import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Camera, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { updateProfileAction as updateProfile } from '@qoe/api-client/actions/feed';
 
-import { AuthorAvatar } from "@qoe/ui/ui/AuthorAvatar"
-import { useTranslate } from "@qoe/i18n"
+import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
+import { useTranslate } from '@qoe/i18n';
+
+interface UpdatedUser {
+  id: string;
+  name: string | null;
+  username?: string | null;
+  logoUrl: string | null;
+  headerImageUrl?: string | null;
+  heroText: string | null;
+  onboardingText?: string | null;
+}
 
 interface EditProfileModalProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
   user: {
-    id: string
-    name: string | null
-    username: string | null
-    logoUrl: string | null
-    headerImageUrl?: string | null
-    heroText: string | null
-    onboardingText?: string | null
-  }
-  onProfileUpdated?: (updatedUser: any) => void
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+    headerImageUrl?: string | null;
+    heroText: string | null;
+    onboardingText?: string | null;
+  };
+  onProfileUpdated?: (updatedUser: UpdatedUser) => void;
 }
 
 export function EditProfileModal({
   isOpen,
   onClose,
   user,
-  onProfileUpdated
+  onProfileUpdated,
 }: EditProfileModalProps) {
-  const { t } = useTranslate()
-  const [name, setName] = useState(user.name || "")
-  const [heroText, setHeroText] = useState(user.heroText || "")
-  const [locationText, setLocationText] = useState(user.onboardingText || "")
-  const [logoUrl, setLogoUrl] = useState(user.logoUrl || "")
-  const [headerImageUrl, setHeaderImageUrl] = useState(user.headerImageUrl || "")
-  const [saving, setSaving] = useState(false)
+  const { t } = useTranslate();
+  const [name, setName] = useState(user.name || '');
+  const [heroText, setHeroText] = useState(user.heroText || '');
+  const [locationText, setLocationText] = useState(user.onboardingText || '');
+  const [logoUrl, setLogoUrl] = useState(user.logoUrl || '');
+  const [headerImageUrl, setHeaderImageUrl] = useState(user.headerImageUrl || '');
+  const [saving, setSaving] = useState(false);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault();
+    setSaving(true);
 
     try {
       const res = await updateProfile({
@@ -51,24 +62,24 @@ export function EditProfileModal({
         onboardingText: locationText,
         logoUrl: logoUrl || undefined,
         headerImageUrl: headerImageUrl || undefined,
-      })
+      });
 
       if (res.ok && res.data?.user) {
-        toast.success(t("profile.edit_success", "Profil mis à jour avec succès !"))
+        toast.success(t('profile.edit_success', 'Profil mis à jour avec succès !'));
         if (onProfileUpdated) {
-          onProfileUpdated(res.data.user)
+          onProfileUpdated(res.data.user);
         }
-        onClose()
+        onClose();
       } else {
-        toast.error(t("profile.edit_error", "Erreur lors de la mise à jour."))
+        toast.error(t('profile.edit_error', 'Erreur lors de la mise à jour.'));
       }
     } catch (err) {
-      console.error(err)
-      toast.error(t("profile.edit_error", "Erreur de mise à jour."))
+      console.error(err);
+      toast.error(t('profile.edit_error', 'Erreur de mise à jour.'));
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   return (
     <AnimatePresence>
@@ -93,10 +104,17 @@ export function EditProfileModal({
           <form onSubmit={handleSave} className="p-5 space-y-5 overflow-y-auto max-h-[80vh]">
             {/* Banner Preview & Input */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground">Bannière (URL Image)</label>
+              <label className="text-xs font-semibold text-muted-foreground">
+                Bannière (URL Image)
+              </label>
               <div className="relative h-28 w-full rounded-lg bg-muted overflow-hidden border border-border/40 flex items-center justify-center">
                 {headerImageUrl ? (
-                  <img src={headerImageUrl} alt="Banner" className="w-full h-full object-cover" />
+                  <Image
+                    src={headerImageUrl}
+                    alt="Banner"
+                    fill
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Camera className="w-4 h-4" />
@@ -115,7 +133,9 @@ export function EditProfileModal({
 
             {/* Avatar Preview & Input */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground">Photo de profil (URL Image)</label>
+              <label className="text-xs font-semibold text-muted-foreground">
+                Photo de profil (URL Image)
+              </label>
               <div className="flex items-center gap-4">
                 <AuthorAvatar
                   user={{ name, logoUrl, isCertified: false }}
@@ -147,7 +167,9 @@ export function EditProfileModal({
 
             {/* Bio Input */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Bio / Présentation</label>
+              <label className="text-xs font-semibold text-muted-foreground">
+                Bio / Présentation
+              </label>
               <textarea
                 value={heroText}
                 onChange={(e) => setHeroText(e.target.value)}
@@ -159,7 +181,9 @@ export function EditProfileModal({
 
             {/* Location Input */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Localisation / Ville</label>
+              <label className="text-xs font-semibold text-muted-foreground">
+                Localisation / Ville
+              </label>
               <input
                 type="text"
                 value={locationText}
@@ -191,5 +215,5 @@ export function EditProfileModal({
         </motion.div>
       </div>
     </AnimatePresence>
-  )
+  );
 }

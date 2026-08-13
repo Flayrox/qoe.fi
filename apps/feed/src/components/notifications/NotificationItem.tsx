@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import Image from "next/image";
-import { Heart, Repeat, MessageCircle, AtSign, UserPlus } from "lucide-react";
+import Link from 'next/link';
+import Image from 'next/image';
+import { Heart, Repeat, MessageCircle, AtSign, UserPlus } from 'lucide-react';
 
 interface NotificationItemProps {
   notification: {
     id: string;
-    type: "LIKE" | "REPOST" | "REPLY" | "MENTION" | "FOLLOW";
+    type: 'LIKE' | 'REPOST' | 'REPLY' | 'MENTION' | 'FOLLOW';
     isRead: boolean;
     createdAt: string | Date;
     thoughtId?: string | null;
@@ -42,33 +42,33 @@ export function NotificationItem({ notification }: NotificationItemProps) {
 
   // Configuration selon le type de notification
   let Icon = Heart;
-  let iconColorClass = "text-rose-500 bg-rose-500/10";
-  let actionText = "";
+  let iconColorClass = 'text-destructive bg-destructive/10';
+  let actionText = '';
 
   switch (type) {
-    case "LIKE":
+    case 'LIKE':
       Icon = Heart;
-      iconColorClass = "text-rose-500 bg-rose-500/10";
-      actionText = "a aimé votre pensée";
+      iconColorClass = 'text-destructive bg-destructive/10';
+      actionText = 'a aimé votre pensée';
       break;
-    case "REPOST":
+    case 'REPOST':
       Icon = Repeat;
-      iconColorClass = "text-emerald-500 bg-emerald-500/10";
-      actionText = "a repartagé votre pensée";
+      iconColorClass = 'text-success bg-success/10';
+      actionText = 'a repartagé votre pensée';
       break;
-    case "REPLY":
+    case 'REPLY':
       Icon = MessageCircle;
-      iconColorClass = "text-sky-500 bg-sky-500/10";
-      actionText = "a répondu à votre pensée";
+      iconColorClass = 'text-primary bg-primary/10';
+      actionText = 'a répondu à votre pensée';
       break;
-    case "MENTION":
+    case 'MENTION':
       Icon = AtSign;
-      iconColorClass = "text-amber-500 bg-amber-500/10";
-      actionText = "vous a mentionné";
+      iconColorClass = 'text-highlight bg-highlight/10';
+      actionText = 'vous a mentionné';
       break;
-    case "FOLLOW":
+    case 'FOLLOW':
       Icon = UserPlus;
-      iconColorClass = "text-primary bg-primary/10";
+      iconColorClass = 'text-primary bg-primary/10';
       actionText = "s'est abonné à votre profil";
       break;
   }
@@ -89,16 +89,16 @@ export function NotificationItem({ notification }: NotificationItemProps) {
   const targetLink = notification.thoughtId
     ? `/thought/${notification.thoughtId}`
     : notification.article
-    ? `/article/${notification.article.slug}`
-    : firstSender?.username
-    ? `/@${firstSender.username}`
-    : "#";
+      ? `/article/${notification.article.slug}`
+      : firstSender?.username
+        ? `/@${firstSender.username}`
+        : '#';
 
   return (
     <Link
       href={targetLink}
       className={`block p-4 border-b border-border transition-colors hover:bg-muted/40 ${
-        !isRead ? "bg-primary/5" : ""
+        !isRead ? 'bg-primary/5' : ''
       }`}
     >
       <div className="flex items-start gap-3">
@@ -118,13 +118,13 @@ export function NotificationItem({ notification }: NotificationItemProps) {
                 {sender.logoUrl ? (
                   <Image
                     src={sender.logoUrl}
-                    alt={sender.name || sender.username || "User"}
+                    alt={sender.name || sender.username || 'User'}
                     fill
                     className="object-cover"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center font-bold text-xs bg-muted text-muted-foreground">
-                    {(sender.name || sender.username || "U").charAt(0).toUpperCase()}
+                    {(sender.name || sender.username || 'U').charAt(0).toUpperCase()}
                   </div>
                 )}
               </div>
@@ -134,14 +134,14 @@ export function NotificationItem({ notification }: NotificationItemProps) {
           {/* Description de l'action */}
           <div className="text-sm text-foreground">
             <span className="font-semibold text-foreground">
-              {firstSender?.name || firstSender?.username || "Un utilisateur"}
+              {firstSender?.name || firstSender?.username || 'Un utilisateur'}
             </span>
             {otherSendersCount > 0 && (
               <span className="text-muted-foreground">
-                {" "}et {otherSendersCount} autre{otherSendersCount > 1 ? "s" : ""}
+                {' '}
+                et {otherSendersCount} autre{otherSendersCount > 1 ? 's' : ''}
               </span>
-            )}
-            {" "}
+            )}{' '}
             <span className="text-muted-foreground">{actionText}</span>
             <span className="text-xs text-muted-foreground ml-2">· {timeAgo}</span>
           </div>
@@ -163,4 +163,3 @@ export function NotificationItem({ notification }: NotificationItemProps) {
     </Link>
   );
 }
-

@@ -2,8 +2,8 @@
 // 🗺️ Sitemap dynamique — apps/web
 // =====================================================================
 
-import type { MetadataRoute } from "next";
-import { URLS } from "@qoe/config";
+import type { MetadataRoute } from 'next';
+import { URLS } from '@qoe/config';
 
 const BASE = URLS.LANDING;
 
@@ -12,7 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     {
       url: BASE,
       lastModified: new Date(),
-      changeFrequency: "weekly",
+      changeFrequency: 'weekly',
       priority: 1.0,
     },
   ];

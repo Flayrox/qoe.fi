@@ -1,4 +1,4 @@
-import { Home, Settings, FileText, Users, Mail, PieChart } from "lucide-react"
+import { Home, Settings, FileText, Users, Mail, PieChart } from 'lucide-react';
 
 import {
   Sidebar,
@@ -11,65 +11,70 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
-} from "@qoe/ui/ui/sidebar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@qoe/ui/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@qoe/ui/ui/avatar"
+} from '@qoe/ui/ui/sidebar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@qoe/ui/ui/dropdown-menu';
+import { Avatar, AvatarFallback } from '@qoe/ui/ui/avatar';
 
-import { createClient } from "@qoe/supabase/server"
-import { prisma } from "@qoe/db/client"
-import { logout } from "@/app/login/actions"
-import { getTranslate } from "@qoe/i18n/server"
+import { createClient } from '@qoe/supabase/server';
+import { prisma } from '@qoe/db/client';
+import { logout } from '@/app/login/actions';
+import { getTranslate } from '@qoe/i18n/server';
 
 export async function AppSidebar() {
-  const supabase = await createClient()
+  const supabase = await createClient();
   const {
     data: { user: authUser },
-  } = await supabase.auth.getUser()
+  } = await supabase.auth.getUser();
 
   const user = authUser
     ? await prisma.user.findUnique({
         where: { id: authUser.id },
       })
-    : null
+    : null;
 
-  const userEmail = user?.email || authUser?.email || "hello@qoe.fi"
-  const userName = user?.name || "Creator"
-  const userFallback = userName.slice(0, 2).toUpperCase()
+  const userEmail = user?.email || authUser?.email || 'hello@qoe.fi';
+  const userName = user?.name || 'Creator';
+  const userFallback = userName.slice(0, 2).toUpperCase();
 
-  const t = await getTranslate()
+  const t = await getTranslate();
 
   const items = [
     {
       title: t('sidebar.nav_overview'),
-      url: "/dashboard",
+      url: '/dashboard',
       icon: Home,
     },
     {
       title: t('sidebar.nav_articles'),
-      url: "/dashboard/articles",
+      url: '/dashboard/articles',
       icon: FileText,
     },
     {
       title: t('sidebar.nav_newsletters'),
-      url: "/dashboard/newsletters",
+      url: '/dashboard/newsletters',
       icon: Mail,
     },
     {
       title: t('sidebar.nav_audience'),
-      url: "/dashboard/audience",
+      url: '/dashboard/audience',
       icon: Users,
     },
     {
       title: t('sidebar.nav_analytics'),
-      url: "/dashboard/analytics",
+      url: '/dashboard/analytics',
       icon: PieChart,
     },
     {
       title: t('sidebar.nav_settings'),
-      url: "/dashboard/settings",
+      url: '/dashboard/settings',
       icon: Settings,
     },
-  ]
+  ];
 
   return (
     <Sidebar variant="inset">
@@ -81,7 +86,7 @@ export async function AppSidebar() {
           <span className="font-sans">qoe.fi</span>
         </div>
       </SidebarHeader>
-      
+
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground mt-4">
@@ -106,7 +111,14 @@ export async function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
-              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground" />}>
+              <DropdownMenuTrigger
+                render={
+                  <SidebarMenuButton
+                    size="lg"
+                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  />
+                }
+              >
                 <Avatar className="h-8 w-8 rounded-md">
                   <AvatarFallback className="rounded-md">{userFallback}</AvatarFallback>
                 </Avatar>
@@ -115,15 +127,19 @@ export async function AppSidebar() {
                   <span className="truncate text-xs text-muted-foreground">{userEmail}</span>
                 </div>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg" side="top" align="end" sideOffset={4}>
-                <DropdownMenuItem>
-                  {t('sidebar.user_profile')}
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  {t('sidebar.user_billing')}
-                </DropdownMenuItem>
+              <DropdownMenuContent
+                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                side="top"
+                align="end"
+                sideOffset={4}
+              >
+                <DropdownMenuItem>{t('sidebar.user_profile')}</DropdownMenuItem>
+                <DropdownMenuItem>{t('sidebar.user_billing')}</DropdownMenuItem>
                 <DropdownMenuItem render={<form action={logout} className="w-full" />}>
-                  <button type="submit" className="w-full text-left cursor-pointer bg-transparent border-0 p-0 text-foreground font-sans text-sm">
+                  <button
+                    type="submit"
+                    className="w-full text-left cursor-pointer bg-transparent border-0 p-0 text-foreground font-sans text-sm"
+                  >
                     {t('sidebar.user_logout')}
                   </button>
                 </DropdownMenuItem>
@@ -133,5 +149,5 @@ export async function AppSidebar() {
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }

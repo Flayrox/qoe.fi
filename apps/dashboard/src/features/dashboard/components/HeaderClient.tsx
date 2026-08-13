@@ -1,38 +1,28 @@
-"use client"
+'use client';
 
-import React, { useEffect } from "react"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Search, Command, Menu } from "lucide-react"
-import { toast } from "sonner"
-import { useCommandMenu } from "@qoe/ui"
+import React, { useEffect } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Search, Command, Menu } from 'lucide-react';
+import { toast } from 'sonner';
+import { useCommandMenu } from '@qoe/ui';
 
-import { HeaderWorkspaceSwitcher } from "./HeaderWorkspaceSwitcher"
-
-const segmentMap: Record<string, string> = {
-  articles: "Écrits",
-  new: "Nouveau",
-  audience: "Audience",
-  newsletters: "Newsletters",
-  analytics: "Analyses",
-  settings: "Réglages",
-  advanced: "Avancé",
-}
+import { HeaderWorkspaceSwitcher } from './HeaderWorkspaceSwitcher';
 
 export function HeaderClient() {
-  const pathname = usePathname()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const alreadyOnboarded = searchParams.get("already_onboarded")
-  const { setIsOpen } = useCommandMenu()
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const alreadyOnboarded = searchParams.get('already_onboarded');
+  const { setIsOpen } = useCommandMenu();
 
   // Check for already_onboarded query parameter to show toast
   useEffect(() => {
-    if (alreadyOnboarded === "true") {
-      toast.error("Tu es déjà créateur, tu ne peux pas recommencer l'onboarding !")
-      const newUrl = window.location.pathname
-      window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl)
+    if (alreadyOnboarded === 'true') {
+      toast.error("Tu es déjà créateur, tu ne peux pas recommencer l'onboarding !");
+      const newUrl = window.location.pathname;
+      window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, '', newUrl);
     }
-  }, [alreadyOnboarded])
+  }, [alreadyOnboarded]);
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center bg-background/80 px-4 backdrop-blur-md select-none font-sans">
@@ -40,7 +30,7 @@ export function HeaderClient() {
         {/* Left: Mobile Trigger & Search Bar */}
         <div className="flex items-center gap-2.5 md:gap-4">
           <button
-            onClick={() => window.dispatchEvent(new CustomEvent("toggle-mobile-sidebar"))}
+            onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-sidebar'))}
             className="md:hidden p-2 text-muted-foreground hover:text-foreground rounded-lg bg-muted/50 border border-border/30 active:scale-95 transition-all"
             aria-label="Ouvrir la navigation"
           >
@@ -68,20 +58,32 @@ export function HeaderClient() {
 
           <nav className="hidden lg:flex items-center gap-5">
             <button
-              onClick={() => router.push("/")}
-              className={pathname === "/" ? "text-primary border-b-2 border-primary py-1.5 transition-colors cursor-pointer" : "text-muted-foreground hover:text-foreground py-1.5 transition-colors cursor-pointer"}
+              onClick={() => router.push('/')}
+              className={
+                pathname === '/'
+                  ? 'text-primary border-b-2 border-primary py-1.5 transition-colors cursor-pointer'
+                  : 'text-muted-foreground hover:text-foreground py-1.5 transition-colors cursor-pointer'
+              }
             >
               Writer
             </button>
             <button
-              onClick={() => router.push("/audience")}
-              className={pathname.startsWith("/audience") || pathname.startsWith("/analytics") ? "text-primary border-b-2 border-primary py-1.5 transition-colors cursor-pointer" : "text-muted-foreground hover:text-foreground py-1.5 transition-colors cursor-pointer"}
+              onClick={() => router.push('/audience')}
+              className={
+                pathname.startsWith('/audience') || pathname.startsWith('/analytics')
+                  ? 'text-primary border-b-2 border-primary py-1.5 transition-colors cursor-pointer'
+                  : 'text-muted-foreground hover:text-foreground py-1.5 transition-colors cursor-pointer'
+              }
             >
               Studio
             </button>
             <button
-              onClick={() => router.push("/advanced")}
-              className={pathname.startsWith("/advanced") ? "text-primary border-b-2 border-primary py-1.5 transition-colors cursor-pointer" : "text-muted-foreground hover:text-foreground py-1.5 transition-colors cursor-pointer"}
+              onClick={() => router.push('/advanced')}
+              className={
+                pathname.startsWith('/advanced')
+                  ? 'text-primary border-b-2 border-primary py-1.5 transition-colors cursor-pointer'
+                  : 'text-muted-foreground hover:text-foreground py-1.5 transition-colors cursor-pointer'
+              }
             >
               Advanced
             </button>
@@ -89,5 +91,5 @@ export function HeaderClient() {
         </div>
       </div>
     </header>
-  )
+  );
 }

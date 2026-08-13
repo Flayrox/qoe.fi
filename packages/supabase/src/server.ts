@@ -5,9 +5,9 @@
 //    Lit/écrit les cookies Next.js automatiquement.
 // =====================================================================
 
-import { createServerClient } from "@supabase/ssr";
-import { cookies, headers } from "next/headers";
-import { getCookieDomain } from "./cookie-config";
+import { createServerClient } from '@supabase/ssr';
+import { cookies, headers } from 'next/headers';
+import { getCookieDomain } from './cookie-config';
 
 /**
  * 🖥️ Client Supabase pour le serveur.
@@ -15,13 +15,13 @@ import { getCookieDomain } from "./cookie-config";
  */
 export async function createClient() {
   const cookieStore = await cookies();
-  
+
   let hostname: string | undefined = undefined;
   try {
     const headersList = await headers();
-    const hostHeader = headersList.get("host");
+    const hostHeader = headersList.get('host');
     if (hostHeader) {
-      hostname = hostHeader.split(":")[0];
+      hostname = hostHeader.split(':')[0];
     }
   } catch {
     // headers() might throw in some static generation contexts
@@ -48,9 +48,9 @@ export async function createClient() {
       },
       cookieOptions: {
         domain: getCookieDomain(hostname),
-        path: "/",
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
+        path: '/',
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
       },
     }
   );

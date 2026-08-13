@@ -15,7 +15,7 @@
     "./paywall": "./src/paywall.ts"
   },
   "scripts": {
-    "lint": "echo skip",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

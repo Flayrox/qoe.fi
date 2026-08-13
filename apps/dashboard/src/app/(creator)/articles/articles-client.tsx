@@ -1,14 +1,13 @@
-"use client"
+'use client';
 
-import React, { useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen,
   Plus,
   Trash2,
   Edit3,
   FileText,
-  Clock,
   Eye,
   MessageSquare,
   BarChart3,
@@ -18,191 +17,199 @@ import {
   ArrowUpDown,
   FilterX,
   Lock,
-  ChevronDown
-} from "lucide-react"
-import { cn } from "@qoe/utils"
+} from 'lucide-react';
+import { cn } from '@qoe/utils';
 import {
   deleteArticleAction,
   saveCategoryAction,
-  deleteCategoryAction
-} from "@qoe/api-client/actions/articles"
+  deleteCategoryAction,
+} from '@qoe/api-client/actions/articles';
 
-import { ArticleInspectorModal } from "../analytics/components/ArticleInspectorModal"
+import { ArticleInspectorModal } from '../analytics/components/ArticleInspectorModal';
 
 interface ArticleWithCategory {
-  id: string
-  title: string
-  slug: string
-  content: string
-  published: boolean
-  isPremium: boolean
-  readingTime: number
-  categoryId: string | null
-  createdAt: Date
-  updatedAt: Date
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  published: boolean;
+  isPremium: boolean;
+  readingTime: number;
+  categoryId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
   category: {
-    id: string
-    name: string
-    slug: string
-  } | null
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
   _count?: {
-    bookmarks: number
-    highlights: number
-    letters: number
-  }
+    bookmarks: number;
+    highlights: number;
+    letters: number;
+  };
 }
 
 interface CategoryWithCount {
-  id: string
-  name: string
-  slug: string
-  description: string | null
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
   _count: {
-    articles: number
-  }
+    articles: number;
+  };
 }
 
 interface ArticlesClientProps {
-  initialArticles: ArticleWithCategory[]
-  initialCategories: CategoryWithCount[]
+  initialArticles: ArticleWithCategory[];
+  initialCategories: CategoryWithCount[];
 }
 
-type SortField = "updatedAt" | "createdAt" | "title" | "readingTime"
-type SortDirection = "desc" | "asc"
-type AccessFilter = "all" | "free" | "premium"
+type SortField = 'updatedAt' | 'createdAt' | 'title' | 'readingTime';
+type SortDirection = 'desc' | 'asc';
+type AccessFilter = 'all' | 'free' | 'premium';
 
 export function ArticlesClient({ initialArticles, initialCategories }: ArticlesClientProps) {
-  const [activeMainTab, setActiveMainTab] = useState<"articles" | "categories">("articles")
-  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all")
-  const [articles, setArticles] = useState<ArticleWithCategory[]>(initialArticles)
-  const [categories, setCategories] = useState<CategoryWithCount[]>(initialCategories)
-  
+  const [activeMainTab, setActiveMainTab] = useState<'articles' | 'categories'>('articles');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all');
+  const [articles, setArticles] = useState<ArticleWithCategory[]>(initialArticles);
+  const [categories, setCategories] = useState<CategoryWithCount[]>(initialCategories);
+
   // Search & Advanced Sorting & Filtering State
-  const [searchTerm, setSearchTerm] = useState("")
-  const [sortField, setSortField] = useState<SortField>("updatedAt")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
-  const [selectedCategory, setSelectedCategory] = useState<string>("all")
-  const [accessFilter, setAccessFilter] = useState<AccessFilter>("all")
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState<SortField>('updatedAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [accessFilter, setAccessFilter] = useState<AccessFilter>('all');
 
   // Article Inspector Modal State
-  const [inspectingArticle, setInspectingArticle] = useState<{ id: string; slug: string } | null>(null)
+  const [inspectingArticle, setInspectingArticle] = useState<{ id: string; slug: string } | null>(
+    null
+  );
 
   // Category Form State
-  const [newCatName, setNewCatName] = useState("")
-  const [newCatSlug, setNewCatSlug] = useState("")
-  const [newCatDesc, setNewCatDesc] = useState("")
-  const [categoryError, setCategoryError] = useState<string | null>(null)
-  const [categorySuccess, setCategorySuccess] = useState(false)
-  const [isCreatingCategory, setIsCreatingCategory] = useState(false)
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatSlug, setNewCatSlug] = useState('');
+  const [newCatDesc, setNewCatDesc] = useState('');
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [, setCategorySuccess] = useState(false);
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
 
   // Automatic category slug helper
   const handleCategoryNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value
-    setNewCatName(val)
+    const val = e.target.value;
+    setNewCatName(val);
     setNewCatSlug(
       val
         .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-")
-    )
-  }
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+    );
+  };
 
   // Handle category submission
   const handleCreateCategory = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newCatName.trim()) return
+    e.preventDefault();
+    if (!newCatName.trim()) return;
 
     try {
-      setCategoryError(null)
-      setCategorySuccess(false)
-      setIsCreatingCategory(true)
+      setCategoryError(null);
+      setCategorySuccess(false);
+      setIsCreatingCategory(true);
 
       const res = await saveCategoryAction({
         name: newCatName,
         slug: newCatSlug || undefined,
         description: newCatDesc || null,
-      })
+      });
 
-      if (!res.ok) throw new Error(res.error.message)
-      if (!res.data) throw new Error("Échec de création de la catégorie.")
-      const created = res.data
-
+      if (!res.ok) throw new Error(res.error.message);
+      if (!res.data) throw new Error('Échec de création de la catégorie.');
+      const created = res.data;
 
       const newCatWithCount: CategoryWithCount = {
         id: created.id,
         name: created.name,
         slug: created.slug,
         description: created.description,
-        _count: { articles: 0 }
-      }
+        _count: { articles: 0 },
+      };
 
-      
-      setCategories(prev => [...prev, newCatWithCount].sort((a, b) => a.name.localeCompare(b.name)))
-      
-      setNewCatName("")
-      setNewCatSlug("")
-      setNewCatDesc("")
-      setCategorySuccess(true)
-      setTimeout(() => setCategorySuccess(false), 3000)
+      setCategories((prev) =>
+        [...prev, newCatWithCount].sort((a, b) => a.name.localeCompare(b.name))
+      );
+
+      setNewCatName('');
+      setNewCatSlug('');
+      setNewCatDesc('');
+      setCategorySuccess(true);
+      setTimeout(() => setCategorySuccess(false), 3000);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Une erreur est survenue lors de la création du thème."
-      setCategoryError(message)
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Une erreur est survenue lors de la création du thème.';
+      setCategoryError(message);
     } finally {
-      setIsCreatingCategory(false)
+      setIsCreatingCategory(false);
     }
-  }
+  };
 
   // Handle category deletion
   const handleDeleteCategory = async (id: string, name: string) => {
     if (!confirm(`Êtes-vous sûr de vouloir supprimer le thème "${name}" ?`)) {
-      return
+      return;
     }
 
     try {
-      await deleteCategoryAction(id)
-      setCategories(prev => prev.filter(c => c.id !== id))
-      setArticles(prev => prev.map(art => art.categoryId === id ? { ...art, categoryId: null, category: null } : art))
+      await deleteCategoryAction(id);
+      setCategories((prev) => prev.filter((c) => c.id !== id));
+      setArticles((prev) =>
+        prev.map((art) =>
+          art.categoryId === id ? { ...art, categoryId: null, category: null } : art
+        )
+      );
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Échec de la suppression."
-      alert(message)
+      const message = err instanceof Error ? err.message : 'Échec de la suppression.';
+      alert(message);
     }
-  }
+  };
 
   // Handle article deletion
   const handleDeleteArticle = async (id: string, title: string) => {
     if (!confirm(`Voulez-vous vraiment supprimer l'écrit "${title}" ?`)) {
-      return
+      return;
     }
 
     try {
-      await deleteArticleAction(id)
-      setArticles(prev => prev.filter(a => a.id !== id))
+      await deleteArticleAction(id);
+      setArticles((prev) => prev.filter((a) => a.id !== id));
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Échec de la suppression."
-      alert(message)
+      const message = err instanceof Error ? err.message : 'Échec de la suppression.';
+      alert(message);
     }
-  }
+  };
 
   // Reset all advanced filters
   const resetFilters = () => {
-    setSearchTerm("")
-    setSortField("updatedAt")
-    setSortDirection("desc")
-    setSelectedCategory("all")
-    setAccessFilter("all")
-    setStatusFilter("all")
-  }
+    setSearchTerm('');
+    setSortField('updatedAt');
+    setSortDirection('desc');
+    setSelectedCategory('all');
+    setAccessFilter('all');
+    setStatusFilter('all');
+  };
 
   const hasActiveFilters =
-    searchTerm !== "" ||
-    sortField !== "updatedAt" ||
-    sortDirection !== "desc" ||
-    selectedCategory !== "all" ||
-    accessFilter !== "all" ||
-    statusFilter !== "all"
+    searchTerm !== '' ||
+    sortField !== 'updatedAt' ||
+    sortDirection !== 'desc' ||
+    selectedCategory !== 'all' ||
+    accessFilter !== 'all' ||
+    statusFilter !== 'all';
 
   // Precise Filtering & Sorting Logic
   const filteredAndSortedArticles = articles
@@ -210,71 +217,68 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
       // 1. Search term match
       const matchesSearch =
         art.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        art.slug.toLowerCase().includes(searchTerm.toLowerCase())
-      if (!matchesSearch) return false
+        art.slug.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!matchesSearch) return false;
 
       // 2. Status filter
-      if (statusFilter === "published" && !art.published) return false
-      if (statusFilter === "draft" && art.published) return false
+      if (statusFilter === 'published' && !art.published) return false;
+      if (statusFilter === 'draft' && art.published) return false;
 
       // 3. Category filter
-      if (selectedCategory !== "all" && art.categoryId !== selectedCategory) return false
+      if (selectedCategory !== 'all' && art.categoryId !== selectedCategory) return false;
 
       // 4. Access filter
-      if (accessFilter === "free" && art.isPremium) return false
-      if (accessFilter === "premium" && !art.isPremium) return false
+      if (accessFilter === 'free' && art.isPremium) return false;
+      if (accessFilter === 'premium' && !art.isPremium) return false;
 
-      return true
+      return true;
     })
     .sort((a, b) => {
-      let comparison = 0
+      let comparison = 0;
 
-      if (sortField === "updatedAt") {
-        comparison = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()
-      } else if (sortField === "createdAt") {
-        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      } else if (sortField === "title") {
-        comparison = a.title.localeCompare(b.title)
-      } else if (sortField === "readingTime") {
-        comparison = (a.readingTime || 1) - (b.readingTime || 1)
+      if (sortField === 'updatedAt') {
+        comparison = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+      } else if (sortField === 'createdAt') {
+        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      } else if (sortField === 'title') {
+        comparison = a.title.localeCompare(b.title);
+      } else if (sortField === 'readingTime') {
+        comparison = (a.readingTime || 1) - (b.readingTime || 1);
       }
 
-      return sortDirection === "desc" ? -comparison : comparison
-    })
+      return sortDirection === 'desc' ? -comparison : comparison;
+    });
 
-  const countPublished = articles.filter((a) => a.published).length
-  const countDrafts = articles.filter((a) => !a.published).length
+  const countPublished = articles.filter((a) => a.published).length;
+  const countDrafts = articles.filter((a) => !a.published).length;
 
   return (
     <div className="space-y-6 w-full pb-24 text-foreground font-sans selection:bg-primary/20 selection:text-primary">
-      
       {/* Main Stage Headline */}
       <section className="pt-4 md:pt-2 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-3xl font-bold tracking-tight text-foreground font-sans">
-            Articles
-          </h2>
+          <h2 className="text-3xl font-bold tracking-tight text-foreground font-sans">Articles</h2>
 
           {/* Tab Switcher: Articles vs Thèmes */}
           <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-lg border border-border/30 text-xs font-semibold">
             <button
-              onClick={() => setActiveMainTab("articles")}
+              onClick={() => setActiveMainTab('articles')}
               className={cn(
-                "px-3 py-1 rounded-md transition-all cursor-pointer font-sans",
-                activeMainTab === "articles"
-                  ? "bg-card text-foreground shadow-xs font-bold"
-                  : "text-muted-foreground hover:text-foreground"
+                'px-3 py-1 rounded-md transition-all cursor-pointer font-sans',
+                activeMainTab === 'articles'
+                  ? 'bg-card text-foreground shadow-xs font-bold'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
             >
               Écrits ({articles.length})
             </button>
             <button
-              onClick={() => setActiveMainTab("categories")}
+              onClick={() => setActiveMainTab('categories')}
               className={cn(
-                "px-3 py-1 rounded-md transition-all cursor-pointer font-sans",
-                activeMainTab === "categories"
-                  ? "bg-card text-foreground shadow-xs font-bold"
-                  : "text-muted-foreground hover:text-foreground"
+                'px-3 py-1 rounded-md transition-all cursor-pointer font-sans',
+                activeMainTab === 'categories'
+                  ? 'bg-card text-foreground shadow-xs font-bold'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
             >
               Thèmes ({categories.length})
@@ -285,7 +289,7 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
 
       {/* Main Content View */}
       <AnimatePresence mode="wait">
-        {activeMainTab === "articles" ? (
+        {activeMainTab === 'articles' ? (
           <motion.div
             key="articles-view"
             initial={{ opacity: 0 }}
@@ -307,38 +311,37 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
 
             {/* Ultra-Clean Hairline Sub-Toolbar (Dub & Apple Music Web Styled) */}
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border/30 font-sans text-xs">
-              
               {/* Left Side: Status Filter Tabs */}
               <div className="flex items-center gap-5 text-sm font-medium">
                 <button
-                  onClick={() => setStatusFilter("all")}
+                  onClick={() => setStatusFilter('all')}
                   className={cn(
-                    "pb-2 -mb-3 border-b-2 transition-all cursor-pointer text-xs font-sans",
-                    statusFilter === "all"
-                      ? "border-primary text-primary font-bold"
-                      : "border-transparent text-muted-foreground hover:text-foreground font-medium"
+                    'pb-2 -mb-3 border-b-2 transition-all cursor-pointer text-xs font-sans',
+                    statusFilter === 'all'
+                      ? 'border-primary text-primary font-bold'
+                      : 'border-transparent text-muted-foreground hover:text-foreground font-medium'
                   )}
                 >
                   Tous ({articles.length})
                 </button>
                 <button
-                  onClick={() => setStatusFilter("published")}
+                  onClick={() => setStatusFilter('published')}
                   className={cn(
-                    "pb-2 -mb-3 border-b-2 transition-all cursor-pointer text-xs font-sans",
-                    statusFilter === "published"
-                      ? "border-primary text-primary font-bold"
-                      : "border-transparent text-muted-foreground hover:text-foreground font-medium"
+                    'pb-2 -mb-3 border-b-2 transition-all cursor-pointer text-xs font-sans',
+                    statusFilter === 'published'
+                      ? 'border-primary text-primary font-bold'
+                      : 'border-transparent text-muted-foreground hover:text-foreground font-medium'
                   )}
                 >
                   Publiés ({countPublished})
                 </button>
                 <button
-                  onClick={() => setStatusFilter("draft")}
+                  onClick={() => setStatusFilter('draft')}
                   className={cn(
-                    "pb-2 -mb-3 border-b-2 transition-all cursor-pointer text-xs font-sans",
-                    statusFilter === "draft"
-                      ? "border-primary text-primary font-bold"
-                      : "border-transparent text-muted-foreground hover:text-foreground font-medium"
+                    'pb-2 -mb-3 border-b-2 transition-all cursor-pointer text-xs font-sans',
+                    statusFilter === 'draft'
+                      ? 'border-primary text-primary font-bold'
+                      : 'border-transparent text-muted-foreground hover:text-foreground font-medium'
                   )}
                 >
                   Brouillons ({countDrafts})
@@ -347,7 +350,6 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
 
               {/* Right Side: Sleek Hairline Select Controls */}
               <div className="flex flex-wrap items-center gap-2">
-                
                 {/* Hairline Category Dropdown */}
                 <select
                   value={selectedCategory}
@@ -389,9 +391,9 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
 
                 {/* Hairline Sort Direction Toggle */}
                 <button
-                  onClick={() => setSortDirection((prev) => (prev === "desc" ? "asc" : "desc"))}
+                  onClick={() => setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
                   className="flex items-center gap-1 px-2 py-1 rounded-lg bg-background border border-border/30 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-sans"
-                  title={`Ordre : ${sortDirection === "desc" ? "Décroissant" : "Croissant"}`}
+                  title={`Ordre : ${sortDirection === 'desc' ? 'Décroissant' : 'Croissant'}`}
                 >
                   <ArrowUpDown className="w-3 h-3 stroke-[1.5]" />
                   <span className="uppercase text-[10px] font-bold">{sortDirection}</span>
@@ -408,7 +410,6 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                     <span>Effacer</span>
                   </button>
                 )}
-
               </div>
             </div>
 
@@ -417,9 +418,13 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
               <div className="flex flex-col items-center justify-center py-20 text-center space-y-3 font-sans border border-dashed border-border/60 rounded-xl">
                 <BookOpen className="h-8 w-8 text-muted-foreground/40 stroke-[1.5]" />
                 <div className="space-y-0.5">
-                  <h3 className="text-foreground font-semibold text-sm">Aucun écrit ne correspond</h3>
+                  <h3 className="text-foreground font-semibold text-sm">
+                    Aucun écrit ne correspond
+                  </h3>
                   <p className="text-xs text-muted-foreground max-w-xs font-sans">
-                    {hasActiveFilters ? "Essayez de modifier vos critères de recherche ou de tri." : "Prenez la plume pour donner corps à vos pensées."}
+                    {hasActiveFilters
+                      ? 'Essayez de modifier vos critères de recherche ou de tri.'
+                      : 'Prenez la plume pour donner corps à vos pensées.'}
                   </p>
                 </div>
                 {hasActiveFilters ? (
@@ -443,7 +448,10 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
             ) : (
               <section className="flex flex-col divide-y divide-border/30">
                 {filteredAndSortedArticles.map((art) => {
-                  const interactionsCount = (art._count?.bookmarks || 0) + (art._count?.highlights || 0) + (art._count?.letters || 0)
+                  const interactionsCount =
+                    (art._count?.bookmarks || 0) +
+                    (art._count?.highlights || 0) +
+                    (art._count?.letters || 0);
 
                   return (
                     <div
@@ -453,7 +461,7 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                       {/* Square Icon Block */}
                       <div className="w-8 h-8 rounded bg-muted/50 flex items-center justify-center shrink-0">
                         {art.isPremium ? (
-                          <Lock className="w-4 h-4 text-amber-500 stroke-[1.5]" />
+                          <Lock className="w-4 h-4 text-highlight stroke-[1.5]" />
                         ) : (
                           <FileText className="w-4 h-4 text-muted-foreground stroke-[1.5]" />
                         )}
@@ -478,7 +486,7 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
 
                           {/* Premium Badge */}
                           {art.isPremium && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-highlight/10 text-highlight border border-highlight/20">
                               Premium
                             </span>
                           )}
@@ -486,20 +494,20 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                           {/* Published Status Badge */}
                           <span
                             className={cn(
-                              "inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium font-sans",
+                              'inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium font-sans',
                               art.published
-                                ? "bg-primary/10 text-primary"
-                                : "bg-muted text-muted-foreground border border-border/30"
+                                ? 'bg-primary/10 text-primary'
+                                : 'bg-muted text-muted-foreground border border-border/30'
                             )}
                           >
-                            {art.published ? "Publié" : "Brouillon"}
+                            {art.published ? 'Publié' : 'Brouillon'}
                           </span>
-                          
+
                           <span className="text-xs text-muted-foreground font-sans">
-                            {new Date(art.updatedAt).toLocaleDateString("fr-FR", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric"
+                            {new Date(art.updatedAt).toLocaleDateString('fr-FR', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
                             })}
                           </span>
                         </div>
@@ -509,8 +517,8 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                       <div className="hidden md:flex items-center gap-5 px-4">
                         <button
                           onClick={(e) => {
-                            e.stopPropagation()
-                            setInspectingArticle({ id: art.id, slug: art.slug })
+                            e.stopPropagation();
+                            setInspectingArticle({ id: art.id, slug: art.slug });
                           }}
                           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer p-1 rounded hover:bg-muted/60"
                           title="Inspecter les statistiques réelles de cet article"
@@ -521,8 +529,8 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
 
                         <button
                           onClick={(e) => {
-                            e.stopPropagation()
-                            setInspectingArticle({ id: art.id, slug: art.slug })
+                            e.stopPropagation();
+                            setInspectingArticle({ id: art.id, slug: art.slug });
                           }}
                           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer p-1 rounded hover:bg-muted/60"
                           title="Voir les réactions & surlignages des lecteurs"
@@ -536,8 +544,8 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                       <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={(e) => {
-                            e.stopPropagation()
-                            setInspectingArticle({ id: art.id, slug: art.slug })
+                            e.stopPropagation();
+                            setInspectingArticle({ id: art.id, slug: art.slug });
                           }}
                           className="p-1.5 text-muted-foreground hover:text-primary rounded hover:bg-muted transition-colors cursor-pointer"
                           title="Analyses de l'article"
@@ -555,8 +563,8 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
 
                         <button
                           onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeleteArticle(art.id, art.title)
+                            e.stopPropagation();
+                            handleDeleteArticle(art.id, art.title);
                           }}
                           className="p-1.5 text-muted-foreground hover:text-destructive rounded hover:bg-muted transition-colors cursor-pointer"
                           title="Supprimer"
@@ -565,7 +573,7 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                         </button>
                       </div>
                     </div>
-                  )
+                  );
                 })}
               </section>
             )}
@@ -601,9 +609,12 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                     >
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-foreground font-sans">{cat.name}</h4>
+                          <h4 className="text-sm font-semibold text-foreground font-sans">
+                            {cat.name}
+                          </h4>
                           <span className="text-[11px] text-muted-foreground font-sans font-medium">
-                            ({cat._count.articles} {cat._count.articles > 1 ? "articles" : "article"})
+                            ({cat._count.articles}{' '}
+                            {cat._count.articles > 1 ? 'articles' : 'article'})
                           </span>
                         </div>
                         {cat.description && (
@@ -663,7 +674,9 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                     <input
                       type="text"
                       value={newCatSlug}
-                      onChange={(e) => setNewCatSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, "-"))}
+                      onChange={(e) =>
+                        setNewCatSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))
+                      }
                       placeholder="Ex: poesie"
                       required
                       className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs font-mono text-muted-foreground focus:outline-none focus:border-primary transition-colors"
@@ -695,7 +708,7 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                     disabled={isCreatingCategory || !newCatName.trim()}
                     className="w-full h-8 flex items-center justify-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-sans font-bold text-xs rounded-xl transition-all disabled:opacity-50 cursor-pointer shadow-sm"
                   >
-                    {isCreatingCategory ? "Création..." : "Ajouter le thème"}
+                    {isCreatingCategory ? 'Création...' : 'Ajouter le thème'}
                   </button>
                 </form>
               </div>
@@ -711,10 +724,10 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
           articleId={inspectingArticle.id}
           onClose={() => setInspectingArticle(null)}
           onEdit={() => {
-            window.location.href = `/articles/${inspectingArticle.id}`
+            window.location.href = `/articles/${inspectingArticle.id}`;
           }}
         />
       )}
     </div>
-  )
+  );
 }

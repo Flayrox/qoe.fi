@@ -4,7 +4,9 @@
 
 .apple-devtools,
 .apple-devtools * {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif !important;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', system-ui,
+    sans-serif !important;
   box-sizing: border-box;
 }
 
@@ -357,7 +359,8 @@
 }
 
 /* Inputs & Selects */
-.apple-input, .apple-select {
+.apple-input,
+.apple-select {
   background: #09090b;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 5px;
@@ -369,7 +372,8 @@
   transition: all 0.15s ease;
 }
 
-.apple-input:focus, .apple-select:focus {
+.apple-input:focus,
+.apple-select:focus {
   border-color: rgba(255, 255, 255, 0.25);
 }
 

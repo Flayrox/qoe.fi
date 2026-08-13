@@ -4,7 +4,7 @@
 // Pattern inspiré de Bluesky et Elk : lors d'un login, logout ou refresh token,
 // cet utilitaire notifie instantanément les autres onglets du navigateur.
 
-export type AuthChangeEvent = "SIGNED_IN" | "SIGNED_OUT" | "TOKEN_REFRESHED";
+export type AuthChangeEvent = 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED';
 
 export interface AuthBroadcastMessage {
   event: AuthChangeEvent;
@@ -12,10 +12,10 @@ export interface AuthBroadcastMessage {
   timestamp: number;
 }
 
-const CHANNEL_NAME = "qoe_auth_broadcast_channel";
+const CHANNEL_NAME = 'qoe_auth_broadcast_channel';
 
 export function sendAuthBroadcast(event: AuthChangeEvent, userId?: string) {
-  if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
+  if (typeof window === 'undefined' || !('BroadcastChannel' in window)) return;
   try {
     const channel = new BroadcastChannel(CHANNEL_NAME);
     const message: AuthBroadcastMessage = {
@@ -26,14 +26,14 @@ export function sendAuthBroadcast(event: AuthChangeEvent, userId?: string) {
     channel.postMessage(message);
     channel.close();
   } catch (e) {
-    console.warn("Failed to send auth broadcast:", e);
+    console.warn('Failed to send auth broadcast:', e);
   }
 }
 
 export function subscribeToAuthBroadcast(
   onAuthChange: (message: AuthBroadcastMessage) => void
 ): () => void {
-  if (typeof window === "undefined" || !("BroadcastChannel" in window)) {
+  if (typeof window === 'undefined' || !('BroadcastChannel' in window)) {
     return () => {};
   }
 
@@ -45,14 +45,14 @@ export function subscribeToAuthBroadcast(
       }
     };
 
-    channel.addEventListener("message", handler);
+    channel.addEventListener('message', handler);
 
     return () => {
-      channel.removeEventListener("message", handler);
+      channel.removeEventListener('message', handler);
       channel.close();
     };
   } catch (e) {
-    console.warn("Failed to subscribe to auth broadcast:", e);
+    console.warn('Failed to subscribe to auth broadcast:', e);
     return () => {};
   }
 }

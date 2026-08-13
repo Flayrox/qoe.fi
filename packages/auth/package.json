@@ -1,35 +1,33 @@
 {
-    "name":  "@qoe/auth",
-    "version":  "0.0.0",
-    "private":  true,
-    "type":  "module",
-    "main":  "./src/index.ts",
-    "types":  "./src/index.ts",
-    "exports":  {
-                    ".":  "./src/index.ts",
-                    "./roles":  "./src/roles.ts",
-                    "./permissions":  "./src/permissions.ts",
-                    "./current-user":  "./src/current-user.ts"
-                },
-    "scripts":  {
-                    "lint":  "echo skip",
-                    "typecheck":  "tsc --noEmit",
-                    "test": "vitest run"
-                },
-    "dependencies":  {
-                         "@qoe/config":  "workspace:*",
-                         "@qoe/db":  "workspace:*",
-                         "@qoe/supabase":  "workspace:*",
-                         "@supabase/supabase-js": "^2.45.4"
-                     },
-    "devDependencies":  {
-                            "@qoe/tsconfig":  "workspace:*",
-                            "@types/react":  "^19",
-                            "next": "16.2.6",
-                            "react": "19.2.4",
-                            "typescript":  "^5"
-                        },
-    "peerDependencies":  {
-
-                         }
+  "name": "@qoe/auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./roles": "./src/roles.ts",
+    "./permissions": "./src/permissions.ts",
+    "./current-user": "./src/current-user.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@qoe/config": "workspace:*",
+    "@qoe/db": "workspace:*",
+    "@qoe/supabase": "workspace:*",
+    "@supabase/supabase-js": "^2.45.4"
+  },
+  "devDependencies": {
+    "@qoe/tsconfig": "workspace:*",
+    "@types/react": "^19",
+    "next": "16.2.6",
+    "react": "19.2.4",
+    "typescript": "^5"
+  },
+  "peerDependencies": {}
 }

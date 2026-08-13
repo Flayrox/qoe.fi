@@ -14,44 +14,43 @@
        ou sur un sous-arbre <section data-accent="vermillion">
    ═══════════════════════════════════════════════════════════════════ */
 
-
 /* ─────────────────────────────────────────────
    DARK MODE — bascule les sémantiques vers zinc sombre
    Le neutre zinc se prête naturellement au dark.
    ───────────────────────────────────────────── */
 .dark {
-  --background:          #0a0a0c;
-  --foreground:          #fafafa;
+  --background: #0a0a0c;
+  --foreground: #fafafa;
 
-  --card:                #121215;
-  --card-foreground:     #fafafa;
-  --popover:             #121215;
-  --popover-foreground:  #fafafa;
+  --card: #121215;
+  --card-foreground: #fafafa;
+  --popover: #121215;
+  --popover-foreground: #fafafa;
 
-  --primary:             var(--vermillion-500);
-  --primary-foreground:  var(--zinc-0);
+  --primary: var(--vermillion-500);
+  --primary-foreground: var(--zinc-0);
 
-  --secondary:           #1c1c20;
-  --secondary-foreground:#fafafa;
+  --secondary: #1c1c20;
+  --secondary-foreground: #fafafa;
 
-  --muted:               #1c1c20;
-  --muted-foreground:    #a1a1aa;
+  --muted: #1c1c20;
+  --muted-foreground: #a1a1aa;
 
-  --accent:              #1c1c20;
-  --accent-foreground:   #fafafa;
+  --accent: #1c1c20;
+  --accent-foreground: #fafafa;
 
-  --border:              rgba(255, 255, 255, 0.06);
-  --input:               rgba(255, 255, 255, 0.08);
-  --ring:                var(--zinc-50);
+  --border: rgba(255, 255, 255, 0.06);
+  --input: rgba(255, 255, 255, 0.08);
+  --ring: var(--zinc-50);
 
-  --sidebar:                 rgba(10, 10, 12, 0.85);
-  --sidebar-foreground:      #fafafa;
-  --sidebar-primary:         var(--vermillion-500);
+  --sidebar: rgba(10, 10, 12, 0.85);
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: var(--vermillion-500);
   --sidebar-primary-foreground: var(--zinc-0);
-  --sidebar-accent:          rgba(255, 255, 255, 0.04);
+  --sidebar-accent: rgba(255, 255, 255, 0.04);
   --sidebar-accent-foreground: #fafafa;
-  --sidebar-border:          rgba(255, 255, 255, 0.06);
-  --sidebar-ring:            var(--vermillion-500);
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-ring: var(--vermillion-500);
 
   --grid-color: rgba(255, 255, 255, 0.02);
 
@@ -61,16 +60,15 @@
   --surface-2: #1c1c20;
   --surface-3: #27272a;
 
-  --text-primary:    #fafafa;
-  --text-secondary:  #a1a1aa;
-  --text-tertiary:   #71717a;
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
   --text-quaternary: #52525b;
 
-  --border-subtle:  rgba(255, 255, 255, 0.04);
+  --border-subtle: rgba(255, 255, 255, 0.04);
   --border-default: rgba(255, 255, 255, 0.06);
-  --border-strong:  rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.12);
 }
-
 
 /* ─────────────────────────────────────────────
    ACCENT BRAND — vermillon (OPT-IN)
@@ -79,12 +77,12 @@
    l'accent vermillon sur son blog public via <html data-accent="vermillion">.
    Cela remappe --primary vers le vermillon, sans toucher au reste.
    ───────────────────────────────────────────── */
-[data-accent="vermillion"] {
-  --primary:             var(--vermillion-500);
-  --primary-foreground:  var(--zinc-0);
-  --ring:                var(--vermillion-500);
-  --sidebar-primary:         var(--vermillion-500);
+[data-accent='vermillion'] {
+  --primary: var(--vermillion-500);
+  --primary-foreground: var(--zinc-0);
+  --ring: var(--vermillion-500);
+  --sidebar-primary: var(--vermillion-500);
   --sidebar-primary-foreground: var(--zinc-0);
-  --sidebar-ring:            var(--vermillion-500);
-  --accent-brand:        var(--vermillion-500);
+  --sidebar-ring: var(--vermillion-500);
+  --accent-brand: var(--vermillion-500);
 }

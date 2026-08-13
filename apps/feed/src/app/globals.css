@@ -8,4 +8,4 @@
       Ne pas ajouter de tokens ici. Tout override app-spécifique va dans
       un nouveau fichier CSS importé par layout.tsx.
    ═══════════════════════════════════════════════════════════════════ */
-@import "@qoe/theme/styles";
+@import '@qoe/theme/styles';

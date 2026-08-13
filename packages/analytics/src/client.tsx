@@ -4,10 +4,10 @@
 // 📖 Wrapper léger autour de Umami (self-hosted / cloud) avec support multi-tenant.
 // =====================================================================
 
-"use client";
+'use client';
 
-import Script from "next/script";
-import { useEffect } from "react";
+import Script from 'next/script';
+import { useEffect } from 'react';
 
 declare global {
   interface Window {
@@ -22,29 +22,22 @@ declare global {
  */
 export function AnalyticsScript({ websiteId }: { websiteId?: string }) {
   const targetId = websiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
-  const scriptUrl = process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL || "https://cloud.umami.is/script.js";
+  const scriptUrl = process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL || 'https://cloud.umami.is/script.js';
 
   if (!targetId) return null;
 
-  return (
-    <Script
-      defer
-      src={scriptUrl}
-      data-website-id={targetId}
-      strategy="afterInteractive"
-    />
-  );
+  return <Script defer src={scriptUrl} data-website-id={targetId} strategy="afterInteractive" />;
 }
 
 /**
  * 📊 Fonction globale d'envoi d'évènement Umami.
  */
 export function trackEvent(event: string, data?: Record<string, unknown>) {
-  if (typeof window !== "undefined" && window.umami) {
+  if (typeof window !== 'undefined' && window.umami) {
     try {
       window.umami.track(event, data);
     } catch (e) {
-      console.warn("Umami tracking failed:", e);
+      console.warn('Umami tracking failed:', e);
     }
   }
 }

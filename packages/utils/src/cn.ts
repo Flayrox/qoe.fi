@@ -5,8 +5,8 @@
 //    C'est LE helper de référence pour les composants shadcn/ui.
 // =====================================================================
 
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 /**
  * 🧩 Fusionne des classes CSS avec support des conditions.

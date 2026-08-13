@@ -17,6 +17,7 @@ pnpm --version
 ```
 
 **Autres prérequis** :
+
 - Node.js 20+ (`node -v`)
 - Docker Desktop (pour la stack dev complète)
 - Git
@@ -54,6 +55,7 @@ pnpm docker:dev
 ## 🛠️ Commandes quotidiennes
 
 ### Développement Local Hybride (Recommandé)
+
 Le mode hybride lance les bases de données dans Docker et exécute les serveurs Next.js/Hono localement sur ton hôte pour des performances maximales et un Hot-Reload ultra-rapide.
 
 ```bash
@@ -71,6 +73,7 @@ pnpm dev
 ```
 
 ### Commandes par application
+
 ```bash
 pnpm --filter @qoe/landing dev      # Uniquement la landing page
 pnpm --filter @qoe/feed dev         # Uniquement le flux lecteur
@@ -81,6 +84,7 @@ pnpm --filter @qoe/api dev          # Uniquement l'API Hono
 ```
 
 ### Qualité & Build global
+
 ```bash
 # Build toutes les applications et packages
 pnpm build
@@ -102,6 +106,7 @@ pnpm prisma:seed
 ```
 
 ### Docker
+
 ```bash
 pnpm docker:dev          # Lance l'ensemble de la stack en local
 pnpm docker:dev:down     # Arrête et supprime les conteneurs
@@ -143,14 +148,15 @@ qoe.fi/                              # 18 workspaces résolus
 ```
 
 ### Planification des sous-domaines (DNS Wildcard)
-| Sous-domaine | Application Next.js | Rôle |
-|--------------|----------------------|------|
-| `qoe.fi` | `apps/feed` | Portail d'accueil, flux de lecture et connexion unique (SSO) |
-| `dashboard.qoe.fi` | `apps/dashboard` | Studio d'écriture et de publication des créateurs |
-| `admin.qoe.fi` | `apps/admin` | Panel de modération de la plateforme et édition du CMS |
-| `start.qoe.fi` | `apps/landing` | Vitrine commerciale, mentions légales et CGU de la marque |
-| `*.qoe.fi` (wildcard) | `apps/web` | Moteur multi-tenant servant les blogs publics des créateurs |
-| `api.qoe.fi` | `apps/api` | Backend Hono (endpoints à haute performance) |
+
+| Sous-domaine          | Application Next.js | Rôle                                                         |
+| --------------------- | ------------------- | ------------------------------------------------------------ |
+| `qoe.fi`              | `apps/feed`         | Portail d'accueil, flux de lecture et connexion unique (SSO) |
+| `dashboard.qoe.fi`    | `apps/dashboard`    | Studio d'écriture et de publication des créateurs            |
+| `admin.qoe.fi`        | `apps/admin`        | Panel de modération de la plateforme et édition du CMS       |
+| `start.qoe.fi`        | `apps/landing`      | Vitrine commerciale, mentions légales et CGU de la marque    |
+| `*.qoe.fi` (wildcard) | `apps/web`          | Moteur multi-tenant servant les blogs publics des créateurs  |
+| `api.qoe.fi`          | `apps/api`          | Backend Hono (endpoints à haute performance)                 |
 
 ---
 
@@ -160,8 +166,8 @@ Toutes les interactions avec la base de données (schéma, migrations, scripts d
 
 ```ts
 // ✅ À importer depuis n'importe quelle application du monorepo
-import { prisma } from "@qoe/db/client";
-import type { User, Post } from "@qoe/db/types";
+import { prisma } from '@qoe/db/client';
+import type { User, Post } from '@qoe/db/types';
 ```
 
 Le dossier `prisma/` racine a été totalement nettoyé.
@@ -171,13 +177,14 @@ Le dossier `prisma/` racine a été totalement nettoyé.
 ## 🎨 Composants UI partagés : `packages/ui/`
 
 Le package `@qoe/ui` centralise le design system de qoe.fi. Les composants communs à haute valeur ajoutée y sont logés :
+
 - `SocialIcon` : Icônes sociales pour les créateurs.
 - `TenantHeader` : En-tête dynamique du blog des créateurs.
 - `SubscribeForm` : Formulaire d'abonnement universel connecté à Stripe.
 
 ```tsx
 // ✅ Importable dans n'importe quelle application
-import { TenantHeader, SubscribeForm } from "@qoe/ui";
+import { TenantHeader, SubscribeForm } from '@qoe/ui';
 ```
 
 ---
@@ -192,19 +199,24 @@ Les cookies d'authentification sont configurés sur le domaine parent `.qoe.fi`,
 ## 🐛 Guide de dépannage (Troubleshooting)
 
 ### Port occupé lors du démarrage
+
 Si un message vous indique qu'un port est occupé en local (ex: `3010`), vous pouvez identifier le processus en cours et l'arrêter :
+
 ```powershell
 # Sur Windows (PowerShell)
 Get-NetTCPConnection -LocalPort 3010 | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force }
 ```
 
 ### Erreur TypeScript "Module @prisma/client has no exported member"
+
 Le client Prisma doit être régénéré suite à une installation ou une mise à jour de schéma :
+
 ```bash
 pnpm prisma:generate
 ```
 
 ### Erreurs de droits ou EACCES sur Windows
+
 Sous Windows, Next.js ou pnpm peuvent parfois rencontrer des blocages d'accès réseau local (Windows Defender). Si cela arrive, exécutez votre terminal en mode administrateur ou lancez le projet dans WSL2 (Ubuntu).
 
 ---

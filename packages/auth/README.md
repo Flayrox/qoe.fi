@@ -3,6 +3,7 @@
 **Role:** Manages the Role-Based Access Control (RBAC) declarations, user sessions, and transactional email triggers for security events.
 
 ## File Exhaustive Listing
+
 - `package.json`
 - `tsconfig.json`
 - `src/index.ts`
@@ -12,6 +13,7 @@
 - `src/roles.ts`
 
 ## Key Function Signatures
+
 ```typescript
 // permissions.ts
 export function can(userRole: Role | null, action: Action): boolean;

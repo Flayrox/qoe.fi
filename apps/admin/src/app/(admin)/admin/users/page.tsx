@@ -1,7 +1,6 @@
-import { prisma } from "@qoe/db/client"
-import { DataTable } from "./components/data-table"
-import { columns, AdminUser } from "./components/columns"
-import { Users } from "lucide-react"
+import { prisma } from '@qoe/db/client';
+import { DataTable } from './components/data-table';
+import { columns, AdminUser } from './components/columns';
 
 export default async function AdminUsers() {
   // Fetch all users for moderation
@@ -17,17 +16,17 @@ export default async function AdminUsers() {
       isSuspended: true,
       createdAt: true,
       subdomain: true,
-    }
-  })
+    },
+  });
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-10">
       <div className="mb-8">
-        <h1 className="text-3xl font-semibold tracking-tight text-neutral-900">Users</h1>
-        <p className="text-neutral-500 mt-2 text-sm">Modération & Management</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Users</h1>
+        <p className="text-muted-foreground mt-2 text-sm">Modération & Management</p>
       </div>
 
       <DataTable columns={columns} data={users as AdminUser[]} />
     </div>
-  )
+  );
 }

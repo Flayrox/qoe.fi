@@ -1,12 +1,12 @@
-"use server";
+'use server';
 
-import { highlights } from "@qoe/db";
-import { revalidatePath } from "next/cache";
-import { safeAction } from "../utils/safe-action";
+import { highlights } from '@qoe/db';
+import { revalidatePath } from 'next/cache';
+import { safeAction } from '../utils/safe-action';
 
 export const getArticleHighlightsAction = safeAction<
   { articleId: string },
-  { highlights: any[] }
+  { highlights: Awaited<ReturnType<typeof highlights.getArticleHighlights>> }
 >(async (input, user) => {
   const list = await highlights.getArticleHighlights(input.articleId, user?.id);
   return { highlights: list };
@@ -20,7 +20,7 @@ export const createHighlightAction = safeAction<
     isPublic?: boolean;
     isOfficial?: boolean;
   },
-  { highlight: any }
+  { highlight: Awaited<ReturnType<typeof highlights.createHighlight>> }
 >(async (input, user) => {
   const result = await highlights.createHighlight({
     articleId: input.articleId,
@@ -30,16 +30,20 @@ export const createHighlightAction = safeAction<
     isPublic: input.isPublic,
     isOfficial: input.isOfficial,
   });
-  revalidatePath("/article");
+  revalidatePath('/article');
   return { highlight: result };
 });
 
 export const toggleHighlightPrivacyAction = safeAction<
   { highlightId: string; isPublic: boolean },
-  { highlight: any }
+  { highlight: Awaited<ReturnType<typeof highlights.toggleHighlightPrivacy>> }
 >(async (input, user) => {
-  const result = await highlights.toggleHighlightPrivacy(input.highlightId, user.id, input.isPublic);
-  revalidatePath("/article");
+  const result = await highlights.toggleHighlightPrivacy(
+    input.highlightId,
+    user.id,
+    input.isPublic
+  );
+  revalidatePath('/article');
   return { highlight: result };
 });
 
@@ -48,30 +52,34 @@ export const upvoteHighlightAction = safeAction<
   { upvotesCount: number; hasUpvoted: boolean }
 >(async (input, user) => {
   const result = await highlights.upvoteHighlight(input.highlightId, user.id);
-  revalidatePath("/article");
+  revalidatePath('/article');
   return result;
 });
 
 export const createAnnotationCommentAction = safeAction<
   { highlightId: string; content: string },
-  { comment: any }
+  { comment: Awaited<ReturnType<typeof highlights.createAnnotationComment>> }
 >(async (input, user) => {
-  const result = await highlights.createAnnotationComment(input.highlightId, user.id, input.content);
-  revalidatePath("/article");
+  const result = await highlights.createAnnotationComment(
+    input.highlightId,
+    user.id,
+    input.content
+  );
+  revalidatePath('/article');
   return { comment: result };
 });
 
-export const deleteHighlightAction = safeAction<
-  { highlightId: string },
-  { success: boolean }
->(async (input, user) => {
-  await highlights.deleteHighlight(input.highlightId, user.id);
-  revalidatePath("/article");
-  return { success: true };
-});
+export const deleteHighlightAction = safeAction<{ highlightId: string }, { success: boolean }>(
+  async (input, user) => {
+    await highlights.deleteHighlight(input.highlightId, user.id);
+    revalidatePath('/article');
+    return { success: true };
+  }
+);
 
-import { quotePassageToFeedAction as quotePassageToFeedActionImpl } from "../tenant";
+import { quotePassageToFeedAction as quotePassageToFeedActionImpl } from '../tenant';
+import type { QuotePassageInput } from '../tenant';
 
-export async function quotePassageToFeedAction(input: any) {
+export async function quotePassageToFeedAction(input: QuotePassageInput) {
   return quotePassageToFeedActionImpl(input);
 }

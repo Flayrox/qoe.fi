@@ -1,14 +1,14 @@
-"use client"
+'use client';
 
-import React from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { X } from "lucide-react"
-import { useThoughtThreadContext } from "./ThoughtThreadContext"
+import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
+import { useThoughtThreadContext } from './ThoughtThreadContext';
 
 export function ThoughtThreadLightbox() {
-  const { lightboxImage, setLightboxImage } = useThoughtThreadContext()
+  const { lightboxImage, setLightboxImage } = useThoughtThreadContext();
 
-  if (!lightboxImage) return null
+  if (!lightboxImage) return null;
 
   return (
     <AnimatePresence>
@@ -34,5 +34,5 @@ export function ThoughtThreadLightbox() {
         />
       </div>
     </AnimatePresence>
-  )
+  );
 }

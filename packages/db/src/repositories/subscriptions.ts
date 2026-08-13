@@ -1,5 +1,5 @@
-import { prisma } from "../client";
-import { ContentVisibility, SubscriptionStatus } from "@prisma/client";
+import { prisma } from '../client';
+import { SubscriptionStatus } from '@prisma/client';
 
 export interface EntitlementCheckResult {
   isMember: boolean;
@@ -80,10 +80,14 @@ export const subscriptionsRepository = {
           status: params.status,
           isPremium: params.isPremium,
           ...(params.userId ? { userId: params.userId } : {}),
-          ...(params.stripeSubscriptionId ? { stripeSubscriptionId: params.stripeSubscriptionId } : {}),
+          ...(params.stripeSubscriptionId
+            ? { stripeSubscriptionId: params.stripeSubscriptionId }
+            : {}),
           ...(params.stripeCustomerId ? { stripeCustomerId: params.stripeCustomerId } : {}),
           ...(params.tierId ? { tierId: params.tierId } : {}),
-          ...(params.currentPeriodEnd !== undefined ? { currentPeriodEnd: params.currentPeriodEnd } : {}),
+          ...(params.currentPeriodEnd !== undefined
+            ? { currentPeriodEnd: params.currentPeriodEnd }
+            : {}),
           ...(params.amountPaidCents ? { ltvCents: { increment: params.amountPaidCents } } : {}),
         },
         create: {
@@ -120,7 +124,7 @@ export const subscriptionsRepository = {
   async getCreatorTiers(creatorId: string) {
     return prisma.tier.findMany({
       where: { creatorId },
-      orderBy: { monthlyPriceCents: "asc" },
+      orderBy: { monthlyPriceCents: 'asc' },
     });
   },
 };

@@ -3,7 +3,7 @@
  * =====================================================================
  * Compresses an image file in the browser before upload to save bandwidth and server space.
  * Uses the HTML5 Canvas API to resize and re-encode the image.
- * 
+ *
  * Features:
  * - Keeps GIFs intact (preserves animation).
  * - Downsizes images to a maximum width (default: 1200px).
@@ -22,20 +22,20 @@ export async function compressImage(
   { maxWidth = 1200, quality = 0.85 }: CompressOptions = {}
 ): Promise<File> {
   // If not an image or is a GIF, skip compression to avoid breaking animations
-  if (!file.type.startsWith("image/") || file.type === "image/gif") {
+  if (!file.type.startsWith('image/') || file.type === 'image/gif') {
     return file;
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
-    
+
     reader.onload = (event) => {
       const img = new Image();
       img.src = event.target?.result as string;
 
       img.onload = () => {
-        const canvas = document.createElement("canvas");
+        const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
 
@@ -48,7 +48,7 @@ export async function compressImage(
         canvas.width = width;
         canvas.height = height;
 
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext('2d');
         if (!ctx) {
           resolve(file); // Fallback to original file on error
           return;
@@ -59,8 +59,8 @@ export async function compressImage(
 
         // Convert PNG/JPEG/WEBP to JPEG for maximum compression efficiency
         // JPEGs are universally supported and compress extremely well
-        const targetMimeType = "image/jpeg";
-        const newFileName = file.name.replace(/\.[^/.]+$/, "") + ".jpg";
+        const targetMimeType = 'image/jpeg';
+        const newFileName = file.name.replace(/\.[^/.]+$/, '') + '.jpg';
 
         canvas.toBlob(
           (blob) => {
@@ -88,13 +88,13 @@ export async function compressImage(
       };
 
       img.onerror = (err) => {
-        console.error("Image loading error during compression:", err);
+        console.error('Image loading error during compression:', err);
         resolve(file); // Fallback to original file
       };
     };
 
     reader.onerror = (err) => {
-      console.error("File reader error during compression:", err);
+      console.error('File reader error during compression:', err);
       resolve(file); // Fallback to original file
     };
   });

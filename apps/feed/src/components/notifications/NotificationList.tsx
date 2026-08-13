@@ -1,34 +1,31 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import {
-  useNotificationsQuery,
-  useMarkNotificationsAsReadMutation,
-} from "@qoe/api-client";
-import { NotificationItem } from "./NotificationItem";
-import { createClient } from "@qoe/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
-import { notificationKeys } from "@qoe/api-client";
-import { CheckCheck, BellOff, Loader2 } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { useNotificationsQuery, useMarkNotificationsAsReadMutation } from '@qoe/api-client';
+import { NotificationItem } from './NotificationItem';
+import { createClient } from '@qoe/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { notificationKeys } from '@qoe/api-client';
+import { CheckCheck, BellOff, Loader2 } from 'lucide-react';
 
 export function NotificationList() {
-  const [filter, setFilter] = useState<"all" | "mentions" | "replies" | "likes">("all");
+  const [filter, setFilter] = useState<'all' | 'mentions' | 'replies' | 'likes'>('all');
   const queryClient = useQueryClient();
 
-  const { data: notifications = [], isLoading, isRefetching } = useNotificationsQuery(filter);
+  const { data: notifications = [], isLoading } = useNotificationsQuery(filter);
   const markAsReadMutation = useMarkNotificationsAsReadMutation();
 
   // Écouteur Supabase Realtime pour recevoir les notifications instantanément
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel("public:Notification")
+      .channel('public:Notification')
       .on(
-        "postgres_changes",
+        'postgres_changes',
         {
-          event: "INSERT",
-          schema: "public",
-          table: "Notification",
+          event: 'INSERT',
+          schema: 'public',
+          table: 'Notification',
         },
         () => {
           // Invalider les notifications et le compteur unread
@@ -46,11 +43,11 @@ export function NotificationList() {
     markAsReadMutation.mutate(undefined);
   };
 
-  const tabs: Array<{ id: "all" | "mentions" | "replies" | "likes"; label: string }> = [
-    { id: "all", label: "Toutes" },
-    { id: "mentions", label: "Mentions" },
-    { id: "replies", label: "Réponses" },
-    { id: "likes", label: "J'aime" },
+  const tabs: Array<{ id: 'all' | 'mentions' | 'replies' | 'likes'; label: string }> = [
+    { id: 'all', label: 'Toutes' },
+    { id: 'mentions', label: 'Mentions' },
+    { id: 'replies', label: 'Réponses' },
+    { id: 'likes', label: "J'aime" },
   ];
 
   return (
@@ -64,8 +61,8 @@ export function NotificationList() {
               onClick={() => setFilter(tab.id)}
               className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
                 filter === tab.id
-                  ? "border-primary text-foreground font-semibold"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  ? 'border-primary text-foreground font-semibold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
               {tab.label}
@@ -95,9 +92,11 @@ export function NotificationList() {
           <div className="p-4 bg-muted/50 rounded-full mb-3">
             <BellOff className="w-8 h-8 text-muted-foreground/60" />
           </div>
-          <h3 className="font-semibold text-foreground text-base mb-1">Aucune notification pour le moment</h3>
+          <h3 className="font-semibold text-foreground text-base mb-1">
+            Aucune notification pour le moment
+          </h3>
           <p className="text-sm max-w-xs text-muted-foreground">
-            {filter === "all"
+            {filter === 'all'
               ? "Lorsque d'autres membres aimeront vos pensées, vous répondronnt ou s'abonneront, les alertes apparaîtront ici."
               : `Aucune notification de type "${filter}" trouvée.`}
           </p>

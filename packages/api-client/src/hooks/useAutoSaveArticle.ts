@@ -100,7 +100,6 @@ export function useAutoSaveArticle({
     [delay, enabled, triggerSave]
   );
 
-
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {

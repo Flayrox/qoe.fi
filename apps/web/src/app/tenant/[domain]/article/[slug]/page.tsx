@@ -4,9 +4,11 @@ import { prisma } from '@qoe/db/client';
 import { createClient } from '@qoe/supabase/server';
 import { getMainAppUrl } from '@qoe/config';
 import Link from 'next/link';
-import { TenantHeader, SubscribeForm, SocialIcon } from '@qoe/ui';
-import { type AnnotationItem } from '@qoe/ui/annotations';
+import Image from 'next/image';
+import { TenantHeader, SubscribeForm } from '@qoe/ui';
+import { type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
 import { TenantArticleHighlighter } from './TenantArticleHighlighter';
+import { type CommentItem } from './ArticleCommentsSection';
 import { PaywallCut } from './PaywallCut';
 import { ReaderActions } from './ReaderActions';
 import { ArticleCommentsSection } from './ArticleCommentsSection';
@@ -27,23 +29,27 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
 
   // 1. Fetch current authenticated user (if any)
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const currentUserProfile = user ? await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { id: true, name: true, username: true, logoUrl: true }
-  }) : null;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const currentUserProfile = user
+    ? await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { id: true, name: true, username: true, logoUrl: true },
+      })
+    : null;
 
   // 2. Resolve creator by subdomain or custom domain (case-insensitive)
-  const creator = await (prisma as any).user.findFirst({
+  const creator = await prisma.user.findFirst({
     where: {
       OR: [
-        { subdomain: { equals: decodedDomain, mode: "insensitive" } },
-        { customDomain: { equals: decodedDomain, mode: "insensitive" } },
+        { subdomain: { equals: decodedDomain, mode: 'insensitive' } },
+        { customDomain: { equals: decodedDomain, mode: 'insensitive' } },
       ],
     },
     include: {
-      navigation: { orderBy: { order: "asc" } },
-      socialLinks: { orderBy: { order: "asc" } },
+      navigation: { orderBy: { order: 'asc' } },
+      socialLinks: { orderBy: { order: 'asc' } },
     },
   });
 
@@ -52,13 +58,10 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   }
 
   // 3. Fetch article by slug or id and authorId
-  const article = await (prisma as any).article.findFirst({
+  const article = await prisma.article.findFirst({
     where: {
       authorId: creator.id,
-      OR: [
-        { slug: { equals: decodedSlug, mode: "insensitive" } },
-        { id: decodedSlug },
-      ],
+      OR: [{ slug: { equals: decodedSlug, mode: 'insensitive' } }, { id: decodedSlug }],
     },
     include: {
       category: true,
@@ -74,9 +77,12 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
         <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-semibold uppercase tracking-wider mb-3">
           404 • Écrit introuvable
         </span>
-        <h1 className="text-3xl font-bold tracking-tight mb-2 text-foreground">Cet écrit n'existe pas</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-2 text-foreground">
+          Cet écrit n'existe pas
+        </h1>
         <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
-          Le lien que vous avez suivi est incorrect ou l'écrit a été retiré par <strong className="text-foreground">{creator.name || creator.username}</strong>.
+          Le lien que vous avez suivi est incorrect ou l'écrit a été retiré par{' '}
+          <strong className="text-foreground">{creator.name || creator.username}</strong>.
         </p>
         <Link
           href="/"
@@ -92,15 +98,18 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   if (!article.published && user?.id !== article.authorId) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 text-center font-sans select-none">
-        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center font-black text-xl mb-4 shadow-sm">
+        <div className="w-12 h-12 rounded-2xl bg-highlight/10 text-highlight border border-highlight/20 flex items-center justify-center font-black text-xl mb-4 shadow-sm">
           qoe
         </div>
-        <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 text-xs font-bold uppercase tracking-wider mb-3">
+        <span className="px-3 py-1 rounded-full bg-highlight/10 text-highlight border border-highlight/20 text-xs font-bold uppercase tracking-wider mb-3">
           Écrit Privé • Brouillon en cours
         </span>
-        <h1 className="text-3xl font-bold tracking-tight mb-2 text-foreground">Cet écrit n'est pas encore publié</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-2 text-foreground">
+          Cet écrit n'est pas encore publié
+        </h1>
         <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
-          <strong className="text-foreground">{creator.name || creator.username}</strong> peaufine actuellement cet écrit. Il sera disponible en lecture dès sa publication officielle.
+          <strong className="text-foreground">{creator.name || creator.username}</strong> peaufine
+          actuellement cet écrit. Il sera disponible en lecture dès sa publication officielle.
         </p>
         <Link
           href="/"
@@ -115,46 +124,49 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   // 4. Fetch initial reader interactions, comments, and Genius public/official highlights
   let initialBookmarked = false;
   let initialFollowed = false;
-  let initialHighlights: any[] = [];
-  let publicHighlights: any[] = [];
+  let initialHighlights: HighlightItem[] = [];
+  let publicHighlights: AnnotationItem[] = [];
 
   const [bm, fl, hl, publicHl, commentsRes] = await Promise.all([
-    user ? prisma.bookmark.findUnique({
+    user
+      ? prisma.bookmark.findUnique({
+          where: {
+            readerId_articleId: {
+              readerId: user.id,
+              articleId: article.id,
+            },
+          },
+        })
+      : null,
+    user
+      ? prisma.follows.findUnique({
+          where: {
+            readerId_creatorId: {
+              readerId: user.id,
+              creatorId: creator.id,
+            },
+          },
+        })
+      : null,
+    user
+      ? prisma.highlight.findMany({
+          where: {
+            readerId: user.id,
+            articleId: article.id,
+            isPublic: false,
+            isOfficial: false,
+          },
+          select: {
+            id: true,
+            text: true,
+            note: true,
+          },
+        })
+      : [],
+    prisma.highlight.findMany({
       where: {
-        readerId_articleId: {
-          readerId: user.id,
-          articleId: article.id,
-        },
-      },
-    }) : null,
-    user ? prisma.follows.findUnique({
-      where: {
-        readerId_creatorId: {
-          readerId: user.id,
-          creatorId: creator.id,
-        },
-      },
-    }) : null,
-    user ? (prisma as any).highlight.findMany({
-      where: {
-        readerId: user.id,
         articleId: article.id,
-        isPublic: false,
-        isOfficial: false,
-      },
-      select: {
-        id: true,
-        text: true,
-        note: true,
-      },
-    }) : [],
-    (prisma as any).highlight.findMany({
-      where: {
-        articleId: article.id,
-        OR: [
-          { isOfficial: true },
-          { isPublic: true }
-        ]
+        OR: [{ isOfficial: true }, { isPublic: true }],
       },
       include: {
         reader: {
@@ -164,7 +176,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
             username: true,
             logoUrl: true,
             subdomain: true,
-          }
+          },
         },
         comments: {
           include: {
@@ -174,13 +186,13 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
                 name: true,
                 username: true,
                 logoUrl: true,
-              }
-            }
+              },
+            },
           },
-          orderBy: { createdAt: "asc" }
-        }
+          orderBy: { createdAt: 'asc' },
+        },
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: 'desc' },
     }),
     getArticleCommentsAction(article.id),
   ]);
@@ -190,27 +202,35 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   initialHighlights = hl;
   publicHighlights = publicHl;
 
-  const initialComments = commentsRes?.comments || [];
-
+  const initialComments = (commentsRes?.comments || []) as unknown as CommentItem[];
 
   const {
-    name, heroText, accentColor, fontFamily, logoUrl,
-    headerImageUrl, footerText, layoutStyle, themeMode,
-    navigation, socialLinks, stripeAccountId, supportUrl
+    name,
+    accentColor,
+    fontFamily,
+    logoUrl,
+    footerText,
+    layoutStyle,
+    themeMode,
+    navigation,
+    socialLinks,
+    stripeAccountId,
+    supportUrl,
   } = creator;
 
-  const allowPublicAnnotations = (creator.allowPublicAnnotations ?? true) && (article.allowPublicAnnotations ?? true);
+  const allowPublicAnnotations =
+    (creator.allowPublicAnnotations ?? true) && (article.allowPublicAnnotations ?? true);
   const allowComments = (creator.allowComments ?? true) && (article.allowComments ?? true);
   const mainAppUrl = getMainAppUrl(domain);
-  const isBrutalist = layoutStyle === "brutalist";
+  const isBrutalist = layoutStyle === 'brutalist';
 
   const customStyle = {
-    "--tenant-accent": accentColor || "hsl(var(--primary))",
-    fontFamily: fontFamily ? `var(--font-${fontFamily})` : "inherit",
-    ...(themeMode === "dark" && { colorScheme: "dark" }),
+    '--tenant-accent': accentColor || 'hsl(var(--primary))',
+    fontFamily: fontFamily ? `var(--font-${fontFamily})` : 'inherit',
+    ...(themeMode === 'dark' && { colorScheme: 'dark' }),
   } as React.CSSProperties;
 
-  const plainText = article.content.replace(/<[^>]*>?/gm, "");
+  const plainText = article.content.replace(/<[^>]*>?/gm, '');
   const wordCount = plainText.split(/\s+/).length;
   const readingTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
 
@@ -220,18 +240,27 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   let isMember = isAuthor;
 
   if (user) {
+    const subscriptionClient = prisma as unknown as {
+      subscription?: {
+        findFirst: (args: {
+          where: { userId: string; creatorId: string; status: string };
+        }) => Promise<{ id: string } | null>;
+      };
+    };
     const [sub, subscriberRecord] = await Promise.all([
-      (prisma as any).subscription?.findFirst ? (prisma as any).subscription.findFirst({
-        where: {
-          userId: user.id,
-          creatorId: creator.id,
-          status: "active",
-        },
-      }) : null,
+      subscriptionClient.subscription?.findFirst
+        ? subscriptionClient.subscription.findFirst({
+            where: {
+              userId: user.id,
+              creatorId: creator.id,
+              status: 'active',
+            },
+          })
+        : null,
       prisma.subscriber.findFirst({
         where: {
           creatorId: creator.id,
-          email: user.email || "",
+          email: user.email || '',
           isActive: true,
         },
       }),
@@ -245,14 +274,14 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
     : ContentVisibility.PUBLIC;
 
   const paywallCutResult = sliceContentAtPaywall(
-    article.content || "",
+    article.content || '',
     { isMember, isPaidSubscriber },
     visibility
   );
 
   return (
     <div
-      className={`min-h-screen ${themeMode === "dark" ? "dark bg-zinc-950 text-zinc-50" : "bg-background text-foreground"} selection:bg-[var(--tenant-accent)] selection:text-white transition-colors duration-300 relative`}
+      className={`min-h-screen ${themeMode === 'dark' ? 'dark bg-foreground text-background' : 'bg-background text-foreground'} selection:bg-[var(--tenant-accent)] selection:text-white transition-colors duration-300 relative`}
       style={customStyle}
     >
       {/* Header */}
@@ -273,7 +302,9 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
         <header className="mb-10 space-y-4">
           <div className="flex items-center gap-3">
             {article.category && (
-              <span className={`px-3 py-1 text-xs font-semibold rounded-full ${isBrutalist ? "border-2 border-foreground uppercase" : "bg-[var(--tenant-accent)]/10 text-[var(--tenant-accent)]"}`}>
+              <span
+                className={`px-3 py-1 text-xs font-semibold rounded-full ${isBrutalist ? 'border-2 border-foreground uppercase' : 'bg-[var(--tenant-accent)]/10 text-[var(--tenant-accent)]'}`}
+              >
                 {article.category.name}
               </span>
             )}
@@ -282,22 +313,30 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
             </span>
           </div>
 
-          <h1 className={`text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[1.15] ${isBrutalist ? "font-black uppercase" : "font-bold text-foreground"}`}>
+          <h1
+            className={`text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[1.15] ${isBrutalist ? 'font-black uppercase' : 'font-bold text-foreground'}`}
+          >
             {article.title}
           </h1>
 
           <div className="flex items-center gap-3 pt-4 border-b border-border/40 pb-6 text-sm text-muted-foreground">
             {logoUrl && (
-              <img src={logoUrl} alt={name || "Auteur"} className="w-10 h-10 rounded-full object-cover border border-border/40 shrink-0" />
+              <Image
+                src={logoUrl}
+                alt={name || 'Auteur'}
+                width={40}
+                height={40}
+                className="w-10 h-10 rounded-full object-cover border border-border/40 shrink-0"
+              />
             )}
             <div>
               <span className="font-semibold text-foreground">{name || creator.username}</span>
               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                 <time dateTime={article.createdAt.toISOString()}>
-                  {new Date(article.createdAt).toLocaleDateString("fr-FR", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
+                  {new Date(article.createdAt).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
                   })}
                 </time>
               </div>
@@ -306,7 +345,10 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
         </header>
 
         {/* Article Body Container with Server-side Zero-Leak PaywallCut */}
-        <div id="article-content" className="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6">
+        <div
+          id="article-content"
+          className="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
+        >
           <PaywallCut
             contentHtml={paywallCutResult.content}
             isPremium={article.isPremium && !paywallCutResult.accessGranted}
@@ -335,7 +377,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
         {/* Article Comments & Nested Replies Section */}
         <ArticleCommentsSection
           articleId={article.id}
-          initialComments={initialComments as any}
+          initialComments={initialComments}
           isAuthenticated={!!user}
           currentUserId={user?.id || null}
           allowComments={allowComments}
@@ -345,12 +387,18 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
 
         {/* End of Article Subscribe Section */}
         <section id="subscribe" className="mt-20 pt-12 border-t border-border/40">
-          <div className={`p-8 md:p-12 text-center rounded-3xl ${isBrutalist ? "border-4 border-foreground shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-card" : "bg-card border border-border/40 shadow-sm"}`}>
-            <h3 className={`text-2xl md:text-3xl mb-3 ${isBrutalist ? "font-black uppercase" : "font-bold"}`}>
+          <div
+            className={`p-8 md:p-12 text-center rounded-3xl ${isBrutalist ? 'border-4 border-foreground shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-card' : 'bg-card border border-border/40 shadow-sm'}`}
+          >
+            <h3
+              className={`text-2xl md:text-3xl mb-3 ${isBrutalist ? 'font-black uppercase' : 'font-bold'}`}
+            >
               Restez informé des prochaines publications
             </h3>
             <p className="text-muted-foreground text-sm md:text-base max-w-md mx-auto mb-8">
-              Abonnez-vous gratuitement à la newsletter de <strong className="text-foreground">{name}</strong> pour recevoir les prochains écrits directement dans votre boîte mail.
+              Abonnez-vous gratuitement à la newsletter de{' '}
+              <strong className="text-foreground">{name}</strong> pour recevoir les prochains écrits
+              directement dans votre boîte mail.
             </p>
             <SubscribeForm creatorId={creator.id} isBrutalist={isBrutalist} />
           </div>
@@ -361,7 +409,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
       <ReaderActions
         articleId={article.id}
         creatorId={creator.id}
-        creatorName={name || creator.username || "le créateur"}
+        creatorName={name || creator.username || 'le créateur'}
         isAuthenticated={!!user}
         initialBookmarked={initialBookmarked}
         initialFollowed={initialFollowed}
@@ -369,7 +417,9 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
       />
 
       {/* Footer */}
-      <footer className={`py-16 px-4 text-center ${isBrutalist ? "border-t-4 border-foreground" : "border-t border-border/40 bg-muted/20"}`}>
+      <footer
+        className={`py-16 px-4 text-center ${isBrutalist ? 'border-t-4 border-foreground' : 'border-t border-border/40 bg-muted/20'}`}
+      >
         <div className="max-w-2xl mx-auto space-y-6 text-sm text-muted-foreground">
           <p>{footerText || `© ${new Date().getFullYear()} ${name}. Propulsé par qoe.fi`}</p>
         </div>

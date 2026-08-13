@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUp } from "lucide-react";
+import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowUp } from 'lucide-react';
 
 export interface RealtimeFeedPillProps {
   unreadCount: number;
@@ -26,7 +26,7 @@ export function RealtimeFeedPill({ unreadCount, onFlush }: RealtimeFeedPillProps
         >
           <ArrowUp className="w-4 h-4 animate-bounce" />
           <span>
-            {unreadCount} {unreadCount === 1 ? "nouvelle pensée" : "nouvelles pensées"}
+            {unreadCount} {unreadCount === 1 ? 'nouvelle pensée' : 'nouvelles pensées'}
           </span>
         </motion.button>
       </div>

@@ -8,7 +8,7 @@
 //   - updateUserEmbedding(userId: string, vector: number[]): Promise<void>
 // =====================================================================
 
-const EMBEDDING_DIM = 1536 // taille OpenAI text-embedding-ada-002
+const EMBEDDING_DIM = 1536; // taille OpenAI text-embedding-ada-002
 
 /**
  * Génère un embedding mock (stub) à partir d'un texte + intérêts.
@@ -20,29 +20,26 @@ export async function generateMockEmbedding(
 ): Promise<number[]> {
   // Stub : vecteur pseudo-aléatoire, mais déterministe par seed (text+interests)
   // pour que la même saisie produise le même vecteur entre 2 sessions.
-  const seedSource = `${text}|${interests.sort().join(",")}`
-  let hash = 0
+  const seedSource = `${text}|${interests.sort().join(',')}`;
+  let hash = 0;
   for (let i = 0; i < seedSource.length; i++) {
-    hash = (hash * 31 + seedSource.charCodeAt(i)) >>> 0
+    hash = (hash * 31 + seedSource.charCodeAt(i)) >>> 0;
   }
   const vector = new Array(EMBEDDING_DIM).fill(0).map((_, i) => {
     // PRNG simple déterministe
-    const x = Math.sin(hash + i) * 10000
-    return (x - Math.floor(x)) * 2 - 1
-  })
-  return vector
+    const x = Math.sin(hash + i) * 10000;
+    return (x - Math.floor(x)) * 2 - 1;
+  });
+  return vector;
 }
 
 /**
  * Persiste l'embedding utilisateur en base (pgvector).
  * Stub no-op pour l'instant — sera implémenté en Phase future.
  */
-export async function updateUserEmbedding(
-  userId: string,
-  vector: number[]
-): Promise<void> {
+export async function updateUserEmbedding(userId: string, vector: number[]): Promise<void> {
   // Stub : no-op. Phase future : prisma.$executeRaw`UPDATE "User" SET embedding = ${vector}::vector WHERE id = ${userId}`
-  void userId
-  void vector
-  return Promise.resolve()
+  void userId;
+  void vector;
+  return Promise.resolve();
 }

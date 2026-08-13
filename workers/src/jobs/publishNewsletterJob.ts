@@ -1,13 +1,13 @@
-import type { Job } from "bullmq";
-import { prisma } from "@qoe/db/client";
-import { sliceContentAtPaywall } from "@qoe/utils";
+import type { Job } from 'bullmq';
+import { prisma, type Prisma } from '@qoe/db/client';
+import { sliceContentAtPaywall } from '@qoe/utils';
 
 export interface PublishNewsletterPayload {
   articleId: string;
   authorId: string;
   title: string;
   slug: string;
-  visibility: "PUBLIC" | "MEMBERS_ONLY" | "PAID_SUBSCRIBERS" | "TIER_SPECIFIC";
+  visibility: 'PUBLIC' | 'MEMBERS_ONLY' | 'PAID_SUBSCRIBERS' | 'TIER_SPECIFIC';
 }
 
 export interface SubscriberBatchItem {
@@ -20,9 +20,11 @@ export interface SubscriberBatchItem {
 const BATCH_SIZE = 500; // Batch recipients into chunks of 500
 
 export async function processPublishNewsletterJob(job: Job<PublishNewsletterPayload>) {
-  const { articleId, authorId, title, slug, visibility } = job.data;
+  const { articleId, authorId, visibility } = job.data;
 
-  console.log(`[NewsletterWorker] Starting broadcast dispatch for article ${articleId} (${visibility})`);
+  console.log(
+    `[NewsletterWorker] Starting broadcast dispatch for article ${articleId} (${visibility})`
+  );
 
   // 1. Fetch creator & article
   const [author, article] = await Promise.all([
@@ -31,21 +33,23 @@ export async function processPublishNewsletterJob(job: Job<PublishNewsletterPayl
   ]);
 
   if (!author || !article) {
-    console.error(`[NewsletterWorker] Author ${authorId} or Article ${articleId} not found. Halting.`);
+    console.error(
+      `[NewsletterWorker] Author ${authorId} or Article ${articleId} not found. Halting.`
+    );
     return;
   }
 
   // 2. Query target subscribers based on visibility
-  const whereCondition: any = {
+  const whereCondition: Prisma.SubscriberWhereInput = {
     creatorId: authorId,
     isActive: true,
   };
 
-  if (visibility === "PAID_SUBSCRIBERS" || visibility === "TIER_SPECIFIC") {
+  if (visibility === 'PAID_SUBSCRIBERS' || visibility === 'TIER_SPECIFIC') {
     whereCondition.isPremium = true;
   }
 
-  if (visibility === "TIER_SPECIFIC" && article.tierId) {
+  if (visibility === 'TIER_SPECIFIC' && article.tierId) {
     whereCondition.tierId = article.tierId;
   }
 
@@ -67,7 +71,7 @@ export async function processPublishNewsletterJob(job: Job<PublishNewsletterPayl
         ...(lastId ? { id: { gt: lastId } } : {}),
       },
       take: BATCH_SIZE,
-      orderBy: { id: "asc" },
+      orderBy: { id: 'asc' },
       select: {
         id: true,
         email: true,
@@ -89,7 +93,9 @@ export async function processPublishNewsletterJob(job: Job<PublishNewsletterPayl
         article.tierId
       );
 
-      console.log(`[NewsletterWorker] Dispatched batch email to ${subscriber.email} (previewLength: ${cutResult.content.length} chars)`);
+      console.log(
+        `[NewsletterWorker] Dispatched batch email to ${subscriber.email} (previewLength: ${cutResult.content.length} chars)`
+      );
     }
 
     processedCount += batch.length;

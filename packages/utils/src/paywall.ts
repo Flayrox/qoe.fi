@@ -1,9 +1,9 @@
-import { ContentVisibility } from "@qoe/db/types";
+import { ContentVisibility } from '@qoe/db/types';
 
 export interface UserEntitlements {
-  isMember: boolean;          // Registered free subscriber (has provided email)
-  isPaidSubscriber: boolean;  // Active paid subscriber
-  tierId?: string | null;     // Optional specific subscription tier ID
+  isMember: boolean; // Registered free subscriber (has provided email)
+  isPaidSubscriber: boolean; // Active paid subscriber
+  tierId?: string | null; // Optional specific subscription tier ID
 }
 
 export interface PaywallMeta {
@@ -23,10 +23,10 @@ export interface PaywallCutResult {
 
 // Markers for paywall breaks across various editor outputs (Ghost, Lexical, TipTap, HTML comments)
 const PAYWALL_MARKERS = [
-  "<!--members-only-->",
-  "<!--paywall-->",
-  "<!--kg-gated-block:begin-->",
-  "<!--qoe-paywall-->",
+  '<!--members-only-->',
+  '<!--paywall-->',
+  '<!--kg-gated-block:begin-->',
+  '<!--qoe-paywall-->',
   'data-node-type="paywall"',
   'data-node-type="paywall-divider"',
   'class="qoe-paywall-divider"',
@@ -72,13 +72,13 @@ export function sliceContentAtPaywall(
   visibility: ContentVisibility = ContentVisibility.PUBLIC,
   requiredTierId?: string | null
 ): PaywallCutResult {
-  const totalLengthBytes = Buffer.byteLength(rawContent || "", "utf-8");
+  const totalLengthBytes = Buffer.byteLength(rawContent || '', 'utf-8');
   const accessGranted = checkContentAccess(visibility, entitlements, requiredTierId);
 
   // If access is granted, return full content
   if (accessGranted || !rawContent) {
     return {
-      content: rawContent || "",
+      content: rawContent || '',
       isTruncated: false,
       accessGranted: true,
       paywallMeta: null,
@@ -87,17 +87,15 @@ export function sliceContentAtPaywall(
 
   // Search for the first matching paywall marker
   let paywallIndex = -1;
-  let matchedMarker = "";
 
   for (const marker of PAYWALL_MARKERS) {
     const index = rawContent.indexOf(marker);
     if (index !== -1 && (paywallIndex === -1 || index < paywallIndex)) {
       paywallIndex = index;
-      matchedMarker = marker;
     }
   }
 
-  let previewContent = "";
+  let previewContent = '';
   let teaserParagraphsCount = 0;
 
   if (paywallIndex !== -1) {
@@ -124,7 +122,7 @@ export function sliceContentAtPaywall(
     }
   }
 
-  const previewLengthBytes = Buffer.byteLength(previewContent, "utf-8");
+  const previewLengthBytes = Buffer.byteLength(previewContent, 'utf-8');
 
   return {
     content: previewContent,

@@ -9,82 +9,82 @@
 //    - Facile à tester (map de permissions)
 // =====================================================================
 
-import { ROLES, type Role } from "@qoe/config";
-import { isCreator, isSuperadmin } from "./roles";
+import { ROLES, type Role } from '@qoe/config';
+import { isCreator, isSuperadmin } from './roles';
 
 /**
  * 🎬 Actions possibles dans l'app.
  */
 export type Action =
   // Articles
-  | "article:read"
-  | "article:create"
-  | "article:edit:own"
-  | "article:edit:any"
-  | "article:delete:own"
-  | "article:delete:any"
-  | "article:publish:own"
-  | "article:publish:any"
+  | 'article:read'
+  | 'article:create'
+  | 'article:edit:own'
+  | 'article:edit:any'
+  | 'article:delete:own'
+  | 'article:delete:any'
+  | 'article:publish:own'
+  | 'article:publish:any'
   // Posts (micro)
-  | "post:read"
-  | "post:create"
-  | "post:delete:own"
-  | "post:delete:any"
+  | 'post:read'
+  | 'post:create'
+  | 'post:delete:own'
+  | 'post:delete:any'
   // Subscribers / Audience
-  | "audience:read:own"
-  | "audience:read:any"
-  | "audience:block"
+  | 'audience:read:own'
+  | 'audience:read:any'
+  | 'audience:block'
   // Billing
-  | "billing:read:own"
-  | "billing:manage:own"
-  | "billing:refund:any"
+  | 'billing:read:own'
+  | 'billing:manage:own'
+  | 'billing:refund:any'
   // Admin plateforme
-  | "admin:dashboard:view"
-  | "admin:users:view"
-  | "admin:users:moderate"
-  | "admin:config:edit"
-  | "admin:widgets:edit"
-  | "admin:frontend:edit"
+  | 'admin:dashboard:view'
+  | 'admin:users:view'
+  | 'admin:users:moderate'
+  | 'admin:config:edit'
+  | 'admin:widgets:edit'
+  | 'admin:frontend:edit'
   // Tenant
-  | "tenant:configure:own"
-  | "tenant:configure:any";
+  | 'tenant:configure:own'
+  | 'tenant:configure:any';
 
 /**
  * 📋 Matrice des permissions par rôle.
  */
 const PERMISSIONS: Record<Action, Role> = {
   // Articles
-  "article:read": ROLES.USER,
-  "article:create": ROLES.CREATOR,
-  "article:edit:own": ROLES.CREATOR,
-  "article:edit:any": ROLES.SUPERADMIN,
-  "article:delete:own": ROLES.CREATOR,
-  "article:delete:any": ROLES.SUPERADMIN,
-  "article:publish:own": ROLES.CREATOR,
-  "article:publish:any": ROLES.SUPERADMIN,
+  'article:read': ROLES.USER,
+  'article:create': ROLES.CREATOR,
+  'article:edit:own': ROLES.CREATOR,
+  'article:edit:any': ROLES.SUPERADMIN,
+  'article:delete:own': ROLES.CREATOR,
+  'article:delete:any': ROLES.SUPERADMIN,
+  'article:publish:own': ROLES.CREATOR,
+  'article:publish:any': ROLES.SUPERADMIN,
   // Posts
-  "post:read": ROLES.USER,
-  "post:create": ROLES.USER,
-  "post:delete:own": ROLES.USER,
-  "post:delete:any": ROLES.SUPERADMIN,
+  'post:read': ROLES.USER,
+  'post:create': ROLES.USER,
+  'post:delete:own': ROLES.USER,
+  'post:delete:any': ROLES.SUPERADMIN,
   // Audience
-  "audience:read:own": ROLES.CREATOR,
-  "audience:read:any": ROLES.SUPERADMIN,
-  "audience:block": ROLES.CREATOR,
+  'audience:read:own': ROLES.CREATOR,
+  'audience:read:any': ROLES.SUPERADMIN,
+  'audience:block': ROLES.CREATOR,
   // Billing
-  "billing:read:own": ROLES.USER,
-  "billing:manage:own": ROLES.CREATOR,
-  "billing:refund:any": ROLES.SUPERADMIN,
+  'billing:read:own': ROLES.USER,
+  'billing:manage:own': ROLES.CREATOR,
+  'billing:refund:any': ROLES.SUPERADMIN,
   // Admin
-  "admin:dashboard:view": ROLES.SUPERADMIN,
-  "admin:users:view": ROLES.SUPERADMIN,
-  "admin:users:moderate": ROLES.SUPERADMIN,
-  "admin:config:edit": ROLES.SUPERADMIN,
-  "admin:widgets:edit": ROLES.SUPERADMIN,
-  "admin:frontend:edit": ROLES.SUPERADMIN,
+  'admin:dashboard:view': ROLES.SUPERADMIN,
+  'admin:users:view': ROLES.SUPERADMIN,
+  'admin:users:moderate': ROLES.SUPERADMIN,
+  'admin:config:edit': ROLES.SUPERADMIN,
+  'admin:widgets:edit': ROLES.SUPERADMIN,
+  'admin:frontend:edit': ROLES.SUPERADMIN,
   // Tenant
-  "tenant:configure:own": ROLES.CREATOR,
-  "tenant:configure:any": ROLES.SUPERADMIN,
+  'tenant:configure:own': ROLES.CREATOR,
+  'tenant:configure:any': ROLES.SUPERADMIN,
 };
 
 /**
@@ -123,9 +123,9 @@ export function require(userRole: Role | null, action: Action): void {
  * ❌ Erreur de permission typée.
  */
 export class PermissionError extends Error {
-  constructor(message: string = "Permission denied") {
+  constructor(message: string = 'Permission denied') {
     super(message);
-    this.name = "PermissionError";
+    this.name = 'PermissionError';
   }
 }
 
@@ -138,8 +138,8 @@ export function canEditArticle(
 ): boolean {
   if (!user) return false;
   if (user.role === ROLES.SUPERADMIN) return true;
-  if (can(user.role, "article:edit:own") && user.id === article.authorId) return true;
-  return can(user.role, "article:edit:any");
+  if (can(user.role, 'article:edit:own') && user.id === article.authorId) return true;
+  return can(user.role, 'article:edit:any');
 }
 
 /**
@@ -151,8 +151,8 @@ export function canManageTenant(
 ): boolean {
   if (!user) return false;
   if (user.role === ROLES.SUPERADMIN) return true;
-  if (can(user.role, "tenant:configure:own") && user.id === tenant.ownerId) return true;
-  return can(user.role, "tenant:configure:any");
+  if (can(user.role, 'tenant:configure:own') && user.id === tenant.ownerId) return true;
+  return can(user.role, 'tenant:configure:any');
 }
 
 // Re-exports pratiques

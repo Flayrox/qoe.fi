@@ -77,7 +77,10 @@ export function truncateArticleContentForPaywall(
 }
 
 function countWords(html: string): number {
-  const plainText = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const plainText = html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (!plainText) return 0;
   return plainText.split(/\s+/).filter(Boolean).length;
 }

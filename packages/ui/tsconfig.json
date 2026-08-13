@@ -6,7 +6,9 @@
     "outDir": "./dist",
     "paths": {
       "@qoe/config": ["../config/src/index.ts"],
-      "@qoe/config/*": ["../config/src/*"]
+      "@qoe/config/*": ["../config/src/*"],
+      "@qoe/api-client": ["../api-client/src/index.ts"],
+      "@qoe/api-client/*": ["../api-client/src/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],

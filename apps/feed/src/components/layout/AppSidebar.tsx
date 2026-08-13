@@ -1,71 +1,69 @@
-"use client"
+'use client';
 
-import React from "react"
-import { Sidebar } from "@qoe/ui/sidebar"
-import { Logo } from "@qoe/ui"
-import { routes } from "@qoe/config/routes"
-import { useTranslate } from "@qoe/i18n"
+import React from 'react';
+import { Sidebar } from '@qoe/ui/sidebar';
+import { Logo } from '@qoe/ui';
+import { routes } from '@qoe/config/routes';
+import { useTranslate } from '@qoe/i18n';
 
 interface AppSidebarProps {
-  userName?: string
-  userEmail?: string
-  userAvatar?: string | null
-  userRole?: string
-  onLogout?: () => void | Promise<void>
+  userName?: string;
+  userEmail?: string;
+  userAvatar?: string | null;
+  userRole?: string;
+  onLogout?: () => void | Promise<void>;
 }
 
 export function AppSidebar({
-  userName = "Lecteur",
-  userEmail = "",
+  userName = 'Lecteur',
+  userEmail = '',
   userAvatar = null,
-  userRole = "reader",
   onLogout,
 }: AppSidebarProps) {
-  const { t } = useTranslate()
-  const userFallback = userName.slice(0, 2).toUpperCase()
+  const { t } = useTranslate();
+  const userFallback = userName.slice(0, 2).toUpperCase();
 
   const menuItems = [
     {
-      title: t("feed.home", "Accueil"),
+      title: t('feed.home', 'Accueil'),
       url: routes.feed.home(),
-      iconName: "Home",
+      iconName: 'Home',
     },
     {
-      title: t("feed.search", "Recherche"),
-      url: "/search",
-      iconName: "Search",
+      title: t('feed.search', 'Recherche'),
+      url: '/search',
+      iconName: 'Search',
     },
     {
-      title: t("feed.notifications", "Notifications"),
-      url: "/notifications",
-      iconName: "Bell",
+      title: t('feed.notifications', 'Notifications'),
+      url: '/notifications',
+      iconName: 'Bell',
     },
     {
-      title: t("feed.starter_packs", "Starter Packs"),
+      title: t('feed.starter_packs', 'Starter Packs'),
       url: routes.feed.starterPacks(),
-      iconName: "Compass",
+      iconName: 'Compass',
     },
     {
-      title: t("feed.tab_library", "Signets"),
+      title: t('feed.tab_library', 'Signets'),
       url: routes.feed.library(),
-      iconName: "Bookmark",
+      iconName: 'Bookmark',
     },
     {
-      title: t("highlights.title", "Surlignages"),
+      title: t('highlights.title', 'Surlignages'),
       url: routes.feed.highlights(),
-      iconName: "Highlighter",
+      iconName: 'Highlighter',
     },
     {
-      title: t("settings_reader.tab_billing", "Portefeuille"),
+      title: t('settings_reader.tab_billing', 'Portefeuille'),
       url: routes.feed.billing(),
-      iconName: "Wallet",
+      iconName: 'Wallet',
     },
-  ]
-
+  ];
 
   const handleOpenComposer = () => {
-    window.dispatchEvent(new CustomEvent("open-composer"))
-  }
+    window.dispatchEvent(new CustomEvent('open-composer'));
+  };
 
   return (
     <Sidebar
@@ -78,10 +76,9 @@ export function AppSidebar({
       userAvatar={userAvatar}
       onLogout={onLogout}
       primaryAction={{
-        label: t("feed.publish_thought", "Publier une pensée"),
+        label: t('feed.publish_thought', 'Publier une pensée'),
         onClick: handleOpenComposer,
       }}
     />
-  )
+  );
 }
-

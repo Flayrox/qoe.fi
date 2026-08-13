@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import React from "react";
-import { motion } from "framer-motion";
-import { useTranslate, useTolgee } from "@qoe/i18n";
-import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import React from 'react';
+import { motion } from 'framer-motion';
+import { useTranslate, useTolgee } from '@qoe/i18n';
+import Link from 'next/link';
+import { ArrowUpRight } from 'lucide-react';
 
 interface CTAProps {
   config: Record<string, string>;
@@ -13,24 +13,48 @@ interface CTAProps {
 export const CTA = ({ config }: CTAProps) => {
   const { t } = useTranslate();
   const tolgee = useTolgee();
-  const locale = tolgee.getLanguage() || "fr";
+  const locale = tolgee.getLanguage() || 'fr';
 
-  const eyebrow = config[`cta_eyebrow_${locale}`] || config["cta_eyebrow"] || t("cta_eyebrow", "Pour ceux qui veulent se cultiver");
-  const headline = config[`cta_headline_${locale}`] || config["cta_headline"] || t("cta_headline", "Du temps bien dépensé.");
-  const subline = config[`cta_subline_${locale}`] || config["cta_subline"] || t("cta_subline", "Pas de scroll toxique. Pas d'algorithme marchand. Juste du fond, du temps long, et un espace qui respecte votre intelligence.");
-  const btnPrimary = config[`cta_btn_primary_${locale}`] || config["cta_btn_primary"] || t("cta_btn_primary", "Commencer à lire");
-  const btnSecondary = config[`cta_btn_secondary_${locale}`] || config["cta_btn_secondary"] || t("cta_btn_secondary", "Se cultiver, gratuitement");
-  const socialProof = config[`cta_social_proof_${locale}`] || config["cta_social_proof"] || t("cta_social_proof", "Gratuit · Aucune carte bancaire requise · Données hébergées en Europe");
+  const eyebrow =
+    config[`cta_eyebrow_${locale}`] ||
+    config['cta_eyebrow'] ||
+    t('cta_eyebrow', 'Pour ceux qui veulent se cultiver');
+  const headline =
+    config[`cta_headline_${locale}`] ||
+    config['cta_headline'] ||
+    t('cta_headline', 'Du temps bien dépensé.');
+  const subline =
+    config[`cta_subline_${locale}`] ||
+    config['cta_subline'] ||
+    t(
+      'cta_subline',
+      "Pas de scroll toxique. Pas d'algorithme marchand. Juste du fond, du temps long, et un espace qui respecte votre intelligence."
+    );
+  const btnPrimary =
+    config[`cta_btn_primary_${locale}`] ||
+    config['cta_btn_primary'] ||
+    t('cta_btn_primary', 'Commencer à lire');
+  const btnSecondary =
+    config[`cta_btn_secondary_${locale}`] ||
+    config['cta_btn_secondary'] ||
+    t('cta_btn_secondary', 'Se cultiver, gratuitement');
+  const socialProof =
+    config[`cta_social_proof_${locale}`] ||
+    config['cta_social_proof'] ||
+    t('cta_social_proof', 'Gratuit · Aucune carte bancaire requise · Données hébergées en Europe');
 
   return (
     <section
       className="relative overflow-hidden py-32 px-6 flex flex-col items-center text-center"
-      style={{ background: "#F97316" }}
+      style={{ background: '#F97316' }}
     >
       {/* Grain texture overlay */}
-      <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-      }} />
+      <div
+        className="absolute inset-0 opacity-[0.04] pointer-events-none"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        }}
+      />
 
       <div className="relative z-10 max-w-2xl mx-auto">
         {/* Eyebrow */}
@@ -75,7 +99,7 @@ export const CTA = ({ config }: CTAProps) => {
         >
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 bg-white text-[#EE4B2B] font-semibold px-7 py-3.5 rounded-xl hover:bg-neutral-50 transition-colors shadow-lg text-sm"
+            className="inline-flex items-center gap-2 bg-white text-[#EE4B2B] font-semibold px-7 py-3.5 rounded-xl hover:bg-muted transition-colors shadow-lg text-sm"
           >
             {btnPrimary}
             <ArrowUpRight className="w-4 h-4" />

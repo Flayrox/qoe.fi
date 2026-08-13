@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { getMonorepoUrl } from "@qoe/config";
+import { NextResponse } from 'next/server';
+import { getMonorepoUrl } from '@qoe/config';
 
 /**
  * 🔀 Route Handler pour /login sur apps/dashboard (port 3020)
@@ -7,16 +7,16 @@ import { getMonorepoUrl } from "@qoe/config";
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const host = request.headers.get("host") || url.host;
+  const host = request.headers.get('host') || url.host;
 
-  const loginBase = `${getMonorepoUrl("feed", host)}/login`;
+  const loginBase = `${getMonorepoUrl('feed', host)}/login`;
   const search = url.search;
 
   let redirectTarget: string;
   if (search) {
     redirectTarget = `${loginBase}${search}`;
   } else {
-    const dashboardBase = getMonorepoUrl("dashboard", host);
+    const dashboardBase = getMonorepoUrl('dashboard', host);
     redirectTarget = `${loginBase}?redirect=${encodeURIComponent(`${dashboardBase}/`)}`;
   }
 

@@ -5,7 +5,10 @@ import { isUnauthorizedError, notifyUnauthorized } from '../utils/authError';
 export interface ToggleLikeVariables {
   thoughtId: string;
   isLikedCurrent: boolean;
-  likeMutationFn: (thoughtId: string, isLikedCurrent: boolean) => Promise<{ success: boolean; message?: string }>;
+  likeMutationFn: (
+    thoughtId: string,
+    isLikedCurrent: boolean
+  ) => Promise<{ success: boolean; message?: string }>;
 }
 
 export interface UseOptimisticLikeOptions {
@@ -92,7 +95,11 @@ export function createOptimisticLikeMutationOptions(
       return { previousQueries };
     },
 
-    onError: (err: Error, _variables: ToggleLikeVariables, context?: { previousQueries?: Array<[readonly unknown[], unknown]> }) => {
+    onError: (
+      err: Error,
+      _variables: ToggleLikeVariables,
+      context?: { previousQueries?: Array<[readonly unknown[], unknown]> }
+    ) => {
       // Rollback all query snapshots on failure
       if (context?.previousQueries) {
         context.previousQueries.forEach(([key, data]) => {

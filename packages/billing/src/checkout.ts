@@ -2,7 +2,7 @@
 // 💳 Stripe Checkout & Portal Sessions
 // =====================================================================
 
-import { stripe } from "./client";
+import { stripe } from './client';
 
 export interface CreateSubscriptionCheckoutParams {
   creatorId: string;
@@ -17,12 +17,10 @@ export interface CreateSubscriptionCheckoutParams {
 /**
  * Creates a Stripe Checkout Session for subscribing a reader to a creator's paid tier.
  */
-export async function createSubscriptionCheckoutSession(
-  params: CreateSubscriptionCheckoutParams
-) {
+export async function createSubscriptionCheckoutSession(params: CreateSubscriptionCheckoutParams) {
   const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    payment_method_types: ["card"],
+    mode: 'subscription',
+    payment_method_types: ['card'],
     customer_email: params.stripeCustomerId ? undefined : params.readerEmail,
     customer: params.stripeCustomerId || undefined,
     line_items: [
@@ -37,13 +35,13 @@ export async function createSubscriptionCheckoutSession(
     metadata: {
       creatorId: params.creatorId,
       subscriberEmail: params.readerEmail,
-      tierId: params.tierId || "",
+      tierId: params.tierId || '',
     },
     subscription_data: {
       metadata: {
         creatorId: params.creatorId,
         subscriberEmail: params.readerEmail,
-        tierId: params.tierId || "",
+        tierId: params.tierId || '',
       },
     },
   });

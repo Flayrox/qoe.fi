@@ -7,11 +7,11 @@
  */
 export function formatCurrency(
   cents: number,
-  currency: string = "EUR",
-  locale: string = "fr-FR"
+  currency: string = 'EUR',
+  locale: string = 'fr-FR'
 ): string {
   return new Intl.NumberFormat(locale, {
-    style: "currency",
+    style: 'currency',
     currency,
   }).format(cents / 100);
 }
@@ -20,7 +20,7 @@ export function formatCurrency(
  * 🔢 Formate un nombre avec séparateurs.
  *   1234 → "1 234" (FR) ou "1,234" (EN)
  */
-export function formatNumber(num: number, locale: string = "fr-FR"): string {
+export function formatNumber(num: number, locale: string = 'fr-FR'): string {
   return new Intl.NumberFormat(locale).format(num);
 }
 
@@ -48,11 +48,8 @@ export function formatReadingTime(minutes: number): string {
 /**
  * 📅 Formate une date en relatif ("il y a 2h", "hier", "3j").
  */
-export function formatRelativeDate(
-  date: Date | string,
-  locale: string = "fr-FR"
-): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+export function formatRelativeDate(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffSec = Math.floor(diffMs / 1000);
@@ -63,11 +60,11 @@ export function formatRelativeDate(
   if (diffSec < 60) return "à l'instant";
   if (diffMin < 60) return `il y a ${diffMin} min`;
   if (diffHour < 24) return `il y a ${diffHour} h`;
-  if (diffDay === 1) return "hier";
+  if (diffDay === 1) return 'hier';
   if (diffDay < 7) return `il y a ${diffDay} j`;
   if (diffDay < 30) return `il y a ${Math.floor(diffDay / 7)} sem`;
   if (diffDay < 365) return `il y a ${Math.floor(diffDay / 30)} mois`;
-  return `il y a ${Math.floor(diffDay / 365)} an${Math.floor(diffDay / 365) > 1 ? "s" : ""}`;
+  return `il y a ${Math.floor(diffDay / 365)} an${Math.floor(diffDay / 365) > 1 ? 's' : ''}`;
 }
 
 /**
@@ -75,15 +72,15 @@ export function formatRelativeDate(
  */
 export function truncate(text: string, maxLength: number = 200): string {
   if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength).trimEnd() + "…";
+  return text.substring(0, maxLength).trimEnd() + '…';
 }
 
 /**
  * 📧 Masque partiellement un email : j***@gmail.com
  */
 export function maskEmail(email: string): string {
-  const [local, domain] = email.split("@");
+  const [local, domain] = email.split('@');
   if (!local || !domain) return email;
-  const maskedLocal = local[0] + "***";
+  const maskedLocal = local[0] + '***';
   return `${maskedLocal}@${domain}`;
 }

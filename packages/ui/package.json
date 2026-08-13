@@ -19,7 +19,7 @@
     "./sidebar": "./src/sidebar.tsx"
   },
   "scripts": {
-    "lint": "echo skip",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

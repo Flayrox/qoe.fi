@@ -1,21 +1,29 @@
-"use client"
+'use client';
 
-import React from "react"
-import { CornerDownRight } from "lucide-react"
-import { useThoughtThreadContext } from "./ThoughtThreadContext"
-import { ThoughtCard } from "@/components/social/ThoughtCard"
+import React from 'react';
+import { useThoughtThreadContext, type OptimisticThought } from './ThoughtThreadContext';
+import { ThoughtCard } from '@/components/social/ThoughtCard';
 
 export function ThoughtThreadParentContext() {
-  const { post, onOpenPost, onOpenProfile, onOpenArticle, setLightboxImage, currentUserId, toggleLike, repostThought } = useThoughtThreadContext()
+  const {
+    post,
+    onOpenPost,
+    onOpenProfile,
+    onOpenArticle,
+    setLightboxImage,
+    currentUserId,
+    toggleLike,
+    repostThought,
+  } = useThoughtThreadContext();
 
-  if (!post || !post.parent) return null
+  if (!post || !post.parent) return null;
 
   // Collect all ancestors up to top parent (root -> ... -> immediate parent)
-  const ancestors: any[] = []
-  let current: any = post.parent
+  const ancestors: OptimisticThought[] = [];
+  let current: OptimisticThought | null | undefined = post.parent;
   while (current) {
-    ancestors.unshift(current)
-    current = current.parent
+    ancestors.unshift(current);
+    current = current.parent;
   }
 
   return (
@@ -37,7 +45,5 @@ export function ThoughtThreadParentContext() {
         />
       ))}
     </div>
-  )
+  );
 }
-
-

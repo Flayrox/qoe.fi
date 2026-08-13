@@ -3,6 +3,7 @@
 **Role:** Shared helper scripts, parsing functions, and validation handlers.
 
 ## File Exhaustive Listing
+
 - `package.json`
 - `tsconfig.json`
 - `src/index.ts`

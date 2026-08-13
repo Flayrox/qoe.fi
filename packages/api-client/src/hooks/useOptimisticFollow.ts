@@ -5,7 +5,10 @@ import { isUnauthorizedError, notifyUnauthorized } from '../utils/authError';
 export interface ToggleFollowVariables {
   creatorId: string;
   isFollowedCurrent: boolean;
-  followMutationFn: (creatorId: string, isFollowedCurrent: boolean) => Promise<{ success: boolean; message?: string }>;
+  followMutationFn: (
+    creatorId: string,
+    isFollowedCurrent: boolean
+  ) => Promise<{ success: boolean; message?: string }>;
 }
 
 export interface UseOptimisticFollowOptions {
@@ -17,7 +20,11 @@ export function createOptimisticFollowMutationOptions(
   options?: UseOptimisticFollowOptions
 ) {
   return {
-    mutationFn: async ({ creatorId, isFollowedCurrent, followMutationFn }: ToggleFollowVariables) => {
+    mutationFn: async ({
+      creatorId,
+      isFollowedCurrent,
+      followMutationFn,
+    }: ToggleFollowVariables) => {
       const response = await followMutationFn(creatorId, isFollowedCurrent);
       if (!response.success) {
         throw new Error(response.message || 'Failed to update follow status');
@@ -49,7 +56,14 @@ export function createOptimisticFollowMutationOptions(
       return { previousFeedQueries, previousUserQueries };
     },
 
-    onError: (err: Error, _variables: ToggleFollowVariables, context?: { previousFeedQueries?: Array<[readonly unknown[], unknown]>; previousUserQueries?: Array<[readonly unknown[], unknown]> }) => {
+    onError: (
+      err: Error,
+      _variables: ToggleFollowVariables,
+      context?: {
+        previousFeedQueries?: Array<[readonly unknown[], unknown]>;
+        previousUserQueries?: Array<[readonly unknown[], unknown]>;
+      }
+    ) => {
       if (context?.previousFeedQueries) {
         context.previousFeedQueries.forEach(([key, data]) => {
           queryClient.setQueryData(key, data);

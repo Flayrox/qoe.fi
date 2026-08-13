@@ -2,13 +2,7 @@
 // 🛡️ Helper anti-Open-Redirect (Inspiré des patterns Ghost & Cal.com)
 // =====================================================================
 
-const DEFAULT_ALLOWED_DOMAINS = [
-  "lvh.me",
-  "qoe.test",
-  "qoe.fi",
-  "localhost",
-  "127.0.0.1",
-];
+const DEFAULT_ALLOWED_DOMAINS = ['lvh.me', 'qoe.test', 'qoe.fi', 'localhost', '127.0.0.1'];
 
 /**
  * Validates and sanitizes a target redirect URL to prevent Open Redirect vulnerabilities.
@@ -16,7 +10,7 @@ const DEFAULT_ALLOWED_DOMAINS = [
  */
 export function getSafeRedirectUrl(
   targetUrl: string | null | undefined,
-  fallbackPath: string = "/home",
+  fallbackPath: string = '/home',
   customAllowedDomains?: string[]
 ): string {
   if (!targetUrl) return fallbackPath;
@@ -26,9 +20,9 @@ export function getSafeRedirectUrl(
   const allowedDomains = customAllowedDomains || DEFAULT_ALLOWED_DOMAINS;
 
   // Relative path validation (e.g. /home, /library, /settings?tab=general)
-  if (trimmed.startsWith("/")) {
+  if (trimmed.startsWith('/')) {
     // Block protocol-relative URLs (//evil.com) and backslash tricks (/\evil.com)
-    if (trimmed.startsWith("//") || trimmed.startsWith("/\\") || trimmed.startsWith("/%5C")) {
+    if (trimmed.startsWith('//') || trimmed.startsWith('/\\') || trimmed.startsWith('/%5C')) {
       return fallbackPath;
     }
     // Block URLs that try to specify a scheme like /http:evil.com

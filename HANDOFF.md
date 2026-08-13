@@ -75,21 +75,24 @@ qoe.fi/                              # 18 workspaces
 ```
 
 ### Subdomains
-| Subdomain | App | Usage |
-|-----------|-----|-------|
-| `qoe.fi` | feed | Home / feed lecteur / auth centralisé |
-| `dashboard.qoe.fi` | dashboard | Studio créateur |
-| `admin.qoe.fi` | admin | Superadmin et modération |
-| `start.qoe.fi` | landing | Site vitrine, mentions légales et CMS |
-| `*.qoe.fi` | web | Blogs créateurs (wildcard, multi-tenant) |
-| `api.qoe.fi` | api | Backend Hono |
+
+| Subdomain          | App       | Usage                                    |
+| ------------------ | --------- | ---------------------------------------- |
+| `qoe.fi`           | feed      | Home / feed lecteur / auth centralisé    |
+| `dashboard.qoe.fi` | dashboard | Studio créateur                          |
+| `admin.qoe.fi`     | admin     | Superadmin et modération                 |
+| `start.qoe.fi`     | landing   | Site vitrine, mentions légales et CMS    |
+| `*.qoe.fi`         | web       | Blogs créateurs (wildcard, multi-tenant) |
+| `api.qoe.fi`       | api       | Backend Hono                             |
 
 ---
 
 ## 📅 Chronologie du projet (3 commits)
 
 ### `3029a31` (194 fichiers, +7056 lignes) — "initialize monorepo structure"
+
 **Toi, avant notre chat** : fondation pure du monorepo.
+
 - `pnpm-workspace.yaml`, `turbo.json`, `.npmrc`
 - `package.json` racine = métapackage
 - Dockerfile + docker-compose initiaux
@@ -97,7 +100,9 @@ qoe.fi/                              # 18 workspaces
 - **Aucun code applicatif touché**
 
 ### `65e4c5b` (313 fichiers, +20 437 lignes) — "scaffold console and web"
+
 **Toi** : le gros commit de migration.
+
 - **10 packages workspace** créés (tsconfig, config, utils, db, supabase, ui, i18n, auth, billing, analytics)
 - **3 apps** créées (console, web, api)
 - **Code de `src/` → `apps/console/src/`** (78 fichiers avec imports mis à jour)
@@ -111,7 +116,9 @@ qoe.fi/                              # 18 workspaces
 - **Résultat** : `pnpm build` ✅ 3/3 successful
 
 ### `eaddd0b` (34 fichiers, +194, -1799) — "REFACTOR: centralize UI"
+
 **Moi, sur ta demande** : déduplication finale.
+
 - **AXE 1** : Schema Prisma dédupliqué (1 source unique dans `packages/db/prisma/`)
   - `prisma/` racine **supprimé**
   - `prisma.config.ts` mis à jour
@@ -128,6 +135,7 @@ qoe.fi/                              # 18 workspaces
 ## 🎉 Refacto final (état post-`eaddd0b`)
 
 ### ✅ Schema Prisma dédupliqué
+
 - Source unique : `packages/db/prisma/schema.prisma`
 - `prisma/` racine **supprimé**
 - `prisma.config.ts` pointe vers `packages/db/prisma/`
@@ -136,6 +144,7 @@ qoe.fi/                              # 18 workspaces
 - **Build vérifié** : 3/3 successful ✅
 
 ### ✅ Composants UI partagés
+
 - `SocialIcon.tsx`, `TenantHeader.tsx`, `SubscribeForm.tsx` copiés vers `packages/ui/src/`
 - `packages/ui/src/index.ts` ré-exporte les 3
 - `packages/ui/package.json` enrichi (exports subpath, `lucide-react`, `next` peerDep)
@@ -144,6 +153,7 @@ qoe.fi/                              # 18 workspaces
 - **Build vérifié** : 3/3 successful ✅
 
 ### ✅ Runtime
+
 - Build passe parfaitement
 - `pnpm dev` lance en EACCES sur port 3000/3010 : restriction **Windows Defender** (pas un bug code)
 - Pour tester en local : désactiver temporairement le pare-feu Windows OU lancer en WSL
@@ -152,38 +162,42 @@ qoe.fi/                              # 18 workspaces
 
 ## 📊 Bilan global
 
-| Aspect | Avant (3029a31) | Après (v2 - Découplé) |
-|--------|-----------------|-----------------|
-| **Apps** | 1 (monolithe) | 6 (landing, feed, dashboard, admin, web, api) |
-| **Packages partagés** | 0 | 11 |
-| **Schema Prisma** | 1 fichier racine | 1 source unique dans `packages/db/prisma/` |
-| **Composants UI partagés** | Pas de partage | Centralisés dans `packages/ui/` |
-| **Design tokens** | 5 `globals.css` divergents | Source unique dans `packages/theme/` (en cours d'intégration) |
-| **Build** | `pnpm dev` simple | `pnpm build` 6/6 + 11 packages + 1 worker successful en ~45s |
-| **Docker** | Fichier basique | 11 services + 2 réseaux isolés |
-| **Documentation** | 1 README | 7 fichiers markdown mis à jour + `plans/` interne |
-| **Lignes de code** | ~7 000 | ~26 000 (scaffold complet découplé) |
+| Aspect                     | Avant (3029a31)            | Après (v2 - Découplé)                                         |
+| -------------------------- | -------------------------- | ------------------------------------------------------------- |
+| **Apps**                   | 1 (monolithe)              | 6 (landing, feed, dashboard, admin, web, api)                 |
+| **Packages partagés**      | 0                          | 11                                                            |
+| **Schema Prisma**          | 1 fichier racine           | 1 source unique dans `packages/db/prisma/`                    |
+| **Composants UI partagés** | Pas de partage             | Centralisés dans `packages/ui/`                               |
+| **Design tokens**          | 5 `globals.css` divergents | Source unique dans `packages/theme/` (en cours d'intégration) |
+| **Build**                  | `pnpm dev` simple          | `pnpm build` 6/6 + 11 packages + 1 worker successful en ~45s  |
+| **Docker**                 | Fichier basique            | 11 services + 2 réseaux isolés                                |
+| **Documentation**          | 1 README                   | 7 fichiers markdown mis à jour + `plans/` interne             |
+| **Lignes de code**         | ~7 000                     | ~26 000 (scaffold complet découplé)                           |
 
 ---
 
 ## 🔧 Décisions architecturales clés
 
 ### 1. Monorepo Turborepo
+
 - **6 apps/services** indépendants → scale horizontal et isolation totale par contexte métier
 - **11 packages** partagés → code DRY, type-safety bout-en-bout
 - **Cache Turbo** → rebuild incrémental (42s la 1ère fois, < 1s en cache hit)
 
 ### 2. Source unique Prisma : `packages/db/prisma/`
+
 - Schema, migrations, seed sont **dans le package `@qoe/db`**
 - `prisma.config.ts` (racine) pointe vers ce package
 - Docker `migrate` service : `prisma migrate deploy --schema=/app/packages/db/prisma/schema.prisma`
 - Plus de duplication `prisma/` racine / `packages/db/prisma/`
 
 ### 3. Composants UI partagés : `packages/ui/`
+
 - `SocialIcon`, `TenantHeader`, `SubscribeForm` → partagés entre `feed`, `dashboard`, `admin`, et `web`
 - Exports subpath : `import { SocialIcon } from "@qoe/ui"`
 
 ### 4. Décomposition de la plateforme (migration v2)
+
 - Le gros dossier legacy `apps/console` et le site `start` de `apps/web` ont été scindés :
   - **`apps/landing`** : CMS, présentation et textes légaux (`start.qoe.fi`)
   - **`apps/feed`** : Flux lecteurs, SSO centralisé (`qoe.fi`)
@@ -192,6 +206,7 @@ qoe.fi/                              # 18 workspaces
   - **`apps/web`** : Rendu des blogs créateurs (`*.qoe.fi`)
 
 ### 5. tsconfig pragmatique
+
 - `strict: true` ✅
 - `noUncheckedIndexedAccess` ❌ (trop strict pour v1, à réactiver)
 - `noImplicitOverride` ❌ (idem)
@@ -238,83 +253,90 @@ pnpm docker:deploy
 
 ## 📂 Fichiers clés à connaître
 
-| Fichier | Rôle |
-|---------|------|
-| `pnpm-workspace.yaml` | Déclare les 18 workspaces |
-| `turbo.json` | Pipeline de build (cache, parallélisme) |
-| `prisma.config.ts` | Pointe vers `packages/db/prisma/` |
-| `packages/db/prisma/schema.prisma` | **Source de vérité** du modèle de données |
-| `packages/ui/src/index.ts` | Exports centralisés des composants UI partagés |
-| `packages/theme/src/` | Design tokens + registre de thèmes (source unique CSS) |
-| `apps/landing/next.config.ts` | Config Next pour la landing |
-| `apps/feed/next.config.ts` | Config Next pour le feed et l'auth |
-| `apps/dashboard/next.config.ts` | Config Next pour le dashboard |
-| `apps/admin/next.config.ts` | Config Next pour le panel admin |
-| `apps/web/next.config.ts` | Config Next pour les blogs |
-| `docker-compose.yml` | 11 services + 2 réseaux |
-| `docker/caddy/Caddyfile` | Reverse proxy + TLS auto |
-| `scripts/deploy.sh` | Deploy complet sur VPS |
+| Fichier                            | Rôle                                                   |
+| ---------------------------------- | ------------------------------------------------------ |
+| `pnpm-workspace.yaml`              | Déclare les 18 workspaces                              |
+| `turbo.json`                       | Pipeline de build (cache, parallélisme)                |
+| `prisma.config.ts`                 | Pointe vers `packages/db/prisma/`                      |
+| `packages/db/prisma/schema.prisma` | **Source de vérité** du modèle de données              |
+| `packages/ui/src/index.ts`         | Exports centralisés des composants UI partagés         |
+| `packages/theme/src/`              | Design tokens + registre de thèmes (source unique CSS) |
+| `apps/landing/next.config.ts`      | Config Next pour la landing                            |
+| `apps/feed/next.config.ts`         | Config Next pour le feed et l'auth                     |
+| `apps/dashboard/next.config.ts`    | Config Next pour le dashboard                          |
+| `apps/admin/next.config.ts`        | Config Next pour le panel admin                        |
+| `apps/web/next.config.ts`          | Config Next pour les blogs                             |
+| `docker-compose.yml`               | 11 services + 2 réseaux                                |
+| `docker/caddy/Caddyfile`           | Reverse proxy + TLS auto                               |
+| `scripts/deploy.sh`                | Deploy complet sur VPS                                 |
 
 ---
 
 ## 🛠️ Scripts PowerShell (utiles)
 
-| Script | Description |
-|--------|-------------|
-| `scripts/cleanup-fantoms.ps1` | Supprime les re-exports fantômes (legacy) |
-| `scripts/dedupe-prisma.ps1` | Déduplique le schema Prisma |
-| `scripts/dedupe-ui.ps1` | Déduplique les composants UI partagés |
-| `scripts/fix-implicit-any.ps1` | Ajoute `: any` aux callbacks Prisma |
-| `scripts/deploy.sh` | Deploy complet sur VPS (Bash) |
-| `scripts/seed-docker.sh` | Seed la DB (Bash) |
-| `scripts/backup-postgres.sh` | Backup Postgres (Bash) |
-| `scripts/wait-for-db.sh` | Attend que Postgres soit healthy (Bash) |
+| Script                         | Description                               |
+| ------------------------------ | ----------------------------------------- |
+| `scripts/cleanup-fantoms.ps1`  | Supprime les re-exports fantômes (legacy) |
+| `scripts/dedupe-prisma.ps1`    | Déduplique le schema Prisma               |
+| `scripts/dedupe-ui.ps1`        | Déduplique les composants UI partagés     |
+| `scripts/fix-implicit-any.ps1` | Ajoute `: any` aux callbacks Prisma       |
+| `scripts/deploy.sh`            | Deploy complet sur VPS (Bash)             |
+| `scripts/seed-docker.sh`       | Seed la DB (Bash)                         |
+| `scripts/backup-postgres.sh`   | Backup Postgres (Bash)                    |
+| `scripts/wait-for-db.sh`       | Attend que Postgres soit healthy (Bash)   |
 
 ---
 
 ## 🗺️ Roadmap future
 
 ### 🟡 Workers BullMQ (scaffold en place, jobs à implémenter)
+
 - `workers/` existe avec BullMQ + ioredis configurés
 - `workers/src/index.ts` est le point d'entrée
 - Jobs à câbler : emails (Resend), AI embeddings (OpenAI → pgvector), billing webhooks (Stripe)
 - Variables d'env déjà disponibles via `@qoe/config`
 
 ### 🟡 Stubs à remplacer
+
 - Onboarding et `SubscribeForm` (ces derniers ont été dédupliqués dans `@qoe/ui`)
 
 ### 🟡 Migration shadcn/ui → `packages/ui/`
+
 - ~30 fichiers shadcn dans `apps/dashboard/src/components/ui/` à migrer progressivement
 - Le pattern est en place (cf. AXE 2)
 
 ### 🟡 Brancher `packages/theme`
+
 - Le package existe avec tokens + `ThemeProvider`
 - Reste à remplacer les 5 `globals.css` locaux par `import "@qoe/theme/styles"`
 
 ### 🔮 CI/CD
+
 - GitHub Actions : `pnpm install && pnpm typecheck && pnpm build` sur chaque PR
 - Docker Hub : build + push automatique des images
 
 ### 🔮 Tests E2E
+
 - Playwright sur les flux critiques : onboarding, publish article, login, payment
 
 ### 🔮 Mobile
+
 - React Native ou Expo pour app mobile (utilise le même backend API)
 
 ---
 
 ## 📖 Documentation
 
-| Fichier | Contenu |
-|---------|---------|
-| [README.md](./README.md) | Vitrine du projet (Quick start, stack, structure) |
-| [GETTING_STARTED.md](./GETTING_STARTED.md) | Guide de démarrage rapide multi-plateforme (Mac/Win) |
-| [DEV.md](./DEV.md) | Workflow dev quotidien (3 étapes : db Docker + Caddy + `pnpm dev`) |
-| [ACTIVATION.md](./ACTIVATION.md) | Comment démarrer (4 commandes) |
-| [DOCKER.md](./DOCKER.md) | Architecture Docker, 11 services, dev/prod |
-| [DEPLOYMENT.md](./DEPLOYMENT.md) | Déploiement production (VPS, DNS, SSL, backups) |
-| [HANDOFF.md](./HANDOFF.md) | **Ce fichier** — passation + historique |
-| [MIGRATION.md](./MIGRATION.md) | Migration monolithe → monorepo (historique) |
+| Fichier                                    | Contenu                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------ |
+| [README.md](./README.md)                   | Vitrine du projet (Quick start, stack, structure)                  |
+| [GETTING_STARTED.md](./GETTING_STARTED.md) | Guide de démarrage rapide multi-plateforme (Mac/Win)               |
+| [DEV.md](./DEV.md)                         | Workflow dev quotidien (3 étapes : db Docker + Caddy + `pnpm dev`) |
+| [ACTIVATION.md](./ACTIVATION.md)           | Comment démarrer (4 commandes)                                     |
+| [DOCKER.md](./DOCKER.md)                   | Architecture Docker, 11 services, dev/prod                         |
+| [DEPLOYMENT.md](./DEPLOYMENT.md)           | Déploiement production (VPS, DNS, SSL, backups)                    |
+| [HANDOFF.md](./HANDOFF.md)                 | **Ce fichier** — passation + historique                            |
+| [MIGRATION.md](./MIGRATION.md)             | Migration monolithe → monorepo (historique)                        |
 
 > 📂 `plans/` contient les notes de travail internes (roadmaps, explorations
 > design). **Non publié** (`.gitignore`).
@@ -324,6 +346,7 @@ pnpm docker:deploy
 ## 🎓 Leçons apprises
 
 ### Ce qui a bien marché
+
 - **Strangler Fig pattern** : migration sans interruption, chaque étape réversible
 - **Source unique Prisma** : pas de drift entre `prisma/` racine et `packages/db/`
 - **Composants partagés dès le début** : éviter la duplication cross-apps
@@ -331,6 +354,7 @@ pnpm docker:deploy
 - **Caddy** : TLS automatique, pas de config Let's Encrypt à maintenir
 
 ### Ce qui a été challengeant
+
 - **Windows + pnpm** : EPERM aléatoires, parfois il faut retry `pnpm install`
 - **Prisma + pnpm workspaces** : solution `paths` dans tsconfig + `transpilePackages`
 - **Next.js 16 `typedRoutes`** : très strict sur les href, on a dû ajouter `as any`
@@ -338,6 +362,7 @@ pnpm docker:deploy
 - **Flags TS stricts** : `noUncheckedIndexedAccess` cause trop d'erreurs en v1
 
 ### Pour le prochain projet
+
 - **Commencer directement par le monorepo** dès le début (pas de monolithe)
 - **Centraliser Prisma dès le jour 1** dans `packages/db/prisma/`
 - **Pousser les composants dans `packages/ui/`** dès qu'ils sont utilisés par 2 apps

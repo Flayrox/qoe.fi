@@ -1,8 +1,8 @@
-import { NotificationList } from "@/components/notifications/NotificationList";
+import { NotificationList } from '@/components/notifications/NotificationList';
 
 export const metadata = {
-  title: "Notifications | qoe.fi",
-  description: "Consultez vos notifications, réponses, mentions et réactions en direct sur qoe.fi.",
+  title: 'Notifications | qoe.fi',
+  description: 'Consultez vos notifications, réponses, mentions et réactions en direct sur qoe.fi.',
 };
 
 export default function NotificationsPage() {

@@ -11,40 +11,41 @@
  */
 export const FEATURE_FLAGS = {
   /** Paiements Stripe activés */
-  BILLING_ENABLED: process.env.FEATURE_BILLING !== "false",
+  BILLING_ENABLED: process.env.FEATURE_BILLING !== 'false',
 
   /** Paywall & abonnementsSubstack activés */
-  PAYWALL_ENABLED: process.env.FEATURE_PAYWALL !== "false",
+  PAYWALL_ENABLED: process.env.FEATURE_PAYWALL !== 'false',
 
   /** Editeur TipTap activé (sinon fallback textarea) */
-  RICH_EDITOR_ENABLED: process.env.FEATURE_RICH_EDITOR !== "false",
+  RICH_EDITOR_ENABLED: process.env.FEATURE_RICH_EDITOR !== 'false',
 
   /** Surlignage sur articles activé */
-  HIGHLIGHTS_ENABLED: process.env.FEATURE_HIGHLIGHTS !== "false",
+  HIGHLIGHTS_ENABLED: process.env.FEATURE_HIGHLIGHTS !== 'false',
 
   /** Pensées (Thoughts) activées (sinon feed = articles uniquement) */
-  THOUGHTS_ENABLED: process.env.FEATURE_THOUGHTS !== "false" && process.env.FEATURE_MICROPOSTS !== "false",
+  THOUGHTS_ENABLED:
+    process.env.FEATURE_THOUGHTS !== 'false' && process.env.FEATURE_MICROPOSTS !== 'false',
 
   /** Recherche sémantique (pgvector) activée */
-  SEMANTIC_SEARCH_ENABLED: process.env.FEATURE_SEMANTIC_SEARCH === "true",
+  SEMANTIC_SEARCH_ENABLED: process.env.FEATURE_SEMANTIC_SEARCH === 'true',
 
   /** Système de lettres (DMs publics) activé */
-  LETTERS_ENABLED: process.env.FEATURE_LETTERS === "true",
+  LETTERS_ENABLED: process.env.FEATURE_LETTERS === 'true',
 
   /** Newsletters email activées */
-  NEWSLETTERS_ENABLED: process.env.FEATURE_NEWSLETTERS !== "false",
+  NEWSLETTERS_ENABLED: process.env.FEATURE_NEWSLETTERS !== 'false',
 
   /** Recommandations créateurs style Substack activées */
-  RECOMMENDATIONS_ENABLED: process.env.FEATURE_RECOMMENDATIONS !== "false",
+  RECOMMENDATIONS_ENABLED: process.env.FEATURE_RECOMMENDATIONS !== 'false',
 
   /** Multi-tenants custom domains activé */
-  CUSTOM_DOMAINS_ENABLED: process.env.FEATURE_CUSTOM_DOMAINS !== "false",
+  CUSTOM_DOMAINS_ENABLED: process.env.FEATURE_CUSTOM_DOMAINS !== 'false',
 
   /** Recos IA activées */
-  AI_RECOMMENDATIONS_ENABLED: process.env.FEATURE_AI_RECOS === "true",
+  AI_RECOMMENDATIONS_ENABLED: process.env.FEATURE_AI_RECOS === 'true',
 
   /** Realtime (Supabase) activé */
-  REALTIME_ENABLED: process.env.FEATURE_REALTIME !== "false",
+  REALTIME_ENABLED: process.env.FEATURE_REALTIME !== 'false',
 } as const;
 
 export type FeatureFlag = keyof typeof FEATURE_FLAGS;
@@ -64,9 +65,10 @@ export function isFeatureEnabled(feature: FeatureFlag): boolean {
  */
 export function getCreatorFeatureToggles(overrides?: Partial<Record<FeatureFlag, boolean>>) {
   return {
-    hasPaywallEnabled: overrides?.PAYWALL_ENABLED ?? isFeatureEnabled("PAYWALL_ENABLED"),
-    hasNewsletterEnabled: overrides?.NEWSLETTERS_ENABLED ?? isFeatureEnabled("NEWSLETTERS_ENABLED"),
-    hasSocialFeedEnabled: overrides?.THOUGHTS_ENABLED ?? isFeatureEnabled("THOUGHTS_ENABLED"),
-    hasRecommendationsEnabled: overrides?.RECOMMENDATIONS_ENABLED ?? isFeatureEnabled("RECOMMENDATIONS_ENABLED"),
+    hasPaywallEnabled: overrides?.PAYWALL_ENABLED ?? isFeatureEnabled('PAYWALL_ENABLED'),
+    hasNewsletterEnabled: overrides?.NEWSLETTERS_ENABLED ?? isFeatureEnabled('NEWSLETTERS_ENABLED'),
+    hasSocialFeedEnabled: overrides?.THOUGHTS_ENABLED ?? isFeatureEnabled('THOUGHTS_ENABLED'),
+    hasRecommendationsEnabled:
+      overrides?.RECOMMENDATIONS_ENABLED ?? isFeatureEnabled('RECOMMENDATIONS_ENABLED'),
   };
 }

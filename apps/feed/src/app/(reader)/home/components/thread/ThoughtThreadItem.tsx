@@ -1,16 +1,16 @@
-"use client"
+'use client';
 
-import React, { useState } from "react"
-import { EyeOff, CornerDownRight } from "lucide-react"
-import { toggleHideReplyAction, toggleBlockUserAction } from "@qoe/api-client/actions/feed"
-import { toast } from "sonner"
-import { ThoughtThreadTombstone } from "./ThoughtThreadTombstone"
-import { useThoughtThreadContext, type OptimisticThought } from "./ThoughtThreadContext"
-import { ThoughtCard } from "@/components/social/ThoughtCard"
+import React, { useState } from 'react';
+import { EyeOff, CornerDownRight } from 'lucide-react';
+import { toggleHideReplyAction, toggleBlockUserAction } from '@qoe/api-client/actions/feed';
+import { toast } from 'sonner';
+import { ThoughtThreadTombstone } from './ThoughtThreadTombstone';
+import { useThoughtThreadContext, type OptimisticThought } from './ThoughtThreadContext';
+import { ThoughtCard } from '@/components/social/ThoughtCard';
 
 export interface ThoughtThreadItemProps {
-  reply: OptimisticThought
-  depth?: number
+  reply: OptimisticThought;
+  depth?: number;
 }
 
 export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) {
@@ -23,11 +23,11 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
     onOpenPost,
     onOpenProfile,
     onOpenArticle,
-  } = useThoughtThreadContext()
+  } = useThoughtThreadContext();
 
-  const [showHidden, setShowHidden] = useState<boolean>(false)
-  const [isHidden, setIsHidden] = useState<boolean>(Boolean(reply.isHiddenByAuthor))
-  const [showAllChildren, setShowAllChildren] = useState<boolean>(false)
+  const [showHidden, setShowHidden] = useState<boolean>(false);
+  const [isHidden, setIsHidden] = useState<boolean>(Boolean(reply.isHiddenByAuthor));
+  const [showAllChildren, setShowAllChildren] = useState<boolean>(false);
 
   if (reply.isDeleted) {
     return (
@@ -41,28 +41,28 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
           </div>
         )}
       </div>
-    )
+    );
   }
 
   const handleHideReplyToggle = async () => {
-    const res = await toggleHideReplyAction(reply.id)
+    const res = await toggleHideReplyAction(reply.id);
     if (res.ok && res.data) {
-      setIsHidden(res.data.isHiddenByAuthor)
-      toast.success(res.data.isHiddenByAuthor ? "Réponse masquée." : "Réponse affichée.")
+      setIsHidden(res.data.isHiddenByAuthor);
+      toast.success(res.data.isHiddenByAuthor ? 'Réponse masquée.' : 'Réponse affichée.');
     } else {
-      toast.error("Impossible de modifier le masquage de la réponse.")
+      toast.error('Impossible de modifier le masquage de la réponse.');
     }
-  }
+  };
 
   const handleBlockUserToggle = async () => {
-    if (!reply.author?.id) return
-    const res = await toggleBlockUserAction(reply.author.id)
+    if (!reply.author?.id) return;
+    const res = await toggleBlockUserAction(reply.author.id);
     if (res.ok && res.data) {
-      toast.success(res.data.blocked ? "Utilisateur bloqué." : "Utilisateur débloqué.")
+      toast.success(res.data.blocked ? 'Utilisateur bloqué.' : 'Utilisateur débloqué.');
     } else {
-      toast.error("Erreur lors du blocage.")
+      toast.error('Erreur lors du blocage.');
     }
-  }
+  };
 
   if (isHidden && !showHidden) {
     return (
@@ -78,14 +78,16 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
           Afficher
         </button>
       </div>
-    )
+    );
   }
 
-  const INITIAL_VISIBLE_CHILDREN = 3
-  const hasChildren = Boolean(reply.replies && reply.replies.length > 0)
-  const childList = reply.replies || []
-  const visibleChildren = showAllChildren ? childList : childList.slice(0, INITIAL_VISIBLE_CHILDREN)
-  const remainingChildren = childList.length - INITIAL_VISIBLE_CHILDREN
+  const INITIAL_VISIBLE_CHILDREN = 3;
+  const hasChildren = Boolean(reply.replies && reply.replies.length > 0);
+  const childList = reply.replies || [];
+  const visibleChildren = showAllChildren
+    ? childList
+    : childList.slice(0, INITIAL_VISIBLE_CHILDREN);
+  const remainingChildren = childList.length - INITIAL_VISIBLE_CHILDREN;
 
   return (
     <div className="space-y-1 font-sans">
@@ -121,12 +123,15 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
                 className="text-[11px] font-medium text-brand hover:underline flex items-center gap-1.5 cursor-pointer py-1"
               >
                 <CornerDownRight className="w-3 h-3" />
-                <span>Afficher {remainingChildren} autre{remainingChildren > 1 ? "s" : ""} sous-réponse{remainingChildren > 1 ? "s" : ""}</span>
+                <span>
+                  Afficher {remainingChildren} autre{remainingChildren > 1 ? 's' : ''} sous-réponse
+                  {remainingChildren > 1 ? 's' : ''}
+                </span>
               </button>
             </div>
           )}
         </div>
       )}
     </div>
-  )
+  );
 }

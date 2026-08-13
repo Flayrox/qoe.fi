@@ -1,5 +1,16 @@
 // Stub minimal — sera restauré depuis git history
-import Link from "next/link";
+import Link from 'next/link';
+
+interface ArticleAuthor {
+  id: string;
+  name: string | null;
+  username: string | null;
+  subdomain: string | null;
+  customDomain: string | null;
+  logoUrl: string | null;
+  heroText: string | null;
+  isCertified?: boolean;
+}
 
 interface Article {
   id: string;
@@ -11,7 +22,7 @@ interface Article {
   isPremium: boolean;
   readingTime: number;
   createdAt: Date | string;
-  author: any;
+  author: ArticleAuthor | null;
   category: { name: string } | null;
   tags?: string[];
 }
@@ -19,12 +30,12 @@ interface Article {
 export function ArticleCard({ article, isPreview }: { article: Article; isPreview?: boolean }) {
   return (
     <Link
-      href={`/article/${article.slug}` as any}
+      href={`/article/${article.slug}`}
       className="block p-4 border border-border/40 rounded-lg hover:bg-muted/50 transition-colors"
     >
       <h3 className="font-semibold">{article.title}</h3>
       <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-        {article.content?.replace(/<[^>]*>?/gm, "").substring(0, 150)}
+        {article.content?.replace(/<[^>]*>?/gm, '').substring(0, 150)}
       </p>
       {isPreview && (
         <p className="text-xs text-primary mt-2">Aperçu - Connectez-vous pour la suite</p>

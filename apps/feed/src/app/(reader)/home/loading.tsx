@@ -1,5 +1,5 @@
-import React from "react"
-import { Skeleton } from "@qoe/ui/ui/skeleton"
+import React from 'react';
+import { Skeleton } from '@qoe/ui/ui/skeleton';
 
 export default function HomeLoading() {
   return (
@@ -52,5 +52,5 @@ export default function HomeLoading() {
         </div>
       ))}
     </div>
-  )
+  );
 }

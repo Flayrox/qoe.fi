@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic';
-import { Suspense } from 'react'
-import { LoginForm } from './login-form'
-import { getTranslate } from "@qoe/i18n/server"
+import { Suspense } from 'react';
+import { LoginForm } from './login-form';
 
 function LoginFormFallback() {
   return (
@@ -9,17 +8,15 @@ function LoginFormFallback() {
       <div className="w-[55%] h-full bg-muted rounded-[24px]"></div>
       <div className="w-[45%] h-full bg-[#EE4B2B]/10 rounded-[24px] ml-3"></div>
     </div>
-  )
+  );
 }
 
 export default async function LoginPage() {
-  const t = await getTranslate()
-
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-background px-4 py-12">
       <Suspense fallback={<LoginFormFallback />}>
         <LoginForm />
       </Suspense>
     </main>
-  )
+  );
 }

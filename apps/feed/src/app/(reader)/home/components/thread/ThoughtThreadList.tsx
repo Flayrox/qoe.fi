@@ -1,18 +1,18 @@
-"use client"
+'use client';
 
-import React, { useState } from "react"
-import { MessageSquare } from "lucide-react"
-import { ThoughtThreadItem } from "./ThoughtThreadItem"
-import { ThoughtThreadTombstone } from "./ThoughtThreadTombstone"
-import { useThoughtThreadContext, type OptimisticThought } from "./ThoughtThreadContext"
+import React, { useState } from 'react';
+import { MessageSquare } from 'lucide-react';
+import { ThoughtThreadItem } from './ThoughtThreadItem';
+import { ThoughtThreadTombstone } from './ThoughtThreadTombstone';
+import { useThoughtThreadContext, type OptimisticThought } from './ThoughtThreadContext';
 
 export interface ThoughtThreadListProps {
-  children?: (item: OptimisticThought) => React.ReactNode
+  children?: (item: OptimisticThought) => React.ReactNode;
 }
 
 export function ThoughtThreadList({ children }: ThoughtThreadListProps) {
-  const { post, loading } = useThoughtThreadContext()
-  const [showAllReplies, setShowAllReplies] = useState<boolean>(false)
+  const { post, loading } = useThoughtThreadContext();
+  const [showAllReplies, setShowAllReplies] = useState<boolean>(false);
 
   if (loading) {
     return (
@@ -27,7 +27,7 @@ export function ThoughtThreadList({ children }: ThoughtThreadListProps) {
           </div>
         ))}
       </div>
-    )
+    );
   }
 
   if (!post || !post.replies || post.replies.length === 0) {
@@ -35,23 +35,25 @@ export function ThoughtThreadList({ children }: ThoughtThreadListProps) {
       <div className="py-8 text-center text-xs text-muted-foreground font-sans">
         Soyez le premier à exprimer une réponse.
       </div>
-    )
+    );
   }
 
-  const INITIAL_VISIBLE_COUNT = 5
-  const visibleReplies = showAllReplies ? post.replies : post.replies.slice(0, INITIAL_VISIBLE_COUNT)
-  const remainingCount = post.replies.length - INITIAL_VISIBLE_COUNT
+  const INITIAL_VISIBLE_COUNT = 5;
+  const visibleReplies = showAllReplies
+    ? post.replies
+    : post.replies.slice(0, INITIAL_VISIBLE_COUNT);
+  const remainingCount = post.replies.length - INITIAL_VISIBLE_COUNT;
 
   return (
     <div className="divide-y divide-border/20 pt-2 font-sans">
       {visibleReplies.map((reply) => {
-        if (children) return children(reply)
+        if (children) return children(reply);
 
         if (reply.isDeleted) {
-          return <ThoughtThreadTombstone key={reply.id} />
+          return <ThoughtThreadTombstone key={reply.id} />;
         }
 
-        return <ThoughtThreadItem key={reply.id} reply={reply} />
+        return <ThoughtThreadItem key={reply.id} reply={reply} />;
       })}
 
       {!showAllReplies && remainingCount > 0 && (
@@ -62,10 +64,13 @@ export function ThoughtThreadList({ children }: ThoughtThreadListProps) {
             className="w-full py-2 px-3 rounded-xl border border-border/40 bg-card/60 hover:bg-muted/40 text-xs font-semibold text-brand transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
           >
             <MessageSquare className="w-3.5 h-3.5" />
-            <span>Afficher {remainingCount} autre{remainingCount > 1 ? "s" : ""} réponse{remainingCount > 1 ? "s" : ""}</span>
+            <span>
+              Afficher {remainingCount} autre{remainingCount > 1 ? 's' : ''} réponse
+              {remainingCount > 1 ? 's' : ''}
+            </span>
           </button>
         </div>
       )}
     </div>
-  )
+  );
 }

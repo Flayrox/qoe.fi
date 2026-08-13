@@ -8,6 +8,7 @@
 ## 📋 Pré-déploiement
 
 ### Vérification structure monorepo
+
 ```bash
 # À la racine du projet
 ls -la
@@ -15,6 +16,7 @@ ls -la
 ```
 
 ### Configuration Supabase (Cloud)
+
 1. Crée un projet sur [supabase.com](https://supabase.com)
 2. Active l'extension `vector` dans `Database → Extensions`
 3. Note :
@@ -24,6 +26,7 @@ ls -la
 4. Configure les redirections auth : `https://qoe.fi/auth/callback`
 
 ### Configuration Stripe
+
 1. Crée un compte sur [stripe.com](https://stripe.com)
 2. Active ton compte (KYC + IBAN)
 3. Note tes clés :
@@ -33,11 +36,13 @@ ls -la
 4. Crée les produits/prix pour les abonnements créateurs
 
 ### Configuration Resend
+
 1. Crée un compte sur [resend.com](https://resend.com)
 2. Vérifie ton domaine (`qoe.fi` + DKIM + DMARC)
 3. Note ta clé `re_...`
 
 ### Configuration Tolgee
+
 1. Crée un projet sur [tolgee.io](https://tolgee.io)
 2. Note ta clé `tgpk_...`
 
@@ -110,6 +115,7 @@ pnpm docker:dev
 ## 🖥️ Déploiement sur VPS
 
 ### Prérequis VPS
+
 - **OS** : Ubuntu 22.04 LTS (ou Debian 12)
 - **RAM** : 4 GB minimum (8 GB recommandé pour la prod)
 - **CPU** : 2 vCPU minimum
@@ -118,6 +124,7 @@ pnpm docker:dev
 - **Ports ouverts** : 22 (SSH), 80 (HTTP), 443 (HTTPS)
 
 ### Étape 1 : Préparer le VPS
+
 ```bash
 # Connexion SSH
 ssh user@ton-vps-ip
@@ -137,6 +144,7 @@ docker compose version
 ```
 
 ### Étape 2 : Cloner le projet
+
 ```bash
 cd /var/www  # Répertoire recommandé
 
@@ -153,6 +161,7 @@ git clone https://github.com/Flayrox/qoe.fi.git .
 Pour éviter les frais récurrents et garder une maîtrise souveraine des données, Supabase est hébergé localement sur le VPS dans son propre environnement Docker.
 
 1. **Cloner le dépôt officiel Supabase** :
+
    ```bash
    cd /var/www
    git clone --depth 1 https://github.com/supabase/supabase.git
@@ -161,6 +170,7 @@ Pour éviter les frais récurrents et garder une maîtrise souveraine des donné
    ```
 
 2. **Générer les clés cryptographiques de sécurité** :
+
    ```bash
    # Génère les secrets JWT, clés d'API (anon & service_role) et mots de passe système uniques
    sh utils/generate-keys.sh --update-env
@@ -169,6 +179,7 @@ Pour éviter les frais récurrents et garder une maîtrise souveraine des donné
 
 3. **Configurer les variables personnalisées et le serveur SMTP (Hostinger)** :
    Configure ton fichier `/var/www/supabase/docker/.env` avec les valeurs adaptées :
+
    ```ini
    # --- Domaines personnalisés ---
    API_EXTERNAL_URL="https://admin-supabase.qoe.fi"
@@ -186,14 +197,15 @@ Pour éviter les frais récurrents et garder une maîtrise souveraine des donné
 
 4. **Exposer le port Postgres direct (5433)** :
    Modifie le service `db` dans `/var/www/supabase/docker/docker-compose.yml` pour mapper le port `5433` du VPS vers le port `5432` du conteneur. Cela permet à Prisma et au script de migration de l'application principale de s'y connecter directement et de manière robuste :
+
    ```yaml
-     db:
-       container_name: supabase-db
-       image: supabase/postgres:17.6.1.136
-       restart: unless-stopped
-       ports:
-         - "5433:5432"
-       # ... reste de la configuration du service
+   db:
+     container_name: supabase-db
+     image: supabase/postgres:17.6.1.136
+     restart: unless-stopped
+     ports:
+       - '5433:5432'
+     # ... reste de la configuration du service
    ```
 
 5. **Démarrer les conteneurs de la stack Supabase** :
@@ -206,6 +218,7 @@ Pour éviter les frais récurrents et garder une maîtrise souveraine des donné
 
 1. **Créer la configuration de cache pour les fichiers médias (Nginx NVMe Cache)** :
    Crée `/etc/nginx/conf.d/cache.conf` pour stocker localement les assets statiques issus du Storage de Supabase :
+
    ```nginx
    proxy_cache_path /var/cache/nginx/supabase_storage levels=1:2 keys_zone=supabase_storage_cache:10m max_size=10g inactive=24h use_temp_path=off;
    ```
@@ -217,7 +230,7 @@ Pour éviter les frais récurrents et garder une maîtrise souveraine des donné
    server {
        server_name admin-supabase.qoe.fi;
        listen 80; listen [::]:80; # TLS géré par Caddy/Let's Encrypt de manière automatisée ou Nginx
-       
+
        location /storage/v1/object/public/ {
            proxy_pass http://127.0.0.1:8000;
            proxy_cache supabase_storage_cache;
@@ -277,7 +290,7 @@ Pour éviter les frais récurrents et garder une maîtrise souveraine des donné
        }
    }
    ```
-   *Active le site avec `sudo ln -s /etc/nginx/sites-available/qoe.conf /etc/nginx/sites-enabled/` et redémarre Nginx : `sudo nginx -t && sudo systemctl restart nginx`.*
+   _Active le site avec `sudo ln -s /etc/nginx/sites-available/qoe.conf /etc/nginx/sites-enabled/` et redémarre Nginx : `sudo nginx -t && sudo systemctl restart nginx`._
 
 ### Étape 5 : Migrer les données de l'ancienne DB Cloud vers la DB locale
 
@@ -322,7 +335,7 @@ Pour éviter les frais récurrents et garder une maîtrise souveraine des donné
    cd /var/www/qoe.fi
    # Build de toutes les applications (Next.js, Hono API, Workers)
    pnpm docker:prod:build
-   
+
    # Lancement en arrière-plan (sans recréer de DB locale car la DB est celle de Supabase !)
    pnpm docker:prod:up
    ```
@@ -331,13 +344,13 @@ Pour éviter les frais récurrents et garder une maîtrise souveraine des donné
 
 Chez ton registrar (Cloudflare, Hostinger, OVH, etc.), pointe les entrées DNS vers l'adresse IP de ton VPS Hetzner :
 
-| Type | Nom | Valeur | TTL |
-|------|-----|--------|-----|
-| A | `@` (qoe.fi) | `<IP_VPS>` | 300 |
-| A | `*` (*.qoe.fi) | `<IP_VPS>` | 300 |
-| A | `admin-supabase` | `<IP_VPS>` | 300 |
-| A | `admin-studio` | `<IP_VPS>` | 300 |
-| A | `cdn` (cdn.qoe.fi) | `<IP_VPS>` | 300 |
+| Type | Nom                | Valeur     | TTL |
+| ---- | ------------------ | ---------- | --- |
+| A    | `@` (qoe.fi)       | `<IP_VPS>` | 300 |
+| A    | `*` (*.qoe.fi)     | `<IP_VPS>` | 300 |
+| A    | `admin-supabase`   | `<IP_VPS>` | 300 |
+| A    | `admin-studio`     | `<IP_VPS>` | 300 |
+| A    | `cdn` (cdn.qoe.fi) | `<IP_VPS>` | 300 |
 
 > ⚠️ Le wildcard `*` est **obligatoire** pour la gestion dynamique des sous-domaines des créateurs.
 
@@ -381,6 +394,7 @@ openssl s_client -connect start.qoe.fi:443 -servername start.qoe.fi < /dev/null 
 ## 📊 Monitoring
 
 ### Logs
+
 ```bash
 # Logs de tous les services
 pnpm docker:prod:logs
@@ -397,12 +411,14 @@ pnpm docker:prod:logs:workers     # Workers BullMQ
 ```
 
 ### État
+
 ```bash
 pnpm docker:prod:ps       # Liste + état
 pnpm docker:prod:stats    # CPU/RAM par container (via docker stats)
 ```
 
 ### Shell dans un container
+
 ```bash
 pnpm docker:prod:shell    # Shell dans feed
 pnpm docker:prod:db       # psql dans db
@@ -430,6 +446,7 @@ pnpm docker:prod:rebuild   # Rebuild + restart
 ## 🔧 Maintenance
 
 ### Restart d'un service
+
 ```bash
 # Redémarrer un service Next.js spécifique
 pnpm docker:prod:web         # Blogs créateurs
@@ -444,6 +461,7 @@ pnpm docker:prod:workers
 ```
 
 ### Backup
+
 ```bash
 # Backup manuel
 pnpm docker:backup
@@ -457,6 +475,7 @@ crontab -e
 ```
 
 ### Rollback
+
 ```bash
 # Liste les images disponibles
 docker images | grep qoefi
@@ -466,6 +485,7 @@ docker compose up -d --no-deps web:<tag-précédent>
 ```
 
 ### Restore depuis backup
+
 ```bash
 # ⚠️ DESTRUCTIF : écrase la DB actuelle
 # 1. Arrêter les services qui écrivent dans la DB
@@ -487,6 +507,7 @@ pnpm docker:prod:rebuild
 ## 🆘 Troubleshooting
 
 ### DNS ne se propage pas
+
 ```bash
 # Vérifier la propagation
 nslookup qoe.fi 8.8.8.8
@@ -495,6 +516,7 @@ nslookup qoe.fi 8.8.8.8
 ```
 
 ### SSL ne s'obtient pas
+
 ```bash
 pnpm docker:prod:logs:caddy
 # Cherche "acme" ou "challenge" dans les logs
@@ -506,6 +528,7 @@ pnpm docker:prod:logs:caddy
 ```
 
 ### Container unhealthy
+
 ```bash
 # Identifier le service
 pnpm docker:prod:ps
@@ -516,6 +539,7 @@ pnpm docker:prod:logs:feed
 ```
 
 ### DB migrations échouent
+
 ```bash
 # Voir le détail
 pnpm docker:prod:logs:migrate
@@ -526,6 +550,7 @@ pnpm docker:prod:up
 ```
 
 ### "Out of memory" sur le VPS
+
 ```bash
 # Vérifier la conso
 docker stats

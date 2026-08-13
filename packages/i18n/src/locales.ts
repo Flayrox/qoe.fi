@@ -5,7 +5,7 @@
 //    L'app actuelle a 2 dossiers (messages/ + src/locales/) → on unifie.
 // =====================================================================
 
-import { LANGUAGES, type Language } from "@qoe/config";
+import { LANGUAGES, type Language } from '@qoe/config';
 
 export { LANGUAGES, type Language };
 

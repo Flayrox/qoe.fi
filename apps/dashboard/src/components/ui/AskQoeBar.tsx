@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { GlobalCommandMenu } from "@/features/dashboard/components/GlobalCommandMenu";
+import { GlobalCommandMenu } from '@/features/dashboard/components/GlobalCommandMenu';
 
 export function AskQoeBar() {
   return <GlobalCommandMenu />;

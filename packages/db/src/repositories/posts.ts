@@ -2,30 +2,203 @@
 // 📝 Thoughts Repository — Micro-posts / Thoughts (timeline)
 // =====================================================================
 
-import { prisma } from "../client";
-import type { Thought } from "@prisma/client";
-import { POST_VISIBILITY } from "@qoe/config";
+import { prisma } from '../client';
+import type { Thought, Prisma } from '@prisma/client';
+import { POST_VISIBILITY } from '@qoe/config';
+
+export type FeedThought = Prisma.ThoughtGetPayload<{
+  include: {
+    author: {
+      select: {
+        id: true;
+        name: true;
+        username: true;
+        subdomain: true;
+        customDomain: true;
+        logoUrl: true;
+        isCertified: true;
+      };
+    };
+    parent: {
+      select: {
+        id: true;
+        content: true;
+        createdAt: true;
+        author: {
+          select: {
+            id: true;
+            name: true;
+            username: true;
+            subdomain: true;
+            logoUrl: true;
+            isCertified: true;
+          };
+        };
+      };
+    };
+    repost: {
+      include: {
+        author: {
+          select: {
+            id: true;
+            name: true;
+            username: true;
+            subdomain: true;
+            customDomain: true;
+            logoUrl: true;
+            isCertified: true;
+          };
+        };
+      };
+    };
+    attachments: { orderBy: { order: 'asc' } };
+    poll: {
+      include: {
+        options: { orderBy: { order: 'asc' }; include: { _count: { select: { votes: true } } } };
+        votes: { select: { optionId: true; userId: true } };
+      };
+    };
+    _count: { select: { likes: true; replies: true; reposts: true } };
+    likes: { where: { userId: string }; select: { userId: true } };
+    reposts: { where: { authorId: string; deletedAt: null }; select: { id: true } };
+  };
+}>;
+
+export type FeedPoll = Prisma.PollGetPayload<{
+  include: {
+    options: { orderBy: { order: 'asc' }; include: { _count: { select: { votes: true } } } };
+    votes: { select: { optionId: true; userId: true } };
+  };
+}>;
+
+export interface FormattedPoll {
+  id: string;
+  thoughtId: string;
+  expiresAt: Date;
+  isExpired: boolean;
+  totalVotes: number;
+  userVotedOptionId: string | null;
+  options: Array<{
+    id: string;
+    text: string;
+    order: number;
+    voteCount: number;
+    percentage: number;
+  }>;
+}
+
+export type FeedPost = Omit<FeedThought, 'poll'> & { poll: FormattedPoll | null };
+
+type ThreadThought = Prisma.ThoughtGetPayload<{
+  include: {
+    attachments: { orderBy: { order: 'asc' } };
+    author: {
+      select: {
+        id: true;
+        name: true;
+        subdomain: true;
+        customDomain: true;
+        logoUrl: true;
+        heroText: true;
+        username: true;
+        isCertified: true;
+      };
+    };
+    repost: {
+      include: {
+        author: {
+          select: {
+            id: true;
+            name: true;
+            subdomain: true;
+            customDomain: true;
+            logoUrl: true;
+            username: true;
+            isCertified: true;
+          };
+        };
+      };
+    };
+  };
+}>;
+
+type CreatedPoll = Prisma.PollGetPayload<{ include: { options: { orderBy: { order: 'asc' } } } }>;
+
+export interface ThreadNode {
+  id: string;
+  content: string;
+  imageUrl?: string | null;
+  authorId?: string;
+  parentId?: string | null;
+  rootId?: string | null;
+  repostId?: string | null;
+  likeCount?: number;
+  replyCount?: number;
+  repostCount?: number;
+  deletedAt?: Date | null;
+  createdAt?: Date;
+  author?: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+    isCertified: boolean;
+    subdomain: string | null;
+    customDomain: string | null;
+  } | null;
+  parent?: ThreadNode | null;
+  repost?: ThreadNode | null;
+  replies?: ThreadNode[];
+  likes?: Array<{ userId: string }> | null;
+  reposts?: Array<{ id: string; authorId: string }> | null;
+  _count?: { likes?: number; replies?: number; reposts?: number } | null;
+  poll?: FeedPoll | FormattedPoll | null;
+  liked?: boolean;
+  reposted?: boolean;
+  likesCount?: number;
+  repliesCount?: number;
+  repostsCount?: number;
+  isDeleted?: boolean;
+  isFollowingAuthor?: boolean;
+  knownLikers?: Array<{
+    id: string;
+    name: string | null;
+    username: string | null;
+    subdomain: string | null;
+    logoUrl: string | null;
+  }>;
+  knownLikersTotal?: number;
+}
 
 export interface FeedSlice {
   id: string;
-  rootPost?: any;
-  parentPost?: any;
-  targetPost: any;
+  rootPost?: FeedPost | null;
+  parentPost?: FeedPost | null;
+  targetPost: FeedPost;
   isIncompleteThread: boolean;
   hiddenIntermediateCount?: number;
 }
 
-export async function buildFeedSlices(rawPosts: any[], currentUserId?: string): Promise<FeedSlice[]> {
+export async function buildFeedSlices(
+  rawPosts: FeedThought[],
+  currentUserId?: string
+): Promise<FeedSlice[]> {
+  // Drop "pure repost" rows whose source post has been soft-deleted,
+  // so deleted content never leaks back into the feed via reposts.
+  const cleanPosts = rawPosts.filter(
+    (p) => !(p.repost && p.repost.deletedAt != null && !(p.content && p.content.trim()))
+  );
+
   const missingIds = new Set<string>();
-  for (const p of rawPosts) {
+  for (const p of cleanPosts) {
     if (p.parentId) missingIds.add(p.parentId);
     if (p.rootId && p.rootId !== p.parentId) missingIds.add(p.rootId);
   }
 
-  const extraPosts = new Map<string, any>();
+  const extraPosts = new Map<string, FeedPost>();
   if (missingIds.size > 0) {
     const extras = await prisma.thought.findMany({
-      where: { id: { in: Array.from(missingIds) } },
+      where: { id: { in: Array.from(missingIds) }, deletedAt: null },
       include: {
         author: {
           select: {
@@ -53,19 +226,23 @@ export async function buildFeedSlices(rawPosts: any[], currentUserId?: string): 
             },
           },
         },
-        attachments: { orderBy: { order: "asc" } },
+        attachments: { orderBy: { order: 'asc' } },
         poll: {
           include: {
             options: {
-              orderBy: { order: "asc" },
+              orderBy: { order: 'asc' },
               include: { _count: { select: { votes: true } } },
             },
             votes: { select: { optionId: true, userId: true } },
           },
         },
         _count: { select: { likes: true, replies: true, reposts: true } },
-        likes: currentUserId ? { where: { userId: currentUserId }, select: { userId: true } } : false,
-        reposts: currentUserId ? { where: { authorId: currentUserId, deletedAt: null }, select: { id: true } } : false,
+        likes: currentUserId
+          ? { where: { userId: currentUserId }, select: { userId: true } }
+          : false,
+        reposts: currentUserId
+          ? { where: { authorId: currentUserId, deletedAt: null }, select: { id: true } }
+          : false,
       },
     });
 
@@ -73,12 +250,12 @@ export async function buildFeedSlices(rawPosts: any[], currentUserId?: string): 
       extraPosts.set(e.id, {
         ...e,
         poll: formatPollData(e.poll, currentUserId),
-      });
+      } as unknown as FeedPost);
     }
   }
 
-  const allSlices = rawPosts.map((p) => {
-    const targetPost = { ...p, poll: formatPollData(p.poll, currentUserId) };
+  const allSlices = cleanPosts.map((p) => {
+    const targetPost = { ...p, poll: formatPollData(p.poll, currentUserId) } as FeedPost;
     const parentPost = p.parentId ? extraPosts.get(p.parentId) : undefined;
     const rootPost = p.rootId && p.rootId !== p.parentId ? extraPosts.get(p.rootId) : undefined;
 
@@ -87,7 +264,7 @@ export async function buildFeedSlices(rawPosts: any[], currentUserId?: string): 
     if (parentPost && p.rootId) {
       if (parentPost.parentId !== p.rootId && parentPost.id !== p.rootId) {
         isIncompleteThread = true;
-        hiddenIntermediateCount = Math.max(1, (targetPost.replyCount || 1));
+        hiddenIntermediateCount = Math.max(1, targetPost.replyCount || 1);
       }
     }
 
@@ -104,7 +281,8 @@ export async function buildFeedSlices(rawPosts: any[], currentUserId?: string): 
   // 🧵 Bluesky dedupThreads: deduplicate by thread root to render 1 slice per conversation
   const seenRootIds = new Set<string>();
   return allSlices.filter((slice) => {
-    const conversationRootId = slice.rootPost?.id || slice.targetPost.rootId || slice.parentPost?.id || slice.targetPost.id;
+    const conversationRootId =
+      slice.rootPost?.id || slice.targetPost.rootId || slice.parentPost?.id || slice.targetPost.id;
     if (seenRootIds.has(conversationRootId)) {
       return false; // Discard redundant slice for a conversation thread already represented
     }
@@ -112,8 +290,6 @@ export async function buildFeedSlices(rawPosts: any[], currentUserId?: string): 
     return true;
   });
 }
-
-
 
 /**
  * 📰 Feed : pensées des créateurs suivis par un utilisateur.
@@ -126,7 +302,7 @@ export async function findFollowingFeed(
     where: { readerId },
     select: { creatorId: true },
   });
-  const creatorIds = follows.map((f: any) => f.creatorId);
+  const creatorIds = follows.map((f: { creatorId: string }) => f.creatorId);
 
   if (creatorIds.length === 0) return [];
 
@@ -138,13 +314,10 @@ export async function findFollowingFeed(
       author: { isShadowbanned: false, isSuspended: false },
       isDraft: false,
       deletedAt: null,
-      OR: [
-        { scheduledAt: null },
-        { scheduledAt: { lte: new Date() } },
-      ],
+      OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
       visibility: { in: [POST_VISIBILITY.PUBLIC, POST_VISIBILITY.FOLLOWERS] },
     },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: take + 1,
     cursor: options?.cursor ? { id: options.cursor } : undefined,
     skip: options?.cursor ? 1 : (options?.skip ?? 0),
@@ -192,11 +365,11 @@ export async function findFollowingFeed(
           },
         },
       },
-      attachments: { orderBy: { order: "asc" } },
+      attachments: { orderBy: { order: 'asc' } },
       poll: {
         include: {
           options: {
-            orderBy: { order: "asc" },
+            orderBy: { order: 'asc' },
             include: { _count: { select: { votes: true } } },
           },
           votes: { select: { optionId: true, userId: true } },
@@ -211,13 +384,21 @@ export async function findFollowingFeed(
   return buildFeedSlices(rawPosts, readerId);
 }
 
-export function formatPollData(rawPoll: any, currentUserId?: string | null) {
+export function formatPollData(
+  rawPoll: FeedPoll | null | undefined,
+  currentUserId?: string | null
+): FormattedPoll | null {
   if (!rawPoll) return null;
-  const totalVotes = rawPoll.options ? rawPoll.options.reduce((acc: number, opt: any) => acc + (opt._count?.votes || 0), 0) : 0;
+  const totalVotes = rawPoll.options
+    ? rawPoll.options.reduce((acc: number, opt) => acc + (opt._count?.votes || 0), 0)
+    : 0;
   const isExpired = new Date() > new Date(rawPoll.expiresAt);
-  const userVote = currentUserId && Array.isArray(rawPoll.votes) ? rawPoll.votes.find((v: any) => v.userId === currentUserId) : null;
+  const userVote =
+    currentUserId && Array.isArray(rawPoll.votes)
+      ? rawPoll.votes.find((v) => v.userId === currentUserId)
+      : null;
 
-  const options = (rawPoll.options || []).map((opt: any) => {
+  const options = (rawPoll.options || []).map((opt) => {
     const voteCount = opt._count?.votes ?? 0;
     const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
     return {
@@ -252,14 +433,14 @@ export async function findTrending(limit: number = 20, currentUserId?: string) {
       createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
       author: { isShadowbanned: false, isSuspended: false },
     },
-    orderBy: [{ likes: { _count: "desc" } }, { createdAt: "desc" }, { id: "desc" }],
+    orderBy: [{ likes: { _count: 'desc' } }, { createdAt: 'desc' }, { id: 'desc' }],
     take: limit,
     include: {
-      attachments: { orderBy: { order: "asc" } },
+      attachments: { orderBy: { order: 'asc' } },
       poll: {
         include: {
           options: {
-            orderBy: { order: "asc" },
+            orderBy: { order: 'asc' },
             include: { _count: { select: { votes: true } } },
           },
           votes: { select: { optionId: true, userId: true } },
@@ -310,19 +491,20 @@ export async function findTrending(limit: number = 20, currentUserId?: string) {
       },
       _count: { select: { likes: true, replies: true, reposts: true } },
       likes: currentUserId ? { where: { userId: currentUserId }, select: { userId: true } } : false,
-      reposts: currentUserId ? { where: { authorId: currentUserId, deletedAt: null }, select: { id: true } } : false,
+      reposts: currentUserId
+        ? { where: { authorId: currentUserId, deletedAt: null }, select: { id: true } }
+        : false,
     },
   });
 
   return buildFeedSlices(rawPosts, currentUserId);
 }
 
-
 /**
  * ✍️ Crée une pensée (Thought) avec auteur inclus.
  */
-import { recordHashtags } from "./search";
-import { canUserReplyToThought } from "./threadgates";
+import { recordHashtags } from './search';
+import { canUserReplyToThought } from './threadgates';
 
 export async function createThought(data: {
   content: string;
@@ -342,7 +524,7 @@ export async function createThought(data: {
   if (data.parentId) {
     const replyCheck = await canUserReplyToThought(data.parentId, data.authorId);
     if (!replyCheck.canReply) {
-      throw new Error(replyCheck.reason || "THREADGATE_RESTRICTED");
+      throw new Error(replyCheck.reason || 'THREADGATE_RESTRICTED');
     }
     const parentPost = await prisma.thought.findUnique({
       where: { id: data.parentId },
@@ -364,7 +546,7 @@ export async function createThought(data: {
           ? {
               create: data.attachments.map((att, idx) => ({
                 url: att.url,
-                type: att.type || "IMAGE",
+                type: att.type || 'IMAGE',
                 altText: att.altText || null,
                 order: att.order ?? idx,
               })),
@@ -377,10 +559,10 @@ export async function createThought(data: {
       repostId: data.repostId || null,
       parentId: data.parentId || null,
       rootId: computedRootId,
-      replyRestriction: data.replyRestriction || "everyone",
+      replyRestriction: data.replyRestriction || 'everyone',
     },
     include: {
-      attachments: { orderBy: { order: "asc" } },
+      attachments: { orderBy: { order: 'asc' } },
       author: {
         select: {
           id: true,
@@ -412,7 +594,7 @@ export async function createThought(data: {
   });
 
   if (data.tags && data.tags.length > 0) {
-    recordHashtags(data.tags).catch((err) => console.error("Error recording hashtags:", err));
+    recordHashtags(data.tags).catch((err) => console.error('Error recording hashtags:', err));
   }
 
   return newPost;
@@ -443,13 +625,13 @@ export async function createThoughtThread(
   }
 ) {
   if (!data.thoughts || data.thoughts.length === 0) {
-    throw new Error("EMPTY_THREAD");
+    throw new Error('EMPTY_THREAD');
   }
 
   // 1. Transaction Prisma atomique
   return await prisma.$transaction(async (tx) => {
     let lastPostId = data.parentId || null;
-    const list: any[] = [];
+    const list: Array<ThreadThought & { poll: CreatedPoll | null }> = [];
 
     for (let i = 0; i < data.thoughts.length; i++) {
       const node = data.thoughts[i];
@@ -458,7 +640,7 @@ export async function createThoughtThread(
       if (lastPostId && lastPostId === data.parentId) {
         const replyCheck = await canUserReplyToThought(lastPostId, authorId);
         if (!replyCheck.canReply) {
-          throw new Error(replyCheck.reason || "THREADGATE_RESTRICTED");
+          throw new Error(replyCheck.reason || 'THREADGATE_RESTRICTED');
         }
       }
 
@@ -486,7 +668,7 @@ export async function createThoughtThread(
               ? {
                   create: node.attachments.map((att, idx) => ({
                     url: att.url,
-                    type: att.type || "IMAGE",
+                    type: att.type || 'IMAGE',
                     altText: att.altText || null,
                     order: att.order ?? idx,
                   })),
@@ -498,10 +680,10 @@ export async function createThoughtThread(
           triggerWarning: node.triggerWarning || null,
           parentId: lastPostId,
           rootId: computedRootId,
-          replyRestriction: data.replyRestriction || "everyone",
+          replyRestriction: data.replyRestriction || 'everyone',
         },
         include: {
-          attachments: { orderBy: { order: "asc" } },
+          attachments: { orderBy: { order: 'asc' } },
           author: {
             select: {
               id: true,
@@ -541,7 +723,7 @@ export async function createThoughtThread(
       }
 
       // Gestion du sondage
-      let createdPoll: any = null;
+      let createdPoll: CreatedPoll | null = null;
       if (node.poll && Array.isArray(node.poll.options)) {
         const validOpts = node.poll.options.map((o) => o.trim()).filter(Boolean);
         if (validOpts.length >= 2 && validOpts.length <= 4) {
@@ -559,7 +741,7 @@ export async function createThoughtThread(
               },
             },
             include: {
-              options: { orderBy: { order: "asc" } },
+              options: { orderBy: { order: 'asc' } },
             },
           });
         }
@@ -571,7 +753,7 @@ export async function createThoughtThread(
       // Enregistrer les hashtags
       if (node.tags && node.tags.length > 0) {
         recordHashtags(node.tags).catch((err) =>
-          console.error("Error recording hashtags in thread:", err)
+          console.error('Error recording hashtags in thread:', err)
         );
       }
     }
@@ -583,7 +765,7 @@ export async function createThoughtThread(
 /**
  * ❤️ Toggle like sur une pensée canonique.
  */
-import { createNotification, deleteNotification } from "./notifications";
+import { createNotification, deleteNotification } from './notifications';
 
 export async function toggleLike(postId: string, userId: string): Promise<{ liked: boolean }> {
   const canonicalId = await getCanonicalPostId(postId);
@@ -610,9 +792,9 @@ export async function toggleLike(postId: string, userId: string): Promise<{ like
         deleteNotification({
           recipientId: targetPost.authorId,
           senderId: userId,
-          type: "LIKE",
+          type: 'LIKE',
           thoughtId: canonicalId,
-        }).catch((err) => console.error("Error deleting like notification:", err));
+        }).catch((err) => console.error('Error deleting like notification:', err));
       }
       return { liked: false };
     } else {
@@ -627,14 +809,14 @@ export async function toggleLike(postId: string, userId: string): Promise<{ like
         createNotification({
           recipientId: targetPost.authorId,
           senderId: userId,
-          type: "LIKE",
+          type: 'LIKE',
           thoughtId: canonicalId,
-        }).catch((err) => console.error("Error creating like notification:", err));
+        }).catch((err) => console.error('Error creating like notification:', err));
       }
       return { liked: true };
     }
-  } catch (error: any) {
-    if (error?.code === "P2002") {
+  } catch (error) {
+    if ((error as { code?: string })?.code === 'P2002') {
       return { liked: true };
     }
     throw error;
@@ -647,7 +829,7 @@ export async function toggleLike(postId: string, userId: string): Promise<{ like
 export async function replyToPost(postId: string, authorId: string, content: string) {
   const replyCheck = await canUserReplyToThought(postId, authorId);
   if (!replyCheck.canReply) {
-    throw new Error(replyCheck.reason || "THREADGATE_RESTRICTED");
+    throw new Error(replyCheck.reason || 'THREADGATE_RESTRICTED');
   }
 
   const targetPost = await prisma.thought.findUnique({
@@ -655,7 +837,7 @@ export async function replyToPost(postId: string, authorId: string, content: str
     select: { id: true, authorId: true, rootId: true },
   });
 
-  const computedRootId = targetPost ? (targetPost.rootId || targetPost.id) : null;
+  const computedRootId = targetPost ? targetPost.rootId || targetPost.id : null;
 
   const [reply] = await prisma.$transaction([
     prisma.thought.create({
@@ -682,7 +864,6 @@ export async function replyToPost(postId: string, authorId: string, content: str
       data: { replyCount: { increment: 1 } },
     }),
   ]);
-
 
   // 🔔 Dispatch notifications to all thread participants (parent author + root author + mentions)
   const recipientsToNotify = new Set<string>();
@@ -715,7 +896,7 @@ export async function replyToPost(postId: string, authorId: string, content: str
         }
       }
     } catch (err) {
-      console.error("Error finding mentioned users:", err);
+      console.error('Error finding mentioned users:', err);
     }
   }
 
@@ -723,15 +904,13 @@ export async function replyToPost(postId: string, authorId: string, content: str
     createNotification({
       recipientId,
       senderId: authorId,
-      type: "REPLY",
+      type: 'REPLY',
       thoughtId: reply.id,
-    }).catch((err) => console.error("Error creating participant reply notification:", err));
+    }).catch((err) => console.error('Error creating participant reply notification:', err));
   }
 
   return reply;
 }
-
-
 
 /**
  * 🧵 Trouve le thread d'une pensée par ID avec calcul canonique des likes/reposts.
@@ -749,7 +928,9 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
     },
   };
 
-  const likesInclude = currentUserId ? { where: { userId: currentUserId }, select: { userId: true } } : false;
+  const likesInclude = currentUserId
+    ? { where: { userId: currentUserId }, select: { userId: true } }
+    : false;
   const repostsInclude = currentUserId
     ? { where: { authorId: currentUserId, deletedAt: null }, select: { id: true, authorId: true } }
     : false;
@@ -758,7 +939,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
   const pollIncludeQuery = {
     include: {
       options: {
-        orderBy: { order: "asc" as const },
+        orderBy: { order: 'asc' as const },
         include: { _count: { select: { votes: true } } },
       },
       votes: { select: { optionId: true, userId: true } },
@@ -819,13 +1000,13 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
             },
           },
         },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       },
     },
   });
 
   // 🔍 Helper de résolution récursive de la chaîne complète des parents
-  const fetchParentAncestors = async (node: any): Promise<any> => {
+  const fetchParentAncestors = async (node: ThreadNode | null): Promise<ThreadNode | null> => {
     if (!node || !node.parentId) return node;
 
     if (!node.parent) {
@@ -841,7 +1022,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
       });
 
       if (parentNode) {
-        node.parent = await fetchParentAncestors(parentNode);
+        node.parent = await fetchParentAncestors(parentNode as ThreadNode);
       }
     } else {
       node.parent = await fetchParentAncestors(node.parent);
@@ -852,16 +1033,18 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
 
   if (!thread) return null;
 
-  if (thread.parent) {
-    thread.parent = await fetchParentAncestors(thread.parent);
+  const threadNode = thread as unknown as ThreadNode;
+
+  if (threadNode.parent) {
+    threadNode.parent = await fetchParentAncestors(threadNode.parent);
   }
 
   // 🛡️ Helper de sanitisation & transformation de nœuds de thread
-  const processPostNode = (node: any): any => {
+  const processPostNode = (node: ThreadNode | null): ThreadNode | null => {
     if (!node) return null;
 
     if (node.deletedAt) {
-      node.content = "Cette pensée a été supprimée par son auteur.";
+      node.content = 'Cette pensée a été supprimée par son auteur.';
       node.imageUrl = null;
       node.isDeleted = true;
     }
@@ -869,8 +1052,10 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
     const canonicalNode = node.repost || node;
 
     const liked = currentUserId
-      ? (Array.isArray(canonicalNode.likes) && canonicalNode.likes.some((l: any) => l.userId === currentUserId)) ||
-        (Array.isArray(node.likes) && node.likes.some((l: any) => l.userId === currentUserId))
+      ? (Array.isArray(canonicalNode.likes) &&
+          canonicalNode.likes.some((l: { userId: string }) => l.userId === currentUserId)) ||
+        (Array.isArray(node.likes) &&
+          node.likes.some((l: { userId: string }) => l.userId === currentUserId))
       : false;
 
     const reposted = currentUserId
@@ -880,25 +1065,28 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
 
     node.liked = liked;
     node.reposted = reposted;
-    node.likesCount = canonicalNode.likeCount ?? canonicalNode._count?.likes ?? node._count?.likes ?? 0;
-    node.repliesCount = canonicalNode.replyCount ?? canonicalNode._count?.replies ?? node._count?.replies ?? 0;
-    node.repostsCount = canonicalNode.repostCount ?? canonicalNode._count?.reposts ?? node._count?.reposts ?? 0;
-    node.poll = formatPollData(node.poll, currentUserId);
+    node.likesCount =
+      canonicalNode.likeCount ?? canonicalNode._count?.likes ?? node._count?.likes ?? 0;
+    node.repliesCount =
+      canonicalNode.replyCount ?? canonicalNode._count?.replies ?? node._count?.replies ?? 0;
+    node.repostsCount =
+      canonicalNode.repostCount ?? canonicalNode._count?.reposts ?? node._count?.reposts ?? 0;
+    node.poll = formatPollData(node.poll as FeedPoll | null | undefined, currentUserId);
 
     if (node.parent) {
       node.parent = processPostNode(node.parent);
     }
     if (node.replies && Array.isArray(node.replies)) {
-      node.replies = node.replies.map(processPostNode);
+      node.replies = node.replies.map(processPostNode) as ThreadNode[];
     }
 
     return node;
   };
 
-  const processed = processPostNode(thread);
+  const processed = processPostNode(threadNode);
   if (processed) {
     let isFollowingAuthor = false;
-    let knownLikers: any[] = [];
+    let knownLikers: ThreadNode['knownLikers'] = [];
     let knownLikersTotal = 0;
 
     if (currentUserId) {
@@ -916,7 +1104,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
         where: { readerId: currentUserId },
         select: { creatorId: true },
       });
-      const creatorIds = follows.map((f: any) => f.creatorId);
+      const creatorIds = follows.map((f: { creatorId: string }) => f.creatorId);
 
       if (creatorIds.length > 0) {
         const canonicalId = processed.repostId || processed.id;
@@ -939,7 +1127,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
           },
         });
 
-        knownLikers = likersRaw.map((l: any) => l.user).filter(Boolean);
+        knownLikers = likersRaw.map((l) => l.user).filter(Boolean) as ThreadNode['knownLikers'];
         knownLikersTotal = await prisma.like.count({
           where: {
             postId: canonicalId,
@@ -957,7 +1145,6 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
   return processed;
 }
 
-
 /**
  * 🔄 Résolution canonique de l'ID d'origine (pour éviter les chaînes de reposts).
  */
@@ -973,7 +1160,10 @@ export async function getCanonicalPostId(postId: string): Promise<string> {
 /**
  * 🔄 Bascule Repost / Un-repost atomique (Clic 1 = Republier, Clic 2 = Annuler).
  */
-export async function toggleRepost(postId: string, authorId: string): Promise<{ reposted: boolean; canonicalId: string; post?: any }> {
+export async function toggleRepost(
+  postId: string,
+  authorId: string
+): Promise<{ reposted: boolean; canonicalId: string; post?: ThreadThought }> {
   const canonicalId = await getCanonicalPostId(postId);
 
   // Recherche de tous les pure reposts existants par le même utilisateur
@@ -982,7 +1172,7 @@ export async function toggleRepost(postId: string, authorId: string): Promise<{ 
       authorId,
       repostId: canonicalId,
       deletedAt: null,
-      OR: [{ content: "" }, { content: " " }],
+      OR: [{ content: '' }, { content: ' ' }],
     },
     select: { id: true },
   });
@@ -1004,7 +1194,7 @@ export async function toggleRepost(postId: string, authorId: string): Promise<{ 
     const [newRepost] = await prisma.$transaction([
       prisma.thought.create({
         data: {
-          content: "",
+          content: '',
           authorId,
           repostId: canonicalId,
         },
@@ -1043,7 +1233,7 @@ export async function toggleRepost(postId: string, authorId: string): Promise<{ 
         data: { repostCount: { increment: 1 } },
       }),
     ]);
-    return { reposted: true, canonicalId, post: newRepost };
+    return { reposted: true, canonicalId, post: newRepost as ThreadThought };
   }
 }
 
@@ -1084,14 +1274,18 @@ export async function getUserDrafts(authorId: string) {
         },
       },
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { updatedAt: 'desc' },
   });
 }
 
 /**
  * 📌 Épingle ou désépingle une pensée sur le profil de l'utilisateur.
  */
-export async function setPinStatus(postId: string, authorId: string, isPinned: boolean): Promise<boolean> {
+export async function setPinStatus(
+  postId: string,
+  authorId: string,
+  isPinned: boolean
+): Promise<boolean> {
   const post = await prisma.thought.findUnique({ where: { id: postId } });
   if (!post || post.authorId !== authorId) return false;
 

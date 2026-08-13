@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import React from "react";
-import { motion } from "framer-motion";
-import { useTranslate } from "@qoe/i18n";
-import { Wallet, Compass, BookOpen, ShieldCheck, Zap } from "lucide-react";
+import React from 'react';
+import { motion } from 'framer-motion';
+import { useTranslate } from '@qoe/i18n';
+import { Wallet, Compass, BookOpen, ShieldCheck, Zap } from 'lucide-react';
 
 interface BentoFeaturesProps {
   config: Record<string, string>;
@@ -14,33 +14,41 @@ export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
 
   const features = [
     {
-      id: "wallet",
+      id: 'wallet',
       icon: Wallet,
-      title: t("feature_wallet_title", "Économie Circulaire"),
-      description: config["feature_wallet_desc"] || "Un portefeuille virtuel intégré permettant de soutenir vos auteurs préférés via WalletTransaction sans intermédiaire.",
-      size: "md:col-span-2",
+      title: t('feature_wallet_title', 'Économie Circulaire'),
+      description:
+        config['feature_wallet_desc'] ||
+        'Un portefeuille virtuel intégré permettant de soutenir vos auteurs préférés via WalletTransaction sans intermédiaire.',
+      size: 'md:col-span-2',
     },
     {
-      id: "pgvector",
+      id: 'pgvector',
       icon: Compass,
-      title: t("feature_vector_title", "Mode Hors-Piste"),
-      description: config["feature_vector_desc"] || "Grâce à pgvector, notre IA brise votre bulle idéologique en injectant des perspectives radicalement différentes.",
-      size: "md:col-span-1",
+      title: t('feature_vector_title', 'Mode Hors-Piste'),
+      description:
+        config['feature_vector_desc'] ||
+        'Grâce à pgvector, notre IA brise votre bulle idéologique en injectant des perspectives radicalement différentes.',
+      size: 'md:col-span-1',
     },
     {
-      id: "monastic",
+      id: 'monastic',
       icon: BookOpen,
-      title: t("feature_monastic_title", "Lecteur Monastique"),
-      description: config["feature_monastic_desc"] || "Un carnet personnel numérique où vos Highlights deviennent la matière première de votre propre pensée.",
-      size: "md:col-span-1",
+      title: t('feature_monastic_title', 'Lecteur Monastique'),
+      description:
+        config['feature_monastic_desc'] ||
+        'Un carnet personnel numérique où vos Highlights deviennent la matière première de votre propre pensée.',
+      size: 'md:col-span-1',
     },
     {
-      id: "sovereign",
+      id: 'sovereign',
       icon: ShieldCheck,
-      title: t("feature_sovereign_title", "Souveraineté Totale"),
-      description: config["feature_sovereign_desc"] || "Aucun algorithme caché. Vous contrôlez chaque octet de votre expérience de lecture.",
-      size: "md:col-span-2",
-    }
+      title: t('feature_sovereign_title', 'Souveraineté Totale'),
+      description:
+        config['feature_sovereign_desc'] ||
+        'Aucun algorithme caché. Vous contrôlez chaque octet de votre expérience de lecture.',
+      size: 'md:col-span-2',
+    },
   ];
 
   return (
@@ -53,7 +61,7 @@ export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
             viewport={{ once: true }}
             className="font-sans text-[11px] tracking-[0.4em] text-muted-foreground uppercase font-semibold mb-6 block"
           >
-            {t("features_tagline", "L'infrastructure de l'esprit")}
+            {t('features_tagline', "L'infrastructure de l'esprit")}
           </motion.span>
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -62,7 +70,7 @@ export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
             transition={{ delay: 0.2 }}
             className="font-classical text-4xl md:text-6xl text-foreground font-medium tracking-tight"
           >
-            {t("features_title", "Une ingénierie de la conscience.")}
+            {t('features_title', 'Une ingénierie de la conscience.')}
           </motion.h2>
         </div>
 
@@ -81,11 +89,11 @@ export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
                 <div className="w-12 h-12 rounded-2xl bg-muted border border-border/40 flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary transition-all duration-500">
                   <feature.icon className="w-6 h-6" />
                 </div>
-                
+
                 <h3 className="font-classical text-2xl md:text-3xl text-foreground mb-6 group-hover:translate-x-2 transition-transform duration-500">
                   {feature.title}
                 </h3>
-                
+
                 <p className="font-sans text-muted-foreground group-hover:text-foreground leading-relaxed transition-colors duration-500">
                   {feature.description}
                 </p>
@@ -93,7 +101,9 @@ export const BentoFeatures = ({ config }: BentoFeaturesProps) => {
                 <div className="mt-auto pt-12">
                   <div className="h-px w-full bg-border/20 group-hover:bg-border/40 transition-colors" />
                   <div className="flex items-center justify-between mt-6">
-                    <span className="text-[10px] font-sans text-muted-foreground uppercase tracking-widest">{feature.id}</span>
+                    <span className="text-[10px] font-sans text-muted-foreground uppercase tracking-widest">
+                      {feature.id}
+                    </span>
                     <Zap className="w-4 h-4 text-muted-foreground/40 group-hover:text-foreground group-hover:rotate-12 transition-all" />
                   </div>
                 </div>

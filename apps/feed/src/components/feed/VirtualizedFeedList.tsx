@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import React, { useRef, useEffect } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { ThoughtCardSkeleton } from "../social/ThoughtCardSkeleton";
+import React, { useRef, useEffect } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { ThoughtCardSkeleton } from '../social/ThoughtCardSkeleton';
 
 export interface VirtualizedFeedListProps<T> {
   items: T[];
@@ -43,7 +43,12 @@ export function VirtualizedFeedList<T>({
     const lastVirtualItem = virtualItems[virtualItems.length - 1];
     if (!lastVirtualItem) return;
 
-    if (lastVirtualItem.index >= items.length - 1 && hasNextPage && !isFetchingNextPage && fetchNextPage) {
+    if (
+      lastVirtualItem.index >= items.length - 1 &&
+      hasNextPage &&
+      !isFetchingNextPage &&
+      fetchNextPage
+    ) {
       fetchNextPage();
     }
   }, [virtualItems, items.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
@@ -65,8 +70,8 @@ export function VirtualizedFeedList<T>({
           const key = isLoaderRow
             ? `loader-${virtualRow.index}`
             : keyExtractor
-            ? keyExtractor(item, virtualRow.index)
-            : (item as any)?.id || virtualRow.index;
+              ? keyExtractor(item, virtualRow.index)
+              : (item as { id?: string })?.id || virtualRow.index;
 
           return (
             <div
@@ -78,11 +83,7 @@ export function VirtualizedFeedList<T>({
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             >
-              {isLoaderRow ? (
-                <ThoughtCardSkeleton />
-              ) : (
-                renderItem(item, virtualRow.index)
-              )}
+              {isLoaderRow ? <ThoughtCardSkeleton /> : renderItem(item, virtualRow.index)}
             </div>
           );
         })}

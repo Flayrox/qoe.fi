@@ -1,78 +1,93 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createClient } from './server'
-import { createServerClient } from '@supabase/ssr'
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createClient } from './server';
+import { createServerClient } from '@supabase/ssr';
 
 // Mock next/headers
-const mockGetAll = vi.fn()
-const mockSet = vi.fn()
+const mockGetAll = vi.fn();
+const mockSet = vi.fn();
+
+interface MockedCookieMethods {
+  getAll: () => { name: string; value: string }[];
+  setAll: (cookiesToSet: { name: string; value: string; options: { path: string } }[]) => void;
+}
+
+function getMockOptions(): MockedCookieMethods {
+  return (
+    vi.mocked(createServerClient).mock.calls[0][2] as unknown as { cookies: MockedCookieMethods }
+  ).cookies;
+}
 
 vi.mock('next/headers', () => ({
-  cookies: vi.fn().mockImplementation(() => Promise.resolve({
-    getAll: mockGetAll,
-    set: mockSet,
-  })),
-}))
+  cookies: vi.fn().mockImplementation(() =>
+    Promise.resolve({
+      getAll: mockGetAll,
+      set: mockSet,
+    })
+  ),
+}));
 
 // Mock @supabase/ssr
 vi.mock('@supabase/ssr', () => ({
   createServerClient: vi.fn().mockImplementation((url, key, options) => {
-    return { url, key, options }
+    return { url, key, options };
   }),
-}))
+}));
 
 describe('createClient', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'example-anon-key'
-  })
+    vi.clearAllMocks();
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'example-anon-key';
+  });
 
   it('should initialize successfully in an Action/Handler Context (writable cookies)', async () => {
-    mockGetAll.mockReturnValue([{ name: 'test-cookie', value: 'test-value' }])
+    mockGetAll.mockReturnValue([{ name: 'test-cookie', value: 'test-value' }]);
 
-    const client = await createClient()
+    const client = await createClient();
+    expect(client).toBeDefined();
 
     // Assert createServerClient was called correctly
     expect(createServerClient).toHaveBeenCalledWith(
       'https://example.supabase.co',
       'example-anon-key',
       expect.objectContaining({
-        cookies: expect.any(Object)
+        cookies: expect.any(Object),
       })
-    )
+    );
 
     // Ensure getAll works
-    const options = (createServerClient as any).mock.calls[0][2]
-    const allCookies = options.cookies.getAll()
-    expect(allCookies).toEqual([{ name: 'test-cookie', value: 'test-value' }])
-    expect(mockGetAll).toHaveBeenCalled()
+    const options = getMockOptions();
+    const allCookies = options.getAll();
+    expect(allCookies).toEqual([{ name: 'test-cookie', value: 'test-value' }]);
+    expect(mockGetAll).toHaveBeenCalled();
 
     // Ensure setAll works (simulate Server Action / Route Handler context)
-    const cookiesToSet = [{ name: 'new-cookie', value: 'new-value', options: { path: '/' } }]
-    options.cookies.setAll(cookiesToSet)
+    const cookiesToSet = [{ name: 'new-cookie', value: 'new-value', options: { path: '/' } }];
+    options.setAll(cookiesToSet);
 
-    expect(mockSet).toHaveBeenCalledWith('new-cookie', 'new-value', { path: '/' })
-  })
+    expect(mockSet).toHaveBeenCalledWith('new-cookie', 'new-value', { path: '/' });
+  });
 
   it('should initialize successfully in a Server Component Context (read-only cookies)', async () => {
     mockSet.mockImplementation(() => {
-      throw new Error('Readonly Request Cookies cannot be modified.')
-    })
+      throw new Error('Readonly Request Cookies cannot be modified.');
+    });
 
-    const client = await createClient()
+    const client = await createClient();
+    expect(client).toBeDefined();
 
-    const options = (createServerClient as any).mock.calls[0][2]
+    const options = getMockOptions();
 
     // Attempt to set a cookie, which should throw in mockSet
-    const cookiesToSet = [{ name: 'fail-cookie', value: 'fail-value', options: { path: '/' } }]
+    const cookiesToSet = [{ name: 'fail-cookie', value: 'fail-value', options: { path: '/' } }];
 
     // This should not throw an error because the catch block in createClient swallows it
-    expect(() => options.cookies.setAll(cookiesToSet)).not.toThrow()
+    expect(() => options.setAll(cookiesToSet)).not.toThrow();
 
     // Verify mockSet was indeed called and the error was swallowed
-    expect(mockSet).toHaveBeenCalledWith('fail-cookie', 'fail-value', { path: '/' })
+    expect(mockSet).toHaveBeenCalledWith('fail-cookie', 'fail-value', { path: '/' });
 
     // Client should still be returned successfully
-    expect(client).toBeDefined()
-  })
-})
+    expect(client).toBeDefined();
+  });
+});

@@ -1,5 +1,5 @@
-import React from "react";
-import { landingConfig } from "@/config/landing";
+import React from 'react';
+import { landingConfig } from '@/config/landing';
 
 export const Marquee = () => {
   const { marquee } = landingConfig;
@@ -14,14 +14,20 @@ export const Marquee = () => {
       <div className="flex w-[200%] animate-marquee">
         <div className="flex justify-around w-1/2 gap-12">
           {marquee.map((brand, i) => (
-            <span key={i} className="font-display text-2xl font-medium text-foreground/20 whitespace-nowrap px-8">
+            <span
+              key={i}
+              className="font-display text-2xl font-medium text-foreground/20 whitespace-nowrap px-8"
+            >
               {brand}
             </span>
           ))}
         </div>
         <div className="flex justify-around w-1/2 gap-12">
           {marquee.map((brand, i) => (
-            <span key={i + marquee.length} className="font-display text-2xl font-medium text-foreground/20 whitespace-nowrap px-8">
+            <span
+              key={i + marquee.length}
+              className="font-display text-2xl font-medium text-foreground/20 whitespace-nowrap px-8"
+            >
               {brand}
             </span>
           ))}

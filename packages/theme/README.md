@@ -3,6 +3,7 @@
 **Role:** Defines exact Tailwind tokens and pure CSS variables for cross-app aesthetic unity.
 
 ## File Exhaustive Listing
+
 - `package.json`
 - `tsconfig.json`
 - `src/index.ts`

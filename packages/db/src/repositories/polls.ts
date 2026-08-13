@@ -2,7 +2,7 @@
 // 📊 Polls Repository — Sondages Interactifs (2 à 4 choix)
 // =====================================================================
 
-import { prisma } from "../client";
+import { prisma } from '../client';
 
 export interface CreatePollInput {
   thoughtId: string;
@@ -24,7 +24,7 @@ export async function createPollForThought(input: CreatePollInput) {
 
   const validOptions = options.map((opt) => opt.trim()).filter(Boolean);
   if (validOptions.length < 2 || validOptions.length > 4) {
-    throw new Error("Un sondage doit contenir entre 2 et 4 options.");
+    throw new Error('Un sondage doit contenir entre 2 et 4 options.');
   }
 
   const expiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000);
@@ -41,7 +41,7 @@ export async function createPollForThought(input: CreatePollInput) {
       },
     },
     include: {
-      options: { orderBy: { order: "asc" } },
+      options: { orderBy: { order: 'asc' } },
     },
   });
 }
@@ -54,7 +54,7 @@ export async function getPollByThoughtId(thoughtId: string, userId?: string) {
     where: { thoughtId },
     include: {
       options: {
-        orderBy: { order: "asc" },
+        orderBy: { order: 'asc' },
         include: {
           _count: { select: { votes: true } },
         },
@@ -67,7 +67,8 @@ export async function getPollByThoughtId(thoughtId: string, userId?: string) {
 
   const totalVotes = poll.options.reduce((acc, opt) => acc + opt._count.votes, 0);
   const isExpired = new Date() > poll.expiresAt;
-  const userVotedOptionId = userId && poll.votes && poll.votes.length > 0 ? poll.votes[0].optionId : null;
+  const userVotedOptionId =
+    userId && poll.votes && poll.votes.length > 0 ? poll.votes[0].optionId : null;
 
   const rawPercentages = poll.options.map((opt) => {
     const voteCount = opt._count.votes;
@@ -90,7 +91,6 @@ export async function getPollByThoughtId(thoughtId: string, userId?: string) {
     voteCount: opt.voteCount,
     percentage: totalVotes > 0 ? opt.floor + (extraAllocatedIds.has(opt.id) ? 1 : 0) : 0,
   }));
-
 
   return {
     id: poll.id,
@@ -115,11 +115,11 @@ export async function votePoll(input: VotePollInput) {
   });
 
   if (!poll) {
-    throw new Error("Sondage introuvable.");
+    throw new Error('Sondage introuvable.');
   }
 
   if (new Date() > poll.expiresAt) {
-    throw new Error("Ce sondage est expiré.");
+    throw new Error('Ce sondage est expiré.');
   }
 
   try {
@@ -130,10 +130,10 @@ export async function votePoll(input: VotePollInput) {
         userId,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     // Si l'utilisateur a déjà voté (P2002 constraint failure)
-    if (error?.code === "P2002") {
-      throw new Error("Vous avez déjà voté dans ce sondage.");
+    if ((error as { code?: string })?.code === 'P2002') {
+      throw new Error('Vous avez déjà voté dans ce sondage.');
     }
     throw error;
   }

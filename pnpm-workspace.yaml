@@ -16,17 +16,17 @@
 
 packages:
   # 🟢 Applications déployables
-  - "apps/*"
+  - 'apps/*'
 
   # 📚 Bibliothèques partagées
-  - "packages/*"
+  - 'packages/*'
 
   # ⚙️ Workers asynchrones (BullMQ, jobs, etc.)
-  - "workers"
+  - 'workers'
 
   # ❌ Exclusions explicites (ne PAS traiter comme workspace)
-  - "!**/node_modules"
-  - "!**/dist"
-  - "!**/.next"
-  - "!**/build"
-  - "!**/.turbo"
+  - '!**/node_modules'
+  - '!**/dist'
+  - '!**/.next'
+  - '!**/build'
+  - '!**/.turbo'

@@ -1,119 +1,182 @@
-"use client"
+'use client';
 
-import React, { useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { MapPin, Calendar, Link as LinkIcon, ArrowLeft, Edit3, Repeat, MessageSquare, FileText, Image as ImageIcon } from "lucide-react"
-import { AuthorAvatar } from "@qoe/ui/ui/AuthorAvatar"
-import { ThoughtCard } from "@/components/social/ThoughtCard"
-import { ArticleCard } from "@/app/(reader)/home/components/ArticleCard"
-import { EditProfileModal } from "@/components/profile/EditProfileModal"
-import { toggleFollowCreatorHomeAction as toggleFollowCreator, deletePostAction as deletePost } from "@qoe/api-client/actions/feed"
+import React, { useState } from 'react';
+import Image from 'next/image';
+import {
+  MapPin,
+  Calendar,
+  Link as LinkIcon,
+  ArrowLeft,
+  Edit3,
+  Repeat,
+  MessageSquare,
+  FileText,
+  Image as ImageIcon,
+} from 'lucide-react';
+import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
+import { ThoughtCard } from '@/components/social/ThoughtCard';
+import { ArticleCard } from '@/app/(reader)/home/components/ArticleCard';
+import { EditProfileModal } from '@/components/profile/EditProfileModal';
+import { toggleFollowCreatorHomeAction as toggleFollowCreator } from '@qoe/api-client/actions/feed';
+import { useDeletePostMutation } from '@qoe/api-client';
 
-import { routes } from "@qoe/config/routes"
-import { toast } from "sonner"
-import { cn } from "@qoe/utils"
-import { ReaderPageLayout } from "@/components/layout/ReaderPageLayout"
+import { routes } from '@qoe/config/routes';
+import { toast } from 'sonner';
+import { cn } from '@qoe/utils';
+import { ReaderPageLayout } from '@/components/layout/ReaderPageLayout';
+import type { FeedArticleDTO } from '@qoe/db/types';
 
-interface ProfileViewProps {
-  profileUser: any
-  currentUserId: string | null
-  isOwnProfile: boolean
-  initialIsFollowing: boolean
-  initialTab?: string
+interface ProfilePost {
+  id: string;
+  content: string;
+  imageUrl?: string | null;
+  createdAt: string | Date;
+  triggerWarning?: string | null;
+  isPinned?: boolean;
+  author: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    subdomain: string | null;
+    logoUrl: string | null;
+    isCertified?: boolean;
+  };
+  parentId?: string | null;
+  repostId?: string | null;
+  parent?: ProfilePost | null;
+  repost?: ProfilePost | null;
+  likesCount?: number;
+  repliesCount?: number;
+  repostsCount?: number;
+  liked?: boolean;
+  _count?: { likes?: number; replies?: number; reposts?: number };
 }
 
-type ProfileTab = "thoughts" | "with_replies" | "articles" | "reposts" | "media"
+interface ProfileUser {
+  id: string;
+  name: string | null;
+  username: string | null;
+  subdomain: string | null;
+  customDomain: string | null;
+  logoUrl: string | null;
+  heroText: string | null;
+  headerImageUrl?: string | null;
+  onboardingText?: string | null;
+  isCertified?: boolean;
+  createdAt: string | Date;
+  posts?: ProfilePost[];
+  articles?: FeedArticleDTO[];
+  _count?: {
+    followers?: number;
+    following?: number;
+    follows?: number;
+    posts?: number;
+  };
+}
+
+interface ProfileViewProps {
+  profileUser: ProfileUser;
+  currentUserId: string | null;
+  isOwnProfile: boolean;
+  initialIsFollowing: boolean;
+  initialTab?: string;
+}
+
+type ProfileTab = 'thoughts' | 'with_replies' | 'articles' | 'reposts' | 'media';
 
 export function ProfileView({
   profileUser: initialProfileUser,
   currentUserId,
   isOwnProfile,
   initialIsFollowing,
-  initialTab = "thoughts"
+  initialTab = 'thoughts',
 }: ProfileViewProps) {
-  const [user, setUser] = useState(initialProfileUser)
-  const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
-  const [followersCount, setFollowersCount] = useState(user._count?.followers || 0)
+  const [user, setUser] = useState(initialProfileUser);
+  const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  const [followersCount, setFollowersCount] = useState(user._count?.followers || 0);
   const [activeTab, setActiveTab] = useState<ProfileTab>(
-    ["thoughts", "with_replies", "articles", "reposts", "media"].includes(initialTab) 
-      ? (initialTab as ProfileTab) 
-      : "thoughts"
-  )
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+    ['thoughts', 'with_replies', 'articles', 'reposts', 'media'].includes(initialTab)
+      ? (initialTab as ProfileTab)
+      : 'thoughts'
+  );
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const { mutateAsync: deletePost } = useDeletePostMutation();
 
   const handleTabChange = (tab: ProfileTab) => {
-    setActiveTab(tab)
-    const username = user.username || user.subdomain || "user"
-    const newUrl = routes.feed.profile(username, tab)
-    window.history.pushState({ tab }, "", newUrl)
-  }
+    setActiveTab(tab);
+    const username = user.username || user.subdomain || 'user';
+    const newUrl = routes.feed.profile(username, tab);
+    window.history.pushState({ tab }, '', newUrl);
+  };
 
   React.useEffect(() => {
     const handlePopState = () => {
-      const pathname = window.location.pathname
-      const parts = pathname.split("/").filter(Boolean)
-      const lastPart = parts[parts.length - 1]
-      if (["with_replies", "articles", "reposts", "media"].includes(lastPart)) {
-        setActiveTab(lastPart as ProfileTab)
+      const pathname = window.location.pathname;
+      const parts = pathname.split('/').filter(Boolean);
+      const lastPart = parts[parts.length - 1];
+      if (['with_replies', 'articles', 'reposts', 'media'].includes(lastPart)) {
+        setActiveTab(lastPart as ProfileTab);
       } else {
-        setActiveTab("thoughts")
+        setActiveTab('thoughts');
       }
-    }
+    };
 
-    window.addEventListener("popstate", handlePopState)
-    return () => window.removeEventListener("popstate", handlePopState)
-  }, [])
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const handleFollowToggle = async () => {
     if (!currentUserId) {
-      toast.error("Veuillez vous connecter pour suivre cet auteur.")
-      return
+      toast.error('Veuillez vous connecter pour suivre cet auteur.');
+      return;
     }
 
-    const nextState = !isFollowing
-    setIsFollowing(nextState)
-    setFollowersCount((prev: number) => nextState ? prev + 1 : prev - 1)
+    const nextState = !isFollowing;
+    setIsFollowing(nextState);
+    setFollowersCount((prev: number) => (nextState ? prev + 1 : prev - 1));
 
-    const res = await toggleFollowCreator(user.id)
+    const res = await toggleFollowCreator(user.id);
     if (!res.ok) {
-      setIsFollowing(!nextState)
-      setFollowersCount((prev: number) => !nextState ? prev + 1 : prev - 1)
-      toast.error("Erreur lors de la modification du suivi.")
+      setIsFollowing(!nextState);
+      setFollowersCount((prev: number) => (!nextState ? prev + 1 : prev - 1));
+      toast.error('Erreur lors de la modification du suivi.');
     } else {
-      toast.success(nextState ? `Vous suivez maintenant ${user.name}` : `Abonnement retiré.`)
+      toast.success(nextState ? `Vous suivez maintenant ${user.name}` : `Abonnement retiré.`);
     }
-  }
+  };
 
   const handleDeletePost = async (postId: string): Promise<boolean> => {
-    if (!isOwnProfile) return false
+    if (!isOwnProfile) return false;
 
-    const res = await deletePost(postId)
+    const res = await deletePost(postId);
 
     if (!res.ok) {
-      toast.error("Erreur lors de la suppression de la pensée.")
-      return false
+      toast.error('Erreur lors de la suppression de la pensée.');
+      return false;
     }
 
-    setUser((prev: any) => ({
+    setUser((prev: ProfileUser) => ({
       ...prev,
-      posts: prev.posts?.filter((p: any) => p.id !== postId) || [],
-      _count: prev._count ? { ...prev._count, posts: Math.max(0, (prev._count.posts || 0) - 1) } : prev._count,
-    }))
-    toast.success("Pensée supprimée.")
-    return true
-  }
+      posts: prev.posts?.filter((p) => p.id !== postId) || [],
+      _count: prev._count
+        ? { ...prev._count, posts: Math.max(0, (prev._count.posts || 0) - 1) }
+        : prev._count,
+    }));
+    toast.success('Pensée supprimée.');
+    return true;
+  };
 
   // Filter content for tabs
-  const rootThoughts = user.posts?.filter((p: any) => !p.parentId) || []
-  const replyThoughts = user.posts?.filter((p: any) => !!p.parentId) || []
-  const articlesList = user.articles || []
-  const repostsList = user.posts?.filter((p: any) => !!p.repostId && !!p.repost) || []
-  const mediaThoughts = user.posts?.filter((p: any) => !!p.imageUrl) || []
+  const rootThoughts = user.posts?.filter((p) => !p.parentId) || [];
+  const replyThoughts = user.posts?.filter((p) => !!p.parentId) || [];
+  const articlesList = user.articles || [];
+  const repostsList = user.posts?.filter((p) => !!p.repostId && !!p.repost) || [];
+  const mediaThoughts = user.posts?.filter((p) => !!p.imageUrl) || [];
 
-  const formattedJoinedDate = new Date(user.createdAt).toLocaleDateString("fr-FR", {
-    month: "long",
-    year: "numeric"
-  })
+  const formattedJoinedDate = new Date(user.createdAt).toLocaleDateString('fr-FR', {
+    month: 'long',
+    year: 'numeric',
+  });
 
   return (
     <ReaderPageLayout hideHeader>
@@ -121,10 +184,10 @@ export function ProfileView({
         {/* Back navigation */}
         <button
           onClick={() => {
-            if (typeof window !== "undefined" && window.history.length > 1) {
-              window.history.back()
+            if (typeof window !== 'undefined' && window.history.length > 1) {
+              window.history.back();
             } else {
-              window.location.href = routes.feed.home()
+              window.location.href = routes.feed.home();
             }
           }}
           className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -138,7 +201,7 @@ export function ProfileView({
           {/* Banner */}
           <div className="h-32 sm:h-44 w-full bg-gradient-to-r from-brand/20 via-muted to-brand/10 relative overflow-hidden">
             {user.headerImageUrl && (
-              <img src={user.headerImageUrl} alt="" className="w-full h-full object-cover" />
+              <Image src={user.headerImageUrl} alt="" fill className="object-cover" />
             )}
           </div>
 
@@ -162,13 +225,13 @@ export function ProfileView({
                 <button
                   onClick={handleFollowToggle}
                   className={cn(
-                    "px-5 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-xs",
-                    isFollowing 
-                      ? "border border-border/60 bg-card hover:bg-destructive/10 hover:text-destructive text-foreground" 
-                      : "bg-foreground text-background hover:opacity-90"
+                    'px-5 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-xs',
+                    isFollowing
+                      ? 'border border-border/60 bg-card hover:bg-destructive/10 hover:text-destructive text-foreground'
+                      : 'bg-foreground text-background hover:opacity-90'
                   )}
                 >
-                  {isFollowing ? "Abonné" : "Suivre"}
+                  {isFollowing ? 'Abonné' : 'Suivre'}
                 </button>
               )}
             </div>
@@ -176,10 +239,18 @@ export function ProfileView({
             {/* User Identity */}
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-foreground leading-none">{user.name}</h1>
-                {user.isCertified && <span className="text-brand text-sm font-black" title="Auteur certifié">✓</span>}
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground leading-none">
+                  {user.name}
+                </h1>
+                {user.isCertified && (
+                  <span className="text-brand text-sm font-black" title="Auteur certifié">
+                    ✓
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground font-medium">@{user.username || user.subdomain}</p>
+              <p className="text-xs text-muted-foreground font-medium">
+                @{user.username || user.subdomain}
+              </p>
             </div>
 
             {/* Bio */}
@@ -217,7 +288,9 @@ export function ProfileView({
             {/* Follow Stats */}
             <div className="flex items-center gap-6 pt-4 text-xs">
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-foreground">{user._count?.following || user._count?.follows || 0}</span>
+                <span className="font-bold text-foreground">
+                  {user._count?.following || user._count?.follows || 0}
+                </span>
                 <span className="text-muted-foreground font-medium">abonnements</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -229,60 +302,60 @@ export function ProfileView({
 
           {/* Profile Tabs Navigation */}
           <div className="flex items-center gap-1 border-t border-border/40 px-3 overflow-x-auto no-scrollbar">
-            <TabButton 
-              active={activeTab === "thoughts"} 
-              onClick={() => handleTabChange("thoughts")} 
+            <TabButton
+              active={activeTab === 'thoughts'}
+              onClick={() => handleTabChange('thoughts')}
               icon={<MessageSquare className="w-3.5 h-3.5" />}
-              label="Pensées" 
-              count={rootThoughts.length} 
+              label="Pensées"
+              count={rootThoughts.length}
             />
-            <TabButton 
-              active={activeTab === "with_replies"} 
-              onClick={() => handleTabChange("with_replies")} 
+            <TabButton
+              active={activeTab === 'with_replies'}
+              onClick={() => handleTabChange('with_replies')}
               icon={<MessageSquare className="w-3.5 h-3.5 opacity-60" />}
-              label="Réponses" 
-              count={replyThoughts.length} 
+              label="Réponses"
+              count={replyThoughts.length}
             />
-            <TabButton 
-              active={activeTab === "articles"} 
-              onClick={() => handleTabChange("articles")} 
+            <TabButton
+              active={activeTab === 'articles'}
+              onClick={() => handleTabChange('articles')}
               icon={<FileText className="w-3.5 h-3.5" />}
-              label="Articles" 
-              count={articlesList.length} 
+              label="Articles"
+              count={articlesList.length}
             />
-            <TabButton 
-              active={activeTab === "reposts"} 
-              onClick={() => handleTabChange("reposts")} 
+            <TabButton
+              active={activeTab === 'reposts'}
+              onClick={() => handleTabChange('reposts')}
               icon={<Repeat className="w-3.5 h-3.5" />}
-              label="Reposts" 
-              count={repostsList.length} 
+              label="Reposts"
+              count={repostsList.length}
             />
-            <TabButton 
-              active={activeTab === "media"} 
-              onClick={() => handleTabChange("media")} 
+            <TabButton
+              active={activeTab === 'media'}
+              onClick={() => handleTabChange('media')}
               icon={<ImageIcon className="w-3.5 h-3.5" />}
-              label="Médias" 
-              count={mediaThoughts.length} 
+              label="Médias"
+              count={mediaThoughts.length}
             />
           </div>
         </div>
 
         {/* Tab Content Stream — Instant, Snappy Rendering without Fade Lag */}
         <div className="space-y-4">
-          {activeTab === "thoughts" && (
+          {activeTab === 'thoughts' && (
             <div className="space-y-2">
               {rootThoughts.length === 0 ? (
                 <EmptyTabMessage message="Aucune pensée originale publiée pour le moment." />
               ) : (
-                rootThoughts.map((post: any) => (
+                rootThoughts.map((post) => (
                   <ThoughtCard
                     key={post.id}
                     post={post}
                     currentUserId={currentUserId}
                     onDeletePost={handleDeletePost}
                     onOpenPost={(id, authorUsername) => {
-                      const handle = authorUsername || user.username || user.subdomain || user.id
-                      window.location.href = routes.feed.thought(handle, id)
+                      const handle = authorUsername || user.username || user.subdomain || user.id;
+                      window.location.href = routes.feed.thought(handle, id);
                     }}
                   />
                 ))
@@ -290,20 +363,20 @@ export function ProfileView({
             </div>
           )}
 
-          {activeTab === "with_replies" && (
+          {activeTab === 'with_replies' && (
             <div className="space-y-2">
               {replyThoughts.length === 0 ? (
                 <EmptyTabMessage message="Aucune réponse publiée pour le moment." />
               ) : (
-                replyThoughts.map((post: any) => (
+                replyThoughts.map((post) => (
                   <ThoughtCard
                     key={post.id}
                     post={post}
                     currentUserId={currentUserId}
                     onDeletePost={handleDeletePost}
                     onOpenPost={(id, authorUsername) => {
-                      const handle = authorUsername || user.username || user.subdomain || user.id
-                      window.location.href = routes.feed.thought(handle, id)
+                      const handle = authorUsername || user.username || user.subdomain || user.id;
+                      window.location.href = routes.feed.thought(handle, id);
                     }}
                   />
                 ))
@@ -311,12 +384,12 @@ export function ProfileView({
             </div>
           )}
 
-          {activeTab === "articles" && (
+          {activeTab === 'articles' && (
             <div className="space-y-2">
               {articlesList.length === 0 ? (
                 <EmptyTabMessage message="Aucun article rédigé pour le moment." />
               ) : (
-                articlesList.map((article: any, idx: number) => (
+                articlesList.map((article, idx: number) => (
                   <ArticleCard
                     key={article.id}
                     article={article}
@@ -332,20 +405,26 @@ export function ProfileView({
             </div>
           )}
 
-          {activeTab === "reposts" && (
+          {activeTab === 'reposts' && (
             <div className="space-y-2">
               {repostsList.length === 0 ? (
                 <EmptyTabMessage message="Aucun contenu repartagé." />
               ) : (
-                repostsList.map((post: any) => (
+                repostsList.map((post) => (
                   <ThoughtCard
                     key={post.id}
                     post={post}
                     currentUserId={currentUserId}
                     onDeletePost={handleDeletePost}
                     onOpenPost={(id, authorUsername) => {
-                      const handle = authorUsername || post.author?.username || post.author?.subdomain || user.username || user.subdomain || user.id
-                      window.location.href = routes.feed.thought(handle, id)
+                      const handle =
+                        authorUsername ||
+                        post.author?.username ||
+                        post.author?.subdomain ||
+                        user.username ||
+                        user.subdomain ||
+                        user.id;
+                      window.location.href = routes.feed.thought(handle, id);
                     }}
                   />
                 ))
@@ -353,20 +432,20 @@ export function ProfileView({
             </div>
           )}
 
-          {activeTab === "media" && (
+          {activeTab === 'media' && (
             <div className="space-y-2">
               {mediaThoughts.length === 0 ? (
                 <EmptyTabMessage message="Aucun média partagé." />
               ) : (
-                mediaThoughts.map((post: any) => (
+                mediaThoughts.map((post) => (
                   <ThoughtCard
                     key={post.id}
                     post={post}
                     currentUserId={currentUserId}
                     onDeletePost={handleDeletePost}
                     onOpenPost={(id, authorUsername) => {
-                      const handle = authorUsername || user.username || user.subdomain || user.id
-                      window.location.href = routes.feed.thought(handle, id)
+                      const handle = authorUsername || user.username || user.subdomain || user.id;
+                      window.location.href = routes.feed.thought(handle, id);
                     }}
                   />
                 ))
@@ -383,15 +462,15 @@ export function ProfileView({
           onClose={() => setIsEditModalOpen(false)}
           user={user}
           onProfileUpdated={(updatedUser) => {
-            setUser((prev: any) => ({
+            setUser((prev: ProfileUser) => ({
               ...prev,
-              ...updatedUser
-            }))
+              ...updatedUser,
+            }));
           }}
         />
       )}
     </ReaderPageLayout>
-  )
+  );
 }
 
 function TabButton({
@@ -399,29 +478,33 @@ function TabButton({
   onClick,
   icon,
   label,
-  count
+  count,
 }: {
-  active: boolean
-  onClick: () => void
-  icon: React.ReactNode
-  label: string
-  count: number
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  count: number;
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-2 px-4 py-3 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap",
-        active 
-          ? "border-foreground text-foreground" 
-          : "border-transparent text-muted-foreground hover:text-foreground"
+        'flex items-center gap-2 px-4 py-3 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap',
+        active
+          ? 'border-foreground text-foreground'
+          : 'border-transparent text-muted-foreground hover:text-foreground'
       )}
     >
       {icon}
       <span>{label}</span>
-      {count > 0 && <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">{count}</span>}
+      {count > 0 && (
+        <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">
+          {count}
+        </span>
+      )}
     </button>
-  )
+  );
 }
 
 function EmptyTabMessage({ message }: { message: string }) {
@@ -429,5 +512,5 @@ function EmptyTabMessage({ message }: { message: string }) {
     <div className="py-12 text-center text-xs text-muted-foreground italic bg-card/40 border border-border/30 rounded-xl">
       {message}
     </div>
-  )
+  );
 }

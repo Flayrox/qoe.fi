@@ -3,10 +3,12 @@
 **Role:** The multi-tenant reading engine for creators. It dynamically routes subdomains to specific publications and handles paywalled content resolution without exposing sensitive AST nodes.
 
 ## Core Mechanisms
+
 - **Routing:** Handled gracefully via `middleware.ts` which decodes `[domain]` and resolves the matching media record.
 - **Security:** Evaluates Stripe subscriptions on the server before dispatching rendering.
 
 ## File Exhaustive Listing
+
 - `package.json`
 - `tsconfig.json`
 - `next.config.ts`

@@ -1,15 +1,15 @@
-import { Mark, mergeAttributes } from '@tiptap/core'
+import { Mark, mergeAttributes } from '@tiptap/core';
 
 export interface AnnotationMarkOptions {
-  HTMLAttributes: Record<string, any>
+  HTMLAttributes: Record<string, string | number | boolean | null>;
 }
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     annotationMark: {
-      setAnnotationMark: (attributes: { note: string }) => ReturnType
-      unsetAnnotationMark: () => ReturnType
-    }
+      setAnnotationMark: (attributes: { note: string }) => ReturnType;
+      unsetAnnotationMark: () => ReturnType;
+    };
   }
 }
 
@@ -20,26 +20,27 @@ export const AnnotationMark = Mark.create<AnnotationMarkOptions>({
   addOptions() {
     return {
       HTMLAttributes: {
-        class: 'bg-amber-500/20 text-foreground border-b-2 border-amber-500 font-medium cursor-pointer rounded-xs px-1',
+        class:
+          'bg-highlight/20 text-foreground border-b-2 border-highlight font-medium cursor-pointer rounded-xs px-1',
       },
-    }
+    };
   },
 
   addAttributes() {
     return {
       note: {
         default: null,
-        parseHTML: element => element.getAttribute('data-annotation-note'),
-        renderHTML: attributes => {
-          if (!attributes.note) return {}
+        parseHTML: (element) => element.getAttribute('data-annotation-note'),
+        renderHTML: (attributes) => {
+          if (!attributes.note) return {};
           return {
             'data-annotation-note': attributes.note,
             'data-is-official': 'true',
-            'title': `Annotation auteur : ${attributes.note}`,
-          }
+            title: `Annotation auteur : ${attributes.note}`,
+          };
         },
       },
-    }
+    };
   },
 
   parseHTML() {
@@ -47,25 +48,25 @@ export const AnnotationMark = Mark.create<AnnotationMarkOptions>({
       {
         tag: 'mark[data-annotation-note]',
       },
-    ]
+    ];
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['mark', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0]
+    return ['mark', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
   },
 
   addCommands() {
     return {
       setAnnotationMark:
-        attributes =>
+        (attributes) =>
         ({ commands }) => {
-          return commands.setMark(this.name, attributes)
+          return commands.setMark(this.name, attributes);
         },
       unsetAnnotationMark:
         () =>
         ({ commands }) => {
-          return commands.unsetMark(this.name)
+          return commands.unsetMark(this.name);
         },
-    }
+    };
   },
-})
+});

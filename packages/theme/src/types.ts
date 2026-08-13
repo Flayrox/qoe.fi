@@ -4,10 +4,10 @@
 // ═══════════════════════════════════════════════════════════════════
 
 /** Modes de thème gérés par next-themes. */
-export type ThemeMode = "light" | "dark" | "system";
+export type ThemeMode = 'light' | 'dark' | 'system';
 
 /** Variantes d'accent brand activables (opt-in). */
-export type AccentVariant = "none" | "vermillion";
+export type AccentVariant = 'none' | 'vermillion';
 
 /**
  * Données de branding d'un créateur, lues depuis la DB (User).

@@ -1,4 +1,4 @@
-import { prisma } from "../client";
+import { prisma } from '../client';
 
 export const recommendationsRepository = {
   /**
@@ -6,7 +6,7 @@ export const recommendationsRepository = {
    */
   async addRecommendation(recommenderId: string, recommendedId: string, description?: string) {
     if (recommenderId === recommendedId) {
-      throw new Error("A creator cannot recommend themselves");
+      throw new Error('A creator cannot recommend themselves');
     }
 
     return prisma.recommendation.upsert({
@@ -59,7 +59,7 @@ export const recommendationsRepository = {
   async getCreatorRecommendations(recommenderId: string) {
     return prisma.recommendation.findMany({
       where: { recommenderId },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: 'desc' },
       include: {
         recommended: {
           select: {
@@ -83,7 +83,7 @@ export const recommendationsRepository = {
   async getRecommendingCreators(recommendedId: string) {
     return prisma.recommendation.findMany({
       where: { recommendedId },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: 'desc' },
       include: {
         recommender: {
           select: {

@@ -24,7 +24,9 @@ export interface CreatorTopContentItem {
   revenueCents?: number;
 }
 
-export async function getCreatorFinancialMetrics(creatorId: string): Promise<CreatorFinancialMetrics> {
+export async function getCreatorFinancialMetrics(
+  creatorId: string
+): Promise<CreatorFinancialMetrics> {
   const [activeSubscribers, freeSubscribersCount] = await Promise.all([
     prisma.subscriber.findMany({
       where: {
@@ -53,20 +55,24 @@ export async function getCreatorFinancialMetrics(creatorId: string): Promise<Cre
   let mrrCents = 0;
   let grossVolumeCents = 0;
 
-  activeSubscribers.forEach((sub: { ltvCents: number; tier: { monthlyPriceCents: number; yearlyPriceCents: number | null } | null }) => {
-    grossVolumeCents += sub.ltvCents || 0;
-    if (sub.tier) {
-      mrrCents += sub.tier.monthlyPriceCents || 0;
+  activeSubscribers.forEach(
+    (sub: {
+      ltvCents: number;
+      tier: { monthlyPriceCents: number; yearlyPriceCents: number | null } | null;
+    }) => {
+      grossVolumeCents += sub.ltvCents || 0;
+      if (sub.tier) {
+        mrrCents += sub.tier.monthlyPriceCents || 0;
+      }
     }
-  });
+  );
 
   const arrCents = mrrCents * 12;
   const activeSubscribersCount = activeSubscribers.length;
   const totalAudience = activeSubscribersCount + freeSubscribersCount;
 
-  const conversionRatePercent = totalAudience > 0
-    ? Number(((activeSubscribersCount / totalAudience) * 100).toFixed(2))
-    : 0;
+  const conversionRatePercent =
+    totalAudience > 0 ? Number(((activeSubscribersCount / totalAudience) * 100).toFixed(2)) : 0;
 
   return {
     mrrCents,
@@ -107,25 +113,35 @@ export async function getCreatorTopContentStats(
     }),
   ]);
 
-  const articleItems: CreatorTopContentItem[] = articles.map((art: { id: string; title: string; createdAt: Date }) => ({
-    id: art.id,
-    title: art.title,
-    type: 'article',
-    publishedAt: art.createdAt,
-    viewsCount: 0,
-    likesCount: 0,
-    repostsCount: 0,
-  }));
+  const articleItems: CreatorTopContentItem[] = articles.map(
+    (art: { id: string; title: string; createdAt: Date }) => ({
+      id: art.id,
+      title: art.title,
+      type: 'article',
+      publishedAt: art.createdAt,
+      viewsCount: 0,
+      likesCount: 0,
+      repostsCount: 0,
+    })
+  );
 
-  const thoughtItems: CreatorTopContentItem[] = thoughts.map((t: { id: string; content: string; createdAt: Date; likeCount: number; repostCount: number }) => ({
-    id: t.id,
-    title: t.content.slice(0, 60) + (t.content.length > 60 ? '...' : ''),
-    type: 'thought',
-    publishedAt: t.createdAt,
-    viewsCount: 0,
-    likesCount: t.likeCount || 0,
-    repostsCount: t.repostCount || 0,
-  }));
+  const thoughtItems: CreatorTopContentItem[] = thoughts.map(
+    (t: {
+      id: string;
+      content: string;
+      createdAt: Date;
+      likeCount: number;
+      repostCount: number;
+    }) => ({
+      id: t.id,
+      title: t.content.slice(0, 60) + (t.content.length > 60 ? '...' : ''),
+      type: 'thought',
+      publishedAt: t.createdAt,
+      viewsCount: 0,
+      likesCount: t.likeCount || 0,
+      repostsCount: t.repostCount || 0,
+    })
+  );
 
   return [...articleItems, ...thoughtItems]
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())

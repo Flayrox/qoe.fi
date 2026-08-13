@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import React from "react";
-import Link from "next/link";
-import { TrendingUp, Hash, Loader2 } from "lucide-react";
-import { useTrendingQuery } from "@qoe/api-client";
+import React from 'react';
+import Link from 'next/link';
+import { TrendingUp, Hash, Loader2 } from 'lucide-react';
+import { useTrendingQuery } from '@qoe/api-client';
 
 export function TrendingWidget() {
   const { data: trends, isLoading, isError } = useTrendingQuery(6);
@@ -35,10 +35,10 @@ export function TrendingWidget() {
 
       {!isLoading && trends && trends.length > 0 && (
         <div className="space-y-2">
-          {trends.map((item: any) => (
+          {trends.map((item) => (
             <Link
               key={item.id || item.hashtag}
-              href={`/search?q=${encodeURIComponent("#" + item.hashtag)}`}
+              href={`/search?q=${encodeURIComponent('#' + item.hashtag)}`}
               className="group flex items-center justify-between p-2 rounded-xl hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-2 min-w-0">
@@ -50,7 +50,7 @@ export function TrendingWidget() {
                     #{item.hashtag}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    {item.count} publication{item.count > 1 ? "s" : ""}
+                    {item.count} publication{item.count > 1 ? 's' : ''}
                   </p>
                 </div>
               </div>

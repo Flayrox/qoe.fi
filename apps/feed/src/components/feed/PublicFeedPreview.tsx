@@ -18,18 +18,17 @@
 //    └────────────────────────────────────────────┘
 // =====================================================================
 
-"use client";
+'use client';
 
-import { useState } from "react";
-import Link from "next/link";
-import { ArrowRight, Sparkles, TrendingUp } from "lucide-react";
-import { ArticleCard, ThoughtCard, LoginModal } from "@qoe/ui";
-import { Button } from "@qoe/ui/button";
-import { Logo } from "@qoe/ui/ui/Logo";
-import { isFeatureEnabled } from "@qoe/config/features";
-import { EVENTS } from "@qoe/analytics/events";
-import { URLS } from "@qoe/config";
-
+import { useState } from 'react';
+import Link from 'next/link';
+import { ArrowRight, Sparkles, TrendingUp } from 'lucide-react';
+import { ArticleCard, ThoughtCard, LoginModal } from '@qoe/ui';
+import { Button } from '@qoe/ui/button';
+import { Logo } from '@qoe/ui/ui/Logo';
+import { isFeatureEnabled } from '@qoe/config/features';
+import { EVENTS } from '@qoe/analytics/events';
+import { URLS } from '@qoe/config';
 
 interface Author {
   id: string;
@@ -75,14 +74,11 @@ interface PublicFeedPreviewProps {
 /**
  * 🌐 Feed preview pour visiteurs anonymes.
  */
-export function PublicFeedPreview({
-  trendingArticles,
-  trendingPosts,
-}: PublicFeedPreviewProps) {
+export function PublicFeedPreview({ trendingArticles, trendingPosts }: PublicFeedPreviewProps) {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login");
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
 
-  const openAuth = (mode: "login" | "signup") => {
+  const openAuth = (mode: 'login' | 'signup') => {
     setAuthModalMode(mode);
     setIsLoginModalOpen(true);
   };
@@ -103,10 +99,10 @@ export function PublicFeedPreview({
             >
               Découvrir
             </Link>
-            <Button variant="ghost" size="sm" onClick={() => openAuth("login")}>
+            <Button variant="ghost" size="sm" onClick={() => openAuth('login')}>
               Se connecter
             </Button>
-            <Button size="sm" onClick={() => openAuth("signup")}>
+            <Button size="sm" onClick={() => openAuth('signup')}>
               S'inscrire
             </Button>
           </div>
@@ -125,16 +121,20 @@ export function PublicFeedPreview({
               </h3>
             </div>
             <div className="space-y-2">
-              {["#Investigation", "#Souveraineté", "#DesignÉthique", "#TempsLong", "#Émancipation"].map(
-                (tag) => (
-                  <div
-                    key={tag}
-                    className="cursor-pointer rounded-lg px-3 py-2 text-sm hover:bg-muted"
-                  >
-                    {tag}
-                  </div>
-                )
-              )}
+              {[
+                '#Investigation',
+                '#Souveraineté',
+                '#DesignÉthique',
+                '#TempsLong',
+                '#Émancipation',
+              ].map((tag) => (
+                <div
+                  key={tag}
+                  className="cursor-pointer rounded-lg px-3 py-2 text-sm hover:bg-muted"
+                >
+                  {tag}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -142,9 +142,7 @@ export function PublicFeedPreview({
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Créateurs
             </h3>
-            <p className="text-sm text-muted-foreground">
-              Les voix les plus suivies ce mois-ci.
-            </p>
+            <p className="text-sm text-muted-foreground">Les voix les plus suivies ce mois-ci.</p>
             <Button variant="outline" className="mt-4 w-full" asChild>
               <Link href={URLS.LANDING}>Explorer</Link>
             </Button>
@@ -166,15 +164,25 @@ export function PublicFeedPreview({
                 Rejoins les voix qui pensent en dehors de l'algorithme.
               </h2>
               <p className="mb-6 max-w-md text-white/90">
-                Crée un compte gratuit pour suivre tes créateurs, sauvegarder des articles,
-                et participer à la conversation.
+                Crée un compte gratuit pour suivre tes créateurs, sauvegarder des articles, et
+                participer à la conversation.
               </p>
               <div className="flex flex-wrap gap-3">
-                <Button size="lg" variant="secondary" onClick={() => openAuth("signup")} data-event={EVENTS.SIGNUP_STARTED}>
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  onClick={() => openAuth('signup')}
+                  data-event={EVENTS.SIGNUP_STARTED}
+                >
                   Créer un compte gratuit
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-                <Button size="lg" variant="ghost" className="text-white hover:bg-white/10" onClick={() => openAuth("login")}>
+                <Button
+                  size="lg"
+                  variant="ghost"
+                  className="text-white hover:bg-white/10"
+                  onClick={() => openAuth('login')}
+                >
                   Se connecter
                 </Button>
               </div>
@@ -184,7 +192,7 @@ export function PublicFeedPreview({
           </div>
 
           {/* Mix Posts + Articles trending */}
-          {isFeatureEnabled("THOUGHTS_ENABLED") && trendingPosts.length > 0 && (
+          {isFeatureEnabled('THOUGHTS_ENABLED') && trendingPosts.length > 0 && (
             <section>
               <h2 className="mb-4 flex items-center gap-2 px-2 text-lg font-semibold">
                 🔥 Trending aujourd'hui
@@ -198,7 +206,7 @@ export function PublicFeedPreview({
                       content: post.content,
                       imageUrl: post.imageUrl ?? null,
                       createdAt:
-                        typeof post.createdAt === "string"
+                        typeof post.createdAt === 'string'
                           ? post.createdAt
                           : post.createdAt.toISOString(),
                       author: {
@@ -227,7 +235,7 @@ export function PublicFeedPreview({
                     article={{
                       ...article,
                       createdAt:
-                        typeof article.createdAt === "string"
+                        typeof article.createdAt === 'string'
                           ? article.createdAt
                           : article.createdAt.toISOString(),
                       author: {
@@ -249,7 +257,7 @@ export function PublicFeedPreview({
             <p className="mb-6 text-muted-foreground">
               Inscris-toi gratuitement, pas de carte bancaire requise.
             </p>
-            <Button size="lg" onClick={() => openAuth("signup")}>
+            <Button size="lg" onClick={() => openAuth('signup')}>
               Créer mon compte
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -278,7 +286,7 @@ export function PublicFeedPreview({
                 <span>Pas de pub, pas de tracking</span>
               </li>
             </ul>
-            <Button className="mt-6 w-full" onClick={() => openAuth("signup")}>
+            <Button className="mt-6 w-full" onClick={() => openAuth('signup')}>
               S'inscrire gratuitement
             </Button>
           </div>
@@ -299,7 +307,11 @@ export function PublicFeedPreview({
           </div>
         </aside>
       </div>
-      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} initialMode={authModalMode} />
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        initialMode={authModalMode}
+      />
     </div>
   );
 }

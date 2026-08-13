@@ -1,30 +1,31 @@
-import { createClient } from "@qoe/supabase/server"
-import { redirect } from "next/navigation"
-import { prisma } from "@qoe/db/client"
-import { Wallet, CreditCard, ShieldX, ArrowRight, Receipt } from "lucide-react"
-import { ReaderPageLayout } from "@/components/layout/ReaderPageLayout"
+import { createClient } from '@qoe/supabase/server';
+import { redirect } from 'next/navigation';
+import Image from 'next/image';
+import { prisma } from '@qoe/db/client';
+import { Wallet, CreditCard, ShieldX, ArrowRight, Receipt } from 'lucide-react';
+import { ReaderPageLayout } from '@/components/layout/ReaderPageLayout';
 
-import { routes } from "@qoe/config/routes"
+import { routes } from '@qoe/config/routes';
 
 export default async function BillingPage() {
-  const supabase = await createClient()
+  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login")
+  if (!user) redirect('/login');
 
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
     include: {
-      walletTransactions: { orderBy: { createdAt: "desc" }, take: 10 },
+      walletTransactions: { orderBy: { createdAt: 'desc' }, take: 10 },
     },
-  })
+  });
 
   const subscriptions = await prisma.subscriber.findMany({
     where: { email: user.email, isPremium: true, isActive: true },
     include: { creator: { select: { name: true, logoUrl: true, username: true } } },
-  })
+  });
 
   return (
     <ReaderPageLayout giantTitle="Portefeuille">
@@ -77,7 +78,9 @@ export default async function BillingPage() {
               {subscriptions.length === 0 ? (
                 <div className="text-center py-10 text-muted-foreground flex flex-col items-center gap-3">
                   <CreditCard className="w-8 h-8 text-muted-foreground/40" />
-                  <p className="text-xs font-semibold text-foreground">Aucun abonnement premium actif.</p>
+                  <p className="text-xs font-semibold text-foreground">
+                    Aucun abonnement premium actif.
+                  </p>
                   <a
                     href="/home"
                     className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
@@ -87,18 +90,22 @@ export default async function BillingPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {subscriptions.map((sub: any) => (
+                  {subscriptions.map((sub) => (
                     <div
                       key={sub.id}
                       className="flex items-center justify-between border border-border/60 p-4 rounded-xl bg-muted/30 hover:bg-muted/60 transition-colors"
                     >
                       <a
-                        href={sub.creator.username ? routes.feed.profile(sub.creator.username) : "#"}
+                        href={
+                          sub.creator.username ? routes.feed.profile(sub.creator.username) : '#'
+                        }
                         className="flex items-center gap-3 min-w-0 group"
                       >
                         {sub.creator.logoUrl ? (
-                          <img
+                          <Image
                             src={sub.creator.logoUrl}
+                            width={40}
+                            height={40}
                             className="w-10 h-10 rounded-lg object-cover border border-border/60"
                             alt=""
                           />
@@ -143,7 +150,7 @@ export default async function BillingPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {dbUser?.walletTransactions.map((tx: any) => (
+                  {dbUser?.walletTransactions.map((tx) => (
                     <div
                       key={tx.id}
                       className="flex items-center justify-between p-3.5 rounded-xl border border-border/40 hover:bg-muted/40 transition-colors"
@@ -152,11 +159,11 @@ export default async function BillingPage() {
                         <div
                           className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
                             tx.amountCents > 0
-                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                              : "bg-muted text-muted-foreground"
+                              ? 'bg-success/10 text-success'
+                              : 'bg-muted text-muted-foreground'
                           }`}
                         >
-                          {tx.amountCents > 0 ? "+" : "−"}
+                          {tx.amountCents > 0 ? '+' : '−'}
                         </div>
                         <div>
                           <span className="text-xs font-bold text-foreground block">{tx.type}</span>
@@ -167,10 +174,10 @@ export default async function BillingPage() {
                       </div>
                       <span
                         className={`text-sm font-bold font-sans ${
-                          tx.amountCents > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
+                          tx.amountCents > 0 ? 'text-success' : 'text-foreground'
                         }`}
                       >
-                        {tx.amountCents > 0 ? "+" : ""}
+                        {tx.amountCents > 0 ? '+' : ''}
                         {(tx.amountCents / 100).toFixed(2)} €
                       </span>
                     </div>
@@ -182,5 +189,5 @@ export default async function BillingPage() {
         </div>
       </div>
     </ReaderPageLayout>
-  )
+  );
 }

@@ -1,36 +1,36 @@
-"use client"
+'use client';
 
-import React from "react"
-import { motion } from "framer-motion"
-import { BookMarked, Bookmark, Share2, ArrowUpRight, Clock } from "lucide-react"
-import { AuthorAvatar } from "@qoe/ui/ui/AuthorAvatar"
-import { CertifiedBadge } from "@qoe/ui/ui/CertifiedBadge"
-import { cn } from "@qoe/utils"
-import { routes } from "@qoe/config/routes"
+import React from 'react';
+import { motion } from 'framer-motion';
+import Image from 'next/image';
+import { BookMarked, Bookmark, ArrowUpRight, Clock } from 'lucide-react';
+import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
+import { cn } from '@qoe/utils';
+import { routes } from '@qoe/config/routes';
 
 export interface ArticleRowProps {
   article: {
-    id: string
-    title: string
-    slug: string
-    readingTime: number
-    imageUrl?: string | null
-    isPremium?: boolean
-    published?: boolean
-    createdAt: Date | string
+    id: string;
+    title: string;
+    slug: string;
+    readingTime: number;
+    imageUrl?: string | null;
+    isPremium?: boolean;
+    published?: boolean;
+    createdAt: Date | string;
     author: {
-      id: string
-      name: string | null
-      username: string | null
-      logoUrl: string | null
-      isCertified?: boolean
-    }
-    category?: { name: string } | null
-  }
-  isBookmarked?: boolean
-  onBookmarkToggle?: (articleId: string) => void
-  onOpenArticle?: (slug: string) => void
-  className?: string
+      id: string;
+      name: string | null;
+      username: string | null;
+      logoUrl: string | null;
+      isCertified?: boolean;
+    };
+    category?: { name: string } | null;
+  };
+  isBookmarked?: boolean;
+  onBookmarkToggle?: (articleId: string) => void;
+  onOpenArticle?: (slug: string) => void;
+  className?: string;
 }
 
 /**
@@ -46,21 +46,21 @@ export function ArticleRow({
 }: ArticleRowProps) {
   const handleClick = () => {
     if (onOpenArticle) {
-      onOpenArticle(article.slug)
+      onOpenArticle(article.slug);
     } else {
-      window.location.href = routes.feed.article(article.slug)
+      window.location.href = routes.feed.article(article.slug);
     }
-  }
+  };
 
   return (
     <motion.div
       whileHover={{ x: 2 }}
-      transition={{ duration: 0.15, ease: "easeOut" }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
       onClick={handleClick}
       className={cn(
-        "group flex items-center justify-between gap-3 h-14 px-3.5 rounded-xl",
-        "bg-card/40 hover:bg-muted/50 border border-border/30 hover:border-border/60",
-        "transition-all duration-200 cursor-pointer select-none",
+        'group flex items-center justify-between gap-3 h-14 px-3.5 rounded-xl',
+        'bg-card/40 hover:bg-muted/50 border border-border/30 hover:border-border/60',
+        'transition-all duration-200 cursor-pointer select-none',
         className
       )}
     >
@@ -69,18 +69,20 @@ export function ArticleRow({
         {/* QuietDot (Indicateur discret émeraude/gris) */}
         <span
           className={cn(
-            "h-1.5 w-1.5 rounded-full shrink-0",
-            article.published !== false ? "bg-emerald-500 shadow-xs" : "bg-muted-foreground/40"
+            'h-1.5 w-1.5 rounded-full shrink-0',
+            article.published !== false ? 'bg-success shadow-xs' : 'bg-muted-foreground/40'
           )}
-          title={article.published !== false ? "Publié" : "Brouillon"}
+          title={article.published !== false ? 'Publié' : 'Brouillon'}
         />
 
         {/* Miniature carrée (36px) */}
         <div className="h-9 w-9 rounded-lg overflow-hidden bg-muted shrink-0 border border-border/20">
           {article.imageUrl ? (
-            <img
+            <Image
               src={article.imageUrl}
               alt={article.title}
+              width={36}
+              height={36}
               className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
           ) : (
@@ -97,7 +99,7 @@ export function ArticleRow({
               {article.title}
             </h3>
             {article.isPremium && (
-              <span className="px-1.5 py-0.5 rounded-xs bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] font-bold uppercase tracking-wider shrink-0">
+              <span className="px-1.5 py-0.5 rounded-xs bg-highlight/10 border border-highlight/20 text-highlight text-[9px] font-bold uppercase tracking-wider shrink-0">
                 Premium
               </span>
             )}
@@ -132,12 +134,12 @@ export function ArticleRow({
             type="button"
             onClick={() => onBookmarkToggle(article.id)}
             className={cn(
-              "p-1.5 rounded-lg transition-colors cursor-pointer",
+              'p-1.5 rounded-lg transition-colors cursor-pointer',
               isBookmarked
-                ? "text-primary bg-primary/10"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                ? 'text-primary bg-primary/10'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
             )}
-            title={isBookmarked ? "Retirer de la bibliothèque" : "Mettre en signet"}
+            title={isBookmarked ? 'Retirer de la bibliothèque' : 'Mettre en signet'}
           >
             {isBookmarked ? (
               <BookMarked className="w-3.5 h-3.5 fill-primary" />
@@ -156,5 +158,5 @@ export function ArticleRow({
         </button>
       </div>
     </motion.div>
-  )
+  );
 }

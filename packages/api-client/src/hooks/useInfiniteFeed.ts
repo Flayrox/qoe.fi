@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { feedKeys } from '../query-keys';
 import type { ApiResponse, ThoughtData } from '../types';
@@ -59,7 +59,7 @@ export function useInfiniteFeed({
     gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
     enabled,
-    initialData: initialData as any,
+    initialData: initialData as InfiniteData<ApiResponse<ThoughtData[]>, string | null>,
   });
 
   const { data, hasNextPage, isFetching, fetchNextPage } = queryResult;
