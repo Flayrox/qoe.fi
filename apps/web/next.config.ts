@@ -29,6 +29,7 @@ const nextConfig: NextConfig = {
     '@qoe/billing',
     '@qoe/config',
     '@qoe/db',
+    '@qoe/flags',
     '@qoe/i18n',
     '@qoe/supabase',
     '@qoe/ui',

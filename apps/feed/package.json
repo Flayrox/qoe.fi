@@ -21,6 +21,7 @@
     "@qoe/billing": "workspace:*",
     "@qoe/config": "workspace:*",
     "@qoe/db": "workspace:*",
+    "@qoe/flags": "workspace:*",
     "@qoe/i18n": "workspace:*",
     "@qoe/observability": "workspace:^",
     "@qoe/supabase": "workspace:*",

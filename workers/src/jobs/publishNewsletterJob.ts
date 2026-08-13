@@ -2,6 +2,7 @@ import type { Job } from 'bullmq';
 import { logger } from '@qoe/observability';
 import { prisma, type Prisma } from '@qoe/db/client';
 import { sliceContentAtPaywall } from '@qoe/utils';
+import { isFlagOn } from '@qoe/flags/server';
 
 export interface PublishNewsletterPayload {
   articleId: string;
@@ -22,6 +23,14 @@ const BATCH_SIZE = 500; // Batch recipients into chunks of 500
 
 export async function processPublishNewsletterJob(job: Job<PublishNewsletterPayload>) {
   const { articleId, authorId, visibility } = job.data;
+
+  // 🚩 Kill switch : coupe l'envoi des newsletters depuis le dashboard
+  //    GrowthBook (workers-newsletter-dispatch) sans redéployer.
+  const dispatchEnabled = await isFlagOn('workers-newsletter-dispatch', { articleId, authorId });
+  if (!dispatchEnabled) {
+    logger.warn('Newsletter mise en pause par feature flag', { articleId });
+    return;
+  }
 
   console.log(
     `[NewsletterWorker] Starting broadcast dispatch for article ${articleId} (${visibility})`

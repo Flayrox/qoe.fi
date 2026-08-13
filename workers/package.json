@@ -15,6 +15,7 @@
     "@qoe/billing": "workspace:*",
     "@qoe/config": "workspace:*",
     "@qoe/db": "workspace:*",
+    "@qoe/flags": "workspace:*",
     "@qoe/observability": "workspace:^",
     "@qoe/utils": "workspace:*",
     "bullmq": "^5.34.0",
