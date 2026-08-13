@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
 import {
   useNotificationPreferencesQuery,
   useUpdateNotificationPreferencesMutation,
-} from "@qoe/api-client";
-import { Loader2, Heart, MessageCircle, AtSign, UserPlus, Repeat, Save } from "lucide-react";
+} from '@qoe/api-client';
+import { Loader2, Heart, MessageCircle, AtSign, UserPlus, Repeat } from 'lucide-react';
 
 export function NotificationSettingsForm() {
   const { data: prefs, isLoading } = useNotificationPreferencesQuery();
@@ -27,41 +27,41 @@ export function NotificationSettingsForm() {
     {
       title: "J'aime & Réactions",
       icon: Heart,
-      iconColor: "text-rose-500",
-      emailKey: "emailLikes",
-      pushKey: "pushLikes",
+      iconColor: 'text-destructive',
+      emailKey: 'emailLikes',
+      pushKey: 'pushLikes',
       description: "Alertes lorsque quelqu'un aime l'une de vos pensées ou publications.",
     },
     {
-      title: "Réponses & Thread",
+      title: 'Réponses & Thread',
       icon: MessageCircle,
-      iconColor: "text-sky-500",
-      emailKey: "emailReplies",
-      pushKey: "pushReplies",
+      iconColor: 'text-primary',
+      emailKey: 'emailReplies',
+      pushKey: 'pushReplies',
       description: "Alertes lorsqu'un membre répond directement à votre pensée.",
     },
     {
-      title: "Mentions",
+      title: 'Mentions',
       icon: AtSign,
-      iconColor: "text-amber-500",
-      emailKey: "emailMentions",
-      pushKey: "pushMentions",
+      iconColor: 'text-highlight',
+      emailKey: 'emailMentions',
+      pushKey: 'pushMentions',
       description: "Alertes lorsque votre nom d'utilisateur (@username) est cité.",
     },
     {
-      title: "Abonnements",
+      title: 'Abonnements',
       icon: UserPlus,
-      iconColor: "text-primary",
-      emailKey: "emailFollows",
-      pushKey: "pushFollows",
+      iconColor: 'text-primary',
+      emailKey: 'emailFollows',
+      pushKey: 'pushFollows',
       description: "Alertes lorsqu'un nouveau lecteur s'abonne à votre profil.",
     },
     {
-      title: "Repartages / Reposts",
+      title: 'Repartages / Reposts',
       icon: Repeat,
-      iconColor: "text-emerald-500",
-      emailKey: "emailReposts",
-      pushKey: "pushReposts",
+      iconColor: 'text-success',
+      emailKey: 'emailReposts',
+      pushKey: 'pushReposts',
       description: "Alertes lorsqu'un membre republie votre pensée sur son fil.",
     },
   ];

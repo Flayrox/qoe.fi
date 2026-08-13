@@ -2,9 +2,9 @@
 // 🛡️ Threadgates & Moderation Repository — Contrôle de Réponses
 // =====================================================================
 
-import { prisma } from "../client";
+import { prisma } from '../client';
 
-export type ReplyRestrictionType = "everyone" | "subscribers" | "following" | "mentioned";
+export type ReplyRestrictionType = 'everyone' | 'subscribers' | 'following' | 'mentioned';
 
 export interface CanReplyResult {
   canReply: boolean;
@@ -30,21 +30,21 @@ export async function canUserReplyToThought(
   });
 
   if (!thought) {
-    return { canReply: false, reason: "Pensée introuvable.", restriction: "everyone" };
+    return { canReply: false, reason: 'Pensée introuvable.', restriction: 'everyone' };
   }
 
-  const restriction = (thought.replyRestriction as ReplyRestrictionType) || "everyone";
+  const restriction = (thought.replyRestriction as ReplyRestrictionType) || 'everyone';
 
   // L'auteur peut toujours répondre à ses propres pensées
   if (replyingUserId === thought.authorId) {
     return { canReply: true, restriction };
   }
 
-  if (restriction === "everyone") {
+  if (restriction === 'everyone') {
     return { canReply: true, restriction };
   }
 
-  if (restriction === "subscribers") {
+  if (restriction === 'subscribers') {
     // Vérification de l'abonnement
     const sub = await prisma.subscriber.findFirst({
       where: {
@@ -63,7 +63,7 @@ export async function canUserReplyToThought(
     };
   }
 
-  if (restriction === "following") {
+  if (restriction === 'following') {
     // L'auteur du message doit suivre l'utilisateur qui tente de répondre
     const follow = await prisma.follows.findUnique({
       where: {
@@ -83,7 +83,7 @@ export async function canUserReplyToThought(
     };
   }
 
-  if (restriction === "mentioned") {
+  if (restriction === 'mentioned') {
     // L'utilisateur doit être mentionné dans le contenu du Thought
     const replyingUser = await prisma.user.findUnique({
       where: { id: replyingUserId },
@@ -91,19 +91,19 @@ export async function canUserReplyToThought(
     });
     if (replyingUser?.username) {
       const escapedUsername = replyingUser.username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const mentionRegex = new RegExp(`@${escapedUsername}\\b`, "i");
+      const mentionRegex = new RegExp(`@${escapedUsername}\\b`, 'i');
       if (mentionRegex.test(thought.content)) {
         return { canReply: true, restriction };
       }
     }
     return {
       canReply: false,
-      reason: "Seules les personnes mentionnées peuvent répondre.",
+      reason: 'Seules les personnes mentionnées peuvent répondre.',
       restriction,
     };
   }
 
-  return { canReply: true, restriction: "everyone" };
+  return { canReply: true, restriction: 'everyone' };
 }
 
 /**
@@ -124,7 +124,7 @@ export async function toggleHideReplyByAuthor(replyId: string, authorId: string)
   });
 
   if (!reply) {
-    throw new Error("Réponse introuvable.");
+    throw new Error('Réponse introuvable.');
   }
 
   // Seul l'auteur de la pensée parente a la permission de masquer une réponse

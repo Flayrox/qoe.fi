@@ -2,12 +2,15 @@
 // 🔖 Bookmarks Repository — Couche d'accès typée
 // =====================================================================
 
-import { prisma } from "../client"
+import { prisma } from '../client';
 
 /**
  * ⚡ Bascule l'état de mise en favori d'un article pour un lecteur.
  */
-export async function toggleBookmark(readerId: string, articleId: string): Promise<{ bookmarked: boolean }> {
+export async function toggleBookmark(
+  readerId: string,
+  articleId: string
+): Promise<{ bookmarked: boolean }> {
   try {
     const existing = await prisma.bookmark.findUnique({
       where: {
@@ -32,9 +35,9 @@ export async function toggleBookmark(readerId: string, articleId: string): Promi
       });
       return { bookmarked: true };
     }
-  } catch (error: any) {
-    if (error?.code === "P2002") return { bookmarked: true };
-    if (error?.code === "P2025") return { bookmarked: false };
+  } catch (error) {
+    if ((error as { code?: string })?.code === 'P2002') return { bookmarked: true };
+    if ((error as { code?: string })?.code === 'P2025') return { bookmarked: false };
     throw error;
   }
 }
@@ -47,9 +50,9 @@ export async function isBookmarked(readerId: string, articleId: string): Promise
     where: {
       readerId_articleId: {
         readerId,
-        articleId
-      }
-    }
-  })
-  return !!existing
+        articleId,
+      },
+    },
+  });
+  return !!existing;
 }

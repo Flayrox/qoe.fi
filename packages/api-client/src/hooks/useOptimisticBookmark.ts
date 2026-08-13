@@ -5,7 +5,10 @@ import { isUnauthorizedError, notifyUnauthorized } from '../utils/authError';
 export interface ToggleBookmarkVariables {
   articleId: string;
   isBookmarkedCurrent: boolean;
-  bookmarkMutationFn: (articleId: string, isBookmarkedCurrent: boolean) => Promise<{ success: boolean; message?: string }>;
+  bookmarkMutationFn: (
+    articleId: string,
+    isBookmarkedCurrent: boolean
+  ) => Promise<{ success: boolean; message?: string }>;
 }
 
 export interface UseOptimisticBookmarkOptions {
@@ -17,7 +20,11 @@ export function createOptimisticBookmarkMutationOptions(
   options?: UseOptimisticBookmarkOptions
 ) {
   return {
-    mutationFn: async ({ articleId, isBookmarkedCurrent, bookmarkMutationFn }: ToggleBookmarkVariables) => {
+    mutationFn: async ({
+      articleId,
+      isBookmarkedCurrent,
+      bookmarkMutationFn,
+    }: ToggleBookmarkVariables) => {
       const response = await bookmarkMutationFn(articleId, isBookmarkedCurrent);
       if (!response.success) {
         throw new Error(response.message || 'Failed to update bookmark');
@@ -81,7 +88,11 @@ export function createOptimisticBookmarkMutationOptions(
       return { previousQueries };
     },
 
-    onError: (err: Error, _variables: ToggleBookmarkVariables, context?: { previousQueries?: Array<[readonly unknown[], unknown]> }) => {
+    onError: (
+      err: Error,
+      _variables: ToggleBookmarkVariables,
+      context?: { previousQueries?: Array<[readonly unknown[], unknown]> }
+    ) => {
       if (context?.previousQueries) {
         context.previousQueries.forEach(([key, data]) => {
           queryClient.setQueryData(key, data);

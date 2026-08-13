@@ -1,1 +1,1 @@
-export * from "./social/ThoughtCard"
+export * from './social/ThoughtCard';

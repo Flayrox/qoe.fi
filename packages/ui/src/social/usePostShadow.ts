@@ -1,12 +1,11 @@
-"use client";
+'use client';
 
 // =====================================================================
 // ⚡ usePostShadow — Shadow State Store réactif pour Posts / Thoughts
 // Inspiré du post-shadow de Bluesky pour la synchronisation transverse
 // =====================================================================
 
-import { useState, useEffect } from "react";
-
+import { useState, useEffect } from 'react';
 
 export interface PostShadowState {
   liked?: boolean;
@@ -59,7 +58,7 @@ export function usePostShadow<
     liked?: boolean;
     reposted?: boolean;
     isHiddenByAuthor?: boolean;
-  }
+  },
 >(post: T): T {
   const postId = post.id;
   const [, setTick] = useState(0);

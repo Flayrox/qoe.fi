@@ -1,11 +1,11 @@
-"use client"
+'use client';
 
-import React, { useState, useRef, useEffect, createContext, useContext } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
-import { cn } from "@qoe/utils"
-import { URLS } from "@qoe/config"
+import React, { useState, useRef, useEffect, createContext, useContext } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@qoe/utils';
+import { URLS } from '@qoe/config';
 import {
   Home,
   FileText,
@@ -23,7 +23,7 @@ import {
   Highlighter,
   Wallet,
   Bell,
-} from "lucide-react"
+} from 'lucide-react';
 
 /* ─────────────────────────────────────────────
    Icon Registry (Lucide)
@@ -44,98 +44,124 @@ const iconRegistry: Record<
   Wallet,
   Bell,
   Search,
-}
-
-
+};
 
 /* ─────────────────────────────────────────────
    Types & Interfaces
    ───────────────────────────────────────────── */
 export interface SidebarItemData {
-  title: string
-  url: string
-  iconName?: string
-  icon?: React.ComponentType<{ className?: string; strokeWidth?: number }>
-  section?: string
-  badge?: string | number
+  title: string;
+  url: string;
+  iconName?: string;
+  icon?: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  section?: string;
+  badge?: string | number;
 }
 
 export interface SidebarProps {
   /** Shorthand navigation items */
-  items?: SidebarItemData[]
+  items?: SidebarItemData[];
   /** Currently active path (defaults to usePathname) */
-  activeUrl?: string
+  activeUrl?: string;
   /** Header logo element */
-  logo?: React.ReactNode
+  logo?: React.ReactNode;
   /** Brand name displayed next to logo */
-  brandName?: string
+  brandName?: string;
   /** Authenticated user name */
-  userName?: string
+  userName?: string;
   /** Authenticated user email */
-  userEmail?: string
+  userEmail?: string;
   /** User fallback initials */
-  userFallback?: string
+  userFallback?: string;
   /** User avatar image URL */
-  userAvatar?: string | null
+  userAvatar?: string | null;
   /** Logout handler function */
-  onLogout?: () => void | Promise<void>
+  onLogout?: () => void | Promise<void>;
   /** Primary CTA action */
   primaryAction?: {
-    label: string
-    href?: string
-    onClick?: () => void
-    icon?: React.ComponentType<{ className?: string }>
-  }
+    label: string;
+    href?: string;
+    onClick?: () => void;
+    icon?: React.ComponentType<{ className?: string }>;
+  };
   /** Optional search change handler */
-  onSearchChange?: (query: string) => void
+  onSearchChange?: (query: string) => void;
   /** Optional search placeholder */
-  searchPlaceholder?: string
+  searchPlaceholder?: string;
   /** Custom additional CSS classes */
-  className?: string
+  className?: string;
   /** Optional custom children for compound component composition */
-  children?: React.ReactNode
+  children?: React.ReactNode;
 }
 
 /* ─────────────────────────────────────────────
    Context for Compound Components
    ───────────────────────────────────────────── */
 interface SidebarContextValue {
-  activeUrl: string
-  isMobileOpen: boolean
-  setIsMobileOpen: (open: boolean) => void
+  activeUrl: string;
+  isMobileOpen: boolean;
+  setIsMobileOpen: (open: boolean) => void;
 }
 
-const SidebarContext = createContext<SidebarContextValue | null>(null)
+const SidebarContext = createContext<SidebarContextValue | null>(null);
 
 export function useSidebarContext() {
-  const ctx = useContext(SidebarContext)
+  const ctx = useContext(SidebarContext);
   if (!ctx) {
-    throw new Error("Sidebar sub-components must be used within <Sidebar>")
+    throw new Error('Sidebar sub-components must be used within <Sidebar>');
   }
-  return ctx
+  return ctx;
 }
 
 const ArrowSVG = () => (
   <svg height="16" width="16" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
     <path d="M1.559 16 13.795 3.764v8.962H16V0H3.274v2.205h8.962L0 14.441 1.559 16z" />
   </svg>
-)
+);
 
 /* ─────────────────────────────────────────────
    Compound Sub-Components
    ───────────────────────────────────────────── */
 
-export function SidebarHeader({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("flex items-center justify-between px-2 pt-1 pb-4 mb-1", className)}>{children}</div>
-}
-
-export function SidebarContent({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin", className)}>{children}</div>
-}
-
-export function SidebarGroup({ title, children, className }: { title?: string; children: React.ReactNode; className?: string }) {
+export function SidebarHeader({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className={cn("space-y-1", className)}>
+    <div className={cn('flex items-center justify-between px-2 pt-1 pb-4 mb-1', className)}>
+      {children}
+    </div>
+  );
+}
+
+export function SidebarContent({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin', className)}>
+      {children}
+    </div>
+  );
+}
+
+export function SidebarGroup({
+  title,
+  children,
+  className,
+}: {
+  title?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('space-y-1', className)}>
       {title && (
         <div className="px-3 py-1 text-[11px] font-bold tracking-wider text-muted-foreground/70 uppercase">
           {title}
@@ -143,7 +169,7 @@ export function SidebarGroup({ title, children, className }: { title?: string; c
       )}
       <ul className="space-y-[2px]">{children}</ul>
     </div>
-  )
+  );
 }
 
 export function SidebarItem({
@@ -153,30 +179,30 @@ export function SidebarItem({
   children,
   className,
 }: {
-  href: string
-  icon?: React.ComponentType<{ className?: string; strokeWidth?: number }>
-  badge?: string | number
-  children: React.ReactNode
-  className?: string
+  href: string;
+  icon?: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  badge?: string | number;
+  children: React.ReactNode;
+  className?: string;
 }) {
-  const { activeUrl } = useSidebarContext()
-  const active = href === "/" ? activeUrl === "/" : activeUrl.startsWith(href)
+  const { activeUrl } = useSidebarContext();
+  const active = href === '/' ? activeUrl === '/' : activeUrl.startsWith(href);
 
   return (
     <li className="relative">
       <Link
         href={href}
         onClick={() => {
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(new CustomEvent("reset-feed-view"))
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('reset-feed-view'));
           }
         }}
-        aria-current={active ? "page" : undefined}
+        aria-current={active ? 'page' : undefined}
         className={cn(
-          "relative flex items-center gap-3 px-3 py-2 rounded-[10px] transition-colors duration-150 outline-none z-10",
+          'relative flex items-center gap-3 px-3 py-2 rounded-[10px] transition-colors duration-150 outline-none z-10',
           active
-            ? "text-sidebar-foreground font-medium"
-            : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+            ? 'text-sidebar-foreground font-medium'
+            : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
           className
         )}
       >
@@ -184,14 +210,14 @@ export function SidebarItem({
           <motion.span
             layoutId="sidebar-active-pill"
             className="absolute inset-0 bg-sidebar-accent/80 rounded-[10px] -z-10"
-            transition={{ type: "spring", stiffness: 400, damping: 32 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 32 }}
           />
         )}
         {Icon && (
           <span
             className={cn(
-              "flex items-center justify-center shrink-0 transition-colors w-[20px] h-[20px]",
-              active ? "text-sidebar-primary" : "text-sidebar-foreground/70"
+              'flex items-center justify-center shrink-0 transition-colors w-[20px] h-[20px]',
+              active ? 'text-sidebar-primary' : 'text-sidebar-foreground/70'
             )}
           >
             <Icon className="w-[18px] h-[18px]" strokeWidth={1.5} />
@@ -199,8 +225,8 @@ export function SidebarItem({
         )}
         <span
           className={cn(
-            "truncate flex-1 text-[14px] tracking-[-0.1px] leading-[1.2] font-normal",
-            active ? "text-sidebar-primary font-medium" : ""
+            'truncate flex-1 text-[14px] tracking-[-0.1px] leading-[1.2] font-normal',
+            active ? 'text-sidebar-primary font-medium' : ''
           )}
         >
           {children}
@@ -208,10 +234,10 @@ export function SidebarItem({
         {badge !== undefined && (
           <span
             className={cn(
-              "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+              'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
               active
-                ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                : "bg-sidebar-accent text-muted-foreground"
+                ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                : 'bg-sidebar-accent text-muted-foreground'
             )}
           >
             {badge}
@@ -219,11 +245,21 @@ export function SidebarItem({
         )}
       </Link>
     </li>
-  )
+  );
 }
 
-export function SidebarFooter({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("pt-3.5 border-t border-sidebar-border/50 flex flex-col gap-3", className)}>{children}</div>
+export function SidebarFooter({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('pt-3.5 border-t border-sidebar-border/50 flex flex-col gap-3', className)}>
+      {children}
+    </div>
+  );
 }
 
 /* ─────────────────────────────────────────────
@@ -233,72 +269,72 @@ export function Sidebar({
   items,
   activeUrl: activeUrlProp,
   logo,
-  brandName = "qoe.fi",
+  brandName = 'qoe.fi',
   userName,
   userEmail,
-  userFallback = "CR",
+  userFallback = 'CR',
   userAvatar,
   onLogout,
   primaryAction,
   onSearchChange,
-  searchPlaceholder = "Rechercher...",
+  searchPlaceholder = 'Rechercher...',
   className,
   children,
 }: SidebarProps) {
-  const currentPathname = usePathname()
-  const activeUrl = activeUrlProp ?? currentPathname
-  const [isAccountOpen, setIsAccountOpen] = useState(false)
-  const [isMobileOpen, setIsMobileOpen] = useState(false)
-  const [isMounted, setIsMounted] = useState(false)
-  const accountMenuRef = useRef<HTMLDivElement>(null)
+  const currentPathname = usePathname();
+  const activeUrl = activeUrlProp ?? currentPathname;
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setIsMounted(true)
-  }, [])
+    setIsMounted(true);
+  }, []);
 
-  const accountUrl = isMounted ? `${URLS.CONSOLE}/settings` : "#"
+  const accountUrl = isMounted ? `${URLS.CONSOLE}/settings` : '#';
 
   // Handle outside click & Escape key & Mobile drawer toggle event
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
-        setIsAccountOpen(false)
+        setIsAccountOpen(false);
       }
-    }
+    };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsAccountOpen(false)
-        setIsMobileOpen(false)
+      if (event.key === 'Escape') {
+        setIsAccountOpen(false);
+        setIsMobileOpen(false);
       }
-    }
+    };
     const handleToggleMobile = () => {
-      setIsMobileOpen((prev) => !prev)
-    }
+      setIsMobileOpen((prev) => !prev);
+    };
 
-    document.addEventListener("mousedown", handleClickOutside)
-    document.addEventListener("keydown", handleKeyDown)
-    window.addEventListener("toggle-mobile-sidebar", handleToggleMobile)
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('toggle-mobile-sidebar', handleToggleMobile);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-      document.removeEventListener("keydown", handleKeyDown)
-      window.removeEventListener("toggle-mobile-sidebar", handleToggleMobile)
-    }
-  }, [])
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('toggle-mobile-sidebar', handleToggleMobile);
+    };
+  }, []);
 
   // Close mobile menu on page navigation
   useEffect(() => {
-    setIsMobileOpen(false)
-  }, [activeUrl])
+    setIsMobileOpen(false);
+  }, [activeUrl]);
 
   // Group items by section if provided
   const groupedItems = (items || []).reduce<Record<string, SidebarItemData[]>>((acc, item) => {
-    const section = item.section || "DEFAULT"
-    if (!acc[section]) acc[section] = []
-    acc[section].push(item)
-    return acc
-  }, {})
+    const section = item.section || 'DEFAULT';
+    if (!acc[section]) acc[section] = [];
+    acc[section].push(item);
+    return acc;
+  }, {});
 
-  const contextValue = { activeUrl, isMobileOpen, setIsMobileOpen }
+  const contextValue = { activeUrl, isMobileOpen, setIsMobileOpen };
 
   return (
     <SidebarContext.Provider value={contextValue}>
@@ -318,19 +354,19 @@ export function Sidebar({
 
       <aside
         className={cn(
-          "font-sans select-none w-[250px]",
-          "fixed top-[6px] left-[6px] bottom-[6px] z-40 transition-transform duration-200 ease-in-out",
+          'font-sans select-none w-[250px]',
+          'fixed top-[6px] left-[6px] bottom-[6px] z-40 transition-transform duration-200 ease-in-out',
           isMobileOpen
-            ? "flex flex-col translate-x-0"
-            : "hidden md:flex flex-col -translate-x-full md:translate-x-0",
+            ? 'flex flex-col translate-x-0'
+            : 'hidden md:flex flex-col -translate-x-full md:translate-x-0',
           className
         )}
       >
         <nav
           aria-label="Navigation principale"
           className={cn(
-            "h-full flex flex-col justify-between p-4 rounded-[18px] relative overflow-hidden",
-            "bg-sidebar backdrop-blur-[25px] saturate-[180%] border border-sidebar-border shadow-xl text-sidebar-foreground"
+            'h-full flex flex-col justify-between p-4 rounded-[18px] relative overflow-hidden',
+            'bg-sidebar backdrop-blur-[25px] saturate-[180%] border border-sidebar-border shadow-xl text-sidebar-foreground'
           )}
         >
           {children ? (
@@ -367,9 +403,10 @@ export function Sidebar({
               {/* ── SCROLLABLE NAVIGATION LIST ── */}
               <SidebarContent>
                 {Object.entries(groupedItems).map(([section, sectionItems]) => (
-                  <SidebarGroup key={section} title={section !== "DEFAULT" ? section : undefined}>
+                  <SidebarGroup key={section} title={section !== 'DEFAULT' ? section : undefined}>
                     {sectionItems.map((item) => {
-                      const Icon = item.icon || (item.iconName ? iconRegistry[item.iconName] : FileText)
+                      const Icon =
+                        item.icon || (item.iconName ? iconRegistry[item.iconName] : FileText);
 
                       return (
                         <SidebarItem
@@ -380,7 +417,7 @@ export function Sidebar({
                         >
                           {item.title}
                         </SidebarItem>
-                      )
+                      );
                     })}
                   </SidebarGroup>
                 ))}
@@ -388,14 +425,14 @@ export function Sidebar({
 
               {/* ── FOOTER: PRIMARY ACTION & ACCOUNT ── */}
               <SidebarFooter>
-                {primaryAction && (
-                  primaryAction.onClick ? (
+                {primaryAction &&
+                  (primaryAction.onClick ? (
                     <button
                       type="button"
                       onClick={primaryAction.onClick}
                       className={cn(
-                        "w-full flex items-center justify-between px-2.5 py-2 rounded-[12px] text-[13px] font-medium transition-all duration-200 cursor-pointer outline-none",
-                        "bg-sidebar-accent/60 hover:bg-sidebar-accent border border-sidebar-border/60 text-sidebar-foreground active:scale-[0.98]"
+                        'w-full flex items-center justify-between px-2.5 py-2 rounded-[12px] text-[13px] font-medium transition-all duration-200 cursor-pointer outline-none',
+                        'bg-sidebar-accent/60 hover:bg-sidebar-accent border border-sidebar-border/60 text-sidebar-foreground active:scale-[0.98]'
                       )}
                     >
                       <span className="text-sidebar-primary flex items-center justify-center shrink-0 w-[22px] h-[22px]">
@@ -410,10 +447,10 @@ export function Sidebar({
                     </button>
                   ) : (
                     <Link
-                      href={primaryAction.href || "#"}
+                      href={primaryAction.href || '#'}
                       className={cn(
-                        "w-full flex items-center justify-between px-2.5 py-2 rounded-[12px] text-[13px] font-medium transition-all duration-200",
-                        "bg-sidebar-accent/60 hover:bg-sidebar-accent border border-sidebar-border/60 text-sidebar-foreground active:scale-[0.98]"
+                        'w-full flex items-center justify-between px-2.5 py-2 rounded-[12px] text-[13px] font-medium transition-all duration-200',
+                        'bg-sidebar-accent/60 hover:bg-sidebar-accent border border-sidebar-border/60 text-sidebar-foreground active:scale-[0.98]'
                       )}
                     >
                       <span className="text-sidebar-primary flex items-center justify-center shrink-0 w-[22px] h-[22px]">
@@ -426,8 +463,7 @@ export function Sidebar({
                         <ArrowSVG />
                       </span>
                     </Link>
-                  )
-                )}
+                  ))}
 
                 {/* Profile Popover */}
                 <div className="relative flex justify-end" ref={accountMenuRef}>
@@ -437,21 +473,25 @@ export function Sidebar({
                     aria-expanded={isAccountOpen}
                     aria-haspopup="menu"
                     className={cn(
-                      "w-full flex items-center gap-2.5 p-1.5 rounded-[12px] transition-colors outline-none",
-                      "hover:bg-sidebar-accent/60 text-sidebar-foreground"
+                      'w-full flex items-center gap-2.5 p-1.5 rounded-[12px] transition-colors outline-none',
+                      'hover:bg-sidebar-accent/60 text-sidebar-foreground'
                     )}
                     aria-label="Menu compte"
                   >
                     <span className="w-7 h-7 rounded-full bg-sidebar-primary/10 text-sidebar-primary font-bold text-xs flex items-center justify-center shrink-0 border border-sidebar-primary/20 overflow-hidden">
                       {userAvatar ? (
-                        <img src={userAvatar} alt={userName || "Utilisateur"} className="w-full h-full object-cover" />
+                        <img
+                          src={userAvatar}
+                          alt={userName || 'Utilisateur'}
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         userFallback
                       )}
                     </span>
                     <div className="flex-1 text-left truncate min-w-0">
                       <span className="text-xs font-semibold block leading-tight truncate">
-                        {userName || "Créateur"}
+                        {userName || 'Créateur'}
                       </span>
                       {userEmail && (
                         <span className="text-[11px] text-muted-foreground block truncate leading-tight mt-0.5">
@@ -467,15 +507,15 @@ export function Sidebar({
                         initial={{ opacity: 0, scale: 0.95, y: 8 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 8 }}
-                        transition={{ duration: 0.15, ease: "easeOut" }}
+                        transition={{ duration: 0.15, ease: 'easeOut' }}
                         className={cn(
-                          "absolute bottom-11 right-0 z-50 w-56 p-2 rounded-[14px] shadow-2xl origin-bottom-right",
-                          "bg-sidebar/95 backdrop-blur-2xl border border-sidebar-border text-sidebar-foreground"
+                          'absolute bottom-11 right-0 z-50 w-56 p-2 rounded-[14px] shadow-2xl origin-bottom-right',
+                          'bg-sidebar/95 backdrop-blur-2xl border border-sidebar-border text-sidebar-foreground'
                         )}
                       >
                         <div className="px-2.5 py-2 mb-1 border-b border-sidebar-border/60">
                           <span className="font-semibold text-xs block leading-tight truncate">
-                            {userName || "Créateur"}
+                            {userName || 'Créateur'}
                           </span>
                           {userEmail && (
                             <span className="text-[10px] text-muted-foreground block truncate mt-0.5">
@@ -507,8 +547,8 @@ export function Sidebar({
                         {onLogout && (
                           <form
                             action={() => {
-                              setIsAccountOpen(false)
-                              onLogout()
+                              setIsAccountOpen(false);
+                              onLogout();
                             }}
                           >
                             <button
@@ -530,5 +570,5 @@ export function Sidebar({
         </nav>
       </aside>
     </SidebarContext.Provider>
-  )
+  );
 }

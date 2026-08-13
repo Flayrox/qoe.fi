@@ -1,29 +1,44 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect, useRef } from "react";
-import { Search as SearchIcon, X, Loader2, User as UserIcon, MessageSquare, FileText, Sparkles } from "lucide-react";
-import { useSearchQuery } from "@qoe/api-client";
-import { ThoughtCard } from "./ThoughtCard";
-import { AuthorAvatar } from "@qoe/ui/ui/AuthorAvatar";
-import { CertifiedBadge } from "@qoe/ui/ui/CertifiedBadge";
-import Link from "next/link";
-import { routes } from "@qoe/config/routes";
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Search as SearchIcon,
+  X,
+  Loader2,
+  User as UserIcon,
+  MessageSquare,
+  FileText,
+  Sparkles,
+} from 'lucide-react';
+import { useSearchQuery } from '@qoe/api-client';
+import { ThoughtCard } from './ThoughtCard';
+import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
+import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
+import Link from 'next/link';
+import { routes } from '@qoe/config/routes';
 
-export function SearchFeed({ initialQuery = "" }: { initialQuery?: string }) {
+export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
   const [query, setQuery] = useState(initialQuery);
-  const [activeTab, setActiveTab] = useState<"all" | "thoughts" | "users" | "articles">("all");
+  const [activeTab, setActiveTab] = useState<'all' | 'thoughts' | 'users' | 'articles'>('all');
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Raccourci clavier "/" pour focus la recherche
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "/" && document.activeElement !== inputRef.current && !(document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement)) {
+      if (
+        e.key === '/' &&
+        document.activeElement !== inputRef.current &&
+        !(
+          document.activeElement instanceof HTMLInputElement ||
+          document.activeElement instanceof HTMLTextAreaElement
+        )
+      ) {
         e.preventDefault();
         inputRef.current?.focus();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const { data, isLoading, isError } = useSearchQuery(query, activeTab);
@@ -49,7 +64,7 @@ export function SearchFeed({ initialQuery = "" }: { initialQuery?: string }) {
           />
           {hasQuery ? (
             <button
-              onClick={() => setQuery("")}
+              onClick={() => setQuery('')}
               className="absolute right-3 p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               title="Effacer"
             >
@@ -67,43 +82,43 @@ export function SearchFeed({ initialQuery = "" }: { initialQuery?: string }) {
       {hasQuery && (
         <div className="flex items-center gap-1 border-b border-border/40 pb-2 overflow-x-auto no-scrollbar">
           <button
-            onClick={() => setActiveTab("all")}
+            onClick={() => setActiveTab('all')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
-              activeTab === "all"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              activeTab === 'all'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
             }`}
           >
             Tous les résultats
           </button>
           <button
-            onClick={() => setActiveTab("thoughts")}
+            onClick={() => setActiveTab('thoughts')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-              activeTab === "thoughts"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              activeTab === 'thoughts'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
             }`}
           >
             <MessageSquare className="w-3.5 h-3.5" />
             <span>Pensées ({thoughts.length})</span>
           </button>
           <button
-            onClick={() => setActiveTab("users")}
+            onClick={() => setActiveTab('users')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-              activeTab === "users"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              activeTab === 'users'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
             }`}
           >
             <UserIcon className="w-3.5 h-3.5" />
             <span>Profils ({users.length})</span>
           </button>
           <button
-            onClick={() => setActiveTab("articles")}
+            onClick={() => setActiveTab('articles')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-              activeTab === "articles"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              activeTab === 'articles'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
@@ -118,9 +133,13 @@ export function SearchFeed({ initialQuery = "" }: { initialQuery?: string }) {
           <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
             <Sparkles className="w-6 h-6" />
           </div>
-          <p className="font-bold text-base text-foreground">Découvrez des conversations sur qoe.fi</p>
+          <p className="font-bold text-base text-foreground">
+            Découvrez des conversations sur qoe.fi
+          </p>
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            Saisissez un mot-clé, un hashtag comme <code className="bg-muted px-1.5 py-0.5 rounded text-primary font-semibold">#tech</code> ou un identifiant d'auteur.
+            Saisissez un mot-clé, un hashtag comme{' '}
+            <code className="bg-muted px-1.5 py-0.5 rounded text-primary font-semibold">#tech</code>{' '}
+            ou un identifiant d'auteur.
           </p>
         </div>
       )}
@@ -143,13 +162,13 @@ export function SearchFeed({ initialQuery = "" }: { initialQuery?: string }) {
       {!isLoading && hasQuery && (
         <div className="space-y-6">
           {/* Section Profils */}
-          {(activeTab === "all" || activeTab === "users") && users.length > 0 && (
+          {(activeTab === 'all' || activeTab === 'users') && users.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">
                 Profils ({users.length})
               </h3>
               <div className="grid gap-2 sm:grid-cols-2">
-                {users.map((u: any) => (
+                {users.map((u) => (
                   <Link
                     key={u.id}
                     href={routes.feed.profile(u.username || u.subdomain || u.id)}
@@ -159,7 +178,7 @@ export function SearchFeed({ initialQuery = "" }: { initialQuery?: string }) {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1">
                         <span className="font-bold text-xs text-foreground group-hover:text-primary transition-colors truncate">
-                          {u.name || "Auteur"}
+                          {u.name || 'Auteur'}
                         </span>
                         {u.isCertified && <CertifiedBadge />}
                       </div>
@@ -179,13 +198,13 @@ export function SearchFeed({ initialQuery = "" }: { initialQuery?: string }) {
           )}
 
           {/* Section Pensées */}
-          {(activeTab === "all" || activeTab === "thoughts") && thoughts.length > 0 && (
+          {(activeTab === 'all' || activeTab === 'thoughts') && thoughts.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">
                 Pensées ({thoughts.length})
               </h3>
               <div className="rounded-2xl border border-border/50 overflow-hidden divide-y divide-border/30 bg-card">
-                {thoughts.map((thought: any) => (
+                {thoughts.map((thought) => (
                   <ThoughtCard key={thought.id} post={thought} />
                 ))}
               </div>
@@ -193,14 +212,17 @@ export function SearchFeed({ initialQuery = "" }: { initialQuery?: string }) {
           )}
 
           {/* Section Articles */}
-          {(activeTab === "all" || activeTab === "articles") && articles.length > 0 && (
+          {(activeTab === 'all' || activeTab === 'articles') && articles.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">
                 Articles ({articles.length})
               </h3>
               <div className="grid gap-2">
-                {articles.map((art: any) => (
-                  <div key={art.id} className="p-4 rounded-2xl bg-card border border-border/50 space-y-1">
+                {articles.map((art) => (
+                  <div
+                    key={art.id}
+                    className="p-4 rounded-2xl bg-card border border-border/50 space-y-1"
+                  >
                     <h4 className="font-bold text-sm text-foreground hover:text-primary transition-colors">
                       {art.title}
                     </h4>

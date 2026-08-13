@@ -2,8 +2,8 @@
 // 🔔 Notifications Repository — Couche d'accès typée & agrégation
 // =====================================================================
 
-import { prisma } from "../client";
-import { NotificationType } from "@prisma/client";
+import { prisma } from '../client';
+import { NotificationType, type Prisma } from '@prisma/client';
 
 export interface GroupedNotification {
   id: string;
@@ -47,7 +47,7 @@ export async function createNotification(data: {
   thoughtId?: string | null;
   articleId?: string | null;
   commentId?: string | null;
-}): Promise<any | null> {
+}): Promise<Prisma.NotificationGetPayload<Record<string, never>> | null> {
   // Ne pas notifier soi-même
   if (data.recipientId === data.senderId) {
     return null;
@@ -58,11 +58,11 @@ export async function createNotification(data: {
     const prefs = await getPreferences(data.recipientId);
 
     // Filtrer selon le type
-    if (data.type === "LIKE" && !prefs.pushLikes && !prefs.emailLikes) return null;
-    if (data.type === "REPLY" && !prefs.pushReplies && !prefs.emailReplies) return null;
-    if (data.type === "MENTION" && !prefs.pushMentions && !prefs.emailMentions) return null;
-    if (data.type === "FOLLOW" && !prefs.pushFollows && !prefs.emailFollows) return null;
-    if (data.type === "REPOST" && !prefs.pushReposts && !prefs.emailReposts) return null;
+    if (data.type === 'LIKE' && !prefs.pushLikes && !prefs.emailLikes) return null;
+    if (data.type === 'REPLY' && !prefs.pushReplies && !prefs.emailReplies) return null;
+    if (data.type === 'MENTION' && !prefs.pushMentions && !prefs.emailMentions) return null;
+    if (data.type === 'FOLLOW' && !prefs.pushFollows && !prefs.emailFollows) return null;
+    if (data.type === 'REPOST' && !prefs.pushReposts && !prefs.emailReposts) return null;
 
     // Idempotence : éviter les doublons identiques non lus
     const existing = await prisma.notification.findFirst({
@@ -92,7 +92,7 @@ export async function createNotification(data: {
       },
     });
   } catch (error) {
-    console.error("Error creating notification:", error);
+    console.error('Error creating notification:', error);
     return null;
   }
 }
@@ -119,7 +119,7 @@ export async function deleteNotification(data: {
     });
     return true;
   } catch (error) {
-    console.error("Error deleting notification:", error);
+    console.error('Error deleting notification:', error);
     return false;
   }
 }
@@ -129,18 +129,18 @@ export async function deleteNotification(data: {
  */
 export async function getNotifications(
   recipientId: string,
-  filter: "all" | "mentions" | "replies" | "likes" = "all",
+  filter: 'all' | 'mentions' | 'replies' | 'likes' = 'all',
   limit = 30,
   cursor?: string
 ): Promise<{ notifications: GroupedNotification[]; nextCursor: string | null }> {
   let typeFilter: NotificationType[] | undefined;
 
-  if (filter === "mentions") {
-    typeFilter = ["MENTION"];
-  } else if (filter === "replies") {
-    typeFilter = ["REPLY"];
-  } else if (filter === "likes") {
-    typeFilter = ["LIKE"];
+  if (filter === 'mentions') {
+    typeFilter = ['MENTION'];
+  } else if (filter === 'replies') {
+    typeFilter = ['REPLY'];
+  } else if (filter === 'likes') {
+    typeFilter = ['LIKE'];
   }
 
   const rawNotifications = await prisma.notification.findMany({
@@ -150,7 +150,7 @@ export async function getNotifications(
     },
     take: limit + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: 'desc' },
     include: {
       sender: {
         select: {
@@ -247,7 +247,10 @@ export async function getUnreadCount(recipientId: string): Promise<number> {
 /**
  * 🟢 Marque les notifications comme lues.
  */
-export async function markAsRead(recipientId: string, notificationIds?: string[]): Promise<boolean> {
+export async function markAsRead(
+  recipientId: string,
+  notificationIds?: string[]
+): Promise<boolean> {
   try {
     if (notificationIds && notificationIds.length > 0) {
       await prisma.notification.updateMany({
@@ -265,7 +268,7 @@ export async function markAsRead(recipientId: string, notificationIds?: string[]
     }
     return true;
   } catch (error) {
-    console.error("Error marking notifications as read:", error);
+    console.error('Error marking notifications as read:', error);
     return false;
   }
 }

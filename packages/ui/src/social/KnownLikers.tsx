@@ -1,25 +1,25 @@
-"use client"
+'use client';
 
-import React from "react"
-import { AuthorAvatar } from "../ui/AuthorAvatar"
-import { ProfileHoverCard } from "./ProfileHoverCard"
+import React from 'react';
+import { AuthorAvatar } from '../ui/AuthorAvatar';
+import { ProfileHoverCard } from './ProfileHoverCard';
 
 export interface KnownLiker {
-  id: string
-  name: string | null
-  username: string | null
-  subdomain?: string | null
-  logoUrl?: string | null
-  isCertified?: boolean
+  id: string;
+  name: string | null;
+  username: string | null;
+  subdomain?: string | null;
+  logoUrl?: string | null;
+  isCertified?: boolean;
 }
 
 export interface KnownLikersProps {
-  likers: KnownLiker[]
-  totalCount?: number
-  onOpenProfile?: (username: string) => void
-  onOpenLikersList?: () => void
-  className?: string
-  variant?: "card" | "inline"
+  likers: KnownLiker[];
+  totalCount?: number;
+  onOpenProfile?: (username: string) => void;
+  onOpenLikersList?: () => void;
+  className?: string;
+  variant?: 'card' | 'inline';
 }
 
 export function KnownLikers({
@@ -27,19 +27,20 @@ export function KnownLikers({
   totalCount = 0,
   onOpenProfile,
   onOpenLikersList,
-  className = "",
-  variant = "card",
+  className = '',
+  variant = 'card',
 }: KnownLikersProps) {
-  if (!likers || likers.length === 0) return null
+  if (!likers || likers.length === 0) return null;
 
-  const displayedLikers = likers.slice(0, 3)
-  const firstLiker = displayedLikers[0]
-  const secondLiker = displayedLikers[1]
-  const remainingCount = totalCount > displayedLikers.length ? totalCount - displayedLikers.length : 0
+  const displayedLikers = likers.slice(0, 3);
+  const firstLiker = displayedLikers[0];
+  const secondLiker = displayedLikers[1];
+  const remainingCount =
+    totalCount > displayedLikers.length ? totalCount - displayedLikers.length : 0;
 
-  const getHandle = (user: KnownLiker) => user.username || user.subdomain || user.id.slice(0, 8)
+  const getHandle = (user: KnownLiker) => user.username || user.subdomain || user.id.slice(0, 8);
 
-  if (variant === "inline") {
+  if (variant === 'inline') {
     return (
       <div
         onClick={onOpenLikersList}
@@ -80,12 +81,13 @@ export function KnownLikers({
 
           {remainingCount > 0 && (
             <span>
-              {" "}et {remainingCount} autre{remainingCount > 1 ? "s" : ""}
+              {' '}
+              et {remainingCount} autre{remainingCount > 1 ? 's' : ''}
             </span>
           )}
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -128,10 +130,12 @@ export function KnownLikers({
 
         {remainingCount > 0 && (
           <span>
-            {" "}et {remainingCount} autre{remainingCount > 1 ? "s" : ""} personne{remainingCount > 1 ? "s" : ""} que vous suivez
+            {' '}
+            et {remainingCount} autre{remainingCount > 1 ? 's' : ''} personne
+            {remainingCount > 1 ? 's' : ''} que vous suivez
           </span>
         )}
       </div>
     </div>
-  )
+  );
 }

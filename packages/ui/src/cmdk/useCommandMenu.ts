@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 
 const listeners = new Set<(open: boolean) => void>();
 let globalIsOpen = false;
@@ -23,23 +23,19 @@ export function useCommandMenu() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        (e.key === "k" || e.key === "K" || e.code === "KeyK") &&
-        (e.metaKey || e.ctrlKey)
-      ) {
+      if ((e.key === 'k' || e.key === 'K' || e.code === 'KeyK') && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         e.stopPropagation();
         setCommandMenuOpen(!globalIsOpen);
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown, { capture: true });
-    return () =>
-      window.removeEventListener("keydown", handleKeyDown, { capture: true });
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, []);
 
   const setIsOpen = (open: boolean | ((prev: boolean) => boolean)) => {
-    const next = typeof open === "function" ? open(globalIsOpen) : open;
+    const next = typeof open === 'function' ? open(globalIsOpen) : open;
     setCommandMenuOpen(next);
   };
 

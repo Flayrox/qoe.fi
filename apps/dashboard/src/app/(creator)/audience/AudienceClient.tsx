@@ -1,61 +1,63 @@
-"use client"
+'use client';
 
-import React, { useState } from "react"
-import { Users, Search, Download, Zap, Mail, Calendar, CreditCard, UserCheck, ShieldCheck } from "lucide-react"
+import React, { useState } from 'react';
+import { Users, Search, Download, Zap, Mail, CreditCard } from 'lucide-react';
 
 export interface SubscriberItem {
-  id: string
-  email: string
-  isActive: boolean
-  isPremium: boolean
-  ltvCents: number
-  createdAt: string
+  id: string;
+  email: string;
+  isActive: boolean;
+  isPremium: boolean;
+  ltvCents: number;
+  createdAt: string;
 }
 
 interface AudienceClientProps {
-  initialSubscribers: SubscriberItem[]
+  initialSubscribers: SubscriberItem[];
 }
 
 export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
-  const [subscribers, setSubscribers] = useState<SubscriberItem[]>(initialSubscribers)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [filterType, setFilterType] = useState<"all" | "free" | "premium">("all")
+  const [subscribers] = useState<SubscriberItem[]>(initialSubscribers);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'free' | 'premium'>('all');
 
   // Filter subscribers based on search and type
   const filteredSubscribers = subscribers.filter((sub) => {
-    const matchesSearch = sub.email.toLowerCase().includes(searchQuery.toLowerCase())
-    if (!matchesSearch) return false
+    const matchesSearch = sub.email.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
 
-    if (filterType === "free") return !sub.isPremium
-    if (filterType === "premium") return sub.isPremium
-    return true
-  })
+    if (filterType === 'free') return !sub.isPremium;
+    if (filterType === 'premium') return sub.isPremium;
+    return true;
+  });
 
-  const totalSubscribers = subscribers.length
-  const premiumCount = subscribers.filter((s) => s.isPremium).length
-  const freeCount = totalSubscribers - premiumCount
-  const totalLtvEur = (subscribers.reduce((acc, s) => acc + s.ltvCents, 0) / 100).toFixed(2)
+  const totalSubscribers = subscribers.length;
+  const premiumCount = subscribers.filter((s) => s.isPremium).length;
+  const freeCount = totalSubscribers - premiumCount;
+  const totalLtvEur = (subscribers.reduce((acc, s) => acc + s.ltvCents, 0) / 100).toFixed(2);
 
   // Export CSV
   const handleExportCSV = () => {
-    const headers = ["Email", "Statut", "Formule", "Revenu LTV (EUR)", "Date Inscription"]
+    const headers = ['Email', 'Statut', 'Formule', 'Revenu LTV (EUR)', 'Date Inscription'];
     const rows = filteredSubscribers.map((s) => [
       s.email,
-      s.isActive ? "Actif" : "Inactif",
-      s.isPremium ? "Premium" : "Gratuit",
+      s.isActive ? 'Actif' : 'Inactif',
+      s.isPremium ? 'Premium' : 'Gratuit',
       (s.ltvCents / 100).toFixed(2),
-      new Date(s.createdAt).toLocaleDateString("fr-FR")
-    ])
+      new Date(s.createdAt).toLocaleDateString('fr-FR'),
+    ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n")
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement("a")
-    link.setAttribute("href", encodedUri)
-    link.setAttribute("download", `subscribers_qoe_${new Date().toISOString().split("T")[0]}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `subscribers_qoe_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="space-y-8 p-6 lg:p-10 max-w-7xl mx-auto">
@@ -64,9 +66,13 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <Users className="h-4 w-4 text-primary stroke-[1.5]" />
-            <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">Gestion d'audience</span>
+            <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
+              Gestion d'audience
+            </span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Mon Audience & Abonnés</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Mon Audience & Abonnés
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Gérez vos lecteurs, vos abonnés à la newsletter et vos membres Premium
           </p>
@@ -86,30 +92,40 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">Total Abonnés</span>
+            <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
+              Total Abonnés
+            </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
               <Users className="h-4 w-4 stroke-[1.5]" />
             </div>
           </div>
-          <div className="text-3xl font-bold tracking-tight text-foreground">{totalSubscribers.toLocaleString()}</div>
+          <div className="text-3xl font-bold tracking-tight text-foreground">
+            {totalSubscribers.toLocaleString()}
+          </div>
           <p className="text-xs text-muted-foreground mt-2">Lecteurs inscrits au réseau</p>
         </div>
 
         <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">Formule Premium</span>
+            <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
+              Formule Premium
+            </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Zap className="h-4 w-4 stroke-[1.5]" />
             </div>
           </div>
-          <div className="text-3xl font-bold tracking-tight text-foreground">{premiumCount.toLocaleString()}</div>
+          <div className="text-3xl font-bold tracking-tight text-foreground">
+            {premiumCount.toLocaleString()}
+          </div>
           <p className="text-xs text-muted-foreground mt-2">{freeCount} abonnés gratuits</p>
         </div>
 
         <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">Revenu LTV Cumulé</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
+            <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
+              Revenu LTV Cumulé
+            </span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10 text-success">
               <CreditCard className="h-4 w-4 stroke-[1.5]" />
             </div>
           </div>
@@ -136,9 +152,9 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
         <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/40 border border-border/30 w-full sm:w-auto">
           {(
             [
-              { id: "all", label: `Tous (${totalSubscribers})` },
-              { id: "free", label: `Gratuits (${freeCount})` },
-              { id: "premium", label: `Premium (${premiumCount})` }
+              { id: 'all', label: `Tous (${totalSubscribers})` },
+              { id: 'free', label: `Gratuits (${freeCount})` },
+              { id: 'premium', label: `Premium (${premiumCount})` },
             ] as const
           ).map((tab) => (
             <button
@@ -146,8 +162,8 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
               onClick={() => setFilterType(tab.id)}
               className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 filterType === tab.id
-                  ? "bg-card text-foreground font-semibold shadow-sm border border-border/30"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? 'bg-card text-foreground font-semibold shadow-sm border border-border/30'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {tab.label}
@@ -163,7 +179,9 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
             <Mail className="h-8 w-8 text-muted-foreground/40 mb-2 stroke-[1.5]" />
             <p className="text-sm font-semibold text-foreground">Aucun abonné trouvé</p>
             <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-              {searchQuery ? "Aucun abonné ne correspond à votre recherche." : "Les personnes qui s'abonnent à votre espace apparaîtront ici."}
+              {searchQuery
+                ? 'Aucun abonné ne correspond à votre recherche.'
+                : "Les personnes qui s'abonnent à votre espace apparaîtront ici."}
             </p>
           </div>
         ) : (
@@ -191,8 +209,12 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-1.5">
-                        <span className={`h-1.5 w-1.5 rounded-full ${sub.isActive ? "bg-emerald-500" : "bg-zinc-500"}`} />
-                        <span className="text-muted-foreground">{sub.isActive ? "Actif" : "Inactif"}</span>
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${sub.isActive ? 'bg-success' : 'bg-muted-foreground'}`}
+                        />
+                        <span className="text-muted-foreground">
+                          {sub.isActive ? 'Actif' : 'Inactif'}
+                        </span>
                       </div>
                     </td>
                     <td className="py-4 px-6">
@@ -208,10 +230,10 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
                     </td>
                     <td className="py-4 px-6 font-semibold">{(sub.ltvCents / 100).toFixed(2)} €</td>
                     <td className="py-4 px-6 text-right text-muted-foreground">
-                      {new Date(sub.createdAt).toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric"
+                      {new Date(sub.createdAt).toLocaleDateString('fr-FR', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
                       })}
                     </td>
                   </tr>
@@ -222,5 +244,5 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
         )}
       </div>
     </div>
-  )
+  );
 }

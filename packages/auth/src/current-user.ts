@@ -5,15 +5,15 @@
 //    depuis n'importe quel Server Component / Server Action.
 // =====================================================================
 
-import { cache } from "react";
-import { prisma } from "@qoe/db/client";
-import { createClient } from "@qoe/supabase/server";
-import type { User } from "@qoe/db/types";
-import type { User as SupabaseUser } from "@supabase/supabase-js";
-import { redirect } from "next/navigation";
-import { headers } from "next/headers";
-import { ROLES, type Role, getMonorepoUrl } from "@qoe/config";
-import { can, type Action } from "./permissions";
+import { cache } from 'react';
+import { prisma } from '@qoe/db/client';
+import { createClient } from '@qoe/supabase/server';
+import type { User } from '@qoe/db/types';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
+import { ROLES, type Role, getMonorepoUrl } from '@qoe/config';
+import { can, type Action } from './permissions';
 
 /**
  * 👤 Récupère l'utilisateur Supabase authentifié (depuis le cookie).
@@ -53,22 +53,23 @@ export async function requireUser(): Promise<User> {
   const user = await getCurrentUser();
 
   if (!user) {
-    let loginUrl = "/login";
+    let loginUrl = '/login';
 
     try {
       const headersList = await headers();
-      const host = headersList.get("host") || "";
+      const host = headersList.get('host') || '';
       // Construire l'URL de la page courante via referer ou x-invoke-path
-      const referer = headersList.get("referer");
-      const invokedPath = headersList.get("x-invoke-path");
-      const proto = process.env.NODE_ENV === "production" ? "https" : "http";
-      const currentUrl = referer || (invokedPath ? `${proto}://${host}${invokedPath}` : `${proto}://${host}/`);
+      const referer = headersList.get('referer');
+      const invokedPath = headersList.get('x-invoke-path');
+      const proto = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+      const currentUrl =
+        referer || (invokedPath ? `${proto}://${host}${invokedPath}` : `${proto}://${host}/`);
 
-      const feedBase = getMonorepoUrl("feed", host);
+      const feedBase = getMonorepoUrl('feed', host);
       loginUrl = `${feedBase}/login?redirect=${encodeURIComponent(currentUrl)}`;
     } catch {
       // Fallback si headers() n'est pas disponible (ex: génération statique)
-      loginUrl = "/login";
+      loginUrl = '/login';
     }
 
     redirect(loginUrl);
@@ -83,7 +84,7 @@ export async function requireUser(): Promise<User> {
  */
 export async function requirePermission(action: Action): Promise<User> {
   const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  if (!user) throw new Error('Unauthorized');
   if (!can(user.role as Role, action)) {
     throw new Error(`Forbidden: requires "${action}"`);
   }
@@ -95,7 +96,7 @@ export async function requirePermission(action: Action): Promise<User> {
  */
 export async function requireRole(role: Role): Promise<User> {
   const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  if (!user) throw new Error('Unauthorized');
   if (user.role !== ROLES.SUPERADMIN && user.role !== role) {
     throw new Error(`Forbidden: requires role "${role}"`);
   }

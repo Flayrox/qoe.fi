@@ -1,29 +1,33 @@
-import { createClient } from "@qoe/supabase/server"
-import { redirect } from "next/navigation"
-import { prisma } from "@qoe/db/client"
-import { Highlighter, ExternalLink } from "lucide-react"
-import { getTranslate } from "@qoe/i18n/server"
-import { ReaderPageLayout } from "@/components/layout/ReaderPageLayout"
+import { createClient } from '@qoe/supabase/server';
+import { redirect } from 'next/navigation';
+import { prisma } from '@qoe/db/client';
+import { Highlighter, ExternalLink } from 'lucide-react';
+import { getTranslate } from '@qoe/i18n/server';
+import { ReaderPageLayout } from '@/components/layout/ReaderPageLayout';
 
 export default async function HighlightsPage() {
-  const t = await getTranslate()
+  const t = await getTranslate();
 
-  const supabase = await createClient()
+  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login")
+  if (!user) redirect('/login');
 
   const highlights = await prisma.highlight.findMany({
     where: { readerId: user.id },
     include: {
       article: {
-        select: { title: true, slug: true, author: { select: { name: true, subdomain: true, customDomain: true } } },
+        select: {
+          title: true,
+          slug: true,
+          author: { select: { name: true, subdomain: true, customDomain: true } },
+        },
       },
     },
-    orderBy: { createdAt: "desc" },
-  })
+    orderBy: { createdAt: 'desc' },
+  });
 
   return (
     <ReaderPageLayout giantTitle="Surlignages">
@@ -32,10 +36,10 @@ export default async function HighlightsPage() {
           {/* Page header inside the sheet */}
           <div className="px-1">
             <h1 className="text-lg font-bold text-foreground tracking-tight">
-              {t("highlights.title", "Carnet de Surlignages")}
+              {t('highlights.title', 'Carnet de Surlignages')}
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {t("highlights.subtitle", "Vos citations et réflexions extraites de vos lectures.")}
+              {t('highlights.subtitle', 'Vos citations et réflexions extraites de vos lectures.')}
             </p>
           </div>
 
@@ -45,25 +49,28 @@ export default async function HighlightsPage() {
               <div className="bg-muted/40 rounded-xl p-12 border border-border/40 text-center flex flex-col items-center justify-center gap-3">
                 <Highlighter className="w-10 h-10 text-muted-foreground/60" />
                 <h4 className="font-bold text-sm text-foreground">
-                  {t("highlights.empty_title", "Aucun passage surligné")}
+                  {t('highlights.empty_title', 'Aucun passage surligné')}
                 </h4>
                 <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
-                  {t("highlights.empty_desc", "Surlignez des passages dans les articles que vous lisez pour les retrouver ici.")}
+                  {t(
+                    'highlights.empty_desc',
+                    'Surlignez des passages dans les articles que vous lisez pour les retrouver ici.'
+                  )}
                 </p>
               </div>
             ) : (
-              highlights.map((h: any) => {
-                if (!h.article || !h.article.author) return null
+              highlights.map((h) => {
+                if (!h.article || !h.article.author) return null;
                 const isProd =
-                  typeof window !== "undefined"
-                    ? window.location.hostname.endsWith("qoe.fi")
-                    : process.env.NODE_ENV === "production"
-                const suffix = isProd ? "qoe.fi" : "localhost"
-                const protocol = isProd ? "https:" : "http:"
+                  typeof window !== 'undefined'
+                    ? window.location.hostname.endsWith('qoe.fi')
+                    : process.env.NODE_ENV === 'production';
+                const suffix = isProd ? 'qoe.fi' : 'localhost';
+                const protocol = isProd ? 'https:' : 'http:';
                 const host =
                   h.article.author.customDomain ||
-                  (h.article.author.subdomain ? `${h.article.author.subdomain}.${suffix}` : "")
-                const url = host ? `${protocol}//${host}/article/${h.article.slug}` : "#"
+                  (h.article.author.subdomain ? `${h.article.author.subdomain}.${suffix}` : '');
+                const url = host ? `${protocol}//${host}/article/${h.article.slug}` : '#';
 
                 return (
                   <div
@@ -81,7 +88,7 @@ export default async function HighlightsPage() {
                     {h.note && (
                       <div className="bg-muted/50 border border-border/40 rounded-lg p-3">
                         <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground block mb-1">
-                          {t("highlights.your_note", "Votre Note")}
+                          {t('highlights.your_note', 'Votre Note')}
                         </span>
                         <p className="text-xs text-foreground leading-relaxed">{h.note}</p>
                       </div>
@@ -90,23 +97,23 @@ export default async function HighlightsPage() {
                     {/* Source info */}
                     <div className="flex items-center justify-between pt-3 border-t border-border/40 text-[10px] text-muted-foreground">
                       <span className="font-medium truncate max-w-[60%]">
-                        {t("highlights.highlighted_in", "Surligné dans :")} {h.article.title}
+                        {t('highlights.highlighted_in', 'Surligné dans :')} {h.article.title}
                       </span>
                       <a
                         href={url}
                         target="_blank"
                         className="text-primary hover:underline font-semibold flex items-center gap-1 shrink-0"
                       >
-                        {t("highlights.consult", "Consulter")} <ExternalLink className="w-3 h-3" />
+                        {t('highlights.consult', 'Consulter')} <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
                   </div>
-                )
+                );
               })
             )}
           </div>
         </div>
       </div>
     </ReaderPageLayout>
-  )
+  );
 }

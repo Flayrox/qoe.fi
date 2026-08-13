@@ -1,6 +1,7 @@
 export const feedKeys = {
   all: ['feed'] as const,
-  timeline: (type: 'for-you' | 'following' | 'highlights' = 'for-you') => [...feedKeys.all, 'timeline', type] as const,
+  timeline: (type: 'for-you' | 'following' | 'highlights' = 'for-you') =>
+    [...feedKeys.all, 'timeline', type] as const,
   userPosts: (username: string) => [...feedKeys.all, 'user', username] as const,
   thread: (thoughtId: string) => [...feedKeys.all, 'thread', thoughtId] as const,
   likes: (thoughtId: string) => [...feedKeys.all, 'likes', thoughtId] as const,
@@ -22,13 +23,15 @@ export const tenantKeys = {
 
 export const subscriptionKeys = {
   all: ['subscriptions'] as const,
-  status: (creatorId: string, email?: string) => [...subscriptionKeys.all, 'status', creatorId, email || 'anonymous'] as const,
+  status: (creatorId: string, email?: string) =>
+    [...subscriptionKeys.all, 'status', creatorId, email || 'anonymous'] as const,
   tiers: (creatorId: string) => [...subscriptionKeys.all, 'tiers', creatorId] as const,
 };
 
 export const recommendationKeys = {
   all: ['recommendations'] as const,
-  creator: (recommenderId: string) => [...recommendationKeys.all, 'creator', recommenderId] as const,
+  creator: (recommenderId: string) =>
+    [...recommendationKeys.all, 'creator', recommenderId] as const,
 };
 
 export const articleKeys = {
@@ -56,7 +59,8 @@ export const notificationKeys = {
 
 export const searchKeys = {
   all: ['search'] as const,
-  results: (query: string, type?: string) => [...searchKeys.all, 'results', query, type || 'all'] as const,
+  results: (query: string, type?: string) =>
+    [...searchKeys.all, 'results', query, type || 'all'] as const,
   trending: () => [...searchKeys.all, 'trending'] as const,
 };
 
@@ -75,6 +79,3 @@ export const threadgateKeys = {
   all: ['threadgates'] as const,
   canReply: (thoughtId: string) => [...threadgateKeys.all, 'canReply', thoughtId] as const,
 };
-
-
-

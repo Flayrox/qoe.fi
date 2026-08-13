@@ -5,4 +5,4 @@
 //    Ne pas éditer ici : toute évolution se fait dans @qoe/theme.
 // =====================================================================
 
-export { ThemeProvider } from "@qoe/theme";
+export { ThemeProvider } from '@qoe/theme';

@@ -5,9 +5,9 @@
 //    Si demain on change de provider (ex: Drizzle), on change juste ici.
 // =====================================================================
 
-import type { Thought as PrismaThought } from "@prisma/client";
+import type { Thought as PrismaThought } from '@prisma/client';
 
-export { ContentVisibility } from "@prisma/client";
+export { ContentVisibility } from '@prisma/client';
 export type {
   User,
   Article,
@@ -28,12 +28,12 @@ export type {
   SystemConfig,
   Like,
   Prisma,
-} from "@prisma/client";
+} from '@prisma/client';
 
 /** @deprecated Utiliser Thought */
 export type Post = PrismaThought;
 
-export { ROLES } from "@qoe/config";
+export { ROLES } from '@qoe/config';
 
 // =====================================================================
 // 📦 DTOs MÉTIER CANONIQUES (Silicon Valley Standard)
@@ -119,5 +119,4 @@ export interface ApiResponse<T> {
  * ⚡ Protocole Universal Server Action Result
  */
 export type ActionResult<T = unknown> =
-  | { ok: true; data: T }
-  | { ok: false; error: { code: string; message: string } };
+  { ok: true; data: T } | { ok: false; error: { code: string; message: string } };

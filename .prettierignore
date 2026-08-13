@@ -1,0 +1,29 @@
+# Build artifacts
+dist
+build
+.next
+.turbo
+out
+coverage
+
+# Dependencies
+node_modules
+.pnpm-store
+
+# Generated / vendored
+pnpm-lock.yaml
+*.tsbuildinfo
+
+# Native / large binaries
+*.rar
+*.pdf
+*.min.js
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+!.env.docker.example
+
+# Git
+.git

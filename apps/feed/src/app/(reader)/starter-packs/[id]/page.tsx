@@ -1,8 +1,8 @@
-import { StarterPackDetailView } from "@/components/social/StarterPackDetailView";
+import { StarterPackDetailView } from '@/components/social/StarterPackDetailView';
 
 export const metadata = {
-  title: "Starter Pack | qoe.fi",
-  description: "Consultez les membres de ce Starter Pack et abonnez-vous en 1 clic.",
+  title: 'Starter Pack | qoe.fi',
+  description: 'Consultez les membres de ce Starter Pack et abonnez-vous en 1 clic.',
 };
 
 export default async function StarterPackDetailPage({

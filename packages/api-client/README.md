@@ -3,6 +3,7 @@
 **Role:** Houses all API communication logic, TanStack Query keys, portable hooks, and UI Optimistic update engines to ensure consistency across the mono-repo.
 
 ## File Exhaustive Listing
+
 - `package.json`
 - `tsconfig.json`
 - `src/index.ts`
@@ -27,6 +28,7 @@
 - `src/utils/authError.ts`
 
 ## Key Function Signatures
+
 ```typescript
 // useOptimisticLike.ts
 export function useOptimisticLike(options?: UseOptimisticLikeOptions): UseMutationResult;

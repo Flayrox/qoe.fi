@@ -1,13 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
-import { feedKeys } from '../../query-keys';
 import type { ApiResponse, ThoughtData } from '../../types';
 
 describe('useInfiniteFeed logic & pagination parameters', () => {
-  let queryClient: QueryClient;
-
   beforeEach(() => {
-    queryClient = new QueryClient({
+    new QueryClient({
       defaultOptions: {
         queries: { retry: false },
         mutations: { retry: false },
@@ -63,15 +60,42 @@ describe('useInfiniteFeed logic & pagination parameters', () => {
   it('3. Guarantees deduplicated boundary item joining across pages', () => {
     const page1: ApiResponse<ThoughtData[]> = {
       data: [
-        { id: 'item-1', content: 'C1', authorId: 'u1', author: { id: 'u1', username: 'a', name: 'A', subdomain: 'a' }, createdAt: '2026-08-09T12:00:00Z', likeCount: 0, repostCount: 0, replyCount: 0 },
-        { id: 'item-2', content: 'C2', authorId: 'u1', author: { id: 'u1', username: 'a', name: 'A', subdomain: 'a' }, createdAt: '2026-08-09T11:00:00Z', likeCount: 0, repostCount: 0, replyCount: 0 },
+        {
+          id: 'item-1',
+          content: 'C1',
+          authorId: 'u1',
+          author: { id: 'u1', username: 'a', name: 'A', subdomain: 'a' },
+          createdAt: '2026-08-09T12:00:00Z',
+          likeCount: 0,
+          repostCount: 0,
+          replyCount: 0,
+        },
+        {
+          id: 'item-2',
+          content: 'C2',
+          authorId: 'u1',
+          author: { id: 'u1', username: 'a', name: 'A', subdomain: 'a' },
+          createdAt: '2026-08-09T11:00:00Z',
+          likeCount: 0,
+          repostCount: 0,
+          replyCount: 0,
+        },
       ],
       meta: { cursor: 'item-2', hasMore: true },
     };
 
     const page2: ApiResponse<ThoughtData[]> = {
       data: [
-        { id: 'item-3', content: 'C3', authorId: 'u1', author: { id: 'u1', username: 'a', name: 'A', subdomain: 'a' }, createdAt: '2026-08-09T10:00:00Z', likeCount: 0, repostCount: 0, replyCount: 0 },
+        {
+          id: 'item-3',
+          content: 'C3',
+          authorId: 'u1',
+          author: { id: 'u1', username: 'a', name: 'A', subdomain: 'a' },
+          createdAt: '2026-08-09T10:00:00Z',
+          likeCount: 0,
+          repostCount: 0,
+          replyCount: 0,
+        },
       ],
       meta: { cursor: 'item-3', hasMore: false },
     };
@@ -88,7 +112,7 @@ describe('useInfiniteFeed logic & pagination parameters', () => {
   describe('4. Brique 4: Quota-driven automatic pagination side effects', () => {
     it('Triggers fetchNextPage when visible items are below quota and hasNextPage is true', () => {
       const fetchNextPage = vi.fn();
-      
+
       const triggerEffect = ({
         enabled,
         hasNextPage,
@@ -120,7 +144,7 @@ describe('useInfiniteFeed logic & pagination parameters', () => {
 
     it('Does NOT trigger fetchNextPage when visible items are equal to or above quota', () => {
       const fetchNextPage = vi.fn();
-      
+
       const triggerEffect = ({
         enabled,
         hasNextPage,
@@ -152,7 +176,7 @@ describe('useInfiniteFeed logic & pagination parameters', () => {
 
     it('Does NOT trigger fetchNextPage when hasNextPage is false', () => {
       const fetchNextPage = vi.fn();
-      
+
       const triggerEffect = ({
         enabled,
         hasNextPage,
@@ -184,7 +208,7 @@ describe('useInfiniteFeed logic & pagination parameters', () => {
 
     it('Does NOT trigger fetchNextPage when already fetching (isFetching: true)', () => {
       const fetchNextPage = vi.fn();
-      
+
       const triggerEffect = ({
         enabled,
         hasNextPage,

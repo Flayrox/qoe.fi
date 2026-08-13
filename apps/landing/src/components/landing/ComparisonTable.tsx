@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import React from "react";
-import { motion } from "framer-motion";
-import { useTranslate } from "@qoe/i18n";
-import { Check, X, Shield, Sparkles, HelpCircle } from "lucide-react";
+import React from 'react';
+import { motion } from 'framer-motion';
+import { useTranslate } from '@qoe/i18n';
+import { Check, X, Shield, Sparkles, HelpCircle } from 'lucide-react';
 
 interface ComparisonRow {
   feature: string;
@@ -19,55 +19,88 @@ interface ComparisonTableProps {
 export const ComparisonTable = ({ config }: ComparisonTableProps) => {
   const { t } = useTranslate();
 
-  const title = config["comparison_title"] || t("comparison_title", "Souveraineté ou Intermédiation ?");
-  const tagline = config["comparison_tagline"] || t("comparison_tagline", "Pourquoi qoe.fi redéfinit l'édition indépendante");
+  const title =
+    config['comparison_title'] || t('comparison_title', 'Souveraineté ou Intermédiation ?');
+  const tagline =
+    config['comparison_tagline'] ||
+    t('comparison_tagline', "Pourquoi qoe.fi redéfinit l'édition indépendante");
 
   // Load custom rows from config if present, or use premium defaults
   let rows: ComparisonRow[] = [];
-  if (config["comparison_rows"]) {
+  if (config['comparison_rows']) {
     try {
-      rows = JSON.parse(config["comparison_rows"]);
+      rows = JSON.parse(config['comparison_rows']);
     } catch (e) {
-      console.error("Failed to parse comparison_rows config JSON, falling back to defaults", e);
+      console.error('Failed to parse comparison_rows config JSON, falling back to defaults', e);
     }
   }
 
   if (rows.length === 0) {
     rows = [
       {
-        feature: t("comparison_feat_commission", "Commission sur vos revenus"),
-        substack: t("comparison_sub_commission", "10% de frais de plateforme directs + frais Stripe"),
-        qoefi: t("comparison_qoe_commission", "Près de 0% (Soutien direct via Wallet, frais de réseau uniquement)"),
+        feature: t('comparison_feat_commission', 'Commission sur vos revenus'),
+        substack: t(
+          'comparison_sub_commission',
+          '10% de frais de plateforme directs + frais Stripe'
+        ),
+        qoefi: t(
+          'comparison_qoe_commission',
+          'Près de 0% (Soutien direct via Wallet, frais de réseau uniquement)'
+        ),
         highlighted: true,
       },
       {
-        feature: t("comparison_feat_algo", "Curation algorithmique"),
-        substack: t("comparison_sub_algo", "Boîte noire centralisée et recommandations forcées"),
-        qoefi: t("comparison_qoe_algo", "Contrôle souverain (Algorithme personnalisable, Muted Words)"),
+        feature: t('comparison_feat_algo', 'Curation algorithmique'),
+        substack: t('comparison_sub_algo', 'Boîte noire centralisée et recommandations forcées'),
+        qoefi: t(
+          'comparison_qoe_algo',
+          'Contrôle souverain (Algorithme personnalisable, Muted Words)'
+        ),
         highlighted: false,
       },
       {
-        feature: t("comparison_feat_formats", "Diversité des Formats"),
-        substack: t("comparison_sub_formats", "Texte simple / Newsletter standard uniquement"),
-        qoefi: t("comparison_qoe_formats", "5 formats de récits (Essais, Briefings, Podcasts, Stories de données, Stories)"),
+        feature: t('comparison_feat_formats', 'Diversité des Formats'),
+        substack: t('comparison_sub_formats', 'Texte simple / Newsletter standard uniquement'),
+        qoefi: t(
+          'comparison_qoe_formats',
+          '5 formats de récits (Essais, Briefings, Podcasts, Stories de données, Stories)'
+        ),
         highlighted: false,
       },
       {
-        feature: t("comparison_feat_reading", "Expérience de lecture"),
-        substack: t("comparison_sub_reading", "Flux encombré de recommandations d'autres auteurs, popups"),
-        qoefi: t("comparison_qoe_reading", "Lecture monastique (Sanctuaire silencieux sans distraction)"),
+        feature: t('comparison_feat_reading', 'Expérience de lecture'),
+        substack: t(
+          'comparison_sub_reading',
+          "Flux encombré de recommandations d'autres auteurs, popups"
+        ),
+        qoefi: t(
+          'comparison_qoe_reading',
+          'Lecture monastique (Sanctuaire silencieux sans distraction)'
+        ),
         highlighted: true,
       },
       {
-        feature: t("comparison_feat_sovereignty", "Souveraineté des données"),
-        substack: t("comparison_sub_sovereignty", "Partiellement captive (relation abonné détenue par Substack)"),
-        qoefi: t("comparison_qoe_sovereignty", "Absolue (Données 100% exportables, protocoles décentralisés)"),
+        feature: t('comparison_feat_sovereignty', 'Souveraineté des données'),
+        substack: t(
+          'comparison_sub_sovereignty',
+          'Partiellement captive (relation abonné détenue par Substack)'
+        ),
+        qoefi: t(
+          'comparison_qoe_sovereignty',
+          'Absolue (Données 100% exportables, protocoles décentralisés)'
+        ),
         highlighted: false,
       },
       {
-        feature: t("comparison_feat_hosting", "Hébergement & Juridiction"),
-        substack: t("comparison_sub_hosting", "Hébergement US centralisé (Cloud Act / Non souverain)"),
-        qoefi: t("comparison_qoe_hosting", "Infrastructure européenne souveraine & Option auto-hébergée"),
+        feature: t('comparison_feat_hosting', 'Hébergement & Juridiction'),
+        substack: t(
+          'comparison_sub_hosting',
+          'Hébergement US centralisé (Cloud Act / Non souverain)'
+        ),
+        qoefi: t(
+          'comparison_qoe_hosting',
+          'Infrastructure européenne souveraine & Option auto-hébergée'
+        ),
         highlighted: false,
       },
     ];
@@ -76,7 +109,6 @@ export const ComparisonTable = ({ config }: ComparisonTableProps) => {
   return (
     <section className="py-32 px-6 bg-background relative overflow-hidden" id="comparison">
       <div className="max-w-6xl mx-auto relative z-10">
-        
         {/* Title Block */}
         <div className="mb-20 text-center">
           <motion.span
@@ -120,7 +152,7 @@ export const ComparisonTable = ({ config }: ComparisonTableProps) => {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1, duration: 0.6 }}
                 className={`grid grid-cols-1 md:grid-cols-12 items-center px-8 py-8 md:py-6 gap-4 md:gap-0 transition-colors duration-300 ${
-                  row.highlighted ? "bg-primary/[0.02]" : ""
+                  row.highlighted ? 'bg-primary/[0.02]' : ''
                 }`}
               >
                 {/* Feature Dimension */}
@@ -132,14 +164,18 @@ export const ComparisonTable = ({ config }: ComparisonTableProps) => {
 
                 {/* Substack Column */}
                 <div className="col-span-1 md:col-span-4 md:text-center flex items-start md:justify-center gap-3 text-muted-foreground text-sm font-sans md:px-4">
-                  <span className="md:hidden font-sans text-[10px] uppercase font-semibold tracking-wider text-muted-foreground/60 mt-1">Substack:</span>
-                  <X className="w-4 h-4 text-red-500/60 mt-0.5 flex-shrink-0" />
+                  <span className="md:hidden font-sans text-[10px] uppercase font-semibold tracking-wider text-muted-foreground/60 mt-1">
+                    Substack:
+                  </span>
+                  <X className="w-4 h-4 text-destructive/60 mt-0.5 flex-shrink-0" />
                   <span className="leading-relaxed">{row.substack}</span>
                 </div>
 
                 {/* qoe.fi Column */}
                 <div className="col-span-1 md:col-span-4 md:text-center flex items-start md:justify-center gap-3 text-foreground text-sm font-sans font-medium md:px-4 md:border-x md:border-border/10 md:-my-6 md:py-6 bg-primary/[0.02]">
-                  <span className="md:hidden font-sans text-[10px] uppercase font-semibold tracking-wider text-primary mt-1">qoe.fi:</span>
+                  <span className="md:hidden font-sans text-[10px] uppercase font-semibold tracking-wider text-primary mt-1">
+                    qoe.fi:
+                  </span>
                   <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
                   <span className="leading-relaxed">{row.qoefi}</span>
                 </div>
@@ -157,11 +193,13 @@ export const ComparisonTable = ({ config }: ComparisonTableProps) => {
           <p className="text-xs text-muted-foreground leading-relaxed flex items-center justify-center gap-2">
             <HelpCircle className="w-4 h-4 text-primary flex-shrink-0" />
             <span>
-              {t("comparison_footer", "qoe.fi est conçu pour les créateurs qui refusent le compromis de la centralisation algorithmique et de l'intermédiation financière.")}
+              {t(
+                'comparison_footer',
+                "qoe.fi est conçu pour les créateurs qui refusent le compromis de la centralisation algorithmique et de l'intermédiation financière."
+              )}
             </span>
           </p>
         </motion.div>
-
       </div>
     </section>
   );

@@ -3,6 +3,7 @@
 **Role:** The absolute Single Source of Truth for the qoe.fi Data Layer. It contains the Prisma schema, migrations, the generated Prisma Client, and strongly typed repository abstractions.
 
 ## File Exhaustive Listing
+
 - `package.json`
 - `tsconfig.json`
 - `prisma.config.ts`
@@ -25,9 +26,13 @@
 - `src/repositories/articleComments.ts`
 
 ## Key Function Signatures
+
 ```typescript
 // posts.ts
 export async function toggleLike(postId: string, userId: string): Promise<{ liked: boolean }>;
-export async function toggleRepost(postId: string, authorId: string): Promise<{ reposted: boolean; canonicalId: string; post?: any }>;
+export async function toggleRepost(
+  postId: string,
+  authorId: string
+): Promise<{ reposted: boolean; canonicalId: string; post?: any }>;
 export async function findThreadById(postId: string, currentUserId?: string | null): Promise<any>;
 ```

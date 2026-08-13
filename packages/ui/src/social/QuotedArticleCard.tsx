@@ -1,27 +1,27 @@
-"use client"
+'use client';
 
-import React from "react"
-import { cn } from "@qoe/utils"
-import { ArrowUpRight } from "lucide-react"
+import React from 'react';
+import { cn } from '@qoe/utils';
+import { ArrowUpRight } from 'lucide-react';
 
 export interface QuotedArticleData {
-  id: string
-  title: string
-  slug: string
-  isPremium?: boolean
-  content?: string | null
+  id: string;
+  title: string;
+  slug: string;
+  isPremium?: boolean;
+  content?: string | null;
   author?: {
-    name?: string | null
-    username?: string | null
-    subdomain?: string | null
-  } | null
+    name?: string | null;
+    username?: string | null;
+    subdomain?: string | null;
+  } | null;
 }
 
 export interface QuotedArticleCardProps {
-  article: QuotedArticleData
-  quotedExcerpt?: string
-  onOpenArticle?: (article: QuotedArticleData) => void
-  className?: string
+  article: QuotedArticleData;
+  quotedExcerpt?: string;
+  onOpenArticle?: (article: QuotedArticleData) => void;
+  className?: string;
 }
 
 export function QuotedArticleCard({
@@ -30,18 +30,18 @@ export function QuotedArticleCard({
   onOpenArticle,
   className,
 }: QuotedArticleCardProps) {
-  const authorName = article.author?.name || article.author?.username || "Auteur"
-  const subdomain = article.author?.subdomain ? `${article.author.subdomain}.qoe.fi` : "qoe.fi"
+  const authorName = article.author?.name || article.author?.username || 'Auteur';
+  const subdomain = article.author?.subdomain ? `${article.author.subdomain}.qoe.fi` : 'qoe.fi';
 
-  const rawText = article.content ? article.content.replace(/<[^>]*>?/gm, "").trim() : ""
-  const highlightTarget = quotedExcerpt?.trim() || ""
+  const rawText = article.content ? article.content.replace(/<[^>]*>?/gm, '').trim() : '';
+  const highlightTarget = quotedExcerpt?.trim() || '';
 
-  let beforeContext = ""
-  let highlightedText = ""
-  let afterContext = ""
+  let beforeContext = '';
+  let highlightedText = '';
+  let afterContext = '';
 
   if (highlightTarget && rawText.includes(highlightTarget)) {
-    const idx = rawText.indexOf(highlightTarget)
+    const idx = rawText.indexOf(highlightTarget);
 
     // Find the nearest word boundary before
     let startIdx = Math.max(0, idx - 80);
@@ -63,39 +63,39 @@ export function QuotedArticleCard({
       }
     }
 
-    beforeContext = rawText.substring(startIdx, idx).trim()
-    if (startIdx > 0) beforeContext = "... " + beforeContext
+    beforeContext = rawText.substring(startIdx, idx).trim();
+    if (startIdx > 0) beforeContext = '... ' + beforeContext;
 
-    highlightedText = highlightTarget
+    highlightedText = highlightTarget;
 
-    afterContext = rawText.substring(idx + highlightTarget.length, endIdx).trim()
-    if (endIdx < rawText.length && !afterContext.endsWith('.')) afterContext += "..."
+    afterContext = rawText.substring(idx + highlightTarget.length, endIdx).trim();
+    if (endIdx < rawText.length && !afterContext.endsWith('.')) afterContext += '...';
   } else if (highlightTarget) {
-    highlightedText = highlightTarget
-    afterContext = rawText ? " ... " + rawText.substring(0, 90) + "..." : ""
+    highlightedText = highlightTarget;
+    afterContext = rawText ? ' ... ' + rawText.substring(0, 90) + '...' : '';
   } else if (rawText) {
-    highlightedText = rawText.substring(0, 130)
-    afterContext = rawText.length > 130 ? "..." : ""
+    highlightedText = rawText.substring(0, 130);
+    afterContext = rawText.length > 130 ? '...' : '';
   }
 
   const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault();
+    e.stopPropagation();
     if (onOpenArticle) {
-      onOpenArticle(article)
+      onOpenArticle(article);
     } else {
-      const url = article.author?.subdomain 
+      const url = article.author?.subdomain
         ? `https://${article.author.subdomain}.qoe.fi/article/${article.slug}`
-        : `/article/${article.slug}`
-      window.open(url, "_blank")
+        : `/article/${article.slug}`;
+      window.open(url, '_blank');
     }
-  }
+  };
 
   return (
     <div
       onClick={handleClick}
       className={cn(
-        "group/quote relative border border-border/30 hover:border-border/60 bg-muted/20 hover:bg-muted/35 rounded-xl p-4 transition-all duration-200 cursor-pointer space-y-3 font-sans select-none my-2.5",
+        'group/quote relative border border-border/30 hover:border-border/60 bg-muted/20 hover:bg-muted/35 rounded-xl p-4 transition-all duration-200 cursor-pointer space-y-3 font-sans select-none my-2.5',
         className
       )}
     >
@@ -111,7 +111,7 @@ export function QuotedArticleCard({
             Article
           </span>
           {article.isPremium && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-500 border border-amber-500/30 shrink-0">
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-highlight/15 text-highlight border border-highlight/30 shrink-0">
               Premium
             </span>
           )}
@@ -132,11 +132,15 @@ export function QuotedArticleCard({
       {highlightedText && (
         <div className="relative pl-3 border-l-2 border-brand/50 py-0.5 space-y-1">
           <p className="text-xs sm:text-sm font-serif leading-relaxed text-foreground/90 italic">
-            {beforeContext && <span className="text-muted-foreground/60 not-italic">{beforeContext} </span>}
+            {beforeContext && (
+              <span className="text-muted-foreground/60 not-italic">{beforeContext} </span>
+            )}
             <span className="font-medium text-foreground not-italic bg-brand/10 text-brand-foreground px-1 py-0.5 rounded">
               "{highlightedText}"
             </span>
-            {afterContext && <span className="text-muted-foreground/60 not-italic"> {afterContext}</span>}
+            {afterContext && (
+              <span className="text-muted-foreground/60 not-italic"> {afterContext}</span>
+            )}
           </p>
         </div>
       )}
@@ -153,5 +157,5 @@ export function QuotedArticleCard({
         </div>
       </div>
     </div>
-  )
+  );
 }

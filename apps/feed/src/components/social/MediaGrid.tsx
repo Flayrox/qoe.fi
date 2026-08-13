@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import Image from "next/image";
-import { Info, Play } from "lucide-react";
+import { useState } from 'react';
+import Image from 'next/image';
+import { Info } from 'lucide-react';
 
 export interface MediaItem {
   id?: string;
@@ -25,8 +25,8 @@ export function MediaGrid({ attachments, legacyImageUrl, onMediaClick }: MediaGr
     attachments && attachments.length > 0
       ? attachments
       : legacyImageUrl
-      ? [{ url: legacyImageUrl, type: "IMAGE", altText: null }]
-      : [];
+        ? [{ url: legacyImageUrl, type: 'IMAGE', altText: null }]
+        : [];
 
   if (mediaList.length === 0) return null;
 
@@ -51,7 +51,9 @@ export function MediaGrid({ attachments, legacyImageUrl, onMediaClick }: MediaGr
         <div className="p-3 bg-card/95 backdrop-blur-md border-b border-border text-xs text-foreground flex items-start gap-2 animate-in fade-in-50 duration-150">
           <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-xs mb-0.5 text-foreground">Texte d'accessibilité (Alt-Text) :</p>
+            <p className="font-semibold text-xs mb-0.5 text-foreground">
+              Texte d'accessibilité (Alt-Text) :
+            </p>
             <p className="text-muted-foreground leading-relaxed">{activeAltText}</p>
           </div>
           <button
@@ -72,14 +74,14 @@ export function MediaGrid({ attachments, legacyImageUrl, onMediaClick }: MediaGr
           onClick={(e) => handleItemClick(e, 0)}
           className="relative w-full aspect-video sm:aspect-[16/9] cursor-pointer group overflow-hidden bg-black/5"
         >
-          {mediaList[0].type === "VIDEO" ? (
+          {mediaList[0].type === 'VIDEO' ? (
             <div className="relative w-full h-full flex items-center justify-center bg-black">
               <video src={mediaList[0].url} controls className="w-full h-full object-contain" />
             </div>
           ) : (
             <Image
               src={mediaList[0].url}
-              alt={mediaList[0].altText || "Image de la pensée"}
+              alt={mediaList[0].altText || 'Image de la pensée'}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
               sizes="(max-width: 640px) 100vw, 600px"
@@ -137,7 +139,7 @@ export function MediaGrid({ attachments, legacyImageUrl, onMediaClick }: MediaGr
           >
             <Image
               src={mediaList[0].url}
-              alt={mediaList[0].altText || "Image 1"}
+              alt={mediaList[0].altText || 'Image 1'}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
               sizes="300px"

@@ -1,114 +1,120 @@
-"use server"
+'use server';
 
-import { createClient as createServerClient } from "@qoe/supabase/server"
-import { prisma } from "@qoe/db/client"
-import { revalidatePath } from "next/cache"
+import { createClient as createServerClient } from '@qoe/supabase/server';
+import { prisma } from '@qoe/db/client';
+import { revalidatePath } from 'next/cache';
 
 async function verifySuperadmin() {
-  const supabase = await createServerClient()
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (!authUser) throw new Error("Unauthorized")
+  const supabase = await createServerClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  if (!authUser) throw new Error('Unauthorized');
 
-  const dbUser = await prisma.user.findUnique({ where: { id: authUser.id } })
-  if (dbUser?.role !== "superadmin") throw new Error("Forbidden")
-  
-  return dbUser
+  const dbUser = await prisma.user.findUnique({ where: { id: authUser.id } });
+  if (dbUser?.role !== 'superadmin') throw new Error('Forbidden');
+
+  return dbUser;
+}
+
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 // ── Article à la une ──────────────────────────────────────────────────────────
 export async function toggleFeaturedArticle(articleId: string) {
-  await verifySuperadmin()
+  await verifySuperadmin();
 
   try {
     const article = await prisma.article.findUnique({
       where: { id: articleId },
-      select: { isEditorPick: true }
-    })
-    
-    if (!article) return { success: false, error: "Article non trouvé" }
-    
-    const nextVal = !article.isEditorPick
-    
+      select: { isEditorPick: true },
+    });
+
+    if (!article) return { success: false, error: 'Article non trouvé' };
+
+    const nextVal = !article.isEditorPick;
+
     if (nextVal) {
       // Décocher tous les autres articles à la une
       await prisma.article.updateMany({
         where: { isEditorPick: true },
-        data: { isEditorPick: false }
-      })
+        data: { isEditorPick: false },
+      });
     }
-    
+
     await prisma.article.update({
       where: { id: articleId },
-      data: { isEditorPick: nextVal }
-    })
-    
-    revalidatePath("/admin/widgets")
-    revalidatePath("/home")
-    return { success: true }
-  } catch (error: any) {
-    console.error(error)
-    return { success: false, error: error.message || "Erreur de base de données" }
+      data: { isEditorPick: nextVal },
+    });
+
+    revalidatePath('/admin/widgets');
+    revalidatePath('/home');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false, error: errorMessage(error, 'Erreur de base de données') };
   }
 }
 
 // ── Tendances ────────────────────────────────────────────────────────────────
 export async function addTrend(hashtag: string, count: number) {
-  await verifySuperadmin()
+  await verifySuperadmin();
 
   try {
-    if (!hashtag.startsWith("#")) {
-      hashtag = "#" + hashtag.trim()
+    if (!hashtag.startsWith('#')) {
+      hashtag = '#' + hashtag.trim();
     } else {
-      hashtag = hashtag.trim()
+      hashtag = hashtag.trim();
     }
-    
+
     if (hashtag.length < 2) {
-      return { success: false, error: "Hashtag invalide" }
+      return { success: false, error: 'Hashtag invalide' };
     }
 
     await prisma.trend.upsert({
       where: { hashtag },
       update: { count },
-      create: { hashtag, count }
-    })
+      create: { hashtag, count },
+    });
 
-    revalidatePath("/admin/widgets")
-    revalidatePath("/home")
-    return { success: true }
-  } catch (error: any) {
-    console.error(error)
-    return { success: false, error: error.message || "Erreur lors de la création" }
+    revalidatePath('/admin/widgets');
+    revalidatePath('/home');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false, error: errorMessage(error, 'Erreur lors de la création') };
   }
 }
 
 export async function deleteTrend(id: string) {
-  await verifySuperadmin()
+  await verifySuperadmin();
 
   try {
-    await prisma.trend.delete({ where: { id } })
-    revalidatePath("/admin/widgets")
-    revalidatePath("/home")
-    return { success: true }
-  } catch (error: any) {
-    console.error(error)
-    return { success: false, error: error.message }
+    await prisma.trend.delete({ where: { id } });
+    revalidatePath('/admin/widgets');
+    revalidatePath('/home');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false, error: errorMessage(error, 'Erreur de suppression') };
   }
 }
 
 export async function updateTrendCount(id: string, count: number) {
-  await verifySuperadmin()
+  await verifySuperadmin();
 
   try {
     await prisma.trend.update({
       where: { id },
-      data: { count }
-    })
-    revalidatePath("/admin/widgets")
-    revalidatePath("/home")
-    return { success: true }
-  } catch (error: any) {
-    console.error(error)
-    return { success: false, error: error.message }
+      data: { count },
+    });
+    revalidatePath('/admin/widgets');
+    revalidatePath('/home');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false, error: errorMessage(error, 'Erreur de mise à jour') };
   }
 }
 
@@ -121,60 +127,60 @@ export async function savePromo(
   ctaUrl: string | null,
   isActive: boolean
 ) {
-  await verifySuperadmin()
+  await verifySuperadmin();
 
   try {
     if (!title || !description) {
-      return { success: false, error: "Titre et description requis" }
+      return { success: false, error: 'Titre et description requis' };
     }
 
     if (id) {
       await prisma.partnerPromo.update({
         where: { id },
-        data: { title, description, ctaText, ctaUrl, isActive }
-      })
+        data: { title, description, ctaText, ctaUrl, isActive },
+      });
     } else {
       await prisma.partnerPromo.create({
-        data: { title, description, ctaText, ctaUrl, isActive }
-      })
+        data: { title, description, ctaText, ctaUrl, isActive },
+      });
     }
 
-    revalidatePath("/admin/widgets")
-    revalidatePath("/home")
-    return { success: true }
-  } catch (error: any) {
-    console.error(error)
-    return { success: false, error: error.message }
+    revalidatePath('/admin/widgets');
+    revalidatePath('/home');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
   }
 }
 
 export async function deletePromo(id: string) {
-  await verifySuperadmin()
+  await verifySuperadmin();
 
   try {
-    await prisma.partnerPromo.delete({ where: { id } })
-    revalidatePath("/admin/widgets")
-    revalidatePath("/home")
-    return { success: true }
-  } catch (error: any) {
-    console.error(error)
-    return { success: false, error: error.message }
+    await prisma.partnerPromo.delete({ where: { id } });
+    revalidatePath('/admin/widgets');
+    revalidatePath('/home');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false, error: errorMessage(error, 'Erreur de suppression') };
   }
 }
 
 export async function togglePromoActive(id: string, isActive: boolean) {
-  await verifySuperadmin()
+  await verifySuperadmin();
 
   try {
     await prisma.partnerPromo.update({
       where: { id },
-      data: { isActive }
-    })
-    revalidatePath("/admin/widgets")
-    revalidatePath("/home")
-    return { success: true }
-  } catch (error: any) {
-    console.error(error)
-    return { success: false, error: error.message }
+      data: { isActive },
+    });
+    revalidatePath('/admin/widgets');
+    revalidatePath('/home');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false, error: errorMessage(error, 'Erreur de mise à jour') };
   }
 }

@@ -1,55 +1,55 @@
-"use client"
+'use client';
 
-import React, { useEffect, useState } from "react"
-import { X, FileText, Eye, Globe, ExternalLink, Loader2, Edit3 } from "lucide-react"
-import { getArticleAnalyticsDetail, ArticleDetailData, TimePeriod } from "../actions"
-import { TimeseriesChart } from "./TimeseriesChart"
-import { ReferrersBlock } from "./ReferrersBlock"
+import React, { useEffect, useState } from 'react';
+import { X, FileText, Loader2, Edit3 } from 'lucide-react';
+import { getArticleAnalyticsDetail, ArticleDetailData, TimePeriod } from '../actions';
+import { TimeseriesChart } from './TimeseriesChart';
+import { ReferrersBlock } from './ReferrersBlock';
 
 interface ArticleInspectorModalProps {
-  urlPath: string | null
-  articleId?: string | null
-  period?: TimePeriod
-  onClose: () => void
-  onEdit?: () => void
+  urlPath: string | null;
+  articleId?: string | null;
+  period?: TimePeriod;
+  onClose: () => void;
+  onEdit?: () => void;
 }
 
 export function ArticleInspectorModal({
   urlPath,
   articleId,
-  period = "30d",
+  period = '30d',
   onClose,
-  onEdit
+  onEdit,
 }: ArticleInspectorModalProps) {
-  const [loading, setLoading] = useState(true)
-  const [detail, setDetail] = useState<ArticleDetailData | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true);
+  const [detail, setDetail] = useState<ArticleDetailData | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!urlPath) return
+    if (!urlPath) return;
 
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     getArticleAnalyticsDetail(urlPath, period).then((res) => {
-      setLoading(false)
+      setLoading(false);
       if (res.data) {
-        setDetail(res.data)
+        setDetail(res.data);
       } else {
-        setError(res.error || "Erreur de chargement des détails")
+        setError(res.error || 'Erreur de chargement des détails');
       }
-    })
-  }, [urlPath, period])
+    });
+  }, [urlPath, period]);
 
-  if (!urlPath) return null
+  if (!urlPath) return null;
 
   const handleEditClick = () => {
     if (onEdit) {
-      onEdit()
+      onEdit();
     } else if (articleId) {
-      window.location.href = `/articles/${articleId}`
+      window.location.href = `/articles/${articleId}`;
     }
-  }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-end bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -65,8 +65,13 @@ export function ArticleInspectorModal({
               <FileText className="h-5 w-5 stroke-[1.5]" />
             </div>
             <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Analyses de l'article</span>
-              <h2 className="text-lg font-bold text-foreground truncate max-w-md" title={detail?.title || urlPath}>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Analyses de l'article
+              </span>
+              <h2
+                className="text-lg font-bold text-foreground truncate max-w-md"
+                title={detail?.title || urlPath}
+              >
                 {detail?.title || urlPath}
               </h2>
             </div>
@@ -107,12 +112,18 @@ export function ArticleInspectorModal({
             {/* Top Metric Header */}
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl border border-border/30 bg-muted/20">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Vues sur l'écrit</span>
-                <p className="text-2xl font-bold text-foreground mt-1">{detail.totalViews.toLocaleString()}</p>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Vues sur l'écrit
+                </span>
+                <p className="text-2xl font-bold text-foreground mt-1">
+                  {detail.totalViews.toLocaleString()}
+                </p>
               </div>
 
               <div className="p-4 rounded-xl border border-border/30 bg-muted/20">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Chemin d'accès</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Chemin d'accès
+                </span>
                 <p className="text-xs font-mono text-foreground mt-2 truncate">{detail.url}</p>
               </div>
             </div>
@@ -126,5 +137,5 @@ export function ArticleInspectorModal({
         ) : null}
       </div>
     </div>
-  )
+  );
 }

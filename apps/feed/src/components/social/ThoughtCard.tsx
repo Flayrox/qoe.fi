@@ -1,35 +1,40 @@
-"use client"
+'use client';
 
-import React from "react"
-import { ThoughtCardContainer, type ThoughtCardContainerProps } from "@qoe/api-client"
-import { ConfirmDeleteModal } from "@qoe/ui"
-import { ModerationReportModal } from "./ModerationReportModal"
-import { routes } from "@qoe/config/routes"
-import { toast } from "sonner"
-import { createClient } from "@/lib/supabase/client"
-import { 
-  pinPostAction as pinPost, 
-  unpinPostAction as unpinPost, 
-  toggleLikePostAction as toggleLikePost, 
-  toggleRepostPostAction as toggleRepostPost 
-} from "@qoe/api-client/actions/feed"
-import { PollCard } from "./PollCard"
-import { ThreadgateBadge } from "./ThreadgateBadge"
-import { HiddenReplyCard } from "./HiddenReplyCard"
+import React from 'react';
+import {
+  ThoughtCardContainer,
+  type ThoughtCardContainerProps,
+  usePostShadow,
+} from '@qoe/api-client';
+import { ConfirmDeleteModal } from '@qoe/ui';
+import { ModerationReportModal } from './ModerationReportModal';
+import { routes } from '@qoe/config/routes';
+import { toast } from 'sonner';
+import { createClient } from '@/lib/supabase/client';
+import {
+  pinPostAction as pinPost,
+  unpinPostAction as unpinPost,
+} from '@qoe/api-client/actions/feed';
+import { PollCard } from './PollCard';
+import { ThreadgateBadge, type ReplyRestrictionType } from './ThreadgateBadge';
+import { HiddenReplyCard } from './HiddenReplyCard';
 
-export type { ThoughtData, ThoughtVariant } from "@qoe/ui"
+export type { ThoughtData, ThoughtVariant } from '@qoe/ui';
 
-export interface FeedThoughtCardProps extends Omit<ThoughtCardContainerProps, "likeMutationFn" | "repostMutationFn"> {
-  onOpenProfile?: (username: string) => void
-  onOpenPost?: (postId: string, authorUsername?: string) => void
-  onLikeToggle?: (postId: string) => void
-  onRepostToggle?: (postId: string) => void
-  onDeletePost?: (postId: string) => Promise<boolean> | void
+export interface FeedThoughtCardProps extends Omit<
+  ThoughtCardContainerProps,
+  'likeMutationFn' | 'repostMutationFn'
+> {
+  onOpenProfile?: (username: string) => void;
+  onOpenPost?: (postId: string, authorUsername?: string) => void;
+  onLikeToggle?: (postId: string) => void;
+  onRepostToggle?: (postId: string) => void;
+  onDeletePost?: (postId: string) => Promise<boolean> | void;
 }
 
 export function ThoughtCard({
   post,
-  variant = "timeline",
+  variant = 'timeline',
   depth = 0,
   currentUserId: propUserId,
   onOpenProfile,
@@ -40,83 +45,95 @@ export function ThoughtCard({
   className,
   ...restProps
 }: FeedThoughtCardProps) {
-  const [currentUserId, setCurrentUserId] = React.useState<string | null>(propUserId || null)
-  const [showReportModal, setShowReportModal] = React.useState<boolean>(false)
-  const [confirmDeletePostId, setConfirmDeletePostId] = React.useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = React.useState<string | null>(propUserId || null);
+  const [showReportModal, setShowReportModal] = React.useState<boolean>(false);
+  const [confirmDeletePostId, setConfirmDeletePostId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (propUserId) return
-    const supabase = createClient()
+    if (propUserId) return;
+    const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user) {
-        setCurrentUserId(data.user.id)
+        setCurrentUserId(data.user.id);
       }
-    })
-  }, [propUserId])
+    });
+  }, [propUserId]);
 
-  const authorHandle = post.author?.username || post.author?.subdomain || post.author?.id?.slice(0, 8) || "auteur"
+  const shadowedPost = usePostShadow(post);
+
+  // 🪦 Tombe façon Bluesky : dès que le shadow marque la pensée comme supprimée,
+  // la carte disparaît (null) sans aucune chirurgie de liste manuelle.
+  if (shadowedPost.isDeleted) {
+    return null;
+  }
+
+  const authorHandle =
+    post.author?.username || post.author?.subdomain || post.author?.id?.slice(0, 8) || 'auteur';
 
   const handleOpenProfile = (username: string) => {
     if (onOpenProfile) {
-      onOpenProfile(username)
+      onOpenProfile(username);
     } else {
-      window.location.href = routes.feed.profile(username)
+      window.location.href = routes.feed.profile(username);
     }
-  }
+  };
 
   const handleOpenPost = (postId: string, author?: string) => {
-    if (variant === "focus") return
+    if (variant === 'focus') return;
     if (onOpenPost) {
-      onOpenPost(postId, author || authorHandle)
+      onOpenPost(postId, author || authorHandle);
     }
-  }
+  };
 
   const handlePinToggle = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault();
+    e.stopPropagation();
     try {
       if (post.isPinned) {
-        const res = await unpinPost(post.id)
-        if (res.ok) toast.success("Pensée désépinglée du profil.")
+        const res = await unpinPost(post.id);
+        if (res.ok) toast.success('Pensée désépinglée du profil.');
       } else {
-        const res = await pinPost(post.id)
-        if (res.ok) toast.success("Pensée épinglée sur le profil.")
+        const res = await pinPost(post.id);
+        if (res.ok) toast.success('Pensée épinglée sur le profil.');
       }
     } catch {
-      toast.error("Erreur lors de la modification de l'état épinglé.")
+      toast.error("Erreur lors de la modification de l'état épinglé.");
     }
-  }
+  };
 
-  const handleLikeToggleOverride = onLikeToggle ? (id: string) => onLikeToggle(id) : undefined
-  const handleRepostToggleOverride = onRepostToggle ? (id: string) => onRepostToggle(id) : undefined
+  const handleLikeToggleOverride = onLikeToggle ? (id: string) => onLikeToggle(id) : undefined;
+  const handleRepostToggleOverride = onRepostToggle
+    ? (id: string) => onRepostToggle(id)
+    : undefined;
 
   const handleReplyClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault();
+    e.stopPropagation();
     if (restProps.onReplyClick) {
-      restProps.onReplyClick(e)
-    } else if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("open-composer", { detail: { replyToThought: post } }))
+      restProps.onReplyClick(e);
+    } else if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('open-composer', { detail: { replyToThought: post } }));
     }
-  }
+  };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setConfirmDeletePostId(post.id)
-  }
+    e.preventDefault();
+    e.stopPropagation();
+    setConfirmDeletePostId(shadowedPost.id);
+  };
 
-  const pollSlot = post.poll ? <PollCard poll={post.poll} /> : null
-  const threadgateBadge = post.replyRestriction && post.replyRestriction !== "everyone" ? (
-    <ThreadgateBadge restriction={post.replyRestriction as any} />
-  ) : null
+  const pollSlot = shadowedPost.poll ? <PollCard poll={shadowedPost.poll} /> : null;
+  const threadgateBadge =
+    shadowedPost.replyRestriction && shadowedPost.replyRestriction !== 'everyone' ? (
+      <ThreadgateBadge restriction={shadowedPost.replyRestriction as ReplyRestrictionType} />
+    ) : null;
 
-  const isHidden = (post as any).isHiddenByAuthor === true
-  const isParentAuthor = currentUserId === post.parent?.author.id
+  const isHidden = shadowedPost.isHiddenByAuthor === true;
+  const isParentAuthor = currentUserId === shadowedPost.parent?.author.id;
 
   const cardElement = (
     <ThoughtCardContainer
-      post={post}
+      post={shadowedPost}
       variant={variant}
       depth={depth}
       currentUserId={currentUserId}
@@ -130,25 +147,19 @@ export function ThoughtCard({
       onDeleteClick={onDeletePost ? handleDeleteClick : undefined}
       onLikeToggleOverride={handleLikeToggleOverride}
       onRepostToggleOverride={handleRepostToggleOverride}
-      likeMutationFn={async (id) => {
-        const res = await toggleLikePost(id)
-        const msg = res.ok ? undefined : typeof res.error === "string" ? res.error : res.error?.message
-        return { success: res.ok, message: msg }
-      }}
-      repostMutationFn={async (id) => {
-        const res = await toggleRepostPost(id)
-        const msg = res.ok ? undefined : typeof res.error === "string" ? res.error : res.error?.message
-        return { success: res.ok, message: msg }
-      }}
       className={className}
       {...restProps}
     />
-  )
+  );
 
   return (
     <>
       {isHidden ? (
-        <HiddenReplyCard replyId={post.id} isHiddenByAuthor={true} isParentAuthor={isParentAuthor}>
+        <HiddenReplyCard
+          replyId={shadowedPost.id}
+          isHiddenByAuthor={true}
+          isParentAuthor={isParentAuthor}
+        >
           {cardElement}
         </HiddenReplyCard>
       ) : (
@@ -158,17 +169,17 @@ export function ThoughtCard({
       <ModerationReportModal
         isOpen={showReportModal}
         onClose={() => setShowReportModal(false)}
-        targetId={post.id}
+        targetId={shadowedPost.id}
         targetType="thought"
       />
 
       <ConfirmDeleteModal
-        isOpen={confirmDeletePostId === post.id}
+        isOpen={confirmDeletePostId === shadowedPost.id}
         onClose={() => setConfirmDeletePostId(null)}
         onConfirm={() => {
-          if (confirmDeletePostId) return onDeletePost?.(confirmDeletePostId)
+          if (confirmDeletePostId) return onDeletePost?.(confirmDeletePostId);
         }}
       />
     </>
-  )
+  );
 }

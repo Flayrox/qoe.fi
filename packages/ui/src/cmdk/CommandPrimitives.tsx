@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import React, { useEffect } from "react";
-import { Command } from "cmdk";
-import { Search } from "lucide-react";
+import React, { useEffect } from 'react';
+import { Command } from 'cmdk';
+import { Search } from 'lucide-react';
 
 interface CmdKDialogProps {
   open: boolean;
@@ -13,23 +13,23 @@ interface CmdKDialogProps {
 export function CmdKDialog({ open, onOpenChange, children }: CmdKDialogProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && open) {
+      if (e.key === 'Escape' && open) {
         e.preventDefault();
         onOpenChange(false);
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, onOpenChange]);
 
   useEffect(() => {
     if (open) {
-      document.body.style.overflow = "hidden";
+      document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = "auto";
+      document.body.style.overflow = 'auto';
     }
     return () => {
-      document.body.style.overflow = "auto";
+      document.body.style.overflow = 'auto';
     };
   }, [open]);
 
@@ -50,11 +50,13 @@ export function CmdKDialog({ open, onOpenChange, children }: CmdKDialogProps) {
           shouldFilter={true}
         >
           {children}
-          
+
           <div className="flex items-center justify-between px-4 py-2.5 bg-muted/40 border-t border-border text-[10px] text-muted-foreground select-none">
             <span>
-              Sélectionner avec{" "}
-              <kbd className="border border-border/60 rounded px-1 font-medium bg-background">Entrée</kbd>
+              Sélectionner avec{' '}
+              <kbd className="border border-border/60 rounded px-1 font-medium bg-background">
+                Entrée
+              </kbd>
             </span>
             <span>Naviguer avec la souris ou clavier</span>
           </div>
@@ -79,7 +81,7 @@ export function CmdKInput({ value, onValueChange, placeholder, onEscape }: CmdKI
         value={value}
         onValueChange={onValueChange}
         autoFocus
-        placeholder={placeholder || "Rechercher..."}
+        placeholder={placeholder || 'Rechercher...'}
         className="flex-1 text-sm bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/60"
       />
       {onEscape && (
@@ -94,18 +96,24 @@ export function CmdKInput({ value, onValueChange, placeholder, onEscape }: CmdKI
   );
 }
 
-export function CmdKList({ children, emptyText }: { children: React.ReactNode, emptyText?: string }) {
+export function CmdKList({
+  children,
+  emptyText,
+}: {
+  children: React.ReactNode;
+  emptyText?: string;
+}) {
   return (
     <Command.List className="max-h-[300px] overflow-y-auto p-2 custom-scrollbar space-y-2">
       <Command.Empty className="text-center py-6 text-muted-foreground text-xs font-medium">
-        {emptyText || "Aucun résultat trouvé."}
+        {emptyText || 'Aucun résultat trouvé.'}
       </Command.Empty>
       {children}
     </Command.List>
   );
 }
 
-export function CmdKGroup({ heading, children }: { heading: string, children: React.ReactNode }) {
+export function CmdKGroup({ heading, children }: { heading: string; children: React.ReactNode }) {
   return (
     <Command.Group
       heading={heading}
@@ -141,16 +149,15 @@ export function CmdKItem({
     >
       <div className="flex items-center gap-3 min-w-0 pr-2">
         <div className="w-7 h-7 rounded-md bg-muted/80 flex items-center justify-center border border-border/60 shrink-0">
-          <Icon className="w-3.5 h-3.5 text-muted-foreground group-aria-selected:text-primary transition-colors" strokeWidth={1.5} />
+          <Icon
+            className="w-3.5 h-3.5 text-muted-foreground group-aria-selected:text-primary transition-colors"
+            strokeWidth={1.5}
+          />
         </div>
         <div className="flex flex-col min-w-0">
-          <span className="text-xs font-medium text-foreground/90 truncate">
-            {label}
-          </span>
+          <span className="text-xs font-medium text-foreground/90 truncate">{label}</span>
           {subtitle && (
-            <span className="text-[10px] text-muted-foreground/80 truncate">
-              {subtitle}
-            </span>
+            <span className="text-[10px] text-muted-foreground/80 truncate">{subtitle}</span>
           )}
         </div>
       </div>

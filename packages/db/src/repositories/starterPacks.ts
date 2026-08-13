@@ -2,7 +2,7 @@
 // 🚀 Starter Packs Repository — Packs d'Abonnement Curés (1-Click Follow)
 // =====================================================================
 
-import { prisma } from "../client";
+import { prisma } from '../client';
 
 export interface CreateStarterPackInput {
   title: string;
@@ -19,7 +19,7 @@ export async function getStarterPacks(limit = 20, cursor?: string) {
   const starterPacks = await prisma.starterPack.findMany({
     take: limit + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: 'desc' },
     include: {
       creator: {
         select: {
@@ -124,7 +124,7 @@ export async function createStarterPack(input: CreateStarterPackInput) {
     data: {
       title: title.trim(),
       description: description?.trim() || null,
-      icon: icon || "🚀",
+      icon: icon || '🚀',
       creatorId,
       items: {
         create: uniqueUserIds.map((userId) => ({

@@ -1,19 +1,19 @@
-"use client"
+'use client';
 
-import React from "react"
-import { Dialog, DialogContent } from "@qoe/ui"
-import { ThoughtComposer } from "./ThoughtComposer"
-import type { ThoughtData } from "@qoe/ui/social/ThoughtCard"
-import { X } from "lucide-react"
+import React from 'react';
+import { Dialog, DialogContent } from '@qoe/ui';
+import { ThoughtComposer, type ComposedPost, type DbUser } from './ThoughtComposer';
+import type { ThoughtData } from '@/components/social/ThoughtCard';
+import { X } from 'lucide-react';
 
 export interface ThoughtReplyModalProps {
-  isOpen: boolean
-  onClose: () => void
-  parentThought: ThoughtData | null
-  dbUser: any
-  tagsList?: string[]
-  onReplyCreated?: (replyPost: any) => void
-  onLoginRequired?: () => void
+  isOpen: boolean;
+  onClose: () => void;
+  parentThought: ThoughtData | null;
+  dbUser: DbUser | null;
+  tagsList?: string[];
+  onReplyCreated?: (replyPost: ComposedPost) => void;
+  onLoginRequired?: () => void;
 }
 
 export function ThoughtReplyModal({
@@ -25,10 +25,11 @@ export function ThoughtReplyModal({
   onReplyCreated,
   onLoginRequired,
 }: ThoughtReplyModalProps) {
-  if (!parentThought) return null
+  if (!parentThought) return null;
 
-  const parentAuthor = parentThought.author
-  const parentHandle = parentAuthor?.username || parentAuthor?.subdomain || parentAuthor?.id?.slice(0, 8) || "auteur"
+  const parentAuthor = parentThought.author;
+  const parentHandle =
+    parentAuthor?.username || parentAuthor?.subdomain || parentAuthor?.id?.slice(0, 8) || 'auteur';
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -46,11 +47,9 @@ export function ThoughtReplyModal({
           >
             <X className="w-4 h-4" />
           </button>
-
           <span className="text-xs font-semibold text-muted-foreground">
             En réponse à <span className="text-foreground font-bold">@{parentHandle}</span>
           </span>
-
           <div className="w-6" /> {/* Balance spacer */}
         </div>
 
@@ -63,16 +62,16 @@ export function ThoughtReplyModal({
             parentId={parentThought.id}
             placeholder="Poster votre réponse..."
             onPostCreated={(post) => {
-              if (onReplyCreated) onReplyCreated(post)
-              onClose()
+              if (onReplyCreated) onReplyCreated(post);
+              onClose();
             }}
             onLoginRequired={() => {
-              onClose()
-              if (onLoginRequired) onLoginRequired()
+              onClose();
+              if (onLoginRequired) onLoginRequired();
             }}
           />
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

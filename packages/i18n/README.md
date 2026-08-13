@@ -3,6 +3,7 @@
 **Role:** Handles all translations and localization mappings within the qoe.fi platform via Tolgee.
 
 ## File Exhaustive Listing
+
 - `package.json`
 - `tsconfig.json`
 - `src/index.ts`

@@ -1,78 +1,73 @@
-"use client"
+'use client';
 
-import React, { useEffect, useState, useCallback } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { X, ChevronLeft, ChevronRight, Download, Info } from "lucide-react"
+import React, { useEffect, useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, ChevronLeft, ChevronRight, Download, Info } from 'lucide-react';
 
 export interface MediaLightboxImage {
-  url: string
-  alt?: string | null
+  url: string;
+  alt?: string | null;
 }
 
 export interface MediaLightboxProps {
-  isOpen: boolean
-  images: MediaLightboxImage[]
-  initialIndex?: number
-  onClose: () => void
+  isOpen: boolean;
+  images: MediaLightboxImage[];
+  initialIndex?: number;
+  onClose: () => void;
 }
 
-export function MediaLightbox({
-  isOpen,
-  images,
-  initialIndex = 0,
-  onClose,
-}: MediaLightboxProps) {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex)
-  const [showAlt, setShowAlt] = useState(false)
+export function MediaLightbox({ isOpen, images, initialIndex = 0, onClose }: MediaLightboxProps) {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [showAlt, setShowAlt] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setCurrentIndex(initialIndex)
-      setShowAlt(false)
+      setCurrentIndex(initialIndex);
+      setShowAlt(false);
     }
-  }, [isOpen, initialIndex])
+  }, [isOpen, initialIndex]);
 
   const handleNext = useCallback(() => {
-    if (images.length <= 1) return
-    setCurrentIndex((prev) => (prev + 1) % images.length)
-  }, [images.length])
+    if (images.length <= 1) return;
+    setCurrentIndex((prev) => (prev + 1) % images.length);
+  }, [images.length]);
 
   const handlePrev = useCallback(() => {
-    if (images.length <= 1) return
-    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length)
-  }, [images.length])
+    if (images.length <= 1) return;
+    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+  }, [images.length]);
 
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose()
-      } else if (e.key === "ArrowRight") {
-        handleNext()
-      } else if (e.key === "ArrowLeft") {
-        handlePrev()
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'ArrowRight') {
+        handleNext();
+      } else if (e.key === 'ArrowLeft') {
+        handlePrev();
       }
-    }
+    };
 
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [isOpen, handleNext, handlePrev, onClose])
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleNext, handlePrev, onClose]);
 
-  if (!isOpen || images.length === 0) return null
+  if (!isOpen || images.length === 0) return null;
 
-  const currentImage = images[currentIndex] || images[0]
+  const currentImage = images[currentIndex] || images[0];
 
   const handleDownload = () => {
-    if (!currentImage?.url) return
-    const link = document.createElement("a")
-    link.href = currentImage.url
-    link.download = `qoe-media-${currentIndex + 1}.jpg`
-    link.target = "_blank"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
+    if (!currentImage?.url) return;
+    const link = document.createElement('a');
+    link.href = currentImage.url;
+    link.download = `qoe-media-${currentIndex + 1}.jpg`;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <AnimatePresence>
@@ -99,7 +94,9 @@ export function MediaLightbox({
                 type="button"
                 onClick={() => setShowAlt((prev) => !prev)}
                 className={`p-2.5 rounded-full transition-all cursor-pointer ${
-                  showAlt ? "bg-primary text-primary-foreground" : "bg-white/10 hover:bg-white/20 text-white"
+                  showAlt
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-white/10 hover:bg-white/20 text-white'
                 }`}
                 title="Afficher la description (Alt-Text)"
               >
@@ -132,8 +129,8 @@ export function MediaLightbox({
           <button
             type="button"
             onClick={(e) => {
-              e.stopPropagation()
-              handlePrev()
+              e.stopPropagation();
+              handlePrev();
             }}
             className="absolute left-4 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all transform hover:scale-105 cursor-pointer backdrop-blur-md"
             title="Image précédente (Flèche gauche)"
@@ -152,9 +149,9 @@ export function MediaLightbox({
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             src={currentImage.url}
-            alt={currentImage.alt || "Aperçu média qoe.fi"}
+            alt={currentImage.alt || 'Aperçu média qoe.fi'}
             className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
           />
 
@@ -177,8 +174,8 @@ export function MediaLightbox({
           <button
             type="button"
             onClick={(e) => {
-              e.stopPropagation()
-              handleNext()
+              e.stopPropagation();
+              handleNext();
             }}
             className="absolute right-4 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all transform hover:scale-105 cursor-pointer backdrop-blur-md"
             title="Image suivante (Flèche droite)"
@@ -199,7 +196,7 @@ export function MediaLightbox({
                 type="button"
                 onClick={() => setCurrentIndex(idx)}
                 className={`h-2 rounded-full transition-all cursor-pointer ${
-                  idx === currentIndex ? "w-6 bg-primary" : "w-2 bg-white/30 hover:bg-white/50"
+                  idx === currentIndex ? 'w-6 bg-primary' : 'w-2 bg-white/30 hover:bg-white/50'
                 }`}
               />
             ))}
@@ -207,5 +204,5 @@ export function MediaLightbox({
         )}
       </motion.div>
     </AnimatePresence>
-  )
+  );
 }

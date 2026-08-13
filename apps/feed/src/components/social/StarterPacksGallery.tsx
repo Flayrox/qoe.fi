@@ -1,17 +1,17 @@
-"use client";
+'use client';
 
-import React, { useEffect, useState } from "react";
-import { Sparkles, Loader2, Plus, Compass } from "lucide-react";
-import { getStarterPacksAction, createStarterPackAction } from "@qoe/api-client";
-import { StarterPackCard } from "./StarterPackCard";
+import React, { useEffect, useState } from 'react';
+import { Sparkles, Loader2, Plus, Compass } from 'lucide-react';
+import { getStarterPacksAction, createStarterPackAction } from '@qoe/api-client';
+import { StarterPackCard, type StarterPackCardProps } from './StarterPackCard';
 
 export function StarterPacksGallery() {
-  const [starterPacks, setStarterPacks] = useState<any[]>([]);
+  const [starterPacks, setStarterPacks] = useState<StarterPackCardProps['pack'][]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const [newDesc, setNewTitleDesc] = useState("");
-  const [newIcon, setNewIcon] = useState("🚀");
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewTitleDesc] = useState('');
+  const [newIcon, setNewIcon] = useState('🚀');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export function StarterPacksGallery() {
           setStarterPacks(res.data.starterPacks);
         }
       } catch (err) {
-        console.error("Error loading starter packs:", err);
+        console.error('Error loading starter packs:', err);
       } finally {
         setIsLoading(false);
       }
@@ -44,12 +44,12 @@ export function StarterPacksGallery() {
       });
       if (res.ok && res.data.starterPack) {
         setStarterPacks((prev) => [res.data.starterPack, ...prev]);
-        setNewTitle("");
-        setNewTitleDesc("");
+        setNewTitle('');
+        setNewTitleDesc('');
         setIsCreating(false);
       }
     } catch (err) {
-      console.error("Error creating starter pack:", err);
+      console.error('Error creating starter pack:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -65,7 +65,9 @@ export function StarterPacksGallery() {
           </div>
           <div>
             <h2 className="font-bold text-sm text-foreground">Découvrez les Starter Packs</h2>
-            <p className="text-xs text-muted-foreground">S'abonner à une sélection d'auteurs en 1-clic.</p>
+            <p className="text-xs text-muted-foreground">
+              S'abonner à une sélection d'auteurs en 1-clic.
+            </p>
           </div>
         </div>
 
@@ -74,7 +76,7 @@ export function StarterPacksGallery() {
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-all shrink-0"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>{isCreating ? "Fermer" : "Créer un Pack"}</span>
+          <span>{isCreating ? 'Fermer' : 'Créer un Pack'}</span>
         </button>
       </div>
 
@@ -136,7 +138,9 @@ export function StarterPacksGallery() {
       {!isLoading && starterPacks.length === 0 && (
         <div className="text-center py-12 space-y-2 border border-dashed border-border rounded-2xl">
           <p className="text-sm font-bold text-foreground">Aucun Starter Pack pour le moment</p>
-          <p className="text-xs text-muted-foreground">Soyez le premier à partager une liste d'auteurs inspirants !</p>
+          <p className="text-xs text-muted-foreground">
+            Soyez le premier à partager une liste d'auteurs inspirants !
+          </p>
         </div>
       )}
 

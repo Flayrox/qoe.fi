@@ -20,18 +20,15 @@ export interface UmamiTimeseriesPoint {
   y: number; // Pageviews count
 }
 
-const isDev = process.env.NODE_ENV === "development";
+const isDev = process.env.NODE_ENV === 'development';
 
 /**
  * 📊 Track un event depuis le serveur (s'écrit dans les logs).
  */
-export async function trackServerEvent(
-  event: string,
-  data?: Record<string, unknown>
-) {
+export async function trackServerEvent(event: string, data?: Record<string, unknown>) {
   console.log(
     JSON.stringify({
-      type: "analytics:event",
+      type: 'analytics:event',
       event,
       data,
       timestamp: new Date().toISOString(),
@@ -47,7 +44,7 @@ export async function fetchUmamiWebsiteStats(
   startAt: number,
   endAt: number
 ): Promise<UmamiStats | null> {
-  const apiUrl = process.env.UMAMI_API_URL || "https://api.umami.is/v1";
+  const apiUrl = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
   const apiKey = process.env.UMAMI_API_KEY;
 
   if (!websiteId || !apiKey) {
@@ -87,7 +84,7 @@ export async function fetchUmamiWebsiteStats(
     }
     return (await res.json()) as UmamiStats;
   } catch (error) {
-    console.error("Failed to fetch Umami website stats:", error);
+    console.error('Failed to fetch Umami website stats:', error);
     if (isDev) {
       return { pageviews: 1420, visitors: 890, visits: 1100, bounces: 340, totaltime: 198000 };
     }
@@ -102,17 +99,19 @@ export async function fetchUmamiPageviewsSeries(
   websiteId: string,
   startAt: number,
   endAt: number,
-  unit: "hour" | "day" = "day",
+  unit: 'hour' | 'day' = 'day',
   url?: string
 ): Promise<UmamiTimeseriesPoint[]> {
-  const apiUrl = process.env.UMAMI_API_URL || "https://api.umami.is/v1";
+  const apiUrl = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
   const apiKey = process.env.UMAMI_API_KEY;
 
   if (!websiteId || !apiKey) {
     if (isDev) {
-      const daysCount = unit === "hour" ? 24 : 14;
+      const daysCount = unit === 'hour' ? 24 : 14;
       return Array.from({ length: daysCount }).map((_, i) => ({
-        x: new Date(Date.now() - (daysCount - 1 - i) * (unit === "hour" ? 3600000 : 86400000)).toISOString(),
+        x: new Date(
+          Date.now() - (daysCount - 1 - i) * (unit === 'hour' ? 3600000 : 86400000)
+        ).toISOString(),
         y: Math.floor(Math.random() * 85) + 15,
       }));
     }
@@ -140,10 +139,11 @@ export async function fetchUmamiPageviewsSeries(
       }
       return [];
     }
-    const data = (await res.json()) as any;
-    return (data?.pageviews || data || []) as UmamiTimeseriesPoint[];
+    const data = (await res.json()) as { pageviews?: unknown[] } | unknown[];
+    const rows = Array.isArray(data) ? data : data?.pageviews;
+    return (rows || []) as UmamiTimeseriesPoint[];
   } catch (error) {
-    console.error("Failed to fetch Umami pageviews series:", error);
+    console.error('Failed to fetch Umami pageviews series:', error);
     if (isDev) {
       return Array.from({ length: 14 }).map((_, i) => ({
         x: new Date(Date.now() - (13 - i) * 86400000).toISOString(),
@@ -163,7 +163,7 @@ export async function fetchUmamiTopPages(
   endAt: number,
   limit: number = 10
 ): Promise<UmamiPageMetric[]> {
-  return fetchUmamiMetrics(websiteId, startAt, endAt, "url", limit);
+  return fetchUmamiMetrics(websiteId, startAt, endAt, 'url', limit);
 }
 
 /**
@@ -176,7 +176,7 @@ export async function fetchUmamiReferrers(
   limit: number = 10,
   url?: string
 ): Promise<UmamiPageMetric[]> {
-  return fetchUmamiMetrics(websiteId, startAt, endAt, "referrer", limit, url);
+  return fetchUmamiMetrics(websiteId, startAt, endAt, 'referrer', limit, url);
 }
 
 /**
@@ -186,11 +186,11 @@ export async function fetchUmamiMetrics(
   websiteId: string,
   startAt: number,
   endAt: number,
-  type: "url" | "referrer" | "device" | "os" | "browser" | "country",
+  type: 'url' | 'referrer' | 'device' | 'os' | 'browser' | 'country',
   limit: number = 10,
   url?: string
 ): Promise<UmamiPageMetric[]> {
-  const apiUrl = process.env.UMAMI_API_URL || "https://api.umami.is/v1";
+  const apiUrl = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
   const apiKey = process.env.UMAMI_API_KEY;
 
   if (!websiteId || !apiKey) {
@@ -225,42 +225,42 @@ export async function fetchUmamiMetrics(
 }
 
 function getDevMockMetrics(type: string): UmamiPageMetric[] {
-  if (type === "url") {
+  if (type === 'url') {
     return [
-      { x: "/articles/pourquoi-le-climat-change-vite", y: 480 },
-      { x: "/articles/guide-souverainete-numerique", y: 320 },
-      { x: "/articles/l-art-du-minimalisme", y: 210 },
-      { x: "/articles/mon-premier-post", y: 150 },
+      { x: '/articles/pourquoi-le-climat-change-vite', y: 480 },
+      { x: '/articles/guide-souverainete-numerique', y: 320 },
+      { x: '/articles/l-art-du-minimalisme', y: 210 },
+      { x: '/articles/mon-premier-post', y: 150 },
     ];
   }
-  if (type === "referrer") {
+  if (type === 'referrer') {
     return [
-      { x: "google", y: 520 },
-      { x: "https://x.com", y: 310 },
-      { x: "https://substack.com", y: 180 },
-      { x: "direct", y: 140 },
+      { x: 'google', y: 520 },
+      { x: 'https://x.com', y: 310 },
+      { x: 'https://substack.com', y: 180 },
+      { x: 'direct', y: 140 },
     ];
   }
-  if (type === "device") {
+  if (type === 'device') {
     return [
-      { x: "desktop", y: 680 },
-      { x: "mobile", y: 410 },
-      { x: "tablet", y: 60 },
+      { x: 'desktop', y: 680 },
+      { x: 'mobile', y: 410 },
+      { x: 'tablet', y: 60 },
     ];
   }
-  if (type === "browser") {
+  if (type === 'browser') {
     return [
-      { x: "Chrome", y: 540 },
-      { x: "Safari", y: 390 },
-      { x: "Firefox", y: 120 },
+      { x: 'Chrome', y: 540 },
+      { x: 'Safari', y: 390 },
+      { x: 'Firefox', y: 120 },
     ];
   }
-  if (type === "country") {
+  if (type === 'country') {
     return [
-      { x: "FR", y: 720 },
-      { x: "US", y: 210 },
-      { x: "BE", y: 110 },
-      { x: "CA", y: 80 },
+      { x: 'FR', y: 720 },
+      { x: 'US', y: 210 },
+      { x: 'BE', y: 110 },
+      { x: 'CA', y: 80 },
     ];
   }
   return [];

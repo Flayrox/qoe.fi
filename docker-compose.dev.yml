@@ -35,20 +35,20 @@ services:
 
     # Port exposé pour pgAdmin / DBeaver depuis ton PC
     ports:
-      - "5433:5432"
+      - '5433:5432'
 
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-qoe}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qoe}
       POSTGRES_DB: ${POSTGRES_DB:-qoe}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+      POSTGRES_INITDB_ARGS: '--encoding=UTF-8'
 
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qoe} -d ${POSTGRES_DB:-qoe}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-qoe} -d ${POSTGRES_DB:-qoe}']
       interval: 5s
       timeout: 3s
       retries: 5
@@ -61,7 +61,7 @@ services:
     container_name: qoefi-meilisearch
     restart: unless-stopped
     ports:
-      - "7700:7700"
+      - '7700:7700'
     environment:
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-qoe_master_key_123}
       - MEILI_NO_ANALYTICS=true
@@ -77,7 +77,7 @@ services:
     restart: unless-stopped
 
     ports:
-      - "6379:6379"
+      - '6379:6379'
 
     command: >
       redis-server
@@ -85,7 +85,7 @@ services:
       --maxmemory-policy allkeys-lru
 
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 3s
       retries: 3
@@ -99,12 +99,12 @@ services:
   migrate:
     image: node:22-alpine
     container_name: qoefi-dev-migrate
-    restart: "no"
+    restart: 'no'
 
     working_dir: /app
 
     environment:
-      CI: "true"
+      CI: 'true'
       DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
       DIRECT_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
 
@@ -146,7 +146,7 @@ services:
 
     working_dir: /app
     ports:
-      - "4001:3000"
+      - '4001:3000'
 
     env_file:
       - .env.docker
@@ -156,9 +156,9 @@ services:
       PORT: 3000
       HOSTNAME: 0.0.0.0
       # HMR polling (nécessaire sur Windows/Mac avec Docker Desktop)
-      CHOKIDAR_USEPOLLING: "true"
-      WATCHPACK_POLLING: "true"
-      NEXT_TELEMETRY_DISABLED: "1"
+      CHOKIDAR_USEPOLLING: 'true'
+      WATCHPACK_POLLING: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
       DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
       REDIS_URL: redis://redis:6379
 
@@ -193,7 +193,7 @@ services:
 
     working_dir: /app
     ports:
-      - "4040:3040"
+      - '4040:3040'
 
     env_file:
       - .env.docker
@@ -202,9 +202,9 @@ services:
       NODE_ENV: development
       PORT: 3040
       HOSTNAME: 0.0.0.0
-      CHOKIDAR_USEPOLLING: "true"
-      WATCHPACK_POLLING: "true"
-      NEXT_TELEMETRY_DISABLED: "1"
+      CHOKIDAR_USEPOLLING: 'true'
+      WATCHPACK_POLLING: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
       DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
       REDIS_URL: redis://redis:6379
 
@@ -237,7 +237,7 @@ services:
 
     working_dir: /app
     ports:
-      - "4000:3010"
+      - '4000:3010'
 
     env_file:
       - .env.docker
@@ -246,9 +246,9 @@ services:
       NODE_ENV: development
       PORT: 3010
       HOSTNAME: 0.0.0.0
-      CHOKIDAR_USEPOLLING: "true"
-      WATCHPACK_POLLING: "true"
-      NEXT_TELEMETRY_DISABLED: "1"
+      CHOKIDAR_USEPOLLING: 'true'
+      WATCHPACK_POLLING: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
       DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
       REDIS_URL: redis://redis:6379
 
@@ -281,7 +281,7 @@ services:
 
     working_dir: /app
     ports:
-      - "4020:3020"
+      - '4020:3020'
 
     env_file:
       - .env.docker
@@ -290,9 +290,9 @@ services:
       NODE_ENV: development
       PORT: 3020
       HOSTNAME: 0.0.0.0
-      CHOKIDAR_USEPOLLING: "true"
-      WATCHPACK_POLLING: "true"
-      NEXT_TELEMETRY_DISABLED: "1"
+      CHOKIDAR_USEPOLLING: 'true'
+      WATCHPACK_POLLING: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
       DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
       REDIS_URL: redis://redis:6379
 
@@ -325,7 +325,7 @@ services:
 
     working_dir: /app
     ports:
-      - "4030:3030"
+      - '4030:3030'
 
     env_file:
       - .env.docker
@@ -334,9 +334,9 @@ services:
       NODE_ENV: development
       PORT: 3030
       HOSTNAME: 0.0.0.0
-      CHOKIDAR_USEPOLLING: "true"
-      WATCHPACK_POLLING: "true"
-      NEXT_TELEMETRY_DISABLED: "1"
+      CHOKIDAR_USEPOLLING: 'true'
+      WATCHPACK_POLLING: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
       DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
       REDIS_URL: redis://redis:6379
 
@@ -369,7 +369,7 @@ services:
 
     working_dir: /app
     ports:
-      - "4002:3001"
+      - '4002:3001'
 
     env_file:
       - .env.docker
@@ -407,10 +407,10 @@ services:
 
     working_dir: /app
     ports:
-      - "5555:5555"
+      - '5555:5555'
 
     environment:
-      CI: "true"
+      CI: 'true'
       DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
 
     volumes:
@@ -434,7 +434,7 @@ services:
     container_name: qoefi-dev-umami
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-qoe}:${POSTGRES_PASSWORD:-qoe}@db:5432/${POSTGRES_DB:-qoe}?schema=public
       DATABASE_TYPE: postgresql

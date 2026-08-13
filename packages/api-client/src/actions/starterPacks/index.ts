@@ -1,12 +1,12 @@
-"use server";
+'use server';
 
-import { starterPacks } from "@qoe/db";
-import { revalidatePath } from "next/cache";
-import { safeAction } from "../utils/safe-action";
+import { starterPacks } from '@qoe/db';
+import { revalidatePath } from 'next/cache';
+import { safeAction } from '../utils/safe-action';
 
 export const getStarterPacksAction = safeAction<
   { limit?: number; cursor?: string } | undefined,
-  { starterPacks: any[]; nextCursor: string | null }
+  Awaited<ReturnType<typeof starterPacks.getStarterPacks>>
 >(async (rawInput) => {
   const limit = rawInput?.limit || 20;
   const cursor = rawInput?.cursor;
@@ -15,7 +15,7 @@ export const getStarterPacksAction = safeAction<
 
 export const getStarterPackByIdAction = safeAction<
   { id: string },
-  { starterPack: any }
+  { starterPack: Awaited<ReturnType<typeof starterPacks.getStarterPackById>> }
 >(async (input) => {
   const pack = await starterPacks.getStarterPackById(input.id);
   return { starterPack: pack };
@@ -23,10 +23,10 @@ export const getStarterPackByIdAction = safeAction<
 
 export const createStarterPackAction = safeAction<
   { title: string; description?: string; icon?: string; userIds: string[] },
-  { starterPack: any }
+  { starterPack: Awaited<ReturnType<typeof starterPacks.createStarterPack>> }
 >(async (input, user) => {
   if (!input.title || input.title.trim().length === 0) {
-    throw new Error("Title is required");
+    throw new Error('Title is required');
   }
   const pack = await starterPacks.createStarterPack({
     title: input.title,
@@ -35,7 +35,7 @@ export const createStarterPackAction = safeAction<
     creatorId: user.id,
     userIds: input.userIds || [],
   });
-  revalidatePath("/starter-packs");
+  revalidatePath('/starter-packs');
   return { starterPack: pack };
 });
 
@@ -44,7 +44,7 @@ export const followAllInStarterPackAction = safeAction<
   { followedCount: number }
 >(async (input, user) => {
   const result = await starterPacks.followAllInStarterPack(user.id, input.starterPackId);
-  revalidatePath("/starter-packs");
+  revalidatePath('/starter-packs');
   revalidatePath(`/starter-packs/${input.starterPackId}`);
   return result;
 });

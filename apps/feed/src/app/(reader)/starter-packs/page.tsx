@@ -1,7 +1,7 @@
-import { StarterPacksGallery } from "@/components/social/StarterPacksGallery";
+import { StarterPacksGallery } from '@/components/social/StarterPacksGallery';
 
 export const metadata = {
-  title: "Starter Packs | qoe.fi",
+  title: 'Starter Packs | qoe.fi',
   description: "Découvrez les listes d'abonnements thématiques en 1-clic sur qoe.fi.",
 };
 

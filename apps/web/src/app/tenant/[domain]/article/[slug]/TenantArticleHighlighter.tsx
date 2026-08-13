@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import React from "react";
-import { TextHighlighter, type AnnotationItem } from "@qoe/ui/annotations";
+import React from 'react';
+import { TextHighlighter, type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
 import {
   createHighlightAction,
   upvoteHighlightAction,
@@ -10,17 +10,22 @@ import {
   updateHighlightNoteAction,
   deleteHighlightAction,
   quotePassageToFeedAction,
-} from "./actions";
+} from './actions';
 
 export interface TenantArticleHighlighterProps {
   articleId: string;
   creatorName: string;
   allowPublicAnnotations: boolean;
   isAuthenticated: boolean;
-  initialHighlights: any[];
+  initialHighlights: HighlightItem[] | AnnotationItem[];
   publicHighlights: AnnotationItem[];
   currentUserId: string | null;
-  currentUserProfile: any;
+  currentUserProfile: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+  } | null;
   articleAuthorId: string;
   mainAppUrl: string;
 }
@@ -75,7 +80,7 @@ export function TenantArticleHighlighter({
           }),
         onDelete: async (highlightId: string) => {
           const res = await deleteHighlightAction(highlightId);
-          return res.ok ? { ok: true } : { ok: false, error: (res as any).error };
+          return res.ok ? { ok: true } : { ok: false, error: res.error };
         },
         onCrosspost: async (params) =>
           quotePassageToFeedAction({

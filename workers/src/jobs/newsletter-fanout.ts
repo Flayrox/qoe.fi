@@ -69,12 +69,12 @@ export async function processNewsletterFanout(
   }
 
   // 3. Prepare truncated versions for free vs paid subscribers
-  const freeVersion = truncateArticleContentForPaywall(article.content, {
+  void truncateArticleContentForPaywall(article.content, {
     isPremium: article.isPremium,
     isSubscriber: false,
   });
 
-  const paidVersion = truncateArticleContentForPaywall(article.content, {
+  void truncateArticleContentForPaywall(article.content, {
     isPremium: article.isPremium,
     isSubscriber: true,
   });
@@ -93,7 +93,6 @@ export async function processNewsletterFanout(
 
     for (const sub of chunk) {
       const isPaidSubscriber = sub.isPremium && sub.status === 'ACTIVE';
-      const targetContent = isPaidSubscriber ? paidVersion.content : freeVersion.content;
 
       if (isPaidSubscriber) {
         paidCount++;

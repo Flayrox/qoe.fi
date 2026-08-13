@@ -8,8 +8,8 @@
 //    - Plus facile à tester (mock du repo)
 // =====================================================================
 
-import { prisma } from "../client";
-import type { Article } from "@prisma/client";
+import { prisma } from '../client';
+import type { Article } from '@prisma/client';
 
 /**
  * 📋 Liste les articles publiés d'un créateur.
@@ -20,7 +20,7 @@ export async function findPublishedByAuthor(
 ) {
   return prisma.article.findMany({
     where: { authorId, published: true },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: 'desc' },
     take: options?.take ?? 20,
     skip: options?.skip ?? 0,
     include: {
@@ -44,7 +44,11 @@ export async function findPublishedByAuthor(
 /**
  * 🔍 Trouve un article par son auteur et son slug (lecture publique tenant).
  */
-export async function findBySlug(authorId: string, slug: string, options?: { includeDrafts?: boolean }) {
+export async function findBySlug(
+  authorId: string,
+  slug: string,
+  options?: { includeDrafts?: boolean }
+) {
   const article = await prisma.article.findUnique({
     where: { authorId_slug: { authorId, slug } },
     include: {
@@ -104,7 +108,7 @@ export async function findTrending(limit: number = 9) {
       published: true,
       author: { allowIndexing: true, isShadowbanned: false },
     },
-    orderBy: [{ bookmarks: { _count: "desc" } }, { createdAt: "desc" }],
+    orderBy: [{ bookmarks: { _count: 'desc' } }, { createdAt: 'desc' }],
     take: limit,
     include: {
       author: {
@@ -121,7 +125,7 @@ export async function findTrending(limit: number = 9) {
   });
 }
 
-import { syncOfficialAnnotationsFromHtml } from "./highlights";
+import { syncOfficialAnnotationsFromHtml } from './highlights';
 
 /**
  * ✍️ Crée un article (utilisé par le dashboard créateur).
@@ -141,7 +145,7 @@ export async function create(data: {
     },
   });
 
-  if (data.content && data.content.includes("data-annotation-note")) {
+  if (data.content && data.content.includes('data-annotation-note')) {
     await syncOfficialAnnotationsFromHtml(article.id, data.authorId, data.content);
   }
 
@@ -153,7 +157,7 @@ export async function create(data: {
  * Règle : 200 mots/minute (standard international).
  */
 function estimateReadingTime(content: string): number {
-  const text = content.replace(/<[^>]*>/g, ""); // strip HTML
+  const text = content.replace(/<[^>]*>/g, ''); // strip HTML
   const words = text.split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.ceil(words / 200));
 }
@@ -180,4 +184,3 @@ export async function findById(id: string) {
     },
   });
 }
-

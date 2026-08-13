@@ -1,92 +1,139 @@
-"use client"
+'use client';
 
-import React, { useState, useEffect } from "react"
-import { motion } from "framer-motion"
-import { Globe, FileText, Loader2, ArrowUpRight } from "lucide-react"
-import { cn } from "@qoe/utils"
-import { routes } from "@qoe/config/routes"
+import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { Globe, FileText, Loader2, ArrowUpRight } from 'lucide-react';
+import { routes } from '@qoe/config/routes';
 
+interface UnfurlPreviewPost {
+  id: string;
+  content: string;
+  imageUrl?: string | null;
+  author: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    subdomain: string | null;
+    logoUrl: string | null;
+    isCertified: boolean;
+  };
+}
+
+interface UnfurlPreviewArticle {
+  id: string;
+  slug: string;
+  title: string;
+  content: string;
+  author: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    subdomain: string | null;
+    customDomain?: string | null;
+    logoUrl?: string | null;
+    isCertified?: boolean;
+  };
+}
+
+interface UnfurlExternalPreviewMetadata {
+  url?: string;
+  title?: string;
+  description?: string;
+  image?: string;
+  siteName?: string;
+}
+
+type UnfurlPreview =
+  | { isInternal: true; postType: 'post'; data: UnfurlPreviewPost }
+  | { isInternal: true; postType: 'article'; data: UnfurlPreviewArticle }
+  | { isInternal: false; externalMetadata: UnfurlExternalPreviewMetadata };
 
 interface LinkPreviewProps {
-  urls: string[]
-  quotedExcerpt?: string
-  onNavigate?: (target: { type: 'post' | 'article' | 'profile'; id: string; slug?: string }) => void
+  urls: string[];
+  quotedExcerpt?: string;
+  onNavigate?: (target: {
+    type: 'post' | 'article' | 'profile';
+    id: string;
+    slug?: string;
+  }) => void;
 }
 
 export function LinkPreview({ urls, quotedExcerpt, onNavigate }: LinkPreviewProps) {
-  const [preview, setPreview] = useState<any | null>(null)
-  const [loading, setLoading] = useState<boolean>(false)
+  const [preview, setPreview] = useState<UnfurlPreview | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
-  const urlsKey = urls.join(",")
+  const urlsKey = urls.join(',');
 
   useEffect(() => {
-    let active = true
+    let active = true;
 
     async function fetchFirstValidPreview() {
-      if (urls.length === 0) return
-      setLoading(true)
+      if (urls.length === 0) return;
+      setLoading(true);
 
       try {
-        const { unfurlUrlAction } = await import("@qoe/api-client/actions/feed")
+        const { unfurlUrlAction } = await import('@qoe/api-client/actions/feed');
 
         for (const url of urls) {
-          if (!active) break
-          const res = await unfurlUrlAction(url)
+          if (!active) break;
+          const res = await unfurlUrlAction(url);
 
           if (res.ok && res.data) {
-            const previewData = res.data
+            const previewData = res.data;
             // We count as "valid" if it is an internal post/article or has rich metadata (image or description)
             const hasRichMetadata =
               previewData.isInternal ||
               (previewData.externalMetadata &&
-                (previewData.externalMetadata.image || previewData.externalMetadata.description))
+                (previewData.externalMetadata.image || previewData.externalMetadata.description));
 
             if (hasRichMetadata) {
               if (active) {
-                setPreview(previewData)
-                break
+                setPreview(previewData as unknown as UnfurlPreview);
+                break;
               }
             }
           }
         }
       } catch (err) {
-        console.error("Preview unfurl loop error:", err)
+        console.error('Preview unfurl loop error:', err);
       } finally {
-        if (active) setLoading(false)
+        if (active) setLoading(false);
       }
     }
 
-    fetchFirstValidPreview()
+    fetchFirstValidPreview();
 
     return () => {
-      active = false
-    }
-  }, [urlsKey])
+      active = false;
+    };
+  }, [urlsKey]);
 
   if (loading) {
     return (
       <div className="border border-[var(--border-default)] rounded-[var(--radius-card)] p-4 flex items-center justify-center gap-3 bg-[var(--surface-1)]">
         <Loader2 className="w-4 h-4 animate-spin text-[var(--qoe-vermillion)]" />
-        <span className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Chargement de l'aperçu...</span>
+        <span className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">
+          Chargement de l'aperçu...
+        </span>
       </div>
-    )
+    );
   }
 
-  if (!preview) return null
+  if (!preview) return null;
 
   // 1. Rendu d'un Post interne (Quoted Post)
-  if (preview.isInternal && preview.postType === "post") {
-    const post = preview.data
-    const authorName = post.author.name || "Auteur"
-    const authorHandle = post.author.username || post.author.subdomain
+  if (preview.isInternal && preview.postType === 'post') {
+    const post = preview.data;
+    const authorName = post.author.name || 'Auteur';
+    const authorHandle = post.author.username || post.author.subdomain;
 
     return (
       <div
         onClick={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
+          e.preventDefault();
+          e.stopPropagation();
           if (onNavigate) {
-            onNavigate({ type: 'post', id: post.id })
+            onNavigate({ type: 'post', id: post.id });
           }
         }}
         className="group/quote border border-[var(--border-default)] rounded-[var(--radius-card)] p-4 bg-[var(--surface-0)] hover:bg-[var(--surface-2)] transition-all duration-300 cursor-pointer flex flex-col gap-2 mt-2"
@@ -94,7 +141,13 @@ export function LinkPreview({ urls, quotedExcerpt, onNavigate }: LinkPreviewProp
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 rounded-[var(--radius-icon)] overflow-hidden border border-[var(--border-default)] shrink-0">
             {post.author.logoUrl ? (
-              <img src={post.author.logoUrl} className="w-full h-full object-cover" alt="" />
+              <Image
+                src={post.author.logoUrl}
+                width={20}
+                height={20}
+                className="w-full h-full object-cover"
+                alt=""
+              />
             ) : (
               <div className="w-full h-full bg-[var(--qoe-vermillion-08)] flex items-center justify-center font-bold text-[8px] text-[var(--qoe-vermillion)]">
                 {authorName.charAt(0)}
@@ -104,10 +157,10 @@ export function LinkPreview({ urls, quotedExcerpt, onNavigate }: LinkPreviewProp
           <span className="text-[11px] font-bold text-[var(--text-primary)] group-hover/quote:text-[var(--qoe-vermillion)] transition-colors">
             {authorName}
           </span>
-          {post.author.isCertified && <span className="text-[var(--qoe-vermillion)] text-[9px]">✓</span>}
-          <span className="text-[9px] text-[var(--text-tertiary)]">
-            @{authorHandle}
-          </span>
+          {post.author.isCertified && (
+            <span className="text-[var(--qoe-vermillion)] text-[9px]">✓</span>
+          )}
+          <span className="text-[9px] text-[var(--text-tertiary)]">@{authorHandle}</span>
         </div>
         <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed line-clamp-3">
           {post.content}
@@ -119,47 +172,53 @@ export function LinkPreview({ urls, quotedExcerpt, onNavigate }: LinkPreviewProp
           </div>
         )}
       </div>
-    )
+    );
   }
 
   // 2. Rendu d'un Article interne (Quoted Article - Apple Reader Highlight Style)
-  if (preview.isInternal && preview.postType === "article") {
-    const article = preview.data
-    const authorName = article.author?.name || article.author?.username || "Auteur"
-    const subdomain = article.author?.subdomain ? `${article.author.subdomain}.qoe.fi` : "qoe.fi"
+  if (preview.isInternal && preview.postType === 'article') {
+    const article = preview.data;
+    const authorName = article.author?.name || article.author?.username || 'Auteur';
+    const subdomain = article.author?.subdomain ? `${article.author.subdomain}.qoe.fi` : 'qoe.fi';
 
-    const rawText = article.content ? article.content.replace(/<[^>]*>?/gm, "") : ""
-    const highlightTarget = quotedExcerpt || ""
-    
-    let beforeContext = ""
-    let highlightedText = ""
-    let afterContext = ""
+    const rawText = article.content ? article.content.replace(/<[^>]*>?/gm, '') : '';
+    const highlightTarget = quotedExcerpt || '';
+
+    let beforeContext = '';
+    let highlightedText = '';
+    let afterContext = '';
 
     if (highlightTarget && rawText.includes(highlightTarget)) {
-      const idx = rawText.indexOf(highlightTarget)
-      beforeContext = rawText.substring(Math.max(0, idx - 80), idx)
-      if (idx - 80 > 0) beforeContext = "..." + beforeContext
-      highlightedText = highlightTarget
-      afterContext = rawText.substring(idx + highlightTarget.length, idx + highlightTarget.length + 80)
-      if (idx + highlightTarget.length + 80 < rawText.length) afterContext += "..."
+      const idx = rawText.indexOf(highlightTarget);
+      beforeContext = rawText.substring(Math.max(0, idx - 80), idx);
+      if (idx - 80 > 0) beforeContext = '...' + beforeContext;
+      highlightedText = highlightTarget;
+      afterContext = rawText.substring(
+        idx + highlightTarget.length,
+        idx + highlightTarget.length + 80
+      );
+      if (idx + highlightTarget.length + 80 < rawText.length) afterContext += '...';
     } else if (highlightTarget) {
-      highlightedText = highlightTarget
-      afterContext = rawText ? " ... " + rawText.substring(0, 100) + "..." : ""
+      highlightedText = highlightTarget;
+      afterContext = rawText ? ' ... ' + rawText.substring(0, 100) + '...' : '';
     } else {
-      highlightedText = rawText.substring(0, 140)
-      afterContext = rawText.length > 140 ? "..." : ""
+      highlightedText = rawText.substring(0, 140);
+      afterContext = rawText.length > 140 ? '...' : '';
     }
 
     return (
       <div
         onClick={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
+          e.preventDefault();
+          e.stopPropagation();
           if (onNavigate) {
-            onNavigate({ type: 'article', id: article.id, slug: article.slug })
+            onNavigate({ type: 'article', id: article.id, slug: article.slug });
           } else {
-            const articleUrl = routes.tenant.article(article.author?.subdomain || "demo", article.slug)
-            window.open(articleUrl, "_blank")
+            const articleUrl = routes.tenant.article(
+              article.author?.subdomain || 'demo',
+              article.slug
+            );
+            window.open(articleUrl, '_blank');
           }
         }}
         className="group/quote relative overflow-hidden border border-border/50 hover:border-brand/40 rounded-2xl p-4 bg-muted/20 hover:bg-muted/40 transition-all duration-300 cursor-pointer flex flex-col gap-3 mt-3 shadow-xs font-sans"
@@ -191,10 +250,12 @@ export function LinkPreview({ urls, quotedExcerpt, onNavigate }: LinkPreviewProp
 
         {/* Excerpt Container with Highlight & Context */}
         <div className="relative bg-card/90 border border-border/40 rounded-xl p-3.5 space-y-1">
-          <span className="absolute -top-2 right-3 font-serif text-4xl text-muted-foreground/15 select-none pointer-events-none">“</span>
+          <span className="absolute -top-2 right-3 font-serif text-4xl text-muted-foreground/15 select-none pointer-events-none">
+            “
+          </span>
           <p className="text-xs sm:text-sm font-serif leading-relaxed text-foreground">
             {beforeContext && <span className="text-muted-foreground/75">{beforeContext}</span>}
-            <mark className="bg-amber-200/80 dark:bg-amber-500/30 text-amber-950 dark:text-amber-100 px-1.5 py-0.5 rounded font-medium shadow-2xs mx-0.5">
+            <mark className="bg-highlight/20 dark:bg-highlight/30 text-highlight px-1.5 py-0.5 rounded font-medium shadow-2xs mx-0.5">
               {highlightedText}
             </mark>
             {afterContext && <span className="text-muted-foreground/75">{afterContext}</span>}
@@ -213,12 +274,12 @@ export function LinkPreview({ urls, quotedExcerpt, onNavigate }: LinkPreviewProp
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   // 3. Rendu d'un lien externe avec métadonnées OpenGraph (Twitter Card style)
   if (!preview.isInternal && preview.externalMetadata) {
-    const meta = preview.externalMetadata
+    const meta = preview.externalMetadata;
 
     return (
       <a
@@ -230,9 +291,11 @@ export function LinkPreview({ urls, quotedExcerpt, onNavigate }: LinkPreviewProp
       >
         {meta.image && (
           <div className="sm:w-32 aspect-video sm:aspect-square shrink-0 overflow-hidden border-b sm:border-b-0 sm:border-r border-[var(--border-default)]">
-            <img
+            <Image
               src={meta.image}
               alt=""
+              width={160}
+              height={90}
               className="w-full h-full object-cover group-hover/link:scale-[1.02] transition-transform duration-500"
             />
           </div>
@@ -254,8 +317,8 @@ export function LinkPreview({ urls, quotedExcerpt, onNavigate }: LinkPreviewProp
           </span>
         </div>
       </a>
-    )
+    );
   }
 
-  return null
+  return null;
 }

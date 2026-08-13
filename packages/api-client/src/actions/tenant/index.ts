@@ -1,38 +1,41 @@
-"use server";
+'use server';
 
-import { prisma } from "@qoe/db/client";
-import { follows, bookmarks, highlights, posts, wallet } from "@qoe/db";
-import { safeAction } from "../utils/safe-action";
+import { prisma } from '@qoe/db/client';
+import { follows, bookmarks, highlights, posts, wallet } from '@qoe/db';
+import { safeAction } from '../utils/safe-action';
 
 export const subscribeToNewsletterAction = safeAction<
   { email: string; creatorId: string },
   { success: boolean }
->(async ({ email, creatorId }) => {
-  const cleanEmail = email.trim().toLowerCase();
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(cleanEmail)) {
-    throw new Error("Veuillez saisir une adresse email valide.");
-  }
+>(
+  async ({ email, creatorId }) => {
+    const cleanEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      throw new Error('Veuillez saisir une adresse email valide.');
+    }
 
-  await prisma.subscriber.upsert({
-    where: {
-      email_creatorId: {
-        email: cleanEmail,
-        creatorId,
+    await prisma.subscriber.upsert({
+      where: {
+        email_creatorId: {
+          email: cleanEmail,
+          creatorId,
+        },
       },
-    },
-    update: {
-      isActive: true,
-    },
-    create: {
-      creatorId,
-      email: cleanEmail,
-      isActive: true,
-    },
-  });
+      update: {
+        isActive: true,
+      },
+      create: {
+        creatorId,
+        email: cleanEmail,
+        isActive: true,
+      },
+    });
 
-  return { success: true };
-}, { requireAuth: false });
+    return { success: true };
+  },
+  { requireAuth: false }
+);
 
 export const toggleFollowCreatorAction = safeAction<string, { followed: boolean }>(
   async (creatorId, user) => {
@@ -48,7 +51,7 @@ export const toggleBookmarkArticleAction = safeAction<string, { bookmarked: bool
 
 export const createHighlightAction = safeAction<
   { articleId: string; text: string; note?: string; isPublic?: boolean },
-  any
+  Awaited<ReturnType<typeof highlights.createHighlight>>
 >(async (data, user) => {
   const { articleId, text, note, isPublic = true } = data;
   return highlights.createHighlight({
@@ -62,73 +65,85 @@ export const createHighlightAction = safeAction<
 
 export const toggleHighlightPrivacyAction = safeAction<
   { highlightId: string; isPublic: boolean },
-  any
+  Awaited<ReturnType<typeof highlights.toggleHighlightPrivacy>>
 >(async (data, user) => {
   return highlights.toggleHighlightPrivacy(data.highlightId, user.id, data.isPublic);
 });
 
 export const updateHighlightNoteAction = safeAction<
   { highlightId: string; note: string | null },
-  any
+  Awaited<ReturnType<typeof highlights.updateHighlightNote>>
 >(async (data, user) => {
   return highlights.updateHighlightNote(data.highlightId, user.id, data.note);
 });
 
-export const upvoteHighlightAction = safeAction<string, any>(async (highlightId, user) => {
+export const upvoteHighlightAction = safeAction<
+  string,
+  Awaited<ReturnType<typeof highlights.upvoteHighlight>>
+>(async (highlightId, user) => {
   return highlights.upvoteHighlight(highlightId, user.id);
 });
 
-export const deleteHighlightAction = safeAction<string, { success: boolean }>(async (highlightId, user) => {
-  const deleted = await highlights.deleteHighlight(highlightId, user.id);
-  if (!deleted) throw new Error("UNAUTHORIZED");
-  return { success: true };
-});
+export const deleteHighlightAction = safeAction<string, { success: boolean }>(
+  async (highlightId, user) => {
+    const deleted = await highlights.deleteHighlight(highlightId, user.id);
+    if (!deleted) throw new Error('UNAUTHORIZED');
+    return { success: true };
+  }
+);
 
 export const createAnnotationCommentAction = safeAction<
   { highlightId: string; content: string },
-  any
+  Awaited<ReturnType<typeof highlights.createAnnotationComment>>
 >(async (data, user) => {
   return highlights.createAnnotationComment(data.highlightId, user.id, data.content);
 });
 
-export const quotePassageToFeedAction = safeAction<
-  { articleId: string; text: string; commentary?: string },
-  { post: any }
->(async (data, user) => {
-  const { articleId, text, commentary } = data;
-  const article = await prisma.article.findUnique({
-    where: { id: articleId },
-    select: {
-      id: true,
-      title: true,
-      slug: true,
-      author: {
-        select: {
-          subdomain: true,
-          name: true,
-          username: true,
+export interface QuotePassageInput {
+  articleId: string;
+  text: string;
+  commentary?: string;
+}
+
+export type QuotePassageOutput = { post: Awaited<ReturnType<typeof posts.createThought>> };
+
+export const quotePassageToFeedAction = safeAction<QuotePassageInput, QuotePassageOutput>(
+  async (data, user) => {
+    const { articleId, text, commentary } = data;
+    const article = await prisma.article.findUnique({
+      where: { id: articleId },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        author: {
+          select: {
+            subdomain: true,
+            name: true,
+            username: true,
+          },
         },
       },
-    },
-  });
-  if (!article) throw new Error("ARTICLE_NOT_FOUND");
+    });
+    if (!article) throw new Error('ARTICLE_NOT_FOUND');
 
-  const subdomain = article.author?.subdomain;
-  const articleUrl = subdomain
-    ? `https://${subdomain}.qoe.fi/article/${article.slug}`
-    : `https://qoe.fi/article/${article.slug}`;
+    const subdomain = article.author?.subdomain;
+    const articleUrl = subdomain
+      ? `https://${subdomain}.qoe.fi/article/${article.slug}`
+      : `https://qoe.fi/article/${article.slug}`;
 
-  const quoteContent = commentary
-    ? `« ${text} »\n\n${commentary}\n\n${articleUrl}`
-    : `« ${text} »\n\n${articleUrl}`;
+    const quoteContent = commentary
+      ? `« ${text} »\n\n${commentary}\n\n${articleUrl}`
+      : `« ${text} »\n\n${articleUrl}`;
 
-  const post = await posts.createThought({
-    content: quoteContent,
-    authorId: user.id,
-  });
+    const post = await posts.createThought({
+      content: quoteContent,
+      authorId: user.id,
+    });
 
-  return { post };
-});
+    return { post };
+  }
+);
 
 export const unlockArticleWithWalletAction = safeAction<
   { creatorId: string; costCents?: number },
@@ -136,12 +151,15 @@ export const unlockArticleWithWalletAction = safeAction<
 >(async ({ creatorId, costCents = 100 }, user) => {
   const result = await wallet.unlockArticleWithWallet(user.id, creatorId, costCents);
   if (!result.success) {
-    throw new Error(result.error || "TRANSACTION_FAILED");
+    throw new Error(result.error || 'TRANSACTION_FAILED');
   }
   return { success: true };
 });
 
-export const getCurrentUserWalletAction = safeAction<void, any>(async (_, user) => {
+export const getCurrentUserWalletAction = safeAction<
+  void,
+  Awaited<ReturnType<typeof wallet.getUserWallet>>
+>(async (_, user) => {
   const userWallet = await wallet.getUserWallet(user.id);
   return userWallet;
 });

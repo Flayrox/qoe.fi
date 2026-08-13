@@ -1,8 +1,9 @@
-"use client";
+'use client';
 
-import React from "react";
-import Link from "next/link";
-import { BookOpen, ExternalLink, Clock, Sparkles, Lock, ShieldCheck } from "lucide-react";
+import React from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { BookOpen, ExternalLink, Clock, Lock, ShieldCheck } from 'lucide-react';
 
 export interface ArticleCardData {
   id: string;
@@ -11,7 +12,7 @@ export interface ArticleCardData {
   content: string;
   readingTime?: number;
   isPremium?: boolean;
-  visibility?: "PUBLIC" | "MEMBERS_ONLY" | "PAID_SUBSCRIBERS" | "TIER_SPECIFIC";
+  visibility?: 'PUBLIC' | 'MEMBERS_ONLY' | 'PAID_SUBSCRIBERS' | 'TIER_SPECIFIC';
   createdAt: string | Date;
   author: {
     id: string;
@@ -38,29 +39,31 @@ export interface ArticleCardProps {
 }
 
 export function ArticleCard({ article, onOpenReader }: ArticleCardProps) {
-  const authorName = article.author.name || article.author.username || "Auteur";
-  const excerpt = article.content ? article.content.replace(/<[^>]*>?/gm, "").slice(0, 160) + "..." : "";
+  const authorName = article.author.name || article.author.username || 'Auteur';
+  const excerpt = article.content
+    ? article.content.replace(/<[^>]*>?/gm, '').slice(0, 160) + '...'
+    : '';
 
   // External tenant domain URL
   const tenantUrl = article.author.customDomain
     ? `https://${article.author.customDomain}/article/${encodeURIComponent(article.slug)}`
     : article.author.subdomain
-    ? `https://${article.author.subdomain}.qoe.fi/article/${encodeURIComponent(article.slug)}`
-    : `/article/${encodeURIComponent(article.slug)}`;
+      ? `https://${article.author.subdomain}.qoe.fi/article/${encodeURIComponent(article.slug)}`
+      : `/article/${encodeURIComponent(article.slug)}`;
 
   const getVisibilityBadge = () => {
     switch (article.visibility) {
-      case "PAID_SUBSCRIBERS":
-      case "TIER_SPECIFIC":
+      case 'PAID_SUBSCRIBERS':
+      case 'TIER_SPECIFIC':
         return {
-          label: "Abonnés payants",
-          className: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+          label: 'Abonnés payants',
+          className: 'bg-highlight/10 text-highlight border-highlight/20',
           icon: Lock,
         };
-      case "MEMBERS_ONLY":
+      case 'MEMBERS_ONLY':
         return {
-          label: "Membres",
-          className: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+          label: 'Membres',
+          className: 'bg-primary/10 text-primary border-primary/20',
           icon: ShieldCheck,
         };
       default:
@@ -89,7 +92,9 @@ export function ArticleCard({ article, onOpenReader }: ArticleCardProps) {
             </span>
           )}
           {badge && (
-            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[11px] font-bold ${badge.className}`}>
+            <span
+              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[11px] font-bold ${badge.className}`}
+            >
               {BadgeIcon && <BadgeIcon className="w-3 h-3" />}
               <span>{badge.label}</span>
             </span>
@@ -111,9 +116,7 @@ export function ArticleCard({ article, onOpenReader }: ArticleCardProps) {
         >
           {article.title}
         </Link>
-        <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
-          {excerpt}
-        </p>
+        <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">{excerpt}</p>
       </div>
 
       {/* Footer Author Info & CTAs */}
@@ -121,7 +124,13 @@ export function ArticleCard({ article, onOpenReader }: ArticleCardProps) {
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-full bg-muted overflow-hidden shrink-0">
             {article.author.logoUrl ? (
-              <img src={article.author.logoUrl} alt={authorName} className="w-full h-full object-cover" />
+              <Image
+                src={article.author.logoUrl}
+                alt={authorName}
+                width={32}
+                height={32}
+                className="w-full h-full object-cover"
+              />
             ) : (
               <div className="w-full h-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">
                 {authorName[0].toUpperCase()}
@@ -132,7 +141,7 @@ export function ArticleCard({ article, onOpenReader }: ArticleCardProps) {
             <p className="text-xs font-bold text-foreground truncate">{authorName}</p>
             {article._count?.highlights ? (
               <p className="text-[10px] text-primary font-semibold">
-                {article._count.highlights} annotation{article._count.highlights > 1 ? "s" : ""}
+                {article._count.highlights} annotation{article._count.highlights > 1 ? 's' : ''}
               </p>
             ) : null}
           </div>

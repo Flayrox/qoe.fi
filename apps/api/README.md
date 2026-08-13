@@ -3,6 +3,7 @@
 **Role:** Minimalist Hono application designed for blazing fast programmatic endpoints and robust Webhook consumptions (Stripe).
 
 ## File Exhaustive Listing
+
 - `package.json`
 - `tsconfig.json`
 - `tsup.config.ts`

@@ -5,7 +5,10 @@ import { isUnauthorizedError, notifyUnauthorized } from '../utils/authError';
 export interface ToggleRepostVariables {
   thoughtId: string;
   isRepostedCurrent: boolean;
-  repostMutationFn: (thoughtId: string, isRepostedCurrent: boolean) => Promise<{ success: boolean; message?: string }>;
+  repostMutationFn: (
+    thoughtId: string,
+    isRepostedCurrent: boolean
+  ) => Promise<{ success: boolean; message?: string }>;
 }
 
 export interface UseOptimisticRepostOptions {
@@ -17,7 +20,11 @@ export function createOptimisticRepostMutationOptions(
   options?: UseOptimisticRepostOptions
 ) {
   return {
-    mutationFn: async ({ thoughtId, isRepostedCurrent, repostMutationFn }: ToggleRepostVariables) => {
+    mutationFn: async ({
+      thoughtId,
+      isRepostedCurrent,
+      repostMutationFn,
+    }: ToggleRepostVariables) => {
       const response = await repostMutationFn(thoughtId, isRepostedCurrent);
       if (!response.success) {
         throw new Error(response.message || 'Failed to update repost');
@@ -52,7 +59,9 @@ export function createOptimisticRepostMutationOptions(
                       ...p,
                       reposted: !isRepostedCurrent,
                       isReposted: !isRepostedCurrent,
-                      repostCount: isRepostedCurrent ? Math.max(0, currentCount - 1) : currentCount + 1,
+                      repostCount: isRepostedCurrent
+                        ? Math.max(0, currentCount - 1)
+                        : currentCount + 1,
                     };
                   }
                   return post;
@@ -85,7 +94,11 @@ export function createOptimisticRepostMutationOptions(
       return { previousQueries };
     },
 
-    onError: (err: Error, _variables: ToggleRepostVariables, context?: { previousQueries?: Array<[readonly unknown[], unknown]> }) => {
+    onError: (
+      err: Error,
+      _variables: ToggleRepostVariables,
+      context?: { previousQueries?: Array<[readonly unknown[], unknown]> }
+    ) => {
       if (context?.previousQueries) {
         context.previousQueries.forEach(([key, data]) => {
           queryClient.setQueryData(key, data);

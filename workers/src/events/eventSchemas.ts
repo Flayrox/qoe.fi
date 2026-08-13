@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export const ArticlePublishedEventSchema = z.object({
   eventId: z.string(),
@@ -6,7 +6,7 @@ export const ArticlePublishedEventSchema = z.object({
   authorId: z.string().uuid(),
   title: z.string(),
   slug: z.string(),
-  visibility: z.enum(["PUBLIC", "MEMBERS_ONLY", "PAID_SUBSCRIBERS", "TIER_SPECIFIC"]),
+  visibility: z.enum(['PUBLIC', 'MEMBERS_ONLY', 'PAID_SUBSCRIBERS', 'TIER_SPECIFIC']),
   publishedAt: z.string(),
 });
 
@@ -32,7 +32,7 @@ export const PaywallHitEventSchema = z.object({
   articleId: z.string(),
   creatorId: z.string().uuid(),
   readerEmail: z.string().optional(),
-  visibility: z.enum(["MEMBERS_ONLY", "PAID_SUBSCRIBERS", "TIER_SPECIFIC"]),
+  visibility: z.enum(['MEMBERS_ONLY', 'PAID_SUBSCRIBERS', 'TIER_SPECIFIC']),
   timestamp: z.string(),
 });
 

@@ -1,31 +1,31 @@
 {
-    "name":  "@qoe/i18n",
-    "version":  "0.0.0",
-    "private":  true,
-    "type":  "module",
-    "main":  "./src/index.ts",
-    "types":  "./src/index.ts",
-    "exports":  {
-                    ".":  "./src/index.ts",
-                    "./locales":  "./src/locales.ts",
-                    "./provider":  "./src/provider.tsx",
-                    "./server":  "./src/server.ts"
-                },
-    "scripts":  {
-                    "lint":  "echo skip",
-                    "typecheck":  "tsc --noEmit"
-                },
-    "dependencies": {
-        "@qoe/db": "workspace:*"
-    },
-    "peerDependencies":  {
-                             "react":  "^19"
-                         },
-    "devDependencies":  {
-                            "@qoe/tsconfig":  "workspace:*",
-                            "@qoe/config":  "workspace:*",
-                            "@types/react":  "^19",
-                            "next": "16.2.6",
-                            "typescript":  "^5"
-                        }
+  "name": "@qoe/i18n",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./locales": "./src/locales.ts",
+    "./provider": "./src/provider.tsx",
+    "./server": "./src/server.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@qoe/db": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19"
+  },
+  "devDependencies": {
+    "@qoe/tsconfig": "workspace:*",
+    "@qoe/config": "workspace:*",
+    "@types/react": "^19",
+    "next": "16.2.6",
+    "typescript": "^5"
+  }
 }

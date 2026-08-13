@@ -4,8 +4,8 @@
 // 📖 Ré-export depuis @qoe/config pour centraliser l'auth.
 // =====================================================================
 
-export { ROLES, ROLE_HIERARCHY, type Role } from "@qoe/config";
-import { ROLES, ROLE_HIERARCHY, type Role } from "@qoe/config";
+export { ROLES, ROLE_HIERARCHY, type Role } from '@qoe/config';
+import { ROLES, ROLE_HIERARCHY, type Role } from '@qoe/config';
 
 /**
  * 🔍 Vérifie si un rôle a au moins le niveau requis.

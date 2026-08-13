@@ -7,8 +7,10 @@ describe('useAutoSaveArticle module', () => {
   });
 
   it('2. Defines AutoSaveStatus types and handles payload structure correctly', async () => {
-    const onSave = vi.fn().mockResolvedValue({ id: 'art-100', updatedAt: new Date().toISOString() });
-    
+    const onSave = vi
+      .fn()
+      .mockResolvedValue({ id: 'art-100', updatedAt: new Date().toISOString() });
+
     // Test payload formatting and promise resolution contract
     const payload = {
       title: 'Titre de Test',

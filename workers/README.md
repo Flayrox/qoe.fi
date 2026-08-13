@@ -3,6 +3,7 @@
 **Role:** Dedicated asynchronous processor using BullMQ and Redis. It manages heavy computational processes out-of-band to prevent timeout faults in Server Actions.
 
 ## File Exhaustive Listing
+
 - `package.json`
 - `tsconfig.json`
 - `tsup.config.ts`
@@ -17,6 +18,7 @@
 - `src/jobs/stripeWebhookSync.ts`
 
 ## Key Function Signatures
+
 ```typescript
 // eventBus.ts
 export const eventBus: {
@@ -26,5 +28,7 @@ export const eventBus: {
 };
 
 // meilisearchSync.ts
-export async function processMeilisearchSyncJob(job: Job<SyncJobData>): Promise<{ success: boolean; action: string }>;
+export async function processMeilisearchSyncJob(
+  job: Job<SyncJobData>
+): Promise<{ success: boolean; action: string }>;
 ```

@@ -1,16 +1,16 @@
-"use client";
+'use client';
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { notificationKeys } from "../query-keys";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { notificationKeys } from '../query-keys';
 import {
   getNotificationsAction,
   getUnreadNotificationCountAction,
   markNotificationsAsReadAction,
   getNotificationPreferencesAction,
   updateNotificationPreferencesAction,
-} from "../actions/notifications";
+} from '../actions/notifications';
 
-export function useNotificationsQuery(filter: "all" | "mentions" | "replies" | "likes" = "all") {
+export function useNotificationsQuery(filter: 'all' | 'mentions' | 'replies' | 'likes' = 'all') {
   return useQuery({
     queryKey: notificationKeys.list(filter),
     queryFn: async () => {

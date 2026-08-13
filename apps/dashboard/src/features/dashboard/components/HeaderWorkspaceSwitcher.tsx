@@ -1,37 +1,38 @@
-"use client"
+'use client';
 
-import React, { useState, useEffect } from "react"
-import { ChevronDown, Check, Building2, User, Plus } from "lucide-react"
-import { getUserWorkspacesAction } from "@/app/(creator)/media/actions"
+import React, { useState, useEffect } from 'react';
+import { ChevronDown, Check, Building2, User, Plus } from 'lucide-react';
+import { getUserWorkspacesAction } from '@/app/(creator)/media/actions';
+import type { WorkspaceInfo as Workspace } from '@/app/(creator)/media/actions';
 
 export function HeaderWorkspaceSwitcher() {
-  const [workspaces, setWorkspaces] = useState<any[]>([])
-  const [activeWorkspace, setActiveWorkspace] = useState<any>(null)
-  const [isOpen, setIsOpen] = useState(false)
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     getUserWorkspacesAction().then((res) => {
       if (res.success) {
-        const all = [res.personal, ...(res.medias || [])]
-        setWorkspaces(all)
-        
+        const all: Workspace[] = [res.personal, ...(res.medias || [])];
+        setWorkspaces(all);
+
         // Load saved workspace from localStorage or default to personal
-        const savedId = localStorage.getItem("qoe_active_workspace_id")
-        const found = all.find(w => w?.id === savedId) || res.personal
-        setActiveWorkspace(found)
+        const savedId = localStorage.getItem('qoe_active_workspace_id');
+        const found = all.find((w) => w?.id === savedId) || res.personal;
+        setActiveWorkspace(found);
       }
-    })
-  }, [])
+    });
+  }, []);
 
-  const handleSelect = (ws: any) => {
-    setActiveWorkspace(ws)
-    localStorage.setItem("qoe_active_workspace_id", ws.id)
-    localStorage.setItem("qoe_active_workspace_type", ws.type)
-    setIsOpen(false)
-    window.location.reload()
-  }
+  const handleSelect = (ws: Workspace) => {
+    setActiveWorkspace(ws);
+    localStorage.setItem('qoe_active_workspace_id', ws.id);
+    localStorage.setItem('qoe_active_workspace_type', ws.type);
+    setIsOpen(false);
+    window.location.reload();
+  };
 
-  if (!activeWorkspace) return null
+  if (!activeWorkspace) return null;
 
   return (
     <div className="relative">
@@ -40,13 +41,15 @@ export function HeaderWorkspaceSwitcher() {
         className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-card/80 border border-border/40 hover:bg-muted/60 transition-all text-xs font-semibold cursor-pointer shadow-sm"
       >
         <div className="w-5 h-5 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-          {activeWorkspace.type === "MEDIA" ? (
+          {activeWorkspace.type === 'MEDIA' ? (
             <Building2 className="w-3 h-3" />
           ) : (
             <User className="w-3 h-3" />
           )}
         </div>
-        <span className="truncate max-w-[130px] text-foreground font-medium">{activeWorkspace.name}</span>
+        <span className="truncate max-w-[130px] text-foreground font-medium">
+          {activeWorkspace.name}
+        </span>
         <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
       </button>
 
@@ -65,7 +68,7 @@ export function HeaderWorkspaceSwitcher() {
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-5 h-5 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    {ws.type === "MEDIA" ? (
+                    {ws.type === 'MEDIA' ? (
                       <Building2 className="w-3 h-3" />
                     ) : (
                       <User className="w-3 h-3" />
@@ -73,7 +76,9 @@ export function HeaderWorkspaceSwitcher() {
                   </div>
                   <div className="truncate">
                     <p className="font-semibold text-foreground truncate">{ws.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{ws.type === "MEDIA" ? `Média (${ws.role || 'Membre'})` : 'Profil Personnel'}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {ws.type === 'MEDIA' ? `Média (${ws.role || 'Membre'})` : 'Profil Personnel'}
+                    </p>
                   </div>
                 </div>
                 {activeWorkspace.id === ws.id && (
@@ -95,5 +100,5 @@ export function HeaderWorkspaceSwitcher() {
         </div>
       )}
     </div>
-  )
+  );
 }

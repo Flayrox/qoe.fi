@@ -1,1 +1,1 @@
-export * from "../motion-profiles";
+export * from '../motion-profiles';

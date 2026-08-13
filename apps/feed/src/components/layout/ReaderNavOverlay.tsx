@@ -1,81 +1,81 @@
-"use client"
+'use client';
 
-import React, { useState, useEffect } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
-import {
-  Home,
-  Bookmark,
-  Highlighter,
-  Wallet,
-  User,
-  LogOut,
-  Sparkles,
-  LayoutDashboard,
-} from "lucide-react"
-import { cn } from "@qoe/utils"
-import { Logo } from "@qoe/ui"
-import { routes } from "@qoe/config/routes"
-import { URLS } from "@qoe/config"
-import { useTranslate } from "@qoe/i18n"
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { usePathname } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Home, Bookmark, Highlighter, Wallet, LogOut, LayoutDashboard } from 'lucide-react';
+import { cn } from '@qoe/utils';
+import { Logo } from '@qoe/ui';
+import { routes } from '@qoe/config/routes';
+import { URLS } from '@qoe/config';
+import { useTranslate } from '@qoe/i18n';
 
 interface ReaderNavOverlayProps {
-  userName?: string
-  userEmail?: string
-  userAvatar?: string | null
-  userRole?: string
-  onLogout?: () => void | Promise<void>
+  userName?: string;
+  userEmail?: string;
+  userAvatar?: string | null;
+  userRole?: string;
+  onLogout?: () => void | Promise<void>;
 }
 
 export function ReaderNavOverlay({
-  userName = "Lecteur",
-  userEmail = "",
+  userName = 'Lecteur',
+  userEmail = '',
   userAvatar,
   userRole,
   onLogout,
 }: ReaderNavOverlayProps) {
-  const { t } = useTranslate()
-  const pathname = usePathname()
-  const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const [isMounted, setIsMounted] = useState(false)
+  const { t } = useTranslate();
+  const pathname = usePathname();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true)
-  }, [])
+    setIsMounted(true);
+  }, []);
 
   const navItems = [
-    { label: t("feed.home", "Accueil"), href: routes.feed.home(), icon: Home },
-    { label: t("feed.tab_library", "Signets"), href: routes.feed.library(), icon: Bookmark },
-    { label: t("highlights.title", "Surlignages"), href: routes.feed.highlights(), icon: Highlighter },
-    { label: t("settings_reader.tab_billing", "Portefeuille"), href: routes.feed.billing(), icon: Wallet },
-  ]
+    { label: t('feed.home', 'Accueil'), href: routes.feed.home(), icon: Home },
+    { label: t('feed.tab_library', 'Signets'), href: routes.feed.library(), icon: Bookmark },
+    {
+      label: t('highlights.title', 'Surlignages'),
+      href: routes.feed.highlights(),
+      icon: Highlighter,
+    },
+    {
+      label: t('settings_reader.tab_billing', 'Portefeuille'),
+      href: routes.feed.billing(),
+      icon: Wallet,
+    },
+  ];
 
   const isItemActive = (href: string) => {
-    if (href === "/home" || href === "/") {
-      return pathname === "/home" || pathname === "/"
+    if (href === '/home' || href === '/') {
+      return pathname === '/home' || pathname === '/';
     }
-    return pathname.startsWith(href)
-  }
+    return pathname.startsWith(href);
+  };
 
   // Handle Escape key to close popover
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsProfileOpen(false)
-    }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [])
+      if (e.key === 'Escape') setIsProfileOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <header className="fixed top-3 left-0 right-0 z-50 pointer-events-none flex justify-center px-4 md:hidden">
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         className={cn(
-          "pointer-events-auto flex items-center justify-between gap-3 p-1.5 pl-3.5 pr-2 rounded-2xl shadow-xl",
-          "bg-card/85 backdrop-blur-2xl border border-border/60 text-foreground"
+          'pointer-events-auto flex items-center justify-between gap-3 p-1.5 pl-3.5 pr-2 rounded-2xl shadow-xl',
+          'bg-card/85 backdrop-blur-2xl border border-border/60 text-foreground'
         )}
       >
         {/* Brand Logo & Title */}
@@ -91,31 +91,36 @@ export function ReaderNavOverlay({
         {/* Navigation Tabs with Spring Pill */}
         <nav className="flex items-center gap-1">
           {navItems.map((item) => {
-            const Icon = item.icon
-            const active = isItemActive(item.href)
+            const Icon = item.icon;
+            const active = isItemActive(item.href);
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "relative flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors outline-none",
+                  'relative flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors outline-none',
                   active
-                    ? "text-primary-foreground font-bold"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    ? 'text-primary-foreground font-bold'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 )}
               >
                 {active && (
                   <motion.span
                     layoutId="reader-active-pill"
                     className="absolute inset-0 bg-primary rounded-xl -z-10 shadow-xs"
-                    transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 32 }}
                   />
                 )}
-                <Icon className={cn("w-3.5 h-3.5 shrink-0", active ? "text-primary-foreground" : "text-muted-foreground")} />
+                <Icon
+                  className={cn(
+                    'w-3.5 h-3.5 shrink-0',
+                    active ? 'text-primary-foreground' : 'text-muted-foreground'
+                  )}
+                />
                 <span className="hidden sm:inline text-xs tracking-tight">{item.label}</span>
               </Link>
-            )
+            );
           })}
         </nav>
 
@@ -132,7 +137,13 @@ export function ReaderNavOverlay({
           >
             <span className="w-7 h-7 rounded-lg bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden border border-primary/20">
               {userAvatar ? (
-                <img src={userAvatar} alt={userName} className="w-full h-full object-cover" />
+                <Image
+                  src={userAvatar}
+                  alt={userName}
+                  width={28}
+                  height={28}
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 userName.slice(0, 2).toUpperCase()
               )}
@@ -146,10 +157,10 @@ export function ReaderNavOverlay({
                 initial={{ opacity: 0, scale: 0.95, y: 8 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 8 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
                 className={cn(
-                  "absolute top-10 right-0 z-50 w-56 p-2 rounded-2xl shadow-2xl origin-top-right",
-                  "bg-card/95 backdrop-blur-2xl border border-border text-foreground"
+                  'absolute top-10 right-0 z-50 w-56 p-2 rounded-2xl shadow-2xl origin-top-right',
+                  'bg-card/95 backdrop-blur-2xl border border-border text-foreground'
                 )}
               >
                 <div className="px-3 py-2 mb-1 border-b border-border/60">
@@ -161,14 +172,14 @@ export function ReaderNavOverlay({
                   )}
                 </div>
 
-                {(userRole === "creator" || userRole === "superadmin") && (
+                {(userRole === 'creator' || userRole === 'superadmin') && (
                   <a
-                    href={isMounted ? URLS.DASHBOARD : "#"}
+                    href={isMounted ? URLS.DASHBOARD : '#'}
                     className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl text-primary hover:bg-primary/10 transition-colors mb-1"
                     onClick={() => setIsProfileOpen(false)}
                   >
                     <LayoutDashboard className="w-3.5 h-3.5" />
-                    <span>{t("settings_reader.creator_go_dashboard", "Studio Créateur")}</span>
+                    <span>{t('settings_reader.creator_go_dashboard', 'Studio Créateur')}</span>
                   </a>
                 )}
 
@@ -177,8 +188,8 @@ export function ReaderNavOverlay({
                 {onLogout && (
                   <form
                     action={() => {
-                      setIsProfileOpen(false)
-                      onLogout()
+                      setIsProfileOpen(false);
+                      onLogout();
                     }}
                   >
                     <button
@@ -186,7 +197,7 @@ export function ReaderNavOverlay({
                       className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-destructive rounded-xl hover:bg-destructive/10 transition-colors text-left cursor-pointer"
                     >
                       <LogOut className="w-3.5 h-3.5" />
-                      <span>{t("sidebar.user_logout", "Se déconnecter")}</span>
+                      <span>{t('sidebar.user_logout', 'Se déconnecter')}</span>
                     </button>
                   </form>
                 )}
@@ -196,6 +207,5 @@ export function ReaderNavOverlay({
         </div>
       </motion.div>
     </header>
-  )
+  );
 }
-

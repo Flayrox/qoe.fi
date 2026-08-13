@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import { Check, Clock, Loader2, BarChart2 } from "lucide-react";
-import { votePollAction } from "@qoe/api-client";
-import { cn } from "@qoe/utils";
+import React, { useState } from 'react';
+import { Check, Loader2 } from 'lucide-react';
+import { votePollAction } from '@qoe/api-client';
+import { cn } from '@qoe/utils';
 
 export interface PollOption {
   id: string;
@@ -87,7 +87,7 @@ export function PollCard({ poll: initialPoll, onVoteSuccess, className }: PollCa
         setPoll(prevPoll);
       }
     } catch (err) {
-      console.error("Error voting on poll:", err);
+      console.error('Error voting on poll:', err);
       setPoll(prevPoll);
     } finally {
       setIsVoting(false);
@@ -96,18 +96,18 @@ export function PollCard({ poll: initialPoll, onVoteSuccess, className }: PollCa
   };
 
   const getTimeRemainingText = () => {
-    if (isExpired) return "Sondage terminé";
+    if (isExpired) return 'Sondage terminé';
     const diffMs = new Date(poll.expiresAt).getTime() - Date.now();
-    if (diffMs <= 0) return "Sondage terminé";
+    if (diffMs <= 0) return 'Sondage terminé';
 
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     if (hours >= 24) {
       const days = Math.floor(hours / 24);
-      return `${days}j restant${days > 1 ? "s" : ""}`;
+      return `${days}j restant${days > 1 ? 's' : ''}`;
     }
-    if (hours > 0) return `${hours}h restante${hours > 1 ? "s" : ""}`;
+    if (hours > 0) return `${hours}h restante${hours > 1 ? 's' : ''}`;
     const mins = Math.max(1, Math.floor(diffMs / (1000 * 60)));
-    return `${mins} min restante${mins > 1 ? "s" : ""}`;
+    return `${mins} min restante${mins > 1 ? 's' : ''}`;
   };
 
   return (
@@ -115,7 +115,7 @@ export function PollCard({ poll: initialPoll, onVoteSuccess, className }: PollCa
       role="radiogroup"
       aria-label="Sondage interactif"
       className={cn(
-        "rounded-2xl border border-border/40 bg-card/30 p-3 space-y-2 font-sans my-2.5 transition-colors",
+        'rounded-2xl border border-border/40 bg-card/30 p-3 space-y-2 font-sans my-2.5 transition-colors',
         className
       )}
     >
@@ -136,14 +136,23 @@ export function PollCard({ poll: initialPoll, onVoteSuccess, className }: PollCa
                 {/* Smooth Neutral Progress bar fill — Apple minimal */}
                 <div
                   className={cn(
-                    "absolute left-0 top-0 bottom-0 transition-all duration-700 ease-out rounded-xl",
-                    isSelected ? "bg-foreground/15 border-r border-foreground/30" : "bg-foreground/5"
+                    'absolute left-0 top-0 bottom-0 transition-all duration-700 ease-out rounded-xl',
+                    isSelected
+                      ? 'bg-foreground/15 border-r border-foreground/30'
+                      : 'bg-foreground/5'
                   )}
                   style={{ width: `${Math.max(option.percentage, 2)}%` }}
                 />
 
                 <div className="relative z-10 flex items-center gap-2 min-w-0 pr-2">
-                  <span className={cn("truncate text-xs", isSelected ? "font-semibold text-foreground" : "text-foreground/80 font-normal")}>
+                  <span
+                    className={cn(
+                      'truncate text-xs',
+                      isSelected
+                        ? 'font-semibold text-foreground'
+                        : 'text-foreground/80 font-normal'
+                    )}
+                  >
                     {option.text}
                   </span>
                   {isSelected && (
@@ -184,9 +193,11 @@ export function PollCard({ poll: initialPoll, onVoteSuccess, className }: PollCa
       {/* Minimal Footer Info */}
       <div className="flex items-center justify-between text-[11px] text-muted-foreground/70 font-normal pt-0.5 px-0.5">
         <span>
-          {poll.totalVotes} vote{poll.totalVotes > 1 ? "s" : ""} · {getTimeRemainingText()}
+          {poll.totalVotes} vote{poll.totalVotes > 1 ? 's' : ''} · {getTimeRemainingText()}
         </span>
-        {hasVoted && <span className="text-foreground/70 font-medium text-[10px]">Vote enregistré</span>}
+        {hasVoted && (
+          <span className="text-foreground/70 font-medium text-[10px]">Vote enregistré</span>
+        )}
       </div>
     </div>
   );

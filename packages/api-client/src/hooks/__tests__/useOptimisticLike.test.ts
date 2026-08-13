@@ -3,6 +3,18 @@ import { QueryClient } from '@tanstack/react-query';
 import { feedKeys } from '../../query-keys';
 import { createOptimisticLikeMutationOptions } from '../useOptimisticLike';
 
+interface TestFeedThought {
+  id: string;
+  content: string;
+  likeCount: number;
+  isLiked: boolean;
+  liked: boolean;
+}
+
+interface TestFeed {
+  pages: Array<{ data: TestFeedThought[] }>;
+}
+
 describe('useOptimisticLike', () => {
   let queryClient: QueryClient;
 
@@ -21,7 +33,13 @@ describe('useOptimisticLike', () => {
         {
           data: [
             { id: 'thought-1', content: 'Hello World', likeCount: 5, isLiked: false, liked: false },
-            { id: 'thought-2', content: 'Second Thought', likeCount: 10, isLiked: false, liked: false },
+            {
+              id: 'thought-2',
+              content: 'Second Thought',
+              likeCount: 10,
+              isLiked: false,
+              liked: false,
+            },
           ],
         },
       ],
@@ -32,7 +50,9 @@ describe('useOptimisticLike', () => {
     const onErrorMock = vi.fn();
     const likeMutationFn = vi.fn().mockResolvedValue({ success: true });
 
-    const mutationOptions = createOptimisticLikeMutationOptions(queryClient, { onError: onErrorMock });
+    const mutationOptions = createOptimisticLikeMutationOptions(queryClient, {
+      onError: onErrorMock,
+    });
 
     // Simulate optimistic mutation execution
     const context = await mutationOptions.onMutate({
@@ -41,7 +61,7 @@ describe('useOptimisticLike', () => {
       likeMutationFn,
     });
 
-    const updatedFeed = queryClient.getQueryData<any>(feedKeys.timeline('for-you'));
+    const updatedFeed = queryClient.getQueryData<TestFeed>(feedKeys.timeline('for-you'))!;
     const updatedThought = updatedFeed.pages[0].data[0];
 
     expect(updatedThought.likeCount).toBe(6);
@@ -64,7 +84,9 @@ describe('useOptimisticLike', () => {
     queryClient.setQueryData(feedKeys.timeline('for-you'), initialFeed);
 
     const onErrorMock = vi.fn();
-    const mutationOptions = createOptimisticLikeMutationOptions(queryClient, { onError: onErrorMock });
+    const mutationOptions = createOptimisticLikeMutationOptions(queryClient, {
+      onError: onErrorMock,
+    });
 
     const context = await mutationOptions.onMutate({
       thoughtId: 'thought-1',
@@ -73,15 +95,19 @@ describe('useOptimisticLike', () => {
     });
 
     // Verify cache updated optimistically
-    let cachedFeed = queryClient.getQueryData<any>(feedKeys.timeline('for-you'));
+    const cachedFeed = queryClient.getQueryData<TestFeed>(feedKeys.timeline('for-you'))!;
     expect(cachedFeed.pages[0].data[0].likeCount).toBe(6);
 
     // Trigger onError rollback
     const testError = new Error('Network error');
-    mutationOptions.onError(testError, { thoughtId: 'thought-1', isLikedCurrent: false, likeMutationFn: vi.fn() }, context);
+    mutationOptions.onError(
+      testError,
+      { thoughtId: 'thought-1', isLikedCurrent: false, likeMutationFn: vi.fn() },
+      context
+    );
 
     // Verify cache rolled back
-    const rolledBackFeed = queryClient.getQueryData<any>(feedKeys.timeline('for-you'));
+    const rolledBackFeed = queryClient.getQueryData<TestFeed>(feedKeys.timeline('for-you'))!;
     expect(rolledBackFeed.pages[0].data[0].likeCount).toBe(5);
     expect(rolledBackFeed.pages[0].data[0].isLiked).toBe(false);
     expect(onErrorMock).toHaveBeenCalledWith(testError);
@@ -108,7 +134,7 @@ describe('useOptimisticLike', () => {
       likeMutationFn: vi.fn(),
     });
 
-    const updatedFeed = queryClient.getQueryData<any>(feedKeys.timeline('for-you'));
+    const updatedFeed = queryClient.getQueryData<TestFeed>(feedKeys.timeline('for-you'))!;
     const updatedThought = updatedFeed.pages[0].data[0];
 
     expect(updatedThought.likeCount).toBe(0);

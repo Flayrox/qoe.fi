@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 
 interface Props {
   phrases: string[];
@@ -15,10 +15,10 @@ export const Typewriter = ({
   typingSpeed = 100,
   deletingSpeed = 50,
   pauseTime = 2000,
-  className = "",
+  className = '',
 }: Props) => {
   const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
-  const [currentText, setCurrentText] = useState("");
+  const [currentText, setCurrentText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {

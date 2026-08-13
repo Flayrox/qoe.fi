@@ -1,12 +1,12 @@
-"use server";
+'use server';
 
-import { polls } from "@qoe/db";
-import { revalidatePath } from "next/cache";
-import { safeAction } from "../utils/safe-action";
+import { polls } from '@qoe/db';
+import { revalidatePath } from 'next/cache';
+import { safeAction } from '../utils/safe-action';
 
 export const getPollAction = safeAction<
   { thoughtId: string },
-  { poll: any }
+  { poll: Awaited<ReturnType<typeof polls.getPollByThoughtId>> }
 >(async (input, user) => {
   const pollData = await polls.getPollByThoughtId(input.thoughtId, user?.id);
   return { poll: pollData };
@@ -14,7 +14,7 @@ export const getPollAction = safeAction<
 
 export const votePollAction = safeAction<
   { pollId: string; optionId: string },
-  { poll: any }
+  { poll: Awaited<ReturnType<typeof polls.votePoll>> }
 >(async (input, user) => {
   const updatedPoll = await polls.votePoll({
     pollId: input.pollId,

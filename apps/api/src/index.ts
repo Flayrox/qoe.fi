@@ -12,81 +12,94 @@
 //    /v1/articles         → REST public API (avec tronquage paywall zero-leak)
 // =====================================================================
 
-import { serve } from "@hono/node-server";
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { logger } from "hono/logger";
-import { createHash } from "node:crypto";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { serve } from '@hono/node-server';
+import { Hono, type Context, type Next } from 'hono';
+import { cors } from 'hono/cors';
+import { logger } from 'hono/logger';
+import { createHash } from 'node:crypto';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
-import { verifyWebhook, handleWebhookEvent } from "@qoe/billing";
-import { prisma } from "@qoe/db/client";
-import { sliceContentAtPaywall } from "@qoe/utils";
-import { searchApp } from "./search";
+import { verifyWebhook } from '@qoe/billing';
+import { prisma } from '@qoe/db/client';
+import type { Prisma, User } from '@qoe/db/client';
+import { sliceContentAtPaywall } from '@qoe/utils';
+import { searchApp } from './search';
 
 const supabaseAdmin = createSupabaseClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder"
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    'placeholder'
 );
 
-const app = new Hono<{
-  Variables: {
-    creator: any;
-    user: any;
-  };
-}>();
+type AppVariables = {
+  creator: User;
+  user: User;
+};
+
+const app = new Hono<{ Variables: AppVariables }>();
 
 // ─── Middleware globaux ──────────────────────────────────────
-app.use("*", logger());
+app.use('*', logger());
 app.use(
-  "*",
+  '*',
   cors({
     origin: (origin) => {
-      if (!origin) return "*";
-      if (origin.endsWith(".localhost") || origin.endsWith(".qoe.test") || origin.endsWith(".lvh.me") || origin === "http://localhost" || origin === "http://qoe.test" || origin === "http://lvh.me" || origin.startsWith("http://localhost:")) {
+      if (!origin) return '*';
+      if (
+        origin.endsWith('.localhost') ||
+        origin.endsWith('.qoe.test') ||
+        origin.endsWith('.lvh.me') ||
+        origin === 'http://localhost' ||
+        origin === 'http://qoe.test' ||
+        origin === 'http://lvh.me' ||
+        origin.startsWith('http://localhost:')
+      ) {
         return origin;
       }
       // Production origins
       const allowedProdDomains = [
-        "https://qoe.fi",
-        "https://dashboard.qoe.fi",
-        "https://admin.qoe.fi",
-        "https://start.qoe.fi",
+        'https://qoe.fi',
+        'https://dashboard.qoe.fi',
+        'https://admin.qoe.fi',
+        'https://start.qoe.fi',
       ];
       if (allowedProdDomains.includes(origin) || /\.qoe\.fi$/.test(origin)) {
         return origin;
       }
-      return "";
+      return '';
     },
     credentials: true,
   })
 );
 
 // ─── Health check ────────────────────────────────────────────
-app.get("/health", (c) =>
+app.get('/health', (c) =>
   c.json({
-    status: "ok",
-    service: "qoe-api",
+    status: 'ok',
+    service: 'qoe-api',
     timestamp: new Date().toISOString(),
   })
 );
 
-import { Queue } from "bullmq";
-import IORedis from "ioredis";
-import { fetchUmamiWebsiteStats, fetchUmamiTopPages } from "@qoe/analytics/server";
+import { Queue, type ConnectionOptions } from 'bullmq';
+import IORedis from 'ioredis';
+import { fetchUmamiWebsiteStats, fetchUmamiTopPages } from '@qoe/analytics/server';
 
-const stripeRedisConnection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
+const stripeRedisConnection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
   lazyConnect: true,
   maxRetriesPerRequest: null,
 });
 
-const stripeQueue = new Queue("stripe-webhooks", { connection: stripeRedisConnection as any });
+const stripeQueue = new Queue('stripe-webhooks', {
+  connection: stripeRedisConnection as unknown as ConnectionOptions,
+});
 
 // ─── Webhooks ───────────────────────────────────────────────
-app.post("/webhooks/stripe", async (c) => {
-  const signature = c.req.header("stripe-signature");
+app.post('/webhooks/stripe', async (c) => {
+  const signature = c.req.header('stripe-signature');
   if (!signature) {
-    return c.text("Missing signature", 400);
+    return c.text('Missing signature', 400);
   }
 
   try {
@@ -104,28 +117,32 @@ app.post("/webhooks/stripe", async (c) => {
       { jobId: event.id }
     );
 
-    return c.text("Webhook queued successfully", 200);
-  } catch (err: any) {
-    console.error(`❌ Webhook Error: ${err.message}`);
-    return c.text(`Webhook Error: ${err.message}`, 400);
+    return c.text('Webhook queued successfully', 200);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error(`❌ Webhook Error: ${message}`);
+    return c.text(`Webhook Error: ${message}`, 400);
   }
 });
 
-app.post("/webhooks/supabase", (c) => c.text("ok", 200));
+app.post('/webhooks/supabase', (c) => c.text('ok', 200));
 
 // ─── API Auth Middleware (API Key qoe_live_...) ─────────────
-const apiAuth = async (c: any, next: any) => {
-  const authHeader = c.req.header("Authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return c.json({ error: "Unauthorized: Missing or invalid token format" }, 401);
+const apiAuth = async <P extends string>(
+  c: Context<{ Variables: AppVariables }, P>,
+  next: Next
+) => {
+  const authHeader = c.req.header('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return c.json({ error: 'Unauthorized: Missing or invalid token format' }, 401);
   }
 
   const token = authHeader.substring(7).trim();
-  if (!token.startsWith("qoe_live_")) {
-    return c.json({ error: "Unauthorized: Invalid API key prefix" }, 401);
+  if (!token.startsWith('qoe_live_')) {
+    return c.json({ error: 'Unauthorized: Invalid API key prefix' }, 401);
   }
 
-  const hashedToken = createHash("sha256").update(token).digest("hex");
+  const hashedToken = createHash('sha256').update(token).digest('hex');
 
   try {
     const apiKeyRecord = await prisma.apiKey.findUnique({
@@ -136,67 +153,72 @@ const apiAuth = async (c: any, next: any) => {
     });
 
     if (!apiKeyRecord) {
-      return c.json({ error: "Unauthorized: Invalid API key" }, 401);
+      return c.json({ error: 'Unauthorized: Invalid API key' }, 401);
     }
 
     const user = apiKeyRecord.user;
 
-    prisma.apiKey.update({
-      where: { id: apiKeyRecord.id },
-      data: { lastUsedAt: new Date() },
-    }).catch((err: any) => console.error("Failed to update lastUsedAt:", err));
+    prisma.apiKey
+      .update({
+        where: { id: apiKeyRecord.id },
+        data: { lastUsedAt: new Date() },
+      })
+      .catch((err: unknown) => console.error('Failed to update lastUsedAt:', err));
 
-    c.set("creator", user);
+    c.set('creator', user);
     await next();
   } catch (error) {
-    console.error("API Auth Error:", error);
-    return c.json({ error: "Internal Server Error" }, 500);
+    console.error('API Auth Error:', error);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 };
 
 // ─── Mobile User Auth Middleware (Supabase JWT Bearer) ──────
-const userAuth = async (c: any, next: any) => {
-  const authHeader = c.req.header("Authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return c.json({ error: "Unauthorized: Missing Authorization header" }, 401);
+const userAuth = async <P extends string>(
+  c: Context<{ Variables: AppVariables }, P>,
+  next: Next
+) => {
+  const authHeader = c.req.header('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return c.json({ error: 'Unauthorized: Missing Authorization header' }, 401);
   }
 
   const token = authHeader.substring(7).trim();
-  const { data: { user: authUser }, error } = await supabaseAdmin.auth.getUser(token);
+  const {
+    data: { user: authUser },
+    error,
+  } = await supabaseAdmin.auth.getUser(token);
 
   if (error || !authUser) {
-    return c.json({ error: "Unauthorized: Invalid or expired JWT token" }, 401);
+    return c.json({ error: 'Unauthorized: Invalid or expired JWT token' }, 401);
   }
 
   const dbUser = await prisma.user.findFirst({
     where: {
-      OR: [
-        { id: authUser.id },
-        { email: authUser.email || "" }
-      ]
-    }
+      OR: [{ id: authUser.id }, { email: authUser.email || '' }],
+    },
   });
 
   if (!dbUser) {
-    return c.json({ error: "Unauthorized: User not found in DB" }, 401);
+    return c.json({ error: 'Unauthorized: User not found in DB' }, 401);
   }
 
-  c.set("user", dbUser);
+  c.set('user', dbUser);
   await next();
 };
 
 // ─── Endpoints Creator API (v1) ──────────────────────────────
 
-app.get("/v1/articles", apiAuth, async (c) => {
-  const creator = c.get("creator");
-  
-  const limit = Math.min(parseInt(c.req.query("limit") || "10", 10), 100);
-  const page = Math.max(parseInt(c.req.query("page") || "1", 10), 1);
+app.get('/v1/articles', apiAuth, async (c) => {
+  const creator = c.get('creator');
+
+  const limit = Math.min(parseInt(c.req.query('limit') || '10', 10), 100);
+  const page = Math.max(parseInt(c.req.query('page') || '1', 10), 1);
   const offset = (page - 1) * limit;
-  const categorySlug = c.req.query("category");
+  const categorySlug = c.req.query('category');
 
   try {
-    const whereClause: any = {
+    const whereClause: Prisma.ArticleWhereInput = {
       authorId: creator.id,
       published: true,
     };
@@ -213,7 +235,7 @@ app.get("/v1/articles", apiAuth, async (c) => {
         take: limit,
         skip: offset,
         orderBy: {
-          createdAt: "desc",
+          createdAt: 'desc',
         },
         include: {
           category: {
@@ -231,7 +253,7 @@ app.get("/v1/articles", apiAuth, async (c) => {
       }),
     ]);
 
-    const formattedArticles = articles.map(article => {
+    const formattedArticles = articles.map((article) => {
       const cutResult = sliceContentAtPaywall(
         article.content,
         { isMember: false, isPaidSubscriber: false },
@@ -265,14 +287,14 @@ app.get("/v1/articles", apiAuth, async (c) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching public articles:", error);
-    return c.json({ error: "Internal Server Error" }, 500);
+    console.error('Error fetching public articles:', error);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
-app.get("/v1/articles/:slug", apiAuth, async (c) => {
-  const creator = c.get("creator");
-  const slug = c.req.param("slug");
+app.get('/v1/articles/:slug', apiAuth, async (c) => {
+  const creator = c.get('creator');
+  const slug = c.req.param('slug');
 
   try {
     const article = await prisma.article.findFirst({
@@ -294,7 +316,7 @@ app.get("/v1/articles/:slug", apiAuth, async (c) => {
     });
 
     if (!article) {
-      return c.json({ error: "Article not found" }, 404);
+      return c.json({ error: 'Article not found' }, 404);
     }
 
     const cutResult = sliceContentAtPaywall(
@@ -321,13 +343,13 @@ app.get("/v1/articles/:slug", apiAuth, async (c) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching single public article:", error);
-    return c.json({ error: "Internal Server Error" }, 500);
+    console.error('Error fetching single public article:', error);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
-app.get("/v1/categories", apiAuth, async (c) => {
-  const creator = c.get("creator");
+app.get('/v1/categories', apiAuth, async (c) => {
+  const creator = c.get('creator');
 
   try {
     const categories = await prisma.category.findMany({
@@ -351,7 +373,7 @@ app.get("/v1/categories", apiAuth, async (c) => {
       },
     });
 
-    const formattedCategories = categories.map(cat => ({
+    const formattedCategories = categories.map((cat) => ({
       id: cat.id,
       name: cat.name,
       slug: cat.slug,
@@ -363,16 +385,16 @@ app.get("/v1/categories", apiAuth, async (c) => {
       data: formattedCategories,
     });
   } catch (error) {
-    console.error("Error fetching public categories:", error);
-    return c.json({ error: "Internal Server Error" }, 500);
+    console.error('Error fetching public categories:', error);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
-app.get("/v1/analytics/stats", apiAuth, async (c) => {
-  const creator = c.get("creator");
-  const websiteId = creator.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || "";
-  const startAt = Number(c.req.query("startAt")) || Date.now() - 30 * 24 * 60 * 60 * 1000;
-  const endAt = Number(c.req.query("endAt")) || Date.now();
+app.get('/v1/analytics/stats', apiAuth, async (c) => {
+  const creator = c.get('creator');
+  const websiteId = creator.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '';
+  const startAt = Number(c.req.query('startAt')) || Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const endAt = Number(c.req.query('endAt')) || Date.now();
 
   if (!websiteId) {
     return c.json({
@@ -394,12 +416,12 @@ app.get("/v1/analytics/stats", apiAuth, async (c) => {
 // ─── Endpoints Mobile iOS/Android API (v1) ───────────────────
 
 // Infinite Feed Endpoint
-app.get("/v1/feed", async (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") || "20", 10), 50);
-  const cursor = c.req.query("cursor");
+app.get('/v1/feed', async (c) => {
+  const limit = Math.min(parseInt(c.req.query('limit') || '20', 10), 50);
+  const cursor = c.req.query('cursor');
 
   try {
-    const whereClause: any = {};
+    const whereClause: Prisma.ThoughtWhereInput = {};
     if (cursor) {
       whereClause.createdAt = { lt: new Date(cursor) };
     }
@@ -407,7 +429,7 @@ app.get("/v1/feed", async (c) => {
     const posts = await prisma.thought.findMany({
       where: whereClause,
       take: limit + 1,
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: 'desc' },
       include: {
         author: {
           select: {
@@ -435,18 +457,18 @@ app.get("/v1/feed", async (c) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching mobile feed:", error);
-    return c.json({ error: "Internal Server Error" }, 500);
+    console.error('Error fetching mobile feed:', error);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
 // Create Thought Micro-post Endpoint
-app.post("/v1/thoughts", userAuth, async (c) => {
-  const user = c.get("user");
+app.post('/v1/thoughts', userAuth, async (c) => {
+  const user = c.get('user');
   const body = await c.req.json().catch(() => ({}));
 
-  if (!body.content || typeof body.content !== "string" || !body.content.trim()) {
-    return c.json({ error: "Content is required" }, 400);
+  if (!body.content || typeof body.content !== 'string' || !body.content.trim()) {
+    return c.json({ error: 'Content is required' }, 400);
   }
 
   try {
@@ -456,7 +478,7 @@ app.post("/v1/thoughts", userAuth, async (c) => {
         content: body.content.trim(),
         imageUrl: body.imageUrl || null,
         triggerWarning: body.triggerWarning || null,
-        visibility: body.visibility || "public",
+        visibility: body.visibility || 'public',
       },
       include: {
         author: {
@@ -474,15 +496,15 @@ app.post("/v1/thoughts", userAuth, async (c) => {
 
     return c.json({ data: newThought }, 201);
   } catch (error) {
-    console.error("Error creating thought:", error);
-    return c.json({ error: "Internal Server Error" }, 500);
+    console.error('Error creating thought:', error);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
 // Toggle Like Endpoint
-app.post("/v1/thoughts/:id/like", userAuth, async (c) => {
-  const user = c.get("user");
-  const thoughtId = c.req.param("id");
+app.post('/v1/thoughts/:id/like', userAuth, async (c) => {
+  const user = c.get('user');
+  const thoughtId = c.req.param('id');
 
   try {
     const existingLike = await prisma.like.findFirst({
@@ -509,15 +531,15 @@ app.post("/v1/thoughts/:id/like", userAuth, async (c) => {
 
     return c.json({ data: { liked, likesCount } });
   } catch (error) {
-    console.error("Error toggling like:", error);
-    return c.json({ error: "Internal Server Error" }, 500);
+    console.error('Error toggling like:', error);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
 // Toggle Repost Endpoint
-app.post("/v1/thoughts/:id/repost", userAuth, async (c) => {
-  const user = c.get("user");
-  const thoughtId = c.req.param("id");
+app.post('/v1/thoughts/:id/repost', userAuth, async (c) => {
+  const user = c.get('user');
+  const thoughtId = c.req.param('id');
 
   try {
     const existingRepost = await prisma.thought.findFirst({
@@ -535,7 +557,7 @@ app.post("/v1/thoughts/:id/repost", userAuth, async (c) => {
         data: {
           authorId: user.id,
           repostId: thoughtId,
-          content: "",
+          content: '',
         },
       });
       reposted = true;
@@ -545,15 +567,15 @@ app.post("/v1/thoughts/:id/repost", userAuth, async (c) => {
 
     return c.json({ data: { reposted, repostsCount } });
   } catch (error) {
-    console.error("Error toggling repost:", error);
-    return c.json({ error: "Internal Server Error" }, 500);
+    console.error('Error toggling repost:', error);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
 // Toggle Bookmark Endpoint
-app.post("/v1/thoughts/:id/bookmark", userAuth, async (c) => {
-  const user = c.get("user");
-  const targetId = c.req.param("id");
+app.post('/v1/thoughts/:id/bookmark', userAuth, async (c) => {
+  const user = c.get('user');
+  const targetId = c.req.param('id');
 
   try {
     const existingBookmark = await prisma.bookmark.findFirst({
@@ -578,14 +600,14 @@ app.post("/v1/thoughts/:id/bookmark", userAuth, async (c) => {
 
     return c.json({ data: { bookmarked } });
   } catch (error) {
-    console.error("Error toggling bookmark:", error);
-    return c.json({ error: "Internal Server Error" }, 500);
+    console.error('Error toggling bookmark:', error);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
 // Current User Profile Endpoint
-app.get("/v1/users/me", userAuth, async (c) => {
-  const user = c.get("user");
+app.get('/v1/users/me', userAuth, async (c) => {
+  const user = c.get('user');
 
   try {
     const [followingCount, followersCount] = await Promise.all([
@@ -603,22 +625,19 @@ app.get("/v1/users/me", userAuth, async (c) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching my profile:", error);
-    return c.json({ error: "Internal Server Error" }, 500);
+    console.error('Error fetching my profile:', error);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
 // Public User Profile Endpoint
-app.get("/v1/users/:username", async (c) => {
-  const username = c.req.param("username");
+app.get('/v1/users/:username', async (c) => {
+  const username = c.req.param('username');
 
   try {
     const author = await prisma.user.findFirst({
       where: {
-        OR: [
-          { username },
-          { subdomain: username },
-        ],
+        OR: [{ username }, { subdomain: username }],
       },
       select: {
         id: true,
@@ -642,23 +661,23 @@ app.get("/v1/users/:username", async (c) => {
     });
 
     if (!author) {
-      return c.json({ error: "User not found" }, 404);
+      return c.json({ error: 'User not found' }, 404);
     }
 
     return c.json({ data: author });
   } catch (error) {
-    console.error("Error fetching author profile:", error);
-    return c.json({ error: "Internal Server Error" }, 500);
+    console.error('Error fetching author profile:', error);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
 // Toggle Follow Endpoint
-app.post("/v1/users/:id/follow", userAuth, async (c) => {
-  const user = c.get("user");
-  const targetUserId = c.req.param("id");
+app.post('/v1/users/:id/follow', userAuth, async (c) => {
+  const user = c.get('user');
+  const targetUserId = c.req.param('id');
 
   if (user.id === targetUserId) {
-    return c.json({ error: "You cannot follow yourself" }, 400);
+    return c.json({ error: 'You cannot follow yourself' }, 400);
   }
 
   try {
@@ -686,13 +705,12 @@ app.post("/v1/users/:id/follow", userAuth, async (c) => {
 
     return c.json({ data: { following, followersCount } });
   } catch (error) {
-    console.error("Error toggling follow:", error);
-    return c.json({ error: "Internal Server Error" }, 500);
+    console.error('Error toggling follow:', error);
+    return c.json({ error: 'Internal Server Error' }, 500);
   }
 });
 
-
-app.route("/search", searchApp);
+app.route('/search', searchApp);
 
 // ─── Démarrage ───────────────────────────────────────────────
 const port = Number(process.env.PORT) || 3002;
@@ -700,4 +718,3 @@ const port = Number(process.env.PORT) || 3002;
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`🔌 API server running on http://localhost:${info.port}`);
 });
-

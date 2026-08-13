@@ -2,9 +2,9 @@
 // 👤 Users Repository — Couche d'accès typée
 // =====================================================================
 
-import { prisma } from "../client";
-import type { User } from "@prisma/client";
-import { ROLES } from "@qoe/config";
+import { prisma } from '../client';
+import type { User } from '@prisma/client';
+import { ROLES } from '@qoe/config';
 
 /**
  * 👤 Trouve un user par son email.
@@ -29,8 +29,8 @@ export async function findByDomain(domain: string) {
       OR: [{ subdomain: domain }, { customDomain: domain }],
     },
     include: {
-      navigation: { orderBy: { order: "asc" } },
-      socialLinks: { orderBy: { order: "asc" } },
+      navigation: { orderBy: { order: 'asc' } },
+      socialLinks: { orderBy: { order: 'asc' } },
     },
   });
 }
@@ -77,7 +77,7 @@ export async function findSuggestedCreators(limit: number = 10) {
       isCertified: true,
     },
     take: limit,
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: 'desc' },
   });
 }
 
@@ -105,14 +105,14 @@ export async function findPublicById(id: string) {
  */
 export async function searchUsers(query: string, limit: number = 8) {
   if (!query || !query.trim()) return [];
-  const q = query.trim().replace(/^@/, "");
+  const q = query.trim().replace(/^@/, '');
   return prisma.user.findMany({
     where: {
       isSuspended: false,
       OR: [
-        { username: { contains: q, mode: "insensitive" } },
-        { name: { contains: q, mode: "insensitive" } },
-        { subdomain: { contains: q, mode: "insensitive" } },
+        { username: { contains: q, mode: 'insensitive' } },
+        { name: { contains: q, mode: 'insensitive' } },
+        { subdomain: { contains: q, mode: 'insensitive' } },
       ],
     },
     select: {
@@ -124,7 +124,7 @@ export async function searchUsers(query: string, limit: number = 8) {
       isCertified: true,
     },
     take: limit,
-    orderBy: { isCertified: "desc" },
+    orderBy: { isCertified: 'desc' },
   });
 }
 

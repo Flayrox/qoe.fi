@@ -1,29 +1,29 @@
-"use client"
+'use client';
 
-import React from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { X } from "lucide-react"
-import { LoginFormBento } from "./LoginFormBento"
-import type { AuthActionContext } from "./GuestFloatingBar"
-export type { AuthActionContext }
+import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
+import { LoginFormBento } from './LoginFormBento';
+import type { AuthActionContext } from './GuestFloatingBar';
+export type { AuthActionContext };
 
 export interface LoginModalProps {
-  isOpen: boolean
-  onClose: () => void
-  initialMode?: "login" | "signup" | "magic-link"
-  actionContext?: AuthActionContext
-  nextUrl?: string
+  isOpen: boolean;
+  onClose: () => void;
+  initialMode?: 'login' | 'signup' | 'magic-link';
+  actionContext?: AuthActionContext;
+  nextUrl?: string;
 }
 
 const springs = {
-  overlay: { duration: 0.25, ease: "easeOut" as const },
-  modal: { type: "spring" as const, stiffness: 380, damping: 28 },
-}
+  overlay: { duration: 0.25, ease: 'easeOut' as const },
+  modal: { type: 'spring' as const, stiffness: 380, damping: 28 },
+};
 
 export function LoginModal({
   isOpen,
   onClose,
-  initialMode = "login",
+  initialMode = 'login',
   actionContext,
 }: LoginModalProps) {
   return (
@@ -36,7 +36,7 @@ export function LoginModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={springs.overlay}
-            className="fixed inset-0 bg-neutral-950/60 backdrop-blur-[12px]"
+            className="fixed inset-0 bg-foreground/60 backdrop-blur-[12px]"
             onClick={onClose}
           />
 
@@ -66,5 +66,5 @@ export function LoginModal({
         </div>
       )}
     </AnimatePresence>
-  )
+  );
 }

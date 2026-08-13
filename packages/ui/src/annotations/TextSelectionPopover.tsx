@@ -1,19 +1,12 @@
-"use client"
+'use client';
 
-import React, { useEffect, useState, useRef, useCallback } from "react"
-import {
-  useFloating,
-  inline,
-  flip,
-  shift,
-  offset,
-  autoUpdate,
-} from "@floating-ui/react"
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
-import { cn } from "@qoe/utils"
-import type { SelectionState, TextSelectionPopoverProps } from "./types"
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useFloating, inline, flip, shift, offset, autoUpdate } from '@floating-ui/react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { cn } from '@qoe/utils';
+import type { SelectionState, TextSelectionPopoverProps } from './types';
 
-export type { SelectionState, TextSelectionPopoverProps }
+export type { SelectionState, TextSelectionPopoverProps };
 
 export function TextSelectionPopover({
   containerId,
@@ -23,138 +16,152 @@ export function TextSelectionPopover({
   children,
   className,
 }: TextSelectionPopoverProps) {
-  const [selectedText, setSelectedText] = useState<string>("")
-  const [selectionRange, setSelectionRange] = useState<Range | null>(null)
-  const [virtualElement, setVirtualElement] = useState<any>(null)
+  const [selectedText, setSelectedText] = useState<string>('');
+  const [selectionRange, setSelectionRange] = useState<Range | null>(null);
+  const [virtualElement, setVirtualElement] = useState<{
+    getBoundingClientRect(): DOMRect;
+    getClientRects(): DOMRectList;
+  } | null>(null);
 
-  const popoverRef = useRef<HTMLDivElement>(null)
-  const shouldReduceMotion = useReducedMotion()
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const shouldReduceMotion = useReducedMotion();
 
   const { refs, floatingStyles, placement } = useFloating({
     open: Boolean(virtualElement),
-    placement: "top",
+    placement: 'top',
     middleware: [
       offset(12),
       inline(),
       flip({
-        fallbackPlacements: ["bottom", "top-start", "top-end", "bottom-start", "bottom-end"],
+        fallbackPlacements: ['bottom', 'top-start', 'top-end', 'bottom-start', 'bottom-end'],
         padding: 16,
       }),
       shift({ padding: 16 }),
     ],
     whileElementsMounted: autoUpdate,
-  })
+  });
 
   const clearSelection = useCallback(() => {
-    if (isLocked) return
-    setVirtualElement(null)
-    setSelectedText("")
-    setSelectionRange(null)
-    onSelectionChange?.(null)
-  }, [isLocked, onSelectionChange])
+    if (isLocked) return;
+    setVirtualElement(null);
+    setSelectedText('');
+    setSelectionRange(null);
+    onSelectionChange?.(null);
+  }, [isLocked, onSelectionChange]);
 
   const evaluateSelection = useCallback(() => {
-    if (isLocked) return
+    if (isLocked) return;
 
-    const selection = window.getSelection()
+    const selection = window.getSelection();
     if (!selection || selection.isCollapsed) {
-      clearSelection()
-      return
+      clearSelection();
+      return;
     }
 
-    const text = selection.toString().trim()
+    const text = selection.toString().trim();
     if (text.length < minSelectionLength) {
-      clearSelection()
-      return
+      clearSelection();
+      return;
     }
 
-    const range = selection.getRangeAt(0)
-    let commonAncestor: Node | null = range.commonAncestorContainer
+    const range = selection.getRangeAt(0);
+    let commonAncestor: Node | null = range.commonAncestorContainer;
     if (commonAncestor && commonAncestor.nodeType === Node.TEXT_NODE) {
-      commonAncestor = commonAncestor.parentElement
+      commonAncestor = commonAncestor.parentElement;
     }
 
     if (containerId) {
-      const container = document.getElementById(containerId)
+      const container = document.getElementById(containerId);
       if (!container || (commonAncestor && !container.contains(commonAncestor))) {
-        clearSelection()
-        return
+        clearSelection();
+        return;
       }
     }
 
-    const rect = range.getBoundingClientRect()
+    const rect = range.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) {
-      clearSelection()
-      return
+      clearSelection();
+      return;
     }
 
     const virtualRefObj = {
       getBoundingClientRect() {
-        return range.getBoundingClientRect()
+        return range.getBoundingClientRect();
       },
       getClientRects() {
-        return range.getClientRects()
+        return range.getClientRects();
       },
-    }
+    };
 
-    setVirtualElement(virtualRefObj)
-    refs.setReference(virtualRefObj)
-    setSelectedText(text)
-    setSelectionRange(range)
+    setVirtualElement(virtualRefObj);
+    refs.setReference(virtualRefObj);
+    setSelectedText(text);
+    setSelectionRange(range);
 
     onSelectionChange?.({
       text,
       range,
       placement,
       clearSelection,
-    })
-  }, [containerId, minSelectionLength, isLocked, clearSelection, onSelectionChange, refs, placement])
+    });
+  }, [
+    containerId,
+    minSelectionLength,
+    isLocked,
+    clearSelection,
+    onSelectionChange,
+    refs,
+    placement,
+  ]);
 
   useEffect(() => {
     const handleMouseUp = (e: MouseEvent) => {
       if (popoverRef.current && popoverRef.current.contains(e.target as Node)) {
-        return
+        return;
       }
-      requestAnimationFrame(evaluateSelection)
-    }
+      requestAnimationFrame(evaluateSelection);
+    };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.shiftKey || e.key === "ArrowLeft" || e.key === "ArrowRight") {
-        requestAnimationFrame(evaluateSelection)
+      if (e.shiftKey || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        requestAnimationFrame(evaluateSelection);
       }
-    }
+    };
 
     const handleSelectionChange = () => {
-      if (isLocked) return
-      const sel = window.getSelection()
+      if (isLocked) return;
+      const sel = window.getSelection();
       if (!sel || sel.isCollapsed) {
-        requestAnimationFrame(evaluateSelection)
+        requestAnimationFrame(evaluateSelection);
       }
-    }
+    };
 
-    document.addEventListener("mouseup", handleMouseUp)
-    document.addEventListener("keyup", handleKeyUp)
-    document.addEventListener("selectionchange", handleSelectionChange)
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('keyup', handleKeyUp);
+    document.addEventListener('selectionchange', handleSelectionChange);
 
     return () => {
-      document.removeEventListener("mouseup", handleMouseUp)
-      document.removeEventListener("keyup", handleKeyUp)
-      document.removeEventListener("selectionchange", handleSelectionChange)
-    }
-  }, [evaluateSelection, isLocked])
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('keyup', handleKeyUp);
+      document.removeEventListener('selectionchange', handleSelectionChange);
+    };
+  }, [evaluateSelection, isLocked]);
 
-  if (!virtualElement || !selectedText || !selectionRange) return null
+  if (!virtualElement || !selectedText || !selectionRange) return null;
 
   return (
     <div
       ref={refs.setFloating}
       style={floatingStyles as React.CSSProperties}
-      className={cn("z-50 pointer-events-auto select-none font-sans flex items-center justify-center", className)}
+      className={cn(
+        'z-50 pointer-events-auto select-none font-sans flex items-center justify-center',
+        className
+      )}
       onMouseDown={(e) => {
-        if (isLocked) return
-        const target = e.target as HTMLElement
-        if (target.tagName !== "TEXTAREA" && target.tagName !== "INPUT") {
-          e.preventDefault()
+        if (isLocked) return;
+        const target = e.target as HTMLElement;
+        if (target.tagName !== 'TEXTAREA' && target.tagName !== 'INPUT') {
+          e.preventDefault();
         }
       }}
     >
@@ -162,17 +169,17 @@ export function TextSelectionPopover({
         <AnimatePresence mode="wait">
           <motion.div
             key={placement}
-            initial={{ scale: 0.92, opacity: 0, filter: "blur(4px)" }}
-            animate={{ scale: 1, opacity: 1, filter: "blur(0px)" }}
-            exit={{ scale: 0.92, opacity: 0, filter: "blur(4px)" }}
+            initial={{ scale: 0.92, opacity: 0, filter: 'blur(4px)' }}
+            animate={{ scale: 1, opacity: 1, filter: 'blur(0px)' }}
+            exit={{ scale: 0.92, opacity: 0, filter: 'blur(4px)' }}
             transition={
               shouldReduceMotion
                 ? { duration: 0 }
-                : { type: "spring", stiffness: 500, damping: 32, mass: 0.6 }
+                : { type: 'spring', stiffness: 500, damping: 32, mass: 0.6 }
             }
             style={{
               originX: 0.5,
-              originY: placement.startsWith("top") ? 1 : 0,
+              originY: placement.startsWith('top') ? 1 : 0,
             }}
             className="relative"
           >
@@ -186,5 +193,5 @@ export function TextSelectionPopover({
         </AnimatePresence>
       </div>
     </div>
-  )
+  );
 }

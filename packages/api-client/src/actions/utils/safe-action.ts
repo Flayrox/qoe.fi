@@ -1,12 +1,13 @@
-import { createClient } from "@qoe/supabase/server";
-import { type ActionResult, actionOk, actionErr } from "@qoe/utils";
+import { createClient } from '@qoe/supabase/server';
+import { type ActionResult, actionOk, actionErr } from '@qoe/utils';
+import type { User } from '@supabase/supabase-js';
 
 export interface SafeActionOptions {
   requireAuth?: boolean;
 }
 
 export function safeAction<TInput, TOutput>(
-  actionFn: (input: TInput, user: any) => Promise<TOutput>,
+  actionFn: (input: TInput, user: User) => Promise<TOutput>,
   options: SafeActionOptions = { requireAuth: true }
 ): (input: TInput) => Promise<ActionResult<TOutput>> {
   return async (input: TInput): Promise<ActionResult<TOutput>> => {
@@ -18,16 +19,16 @@ export function safeAction<TInput, TOutput>(
       } = await supabase.auth.getUser();
 
       if (options.requireAuth !== false && (authError || !user)) {
-        return actionErr("Non autorisé. Veuillez vous connecter.", "UNAUTHORIZED");
+        return actionErr('Non autorisé. Veuillez vous connecter.', 'UNAUTHORIZED');
       }
 
-      const result = await actionFn(input, user);
+      const result = await actionFn(input, user!);
       return actionOk(result);
-    } catch (e: any) {
-      console.error("[SafeAction Error]:", e);
+    } catch (e) {
+      console.error('[SafeAction Error]:', e);
       return actionErr(
-        e?.message || "Une erreur interne est survenue.",
-        e?.code || "INTERNAL_ERROR"
+        e instanceof Error ? e.message : 'Une erreur interne est survenue.',
+        (e as { code?: string })?.code || 'INTERNAL_ERROR'
       );
     }
   };

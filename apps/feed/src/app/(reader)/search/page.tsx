@@ -1,10 +1,10 @@
-import React from "react";
-import { SearchFeed } from "@/components/social/SearchFeed";
-import { TrendingWidget } from "@/components/social/TrendingWidget";
+import React from 'react';
+import { SearchFeed } from '@/components/social/SearchFeed';
+import { TrendingWidget } from '@/components/social/TrendingWidget';
 
 export const metadata = {
-  title: "Recherche & Tendances | qoe.fi",
-  description: "Explorez les pensées, les auteurs certifiés et les sujets tendances sur qoe.fi.",
+  title: 'Recherche & Tendances | qoe.fi',
+  description: 'Explorez les pensées, les auteurs certifiés et les sujets tendances sur qoe.fi.',
 };
 
 interface SearchPageProps {
@@ -13,7 +13,7 @@ interface SearchPageProps {
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const resolvedParams = await searchParams;
-  const initialQuery = resolvedParams?.q || "";
+  const initialQuery = resolvedParams?.q || '';
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">

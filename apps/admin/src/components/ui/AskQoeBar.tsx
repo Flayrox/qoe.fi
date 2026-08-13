@@ -1,30 +1,40 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
-import { Command } from "cmdk";
-import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Search, Compass, BookOpen, User, Mail, Sun, Moon, CornerDownLeft } from "lucide-react";
-import { useTheme } from "next-themes";
-import { useTranslate } from "@qoe/i18n";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from 'react';
+import { Command } from 'cmdk';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Sparkles,
+  Search,
+  Compass,
+  BookOpen,
+  User,
+  Mail,
+  Sun,
+  Moon,
+  CornerDownLeft,
+} from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { useTranslate } from '@qoe/i18n';
+import { useRouter } from 'next/navigation';
 
 export const AskQoeBar = () => {
   const { t } = useTranslate();
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
   const [open, setOpen] = useState(false);
-  const [searchVal, setSearchVal] = useState("");
+  const [searchVal, setSearchVal] = useState('');
 
   // Toggle command menu with Ctrl+K / Cmd+K
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((o) => !o);
       }
     };
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
+    document.addEventListener('keydown', down);
+    return () => document.removeEventListener('keydown', down);
   }, []);
 
   return (
@@ -34,7 +44,7 @@ export const AskQoeBar = () => {
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.5, type: "spring", stiffness: 260, damping: 20 }}
+          transition={{ delay: 0.5, type: 'spring', stiffness: 260, damping: 20 }}
           onClick={() => setOpen(true)}
           className="pointer-events-auto cursor-pointer group flex items-center justify-between p-1.5 bg-card/70 dark:bg-card/65 backdrop-blur-2xl border border-border/60 hover:border-primary/50 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.15)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-500 overflow-hidden relative"
         >
@@ -44,7 +54,7 @@ export const AskQoeBar = () => {
           <div className="flex items-center gap-3 pl-4 py-2">
             <Sparkles className="w-4 h-4 text-primary animate-pulse" />
             <span className="text-xs text-muted-foreground font-sans">
-              {t("ask_bar_placeholder", "Demandez à qoe.fi ou cherchez... (⌘K)")}
+              {t('ask_bar_placeholder', 'Demandez à qoe.fi ou cherchez... (⌘K)')}
             </span>
           </div>
 
@@ -77,26 +87,26 @@ export const AskQoeBar = () => {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+              transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
               className="relative w-full max-w-xl bg-card border border-border/60 rounded-[2.5rem] shadow-2xl overflow-hidden pointer-events-auto"
             >
               {/* Animated borders with custom theme values */}
               <div className="absolute top-0 left-0 right-0 h-[2px] bg-primary" />
-              
+
               <Command label="Command Menu" className="flex flex-col h-full max-h-[480px]">
                 {/* Search Input Box */}
                 <div className="flex items-center gap-3 px-6 py-5 border-b border-border/40 relative">
                   <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                   <Command.Input
                     autoFocus
-                    placeholder={t("ask_modal_placeholder", "Que recherchez-vous ?")}
+                    placeholder={t('ask_modal_placeholder', 'Que recherchez-vous ?')}
                     value={searchVal}
                     onValueChange={setSearchVal}
                     className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 outline-none border-none py-1 focus:ring-0"
                   />
                   {searchVal && (
                     <button
-                      onClick={() => setSearchVal("")}
+                      onClick={() => setSearchVal('')}
                       className="text-[10px] font-mono text-muted-foreground hover:text-foreground px-2 py-1 bg-muted rounded-md transition-all"
                     >
                       CLEAR
@@ -107,17 +117,20 @@ export const AskQoeBar = () => {
                 {/* Command Lists */}
                 <Command.List className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4">
                   <Command.Empty className="py-12 text-center text-xs text-muted-foreground italic">
-                    {t("ask_empty", "Aucun résultat trouvé.")}
+                    {t('ask_empty', 'Aucun résultat trouvé.')}
                   </Command.Empty>
 
-                  <Command.Group heading={t("ask_group_nav", "Raccourcis")} className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/60 px-3 mb-2">
+                  <Command.Group
+                    heading={t('ask_group_nav', 'Raccourcis')}
+                    className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/60 px-3 mb-2"
+                  >
                     <CommandItem
                       icon={<Compass className="w-4 h-4 text-primary" />}
                       label="Explorer les publications"
                       shortcut="G P"
                       onSelect={() => {
                         setOpen(false);
-                        router.push("#feed");
+                        router.push('#feed');
                       }}
                     />
                     <CommandItem
@@ -126,19 +139,22 @@ export const AskQoeBar = () => {
                       shortcut="G M"
                       onSelect={() => {
                         setOpen(false);
-                        router.push("/login");
+                        router.push('/login');
                       }}
                     />
                   </Command.Group>
 
-                  <Command.Group heading={t("ask_group_action", "Actions rapides")} className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/60 px-3 mb-2">
+                  <Command.Group
+                    heading={t('ask_group_action', 'Actions rapides')}
+                    className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/60 px-3 mb-2"
+                  >
                     <CommandItem
                       icon={<Mail className="w-4 h-4 text-primary" />}
                       label="S'abonner aux newsletters"
                       shortcut="S U B"
                       onSelect={() => {
                         setOpen(false);
-                        router.push("#cta");
+                        router.push('#cta');
                       }}
                     />
                     <CommandItem
@@ -147,25 +163,28 @@ export const AskQoeBar = () => {
                       shortcut="J O I N"
                       onSelect={() => {
                         setOpen(false);
-                        router.push("/login");
+                        router.push('/login');
                       }}
                     />
                   </Command.Group>
 
-                  <Command.Group heading={t("ask_group_theme", "Préférences")} className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/60 px-3 mb-2">
+                  <Command.Group
+                    heading={t('ask_group_theme', 'Préférences')}
+                    className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/60 px-3 mb-2"
+                  >
                     <CommandItem
-                      icon={<Sun className="w-4 h-4 text-amber-500" />}
+                      icon={<Sun className="w-4 h-4 text-highlight" />}
                       label="Passer en Mode Clair (Nuages & Lumière)"
                       onSelect={() => {
-                        setTheme("light");
+                        setTheme('light');
                         setOpen(false);
                       }}
                     />
                     <CommandItem
-                      icon={<Moon className="w-4 h-4 text-indigo-500" />}
+                      icon={<Moon className="w-4 h-4 text-primary" />}
                       label="Passer en Mode Sombre (Neural Expressive)"
                       onSelect={() => {
-                        setTheme("dark");
+                        setTheme('dark');
                         setOpen(false);
                       }}
                     />

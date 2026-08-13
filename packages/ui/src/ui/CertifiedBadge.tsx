@@ -1,10 +1,10 @@
-"use client"
+'use client';
 
-import React from "react"
-import { useTranslate } from "@qoe/i18n"
+import React from 'react';
+import { useTranslate } from '@qoe/i18n';
 
-export function CertifiedBadge({ className = "" }: { className?: string }) {
-  const { t } = useTranslate()
+export function CertifiedBadge({ className = '' }: { className?: string }) {
+  const { t } = useTranslate();
   return (
     <svg
       width="14"
@@ -12,11 +12,17 @@ export function CertifiedBadge({ className = "" }: { className?: string }) {
       viewBox="0 0 14 14"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      aria-label={t("feed.certified_author", "Auteur certifié")}
+      aria-label={t('feed.certified_author', 'Auteur certifié')}
       className={className}
     >
       <circle cx="7" cy="7" r="7" fill="var(--qoe-vermillion, #EE4B2B)" />
-      <path d="M4.5 7L6.3 8.8L9.5 5.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M4.5 7L6.3 8.8L9.5 5.5"
+        stroke="white"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
-  )
+  );
 }

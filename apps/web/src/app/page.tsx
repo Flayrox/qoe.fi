@@ -13,9 +13,7 @@ export default function Home() {
         <p className="text-lg text-muted-foreground">
           Public web app — landing marketing & tenant pages.
         </p>
-        <p className="text-sm text-muted-foreground">
-          Sera implémentée en Phase 2.
-        </p>
+        <p className="text-sm text-muted-foreground">Sera implémentée en Phase 2.</p>
       </div>
     </main>
   );

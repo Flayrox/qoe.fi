@@ -1,13 +1,22 @@
-"use client"
+'use client';
 
-import React, { useState } from "react"
-import { Bookmark, UserPlus, UserCheck, BookmarkCheck, HelpCircle, MessageSquare, Sparkles } from "lucide-react"
-import { toggleFollowCreatorAction, toggleBookmarkArticleAction } from "@qoe/api-client/actions/tenant"
+import React, { useState } from 'react';
+import {
+  Bookmark,
+  UserPlus,
+  UserCheck,
+  BookmarkCheck,
+  HelpCircle,
+  MessageSquare,
+} from 'lucide-react';
+import {
+  toggleFollowCreatorAction,
+  toggleBookmarkArticleAction,
+} from '@qoe/api-client/actions/tenant';
 
-
-import { cn } from "@qoe/utils"
-import { motion } from "framer-motion"
-import { useRequireAuth } from "@qoe/ui"
+import { cn } from '@qoe/utils';
+import { motion } from 'framer-motion';
+import { useRequireAuth } from '@qoe/ui';
 
 interface ReaderActionsProps {
   articleId: string;
@@ -26,74 +35,72 @@ export function ReaderActions({
   isAuthenticated,
   initialBookmarked,
   initialFollowed,
-  mainAppUrl
 }: ReaderActionsProps) {
-  const { openAuthModal } = useRequireAuth()
-  const [bookmarked, setBookmarked] = useState(initialBookmarked)
-  const [followed, setFollowed] = useState(initialFollowed)
-  const [loadingBookmark, setLoadingBookmark] = useState(false)
-  const [loadingFollow, setLoadingFollow] = useState(false)
+  const { openAuthModal } = useRequireAuth();
+  const [bookmarked, setBookmarked] = useState(initialBookmarked);
+  const [followed, setFollowed] = useState(initialFollowed);
+  const [loadingBookmark, setLoadingBookmark] = useState(false);
+  const [loadingFollow, setLoadingFollow] = useState(false);
 
   const handleBookmark = async () => {
     if (!isAuthenticated) {
-      openAuthModal({ mode: "signup", actionContext: "bookmark" })
-      return
+      openAuthModal({ mode: 'signup', actionContext: 'bookmark' });
+      return;
     }
-    setLoadingBookmark(true)
+    setLoadingBookmark(true);
     try {
-      const res = await toggleBookmarkArticleAction(articleId)
+      const res = await toggleBookmarkArticleAction(articleId);
       if (res.ok) {
-        setBookmarked(!!res.data.bookmarked)
+        setBookmarked(!!res.data.bookmarked);
       }
     } catch (e) {
-      console.error(e)
+      console.error(e);
     } finally {
-      setLoadingBookmark(false)
+      setLoadingBookmark(false);
     }
-  }
+  };
 
   const handleFollow = async () => {
     if (!isAuthenticated) {
-      openAuthModal({ mode: "signup", actionContext: "follow" })
-      return
+      openAuthModal({ mode: 'signup', actionContext: 'follow' });
+      return;
     }
-    setLoadingFollow(true)
+    setLoadingFollow(true);
     try {
-      const res = await toggleFollowCreatorAction(creatorId)
+      const res = await toggleFollowCreatorAction(creatorId);
       if (res.ok) {
-        setFollowed(!!res.data.followed)
+        setFollowed(!!res.data.followed);
       }
-
     } catch (e) {
-      console.error(e)
+      console.error(e);
     } finally {
-      setLoadingFollow(false)
+      setLoadingFollow(false);
     }
-  }
+  };
 
   const scrollToComments = () => {
-    const el = document.getElementById("comments")
+    const el = document.getElementById('comments');
     if (el) {
-      el.scrollIntoView({ behavior: "smooth" })
+      el.scrollIntoView({ behavior: 'smooth' });
     }
-  }
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.8, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-neutral-200/80 dark:border-zinc-800/80 shadow-2xl rounded-2xl p-2 flex items-center gap-2 transition-all duration-300 pointer-events-auto select-none max-w-[95%] sm:max-w-fit font-sans"
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card/90 backdrop-blur-md border border-border/80 shadow-2xl rounded-2xl p-2 flex items-center gap-2 transition-all duration-300 pointer-events-auto select-none max-w-[95%] sm:max-w-fit font-sans"
     >
       {/* Bookmark Action */}
       <button
         onClick={handleBookmark}
         disabled={loadingBookmark}
         className={cn(
-          "w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0",
+          'w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0',
           bookmarked
-            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-            : "hover:bg-neutral-100 dark:hover:bg-zinc-800 text-muted-foreground hover:text-foreground"
+            ? 'bg-highlight/10 text-highlight'
+            : 'hover:bg-muted text-muted-foreground hover:text-foreground'
         )}
         title="Sauvegarder cet écrit"
       >
@@ -103,23 +110,23 @@ export function ReaderActions({
       {/* Comment Scroll Action */}
       <button
         onClick={scrollToComments}
-        className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer hover:bg-neutral-100 dark:hover:bg-zinc-800 text-muted-foreground hover:text-foreground shrink-0"
+        className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground shrink-0"
         title="Voir & laisser un commentaire"
       >
         <MessageSquare className="w-4 h-4" />
       </button>
 
-      <div className="w-px h-4 bg-neutral-200 dark:bg-zinc-800 shrink-0" />
+      <div className="w-px h-4 bg-border shrink-0" />
 
       {/* Follow Action */}
       <button
         onClick={handleFollow}
         disabled={loadingFollow}
         className={cn(
-          "px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0",
+          'px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0',
           followed
-            ? "bg-neutral-100 dark:bg-zinc-800 text-muted-foreground hover:text-foreground"
-            : "bg-[#EE4B2B] text-white hover:bg-[#d63d20] shadow-sm shadow-[#EE4B2B]/20"
+            ? 'bg-muted text-muted-foreground hover:text-foreground'
+            : 'bg-[#EE4B2B] text-white hover:bg-[#d63d20] shadow-sm shadow-[#EE4B2B]/20'
         )}
       >
         {followed ? (
@@ -136,9 +143,9 @@ export function ReaderActions({
       {/* S'inscrire sur qoe.fi CTA when not authenticated */}
       {!isAuthenticated && (
         <>
-          <div className="w-px h-4 bg-neutral-200 dark:bg-zinc-800 shrink-0" />
+          <div className="w-px h-4 bg-border shrink-0" />
           <button
-            onClick={() => openAuthModal({ mode: "signup" })}
+            onClick={() => openAuthModal({ mode: 'signup' })}
             className="px-3.5 py-2 rounded-xl text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 transition-all flex items-center cursor-pointer shadow-sm shrink-0"
             title="Créer un compte sur qoe.fi"
           >
@@ -149,13 +156,13 @@ export function ReaderActions({
 
       {isAuthenticated && (
         <>
-          <div className="w-px h-4 bg-neutral-200 dark:bg-zinc-800 hidden sm:block shrink-0" />
+          <div className="w-px h-4 bg-border hidden sm:block shrink-0" />
           <div className="hidden sm:flex items-center gap-1 text-[10px] text-muted-foreground px-1 font-medium whitespace-nowrap">
-            <HelpCircle className="w-3 h-3 text-neutral-400 shrink-0" />
+            <HelpCircle className="w-3 h-3 text-muted-foreground shrink-0" />
             <span>Surlignez du texte pour annoter</span>
           </div>
         </>
       )}
     </motion.div>
-  )
+  );
 }

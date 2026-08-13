@@ -1,9 +1,10 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import Link from "next/link";
-import { UserCheck, Users, Loader2, Sparkles } from "lucide-react";
-import { followAllInStarterPackAction } from "@qoe/api-client";
+import React, { useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { UserCheck, Users, Loader2, Sparkles } from 'lucide-react';
+import { followAllInStarterPackAction } from '@qoe/api-client';
 
 export interface StarterPackCardProps {
   pack: {
@@ -48,12 +49,12 @@ export function StarterPackCard({ pack }: StarterPackCardProps) {
     setIsFollowing(true);
     try {
       const res = await followAllInStarterPackAction({ starterPackId: pack.id });
-      if (res.ok && typeof res.data.followedCount === "number") {
+      if (res.ok && typeof res.data.followedCount === 'number') {
         setHasFollowed(true);
         setFollowedCount(res.data.followedCount);
       }
     } catch (err) {
-      console.error("Error following all in starter pack:", err);
+      console.error('Error following all in starter pack:', err);
     } finally {
       setIsFollowing(false);
     }
@@ -65,7 +66,7 @@ export function StarterPackCard({ pack }: StarterPackCardProps) {
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-primary/10 text-xl flex items-center justify-center shrink-0 border border-primary/20">
-            {pack.icon || "🚀"}
+            {pack.icon || '🚀'}
           </div>
           <div className="min-w-0">
             <Link
@@ -75,7 +76,7 @@ export function StarterPackCard({ pack }: StarterPackCardProps) {
               {pack.title}
             </Link>
             <p className="text-xs text-muted-foreground truncate">
-              Par {pack.creator.name || pack.creator.username || "Auteur anonyme"}
+              Par {pack.creator.name || pack.creator.username || 'Auteur anonyme'}
             </p>
           </div>
         </div>
@@ -86,15 +87,15 @@ export function StarterPackCard({ pack }: StarterPackCardProps) {
           disabled={isFollowing || hasFollowed}
           className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all shadow-2xs ${
             hasFollowed
-              ? "bg-muted text-muted-foreground cursor-default"
-              : "bg-primary text-primary-foreground hover:opacity-90 active:scale-95"
+              ? 'bg-muted text-muted-foreground cursor-default'
+              : 'bg-primary text-primary-foreground hover:opacity-90 active:scale-95'
           }`}
         >
           {isFollowing ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : hasFollowed ? (
             <>
-              <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+              <UserCheck className="w-3.5 h-3.5 text-success" />
               <span>Suivi ({followedCount ?? itemCount})</span>
             </>
           ) : (
@@ -122,14 +123,16 @@ export function StarterPackCard({ pack }: StarterPackCardProps) {
               className="inline-block h-7 w-7 rounded-full ring-2 ring-background bg-muted overflow-hidden shrink-0"
             >
               {item.user.logoUrl ? (
-                <img
+                <Image
                   src={item.user.logoUrl}
-                  alt={item.user.name || "Avatar"}
+                  alt={item.user.name || 'Avatar'}
+                  width={28}
+                  height={28}
                   className="h-full w-full object-cover"
                 />
               ) : (
                 <div className="h-full w-full bg-primary/20 text-primary flex items-center justify-center font-bold text-[10px]">
-                  {(item.user.name || item.user.username || "U")[0].toUpperCase()}
+                  {(item.user.name || item.user.username || 'U')[0].toUpperCase()}
                 </div>
               )}
             </div>
@@ -143,7 +146,9 @@ export function StarterPackCard({ pack }: StarterPackCardProps) {
 
         <div className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium">
           <Users className="w-3.5 h-3.5" />
-          <span>{itemCount} membre{itemCount > 1 ? "s" : ""}</span>
+          <span>
+            {itemCount} membre{itemCount > 1 ? 's' : ''}
+          </span>
         </div>
       </div>
     </div>

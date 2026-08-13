@@ -1,23 +1,46 @@
-"use client"
+'use client';
 
-import React from "react"
-import { Bookmark, Clock, ExternalLink } from "lucide-react"
-import { useTranslate } from "@qoe/i18n"
-import { motion } from "framer-motion"
-import { trackServerEvent } from "@qoe/analytics"
-import { ReaderPageLayout } from "@/components/layout/ReaderPageLayout"
-import { routes } from "@qoe/config/routes"
+import React from 'react';
+import Image from 'next/image';
+import { Bookmark, Clock, ExternalLink } from 'lucide-react';
+import { useTranslate } from '@qoe/i18n';
+import { motion } from 'framer-motion';
+import { trackServerEvent } from '@qoe/analytics';
+import { ReaderPageLayout } from '@/components/layout/ReaderPageLayout';
+import { routes } from '@qoe/config/routes';
+
+interface LibraryBookmarkArticle {
+  id: string;
+  slug: string;
+  title: string;
+  content: string;
+  readingTime: number;
+  author: {
+    name: string | null;
+    username: string | null;
+    subdomain: string | null;
+    customDomain: string | null;
+    logoUrl: string | null;
+  };
+  category: { name: string } | null;
+}
+
+interface LibraryBookmark {
+  id: string;
+  createdAt: string;
+  article: LibraryBookmarkArticle;
+}
 
 interface LibraryClientProps {
-  bookmarks: any[]
+  bookmarks: LibraryBookmark[];
 }
 
 export function LibraryClient({ bookmarks }: LibraryClientProps) {
-  const { t } = useTranslate()
+  const { t } = useTranslate();
 
   const handleReadClick = (articleId: string, slug: string) => {
-    trackServerEvent("library_article_read", { articleId, slug })
-  }
+    trackServerEvent('library_article_read', { articleId, slug });
+  };
 
   return (
     <ReaderPageLayout giantTitle="Signets">
@@ -26,10 +49,10 @@ export function LibraryClient({ bookmarks }: LibraryClientProps) {
           {/* Page header inside the sheet */}
           <div className="px-1">
             <h1 className="text-lg font-bold tracking-tight text-foreground">
-              {t("library.title", "Le Sanctuaire")}
+              {t('library.title', 'Le Sanctuaire')}
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {t("library.subtitle", "Vos lectures sauvegardées et articles favoris.")}
+              {t('library.subtitle', 'Vos lectures sauvegardées et articles favoris.')}
             </p>
           </div>
 
@@ -39,32 +62,35 @@ export function LibraryClient({ bookmarks }: LibraryClientProps) {
               <div className="bg-muted/40 rounded-xl p-12 border border-border/40 text-center flex flex-col items-center justify-center gap-3">
                 <Bookmark className="w-10 h-10 text-muted-foreground/60" />
                 <h4 className="font-bold text-sm text-foreground">
-                  {t("library.empty_title", "Votre sanctuaire est vide")}
+                  {t('library.empty_title', 'Votre sanctuaire est vide')}
                 </h4>
                 <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
-                  {t("library.empty_desc", "Explorez qoe.fi et sauvegardez les articles qui méritent d'être lus à tête reposée.")}
+                  {t(
+                    'library.empty_desc',
+                    "Explorez qoe.fi et sauvegardez les articles qui méritent d'être lus à tête reposée."
+                  )}
                 </p>
                 <motion.a
                   href="/home"
                   whileTap={{ scale: 0.98 }}
                   className="bg-primary text-primary-foreground px-5 py-2 rounded-xl text-xs font-semibold hover:opacity-90 transition-colors mt-2"
                 >
-                  {t("library.discover_articles", "Découvrir des articles")}
+                  {t('library.discover_articles', 'Découvrir des articles')}
                 </motion.a>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {bookmarks.map((b) => {
                   const isProd =
-                    typeof window !== "undefined"
-                      ? window.location.hostname.endsWith("qoe.fi")
-                      : process.env.NODE_ENV === "production"
-                  const suffix = isProd ? "qoe.fi" : "localhost"
-                  const protocol = isProd ? "https:" : "http:"
+                    typeof window !== 'undefined'
+                      ? window.location.hostname.endsWith('qoe.fi')
+                      : process.env.NODE_ENV === 'production';
+                  const suffix = isProd ? 'qoe.fi' : 'localhost';
+                  const protocol = isProd ? 'https:' : 'http:';
                   const host =
                     b.article.author.customDomain ||
-                    (b.article.author.subdomain ? `${b.article.author.subdomain}.${suffix}` : "")
-                  const url = host ? `${protocol}//${host}/article/${b.article.slug}` : "#"
+                    (b.article.author.subdomain ? `${b.article.author.subdomain}.${suffix}` : '');
+                  const url = host ? `${protocol}//${host}/article/${b.article.slug}` : '#';
 
                   return (
                     <div
@@ -74,12 +100,18 @@ export function LibraryClient({ bookmarks }: LibraryClientProps) {
                       <div>
                         <div className="flex items-center justify-between mb-3">
                           <a
-                            href={b.article.author.username ? routes.feed.profile(b.article.author.username) : "#"}
+                            href={
+                              b.article.author.username
+                                ? routes.feed.profile(b.article.author.username)
+                                : '#'
+                            }
                             className="flex items-center gap-2 group/auth"
                           >
                             {b.article.author.logoUrl ? (
-                              <img
+                              <Image
                                 src={b.article.author.logoUrl}
+                                width={24}
+                                height={24}
                                 className="w-6 h-6 rounded-md object-cover border border-border/60"
                                 alt=""
                               />
@@ -103,7 +135,7 @@ export function LibraryClient({ bookmarks }: LibraryClientProps) {
                         </h3>
 
                         <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                          {b.article.content.replace(/<[^>]*>?/gm, "").substring(0, 120)}...
+                          {b.article.content.replace(/<[^>]*>?/gm, '').substring(0, 120)}...
                         </p>
                       </div>
 
@@ -116,8 +148,8 @@ export function LibraryClient({ bookmarks }: LibraryClientProps) {
                           )}
                           <span className="text-[10px] text-muted-foreground font-mono">
                             {new Date(b.createdAt).toLocaleDateString(undefined, {
-                              month: "short",
-                              day: "numeric",
+                              month: 'short',
+                              day: 'numeric',
                             })}
                           </span>
                         </div>
@@ -128,11 +160,11 @@ export function LibraryClient({ bookmarks }: LibraryClientProps) {
                           onClick={() => handleReadClick(b.article.id, b.article.slug)}
                           className="text-xs font-semibold text-primary flex items-center gap-1 hover:underline"
                         >
-                          {t("library.read", "Lire")} <ExternalLink className="w-3 h-3" />
+                          {t('library.read', 'Lire')} <ExternalLink className="w-3 h-3" />
                         </motion.a>
                       </div>
                     </div>
-                  )
+                  );
                 })}
               </div>
             )}
@@ -140,5 +172,5 @@ export function LibraryClient({ bookmarks }: LibraryClientProps) {
         </div>
       </div>
     </ReaderPageLayout>
-  )
+  );
 }

@@ -3,6 +3,7 @@
 **Role:** Contains UI Primitives and unified components mapped explicitly to Shadcn UI schemas. Guarantees consistency across web, dashboard, and feed.
 
 ## File Exhaustive Listing
+
 - `package.json`
 - `tsconfig.json`
 - `src/index.ts`

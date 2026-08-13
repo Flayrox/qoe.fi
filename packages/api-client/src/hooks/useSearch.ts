@@ -1,8 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
-import { searchKeys } from "../query-keys";
-import { searchAllAction, getTrendingHashtagsAction } from "../actions/search";
+import { useQuery } from '@tanstack/react-query';
+import { searchKeys } from '../query-keys';
+import { searchAllAction, getTrendingHashtagsAction } from '../actions/search';
 
-export function useSearchQuery(query: string, type: "all" | "thoughts" | "users" | "articles" = "all") {
+export function useSearchQuery(
+  query: string,
+  type: 'all' | 'thoughts' | 'users' | 'articles' = 'all'
+) {
   return useQuery({
     queryKey: searchKeys.results(query, type),
     queryFn: async () => {
@@ -11,7 +14,9 @@ export function useSearchQuery(query: string, type: "all" | "thoughts" | "users"
       }
       const res = await searchAllAction({ query, type });
       if (!res.ok) {
-        throw new Error(typeof res.error === "string" ? res.error : res.error?.message || "Erreur de recherche");
+        throw new Error(
+          typeof res.error === 'string' ? res.error : res.error?.message || 'Erreur de recherche'
+        );
       }
       return res.data;
     },
@@ -26,7 +31,11 @@ export function useTrendingQuery(limit = 10) {
     queryFn: async () => {
       const res = await getTrendingHashtagsAction({ limit });
       if (!res.ok) {
-        throw new Error(typeof res.error === "string" ? res.error : res.error?.message || "Erreur de chargement des tendances");
+        throw new Error(
+          typeof res.error === 'string'
+            ? res.error
+            : res.error?.message || 'Erreur de chargement des tendances'
+        );
       }
       return res.data.trends;
     },

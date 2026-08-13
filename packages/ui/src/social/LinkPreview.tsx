@@ -1,117 +1,147 @@
-"use client"
+'use client';
 
-import React, { useState, useEffect } from "react"
-import { Globe, Loader2, ArrowUpRight } from "lucide-react"
-import { cn } from "@qoe/utils"
-import { QuotedArticleCard, type QuotedArticleData } from "./QuotedArticleCard"
-import { QuotedThoughtCard, type QuotedThoughtData } from "./QuotedThoughtCard"
+import React, { useState, useEffect } from 'react';
+import { Loader2, ArrowUpRight } from 'lucide-react';
+import { cn } from '@qoe/utils';
+import { QuotedArticleCard, type QuotedArticleData } from './QuotedArticleCard';
+import { QuotedThoughtCard, type QuotedThoughtData } from './QuotedThoughtCard';
 
-export interface LinkPreviewProps {
-  urls: string[]
-  quotedExcerpt?: string
-  onNavigate?: (target: { type: "post" | "article" | "profile"; id: string; slug?: string }) => void
-  unfurlFn?: (url: string) => Promise<any>
-  className?: string
+export interface UnfurlPreview {
+  isInternal: boolean;
+  postType?: 'post' | 'article';
+  data?: unknown;
+  externalMetadata?: {
+    title?: string | null;
+    description?: string | null;
+    image?: string | null;
+    siteName?: string | null;
+    url: string;
+  };
 }
 
-export function LinkPreview({ urls, quotedExcerpt, onNavigate, unfurlFn, className }: LinkPreviewProps) {
-  const [preview, setPreview] = useState<any | null>(null)
-  const [loading, setLoading] = useState<boolean>(false)
+export interface LinkPreviewProps {
+  urls: string[];
+  quotedExcerpt?: string;
+  onNavigate?: (target: {
+    type: 'post' | 'article' | 'profile';
+    id: string;
+    slug?: string;
+  }) => void;
+  unfurlFn?: (url: string) => Promise<UnfurlPreview | null>;
+  className?: string;
+}
 
-  const urlsKey = urls.join(",")
+export function LinkPreview({
+  urls,
+  quotedExcerpt,
+  onNavigate,
+  unfurlFn,
+  className,
+}: LinkPreviewProps) {
+  const [preview, setPreview] = useState<UnfurlPreview | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const urlsKey = urls.join(',');
 
   useEffect(() => {
-    let active = true
+    let active = true;
 
     async function fetchFirstValidPreview() {
-      if (urls.length === 0) return
-      setLoading(true)
+      if (urls.length === 0) return;
+      setLoading(true);
 
       try {
         if (unfurlFn) {
           for (const url of urls) {
-            if (!active) break
-            const previewData = await unfurlFn(url)
+            if (!active) break;
+            const previewData = await unfurlFn(url);
 
             if (previewData) {
               const hasRichMetadata =
                 previewData.isInternal ||
                 (previewData.externalMetadata &&
-                  (previewData.externalMetadata.image || previewData.externalMetadata.description))
+                  (previewData.externalMetadata.image || previewData.externalMetadata.description));
 
               if (hasRichMetadata) {
                 if (active) {
-                  setPreview(previewData)
-                  break
+                  setPreview(previewData);
+                  break;
                 }
               }
             }
           }
         }
       } catch (err) {
-        console.error("Preview unfurl loop error:", err)
+        console.error('Preview unfurl loop error:', err);
       } finally {
-        if (active) setLoading(false)
+        if (active) setLoading(false);
       }
     }
 
-    fetchFirstValidPreview()
+    fetchFirstValidPreview();
 
     return () => {
-      active = false
-    }
-  }, [urlsKey, unfurlFn])
+      active = false;
+    };
+  }, [urlsKey, unfurlFn]);
 
   if (loading) {
     return (
-      <div className={cn("border border-border/40 rounded-xl p-3.5 flex items-center justify-center gap-2.5 bg-muted/20 font-sans text-xs text-muted-foreground mt-2", className)}>
+      <div
+        className={cn(
+          'border border-border/40 rounded-xl p-3.5 flex items-center justify-center gap-2.5 bg-muted/20 font-sans text-xs text-muted-foreground mt-2',
+          className
+        )}
+      >
         <Loader2 className="w-3.5 h-3.5 animate-spin text-brand" />
-        <span className="text-[11px] uppercase tracking-wider font-medium">Chargement de l'aperçu...</span>
+        <span className="text-[11px] uppercase tracking-wider font-medium">
+          Chargement de l'aperçu...
+        </span>
       </div>
-    )
+    );
   }
 
-  if (!preview) return null
+  if (!preview) return null;
 
   // 1. Internal Quoted Post
-  if (preview.isInternal && preview.postType === "post") {
-    const post = preview.data as QuotedThoughtData
+  if (preview.isInternal && preview.postType === 'post') {
+    const post = preview.data as QuotedThoughtData;
     return (
       <QuotedThoughtCard
         post={post}
         onOpenPost={(id) => {
-          if (onNavigate) onNavigate({ type: "post", id })
+          if (onNavigate) onNavigate({ type: 'post', id });
         }}
         className={className}
       />
-    )
+    );
   }
 
   // 2. Internal Quoted Article (Apple Reader Highlight Format)
-  if (preview.isInternal && preview.postType === "article") {
-    const article = preview.data as QuotedArticleData
+  if (preview.isInternal && preview.postType === 'article') {
+    const article = preview.data as QuotedArticleData;
     return (
       <QuotedArticleCard
         article={article}
         quotedExcerpt={quotedExcerpt}
         onOpenArticle={(art) => {
           if (onNavigate) {
-            onNavigate({ type: "article", id: art.id, slug: art.slug })
+            onNavigate({ type: 'article', id: art.id, slug: art.slug });
           } else {
             const url = art.author?.subdomain
               ? `https://${art.author.subdomain}.qoe.fi/article/${art.slug}`
-              : `/article/${art.slug}`
-            window.open(url, "_blank")
+              : `/article/${art.slug}`;
+            window.open(url, '_blank');
           }
         }}
         className={className}
       />
-    )
+    );
   }
 
   // 3. External OpenGraph Link Preview
   if (!preview.isInternal && preview.externalMetadata) {
-    const meta = preview.externalMetadata
+    const meta = preview.externalMetadata;
 
     return (
       <a
@@ -120,7 +150,7 @@ export function LinkPreview({ urls, quotedExcerpt, onNavigate, unfurlFn, classNa
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "group/link flex flex-col sm:flex-row border border-border/40 rounded-xl overflow-hidden bg-card hover:bg-muted/30 transition-all duration-300 mt-2 select-none font-sans shadow-2xs",
+          'group/link flex flex-col sm:flex-row border border-border/40 rounded-xl overflow-hidden bg-card hover:bg-muted/30 transition-all duration-300 mt-2 select-none font-sans shadow-2xs',
           className
         )}
       >
@@ -145,13 +175,13 @@ export function LinkPreview({ urls, quotedExcerpt, onNavigate, unfurlFn, classNa
             )}
           </div>
           <span className="text-[10px] text-muted-foreground uppercase tracking-wider flex items-center gap-1 font-medium pt-1">
-            {meta.siteName || new URL(meta.url || "https://qoe.fi").hostname}
+            {meta.siteName || new URL(meta.url || 'https://qoe.fi').hostname}
             <ArrowUpRight className="w-3 h-3 opacity-70" />
           </span>
         </div>
       </a>
-    )
+    );
   }
 
-  return null
+  return null;
 }
