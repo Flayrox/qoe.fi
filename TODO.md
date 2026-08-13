@@ -1,10 +1,21 @@
 # 🗺️ TODO & Roadmap — qoe.fi Platform
 
-> Session du 2026-08-05 — Réglages système & compte réarchitecturés aux standards Silicon Valley.
+> Session du 2026-08-13 — Infra: React Compiler + pnpm 11 + Feature Flags (GrowthBook) câblés partout.
 
 ---
 
-## ✅ Fait Récemment (2026-08-04 / 2026-08-05)
+## ✅ Fait Récemment (2026-08-13)
+
+- [x] **React Compiler activé** sur les 5 apps Next.js (`reactCompiler: true`) — mémoïsation automatique.
+- [x] **Upgrade pnpm 9 → 11.21.0** (config migrée vers `pnpm-workspace.yaml`, `nodeLinker: hoisted`, `packageImportMethod: hardlink`, `allowBuilds`). Fix du singleton `@lingui/core` dupliqué (crash prerender Lingui).
+- [x] **Scripts dev ciblés** : `pnpm dev:web / dev:feed / dev:dashboard / dev:landing / dev:admin / dev:api` → lancer UNE app (+ son API) au lieu des 5 en parallèle (premier build ~5× plus rapide, PC plus frais).
+- [x] **Package `@qoe/flags` créé** : registre typé (`FLAGS`/`defaultFor`), provider React hydraté depuis le SSR (no-flicker), évaluation serveur (`isFlagOn`, `createFlagsContext`) avec cache TTL 60s + dégradation gracieuse. Tests 9/9.
+- [x] **Feature flags câblés partout** : provider dans les 5 root layouts Next, middleware Hono (`c.get('flags').isOn`), kill-switch newsletter dans les workers, démo `feed-recommendations` (carousel home feed).
+- [x] **Infra GrowthBook dev** : MongoDB + `growthbook` dans `docker-compose.dev.yml` (UI :3100, API SDK :3200), vars dans `.env.docker.example`.
+
+---
+
+## ✅ Fait (2026-08-04 / 2026-08-05)
 
 - [x] **Pont & Séparation Réglages** : Distinction nette entre Réglages Système Personnels (`qoe.fi/settings`) et Design du Média (`dashboard.qoe.fi/settings`).
 - [x] **Sidebar Dashboard Profil Utilisateur** : Affichage dynamique de l'utilisateur connecté dans `AppleSidebar.tsx` et popover avec lien direct vers `Mon Compte Personnel` (`qoe.fi/settings`).
@@ -18,6 +29,33 @@
 ---
 
 ## 🚧 Feuilles de Route & Prochaines Étapes (Tasklist)
+
+### 0. 🚩 FINIR LES FEATURE FLAGS (GrowthBook) — à faire dans les prochains jours
+
+> ⏸️ **Pause actuelle** : le câblage code est complet et committé (`14fed3f`).
+> Reste la mise en route opérationnelle + la prod. Détaillé dans [DEV.md](./DEV.md) et [README.md](./README.md).
+
+- [ ] **Démarrer l'infra dev** : `docker compose -f docker-compose.dev.yml up -d mongodb growthbook`
+- [ ] **Créer le compte admin** sur http://localhost:3100 (premier run).
+- [ ] **Créer une SDK Connection** : Settings → SDK Connections → New → copier la clé `sdk-...`.
+- [ ] **Renseigner les env vars** dans `.env` **et** `.env.docker` :
+      `GROWTHBOOK_API_HOST=http://localhost:3200`, `GROWTHBOOK_CLIENT_KEY=sdk-...`,
+      `NEXT_PUBLIC_GROWTHBOOK_API_HOST=http://localhost:3200`, `NEXT_PUBLIC_GROWTHBOOK_CLIENT_KEY=sdk-...`
+- [ ] **Créer les features dans GrowthBook** pour chaque clé de `packages/flags/src/flags.ts`
+      (`feed-recommendations`, `web-newsletter-banner`, `dashboard-ai-title-suggestions`,
+      `landing-pricing-section`, `admin-audit-log`, `workers-newsletter-dispatch`) avec la même valeur par défaut.
+- [ ] **Tester le toggle en direct** : `pnpm dev:feed` → basculer `feed-recommendations` dans GrowthBook →
+      le carousel "Recommandations" de la home apparaît/disparaît sans redéployer.
+- [ ] **Ajouter GrowthBook au docker-compose de PROD** (`docker-compose.yml`) : services
+      `mongodb` + `growthbook` (+ `growthbook-worker` si expériences A/B), sur le réseau privé,
+      exposés via Caddy (`flags.qoe.fi` UI + API), volumes persistants, secrets dans `.env.docker`.
+- [ ] **Ajouter les domains Caddy prod** pour GrowthBook + les env vars GrowthBook aux services web/api/workers.
+- [ ] **(Optionnel) A/B testing** : configurer un `trackingCallback` + connecter un data source
+      (Postgres/Umami) dans GrowthBook pour mesurer les expériences.
+- [ ] **(Optionnel) Streaming SSE** : si besoin de mise à jour flags en temps réel côté navigateur
+      (exige un GrowthBook Proxy en self-host), activer `streaming: true` dans `provider.tsx`.
+
+---
 
 ### 1. 📧 Configuration Backend Mailer & Triggers Supabase Prod (À configurer plus tard)
 

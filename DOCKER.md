@@ -1,6 +1,6 @@
 # 🐳 Guide Docker — qoe.fi monorepo (état post-refacto)
 
-> **11 services, 2 réseaux isolés, 1 source de vérité pour Prisma.**
+> **13 services, 2 réseaux isolés, 1 source de vérité pour Prisma.**
 > Ce guide reflète l'état après le refacto qui a dédupliqué `packages/db/prisma/`.
 
 ---
@@ -36,6 +36,8 @@
 | **migrate**       | -            | private | runtime                | One-shot Prisma migrate (s'exécute puis s'arrête)          |
 | **redis**         | 6379         | private | redis:7-alpine         | Cache + queue                                              |
 | **db (Supabase)** | 5433→5432    | private | `supabase/postgres:17` | Postgres 17 + pgvector (hébergé dans `/var/www/supabase/`) |
+| **mongodb**       | 27018→27017  | private | mongo:7                | Stockage du dashboard GrowthBook (dev)                     |
+| **growthbook**    | 3100→3000, 3200→3100 | private | `growthbook/growthbook:latest` | Feature flags self-hostés (UI + API SDK, dev)   |
 
 ### Domaines
 
@@ -96,6 +98,8 @@ docker compose -f docker-compose.dev.yml up
 | `http://localhost:4002/health`            | api (Hono backend)          | 4002 (interne: 3002) | 3002                 |
 | `psql -h localhost -p 5433 -U qoe -d qoe` | db (Postgres direct)        | 5433 (interne: 5432) | 5433                 |
 | `redis-cli -h localhost -p 6379`          | redis (Redis cache direct)  | 6379                 | 6379                 |
+| `http://localhost:3100`                   | growthbook (dashboard flags)| 3100 (interne: 3000) | 3100                 |
+| `http://localhost:3200`                   | growthbook (API SDK flags)  | 3200 (interne: 3100) | 3200                 |
 
 > Pour utiliser les vrais subdomains en local, ajoute dans `/etc/hosts` :
 >

@@ -15,11 +15,13 @@ qoe.fi is structured as a modern Monorepo utilizing **Turborepo** and **pnpm wor
 | Domain               | Technology                                            |
 | -------------------- | ----------------------------------------------------- |
 | **Frameworks**       | Next.js 16 (App Router), Hono (API)                   |
-| **Package Manager**  | pnpm 9.15 (Workspaces) + Turborepo 2.9                |
+| **Package Manager**  | pnpm 11.21 (Workspaces) + Turborepo 2.9               |
 | **Database Layer**   | PostgreSQL 16 + pgvector, Prisma ORM, Redis (BullMQ)  |
 | **Infrastructure**   | Docker, Docker Compose, Caddy 2 (Reverse Proxy / TLS) |
 | **State Management** | TanStack Query (React Query) + Optimistic Updates     |
 | **Typing**           | TypeScript 5.9 (Strict), Zod                          |
+| **Performance**      | React Compiler (auto-memoization) sur toutes les apps |
+| **Feature Flags**    | GrowthBook self-hosté (dashboard + SDK @qoe/flags)    |
 
 ---
 
@@ -56,6 +58,7 @@ The Single Source of Truth for logic, data, and configuration.
 - **`@qoe/ui`**: Shared UI components and Shadcn UI library implementations (Command Menus, Modals).
 - **`@qoe/theme`**: Centralized design tokens and CSS variable registries to enforce UI consistency across all apps.
 - **`@qoe/analytics`**, **`@qoe/i18n`**, **`@qoe/utils`**, **`@qoe/tsconfig`**: Utilities for tracking, translation, formatting, and strict TS configurations.
+- **`@qoe/flags`**: Feature flags generalized via self-hosted GrowthBook. Typed registry (`FLAGS` + `defaultFor`), React provider hydrating from the SSR payload (no flicker), server evaluation (`isFlagOn`, `createFlagsContext`) with graceful degradation to defaults when GrowthBook is unavailable.
 
 ---
 
@@ -64,7 +67,7 @@ The Single Source of Truth for logic, data, and configuration.
 ### Prerequisites
 
 - Node.js 20+
-- pnpm 9+
+- pnpm 11+
 - Docker & Docker Compose
 
 ### Initial Setup
@@ -93,13 +96,20 @@ caddy start --config Caddyfile.dev
 ### Running the Stack
 
 ```bash
-# Start all apps simultaneously
+# Start all apps simultaneously (5 Next.js + API + workers — heavy)
 pnpm dev
 
-# Or run specific applications
-pnpm --filter @qoe/feed dev
-pnpm --filter @qoe/dashboard dev
+# Or run a single app (+ its API when needed) for much faster cold start:
+pnpm dev:feed        # feed + api (ports 3010 + 3002)
+pnpm dev:web         # web + api
+pnpm dev:dashboard   # dashboard + api
+pnpm dev:landing     # landing only
+pnpm dev:admin       # admin only
+pnpm dev:api         # api only
 ```
+
+> 💡 For day-to-day work, prefer a targeted script (`pnpm dev:feed`) instead of
+> `pnpm dev` — it compiles ~5× faster and keeps your machine cool.
 
 ### Database Operations
 
@@ -117,3 +127,35 @@ pnpm prisma:seed       # Seed the database
 2. **Coupling Validation**: UI components must utilize shared logic via `packages/ui` and `packages/api-client`. Direct imports between `apps/` are strictly forbidden.
 3. **Paywall Security**: Content truncation occurs explicitly at the Server Layer (`packages/billing/src/paywall/ast-truncation.ts`). Under no circumstances should premium content leak to the DOM for non-subscribers.
 4. **Optimistic UI Constraints**: Optimistic mutations (`useOptimisticLike`, etc.) must always include rigorous query-cancellation and rollback mechanisms on failure.
+
+---
+
+## 🚩 Feature Flags (GrowthBook self-hosté)
+
+Le monorepo est câblé pour les feature flags via **GrowthBook**, intégré dans les 5 apps Next.js, l'API Hono et les workers BullMQ via le package partagé `@qoe/flags`.
+
+### Utilisation
+
+```ts
+// Client (composant React)
+import { useFlag } from '@qoe/flags';
+const showRecos = useFlag('feed-recommendations');
+
+// Serveur (Server Component, API, worker)
+import { isFlagOn, createFlagsContext } from '@qoe/flags/server';
+const enabled = await isFlagOn('feed-recommendations', { userId, plan });
+```
+
+### Ajouter un flag
+
+1. Déclare la clé + sa valeur par défaut dans `packages/flags/src/flags.ts` (registre typé).
+2. Crée le feature dans l'UI GrowthBook (`Features → New Feature`, même clé).
+3. Utilise `useFlag()` côté client ou `isFlagOn()` côté serveur.
+
+### Infra
+
+- Dev : `docker compose -f docker-compose.dev.yml up -d mongodb growthbook`
+  - Dashboard UI : http://localhost:3100 (créer le compte admin puis une *SDK Connection*)
+  - API SDK : http://localhost:3200
+- Env vars : `GROWTHBOOK_API_HOST`, `GROWTHBOOK_CLIENT_KEY` (+ versions `NEXT_PUBLIC_` pour le navigateur)
+- **Dégradation gracieuse** : si GrowthBook est down ou non configuré, tous les flags retombent sur leurs valeurs par défaut du registre (aucun crash).

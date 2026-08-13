@@ -8,12 +8,12 @@
 ## ✅ Pré-requis
 
 ```bash
-# 1. Installer pnpm 9+
+# 1. Installer pnpm 11+
 npm install -g pnpm
 
 # 2. Vérifier la version
 pnpm --version
-# Doit afficher 9.15.0 ou plus récent
+# Doit afficher 11.21.0 ou plus récent
 ```
 
 **Autres prérequis** :
@@ -27,7 +27,7 @@ pnpm --version
 ## 🎯 Démarrage en 4 étapes
 
 ```bash
-# 1. Installer toutes les dépendances du monorepo (18 workspaces résolus)
+# 1. Installer toutes les dépendances du monorepo (21 workspaces résolus)
 pnpm install
 
 # 2. Générer le client Prisma (depuis packages/db/prisma/schema.prisma)
@@ -122,7 +122,7 @@ pnpm docker:dev:studio   # Lance Prisma Studio via Docker
 ## 🏗️ Architecture finale du monorepo
 
 ```
-qoe.fi/                              # 18 workspaces résolus
+qoe.fi/                              # 21 workspaces résolus
 ├── apps/                            # 6 services / applications indépendantes
 │   ├── landing/                     # Next.js 16 — start.qoe.fi (vitrine, textes légaux, CMS)
 │   ├── feed/                        # Next.js 16 — qoe.fi (flux lecteurs & SSO centralisé)
@@ -130,7 +130,7 @@ qoe.fi/                              # 18 workspaces résolus
 │   ├── admin/                       # Next.js 16 — admin.qoe.fi (superadmin & CMS config)
 │   ├── web/                         # Next.js 16 — *.qoe.fi & domaines customs (blogs créateurs)
 │   └── api/                         # Hono backend (endpoints légers)
-├── packages/                        # 11 packages partagés
+├── packages/                        # 14 packages partagés
 │   ├── db/                          # 🐘 Prisma Singleton (Source unique de vérité DB)
 │   ├── auth/                        # 🔐 Rôles, permissions et helpers session
 │   ├── ui/                          # 🎨 Design System & composants partagés
@@ -138,8 +138,11 @@ qoe.fi/                              # 18 workspaces résolus
 │   ├── supabase/                    # 🔌 Clients d'authentification SSR
 │   ├── i18n/                        # 🌐 Helpers de traduction Tolgee
 │   ├── analytics/                   # 📊 Événements et tracking
+│   ├── api-client/                  # 🔄 Couche de données TanStack Query + actions
 │   ├── billing/                     # 💳 Logique Stripe abonnements
 │   ├── config/                      # ⚙️ Validation des variables d'environnement (Zod)
+│   ├── observability/               # 🔭 Logs structurés + Sentry centralisé
+│   ├── flags/                       # 🚩 Feature flags GrowthBook (client + serveur)
 │   ├── utils/                       # 🔧 Fonctions utilitaires communes
 │   └── tsconfig/                    # 📐 Configurations TypeScript partagées
 ├── workers/                         # BullMQ (queues de tâches asynchrones — actif)
