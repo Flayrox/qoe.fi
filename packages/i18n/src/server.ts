@@ -7,7 +7,13 @@ import frTranslations from '../../../messages/fr.json';
 import enTranslations from '../../../messages/en.json';
 import { prisma } from '@qoe/db/client';
 import { unstable_cache } from 'next/cache';
-import { compilePlural, interpolate } from './compiler';
+import {
+  getI18n,
+  setActiveLanguage,
+  flattenMessages,
+  createTranslator,
+  type I18nParams,
+} from './core';
 
 const translations: Record<string, unknown> = {
   fr: frTranslations,
@@ -37,7 +43,7 @@ export function translateKey(
   lang: string,
   key: string,
   defaultValue?: string,
-  params?: Record<string, string | number>,
+  params?: I18nParams,
   overrides: Record<string, unknown> = {}
 ): string {
   // Check db overrides first
@@ -53,36 +59,40 @@ export function translateKey(
     overrideVal = (overrideVal as Record<string, unknown>)[part];
   }
 
-  let val = typeof overrideVal === 'string' ? overrideVal : undefined;
+  const overridden = typeof overrideVal === 'string' ? overrideVal : undefined;
 
-  if (val === undefined) {
-    // Fallback to static messages
-    const messages: unknown = translations[lang] || translations[DEFAULT_LANGUAGE];
-    const parts = key.split('.');
-    let staticVal: unknown = messages;
-    for (const part of parts) {
-      if (staticVal === undefined || staticVal === null) break;
-      if (typeof staticVal !== 'object') {
-        staticVal = undefined;
-        break;
-      }
-      staticVal = (staticVal as Record<string, unknown>)[part];
-    }
-    if (typeof staticVal !== 'string') {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn(
-          `[i18n Server Warning] Missing translation key: "${key}" for language "${lang}"`
-        );
-      }
-    }
-    val = typeof staticVal === 'string' ? staticVal : defaultValue || key;
+  // Load the catalogue (static translations) + overrides, activate Lingui
+  const i18n = getI18n();
+  const staticMessages: Record<string, unknown> = {
+    ...((translations[lang] || translations[DEFAULT_LANGUAGE]) as Record<string, unknown>),
+  };
+  if (langOverrides && Object.keys(langOverrides).length > 0) {
+    deepMerge(staticMessages, langOverrides);
   }
+  setActiveLanguage(lang, flattenMessages(staticMessages));
 
-  if (params) {
-    val = compilePlural(val, lang, params);
-    val = interpolate(val, params);
+  const t = createTranslator(i18n);
+  return t(key, overridden || defaultValue, params);
+}
+
+/**
+ * Deep merge of override objects into the base translation map.
+ */
+function deepMerge(base: Record<string, unknown>, override: Record<string, unknown>) {
+  for (const [k, v] of Object.entries(override)) {
+    if (
+      v &&
+      typeof v === 'object' &&
+      !Array.isArray(v) &&
+      base[k] &&
+      typeof base[k] === 'object' &&
+      !Array.isArray(base[k])
+    ) {
+      deepMerge(base[k] as Record<string, unknown>, v as Record<string, unknown>);
+    } else {
+      base[k] = v;
+    }
   }
-  return val;
 }
 
 /**
@@ -119,11 +129,7 @@ export async function getLanguage(): Promise<Language> {
 export async function getTranslate() {
   const activeLang = await getLanguage();
   const overrides = await getCachedOverrides();
-  return (
-    key: string,
-    defaultValue?: string | Record<string, string | number>,
-    params?: Record<string, string | number>
-  ) => {
+  return (key: string, defaultValue?: string | I18nParams, params?: I18nParams): string => {
     const defVal = typeof defaultValue === 'string' ? defaultValue : undefined;
     const p = typeof defaultValue === 'object' && defaultValue !== null ? defaultValue : params;
     return translateKey(activeLang, key, defVal, p, overrides);
@@ -131,15 +137,19 @@ export async function getTranslate() {
 }
 
 /**
- * Compatibility helper to prevent layout compilation errors
+ * Compatibility helper to prevent layout compilation errors.
  */
 export async function getTolgee(lang?: Language) {
   const activeLang = lang || (await getLanguage());
   const overrides = await getCachedOverrides();
-  const mergedTranslations = {
+  const mergedTranslations: Record<string, unknown> = {
     ...((translations[activeLang] || translations[DEFAULT_LANGUAGE]) as Record<string, unknown>),
-    ...((overrides[activeLang] || {}) as Record<string, unknown>),
   };
+  const langOverrides: Record<string, unknown> =
+    (overrides[activeLang] as Record<string, unknown>) || {};
+  if (Object.keys(langOverrides).length > 0) {
+    deepMerge(mergedTranslations, langOverrides);
+  }
   return {
     loadRequired: async () => mergedTranslations,
   };

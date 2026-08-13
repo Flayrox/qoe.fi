@@ -1,22 +1,20 @@
 // =====================================================================
-// 🌐 provider.tsx — Zero-dependency Client Context and Hooks
+// 🌐 provider.tsx — Client Context and Hooks (Lingui-powered)
 // =====================================================================
 
 'use client';
 
 import React, { createContext, useContext } from 'react';
+import { I18nProvider } from '@lingui/react';
 import { type Language } from './locales';
 import frTranslations from '../../../messages/fr.json';
 import enTranslations from '../../../messages/en.json';
-import { compilePlural, interpolate } from './compiler';
+import { getI18n, translate, flattenMessages, type I18nParams, type MessageMap } from './core';
 
 const translations: Record<string, unknown> = {
   fr: frTranslations,
   en: enTranslations,
 };
-
-type I18nValue = string | number;
-type I18nParams = Record<string, I18nValue>;
 
 const I18nContext = createContext<{
   language: Language;
@@ -61,6 +59,7 @@ export function useTolgee() {
 
 /**
  * 🔌 Provider wrapping the application to supply client-side translations.
+ * The API surface is kept identical to the legacy Tolgee-compatible provider.
  */
 export function TolgeeNextProvider({
   language,
@@ -71,39 +70,25 @@ export function TolgeeNextProvider({
   staticData?: unknown;
   children: React.ReactNode;
 }) {
-  const messages: unknown = staticData || translations[language] || translations.fr;
+  const messages: MessageMap = flattenMessages(
+    (staticData as Record<string, unknown>) ||
+      (translations[language] as Record<string, unknown>) ||
+      (translations.fr as Record<string, unknown>)
+  );
 
-  const t = (key: string, defaultValue?: string | I18nParams, params?: I18nParams): string => {
-    const defVal = typeof defaultValue === 'string' ? defaultValue : undefined;
-    const p = typeof defaultValue === 'object' && defaultValue !== null ? defaultValue : params;
+  // Create the Lingui instance and load the active locale.
+  const i18n = getI18n();
+  React.useMemo(() => {
+    i18n.load({ [language]: messages });
+    i18n.activate(language);
+  }, [i18n, language, staticData]);
 
-    const parts = key.split('.');
-    let val: unknown = messages;
-    for (const part of parts) {
-      if (val === undefined || val === null) break;
-      if (typeof val !== 'object') {
-        val = undefined;
-        break;
-      }
-      val = (val as Record<string, unknown>)[part];
-    }
-    let result: string;
-    if (typeof val !== 'string') {
-      if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-        console.warn(
-          `[i18n Client Warning] Missing translation key: "${key}" for language "${language}"`
-        );
-      }
-      result = defVal || key;
-    } else {
-      result = val;
-    }
-    if (p) {
-      result = compilePlural(result, language, p);
-      result = interpolate(result, p);
-    }
-    return result;
-  };
+  const t = (key: string, defaultValue?: string | I18nParams, params?: I18nParams): string =>
+    translate(i18n, key, defaultValue, params);
 
-  return <I18nContext.Provider value={{ language, t }}>{children}</I18nContext.Provider>;
+  return (
+    <I18nContext.Provider value={{ language, t }}>
+      <I18nProvider i18n={i18n}>{children}</I18nProvider>
+    </I18nContext.Provider>
+  );
 }
