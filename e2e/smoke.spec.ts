@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 
-const ROUTES = ['/', '/home', '/dashboard', '/articles/new', '/settings'];
+const ROUTES = ['/home', '/settings', '/notifications', '/search', '/library'];
 
-test.describe('Linear-Grade E2E Scan & Zero-Hydration Error Audit', () => {
+test.describe('Feed E2E Scan & Zero-Hydration Error Audit', () => {
   for (const route of ROUTES) {
     test(`route "${route}" should render cleanly without console or hydration errors`, async ({
       page,
@@ -27,12 +27,7 @@ test.describe('Linear-Grade E2E Scan & Zero-Hydration Error Audit', () => {
         pageErrors.push(err.message);
       });
 
-      try {
-        await page.goto(route, { timeout: 10000, waitUntil: 'domcontentloaded' });
-      } catch {
-        // If dev server isn't currently running locally, log expectation
-        console.log(`Route ${route} navigation attempt completed or skipped if server offline.`);
-      }
+      await page.goto(route, { timeout: 15000, waitUntil: 'networkidle' });
 
       // Assert zero hydration errors
       const hydrationErrors = consoleErrors.filter(
