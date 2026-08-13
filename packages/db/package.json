@@ -43,6 +43,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "prisma:generate": "prisma generate",
     "prisma:seed": "prisma db seed",
     "prebuild": "prisma generate",
@@ -56,9 +57,11 @@
     "@qoe/supabase": "workspace:*"
   },
   "devDependencies": {
-    "@qoe/tsconfig": "workspace:*",
     "@qoe/config": "workspace:*",
+    "@qoe/tsconfig": "workspace:*",
+    "@testcontainers/postgresql": "^12.1.0",
     "prisma": "^6.19.3",
+    "testcontainers": "^12.1.0",
     "tsx": "^4.19.0",
     "typescript": "^5"
   }
