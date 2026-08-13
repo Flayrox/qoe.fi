@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { MeiliSearch } from 'meilisearch';
+import { logger } from '@qoe/observability';
 
 export const searchApp = new Hono();
 
@@ -26,7 +27,7 @@ searchApp.get('/articles', async (c) => {
       estimatedTotalHits: search.estimatedTotalHits,
     });
   } catch (error) {
-    console.error('[API] Search error:', error);
+    logger.error('Erreur recherche Meilisearch', { err: error }, { capture: true });
     return c.json({ error: 'Search failed' }, 500);
   }
 });

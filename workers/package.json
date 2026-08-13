@@ -15,6 +15,7 @@
     "@qoe/billing": "workspace:*",
     "@qoe/config": "workspace:*",
     "@qoe/db": "workspace:*",
+    "@qoe/observability": "workspace:^",
     "@qoe/utils": "workspace:*",
     "bullmq": "^5.34.0",
     "ioredis": "^5.4.1",

@@ -16,7 +16,8 @@
     "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
-    "TOLGEE_API_KEY"
+    "TOLGEE_API_KEY",
+    "SENTRY_DSN"
   ],
 
   "tasks": {

@@ -7,10 +7,14 @@
 // =====================================================================
 
 import { serve } from '@hono/node-server';
+import { initSentryNode, logger } from '@qoe/observability';
 import { app } from './app';
+
+// Initialise Sentry (no-op silencieux sans SENTRY_DSN en dev local)
+initSentryNode();
 
 const port = Number(process.env.PORT) || 3002;
 
 serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`🔌 API server running on http://localhost:${info.port}`);
+  logger.info('API server running', { port: info.port });
 });

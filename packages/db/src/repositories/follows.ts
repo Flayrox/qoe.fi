@@ -4,6 +4,7 @@
 
 import { prisma } from '../client';
 import { createNotification, deleteNotification } from './notifications';
+import { logger } from '@qoe/observability';
 
 /**
  * ⚡ Bascule l'état d'abonnement d'un lecteur envers un créateur.
@@ -30,7 +31,7 @@ export async function toggleFollow(
         recipientId: creatorId,
         senderId: readerId,
         type: 'FOLLOW',
-      }).catch((err) => console.error('Error deleting follow notification:', err));
+      }).catch((err) => logger.error('Erreur suppression notification follow', { err }));
       return { followed: false };
     } else {
       await prisma.follows.create({
@@ -43,7 +44,7 @@ export async function toggleFollow(
         recipientId: creatorId,
         senderId: readerId,
         type: 'FOLLOW',
-      }).catch((err) => console.error('Error creating follow notification:', err));
+      }).catch((err) => logger.error('Erreur création notification follow', { err }));
       return { followed: true };
     }
   } catch (error) {

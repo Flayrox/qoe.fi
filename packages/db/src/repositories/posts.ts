@@ -594,7 +594,9 @@ export async function createThought(data: {
   });
 
   if (data.tags && data.tags.length > 0) {
-    recordHashtags(data.tags).catch((err) => console.error('Error recording hashtags:', err));
+    recordHashtags(data.tags).catch((err) =>
+      logger.error('Erreur enregistrement hashtags', { err })
+    );
   }
 
   return newPost;
@@ -753,7 +755,7 @@ export async function createThoughtThread(
       // Enregistrer les hashtags
       if (node.tags && node.tags.length > 0) {
         recordHashtags(node.tags).catch((err) =>
-          console.error('Error recording hashtags in thread:', err)
+          logger.error('Erreur enregistrement hashtags (thread)', { err })
         );
       }
     }
@@ -766,6 +768,7 @@ export async function createThoughtThread(
  * ❤️ Toggle like sur une pensée canonique.
  */
 import { createNotification, deleteNotification } from './notifications';
+import { logger } from '@qoe/observability';
 
 export async function toggleLike(postId: string, userId: string): Promise<{ liked: boolean }> {
   const canonicalId = await getCanonicalPostId(postId);
@@ -794,7 +797,7 @@ export async function toggleLike(postId: string, userId: string): Promise<{ like
           senderId: userId,
           type: 'LIKE',
           thoughtId: canonicalId,
-        }).catch((err) => console.error('Error deleting like notification:', err));
+        }).catch((err) => logger.error('Erreur suppression notification like', { err }));
       }
       return { liked: false };
     } else {
@@ -811,7 +814,7 @@ export async function toggleLike(postId: string, userId: string): Promise<{ like
           senderId: userId,
           type: 'LIKE',
           thoughtId: canonicalId,
-        }).catch((err) => console.error('Error creating like notification:', err));
+        }).catch((err) => logger.error('Erreur création notification like', { err }));
       }
       return { liked: true };
     }
@@ -896,7 +899,7 @@ export async function replyToPost(postId: string, authorId: string, content: str
         }
       }
     } catch (err) {
-      console.error('Error finding mentioned users:', err);
+      logger.error('Erreur recherche utilisateurs mentionnés', { err });
     }
   }
 
@@ -909,7 +912,7 @@ export async function replyToPost(postId: string, authorId: string, content: str
         thoughtId: reply.id,
       });
     } catch (err) {
-      console.error('Error creating participant reply notification:', err);
+      logger.error('Erreur création notification réponse', { err });
     }
   }
 

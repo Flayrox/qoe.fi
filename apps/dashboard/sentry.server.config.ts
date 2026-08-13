@@ -1,11 +1,11 @@
-import * as Sentry from '@sentry/nextjs';
+// =====================================================================
+// 🪟 Sentry server — apps/dashboard
+// =====================================================================
+// 📖 Initialise Sentry côté serveur. No-op silencieux sans SENTRY_DSN.
+//    (Utilisé par la v10 de @sentry/nextjs quand instrumentation.ts
+//     n'est pas encore pris en charge par la config du build.)
+// =====================================================================
 
-Sentry.init({
-  dsn: 'https://fb83e77ffae2e4ea344526feae58cfcb@o4511716584456192.ingest.de.sentry.io/4511716589043792',
+import { initSentryServer } from '@qoe/observability';
 
-  // Adjust this value in production, or use tracesSampler for greater control
-  tracesSampleRate: 1.0,
-
-  // Setting this option to true will print useful information to the console system
-  debug: false,
-});
+initSentryServer();

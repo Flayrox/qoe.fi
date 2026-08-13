@@ -2,6 +2,7 @@ import type { Job } from 'bullmq';
 import IORedis from 'ioredis';
 import { subscriptionsRepository } from '@qoe/db/repositories/subscriptions';
 import { SubscriptionStatus } from '@prisma/client';
+import { logger } from '@qoe/observability';
 
 export interface StripeWebhookData {
   metadata?: {
@@ -37,14 +38,14 @@ export async function processStripeWebhookSyncJob(job: Job<StripeWebhookJobPaylo
   try {
     const acquired = await redis.set(lockKey, 'processed', 'EX', 86400 * 7, 'NX');
     if (!acquired) {
-      console.log(`[StripeWorker] Event ${eventId} already processed. Skipping.`);
+      logger.info('Event déjà traité, skip', { eventId });
       return;
     }
   } catch {
-    console.warn(`[StripeWorker] Redis lock check bypassed due to connection state.`);
+    logger.warn('Redis lock check bypassé');
   }
 
-  console.log(`[StripeWorker] Processing event ${eventId} (${eventType})`);
+  logger.info('Traitement événement Stripe', { eventId, eventType });
 
   switch (eventType) {
     case 'customer.subscription.created':
@@ -54,7 +55,7 @@ export async function processStripeWebhookSyncJob(job: Job<StripeWebhookJobPaylo
       const tierId = data.metadata?.tierId || null;
 
       if (!creatorId || !email) {
-        console.warn(`[StripeWorker] Event ${eventId} missing required metadata creatorId/email`);
+        logger.warn('Événement Stripe sans metadata requise', { eventId });
         return;
       }
 
@@ -84,7 +85,7 @@ export async function processStripeWebhookSyncJob(job: Job<StripeWebhookJobPaylo
         currentPeriodEnd,
       });
 
-      console.log(`[StripeWorker] Updated entitlement for ${email} on creator ${creatorId}`);
+      logger.info('Entitlement mis à jour', { email, creatorId });
       break;
     }
 
@@ -99,7 +100,7 @@ export async function processStripeWebhookSyncJob(job: Job<StripeWebhookJobPaylo
           status: SubscriptionStatus.CANCELED,
           isPremium: false,
         });
-        console.log(`[StripeWorker] Canceled subscription for ${email} on creator ${creatorId}`);
+        logger.info('Abonnement annulé', { email, creatorId });
       }
       break;
     }
@@ -117,7 +118,7 @@ export async function processStripeWebhookSyncJob(job: Job<StripeWebhookJobPaylo
           isPremium: true,
           amountPaidCents: amountPaid,
         });
-        console.log(`[StripeWorker] Processed invoice payment ${amountPaid}c for ${email}`);
+        logger.info('Paiement facture traité', { amountPaid, email });
       }
       break;
     }
@@ -133,12 +134,12 @@ export async function processStripeWebhookSyncJob(job: Job<StripeWebhookJobPaylo
           status: SubscriptionStatus.PAST_DUE,
           isPremium: false,
         });
-        console.log(`[StripeWorker] Payment failed, marked PAST_DUE for ${email}`);
+        logger.warn('Paiement échoué, PAST_DUE', { email });
       }
       break;
     }
 
     default:
-      console.log(`[StripeWorker] Unhandled event type: ${eventType}`);
+      logger.warn("Type d'événement Stripe non géré", { eventType });
   }
 }

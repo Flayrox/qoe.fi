@@ -32,6 +32,7 @@ const nextConfig: NextConfig = {
     '@qoe/utils',
     '@qoe/analytics',
     '@qoe/theme',
+    '@qoe/observability',
   ],
   images: {
     remotePatterns: [

@@ -1,4 +1,5 @@
 import type { Job } from 'bullmq';
+import { logger } from '@qoe/observability';
 import { prisma, type Prisma } from '@qoe/db/client';
 import { sliceContentAtPaywall } from '@qoe/utils';
 
@@ -54,7 +55,7 @@ export async function processPublishNewsletterJob(job: Job<PublishNewsletterPayl
   }
 
   const subscribersCount = await prisma.subscriber.count({ where: whereCondition });
-  console.log(`[NewsletterWorker] Total target subscribers: ${subscribersCount}`);
+  logger.info("Nombre total d'abonnés cibles", { subscribersCount });
 
   if (subscribersCount === 0) {
     return;
@@ -99,8 +100,8 @@ export async function processPublishNewsletterJob(job: Job<PublishNewsletterPayl
     }
 
     processedCount += batch.length;
-    console.log(`[NewsletterWorker] Processed batch: ${processedCount}/${subscribersCount}`);
+    logger.info('Batch traité', { processedCount, subscribersCount });
   }
 
-  console.log(`[NewsletterWorker] Completed newsletter broadcast for article ${articleId}`);
+  logger.info('Newsletter terminée', { articleId });
 }

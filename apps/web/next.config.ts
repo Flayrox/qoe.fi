@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next';
 import { linguiMacroSwcPlugin } from '@lingui/swc-plugin/options';
+import { withSentryConfig } from '@sentry/nextjs';
 
 /**
  * ⚙️ apps/web — Config Next.js pour le site public
@@ -33,6 +34,7 @@ const nextConfig: NextConfig = {
     '@qoe/utils',
     '@qoe/analytics',
     '@qoe/theme',
+    '@qoe/observability',
   ],
   images: {
     remotePatterns: [
@@ -59,4 +61,10 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: 'qoe',
+  project: 'javascript-nextjs',
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  disableLogger: true,
+});

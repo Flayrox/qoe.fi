@@ -12,7 +12,7 @@
 
 import { Hono, type Context, type Next } from 'hono';
 import { cors } from 'hono/cors';
-import { logger } from 'hono/logger';
+import { logger as honoLogger } from 'hono/logger';
 import { createHash } from 'node:crypto';
 import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js';
 
@@ -25,6 +25,7 @@ import { fetchUmamiWebsiteStats, fetchUmamiTopPages } from '@qoe/analytics/serve
 import type { Queue, ConnectionOptions } from 'bullmq';
 import { Queue as BullQueue } from 'bullmq';
 import IORedis from 'ioredis';
+import { logger } from '@qoe/observability';
 import { searchApp } from './search';
 
 export type AppDeps = {
@@ -65,7 +66,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
   const app = new Hono<{ Variables: AppVariables }>();
 
   // ─── Middleware globaux ──────────────────────────────────────
-  app.use('*', logger());
+  app.use('*', honoLogger());
   app.use(
     '*',
     cors({
@@ -132,7 +133,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
       return c.text('Webhook queued successfully', 200);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      console.error(`❌ Webhook Error: ${message}`);
+      logger.error('Webhook Stripe invalide', { message }, { capture: true });
       return c.text(`Webhook Error: ${message}`, 400);
     }
   });
@@ -175,12 +176,12 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
           where: { id: apiKeyRecord.id },
           data: { lastUsedAt: new Date() },
         })
-        .catch((err: unknown) => console.error('Failed to update lastUsedAt:', err));
+        .catch((err: unknown) => logger.error('Échec mise à jour lastUsedAt', { err }));
 
       c.set('creator', user);
       await next();
     } catch (error) {
-      console.error('API Auth Error:', error);
+      logger.error('Erreur auth API key', { err: error }, { capture: true });
       return c.json({ error: 'Internal Server Error' }, 500);
     }
   };
@@ -299,7 +300,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
         },
       });
     } catch (error) {
-      console.error('Error fetching public articles:', error);
+      logger.error('Erreur articles API créateur', { err: error }, { capture: true });
       return c.json({ error: 'Internal Server Error' }, 500);
     }
   });
@@ -355,7 +356,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
         },
       });
     } catch (error) {
-      console.error('Error fetching single public article:', error);
+      logger.error('Erreur article API créateur (slug)', { err: error }, { capture: true });
       return c.json({ error: 'Internal Server Error' }, 500);
     }
   });
@@ -397,7 +398,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
         data: formattedCategories,
       });
     } catch (error) {
-      console.error('Error fetching public categories:', error);
+      logger.error('Erreur catégories API créateur', { err: error }, { capture: true });
       return c.json({ error: 'Internal Server Error' }, 500);
     }
   });
@@ -473,7 +474,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
         },
       });
     } catch (error) {
-      console.error('Error fetching mobile feed:', error);
+      logger.error('Erreur feed mobile', { err: error }, { capture: true });
       return c.json({ error: 'Internal Server Error' }, 500);
     }
   });
@@ -512,7 +513,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
 
       return c.json({ data: newThought }, 201);
     } catch (error) {
-      console.error('Error creating thought:', error);
+      logger.error('Erreur création thought', { err: error }, { capture: true });
       return c.json({ error: 'Internal Server Error' }, 500);
     }
   });
@@ -547,7 +548,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
 
       return c.json({ data: { liked, likesCount } });
     } catch (error) {
-      console.error('Error toggling like:', error);
+      logger.error('Erreur toggle like', { err: error }, { capture: true });
       return c.json({ error: 'Internal Server Error' }, 500);
     }
   });
@@ -583,7 +584,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
 
       return c.json({ data: { reposted, repostsCount } });
     } catch (error) {
-      console.error('Error toggling repost:', error);
+      logger.error('Erreur toggle repost', { err: error }, { capture: true });
       return c.json({ error: 'Internal Server Error' }, 500);
     }
   });
@@ -616,7 +617,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
 
       return c.json({ data: { bookmarked } });
     } catch (error) {
-      console.error('Error toggling bookmark:', error);
+      logger.error('Erreur toggle bookmark', { err: error }, { capture: true });
       return c.json({ error: 'Internal Server Error' }, 500);
     }
   });
@@ -641,7 +642,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
         },
       });
     } catch (error) {
-      console.error('Error fetching my profile:', error);
+      logger.error('Erreur profil utilisateur (me)', { err: error }, { capture: true });
       return c.json({ error: 'Internal Server Error' }, 500);
     }
   });
@@ -682,7 +683,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
 
       return c.json({ data: author });
     } catch (error) {
-      console.error('Error fetching author profile:', error);
+      logger.error('Erreur profil auteur', { err: error }, { capture: true });
       return c.json({ error: 'Internal Server Error' }, 500);
     }
   });
@@ -721,7 +722,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
 
       return c.json({ data: { following, followersCount } });
     } catch (error) {
-      console.error('Error toggling follow:', error);
+      logger.error('Erreur toggle follow', { err: error }, { capture: true });
       return c.json({ error: 'Internal Server Error' }, 500);
     }
   });
