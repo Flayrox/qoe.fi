@@ -9,7 +9,9 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api-go/internal/cache"
 	db "github.com/qoefi/api-go/internal/database"
+	"github.com/redis/go-redis/v9"
 )
 
 // toUUID convertit un identifiant texte en pgtype.UUID.
@@ -55,10 +57,16 @@ type Thought struct {
 type Service struct {
 	pool *pgxpool.Pool
 	q    *db.Queries
+	rc   *redis.Client
 }
 
-func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool, q: db.New(pool)}
+func NewService(pool *pgxpool.Pool, rc *redis.Client) *Service {
+	return &Service{pool: pool, q: db.New(pool), rc: rc}
+}
+
+// invalidateFeedCaches invalide les caches Redis du feed (miroir TS).
+func (s *Service) invalidateFeedCaches(ctx context.Context, authorID string) {
+	cache.InvalidateNamespaces(ctx, s.rc, "feed:trending:", "feed:following:"+authorID+":")
 }
 
 // Create crée une pensée (ou une réponse si parentID fourni).
@@ -104,7 +112,55 @@ func (s *Service) Create(ctx context.Context, authorID, content string, tags []s
 		}
 	}
 
+	s.invalidateFeedCaches(ctx, authorID)
 	return s.Get(ctx, created.ID, authorID)
+}
+
+// Reply crée une réponse après contrôle du threadgate, avec notifications
+// REPLY/MENTION et invalidation du cache feed.
+func (s *Service) Reply(ctx context.Context, parentID, userID, content string) (Thought, error) {
+	gate, err := s.CanReply(ctx, parentID, userID)
+	if err != nil {
+		return Thought{}, err
+	}
+	if !gate.CanReply {
+		return Thought{}, errors.New(gate.Reason)
+	}
+
+	rootID, _ := s.q.GetCanonicalThoughtID(ctx, parentID)
+	created, err := s.q.CreateThought(ctx, db.CreateThoughtParams{
+		Content:           content,
+		AuthorId:          userID,
+		Tags:              []string{},
+		ImageUrl:          pgtype.Text{},
+		Visibility:        "public",
+		ContentVisibility: db.ContentVisibilityPUBLIC,
+		IsDraft:           false,
+		ScheduledAt:       pgtype.Timestamp{},
+		TriggerWarning:    pgtype.Text{},
+		ParentId:          parentID,
+		RootId:            rootID,
+		RepostId:          "",
+		ReplyRestriction:  "everyone",
+	})
+	if err != nil {
+		return Thought{}, err
+	}
+
+	if err := s.q.IncrementReplyCount(ctx, parentID); err != nil {
+		return Thought{}, err
+	}
+
+	// Notifications REPLY / MENTION (best-effort)
+	_ = s.replyNotifications(ctx, s.q, created.ID, userID, parentID, rootID, content)
+
+	// Invalidation cache feed des participants
+	if parent, err := s.q.GetPostAuthor(ctx, parentID); err == nil {
+		s.invalidateFeedCaches(ctx, parent)
+	}
+	s.invalidateFeedCaches(ctx, userID)
+
+	return s.Get(ctx, created.ID, userID)
 }
 
 // Get retourne une pensée avec son auteur et l'état du viewer.

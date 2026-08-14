@@ -20,10 +20,14 @@ func NewHandler(svc *Service) *Handler {
 }
 
 type createThoughtInput struct {
-	Content  string   `json:"content"`
-	Tags     []string `json:"tags"`
-	ParentID *string  `json:"parentId,omitempty"`
-	RepostID *string  `json:"repostId,omitempty"`
+	Content          string            `json:"content"`
+	Tags             []string          `json:"tags"`
+	ImageURL         *string           `json:"imageUrl,omitempty"`
+	ParentID         *string           `json:"parentId,omitempty"`
+	RepostID         *string           `json:"repostId,omitempty"`
+	ReplyRestriction string            `json:"replyRestriction,omitempty"`
+	Attachments      []AttachmentInput `json:"attachments,omitempty"`
+	Poll             *PollInput        `json:"poll,omitempty"`
 }
 
 func (h *Handler) Register(r chi.Router) {
@@ -45,7 +49,16 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post, err := h.svc.Create(r.Context(), userID, in.Content, in.Tags, in.ParentID, in.RepostID)
+	post, err := h.svc.CreateFull(r.Context(), userID, CreateFullInput{
+		Content:          in.Content,
+		Tags:             in.Tags,
+		ImageURL:         in.ImageURL,
+		ParentID:         in.ParentID,
+		RepostID:         in.RepostID,
+		ReplyRestriction: in.ReplyRestriction,
+		Attachments:      in.Attachments,
+		Poll:             in.Poll,
+	})
 	if err != nil {
 		response.BadRequest(w, err.Error())
 		return
@@ -105,7 +118,7 @@ func (h *Handler) reply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post, err := h.svc.Create(r.Context(), userID, in.Content, in.Tags, &parentID, nil)
+	post, err := h.svc.Reply(r.Context(), parentID, userID, in.Content)
 	if err != nil {
 		response.BadRequest(w, err.Error())
 		return

@@ -47,21 +47,27 @@ go build ./... && go vet ./...
 | Méthode | Route | Description |
 |---|---|---|
 | GET | `/healthz` | healthcheck |
-| GET | `/v1/feed?limit=&offset=` | feed des publications suivies |
-| GET | `/v1/feed/trending?limit=&offset=` | pensées trending 7j |
-| POST | `/v1/posts` | créer une pensée |
+| GET | `/v1/feed?limit=&cursor=` | feed des publications suivies (pag. offset via cursor) |
+| GET | `/v1/feed/trending?limit=&cursor=` | pensées trending 7j |
+| POST | `/v1/posts` | créer une pensée (validation 500c, pièces jointes, sondage) |
 | GET | `/v1/posts/{id}` | lire une pensée (+ auteur, état viewer) |
-| POST | `/v1/posts/{id}/like` | toggle like |
-| POST | `/v1/posts/{id}/repost` | toggle repost |
-| POST | `/v1/posts/{id}/reply` | répondre |
+| POST | `/v1/posts/{id}/like` | toggle like (+ notification LIKE, dédup) |
+| POST | `/v1/posts/{id}/repost` | toggle repost (+ notification REPOST) |
+| POST | `/v1/posts/{id}/reply` | répondre (threadgate + notifications REPLY/MENTION) |
 
 ## Statut
 - [x] Fondations (config, pool, auth, middleware, réponse)
 - [x] Module Feed + Posts (sqlc, service, handlers) — **testé bout en bout**
-- [ ] Serveur actions Next → proxies fins (nécessite de répliquer les
-      side-effects Go : notifications, invalidation cache, hashtags, threadgates)
+- [x] Shape `FeedSlice` complète (parent/root/repost, pièces jointes, sondages, dédup)
+- [x] Threadgates (everyone / subscribers / following / mentioned)
+- [x] Notifications Go (LIKE, REPOST, REPLY, MENTION — préférences + dédup)
+- [x] Invalidation cache Redis (`feed:trending:`, `feed:following:{user}:`)
+- [x] Proxies server actions → Go : getFeedItemsAction, createThoughtAction,
+      replyToPostAction, toggleLikePostAction, toggleRepostPostAction
+      (activés par `QOE_API_GO_URL`, fallback TS sinon)
 - [ ] Workers asynq (newsletter, meilisearch, stripe, webhooks)
-- [ ] Modules suivants : articles/paywall, notifications, creator analytics
+- [ ] Modules suivants : articles/paywall, notifications, creator analytics,
+      getPostThread endpoint
 
 ## Contraintes DB importantes
 - Les colonnes `id` (TEXT) et `updatedAt` n'ont **pas de défaut en base** (Prisma

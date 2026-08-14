@@ -7,8 +7,8 @@ import (
 )
 
 type Config struct {
-	Port            string
-	DatabaseURL     string
+	Port        string
+	DatabaseURL string
 	// SupabaseAuthURL est l'URL d'auth (pour la résolution JWKS RS256).
 	SupabaseAuthURL string
 	// JWTSecret est la clé HMAC de fallback (GoTrue legacy `sb_secret_…`).

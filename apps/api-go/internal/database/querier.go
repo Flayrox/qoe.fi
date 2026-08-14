@@ -11,7 +11,14 @@ import (
 )
 
 type Querier interface {
+	CountOptionVotes(ctx context.Context, optionid string) (int32, error)
+	CountOptionVotesByIDs(ctx context.Context, dollar_1 []string) ([]CountOptionVotesByIDsRow, error)
+	CountPollVotes(ctx context.Context, pollid string) (int32, error)
+	CountPollVotesByIDs(ctx context.Context, dollar_1 []string) ([]CountPollVotesByIDsRow, error)
 	CountPureReposts(ctx context.Context, arg CountPureRepostsParams) (int32, error)
+	CreateAttachment(ctx context.Context, arg CreateAttachmentParams) (string, error)
+	CreatePoll(ctx context.Context, arg CreatePollParams) (CreatePollRow, error)
+	CreatePollOption(ctx context.Context, arg CreatePollOptionParams) (string, error)
 	CreateThought(ctx context.Context, arg CreateThoughtParams) (CreateThoughtRow, error)
 	DecrementLikeCount(ctx context.Context, id string) error
 	DecrementReplyCount(ctx context.Context, id string) error
@@ -21,24 +28,46 @@ type Querier interface {
 	DeletePureReposts(ctx context.Context, arg DeletePureRepostsParams) error
 	DeleteRepostNotification(ctx context.Context, arg DeleteRepostNotificationParams) error
 	ExistsUnreadLikeNotification(ctx context.Context, arg ExistsUnreadLikeNotificationParams) (int32, error)
+	ExistsUnreadMentionNotification(ctx context.Context, arg ExistsUnreadMentionNotificationParams) (int32, error)
+	ExistsUnreadReplyNotification(ctx context.Context, arg ExistsUnreadReplyNotificationParams) (int32, error)
 	ExistsUnreadRepostNotification(ctx context.Context, arg ExistsUnreadRepostNotificationParams) (int32, error)
 	FindFollowingFeed(ctx context.Context, arg FindFollowingFeedParams) ([]FindFollowingFeedRow, error)
 	FindTrending(ctx context.Context, arg FindTrendingParams) ([]FindTrendingRow, error)
+	GetActiveSubscriptionForReply(ctx context.Context, arg GetActiveSubscriptionForReplyParams) (int32, error)
+	GetAttachmentsByIDs(ctx context.Context, dollar_1 []string) ([]GetAttachmentsByIDsRow, error)
 	GetCanonicalThoughtID(ctx context.Context, id string) (string, error)
 	GetExistingLike(ctx context.Context, arg GetExistingLikeParams) (int32, error)
+	GetFollowForReply(ctx context.Context, arg GetFollowForReplyParams) (int32, error)
 	GetFollowedPersonalPublicationOwnerIDs(ctx context.Context, readerid pgtype.UUID) ([]string, error)
 	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
+	GetPersonalPublicationID(ctx context.Context, id string) (pgtype.Text, error)
+	// Polls, votes, pièces jointes
+	GetPollByThoughtID(ctx context.Context, thoughtid string) (GetPollByThoughtIDRow, error)
+	GetPollOptions(ctx context.Context, pollid string) ([]PollOption, error)
+	GetPollOptionsByIDs(ctx context.Context, dollar_1 []string) ([]PollOption, error)
+	GetPollsByIDs(ctx context.Context, dollar_1 []string) ([]GetPollsByIDsRow, error)
 	GetPostAuthor(ctx context.Context, id string) (string, error)
 	GetPostThread(ctx context.Context, arg GetPostThreadParams) ([]GetPostThreadRow, error)
+	GetPostsByIDs(ctx context.Context, arg GetPostsByIDsParams) ([]GetPostsByIDsRow, error)
 	GetRepliesForThought(ctx context.Context, arg GetRepliesForThoughtParams) ([]GetRepliesForThoughtRow, error)
+	// Notifications REPLY / MENTION
+	GetReplyPrefs(ctx context.Context, userid pgtype.UUID) (GetReplyPrefsRow, error)
 	GetThoughtByID(ctx context.Context, id string) (GetThoughtByIDRow, error)
+	// Threadgates & réponses
+	GetThoughtReplyGate(ctx context.Context, id string) (GetThoughtReplyGateRow, error)
 	GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error)
+	GetUserPollVote(ctx context.Context, arg GetUserPollVoteParams) (string, error)
+	GetUserUsername(ctx context.Context, id string) (pgtype.Text, error)
+	GetUserVotesByIDs(ctx context.Context, arg GetUserVotesByIDsParams) ([]GetUserVotesByIDsRow, error)
+	GetUsersByUsernames(ctx context.Context, dollar_1 []string) ([]GetUsersByUsernamesRow, error)
 	IncrementLikeCount(ctx context.Context, id string) error
 	IncrementReplyCount(ctx context.Context, id string) error
 	IncrementRepostCount(ctx context.Context, id string) error
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
 	InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error
+	InsertMentionNotification(ctx context.Context, arg InsertMentionNotificationParams) error
 	InsertPureRepost(ctx context.Context, arg InsertPureRepostParams) (string, error)
+	InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error
 	InsertRepostNotification(ctx context.Context, arg InsertRepostNotificationParams) error
 }
 

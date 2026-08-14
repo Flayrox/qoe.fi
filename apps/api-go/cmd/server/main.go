@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
 
+	"github.com/qoefi/api-go/internal/cache"
 	"github.com/qoefi/api-go/internal/config"
 	"github.com/qoefi/api-go/internal/dbpool"
 	authmw "github.com/qoefi/api-go/internal/middleware"
@@ -36,6 +37,8 @@ func main() {
 	}
 	defer pool.Close()
 
+	rc := cache.Client(cfg.RedisURL)
+
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
@@ -53,10 +56,10 @@ func main() {
 	r.Group(func(protected chi.Router) {
 		protected.Use(auth.Middleware)
 
-		postsHandler := posts.NewHandler(posts.NewService(pool))
+		postsHandler := posts.NewHandler(posts.NewService(pool, rc))
 		postsHandler.Register(protected)
 
-		feedHandler := feed.NewHandler(feed.NewService(pool))
+		feedHandler := feed.NewHandler(feed.NewService(pool, rc))
 		feedHandler.Register(protected)
 	})
 
@@ -79,4 +82,3 @@ func main() {
 	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
 }
-
