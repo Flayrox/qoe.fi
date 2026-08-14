@@ -1,16 +1,23 @@
 // =====================================================================
-// 🖥️ New Article Page — apps/dashboard/src/app/(creator)/dashboard/articles/new/page.tsx
-// =====================================================================
-// 📖 Page de création d'un nouvel article avec l'éditeur riche.
+// 🖥️ New Article Page — apps/dashboard/src/app/(creator)/articles/new/page.tsx
 // =====================================================================
 
-import { getCategoriesAction } from '@qoe/api-client/actions/articles';
+import { getCategoriesAction, getEditorCapabilitiesAction } from '@qoe/api-client/actions/articles';
 
 import { NewArticleClient } from './new-article-client';
 
 export default async function NewArticlePage() {
-  const categoriesRes = await getCategoriesAction();
+  const [categoriesRes, capsRes] = await Promise.all([
+    getCategoriesAction(),
+    getEditorCapabilitiesAction(),
+  ]);
   const categoriesList = categoriesRes.ok ? categoriesRes.data : [];
+  const capabilities = capsRes.ok ? capsRes.data : undefined;
 
-  return <NewArticleClient categories={categoriesList.map((c) => ({ id: c.id, name: c.name }))} />;
+  return (
+    <NewArticleClient
+      categories={categoriesList.map((c) => ({ id: c.id, name: c.name }))}
+      capabilities={capabilities}
+    />
+  );
 }

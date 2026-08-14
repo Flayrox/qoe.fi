@@ -1,10 +1,12 @@
 // =====================================================================
-// 🖥️ Edit Article Page — apps/dashboard/src/app/(creator)/dashboard/articles/[id]/page.tsx
-// =====================================================================
-// 📖 Page d'édition d'un article existant avec l'éditeur riche.
+// 🖥️ Edit Article Page — apps/dashboard/src/app/(creator)/articles/[id]/page.tsx
 // =====================================================================
 
-import { getArticleByIdAction, getCategoriesAction } from '@qoe/api-client/actions/articles';
+import {
+  getArticleByIdAction,
+  getCategoriesAction,
+  getEditorCapabilitiesAction,
+} from '@qoe/api-client/actions/articles';
 
 import { EditArticleClient } from './edit-article-client';
 import { notFound } from 'next/navigation';
@@ -17,9 +19,10 @@ export default async function ArticleEditPage({ params }: PageProps) {
   const { id } = await params;
 
   try {
-    const [articleRes, categoriesRes] = await Promise.all([
+    const [articleRes, categoriesRes, capsRes] = await Promise.all([
       getArticleByIdAction(id),
       getCategoriesAction(),
+      getEditorCapabilitiesAction(),
     ]);
 
     if (!articleRes.ok || !articleRes.data) {
@@ -28,11 +31,13 @@ export default async function ArticleEditPage({ params }: PageProps) {
 
     const article = articleRes.data;
     const categoriesList = categoriesRes.ok ? categoriesRes.data : [];
+    const capabilities = capsRes.ok ? capsRes.data : undefined;
 
     return (
       <EditArticleClient
         article={article}
         categories={categoriesList.map((c) => ({ id: c.id, name: c.name }))}
+        capabilities={capabilities}
       />
     );
   } catch (error) {

@@ -23,6 +23,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@qoe/auth": "workspace:*",
     "@qoe/config": "workspace:*",
     "@qoe/db": "workspace:*",
     "@qoe/supabase": "workspace:*",
