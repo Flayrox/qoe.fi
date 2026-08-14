@@ -136,6 +136,9 @@ func (s *Service) ToggleLike(ctx context.Context, postID, userID string) (bool, 
 		if err := tq.DecrementLikeCount(ctx, postID); err != nil {
 			return false, err
 		}
+		if err := deleteEngagementNotification(ctx, tq, "LIKE", postID, userID); err != nil {
+			return false, err
+		}
 		return false, tx.Commit(ctx)
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
@@ -150,6 +153,9 @@ func (s *Service) ToggleLike(ctx context.Context, postID, userID string) (bool, 
 		return false, err
 	}
 	if err := tq.IncrementLikeCount(ctx, postID); err != nil {
+		return false, err
+	}
+	if err := notifyLike(ctx, tq, postID, userID); err != nil {
 		return false, err
 	}
 	return true, tx.Commit(ctx)
@@ -181,6 +187,9 @@ func (s *Service) ToggleRepost(ctx context.Context, postID, userID string) (bool
 		if err := tq.DecrementRepostCount(ctx, canonicalID); err != nil {
 			return false, err
 		}
+		if err := deleteEngagementNotification(ctx, tq, "REPOST", canonicalID, userID); err != nil {
+			return false, err
+		}
 		return false, tx.Commit(ctx)
 	}
 
@@ -188,6 +197,9 @@ func (s *Service) ToggleRepost(ctx context.Context, postID, userID string) (bool
 		return false, err
 	}
 	if err := tq.IncrementRepostCount(ctx, canonicalID); err != nil {
+		return false, err
+	}
+	if err := notifyRepost(ctx, tq, canonicalID, userID); err != nil {
 		return false, err
 	}
 	return true, tx.Commit(ctx)
