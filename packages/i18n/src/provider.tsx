@@ -39,7 +39,7 @@ export function useTranslate() {
   return { t: context.t };
 }
 
-export function useTolgee() {
+export function useI18n() {
   const context = useContext(I18nContext);
   const currentLang = context?.language || 'fr';
   return {
@@ -68,7 +68,7 @@ export function useTolgee() {
  * key-based JSON, and exposes a legacy `t(key, default, params)` fallback
  * for not-yet-migrated call sites.
  */
-export function TolgeeNextProvider({
+export function I18nClientProvider({
   language,
   children,
 }: {
@@ -81,7 +81,7 @@ export function TolgeeNextProvider({
 
   // ⚠️ Activation AFTER first render (useEffect), not during render:
   // i18n.activate() synchronizes Lingui subscribers (I18nProvider), which
-  // would trigger a setState during TolgeeNextProvider's render otherwise
+  // would trigger a setState during I18nClientProvider's render otherwise
   // ("Cannot update a component while rendering a different component").
   // The default locale (fr) is already loaded/activated at module load in
   // core.ts, so the first paint is correct and there is no flash.

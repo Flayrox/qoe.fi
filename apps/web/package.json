@@ -30,8 +30,6 @@
     "@qoe/utils": "workspace:*",
     "@sentry/nextjs": "10.65.0",
     "@supabase/ssr": "^0.10.3",
-    "@tolgee/react": "^7.0.0",
-    "@tolgee/web": "^7.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",

@@ -143,7 +143,7 @@ export async function getTranslate() {
 /**
  * Compatibility helper to prevent layout compilation errors.
  */
-export async function getTolgee(lang?: Language) {
+export async function getStaticTranslations(lang?: Language) {
   const activeLang = lang || (await getLanguage());
   const overrides = await getCachedOverrides();
   const mergedTranslations: Record<string, unknown> = {
@@ -155,7 +155,7 @@ export async function getTolgee(lang?: Language) {
     deepMerge(mergedTranslations, langOverrides);
   }
   return {
-    loadRequired: async () => mergedTranslations,
+    loadTranslations: async () => mergedTranslations,
   };
 }
 

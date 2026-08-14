@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useAnimationFrame } from 'framer-motion';
 import { t } from '@lingui/core/macro';
-import { useTolgee } from '@qoe/i18n';
+import { useI18n } from '@qoe/i18n';
 import { ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@qoe/utils';
@@ -496,8 +496,8 @@ function PlateauPreview({ onClose, showChrome, autoClickDot, config, locale }: P
 
 // ─── Hero section ────────────────────────────────────────────────────────────
 export const Hero = ({ config }: HeroProps) => {
-  const tolgee = useTolgee();
-  const locale = tolgee.getLanguage() || 'fr';
+  const i18n = useI18n();
+  const locale = i18n.getLanguage() || 'fr';
   const [closed, setClosed] = useState(false);
   const [showChrome, setShowChrome] = useState(false);
   const [autoClosePhase, setAutoClosePhase] = useState<'idle' | 'cursor' | 'closing'>('idle');

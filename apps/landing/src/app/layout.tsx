@@ -4,8 +4,8 @@
 
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono, Geist } from 'next/font/google';
-import { TolgeeNextProvider } from '@qoe/i18n/provider';
-import { getTolgee, getLanguage, initI18n } from '@qoe/i18n/server';
+import { I18nClientProvider } from '@qoe/i18n/provider';
+import { getStaticTranslations, getLanguage, initI18n } from '@qoe/i18n/server';
 import { GrowthBookProvider } from '@qoe/flags';
 import { getGrowthBookPayload } from '@qoe/flags/server';
 import { cn } from '@qoe/utils';
@@ -45,10 +45,10 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const locale = await initI18n();
-  const tolgee = await getTolgee();
+  const staticTranslations = await getStaticTranslations();
   let staticData: Record<string, unknown> = {};
   try {
-    staticData = (await tolgee.loadRequired()) ?? {};
+    staticData = (await staticTranslations.loadTranslations()) ?? {};
   } catch {
     staticData = {};
   }
@@ -81,12 +81,12 @@ export default async function RootLayout({
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <GrowthBookProvider payload={flagsPayload}>
-            <TolgeeNextProvider language={locale} staticData={staticData}>
+            <I18nClientProvider language={locale} staticData={staticData}>
               {children}
               {process.env.NODE_ENV === 'development' && (
                 <DevtoolsPanel actions={devtoolsActions} />
               )}
-            </TolgeeNextProvider>
+            </I18nClientProvider>
           </GrowthBookProvider>
         </ThemeProvider>
       </body>
