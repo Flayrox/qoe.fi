@@ -17,7 +17,7 @@ import { TooltipProvider } from '@qoe/ui/ui/tooltip';
 import { Toaster } from '@qoe/ui/ui/sonner';
 import { AnalyticsScript } from '@qoe/analytics/client';
 import { cn } from '@qoe/utils';
-import { DevtoolsPanel, ThemeProvider, GlobalAuthModalProvider } from '@qoe/ui';
+import { DevtoolsPanel, ThemeProvider, ThemeSeedScript, GlobalAuthModalProvider } from '@qoe/ui';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { getCurrentUser } from '@qoe/auth';
 import {
@@ -84,6 +84,7 @@ export default async function RootLayout({
       <body
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
       >
+        <ThemeSeedScript />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <GrowthBookProvider payload={flagsPayload}>
             <I18nClientProvider language={locale} staticData={staticData}>

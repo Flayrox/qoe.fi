@@ -17,7 +17,7 @@ export { TenantHeader } from './TenantHeader';
 export { SubscribeForm } from './SubscribeForm';
 export { Logo } from './Logo';
 export { DevtoolsPanel } from './devtools/DevtoolsPanel';
-export { ThemeProvider } from './theme-provider';
+export { ThemeProvider, ThemeSeedScript } from './theme-provider';
 export { BentoPlateau, BentoItem } from './BentoPlateau';
 export { GuestFloatingBar, type AuthActionContext } from './GuestFloatingBar';
 export { LoginModal } from './LoginModal';
@@ -55,5 +55,6 @@ export {
 export * from './cmdk';
 export * from './ui/dialog';
 export * from './ui/hover-card';
+export { ThemeToggle } from './ui/ThemeToggle';
 export { HotkeyHelpModal, type HotkeyHelpModalProps } from './shortcuts/HotkeyHelpModal';
 export * from './annotations';

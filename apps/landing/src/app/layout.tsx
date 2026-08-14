@@ -9,7 +9,7 @@ import { getStaticTranslations, getLanguage, initI18n } from '@qoe/i18n/server';
 import { GrowthBookProvider } from '@qoe/flags';
 import { getGrowthBookPayload } from '@qoe/flags/server';
 import { cn } from '@qoe/utils';
-import { DevtoolsPanel, ThemeProvider } from '@qoe/ui';
+import { DevtoolsPanel, ThemeProvider, ThemeSeedScript } from '@qoe/ui';
 import {
   getDevtoolsData,
   createMockUserAction,
@@ -79,6 +79,7 @@ export default async function RootLayout({
       <body
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
       >
+        <ThemeSeedScript />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <GrowthBookProvider payload={flagsPayload}>
             <I18nClientProvider language={locale} staticData={staticData}>

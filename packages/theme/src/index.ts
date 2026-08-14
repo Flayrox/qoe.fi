@@ -8,6 +8,7 @@
 
 export * from './types';
 export * from './registry';
-export { ThemeProvider } from './ThemeProvider';
+export { ThemeProvider, THEME_COOKIE, readThemeCookie, writeThemeCookie } from './ThemeProvider';
+export { ThemeSeedScript } from './seed-script';
 export { ThemeStyle, buildCreatorVars } from './ThemeStyle';
 export { token, tokens } from './tokens';
