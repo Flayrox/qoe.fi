@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import { TextHighlighter, type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
 import {
