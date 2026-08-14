@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@qoe/utils';
 import { URLS } from '@qoe/config';
+import { ThemeToggle } from './ui/ThemeToggle';
 import {
   Home,
   FileText,
@@ -546,6 +547,14 @@ export function Sidebar({
                           <Palette className="w-4 h-4" />
                           <span>{t`Design du Média`}</span>
                         </Link>
+
+                        {/* Apparence : thème synchronisé sur tous les sous-domaines */}
+                        <div className="flex items-center justify-between gap-2 px-3 py-1.5">
+                          <span className="text-xs font-medium text-sidebar-foreground/80">
+                            {t`Thème`}
+                          </span>
+                          <ThemeToggle />
+                        </div>
 
                         <div className="h-px my-1 bg-sidebar-border/60" />
 

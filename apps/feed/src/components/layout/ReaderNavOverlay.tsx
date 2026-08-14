@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Bookmark, Highlighter, Wallet, LogOut, LayoutDashboard, Bell } from 'lucide-react';
 import { cn } from '@qoe/utils';
-import { Logo } from '@qoe/ui';
+import { Logo, ThemeToggle } from '@qoe/ui';
 import { useUnreadNotificationCount } from '@qoe/ui/notifications';
 import { routes } from '@qoe/config/routes';
 import { URLS } from '@qoe/config';
@@ -196,6 +196,11 @@ export function ReaderNavOverlay({
                     <span>{t`Studio Créateur`}</span>
                   </a>
                 )}
+
+                <div className="flex items-center justify-between gap-2 px-3 py-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">{t`Thème`}</span>
+                  <ThemeToggle />
+                </div>
 
                 <div className="h-px my-1 bg-border/60" />
 
