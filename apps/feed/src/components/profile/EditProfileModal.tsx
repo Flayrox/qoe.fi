@@ -66,7 +66,19 @@ export function EditProfileModal({
       if (res.ok && res.data?.user) {
         toast.success(t`Profil mis à jour avec succès !`);
         if (onProfileUpdated) {
-          onProfileUpdated(res.data.user);
+          const u = res.data.user;
+          onProfileUpdated({
+            id: u.id,
+            name: u.name,
+            username: u.username,
+            logoUrl: u.logoUrl,
+            heroText:
+              (u as { publication?: { heroText?: string | null } }).publication?.heroText ?? null,
+            headerImageUrl:
+              (u as { publication?: { headerImageUrl?: string | null } }).publication
+                ?.headerImageUrl ?? null,
+            onboardingText: u.onboardingText,
+          });
         }
         onClose();
       } else {

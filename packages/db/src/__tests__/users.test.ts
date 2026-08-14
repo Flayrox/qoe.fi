@@ -39,13 +39,24 @@ describe('@qoe/db - Users Repository', () => {
   });
 
   it('should call prisma.user.findUnique with username selection', async () => {
-    (prisma.user.findUnique as unknown as Mock).mockResolvedValue({ id: 'u-1', username: 'alex' });
+    (prisma.user.findUnique as unknown as Mock).mockResolvedValue({
+      id: 'u-1',
+      username: 'alex',
+      publication: { heroText: null, headerImageUrl: null, subdomain: null },
+    });
 
     const result = await findByUsername('alex');
     expect(prisma.user.findUnique).toHaveBeenCalledWith({
       where: { username: 'alex' },
-      select: expect.any(Object),
+      include: { publication: true },
     });
-    expect(result).toEqual({ id: 'u-1', username: 'alex' });
+    expect(result).toEqual({
+      id: 'u-1',
+      username: 'alex',
+      publication: { heroText: null, headerImageUrl: null, subdomain: null },
+      heroText: null,
+      headerImageUrl: null,
+      subdomain: null,
+    });
   });
 });

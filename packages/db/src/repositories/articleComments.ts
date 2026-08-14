@@ -21,14 +21,14 @@ export async function createArticleComment(input: CreateArticleCommentInput) {
     where: { id: articleId },
     select: {
       allowComments: true,
-      author: {
+      publication: {
         select: { allowComments: true },
       },
     },
   });
 
   const isCommentsAllowed =
-    (article?.allowComments ?? true) && (article?.author?.allowComments ?? true);
+    (article?.allowComments ?? true) && (article?.publication?.allowComments ?? true);
   if (!isCommentsAllowed) {
     throw new Error('Le créateur a désactivé les commentaires sur cet écrit.');
   }
@@ -47,7 +47,6 @@ export async function createArticleComment(input: CreateArticleCommentInput) {
           name: true,
           username: true,
           logoUrl: true,
-          subdomain: true,
         },
       },
     },
@@ -70,7 +69,6 @@ export async function getArticleComments(articleId: string) {
           name: true,
           username: true,
           logoUrl: true,
-          subdomain: true,
         },
       },
       replies: {
@@ -81,7 +79,6 @@ export async function getArticleComments(articleId: string) {
               name: true,
               username: true,
               logoUrl: true,
-              subdomain: true,
             },
           },
         },

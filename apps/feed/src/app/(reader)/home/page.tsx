@@ -26,8 +26,8 @@ interface FeedPostRecord {
     id: string;
     name: string | null;
     username: string | null;
-    subdomain: string | null;
-    customDomain: string | null;
+    subdomain?: string | null;
+    customDomain?: string | null;
     logoUrl: string | null;
     heroText?: string | null;
     isCertified: boolean;
@@ -51,20 +51,22 @@ interface FeedPostRecord {
   poll?: FeedPoll | FormattedPoll | null;
 }
 
+const publicationProfileSelect = {
+  id: true,
+  type: true,
+  name: true,
+  slug: true,
+  subdomain: true,
+  customDomain: true,
+  logoUrl: true,
+  heroText: true,
+  isCertified: true,
+} as const;
+
 type ArticleWithDetails = Prisma.ArticleGetPayload<{
   include: {
-    author: {
-      select: {
-        id: true;
-        name: true;
-        username: true;
-        subdomain: true;
-        customDomain: true;
-        logoUrl: true;
-        heroText: true;
-        isCertified: true;
-      };
-    };
+    publication: { select: typeof publicationProfileSelect };
+    author: { select: { id: true; name: true } };
     category: { select: { name: true } };
   };
 }>;
@@ -75,10 +77,7 @@ const getPostIncludeSelect = (userId?: string) => ({
       id: true,
       name: true,
       username: true,
-      subdomain: true,
-      customDomain: true,
       logoUrl: true,
-      heroText: true,
       isCertified: true,
     },
   },
@@ -92,7 +91,6 @@ const getPostIncludeSelect = (userId?: string) => ({
           id: true,
           name: true,
           username: true,
-          subdomain: true,
           logoUrl: true,
           isCertified: true,
         },
@@ -106,10 +104,7 @@ const getPostIncludeSelect = (userId?: string) => ({
           id: true,
           name: true,
           username: true,
-          subdomain: true,
-          customDomain: true,
           logoUrl: true,
-          heroText: true,
           isCertified: true,
         },
       },
@@ -148,24 +143,15 @@ export default async function ReaderHomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Étape 1 : Récupérer les détails de dbUser et les créateurs suivis en parallèle (si connecté)
-  const [dbUser, followedCreators] = user
+  // Étape 1 : Récupérer les détails de dbUser et les publications suivies en parallèle
+  const [dbUser, followedPublications] = user
     ? await Promise.all([
         getRequestDbUser(user.id),
         prisma.follows.findMany({
           where: { readerId: user.id },
           include: {
-            creator: {
-              select: {
-                id: true,
-                name: true,
-                username: true,
-                subdomain: true,
-                customDomain: true,
-                logoUrl: true,
-                heroText: true,
-                isCertified: true,
-              },
+            publication: {
+              select: publicationProfileSelect,
             },
           },
           orderBy: { createdAt: 'desc' },
@@ -173,8 +159,45 @@ export default async function ReaderHomePage() {
       ])
     : [null, []];
 
-  const creatorIds = followedCreators.map((f) => f.creatorId);
+  const publicationIds = followedPublications.map((f) => f.publicationId);
+
+  // Résout les Users propriétaires des publications PERSONAL suivies (pour les Thoughts)
+  const followedUserIds = await (async () => {
+    if (publicationIds.length === 0) return [];
+    const pubs = await prisma.publication.findMany({
+      where: { id: { in: publicationIds }, type: 'PERSONAL' },
+      select: { user: { select: { id: true } } },
+    });
+    return pubs.map((p) => p.user?.id).filter(Boolean) as string[];
+  })();
+
   const postIncludeSelect = getPostIncludeSelect(user?.id);
+
+  const mapPublicationToAuthor = (
+    pub: {
+      id: string;
+      type: 'PERSONAL' | 'MEDIA';
+      name: string | null;
+      slug: string;
+      subdomain: string | null;
+      customDomain: string | null;
+      logoUrl: string | null;
+      heroText: string | null;
+      isCertified: boolean;
+    },
+    authorName?: string | null
+  ) => ({
+    id: pub.id,
+    name: pub.name,
+    username: pub.slug,
+    subdomain: pub.subdomain,
+    customDomain: pub.customDomain,
+    logoUrl: pub.logoUrl,
+    heroText: pub.heroText ?? null,
+    isCertified: pub.isCertified ?? false,
+    type: pub.type,
+    authorName: authorName ?? null,
+  });
 
   // Fonctions utilitaires de remappage typées strictement
   const mapPostToFeedItem = (post: FeedPostRecord) => {
@@ -254,35 +277,22 @@ export default async function ReaderHomePage() {
   const mapArticleToFeedItem = (art: ArticleWithDetails) => ({
     ...art,
     createdAt: art.createdAt.toISOString(),
-    author: {
-      ...art.author,
-      isCertified: art.author.isCertified || false,
-    },
+    author: mapPublicationToAuthor(art.publication, art.author?.name),
     tags: art.semanticTags || [],
   });
 
   // Étape 2 : Définir les promesses de base de données parallèles
   const dbFollowingArticlesPromise =
-    creatorIds.length > 0
+    publicationIds.length > 0
       ? prisma.article.findMany({
           where: {
-            authorId: { in: creatorIds },
+            publicationId: { in: publicationIds },
             published: true,
-            author: { isShadowbanned: false, isSuspended: false },
+            author: { is: { isShadowbanned: false, isSuspended: false } },
           },
           include: {
-            author: {
-              select: {
-                id: true,
-                name: true,
-                username: true,
-                subdomain: true,
-                customDomain: true,
-                logoUrl: true,
-                heroText: true,
-                isCertified: true,
-              },
-            },
+            publication: { select: publicationProfileSelect },
+            author: { select: { id: true, name: true } },
             category: { select: { name: true } },
           },
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -291,7 +301,7 @@ export default async function ReaderHomePage() {
       : Promise.resolve([]);
 
   const dbFollowingPostsPromise =
-    creatorIds.length > 0 && user
+    followedUserIds.length > 0 && user
       ? prisma.thought.findMany({
           where: {
             isDraft: false,
@@ -303,7 +313,7 @@ export default async function ReaderHomePage() {
                 OR: [
                   { authorId: user.id },
                   {
-                    authorId: { in: creatorIds },
+                    authorId: { in: followedUserIds },
                     visibility: { in: ['public', 'followers'] },
                   },
                 ],
@@ -319,21 +329,11 @@ export default async function ReaderHomePage() {
   const dbRecArticlesPromise = prisma.article.findMany({
     where: {
       published: true,
-      author: { isShadowbanned: false, isSuspended: false },
+      author: { is: { isShadowbanned: false, isSuspended: false } },
     },
     include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          subdomain: true,
-          customDomain: true,
-          logoUrl: true,
-          heroText: true,
-          isCertified: true,
-        },
-      },
+      publication: { select: publicationProfileSelect },
+      author: { select: { id: true, name: true } },
       category: { select: { name: true } },
     },
     orderBy: [{ isEditorPick: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
@@ -351,10 +351,10 @@ export default async function ReaderHomePage() {
           OR: [
             { visibility: 'public' },
             ...(user ? [{ authorId: user.id }] : []),
-            ...(creatorIds.length > 0
+            ...(followedUserIds.length > 0
               ? [
                   {
-                    authorId: { in: creatorIds },
+                    authorId: { in: followedUserIds },
                     visibility: 'followers',
                   },
                 ]
@@ -371,27 +371,17 @@ export default async function ReaderHomePage() {
   const dbDiscoverArticlesPromise = prisma.article.findMany({
     where: {
       published: true,
-      author: {
-        role: 'creator',
-        isCertified: true,
-        isShadowbanned: false,
-        isSuspended: false,
-        id: creatorIds.length > 0 ? { notIn: creatorIds } : undefined,
-      },
-    },
-    include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          subdomain: true,
-          customDomain: true,
-          logoUrl: true,
-          heroText: true,
+      publication: {
+        is: {
           isCertified: true,
+          ...(publicationIds.length > 0 ? { id: { notIn: publicationIds } } : {}),
         },
       },
+      author: { is: { isShadowbanned: false, isSuspended: false } },
+    },
+    include: {
+      publication: { select: publicationProfileSelect },
+      author: { select: { id: true, name: true } },
       category: { select: { name: true } },
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -411,7 +401,10 @@ export default async function ReaderHomePage() {
         isSuspended: false,
         ...(user
           ? {
-              id: creatorIds.length > 0 ? { notIn: [...creatorIds, user.id] } : { not: user.id },
+              id:
+                followedUserIds.length > 0
+                  ? { notIn: [...followedUserIds, user.id] }
+                  : { not: user.id },
             }
           : {}),
       },
@@ -427,18 +420,8 @@ export default async function ReaderHomePage() {
         include: {
           article: {
             include: {
-              author: {
-                select: {
-                  id: true,
-                  name: true,
-                  username: true,
-                  subdomain: true,
-                  customDomain: true,
-                  logoUrl: true,
-                  heroText: true,
-                  isCertified: true,
-                },
-              },
+              publication: { select: publicationProfileSelect },
+              author: { select: { id: true, name: true } },
               category: { select: { name: true } },
             },
           },
@@ -452,26 +435,17 @@ export default async function ReaderHomePage() {
     ? prisma.highlight.count({ where: { readerId: user.id } })
     : Promise.resolve(0);
 
-  const suggestedCreatorsPromise = prisma.user.findMany({
+  const suggestedCreatorsPromise = prisma.publication.findMany({
     where: {
-      role: 'creator',
+      type: 'PERSONAL',
       isCertified: true,
       ...(user
         ? {
-            id: creatorIds.length > 0 ? { notIn: [...creatorIds, user.id] } : { not: user.id },
+            id: publicationIds.length > 0 ? { notIn: publicationIds } : { not: user.id },
           }
         : {}),
     },
-    select: {
-      id: true,
-      name: true,
-      username: true,
-      subdomain: true,
-      customDomain: true,
-      logoUrl: true,
-      heroText: true,
-      isCertified: true,
-    },
+    select: publicationProfileSelect,
     take: 3,
   });
 
@@ -557,7 +531,7 @@ export default async function ReaderHomePage() {
     ...discoverSlices.map(mapSliceToFeedItem),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const followsCount = followedCreators.length;
+  const followsCount = followedPublications.length;
   const bookmarksCount = bookmarks.length;
   const mutedWordsList = mutedWords.map((w) => w.word.toLowerCase());
 
@@ -577,8 +551,8 @@ export default async function ReaderHomePage() {
     recommendationArticles,
     discoverArticles,
     bookmarks: bookmarks.map((b) => mapArticleToFeedItem(b.article)),
-    followedCreators: followedCreators.map((f) => f.creator),
-    suggestedCreators,
+    followedCreators: followedPublications.map((f) => mapPublicationToAuthor(f.publication)),
+    suggestedCreators: suggestedCreators.map((s) => mapPublicationToAuthor(s)),
     initialFollowsCount: followsCount,
     initialBookmarksCount: bookmarksCount,
     initialHighlightsCount: highlightsCount,

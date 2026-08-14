@@ -2,6 +2,7 @@
 
 import { createClient } from '@qoe/supabase/server';
 import { prisma } from '@qoe/db/client';
+import { getActiveWorkspace } from '@/lib/active-workspace';
 import {
   fetchUmamiWebsiteStats,
   fetchUmamiTopPages,
@@ -51,8 +52,9 @@ export async function getCreatorAnalyticsData(
       return { error: 'Non autorisé' };
     }
 
-    const creator = await prisma.user.findUnique({
-      where: { id: user.id },
+    const workspace = await getActiveWorkspace(user.id);
+    const creator = await prisma.publication.findUnique({
+      where: { id: workspace.publicationId },
       select: {
         id: true,
         umamiWebsiteId: true,
@@ -66,7 +68,7 @@ export async function getCreatorAnalyticsData(
     });
 
     if (!creator) {
-      return { error: 'Profil créateur introuvable' };
+      return { error: 'Publication introuvable' };
     }
 
     const articleTitlesMap: Record<string, string> = {};
@@ -164,8 +166,9 @@ export async function getArticleAnalyticsDetail(
       return { error: 'Non autorisé' };
     }
 
-    const creator = await prisma.user.findUnique({
-      where: { id: user.id },
+    const workspace = await getActiveWorkspace(user.id);
+    const creator = await prisma.publication.findUnique({
+      where: { id: workspace.publicationId },
       select: {
         id: true,
         umamiWebsiteId: true,
@@ -178,7 +181,7 @@ export async function getArticleAnalyticsDetail(
       },
     });
 
-    if (!creator) return { error: 'Profil créateur introuvable' };
+    if (!creator) return { error: 'Publication introuvable' };
 
     const targetWebsiteId =
       creator.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '';

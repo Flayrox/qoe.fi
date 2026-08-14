@@ -37,8 +37,6 @@ export async function searchThoughts(query: string, limit = 20, cursor?: string)
           id: true,
           name: true,
           username: true,
-          subdomain: true,
-          customDomain: true,
           logoUrl: true,
           isCertified: true,
         },
@@ -58,27 +56,27 @@ export async function searchThoughts(query: string, limit = 20, cursor?: string)
 }
 
 /**
- * 👥 Recherche d'utilisateurs par nom, nom d'utilisateur ou bio.
+ * 👥 Recherche de publications (créateurs PERSONAL + médias MEDIA) par nom/slug/domaine.
  */
 export async function searchUsers(query: string, limit = 15) {
   const cleanQuery = query.trim().replace(/^@/, '');
   if (!cleanQuery) return [];
 
-  return prisma.user.findMany({
+  return prisma.publication.findMany({
     where: {
-      isShadowbanned: false,
-      isSuspended: false,
+      user: { is: { isShadowbanned: false, isSuspended: false } },
       OR: [
         { name: { contains: cleanQuery, mode: 'insensitive' } },
-        { username: { contains: cleanQuery, mode: 'insensitive' } },
+        { slug: { contains: cleanQuery, mode: 'insensitive' } },
         { subdomain: { contains: cleanQuery, mode: 'insensitive' } },
       ],
     },
     take: limit,
     select: {
       id: true,
+      type: true,
       name: true,
-      username: true,
+      slug: true,
       subdomain: true,
       customDomain: true,
       logoUrl: true,
@@ -94,7 +92,7 @@ export async function searchUsers(query: string, limit = 15) {
 }
 
 /**
- * 📖 Recherche d'articles publiés.
+ * 📖 Recherche d'articles publiés (avec publication brand + auteur humain).
  */
 export async function searchArticles(query: string, limit = 10) {
   const cleanQuery = query.trim();
@@ -112,6 +110,19 @@ export async function searchArticles(query: string, limit = 10) {
     take: limit,
     orderBy: { createdAt: 'desc' },
     include: {
+      publication: {
+        select: {
+          id: true,
+          type: true,
+          name: true,
+          slug: true,
+          subdomain: true,
+          customDomain: true,
+          logoUrl: true,
+          heroText: true,
+          isCertified: true,
+        },
+      },
       author: {
         select: {
           id: true,

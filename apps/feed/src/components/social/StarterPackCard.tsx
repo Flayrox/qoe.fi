@@ -12,9 +12,10 @@ export interface StarterPackCardProps {
     title: string;
     description?: string | null;
     icon?: string | null;
-    creator: {
+    publication: {
       id: string;
       name?: string | null;
+      slug?: string | null;
       username?: string | null;
       logoUrl?: string | null;
     };
@@ -76,7 +77,11 @@ export function StarterPackCard({ pack }: StarterPackCardProps) {
               {pack.title}
             </Link>
             <p className="text-xs text-muted-foreground truncate">
-              Par {pack.creator.name || pack.creator.username || 'Auteur anonyme'}
+              Par{' '}
+              {pack.publication.name ||
+                pack.publication.slug ||
+                pack.publication.username ||
+                'Auteur anonyme'}
             </p>
           </div>
         </div>

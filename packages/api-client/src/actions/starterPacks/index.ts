@@ -1,6 +1,6 @@
 'use server';
 
-import { starterPacks } from '@qoe/db';
+import { starterPacks, publications } from '@qoe/db';
 import { revalidatePath } from 'next/cache';
 import { safeAction } from '../utils/safe-action';
 
@@ -28,11 +28,12 @@ export const createStarterPackAction = safeAction<
   if (!input.title || input.title.trim().length === 0) {
     throw new Error('Title is required');
   }
+  const publication = await publications.getOrCreatePersonalPublication(user.id);
   const pack = await starterPacks.createStarterPack({
     title: input.title,
     description: input.description,
     icon: input.icon,
-    creatorId: user.id,
+    publicationId: publication.id,
     userIds: input.userIds || [],
   });
   revalidatePath('/starter-packs');

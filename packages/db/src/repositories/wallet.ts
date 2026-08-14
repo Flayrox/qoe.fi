@@ -4,13 +4,15 @@
 
 import { prisma } from '../client';
 import { logger } from '@qoe/observability';
+import { getPublicationOwner } from './follows';
 
 /**
- * 💰 Déverrouille un article créateur via le solde du portefeuille virtuel du lecteur.
+ * 💰 Déverrouille un article via le solde du portefeuille virtuel du lecteur.
+ * Le propriétaire de la publication (créateur perso OU owner média) est crédité.
  */
 export async function unlockArticleWithWallet(
   readerId: string,
-  creatorId: string,
+  publicationId: string,
   costCents: number = 200
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -26,6 +28,11 @@ export async function unlockArticleWithWallet(
 
       if (dbUser.walletBalanceCents < costCents) {
         return { success: false, error: 'INSUFFICIENT_FUNDS' };
+      }
+
+      const ownerId = await getPublicationOwner(publicationId);
+      if (!ownerId) {
+        return { success: false, error: 'PUBLICATION_NOT_FOUND' };
       }
 
       await tx.user.update({
@@ -46,7 +53,7 @@ export async function unlockArticleWithWallet(
       });
 
       await tx.user.update({
-        where: { id: creatorId },
+        where: { id: ownerId },
         data: {
           walletBalanceCents: {
             increment: costCents,
@@ -73,8 +80,6 @@ export async function getUserWallet(userId: string) {
       email: true,
       name: true,
       role: true,
-      subdomain: true,
-      customDomain: true,
       walletBalanceCents: true,
     },
   });

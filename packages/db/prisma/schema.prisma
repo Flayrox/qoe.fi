@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["postgresqlExtensions"]
 }
 
@@ -11,10 +11,10 @@ datasource db {
 }
 
 enum ContentVisibility {
-  PUBLIC          // Accessible to everyone
-  MEMBERS_ONLY    // Free registered subscribers (email provided)
-  PAID_SUBSCRIBERS// Paid tier subscribers only
-  TIER_SPECIFIC   // Specific custom subscription tier
+  PUBLIC // Accessible to everyone
+  MEMBERS_ONLY // Free registered subscribers (email provided)
+  PAID_SUBSCRIBERS // Paid tier subscribers only
+  TIER_SPECIFIC // Specific custom subscription tier
 }
 
 enum SubscriptionStatus {
@@ -25,119 +25,100 @@ enum SubscriptionStatus {
   INCOMPLETE
 }
 
+enum PublicationType {
+  PERSONAL // Publication personnelle d'un créateur (1:1 avec User)
+  MEDIA // Organisation / journal / collectif (1:1 avec Media)
+}
+
 model SystemConfig {
   key         String   @id
-  value       String   // JSON stringified or plain text
+  value       String // JSON stringified or plain text
   description String?
   updatedAt   DateTime @updatedAt
 }
 
 model User {
-  id             String    @id @db.Uuid
-  email          String    @unique
-  username       String?   @unique
-  name           String?
-  role           String    @default("user") // "user", "creator", "superadmin"
-  isCertified    Boolean   @default(false)
-  isShadowbanned Boolean   @default(false)
-  isSuspended    Boolean   @default(false)
-  suspendReason  String?
+  id                 String  @id @db.Uuid
+  email              String  @unique
+  username           String? @unique
+  name               String?
+  role               String  @default("user") // "user", "creator", "superadmin"
+  isCertified        Boolean @default(false)
+  isShadowbanned     Boolean @default(false)
+  isSuspended        Boolean @default(false)
+  suspendReason      String?
   forceStandardTheme Boolean @default(false) // For readers who want pure text, overriding creator themes
-  onboardingText String?   @db.Text
-  
-  // Custom Domain & Multi-tenant Config
-  subdomain      String?   @unique
-  customDomain   String?   @unique
-  umamiWebsiteId String?
-  
-  // Advanced Theming
-  accentColor    String?
-  fontFamily     String?
-  logoUrl        String?
-  heroText       String?
-  headerImageUrl String?
-  footerText     String?
-  themeMode      String?   @default("system")
-  layoutStyle    String?   @default("minimal")
-  advancedSettingsMode Boolean @default(false)
+  onboardingText     String? @db.Text
+
+  // Avatar personnel (photo de profil — rendu rond)
+  logoUrl String?
+
+  // Publication personnelle (1:1) — porte l'identité tenant/brand du créateur
+  publicationId String?      @unique
+  publication   Publication? @relation("PersonalPublication", fields: [publicationId], references: [id], onDelete: SetNull)
+
+  // Réglages Studio / Onboarding
+  advancedSettingsMode   Boolean @default(false)
   hasCompletedOnboarding Boolean @default(false)
-  allowIndexing  Boolean   @default(true) // SEO Google Indexing
-  allowPublicAnnotations Boolean @default(true) // Genius-style public annotations setting
-  allowComments          Boolean @default(true) // Global creator comments setting
 
   // API Access Application
-  apiAccessStatus      String    @default("none") // "none", "pending", "approved", "rejected", "revoked"
-  apiApplicationReason String?   @db.Text
-  
-  // Custom Monestisation & Support
-  supportUrl     String?
-  stripeAccountId String?  // Connected Stripe Account ID
-  walletBalanceCents Int   @default(0) // Internal credits wallet in cents
-  
-  // SEO & Social Defaults
-  seoTitle       String?
-  seoDescription String?
+  apiAccessStatus      String  @default("none") // "none", "pending", "approved", "rejected", "revoked"
+  apiApplicationReason String? @db.Text
 
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  // Wallet personnel (crédits internes)
+  walletBalanceCents Int @default(0) // Internal credits wallet in cents
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  articles              Article[]       @relation("PrimaryAuthor")
-  coAuthoredArticles    Article[]       @relation("CoAuthors")
-  navigation            NavigationItem[]
-  socialLinks           SocialLink[]
-  categories            Category[]
-  subscribers           Subscriber[]    @relation("CreatorSubscribers")
-  userSubscriptions     Subscriber[]    @relation("UserSubscriptions")
-  createdTiers          Tier[]
-  following             Follows[]       @relation("ReaderFollowing")
-  followers             Follows[]       @relation("CreatorFollowers")
-  bookmarks             Bookmark[]
-  highlights            Highlight[]
-  annotationUpvotes     AnnotationUpvote[]
-  mutedWords            MutedWord[]
-  blockedBy             BlockedUser[]   @relation("BlockedReader")
-  blockedUsers          BlockedUser[]   @relation("CreatorBlocker")
+  articles           Article[]          @relation("PrimaryAuthor")
+  coAuthoredArticles Article[]          @relation("CoAuthors")
+  userSubscriptions  Subscriber[]       @relation("UserSubscriptions")
+  following          Follows[]          @relation("ReaderFollowing")
+  bookmarks          Bookmark[]
+  highlights         Highlight[]
+  annotationUpvotes  AnnotationUpvote[]
+  mutedWords         MutedWord[]
+  blockedBy          BlockedUser[]      @relation("BlockedReader")
+  blockedUsers       BlockedUser[]      @relation("CreatorBlocker")
 
-  // Substack Network Effect Recommendations
-  givenRecommendations  Recommendation[] @relation("RecommendingCreator")
-  receivedRecommendations Recommendation[] @relation("RecommendedCreator")
-  
-  sentLetters           Letter[]        @relation("LetterSender")
-  receivedLetters       Letter[]        @relation("LetterRecipient")
-  walletTransactions    WalletTransaction[]
-  posts                 Thought[]
-  likes                 Like[]
-  apiKeys               ApiKey[]
-  translationLogs       TranslationAuditLog[]
-  articleComments       ArticleComment[]     @relation("CommentAuthor")
-  annotationComments    AnnotationComment[]
-  reportsSubmitted      ModerationReport[]   @relation("ReportsSubmitted")
+  sentLetters        Letter[]              @relation("LetterSender")
+  receivedLetters    Letter[]              @relation("LetterRecipient")
+  walletTransactions WalletTransaction[]
+  posts              Thought[]
+  likes              Like[]
+  apiKeys            ApiKey[]
+  translationLogs    TranslationAuditLog[]
+  articleComments    ArticleComment[]      @relation("CommentAuthor")
+  annotationComments AnnotationComment[]
+  reportsSubmitted   ModerationReport[]    @relation("ReportsSubmitted")
 
-  mediaMemberships            MediaMember[]
+  mediaMemberships              MediaMember[]
+  sentMediaInvites              MediaInvite[]          @relation("MediaInviteInviter")
+  mediaAuditActions             MediaAuditLog[]        @relation("MediaAuditActor")
   sentCollaborationRequests     CollaborationRequest[] @relation("SentCollaborationRequests")
   receivedCollaborationRequests CollaborationRequest[] @relation("ReceivedCollaborationRequests")
-  
-  receivedNotifications         Notification[]         @relation("UserNotifications")
-  sentNotifications             Notification[]         @relation("NotificationSender")
-  notificationPreference        NotificationPreference?
-  
+
+  receivedNotifications  Notification[]          @relation("UserNotifications")
+  sentNotifications      Notification[]          @relation("NotificationSender")
+  notificationPreference NotificationPreference?
+
   // AI Recs
   embedding Unsupported("vector(1536)")?
-  
-  createdStarterPacks StarterPack[]
-  starterPackItems    StarterPackItem[]
-  pollVotes           PollVote[]
+
+  starterPackItems StarterPackItem[]
+  pollVotes        PollVote[]
 }
 
 model Recommendation {
-  id            String   @id @default(cuid())
-  recommenderId String   @db.Uuid
-  recommender   User     @relation("RecommendingCreator", fields: [recommenderId], references: [id], onDelete: Cascade)
-  recommendedId String   @db.Uuid
-  recommended   User     @relation("RecommendedCreator", fields: [recommendedId], references: [id], onDelete: Cascade)
-  description   String?  @db.Text
-  createdAt     DateTime @default(now())
+  id            String      @id @default(cuid())
+  recommenderId String
+  recommender   Publication @relation("RecommendingPublication", fields: [recommenderId], references: [id], onDelete: Cascade)
+  recommendedId String
+  recommended   Publication @relation("RecommendedPublication", fields: [recommendedId], references: [id], onDelete: Cascade)
+  description   String?     @db.Text
+  createdAt     DateTime    @default(now())
 
   @@unique([recommenderId, recommendedId])
   @@index([recommenderId])
@@ -155,14 +136,14 @@ model Tier {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  creatorId            String   @db.Uuid
-  creator              User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  publicationId String
+  publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
 
-  subscribers          Subscriber[]
-  articles             Article[]
-  thoughts             Thought[]
+  subscribers Subscriber[]
+  articles    Article[]
+  thoughts    Thought[]
 
-  @@index([creatorId])
+  @@index([publicationId])
 }
 
 model MutedWord {
@@ -191,7 +172,7 @@ model WalletTransaction {
   userId      String   @db.Uuid
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   amountCents Int
-  type        String   // "DEPOSIT", "SUBSCRIPTION_PAYMENT", "WITHDRAWAL", "REFUND"
+  type        String // "DEPOSIT", "SUBSCRIPTION_PAYMENT", "WITHDRAWAL", "REFUND"
   createdAt   DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -212,61 +193,61 @@ model Subscriber {
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
-  creatorId            String             @db.Uuid
-  creator              User               @relation("CreatorSubscribers", fields: [creatorId], references: [id], onDelete: Cascade)
+  publicationId String
+  publication   Publication @relation("PublicationSubscribers", fields: [publicationId], references: [id], onDelete: Cascade)
 
-  userId               String?            @db.Uuid
-  user                 User?              @relation("UserSubscriptions", fields: [userId], references: [id], onDelete: SetNull)
+  userId String? @db.Uuid
+  user   User?   @relation("UserSubscriptions", fields: [userId], references: [id], onDelete: SetNull)
 
-  tierId               String?
-  tier                 Tier?              @relation(fields: [tierId], references: [id], onDelete: SetNull)
+  tierId String?
+  tier   Tier?   @relation(fields: [tierId], references: [id], onDelete: SetNull)
 
-  @@unique([email, creatorId])
-  @@index([creatorId, email, status])
-  @@index([userId, creatorId])
+  @@unique([email, publicationId])
+  @@index([publicationId, email, status])
+  @@index([userId, publicationId])
   @@index([stripeSubscriptionId])
 }
 
 model Follows {
-  id          String   @id @default(cuid())
-  readerId    String   @db.Uuid
-  reader      User     @relation("ReaderFollowing", fields: [readerId], references: [id], onDelete: Cascade)
-  creatorId   String   @db.Uuid
-  creator     User     @relation("CreatorFollowers", fields: [creatorId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
+  id            String      @id @default(cuid())
+  readerId      String      @db.Uuid
+  reader        User        @relation("ReaderFollowing", fields: [readerId], references: [id], onDelete: Cascade)
+  publicationId String
+  publication   Publication @relation("PublicationFollowers", fields: [publicationId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
 
-  @@unique([readerId, creatorId])
-  @@index([creatorId])
+  @@unique([readerId, publicationId])
+  @@index([publicationId])
 }
 
 model Bookmark {
-  id          String   @id @default(cuid())
-  readerId    String   @db.Uuid
-  reader      User     @relation(fields: [readerId], references: [id], onDelete: Cascade)
-  articleId   String
-  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  readerId  String   @db.Uuid
+  reader    User     @relation(fields: [readerId], references: [id], onDelete: Cascade)
+  articleId String
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
   @@unique([readerId, articleId])
   @@index([articleId])
 }
 
 model Highlight {
-  id          String   @id @default(cuid())
-  text        String   @db.Text
-  note        String?  @db.Text
-  isPublic    Boolean  @default(false)
-  isOfficial  Boolean  @default(false)
+  id           String  @id @default(cuid())
+  text         String  @db.Text
+  note         String? @db.Text
+  isPublic     Boolean @default(false)
+  isOfficial   Boolean @default(false)
   upvotesCount Int     @default(0)
 
-  readerId    String   @db.Uuid
-  reader      User     @relation(fields: [readerId], references: [id], onDelete: Cascade)
-  articleId   String
-  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
+  readerId  String   @db.Uuid
+  reader    User     @relation(fields: [readerId], references: [id], onDelete: Cascade)
+  articleId String
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
-  comments    AnnotationComment[]
-  upvotes     AnnotationUpvote[]
+  comments AnnotationComment[]
+  upvotes  AnnotationUpvote[]
 
   @@index([articleId, isPublic])
   @@index([articleId, isOfficial])
@@ -275,40 +256,40 @@ model Highlight {
 }
 
 model AnnotationComment {
-  id          String   @id @default(cuid())
-  content     String   @db.Text
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
 
   highlightId String
   highlight   Highlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
 
-  authorId    String   @db.Uuid
-  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String @db.Uuid
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([highlightId, createdAt])
   @@index([authorId])
 }
 
 model AnnotationUpvote {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
 
   highlightId String
   highlight   Highlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
 
-  userId      String   @db.Uuid
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([highlightId, userId])
   @@index([userId])
 }
 
 model Letter {
-  id          String   @id @default(cuid())
-  content     String   @db.Text
-  isPublic    Boolean  @default(false) // Curation par le créateur
-  createdAt   DateTime @default(now())
-  
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  isPublic  Boolean  @default(false) // Curation par le créateur
+  createdAt DateTime @default(now())
+
   senderId    String   @db.Uuid
   sender      User     @relation("LetterSender", fields: [senderId], references: [id], onDelete: Cascade)
   recipientId String   @db.Uuid
@@ -321,133 +302,229 @@ model Letter {
 }
 
 model SocialLink {
-  id        String   @id @default(cuid())
-  platform  String   
-  url       String
-  order     Int      @default(0)
-  userId    String   @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String      @id @default(cuid())
+  platform      String
+  url           String
+  order         Int         @default(0)
+  publicationId String
+  publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+
+  @@index([publicationId])
 }
 
 model Category {
-  id          String     @id @default(cuid())
-  name        String
-  slug        String
-  description String?
-  userId      String     @db.Uuid
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  parentId    String?
-  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children    Category[] @relation("CategoryHierarchy")
-  
-  articles    Article[]
-  
-  @@unique([slug, userId])
+  id            String      @id @default(cuid())
+  name          String
+  slug          String
+  description   String?
+  publicationId String
+  publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+
+  parentId String?
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryHierarchy")
+
+  articles Article[]
+
+  @@unique([slug, publicationId])
+  @@index([publicationId])
 }
 
 model NavigationItem {
-  id          String   @id @default(cuid())
-  label       String
-  url         String?  
-  order       Int      @default(0)
-  isExternal  Boolean  @default(false)
-  userId      String   @db.Uuid
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  parentId    String?
-  parent      NavigationItem?  @relation("NavHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children    NavigationItem[] @relation("NavHierarchy")
+  id            String      @id @default(cuid())
+  label         String
+  url           String?
+  order         Int         @default(0)
+  isExternal    Boolean     @default(false)
+  publicationId String
+  publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+
+  parentId String?
+  parent   NavigationItem?  @relation("NavHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children NavigationItem[] @relation("NavHierarchy")
+
+  @@index([publicationId])
 }
 
 model Article {
-  id             String            @id @default(cuid())
-  title          String
-  slug           String
-  content        String            @db.Text
-  published      Boolean           @default(false)
-  isPremium      Boolean           @default(false)
-  visibility     ContentVisibility @default(PUBLIC)
-  readingTime    Int               @default(5) // en minutes
-  completionRate Float             @default(0.0) // 0.0 to 1.0
-  semanticTags   String[] 
-  isEditorPick   Boolean           @default(false)
-  allowPublicAnnotations Boolean     @default(true) // Article-level annotation toggle
-  allowComments          Boolean     @default(true) // Article-level comments toggle
-  
-  // Scheduling & Collaboration
-  scheduledAt    DateTime?
-  status         String            @default("DRAFT") // "DRAFT", "SCHEDULED", "PUBLISHED"
-  
-  mediaId        String?
-  media          Media?            @relation(fields: [mediaId], references: [id], onDelete: SetNull)
-  
-  // L'auteur principal
-  authorId       String            @db.Uuid
-  author         User              @relation("PrimaryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  
-  coAuthors      User[]            @relation("CoAuthors")
-  
-  categoryId     String?
-  category       Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  id                     String            @id @default(cuid())
+  title                  String
+  slug                   String
+  content                String            @db.Text
+  published              Boolean           @default(false)
+  isPremium              Boolean           @default(false)
+  visibility             ContentVisibility @default(PUBLIC)
+  readingTime            Int               @default(5) // en minutes
+  completionRate         Float             @default(0.0) // 0.0 to 1.0
+  semanticTags           String[]
+  isEditorPick           Boolean           @default(false)
+  allowPublicAnnotations Boolean           @default(true) // Article-level annotation toggle
+  allowComments          Boolean           @default(true) // Article-level comments toggle
 
-  tierId         String?
-  tier           Tier?             @relation(fields: [tierId], references: [id], onDelete: SetNull)
-  
+  // Scheduling & Collaboration
+  scheduledAt DateTime?
+  status      String    @default("DRAFT") // "DRAFT", "SCHEDULED", "PUBLISHED"
+
+  // Attribution polymorphe : la publication (personnelle OU média) sous laquelle l'article est publié
+  publicationId String
+  publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+
+  // L'auteur principal (toujours un humain)
+  authorId String @db.Uuid
+  author   User   @relation("PrimaryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  coAuthors User[] @relation("CoAuthors")
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  tierId String?
+  tier   Tier?   @relation(fields: [tierId], references: [id], onDelete: SetNull)
+
   seoTitle       String?
   seoDescription String?
 
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  
-  bookmarks      Bookmark[]
-  highlights     Highlight[]
-  letters        Letter[]
-  comments       ArticleComment[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookmarks             Bookmark[]
+  highlights            Highlight[]
+  letters               Letter[]
+  comments              ArticleComment[]
   collaborationRequests CollaborationRequest[]
-  notifications  Notification[]
+  notifications         Notification[]
 
   embedding Unsupported("vector(1536)")?
 
-  @@unique([authorId, slug])
+  @@unique([publicationId, slug])
   @@index([slug])
+  @@index([publicationId, published, createdAt])
   @@index([authorId, published, createdAt])
   @@index([authorId, createdAt])
   @@index([published, createdAt])
   @@index([categoryId])
-  @@index([mediaId])
   @@index([status, scheduledAt])
 }
 
-model Media {
-  id             String   @id @default(cuid())
-  name           String
-  slug           String   @unique
-  bio            String?  @db.Text
-  logoUrl        String?
-  subdomain      String?  @unique
-  customDomain   String?  @unique
-  accentColor    String?  @default("#EE4B2B")
-  allowIndexing  Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+model Publication {
+  id   String          @id @default(cuid())
+  type PublicationType @default(PERSONAL)
 
-  members        MediaMember[]
-  articles       Article[]
+  // Identité / Brand
+  name        String
+  slug        String  @unique
+  bio         String? @db.Text
+  logoUrl     String? // Logo brand — carré pour les Médias, rond pour les créateurs perso
+  isCertified Boolean @default(false)
+
+  // Custom Domain & Multi-tenant Config
+  subdomain      String? @unique
+  customDomain   String? @unique
+  umamiWebsiteId String?
+
+  // Advanced Theming (Visual Studio)
+  accentColor            String?
+  fontFamily             String?
+  heroText               String?
+  headerImageUrl         String?
+  footerText             String?
+  themeMode              String? @default("system")
+  layoutStyle            String? @default("minimal")
+  allowIndexing          Boolean @default(true) // SEO Google Indexing
+  allowPublicAnnotations Boolean @default(true) // Genius-style public annotations setting
+  allowComments          Boolean @default(true) // Global comments setting
+
+  // SEO & Social Defaults
+  seoTitle       String?
+  seoDescription String?
+
+  // Monétisation
+  supportUrl      String?
+  stripeAccountId String? // Connected Stripe Account ID
+
+  // Propriétaire 1:1 — PERSONAL → User (FK portée par User.publicationId), MEDIA → Media (FK portée par Media.publicationId)
+  user  User?  @relation("PersonalPublication")
+  media Media?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  navigation              NavigationItem[]
+  socialLinks             SocialLink[]
+  categories              Category[]
+  articles                Article[]
+  subscribers             Subscriber[]     @relation("PublicationSubscribers")
+  createdTiers            Tier[]
+  followers               Follows[]        @relation("PublicationFollowers")
+  notifications           Notification[]
+  starterPacks            StarterPack[]
+  givenRecommendations    Recommendation[] @relation("RecommendingPublication")
+  receivedRecommendations Recommendation[] @relation("RecommendedPublication")
+
+  @@index([type])
+}
+
+model Media {
+  id            String      @id @default(cuid())
+  publicationId String      @unique
+  publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  members   MediaMember[]
+  invites   MediaInvite[]
+  auditLogs MediaAuditLog[]
 }
 
 model MediaMember {
-  id        String   @id @default(cuid())
-  mediaId   String
-  media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
-  userId    String   @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      String   @default("writer") // "owner", "editor", "writer"
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  mediaId     String
+  media       Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  userId      String   @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String   @default("writer") // "owner", "editor", "writer", "viewer"
+  permissions String[] // overrides granulaires: ["manage_members", "publish_any", ...]
+  status      String   @default("active") // "active", "invited", "left"
+  joinedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([mediaId, userId])
   @@index([userId])
   @@index([mediaId])
+}
+
+model MediaInvite {
+  id         String    @id @default(cuid())
+  mediaId    String
+  media      Media     @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  inviterId  String    @db.Uuid
+  inviter    User      @relation("MediaInviteInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  email      String
+  role       String    @default("writer")
+  token      String    @unique
+  status     String    @default("PENDING") // "PENDING", "ACCEPTED", "DECLINED", "EXPIRED"
+  expiresAt  DateTime?
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([mediaId])
+  @@index([email])
+  @@index([token])
+}
+
+model MediaAuditLog {
+  id        String   @id @default(cuid())
+  mediaId   String
+  media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  actorId   String   @db.Uuid
+  actor     User     @relation("MediaAuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+  action    String // "member.invited", "member.role_changed", "member.removed", "article.published"...
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([mediaId, createdAt])
 }
 
 model CollaborationRequest {
@@ -469,50 +546,50 @@ model CollaborationRequest {
 }
 
 model Thought {
-  id             String            @id @default(cuid())
-  content        String            @db.Text
-  authorId       String            @db.Uuid
-  author         User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  tags           String[]
-  imageUrl       String?           @db.Text
-  visibility     String            @default("public")
+  id                String            @id @default(cuid())
+  content           String            @db.Text
+  authorId          String            @db.Uuid
+  author            User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  tags              String[]
+  imageUrl          String?           @db.Text
+  visibility        String            @default("public")
   contentVisibility ContentVisibility @default(PUBLIC)
-  isDraft        Boolean           @default(false)
-  scheduledAt    DateTime?
-  triggerWarning String?           @db.Text
-  isPinned       Boolean           @default(false)
-  deletedAt      DateTime?
+  isDraft           Boolean           @default(false)
+  scheduledAt       DateTime?
+  triggerWarning    String?           @db.Text
+  isPinned          Boolean           @default(false)
+  deletedAt         DateTime?
 
-  tierId         String?
-  tier           Tier?             @relation(fields: [tierId], references: [id], onDelete: SetNull)
+  tierId String?
+  tier   Tier?   @relation(fields: [tierId], references: [id], onDelete: SetNull)
 
-  replyRestriction String          @default("everyone") // "everyone", "subscribers", "following", "mentioned"
-  isHiddenByAuthor Boolean         @default(false)
+  replyRestriction String  @default("everyone") // "everyone", "subscribers", "following", "mentioned"
+  isHiddenByAuthor Boolean @default(false)
 
   // Counter caches for zero-latency feeds
-  likeCount   Int      @default(0)
-  repostCount Int      @default(0)
-  replyCount  Int      @default(0)
+  likeCount   Int @default(0)
+  repostCount Int @default(0)
+  replyCount  Int @default(0)
 
   // Social interactions
-  parentId  String?
-  parent    Thought?  @relation("ThoughtReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies   Thought[] @relation("ThoughtReplies")
+  parentId String?
+  parent   Thought?  @relation("ThoughtReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Thought[] @relation("ThoughtReplies")
 
-  rootId    String?
-  root      Thought?  @relation("ThoughtRootReplies", fields: [rootId], references: [id], onDelete: Cascade)
+  rootId      String?
+  root        Thought?  @relation("ThoughtRootReplies", fields: [rootId], references: [id], onDelete: Cascade)
   rootReplies Thought[] @relation("ThoughtRootReplies")
 
-  repostId  String?
-  repost    Thought?  @relation("ThoughtReposts", fields: [repostId], references: [id], onDelete: SetNull)
-  reposts   Thought[] @relation("ThoughtReposts")
+  repostId String?
+  repost   Thought?  @relation("ThoughtReposts", fields: [repostId], references: [id], onDelete: SetNull)
+  reposts  Thought[] @relation("ThoughtReposts")
 
-  likes     Like[]
+  likes         Like[]
   notifications Notification[]
-  attachments MediaAttachment[]
-  poll        Poll?
+  attachments   MediaAttachment[]
+  poll          Poll?
 
   @@index([authorId, createdAt])
   @@index([deletedAt, isDraft, authorId, createdAt])
@@ -557,15 +634,15 @@ model PartnerPromo {
 }
 
 model ApiKey {
-  id          String   @id @default(cuid())
-  name        String
-  keyPrefix   String   // e.g. "qoe_live_" followed by the prefix characters
-  keyHash     String   @unique // SHA-256 hash of the complete key
-  createdAt   DateTime @default(now())
-  lastUsedAt  DateTime?
-  
-  userId      String   @db.Uuid
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String    @id @default(cuid())
+  name       String
+  keyPrefix  String // e.g. "qoe_live_" followed by the prefix characters
+  keyHash    String    @unique // SHA-256 hash of the complete key
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([keyHash])
@@ -573,8 +650,8 @@ model ApiKey {
 
 model TranslationAuditLog {
   id        String   @id @default(cuid())
-  key       String   // e.g. "login.title_login"
-  lang      String   // "fr" or "en"
+  key       String // e.g. "login.title_login"
+  lang      String // "fr" or "en"
   oldValue  String?  @db.Text
   newValue  String?  @db.Text
   authorId  String?  @db.Uuid
@@ -589,14 +666,14 @@ model ArticleComment {
   updatedAt DateTime @updatedAt
 
   articleId String
-  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
-  authorId  String   @db.Uuid
-  author    User     @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String @db.Uuid
+  author   User   @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 
-  parentId  String?
-  parent    ArticleComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies   ArticleComment[] @relation("CommentReplies")
+  parentId String?
+  parent   ArticleComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  ArticleComment[] @relation("CommentReplies")
 
   notifications Notification[]
 
@@ -612,6 +689,10 @@ enum NotificationType {
   REPLY
   MENTION
   FOLLOW
+  MEDIA_INVITE
+  MEDIA_MEMBER_JOINED
+  MEDIA_ARTICLE_PUBLISHED
+  MEDIA_MENTION
 }
 
 model Notification {
@@ -622,66 +703,69 @@ model Notification {
   sender      User             @relation("NotificationSender", fields: [senderId], references: [id], onDelete: Cascade)
   type        NotificationType
 
-  thoughtId   String?
-  thought     Thought?         @relation(fields: [thoughtId], references: [id], onDelete: Cascade)
-  articleId   String?
-  article     Article?         @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  commentId   String?
-  comment     ArticleComment?  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  thoughtId     String?
+  thought       Thought?        @relation(fields: [thoughtId], references: [id], onDelete: Cascade)
+  articleId     String?
+  article       Article?        @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  commentId     String?
+  comment       ArticleComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  publicationId String?
+  publication   Publication?    @relation(fields: [publicationId], references: [id], onDelete: Cascade)
 
-  isRead      Boolean          @default(false)
-  createdAt   DateTime         @default(now())
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   @@index([recipientId, isRead, createdAt])
   @@index([thoughtId])
   @@index([senderId])
+  @@index([publicationId])
 }
 
 model NotificationPreference {
-  id             String   @id @default(cuid())
-  userId         String   @unique @db.Uuid
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  emailLikes     Boolean  @default(true)
-  pushLikes      Boolean  @default(true)
-  emailReplies   Boolean  @default(true)
-  pushReplies    Boolean  @default(true)
-  emailMentions  Boolean  @default(true)
-  pushMentions   Boolean  @default(true)
-  emailFollows   Boolean  @default(true)
-  pushFollows    Boolean  @default(true)
-  emailReposts   Boolean  @default(true)
-  pushReposts    Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(cuid())
+  userId        String   @unique @db.Uuid
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailLikes    Boolean  @default(true)
+  pushLikes     Boolean  @default(true)
+  emailReplies  Boolean  @default(true)
+  pushReplies   Boolean  @default(true)
+  emailMentions Boolean  @default(true)
+  pushMentions  Boolean  @default(true)
+  emailFollows  Boolean  @default(true)
+  pushFollows   Boolean  @default(true)
+  emailReposts  Boolean  @default(true)
+  pushReposts   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model MediaAttachment {
-  id          String   @id @default(cuid())
-  thoughtId   String
-  thought     Thought  @relation(fields: [thoughtId], references: [id], onDelete: Cascade)
-  type        String   @default("IMAGE") // "IMAGE" or "VIDEO"
-  url         String   @db.Text
-  altText     String?  @db.Text
-  width       Int?
-  height      Int?
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  thoughtId String
+  thought   Thought  @relation(fields: [thoughtId], references: [id], onDelete: Cascade)
+  type      String   @default("IMAGE") // "IMAGE" or "VIDEO"
+  url       String   @db.Text
+  altText   String?  @db.Text
+  width     Int?
+  height    Int?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
 
   @@index([thoughtId, order])
 }
 
 model StarterPack {
-  id          String            @id @default(cuid())
-  title       String
-  description String?           @db.Text
-  icon        String?           @default("🚀")
-  creatorId   String            @db.Uuid
-  creator     User              @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  items       StarterPackItem[]
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  id            String            @id @default(cuid())
+  title         String
+  description   String?           @db.Text
+  icon          String?           @default("🚀")
+  publicationId String
+  publication   Publication       @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  items         StarterPackItem[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
-  @@index([creatorId])
+  @@index([publicationId])
 }
 
 model StarterPackItem {
@@ -698,23 +782,23 @@ model StarterPackItem {
 }
 
 model Poll {
-  id        String       @id @default(cuid())
-  thoughtId String       @unique
-  thought   Thought      @relation(fields: [thoughtId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  thoughtId String   @unique
+  thought   Thought  @relation(fields: [thoughtId], references: [id], onDelete: Cascade)
   expiresAt DateTime
-  createdAt DateTime     @default(now())
+  createdAt DateTime @default(now())
 
-  options   PollOption[]
-  votes     PollVote[]
+  options PollOption[]
+  votes   PollVote[]
 }
 
 model PollOption {
-  id        String     @id @default(cuid())
-  pollId    String
-  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  text      String
-  order     Int        @default(0)
-  votes     PollVote[]
+  id     String     @id @default(cuid())
+  pollId String
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  text   String
+  order  Int        @default(0)
+  votes  PollVote[]
 
   @@index([pollId, order])
 }
@@ -739,7 +823,7 @@ model ModerationReport {
   reporterId String   @db.Uuid
   reporter   User     @relation("ReportsSubmitted", fields: [reporterId], references: [id], onDelete: Cascade)
   targetId   String
-  targetType String   // "thought" | "article" | "user" | "comment"
+  targetType String // "thought" | "article" | "user" | "comment"
   reason     String
   details    String?  @db.Text
   status     String   @default("pending") // "pending" | "reviewed" | "dismissed" | "actioned"
@@ -750,4 +834,3 @@ model ModerationReport {
   @@index([reporterId])
   @@index([status])
 }
-

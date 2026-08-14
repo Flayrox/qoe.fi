@@ -8,9 +8,19 @@ export interface CreateStarterPackInput {
   title: string;
   description?: string;
   icon?: string;
-  creatorId: string;
+  publicationId: string;
   userIds: string[];
 }
+
+const publicationSelect = {
+  id: true,
+  name: true,
+  slug: true,
+  subdomain: true,
+  customDomain: true,
+  logoUrl: true,
+  isCertified: true,
+} as const;
 
 /**
  * 📦 Récupère la liste des Starter Packs disponibles.
@@ -21,17 +31,7 @@ export async function getStarterPacks(limit = 20, cursor?: string) {
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     orderBy: { createdAt: 'desc' },
     include: {
-      creator: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          subdomain: true,
-          customDomain: true,
-          logoUrl: true,
-          isCertified: true,
-        },
-      },
+      publication: { select: publicationSelect },
       items: {
         take: 8,
         include: {
@@ -42,7 +42,6 @@ export async function getStarterPacks(limit = 20, cursor?: string) {
               username: true,
               logoUrl: true,
               isCertified: true,
-              heroText: true,
             },
           },
         },
@@ -71,17 +70,7 @@ export async function getStarterPackById(id: string) {
   return prisma.starterPack.findUnique({
     where: { id },
     include: {
-      creator: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          subdomain: true,
-          customDomain: true,
-          logoUrl: true,
-          isCertified: true,
-        },
-      },
+      publication: { select: publicationSelect },
       items: {
         include: {
           user: {
@@ -89,14 +78,14 @@ export async function getStarterPackById(id: string) {
               id: true,
               name: true,
               username: true,
-              subdomain: true,
-              customDomain: true,
               logoUrl: true,
-              heroText: true,
               isCertified: true,
-              _count: {
+              publication: {
                 select: {
-                  followers: true,
+                  id: true,
+                  slug: true,
+                  subdomain: true,
+                  _count: { select: { followers: true } },
                 },
               },
             },
@@ -116,16 +105,16 @@ export async function getStarterPackById(id: string) {
  * ➕ Crée un nouveau Starter Pack avec sa liste de membres.
  */
 export async function createStarterPack(input: CreateStarterPackInput) {
-  const { title, description, icon, creatorId, userIds } = input;
+  const { title, description, icon, publicationId, userIds } = input;
 
-  const uniqueUserIds = Array.from(new Set(userIds)).filter((id) => id !== creatorId);
+  const uniqueUserIds = Array.from(new Set(userIds));
 
   return prisma.starterPack.create({
     data: {
       title: title.trim(),
       description: description?.trim() || null,
       icon: icon || '🚀',
-      creatorId,
+      publicationId,
       items: {
         create: uniqueUserIds.map((userId) => ({
           userId,
@@ -133,14 +122,7 @@ export async function createStarterPack(input: CreateStarterPackInput) {
       },
     },
     include: {
-      creator: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          logoUrl: true,
-        },
-      },
+      publication: { select: publicationSelect },
       items: {
         include: {
           user: {
@@ -158,7 +140,7 @@ export async function createStarterPack(input: CreateStarterPackInput) {
 }
 
 /**
- * ⚡ Suit instantanément TOUS les membres d'un Starter Pack (1-Click Follow All).
+ * ⚡ Suit instantanément TOUTES les publications des membres d'un Starter Pack (1-Click Follow All).
  */
 export async function followAllInStarterPack(readerId: string, starterPackId: string) {
   const pack = await prisma.starterPack.findUnique({
@@ -166,7 +148,7 @@ export async function followAllInStarterPack(readerId: string, starterPackId: st
     include: {
       items: {
         select: {
-          userId: true,
+          user: { select: { publicationId: true } },
         },
       },
     },
@@ -176,20 +158,20 @@ export async function followAllInStarterPack(readerId: string, starterPackId: st
     throw new Error(`StarterPack with id ${starterPackId} not found`);
   }
 
-  // Filtrer l'utilisateur courant
-  const targetUserIds = pack.items
-    .map((item) => item.userId)
-    .filter((targetId) => targetId !== readerId);
+  // Résout la publication personnelle de chaque membre
+  const targetPublicationIds = pack.items
+    .map((item) => item.user.publicationId)
+    .filter((pubId): pubId is string => Boolean(pubId));
 
-  if (targetUserIds.length === 0) {
+  if (targetPublicationIds.length === 0) {
     return { followedCount: 0 };
   }
 
   // Création idempotente avec skipDuplicates
   const result = await prisma.follows.createMany({
-    data: targetUserIds.map((creatorId) => ({
+    data: targetPublicationIds.map((publicationId) => ({
       readerId,
-      creatorId,
+      publicationId,
     })),
     skipDuplicates: true,
   });

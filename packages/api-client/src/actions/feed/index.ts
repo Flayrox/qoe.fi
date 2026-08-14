@@ -35,7 +35,6 @@ type ProfileThought = Prisma.ThoughtGetPayload<{
         username: true;
         logoUrl: true;
         isCertified: true;
-        subdomain: true;
       };
     };
     parent: {
@@ -50,7 +49,6 @@ type ProfileThought = Prisma.ThoughtGetPayload<{
             username: true;
             logoUrl: true;
             isCertified: true;
-            subdomain: true;
           };
         };
       };
@@ -64,7 +62,6 @@ type ProfileThought = Prisma.ThoughtGetPayload<{
             username: true;
             logoUrl: true;
             isCertified: true;
-            subdomain: true;
           };
         };
       };
@@ -86,7 +83,6 @@ interface ProfilePostAuthor {
   username: string | null;
   logoUrl: string | null;
   isCertified: boolean;
-  subdomain: string | null;
 }
 
 interface ProfilePostParent {
@@ -126,16 +122,21 @@ interface ProfileData {
         username: true;
         role: true;
         logoUrl: true;
-        heroText: true;
         onboardingText: true;
         isCertified: true;
         createdAt: true;
-        subdomain: true;
-        headerImageUrl: true;
+        publication: {
+          select: { id: true; slug: true; heroText: true; subdomain: true; headerImageUrl: true };
+        };
       };
     }>,
     'createdAt'
-  > & { createdAt: string };
+  > & {
+    createdAt: string;
+    heroText: string | null;
+    subdomain: string | null;
+    headerImageUrl: string | null;
+  };
   isFollowing: boolean;
   followersCount: number;
   followingCount: number;
@@ -183,8 +184,8 @@ type UnfurlResult =
 const unfurlCache = new Map<string, UnfurlResult>();
 
 export const toggleFollowCreatorHomeAction = safeAction<string, { followed: boolean }>(
-  async (creatorId, user) => {
-    return follows.toggleFollow(user.id, creatorId);
+  async (publicationId, user) => {
+    return follows.toggleFollow(user.id, publicationId);
   }
 );
 
@@ -391,7 +392,7 @@ export const getArticleThreadAction = safeAction<
             : null,
           prisma.subscriber.findFirst({
             where: {
-              creatorId: article.authorId,
+              publicationId: article.publicationId,
               email: user.email || '',
               isActive: true,
             },
@@ -415,6 +416,18 @@ export const getArticleThreadAction = safeAction<
     return {
       article: {
         ...article,
+        author: {
+          id: article.publication?.id ?? article.authorId,
+          name: article.publication?.name ?? article.author?.name ?? null,
+          username: article.publication?.slug ?? article.author?.username ?? null,
+          subdomain: article.publication?.subdomain ?? null,
+          customDomain: article.publication?.customDomain ?? null,
+          logoUrl: article.publication?.logoUrl ?? article.author?.logoUrl ?? null,
+          heroText: article.publication?.heroText ?? null,
+          isCertified: article.publication?.isCertified ?? false,
+          type: article.publication?.type ?? 'PERSONAL',
+          authorName: article.author?.name ?? null,
+        },
         content: paywallCutResult.content,
         isTruncated: paywallCutResult.isTruncated,
         accessGranted: paywallCutResult.accessGranted,
@@ -479,23 +492,25 @@ export const getProfileDataAction = safeAction<string, ProfileData>(
         username: true,
         role: true,
         logoUrl: true,
-        heroText: true,
         onboardingText: true,
         isCertified: true,
         createdAt: true,
-        subdomain: true,
-        headerImageUrl: true,
+        publication: {
+          select: { id: true, slug: true, heroText: true, subdomain: true, headerImageUrl: true },
+        },
       },
     });
 
     if (!profileUser) throw new Error('NOT_FOUND');
 
+    const publicationId = profileUser.publication?.id ?? null;
+
     let isFollowingUser = false;
-    if (currentUserId && currentUserId !== profileUser.id) {
-      isFollowingUser = await follows.isFollowing(currentUserId, profileUser.id);
+    if (currentUserId && publicationId && currentUserId !== profileUser.id) {
+      isFollowingUser = await follows.isFollowing(currentUserId, publicationId);
     }
 
-    const followersCount = await follows.countFollowers(profileUser.id);
+    const followersCount = publicationId ? await follows.countFollowers(publicationId) : 0;
     const followingCount = await follows.countFollowing(profileUser.id);
     const isOwnProfile = currentUserId === profileUser.id;
 
@@ -531,7 +546,6 @@ export const getProfileDataAction = safeAction<string, ProfileData>(
             username: true,
             logoUrl: true,
             isCertified: true,
-            subdomain: true,
           },
         },
         parent: {
@@ -546,7 +560,6 @@ export const getProfileDataAction = safeAction<string, ProfileData>(
                 username: true,
                 logoUrl: true,
                 isCertified: true,
-                subdomain: true,
               },
             },
           },
@@ -560,7 +573,6 @@ export const getProfileDataAction = safeAction<string, ProfileData>(
                 username: true,
                 logoUrl: true,
                 isCertified: true,
-                subdomain: true,
               },
             },
           },
@@ -609,7 +621,13 @@ export const getProfileDataAction = safeAction<string, ProfileData>(
     }
 
     return {
-      profileUser: { ...profileUser, createdAt: profileUser.createdAt.toISOString() },
+      profileUser: {
+        ...profileUser,
+        createdAt: profileUser.createdAt.toISOString(),
+        heroText: profileUser.publication?.heroText ?? null,
+        subdomain: profileUser.publication?.subdomain ?? null,
+        headerImageUrl: profileUser.publication?.headerImageUrl ?? null,
+      },
       isFollowing: isFollowingUser,
       followersCount,
       followingCount,
@@ -927,16 +945,21 @@ export const updateProfileAction = safeAction<
   { user: User }
 >(async (input, user) => {
   const { prisma } = await import('@qoe/db/client');
-  const updatedUser = await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      ...(input.name !== undefined ? { name: input.name } : {}),
-      ...(input.heroText !== undefined ? { heroText: input.heroText } : {}),
-      ...(input.onboardingText !== undefined ? { onboardingText: input.onboardingText } : {}),
-      ...(input.logoUrl !== undefined ? { logoUrl: input.logoUrl } : {}),
-      ...(input.headerImageUrl !== undefined ? { headerImageUrl: input.headerImageUrl } : {}),
-    },
+  const { publications } = await import('@qoe/db');
+  await publications.syncUserPublication(user.id, {
+    name: input.name ?? undefined,
+    heroText: input.heroText ?? undefined,
+    logoUrl: input.logoUrl ?? undefined,
+    headerImageUrl: input.headerImageUrl ?? undefined,
   });
+  if (input.onboardingText !== undefined) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { onboardingText: input.onboardingText },
+    });
+  }
+  const updatedUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!updatedUser) throw new Error('USER_NOT_FOUND');
 
   return { user: updatedUser };
 });

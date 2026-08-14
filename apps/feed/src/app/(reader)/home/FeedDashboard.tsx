@@ -39,11 +39,13 @@ interface Author {
   id: string;
   name: string | null;
   username: string | null;
-  subdomain: string | null;
-  customDomain: string | null;
+  subdomain?: string | null;
+  customDomain?: string | null;
   logoUrl: string | null;
-  heroText: string | null;
+  heroText?: string | null;
   isCertified?: boolean;
+  type?: 'PERSONAL' | 'MEDIA';
+  authorName?: string | null;
 }
 
 interface Creator {
@@ -734,7 +736,11 @@ export function FeedDashboard({
                             return (
                               <ArticleCard
                                 key={article.id}
-                                article={article as Article}
+                                article={
+                                  article as unknown as React.ComponentProps<
+                                    typeof ArticleCard
+                                  >['article']
+                                }
                                 idx={idx}
                                 dbUser={dbUser}
                                 isBookmarked={isBookmarked}

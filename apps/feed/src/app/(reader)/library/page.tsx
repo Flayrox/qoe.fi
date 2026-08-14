@@ -16,15 +16,17 @@ export default async function LibraryPage() {
     include: {
       article: {
         include: {
-          author: {
+          publication: {
             select: {
               name: true,
-              username: true,
+              slug: true,
               subdomain: true,
               customDomain: true,
               logoUrl: true,
+              type: true,
             },
           },
+          author: { select: { id: true, name: true } },
           category: { select: { name: true } },
         },
       },
@@ -40,6 +42,13 @@ export default async function LibraryPage() {
       ...b.article,
       createdAt: b.article.createdAt.toISOString(),
       updatedAt: b.article.updatedAt.toISOString(),
+      author: {
+        name: b.article.publication?.name ?? null,
+        username: b.article.publication?.slug ?? null,
+        subdomain: b.article.publication?.subdomain ?? null,
+        customDomain: b.article.publication?.customDomain ?? null,
+        logoUrl: b.article.publication?.logoUrl ?? null,
+      },
     },
   }));
 

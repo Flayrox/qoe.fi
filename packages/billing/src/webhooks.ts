@@ -3,6 +3,8 @@
 // =====================================================================
 // 📖 Centralise le traitement des webhooks Stripe pour qu'ils soient
 //    accessibles depuis apps/api (et plus tard depuis apps/console).
+//    Depuis le polymorphisme Publication, les abonnements (Subscriber)
+//    sont clé par publication (personnelle OU média).
 // =====================================================================
 
 import type Stripe from 'stripe';
@@ -22,6 +24,26 @@ export async function verifyWebhook(rawBody: string, signature: string): Promise
 }
 
 /**
+ * 🔗 Résout la publication (personnelle OU média) associée à une entité `creatorId`.
+ * Le creatorId peut être : un User.id OU un Publication.id (selon ce que le client envoie).
+ */
+async function resolvePublicationId(creatorRef: string): Promise<string | null> {
+  // Si c'est déjà un Publication.id
+  const direct = await prisma.publication.findUnique({
+    where: { id: creatorRef },
+    select: { id: true },
+  });
+  if (direct) return direct.id;
+
+  // Sinon c'est un User.id → publication personnelle
+  const pub = await prisma.publication.findFirst({
+    where: { type: 'PERSONAL', user: { id: creatorRef } },
+    select: { id: true },
+  });
+  return pub?.id ?? null;
+}
+
+/**
  * 🪝 Handlers par type d'événement Stripe.
  */
 export const WEBHOOK_HANDLERS: Record<string, (event: Stripe.Event) => Promise<void>> = {
@@ -30,17 +52,23 @@ export const WEBHOOK_HANDLERS: Record<string, (event: Stripe.Event) => Promise<v
     const invoice = event.data.object as Stripe.Invoice;
     console.log('✅ Paiement réussi :', invoice.id);
 
-    const creatorId = invoice.metadata?.creatorId;
+    const creatorRef = invoice.metadata?.creatorId;
     const email = invoice.customer_email || invoice.metadata?.subscriberEmail;
 
-    if (!creatorId || !email) {
+    if (!creatorRef || !email) {
       console.warn(
         '⚠️ Impossible de traiter le paiement : métadonnées manquantes dans la facture Stripe.',
         {
-          creatorId,
+          creatorRef,
           email,
         }
       );
+      return;
+    }
+
+    const publicationId = await resolvePublicationId(creatorRef);
+    if (!publicationId) {
+      console.warn('⚠️ Publication introuvable pour le paiement Stripe.', { creatorRef });
       return;
     }
 
@@ -49,7 +77,7 @@ export const WEBHOOK_HANDLERS: Record<string, (event: Stripe.Event) => Promise<v
     // 1. Activer/Mettre à jour l'abonnement dans PostgreSQL
     await prisma.subscriber.upsert({
       where: {
-        email_creatorId: { email, creatorId },
+        email_publicationId: { email, publicationId },
       },
       update: {
         isActive: true,
@@ -58,26 +86,40 @@ export const WEBHOOK_HANDLERS: Record<string, (event: Stripe.Event) => Promise<v
       },
       create: {
         email,
-        creatorId,
+        publicationId,
         isActive: true,
         isPremium: true,
         ltvCents: amountPaid,
       },
     });
 
-    // 2. Calculer les commissions qoe.fi et créditer le créateur
-    const creator = await prisma.user.findUnique({
-      where: { id: creatorId },
+    // 2. Calculer les commissions qoe.fi et créditer le propriétaire de la publication
+    const owner = await prisma.publication.findUnique({
+      where: { id: publicationId },
+      select: {
+        user: { select: { id: true, role: true } },
+        media: {
+          select: {
+            members: {
+              where: { role: 'owner', status: 'active' },
+              select: { userId: true },
+              take: 1,
+            },
+          },
+        },
+      },
     });
-
-    if (creator) {
-      const creatorPlan = creator.role === 'creator' ? 'PRO' : 'FREE';
+    const ownerUser = owner?.user ?? owner?.media?.members?.[0];
+    if (ownerUser) {
+      const ownerId = 'id' in ownerUser ? ownerUser.id : ownerUser.userId;
+      const ownerRole = 'role' in ownerUser ? ownerUser.role : 'creator';
+      const creatorPlan = ownerRole === 'creator' ? 'PRO' : 'FREE';
       const feeCents = calculateFee(amountPaid, creatorPlan);
       const creditAmount = amountPaid - feeCents;
 
-      // Créditer le solde du créateur
+      // Créditer le solde du propriétaire
       await prisma.user.update({
-        where: { id: creatorId },
+        where: { id: ownerId },
         data: {
           walletBalanceCents: { increment: creditAmount },
         },
@@ -86,14 +128,14 @@ export const WEBHOOK_HANDLERS: Record<string, (event: Stripe.Event) => Promise<v
       // Enregistrer la transaction pour audit/historique
       await prisma.walletTransaction.create({
         data: {
-          userId: creatorId,
+          userId: ownerId,
           amountCents: creditAmount,
           type: 'DEPOSIT',
         },
       });
 
       console.log(
-        `💰 Créateur ${creatorId} crédité de ${creditAmount / 100}€ (Frais déduits: ${feeCents / 100}€).`
+        `💰 Créateur ${ownerId} crédité de ${creditAmount / 100}€ (Frais déduits: ${feeCents / 100}€).`
       );
     }
   },
@@ -103,18 +145,21 @@ export const WEBHOOK_HANDLERS: Record<string, (event: Stripe.Event) => Promise<v
     const invoice = event.data.object as Stripe.Invoice;
     console.warn('⚠️ Paiement échoué :', invoice.id);
 
-    const creatorId = invoice.metadata?.creatorId;
+    const creatorRef = invoice.metadata?.creatorId;
     const email = invoice.customer_email || invoice.metadata?.subscriberEmail;
 
-    if (creatorId && email) {
-      // Suspendre l'accès Premium en cas de non-paiement
-      await prisma.subscriber.updateMany({
-        where: { email, creatorId },
-        data: { isPremium: false },
-      });
-      console.log(
-        `🚫 Accès premium révoqué pour ${email} (Abonné au créateur ${creatorId}) suite à un échec de paiement.`
-      );
+    if (creatorRef && email) {
+      const publicationId = await resolvePublicationId(creatorRef);
+      if (publicationId) {
+        // Suspendre l'accès Premium en cas de non-paiement
+        await prisma.subscriber.updateMany({
+          where: { email, publicationId },
+          data: { isPremium: false },
+        });
+        console.log(
+          `🚫 Accès premium révoqué pour ${email} (Abonné à la publication ${publicationId}) suite à un échec de paiement.`
+        );
+      }
     }
   },
 
@@ -123,18 +168,21 @@ export const WEBHOOK_HANDLERS: Record<string, (event: Stripe.Event) => Promise<v
     const subscription = event.data.object as Stripe.Subscription;
     console.log('🚫 Abonnement annulé :', subscription.id);
 
-    const creatorId = subscription.metadata?.creatorId;
+    const creatorRef = subscription.metadata?.creatorId;
     const email = subscription.metadata?.subscriberEmail;
 
-    if (creatorId && email) {
-      // Désactiver le subscriber ou lui enlever son statut Premium
-      await prisma.subscriber.updateMany({
-        where: { email, creatorId },
-        data: { isPremium: false, isActive: false },
-      });
-      console.log(
-        `🚫 Abonnement résilié proprement pour ${email} auprès du créateur ${creatorId}.`
-      );
+    if (creatorRef && email) {
+      const publicationId = await resolvePublicationId(creatorRef);
+      if (publicationId) {
+        // Désactiver le subscriber ou lui enlever son statut Premium
+        await prisma.subscriber.updateMany({
+          where: { email, publicationId },
+          data: { isPremium: false, isActive: false },
+        });
+        console.log(
+          `🚫 Abonnement résilié proprement pour ${email} auprès de la publication ${publicationId}.`
+        );
+      }
     }
   },
 
@@ -145,17 +193,17 @@ export const WEBHOOK_HANDLERS: Record<string, (event: Stripe.Event) => Promise<v
 
     const stripeEnabled = account.charges_enabled && account.details_submitted;
 
-    const user = await prisma.user.findFirst({
+    const publication = await prisma.publication.findFirst({
       where: { stripeAccountId: account.id },
     });
 
-    if (user) {
-      await prisma.user.update({
-        where: { id: user.id },
+    if (publication) {
+      await prisma.publication.update({
+        where: { id: publication.id },
         data: { stripeAccountId: account.id },
       });
       console.log(
-        `✅ Statut de paiement Stripe mis à jour pour le créateur ${user.id} (${user.email}) -> Stripe Activé: ${!!stripeEnabled}`
+        `✅ Statut de paiement Stripe mis à jour pour la publication ${publication.id} (${publication.name}) -> Stripe Activé: ${!!stripeEnabled}`
       );
     }
   },

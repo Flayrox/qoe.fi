@@ -61,15 +61,15 @@ describe('@qoe/db - StarterPacks Repository', () => {
     expect(res).toEqual(mockPack);
   });
 
-  it('should create a starter pack with unique items excluding creator', async () => {
-    const mockCreated = { id: 'sp-new', title: 'Mon Pack', creatorId: 'creator-1' };
+  it('should create a starter pack with unique items', async () => {
+    const mockCreated = { id: 'sp-new', title: 'Mon Pack', publicationId: 'pub-1' };
     (prisma.starterPack.create as unknown as Mock).mockResolvedValue(mockCreated);
 
     const res = await createStarterPack({
       title: 'Mon Pack',
       description: 'Super pack',
-      creatorId: 'creator-1',
-      userIds: ['creator-1', 'user-2', 'user-3', 'user-2'],
+      publicationId: 'pub-1',
+      userIds: ['user-2', 'user-3', 'user-2'],
     });
 
     expect(prisma.starterPack.create).toHaveBeenCalledWith({
@@ -77,7 +77,7 @@ describe('@qoe/db - StarterPacks Repository', () => {
         title: 'Mon Pack',
         description: 'Super pack',
         icon: '🚀',
-        creatorId: 'creator-1',
+        publicationId: 'pub-1',
         items: {
           create: [{ userId: 'user-2' }, { userId: 'user-3' }],
         },
@@ -87,10 +87,14 @@ describe('@qoe/db - StarterPacks Repository', () => {
     expect(res).toEqual(mockCreated);
   });
 
-  it('should batch follow all members in a starter pack using followAllInStarterPack', async () => {
+  it('should batch follow all members publications in a starter pack using followAllInStarterPack', async () => {
     (prisma.starterPack.findUnique as unknown as Mock).mockResolvedValue({
       id: 'sp-1',
-      items: [{ userId: 'user-2' }, { userId: 'user-3' }, { userId: 'reader-1' }],
+      items: [
+        { user: { publicationId: 'pub-2' } },
+        { user: { publicationId: 'pub-3' } },
+        { user: { publicationId: null } },
+      ],
     });
     (prisma.follows.createMany as unknown as Mock).mockResolvedValue({ count: 2 });
 
@@ -98,8 +102,8 @@ describe('@qoe/db - StarterPacks Repository', () => {
 
     expect(prisma.follows.createMany).toHaveBeenCalledWith({
       data: [
-        { readerId: 'reader-1', creatorId: 'user-2' },
-        { readerId: 'reader-1', creatorId: 'user-3' },
+        { readerId: 'reader-1', publicationId: 'pub-2' },
+        { readerId: 'reader-1', publicationId: 'pub-3' },
       ],
       skipDuplicates: true,
     });

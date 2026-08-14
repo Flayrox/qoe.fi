@@ -45,9 +45,9 @@ export async function completeOnboarding(data: {
     // 2. Save Follows
     if (data.creatorsToFollow.length > 0) {
       await prisma.follows.createMany({
-        data: data.creatorsToFollow.map((creatorId) => ({
+        data: data.creatorsToFollow.map((publicationId) => ({
           readerId: user.id,
-          creatorId: creatorId,
+          publicationId: publicationId,
         })),
         skipDuplicates: true,
       });

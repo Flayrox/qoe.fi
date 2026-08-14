@@ -147,6 +147,7 @@ describe('@qoe/db - Notifications Repository', () => {
         type: 'LIKE',
         thoughtId: 'post-1',
         articleId: null,
+        publicationId: null,
       },
     });
   });

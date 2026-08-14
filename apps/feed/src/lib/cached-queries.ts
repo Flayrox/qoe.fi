@@ -71,18 +71,24 @@ export const getCachedStandardArticles = unstable_cache(
     return await prisma.article.findMany({
       where: {
         published: true,
-        author: { allowIndexing: true, isShadowbanned: false },
+        publication: { is: { allowIndexing: true } },
+        author: { is: { isShadowbanned: false } },
       },
       include: {
-        author: {
+        publication: {
           select: {
+            id: true,
+            type: true,
             name: true,
+            slug: true,
             subdomain: true,
             customDomain: true,
             logoUrl: true,
+            heroText: true,
             isCertified: true,
           },
         },
+        author: { select: { id: true, name: true } },
         category: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -122,11 +128,12 @@ export const getCachedFeaturedArticle = unstable_cache(
     prisma.article.findFirst({
       where: { published: true, isEditorPick: true },
       include: {
-        author: {
+        publication: {
           select: {
             id: true,
+            type: true,
             name: true,
-            username: true,
+            slug: true,
             subdomain: true,
             customDomain: true,
             logoUrl: true,
@@ -134,6 +141,7 @@ export const getCachedFeaturedArticle = unstable_cache(
             isCertified: true,
           },
         },
+        author: { select: { id: true, name: true } },
         category: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },

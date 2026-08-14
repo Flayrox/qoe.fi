@@ -38,7 +38,7 @@ interface ProfilePost {
     id: string;
     name: string | null;
     username: string | null;
-    subdomain: string | null;
+    subdomain?: string | null;
     logoUrl: string | null;
     isCertified?: boolean;
   };
@@ -55,6 +55,8 @@ interface ProfilePost {
 
 interface ProfileUser {
   id: string;
+  ownerUserId?: string | null;
+  type?: 'PERSONAL' | 'MEDIA';
   name: string | null;
   username: string | null;
   subdomain: string | null;
@@ -211,7 +213,24 @@ export function ProfileView({
             {/* Avatar & Action Button Row */}
             <div className="flex items-end justify-between -mt-12 sm:-mt-16 mb-4">
               <div className="ring-4 ring-card rounded-2xl overflow-hidden bg-card">
-                <AuthorAvatar user={user} size="2xl" showBadge={false} />
+                {user.type === 'MEDIA' ? (
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 relative bg-muted">
+                    {user.logoUrl ? (
+                      <Image
+                        src={user.logoUrl}
+                        alt={user.name || ''}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-brand/10 flex items-center justify-center font-black text-2xl text-brand">
+                        {user.name?.substring(0, 2) || 'NA'}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <AuthorAvatar user={user} size="2xl" showBadge={false} />
+                )}
               </div>
 
               {isOwnProfile ? (

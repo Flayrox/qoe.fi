@@ -29,7 +29,7 @@ export const recommendationsRepository = {
           select: {
             id: true,
             name: true,
-            username: true,
+            slug: true,
             subdomain: true,
             customDomain: true,
             heroText: true,
@@ -65,7 +65,7 @@ export const recommendationsRepository = {
           select: {
             id: true,
             name: true,
-            username: true,
+            slug: true,
             subdomain: true,
             customDomain: true,
             heroText: true,
@@ -89,7 +89,7 @@ export const recommendationsRepository = {
           select: {
             id: true,
             name: true,
-            username: true,
+            slug: true,
             subdomain: true,
             customDomain: true,
             heroText: true,

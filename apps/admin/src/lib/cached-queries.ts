@@ -35,12 +35,14 @@ export const getCachedStandardArticles = unstable_cache(
     return await prisma.article.findMany({
       where: {
         published: true,
-        author: { allowIndexing: true, isShadowbanned: false },
+        publication: { is: { allowIndexing: true } },
+        author: { is: { isShadowbanned: false } },
       },
       include: {
-        author: {
+        publication: {
           select: {
             name: true,
+            slug: true,
             subdomain: true,
             customDomain: true,
             logoUrl: true,

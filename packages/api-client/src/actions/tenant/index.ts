@@ -5,10 +5,10 @@ import { follows, bookmarks, highlights, posts, wallet } from '@qoe/db';
 import { safeAction } from '../utils/safe-action';
 
 export const subscribeToNewsletterAction = safeAction<
-  { email: string; creatorId: string },
+  { email: string; publicationId: string },
   { success: boolean }
 >(
-  async ({ email, creatorId }) => {
+  async ({ email, publicationId }) => {
     const cleanEmail = email.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(cleanEmail)) {
@@ -17,16 +17,16 @@ export const subscribeToNewsletterAction = safeAction<
 
     await prisma.subscriber.upsert({
       where: {
-        email_creatorId: {
+        email_publicationId: {
           email: cleanEmail,
-          creatorId,
+          publicationId,
         },
       },
       update: {
         isActive: true,
       },
       create: {
-        creatorId,
+        publicationId,
         email: cleanEmail,
         isActive: true,
       },
@@ -38,8 +38,8 @@ export const subscribeToNewsletterAction = safeAction<
 );
 
 export const toggleFollowCreatorAction = safeAction<string, { followed: boolean }>(
-  async (creatorId, user) => {
-    return follows.toggleFollow(user.id, creatorId);
+  async (publicationId, user) => {
+    return follows.toggleFollow(user.id, publicationId);
   }
 );
 
@@ -116,18 +116,18 @@ export const quotePassageToFeedAction = safeAction<QuotePassageInput, QuotePassa
         id: true,
         title: true,
         slug: true,
-        author: {
+        publication: {
           select: {
             subdomain: true,
+            customDomain: true,
             name: true,
-            username: true,
           },
         },
       },
     });
     if (!article) throw new Error('ARTICLE_NOT_FOUND');
 
-    const subdomain = article.author?.subdomain;
+    const subdomain = article.publication?.subdomain || article.publication?.customDomain;
     const articleUrl = subdomain
       ? `https://${subdomain}.qoe.fi/article/${article.slug}`
       : `https://qoe.fi/article/${article.slug}`;

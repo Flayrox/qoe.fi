@@ -171,7 +171,7 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
                 {users.map((u) => (
                   <Link
                     key={u.id}
-                    href={routes.feed.profile(u.username || u.subdomain || u.id)}
+                    href={routes.feed.profile(u.slug || u.subdomain || u.id)}
                     className="flex items-center gap-3 p-3 rounded-2xl bg-card border border-border/50 hover:bg-muted/40 transition-colors group"
                   >
                     <AuthorAvatar user={u} size="md" showBadge={false} />
@@ -183,7 +183,7 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
                         {u.isCertified && <CertifiedBadge />}
                       </div>
                       <span className="text-[11px] text-muted-foreground block truncate">
-                        @{u.username || u.subdomain || u.id.slice(0, 8)}
+                        @{u.slug || u.subdomain || u.id.slice(0, 8)}
                       </span>
                       {u.heroText && (
                         <p className="text-[11px] text-muted-foreground/80 line-clamp-1 mt-0.5">

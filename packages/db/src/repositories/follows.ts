@@ -1,5 +1,5 @@
 // =====================================================================
-// 👥 Follows Repository — Couche d'accès typée
+// 👥 Follows Repository — Suivi des Publications (personnel OU média)
 // =====================================================================
 
 import { prisma } from '../client';
@@ -7,44 +7,79 @@ import { createNotification, deleteNotification } from './notifications';
 import { logger } from '@qoe/observability';
 
 /**
- * ⚡ Bascule l'état d'abonnement d'un lecteur envers un créateur.
+ * 🏢 Retourne le User propriétaire d'une publication
+ * (PERSONAL → le créateur, MEDIA → le membre owner du média).
+ */
+export async function getPublicationOwner(publicationId: string): Promise<string | null> {
+  const publication = await prisma.publication.findUnique({
+    where: { id: publicationId },
+    select: {
+      type: true,
+      user: { select: { id: true } },
+      media: {
+        select: {
+          members: {
+            where: { role: 'owner', status: 'active' },
+            select: { userId: true },
+            take: 1,
+          },
+        },
+      },
+    },
+  });
+  if (!publication) return null;
+  if (publication.type === 'MEDIA') {
+    return publication.media?.members?.[0]?.userId ?? null;
+  }
+  return publication.user?.id ?? null;
+}
+
+/**
+ * ⚡ Bascule l'état d'abonnement d'un lecteur envers une publication.
  */
 export async function toggleFollow(
   readerId: string,
-  creatorId: string
+  publicationId: string
 ): Promise<{ followed: boolean }> {
   try {
     const existing = await prisma.follows.findUnique({
       where: {
-        readerId_creatorId: {
+        readerId_publicationId: {
           readerId,
-          creatorId,
+          publicationId,
         },
       },
     });
 
+    const ownerId = await getPublicationOwner(publicationId);
+
     if (existing) {
       await prisma.follows.deleteMany({
-        where: { readerId, creatorId },
+        where: { readerId, publicationId },
       });
-      deleteNotification({
-        recipientId: creatorId,
-        senderId: readerId,
-        type: 'FOLLOW',
-      }).catch((err) => logger.error('Erreur suppression notification follow', { err }));
+      if (ownerId) {
+        deleteNotification({
+          recipientId: ownerId,
+          senderId: readerId,
+          type: 'FOLLOW',
+        }).catch((err) => logger.error('Erreur suppression notification follow', { err }));
+      }
       return { followed: false };
     } else {
       await prisma.follows.create({
         data: {
           readerId,
-          creatorId,
+          publicationId,
         },
       });
-      createNotification({
-        recipientId: creatorId,
-        senderId: readerId,
-        type: 'FOLLOW',
-      }).catch((err) => logger.error('Erreur création notification follow', { err }));
+      if (ownerId) {
+        createNotification({
+          recipientId: ownerId,
+          senderId: readerId,
+          type: 'FOLLOW',
+          publicationId,
+        }).catch((err) => logger.error('Erreur création notification follow', { err }));
+      }
       return { followed: true };
     }
   } catch (error) {
@@ -55,14 +90,14 @@ export async function toggleFollow(
 }
 
 /**
- * 🔍 Vérifie si un lecteur suit un créateur.
+ * 🔍 Vérifie si un lecteur suit une publication.
  */
-export async function isFollowing(readerId: string, creatorId: string): Promise<boolean> {
+export async function isFollowing(readerId: string, publicationId: string): Promise<boolean> {
   const existing = await prisma.follows.findUnique({
     where: {
-      readerId_creatorId: {
+      readerId_publicationId: {
         readerId,
-        creatorId,
+        publicationId,
       },
     },
   });
@@ -70,10 +105,10 @@ export async function isFollowing(readerId: string, creatorId: string): Promise<
 }
 
 /**
- * 📊 Compte le nombre d'abonnés d'un créateur.
+ * 📊 Compte le nombre d'abonnés d'une publication.
  */
-export async function countFollowers(creatorId: string): Promise<number> {
-  return prisma.follows.count({ where: { creatorId } });
+export async function countFollowers(publicationId: string): Promise<number> {
+  return prisma.follows.count({ where: { publicationId } });
 }
 
 /**
@@ -81,4 +116,29 @@ export async function countFollowers(creatorId: string): Promise<number> {
  */
 export async function countFollowing(readerId: string): Promise<number> {
   return prisma.follows.count({ where: { readerId } });
+}
+
+/**
+ * 📄 Retourne les IDs des publications suivies par un lecteur.
+ */
+export async function getFollowedPublicationIds(readerId: string): Promise<string[]> {
+  const follows = await prisma.follows.findMany({
+    where: { readerId },
+    select: { publicationId: true },
+  });
+  return follows.map((f) => f.publicationId);
+}
+
+/**
+ * 👤 Retourne les IDs des Users propriétaires des publications PERSONAL suivies.
+ * (Utile pour les feeds de Thoughts, qui sont portés par des Users.)
+ */
+export async function getFollowedUserIds(readerId: string): Promise<string[]> {
+  const pubIds = await getFollowedPublicationIds(readerId);
+  if (pubIds.length === 0) return [];
+  const pubs = await prisma.publication.findMany({
+    where: { id: { in: pubIds }, type: 'PERSONAL' },
+    select: { user: { select: { id: true } } },
+  });
+  return pubs.map((p) => p.user?.id).filter(Boolean) as string[];
 }

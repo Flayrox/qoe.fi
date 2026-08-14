@@ -14,29 +14,29 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
 
-  const creator = await prisma.user.findFirst({
+  const publication = await prisma.publication.findFirst({
     where: {
       OR: [{ subdomain: decodedDomain }, { customDomain: decodedDomain }],
     },
   });
 
-  if (!creator) return {};
+  if (!publication) return {};
 
   return {
-    title: creator.seoTitle || `${creator.name} | ${decodedDomain}`,
+    title: publication.seoTitle || `${publication.name} | ${decodedDomain}`,
     description:
-      creator.seoDescription ||
-      creator.heroText ||
-      `Explore the thoughts and articles of ${creator.name}.`,
+      publication.seoDescription ||
+      publication.heroText ||
+      `Explore the thoughts and articles of ${publication.name}.`,
     robots: {
-      index: creator.allowIndexing,
-      follow: creator.allowIndexing,
+      index: publication.allowIndexing,
+      follow: publication.allowIndexing,
     },
-    icons: creator.logoUrl ? { icon: creator.logoUrl } : undefined,
+    icons: publication.logoUrl ? { icon: publication.logoUrl } : undefined,
     openGraph: {
-      title: creator.seoTitle || creator.name || decodedDomain,
-      description: creator.seoDescription || creator.heroText || '',
-      images: creator.headerImageUrl ? [{ url: creator.headerImageUrl }] : [],
+      title: publication.seoTitle || publication.name || decodedDomain,
+      description: publication.seoDescription || publication.heroText || '',
+      images: publication.headerImageUrl ? [{ url: publication.headerImageUrl }] : [],
     },
   };
 }
@@ -45,7 +45,7 @@ export default async function TenantHomepage({ params }: PageProps) {
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
 
-  const creator = await prisma.user.findFirst({
+  const publication = await prisma.publication.findFirst({
     where: {
       OR: [{ subdomain: decodedDomain }, { customDomain: decodedDomain }],
     },
@@ -66,7 +66,7 @@ export default async function TenantHomepage({ params }: PageProps) {
     },
   });
 
-  if (!creator) {
+  if (!publication) {
     return notFound();
   }
 
@@ -85,7 +85,7 @@ export default async function TenantHomepage({ params }: PageProps) {
     socialLinks,
     stripeAccountId,
     supportUrl,
-  } = creator;
+  } = publication;
 
   const customStyle = {
     '--tenant-accent': accentColor || 'hsl(var(--primary))',
@@ -255,7 +255,7 @@ export default async function TenantHomepage({ params }: PageProps) {
             {footerText ||
               `Subscribe to receive the latest stories and insights from ${name} directly in your inbox.`}
           </p>
-          <SubscribeForm creatorId={creator.id} isBrutalist={isBrutalist} />
+          <SubscribeForm publicationId={publication.id} isBrutalist={isBrutalist} />
 
           <div className="pt-16 flex flex-col items-center gap-6">
             {socialLinks.length > 0 && (

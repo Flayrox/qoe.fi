@@ -15,6 +15,9 @@ vi.mock('../client', () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    publication: {
+      findFirst: vi.fn(),
+    },
     subscriber: {
       findFirst: vi.fn(),
     },
@@ -59,6 +62,10 @@ describe('@qoe/db - Threadgates & Moderation Repository', () => {
       authorId: 'author-1',
       replyRestriction: 'subscribers',
       content: 'Hello',
+    });
+    (prisma.publication.findFirst as unknown as Mock).mockResolvedValue({
+      id: 'pub-author-1',
+      type: 'PERSONAL',
     });
     (prisma.subscriber.findFirst as unknown as Mock).mockResolvedValueOnce(null); // non abonné
 

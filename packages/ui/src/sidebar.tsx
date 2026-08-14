@@ -23,6 +23,7 @@ import {
   Highlighter,
   Wallet,
   Bell,
+  Building2,
 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 
@@ -35,6 +36,7 @@ const iconRegistry: Record<
 > = {
   Home,
   FileText,
+  Building2,
   Mail,
   Users,
   PieChart,

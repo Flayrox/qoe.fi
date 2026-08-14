@@ -5,6 +5,7 @@
 import { redirect } from 'next/navigation';
 import { prisma } from '@qoe/db/client';
 import { requireUser } from '@qoe/auth/current-user';
+import { getActiveWorkspace } from '@/lib/active-workspace';
 import { AudienceClient, SubscriberItem } from './AudienceClient';
 
 export default async function AudiencePage() {
@@ -15,8 +16,9 @@ export default async function AudiencePage() {
   }
 
   // Fetch real creator subscribers from Prisma DB
+  const workspace = await getActiveWorkspace(user.id);
   const dbSubscribers = await prisma.subscriber.findMany({
-    where: { creatorId: user.id },
+    where: { publicationId: workspace.publicationId },
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,

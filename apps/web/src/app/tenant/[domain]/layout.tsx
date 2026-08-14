@@ -12,7 +12,8 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
 
-  const creator = await prisma.user.findFirst({
+  // Résolution polymorphe : la Publication (personnelle OU média) est l'identité tenant
+  const publication = await prisma.publication.findFirst({
     where: {
       OR: [{ subdomain: decodedDomain }, { customDomain: decodedDomain }],
     },
@@ -24,12 +25,11 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
     },
   });
 
-  if (!creator) {
+  if (!publication) {
     notFound();
   }
 
-  // Derive creator-specific Umami tracking websiteId (or fallback to root)
-  const umamiWebsiteId = creator.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
+  const umamiWebsiteId = publication.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
 
   return (
     <>

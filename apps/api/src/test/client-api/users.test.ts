@@ -23,8 +23,8 @@ describe('Client API — GET /v1/users/me', () => {
       data: { user: { id: 'u-me', email: 'me@qoe.fi' } },
       error: null,
     });
-    ctx.seed.follow('u-me', 'u-a'); // me suit a
-    ctx.seed.follow('u-b', 'u-me'); // b me suit
+    ctx.seed.follow('u-me', 'pub-u-a'); // me suit la publication de a
+    ctx.seed.follow('u-b', 'pub-u-me'); // b suit la publication de me
 
     const res = await ctx.app.request('/v1/users/me', { headers: clientHeaders() });
     expect(res.status).toBe(200);
@@ -68,10 +68,9 @@ describe('Client API — GET /v1/users/:username', () => {
     expect(bySubdomain.status).toBe(200);
 
     const body = (await byUsername.json()) as {
-      data: { name: string; isCertified: boolean; _count: { posts: number } };
+      data: { name: string; isCertified: boolean; _count: { followers: number } };
     };
     expect(body.data).toMatchObject({ name: 'Public User', isCertified: true });
-    expect(body.data._count.posts).toBe(1);
   });
 
   it("renvoie 404 si l'utilisateur n'existe pas", async () => {

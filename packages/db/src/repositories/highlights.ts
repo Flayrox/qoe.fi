@@ -25,7 +25,7 @@ export async function createHighlight(input: CreateHighlightInput) {
     select: {
       authorId: true,
       allowPublicAnnotations: true,
-      author: {
+      publication: {
         select: { allowPublicAnnotations: true },
       },
     },
@@ -41,7 +41,8 @@ export async function createHighlight(input: CreateHighlightInput) {
   // SECURITY RULE 2: Check creator permission if requesting a public annotation
   if (isPublic) {
     const isPublicAllowed =
-      (article.allowPublicAnnotations ?? true) && (article.author?.allowPublicAnnotations ?? true);
+      (article.allowPublicAnnotations ?? true) &&
+      (article.publication?.allowPublicAnnotations ?? true);
     if (!isPublicAllowed) {
       throw new Error('Le créateur a désactivé les annotations publiques sur cet espace.');
     }
@@ -63,7 +64,6 @@ export async function createHighlight(input: CreateHighlightInput) {
           name: true,
           username: true,
           logoUrl: true,
-          subdomain: true,
         },
       },
     },
@@ -90,7 +90,7 @@ export async function toggleHighlightPrivacy(
         select: {
           authorId: true,
           allowPublicAnnotations: true,
-          author: { select: { allowPublicAnnotations: true } },
+          publication: { select: { allowPublicAnnotations: true } },
         },
       },
     },
@@ -113,7 +113,7 @@ export async function toggleHighlightPrivacy(
   if (isPublic) {
     const isPublicAllowed =
       (existing.article?.allowPublicAnnotations ?? true) &&
-      (existing.article?.author?.allowPublicAnnotations ?? true);
+      (existing.article?.publication?.allowPublicAnnotations ?? true);
     if (!isPublicAllowed) {
       throw new Error('Le créateur de cet article a désactivé le passage en annotation publique.');
     }
@@ -280,7 +280,6 @@ export async function getArticleHighlights(articleId: string, activeUserId?: str
           name: true,
           username: true,
           logoUrl: true,
-          subdomain: true,
         },
       },
       comments: {

@@ -5,6 +5,8 @@
 import { prisma } from '../client';
 import type { Thought, Prisma } from '@prisma/client';
 import { POST_VISIBILITY } from '@qoe/config';
+import { getFollowedUserIds } from './follows';
+import { getOrCreatePersonalPublication } from './publications';
 
 export type FeedThought = Prisma.ThoughtGetPayload<{
   include: {
@@ -13,8 +15,6 @@ export type FeedThought = Prisma.ThoughtGetPayload<{
         id: true;
         name: true;
         username: true;
-        subdomain: true;
-        customDomain: true;
         logoUrl: true;
         isCertified: true;
       };
@@ -29,7 +29,6 @@ export type FeedThought = Prisma.ThoughtGetPayload<{
             id: true;
             name: true;
             username: true;
-            subdomain: true;
             logoUrl: true;
             isCertified: true;
           };
@@ -43,8 +42,6 @@ export type FeedThought = Prisma.ThoughtGetPayload<{
             id: true;
             name: true;
             username: true;
-            subdomain: true;
-            customDomain: true;
             logoUrl: true;
             isCertified: true;
           };
@@ -96,11 +93,8 @@ type ThreadThought = Prisma.ThoughtGetPayload<{
       select: {
         id: true;
         name: true;
-        subdomain: true;
-        customDomain: true;
-        logoUrl: true;
-        heroText: true;
         username: true;
+        logoUrl: true;
         isCertified: true;
       };
     };
@@ -110,10 +104,8 @@ type ThreadThought = Prisma.ThoughtGetPayload<{
           select: {
             id: true;
             name: true;
-            subdomain: true;
-            customDomain: true;
-            logoUrl: true;
             username: true;
+            logoUrl: true;
             isCertified: true;
           };
         };
@@ -143,8 +135,6 @@ export interface ThreadNode {
     username: string | null;
     logoUrl: string | null;
     isCertified: boolean;
-    subdomain: string | null;
-    customDomain: string | null;
   };
   parent?: ThreadNode | null;
   repost?: ThreadNode | null;
@@ -164,7 +154,6 @@ export interface ThreadNode {
     id: string;
     name: string | null;
     username: string | null;
-    subdomain: string | null;
     logoUrl: string | null;
   }>;
   knownLikersTotal?: number;
@@ -205,8 +194,6 @@ export async function buildFeedSlices(
             id: true,
             name: true,
             username: true,
-            subdomain: true,
-            customDomain: true,
             logoUrl: true,
             isCertified: true,
           },
@@ -218,8 +205,6 @@ export async function buildFeedSlices(
                 id: true,
                 name: true,
                 username: true,
-                subdomain: true,
-                customDomain: true,
                 logoUrl: true,
                 isCertified: true,
               },
@@ -302,11 +287,7 @@ export async function findFollowingFeed(
   // TTL 30s = latence massive en moins sur la home, rafraîchi à l'écriture.
   const cacheKey = `feed:following:${readerId}:${options?.take ?? 20}:${options?.cursor ?? ''}:${options?.skip ?? 0}`;
   return withCache(cacheKey, 30, async () => {
-    const follows = await prisma.follows.findMany({
-      where: { readerId },
-      select: { creatorId: true },
-    });
-    const creatorIds = follows.map((f: { creatorId: string }) => f.creatorId);
+    const creatorIds = await getFollowedUserIds(readerId);
 
     if (creatorIds.length === 0) return [];
 
@@ -331,8 +312,6 @@ export async function findFollowingFeed(
             id: true,
             name: true,
             username: true,
-            subdomain: true,
-            customDomain: true,
             logoUrl: true,
             isCertified: true,
           },
@@ -347,7 +326,6 @@ export async function findFollowingFeed(
                 id: true,
                 name: true,
                 username: true,
-                subdomain: true,
                 logoUrl: true,
                 isCertified: true,
               },
@@ -361,8 +339,6 @@ export async function findFollowingFeed(
                 id: true,
                 name: true,
                 username: true,
-                subdomain: true,
-                customDomain: true,
                 logoUrl: true,
                 isCertified: true,
               },
@@ -460,8 +436,6 @@ export async function findTrending(limit: number = 20, currentUserId?: string) {
             id: true,
             name: true,
             username: true,
-            subdomain: true,
-            customDomain: true,
             logoUrl: true,
             isCertified: true,
           },
@@ -476,7 +450,6 @@ export async function findTrending(limit: number = 20, currentUserId?: string) {
                 id: true,
                 name: true,
                 username: true,
-                subdomain: true,
                 logoUrl: true,
                 isCertified: true,
               },
@@ -490,8 +463,6 @@ export async function findTrending(limit: number = 20, currentUserId?: string) {
                 id: true,
                 name: true,
                 username: true,
-                subdomain: true,
-                customDomain: true,
                 logoUrl: true,
                 isCertified: true,
               },
@@ -579,11 +550,8 @@ export async function createThought(data: {
         select: {
           id: true,
           name: true,
-          subdomain: true,
-          customDomain: true,
-          logoUrl: true,
-          heroText: true,
           username: true,
+          logoUrl: true,
           isCertified: true,
         },
       },
@@ -593,8 +561,6 @@ export async function createThought(data: {
             select: {
               id: true,
               name: true,
-              subdomain: true,
-              customDomain: true,
               logoUrl: true,
               username: true,
               isCertified: true,
@@ -707,11 +673,8 @@ export async function createThoughtThread(
             select: {
               id: true,
               name: true,
-              subdomain: true,
-              customDomain: true,
-              logoUrl: true,
-              heroText: true,
               username: true,
+              logoUrl: true,
               isCertified: true,
             },
           },
@@ -721,8 +684,6 @@ export async function createThoughtThread(
                 select: {
                   id: true,
                   name: true,
-                  subdomain: true,
-                  customDomain: true,
                   logoUrl: true,
                   username: true,
                   isCertified: true,
@@ -958,8 +919,6 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
       username: true,
       logoUrl: true,
       isCertified: true,
-      subdomain: true,
-      customDomain: true,
     },
   };
 
@@ -1126,20 +1085,17 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
 
     if (currentUserId) {
       if (processed.authorId) {
+        const authorPublication = await getOrCreatePersonalPublication(processed.authorId);
         const followCheck = await prisma.follows.findFirst({
           where: {
             readerId: currentUserId,
-            creatorId: processed.authorId,
+            publicationId: authorPublication.id,
           },
         });
         isFollowingAuthor = !!followCheck;
       }
 
-      const follows = await prisma.follows.findMany({
-        where: { readerId: currentUserId },
-        select: { creatorId: true },
-      });
-      const creatorIds = follows.map((f: { creatorId: string }) => f.creatorId);
+      const creatorIds = await getFollowedUserIds(currentUserId);
 
       if (creatorIds.length > 0) {
         const canonicalId = processed.repostId || processed.id;
@@ -1155,7 +1111,6 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
                 id: true,
                 name: true,
                 username: true,
-                subdomain: true,
                 logoUrl: true,
               },
             },
@@ -1241,10 +1196,7 @@ export async function toggleRepost(
               id: true,
               name: true,
               username: true,
-              subdomain: true,
-              customDomain: true,
               logoUrl: true,
-              heroText: true,
               isCertified: true,
             },
           },
@@ -1255,8 +1207,6 @@ export async function toggleRepost(
                   id: true,
                   name: true,
                   username: true,
-                  subdomain: true,
-                  customDomain: true,
                   logoUrl: true,
                   isCertified: true,
                 },

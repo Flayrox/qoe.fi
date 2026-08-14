@@ -40,8 +40,8 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
       })
     : null;
 
-  // 2. Resolve creator by subdomain or custom domain (case-insensitive)
-  const creator = await prisma.user.findFirst({
+  // 2. Résolution polymorphe : la Publication (personnelle OU média) est l'identité tenant
+  const publication = await prisma.publication.findFirst({
     where: {
       OR: [
         { subdomain: { equals: decodedDomain, mode: 'insensitive' } },
@@ -51,21 +51,27 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
     include: {
       navigation: { orderBy: { order: 'asc' } },
       socialLinks: { orderBy: { order: 'asc' } },
+      user: { select: { id: true, username: true } },
     },
   });
 
-  if (!creator) {
+  if (!publication) {
     notFound();
   }
 
-  // 3. Fetch article by slug or id and authorId
+  const displayName = publication.name || publication.user?.username || t`le créateur`;
+
+  // 3. Fetch article by publicationId + slug (ou id)
   const article = await prisma.article.findFirst({
     where: {
-      authorId: creator.id,
+      publicationId: publication.id,
       OR: [{ slug: { equals: decodedSlug, mode: 'insensitive' } }, { id: decodedSlug }],
     },
     include: {
       category: true,
+      author: {
+        select: { id: true, name: true, username: true, logoUrl: true },
+      },
     },
   });
 
@@ -83,20 +89,25 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
         </h1>
         <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
           {t`Le lien que vous avez suivi est incorrect ou l'écrit a été retiré par `}
-          <strong className="text-foreground">{creator.name || creator.username}</strong>.
+          <strong className="text-foreground">{displayName}</strong>.
         </p>
         <Link
           href="/"
           className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:opacity-90 transition-opacity shadow-sm"
         >
-          {t`Retourner au blog de ${creator.name || (creator.username ?? '')}`}
+          {t`Retourner au blog de ${displayName}`}
         </Link>
       </div>
     );
   }
 
-  // If article is unpublished draft and visitor is NOT the creator
-  if (!article.published && user?.id !== article.authorId) {
+  const isPublicationOwner =
+    publication.type === 'MEDIA'
+      ? false // Un article média est géré par les membres ; le brouillon n'est pas public
+      : publication.user?.id === user?.id;
+
+  // Si article non publié et visiteur ≠ propriétaire/membre du média
+  if (!article.published && !isPublicationOwner && user?.id !== article.authorId) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 text-center font-sans select-none">
         <div className="w-12 h-12 rounded-2xl bg-highlight/10 text-highlight border border-highlight/20 flex items-center justify-center font-black text-xl mb-4 shadow-sm">
@@ -109,14 +120,14 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
           {t`Cet écrit n'est pas encore publié`}
         </h1>
         <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
-          <strong className="text-foreground">{creator.name || creator.username}</strong>{' '}
+          <strong className="text-foreground">{displayName}</strong>{' '}
           {t`peaufine actuellement cet écrit. Il sera disponible en lecture dès sa publication officielle.`}
         </p>
         <Link
           href="/"
           className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:opacity-90 transition-opacity shadow-sm"
         >
-          {t`Explorer le blog de ${creator.name || (creator.username ?? '')}`}
+          {t`Explorer le blog de ${displayName}`}
         </Link>
       </div>
     );
@@ -142,9 +153,9 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
     user
       ? prisma.follows.findUnique({
           where: {
-            readerId_creatorId: {
+            readerId_publicationId: {
               readerId: user.id,
-              creatorId: creator.id,
+              publicationId: publication.id,
             },
           },
         })
@@ -176,7 +187,6 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
             name: true,
             username: true,
             logoUrl: true,
-            subdomain: true,
           },
         },
         comments: {
@@ -217,13 +227,16 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
     socialLinks,
     stripeAccountId,
     supportUrl,
-  } = creator;
+  } = publication;
+
+  const authorName = article.author?.name || article.author?.username || name;
 
   const allowPublicAnnotations =
-    (creator.allowPublicAnnotations ?? true) && (article.allowPublicAnnotations ?? true);
-  const allowComments = (creator.allowComments ?? true) && (article.allowComments ?? true);
+    (publication.allowPublicAnnotations ?? true) && (article.allowPublicAnnotations ?? true);
+  const allowComments = (publication.allowComments ?? true) && (article.allowComments ?? true);
   const mainAppUrl = getMainAppUrl(domain);
   const isBrutalist = layoutStyle === 'brutalist';
+  const isMediaBrand = publication.type === 'MEDIA';
 
   const customStyle = {
     '--tenant-accent': accentColor || 'hsl(var(--primary))',
@@ -241,32 +254,14 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   let isMember = isAuthor;
 
   if (user) {
-    const subscriptionClient = prisma as unknown as {
-      subscription?: {
-        findFirst: (args: {
-          where: { userId: string; creatorId: string; status: string };
-        }) => Promise<{ id: string } | null>;
-      };
-    };
-    const [sub, subscriberRecord] = await Promise.all([
-      subscriptionClient.subscription?.findFirst
-        ? subscriptionClient.subscription.findFirst({
-            where: {
-              userId: user.id,
-              creatorId: creator.id,
-              status: 'active',
-            },
-          })
-        : null,
-      prisma.subscriber.findFirst({
-        where: {
-          creatorId: creator.id,
-          email: user.email || '',
-          isActive: true,
-        },
-      }),
-    ]);
-    isPaidSubscriber = isAuthor || !!sub;
+    const subscriberRecord = await prisma.subscriber.findFirst({
+      where: {
+        publicationId: publication.id,
+        email: user.email || '',
+        isActive: true,
+      },
+    });
+    isPaidSubscriber = isAuthor || !!subscriberRecord?.isPremium;
     isMember = isPaidSubscriber || !!subscriberRecord;
   }
 
@@ -327,11 +322,18 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
                 alt={name || t`Auteur`}
                 width={40}
                 height={40}
-                className="w-10 h-10 rounded-full object-cover border border-border/40 shrink-0"
+                className={`w-10 h-10 object-cover border border-border/40 shrink-0 ${
+                  isMediaBrand ? 'rounded-lg' : 'rounded-full'
+                }`}
               />
             )}
             <div>
-              <span className="font-semibold text-foreground">{name || creator.username}</span>
+              <span className="font-semibold text-foreground">{authorName}</span>
+              {isMediaBrand && article.author?.name && (
+                <span className="ml-1.5 text-muted-foreground text-xs">
+                  • {t`Par ${article.author.name}`}
+                </span>
+              )}
               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                 <time dateTime={article.createdAt.toISOString()}>
                   {new Date(article.createdAt).toLocaleDateString('fr-FR', {
@@ -353,18 +355,18 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
           <PaywallCut
             contentHtml={paywallCutResult.content}
             isPremium={article.isPremium && !paywallCutResult.accessGranted}
-            name={name || creator.username}
+            name={authorName}
             isBrutalist={isBrutalist}
             accentColor={accentColor}
             mainAppUrl={mainAppUrl}
-            creatorId={creator.id}
+            creatorId={article.authorId}
           />
         </div>
 
         {/* Interactive Genius Text Selection Highlighter & Side Drawer Engine */}
         <TenantArticleHighlighter
           articleId={article.id}
-          creatorName={name || creator.username || t`L'Auteur`}
+          creatorName={authorName || t`L'Auteur`}
           allowPublicAnnotations={allowPublicAnnotations}
           isAuthenticated={!!user}
           initialHighlights={initialHighlights}
@@ -401,7 +403,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
               <strong className="text-foreground">{name}</strong>{' '}
               {t`pour recevoir les prochains écrits directement dans votre boîte mail.`}
             </p>
-            <SubscribeForm creatorId={creator.id} isBrutalist={isBrutalist} />
+            <SubscribeForm publicationId={publication.id} isBrutalist={isBrutalist} />
           </div>
         </section>
       </main>
@@ -409,8 +411,8 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
       {/* Floating Bottom Action Bar */}
       <ReaderActions
         articleId={article.id}
-        creatorId={creator.id}
-        creatorName={name || creator.username || t`le créateur`}
+        publicationId={publication.id}
+        creatorName={authorName || t`le créateur`}
         isAuthenticated={!!user}
         initialBookmarked={initialBookmarked}
         initialFollowed={initialFollowed}

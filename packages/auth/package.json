@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./roles": "./src/roles.ts",
     "./permissions": "./src/permissions.ts",
+    "./media": "./src/media.ts",
     "./current-user": "./src/current-user.ts"
   },
   "scripts": {

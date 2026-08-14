@@ -97,6 +97,9 @@ export interface CreatorProfile {
   articles: StudioArticle[];
   categories: ClientCategory[];
   advancedSettingsMode: boolean;
+  /** Contexte média (lorsque le workspace actif est un Média) */
+  isMedia?: boolean;
+  mediaRole?: string;
 }
 
 export const ACCENT_SWATCHES = [
@@ -139,6 +142,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
   // =====================================================================
   const [original, setOriginal] = useState<CreatorProfile>(initialCreator);
   const [current, setCurrent] = useState<CreatorProfile>(initialCreator);
+  const isMediaWorkspace = initialCreator.isMedia ?? false;
   const [activeTab, setActiveTab] = useState<TabType>('general');
   const [isSaving, setIsSaving] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -391,11 +395,20 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
       <header className="w-full border-b border-border/40 bg-background/90 backdrop-blur-md sticky top-0 z-20">
         <div className="max-w-3xl mx-auto px-6 py-5 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Paramètres de la publication
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold tracking-tight text-foreground">
+                Paramètres de la publication
+              </h1>
+              {isMediaWorkspace && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20">
+                  Média
+                </span>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Configuration de votre espace d'écriture sur qoe.fi
+              {isMediaWorkspace
+                ? `Configuration du Média « ${current.name} » et de son équipe sur qoe.fi`
+                : "Configuration de votre espace d'écriture sur qoe.fi"}
             </p>
           </div>
 

@@ -25,12 +25,12 @@ export interface CreatorTopContentItem {
 }
 
 export async function getCreatorFinancialMetrics(
-  creatorId: string
+  publicationId: string
 ): Promise<CreatorFinancialMetrics> {
   const [activeSubscribers, freeSubscribersCount] = await Promise.all([
     prisma.subscriber.findMany({
       where: {
-        creatorId,
+        publicationId,
         status: 'ACTIVE',
         isPremium: true,
       },
@@ -46,7 +46,7 @@ export async function getCreatorFinancialMetrics(
     }),
     prisma.subscriber.count({
       where: {
-        creatorId,
+        publicationId,
         isPremium: false,
       },
     }),
@@ -55,17 +55,12 @@ export async function getCreatorFinancialMetrics(
   let mrrCents = 0;
   let grossVolumeCents = 0;
 
-  activeSubscribers.forEach(
-    (sub: {
-      ltvCents: number;
-      tier: { monthlyPriceCents: number; yearlyPriceCents: number | null } | null;
-    }) => {
-      grossVolumeCents += sub.ltvCents || 0;
-      if (sub.tier) {
-        mrrCents += sub.tier.monthlyPriceCents || 0;
-      }
+  activeSubscribers.forEach((sub) => {
+    grossVolumeCents += sub.ltvCents || 0;
+    if (sub.tier) {
+      mrrCents += sub.tier.monthlyPriceCents || 0;
     }
-  );
+  });
 
   const arrCents = mrrCents * 12;
   const activeSubscribersCount = activeSubscribers.length;
