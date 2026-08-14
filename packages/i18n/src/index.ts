@@ -3,6 +3,6 @@
 // =====================================================================
 
 export * from './locales';
-export { TolgeeNextProvider, useTranslate, useTolgee } from './provider';
-export { getTolgee, getTranslate, getLanguage, initI18n } from './server';
+export { I18nClientProvider, useTranslate, useI18n } from './provider';
+export { getStaticTranslations, getTranslate, getLanguage, initI18n } from './server';
 export type { I18nParams, I18nValue } from './core';

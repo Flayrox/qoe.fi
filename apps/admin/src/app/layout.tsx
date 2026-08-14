@@ -4,13 +4,13 @@
 // 📖 Sert : /home (feed), /login, /library, /highlights, /billing,
 //    /settings, /onboarding, /dashboard/*, /admin/*
 //
-// 🎯 Charge Tolgee, Theme, fonts. C'est la coquille globale.
+// 🎯 Charge i18n, Theme, fonts. C'est la coquille globale.
 // =====================================================================
 
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono, Geist } from 'next/font/google';
-import { TolgeeNextProvider } from '@qoe/i18n/provider';
-import { getTolgee, getLanguage, initI18n } from '@qoe/i18n/server';
+import { I18nClientProvider } from '@qoe/i18n/provider';
+import { getStaticTranslations, getLanguage, initI18n } from '@qoe/i18n/server';
 import { GrowthBookProvider } from '@qoe/flags';
 import { getGrowthBookPayload } from '@qoe/flags/server';
 import { TooltipProvider } from '@qoe/ui/ui/tooltip';
@@ -53,8 +53,8 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const locale = await initI18n();
-  const tolgee = await getTolgee();
-  const staticData = await tolgee.loadRequired();
+  const staticTranslations = await getStaticTranslations();
+  const staticData = await staticTranslations.loadTranslations();
   const flagsPayload = await getGrowthBookPayload();
 
   const devtoolsActions = {
@@ -83,7 +83,7 @@ export default async function RootLayout({
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <GrowthBookProvider payload={flagsPayload}>
-            <TolgeeNextProvider language={locale} staticData={staticData}>
+            <I18nClientProvider language={locale} staticData={staticData}>
               <TooltipProvider>
                 {children}
                 <Toaster />
@@ -91,7 +91,7 @@ export default async function RootLayout({
                   <DevtoolsPanel actions={devtoolsActions} />
                 )}
               </TooltipProvider>
-            </TolgeeNextProvider>
+            </I18nClientProvider>
           </GrowthBookProvider>
         </ThemeProvider>
 

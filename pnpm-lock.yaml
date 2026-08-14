@@ -763,12 +763,6 @@ importers:
       '@supabase/ssr':
         specifier: ^0.10.3
         version: 0.10.3(@supabase/supabase-js@2.108.2)
-      '@tolgee/react':
-        specifier: ^7.0.0
-        version: 7.1.1(react@19.2.4)
-      '@tolgee/web':
-        specifier: ^7.0.0
-        version: 7.1.1
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3458,17 +3452,6 @@ packages:
 
   '@tiptap/starter-kit@3.26.1':
     resolution: {integrity: sha512-A0zsvwGU9exLND34F8e8KqUXFSfs835tNN+VC+ZT3yNeaO/WXnlh/Cgal1F6pHHbcxy7RV2CRwJU5S3cWLPxrA==}
-
-  '@tolgee/core@7.1.1':
-    resolution: {integrity: sha512-RsrFJwFUyeI29BnLVNMSLDyPaAUWZGrF/LU1QUTZ13BACV+cW8wuqD/WwaDhlv3az+AFiCXVbhCi+cmlJUuc5g==}
-
-  '@tolgee/react@7.1.1':
-    resolution: {integrity: sha512-UbwcRe75HHkDIsNuhB+IJZNtYTfqtty2tXP+z4RFjNlFmJ7HO+FxUpnr3nh5St6r5x4rrqPjJnjYOuJmMpSPNw==}
-    peerDependencies:
-      react: ^16.14.0 || ^17.0.1 || ^18.1.0 || ^19
-
-  '@tolgee/web@7.1.1':
-    resolution: {integrity: sha512-ymMgbAIASrYJD1EGxj8Vt7NMltqVALEE2vqmXfsffrBvBfkloaNZ5fMMvDykoMLHThq9xgZFPWLrjLdIr9Z80A==}
 
   '@turbo/darwin-64@2.9.18':
     resolution: {integrity: sha512-9f27peFu16ur8c0v9nUFUEyBnbKuuFsUTjHFWfmwGfzySBXbHwzU44QhZon6Mznz0cHsIr3984NQj/bVrnGSRw==}
@@ -8992,17 +8975,6 @@ snapshots:
       '@tiptap/extension-underline': 3.26.1(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))
       '@tiptap/extensions': 3.26.1(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))(@tiptap/pm@3.26.1)
       '@tiptap/pm': 3.26.1
-
-  '@tolgee/core@7.1.1': {}
-
-  '@tolgee/react@7.1.1(react@19.2.4)':
-    dependencies:
-      '@tolgee/web': 7.1.1
-      react: 19.2.4
-
-  '@tolgee/web@7.1.1':
-    dependencies:
-      '@tolgee/core': 7.1.1
 
   '@turbo/darwin-64@2.9.18':
     optional: true

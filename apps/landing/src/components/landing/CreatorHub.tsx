@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { t } from '@lingui/core/macro';
-import { useTolgee } from '@qoe/i18n';
+import { useI18n } from '@qoe/i18n';
 import Link from 'next/link';
 import { ArrowUpRight, Check } from 'lucide-react';
 
@@ -75,8 +75,8 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
     },
   };
 
-  const tolgee = useTolgee();
-  const locale = tolgee.getLanguage() || 'fr';
+  const i18n = useI18n();
+  const locale = i18n.getLanguage() || 'fr';
 
   const sectionTitle =
     config[`creator_hub_title_${locale}`] ||

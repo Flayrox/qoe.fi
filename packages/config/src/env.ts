@@ -43,10 +43,6 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
 
-  // ─── Tolgee (i18n) ─────────────────────────────────────
-  NEXT_PUBLIC_TOLGEE_API_KEY: z.string().optional(),
-  NEXT_PUBLIC_TOLGEE_API_URL: z.string().url().default('https://app.tolgee.io'),
-
   // ─── App URLs ──────────────────────────────────────────
   NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
   NEXT_PUBLIC_CONSOLE_URL: z.string().url().default('http://localhost:3000'),
@@ -95,8 +91,6 @@ export function parseEnv() {
       NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
       NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
-      NEXT_PUBLIC_TOLGEE_API_KEY: z.string().optional(),
-      NEXT_PUBLIC_TOLGEE_API_URL: z.string().url().default('https://app.tolgee.io'),
       NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
       NEXT_PUBLIC_CONSOLE_URL: z.string().url().default('http://localhost:3000'),
       NEXT_PUBLIC_LANDING_URL: z.string().url().default('http://localhost:3000/start'),
@@ -114,8 +108,6 @@ export function parseEnv() {
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: cleanEnvValue(
         process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
       ),
-      NEXT_PUBLIC_TOLGEE_API_KEY: cleanEnvValue(process.env.NEXT_PUBLIC_TOLGEE_API_KEY),
-      NEXT_PUBLIC_TOLGEE_API_URL: cleanEnvValue(process.env.NEXT_PUBLIC_TOLGEE_API_URL),
       NEXT_PUBLIC_APP_URL: cleanEnvValue(process.env.NEXT_PUBLIC_APP_URL),
       NEXT_PUBLIC_CONSOLE_URL: cleanEnvValue(process.env.NEXT_PUBLIC_CONSOLE_URL),
       NEXT_PUBLIC_LANDING_URL: cleanEnvValue(process.env.NEXT_PUBLIC_LANDING_URL),

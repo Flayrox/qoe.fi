@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, useAnimationFrame } from 'framer-motion';
 import { t } from '@lingui/core/macro';
-import { useTolgee } from '@qoe/i18n';
+import { useI18n } from '@qoe/i18n';
 import { ArrowUpRight } from 'lucide-react';
 import { ArticlePreviewModal, type Article } from './ArticlePreviewModal';
 
@@ -141,8 +141,8 @@ export const FeaturedPublications = ({ articles, config }: FeaturedPublicationsP
     lane4: string[];
   } | null>(null);
 
-  const tolgee = useTolgee();
-  const locale = tolgee.getLanguage() || 'fr';
+  const i18n = useI18n();
+  const locale = i18n.getLanguage() || 'fr';
 
   useEffect(() => {
     let words = BACKGROUND_WORDS;

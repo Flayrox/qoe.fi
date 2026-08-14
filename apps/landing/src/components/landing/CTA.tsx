@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { t } from '@lingui/core/macro';
-import { useTolgee } from '@qoe/i18n';
+import { useI18n } from '@qoe/i18n';
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 
@@ -12,8 +12,8 @@ interface CTAProps {
 }
 
 export const CTA = ({ config }: CTAProps) => {
-  const tolgee = useTolgee();
-  const locale = tolgee.getLanguage() || 'fr';
+  const i18n = useI18n();
+  const locale = i18n.getLanguage() || 'fr';
 
   const eyebrow =
     config[`cta_eyebrow_${locale}`] ||
