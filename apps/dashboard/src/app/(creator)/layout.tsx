@@ -2,6 +2,7 @@ import { GlobalCommandMenu } from '@/features/dashboard/components/GlobalCommand
 import { AppSidebar } from '@/features/dashboard/components/app-sidebar';
 import { DashboardLayoutContent } from '@/features/dashboard/components/DashboardLayoutContent';
 import { requireUser } from '@qoe/auth/current-user';
+import { prisma } from '@qoe/db/client';
 import { redirect } from 'next/navigation';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -14,7 +15,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   // Si l'utilisateur n'a pas fait l'onboarding mais a déjà un domaine (anciens comptes), on le skip
-  if (!user.hasCompletedOnboarding && !user.subdomain) {
+  const hasTenant = (await prisma.publication.count({ where: { user: { id: user.id } } })) > 0;
+  if (!user.hasCompletedOnboarding && !hasTenant) {
     redirect('/onboarding');
   }
 

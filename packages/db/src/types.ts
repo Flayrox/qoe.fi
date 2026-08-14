@@ -7,9 +7,14 @@
 
 import type { Thought as PrismaThought } from '@prisma/client';
 
-export { ContentVisibility } from '@prisma/client';
+export { ContentVisibility, PublicationType } from '@prisma/client';
 export type {
   User,
+  Publication,
+  Media,
+  MediaMember,
+  MediaInvite,
+  MediaAuditLog,
   Article,
   Thought,
   Subscriber,
@@ -40,7 +45,25 @@ export { ROLES } from '@qoe/config';
 // =====================================================================
 
 /**
- * 👤 DTO Profil Créateur / Auteur
+ * 📰 DTO Publication (identité brand polymorphe : personnel OU média)
+ */
+export interface PublicationDTO {
+  id: string;
+  type: 'PERSONAL' | 'MEDIA';
+  name: string | null;
+  slug: string;
+  username: string | null; // Alias de slug (compat feed)
+  subdomain: string | null;
+  customDomain: string | null;
+  logoUrl: string | null;
+  heroText: string | null;
+  bio?: string | null;
+  isCertified?: boolean;
+}
+
+/**
+ * 👤 DTO Profil Créateur / Auteur — désormais une Publication brand.
+ * `authorName` = le nom de l'auteur humain (byline "Par Sophie • Médium").
  */
 export interface CreatorProfileDTO {
   id: string;
@@ -51,6 +74,8 @@ export interface CreatorProfileDTO {
   logoUrl: string | null;
   heroText: string | null;
   isCertified?: boolean;
+  type?: 'PERSONAL' | 'MEDIA';
+  authorName?: string | null;
 }
 
 /**

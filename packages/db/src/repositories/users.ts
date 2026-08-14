@@ -1,10 +1,15 @@
 // =====================================================================
 // 👤 Users Repository — Couche d'accès typée
 // =====================================================================
+// 📖 Depuis le polymorphisme Publication, les profils publics / tenant
+//    sont résolus via la Publication de l'utilisateur. Ce repo conserve
+//    les helpers "personnes" (mention @, recherche) côté User.
+// =====================================================================
 
 import { prisma } from '../client';
 import type { User } from '@prisma/client';
 import { ROLES } from '@qoe/config';
+import { getOrCreatePersonalPublication } from './publications';
 
 /**
  * 👤 Trouve un user par son email.
@@ -21,16 +26,18 @@ export async function findById(id: string) {
 }
 
 /**
- * 🔗 Trouve un user par subdomain ou custom domain (résolution tenant).
+ * 🔗 Résout une publication (personnelle OU média) par subdomain ou custom domain.
+ * Polymorphe : utilisée par le web tenant.
  */
 export async function findByDomain(domain: string) {
-  return prisma.user.findFirst({
+  return prisma.publication.findFirst({
     where: {
       OR: [{ subdomain: domain }, { customDomain: domain }],
     },
     include: {
       navigation: { orderBy: { order: 'asc' } },
       socialLinks: { orderBy: { order: 'asc' } },
+      user: true,
     },
   });
 }
@@ -39,38 +46,38 @@ export async function findByDomain(domain: string) {
  * 🏷️ Trouve un user par username (pour les profils @user).
  */
 export async function findByUsername(username: string) {
-  return prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { username },
-    select: {
-      id: true,
-      name: true,
-      username: true,
-      role: true,
-      logoUrl: true,
-      heroText: true,
-      onboardingText: true,
-      isCertified: true,
-      subdomain: true,
-      headerImageUrl: true,
-      createdAt: true,
-    },
+    include: { publication: true },
   });
+  if (!user) return null;
+  return {
+    ...user,
+    heroText: user.publication?.heroText ?? null,
+    headerImageUrl: user.publication?.headerImageUrl ?? null,
+    subdomain: user.publication?.subdomain ?? null,
+  };
 }
 
 /**
- * 👥 Liste les créateurs "suggested" (certified + active).
+ * 👥 Liste les créateurs "suggested" (certified + active) — résolus via leurs publications.
  */
 export async function findSuggestedCreators(limit: number = 10) {
-  return prisma.user.findMany({
+  return prisma.publication.findMany({
     where: {
-      role: { in: [ROLES.CREATOR, ROLES.SUPERADMIN] },
+      type: 'PERSONAL',
       isCertified: true,
-      isSuspended: false,
+      user: {
+        is: {
+          role: { in: [ROLES.CREATOR, ROLES.SUPERADMIN] },
+          isSuspended: false,
+        },
+      },
     },
     select: {
       id: true,
       name: true,
-      username: true,
+      slug: true,
       subdomain: true,
       logoUrl: true,
       heroText: true,
@@ -82,20 +89,21 @@ export async function findSuggestedCreators(limit: number = 10) {
 }
 
 /**
- * 🔍 Trouve un user par son ID avec données publiques seulement.
+ * 🔍 Trouve la publication publique d'un user par son ID.
  */
-export async function findPublicById(id: string) {
-  return prisma.user.findUnique({
-    where: { id },
+export async function findPublicById(userId: string) {
+  const publication = await getOrCreatePersonalPublication(userId);
+  return prisma.publication.findUnique({
+    where: { id: publication.id },
     select: {
       id: true,
       name: true,
-      username: true,
+      slug: true,
+      subdomain: true,
+      customDomain: true,
       logoUrl: true,
       heroText: true,
       isCertified: true,
-      subdomain: true,
-      customDomain: true,
     },
   });
 }
@@ -112,14 +120,12 @@ export async function searchUsers(query: string, limit: number = 8) {
       OR: [
         { username: { contains: q, mode: 'insensitive' } },
         { name: { contains: q, mode: 'insensitive' } },
-        { subdomain: { contains: q, mode: 'insensitive' } },
       ],
     },
     select: {
       id: true,
       name: true,
       username: true,
-      subdomain: true,
       logoUrl: true,
       isCertified: true,
     },

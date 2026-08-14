@@ -15,10 +15,14 @@ export default async function UserProfilePage({ params }: PageProps) {
   const user = await prisma.user.findUnique({
     where: { id },
     include: {
+      publication: {
+        select: {
+          subdomain: true,
+          _count: { select: { articles: true, subscribers: true } },
+        },
+      },
       _count: {
         select: {
-          articles: true,
-          subscribers: true,
           walletTransactions: true,
         },
       },
@@ -38,7 +42,9 @@ export default async function UserProfilePage({ params }: PageProps) {
 
   const totalRevenue = (revenueCents._sum.amountCents || 0) / 100;
   const ltv =
-    user._count.subscribers > 0 ? (totalRevenue / user._count.subscribers).toFixed(2) : '0.00';
+    (user.publication?._count?.subscribers ?? 0) > 0
+      ? (totalRevenue / (user.publication?._count?.subscribers ?? 1)).toFixed(2)
+      : '0.00';
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 font-sans">
@@ -96,7 +102,7 @@ export default async function UserProfilePage({ params }: PageProps) {
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">Domaine</span>
               <span className="font-medium text-foreground">
-                {user.subdomain ? `${user.subdomain}.qoe.fi` : 'N/A'}
+                {user.publication?.subdomain ? `${user.publication?.subdomain}.qoe.fi` : 'N/A'}
               </span>
             </div>
           </div>
@@ -110,7 +116,7 @@ export default async function UserProfilePage({ params }: PageProps) {
               <h3 className="text-sm font-semibold">Abonnés Totaux</h3>
             </div>
             <div className="text-4xl font-bold text-foreground tracking-tight">
-              {user._count.subscribers}
+              {user.publication?._count?.subscribers}
             </div>
           </div>
 
@@ -120,7 +126,7 @@ export default async function UserProfilePage({ params }: PageProps) {
               <h3 className="text-sm font-semibold">Articles Publiés</h3>
             </div>
             <div className="text-4xl font-bold text-foreground tracking-tight">
-              {user._count.articles}
+              {user.publication?._count?.articles}
             </div>
           </div>
 

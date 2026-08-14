@@ -20,7 +20,9 @@ export default async function HighlightsPage() {
         select: {
           title: true,
           slug: true,
-          author: { select: { name: true, subdomain: true, customDomain: true } },
+          publication: {
+            select: { name: true, subdomain: true, customDomain: true, slug: true },
+          },
         },
       },
     },
@@ -53,7 +55,7 @@ export default async function HighlightsPage() {
               </div>
             ) : (
               highlights.map((h) => {
-                if (!h.article || !h.article.author) return null;
+                if (!h.article || !h.article.publication) return null;
                 const isProd =
                   typeof window !== 'undefined'
                     ? window.location.hostname.endsWith('qoe.fi')
@@ -61,8 +63,10 @@ export default async function HighlightsPage() {
                 const suffix = isProd ? 'qoe.fi' : 'localhost';
                 const protocol = isProd ? 'https:' : 'http:';
                 const host =
-                  h.article.author.customDomain ||
-                  (h.article.author.subdomain ? `${h.article.author.subdomain}.${suffix}` : '');
+                  h.article.publication.customDomain ||
+                  (h.article.publication.subdomain
+                    ? `${h.article.publication.subdomain}.${suffix}`
+                    : '');
                 const url = host ? `${protocol}//${host}/article/${h.article.slug}` : '#';
 
                 return (

@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: ThoughtPageProps): Promise<Me
   // If this post is a pure repost pointer, use the original post for metadata
   const targetPost = post.repost || post;
   const authorName =
-    targetPost.author.name || `@${targetPost.author.username || targetPost.author.subdomain}`;
+    targetPost.author.name || `@${targetPost.author.username || targetPost.author.id}`;
   const shortContent =
     targetPost.content.length > 80 ? `${targetPost.content.slice(0, 80)}...` : targetPost.content;
 
@@ -71,13 +71,12 @@ export default async function ThoughtPage({ params }: ThoughtPageProps) {
 
   // 1. If this is a pure repost record, redirect to the original post's canonical URL
   if (post.repost) {
-    const originalAuthorHandle =
-      post.repost.author.username || post.repost.author.subdomain || post.repost.author.id;
+    const originalAuthorHandle = post.repost.author.username || post.repost.author.id;
     redirect(routes.feed.thought(originalAuthorHandle, post.repost.id));
   }
 
   // 2. If the URL username does not match the actual post author, redirect to canonical URL
-  const canonicalAuthorHandle = post.author.username || post.author.subdomain || post.author.id;
+  const canonicalAuthorHandle = post.author.username || post.author.id;
   if (rawUsername.toLowerCase() !== canonicalAuthorHandle.toLowerCase()) {
     redirect(routes.feed.thought(canonicalAuthorHandle, post.id));
   }

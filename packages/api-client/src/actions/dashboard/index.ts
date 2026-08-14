@@ -1,8 +1,35 @@
 'use server';
 
 import { prisma, type User, type Prisma } from '@qoe/db/client';
+import { publications } from '@qoe/db';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 import { safeAction } from '../utils/safe-action';
+
+/**
+ * 🎛️ Résout la publication active (personnelle OU média) depuis le cookie du workspace.
+ */
+async function getActivePublicationId(userId: string): Promise<string> {
+  let saved: { type?: string; id?: string } | null = null;
+  try {
+    const cookieStore = await cookies();
+    const raw = cookieStore.get('qoe_active_workspace')?.value;
+    if (raw) saved = JSON.parse(decodeURIComponent(raw));
+  } catch {
+    saved = null;
+  }
+
+  if (saved?.type === 'MEDIA' && saved.id) {
+    const membership = await prisma.mediaMember.findUnique({
+      where: { mediaId_userId: { mediaId: saved.id, userId } },
+      include: { media: { include: { publication: { select: { id: true } } } } },
+    });
+    if (membership) return membership.media.publication.id;
+  }
+
+  const personal = await publications.getOrCreatePersonalPublication(userId);
+  return personal.id;
+}
 
 interface UpdateCreatorProfileInput {
   name?: string | null;
@@ -41,19 +68,32 @@ interface CompleteOnboardingInput {
 
 export const updateCreatorProfileAction = safeAction<UpdateCreatorProfileInput, User>(
   async (data, user) => {
-    const updated = await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        ...(data.name !== undefined ? { name: data.name } : {}),
-        ...(data.heroText !== undefined ? { heroText: data.heroText } : {}),
-        ...(data.onboardingText !== undefined ? { onboardingText: data.onboardingText } : {}),
-        ...(data.accentColor !== undefined ? { accentColor: data.accentColor } : {}),
-        ...(data.layoutStyle !== undefined ? { layoutStyle: data.layoutStyle } : {}),
-        ...(data.logoUrl !== undefined ? { logoUrl: data.logoUrl } : {}),
-        ...(data.headerImageUrl !== undefined ? { headerImageUrl: data.headerImageUrl } : {}),
-      },
-    });
-    revalidatePath('/dashboard/settings');
+    const publicationId = await getActivePublicationId(user.id);
+    const updateData: Prisma.PublicationUpdateInput = {
+      ...(data.heroText !== undefined ? { heroText: data.heroText } : {}),
+      ...(data.accentColor !== undefined ? { accentColor: data.accentColor } : {}),
+      ...(data.layoutStyle !== undefined ? { layoutStyle: data.layoutStyle } : {}),
+      ...(data.logoUrl !== undefined ? { logoUrl: data.logoUrl } : {}),
+      ...(data.headerImageUrl !== undefined ? { headerImageUrl: data.headerImageUrl } : {}),
+      ...(data.fontFamily !== undefined ? { fontFamily: data.fontFamily } : {}),
+      ...(data.themeMode !== undefined ? { themeMode: data.themeMode } : {}),
+      ...(data.footerText !== undefined ? { footerText: data.footerText } : {}),
+      ...(data.seoTitle !== undefined ? { seoTitle: data.seoTitle } : {}),
+      ...(data.seoDescription !== undefined ? { seoDescription: data.seoDescription } : {}),
+      ...(data.allowIndexing !== undefined ? { allowIndexing: data.allowIndexing } : {}),
+      ...(data.supportUrl !== undefined ? { supportUrl: data.supportUrl } : {}),
+      ...(data.name !== undefined && data.name ? { name: data.name } : {}),
+    };
+    await prisma.publication.update({ where: { id: publicationId }, data: updateData });
+    if (data.onboardingText !== undefined) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { onboardingText: data.onboardingText },
+      });
+    }
+    const updated = await prisma.user.findUnique({ where: { id: user.id } });
+    if (!updated) throw new Error('Utilisateur introuvable');
+    revalidatePath('/settings');
     return updated;
   }
 );
@@ -111,9 +151,12 @@ export const checkSubdomainAvailabilityAction = safeAction<
       return { available: false, reason: 'Ce nom de sous-domaine est réservé par la plateforme.' };
     }
 
-    const existing = await prisma.user.findFirst({ where: { subdomain: clean } });
+    const existing = await prisma.publication.findFirst({ where: { subdomain: clean } });
     if (existing) {
-      return { available: false, reason: 'Ce sous-domaine est déjà attribué à un autre créateur.' };
+      return {
+        available: false,
+        reason: 'Ce sous-domaine est déjà attribué à une autre publication.',
+      };
     }
 
     return { available: true };
@@ -128,24 +171,26 @@ export const updateSubdomainAction = safeAction<string, { success: boolean; subd
       throw new Error(check.ok ? check.data.reason : 'Sous-domaine invalide.');
     }
 
-    const updated = await prisma.user.update({
-      where: { id: user.id },
+    const publicationId = await getActivePublicationId(user.id);
+    const updated = await prisma.publication.update({
+      where: { id: publicationId },
       data: { subdomain: subdomain.trim().toLowerCase() },
     });
 
-    revalidatePath('/dashboard/settings');
+    revalidatePath('/settings');
     return { success: true, subdomain: updated.subdomain! };
   }
 );
 
 export const saveNavigationLinksAction = safeAction<NavigationLinkInput[], { success: boolean }>(
   async (links, user) => {
+    const publicationId = await getActivePublicationId(user.id);
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.navigationItem.deleteMany({ where: { userId: user.id } });
+      await tx.navigationItem.deleteMany({ where: { publicationId } });
       if (links.length > 0) {
         await tx.navigationItem.createMany({
           data: links.map((link, idx) => ({
-            userId: user.id,
+            publicationId,
             label: link.label,
             url: link.url,
             order: idx,
@@ -153,19 +198,20 @@ export const saveNavigationLinksAction = safeAction<NavigationLinkInput[], { suc
         });
       }
     });
-    revalidatePath('/dashboard/settings');
+    revalidatePath('/settings');
     return { success: true };
   }
 );
 
 export const saveSocialLinksAction = safeAction<SocialLinkInput[], { success: boolean }>(
   async (links, user) => {
+    const publicationId = await getActivePublicationId(user.id);
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.socialLink.deleteMany({ where: { userId: user.id } });
+      await tx.socialLink.deleteMany({ where: { publicationId } });
       if (links.length > 0) {
         await tx.socialLink.createMany({
           data: links.map((link) => ({
-            userId: user.id,
+            publicationId,
             platform: link.platform,
             url: link.url,
           })),
@@ -173,7 +219,7 @@ export const saveSocialLinksAction = safeAction<SocialLinkInput[], { success: bo
       }
     });
 
-    revalidatePath('/dashboard/settings');
+    revalidatePath('/settings');
     return { success: true };
   }
 );
@@ -240,11 +286,27 @@ export const completeOnboardingAction = safeAction<CompleteOnboardingInput, { su
       data: {
         role: user.role === 'superadmin' ? 'superadmin' : 'creator',
         hasCompletedOnboarding: true,
-        subdomain: data.subdomain,
         name: data.name || user.user_metadata?.['name'],
       },
     });
-    revalidatePath('/dashboard');
+    await publications
+      .createPersonalPublication(user.id, {
+        name: data.name || user.user_metadata?.['name'] || 'Créateur',
+        subdomain: data.subdomain,
+        heroText: data.heroText,
+        layoutStyle: data.layoutStyle,
+        slug: (user.user_metadata?.['username'] as string | undefined) || data.name || 'creator',
+      })
+      .catch(async () => {
+        // Publication déjà créée (re-onboarding) : on synchronise
+        await publications.syncUserPublication(user.id, {
+          name: data.name || undefined,
+          subdomain: data.subdomain,
+          heroText: data.heroText,
+          layoutStyle: data.layoutStyle,
+        });
+      });
+    revalidatePath('/');
     return { success: true };
   }
 );

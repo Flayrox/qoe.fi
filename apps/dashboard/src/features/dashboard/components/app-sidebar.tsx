@@ -1,4 +1,5 @@
 import React from 'react';
+import { cookies } from 'next/headers';
 import { createClient } from '@qoe/supabase/server';
 import { prisma } from '@qoe/db/client';
 import { logout } from '@/app/login/actions';
@@ -28,6 +29,27 @@ export async function AppSidebar() {
   const userAvatar =
     user?.logoUrl || (authUser?.user_metadata?.avatar_url as string | undefined) || null;
 
+  // Résout le workspace actif (cookie) pour adapter le Studio
+  let brandName = t`Studio`;
+  try {
+    const cookieStore = await cookies();
+    const activeRaw = cookieStore.get('qoe_active_workspace')?.value ?? null;
+    if (activeRaw) {
+      const parsed = JSON.parse(decodeURIComponent(activeRaw)) as { type?: string; id?: string };
+      if (parsed?.type === 'MEDIA' && parsed.id && user) {
+        const member = await prisma.mediaMember.findFirst({
+          where: { mediaId: parsed.id, userId: user.id },
+          include: { media: { include: { publication: { select: { name: true } } } } },
+        });
+        if (member) {
+          brandName = member.media.publication.name;
+        }
+      }
+    }
+  } catch {
+    // cookie absent/invalide → Studio personnel
+  }
+
   const menuItems = [
     {
       title: t`Home`,
@@ -38,6 +60,11 @@ export async function AppSidebar() {
       title: t`Articles`,
       url: '/articles',
       iconName: 'FileText',
+    },
+    {
+      title: t`Médias`,
+      url: '/media',
+      iconName: 'Building2',
     },
     {
       title: t`Newsletters`,
@@ -75,7 +102,7 @@ export async function AppSidebar() {
     <Sidebar
       items={menuItems}
       logo={<Logo className="h-5 w-auto" fillColor="#EE4B2B" />}
-      brandName={t`Studio`}
+      brandName={brandName}
       userName={userName}
       userEmail={userEmail}
       userFallback={userFallback}

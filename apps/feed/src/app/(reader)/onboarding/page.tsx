@@ -69,13 +69,21 @@ export default async function OnboardingPage() {
     }));
   }
 
-  // Get some certified creators to suggest
-  const suggestedCreators = await prisma.user.findMany({
+  // Get some certified publications to suggest
+  const suggestedCreators = await prisma.publication.findMany({
     where: {
-      role: 'creator',
+      type: 'PERSONAL',
       isCertified: true,
+      user: { is: { role: 'creator' } },
     },
-    select: { id: true, name: true, subdomain: true, logoUrl: true, heroText: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      subdomain: true,
+      logoUrl: true,
+      heroText: true,
+    },
     take: 5,
   });
 
@@ -83,9 +91,16 @@ export default async function OnboardingPage() {
   const creators =
     suggestedCreators.length > 0
       ? suggestedCreators
-      : await prisma.user.findMany({
-          where: { role: 'creator' },
-          select: { id: true, name: true, subdomain: true, logoUrl: true, heroText: true },
+      : await prisma.publication.findMany({
+          where: { type: 'PERSONAL', user: { is: { role: 'creator' } } },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            subdomain: true,
+            logoUrl: true,
+            heroText: true,
+          },
           take: 5,
         });
 

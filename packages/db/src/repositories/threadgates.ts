@@ -3,6 +3,7 @@
 // =====================================================================
 
 import { prisma } from '../client';
+import { getOrCreatePersonalPublication } from './publications';
 
 export type ReplyRestrictionType = 'everyone' | 'subscribers' | 'following' | 'mentioned';
 
@@ -45,10 +46,11 @@ export async function canUserReplyToThought(
   }
 
   if (restriction === 'subscribers') {
-    // Vérification de l'abonnement
+    // Vérification de l'abonnement (clé par publication de l'auteur)
+    const authorPublication = await getOrCreatePersonalPublication(thought.authorId);
     const sub = await prisma.subscriber.findFirst({
       where: {
-        creatorId: thought.authorId,
+        publicationId: authorPublication.id,
         userId: replyingUserId,
         isActive: true,
       },
@@ -64,12 +66,13 @@ export async function canUserReplyToThought(
   }
 
   if (restriction === 'following') {
-    // L'auteur du message doit suivre l'utilisateur qui tente de répondre
+    // L'auteur du message doit suivre la publication de l'utilisateur qui tente de répondre
+    const replyingPublication = await getOrCreatePersonalPublication(replyingUserId);
     const follow = await prisma.follows.findUnique({
       where: {
-        readerId_creatorId: {
+        readerId_publicationId: {
           readerId: thought.authorId,
-          creatorId: replyingUserId,
+          publicationId: replyingPublication.id,
         },
       },
     });

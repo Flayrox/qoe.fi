@@ -3,6 +3,7 @@ import { prisma } from '@qoe/db/client';
 import { requireUser } from '@qoe/auth/current-user';
 import { t } from '@lingui/core/macro';
 import { fetchUmamiWebsiteStats } from '@qoe/analytics/server';
+import { getActiveWorkspace } from '@/lib/active-workspace';
 import {
   Eye,
   TrendingUp,
@@ -17,26 +18,24 @@ import {
   BarChart3,
   MessageSquare,
   Edit3,
+  Building2,
 } from 'lucide-react';
 
 export default async function CreatorDashboardPage() {
   const user = await requireUser();
 
-  // Fetch creator profile details for Umami website ID
-  const creator = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: {
-      id: true,
-      name: true,
-      umamiWebsiteId: true,
-    },
-  });
-
-  const targetWebsiteId = creator?.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '';
+  // 🎛️ Workspace actif : publication personnelle OU média sélectionné
+  const workspace = await getActiveWorkspace(user.id);
+  const isMediaWorkspace = workspace.type === 'MEDIA';
+  const targetWebsiteId = workspace.publicationId
+    ? await prisma.publication
+        .findUnique({ where: { id: workspace.publicationId }, select: { umamiWebsiteId: true } })
+        .then((p) => p?.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '')
+    : process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '';
   const now = Date.now();
   const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
 
-  // Fetch real database & telemetry metrics in parallel
+  // Requêtes workspace-aware
   const [
     publishedCount,
     subscribersCount,
@@ -48,21 +47,31 @@ export default async function CreatorDashboardPage() {
     latestPublishedArticle,
     telemetryStats,
   ] = await Promise.all([
-    prisma.article.count({ where: { authorId: user.id, published: true } }),
-    prisma.subscriber.count({ where: { creatorId: user.id, isActive: true } }),
-    prisma.subscriber.count({ where: { creatorId: user.id, isActive: true, isPremium: true } }),
+    prisma.article.count({
+      where: isMediaWorkspace
+        ? { publicationId: workspace.publicationId, published: true }
+        : { authorId: user.id, published: true },
+    }),
+    prisma.subscriber.count({
+      where: { publicationId: workspace.publicationId, isActive: true },
+    }),
+    prisma.subscriber.count({
+      where: { publicationId: workspace.publicationId, isActive: true, isPremium: true },
+    }),
     prisma.subscriber.findMany({
-      where: { creatorId: user.id, isActive: true },
+      where: { publicationId: workspace.publicationId, isActive: true },
       select: { ltvCents: true, createdAt: true },
     }),
     prisma.article.findMany({
-      where: { authorId: user.id },
+      where: isMediaWorkspace ? { publicationId: workspace.publicationId } : { authorId: user.id },
       orderBy: { updatedAt: 'desc' },
       take: 4,
       include: { category: true },
     }),
     prisma.article.findMany({
-      where: { authorId: user.id, published: false },
+      where: isMediaWorkspace
+        ? { publicationId: workspace.publicationId, published: false }
+        : { authorId: user.id, published: false },
       orderBy: { updatedAt: 'desc' },
       take: 4,
     }),
@@ -72,7 +81,9 @@ export default async function CreatorDashboardPage() {
       take: 4,
     }),
     prisma.article.findFirst({
-      where: { authorId: user.id, published: true },
+      where: isMediaWorkspace
+        ? { publicationId: workspace.publicationId, published: true }
+        : { authorId: user.id, published: true },
       orderBy: { createdAt: 'desc' },
       include: {
         category: true,
@@ -141,11 +152,20 @@ export default async function CreatorDashboardPage() {
     <main className="w-full space-y-8 pb-24 md:pb-12 text-foreground font-sans selection:bg-primary/20 selection:text-primary">
       {/* Main Stage Headline */}
       <section className="pt-2 space-y-0.5">
-        <h2 className="text-3xl font-bold tracking-tight text-foreground font-sans">
-          {t`Accueil Studio`}
-        </h2>
+        <div className="flex items-center gap-2 flex-wrap">
+          {isMediaWorkspace && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20">
+              <Building2 className="w-3 h-3" /> Média
+            </span>
+          )}
+          <h2 className="text-3xl font-bold tracking-tight text-foreground font-sans">
+            {t`Accueil Studio`}
+          </h2>
+        </div>
         <p className="text-muted-foreground/80 text-sm font-sans">
-          {t`Bienvenue, ${user.name || t`Créateur`}. Voici l'aperçu réel de votre studio créateur.`}
+          {isMediaWorkspace
+            ? t`Bienvenue dans le studio du Média « ${workspace.name} ». Vue en temps réel de votre publication d'équipe.`
+            : t`Bienvenue, ${user.name || t`Créateur`}. Voici l'aperçu réel de votre studio créateur.`}
         </p>
       </section>
 

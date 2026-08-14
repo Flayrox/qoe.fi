@@ -47,11 +47,15 @@ export async function getDevtoolsData() {
         email: true,
         username: true,
         role: true,
-        subdomain: true,
-        customDomain: true,
-        accentColor: true,
-        layoutStyle: true,
         createdAt: true,
+        publication: {
+          select: {
+            subdomain: true,
+            customDomain: true,
+            accentColor: true,
+            layoutStyle: true,
+          },
+        },
       },
     });
 
@@ -66,7 +70,15 @@ export async function getDevtoolsData() {
     return {
       success: true,
       users: users.map((u) => ({
-        ...u,
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        username: u.username,
+        role: u.role,
+        subdomain: u.publication?.subdomain ?? null,
+        customDomain: u.publication?.customDomain ?? null,
+        accentColor: u.publication?.accentColor ?? null,
+        layoutStyle: u.publication?.layoutStyle ?? null,
         createdAt: u.createdAt.toISOString(),
       })) as DevtoolsUser[],
       stats,
@@ -154,10 +166,6 @@ export async function createMockUserAction({
         email,
         username,
         role,
-        subdomain: cleanSubdomain,
-        layoutStyle,
-        accentColor,
-        themeMode: 'system',
       },
       create: {
         id: userId,
@@ -165,46 +173,81 @@ export async function createMockUserAction({
         email,
         username,
         role,
-        subdomain: cleanSubdomain,
-        layoutStyle,
-        accentColor,
-        themeMode: 'system',
       },
     });
+
+    // 2b. Publication personnelle (identité tenant/design)
+    const existingPub = await prisma.publication.findFirst({
+      where: { type: 'PERSONAL', user: { id: dbUser.id } },
+    });
+    const publication = existingPub
+      ? await prisma.publication.update({
+          where: { id: existingPub.id },
+          data: {
+            name,
+            slug: username,
+            subdomain: cleanSubdomain,
+            layoutStyle,
+            accentColor,
+            themeMode: 'system',
+          },
+        })
+      : await prisma.publication.create({
+          data: {
+            type: 'PERSONAL',
+            name,
+            slug: username,
+            subdomain: cleanSubdomain,
+            layoutStyle,
+            accentColor,
+            themeMode: 'system',
+            user: { connect: { id: dbUser.id } },
+          },
+        });
 
     // 3. Seeder des données riches de départ spécifiques si c'est un Créateur !
     if (role === 'creator') {
       // Nettoyer d'abord ses anciennes données pour éviter les collisions de clés uniques
-      await prisma.navigationItem.deleteMany({ where: { userId: dbUser.id } });
-      await prisma.socialLink.deleteMany({ where: { userId: dbUser.id } });
-      await prisma.category.deleteMany({ where: { userId: dbUser.id } });
+      await prisma.navigationItem.deleteMany({ where: { publicationId: publication.id } });
+      await prisma.socialLink.deleteMany({ where: { publicationId: publication.id } });
+      await prisma.category.deleteMany({ where: { publicationId: publication.id } });
       await prisma.article.deleteMany({ where: { authorId: dbUser.id } });
 
       // Menus de navigation par défaut
       await prisma.navigationItem.createMany({
         data: [
-          { label: 'Accueil', url: '/', order: 1, userId: dbUser.id },
-          { label: 'Souveraineté', url: '/category/souverainete', order: 2, userId: dbUser.id },
-          { label: 'Écologie', url: '/category/ecologie', order: 3, userId: dbUser.id },
-          { label: 'À Propos', url: '/about', order: 4, userId: dbUser.id },
+          { label: 'Accueil', url: '/', order: 1, publicationId: publication.id },
+          {
+            label: 'Souveraineté',
+            url: '/category/souverainete',
+            order: 2,
+            publicationId: publication.id,
+          },
+          { label: 'Écologie', url: '/category/ecologie', order: 3, publicationId: publication.id },
+          { label: 'À Propos', url: '/about', order: 4, publicationId: publication.id },
         ],
       });
 
       // Liens sociaux par défaut
       await prisma.socialLink.createMany({
         data: [
-          { platform: 'x', url: 'https://x.com', order: 1, userId: dbUser.id },
-          { platform: 'bluesky', url: 'https://bsky.app', order: 2, userId: dbUser.id },
-          { platform: 'mastodon', url: 'https://mastodon.social', order: 3, userId: dbUser.id },
+          { platform: 'x', url: 'https://x.com', order: 1, publicationId: publication.id },
+          { platform: 'bluesky', url: 'https://bsky.app', order: 2, publicationId: publication.id },
+          {
+            platform: 'mastodon',
+            url: 'https://mastodon.social',
+            order: 3,
+            publicationId: publication.id,
+          },
         ],
       });
 
       // Catégories par défaut
       const cat1 = await prisma.category.create({
-        data: { name: 'Souveraineté', slug: 'souverainete', userId: dbUser.id },
+        data: { name: 'Souveraineté', slug: 'souverainete', publicationId: publication.id },
       });
       const cat2 = await prisma.category.create({
-        data: { name: 'Écologie', slug: 'ecologie', userId: dbUser.id },
+        data: { name: 'Écologie', slug: 'ecologie', publicationId: publication.id },
       });
 
       // Articles longs de départ rédigés de manière premium
@@ -221,6 +264,7 @@ export async function createMockUserAction({
           readingTime: 4,
           categoryId: cat1.id,
           authorId: dbUser.id,
+          publicationId: publication.id,
           seoTitle: 'Souveraineté Numérique - Reprendre le contrôle',
           seoDescription:
             "Analyse sur la reconquête de notre attention numérique et la souveraineté de l'écriture indépendante.",
@@ -241,6 +285,7 @@ export async function createMockUserAction({
           readingTime: 6,
           categoryId: cat2.id,
           authorId: dbUser.id,
+          publicationId: publication.id,
         },
       });
 
@@ -255,6 +300,7 @@ export async function createMockUserAction({
           readingTime: 8,
           categoryId: cat1.id,
           authorId: dbUser.id,
+          publicationId: publication.id,
         },
       });
     }
@@ -399,15 +445,15 @@ export async function resetDatabaseAction() {
 }
 
 /**
- * 📧 Simule un abonnement d'un lecteur (par email) vers un créateur.
+ * 📧 Simule un abonnement d'un lecteur (par email) vers une publication.
  */
 export async function simulateSubscriberAction({
-  creatorId,
+  publicationId,
   email,
   isPremium = false,
   ltvCents = 0,
 }: {
-  creatorId: string;
+  publicationId: string;
   email: string;
   isPremium?: boolean;
   ltvCents?: number;
@@ -415,9 +461,9 @@ export async function simulateSubscriberAction({
   try {
     const subscriber = await prisma.subscriber.upsert({
       where: {
-        email_creatorId: {
+        email_publicationId: {
           email: email.trim().toLowerCase(),
-          creatorId,
+          publicationId,
         },
       },
       update: {
@@ -427,7 +473,7 @@ export async function simulateSubscriberAction({
       },
       create: {
         email: email.trim().toLowerCase(),
-        creatorId,
+        publicationId,
         isActive: true,
         isPremium,
         ltvCents,
@@ -447,20 +493,38 @@ export async function simulateSubscriberAction({
             type: 'SUBSCRIPTION_PAYMENT',
           },
         });
-        // Ajouter cet argent au portefeuille du créateur
-        await prisma.user.update({
-          where: { id: creatorId },
-          data: {
-            walletBalanceCents: { increment: ltvCents },
+        // Ajouter cet argent au portefeuille du propriétaire de la publication
+        const owner = await prisma.publication.findUnique({
+          where: { id: publicationId },
+          select: {
+            user: { select: { id: true } },
+            media: {
+              select: {
+                members: {
+                  where: { role: 'owner', status: 'active' },
+                  select: { userId: true },
+                  take: 1,
+                },
+              },
+            },
           },
         });
-        await prisma.walletTransaction.create({
-          data: {
-            userId: creatorId,
-            amountCents: ltvCents,
-            type: 'DEPOSIT',
-          },
-        });
+        const ownerId = owner?.user?.id || owner?.media?.members?.[0]?.userId || null;
+        if (ownerId) {
+          await prisma.user.update({
+            where: { id: ownerId },
+            data: {
+              walletBalanceCents: { increment: ltvCents },
+            },
+          });
+          await prisma.walletTransaction.create({
+            data: {
+              userId: ownerId,
+              amountCents: ltvCents,
+              type: 'DEPOSIT',
+            },
+          });
+        }
       }
     }
 
@@ -472,31 +536,31 @@ export async function simulateSubscriberAction({
 }
 
 /**
- * 🤝 Simule une liaison d'abonnement (Follow) entre deux utilisateurs.
+ * 🤝 Simule une liaison d'abonnement (Follow) entre un lecteur et une publication.
  */
 export async function simulateFollowAction({
   readerId,
-  creatorId,
+  publicationId,
 }: {
   readerId: string;
-  creatorId: string;
+  publicationId: string;
 }) {
   try {
-    if (readerId === creatorId) {
-      throw new Error("Un utilisateur ne peut pas s'abonner (follow) à lui-même !");
+    if (!readerId || !publicationId) {
+      throw new Error('Lecteur et publication requis.');
     }
 
     const follow = await prisma.follows.upsert({
       where: {
-        readerId_creatorId: {
+        readerId_publicationId: {
           readerId,
-          creatorId,
+          publicationId,
         },
       },
       update: {},
       create: {
         readerId,
-        creatorId,
+        publicationId,
       },
     });
 

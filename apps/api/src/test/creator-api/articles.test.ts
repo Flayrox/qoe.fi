@@ -166,7 +166,11 @@ describe('Creator API — GET /v1/categories', () => {
   });
 
   it("renvoie les catégories avec le comptage d'articles publiés", async () => {
-    const tech = ctx.seed.category({ userId: 'u-creator-1', name: 'Tech', slug: 'tech' });
+    const tech = ctx.seed.category({
+      publicationId: 'pub-u-creator-1',
+      name: 'Tech',
+      slug: 'tech',
+    });
     ctx.seed.article({ authorId: 'u-creator-1', slug: 'a1', categoryId: tech.id, category: tech });
     ctx.seed.article({
       authorId: 'u-creator-1',

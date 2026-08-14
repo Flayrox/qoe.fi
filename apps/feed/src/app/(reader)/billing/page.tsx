@@ -24,7 +24,7 @@ export default async function BillingPage() {
 
   const subscriptions = await prisma.subscriber.findMany({
     where: { email: user.email, isPremium: true, isActive: true },
-    include: { creator: { select: { name: true, logoUrl: true, username: true } } },
+    include: { publication: { select: { name: true, logoUrl: true, slug: true } } },
   });
 
   return (
@@ -97,13 +97,13 @@ export default async function BillingPage() {
                     >
                       <a
                         href={
-                          sub.creator.username ? routes.feed.profile(sub.creator.username) : '#'
+                          sub.publication.slug ? routes.feed.profile(sub.publication.slug) : '#'
                         }
                         className="flex items-center gap-3 min-w-0 group"
                       >
-                        {sub.creator.logoUrl ? (
+                        {sub.publication.logoUrl ? (
                           <Image
-                            src={sub.creator.logoUrl}
+                            src={sub.publication.logoUrl}
                             width={40}
                             height={40}
                             className="w-10 h-10 rounded-lg object-cover border border-border/60"
@@ -111,12 +111,12 @@ export default async function BillingPage() {
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">
-                            {sub.creator.name?.charAt(0)}
+                            {sub.publication.name?.charAt(0)}
                           </div>
                         )}
                         <div className="min-w-0">
                           <span className="text-xs font-bold block truncate group-hover:text-primary transition-colors text-foreground">
-                            {sub.creator.name}
+                            {sub.publication.name}
                           </span>
                           <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
                             Premium • Renouvellement auto.

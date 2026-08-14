@@ -1,19 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-// TODO: Wire to real server action when tenant routing is implemented
-async function subscribeToNewsletter(formData: FormData): Promise<{ error?: string }> {
-  formData.get('email');
-  return {};
-}
+import { subscribeToNewsletterAction } from '@qoe/api-client/actions/tenant';
 import { Loader2 } from 'lucide-react';
 
 interface SubscribeFormProps {
-  creatorId: string;
+  publicationId: string;
   isBrutalist?: boolean;
 }
 
-export function SubscribeForm({ creatorId, isBrutalist }: SubscribeFormProps) {
+export function SubscribeForm({ publicationId, isBrutalist }: SubscribeFormProps) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
 
@@ -21,14 +17,16 @@ export function SubscribeForm({ creatorId, isBrutalist }: SubscribeFormProps) {
     setStatus('loading');
     setMessage('');
 
-    const result = await subscribeToNewsletter(formData);
+    const email = String(formData.get('email') || '');
 
-    if (result.error) {
-      setStatus('error');
-      setMessage(result.error);
-    } else {
+    const res = await subscribeToNewsletterAction({ email, publicationId });
+
+    if (res.ok) {
       setStatus('success');
-      setMessage('Thank you for subscribing! Check your inbox soon.');
+      setMessage('Merci ! Vérifiez votre boîte mail pour confirmer votre abonnement.');
+    } else {
+      setStatus('error');
+      setMessage(res.error?.message || 'Une erreur est survenue lors de la souscription.');
     }
   }
 
@@ -52,7 +50,7 @@ export function SubscribeForm({ creatorId, isBrutalist }: SubscribeFormProps) {
   return (
     <div className="w-full max-w-md mx-auto">
       <form action={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-        <input type="hidden" name="creatorId" value={creatorId} />
+        <input type="hidden" name="publicationId" value={publicationId} />
         <input
           type="email"
           name="email"
@@ -69,7 +67,7 @@ export function SubscribeForm({ creatorId, isBrutalist }: SubscribeFormProps) {
           {status === 'loading' ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Subscribe'}
         </button>
       </form>
-      {status === 'error' && <p className="mt-3 text-destructive text-sm font-medium">{message}</p>}
+      {status === 'error' && <p className="mt-3 text-sm text-destructive text-center">{message}</p>}
     </div>
   );
 }

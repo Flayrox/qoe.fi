@@ -23,6 +23,29 @@ interface Author {
   logoUrl: string | null;
   heroText: string | null;
   isCertified?: boolean;
+  type?: 'PERSONAL' | 'MEDIA';
+  authorName?: string | null;
+}
+
+function BrandAvatar({ author, size }: { author: Author; size: number }) {
+  const isMedia = author.type === 'MEDIA';
+  if (isMedia) {
+    return (
+      <div
+        className="relative overflow-hidden border border-border/40 shrink-0 rounded-lg bg-muted"
+        style={{ width: size, height: size }}
+      >
+        {author.logoUrl ? (
+          <Image src={author.logoUrl} alt={author.name || ''} fill className="object-cover" />
+        ) : (
+          <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-xs text-brand">
+            {author.name?.substring(0, 2) || 'NA'}
+          </div>
+        )}
+      </div>
+    );
+  }
+  return <AuthorAvatar user={author} size={size === 40 ? 'md' : 'sm'} showBadge={false} />;
 }
 
 interface Article {
@@ -286,7 +309,7 @@ export function ArticleCard({
                     whileTap={{ scale: 0.98 }}
                     className="flex items-center gap-2.5 hover:opacity-85 transition-opacity group/author outline-none cursor-pointer"
                   >
-                    <AuthorAvatar user={article.author} size="sm" showBadge={false} />
+                    <BrandAvatar author={article.author} size={24} />
                     <div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[13px] font-bold text-foreground tracking-tight group-hover/author:text-brand transition-colors">
@@ -294,6 +317,11 @@ export function ArticleCard({
                         </span>
                         {article.author.isCertified && <CertifiedBadge />}
                       </div>
+                      {article.author.type === 'MEDIA' && article.author.authorName && (
+                        <span className="text-[10px] text-muted-foreground font-medium">
+                          {t`Par ${article.author.authorName}`}
+                        </span>
+                      )}
                       <span className="text-[10px] text-muted-foreground uppercase tracking-wider block mt-0.5">
                         @{article.author.username || article.author.subdomain} · {formattedDate}
                       </span>
@@ -372,7 +400,7 @@ export function ArticleCard({
                 whileTap={{ scale: 0.98 }}
                 className="flex items-center gap-2.5 hover:opacity-85 transition-opacity group/author outline-none cursor-pointer"
               >
-                <AuthorAvatar user={article.author} size="sm" showBadge={false} />
+                <BrandAvatar author={article.author} size={24} />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-bold text-foreground truncate group-hover/author:text-brand transition-colors">
@@ -380,6 +408,11 @@ export function ArticleCard({
                     </span>
                     {article.author.isCertified && <CertifiedBadge />}
                   </div>
+                  {article.author.type === 'MEDIA' && article.author.authorName && (
+                    <span className="text-[10px] text-muted-foreground font-medium truncate">
+                      {t`Par ${article.author.authorName}`}
+                    </span>
+                  )}
                   <span className="text-[10px] text-muted-foreground uppercase tracking-wider block mt-0.5">
                     @{article.author.username || article.author.subdomain} · {formattedDate}
                   </span>

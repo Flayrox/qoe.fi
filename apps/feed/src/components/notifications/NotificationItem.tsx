@@ -7,7 +7,16 @@ import { Heart, Repeat, MessageCircle, AtSign, UserPlus } from 'lucide-react';
 interface NotificationItemProps {
   notification: {
     id: string;
-    type: 'LIKE' | 'REPOST' | 'REPLY' | 'MENTION' | 'FOLLOW';
+    type:
+      | 'LIKE'
+      | 'REPOST'
+      | 'REPLY'
+      | 'MENTION'
+      | 'FOLLOW'
+      | 'MEDIA_INVITE'
+      | 'MEDIA_MEMBER_JOINED'
+      | 'MEDIA_ARTICLE_PUBLISHED'
+      | 'MEDIA_MENTION';
     isRead: boolean;
     createdAt: string | Date;
     thoughtId?: string | null;
@@ -22,6 +31,10 @@ interface NotificationItemProps {
       id: string;
       title: string;
       slug: string;
+    } | null;
+    publication?: {
+      id: string;
+      name: string | null;
     } | null;
     senders: Array<{
       id: string;
@@ -71,6 +84,28 @@ export function NotificationItem({ notification }: NotificationItemProps) {
       iconColorClass = 'text-primary bg-primary/10';
       actionText = "s'est abonné à votre profil";
       break;
+    case 'MEDIA_INVITE':
+      Icon = UserPlus;
+      iconColorClass = 'text-highlight bg-highlight/10';
+      actionText = notification.publication?.name
+        ? `vous a invité à rejoindre le Média`
+        : 'vous a invité à rejoindre un Média';
+      break;
+    case 'MEDIA_MEMBER_JOINED':
+      Icon = UserPlus;
+      iconColorClass = 'text-success bg-success/10';
+      actionText = notification.publication?.name ? 'a rejoint le Média' : 'a rejoint un Média';
+      break;
+    case 'MEDIA_ARTICLE_PUBLISHED':
+      Icon = MessageCircle;
+      iconColorClass = 'text-primary bg-primary/10';
+      actionText = 'a publié dans le Média';
+      break;
+    case 'MEDIA_MENTION':
+      Icon = AtSign;
+      iconColorClass = 'text-highlight bg-highlight/10';
+      actionText = 'vous a mentionné dans le Média';
+      break;
   }
 
   // Calcul du temps relatif
@@ -90,9 +125,11 @@ export function NotificationItem({ notification }: NotificationItemProps) {
     ? `/thought/${notification.thoughtId}`
     : notification.article
       ? `/article/${notification.article.slug}`
-      : firstSender?.username
-        ? `/@${firstSender.username}`
-        : '#';
+      : notification.publication
+        ? `/m/${notification.publication.id}`
+        : firstSender?.username
+          ? `/@${firstSender.username}`
+          : '#';
 
   return (
     <Link

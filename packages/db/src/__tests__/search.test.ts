@@ -23,6 +23,9 @@ vi.mock('../client', () => ({
     user: {
       findMany: vi.fn(),
     },
+    publication: {
+      findMany: vi.fn(),
+    },
     article: {
       findMany: vi.fn(),
     },
@@ -53,18 +56,17 @@ describe('@qoe/db - Search & Trends Repository', () => {
     expect(res.thoughts).toEqual(mockThoughts);
   });
 
-  it('should search users by username or name', async () => {
-    const mockUsers = [{ id: 'u-1', name: 'Alexandre', username: 'alex' }];
-    (prisma.user.findMany as unknown as Mock).mockResolvedValue(mockUsers);
+  it('should search publications by name or slug', async () => {
+    const mockUsers = [{ id: 'u-1', name: 'Alexandre', slug: 'alex' }];
+    (prisma.publication.findMany as unknown as Mock).mockResolvedValue(mockUsers);
 
     const res = await searchUsers('@alex');
-    expect(prisma.user.findMany).toHaveBeenCalledWith({
+    expect(prisma.publication.findMany).toHaveBeenCalledWith({
       where: {
-        isShadowbanned: false,
-        isSuspended: false,
+        user: { is: { isShadowbanned: false, isSuspended: false } },
         OR: [
           { name: { contains: 'alex', mode: 'insensitive' } },
-          { username: { contains: 'alex', mode: 'insensitive' } },
+          { slug: { contains: 'alex', mode: 'insensitive' } },
           { subdomain: { contains: 'alex', mode: 'insensitive' } },
         ],
       },

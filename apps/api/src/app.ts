@@ -49,6 +49,10 @@ function defaultStripeQueue(): Queue {
 
 export type AppVariables = {
   creator: User;
+  creatorPublication: {
+    id: string;
+    umamiWebsiteId: string | null;
+  } | null;
   user: User;
   flags: FlagsContext;
 };
@@ -200,6 +204,11 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
         .catch((err: unknown) => logger.error('Échec mise à jour lastUsedAt', { err }));
 
       c.set('creator', user);
+      const publication = await db.publication.findFirst({
+        where: { type: 'PERSONAL', user: { id: user.id } },
+        select: { id: true, umamiWebsiteId: true },
+      });
+      c.set('creatorPublication', publication ?? null);
       await next();
     } catch (error) {
       logger.error('Erreur auth API key', { err: error }, { capture: true });
@@ -383,12 +392,16 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
   });
 
   app.get('/v1/categories', apiAuth, async (c) => {
-    const creator = c.get('creator');
+    const publication = c.get('creatorPublication');
+
+    if (!publication) {
+      return c.json({ error: 'Publication not found' }, 404);
+    }
 
     try {
       const categories = await db.category.findMany({
         where: {
-          userId: creator.id,
+          publicationId: publication.id,
         },
         select: {
           id: true,
@@ -425,8 +438,8 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
   });
 
   app.get('/v1/analytics/stats', apiAuth, async (c) => {
-    const creator = c.get('creator');
-    const websiteId = creator.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '';
+    const publication = c.get('creatorPublication');
+    const websiteId = publication?.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '';
     const startAt = Number(c.req.query('startAt')) || Date.now() - 30 * 24 * 60 * 60 * 1000;
     const endAt = Number(c.req.query('endAt')) || Date.now();
 
@@ -470,7 +483,6 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
               id: true,
               name: true,
               username: true,
-              subdomain: true,
               logoUrl: true,
               isCertified: true,
             },
@@ -524,7 +536,6 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
               id: true,
               name: true,
               username: true,
-              subdomain: true,
               logoUrl: true,
               isCertified: true,
             },
@@ -648,9 +659,13 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
     const user = c.get('user');
 
     try {
+      const userPublication = await db.publication.findFirst({
+        where: { type: 'PERSONAL', user: { id: user.id } },
+        select: { id: true },
+      });
       const [followingCount, followersCount] = await Promise.all([
         db.follows.count({ where: { readerId: user.id } }),
-        db.follows.count({ where: { creatorId: user.id } }),
+        db.follows.count({ where: { publicationId: userPublication?.id ?? '__none__' } }),
       ]);
 
       return c.json({
@@ -673,25 +688,25 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
     const username = c.req.param('username');
 
     try {
-      const author = await db.user.findFirst({
+      const author = await db.publication.findFirst({
         where: {
-          OR: [{ username }, { subdomain: username }],
+          OR: [{ slug: username }, { subdomain: username }],
         },
         select: {
           id: true,
           name: true,
-          username: true,
+          slug: true,
           subdomain: true,
+          customDomain: true,
           heroText: true,
           logoUrl: true,
           headerImageUrl: true,
           isCertified: true,
           createdAt: true,
+          type: true,
           _count: {
             select: {
               followers: true,
-              following: true,
-              posts: true,
               articles: { where: { published: true } },
             },
           },
@@ -719,10 +734,11 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
     }
 
     try {
+      // La cible est une Publication (personnelle OU média)
       const existingFollow = await db.follows.findFirst({
         where: {
           readerId: user.id,
-          creatorId: targetUserId,
+          publicationId: targetUserId,
         },
       });
 
@@ -733,13 +749,15 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: AppVariables }>
         await db.follows.create({
           data: {
             readerId: user.id,
-            creatorId: targetUserId,
+            publicationId: targetUserId,
           },
         });
         following = true;
       }
 
-      const followersCount = await db.follows.count({ where: { creatorId: targetUserId } });
+      const followersCount = await db.follows.count({
+        where: { publicationId: targetUserId },
+      });
 
       return c.json({ data: { following, followersCount } });
     } catch (error) {

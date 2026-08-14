@@ -1,5 +1,6 @@
 import { prisma } from '../client';
 import { SubscriptionStatus } from '@prisma/client';
+import { getPublicationOwner } from './follows';
 
 export interface EntitlementCheckResult {
   isMember: boolean;
@@ -10,10 +11,10 @@ export interface EntitlementCheckResult {
 
 export const subscriptionsRepository = {
   /**
-   * Resolves the subscription entitlement state of a reader for a specific creator.
+   * Resolves the subscription entitlement state of a reader for a specific publication.
    */
   async getReaderEntitlement(
-    creatorId: string,
+    publicationId: string,
     readerEmail?: string | null,
     readerUserId?: string | null
   ): Promise<EntitlementCheckResult> {
@@ -23,7 +24,7 @@ export const subscriptionsRepository = {
 
     const subscriber = await prisma.subscriber.findFirst({
       where: {
-        creatorId,
+        publicationId,
         OR: [
           ...(readerEmail ? [{ email: readerEmail.toLowerCase().trim() }] : []),
           ...(readerUserId ? [{ userId: readerUserId }] : []),
@@ -55,7 +56,7 @@ export const subscriptionsRepository = {
    * Idempotently upserts subscriber entitlement records received from Stripe webhooks.
    */
   async upsertSubscriberEntitlement(params: {
-    creatorId: string;
+    publicationId: string;
     email: string;
     userId?: string | null;
     stripeSubscriptionId?: string | null;
@@ -71,9 +72,9 @@ export const subscriptionsRepository = {
     return prisma.$transaction(async (tx) => {
       const subscriber = await tx.subscriber.upsert({
         where: {
-          email_creatorId: {
+          email_publicationId: {
             email,
-            creatorId: params.creatorId,
+            publicationId: params.publicationId,
           },
         },
         update: {
@@ -92,7 +93,7 @@ export const subscriptionsRepository = {
         },
         create: {
           email,
-          creatorId: params.creatorId,
+          publicationId: params.publicationId,
           userId: params.userId,
           status: params.status,
           isPremium: params.isPremium,
@@ -104,14 +105,17 @@ export const subscriptionsRepository = {
         },
       });
 
-      // If a payment occurred, credit creator wallet balance
+      // Si un paiement a eu lieu, créditer le wallet du propriétaire de la publication
       if (params.amountPaidCents && params.amountPaidCents > 0) {
-        await tx.user.update({
-          where: { id: params.creatorId },
-          data: {
-            walletBalanceCents: { increment: params.amountPaidCents },
-          },
-        });
+        const ownerId = await getPublicationOwner(params.publicationId);
+        if (ownerId) {
+          await tx.user.update({
+            where: { id: ownerId },
+            data: {
+              walletBalanceCents: { increment: params.amountPaidCents },
+            },
+          });
+        }
       }
 
       return subscriber;
@@ -119,11 +123,11 @@ export const subscriptionsRepository = {
   },
 
   /**
-   * Lists active subscription tiers created by a creator.
+   * Lists active subscription tiers created by a publication.
    */
-  async getCreatorTiers(creatorId: string) {
+  async getCreatorTiers(publicationId: string) {
     return prisma.tier.findMany({
-      where: { creatorId },
+      where: { publicationId },
       orderBy: { monthlyPriceCents: 'asc' },
     });
   },

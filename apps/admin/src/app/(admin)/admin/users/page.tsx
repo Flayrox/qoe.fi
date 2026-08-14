@@ -10,12 +10,13 @@ export default async function AdminUsers() {
       id: true,
       name: true,
       email: true,
+      username: true,
       role: true,
       isCertified: true,
       isShadowbanned: true,
       isSuspended: true,
       createdAt: true,
-      subdomain: true,
+      publication: { select: { subdomain: true } },
     },
   });
 
@@ -26,7 +27,23 @@ export default async function AdminUsers() {
         <p className="text-muted-foreground mt-2 text-sm">Modération & Management</p>
       </div>
 
-      <DataTable columns={columns} data={users as AdminUser[]} />
+      <DataTable
+        columns={columns}
+        data={
+          users.map((u) => ({
+            id: u.id,
+            email: u.email,
+            name: u.name,
+            username: u.username,
+            role: u.role,
+            isCertified: u.isCertified,
+            isShadowbanned: u.isShadowbanned,
+            isSuspended: u.isSuspended,
+            createdAt: u.createdAt,
+            subdomain: u.publication?.subdomain ?? null,
+          })) as AdminUser[]
+        }
+      />
     </div>
   );
 }

@@ -42,10 +42,38 @@ type ArticleRow = {
 
 type CategoryRow = {
   id: Uuid;
-  userId: Uuid;
+  publicationId: Uuid;
   name: string;
   slug: string;
   description: string | null;
+};
+
+type PublicationRow = {
+  id: Uuid;
+  type: 'PERSONAL' | 'MEDIA';
+  name: string;
+  slug: string;
+  subdomain: string | null;
+  customDomain: string | null;
+  logoUrl: string | null;
+  heroText: string | null;
+  headerImageUrl: string | null;
+  isCertified: boolean;
+  umamiWebsiteId: string | null;
+  accentColor: string | null;
+  fontFamily: string | null;
+  themeMode: string | null;
+  layoutStyle: string | null;
+  allowIndexing: boolean;
+  allowPublicAnnotations: boolean;
+  allowComments: boolean;
+  supportUrl: string | null;
+  stripeAccountId: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  user: User | null;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 type ThoughtRow = {
@@ -71,7 +99,7 @@ type ThoughtAuthor = {
 
 type LikeRow = { id: Uuid; userId: Uuid; postId: Uuid };
 type BookmarkRow = { id: Uuid; readerId: Uuid; articleId: Uuid };
-type FollowRow = { id: Uuid; readerId: Uuid; creatorId: Uuid };
+type FollowRow = { id: Uuid; readerId: Uuid; publicationId: Uuid };
 
 function newId(prefix: string): Uuid {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -83,6 +111,7 @@ export function hashApiKey(token: string): string {
 
 export function createMemoryDb() {
   let users: User[] = [];
+  let publications: PublicationRow[] = [];
   let apiKeys: ApiKeyRow[] = [];
   let articles: ArticleRow[] = [];
   let categories: CategoryRow[] = [];
@@ -93,6 +122,7 @@ export function createMemoryDb() {
 
   function reset() {
     users = [];
+    publications = [];
     apiKeys = [];
     articles = [];
     categories = [];
@@ -102,46 +132,84 @@ export function createMemoryDb() {
     follows = [];
   }
 
-  function seedUser(data: Partial<User> & { id: string; email: string; name?: string }): User {
+  type SeedUserInput = Partial<User> & {
+    id: string;
+    email: string;
+    name?: string;
+    subdomain?: string | null;
+    customDomain?: string | null;
+    heroText?: string | null;
+    headerImageUrl?: string | null;
+    footerText?: string | null;
+    umamiWebsiteId?: string | null;
+    accentColor?: string | null;
+    fontFamily?: string | null;
+    themeMode?: string | null;
+    layoutStyle?: string | null;
+    allowIndexing?: boolean;
+    allowPublicAnnotations?: boolean;
+    allowComments?: boolean;
+    supportUrl?: string | null;
+    stripeAccountId?: string | null;
+    seoTitle?: string | null;
+    seoDescription?: string | null;
+  };
+
+  function seedUser(data: SeedUserInput): User {
     const user: User = {
       id: data.id,
       email: data.email,
       name: data.name ?? 'Test User',
       username: data.username ?? null,
-      subdomain: data.subdomain ?? null,
-      customDomain: data.customDomain ?? null,
       logoUrl: data.logoUrl ?? null,
-      headerImageUrl: data.headerImageUrl ?? null,
-      heroText: data.heroText ?? null,
-      footerText: data.footerText ?? null,
       isCertified: data.isCertified ?? false,
-      umamiWebsiteId: data.umamiWebsiteId ?? null,
       role: data.role ?? 'user',
       isShadowbanned: data.isShadowbanned ?? false,
       isSuspended: data.isSuspended ?? false,
       suspendReason: data.suspendReason ?? null,
       forceStandardTheme: data.forceStandardTheme ?? false,
       onboardingText: data.onboardingText ?? null,
+      advancedSettingsMode: data.advancedSettingsMode ?? false,
+      hasCompletedOnboarding: data.hasCompletedOnboarding ?? false,
+      apiAccessStatus: data.apiAccessStatus ?? 'none',
+      apiApplicationReason: data.apiApplicationReason ?? null,
+      walletBalanceCents: data.walletBalanceCents ?? 0,
+      createdAt: data.createdAt ?? new Date('2024-01-01T00:00:00.000Z'),
+      updatedAt: data.updatedAt ?? new Date('2024-01-01T00:00:00.000Z'),
+      publicationId: null,
+    } as User;
+    users.push(user);
+
+    // Publication personnelle portant l'identité tenant
+    const publication: PublicationRow = {
+      id: data.subdomain ? `pub-${data.subdomain}` : `pub-${user.id}`,
+      type: 'PERSONAL',
+      name: data.name ?? 'Test User',
+      slug: data.username ?? `user_${user.id}`,
+      subdomain: data.subdomain ?? null,
+      customDomain: data.customDomain ?? null,
+      logoUrl: data.logoUrl ?? null,
+      heroText: data.heroText ?? null,
+      headerImageUrl: data.headerImageUrl ?? null,
+      isCertified: data.isCertified ?? false,
+      umamiWebsiteId: data.umamiWebsiteId ?? null,
       accentColor: data.accentColor ?? null,
       fontFamily: data.fontFamily ?? null,
       themeMode: data.themeMode ?? 'system',
       layoutStyle: data.layoutStyle ?? 'minimal',
-      advancedSettingsMode: data.advancedSettingsMode ?? false,
-      hasCompletedOnboarding: data.hasCompletedOnboarding ?? false,
       allowIndexing: data.allowIndexing ?? true,
       allowPublicAnnotations: data.allowPublicAnnotations ?? true,
       allowComments: data.allowComments ?? true,
-      apiAccessStatus: data.apiAccessStatus ?? 'none',
-      apiApplicationReason: data.apiApplicationReason ?? null,
       supportUrl: data.supportUrl ?? null,
       stripeAccountId: data.stripeAccountId ?? null,
-      walletBalanceCents: data.walletBalanceCents ?? 0,
       seoTitle: data.seoTitle ?? null,
       seoDescription: data.seoDescription ?? null,
-      createdAt: data.createdAt ?? new Date('2024-01-01T00:00:00.000Z'),
-      updatedAt: data.updatedAt ?? new Date('2024-01-01T00:00:00.000Z'),
-    } as User;
-    users.push(user);
+      user,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+    publications.push(publication);
+    (user as { publicationId?: string | null }).publicationId = publication.id;
     return user;
   }
 
@@ -157,12 +225,12 @@ export function createMemoryDb() {
     return row;
   }
 
-  function seedCategory(data: Partial<CategoryRow> & { userId: string }): CategoryRow {
+  function seedCategory(data: Partial<CategoryRow> & { publicationId: string }): CategoryRow {
     const row: CategoryRow = {
       id: data.id ?? newId('cat'),
-      userId: data.userId,
+      publicationId: data.publicationId,
       name: data.name ?? 'Category',
-      slug: data.slug ?? `slug-${data.userId}`,
+      slug: data.slug ?? `slug-${data.publicationId}`,
       description: data.description ?? null,
     };
     categories.push(row);
@@ -205,7 +273,7 @@ export function createMemoryDb() {
         id: data.authorId,
         name: author?.name ?? 'Author',
         username: author?.username ?? `user_${data.authorId}`,
-        subdomain: author?.subdomain ?? null,
+        subdomain: publications.find((p) => p.user?.id === data.authorId)?.subdomain ?? null,
         logoUrl: author?.logoUrl ?? null,
         isCertified: author?.isCertified ?? false,
       },
@@ -226,8 +294,8 @@ export function createMemoryDb() {
     return row;
   }
 
-  function seedFollow(readerId: string, creatorId: string): FollowRow {
-    const row = { id: newId('fl'), readerId, creatorId };
+  function seedFollow(readerId: string, publicationId: string): FollowRow {
+    const row = { id: newId('fl'), readerId, publicationId };
     follows.push(row);
     return row;
   }
@@ -260,7 +328,9 @@ export function createMemoryDb() {
         return {
           ...found,
           _count: {
-            followers: follows.filter((f) => f.creatorId === found.id).length,
+            followers: follows.filter(
+              (f) => f.publicationId === publications.find((p) => p.user?.id === found.id)?.id
+            ).length,
             following: follows.filter((f) => f.readerId === found.id).length,
             posts: thoughts.filter((t) => t.authorId === found.id).length,
             articles: articles.filter((a) => a.authorId === found.id && a.published === true)
@@ -296,15 +366,14 @@ export function createMemoryDb() {
     },
     category: {
       findMany: async ({ where }: { where: Prisma.CategoryWhereInput }) => {
-        const userId = firstScalar(where as Record<string, unknown>, 'userId');
+        const publicationId = firstScalar(where as Record<string, unknown>, 'publicationId');
         return categories
-          .filter((c) => userId === undefined || c.userId === userId)
+          .filter((c) => publicationId === undefined || c.publicationId === publicationId)
           .map((c) => ({
             ...c,
             _count: {
-              articles: articles.filter(
-                (a) => a.categoryId === c.id && a.published === true && a.authorId === userId
-              ).length,
+              articles: articles.filter((a) => a.categoryId === c.id && a.published === true)
+                .length,
             },
           }));
       },
@@ -348,7 +417,7 @@ export function createMemoryDb() {
             id: data.authorId,
             name: author?.name ?? 'Author',
             username: author?.username ?? `user_${data.authorId}`,
-            subdomain: author?.subdomain ?? null,
+            subdomain: publications.find((p) => p.user?.id === data.authorId)?.subdomain ?? null,
             logoUrl: author?.logoUrl ?? null,
             isCertified: author?.isCertified ?? false,
           },
@@ -426,21 +495,25 @@ export function createMemoryDb() {
     follows: {
       findFirst: async ({ where }: { where: Prisma.FollowsWhereInput }) => {
         const readerId = firstScalar(where as Record<string, unknown>, 'readerId');
-        const creatorId = firstScalar(where as Record<string, unknown>, 'creatorId');
+        const publicationId = firstScalar(where as Record<string, unknown>, 'publicationId');
         return (
           follows.find(
             (f) =>
               (readerId === undefined || f.readerId === readerId) &&
-              (creatorId === undefined || f.creatorId === creatorId)
+              (publicationId === undefined || f.publicationId === publicationId)
           ) ?? null
         );
       },
       create: async ({
         data,
       }: {
-        data: Prisma.FollowsCreateInput & { readerId: string; creatorId: string };
+        data: Prisma.FollowsCreateInput & { readerId: string; publicationId: string };
       }) => {
-        const row = { id: newId('fl'), readerId: data.readerId, creatorId: data.creatorId };
+        const row = {
+          id: newId('fl'),
+          readerId: data.readerId,
+          publicationId: data.publicationId,
+        };
         follows.push(row);
         return { ...row };
       },
@@ -452,13 +525,38 @@ export function createMemoryDb() {
       },
       count: async ({ where }: { where: Prisma.FollowsWhereInput }) => {
         const readerId = firstScalar(where as Record<string, unknown>, 'readerId');
-        const creatorId = firstScalar(where as Record<string, unknown>, 'creatorId');
+        const publicationId = firstScalar(where as Record<string, unknown>, 'publicationId');
         return follows.filter(
           (f) =>
             (readerId === undefined || f.readerId === readerId) &&
-            (creatorId === undefined || f.creatorId === creatorId)
+            (publicationId === undefined || f.publicationId === publicationId)
         ).length;
       },
+    },
+    publication: {
+      findFirst: async ({ where }: { where: Prisma.PublicationWhereInput }) => {
+        const w = where as Record<string, unknown>;
+        const found = publications.find((p) => {
+          const orClauses = w.OR;
+          if (Array.isArray(orClauses) && orClauses.length > 0) {
+            return (orClauses as Record<string, unknown>[]).some((clause) =>
+              matchesPublication(p, clause)
+            );
+          }
+          return matchesPublication(p, w);
+        });
+        if (!found) return null;
+        return {
+          ...found,
+          _count: {
+            followers: follows.filter((f) => f.publicationId === found.id).length,
+            articles: articles.filter((a) => a.authorId === found.user?.id && a.published === true)
+              .length,
+          },
+        };
+      },
+      findUnique: async ({ where }: { where: { id: string } }) =>
+        publications.find((p) => p.id === where.id) ?? null,
     },
   };
 
@@ -482,11 +580,19 @@ function matchesUser(u: User, clause: Record<string, unknown>): boolean {
   const id = clause.id;
   const email = clause.email;
   const username = clause.username;
-  const subdomain = clause.subdomain;
   if (id !== undefined && u.id !== id) return false;
   if (email !== undefined && u.email !== email) return false;
   if (username !== undefined && u.username !== username) return false;
-  if (subdomain !== undefined && u.subdomain !== subdomain) return false;
+  return true;
+}
+
+function matchesPublication(p: PublicationRow, clause: Record<string, unknown>): boolean {
+  const id = clause.id;
+  const slug = clause.slug;
+  const subdomain = clause.subdomain;
+  if (id !== undefined && p.id !== id) return false;
+  if (slug !== undefined && p.slug !== slug) return false;
+  if (subdomain !== undefined && p.subdomain !== subdomain) return false;
   return true;
 }
 

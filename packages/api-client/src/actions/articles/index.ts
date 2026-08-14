@@ -1,9 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 import { prisma, type Article, type Category, type Prisma } from '@qoe/db/client';
 import { createClient } from '@qoe/supabase/server';
 import { slugify, shortId } from '@qoe/utils';
+import { publications } from '@qoe/db';
 import { safeAction } from '../utils/safe-action';
 
 async function authenticateUser() {
@@ -18,13 +20,40 @@ async function authenticateUser() {
   return user;
 }
 
+/**
+ * 🎛️ Résout la publication active (personnelle OU média) depuis le cookie du workspace.
+ * Le dashboard opère sur le workspace sélectionné sans changer de compte.
+ */
+async function getActivePublicationId(userId: string): Promise<string> {
+  let saved: { type?: string; id?: string } | null = null;
+  try {
+    const cookieStore = await cookies();
+    const raw = cookieStore.get('qoe_active_workspace')?.value;
+    if (raw) saved = JSON.parse(decodeURIComponent(raw));
+  } catch {
+    saved = null;
+  }
+
+  if (saved?.type === 'MEDIA' && saved.id) {
+    const membership = await prisma.mediaMember.findUnique({
+      where: { mediaId_userId: { mediaId: saved.id, userId } },
+      include: { media: { include: { publication: { select: { id: true } } } } },
+    });
+    if (membership) return membership.media.publication.id;
+  }
+
+  const personal = await publications.getOrCreatePersonalPublication(userId);
+  return personal.id;
+}
+
 export const getArticlesAction = safeAction<
   void,
   Prisma.ArticleGetPayload<{ include: { category: true } }>[]
 >(async () => {
   const user = await authenticateUser();
+  const publicationId = await getActivePublicationId(user.id);
   return prisma.article.findMany({
-    where: { authorId: user.id },
+    where: { publicationId },
     include: { category: true },
     orderBy: { createdAt: 'desc' },
   });
@@ -39,10 +68,12 @@ export const getArticleByIdAction = safeAction<
     where: { id },
     include: { category: true },
   });
-  if (article && article.authorId !== user.id) {
-    throw new Error("Vous n'êtes pas autorisé à accéder à cet article.");
-  }
-  return article;
+  if (!article) return null;
+  // Auteur direct, OU membre de la publication active (média) qui porte l'article
+  if (article.authorId === user.id) return article;
+  const publicationId = await getActivePublicationId(user.id);
+  if (article.publicationId === publicationId) return article;
+  throw new Error("Vous n'êtes pas autorisé à accéder à cet article.");
 });
 
 export const saveArticleAction = safeAction<
@@ -101,7 +132,8 @@ export const saveArticleAction = safeAction<
   if (id) {
     const existing = await prisma.article.findUnique({ where: { id } });
     if (!existing) throw new Error('Article introuvable.');
-    if (existing.authorId !== user.id) {
+    const activePublicationId = await getActivePublicationId(user.id);
+    if (existing.authorId !== user.id && existing.publicationId !== activePublicationId) {
       throw new Error("Vous n'êtes pas autorisé à modifier cet article.");
     }
 
@@ -124,6 +156,7 @@ export const saveArticleAction = safeAction<
     revalidatePath(`/articles/${id}`);
     return updated;
   } else {
+    const publicationId = await getActivePublicationId(user.id);
     const created = await prisma.article.create({
       data: {
         title,
@@ -133,6 +166,7 @@ export const saveArticleAction = safeAction<
         isPremium,
         readingTime,
         authorId: user.id,
+        publicationId,
         categoryId: categoryId || null,
         seoTitle,
         seoDescription,
@@ -148,7 +182,8 @@ export const deleteArticleAction = safeAction<string, { success: boolean }>(asyn
   const user = await authenticateUser();
   const existing = await prisma.article.findUnique({ where: { id } });
   if (!existing) throw new Error('Article introuvable.');
-  if (existing.authorId !== user.id) {
+  const activePublicationId = await getActivePublicationId(user.id);
+  if (existing.authorId !== user.id && existing.publicationId !== activePublicationId) {
     throw new Error("Vous n'êtes pas autorisé à supprimer cet article.");
   }
 
@@ -162,8 +197,9 @@ export const getCategoriesAction = safeAction<
   Prisma.CategoryGetPayload<{ include: { _count: { select: { articles: true } } } }>[]
 >(async () => {
   const user = await authenticateUser();
+  const publicationId = await getActivePublicationId(user.id);
   return prisma.category.findMany({
-    where: { userId: user.id },
+    where: { publicationId },
     include: { _count: { select: { articles: true } } },
     orderBy: { name: 'asc' },
   });
@@ -181,9 +217,10 @@ export const saveCategoryAction = safeAction<
   let finalSlug = slugify(slug || name);
   if (!finalSlug) finalSlug = `cat-${shortId()}`;
 
+  const publicationId = await getActivePublicationId(user.id);
   const existingWithSlug = await prisma.category.findFirst({
     where: {
-      userId: user.id,
+      publicationId,
       slug: finalSlug,
       NOT: id ? { id } : undefined,
     },
@@ -196,7 +233,7 @@ export const saveCategoryAction = safeAction<
   if (id) {
     const existing = await prisma.category.findUnique({ where: { id } });
     if (!existing) throw new Error('Catégorie introuvable.');
-    if (existing.userId !== user.id) {
+    if (existing.publicationId !== publicationId) {
       throw new Error("Vous n'êtes pas autorisé à modifier cette catégorie.");
     }
 
@@ -208,7 +245,7 @@ export const saveCategoryAction = safeAction<
     return updated;
   } else {
     const created = await prisma.category.create({
-      data: { name, slug: finalSlug, description, userId: user.id },
+      data: { name, slug: finalSlug, description, publicationId },
     });
     revalidatePath('/articles');
     return created;
@@ -219,7 +256,8 @@ export const deleteCategoryAction = safeAction<string, { success: boolean }>(asy
   const user = await authenticateUser();
   const existing = await prisma.category.findUnique({ where: { id } });
   if (!existing) throw new Error('Catégorie introuvable.');
-  if (existing.userId !== user.id) {
+  const publicationId = await getActivePublicationId(user.id);
+  if (existing.publicationId !== publicationId) {
     throw new Error("Vous n'êtes pas autorisé à supprimer cette catégorie.");
   }
 

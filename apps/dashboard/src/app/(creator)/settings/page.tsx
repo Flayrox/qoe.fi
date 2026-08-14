@@ -1,13 +1,14 @@
 // =====================================================================
-// 🖥️ Server Component — apps/dashboard/src/app/(creator)/dashboard/settings/page.tsx
+// 🖥️ Server Component — apps/dashboard/src/app/(creator)/settings/page.tsx
 // =====================================================================
-// Page de configuration créateur : récupère l'état initial complet depuis la base de données
-// (incluant les articles pour l'édition directe en place) et initialise le QOE Studio.
+// Page de configuration : opère sur la publication ACTIVE (personnelle OU
+// média sélectionné via le switcher). Initialise le QOE Studio.
 // =====================================================================
 
 import { redirect } from 'next/navigation';
 import { prisma } from '@qoe/db/client';
 import { createClient } from '@qoe/supabase/server';
+import { getActiveWorkspace } from '@/lib/active-workspace';
 import VisualStudio, { CreatorProfile } from '@/features/settings/components/visual-studio';
 
 export default async function CreatorSettingsPage() {
@@ -22,29 +23,25 @@ export default async function CreatorSettingsPage() {
     redirect('/login');
   }
 
-  // 2. Récupération des informations du créateur, de ses liaisons et de ses articles
-  const creator = await prisma.user.findUnique({
-    where: { id: user.id },
+  // 2. Workspace actif (publication personnelle OU média)
+  const workspace = await getActiveWorkspace(user.id);
+
+  // 3. Chargement de la publication active avec ses relations
+  const publication = await prisma.publication.findUnique({
+    where: { id: workspace.publicationId },
     include: {
-      navigation: {
-        orderBy: { order: 'asc' },
-      },
-      socialLinks: {
-        orderBy: { order: 'asc' },
-      },
-      articles: {
-        orderBy: { createdAt: 'desc' },
-      },
-      categories: {
-        orderBy: { name: 'asc' },
-      },
+      navigation: { orderBy: { order: 'asc' } },
+      socialLinks: { orderBy: { order: 'asc' } },
+      articles: { orderBy: { createdAt: 'desc' } },
+      categories: { orderBy: { name: 'asc' } },
+      user: { select: { id: true, email: true, username: true, advancedSettingsMode: true } },
     },
   });
 
-  if (!creator) {
+  if (!publication) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center border rounded-2xl bg-destructive/5 border-destructive/10">
-        <h2 className="text-lg font-bold text-destructive">Profil créateur introuvable</h2>
+        <h2 className="text-lg font-bold text-destructive">Publication introuvable</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Veuillez contacter le support si l'erreur persiste.
         </p>
@@ -52,40 +49,43 @@ export default async function CreatorSettingsPage() {
     );
   }
 
-  // 3. Mapping sécurisé vers un objet sérialisable (sans dates ni objets complexes)
+  const owner = publication.user;
+  const isMedia = workspace.type === 'MEDIA';
+
+  // 4. Mapping sécurisé vers un objet sérialisable
   const initialCreatorData: CreatorProfile = {
-    id: creator.id,
-    email: creator.email,
-    username: creator.username,
-    name: creator.name,
-    heroText: creator.heroText,
-    accentColor: creator.accentColor,
-    fontFamily: creator.fontFamily,
-    themeMode: creator.themeMode || 'classic',
-    layoutStyle: creator.layoutStyle || 'minimal',
-    logoUrl: creator.logoUrl,
-    headerImageUrl: creator.headerImageUrl,
-    footerText: creator.footerText,
-    seoTitle: creator.seoTitle,
-    seoDescription: creator.seoDescription,
-    allowIndexing: creator.allowIndexing,
-    supportUrl: creator.supportUrl,
-    subdomain: creator.subdomain,
-    customDomain: creator.customDomain,
-    navigation: creator.navigation.map((nav) => ({
+    id: workspace.type === 'MEDIA' ? workspace.mediaId || publication.id : owner?.id || user.id,
+    email: owner?.email ?? user.email ?? '',
+    username: owner?.username ?? null,
+    name: publication.name,
+    heroText: publication.heroText ?? null,
+    accentColor: publication.accentColor ?? null,
+    fontFamily: publication.fontFamily ?? null,
+    themeMode: publication.themeMode || 'classic',
+    layoutStyle: publication.layoutStyle || 'minimal',
+    logoUrl: publication.logoUrl ?? null,
+    headerImageUrl: publication.headerImageUrl ?? null,
+    footerText: publication.footerText ?? null,
+    seoTitle: publication.seoTitle ?? null,
+    seoDescription: publication.seoDescription ?? null,
+    allowIndexing: publication.allowIndexing ?? true,
+    supportUrl: publication.supportUrl ?? null,
+    subdomain: publication.subdomain ?? null,
+    customDomain: publication.customDomain ?? null,
+    navigation: publication.navigation.map((nav) => ({
       id: nav.id,
       label: nav.label,
       url: nav.url,
       order: nav.order,
       isExternal: nav.isExternal,
     })),
-    socialLinks: creator.socialLinks.map((social) => ({
+    socialLinks: publication.socialLinks.map((social) => ({
       id: social.id,
       platform: social.platform,
       url: social.url,
       order: social.order,
     })),
-    articles: creator.articles.map((article) => ({
+    articles: publication.articles.map((article) => ({
       id: article.id,
       title: article.title,
       slug: article.slug,
@@ -95,14 +95,16 @@ export default async function CreatorSettingsPage() {
       categoryId: article.categoryId,
       seoTitle: article.seoTitle,
       seoDescription: article.seoDescription,
-      createdAt: article.createdAt.toISOString(), // Sérialisation sécurisée en string ISO
+      createdAt: article.createdAt.toISOString(),
     })),
-    categories: creator.categories.map((cat) => ({
+    categories: publication.categories.map((cat) => ({
       id: cat.id,
       name: cat.name,
       slug: cat.slug,
     })),
-    advancedSettingsMode: creator.advancedSettingsMode,
+    advancedSettingsMode: owner?.advancedSettingsMode ?? false,
+    isMedia,
+    mediaRole: isMedia ? workspace.mediaRole : undefined,
   };
 
   return <VisualStudio initialCreator={initialCreatorData} />;

@@ -18,10 +18,15 @@ export async function getCurrentUserAction() {
       email: true,
       name: true,
       role: true,
-      subdomain: true,
-      customDomain: true,
       logoUrl: true,
       hasCompletedOnboarding: true,
+      publication: {
+        select: {
+          subdomain: true,
+          customDomain: true,
+          slug: true,
+        },
+      },
     },
   });
 

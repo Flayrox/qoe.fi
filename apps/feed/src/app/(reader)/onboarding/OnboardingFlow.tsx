@@ -27,7 +27,8 @@ interface OnboardingFlowProps {
   suggestedCreators: Array<{
     id: string;
     name: string | null;
-    subdomain: string | null;
+    slug?: string | null;
+    subdomain?: string | null;
     logoUrl: string | null;
     heroText: string | null;
   }>;
@@ -361,7 +362,7 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
                                 {creator.name || t`Auteur`}
                               </h4>
                               <p className="text-[10px] text-muted-foreground font-mono truncate">
-                                @{creator.subdomain || 'creator'}
+                                @{creator.slug || creator.subdomain || 'creator'}
                               </p>
                             </div>
                             <button

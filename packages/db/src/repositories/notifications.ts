@@ -28,6 +28,10 @@ export interface GroupedNotification {
     id: string;
     content: string;
   } | null;
+  publication?: {
+    id: string;
+    name: string | null;
+  } | null;
   senders: Array<{
     id: string;
     name: string | null;
@@ -48,6 +52,7 @@ export async function createNotification(data: {
   thoughtId?: string | null;
   articleId?: string | null;
   commentId?: string | null;
+  publicationId?: string | null;
 }): Promise<Prisma.NotificationGetPayload<Record<string, never>> | null> {
   // Ne pas notifier soi-même
   if (data.recipientId === data.senderId) {
@@ -64,6 +69,13 @@ export async function createNotification(data: {
     if (data.type === 'MENTION' && !prefs.pushMentions && !prefs.emailMentions) return null;
     if (data.type === 'FOLLOW' && !prefs.pushFollows && !prefs.emailFollows) return null;
     if (data.type === 'REPOST' && !prefs.pushReposts && !prefs.emailReposts) return null;
+    if (
+      (data.type === 'MEDIA_INVITE' || data.type === 'MEDIA_MEMBER_JOINED') &&
+      !prefs.pushMentions &&
+      !prefs.emailMentions
+    ) {
+      return null;
+    }
 
     // Idempotence : éviter les doublons identiques non lus
     const existing = await prisma.notification.findFirst({
@@ -74,6 +86,7 @@ export async function createNotification(data: {
         thoughtId: data.thoughtId || null,
         articleId: data.articleId || null,
         commentId: data.commentId || null,
+        publicationId: data.publicationId || null,
         isRead: false,
       },
     });
@@ -90,6 +103,7 @@ export async function createNotification(data: {
         thoughtId: data.thoughtId || null,
         articleId: data.articleId || null,
         commentId: data.commentId || null,
+        publicationId: data.publicationId || null,
       },
     });
   } catch (error) {
@@ -107,6 +121,7 @@ export async function deleteNotification(data: {
   type: NotificationType;
   thoughtId?: string | null;
   articleId?: string | null;
+  publicationId?: string | null;
 }): Promise<boolean> {
   try {
     await prisma.notification.deleteMany({
@@ -116,6 +131,7 @@ export async function deleteNotification(data: {
         type: data.type,
         thoughtId: data.thoughtId || null,
         articleId: data.articleId || null,
+        publicationId: data.publicationId || null,
       },
     });
     return true;
@@ -182,6 +198,12 @@ export async function getNotifications(
           content: true,
         },
       },
+      publication: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
     },
   });
 
@@ -224,6 +246,7 @@ export async function getNotifications(
         thought: item.thought,
         article: item.article,
         comment: item.comment,
+        publication: item.publication,
         senders: [item.sender],
         totalCount: 1,
       });
