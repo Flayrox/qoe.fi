@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import { HeaderClient } from './HeaderClient';
 import { cn } from '@qoe/utils';
