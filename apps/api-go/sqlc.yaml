@@ -1,0 +1,30 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "sql/schema/schema.sql"
+    queries: "sql/queries"
+    gen:
+      go:
+        package: "db"
+        out: "internal/database"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_prepared_queries: false
+        emit_interface: true
+        emit_exact_table_names: false
+        emit_empty_slices: true
+        overrides:
+          - column: "Post.id"
+            go_type: "string"
+          - column: "Post.authorId"
+            go_type: "string"
+          - column: "Post.parentId"
+            go_type: "github.com/jackc/pgx/v5/pgtype.Text"
+          - column: "Post.rootId"
+            go_type: "github.com/jackc/pgx/v5/pgtype.Text"
+          - column: "Post.repostId"
+            go_type: "github.com/jackc/pgx/v5/pgtype.Text"
+          - column: "User.id"
+            go_type: "string"
+          - column: "Like.postId"
+            go_type: "string"
