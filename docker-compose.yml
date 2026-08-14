@@ -101,6 +101,8 @@ services:
       NEXT_PUBLIC_CONSOLE_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
+      # Backend-of-record Go (réseau privé Docker, jamais public).
+      QOE_API_GO_URL: http://api-go:8080
       # Supabase (lu côté serveur via l'app)
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
@@ -157,6 +159,8 @@ services:
       NEXT_PUBLIC_CONSOLE_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
+      # Backend-of-record Go (réseau privé Docker, jamais public).
+      QOE_API_GO_URL: http://api-go:8080
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
@@ -212,6 +216,8 @@ services:
       NEXT_PUBLIC_CONSOLE_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
+      # Backend-of-record Go (réseau privé Docker, jamais public).
+      QOE_API_GO_URL: http://api-go:8080
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
@@ -268,6 +274,8 @@ services:
       NEXT_PUBLIC_CONSOLE_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
+      # Backend-of-record Go (réseau privé Docker, jamais public).
+      QOE_API_GO_URL: http://api-go:8080
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
@@ -324,6 +332,8 @@ services:
       NEXT_PUBLIC_CONSOLE_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
+      # Backend-of-record Go (réseau privé Docker, jamais public).
+      QOE_API_GO_URL: http://api-go:8080
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
@@ -479,6 +489,9 @@ services:
       PORT: 8080
       REDIS_URL: redis://redis:6379
       QOE_INTERNAL_SECRET: ${QOE_INTERNAL_SECRET:-}
+      UMAMI_API_URL: ${UMAMI_API_URL:-https://api.umami.is/v1}
+      UMAMI_API_KEY: ${UMAMI_API_KEY:-}
+      NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
 
     extra_hosts:
       - 'host.docker.internal:host-gateway'
