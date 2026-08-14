@@ -15,6 +15,8 @@ type Config struct {
 	JWTSecret string
 	// RedisURL pour le rate-limiting / asynq.
 	RedisURL string
+	// InternalSecret protège les endpoints internes (émission d'événements).
+	InternalSecret string
 }
 
 func Load() *Config {
@@ -24,6 +26,7 @@ func Load() *Config {
 		SupabaseAuthURL: envOr("SUPABASE_AUTH_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")),
 		JWTSecret:       envOr("SUPABASE_JWT_SECRET", envOr("SUPABASE_SECRET_KEY", "")),
 		RedisURL:        envOr("REDIS_URL", "redis://localhost:6379"),
+		InternalSecret:  envOr("QOE_INTERNAL_SECRET", envOr("SUPABASE_SERVICE_ROLE_KEY", "")),
 	}
 }
 

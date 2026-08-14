@@ -47,16 +47,37 @@ async function resolvePublicationId(creatorRef: string): Promise<string | null> 
 }
 
 async function publishSubscriberCreated(publicationId: string, email: string) {
+  const payload = {
+    eventId: `sub_${publicationId}_${Date.now()}`,
+    subscriberId: email,
+    publicationId,
+    creatorId: publicationId,
+    email,
+    isPremium: true,
+    createdAt: new Date().toISOString(),
+  };
+
+  // 🔗 Proxy Go : événement enqueue dans asynq (webhooks Go) si activé.
+  const goURL = process.env.QOE_API_GO_URL;
+  if (goURL) {
+    try {
+      await fetch(`${goURL}/internal/events/subscriber-created`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-qoe-internal-secret': process.env.QOE_INTERNAL_SECRET ?? '',
+        },
+        body: JSON.stringify(payload),
+      });
+      return;
+    } catch (err) {
+      logger.error('Erreur publication événement subscriber.created (Go)', { err });
+    }
+    return;
+  }
+
   try {
-    await eventBus.publishSubscriberCreated({
-      eventId: `sub_${publicationId}_${Date.now()}`,
-      subscriberId: email,
-      publicationId,
-      creatorId: publicationId,
-      email,
-      isPremium: true,
-      createdAt: new Date().toISOString(),
-    });
+    await eventBus.publishSubscriberCreated(payload);
   } catch (err) {
     logger.error('Erreur publication événement subscriber.created', { err });
   }

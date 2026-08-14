@@ -65,9 +65,25 @@ go build ./... && go vet ./...
 - [x] Proxies server actions → Go : getFeedItemsAction, createThoughtAction,
       replyToPostAction, toggleLikePostAction, toggleRepostPostAction
       (activés par `QOE_API_GO_URL`, fallback TS sinon)
-- [ ] Workers asynq (newsletter, meilisearch, stripe, webhooks)
+- [x] Workers **asynq** (`cmd/worker`) : webhook dispatch (HMAC-SHA256 + logs) et
+      newsletter fanout ; endpoint interne `/internal/events/*` (enqueue asynq,
+      secret `QOE_INTERNAL_SECRET`) ; article.published + subscriber.created
+      câblés côté TS (goFetch) — **testé bout en bout** (receiver HTTP reçoit
+      le POST signé, delivery SUCCESS)
 - [ ] Modules suivants : articles/paywall, notifications, creator analytics,
-      getPostThread endpoint
+      getPostThread endpoint, meilisearch/stripe workers asynq
+- [ ] Docker multi-stage + Caddy reverse-proxy
+
+## Workers (asynq)
+```bash
+# Lancer le worker (traitement asynq)
+DATABASE_URL="…" REDIS_URL="redis://localhost:6379" go run ./cmd/worker
+
+# Enqueue un événement (API serveur)
+curl -X POST http://localhost:8080/internal/events/article-published \
+  -H "Content-Type: application/json" -H "x-qoe-internal-secret: $QOE_INTERNAL_SECRET" \
+  -d '{"eventId":"…","publicationId":"…","articleId":"…",…}'
+```
 
 ## Contraintes DB importantes
 - Les colonnes `id` (TEXT) et `updatedAt` n'ont **pas de défaut en base** (Prisma

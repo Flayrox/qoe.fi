@@ -9,24 +9,45 @@ import { publications, notifications, articleComments } from '@qoe/db';
 import { canMedia, canEditMediaArticle, type MediaMemberContext } from '@qoe/auth';
 import { eventBus } from '@qoe/workers/events';
 import { safeAction } from '../utils/safe-action';
+import { GO_API_URL, isGoEnabled } from '../utils/go-client';
 
 /** 📣 Publie l'événement de domaine article.published (newsletter + webhooks). */
 async function emitArticlePublished(
   article: { id: string; publicationId: string; title: string; slug: string; visibility: string },
   authorId: string
 ) {
+  const payload = {
+    eventId: `article_published_${article.id}`,
+    publicationId: article.publicationId,
+    articleId: article.id,
+    authorId,
+    title: article.title,
+    slug: article.slug,
+    visibility: article.visibility as
+      'PUBLIC' | 'MEMBERS_ONLY' | 'PAID_SUBSCRIBERS' | 'TIER_SPECIFIC',
+    publishedAt: new Date().toISOString(),
+  };
+
+  // 🔗 Proxy Go : l'événement est enqueue dans asynq (webhooks + newsletter Go).
+  if (isGoEnabled()) {
+    try {
+      await fetch(`${GO_API_URL}/internal/events/article-published`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-qoe-internal-secret': process.env.QOE_INTERNAL_SECRET ?? '',
+        },
+        body: JSON.stringify(payload),
+        cache: 'no-store',
+      });
+    } catch (err) {
+      console.error('[emitArticlePublished:go]', err);
+    }
+    return;
+  }
+
   try {
-    await eventBus.publishArticlePublished({
-      eventId: `article_published_${article.id}`,
-      publicationId: article.publicationId,
-      articleId: article.id,
-      authorId,
-      title: article.title,
-      slug: article.slug,
-      visibility: article.visibility as
-        'PUBLIC' | 'MEMBERS_ONLY' | 'PAID_SUBSCRIBERS' | 'TIER_SPECIFIC',
-      publishedAt: new Date().toISOString(),
-    });
+    await eventBus.publishArticlePublished(payload);
   } catch (err) {
     console.error('[emitArticlePublished]', err);
   }

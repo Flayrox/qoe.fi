@@ -17,8 +17,10 @@ import (
 	"github.com/qoefi/api-go/internal/config"
 	"github.com/qoefi/api-go/internal/dbpool"
 	authmw "github.com/qoefi/api-go/internal/middleware"
+	"github.com/qoefi/api-go/internal/modules/events"
 	"github.com/qoefi/api-go/internal/modules/feed"
 	"github.com/qoefi/api-go/internal/modules/posts"
+	"github.com/qoefi/api-go/internal/queue"
 )
 
 func main() {
@@ -38,6 +40,7 @@ func main() {
 	defer pool.Close()
 
 	rc := cache.Client(cfg.RedisURL)
+	asynqClient := queue.NewClient(cfg.RedisURL)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
@@ -50,6 +53,10 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
+
+	// Endpoints internes (émission d'événements → asynq), protégés par secret.
+	eventsHandler := events.NewHandler(asynqClient, cfg.InternalSecret)
+	eventsHandler.Register(r)
 
 	// Auth JWT Supabase pour toute l'API.
 	auth := authmw.NewAuth(cfg.JWTSecret, cfg.SupabaseAuthURL)
