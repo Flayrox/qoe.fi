@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const ArticlePublishedEventSchema = z.object({
   eventId: z.string(),
+  publicationId: z.string(),
   articleId: z.string(),
   authorId: z.string().uuid(),
   title: z.string(),
@@ -21,6 +22,7 @@ export const PostLikedEventSchema = z.object({
 export const SubscriberCreatedEventSchema = z.object({
   eventId: z.string(),
   subscriberId: z.string(),
+  publicationId: z.string(),
   creatorId: z.string().uuid(),
   email: z.string().email(),
   isPremium: z.boolean().default(false),

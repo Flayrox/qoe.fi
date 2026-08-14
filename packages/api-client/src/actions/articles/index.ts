@@ -7,7 +7,30 @@ import { createClient } from '@qoe/supabase/server';
 import { slugify, shortId } from '@qoe/utils';
 import { publications, notifications, articleComments } from '@qoe/db';
 import { canMedia, canEditMediaArticle, type MediaMemberContext } from '@qoe/auth';
+import { eventBus } from '@qoe/workers/events';
 import { safeAction } from '../utils/safe-action';
+
+/** 📣 Publie l'événement de domaine article.published (newsletter + webhooks). */
+async function emitArticlePublished(
+  article: { id: string; publicationId: string; title: string; slug: string; visibility: string },
+  authorId: string
+) {
+  try {
+    await eventBus.publishArticlePublished({
+      eventId: `article_published_${article.id}`,
+      publicationId: article.publicationId,
+      articleId: article.id,
+      authorId,
+      title: article.title,
+      slug: article.slug,
+      visibility: article.visibility as
+        'PUBLIC' | 'MEMBERS_ONLY' | 'PAID_SUBSCRIBERS' | 'TIER_SPECIFIC',
+      publishedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('[emitArticlePublished]', err);
+  }
+}
 
 async function authenticateUser() {
   const supabase = await createClient();
@@ -258,6 +281,7 @@ export const saveArticleAction = safeAction<
       notifications
         .notifyMediaArticlePublished(updated.publicationId, updated.id, user.id)
         .catch(() => undefined);
+      await emitArticlePublished(updated, user.id);
     }
 
     revalidatePath('/articles');
@@ -313,6 +337,7 @@ export const saveArticleAction = safeAction<
       notifications
         .notifyMediaArticlePublished(created.publicationId, created.id, user.id)
         .catch(() => undefined);
+      await emitArticlePublished(created, user.id);
     }
 
     revalidatePath('/articles');
@@ -382,6 +407,7 @@ export const reviewArticleAction = safeAction<{ id: string; approve: boolean }, 
       notifications
         .notifyMediaArticlePublished(article.publicationId, article.id, user.id)
         .catch(() => undefined);
+      await emitArticlePublished(updated, user.id);
     }
 
     revalidatePath('/articles');

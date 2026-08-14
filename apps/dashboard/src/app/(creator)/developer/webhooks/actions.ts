@@ -1,0 +1,232 @@
+'use server';
+
+import crypto from 'crypto';
+import { createClient } from '@qoe/supabase/server';
+import { prisma, type Prisma } from '@qoe/db/client';
+import { revalidatePath } from 'next/cache';
+import { getActiveWorkspace } from '@/lib/active-workspace';
+
+const WEBHOOK_EVENTS = ['article.published', 'subscriber.created'] as const;
+export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
+
+async function getAuthenticatedUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Non authentifié');
+  return user;
+}
+
+export interface WebhookWithDeliveries {
+  id: string;
+  name: string;
+  url: string;
+  events: string[];
+  active: boolean;
+  createdAt: Date;
+  lastDelivery?: {
+    id: string;
+    status: string;
+    httpStatus: number | null;
+    event: string;
+    createdAt: Date;
+  } | null;
+  deliveries: {
+    id: string;
+    status: string;
+    httpStatus: number | null;
+    event: string;
+    createdAt: Date;
+  }[];
+}
+
+function toWebhookDto(webhook: {
+  id: string;
+  name: string;
+  url: string;
+  events: string[];
+  active: boolean;
+  createdAt: Date;
+  deliveries: Array<{
+    id: string;
+    status: string;
+    httpStatus: number | null;
+    event: string;
+    createdAt: Date;
+  }>;
+}): WebhookWithDeliveries {
+  return {
+    id: webhook.id,
+    name: webhook.name,
+    url: webhook.url,
+    events: webhook.events,
+    active: webhook.active,
+    createdAt: webhook.createdAt,
+    deliveries: webhook.deliveries.slice(0, 5),
+    lastDelivery: webhook.deliveries[0] ?? null,
+  };
+}
+
+export async function listWebhooksAction() {
+  const user = await getAuthenticatedUser();
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
+
+  const workspace = await getActiveWorkspace(user.id);
+  const webhooks = await prisma.webhook.findMany({
+    where: { publicationId: workspace.publicationId },
+    include: {
+      deliveries: {
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, status: true, httpStatus: true, event: true, createdAt: true },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return {
+    success: true as const,
+    webhooks: webhooks.map(toWebhookDto),
+    events: WEBHOOK_EVENTS,
+    workspaceName: workspace.name,
+  };
+}
+
+export async function createWebhookAction(input: {
+  name: string;
+  url: string;
+  events: WebhookEvent[];
+}) {
+  const user = await getAuthenticatedUser();
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
+
+  const name = input.name?.trim();
+  const url = input.url?.trim();
+  if (!name || !url) return { success: false as const, error: 'Nom et URL requis' };
+  if (!/^https:\/\//i.test(url) && !/^http:\/\/localhost/i.test(url)) {
+    return {
+      success: false as const,
+      error: "L'URL doit commencer par https:// (ou http://localhost en dev)",
+    };
+  }
+  const events = input.events.filter((e) => WEBHOOK_EVENTS.includes(e));
+  if (events.length === 0)
+    return { success: false as const, error: 'Sélectionnez au moins un événement' };
+
+  const workspace = await getActiveWorkspace(user.id);
+  const secret = crypto.randomBytes(32).toString('hex');
+
+  const webhook = await prisma.webhook.create({
+    data: {
+      publicationId: workspace.publicationId,
+      name,
+      url,
+      secret,
+      events,
+      active: true,
+    },
+  });
+
+  revalidatePath('/developer/webhooks');
+  return { success: true as const, webhook, secret };
+}
+
+export async function deleteWebhookAction(id: string) {
+  const user = await getAuthenticatedUser();
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
+
+  const workspace = await getActiveWorkspace(user.id);
+  const existing = await prisma.webhook.findUnique({ where: { id } });
+  if (!existing || existing.publicationId !== workspace.publicationId) {
+    return { success: false as const, error: 'Webhook introuvable' };
+  }
+
+  await prisma.webhook.delete({ where: { id } });
+  revalidatePath('/developer/webhooks');
+  return { success: true as const };
+}
+
+export async function toggleWebhookAction(id: string) {
+  const user = await getAuthenticatedUser();
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
+
+  const workspace = await getActiveWorkspace(user.id);
+  const existing = await prisma.webhook.findUnique({ where: { id } });
+  if (!existing || existing.publicationId !== workspace.publicationId) {
+    return { success: false as const, error: 'Webhook introuvable' };
+  }
+
+  await prisma.webhook.update({ where: { id }, data: { active: !existing.active } });
+  revalidatePath('/developer/webhooks');
+  return { success: true as const, active: !existing.active };
+}
+
+/** 📡 Test ping — envoie un événement de test signé au endpoint. */
+export async function testWebhookAction(id: string) {
+  const user = await getAuthenticatedUser();
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
+
+  const workspace = await getActiveWorkspace(user.id);
+  const webhook = await prisma.webhook.findUnique({ where: { id } });
+  if (!webhook || webhook.publicationId !== workspace.publicationId) {
+    return { success: false as const, error: 'Webhook introuvable' };
+  }
+
+  const body = JSON.stringify({
+    event: 'webhook.test',
+    data: { publicationId: workspace.publicationId, workspace: workspace.name },
+    timestamp: new Date().toISOString(),
+  });
+  const signature = crypto.createHmac('sha256', webhook.secret).update(body).digest('hex');
+
+  try {
+    const res = await fetch(webhook.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Qoe-Signature': `sha256=${signature}`,
+        'X-Qoe-Event': 'webhook.test',
+        'User-Agent': 'qoe-fi-webhook/1.0',
+      },
+      body,
+      signal: AbortSignal.timeout(10_000),
+    });
+    const responseBody = await res.text();
+
+    await prisma.webhookDelivery.create({
+      data: {
+        webhookId: webhook.id,
+        event: 'webhook.test',
+        payload: { test: true } as Prisma.InputJsonObject,
+        status: res.ok ? 'SUCCESS' : 'FAILED',
+        httpStatus: res.status,
+        responseBody: responseBody.slice(0, 1000) || null,
+        attempts: 1,
+      },
+    });
+
+    revalidatePath('/developer/webhooks');
+    return {
+      success: true as const,
+      status: res.status,
+      response: responseBody.slice(0, 500),
+    };
+  } catch (err) {
+    await prisma.webhookDelivery.create({
+      data: {
+        webhookId: webhook.id,
+        event: 'webhook.test',
+        payload: { test: true } as Prisma.InputJsonObject,
+        status: 'FAILED',
+        responseBody: (err instanceof Error ? err.message : 'Erreur réseau').slice(0, 1000),
+        attempts: 1,
+      },
+    });
+    return { success: false as const, error: err instanceof Error ? err.message : 'Erreur réseau' };
+  }
+}

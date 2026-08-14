@@ -461,6 +461,7 @@ model Publication {
   starterPacks            StarterPack[]
   givenRecommendations    Recommendation[] @relation("RecommendingPublication")
   receivedRecommendations Recommendation[] @relation("RecommendedPublication")
+  webhooks                Webhook[]
 
   @@index([type])
 }
@@ -646,6 +647,42 @@ model ApiKey {
 
   @@index([userId])
   @@index([keyHash])
+}
+
+// =====================================================================
+// 🔗 Webhooks — sortants (dispatch HMAC signé vers des endpoints externes)
+// =====================================================================
+model Webhook {
+  id            String   @id @default(cuid())
+  publicationId String
+  publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  name          String
+  url           String   @db.Text
+  secret        String
+  events        String[] // ex: ["article.published", "subscriber.created"]
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  deliveries WebhookDelivery[]
+
+  @@index([publicationId])
+}
+
+model WebhookDelivery {
+  id           String   @id @default(cuid())
+  webhookId    String
+  webhook      Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event        String
+  payload      Json
+  status       String   @default("PENDING") // "PENDING" | "SUCCESS" | "FAILED"
+  httpStatus   Int?
+  responseBody String?  @db.Text
+  attempts     Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([webhookId])
+  @@index([status])
 }
 
 model TranslationAuditLog {

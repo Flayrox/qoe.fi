@@ -1,8 +1,10 @@
 import type { Job } from 'bullmq';
 import IORedis from 'ioredis';
+import { prisma } from '@qoe/db/client';
 import { subscriptionsRepository } from '@qoe/db/repositories/subscriptions';
 import { SubscriptionStatus } from '@prisma/client';
 import { logger } from '@qoe/observability';
+import { eventBus } from '../events/eventBus';
 
 export interface StripeWebhookData {
   metadata?: {
@@ -30,6 +32,36 @@ const redis = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
   maxRetriesPerRequest: null,
 });
 
+async function resolvePublicationId(creatorRef: string): Promise<string | null> {
+  const direct = await prisma.publication.findUnique({
+    where: { id: creatorRef },
+    select: { id: true },
+  });
+  if (direct) return direct.id;
+
+  const pub = await prisma.publication.findFirst({
+    where: { type: 'PERSONAL', user: { id: creatorRef } },
+    select: { id: true },
+  });
+  return pub?.id ?? null;
+}
+
+async function publishSubscriberCreated(publicationId: string, email: string) {
+  try {
+    await eventBus.publishSubscriberCreated({
+      eventId: `sub_${publicationId}_${Date.now()}`,
+      subscriberId: email,
+      publicationId,
+      creatorId: publicationId,
+      email,
+      isPremium: true,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    logger.error('Erreur publication événement subscriber.created', { err });
+  }
+}
+
 export async function processStripeWebhookSyncJob(job: Job<StripeWebhookJobPayload>) {
   const { eventId, eventType, data } = job.data;
 
@@ -50,12 +82,18 @@ export async function processStripeWebhookSyncJob(job: Job<StripeWebhookJobPaylo
   switch (eventType) {
     case 'customer.subscription.created':
     case 'customer.subscription.updated': {
-      const creatorId = data.metadata?.creatorId;
+      const creatorRef = data.metadata?.creatorId;
       const email = data.metadata?.subscriberEmail || data.customer_email;
       const tierId = data.metadata?.tierId || null;
 
-      if (!creatorId || !email) {
+      if (!creatorRef || !email) {
         logger.warn('Événement Stripe sans metadata requise', { eventId });
+        return;
+      }
+
+      const publicationId = await resolvePublicationId(creatorRef);
+      if (!publicationId) {
+        logger.warn('Publication introuvable pour le webhook Stripe', { creatorRef });
         return;
       }
 
@@ -75,7 +113,7 @@ export async function processStripeWebhookSyncJob(job: Job<StripeWebhookJobPaylo
         : null;
 
       await subscriptionsRepository.upsertSubscriberEntitlement({
-        creatorId,
+        publicationId,
         email,
         stripeSubscriptionId: data.id,
         stripeCustomerId: typeof data.customer === 'string' ? data.customer : null,
@@ -85,56 +123,69 @@ export async function processStripeWebhookSyncJob(job: Job<StripeWebhookJobPaylo
         currentPeriodEnd,
       });
 
-      logger.info('Entitlement mis à jour', { email, creatorId });
+      if (eventType === 'customer.subscription.created' && isPremium) {
+        await publishSubscriberCreated(publicationId, email);
+      }
+
+      logger.info('Entitlement mis à jour', { email, publicationId });
       break;
     }
 
     case 'customer.subscription.deleted': {
-      const creatorId = data.metadata?.creatorId;
+      const creatorRef = data.metadata?.creatorId;
       const email = data.metadata?.subscriberEmail;
 
-      if (creatorId && email) {
-        await subscriptionsRepository.upsertSubscriberEntitlement({
-          creatorId,
-          email,
-          status: SubscriptionStatus.CANCELED,
-          isPremium: false,
-        });
-        logger.info('Abonnement annulé', { email, creatorId });
+      if (creatorRef && email) {
+        const publicationId = await resolvePublicationId(creatorRef);
+        if (publicationId) {
+          await subscriptionsRepository.upsertSubscriberEntitlement({
+            publicationId,
+            email,
+            status: SubscriptionStatus.CANCELED,
+            isPremium: false,
+          });
+          logger.info('Abonnement annulé', { email, publicationId });
+        }
       }
       break;
     }
 
     case 'invoice.payment_succeeded': {
-      const creatorId = data.metadata?.creatorId;
+      const creatorRef = data.metadata?.creatorId;
       const email = data.customer_email || data.metadata?.subscriberEmail;
       const amountPaid = data.amount_paid || 0;
 
-      if (creatorId && email && amountPaid > 0) {
-        await subscriptionsRepository.upsertSubscriberEntitlement({
-          creatorId,
-          email,
-          status: SubscriptionStatus.ACTIVE,
-          isPremium: true,
-          amountPaidCents: amountPaid,
-        });
-        logger.info('Paiement facture traité', { amountPaid, email });
+      if (creatorRef && email && amountPaid > 0) {
+        const publicationId = await resolvePublicationId(creatorRef);
+        if (publicationId) {
+          await subscriptionsRepository.upsertSubscriberEntitlement({
+            publicationId,
+            email,
+            status: SubscriptionStatus.ACTIVE,
+            isPremium: true,
+            amountPaidCents: amountPaid,
+          });
+          logger.info('Paiement facture traité', { amountPaid, email, publicationId });
+        }
       }
       break;
     }
 
     case 'invoice.payment_failed': {
-      const creatorId = data.metadata?.creatorId;
+      const creatorRef = data.metadata?.creatorId;
       const email = data.customer_email || data.metadata?.subscriberEmail;
 
-      if (creatorId && email) {
-        await subscriptionsRepository.upsertSubscriberEntitlement({
-          creatorId,
-          email,
-          status: SubscriptionStatus.PAST_DUE,
-          isPremium: false,
-        });
-        logger.warn('Paiement échoué, PAST_DUE', { email });
+      if (creatorRef && email) {
+        const publicationId = await resolvePublicationId(creatorRef);
+        if (publicationId) {
+          await subscriptionsRepository.upsertSubscriberEntitlement({
+            publicationId,
+            email,
+            status: SubscriptionStatus.PAST_DUE,
+            isPremium: false,
+          });
+          logger.warn('Paiement échoué, PAST_DUE', { email, publicationId });
+        }
       }
       break;
     }

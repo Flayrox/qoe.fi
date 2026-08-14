@@ -24,6 +24,7 @@ import {
   Wallet,
   Bell,
   Building2,
+  Webhook,
 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 
@@ -47,6 +48,7 @@ const iconRegistry: Record<
   Wallet,
   Bell,
   Search,
+  Webhook,
 };
 
 /* ─────────────────────────────────────────────
