@@ -11,6 +11,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
 
+	"github.com/qoefi/api-go/internal/cache"
 	"github.com/qoefi/api-go/internal/config"
 	"github.com/qoefi/api-go/internal/dbpool"
 	"github.com/qoefi/api-go/internal/queue"
@@ -34,6 +35,7 @@ func main() {
 
 	webhookWorker := workers.NewWebhookWorker(pool)
 	newsletterWorker := workers.NewNewsletterWorker(pool)
+	stripeWorker := workers.NewStripeWorker(pool, cache.Client(cfg.RedisURL))
 
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(queue.TaskArticlePublished, func(ctx context.Context, t *asynq.Task) error {
@@ -46,6 +48,7 @@ func main() {
 		return webhookWorker.HandleProcesses(ctx, t, queue.TaskSubscriberCreated)
 	})
 	mux.HandleFunc(queue.TaskPostLiked, newsletterWorker.HandlePostLiked)
+	mux.HandleFunc(queue.TaskStripeEvent, stripeWorker.HandleStripeEvent)
 
 	srv := queue.NewServer(cfg.RedisURL, 10)
 	if srv == nil {

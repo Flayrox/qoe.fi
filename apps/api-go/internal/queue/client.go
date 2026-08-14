@@ -67,6 +67,20 @@ func PublishArticlePublished(c *asynq.Client, p ArticlePublishedPayload) error {
 	return err
 }
 
+// PublishStripeEvent enqueue un événement Stripe à traiter (worker billing).
+func PublishStripeEvent(c *asynq.Client, p StripeEventPayload) error {
+	if c == nil {
+		return nil
+	}
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	task := asynq.NewTask(TaskStripeEvent, payload, asynq.MaxRetry(5), asynq.Timeout(60*time.Second))
+	_, err = c.Enqueue(task, asynq.Queue("critical"))
+	return err
+}
+
 // PublishSubscriberCreated enqueue l'événement subscriber.created.
 func PublishSubscriberCreated(c *asynq.Client, p SubscriberCreatedPayload) error {
 	if c == nil {

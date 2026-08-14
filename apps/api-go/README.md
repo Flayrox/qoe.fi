@@ -68,6 +68,8 @@ go build ./... && go vet ./...
 | GET | `/v1/analytics/financial?publicationId=` | MRR/ARR/volume brut + conversion (RBAC owner/editor) |
 | GET | `/v1/analytics/audience?publicationId=` | répartition abonnés (total/actifs/premium) |
 | GET | `/v1/analytics/top-content?publicationId=&limit=` | contenus récents (articles + pensées) |
+| POST | `/v1/webhooks/stripe` | webhook Stripe (vérif signature HMAC + enqueue asynq) |
+| POST | `/v1/webhooks/supabase` | stub Supabase |
 
 ## Statut
 - [x] Fondations (config, pool, auth, middleware, réponse)
@@ -91,6 +93,11 @@ go build ./... && go vet ./...
 - [x] Module **Analytics créateur** : métriques financières (MRR/ARR/volume,
       conversion), audience (total/actifs/premium), top-content (articles +
       pensées) — RBAC owner/editor — **testé**
+- [x] **Webhook Stripe en Go** : `POST /v1/webhooks/stripe` (vérif signature
+      HMAC-SHA256 `t=…,v1=…`, idempotence Redis exact-once) → asynq
+      `stripe.event` → entitlements abonné (ltv increment), **commission**
+      (FREE 10% / PRO 5%) + crédit wallet + `WalletTransaction` DEPOSIT
+      — **testé** (abonné ltv=2000, wallet +1800 sur 20€, txn DEPOSIT)
 - [x] Workers **asynq** (`cmd/worker`) : webhook dispatch (HMAC-SHA256 + logs) et
       newsletter fanout ; endpoint interne `/internal/events/*` (enqueue asynq,
       secret `QOE_INTERNAL_SECRET`) ; article.published + subscriber.created

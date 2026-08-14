@@ -19,6 +19,7 @@ import (
 	authmw "github.com/qoefi/api-go/internal/middleware"
 	"github.com/qoefi/api-go/internal/modules/analytics"
 	"github.com/qoefi/api-go/internal/modules/articles"
+	"github.com/qoefi/api-go/internal/modules/billing"
 	"github.com/qoefi/api-go/internal/modules/events"
 	"github.com/qoefi/api-go/internal/modules/feed"
 	"github.com/qoefi/api-go/internal/modules/notifications"
@@ -60,6 +61,10 @@ func main() {
 	// Endpoints internes (émission d'événements → asynq), protégés par secret.
 	eventsHandler := events.NewHandler(asynqClient, cfg.InternalSecret)
 	eventsHandler.Register(r)
+
+	// Webhooks Stripe (vérif signature + enqueue asynq).
+	billingHandler := billing.NewHandler(asynqClient, cfg.StripeWebhookSecret)
+	billingHandler.Register(r)
 
 	// Auth JWT Supabase (instance partagée : Middleware obligatoire + OptionalAuth).
 	auth := authmw.NewAuth(cfg.JWTSecret, cfg.SupabaseAuthURL)

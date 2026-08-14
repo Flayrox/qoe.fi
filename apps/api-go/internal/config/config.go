@@ -17,16 +17,19 @@ type Config struct {
 	RedisURL string
 	// InternalSecret protège les endpoints internes (émission d'événements).
 	InternalSecret string
+	// StripeWebhookSecret vérifie les signatures des webhooks Stripe.
+	StripeWebhookSecret string
 }
 
 func Load() *Config {
 	return &Config{
-		Port:            envOr("PORT", "8080"),
-		DatabaseURL:     envOr("DATABASE_URL", ""),
-		SupabaseAuthURL: envOr("SUPABASE_AUTH_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")),
-		JWTSecret:       envOr("SUPABASE_JWT_SECRET", envOr("SUPABASE_SECRET_KEY", "")),
-		RedisURL:        envOr("REDIS_URL", "redis://localhost:6379"),
-		InternalSecret:  envOr("QOE_INTERNAL_SECRET", envOr("SUPABASE_SERVICE_ROLE_KEY", "")),
+		Port:                envOr("PORT", "8080"),
+		DatabaseURL:         envOr("DATABASE_URL", ""),
+		SupabaseAuthURL:     envOr("SUPABASE_AUTH_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")),
+		JWTSecret:           envOr("SUPABASE_JWT_SECRET", envOr("SUPABASE_SECRET_KEY", "")),
+		RedisURL:            envOr("REDIS_URL", "redis://localhost:6379"),
+		InternalSecret:      envOr("QOE_INTERNAL_SECRET", envOr("SUPABASE_SERVICE_ROLE_KEY", "")),
+		StripeWebhookSecret: envOr("STRIPE_WEBHOOK_SECRET", ""),
 	}
 }
 
