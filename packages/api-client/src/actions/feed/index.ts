@@ -13,6 +13,7 @@ import {
   type CreateReportInput,
 } from '@qoe/config';
 import { createClient } from '@qoe/supabase/server';
+import { goFetch, isGoEnabled } from '../utils/go-client';
 
 import { safeAction } from '../utils/safe-action';
 
@@ -329,6 +330,13 @@ export const createThoughtThreadAction = safeAction<
 });
 
 export const toggleLikePostAction = safeAction<string, { liked: boolean }>(async (postId, user) => {
+  // 🔗 Proxy Go : la logique (DB + notification LIKE) est déléguée au backend Go.
+  if (isGoEnabled()) {
+    const body = await goFetch<{ liked: boolean }>(`/v1/posts/${postId}/like`, {
+      method: 'POST',
+    });
+    return body;
+  }
   const res = await posts.toggleLike(postId, user.id);
   return res;
 });
@@ -456,6 +464,13 @@ export const toggleRepostPostAction = safeAction<
   string,
   { reposted: boolean; canonicalId: string; post?: RepostResult['post'] }
 >(async (postId, user) => {
+  // 🔗 Proxy Go : logique + notification REPOST déléguées au backend Go.
+  if (isGoEnabled()) {
+    const body = await goFetch<{ reposted: boolean }>(`/v1/posts/${postId}/repost`, {
+      method: 'POST',
+    });
+    return { reposted: body.reposted, canonicalId: postId };
+  }
   const result = await posts.toggleRepost(postId, user.id);
   return result;
 });

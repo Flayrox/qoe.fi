@@ -17,12 +17,18 @@ type Querier interface {
 	DecrementReplyCount(ctx context.Context, id string) error
 	DecrementRepostCount(ctx context.Context, id string) error
 	DeleteLike(ctx context.Context, arg DeleteLikeParams) error
+	DeleteLikeNotification(ctx context.Context, arg DeleteLikeNotificationParams) error
 	DeletePureReposts(ctx context.Context, arg DeletePureRepostsParams) error
+	DeleteRepostNotification(ctx context.Context, arg DeleteRepostNotificationParams) error
+	ExistsUnreadLikeNotification(ctx context.Context, arg ExistsUnreadLikeNotificationParams) (int32, error)
+	ExistsUnreadRepostNotification(ctx context.Context, arg ExistsUnreadRepostNotificationParams) (int32, error)
 	FindFollowingFeed(ctx context.Context, arg FindFollowingFeedParams) ([]FindFollowingFeedRow, error)
 	FindTrending(ctx context.Context, arg FindTrendingParams) ([]FindTrendingRow, error)
 	GetCanonicalThoughtID(ctx context.Context, id string) (string, error)
 	GetExistingLike(ctx context.Context, arg GetExistingLikeParams) (int32, error)
 	GetFollowedPersonalPublicationOwnerIDs(ctx context.Context, readerid pgtype.UUID) ([]string, error)
+	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
+	GetPostAuthor(ctx context.Context, id string) (string, error)
 	GetPostThread(ctx context.Context, arg GetPostThreadParams) ([]GetPostThreadRow, error)
 	GetRepliesForThought(ctx context.Context, arg GetRepliesForThoughtParams) ([]GetRepliesForThoughtRow, error)
 	GetThoughtByID(ctx context.Context, id string) (GetThoughtByIDRow, error)
@@ -31,7 +37,9 @@ type Querier interface {
 	IncrementReplyCount(ctx context.Context, id string) error
 	IncrementRepostCount(ctx context.Context, id string) error
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
+	InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error
 	InsertPureRepost(ctx context.Context, arg InsertPureRepostParams) (string, error)
+	InsertRepostNotification(ctx context.Context, arg InsertRepostNotificationParams) error
 }
 
 var _ Querier = (*Queries)(nil)
