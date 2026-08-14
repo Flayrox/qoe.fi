@@ -26,19 +26,14 @@ export interface NewsletterFanoutResult {
 export async function processNewsletterFanout(
   job: Job<NewsletterFanoutJobData>
 ): Promise<NewsletterFanoutResult> {
-  const { articleId, creatorId, batchSize = 500 } = job.data;
+  const { articleId, batchSize = 500 } = job.data;
 
   // 1. Fetch article & author details
   const article = await prisma.article.findUnique({
     where: { id: articleId },
     include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          subdomain: true,
-        },
+      publication: {
+        select: { id: true, name: true, subdomain: true },
       },
     },
   });
@@ -49,7 +44,7 @@ export async function processNewsletterFanout(
 
   // 2. Fetch all creator subscribers directly
   const subscribers = await prisma.subscriber.findMany({
-    where: { creatorId },
+    where: { publicationId: article.publicationId },
     select: {
       id: true,
       email: true,

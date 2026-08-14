@@ -39,7 +39,10 @@ export async function processPublishNewsletterJob(job: Job<PublishNewsletterPayl
   // 1. Fetch creator & article
   const [author, article] = await Promise.all([
     prisma.user.findUnique({ where: { id: authorId } }),
-    prisma.article.findUnique({ where: { id: articleId } }),
+    prisma.article.findUnique({
+      where: { id: articleId },
+      select: { publicationId: true, content: true, visibility: true, tierId: true },
+    }),
   ]);
 
   if (!author || !article) {
@@ -51,7 +54,7 @@ export async function processPublishNewsletterJob(job: Job<PublishNewsletterPayl
 
   // 2. Query target subscribers based on visibility
   const whereCondition: Prisma.SubscriberWhereInput = {
-    creatorId: authorId,
+    publicationId: article.publicationId,
     isActive: true,
   };
 

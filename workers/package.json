@@ -3,6 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./events": "./src/events/eventBus.ts",
+    "./events/schemas": "./src/events/eventSchemas.ts",
+    "./dispatch": "./src/jobs/webhookDispatch.ts"
+  },
   "description": "Background workers (BullMQ) — emails, AI embeddings, billing",
   "scripts": {
     "dev": "tsx watch src/index.ts",

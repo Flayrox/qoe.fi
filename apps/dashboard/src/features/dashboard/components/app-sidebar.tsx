@@ -98,6 +98,11 @@ export async function AppSidebar() {
       iconName: 'Code',
     },
     {
+      title: t`Webhooks`,
+      url: '/developer/webhooks',
+      iconName: 'Webhook',
+    },
+    {
       title: t`Paramètres`,
       url: '/settings',
       iconName: 'Settings',

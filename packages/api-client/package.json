@@ -27,6 +27,7 @@
     "@qoe/config": "workspace:*",
     "@qoe/db": "workspace:*",
     "@qoe/supabase": "workspace:*",
+    "@qoe/workers": "workspace:*",
     "@qoe/utils": "workspace:*",
     "@tanstack/react-query": "^5.62.7"
   },
