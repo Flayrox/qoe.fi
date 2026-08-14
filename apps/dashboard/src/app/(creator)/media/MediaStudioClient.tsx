@@ -19,9 +19,9 @@ import {
   PenLine,
   Eye,
   Globe,
-  Sparkles,
   ArrowRight,
-  Rocket,
+  FileText,
+  Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@qoe/utils';
@@ -50,6 +50,16 @@ interface MediaSummary {
   invitesCount: number;
 }
 
+interface MediaInvite {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  createdAt: string;
+  expiresAt: string | null;
+  inviter: { id: string; name: string | null; username: string | null };
+}
+
 interface MediaDetail {
   id: string;
   publication: {
@@ -71,6 +81,7 @@ interface MediaDetail {
     allowIndexing: boolean;
     supportUrl: string | null;
     fontFamily: string | null;
+    _count: { articles: number };
   };
   members: Array<{
     id: string;
@@ -80,32 +91,21 @@ interface MediaDetail {
     joinedAt: string;
     user: { id: string; name: string | null; username: string | null; logoUrl: string | null };
   }>;
+  invites: MediaInvite[];
 }
 
 const ROLE_META: Record<
   string,
-  { label: string; color: string; icon: React.ComponentType<{ className?: string }> }
+  {
+    label: string;
+    color: string;
+    icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>;
+  }
 > = {
-  owner: {
-    label: 'Propriétaire',
-    color: 'text-primary bg-primary/10 border-primary/20',
-    icon: Crown,
-  },
-  editor: {
-    label: 'Éditeur',
-    color: 'text-highlight bg-highlight/10 border-highlight/20',
-    icon: ShieldCheck,
-  },
-  writer: {
-    label: 'Rédacteur',
-    color: 'text-foreground bg-muted/60 border-border/30',
-    icon: PenLine,
-  },
-  viewer: {
-    label: 'Lecteur',
-    color: 'text-muted-foreground bg-muted/30 border-border/30',
-    icon: Eye,
-  },
+  owner: { label: 'Propriétaire', color: 'text-primary', icon: Crown },
+  editor: { label: 'Éditeur', color: 'text-highlight', icon: ShieldCheck },
+  writer: { label: 'Rédacteur', color: 'text-foreground', icon: PenLine },
+  viewer: { label: 'Lecteur', color: 'text-muted-foreground', icon: Eye },
 };
 
 const PERMISSION_LABELS: Record<string, string> = {
@@ -141,6 +141,36 @@ const ROLE_DEFAULT_PERMS: Record<string, string[]> = {
 };
 
 type StudioTab = 'members' | 'invites' | 'settings';
+
+const TABS: Array<{
+  key: StudioTab;
+  label: string;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>;
+}> = [
+  { key: 'members', label: 'Membres', icon: Users },
+  { key: 'invites', label: 'Invitations', icon: Mail },
+  { key: 'settings', label: 'Réglages', icon: Settings },
+];
+
+function formatDate(iso: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function QuietDot({ active }: { active?: boolean }) {
+  return (
+    <span
+      className={cn(
+        'inline-block h-1.5 w-1.5 rounded-full',
+        active ? 'bg-success' : 'bg-muted-foreground/30'
+      )}
+    />
+  );
+}
 
 export function MediaStudioClient({
   medias,
@@ -285,539 +315,537 @@ export function MediaStudioClient({
 
   const isOwner = myRole === MEDIA_ROLES.OWNER;
 
-  return (
-    <div className="max-w-6xl mx-auto p-4 md:p-8 text-foreground font-sans">
-      {/* ─────────────────────────── CREATE FLOW ─────────────────────────── */}
-      {showCreate || medias.length === 0 ? (
-        <div className="mx-auto max-w-4xl">
-          <div className="mb-8 text-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-4">
-              <Rocket className="w-3.5 h-3.5" />
-              Lancement en 3 minutes
+  const inputCls =
+    'w-full bg-transparent border-b border-border/40 text-sm py-2.5 placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors';
+  const labelCls = 'block text-xs font-semibold text-muted-foreground mb-0.5';
+
+  /* ─────────────────────────── CREATE FLOW ─────────────────────────── */
+  if (showCreate || medias.length === 0) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16 md:py-24">
+        <div className="mb-10">
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
+            Créez votre Média
+          </h1>
+          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+            Un journal, une revue, un collectif. Invitez une équipe, définissez des rôles et lancez
+            votre sous-domaine.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-5 mb-8">
+          {createLogo ? (
+            <Image
+              src={createLogo}
+              alt=""
+              width={64}
+              height={64}
+              className="size-16 rounded-xl object-cover border border-border/40"
+            />
+          ) : (
+            <div className="size-16 rounded-xl bg-card border border-border/40 flex items-center justify-center text-primary">
+              <Building2 className="w-6 h-6" strokeWidth={1.5} />
             </div>
-            <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-3">
-              Créez votre{' '}
-              <span className="bg-gradient-to-r from-primary to-highlight bg-clip-text text-transparent">
-                Média
-              </span>
-            </h1>
-            <p className="text-muted-foreground text-base max-w-xl mx-auto">
-              Un journal, une revue, un collectif. Invitez une équipe de créateurs, définissez des
-              rôles et lancez votre sous-domaine.
+          )}
+          <div className="min-w-0">
+            <p className="font-bold text-lg tracking-tight truncate">
+              {createName || 'Votre Média'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {createSlug ? `${createSlug}.qoe.fi` : 'votre-sous-domaine.qoe.fi'}
             </p>
           </div>
-
-          <div className="bg-card border border-border/40 rounded-3xl shadow-sm overflow-hidden">
-            {/* Banner */}
-            <div className="h-24 bg-gradient-to-br from-primary/15 via-card to-card relative overflow-hidden">
-              <div className="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-primary/10 blur-3xl" />
-              <div className="absolute bottom-3 left-6 flex items-center gap-3">
-                <div className="w-14 h-14 rounded-2xl bg-card border border-border/40 shadow-sm flex items-center justify-center text-primary overflow-hidden">
-                  {createLogo ? (
-                    <Image
-                      src={createLogo}
-                      alt=""
-                      width={56}
-                      height={56}
-                      className="object-cover w-full h-full"
-                    />
-                  ) : (
-                    <Building2 className="w-6 h-6" />
-                  )}
-                </div>
-                <div>
-                  <p className="font-bold text-lg leading-tight">{createName || 'Votre Média'}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {createSlug ? `${createSlug}.qoe.fi` : 'votre-sous-domaine.qoe.fi'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 md:p-8 space-y-6">
-              <div className="grid md:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-muted-foreground">
-                    Nom du Média
-                  </label>
-                  <input
-                    value={createName}
-                    onChange={(e) => setCreateName(e.target.value)}
-                    placeholder="Ex: La Gazette de la Souveraineté"
-                    className="w-full px-4 py-3 bg-muted/20 border border-border/30 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-shadow"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-muted-foreground">
-                    Permalien
-                  </label>
-                  <div className="flex items-center gap-2 px-4 py-3 bg-muted/20 border border-border/30 rounded-xl focus-within:ring-2 focus-within:ring-primary/40 transition-shadow">
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">qoe.fi/</span>
-                    <input
-                      value={createSlug}
-                      onChange={(e) => setCreateSlug(e.target.value)}
-                      placeholder="gazette-souverainete"
-                      className="w-full bg-transparent text-sm focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-muted-foreground">
-                  Bio / Présentation
-                </label>
-                <textarea
-                  value={createBio}
-                  onChange={(e) => setCreateBio(e.target.value)}
-                  rows={3}
-                  placeholder="Décrivez la ligne éditoriale du média..."
-                  className="w-full px-4 py-3 bg-muted/20 border border-border/30 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-shadow resize-none"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-muted-foreground">Logo</label>
-                <ImageUploader
-                  value={createLogo}
-                  onChange={setCreateLogo}
-                  upload={(file) =>
-                    uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.avatars)
-                  }
-                  aspect={1}
-                  shape="circle"
-                  maxDimension={512}
-                />
-              </div>
-
-              <button
-                onClick={handleCreate}
-                disabled={creating}
-                className="w-full py-4 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 shadow-sm"
-              >
-                {creating ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    Créer le Média & mon espace de travail
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
         </div>
-      ) : loadingDetail && !detail ? (
-        <div className="flex items-center justify-center py-32 text-muted-foreground">
-          <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          Chargement du studio...
-        </div>
-      ) : detail ? (
-        <div className="space-y-6">
-          {/* ── Workspace chips ── */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mr-1">
-              Espaces :
-            </span>
-            {medias.map((m) => {
-              const roleMeta = ROLE_META[m.role] || ROLE_META.writer;
-              const RoleIcon = roleMeta.icon;
-              const active = selectedMediaId === m.id;
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => {
-                    setSelectedMediaId(m.id);
-                    setTab('members');
-                  }}
-                  className={cn(
-                    'flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer',
-                    active
-                      ? 'bg-card border-primary/40 shadow-sm text-foreground'
-                      : 'bg-transparent border-border/30 text-muted-foreground hover:bg-card hover:text-foreground'
-                  )}
-                >
-                  {m.logoUrl ? (
-                    <Image
-                      src={m.logoUrl}
-                      alt=""
-                      width={18}
-                      height={18}
-                      className="rounded-md object-cover"
-                    />
-                  ) : (
-                    <Building2 className="w-3.5 h-3.5" />
-                  )}
-                  <span>{m.name}</span>
-                  <RoleIcon className={cn('w-3 h-3', roleMeta.color.split(' ')[0])} />
-                </button>
-              );
-            })}
-            <button
-              onClick={() => router.push('/media?create=1')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-border/40 text-xs font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 transition-all cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Nouveau
-            </button>
-          </div>
 
-          {/* ── Hero card ── */}
-          <div className="relative overflow-hidden bg-card border border-border/40 rounded-3xl shadow-sm">
-            <div className="h-28 bg-gradient-to-br from-primary/15 via-card to-card relative">
-              {detail.publication.headerImageUrl && (
-                <Image
-                  src={detail.publication.headerImageUrl}
-                  alt=""
-                  fill
-                  className="object-cover opacity-40"
-                />
-              )}
-              <div className="absolute -bottom-10 left-8 w-44 h-44 bg-primary/10 blur-3xl rounded-full" />
-            </div>
-            <div className="px-6 md:px-8 pb-6 -mt-10 relative">
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div className="flex items-end gap-4">
-                  <div className="w-20 h-20 rounded-2xl bg-card border border-border/40 shadow-sm ring-4 ring-background overflow-hidden shrink-0">
-                    {detail.publication.logoUrl ? (
-                      <Image
-                        src={detail.publication.logoUrl}
-                        alt=""
-                        width={80}
-                        height={80}
-                        className="object-cover w-full h-full"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-primary">
-                        <Building2 className="w-8 h-8" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="pb-0.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-2xl font-bold tracking-tight">
-                        {detail.publication.name}
-                      </h2>
-                      {isOwner && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold">
-                          <Crown className="w-3 h-3" /> Owner
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                      <Globe className="w-3.5 h-3.5" />
-                      <span className="font-medium text-foreground/80">
-                        {detail.publication.subdomain
-                          ? `${detail.publication.subdomain}.qoe.fi`
-                          : `qoe.fi/${detail.publication.slug}`}
-                      </span>
-                      <span className="text-border">•</span>
-                      <span className="capitalize">{ROLE_META[myRole || 'writer']?.label}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {detail.publication.bio && (
-                <p className="text-sm text-muted-foreground mt-4 max-w-2xl leading-relaxed">
-                  {detail.publication.bio}
-                </p>
-              )}
-
-              {/* Stats */}
-              <div className="flex flex-wrap gap-3 mt-6">
-                <StatChip
-                  icon={<Users className="w-3.5 h-3.5" />}
-                  label="Membres"
-                  value={detail.members.length}
-                />
-                <StatChip
-                  icon={<Mail className="w-3.5 h-3.5" />}
-                  label="Invitations en cours"
-                  value={0}
-                />
-                <StatChip icon={<PenLine className="w-3.5 h-3.5" />} label="Articles" value={0} />
-              </div>
-            </div>
-          </div>
-
-          {/* ── Tabs (segmented) ── */}
-          <div className="flex gap-1 p-1 rounded-2xl bg-muted/30 border border-border/30 w-fit">
-            {(
-              [
-                { key: 'members', label: 'Membres', icon: Users },
-                { key: 'invites', label: 'Invitations', icon: Mail },
-                { key: 'settings', label: 'Réglages', icon: Settings },
-              ] as const
-            ).map((tabItem) => (
-              <button
-                key={tabItem.key}
-                onClick={() => setTab(tabItem.key)}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer',
-                  tab === tabItem.key
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                <tabItem.icon className="w-3.5 h-3.5" />
-                {tabItem.label}
-              </button>
-            ))}
-          </div>
-
-          {/* ── Members ── */}
-          {tab === 'members' && (
-            <div className="grid gap-3">
-              {detail.members.map((member) => {
-                const roleMeta = ROLE_META[member.role] || ROLE_META.writer;
-                const RoleIcon = roleMeta.icon;
-                const perms = effectivePerms(member);
-                return (
-                  <div
-                    key={member.id}
-                    className="group bg-card border border-border/40 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-border/70 transition-colors"
-                  >
-                    {member.user.logoUrl ? (
-                      <div className="w-11 h-11 rounded-full overflow-hidden border border-border/40 shrink-0">
-                        <Image
-                          src={member.user.logoUrl}
-                          alt=""
-                          width={44}
-                          height={44}
-                          className="object-cover w-full h-full"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary/15 to-muted flex items-center justify-center text-xs font-bold shrink-0">
-                        {(member.user.name || member.user.username || '?')
-                          .slice(0, 2)
-                          .toUpperCase()}
-                      </div>
-                    )}
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm">
-                          {member.user.name || member.user.username || 'Inconnu'}
-                        </span>
-                        <span
-                          className={cn(
-                            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border',
-                            roleMeta.color
-                          )}
-                        >
-                          <RoleIcon className="w-3 h-3" />
-                          {roleMeta.label}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {perms.slice(0, 4).map((perm) => (
-                          <span
-                            key={perm}
-                            className="px-2 py-0.5 rounded-md bg-muted/50 border border-border/20 text-[10px] text-muted-foreground"
-                          >
-                            {PERMISSION_LABELS[perm] || perm}
-                          </span>
-                        ))}
-                        {perms.length > 4 && (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] text-muted-foreground">
-                            +{perms.length - 4}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
-                      {isOwner && member.role !== MEDIA_ROLES.OWNER && (
-                        <PermissionPopover
-                          member={member}
-                          perms={perms}
-                          onToggle={handlePermissionsChange}
-                        />
-                      )}
-                      {canManageMembers && member.role !== MEDIA_ROLES.OWNER && (
-                        <>
-                          <select
-                            value={member.role}
-                            onChange={(e) => handleRoleChange(member.user.id, e.target.value)}
-                            className="text-xs font-semibold bg-muted/30 border border-border/30 rounded-lg px-2.5 py-2 cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/50"
-                          >
-                            {Object.keys(ROLE_META)
-                              .filter((r) => r !== MEDIA_ROLES.OWNER)
-                              .map((r) => (
-                                <option key={r} value={r}>
-                                  {ROLE_META[r].label}
-                                </option>
-                              ))}
-                          </select>
-                          <button
-                            onClick={() =>
-                              handleRemoveMember(
-                                member.user.id,
-                                member.user.name || member.user.username || 'ce membre'
-                              )
-                            }
-                            className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
-                            title="Retirer du Média"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {!canManageMembers && (
-                <p className="text-xs text-muted-foreground bg-muted/20 border border-border/30 rounded-xl p-3">
-                  Vous êtes{' '}
-                  <strong className="capitalize">{ROLE_META[myRole || 'writer']?.label}</strong> de
-                  ce Média — seuls les propriétaires et éditeurs peuvent gérer l'équipe.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* ── Invites ── */}
-          {tab === 'invites' && (
-            <div className="space-y-6">
-              {canManageMembers && (
-                <div className="bg-card border border-border/40 rounded-3xl p-6 md:p-8 shadow-sm">
-                  <h3 className="text-lg font-bold tracking-tight">Inviter un créateur</h3>
-                  <p className="text-sm text-muted-foreground mt-1 mb-6">
-                    Il recevra une notification et pourra rejoindre le Média en un clic.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="flex-1 relative">
-                      <Mail className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        value={inviteEmail}
-                        onChange={(e) => setInviteEmail(e.target.value)}
-                        placeholder="email@createur.com"
-                        type="email"
-                        className="w-full pl-10 pr-4 py-3 bg-muted/20 border border-border/30 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-shadow"
-                      />
-                    </div>
-                    <select
-                      value={inviteRole}
-                      onChange={(e) => setInviteRole(e.target.value)}
-                      className="px-4 py-3 bg-muted/20 border border-border/30 rounded-xl text-sm font-semibold cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    >
-                      {Object.keys(ROLE_META)
-                        .filter((r) => r !== MEDIA_ROLES.OWNER)
-                        .map((r) => (
-                          <option key={r} value={r}>
-                            {ROLE_META[r].label}
-                          </option>
-                        ))}
-                    </select>
-                    <button
-                      onClick={handleInvite}
-                      disabled={inviting}
-                      className="px-6 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 shadow-sm"
-                    >
-                      {inviting ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <UserPlus className="w-4 h-4" />
-                      )}
-                      Inviter
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Role explainer */}
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-                  <Shield className="w-3.5 h-3.5" /> Ce que chaque rôle peut faire
-                </h4>
-                <div className="grid md:grid-cols-3 gap-3">
-                  {Object.entries(ROLE_DEFAULT_PERMS)
-                    .filter(([r]) => r !== MEDIA_ROLES.OWNER)
-                    .map(([role, perms]) => {
-                      const meta = ROLE_META[role];
-                      const Icon = meta.icon;
-                      return (
-                        <div
-                          key={role}
-                          className="rounded-2xl bg-card border border-border/40 p-4 hover:border-border/70 transition-colors"
-                        >
-                          <div className="flex items-center gap-2 mb-3">
-                            <span
-                              className={cn(
-                                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border',
-                                meta.color
-                              )}
-                            >
-                              <Icon className="w-3 h-3" />
-                              {meta.label}
-                            </span>
-                          </div>
-                          <ul className="space-y-1.5">
-                            {perms.map((p) => (
-                              <li
-                                key={p}
-                                className="text-[11px] text-muted-foreground flex items-start gap-1.5"
-                              >
-                                <Check className="w-3 h-3 text-success mt-0.5 shrink-0" />
-                                {PERMISSION_LABELS[p] || p}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      );
-                    })}
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-4">
-                  Le propriétaire peut affiner les permissions de chaque membre (bouton{' '}
-                  <Shield className="w-3 h-3 inline" /> dans la liste des membres) pour un contrôle
-                  granulaire complet.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* ── Settings ── */}
-          {tab === 'settings' && (
-            <MediaSettingsForm
-              mediaId={detail.id}
-              publication={detail.publication}
-              onSaved={() => loadDetail(detail.id)}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleCreate();
+          }}
+          className="space-y-6"
+        >
+          <div>
+            <label className={labelCls}>Nom du Média</label>
+            <input
+              value={createName}
+              onChange={(e) => setCreateName(e.target.value)}
+              placeholder="Ex: La Gazette de la Souveraineté"
+              className={inputCls}
             />
-          )}
-        </div>
-      ) : (
-        <div className="bg-card border border-border/40 rounded-3xl p-16 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-5">
-            <Building2 className="w-6 h-6" />
           </div>
-          <h3 className="text-xl font-bold tracking-tight">Aucun Média</h3>
-          <p className="text-sm text-muted-foreground mt-1 mb-6 max-w-sm mx-auto">
-            Créez votre premier média pour inviter une équipe et lancer votre sous-domaine.
-          </p>
+          <div>
+            <label className={labelCls}>Permalien</label>
+            <div className="flex items-center border-b border-border/40 focus-within:border-primary transition-colors">
+              <span className="text-sm text-muted-foreground">qoe.fi/</span>
+              <input
+                value={createSlug}
+                onChange={(e) => setCreateSlug(e.target.value)}
+                placeholder="gazette-souverainete"
+                className="w-full bg-transparent text-sm py-2.5 focus:outline-none"
+              />
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Bio / Présentation</label>
+            <textarea
+              value={createBio}
+              onChange={(e) => setCreateBio(e.target.value)}
+              rows={2}
+              placeholder="Décrivez la ligne éditoriale du média..."
+              className={cn(inputCls, 'resize-none')}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Logo</label>
+            <ImageUploader
+              value={createLogo}
+              onChange={setCreateLogo}
+              upload={(file) =>
+                uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.avatars)
+              }
+              aspect={1}
+              shape="rounded"
+              maxDimension={512}
+            />
+          </div>
+
           <button
-            onClick={() => router.push('/media?create=1')}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold cursor-pointer hover:opacity-90 transition-all"
+            type="submit"
+            disabled={creating}
+            className="w-full py-3 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
           >
-            <Plus className="w-4 h-4" />
-            Créer un Média
+            {creating ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                Créer le Média & mon espace de travail
+                <ArrowRight className="w-4 h-4" strokeWidth={1.5} />
+              </>
+            )}
           </button>
+        </form>
+      </div>
+    );
+  }
+
+  if (loadingDetail && !detail) {
+    return (
+      <div className="flex items-center justify-center py-32 text-muted-foreground">
+        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+        Chargement du studio...
+      </div>
+    );
+  }
+
+  if (!detail) {
+    return (
+      <div className="py-24 text-center">
+        <div className="size-14 rounded-xl bg-card border border-border/40 text-primary flex items-center justify-center mx-auto mb-5">
+          <Building2 className="w-6 h-6" strokeWidth={1.5} />
+        </div>
+        <h3 className="text-xl font-bold tracking-tight">Aucun Média</h3>
+        <p className="text-sm text-muted-foreground mt-1 mb-6 max-w-sm mx-auto">
+          Créez votre premier média pour inviter une équipe et lancer votre sous-domaine.
+        </p>
+        <button
+          onClick={() => router.push('/media?create=1')}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold cursor-pointer hover:opacity-90 transition-all"
+        >
+          <Plus className="w-4 h-4" strokeWidth={1.5} />
+          Créer un Média
+        </button>
+      </div>
+    );
+  }
+
+  const myRoleMeta = ROLE_META[myRole || 'writer'] || ROLE_META.writer;
+  const MyRoleIcon = myRoleMeta.icon;
+  const domain = detail.publication.subdomain
+    ? `${detail.publication.subdomain}.qoe.fi`
+    : `qoe.fi/${detail.publication.slug}`;
+
+  return (
+    <div className="mx-auto max-w-5xl px-4 md:px-6 py-6 text-foreground font-sans">
+      {/* ── Hero ── */}
+      <div className="mb-8">
+        {detail.publication.headerImageUrl && (
+          <div className="relative h-36 md:h-44 -mx-4 md:-mx-6 -mt-6 overflow-hidden rounded-b-2xl">
+            <Image src={detail.publication.headerImageUrl} alt="" fill className="object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background" />
+          </div>
+        )}
+        <div className={cn('flex items-start gap-4', detail.publication.headerImageUrl && 'mt-4')}>
+          {detail.publication.logoUrl ? (
+            <Image
+              src={detail.publication.logoUrl}
+              alt=""
+              width={64}
+              height={64}
+              className="size-16 rounded-xl object-cover border border-border/40 shrink-0"
+            />
+          ) : (
+            <div className="size-16 rounded-xl bg-card border border-border/40 flex items-center justify-center text-primary shrink-0">
+              <Building2 className="w-7 h-7" strokeWidth={1.5} />
+            </div>
+          )}
+          <div className="min-w-0 pt-0.5">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight truncate">
+              {detail.publication.name}
+            </h1>
+            <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+              <Globe className="w-3.5 h-3.5" strokeWidth={1.5} />
+              <span className="font-medium text-foreground/80">{domain}</span>
+              <span className="text-border">•</span>
+              <span className={cn('flex items-center gap-1 font-medium', myRoleMeta.color)}>
+                <MyRoleIcon className="w-3.5 h-3.5" strokeWidth={1.5} />
+                {myRoleMeta.label}
+              </span>
+            </div>
+            {detail.publication.bio && (
+              <p className="text-sm text-muted-foreground mt-3 max-w-2xl leading-relaxed">
+                {detail.publication.bio}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Stats — hairline separated */}
+        <div className="flex items-center gap-6 mt-6 text-sm">
+          <span className="flex items-baseline gap-1.5">
+            <span className="font-bold tabular-nums">{detail.members.length}</span>
+            <span className="text-xs text-muted-foreground">membres</span>
+          </span>
+          <span className="h-3 w-px bg-border/60" />
+          <span className="flex items-baseline gap-1.5">
+            <span className="font-bold tabular-nums">{detail.invites.length}</span>
+            <span className="text-xs text-muted-foreground">invitations en cours</span>
+          </span>
+          <span className="h-3 w-px bg-border/60" />
+          <span className="flex items-baseline gap-1.5">
+            <span className="font-bold tabular-nums">{detail.publication._count.articles}</span>
+            <span className="text-xs text-muted-foreground">articles</span>
+          </span>
+        </div>
+      </div>
+
+      {/* ── Workspace switcher (subtle) ── */}
+      <div className="flex items-center gap-1 mb-6 overflow-x-auto">
+        {medias.map((m) => {
+          const active = selectedMediaId === m.id;
+          return (
+            <button
+              key={m.id}
+              onClick={() => {
+                setSelectedMediaId(m.id);
+                setTab('members');
+              }}
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer',
+                active
+                  ? 'bg-muted/60 text-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+              )}
+            >
+              <QuietDot active={active} />
+              {m.logoUrl ? (
+                <Image
+                  src={m.logoUrl}
+                  alt=""
+                  width={16}
+                  height={16}
+                  className="rounded object-cover"
+                />
+              ) : (
+                <Building2 className="w-3.5 h-3.5" strokeWidth={1.5} />
+              )}
+              <span>{m.name}</span>
+            </button>
+          );
+        })}
+        <button
+          onClick={() => router.push('/media?create=1')}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-primary transition-colors cursor-pointer whitespace-nowrap"
+        >
+          <Plus className="w-3.5 h-3.5" strokeWidth={1.5} />
+          Nouveau
+        </button>
+      </div>
+
+      {/* ── Tabs (clean segmented) ── */}
+      <div className="flex items-center gap-1 border-b border-border/40 mb-6">
+        {TABS.map((tabItem) => {
+          const active = tab === tabItem.key;
+          return (
+            <button
+              key={tabItem.key}
+              onClick={() => setTab(tabItem.key)}
+              className={cn(
+                'flex items-center gap-2 px-3 py-2.5 -mb-px border-b-2 text-xs font-semibold transition-colors cursor-pointer',
+                active
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <tabItem.icon className="w-3.5 h-3.5" strokeWidth={1.5} />
+              {tabItem.label}
+              {tabItem.key === 'invites' && detail.invites.length > 0 && (
+                <span className="text-[10px] font-bold text-primary">{detail.invites.length}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Members ── */}
+      {tab === 'members' && (
+        <div className="divide-y divide-border/30">
+          {detail.members.map((member) => {
+            const roleMeta = ROLE_META[member.role] || ROLE_META.writer;
+            const RoleIcon = roleMeta.icon;
+            const perms = effectivePerms(member);
+            return (
+              <div key={member.id} className="group flex items-center gap-3 py-3.5">
+                {member.user.logoUrl ? (
+                  <Image
+                    src={member.user.logoUrl}
+                    alt=""
+                    width={36}
+                    height={36}
+                    className="size-9 rounded-full object-cover border border-border/40 shrink-0"
+                  />
+                ) : (
+                  <div className="size-9 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
+                    {(member.user.name || member.user.username || '?').slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground truncate">
+                      {member.user.name || member.user.username || 'Inconnu'}
+                    </span>
+                    <span
+                      className={cn(
+                        'flex items-center gap-1 text-[11px] font-medium',
+                        roleMeta.color
+                      )}
+                    >
+                      <RoleIcon className="w-3 h-3" strokeWidth={1.5} />
+                      {roleMeta.label}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                    {perms.slice(0, 3).map((perm) => (
+                      <span key={perm} className="text-[11px] text-muted-foreground">
+                        {PERMISSION_LABELS[perm] || perm}
+                      </span>
+                    ))}
+                    {perms.length > 3 && (
+                      <span className="text-[11px] text-muted-foreground">+{perms.length - 3}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {isOwner && member.role !== MEDIA_ROLES.OWNER && (
+                    <PermissionPopover
+                      member={member}
+                      perms={perms}
+                      onToggle={handlePermissionsChange}
+                    />
+                  )}
+                  {canManageMembers && member.role !== MEDIA_ROLES.OWNER && (
+                    <>
+                      <select
+                        value={member.role}
+                        onChange={(e) => handleRoleChange(member.user.id, e.target.value)}
+                        className="text-xs font-medium bg-transparent border border-border/30 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:border-primary/50"
+                      >
+                        {Object.keys(ROLE_META)
+                          .filter((r) => r !== MEDIA_ROLES.OWNER)
+                          .map((r) => (
+                            <option key={r} value={r}>
+                              {ROLE_META[r].label}
+                            </option>
+                          ))}
+                      </select>
+                      <button
+                        onClick={() =>
+                          handleRemoveMember(
+                            member.user.id,
+                            member.user.name || member.user.username || 'ce membre'
+                          )
+                        }
+                        className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg transition-colors cursor-pointer"
+                        title="Retirer du Média"
+                      >
+                        <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {!canManageMembers && (
+            <p className="text-xs text-muted-foreground py-4">
+              Vous êtes{' '}
+              <strong className="capitalize">{ROLE_META[myRole || 'writer']?.label}</strong> de ce
+              Média — seuls les propriétaires et éditeurs peuvent gérer l'équipe.
+            </p>
+          )}
         </div>
       )}
-    </div>
-  );
-}
 
-function StatChip({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
-  return (
-    <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/30 border border-border/30">
-      <span className="text-primary">{icon}</span>
-      <span className="text-sm font-bold">{value}</span>
-      <span className="text-[11px] text-muted-foreground">{label}</span>
+      {/* ── Invites ── */}
+      {tab === 'invites' && (
+        <div className="space-y-8">
+          {canManageMembers && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleInvite();
+              }}
+              className="flex flex-col sm:flex-row gap-3"
+            >
+              <div className="flex-1 relative">
+                <Mail
+                  className="w-4 h-4 text-muted-foreground absolute left-0 top-1/2 -translate-y-1/2"
+                  strokeWidth={1.5}
+                />
+                <input
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="email@createur.com"
+                  type="email"
+                  className="w-full pl-7 bg-transparent border-b border-border/40 text-sm py-2.5 placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
+              <select
+                value={inviteRole}
+                onChange={(e) => setInviteRole(e.target.value)}
+                className="px-3 py-2.5 bg-transparent border-b border-border/40 text-sm font-medium cursor-pointer focus:outline-none focus:border-primary transition-colors"
+              >
+                {Object.keys(ROLE_META)
+                  .filter((r) => r !== MEDIA_ROLES.OWNER)
+                  .map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_META[r].label}
+                    </option>
+                  ))}
+              </select>
+              <button
+                type="submit"
+                disabled={inviting}
+                className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                {inviting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <UserPlus className="w-4 h-4" strokeWidth={1.5} />
+                )}
+                Inviter
+              </button>
+            </form>
+          )}
+
+          {/* Pending invites list */}
+          {detail.invites.length > 0 && (
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                Invitations en attente
+              </p>
+              <div className="divide-y divide-border/30">
+                {detail.invites.map((invite) => {
+                  const meta = ROLE_META[invite.role] || ROLE_META.writer;
+                  const Icon = meta.icon;
+                  return (
+                    <div key={invite.id} className="flex items-center gap-3 py-3">
+                      <div className="size-9 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
+                        <Mail className="w-4 h-4" strokeWidth={1.5} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{invite.email}</p>
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                          <Clock className="w-3 h-3" strokeWidth={1.5} />
+                          envoyée le {formatDate(invite.createdAt)} · expire le{' '}
+                          {formatDate(invite.expiresAt)}
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          'flex items-center gap-1 text-[11px] font-medium shrink-0',
+                          meta.color
+                        )}
+                      >
+                        <Icon className="w-3 h-3" strokeWidth={1.5} />
+                        {meta.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Role explainer */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+              <Shield className="w-3.5 h-3.5" strokeWidth={1.5} /> Ce que chaque rôle peut faire
+            </p>
+            <div className="grid md:grid-cols-3 gap-px bg-border/30 border border-border/30 rounded-xl overflow-hidden">
+              {Object.entries(ROLE_DEFAULT_PERMS)
+                .filter(([r]) => r !== MEDIA_ROLES.OWNER)
+                .map(([role, perms]) => {
+                  const meta = ROLE_META[role];
+                  const Icon = meta.icon;
+                  return (
+                    <div key={role} className="bg-card p-4">
+                      <div
+                        className={cn(
+                          'flex items-center gap-1.5 text-xs font-bold mb-3',
+                          meta.color
+                        )}
+                      >
+                        <Icon className="w-3.5 h-3.5" strokeWidth={1.5} />
+                        {meta.label}
+                      </div>
+                      <ul className="space-y-1.5">
+                        {perms.map((p) => (
+                          <li
+                            key={p}
+                            className="text-[11px] text-muted-foreground flex items-start gap-1.5"
+                          >
+                            <Check
+                              className="w-3 h-3 text-success mt-0.5 shrink-0"
+                              strokeWidth={1.5}
+                            />
+                            {PERMISSION_LABELS[p] || p}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-4">
+              Le propriétaire peut affiner les permissions de chaque membre (bouton{' '}
+              <Shield className="w-3 h-3 inline" strokeWidth={1.5} /> dans la liste des membres)
+              pour un contrôle granulaire complet.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Settings ── */}
+      {tab === 'settings' && (
+        <MediaSettingsForm
+          mediaId={detail.id}
+          publication={detail.publication}
+          onSaved={() => loadDetail(detail.id)}
+        />
+      )}
     </div>
   );
 }
@@ -836,14 +864,14 @@ function PermissionPopover({
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-muted/30 border border-border/30 text-[10px] font-semibold hover:bg-muted/50 transition-colors cursor-pointer"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer"
       >
-        <Shield className="w-3 h-3" /> Permissions
+        <Shield className="w-3 h-3" strokeWidth={1.5} /> Permissions
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-2 z-20 w-64 rounded-2xl bg-card border border-border/40 shadow-xl p-3 space-y-1 animate-in fade-in slide-in-from-top-2">
+          <div className="absolute right-0 top-full mt-2 z-20 w-64 rounded-xl bg-card border border-border/40 shadow-xl p-3 space-y-1">
             <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1 pb-1">
               Permissions de {member.user.name || member.user.username}
             </p>
@@ -912,26 +940,58 @@ function MediaSettingsForm({
   };
 
   const inputCls =
-    'w-full px-4 py-2.5 bg-muted/20 border border-border/30 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-shadow';
-  const labelCls = 'block text-xs font-semibold text-muted-foreground mb-1.5';
+    'w-full bg-transparent border-b border-border/40 text-sm py-2.5 placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors';
+  const labelCls = 'block text-xs font-semibold text-muted-foreground mb-0.5';
 
   const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div className="bg-card border border-border/40 rounded-3xl p-6 md:p-8 shadow-sm">
-      <h3 className="font-bold tracking-tight mb-5">{title}</h3>
+    <section className="py-6 border-b border-border/30 last:border-b-0">
+      <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-5">
+        {title}
+      </h3>
       {children}
-    </div>
+    </section>
   );
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl">
       <Section title="Identité & Marque">
-        <div className="grid md:grid-cols-2 gap-5">
+        <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
           <div>
             <label className={labelCls}>Nom du Média</label>
             <input
               className={inputCls}
               value={form.name}
               onChange={(e) => set('name', e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Couleur d'accent</label>
+            <input
+              className={inputCls}
+              value={form.accentColor ?? ''}
+              onChange={(e) => set('accentColor', e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Police</label>
+            <select
+              className={cn(inputCls, 'cursor-pointer')}
+              value={form.fontFamily ?? 'sans'}
+              onChange={(e) => set('fontFamily', e.target.value)}
+            >
+              <option value="sans">Inter (Sans-serif)</option>
+              <option value="outfit">Outfit (Moderne)</option>
+              <option value="space-grotesk">Space Grotesk (Tech)</option>
+              <option value="serif">Playfair Display (Serif)</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Bio / Présentation</label>
+            <textarea
+              className={cn(inputCls, 'resize-none')}
+              rows={2}
+              value={form.bio ?? ''}
+              onChange={(e) => set('bio', e.target.value)}
             />
           </div>
           <div>
@@ -947,48 +1007,16 @@ function MediaSettingsForm({
               maxDimension={512}
             />
           </div>
-          <div>
-            <label className={labelCls}>Bio / Présentation</label>
-            <textarea
-              className={cn(inputCls, 'resize-none')}
-              rows={3}
-              value={form.bio ?? ''}
-              onChange={(e) => set('bio', e.target.value)}
-            />
-          </div>
-          <div className="space-y-5">
-            <div>
-              <label className={labelCls}>Couleur d'accent</label>
-              <input
-                className={inputCls}
-                value={form.accentColor ?? ''}
-                onChange={(e) => set('accentColor', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className={labelCls}>Police</label>
-              <select
-                className={cn(inputCls, 'cursor-pointer')}
-                value={form.fontFamily ?? 'sans'}
-                onChange={(e) => set('fontFamily', e.target.value)}
-              >
-                <option value="sans">Inter (Sans-serif)</option>
-                <option value="outfit">Outfit (Moderne)</option>
-                <option value="space-grotesk">Space Grotesk (Tech)</option>
-                <option value="serif">Playfair Display (Serif)</option>
-              </select>
-            </div>
-          </div>
         </div>
       </Section>
 
       <Section title="Domaine & Web">
-        <div className="grid md:grid-cols-2 gap-5">
+        <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
           <div>
             <label className={labelCls}>Sous-domaine</label>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center border-b border-border/40 focus-within:border-primary transition-colors">
               <input
-                className={inputCls}
+                className="w-full bg-transparent text-sm py-2.5 focus:outline-none"
                 value={form.subdomain ?? ''}
                 onChange={(e) => set('subdomain', e.target.value)}
                 placeholder="mon-media"
@@ -1006,6 +1034,14 @@ function MediaSettingsForm({
             />
           </div>
           <div>
+            <label className={labelCls}>Texte de footer</label>
+            <input
+              className={inputCls}
+              value={form.footerText ?? ''}
+              onChange={(e) => set('footerText', e.target.value)}
+            />
+          </div>
+          <div>
             <label className={labelCls}>Image d'en-tête</label>
             <ImageUploader
               value={form.headerImageUrl}
@@ -1017,19 +1053,11 @@ function MediaSettingsForm({
               shape="banner"
             />
           </div>
-          <div>
-            <label className={labelCls}>Texte de footer</label>
-            <input
-              className={inputCls}
-              value={form.footerText ?? ''}
-              onChange={(e) => set('footerText', e.target.value)}
-            />
-          </div>
         </div>
       </Section>
 
       <Section title="SEO & Indexation">
-        <div className="grid md:grid-cols-2 gap-5">
+        <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
           <div>
             <label className={labelCls}>SEO Title</label>
             <input
@@ -1060,21 +1088,7 @@ function MediaSettingsForm({
               onClick={() => set('allowIndexing', !form.allowIndexing)}
               className="flex items-center gap-3 text-sm font-semibold cursor-pointer"
             >
-              <span
-                className={cn(
-                  'rounded-full transition-colors relative shrink-0',
-                  form.allowIndexing ? 'bg-success' : 'bg-muted'
-                )}
-                style={{ width: 40, height: 22 }}
-              >
-                <span
-                  className={cn(
-                    'absolute top-[2px] rounded-full bg-white transition-all',
-                    form.allowIndexing ? 'left-[20px]' : 'left-[2px]'
-                  )}
-                  style={{ width: 18, height: 18 }}
-                />
-              </span>
+              <QuietDot active={form.allowIndexing} />
               {form.allowIndexing ? 'Indexation Google autorisée' : 'Indexation Google désactivée'}
             </button>
           </div>
@@ -1084,9 +1098,13 @@ function MediaSettingsForm({
       <button
         onClick={handleSave}
         disabled={saving}
-        className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 shadow-sm"
+        className="mt-8 px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
       >
-        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+        {saving ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <FileText className="w-4 h-4" strokeWidth={1.5} />
+        )}
         Enregistrer les réglages
       </button>
     </div>

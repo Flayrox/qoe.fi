@@ -202,16 +202,30 @@ export async function getMediaByIdAction(mediaId: string) {
     const media = await prisma.media.findUnique({
       where: { id: mediaId },
       include: {
-        publication: true,
+        publication: {
+          include: {
+            _count: { select: { articles: true } },
+          },
+        },
         members: {
           include: { user: { select: { id: true, name: true, username: true, logoUrl: true } } },
           orderBy: { joinedAt: 'asc' },
+        },
+        invites: {
+          where: { status: 'PENDING' },
+          orderBy: { createdAt: 'desc' },
+          include: { inviter: { select: { id: true, name: true, username: true } } },
         },
       },
     });
 
     if (!media) return { success: false, error: 'Média introuvable' };
-    return { success: true, media, myRole: membership.role };
+    return {
+      success: true,
+      media,
+      articlesCount: media.publication._count.articles,
+      myRole: membership.role,
+    };
   } catch (err: unknown) {
     return {
       success: false,
