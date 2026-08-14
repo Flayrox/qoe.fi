@@ -7,7 +7,14 @@ const (
 	TaskSubscriberCreated = "subscriber.created"
 	TaskPostLiked         = "post.liked"
 	TaskStripeEvent       = "stripe.event"
+	TaskSearchSync        = "search.sync"
 )
+
+// SearchSyncPayload est un job de sync Meilisearch (upsert/delete).
+type SearchSyncPayload struct {
+	ArticleID string `json:"articleId"`
+	Action    string `json:"action"` // "upsert" | "delete"
+}
 
 // StripeEventPayload est le payload d'un événement Stripe à traiter.
 type StripeEventPayload struct {

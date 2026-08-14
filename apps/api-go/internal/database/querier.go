@@ -42,6 +42,7 @@ type Querier interface {
 	GetActiveWebhooksByPublication(ctx context.Context, arg GetActiveWebhooksByPublicationParams) ([]GetActiveWebhooksByPublicationRow, error)
 	GetArticleByID(ctx context.Context, id string) (GetArticleByIDRow, error)
 	GetArticleBySlug(ctx context.Context, arg GetArticleBySlugParams) (GetArticleBySlugRow, error)
+	GetArticleForSearch(ctx context.Context, id string) (GetArticleForSearchRow, error)
 	GetAttachmentsByIDs(ctx context.Context, dollar_1 []string) ([]GetAttachmentsByIDsRow, error)
 	GetAudienceSummary(ctx context.Context, publicationid string) (GetAudienceSummaryRow, error)
 	GetCanonicalThoughtID(ctx context.Context, id string) (string, error)

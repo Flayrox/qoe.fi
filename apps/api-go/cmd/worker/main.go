@@ -36,6 +36,8 @@ func main() {
 	webhookWorker := workers.NewWebhookWorker(pool)
 	newsletterWorker := workers.NewNewsletterWorker(pool)
 	stripeWorker := workers.NewStripeWorker(pool, cache.Client(cfg.RedisURL))
+	searchWorker := workers.NewSearchWorker(pool)
+	searchWorker.Setup(ctx)
 
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(queue.TaskArticlePublished, func(ctx context.Context, t *asynq.Task) error {
@@ -49,6 +51,7 @@ func main() {
 	})
 	mux.HandleFunc(queue.TaskPostLiked, newsletterWorker.HandlePostLiked)
 	mux.HandleFunc(queue.TaskStripeEvent, stripeWorker.HandleStripeEvent)
+	mux.HandleFunc(queue.TaskSearchSync, searchWorker.HandleSearchSync)
 
 	srv := queue.NewServer(cfg.RedisURL, 10)
 	if srv == nil {
