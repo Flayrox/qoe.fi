@@ -13,3 +13,5 @@
 # Go
 *.test
 *.prof
+*.mjs
+*.js
