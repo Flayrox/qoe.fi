@@ -10,6 +10,7 @@
     "./annotations": "./src/annotations/index.ts",
     "./annotations/*": "./src/annotations/*",
     "./ui/*": "./src/ui/*",
+    "./notifications": "./src/notifications/index.ts",
     "./button": "./src/button.tsx",
     "./card": "./src/card.tsx",
     "./tokens": "./src/tokens.ts",
@@ -23,6 +24,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@qoe/api-client": "workspace:*",
     "@floating-ui/react": "^0.27.20",
     "@qoe/config": "workspace:*",
     "@qoe/db": "workspace:*",

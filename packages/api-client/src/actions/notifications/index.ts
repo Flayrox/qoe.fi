@@ -4,8 +4,10 @@ import { notifications } from '@qoe/db';
 import { revalidatePath } from 'next/cache';
 import { safeAction } from '../utils/safe-action';
 
+export type NotificationFilter = 'all' | 'mentions' | 'replies' | 'likes';
+
 export const getNotificationsAction = safeAction<
-  { filter?: 'all' | 'mentions' | 'replies' | 'likes'; limit?: number; cursor?: string },
+  { filter?: NotificationFilter; limit?: number; cursor?: string },
   { notifications: notifications.GroupedNotification[]; nextCursor: string | null }
 >(async (rawInput, user) => {
   const filter = rawInput?.filter || 'all';
@@ -52,6 +54,10 @@ export const updateNotificationPreferencesAction = safeAction<
     pushFollows: boolean;
     emailReposts: boolean;
     pushReposts: boolean;
+    emailComments: boolean;
+    pushComments: boolean;
+    emailMedia: boolean;
+    pushMedia: boolean;
   }>,
   { preferences: Awaited<ReturnType<typeof notifications.updatePreferences>> }
 >(async (input, user) => {

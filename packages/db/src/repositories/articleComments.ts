@@ -3,6 +3,8 @@
 // =====================================================================
 
 import { prisma } from '../client';
+import { createNotification } from './notifications';
+import { logger } from '@qoe/observability';
 
 export interface CreateArticleCommentInput {
   articleId: string;
@@ -21,6 +23,8 @@ export async function createArticleComment(input: CreateArticleCommentInput) {
     where: { id: articleId },
     select: {
       allowComments: true,
+      authorId: true,
+      publicationId: true,
       publication: {
         select: { allowComments: true },
       },
@@ -33,7 +37,7 @@ export async function createArticleComment(input: CreateArticleCommentInput) {
     throw new Error('Le créateur a désactivé les commentaires sur cet écrit.');
   }
 
-  return prisma.articleComment.create({
+  const comment = await prisma.articleComment.create({
     data: {
       articleId,
       authorId,
@@ -47,10 +51,32 @@ export async function createArticleComment(input: CreateArticleCommentInput) {
           name: true,
           username: true,
           logoUrl: true,
+          isCertified: true,
         },
       },
     },
   });
+
+  // 🔔 Notifier l'auteur de l'article (ou l'auteur du commentaire parent pour les réponses)
+  const commentCreated = await prisma.articleComment.findUnique({
+    where: { id: comment.id },
+    select: { parent: { select: { authorId: true } } },
+  });
+  const parentAuthorId = commentCreated?.parent?.authorId ?? null;
+  const recipientId = parentAuthorId || article?.authorId || null;
+
+  if (recipientId && recipientId !== authorId) {
+    createNotification({
+      recipientId,
+      senderId: authorId,
+      type: 'COMMENT',
+      articleId,
+      commentId: comment.id,
+      publicationId: article?.publicationId ?? null,
+    }).catch((err) => logger.error('Erreur notification commentaire article', { err }));
+  }
+
+  return comment;
 }
 
 /**

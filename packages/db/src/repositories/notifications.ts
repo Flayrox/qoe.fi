@@ -66,15 +66,17 @@ export async function createNotification(data: {
     // Filtrer selon le type
     if (data.type === 'LIKE' && !prefs.pushLikes && !prefs.emailLikes) return null;
     if (data.type === 'REPLY' && !prefs.pushReplies && !prefs.emailReplies) return null;
+    if (data.type === 'COMMENT' && !prefs.pushComments && !prefs.emailComments) return null;
     if (data.type === 'MENTION' && !prefs.pushMentions && !prefs.emailMentions) return null;
     if (data.type === 'FOLLOW' && !prefs.pushFollows && !prefs.emailFollows) return null;
     if (data.type === 'REPOST' && !prefs.pushReposts && !prefs.emailReposts) return null;
     if (
-      (data.type === 'MEDIA_INVITE' || data.type === 'MEDIA_MEMBER_JOINED') &&
-      !prefs.pushMentions &&
-      !prefs.emailMentions
+      data.type === 'MEDIA_INVITE' ||
+      data.type === 'MEDIA_MEMBER_JOINED' ||
+      data.type === 'MEDIA_ARTICLE_PUBLISHED' ||
+      data.type === 'MEDIA_MENTION'
     ) {
-      return null;
+      if (!prefs.pushMedia && !prefs.emailMedia) return null;
     }
 
     // Idempotence : éviter les doublons identiques non lus
@@ -110,6 +112,40 @@ export async function createNotification(data: {
     logger.error('Erreur création notification', { err: error });
     return null;
   }
+}
+
+/**
+ * 📣 Notifie les abonnés d'une publication MEDIA qu'un article vient de sortir.
+ * Fan-out borné (500) pour éviter les explosions de volume.
+ */
+export async function notifyMediaArticlePublished(
+  publicationId: string,
+  articleId: string,
+  senderId: string
+): Promise<void> {
+  const publication = await prisma.publication.findUnique({
+    where: { id: publicationId },
+    select: { type: true },
+  });
+  if (publication?.type !== 'MEDIA') return;
+
+  const followers = await prisma.follows.findMany({
+    where: { publicationId },
+    select: { readerId: true },
+    take: 500,
+  });
+
+  await Promise.allSettled(
+    followers.map((f) =>
+      createNotification({
+        recipientId: f.readerId,
+        senderId,
+        type: 'MEDIA_ARTICLE_PUBLISHED',
+        articleId,
+        publicationId,
+      })
+    )
+  );
 }
 
 /**
@@ -155,7 +191,7 @@ export async function getNotifications(
   if (filter === 'mentions') {
     typeFilter = ['MENTION'];
   } else if (filter === 'replies') {
-    typeFilter = ['REPLY'];
+    typeFilter = ['REPLY', 'COMMENT'];
   } else if (filter === 'likes') {
     typeFilter = ['LIKE'];
   }
@@ -330,6 +366,10 @@ export async function updatePreferences(
     pushFollows: boolean;
     emailReposts: boolean;
     pushReposts: boolean;
+    emailComments: boolean;
+    pushComments: boolean;
+    emailMedia: boolean;
+    pushMedia: boolean;
   }>
 ) {
   return prisma.notificationPreference.upsert({

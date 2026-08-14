@@ -1,18 +1,32 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useNotificationsQuery, useMarkNotificationsAsReadMutation } from '@qoe/api-client';
-import { NotificationItem } from './NotificationItem';
-import { createClient } from '@qoe/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
-import { notificationKeys } from '@qoe/api-client';
-import { CheckCheck, BellOff, Loader2 } from 'lucide-react';
+import { createClient } from '@qoe/supabase/client';
+import {
+  useNotificationsInfiniteQuery,
+  useMarkNotificationsAsReadMutation,
+  notificationKeys,
+  type NotificationFilter,
+} from '@qoe/api-client';
+import { CheckCheck, BellOff, Loader2, ChevronDown } from 'lucide-react';
+import { NotificationItem } from './NotificationItem';
+import { cn } from '@qoe/utils';
+
+const TABS: Array<{ id: NotificationFilter; label: string }> = [
+  { id: 'all', label: 'Toutes' },
+  { id: 'mentions', label: 'Mentions' },
+  { id: 'replies', label: 'Réponses' },
+  { id: 'likes', label: "J'aime" },
+];
 
 export function NotificationList() {
-  const [filter, setFilter] = useState<'all' | 'mentions' | 'replies' | 'likes'>('all');
+  const [filter, setFilter] = useState<NotificationFilter>('all');
   const queryClient = useQueryClient();
 
-  const { data: notifications = [], isLoading } = useNotificationsQuery(filter);
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useNotificationsInfiniteQuery(filter);
+  const notifications = (data?.pages ?? []).flatMap((p) => p.notifications);
   const markAsReadMutation = useMarkNotificationsAsReadMutation();
 
   // Écouteur Supabase Realtime pour recevoir les notifications instantanément
@@ -28,7 +42,6 @@ export function NotificationList() {
           table: 'Notification',
         },
         () => {
-          // Invalider les notifications et le compteur unread
           queryClient.invalidateQueries({ queryKey: notificationKeys.all });
         }
       )
@@ -43,27 +56,25 @@ export function NotificationList() {
     markAsReadMutation.mutate(undefined);
   };
 
-  const tabs: Array<{ id: 'all' | 'mentions' | 'replies' | 'likes'; label: string }> = [
-    { id: 'all', label: 'Toutes' },
-    { id: 'mentions', label: 'Mentions' },
-    { id: 'replies', label: 'Réponses' },
-    { id: 'likes', label: "J'aime" },
-  ];
+  const handleMarkOneRead = (id: string) => {
+    markAsReadMutation.mutate([id]);
+  };
 
   return (
     <div className="w-full">
       {/* Barre d'onglets & Actions */}
       <div className="sticky top-0 z-10 flex items-center justify-between px-4 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="flex gap-1 overflow-x-auto no-scrollbar">
-          {tabs.map((tab) => (
+          {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setFilter(tab.id)}
-              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
+              className={cn(
+                'px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap',
                 filter === tab.id
                   ? 'border-primary text-foreground font-semibold'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
+              )}
             >
               {tab.label}
             </button>
@@ -73,10 +84,10 @@ export function NotificationList() {
         <button
           onClick={handleMarkAllRead}
           disabled={markAsReadMutation.isPending}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors shrink-0"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors shrink-0 cursor-pointer"
           title="Tout marquer comme lu"
         >
-          <CheckCheck className="w-3.5 h-3.5 text-primary" />
+          <CheckCheck className="size-3.5 text-primary" strokeWidth={1.5} />
           <span className="hidden sm:inline">Tout marquer comme lu</span>
         </button>
       </div>
@@ -84,28 +95,46 @@ export function NotificationList() {
       {/* État de chargement */}
       {isLoading ? (
         <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
-          <Loader2 className="w-6 h-6 animate-spin mb-2 text-primary" />
+          <Loader2 className="size-6 animate-spin mb-2 text-primary" />
           <p className="text-sm">Chargement de vos notifications...</p>
         </div>
       ) : notifications.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-16 text-center text-muted-foreground">
           <div className="p-4 bg-muted/50 rounded-full mb-3">
-            <BellOff className="w-8 h-8 text-muted-foreground/60" />
+            <BellOff className="size-8 text-muted-foreground/60" strokeWidth={1.5} />
           </div>
           <h3 className="font-semibold text-foreground text-base mb-1">
             Aucune notification pour le moment
           </h3>
           <p className="text-sm max-w-xs text-muted-foreground">
             {filter === 'all'
-              ? "Lorsque d'autres membres aimeront vos pensées, vous répondronnt ou s'abonneront, les alertes apparaîtront ici."
+              ? "Lorsque d'autres membres aimeront vos pensées, vous répondront ou s'abonneront, les alertes apparaîtront ici."
               : `Aucune notification de type "${filter}" trouvée.`}
           </p>
         </div>
       ) : (
         <div className="divide-y divide-border">
           {notifications.map((notif) => (
-            <NotificationItem key={notif.id} notification={notif} />
+            <NotificationItem key={notif.id} notification={notif} onMarkRead={handleMarkOneRead} />
           ))}
+        </div>
+      )}
+
+      {/* Charger plus (pagination) */}
+      {hasNextPage && (
+        <div className="flex justify-center py-4">
+          <button
+            onClick={() => fetchNextPage()}
+            disabled={isFetchingNextPage}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer disabled:opacity-60"
+          >
+            {isFetchingNextPage ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <ChevronDown className="size-3.5" strokeWidth={1.5} />
+            )}
+            Charger plus
+          </button>
         </div>
       )}
     </div>

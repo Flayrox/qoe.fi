@@ -3,6 +3,7 @@
 import React from 'react';
 import { Sidebar } from '@qoe/ui/sidebar';
 import { Logo } from '@qoe/ui';
+import { useUnreadNotificationCount } from '@qoe/ui/notifications';
 import { routes } from '@qoe/config/routes';
 import { t } from '@lingui/core/macro';
 
@@ -21,6 +22,7 @@ export function AppSidebar({
   onLogout,
 }: AppSidebarProps) {
   const userFallback = userName.slice(0, 2).toUpperCase();
+  const unreadCount = useUnreadNotificationCount();
 
   const menuItems = [
     {
@@ -37,6 +39,7 @@ export function AppSidebar({
       title: t`Notifications`,
       url: '/notifications',
       iconName: 'Bell',
+      badge: unreadCount > 0 ? unreadCount : undefined,
     },
     {
       title: t`Starter Packs`,

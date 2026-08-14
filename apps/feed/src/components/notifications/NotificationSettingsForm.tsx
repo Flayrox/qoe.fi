@@ -4,7 +4,7 @@ import {
   useNotificationPreferencesQuery,
   useUpdateNotificationPreferencesMutation,
 } from '@qoe/api-client';
-import { Loader2, Heart, MessageCircle, AtSign, UserPlus, Repeat } from 'lucide-react';
+import { Loader2, Heart, MessageCircle, AtSign, UserPlus, Repeat, Building2 } from 'lucide-react';
 
 export function NotificationSettingsForm() {
   const { data: prefs, isLoading } = useNotificationPreferencesQuery();
@@ -63,6 +63,23 @@ export function NotificationSettingsForm() {
       emailKey: 'emailReposts',
       pushKey: 'pushReposts',
       description: "Alertes lorsqu'un membre republie votre pensée sur son fil.",
+    },
+    {
+      title: 'Commentaires d’articles',
+      icon: MessageCircle,
+      iconColor: 'text-primary',
+      emailKey: 'emailComments',
+      pushKey: 'pushComments',
+      description: "Alertes lorsqu'un lecteur commente l'un de vos écrits publiés.",
+    },
+    {
+      title: 'Activité des Médias',
+      icon: Building2,
+      iconColor: 'text-highlight',
+      emailKey: 'emailMedia',
+      pushKey: 'pushMedia',
+      description:
+        'Invitations à rejoindre un Média, arrivées de membres, nouvelles publications de vos Médias.',
     },
   ] as const;
 
