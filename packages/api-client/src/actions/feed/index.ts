@@ -232,6 +232,29 @@ export const createThoughtAction = safeAction<
     throw new Error('INVALID_CONTENT_LENGTH');
   }
 
+  // 🔗 Proxy Go : validation, insert, pièces jointes, sondage + invalidation cache.
+  if (
+    isGoEnabled() &&
+    !input.isDraft &&
+    !input.scheduledAt &&
+    (!input.visibility || input.visibility === 'public')
+  ) {
+    const goPost = await goFetch<unknown>('/v1/posts', {
+      method: 'POST',
+      body: {
+        content: cleanContent,
+        tags: input.tags,
+        imageUrl: input.imageUrl || undefined,
+        parentId: input.parentId || undefined,
+        repostId: input.repostId || undefined,
+        replyRestriction: rawInput.replyRestriction || undefined,
+        attachments: rawInput.attachments || undefined,
+        poll: rawInput.poll || undefined,
+      },
+    });
+    return { post: goPost as Thought & { poll: Poll | null } };
+  }
+
   const newPost = await posts.createThought({
     content: cleanContent,
     authorId: user.id,
@@ -344,6 +367,16 @@ export const toggleLikePostAction = safeAction<string, { liked: boolean }>(async
 export const replyToPostAction = safeAction<{ postId: string; content: string }, { reply: Reply }>(
   async (rawInput, user) => {
     const { postId, content } = replyToPostSchema.parse(rawInput);
+
+    // 🔗 Proxy Go : threadgate + notifications MENTION/REPLY + invalidation cache.
+    if (isGoEnabled()) {
+      const reply = await goFetch<unknown>(`/v1/posts/${postId}/reply`, {
+        method: 'POST',
+        body: { content },
+      });
+      return { reply: reply as Reply };
+    }
+
     const reply = await posts.replyToPost(postId, user.id, content);
 
     return { reply };
@@ -1028,7 +1061,26 @@ export const getFeedItemsAction = safeAction<
   },
   { items: FeedSlice[]; nextCursor: string | null; hasMore: boolean }
 >(
-  async ({ feedType = 'recommandation', cursor = null, limit = 20 }) => {
+  async ({ feedType = 'recommandation', cursor = null, limit = 20, username }) => {
+    // 🔗 Proxy Go : le feed (shape FeedSlice + pagination + invalidation cache)
+    //    est servi par le backend Go.
+    if (isGoEnabled() && !username) {
+      const path =
+        feedType === 'following'
+          ? `/v1/feed?limit=${Math.min(limit, 50)}&cursor=${encodeURIComponent(cursor ?? '')}`
+          : `/v1/feed/trending?limit=${Math.min(limit, 50)}&cursor=${encodeURIComponent(cursor ?? '')}`;
+      const body = await goFetch<{
+        items: unknown[];
+        nextCursor: string | null;
+        hasMore: boolean;
+      }>(path);
+      return {
+        items: body.items as unknown as FeedSlice[],
+        nextCursor: body.nextCursor,
+        hasMore: body.hasMore,
+      };
+    }
+
     const supabase = await createClient();
     const {
       data: { user },

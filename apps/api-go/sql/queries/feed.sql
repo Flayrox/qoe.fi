@@ -123,3 +123,33 @@ WHERE "parentId" = $1
   AND "isDraft" = false
 ORDER BY "createdAt" ASC
 LIMIT $2 OFFSET $3;
+
+-- name: GetPostsByIDs :many
+SELECT p.id,
+       p.content,
+       p."authorId",
+       p."createdAt",
+       p.tags,
+       p."imageUrl",
+       p."likeCount",
+       p."repostCount",
+       p."replyCount",
+       p."parentId",
+       p."rootId",
+       p."repostId",
+       p."replyRestriction",
+       p."isPinned",
+       p."isHiddenByAuthor",
+       u.id::text      AS author_id,
+       u.name          AS author_name,
+       u.username      AS author_username,
+       u."logoUrl"     AS author_logo,
+       u."isCertified" AS author_certified,
+       (CASE WHEN l."userId" IS NOT NULL THEN true ELSE false END) AS viewer_liked,
+       (CASE WHEN r.id IS NOT NULL THEN true ELSE false END)      AS viewer_reposted
+FROM "Post" p
+JOIN "User" u ON u.id = p."authorId"
+LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = @viewer_id
+LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = @viewer_id AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
+WHERE p.id = ANY(@ids::text[])
+  AND p."deletedAt" IS NULL;

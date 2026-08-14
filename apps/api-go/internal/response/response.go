@@ -41,4 +41,6 @@ func Unauthorized(w http.ResponseWriter, msg string) { Error(w, http.StatusUnaut
 func Forbidden(w http.ResponseWriter, msg string) { Error(w, http.StatusForbidden, msg) }
 
 // Internal écrit une erreur 500 (message générique, détails en log).
-func Internal(w http.ResponseWriter) { Error(w, http.StatusInternalServerError, "Internal Server Error") }
+func Internal(w http.ResponseWriter) {
+	Error(w, http.StatusInternalServerError, "Internal Server Error")
+}
