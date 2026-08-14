@@ -53,6 +53,34 @@ func NewAuth(jwtSecret, supabaseAuthURL string) *Auth {
 	return &Auth{jwtSecret: jwtSecret, jwksURL: jwksURL}
 }
 
+// OptionalAuth valide le Bearer token si présent (lectures publiques paywall),
+// sans exiger d'authentification. L'UID est injecté dans le contexte sinon.
+func (a *Auth) OptionalAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		header := r.Header.Get("Authorization")
+		if header == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		token := strings.TrimPrefix(header, "Bearer ")
+		if token == header {
+			next.ServeHTTP(w, r)
+			return
+		}
+		claims, err := a.parseToken(token)
+		if err != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if sub, ok := claims["sub"].(string); ok && sub != "" {
+			ctx := context.WithValue(r.Context(), UserIDKey, sub)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		} else {
+			next.ServeHTTP(w, r)
+		}
+	})
+}
+
 // Middleware valide le Bearer token Supabase et injecte l'UID dans le contexte.
 func (a *Auth) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

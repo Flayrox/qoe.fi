@@ -16,6 +16,7 @@ type Querier interface {
 	CountPollVotes(ctx context.Context, pollid string) (int32, error)
 	CountPollVotesByIDs(ctx context.Context, dollar_1 []string) ([]CountPollVotesByIDsRow, error)
 	CountPureReposts(ctx context.Context, arg CountPureRepostsParams) (int32, error)
+	CreateArticle(ctx context.Context, arg CreateArticleParams) (string, error)
 	CreateAttachment(ctx context.Context, arg CreateAttachmentParams) (string, error)
 	CreatePoll(ctx context.Context, arg CreatePollParams) (CreatePollRow, error)
 	CreatePollOption(ctx context.Context, arg CreatePollOptionParams) (string, error)
@@ -24,6 +25,7 @@ type Querier interface {
 	DecrementLikeCount(ctx context.Context, id string) error
 	DecrementReplyCount(ctx context.Context, id string) error
 	DecrementRepostCount(ctx context.Context, id string) error
+	DeleteArticle(ctx context.Context, id string) error
 	DeleteLike(ctx context.Context, arg DeleteLikeParams) error
 	DeleteLikeNotification(ctx context.Context, arg DeleteLikeNotificationParams) error
 	DeletePureReposts(ctx context.Context, arg DeletePureRepostsParams) error
@@ -37,12 +39,15 @@ type Querier interface {
 	GetActiveSubscribersByPublication(ctx context.Context, arg GetActiveSubscribersByPublicationParams) ([]GetActiveSubscribersByPublicationRow, error)
 	GetActiveSubscriptionForReply(ctx context.Context, arg GetActiveSubscriptionForReplyParams) (int32, error)
 	GetActiveWebhooksByPublication(ctx context.Context, arg GetActiveWebhooksByPublicationParams) ([]GetActiveWebhooksByPublicationRow, error)
+	GetArticleByID(ctx context.Context, id string) (GetArticleByIDRow, error)
+	GetArticleBySlug(ctx context.Context, arg GetArticleBySlugParams) (GetArticleBySlugRow, error)
 	GetAttachmentsByIDs(ctx context.Context, dollar_1 []string) ([]GetAttachmentsByIDsRow, error)
 	GetCanonicalThoughtID(ctx context.Context, id string) (string, error)
 	GetExistingLike(ctx context.Context, arg GetExistingLikeParams) (int32, error)
 	GetFollowForReply(ctx context.Context, arg GetFollowForReplyParams) (int32, error)
 	GetFollowedPersonalPublicationOwnerIDs(ctx context.Context, readerid pgtype.UUID) ([]string, error)
 	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
+	GetMediaRoleForUser(ctx context.Context, arg GetMediaRoleForUserParams) (string, error)
 	GetPersonalPublicationID(ctx context.Context, id string) (pgtype.Text, error)
 	// Polls, votes, pièces jointes
 	GetPollByThoughtID(ctx context.Context, thoughtid string) (GetPollByThoughtIDRow, error)
@@ -55,10 +60,12 @@ type Querier interface {
 	GetRepliesForThought(ctx context.Context, arg GetRepliesForThoughtParams) ([]GetRepliesForThoughtRow, error)
 	// Notifications REPLY / MENTION
 	GetReplyPrefs(ctx context.Context, userid pgtype.UUID) (GetReplyPrefsRow, error)
+	GetSubscriberEntitlement(ctx context.Context, arg GetSubscriberEntitlementParams) (GetSubscriberEntitlementRow, error)
 	GetThoughtByID(ctx context.Context, id string) (GetThoughtByIDRow, error)
 	// Threadgates & réponses
 	GetThoughtReplyGate(ctx context.Context, id string) (GetThoughtReplyGateRow, error)
 	GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error)
+	GetUserPersonalPublication(ctx context.Context, id string) (pgtype.Text, error)
 	GetUserPollVote(ctx context.Context, arg GetUserPollVoteParams) (string, error)
 	GetUserUsername(ctx context.Context, id string) (pgtype.Text, error)
 	GetUserVotesByIDs(ctx context.Context, arg GetUserVotesByIDsParams) ([]GetUserVotesByIDsRow, error)
@@ -72,6 +79,9 @@ type Querier interface {
 	InsertPureRepost(ctx context.Context, arg InsertPureRepostParams) (string, error)
 	InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error
 	InsertRepostNotification(ctx context.Context, arg InsertRepostNotificationParams) error
+	ListArticlesByPublication(ctx context.Context, arg ListArticlesByPublicationParams) ([]ListArticlesByPublicationRow, error)
+	SetArticleStatus(ctx context.Context, arg SetArticleStatusParams) (string, error)
+	UpdateArticleContent(ctx context.Context, arg UpdateArticleContentParams) (string, error)
 	UpdateWebhookDelivery(ctx context.Context, arg UpdateWebhookDeliveryParams) error
 }
 
