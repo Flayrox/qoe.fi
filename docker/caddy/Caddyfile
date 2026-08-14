@@ -180,6 +180,31 @@ api.qoe.fi {
     }
 }
 
+# ⚡ API GO (backend-of-record) : api-go.qoe.fi
+# ─────────────────────────────────────────────────────────────────────
+api-go.qoe.fi {
+    import qoe_cert
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        Access-Control-Allow-Origin "*"
+    }
+
+    reverse_proxy api-go:8080 {
+        transport http {
+            dial_timeout 60s
+            response_header_timeout 60s
+        }
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}
+
 # ─────────────────────────────────────────────────────────────────────
 # 📚 BLOGS CRÉATEURS (WILDCARD) : *.qoe.fi (Tenants)
 # ─────────────────────────────────────────────────────────────────────
