@@ -54,6 +54,12 @@ go build ./... && go vet ./...
 | POST | `/v1/posts/{id}/like` | toggle like (+ notification LIKE, dédup) |
 | POST | `/v1/posts/{id}/repost` | toggle repost (+ notification REPOST) |
 | POST | `/v1/posts/{id}/reply` | répondre (threadgate + notifications REPLY/MENTION) |
+| GET | `/v1/articles/{slug}?publicationId=&viewerEmail=` | lecture publique + **troncature paywall** (auth optionnelle) |
+| GET | `/v1/articles?publicationId=` | lister les articles d'une publication (RBAC créateur) |
+| POST | `/v1/articles` | créer un article (RBAC média/personnel) |
+| PATCH | `/v1/articles/{id}` | mettre à jour le contenu (RBAC) |
+| POST | `/v1/articles/{id}/publish` | publier (RBAC editor/owner + événement asynq) |
+| DELETE | `/v1/articles/{id}` | supprimer (RBAC) |
 
 ## Statut
 - [x] Fondations (config, pool, auth, middleware, réponse)
@@ -65,6 +71,11 @@ go build ./... && go vet ./...
 - [x] Proxies server actions → Go : getFeedItemsAction, createThoughtAction,
       replyToPostAction, toggleLikePostAction, toggleRepostPostAction
       (activés par `QOE_API_GO_URL`, fallback TS sinon)
+- [x] Module **Articles + Paywall** : lecture publique avec troncature
+      **zero-leak** (marqueurs éditeurs + fallback paragraphes), entitlements
+      abonné (membre/premium/tier), RBAC média (owner/editor/writer/viewer),
+      création/édition/publication avec événement `article.published` asynq
+      — **testé** (anonyme tronqué, abonné premium accès complet)
 - [x] Workers **asynq** (`cmd/worker`) : webhook dispatch (HMAC-SHA256 + logs) et
       newsletter fanout ; endpoint interne `/internal/events/*` (enqueue asynq,
       secret `QOE_INTERNAL_SECRET`) ; article.published + subscriber.created

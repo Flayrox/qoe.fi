@@ -17,6 +17,7 @@ import (
 	"github.com/qoefi/api-go/internal/config"
 	"github.com/qoefi/api-go/internal/dbpool"
 	authmw "github.com/qoefi/api-go/internal/middleware"
+	"github.com/qoefi/api-go/internal/modules/articles"
 	"github.com/qoefi/api-go/internal/modules/events"
 	"github.com/qoefi/api-go/internal/modules/feed"
 	"github.com/qoefi/api-go/internal/modules/posts"
@@ -58,8 +59,16 @@ func main() {
 	eventsHandler := events.NewHandler(asynqClient, cfg.InternalSecret)
 	eventsHandler.Register(r)
 
-	// Auth JWT Supabase pour toute l'API.
+	// Auth JWT Supabase (instance partagée : Middleware obligatoire + OptionalAuth).
 	auth := authmw.NewAuth(cfg.JWTSecret, cfg.SupabaseAuthURL)
+
+	// Articles : lecture publique (auth optionnelle, paywall) hors groupe protégé.
+	articlesHandler := articles.NewHandler(articles.NewService(pool, rc, asynqClient))
+	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
+		articlesHandler.RegisterPublic(pub)
+	})
+
+	// Toute l'API créateur exige un Bearer token valide.
 	r.Group(func(protected chi.Router) {
 		protected.Use(auth.Middleware)
 
@@ -68,6 +77,8 @@ func main() {
 
 		feedHandler := feed.NewHandler(feed.NewService(pool, rc))
 		feedHandler.Register(protected)
+
+		articlesHandler.RegisterProtected(protected)
 	})
 
 	srv := &http.Server{
