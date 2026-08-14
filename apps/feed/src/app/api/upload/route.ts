@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@qoe/supabase/server';
+import { uploadImage, IMAGE_FOLDERS, type ImageFolder } from '@qoe/supabase/storage';
+
+const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_FOLDERS = new Set(Object.values(IMAGE_FOLDERS));
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +21,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
+    const folder = (formData.get('folder') as ImageFolder | null) || IMAGE_FOLDERS.articles;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -27,45 +32,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File must be an image' }, { status: 400 });
     }
 
-    // Validate file size (e.g., max 5MB)
-    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    // Validate file size
     if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: 'File size exceeds 5MB limit' }, { status: 400 });
+      return NextResponse.json({ error: 'File size exceeds 10MB limit' }, { status: 400 });
     }
 
-    // Generate a unique filename using timestamp and a random string
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 8);
-    const fileExtension = file.name.split('.').pop() || 'png';
-    // Path includes the user's ID for organization
-    const filePath = `${user.id}/${timestamp}-${randomString}.${fileExtension}`;
+    if (!ALLOWED_FOLDERS.has(folder)) {
+      return NextResponse.json({ error: 'Invalid folder' }, { status: 400 });
+    }
 
-    // Upload to Supabase Storage bucket 'articles-media'
-    const { error } = await supabase.storage.from('articles-media').upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false,
+    // Upload to Supabase Storage via the shared helper
+    const url = await uploadImage(supabase, file, {
+      folder,
+      ownerId: user.id,
     });
 
-    if (error) {
-      console.error('Supabase Storage Error:', error);
-      return NextResponse.json({ error: 'Failed to upload image' }, { status: 500 });
-    }
-
-    // Get the public URL for the uploaded image
-    const { data: publicUrlData } = supabase.storage.from('articles-media').getPublicUrl(filePath);
-
-    let finalUrl = publicUrlData.publicUrl;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (supabaseUrl && finalUrl.startsWith(supabaseUrl)) {
-      finalUrl = finalUrl.replace(supabaseUrl, 'https://cdn.qoe.fi');
-    }
-
-    return NextResponse.json(
-      {
-        url: finalUrl,
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({ url }, { status: 200 });
   } catch (error) {
     console.error('Upload API Route Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

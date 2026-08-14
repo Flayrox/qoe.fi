@@ -8,3 +8,4 @@ export * from './client';
 export * from './sso';
 export * from './broadcast';
 export * from './cookie-config';
+export * from './storage';

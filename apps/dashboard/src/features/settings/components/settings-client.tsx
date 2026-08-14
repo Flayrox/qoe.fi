@@ -29,6 +29,8 @@ import {
 import { toast } from 'sonner';
 import { useDebounce } from 'use-debounce';
 import Image from 'next/image';
+import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
+import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import {
   updateCreatorProfileAction,
   checkSubdomainAvailabilityAction,
@@ -514,17 +516,17 @@ export default function SettingsClient({ initialCreator }: SettingsClientProps) 
 
             <div className="space-y-2">
               <label className="text-sm font-bold flex items-center gap-1.5">
-                <ImageIcon className="w-4 h-4 text-muted-foreground" /> URL Image de Couverture
-                (Banner)
+                <ImageIcon className="w-4 h-4 text-muted-foreground" /> Image de couverture
+                (bannière)
               </label>
-              <input
-                type="text"
-                placeholder="https://images.unsplash.com/... (ou vide)"
-                className="w-full px-4 py-2.5 rounded-xl border border-border/80 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-mono text-xs"
-                value={formData.headerImageUrl || ''}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, headerImageUrl: e.target.value }))
+              <ImageUploader
+                value={formData.headerImageUrl}
+                onChange={(url) => setFormData((prev) => ({ ...prev, headerImageUrl: url }))}
+                upload={(file) =>
+                  uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.banners)
                 }
+                aspect={21 / 9}
+                shape="banner"
               />
               <p className="text-[11px] text-muted-foreground">
                 Une image magnifique en haute-définition à afficher derrière le message d'accueil.
@@ -533,14 +535,17 @@ export default function SettingsClient({ initialCreator }: SettingsClientProps) 
 
             <div className="space-y-2">
               <label className="text-sm font-bold flex items-center gap-1.5">
-                <ImageIcon className="w-4 h-4 text-muted-foreground" /> URL Image Logo / Avatar
+                <ImageIcon className="w-4 h-4 text-muted-foreground" /> Image logo / avatar
               </label>
-              <input
-                type="text"
-                placeholder="https://... (ou vide)"
-                className="w-full px-4 py-2.5 rounded-xl border border-border/80 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-mono text-xs"
-                value={formData.logoUrl || ''}
-                onChange={(e) => setFormData((prev) => ({ ...prev, logoUrl: e.target.value }))}
+              <ImageUploader
+                value={formData.logoUrl}
+                onChange={(url) => setFormData((prev) => ({ ...prev, logoUrl: url }))}
+                upload={(file) =>
+                  uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.avatars)
+                }
+                aspect={1}
+                shape="circle"
+                maxDimension={512}
               />
             </div>
 

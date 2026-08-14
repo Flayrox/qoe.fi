@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Camera, Loader2 } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { updateProfileAction as updateProfile } from '@qoe/api-client/actions/feed';
 
-import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
+import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
+import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import { t } from '@lingui/core/macro';
 
 interface UpdatedUser {
@@ -44,8 +44,8 @@ export function EditProfileModal({
   const [name, setName] = useState(user.name || '');
   const [heroText, setHeroText] = useState(user.heroText || '');
   const [locationText, setLocationText] = useState(user.onboardingText || '');
-  const [logoUrl, setLogoUrl] = useState(user.logoUrl || '');
-  const [headerImageUrl, setHeaderImageUrl] = useState(user.headerImageUrl || '');
+  const [logoUrl, setLogoUrl] = useState<string | null>(user.logoUrl);
+  const [headerImageUrl, setHeaderImageUrl] = useState<string | null>(user.headerImageUrl || null);
   const [saving, setSaving] = useState(false);
 
   if (!isOpen) return null;
@@ -62,7 +62,6 @@ export function EditProfileModal({
         logoUrl: logoUrl || undefined,
         headerImageUrl: headerImageUrl || undefined,
       });
-
       if (res.ok && res.data?.user) {
         toast.success(t`Profil mis à jour avec succès !`);
         if (onProfileUpdated) {
@@ -113,54 +112,29 @@ export function EditProfileModal({
           </div>
 
           <form onSubmit={handleSave} className="p-5 space-y-5 overflow-y-auto max-h-[80vh]">
-            {/* Banner Preview & Input */}
+            {/* Banner Upload */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground">
-                {t`Bannière (URL Image)`}
-              </label>
-              <div className="relative h-28 w-full rounded-lg bg-muted overflow-hidden border border-border/40 flex items-center justify-center">
-                {headerImageUrl ? (
-                  <Image
-                    src={headerImageUrl}
-                    alt="Banner"
-                    fill
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Camera className="w-4 h-4" />
-                    <span>{t`Aucune bannière`}</span>
-                  </div>
-                )}
-              </div>
-              <input
-                type="url"
+              <ImageUploader
                 value={headerImageUrl}
-                onChange={(e) => setHeaderImageUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/..."
-                className="w-full text-xs border border-border/50 focus:border-foreground bg-muted/30 focus:bg-card text-foreground rounded-lg p-2.5 outline-none transition-all"
+                onChange={setHeaderImageUrl}
+                upload={(file) => uploadImageToRoute(file, '/api/upload', IMAGE_FOLDERS.banners)}
+                aspect={21 / 9}
+                shape="banner"
+                label={t`Bannière`}
               />
             </div>
 
-            {/* Avatar Preview & Input */}
+            {/* Avatar Upload */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground">
-                {t`Photo de profil (URL Image)`}
-              </label>
-              <div className="flex items-center gap-4">
-                <AuthorAvatar
-                  user={{ name, logoUrl, isCertified: false }}
-                  size="xl"
-                  showBadge={false}
-                />
-                <input
-                  type="url"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="flex-1 text-xs border border-border/50 focus:border-foreground bg-muted/30 focus:bg-card text-foreground rounded-lg p-2.5 outline-none transition-all"
-                />
-              </div>
+              <ImageUploader
+                value={logoUrl}
+                onChange={setLogoUrl}
+                upload={(file) => uploadImageToRoute(file, '/api/upload', IMAGE_FOLDERS.avatars)}
+                aspect={1}
+                shape="circle"
+                maxDimension={512}
+                label={t`Photo de profil`}
+              />
             </div>
 
             {/* Name Input */}

@@ -2,16 +2,18 @@
 // 📤 API Upload — apps/dashboard/src/app/api/articles/upload/route.ts
 // =====================================================================
 // 📖 Upload d'images vers Supabase Storage (bucket "articles-media").
-//    Utilisé par l'éditeur TipTap pour insérer des images dans les articles.
+//    Utilisé par l'éditeur TipTap et le composant <ImageUploader />.
 // =====================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@qoe/supabase/server';
+import { uploadImage, IMAGE_FOLDERS, type ImageFolder } from '@qoe/supabase/storage';
 import { getCurrentUser } from '@qoe/auth/current-user';
 import { LIMITS } from '@qoe/config';
 import { moderateImage } from '@/lib/moderation';
 
 const MAX_SIZE_BYTES = LIMITS.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+const ALLOWED_FOLDERS = new Set(Object.values(IMAGE_FOLDERS));
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,6 +28,7 @@ export async function POST(request: NextRequest) {
     // 📥 Parse le multipart form data
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
+    const folder = (formData.get('folder') as ImageFolder | null) || IMAGE_FOLDERS.articles;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -44,6 +47,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!ALLOWED_FOLDERS.has(folder)) {
+      return NextResponse.json({ error: 'Invalid folder' }, { status: 400 });
+    }
+
     // 🛡️ OpenAI Moderation check (AI Content Moderation)
     const moderation = await moderateImage(file);
     if (!moderation.safe) {
@@ -53,33 +60,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 📝 Génère un nom de fichier unique pour ce créateur
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 8);
-    const fileExtension = file.name.split('.').pop() || 'png';
-    const filePath = `${user.id}/${timestamp}-${randomString}.${fileExtension}`;
-
-    // 📤 Upload vers le bucket Supabase Storage "articles-media"
-    const { error } = await supabase.storage.from('articles-media').upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false,
+    // 📤 Upload vers le bucket Supabase Storage
+    const url = await uploadImage(supabase, file, {
+      folder,
+      ownerId: user.id,
     });
 
-    if (error) {
-      console.error('Supabase Storage Error:', error);
-      return NextResponse.json({ error: 'Failed to upload image' }, { status: 500 });
-    }
-
-    // 🔗 Récupère l'URL publique de l'image
-    const { data: publicUrlData } = supabase.storage.from('articles-media').getPublicUrl(filePath);
-
-    let finalUrl = publicUrlData.publicUrl;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (supabaseUrl && finalUrl.startsWith(supabaseUrl)) {
-      finalUrl = finalUrl.replace(supabaseUrl, 'https://cdn.qoe.fi');
-    }
-
-    return NextResponse.json({ url: finalUrl }, { status: 200 });
+    return NextResponse.json({ url }, { status: 200 });
   } catch (error) {
     console.error('Upload API Route Error in Dashboard:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
