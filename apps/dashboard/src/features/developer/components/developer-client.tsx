@@ -559,7 +559,7 @@ export function DeveloperClient({
                     </span>{' '}
                     \
                   </div>
-                  <div className="pl-5">https://api.qoe.fi/v1/articles</div>
+                  <div className="pl-5">https://api-legacy.qoe.fi/v1/articles</div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
