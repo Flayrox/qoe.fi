@@ -6,7 +6,15 @@ const (
 	TaskArticlePublished  = "article.published"
 	TaskSubscriberCreated = "subscriber.created"
 	TaskPostLiked         = "post.liked"
+	TaskStripeEvent       = "stripe.event"
 )
+
+// StripeEventPayload est le payload d'un événement Stripe à traiter.
+type StripeEventPayload struct {
+	EventID   string         `json:"eventId"`
+	EventType string         `json:"eventType"`
+	Data      map[string]any `json:"data"`
+}
 
 // ArticlePublishedPayload est le payload de TaskArticlePublished.
 type ArticlePublishedPayload struct {

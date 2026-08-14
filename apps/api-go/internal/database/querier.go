@@ -21,6 +21,7 @@ type Querier interface {
 	CreatePoll(ctx context.Context, arg CreatePollParams) (CreatePollRow, error)
 	CreatePollOption(ctx context.Context, arg CreatePollOptionParams) (string, error)
 	CreateThought(ctx context.Context, arg CreateThoughtParams) (CreateThoughtRow, error)
+	CreateWalletTransaction(ctx context.Context, arg CreateWalletTransactionParams) (string, error)
 	CreateWebhookDelivery(ctx context.Context, arg CreateWebhookDeliveryParams) (string, error)
 	DecrementLikeCount(ctx context.Context, id string) error
 	DecrementReplyCount(ctx context.Context, id string) error
@@ -49,10 +50,13 @@ type Querier interface {
 	GetFollowedPersonalPublicationOwnerIDs(ctx context.Context, readerid pgtype.UUID) ([]string, error)
 	GetFreeSubscriberCount(ctx context.Context, publicationid string) (int32, error)
 	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
+	GetMediaOwnerForCredit(ctx context.Context, publicationid string) (GetMediaOwnerForCreditRow, error)
 	GetMediaRoleForUser(ctx context.Context, arg GetMediaRoleForUserParams) (string, error)
 	GetNotificationPreferences(ctx context.Context, userid pgtype.UUID) (GetNotificationPreferencesRow, error)
 	// Centre de notifications : liste groupée, non-lus, lecture, préférences.
 	GetNotifications(ctx context.Context, arg GetNotificationsParams) ([]GetNotificationsRow, error)
+	GetPersonalOwnerForCredit(ctx context.Context, publicationid pgtype.Text) (GetPersonalOwnerForCreditRow, error)
+	GetPersonalPublicationByUserID(ctx context.Context, id string) (pgtype.Text, error)
 	GetPersonalPublicationID(ctx context.Context, id string) (pgtype.Text, error)
 	// Polls, votes, pièces jointes
 	GetPollByThoughtID(ctx context.Context, thoughtid string) (GetPollByThoughtIDRow, error)
@@ -63,6 +67,7 @@ type Querier interface {
 	GetPostThread(ctx context.Context, arg GetPostThreadParams) ([]GetPostThreadRow, error)
 	GetPostsByIDs(ctx context.Context, arg GetPostsByIDsParams) ([]GetPostsByIDsRow, error)
 	GetPremiumActiveSubscribers(ctx context.Context, publicationid string) ([]GetPremiumActiveSubscribersRow, error)
+	GetPublicationByID(ctx context.Context, id string) (string, error)
 	GetRecentArticlesForAnalytics(ctx context.Context, arg GetRecentArticlesForAnalyticsParams) ([]GetRecentArticlesForAnalyticsRow, error)
 	GetRecentThoughtsForAnalytics(ctx context.Context, arg GetRecentThoughtsForAnalyticsParams) ([]GetRecentThoughtsForAnalyticsRow, error)
 	GetRepliesForThought(ctx context.Context, arg GetRepliesForThoughtParams) ([]GetRepliesForThoughtRow, error)
@@ -83,6 +88,7 @@ type Querier interface {
 	IncrementLikeCount(ctx context.Context, id string) error
 	IncrementReplyCount(ctx context.Context, id string) error
 	IncrementRepostCount(ctx context.Context, id string) error
+	IncrementWalletBalance(ctx context.Context, arg IncrementWalletBalanceParams) error
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
 	InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error
 	InsertMentionNotification(ctx context.Context, arg InsertMentionNotificationParams) error
@@ -92,9 +98,11 @@ type Querier interface {
 	ListArticlesByPublication(ctx context.Context, arg ListArticlesByPublicationParams) ([]ListArticlesByPublicationRow, error)
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
 	SetArticleStatus(ctx context.Context, arg SetArticleStatusParams) (string, error)
+	SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error
 	UpdateArticleContent(ctx context.Context, arg UpdateArticleContentParams) (string, error)
 	UpdateWebhookDelivery(ctx context.Context, arg UpdateWebhookDeliveryParams) error
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) error
+	UpsertSubscriberPayment(ctx context.Context, arg UpsertSubscriberPaymentParams) (string, error)
 }
 
 var _ Querier = (*Queries)(nil)
