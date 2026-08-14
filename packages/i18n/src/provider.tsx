@@ -78,7 +78,14 @@ export function TolgeeNextProvider({
 }) {
   // Load compiled catalogs into the shared Lingui instance.
   const i18n = getI18n();
-  React.useMemo(() => {
+
+  // ⚠️ Activation AFTER first render (useEffect), not during render:
+  // i18n.activate() synchronizes Lingui subscribers (I18nProvider), which
+  // would trigger a setState during TolgeeNextProvider's render otherwise
+  // ("Cannot update a component while rendering a different component").
+  // The default locale (fr) is already loaded/activated at module load in
+  // core.ts, so the first paint is correct and there is no flash.
+  React.useEffect(() => {
     i18n.load({ fr: catalogs.fr, en: catalogs.en });
     i18n.activate(language);
   }, [i18n, language]);
