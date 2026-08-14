@@ -5,7 +5,7 @@ import { CmdKDialog, CmdKInput, CmdKList, CmdKGroup, CmdKItem } from '@qoe/ui';
 import { settingsTree, flattenSettingsTree } from '../../settings/config/settingsTree';
 import { useState, useEffect, useMemo } from 'react';
 import { useDebounce } from 'use-debounce';
-import { URLS } from '@qoe/config';
+import { searchAllAction } from '@qoe/api-client/actions/search';
 import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -53,23 +53,31 @@ export function GlobalCommandMenu() {
     }
 
     let isMounted = true;
-    const controller = new AbortController();
 
     async function fetchResults() {
       setIsFetching(true);
       try {
-        const searchUrl = `${URLS.API}/search/articles?q=${encodeURIComponent(trimmed)}`;
-        const res = await fetch(searchUrl, { signal: controller.signal });
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted && data.hits) {
-            setSearchResults(data.hits);
+        const result = await searchAllAction({
+          query: trimmed,
+          type: 'articles',
+          limit: 10,
+        });
+        if (isMounted) {
+          if (result.ok) {
+            setSearchResults(
+              result.data.articles.map((article) => ({
+                id: article.id,
+                title: article.title ?? '',
+                slug: article.slug ?? '',
+                content: article.content ?? '',
+              }))
+            );
+          } else {
+            setSearchResults([]);
           }
         }
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name !== 'AbortError') {
-          if (isMounted) setSearchResults([]);
-        }
+      } catch {
+        if (isMounted) setSearchResults([]);
       } finally {
         if (isMounted) setIsFetching(false);
       }
@@ -79,7 +87,6 @@ export function GlobalCommandMenu() {
 
     return () => {
       isMounted = false;
-      controller.abort();
     };
   }, [debouncedQuery]);
 
