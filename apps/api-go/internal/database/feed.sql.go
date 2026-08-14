@@ -540,3 +540,32 @@ func (q *Queries) GetRepliesForThought(ctx context.Context, arg GetRepliesForTho
 	}
 	return items, nil
 }
+
+const getReplyIDsForThought = `-- name: GetReplyIDsForThought :many
+SELECT id
+FROM "Post"
+WHERE "parentId" = $1
+  AND "deletedAt" IS NULL
+  AND "isDraft" = false
+ORDER BY "createdAt" ASC
+`
+
+func (q *Queries) GetReplyIDsForThought(ctx context.Context, parentid pgtype.Text) ([]string, error) {
+	rows, err := q.db.Query(ctx, getReplyIDsForThought, parentid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

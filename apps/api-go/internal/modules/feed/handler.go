@@ -1,6 +1,7 @@
 package feed
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -23,6 +24,24 @@ func (h *Handler) Register(r chi.Router) {
 		r.Get("/", h.following)
 		r.Get("/trending", h.trending)
 	})
+	r.Get("/v1/posts/{id}/thread", h.thread)
+}
+
+func (h *Handler) thread(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+
+	thread, err := h.svc.Thread(r.Context(), id, userID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			response.NotFound(w, "Post introuvable")
+			return
+		}
+		log.Printf("[feed] thread: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"post": thread})
 }
 
 func parseLimitCursor(r *http.Request) (limit int, offset int) {

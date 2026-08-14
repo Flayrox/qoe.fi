@@ -138,6 +138,75 @@ func (s *Service) finalizeTrending(ctx context.Context, rows []db.FindTrendingRo
 	return result, nil
 }
 
+// ThreadPost est une pensée de fil avec ses réponses.
+type ThreadPost struct {
+	posts.FeedPost
+	Replies []posts.FeedPost `json:"replies"`
+}
+
+// Thread retourne une pensée + sa chaîne parent/repost + ses réponses.
+func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadPost, error) {
+	rows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: []string{postID}, ViewerID: toUUID(viewerID)})
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, ErrNotFound
+	}
+
+	// ids parents/reposts/réponses à charger.
+	want := map[string]bool{postID: true}
+	var extras []string
+	add := func(id *string) {
+		if id != nil && *id != "" && !want[*id] {
+			want[*id] = true
+			extras = append(extras, *id)
+		}
+	}
+	replyIDs, err := s.q.GetReplyIDsForThought(ctx, pgtype.Text{String: postID, Valid: true})
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range replyIDs {
+		add(&id)
+	}
+
+	all := map[string]*db.GetPostsByIDsRow{}
+	for i := range rows {
+		all[rows[i].ID] = &rows[i]
+	}
+	if len(extras) > 0 {
+		extraRows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: extras, ViewerID: toUUID(viewerID)})
+		if err != nil {
+			return nil, err
+		}
+		for i := range extraRows {
+			all[extraRows[i].ID] = &extraRows[i]
+		}
+	}
+
+	allIDs := append([]string{postID}, extras...)
+	attachments, err := s.attachmentsFor(ctx, allIDs)
+	if err != nil {
+		return nil, err
+	}
+	polls, err := s.pollsFor(ctx, allIDs, viewerID)
+	if err != nil {
+		return nil, err
+	}
+
+	target := buildFeedPost(all[postID], all, attachments, polls)
+	thread := &ThreadPost{FeedPost: target}
+
+	// Réponses triées par date croissante.
+	for _, id := range replyIDs {
+		if r, ok := all[id]; ok {
+			thread.Replies = append(thread.Replies, buildFeedPost(r, all, attachments, polls))
+		}
+	}
+	return thread, nil
+}
+
 // ErrNotFound est renvoyé quand un post n'existe pas.
 var ErrNotFound = errors.New("not found")
 
