@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 import { prisma, type Article, type Category, type Prisma } from '@qoe/db/client';
 import { createClient } from '@qoe/supabase/server';
 import { slugify, shortId } from '@qoe/utils';
-import { publications } from '@qoe/db';
+import { publications, notifications, articleComments } from '@qoe/db';
 import { safeAction } from '../utils/safe-action';
 
 async function authenticateUser() {
@@ -152,6 +152,13 @@ export const saveArticleAction = safeAction<
       },
     });
 
+    // 🔔 Fan-out aux abonnés du Média à la publication (transition draft→publié)
+    if (published && !existing.published) {
+      notifications
+        .notifyMediaArticlePublished(updated.publicationId, updated.id, user.id)
+        .catch(() => undefined);
+    }
+
     revalidatePath('/articles');
     revalidatePath(`/articles/${id}`);
     return updated;
@@ -172,6 +179,12 @@ export const saveArticleAction = safeAction<
         seoDescription,
       },
     });
+
+    if (published) {
+      notifications
+        .notifyMediaArticlePublished(created.publicationId, created.id, user.id)
+        .catch(() => undefined);
+    }
 
     revalidatePath('/articles');
     return created;
@@ -277,18 +290,11 @@ export const postArticleCommentAction = safeAction<
   }>
 >(async (data, user) => {
   const { articleId, content, parentId } = data;
-  const comment = await prisma.articleComment.create({
-    data: {
-      articleId,
-      authorId: user.id,
-      content,
-      parentId: parentId || null,
-    },
-    include: {
-      author: {
-        select: { id: true, name: true, username: true, logoUrl: true, isCertified: true },
-      },
-    },
+  const comment = await articleComments.createArticleComment({
+    articleId,
+    authorId: user.id,
+    content,
+    parentId: parentId || null,
   });
   return comment;
 });

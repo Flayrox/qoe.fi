@@ -1,4 +1,4 @@
-import { NotificationList } from '@/components/notifications/NotificationList';
+import { NotificationList } from '@qoe/ui/notifications';
 
 export const metadata = {
   title: 'Notifications | qoe.fi',

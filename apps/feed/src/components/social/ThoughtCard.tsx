@@ -1,11 +1,8 @@
 'use client';
 
 import React from 'react';
-import {
-  ThoughtCardContainer,
-  type ThoughtCardContainerProps,
-  usePostShadow,
-} from '@qoe/api-client';
+import { usePostShadow } from '@qoe/api-client';
+import { ThoughtCardContainer, type ThoughtCardContainerProps } from './ThoughtCardContainer';
 import { ConfirmDeleteModal } from '@qoe/ui';
 import { ModerationReportModal } from './ModerationReportModal';
 import { routes } from '@qoe/config/routes';

@@ -582,6 +582,31 @@ export async function createThought(data: {
   void cacheInvalidateNamespace('feed:trending:').catch(() => {});
   void cacheInvalidateNamespace(`feed:following:${data.authorId}:`).catch(() => {});
 
+  // 🔔 Notifier les @mentions présentes dans le post (hors réponses, gérées par replyToPost)
+  if (!data.parentId) {
+    const mentions = data.content.match(/@([a-zA-Z0-9_]+)/g);
+    if (mentions && mentions.length > 0) {
+      const usernames = Array.from(new Set(mentions.map((m) => m.slice(1))));
+      try {
+        const mentionedUsers = await prisma.user.findMany({
+          where: { username: { in: usernames } },
+          select: { id: true },
+        });
+        for (const u of mentionedUsers) {
+          if (u.id === data.authorId) continue;
+          createNotification({
+            recipientId: u.id,
+            senderId: data.authorId,
+            type: 'MENTION',
+            thoughtId: newPost.id,
+          }).catch((err) => logger.error('Erreur notification mention', { err }));
+        }
+      } catch (err) {
+        logger.error('Erreur recherche utilisateurs mentionnés', { err });
+      }
+    }
+  }
+
   return newPost;
 }
 
@@ -868,6 +893,7 @@ export async function replyToPost(postId: string, authorId: string, content: str
 
   // Parse mentions (@username)
   const mentions = content.match(/@([a-zA-Z0-9_]+)/g);
+  const mentionedIds = new Set<string>();
   if (mentions && mentions.length > 0) {
     const usernames = Array.from(new Set(mentions.map((m) => m.slice(1))));
     try {
@@ -878,6 +904,7 @@ export async function replyToPost(postId: string, authorId: string, content: str
       for (const u of mentionedUsers) {
         if (u.id !== authorId) {
           recipientsToNotify.add(u.id);
+          mentionedIds.add(u.id);
         }
       }
     } catch (err) {
@@ -890,7 +917,8 @@ export async function replyToPost(postId: string, authorId: string, content: str
       await createNotification({
         recipientId,
         senderId: authorId,
-        type: 'REPLY',
+        // Une @mention déclenche MENTION ; un participant du fil reçoit REPLY.
+        type: mentionedIds.has(recipientId) ? 'MENTION' : 'REPLY',
         thoughtId: reply.id,
       });
     } catch (err) {
@@ -1156,6 +1184,12 @@ export async function toggleRepost(
 ): Promise<{ reposted: boolean; canonicalId: string; post?: ThreadThought }> {
   const canonicalId = await getCanonicalPostId(postId);
 
+  // Récupère l'auteur du post cible pour la notification REPOST
+  const canonicalPost = await prisma.thought.findUnique({
+    where: { id: canonicalId },
+    select: { authorId: true },
+  });
+
   // Recherche de tous les pure reposts existants par le même utilisateur
   const existingReposts = await prisma.thought.findMany({
     where: {
@@ -1178,6 +1212,14 @@ export async function toggleRepost(
         data: { repostCount: { decrement: existingReposts.length } },
       }),
     ]);
+    if (canonicalPost?.authorId) {
+      deleteNotification({
+        recipientId: canonicalPost.authorId,
+        senderId: authorId,
+        type: 'REPOST',
+        thoughtId: canonicalId,
+      }).catch((err) => logger.error('Erreur suppression notification repost', { err }));
+    }
     void cacheInvalidateNamespace('feed:trending:').catch(() => {});
     void cacheInvalidateNamespace(`feed:following:${authorId}:`).catch(() => {});
     return { reposted: false, canonicalId };
@@ -1220,6 +1262,14 @@ export async function toggleRepost(
         data: { repostCount: { increment: 1 } },
       }),
     ]);
+    if (canonicalPost?.authorId && canonicalPost.authorId !== authorId) {
+      createNotification({
+        recipientId: canonicalPost.authorId,
+        senderId: authorId,
+        type: 'REPOST',
+        thoughtId: canonicalId,
+      }).catch((err) => logger.error('Erreur notification repost', { err }));
+    }
     void cacheInvalidateNamespace('feed:trending:').catch(() => {});
     void cacheInvalidateNamespace(`feed:following:${authorId}:`).catch(() => {});
     return { reposted: true, canonicalId, post: newRepost as ThreadThought };

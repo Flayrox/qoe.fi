@@ -5,9 +5,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Bookmark, Highlighter, Wallet, LogOut, LayoutDashboard } from 'lucide-react';
+import { Home, Bookmark, Highlighter, Wallet, LogOut, LayoutDashboard, Bell } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { Logo } from '@qoe/ui';
+import { useUnreadNotificationCount } from '@qoe/ui/notifications';
 import { routes } from '@qoe/config/routes';
 import { URLS } from '@qoe/config';
 import { t } from '@lingui/core/macro';
@@ -30,6 +31,7 @@ export function ReaderNavOverlay({
   const pathname = usePathname();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const unreadCount = useUnreadNotificationCount();
 
   useEffect(() => {
     setIsMounted(true);
@@ -37,6 +39,7 @@ export function ReaderNavOverlay({
 
   const navItems = [
     { label: t`Accueil`, href: routes.feed.home(), icon: Home },
+    { label: t`Notifications`, href: '/notifications', icon: Bell, badge: unreadCount },
     { label: t`Signets`, href: routes.feed.library(), icon: Bookmark },
     {
       label: t`Surlignages`,
@@ -117,6 +120,18 @@ export function ReaderNavOverlay({
                     active ? 'text-primary-foreground' : 'text-muted-foreground'
                   )}
                 />
+                {item.badge ? (
+                  <span
+                    className={cn(
+                      'inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[9px] font-bold tabular-nums',
+                      active
+                        ? 'bg-primary-foreground text-primary'
+                        : 'bg-primary text-primary-foreground'
+                    )}
+                  >
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                ) : null}
                 <span className="hidden sm:inline text-xs tracking-tight">{item.label}</span>
               </Link>
             );

@@ -29,6 +29,11 @@ export async function AppSidebar() {
   const userAvatar =
     user?.logoUrl || (authUser?.user_metadata?.avatar_url as string | undefined) || null;
 
+  // 🔔 Compteur de notifications non lues (badge sidebar)
+  const unreadCount = user
+    ? await prisma.notification.count({ where: { recipientId: user.id, isRead: false } })
+    : 0;
+
   // Résout le workspace actif (cookie) pour adapter le Studio
   let brandName = t`Studio`;
   try {
@@ -60,6 +65,12 @@ export async function AppSidebar() {
       title: t`Articles`,
       url: '/articles',
       iconName: 'FileText',
+    },
+    {
+      title: t`Notifications`,
+      url: '/notifications',
+      iconName: 'Bell',
+      badge: unreadCount > 0 ? unreadCount : undefined,
     },
     {
       title: t`Médias`,

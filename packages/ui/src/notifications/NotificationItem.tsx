@@ -2,58 +2,52 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Heart, Repeat, MessageCircle, AtSign, UserPlus } from 'lucide-react';
+import { Heart, Repeat, MessageCircle, AtSign, UserPlus, Newspaper } from 'lucide-react';
+import { cn } from '@qoe/utils';
+
+export type GroupedNotificationLike = {
+  id: string;
+  type:
+    | 'LIKE'
+    | 'REPOST'
+    | 'REPLY'
+    | 'COMMENT'
+    | 'MENTION'
+    | 'FOLLOW'
+    | 'MEDIA_INVITE'
+    | 'MEDIA_MEMBER_JOINED'
+    | 'MEDIA_ARTICLE_PUBLISHED'
+    | 'MEDIA_MENTION';
+  isRead: boolean;
+  createdAt: string | Date;
+  thoughtId?: string | null;
+  articleId?: string | null;
+  commentId?: string | null;
+  thought?: { id: string; content: string; createdAt: string | Date } | null;
+  article?: { id: string; title: string; slug: string } | null;
+  publication?: { id: string; name: string | null } | null;
+  senders: Array<{
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+    isCertified: boolean;
+  }>;
+  totalCount: number;
+};
 
 interface NotificationItemProps {
-  notification: {
-    id: string;
-    type:
-      | 'LIKE'
-      | 'REPOST'
-      | 'REPLY'
-      | 'MENTION'
-      | 'FOLLOW'
-      | 'MEDIA_INVITE'
-      | 'MEDIA_MEMBER_JOINED'
-      | 'MEDIA_ARTICLE_PUBLISHED'
-      | 'MEDIA_MENTION';
-    isRead: boolean;
-    createdAt: string | Date;
-    thoughtId?: string | null;
-    articleId?: string | null;
-    commentId?: string | null;
-    thought?: {
-      id: string;
-      content: string;
-      createdAt: string | Date;
-    } | null;
-    article?: {
-      id: string;
-      title: string;
-      slug: string;
-    } | null;
-    publication?: {
-      id: string;
-      name: string | null;
-    } | null;
-    senders: Array<{
-      id: string;
-      name: string | null;
-      username: string | null;
-      logoUrl: string | null;
-      isCertified: boolean;
-    }>;
-    totalCount: number;
-  };
+  notification: GroupedNotificationLike;
+  /** Marque la notification comme lue (peut être appelé au clic). */
+  onMarkRead?: (id: string) => void;
 }
 
-export function NotificationItem({ notification }: NotificationItemProps) {
+export function NotificationItem({ notification, onMarkRead }: NotificationItemProps) {
   const { type, senders, totalCount, thought, article, isRead, createdAt } = notification;
 
   const firstSender = senders[0];
   const otherSendersCount = totalCount - 1;
 
-  // Configuration selon le type de notification
   let Icon = Heart;
   let iconColorClass = 'text-destructive bg-destructive/10';
   let actionText = '';
@@ -73,6 +67,11 @@ export function NotificationItem({ notification }: NotificationItemProps) {
       Icon = MessageCircle;
       iconColorClass = 'text-primary bg-primary/10';
       actionText = 'a répondu à votre pensée';
+      break;
+    case 'COMMENT':
+      Icon = MessageCircle;
+      iconColorClass = 'text-primary bg-primary/10';
+      actionText = article ? 'a commenté votre article' : 'a commenté votre écrit';
       break;
     case 'MENTION':
       Icon = AtSign;
@@ -97,9 +96,11 @@ export function NotificationItem({ notification }: NotificationItemProps) {
       actionText = notification.publication?.name ? 'a rejoint le Média' : 'a rejoint un Média';
       break;
     case 'MEDIA_ARTICLE_PUBLISHED':
-      Icon = MessageCircle;
+      Icon = Newspaper;
       iconColorClass = 'text-primary bg-primary/10';
-      actionText = 'a publié dans le Média';
+      actionText = notification.publication?.name
+        ? `a publié « ${notification.article?.title ?? 'un nouvel article'} » dans le Média`
+        : 'a publié dans le Média';
       break;
     case 'MEDIA_MENTION':
       Icon = AtSign;
@@ -108,7 +109,7 @@ export function NotificationItem({ notification }: NotificationItemProps) {
       break;
   }
 
-  // Calcul du temps relatif
+  // Temps relatif
   const dateObj = new Date(createdAt);
   const now = new Date();
   const diffInMinutes = Math.floor((now.getTime() - dateObj.getTime()) / 60000);
@@ -134,14 +135,21 @@ export function NotificationItem({ notification }: NotificationItemProps) {
   return (
     <Link
       href={targetLink}
-      className={`block p-4 border-b border-border transition-colors hover:bg-muted/40 ${
-        !isRead ? 'bg-primary/5' : ''
-      }`}
+      onClick={() => {
+        if (!isRead && onMarkRead) onMarkRead(notification.id);
+      }}
+      className={cn(
+        'block p-4 border-b border-border transition-colors hover:bg-muted/40',
+        !isRead && 'bg-primary/[0.04]'
+      )}
     >
       <div className="flex items-start gap-3">
+        {/* Point non-lu discret */}
+        {!isRead && <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />}
+
         {/* Badge d'action */}
-        <div className={`p-2 rounded-full shrink-0 ${iconColorClass}`}>
-          <Icon className="w-4 h-4" />
+        <div className={cn('p-2 rounded-full shrink-0', iconColorClass)}>
+          <Icon className="size-4" strokeWidth={1.5} />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -150,7 +158,7 @@ export function NotificationItem({ notification }: NotificationItemProps) {
             {senders.slice(0, 5).map((sender, idx) => (
               <div
                 key={sender.id || idx}
-                className="relative w-8 h-8 rounded-full border-2 border-background overflow-hidden bg-muted shrink-0"
+                className="relative size-8 rounded-full border-2 border-background overflow-hidden bg-muted shrink-0"
               >
                 {sender.logoUrl ? (
                   <Image
@@ -160,7 +168,7 @@ export function NotificationItem({ notification }: NotificationItemProps) {
                     className="object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center font-bold text-xs bg-muted text-muted-foreground">
+                  <div className="size-full flex items-center justify-center font-bold text-xs bg-muted text-muted-foreground">
                     {(sender.name || sender.username || 'U').charAt(0).toUpperCase()}
                   </div>
                 )}
@@ -183,16 +191,15 @@ export function NotificationItem({ notification }: NotificationItemProps) {
             <span className="text-xs text-muted-foreground ml-2">· {timeAgo}</span>
           </div>
 
-          {/* Snippet de la pensée ou de l'article ciblé */}
+          {/* Snippet du contenu ciblé */}
           {thought && (
             <p className="mt-1 text-sm text-muted-foreground line-clamp-2 bg-muted/30 p-2 rounded-lg border border-border/50">
               {thought.content}
             </p>
           )}
-
-          {article && (
+          {article && type !== 'MEDIA_ARTICLE_PUBLISHED' && (
             <p className="mt-1 text-sm font-medium text-primary line-clamp-1 bg-muted/30 p-2 rounded-lg border border-border/50">
-              📖 {article.title}
+              {article.title}
             </p>
           )}
         </div>

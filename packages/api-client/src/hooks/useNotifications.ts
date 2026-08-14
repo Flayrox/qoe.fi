@@ -1,7 +1,8 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationKeys } from '../query-keys';
+import type { NotificationFilter } from '../actions/notifications';
 import {
   getNotificationsAction,
   getUnreadNotificationCountAction,
@@ -10,7 +11,7 @@ import {
   updateNotificationPreferencesAction,
 } from '../actions/notifications';
 
-export function useNotificationsQuery(filter: 'all' | 'mentions' | 'replies' | 'likes' = 'all') {
+export function useNotificationsQuery(filter: NotificationFilter = 'all') {
   return useQuery({
     queryKey: notificationKeys.list(filter),
     queryFn: async () => {
@@ -21,6 +22,22 @@ export function useNotificationsQuery(filter: 'all' | 'mentions' | 'replies' | '
       return [];
     },
     staleTime: 1000 * 30, // 30s
+  });
+}
+
+export function useNotificationsInfiniteQuery(filter: NotificationFilter = 'all', limit = 30) {
+  return useInfiniteQuery({
+    queryKey: notificationKeys.list(filter),
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam }) => {
+      const res = await getNotificationsAction({ filter, limit, cursor: pageParam });
+      if (res.ok) {
+        return res.data;
+      }
+      return { notifications: [], nextCursor: null };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    staleTime: 1000 * 30,
   });
 }
 

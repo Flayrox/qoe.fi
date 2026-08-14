@@ -687,6 +687,7 @@ enum NotificationType {
   LIKE
   REPOST
   REPLY
+  COMMENT
   MENTION
   FOLLOW
   MEDIA_INVITE
@@ -735,6 +736,10 @@ model NotificationPreference {
   pushFollows   Boolean  @default(true)
   emailReposts  Boolean  @default(true)
   pushReposts   Boolean  @default(true)
+  emailComments Boolean  @default(true)
+  pushComments  Boolean  @default(true)
+  emailMedia    Boolean  @default(true)
+  pushMedia     Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
