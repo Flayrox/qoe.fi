@@ -98,6 +98,11 @@ go build ./... && go vet ./...
       `stripe.event` → entitlements abonné (ltv increment), **commission**
       (FREE 10% / PRO 5%) + crédit wallet + `WalletTransaction` DEPOSIT
       — **testé** (abonné ltv=2000, wallet +1800 sur 20€, txn DEPOSIT)
+- [x] **Worker Meilisearch** : setup de l'index (primaryKey `id` + settings,
+      PATCH brut pour contourner `disableOnNumbers`), tâche asynq `search.sync`
+      (upsert/delete document) câblée au module articles (create/update/
+      publish/delete) — **testé** (article créé → indexé → recherchable ;
+      delete → `documentDeletion` succeeded)
 - [x] Workers **asynq** (`cmd/worker`) : webhook dispatch (HMAC-SHA256 + logs) et
       newsletter fanout ; endpoint interne `/internal/events/*` (enqueue asynq,
       secret `QOE_INTERNAL_SECRET`) ; article.published + subscriber.created

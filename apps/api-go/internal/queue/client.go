@@ -67,6 +67,20 @@ func PublishArticlePublished(c *asynq.Client, p ArticlePublishedPayload) error {
 	return err
 }
 
+// PublishSearchSync enqueue un job de sync Meilisearch.
+func PublishSearchSync(c *asynq.Client, p SearchSyncPayload) error {
+	if c == nil {
+		return nil
+	}
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	task := asynq.NewTask(TaskSearchSync, payload, asynq.MaxRetry(3), asynq.Timeout(30*time.Second))
+	_, err = c.Enqueue(task, asynq.Queue("low"))
+	return err
+}
+
 // PublishStripeEvent enqueue un événement Stripe à traiter (worker billing).
 func PublishStripeEvent(c *asynq.Client, p StripeEventPayload) error {
 	if c == nil {

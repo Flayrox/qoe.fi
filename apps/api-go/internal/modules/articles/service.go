@@ -205,6 +205,7 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 	if err != nil {
 		return "", err
 	}
+	s.queueSearchSync(id, "upsert")
 	return id, nil
 }
 
@@ -253,6 +254,9 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		SeoTitle: textVal(in.SeoTitle), SeoDescription: textVal(in.SeoDescription),
 		ReadingTime: int32(in.ReadingTime),
 	})
+	if err == nil {
+		s.queueSearchSync(articleID, "upsert")
+	}
 	return err
 }
 
@@ -272,10 +276,19 @@ func (s *Service) SetStatus(ctx context.Context, articleID, userID, status strin
 	if _, err := s.q.SetArticleStatus(ctx, db.SetArticleStatusParams{ID: articleID, Status: status, Published: published}); err != nil {
 		return err
 	}
+	s.queueSearchSync(articleID, "upsert")
 	if published {
 		s.emitPublished(ctx, row)
 	}
 	return nil
+}
+
+// queueSearchSync enqueue un job de sync Meilisearch.
+func (s *Service) queueSearchSync(articleID string, action string) {
+	if s.ac == nil {
+		return
+	}
+	_ = queue.PublishSearchSync(s.ac, queue.SearchSyncPayload{ArticleID: articleID, Action: action})
 }
 
 // emitPublished enqueue l'événement article.published dans asynq.
