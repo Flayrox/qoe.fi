@@ -268,3 +268,25 @@ func isUniqueViolation(err error) bool {
 	}
 	return false
 }
+
+// ToggleBookmark ajoute ou retire un bookmark (miroir Hono : targetId = articleId).
+func (s *Service) ToggleBookmark(ctx context.Context, targetID, userID string) (bool, error) {
+	_, err := s.q.GetExistingBookmark(ctx, db.GetExistingBookmarkParams{ReaderId: toUUID(userID), ArticleId: targetID})
+	if err == nil {
+		if err := s.q.DeleteBookmark(ctx, db.DeleteBookmarkParams{ReaderId: toUUID(userID), ArticleId: targetID}); err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return false, err
+	}
+
+	if err := s.q.InsertBookmark(ctx, db.InsertBookmarkParams{ReaderId: toUUID(userID), ArticleId: targetID}); err != nil {
+		if isUniqueViolation(err) {
+			return true, nil
+		}
+		return false, err
+	}
+	return true, nil
+}

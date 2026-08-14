@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	db "github.com/qoefi/api-go/internal/database"
 )
 
 type ctxKey string
@@ -79,6 +80,31 @@ func (a *Auth) OptionalAuth(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		}
 	})
+}
+
+// CombinedAuth accepte un JWT Supabase OU une clé API `qoe_live_…`.
+// Injecte l'UID (+ publication pour les clés API) dans le contexte.
+// Usage : protéger les routes créateur accessibles aux deux types de clients.
+func (a *Auth) CombinedAuth(q *db.Queries) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			header := r.Header.Get("Authorization")
+			if header != "" {
+				if token := strings.TrimPrefix(header, "Bearer "); token != header {
+					if strings.HasPrefix(token, "qoe_live_") {
+						ctx, ok := apiKeyUserID(q, r)
+						if !ok {
+							writeUnauthorized(w, "Clé API invalide")
+							return
+						}
+						next.ServeHTTP(w, r.WithContext(ctx))
+						return
+					}
+				}
+			}
+			a.Middleware(next).ServeHTTP(w, r)
+		})
+	}
 }
 
 // Middleware valide le Bearer token Supabase et injecte l'UID dans le contexte.

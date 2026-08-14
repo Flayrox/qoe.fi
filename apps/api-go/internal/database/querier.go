@@ -11,6 +11,8 @@ import (
 )
 
 type Querier interface {
+	CountFollowers(ctx context.Context, publicationid string) (int32, error)
+	CountFollowing(ctx context.Context, readerid pgtype.UUID) (int32, error)
 	CountOptionVotes(ctx context.Context, optionid string) (int32, error)
 	CountOptionVotesByIDs(ctx context.Context, dollar_1 []string) ([]CountOptionVotesByIDsRow, error)
 	CountPollVotes(ctx context.Context, pollid string) (int32, error)
@@ -27,6 +29,8 @@ type Querier interface {
 	DecrementReplyCount(ctx context.Context, id string) error
 	DecrementRepostCount(ctx context.Context, id string) error
 	DeleteArticle(ctx context.Context, id string) error
+	DeleteBookmark(ctx context.Context, arg DeleteBookmarkParams) error
+	DeleteFollow(ctx context.Context, arg DeleteFollowParams) error
 	DeleteLike(ctx context.Context, arg DeleteLikeParams) error
 	DeleteLikeNotification(ctx context.Context, arg DeleteLikeNotificationParams) error
 	DeletePureReposts(ctx context.Context, arg DeletePureRepostsParams) error
@@ -40,12 +44,16 @@ type Querier interface {
 	GetActiveSubscribersByPublication(ctx context.Context, arg GetActiveSubscribersByPublicationParams) ([]GetActiveSubscribersByPublicationRow, error)
 	GetActiveSubscriptionForReply(ctx context.Context, arg GetActiveSubscriptionForReplyParams) (int32, error)
 	GetActiveWebhooksByPublication(ctx context.Context, arg GetActiveWebhooksByPublicationParams) ([]GetActiveWebhooksByPublicationRow, error)
+	// API Créateur (migration depuis Hono apps/api) : clés API, catégories, users, follows, bookmarks.
+	GetApiKeyByHash(ctx context.Context, keyhash string) (GetApiKeyByHashRow, error)
 	GetArticleByID(ctx context.Context, id string) (GetArticleByIDRow, error)
 	GetArticleBySlug(ctx context.Context, arg GetArticleBySlugParams) (GetArticleBySlugRow, error)
 	GetArticleForSearch(ctx context.Context, id string) (GetArticleForSearchRow, error)
 	GetAttachmentsByIDs(ctx context.Context, dollar_1 []string) ([]GetAttachmentsByIDsRow, error)
 	GetAudienceSummary(ctx context.Context, publicationid string) (GetAudienceSummaryRow, error)
 	GetCanonicalThoughtID(ctx context.Context, id string) (string, error)
+	GetExistingBookmark(ctx context.Context, arg GetExistingBookmarkParams) (int32, error)
+	GetExistingFollow(ctx context.Context, arg GetExistingFollowParams) (int32, error)
 	GetExistingLike(ctx context.Context, arg GetExistingLikeParams) (int32, error)
 	GetFollowForReply(ctx context.Context, arg GetFollowForReplyParams) (int32, error)
 	GetFollowedPersonalPublicationOwnerIDs(ctx context.Context, readerid pgtype.UUID) ([]string, error)
@@ -69,6 +77,7 @@ type Querier interface {
 	GetPostsByIDs(ctx context.Context, arg GetPostsByIDsParams) ([]GetPostsByIDsRow, error)
 	GetPremiumActiveSubscribers(ctx context.Context, publicationid string) ([]GetPremiumActiveSubscribersRow, error)
 	GetPublicationByID(ctx context.Context, id string) (string, error)
+	GetPublicationBySlugOrSubdomain(ctx context.Context, slug string) (GetPublicationBySlugOrSubdomainRow, error)
 	GetRecentArticlesForAnalytics(ctx context.Context, arg GetRecentArticlesForAnalyticsParams) ([]GetRecentArticlesForAnalyticsRow, error)
 	GetRecentThoughtsForAnalytics(ctx context.Context, arg GetRecentThoughtsForAnalyticsParams) ([]GetRecentThoughtsForAnalyticsRow, error)
 	GetRepliesForThought(ctx context.Context, arg GetRepliesForThoughtParams) ([]GetRepliesForThoughtRow, error)
@@ -81,6 +90,7 @@ type Querier interface {
 	GetThoughtReplyGate(ctx context.Context, id string) (GetThoughtReplyGateRow, error)
 	GetUnreadCount(ctx context.Context, recipientid pgtype.UUID) (int32, error)
 	GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error)
+	GetUserByIDFull(ctx context.Context, id string) (GetUserByIDFullRow, error)
 	GetUserPersonalPublication(ctx context.Context, id string) (pgtype.Text, error)
 	GetUserPollVote(ctx context.Context, arg GetUserPollVoteParams) (string, error)
 	GetUserUsername(ctx context.Context, id string) (pgtype.Text, error)
@@ -90,6 +100,8 @@ type Querier interface {
 	IncrementReplyCount(ctx context.Context, id string) error
 	IncrementRepostCount(ctx context.Context, id string) error
 	IncrementWalletBalance(ctx context.Context, arg IncrementWalletBalanceParams) error
+	InsertBookmark(ctx context.Context, arg InsertBookmarkParams) error
+	InsertFollow(ctx context.Context, arg InsertFollowParams) error
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
 	InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error
 	InsertMentionNotification(ctx context.Context, arg InsertMentionNotificationParams) error
@@ -97,9 +109,11 @@ type Querier interface {
 	InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error
 	InsertRepostNotification(ctx context.Context, arg InsertRepostNotificationParams) error
 	ListArticlesByPublication(ctx context.Context, arg ListArticlesByPublicationParams) ([]ListArticlesByPublicationRow, error)
+	ListCategoriesByPublication(ctx context.Context, publicationid string) ([]ListCategoriesByPublicationRow, error)
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
 	SetArticleStatus(ctx context.Context, arg SetArticleStatusParams) (string, error)
 	SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error
+	UpdateApiKeyLastUsed(ctx context.Context, id string) error
 	UpdateArticleContent(ctx context.Context, arg UpdateArticleContentParams) (string, error)
 	UpdateWebhookDelivery(ctx context.Context, arg UpdateWebhookDeliveryParams) error
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) error
