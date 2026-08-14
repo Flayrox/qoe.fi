@@ -20,6 +20,7 @@ type Querier interface {
 	CreatePoll(ctx context.Context, arg CreatePollParams) (CreatePollRow, error)
 	CreatePollOption(ctx context.Context, arg CreatePollOptionParams) (string, error)
 	CreateThought(ctx context.Context, arg CreateThoughtParams) (CreateThoughtRow, error)
+	CreateWebhookDelivery(ctx context.Context, arg CreateWebhookDeliveryParams) (string, error)
 	DecrementLikeCount(ctx context.Context, id string) error
 	DecrementReplyCount(ctx context.Context, id string) error
 	DecrementRepostCount(ctx context.Context, id string) error
@@ -33,7 +34,9 @@ type Querier interface {
 	ExistsUnreadRepostNotification(ctx context.Context, arg ExistsUnreadRepostNotificationParams) (int32, error)
 	FindFollowingFeed(ctx context.Context, arg FindFollowingFeedParams) ([]FindFollowingFeedRow, error)
 	FindTrending(ctx context.Context, arg FindTrendingParams) ([]FindTrendingRow, error)
+	GetActiveSubscribersByPublication(ctx context.Context, arg GetActiveSubscribersByPublicationParams) ([]GetActiveSubscribersByPublicationRow, error)
 	GetActiveSubscriptionForReply(ctx context.Context, arg GetActiveSubscriptionForReplyParams) (int32, error)
+	GetActiveWebhooksByPublication(ctx context.Context, arg GetActiveWebhooksByPublicationParams) ([]GetActiveWebhooksByPublicationRow, error)
 	GetAttachmentsByIDs(ctx context.Context, dollar_1 []string) ([]GetAttachmentsByIDsRow, error)
 	GetCanonicalThoughtID(ctx context.Context, id string) (string, error)
 	GetExistingLike(ctx context.Context, arg GetExistingLikeParams) (int32, error)
@@ -69,6 +72,7 @@ type Querier interface {
 	InsertPureRepost(ctx context.Context, arg InsertPureRepostParams) (string, error)
 	InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error
 	InsertRepostNotification(ctx context.Context, arg InsertRepostNotificationParams) error
+	UpdateWebhookDelivery(ctx context.Context, arg UpdateWebhookDeliveryParams) error
 }
 
 var _ Querier = (*Queries)(nil)
