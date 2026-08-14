@@ -37,6 +37,14 @@ func (h *Handler) Register(r chi.Router) {
 		r.Post("/{id}/like", h.toggleLike)
 		r.Post("/{id}/repost", h.toggleRepost)
 		r.Post("/{id}/reply", h.reply)
+		r.Post("/{id}/bookmark", h.toggleBookmark)
+	})
+	// Aliases mobile (parité Hono apps/api) : /v1/thoughts → posts.
+	r.Route("/v1/thoughts", func(r chi.Router) {
+		r.Post("/", h.create)
+		r.Post("/{id}/like", h.toggleLike)
+		r.Post("/{id}/repost", h.toggleRepost)
+		r.Post("/{id}/bookmark", h.toggleBookmark)
 	})
 }
 
@@ -124,4 +132,17 @@ func (h *Handler) reply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.Created(w, post)
+}
+
+func (h *Handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+
+	bookmarked, err := h.svc.ToggleBookmark(r.Context(), id, userID)
+	if err != nil {
+		log.Printf("[posts] bookmark: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]bool{"bookmarked": bookmarked})
 }

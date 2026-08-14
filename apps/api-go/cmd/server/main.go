@@ -15,16 +15,19 @@ import (
 
 	"github.com/qoefi/api-go/internal/cache"
 	"github.com/qoefi/api-go/internal/config"
+	"github.com/qoefi/api-go/internal/database"
 	"github.com/qoefi/api-go/internal/dbpool"
 	authmw "github.com/qoefi/api-go/internal/middleware"
 	"github.com/qoefi/api-go/internal/modules/analytics"
 	"github.com/qoefi/api-go/internal/modules/articles"
 	"github.com/qoefi/api-go/internal/modules/billing"
+	"github.com/qoefi/api-go/internal/modules/creator"
 	"github.com/qoefi/api-go/internal/modules/events"
 	"github.com/qoefi/api-go/internal/modules/feed"
 	"github.com/qoefi/api-go/internal/modules/notifications"
 	"github.com/qoefi/api-go/internal/modules/posts"
 	"github.com/qoefi/api-go/internal/queue"
+	"github.com/qoefi/api-go/internal/umami"
 )
 
 func main() {
@@ -59,6 +62,10 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
+	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
 
 	// Endpoints internes (émission d'événements → asynq), protégés par secret.
 	eventsHandler := events.NewHandler(asynqClient, cfg.InternalSecret)
@@ -77,11 +84,11 @@ func main() {
 		articlesHandler.RegisterPublic(pub)
 	})
 
-	// Toute l'API créateur exige un Bearer token valide.
+	// Toute l'API créateur exige un Bearer token valide (JWT OU clé API qoe_live_).
 	r.Group(func(protected chi.Router) {
 		// 600 req/min par utilisateur (usage créateur légitime, généreux).
 		protected.Use(authmw.RateLimit(rc, time.Minute, 600, true))
-		protected.Use(auth.Middleware)
+		protected.Use(auth.CombinedAuth(db.New(pool)))
 
 		postsHandler := posts.NewHandler(posts.NewService(pool, rc))
 		postsHandler.Register(protected)
@@ -96,7 +103,21 @@ func main() {
 
 		analyticsHandler := analytics.NewHandler(analytics.NewService(pool))
 		analyticsHandler.Register(protected)
+
+		creatorHandler := creator.NewHandler(pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey), cfg.DefaultUmamiWebsiteID)
+		creatorHandler.RegisterProtected(protected)
 	})
+
+	// API créateur par clé API (qoe_live_…) : catégories + analytics/stats (proxy Umami).
+	r.Group(func(apiKey chi.Router) {
+		apiKey.Use(authmw.APIKeyAuth(db.New(pool)))
+		creatorHandler := creator.NewHandler(pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey), cfg.DefaultUmamiWebsiteID)
+		creatorHandler.RegisterAPIKey(apiKey)
+	})
+
+	// Profils publics (résolution publication par slug/subdomain).
+	creatorPublic := creator.NewHandler(pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey), cfg.DefaultUmamiWebsiteID)
+	creatorPublic.RegisterPublic(r)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

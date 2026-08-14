@@ -19,17 +19,25 @@ type Config struct {
 	InternalSecret string
 	// StripeWebhookSecret vérifie les signatures des webhooks Stripe.
 	StripeWebhookSecret string
+	// UmamiAPIURL / UmamiAPIKey pour le proxy /v1/analytics/stats (créateur).
+	UmamiAPIURL string
+	UmamiAPIKey string
+	// DefaultUmamiWebsiteID utilisé en fallback quand la publication n'en a pas.
+	DefaultUmamiWebsiteID string
 }
 
 func Load() *Config {
 	return &Config{
-		Port:                envOr("PORT", "8080"),
-		DatabaseURL:         envOr("DATABASE_URL", ""),
-		SupabaseAuthURL:     envOr("SUPABASE_AUTH_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")),
-		JWTSecret:           envOr("SUPABASE_JWT_SECRET", envOr("SUPABASE_SECRET_KEY", "")),
-		RedisURL:            envOr("REDIS_URL", "redis://localhost:6379"),
-		InternalSecret:      envOr("QOE_INTERNAL_SECRET", envOr("SUPABASE_SERVICE_ROLE_KEY", "")),
-		StripeWebhookSecret: envOr("STRIPE_WEBHOOK_SECRET", ""),
+		Port:                  envOr("PORT", "8080"),
+		DatabaseURL:           envOr("DATABASE_URL", ""),
+		SupabaseAuthURL:       envOr("SUPABASE_AUTH_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")),
+		JWTSecret:             envOr("SUPABASE_JWT_SECRET", envOr("SUPABASE_SECRET_KEY", "")),
+		RedisURL:              envOr("REDIS_URL", "redis://localhost:6379"),
+		InternalSecret:        envOr("QOE_INTERNAL_SECRET", envOr("SUPABASE_SERVICE_ROLE_KEY", "")),
+		StripeWebhookSecret:   envOr("STRIPE_WEBHOOK_SECRET", ""),
+		UmamiAPIURL:           envOr("UMAMI_API_URL", "https://api.umami.is/v1"),
+		UmamiAPIKey:           envOr("UMAMI_API_KEY", ""),
+		DefaultUmamiWebsiteID: envOr("NEXT_PUBLIC_UMAMI_WEBSITE_ID", ""),
 	}
 }
 
