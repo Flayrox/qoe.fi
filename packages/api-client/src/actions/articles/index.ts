@@ -6,6 +6,7 @@ import { prisma, type Article, type Category, type Prisma } from '@qoe/db/client
 import { createClient } from '@qoe/supabase/server';
 import { slugify, shortId } from '@qoe/utils';
 import { publications, notifications, articleComments } from '@qoe/db';
+import { canMedia, canEditMediaArticle, type MediaMemberContext } from '@qoe/auth';
 import { safeAction } from '../utils/safe-action';
 
 async function authenticateUser() {
@@ -46,6 +47,63 @@ async function getActivePublicationId(userId: string): Promise<string> {
   return personal.id;
 }
 
+/**
+ * 🏢 Résout le contexte média d'un utilisateur pour une publication donnée.
+ * Retourne { member, isMedia } — isMedia=true si la publication est un Média.
+ */
+async function getMediaMemberContext(
+  userId: string,
+  publicationId: string
+): Promise<{ member: MediaMemberContext | null; isMedia: boolean }> {
+  const publication = await prisma.publication.findUnique({
+    where: { id: publicationId },
+    select: { type: true, media: { select: { id: true } } },
+  });
+  if (!publication || publication.type !== 'MEDIA' || !publication.media) {
+    return { member: null, isMedia: false };
+  }
+
+  const membership = await prisma.mediaMember.findUnique({
+    where: { mediaId_userId: { mediaId: publication.media.id, userId } },
+    select: { role: true, permissions: true, status: true },
+  });
+
+  return { member: membership, isMedia: true };
+}
+
+/**
+ * 🔔 Notifie les approbateurs (owner/editor) d'un Média qu'un article attend une revue.
+ */
+async function notifyReviewers(publicationId: string, articleId: string, submitterId: string) {
+  try {
+    const publication = await prisma.publication.findUnique({
+      where: { id: publicationId },
+      select: {
+        media: {
+          include: { members: { select: { userId: true, role: true, permissions: true } } },
+        },
+      },
+    });
+    const members = publication?.media?.members ?? [];
+    const reviewers = members.filter((m) =>
+      canMedia({ role: m.role, permissions: m.permissions }, 'media:review')
+    );
+    await Promise.allSettled(
+      reviewers.map((r) =>
+        notifications.createNotification({
+          recipientId: r.userId,
+          senderId: submitterId,
+          type: 'MEDIA_ARTICLE_SUBMITTED',
+          articleId,
+          publicationId,
+        })
+      )
+    );
+  } catch {
+    // Best-effort
+  }
+}
+
 export const getArticlesAction = safeAction<
   void,
   Prisma.ArticleGetPayload<{ include: { category: true } }>[]
@@ -83,6 +141,7 @@ export const saveArticleAction = safeAction<
     content: string;
     slug?: string;
     published?: boolean;
+    status?: string;
     isPremium?: boolean;
     categoryId?: string | null;
     seoTitle?: string | null;
@@ -97,6 +156,7 @@ export const saveArticleAction = safeAction<
     content,
     slug,
     published = false,
+    status,
     isPremium = false,
     categoryId = null,
     seoTitle = null,
@@ -137,13 +197,54 @@ export const saveArticleAction = safeAction<
       throw new Error("Vous n'êtes pas autorisé à modifier cet article.");
     }
 
+    // RBAC média : édition d'un article du Média
+    const { member: mediaMember, isMedia } = await getMediaMemberContext(
+      user.id,
+      existing.publicationId
+    );
+    if (isMedia) {
+      if (!mediaMember || !canEditMediaArticle(mediaMember, existing, user.id)) {
+        throw new Error("Vous n'avez pas la permission de modifier cet article.");
+      }
+    }
+
+    // Calcul de l'état de publication (workflow média)
+    let effectivePublished = published;
+    let effectiveStatus = status || existing.status || 'DRAFT';
+    if (isMedia) {
+      const canPublish = canMedia(mediaMember, 'media:publish:any');
+      if (status === 'SUBMITTED') {
+        if (existing.published) {
+          throw new Error('Impossible de soumettre un article déjà publié.');
+        }
+        effectivePublished = false;
+        effectiveStatus = 'SUBMITTED';
+      } else if (existing.published) {
+        // Un rédacteur éditant un article déjà publié ne peut pas changer son état
+        effectivePublished = true;
+        effectiveStatus = existing.status || 'PUBLISHED';
+      } else if (status === 'PUBLISHED' || published) {
+        if (!canPublish) {
+          throw new Error(
+            "Vous n'avez pas la permission de publier. Utilisez « Soumettre pour revue »."
+          );
+        }
+        effectivePublished = true;
+        effectiveStatus = 'PUBLISHED';
+      } else {
+        effectivePublished = false;
+        effectiveStatus = 'DRAFT';
+      }
+    }
+
     const updated = await prisma.article.update({
       where: { id },
       data: {
         title,
         content,
         slug: finalSlug,
-        published,
+        published: effectivePublished,
+        status: effectiveStatus,
         isPremium,
         readingTime,
         categoryId: categoryId || null,
@@ -153,7 +254,7 @@ export const saveArticleAction = safeAction<
     });
 
     // 🔔 Fan-out aux abonnés du Média à la publication (transition draft→publié)
-    if (published && !existing.published) {
+    if (effectivePublished && !existing.published) {
       notifications
         .notifyMediaArticlePublished(updated.publicationId, updated.id, user.id)
         .catch(() => undefined);
@@ -164,12 +265,38 @@ export const saveArticleAction = safeAction<
     return updated;
   } else {
     const publicationId = await getActivePublicationId(user.id);
+
+    // RBAC média : création d'article
+    const { member: mediaMember, isMedia } = await getMediaMemberContext(user.id, publicationId);
+    let effectivePublished = published;
+    let effectiveStatus = status || 'DRAFT';
+    if (isMedia) {
+      if (!mediaMember || !canMedia(mediaMember, 'media:create_articles')) {
+        throw new Error("Vous n'avez pas la permission de créer des articles dans ce Média.");
+      }
+      const canPublish = canMedia(mediaMember, 'media:publish:any');
+      if (published && !canPublish) {
+        throw new Error(
+          "Vous n'avez pas la permission de publier. Utilisez « Soumettre pour revue »."
+        );
+      }
+      if (status === 'SUBMITTED') {
+        effectivePublished = false;
+        effectiveStatus = 'SUBMITTED';
+      }
+      if (effectiveStatus === 'PUBLISHED') {
+        if (!canPublish) throw new Error("Vous n'avez pas la permission de publier.");
+        effectivePublished = true;
+      }
+    }
+
     const created = await prisma.article.create({
       data: {
         title,
         content,
         slug: finalSlug,
-        published,
+        published: effectivePublished,
+        status: effectiveStatus,
         isPremium,
         readingTime,
         authorId: user.id,
@@ -180,7 +307,9 @@ export const saveArticleAction = safeAction<
       },
     });
 
-    if (published) {
+    if (effectiveStatus === 'SUBMITTED') {
+      await notifyReviewers(publicationId, created.id, user.id);
+    } else if (effectivePublished) {
       notifications
         .notifyMediaArticlePublished(created.publicationId, created.id, user.id)
         .catch(() => undefined);
@@ -200,10 +329,65 @@ export const deleteArticleAction = safeAction<string, { success: boolean }>(asyn
     throw new Error("Vous n'êtes pas autorisé à supprimer cet article.");
   }
 
+  // RBAC média : suppression
+  const { member: mediaMember, isMedia } = await getMediaMemberContext(
+    user.id,
+    existing.publicationId
+  );
+  if (isMedia) {
+    const isOwn = existing.authorId === user.id;
+    if (!mediaMember || !canMedia(mediaMember, 'media:delete:any')) {
+      if (!isOwn || !canMedia(mediaMember, 'media:edit_own')) {
+        throw new Error("Vous n'avez pas la permission de supprimer cet article.");
+      }
+    }
+  }
+
   await prisma.article.delete({ where: { id } });
   revalidatePath('/articles');
   return { success: true };
 });
+
+/**
+ * 📋 Approuver ou rejeter un article soumis pour revue (workflow média).
+ * RBAC : media:review.
+ */
+export const reviewArticleAction = safeAction<{ id: string; approve: boolean }, Article>(
+  async (data) => {
+    const user = await authenticateUser();
+    const { id, approve } = data;
+
+    const article = await prisma.article.findUnique({ where: { id } });
+    if (!article) throw new Error('Article introuvable.');
+    if (article.status !== 'SUBMITTED') {
+      throw new Error("Cet article n'est pas en attente de revue.");
+    }
+
+    const { member: mediaMember, isMedia } = await getMediaMemberContext(
+      user.id,
+      article.publicationId
+    );
+    if (!isMedia || !mediaMember || !canMedia(mediaMember, 'media:review')) {
+      throw new Error("Vous n'avez pas la permission de revoir cet article.");
+    }
+
+    const updated = await prisma.article.update({
+      where: { id },
+      data: approve
+        ? { status: 'PUBLISHED', published: true }
+        : { status: 'DRAFT', published: false },
+    });
+
+    if (approve) {
+      notifications
+        .notifyMediaArticlePublished(article.publicationId, article.id, user.id)
+        .catch(() => undefined);
+    }
+
+    revalidatePath('/articles');
+    return updated;
+  }
+);
 
 export const getCategoriesAction = safeAction<
   void,
@@ -216,6 +400,64 @@ export const getCategoriesAction = safeAction<
     include: { _count: { select: { articles: true } } },
     orderBy: { name: 'asc' },
   });
+});
+
+export interface EditorCapabilities {
+  isMedia: boolean;
+  canPublish: boolean;
+  canSubmit: boolean;
+  canReview: boolean;
+  role: string | null;
+  workspaceName: string | null;
+}
+
+/**
+ * 🎛️ Capacités d'édition de l'utilisateur dans le workspace actif.
+ * Utilisé par l'éditeur pour adapter les actions (Publier vs Soumettre).
+ */
+export const getEditorCapabilitiesAction = safeAction<void, EditorCapabilities>(async (_, user) => {
+  const publicationId = await getActivePublicationId(user.id);
+  const publication = await prisma.publication.findUnique({
+    where: { id: publicationId },
+    select: {
+      type: true,
+      name: true,
+      media: {
+        select: {
+          id: true,
+          members: {
+            where: { userId: user.id },
+            select: { role: true, permissions: true, status: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!publication || publication.type !== 'MEDIA' || !publication.media) {
+    return {
+      isMedia: false,
+      canPublish: true,
+      canSubmit: false,
+      canReview: false,
+      role: null,
+      workspaceName: publication?.name ?? null,
+    };
+  }
+
+  const membership = publication.media.members[0] ?? null;
+  const canPublish = canMedia(membership, 'media:publish:any');
+  const canReview = canMedia(membership, 'media:review');
+  const canCreate = canMedia(membership, 'media:create_articles');
+
+  return {
+    isMedia: true,
+    canPublish,
+    canSubmit: canCreate && !canPublish,
+    canReview,
+    role: membership?.role ?? null,
+    workspaceName: publication.name,
+  };
 });
 
 export const saveCategoryAction = safeAction<

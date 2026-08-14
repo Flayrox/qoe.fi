@@ -26,6 +26,9 @@ import {
   Globe,
   Lock,
   Unlock,
+  Clock,
+  Send,
+  CheckCircle2,
   Settings,
   FolderOpen,
   Search,
@@ -40,6 +43,7 @@ import { cn } from '@qoe/utils';
 import { compressImage } from '@/lib/image-compressor';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import { useAutoSaveArticle, type AutoSavePayload } from '@qoe/api-client';
+import type { EditorCapabilities } from '@qoe/api-client/actions/articles';
 import { ArticleInspectorModal } from '@/app/(creator)/analytics/components/ArticleInspectorModal';
 import { t } from '@lingui/core/macro';
 
@@ -68,6 +72,7 @@ export interface EditorProps {
   subdomain?: string;
   categories?: { id: string; name: string }[];
   isSaving?: boolean;
+  capabilities?: EditorCapabilities;
   onSave: (data: {
     title: string;
     content: string;
@@ -90,6 +95,7 @@ export function Editor({
   initialSlug = '',
   initialContent = '',
   initialPublished = false,
+  initialStatus = 'DRAFT',
   initialIsPremium = false,
   initialCategoryId = null,
   initialSeoTitle = '',
@@ -99,12 +105,14 @@ export function Editor({
   subdomain,
   categories = [],
   isSaving = false,
+  capabilities,
   onSave,
   onBack,
 }: EditorProps) {
   const [title, setTitle] = useState(initialTitle);
   const [slug, setSlug] = useState(initialSlug);
   const [published, setPublished] = useState(initialPublished);
+  const [status, setStatus] = useState<string>(initialStatus || 'DRAFT');
   const [isPremium, setIsPremium] = useState(initialIsPremium);
   const [categoryId, setCategoryId] = useState<string | null>(initialCategoryId);
   const [seoTitle, setSeoTitle] = useState(initialSeoTitle || '');
@@ -262,7 +270,7 @@ export function Editor({
     }
   };
 
-  const handleManualSave = async () => {
+  const handleManualSave = async (statusOverride?: string) => {
     if (!title.trim()) {
       setError("Le titre de l'article est requis avant d'enregistrer.");
       return;
@@ -287,6 +295,7 @@ export function Editor({
         content: htmlContent,
         slug: finalSlug,
         published,
+        status: statusOverride ?? status,
         isPremium,
         categoryId,
         seoTitle: seoTitle || null,
@@ -294,11 +303,16 @@ export function Editor({
         allowPublicAnnotations,
         allowComments,
       });
+      if (statusOverride) setStatus(statusOverride);
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Échec de la sauvegarde.'));
     }
+  };
+
+  const handleSubmitForReview = () => {
+    handleManualSave('SUBMITTED');
   };
 
   // Keyboard shortcut for saving (Cmd+S / Ctrl+S)
@@ -412,22 +426,62 @@ export function Editor({
             <span>{isPremium ? 'Premium' : 'Gratuit'}</span>
           </button>
 
-          {/* Published / Draft Toggle */}
-          <button
-            onClick={() => {
-              setPublished(!published);
-              setHasUnsavedChanges(true);
-            }}
-            className={cn(
-              'h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-border/40',
-              published
-                ? 'bg-success/10 border-success/30 text-success font-semibold'
-                : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            )}
-          >
-            {published ? <Globe className="h-3 w-3 text-success" /> : <Lock className="h-3 w-3" />}
-            <span>{published ? 'Publié' : 'Brouillon'}</span>
-          </button>
+          {/* Workflow média : un rédacteur soumet, il ne publie pas */}
+          {capabilities?.isMedia && !capabilities.canPublish ? (
+            <>
+              {/* État En revue */}
+              <span
+                className={cn(
+                  'h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium border border-border/40',
+                  status === 'SUBMITTED'
+                    ? 'bg-highlight/10 border-highlight/30 text-highlight font-semibold'
+                    : 'bg-card text-muted-foreground'
+                )}
+              >
+                {status === 'SUBMITTED' ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-highlight" />
+                ) : (
+                  <Clock className="h-3.5 w-3.5" />
+                )}
+                {status === 'SUBMITTED' ? 'En revue' : 'Brouillon'}
+              </span>
+
+              {/* Soumettre pour revue */}
+              {status !== 'SUBMITTED' && (
+                <button
+                  onClick={handleSubmitForReview}
+                  className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-semibold transition-all cursor-pointer bg-highlight text-highlight-foreground hover:opacity-90 border border-transparent"
+                  title="Soumettre cet article à l'approbation de votre équipe"
+                >
+                  <Send className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  Soumettre pour revue
+                </button>
+              )}
+            </>
+          ) : (
+            /* Published / Draft Toggle (créateur perso ou éditeur/owner média) */
+            <button
+              onClick={() => {
+                setPublished(!published);
+                if (!published) setStatus('PUBLISHED');
+                else setStatus('DRAFT');
+                setHasUnsavedChanges(true);
+              }}
+              className={cn(
+                'h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-border/40',
+                published
+                  ? 'bg-success/10 border-success/30 text-success font-semibold'
+                  : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50'
+              )}
+            >
+              {published ? (
+                <Globe className="h-3 w-3 text-success" />
+              ) : (
+                <Lock className="h-3 w-3" />
+              )}
+              <span>{published ? 'Publié' : 'Brouillon'}</span>
+            </button>
+          )}
 
           {/* Public Article Page Preview Link */}
           {slug && (
@@ -445,7 +499,7 @@ export function Editor({
 
           {/* Save Action */}
           <button
-            onClick={handleManualSave}
+            onClick={() => handleManualSave()}
             disabled={isSaving}
             className="h-8 px-4 bg-primary text-primary-foreground font-sans text-xs font-bold rounded-lg flex items-center gap-1.5 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer shadow-sm"
           >

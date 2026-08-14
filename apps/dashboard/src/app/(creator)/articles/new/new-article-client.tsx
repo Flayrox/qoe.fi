@@ -4,12 +4,14 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Editor } from '@/features/editor/components/Editor';
 import { saveArticleAction } from '@qoe/api-client/actions/articles';
+import type { EditorCapabilities } from '@qoe/api-client/actions/articles';
 
 interface NewArticleClientProps {
   categories: { id: string; name: string }[];
+  capabilities?: EditorCapabilities;
 }
 
-export function NewArticleClient({ categories }: NewArticleClientProps) {
+export function NewArticleClient({ categories, capabilities }: NewArticleClientProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -18,6 +20,7 @@ export function NewArticleClient({ categories }: NewArticleClientProps) {
     content: string;
     slug: string;
     published: boolean;
+    status?: string;
     isPremium: boolean;
     categoryId: string | null;
     seoTitle: string | null;
@@ -45,6 +48,7 @@ export function NewArticleClient({ categories }: NewArticleClientProps) {
       <Editor
         categories={categories}
         isSaving={isSaving}
+        capabilities={capabilities}
         onSave={handleSave}
         onBack={() => router.push('/articles')}
       />

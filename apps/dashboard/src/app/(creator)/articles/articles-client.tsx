@@ -17,12 +17,16 @@ import {
   ArrowUpDown,
   FilterX,
   Lock,
+  CheckCircle2,
+  XCircle,
+  Clock,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import {
   deleteArticleAction,
   saveCategoryAction,
   deleteCategoryAction,
+  reviewArticleAction,
 } from '@qoe/api-client/actions/articles';
 import { t } from '@lingui/core/macro';
 
@@ -34,6 +38,7 @@ interface ArticleWithCategory {
   slug: string;
   content: string;
   published: boolean;
+  status?: string;
   isPremium: boolean;
   readingTime: number;
   categoryId: string | null;
@@ -64,15 +69,21 @@ interface CategoryWithCount {
 interface ArticlesClientProps {
   initialArticles: ArticleWithCategory[];
   initialCategories: CategoryWithCount[];
+  canReview?: boolean;
 }
 
 type SortField = 'updatedAt' | 'createdAt' | 'title' | 'readingTime';
 type SortDirection = 'desc' | 'asc';
 type AccessFilter = 'all' | 'free' | 'premium';
+type StatusFilter = 'all' | 'published' | 'draft' | 'review';
 
-export function ArticlesClient({ initialArticles, initialCategories }: ArticlesClientProps) {
+export function ArticlesClient({
+  initialArticles,
+  initialCategories,
+  canReview = false,
+}: ArticlesClientProps) {
   const [activeMainTab, setActiveMainTab] = useState<'articles' | 'categories'>('articles');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [articles, setArticles] = useState<ArticleWithCategory[]>(initialArticles);
   const [categories, setCategories] = useState<CategoryWithCount[]>(initialCategories);
 
@@ -194,6 +205,29 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
     }
   };
 
+  // Handle review (approve / reject)
+  const handleReview = async (id: string, approve: boolean, title: string) => {
+    const verb = approve ? 'approuver' : 'rejeter';
+    if (!confirm(`Voulez-vous vraiment ${verb} l'écrit "${title}" ?`)) {
+      return;
+    }
+    try {
+      await reviewArticleAction({ id, approve });
+      setArticles((prev) =>
+        prev.map((a) =>
+          a.id === id
+            ? approve
+              ? { ...a, published: true, status: 'PUBLISHED' }
+              : { ...a, published: false, status: 'DRAFT' }
+            : a
+        )
+      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Échec de la revue.';
+      alert(message);
+    }
+  };
+
   // Reset all advanced filters
   const resetFilters = () => {
     setSearchTerm('');
@@ -223,7 +257,8 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
 
       // 2. Status filter
       if (statusFilter === 'published' && !art.published) return false;
-      if (statusFilter === 'draft' && art.published) return false;
+      if (statusFilter === 'draft' && (art.published || art.status === 'SUBMITTED')) return false;
+      if (statusFilter === 'review' && art.status !== 'SUBMITTED') return false;
 
       // 3. Category filter
       if (selectedCategory !== 'all' && art.categoryId !== selectedCategory) return false;
@@ -251,7 +286,8 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
     });
 
   const countPublished = articles.filter((a) => a.published).length;
-  const countDrafts = articles.filter((a) => !a.published).length;
+  const countDrafts = articles.filter((a) => !a.published && a.status !== 'SUBMITTED').length;
+  const countReview = articles.filter((a) => a.status === 'SUBMITTED').length;
 
   return (
     <div className="space-y-6 w-full pb-24 text-foreground font-sans selection:bg-primary/20 selection:text-primary">
@@ -347,6 +383,19 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                 >
                   Brouillons ({countDrafts})
                 </button>
+                {canReview && (
+                  <button
+                    onClick={() => setStatusFilter('review')}
+                    className={cn(
+                      'pb-2 -mb-3 border-b-2 transition-all cursor-pointer text-xs font-sans',
+                      statusFilter === 'review'
+                        ? 'border-primary text-primary font-bold'
+                        : 'border-transparent text-muted-foreground hover:text-foreground font-medium'
+                    )}
+                  >
+                    En revue ({countReview})
+                  </button>
+                )}
               </div>
 
               {/* Right Side: Sleek Hairline Select Controls */}
@@ -493,16 +542,23 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
                           )}
 
                           {/* Published Status Badge */}
-                          <span
-                            className={cn(
-                              'inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium font-sans',
-                              art.published
-                                ? 'bg-primary/10 text-primary'
-                                : 'bg-muted text-muted-foreground border border-border/30'
-                            )}
-                          >
-                            {art.published ? 'Publié' : 'Brouillon'}
-                          </span>
+                          {art.status === 'SUBMITTED' ? (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-highlight/10 text-highlight border border-highlight/20 font-sans">
+                              <Clock className="w-3 h-3" strokeWidth={1.5} />
+                              En revue
+                            </span>
+                          ) : (
+                            <span
+                              className={cn(
+                                'inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium font-sans',
+                                art.published
+                                  ? 'bg-primary/10 text-primary'
+                                  : 'bg-muted text-muted-foreground border border-border/30'
+                              )}
+                            >
+                              {art.published ? 'Publié' : 'Brouillon'}
+                            </span>
+                          )}
 
                           <span className="text-xs text-muted-foreground font-sans">
                             {new Date(art.updatedAt).toLocaleDateString('fr-FR', {
@@ -543,6 +599,30 @@ export function ArticlesClient({ initialArticles, initialCategories }: ArticlesC
 
                       {/* Direct Action Controls */}
                       <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                        {canReview && art.status === 'SUBMITTED' && (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReview(art.id, true, art.title);
+                              }}
+                              className="p-1.5 text-success hover:bg-success/10 rounded transition-colors cursor-pointer"
+                              title="Approuver et publier"
+                            >
+                              <CheckCircle2 className="w-4 h-4 stroke-[1.5]" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReview(art.id, false, art.title);
+                              }}
+                              className="p-1.5 text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
+                              title="Rejeter (retour en brouillon)"
+                            >
+                              <XCircle className="w-4 h-4 stroke-[1.5]" />
+                            </button>
+                          </>
+                        )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

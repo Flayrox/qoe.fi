@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Heart, Repeat, MessageCircle, AtSign, UserPlus, Newspaper } from 'lucide-react';
+import { Heart, Repeat, MessageCircle, AtSign, UserPlus, Newspaper, Clock } from 'lucide-react';
 import { cn } from '@qoe/utils';
 
 export type GroupedNotificationLike = {
@@ -17,6 +17,7 @@ export type GroupedNotificationLike = {
     | 'MEDIA_INVITE'
     | 'MEDIA_MEMBER_JOINED'
     | 'MEDIA_ARTICLE_PUBLISHED'
+    | 'MEDIA_ARTICLE_SUBMITTED'
     | 'MEDIA_MENTION';
   isRead: boolean;
   createdAt: string | Date;
@@ -101,6 +102,13 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
       actionText = notification.publication?.name
         ? `a publié « ${notification.article?.title ?? 'un nouvel article'} » dans le Média`
         : 'a publié dans le Média';
+      break;
+    case 'MEDIA_ARTICLE_SUBMITTED':
+      Icon = Clock;
+      iconColorClass = 'text-highlight bg-highlight/10';
+      actionText = notification.publication?.name
+        ? `a soumis un article pour revue dans le Média`
+        : 'a soumis un article pour revue';
       break;
     case 'MEDIA_MENTION':
       Icon = AtSign;

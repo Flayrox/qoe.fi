@@ -876,6 +876,9 @@ importers:
 
   packages/api-client:
     dependencies:
+      '@qoe/auth':
+        specifier: workspace:*
+        version: link:../auth
       '@qoe/config':
         specifier: workspace:*
         version: link:../config

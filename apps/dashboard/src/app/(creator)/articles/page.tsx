@@ -5,23 +5,33 @@
 //    Server-side data fetching et passage au client interactif.
 // =====================================================================
 
-import { getArticlesAction, getCategoriesAction } from '@qoe/api-client/actions/articles';
+import {
+  getArticlesAction,
+  getCategoriesAction,
+  getEditorCapabilitiesAction,
+} from '@qoe/api-client/actions/articles';
 
 import { ArticlesClient } from './articles-client';
 
 export default async function ArticlesPage() {
   // Récupération initiale des données sur le serveur (Server Action ou Prisma direct)
-  const [articlesRes, categoriesRes] = await Promise.all([
+  const [articlesRes, categoriesRes, capsRes] = await Promise.all([
     getArticlesAction(),
     getCategoriesAction(),
+    getEditorCapabilitiesAction(),
   ]);
 
   const articles = articlesRes.ok ? articlesRes.data : [];
   const categories = categoriesRes.ok ? categoriesRes.data : [];
+  const capabilities = capsRes.ok ? capsRes.data : undefined;
 
   return (
     <div className="py-4">
-      <ArticlesClient initialArticles={articles} initialCategories={categories} />
+      <ArticlesClient
+        initialArticles={articles}
+        initialCategories={categories}
+        canReview={capabilities?.canReview ?? false}
+      />
     </div>
   );
 }
