@@ -459,6 +459,92 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
+  # ⚡ API GO (backend-of-record) : serveur REST
+  # ───────────────────────────────────────────────────────────────────
+  api-go:
+    build:
+      context: ./apps/api-go
+      dockerfile: Dockerfile
+    image: qoefi-api-go:latest
+    container_name: qoefi-api-go
+    restart: unless-stopped
+
+    expose:
+      - '8080'
+
+    env_file:
+      - .env.docker
+
+    environment:
+      PORT: 8080
+      REDIS_URL: redis://redis:6379
+      QOE_INTERNAL_SECRET: ${QOE_INTERNAL_SECRET:-}
+
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+    networks:
+      - qoefi-private
+      - supabase_default
+
+    depends_on:
+      redis:
+        condition: service_started
+
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+          cpus: '0.5'
+
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  # ───────────────────────────────────────────────────────────────────
+  # ⚙️ WORKER GO (asynq) : webhooks + newsletter
+  # ───────────────────────────────────────────────────────────────────
+  api-go-worker:
+    build:
+      context: ./apps/api-go
+      dockerfile: Dockerfile
+    image: qoefi-api-go-worker:latest
+    container_name: qoefi-api-go-worker
+    restart: unless-stopped
+    entrypoint: ['/usr/local/bin/qoe-worker']
+
+    env_file:
+      - .env.docker
+
+    environment:
+      REDIS_URL: redis://redis:6379
+
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+    networks:
+      - qoefi-private
+      - supabase_default
+
+    depends_on:
+      redis:
+        condition: service_started
+
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.5'
+
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  # ───────────────────────────────────────────────────────────────────
   # 🐘 POSTGRES : DB principale (RÉSEAU PRIVÉ UNIQUEMENT)
   # ───────────────────────────────────────────────────────────────────
   # db:

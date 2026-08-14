@@ -1,0 +1,9 @@
+.git
+dist
+bin
+*.test
+*.prof
+Dockerfile
+README.md
+.env
+.env.*
