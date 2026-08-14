@@ -64,6 +64,9 @@ go build ./... && go vet ./...
 | GET | `/v1/notifications/unread-count` | compteur non-lu |
 | POST | `/v1/notifications/read` | marquer lu (toutes ou par ids) |
 | GET/PATCH | `/v1/notifications/preferences` | préférences (merge partiel) |
+| GET | `/v1/analytics/financial?publicationId=` | MRR/ARR/volume brut + conversion (RBAC owner/editor) |
+| GET | `/v1/analytics/audience?publicationId=` | répartition abonnés (total/actifs/premium) |
+| GET | `/v1/analytics/top-content?publicationId=&limit=` | contenus récents (articles + pensées) |
 
 ## Statut
 - [x] Fondations (config, pool, auth, middleware, réponse)
@@ -84,6 +87,9 @@ go build ./... && go vet ./...
       senders), compteur non-lu, mark-read (toutes/par ids), préférences
       (get + merge partiel upsert) + proxies TS → Go
       — **testé** (grouping REPLY/LIKE, préférences persistées)
+- [x] Module **Analytics créateur** : métriques financières (MRR/ARR/volume,
+      conversion), audience (total/actifs/premium), top-content (articles +
+      pensées) — RBAC owner/editor — **testé**
 - [x] Workers **asynq** (`cmd/worker`) : webhook dispatch (HMAC-SHA256 + logs) et
       newsletter fanout ; endpoint interne `/internal/events/*` (enqueue asynq,
       secret `QOE_INTERNAL_SECRET`) ; article.published + subscriber.created

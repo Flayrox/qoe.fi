@@ -17,6 +17,7 @@ import (
 	"github.com/qoefi/api-go/internal/config"
 	"github.com/qoefi/api-go/internal/dbpool"
 	authmw "github.com/qoefi/api-go/internal/middleware"
+	"github.com/qoefi/api-go/internal/modules/analytics"
 	"github.com/qoefi/api-go/internal/modules/articles"
 	"github.com/qoefi/api-go/internal/modules/events"
 	"github.com/qoefi/api-go/internal/modules/feed"
@@ -83,6 +84,9 @@ func main() {
 
 		notifHandler := notifications.NewHandler(notifications.NewService(pool))
 		notifHandler.Register(protected)
+
+		analyticsHandler := analytics.NewHandler(analytics.NewService(pool))
+		analyticsHandler.Register(protected)
 	})
 
 	srv := &http.Server{
