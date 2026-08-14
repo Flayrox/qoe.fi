@@ -3,6 +3,7 @@
 import { notifications } from '@qoe/db';
 import { revalidatePath } from 'next/cache';
 import { safeAction } from '../utils/safe-action';
+import { goFetch, isGoEnabled } from '../utils/go-client';
 
 export type NotificationFilter = 'all' | 'mentions' | 'replies' | 'likes';
 
@@ -14,12 +15,26 @@ export const getNotificationsAction = safeAction<
   const limit = rawInput?.limit || 30;
   const cursor = rawInput?.cursor;
 
+  // 🔗 Proxy Go : liste groupée + pagination servies par le backend Go.
+  if (isGoEnabled()) {
+    const res = await goFetch<{
+      notifications: notifications.GroupedNotification[];
+      nextCursor: string | null;
+    }>(
+      `/v1/notifications?filter=${filter}&limit=${limit}&cursor=${encodeURIComponent(cursor ?? '')}`
+    );
+    return res;
+  }
+
   const result = await notifications.getNotifications(user.id, filter, limit, cursor);
   return result;
 });
 
 export const getUnreadNotificationCountAction = safeAction<void, { count: number }>(
   async (_, user) => {
+    if (isGoEnabled()) {
+      return goFetch<{ count: number }>('/v1/notifications/unread-count');
+    }
     const count = await notifications.getUnreadCount(user.id);
     return { count };
   }
@@ -29,6 +44,13 @@ export const markNotificationsAsReadAction = safeAction<
   { notificationIds?: string[] } | undefined,
   { success: boolean }
 >(async (rawInput, user) => {
+  if (isGoEnabled()) {
+    const res = await goFetch<{ success: boolean }>('/v1/notifications/read', {
+      method: 'POST',
+      body: { notificationIds: rawInput?.notificationIds ?? [] },
+    });
+    return res;
+  }
   const success = await notifications.markAsRead(user.id, rawInput?.notificationIds);
   revalidatePath('/notifications');
   return { success };
@@ -38,6 +60,11 @@ export const getNotificationPreferencesAction = safeAction<
   void,
   { preferences: Awaited<ReturnType<typeof notifications.getPreferences>> }
 >(async (_, user) => {
+  if (isGoEnabled()) {
+    return goFetch<{ preferences: Awaited<ReturnType<typeof notifications.getPreferences>> }>(
+      '/v1/notifications/preferences'
+    );
+  }
   const prefs = await notifications.getPreferences(user.id);
   return { preferences: prefs };
 });
@@ -61,6 +88,12 @@ export const updateNotificationPreferencesAction = safeAction<
   }>,
   { preferences: Awaited<ReturnType<typeof notifications.updatePreferences>> }
 >(async (input, user) => {
+  if (isGoEnabled()) {
+    return goFetch<{ preferences: Awaited<ReturnType<typeof notifications.updatePreferences>> }>(
+      '/v1/notifications/preferences',
+      { method: 'PATCH', body: input }
+    );
+  }
   const prefs = await notifications.updatePreferences(user.id, input);
   revalidatePath('/settings/notifications');
   return { preferences: prefs };

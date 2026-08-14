@@ -48,6 +48,9 @@ type Querier interface {
 	GetFollowedPersonalPublicationOwnerIDs(ctx context.Context, readerid pgtype.UUID) ([]string, error)
 	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
 	GetMediaRoleForUser(ctx context.Context, arg GetMediaRoleForUserParams) (string, error)
+	GetNotificationPreferences(ctx context.Context, userid pgtype.UUID) (GetNotificationPreferencesRow, error)
+	// Centre de notifications : liste groupée, non-lus, lecture, préférences.
+	GetNotifications(ctx context.Context, arg GetNotificationsParams) ([]GetNotificationsRow, error)
 	GetPersonalPublicationID(ctx context.Context, id string) (pgtype.Text, error)
 	// Polls, votes, pièces jointes
 	GetPollByThoughtID(ctx context.Context, thoughtid string) (GetPollByThoughtIDRow, error)
@@ -64,6 +67,7 @@ type Querier interface {
 	GetThoughtByID(ctx context.Context, id string) (GetThoughtByIDRow, error)
 	// Threadgates & réponses
 	GetThoughtReplyGate(ctx context.Context, id string) (GetThoughtReplyGateRow, error)
+	GetUnreadCount(ctx context.Context, recipientid pgtype.UUID) (int32, error)
 	GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error)
 	GetUserPersonalPublication(ctx context.Context, id string) (pgtype.Text, error)
 	GetUserPollVote(ctx context.Context, arg GetUserPollVoteParams) (string, error)
@@ -80,9 +84,11 @@ type Querier interface {
 	InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error
 	InsertRepostNotification(ctx context.Context, arg InsertRepostNotificationParams) error
 	ListArticlesByPublication(ctx context.Context, arg ListArticlesByPublicationParams) ([]ListArticlesByPublicationRow, error)
+	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
 	SetArticleStatus(ctx context.Context, arg SetArticleStatusParams) (string, error)
 	UpdateArticleContent(ctx context.Context, arg UpdateArticleContentParams) (string, error)
 	UpdateWebhookDelivery(ctx context.Context, arg UpdateWebhookDeliveryParams) error
+	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) error
 }
 
 var _ Querier = (*Queries)(nil)

@@ -20,6 +20,7 @@ import (
 	"github.com/qoefi/api-go/internal/modules/articles"
 	"github.com/qoefi/api-go/internal/modules/events"
 	"github.com/qoefi/api-go/internal/modules/feed"
+	"github.com/qoefi/api-go/internal/modules/notifications"
 	"github.com/qoefi/api-go/internal/modules/posts"
 	"github.com/qoefi/api-go/internal/queue"
 )
@@ -79,6 +80,9 @@ func main() {
 		feedHandler.Register(protected)
 
 		articlesHandler.RegisterProtected(protected)
+
+		notifHandler := notifications.NewHandler(notifications.NewService(pool))
+		notifHandler.Register(protected)
 	})
 
 	srv := &http.Server{

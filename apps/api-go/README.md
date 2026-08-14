@@ -60,6 +60,10 @@ go build ./... && go vet ./...
 | PATCH | `/v1/articles/{id}` | mettre à jour le contenu (RBAC) |
 | POST | `/v1/articles/{id}/publish` | publier (RBAC editor/owner + événement asynq) |
 | DELETE | `/v1/articles/{id}` | supprimer (RBAC) |
+| GET | `/v1/notifications?filter=&limit=&cursor=` | liste groupée (48h, agrégation senders) |
+| GET | `/v1/notifications/unread-count` | compteur non-lu |
+| POST | `/v1/notifications/read` | marquer lu (toutes ou par ids) |
+| GET/PATCH | `/v1/notifications/preferences` | préférences (merge partiel) |
 
 ## Statut
 - [x] Fondations (config, pool, auth, middleware, réponse)
@@ -76,6 +80,10 @@ go build ./... && go vet ./...
       abonné (membre/premium/tier), RBAC média (owner/editor/writer/viewer),
       création/édition/publication avec événement `article.published` asynq
       — **testé** (anonyme tronqué, abonné premium accès complet)
+- [x] Module **Notifications** : liste groupée intelligente (48h, agrégation
+      senders), compteur non-lu, mark-read (toutes/par ids), préférences
+      (get + merge partiel upsert) + proxies TS → Go
+      — **testé** (grouping REPLY/LIKE, préférences persistées)
 - [x] Workers **asynq** (`cmd/worker`) : webhook dispatch (HMAC-SHA256 + logs) et
       newsletter fanout ; endpoint interne `/internal/events/*` (enqueue asynq,
       secret `QOE_INTERNAL_SECRET`) ; article.published + subscriber.created
