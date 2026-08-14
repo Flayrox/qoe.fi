@@ -22,6 +22,9 @@ type Config struct {
 	// UmamiAPIURL / UmamiAPIKey pour le proxy /v1/analytics/stats (créateur).
 	UmamiAPIURL string
 	UmamiAPIKey string
+	// UmamiUser / UmamiPass pour l'authentification self-hosted v2 (login → token).
+	UmamiUser string
+	UmamiPass string
 	// DefaultUmamiWebsiteID utilisé en fallback quand la publication n'en a pas.
 	DefaultUmamiWebsiteID string
 }
@@ -37,6 +40,8 @@ func Load() *Config {
 		StripeWebhookSecret:   envOr("STRIPE_WEBHOOK_SECRET", ""),
 		UmamiAPIURL:           envOr("UMAMI_API_URL", "https://api.umami.is/v1"),
 		UmamiAPIKey:           envOr("UMAMI_API_KEY", ""),
+		UmamiUser:             envOr("UMAMI_USERNAME", ""),
+		UmamiPass:             envOr("UMAMI_PASSWORD", ""),
 		DefaultUmamiWebsiteID: envOr("NEXT_PUBLIC_UMAMI_WEBSITE_ID", ""),
 	}
 }

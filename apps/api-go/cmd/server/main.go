@@ -104,19 +104,19 @@ func main() {
 		analyticsHandler := analytics.NewHandler(analytics.NewService(pool))
 		analyticsHandler.Register(protected)
 
-		creatorHandler := creator.NewHandler(pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey), cfg.DefaultUmamiWebsiteID)
+		creatorHandler := creator.NewHandler(pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey, cfg.UmamiUser, cfg.UmamiPass), cfg.DefaultUmamiWebsiteID)
 		creatorHandler.RegisterProtected(protected)
 	})
 
 	// API créateur par clé API (qoe_live_…) : catégories + analytics/stats (proxy Umami).
 	r.Group(func(apiKey chi.Router) {
 		apiKey.Use(authmw.APIKeyAuth(db.New(pool)))
-		creatorHandler := creator.NewHandler(pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey), cfg.DefaultUmamiWebsiteID)
+		creatorHandler := creator.NewHandler(pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey, cfg.UmamiUser, cfg.UmamiPass), cfg.DefaultUmamiWebsiteID)
 		creatorHandler.RegisterAPIKey(apiKey)
 	})
 
 	// Profils publics (résolution publication par slug/subdomain).
-	creatorPublic := creator.NewHandler(pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey), cfg.DefaultUmamiWebsiteID)
+	creatorPublic := creator.NewHandler(pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey, cfg.UmamiUser, cfg.UmamiPass), cfg.DefaultUmamiWebsiteID)
 	creatorPublic.RegisterPublic(r)
 
 	srv := &http.Server{
