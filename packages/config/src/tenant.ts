@@ -25,6 +25,7 @@ export const SYSTEM_DOMAINS = [
   'www.qoe.fi',
   'start.qoe.fi',
   'api.qoe.fi',
+  'api-legacy.qoe.fi',
   'dashboard.qoe.fi',
   'admin.qoe.fi',
 ] as const;

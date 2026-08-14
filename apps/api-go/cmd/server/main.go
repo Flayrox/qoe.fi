@@ -52,6 +52,8 @@ func main() {
 	r.Use(authmw.Recovery)
 	r.Use(authmw.Logger)
 	r.Use(authmw.CORS([]string{"http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "https://qoe.fi", "https://*.qoe.fi"}))
+	// Rate-limiting global : 120 req/min par IP (anti-spam public).
+	r.Use(authmw.RateLimit(rc, time.Minute, 120, false))
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -77,6 +79,8 @@ func main() {
 
 	// Toute l'API créateur exige un Bearer token valide.
 	r.Group(func(protected chi.Router) {
+		// 600 req/min par utilisateur (usage créateur légitime, généreux).
+		protected.Use(authmw.RateLimit(rc, time.Minute, 600, true))
 		protected.Use(auth.Middleware)
 
 		postsHandler := posts.NewHandler(posts.NewService(pool, rc))
