@@ -21,6 +21,10 @@
     "./middleware": {
       "types": "./src/middleware.ts",
       "default": "./src/middleware.ts"
+    },
+    "./storage": {
+      "types": "./src/storage.ts",
+      "default": "./src/storage.ts"
     }
   },
   "scripts": {

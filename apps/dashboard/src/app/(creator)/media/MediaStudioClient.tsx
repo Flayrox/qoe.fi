@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@qoe/utils';
+import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
+import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import {
   createMediaAction,
   getMediaByIdAction,
@@ -160,7 +162,7 @@ export function MediaStudioClient({
   const [createName, setCreateName] = useState('');
   const [createSlug, setCreateSlug] = useState('');
   const [createBio, setCreateBio] = useState('');
-  const [createLogo, setCreateLogo] = useState('');
+  const [createLogo, setCreateLogo] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   const [inviteEmail, setInviteEmail] = useState('');
@@ -375,14 +377,16 @@ export function MediaStudioClient({
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-muted-foreground">
-                  Logo (URL image)
-                </label>
-                <input
+                <label className="block text-xs font-semibold text-muted-foreground">Logo</label>
+                <ImageUploader
                   value={createLogo}
-                  onChange={(e) => setCreateLogo(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-4 py-3 bg-muted/20 border border-border/30 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-shadow"
+                  onChange={setCreateLogo}
+                  upload={(file) =>
+                    uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.avatars)
+                  }
+                  aspect={1}
+                  shape="circle"
+                  maxDimension={512}
                 />
               </div>
 
@@ -931,11 +935,16 @@ function MediaSettingsForm({
             />
           </div>
           <div>
-            <label className={labelCls}>Logo (URL)</label>
-            <input
-              className={inputCls}
-              value={form.logoUrl ?? ''}
-              onChange={(e) => set('logoUrl', e.target.value)}
+            <label className={labelCls}>Logo</label>
+            <ImageUploader
+              value={form.logoUrl}
+              onChange={(url) => set('logoUrl', url)}
+              upload={(file) =>
+                uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.avatars)
+              }
+              aspect={1}
+              shape="circle"
+              maxDimension={512}
             />
           </div>
           <div>
@@ -997,11 +1006,15 @@ function MediaSettingsForm({
             />
           </div>
           <div>
-            <label className={labelCls}>Image d'en-tête (URL)</label>
-            <input
-              className={inputCls}
-              value={form.headerImageUrl ?? ''}
-              onChange={(e) => set('headerImageUrl', e.target.value)}
+            <label className={labelCls}>Image d'en-tête</label>
+            <ImageUploader
+              value={form.headerImageUrl}
+              onChange={(url) => set('headerImageUrl', url)}
+              upload={(file) =>
+                uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.banners)
+              }
+              aspect={21 / 9}
+              shape="banner"
             />
           </div>
           <div>

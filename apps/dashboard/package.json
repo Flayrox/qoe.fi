@@ -38,6 +38,7 @@
     "@tiptap/pm": "^3.23.4",
     "@tiptap/react": "^3.23.4",
     "@tiptap/starter-kit": "^3.23.4",
+    "browser-image-compression": "^2.0.2",
     "bullmq": "^5.34.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

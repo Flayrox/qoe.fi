@@ -8,11 +8,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
 import { toast } from 'sonner';
 import { URLS } from '@qoe/config';
+import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
+import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import {
   ExternalLink,
   Plus,
@@ -635,59 +636,49 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
                   </div>
                 </div>
 
-                {/* Avatar / Logo URL */}
+                {/* Avatar / Logo */}
                 <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
                   <div>
                     <label className="text-xs font-semibold text-foreground block">
-                      Avatar / Logo (URL)
+                      Avatar / Logo
                     </label>
                     <span className="text-xs text-muted-foreground block mt-0.5">
                       Icône ronde affichée en en-tête.
                     </span>
                   </div>
-                  <div className="sm:col-span-2 space-y-2">
-                    <input
-                      type="text"
-                      value={current.logoUrl || ''}
-                      onChange={(e) => setCurrent((prev) => ({ ...prev, logoUrl: e.target.value }))}
-                      placeholder="https://domaine.com/logo.png"
-                      className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
+                  <div className="sm:col-span-2">
+                    <ImageUploader
+                      value={current.logoUrl}
+                      onChange={(url) => setCurrent((prev) => ({ ...prev, logoUrl: url }))}
+                      upload={(file) =>
+                        uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.avatars)
+                      }
+                      aspect={1}
+                      shape="circle"
+                      maxDimension={512}
                     />
-                    {current.logoUrl && (
-                      <div className="flex items-center gap-2">
-                        <Image
-                          src={current.logoUrl}
-                          alt="Logo"
-                          width={28}
-                          height={28}
-                          className="w-7 h-7 rounded-full object-cover border border-border/30"
-                          unoptimized
-                        />
-                        <span className="text-xs text-muted-foreground">Aperçu</span>
-                      </div>
-                    )}
                   </div>
                 </div>
 
-                {/* Cover Image URL */}
+                {/* Cover Image */}
                 <div className="py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
                   <div>
                     <label className="text-xs font-semibold text-foreground block">
-                      Image de couverture (URL)
+                      Image de couverture
                     </label>
                     <span className="text-xs text-muted-foreground block mt-0.5">
                       Bannière d'arrière-plan d'en-tête.
                     </span>
                   </div>
-                  <div className="sm:col-span-2 space-y-2">
-                    <input
-                      type="text"
-                      value={current.headerImageUrl || ''}
-                      onChange={(e) =>
-                        setCurrent((prev) => ({ ...prev, headerImageUrl: e.target.value }))
+                  <div className="sm:col-span-2">
+                    <ImageUploader
+                      value={current.headerImageUrl}
+                      onChange={(url) => setCurrent((prev) => ({ ...prev, headerImageUrl: url }))}
+                      upload={(file) =>
+                        uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.banners)
                       }
-                      placeholder="https://images.unsplash.com/photo-..."
-                      className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
+                      aspect={21 / 9}
+                      shape="banner"
                     />
                   </div>
                 </div>

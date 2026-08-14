@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { compressImage } from '@/lib/image-compressor';
+import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import { useAutoSaveArticle, type AutoSavePayload } from '@qoe/api-client';
 import { ArticleInspectorModal } from '@/app/(creator)/analytics/components/ArticleInspectorModal';
 import { t } from '@lingui/core/macro';
@@ -236,21 +237,13 @@ export function Editor({
       setError(null);
 
       const compressedFile = await compressImage(file);
-      const formData = new FormData();
-      formData.append('file', compressedFile);
+      const url = await uploadImageToRoute(
+        compressedFile,
+        '/api/articles/upload',
+        IMAGE_FOLDERS.articles
+      );
 
-      const response = await fetch('/api/articles/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Échec de l'upload");
-      }
-
-      editor.chain().focus().setImage({ src: data.url }).run();
+      editor.chain().focus().setImage({ src: url }).run();
       setHasUnsavedChanges(true);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Une erreur est survenue lors de l'upload de l'image."));

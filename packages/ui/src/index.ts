@@ -8,6 +8,7 @@
 
 export * from './tokens';
 export { Button, buttonVariants } from './button';
+export { ImageUploader } from './ui/ImageUploader';
 export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './card';
 
 // 🌍 Composants partagés
