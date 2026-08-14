@@ -385,6 +385,11 @@ export const replyToPostAction = safeAction<{ postId: string; content: string },
 
 export const getPostThreadAction = safeAction<string, { post: ThreadPost }>(
   async (postId) => {
+    // 🔗 Proxy Go : thread (racine + réponses + chaîne parent/repost).
+    if (isGoEnabled()) {
+      const res = await goFetch<{ post: unknown }>(`/v1/posts/${postId}/thread`);
+      return { post: res.post as ThreadPost };
+    }
     const supabase = await createClient();
     const {
       data: { user },

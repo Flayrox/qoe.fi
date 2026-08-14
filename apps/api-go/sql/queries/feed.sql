@@ -153,3 +153,11 @@ LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = @viewer_id
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = @viewer_id AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p.id = ANY(@ids::text[])
   AND p."deletedAt" IS NULL;
+
+-- name: GetReplyIDsForThought :many
+SELECT id
+FROM "Post"
+WHERE "parentId" = $1
+  AND "deletedAt" IS NULL
+  AND "isDraft" = false
+ORDER BY "createdAt" ASC;

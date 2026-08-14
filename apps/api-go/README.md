@@ -54,6 +54,7 @@ go build ./... && go vet ./...
 | POST | `/v1/posts/{id}/like` | toggle like (+ notification LIKE, dédup) |
 | POST | `/v1/posts/{id}/repost` | toggle repost (+ notification REPOST) |
 | POST | `/v1/posts/{id}/reply` | répondre (threadgate + notifications REPLY/MENTION) |
+| GET | `/v1/posts/{id}/thread` | fil de discussion (racine + réponses + parent/repost) |
 | GET | `/v1/articles/{slug}?publicationId=&viewerEmail=` | lecture publique + **troncature paywall** (auth optionnelle) |
 | GET | `/v1/articles?publicationId=` | lister les articles d'une publication (RBAC créateur) |
 | POST | `/v1/articles` | créer un article (RBAC média/personnel) |
