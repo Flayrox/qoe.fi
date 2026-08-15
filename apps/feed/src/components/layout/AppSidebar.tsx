@@ -61,6 +61,11 @@ export function AppSidebar({
       url: routes.feed.billing(),
       iconName: 'Wallet',
     },
+    {
+      title: t`Réglages`,
+      url: '/settings',
+      iconName: 'Settings',
+    },
   ];
 
   const handleOpenComposer = () => {

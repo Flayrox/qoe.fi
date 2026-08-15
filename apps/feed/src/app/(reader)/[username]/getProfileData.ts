@@ -55,7 +55,7 @@ export interface ProfileUser {
  * 📰 Résout un profil de publication (personnel OU média) par handle.
  * Retourne le profil mappé pour ProfileView + les métadonnées de follow.
  */
-export async function resolveProfileByHandle(rawHandle: string) {
+export async function resolveProfileByHandle(rawHandle: string, viewerId?: string | null) {
   const handle = decodeURIComponent(rawHandle).replace(/^@/, '');
 
   const publication = await prisma.publication.findFirst({
@@ -66,7 +66,13 @@ export async function resolveProfileByHandle(rawHandle: string) {
       ],
     },
     include: {
-      user: { select: { id: true, onboardingText: true } },
+      user: {
+        select: {
+          id: true,
+          onboardingText: true,
+          settings: { select: { profileVisibility: true } },
+        },
+      },
       articles: {
         where: { published: true },
         orderBy: { createdAt: 'desc' },
@@ -74,6 +80,15 @@ export async function resolveProfileByHandle(rawHandle: string) {
         include: {
           category: { select: { name: true } },
           author: { select: { id: true, name: true, username: true, logoUrl: true } },
+          attributions: {
+            where: { consentStatus: 'ACCEPTED', isVisible: true },
+            orderBy: { order: 'asc' },
+            include: {
+              user: {
+                select: { id: true, name: true, username: true, logoUrl: true, isCertified: true },
+              },
+            },
+          },
         },
       },
       _count: { select: { followers: true, articles: true } },
@@ -81,6 +96,18 @@ export async function resolveProfileByHandle(rawHandle: string) {
   });
 
   if (!publication) return null;
+
+  // Respecte la visibilité choisie dans les réglages avant de charger le contenu du profil.
+  // Les médias restent publics ; la confidentialité s'applique au profil personnel.
+  const profileVisibility = publication.user?.settings?.profileVisibility || 'PUBLIC';
+  if (publication.user && profileVisibility !== 'PUBLIC') {
+    const isOwner = viewerId === publication.user.id;
+    const canView =
+      isOwner ||
+      (profileVisibility === 'FOLLOWERS' &&
+        Boolean(viewerId && (await follows.isFollowing(viewerId, publication.id))));
+    if (!canView) return null;
+  }
 
   // Posts (thoughts) : uniquement pour les publications personnelles (auteur = le user)
   let posts: ProfilePostData[] = [];
@@ -132,6 +159,17 @@ export async function resolveProfileByHandle(rawHandle: string) {
       isCertified: publication.isCertified,
       type: publication.type,
       authorName: a.author?.name ?? null,
+      contributors: a.attributions.map((attribution) => ({
+        id: attribution.user.id,
+        name: attribution.user.name,
+        username: attribution.user.username,
+        logoUrl: attribution.user.logoUrl,
+        isCertified: attribution.user.isCertified,
+        role: attribution.role,
+        order: attribution.order,
+        isVisible: attribution.isVisible,
+        consentStatus: attribution.consentStatus,
+      })),
     },
   })) as unknown as FeedArticleDTO[];
 

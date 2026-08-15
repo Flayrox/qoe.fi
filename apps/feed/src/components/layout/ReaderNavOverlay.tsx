@@ -5,7 +5,16 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Bookmark, Highlighter, Wallet, LogOut, LayoutDashboard, Bell } from 'lucide-react';
+import {
+  Home,
+  Bookmark,
+  Highlighter,
+  Wallet,
+  LogOut,
+  LayoutDashboard,
+  Bell,
+  Settings,
+} from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { Logo, ThemeToggle } from '@qoe/ui';
 import { useUnreadNotificationCount } from '@qoe/ui/notifications';
@@ -51,6 +60,7 @@ export function ReaderNavOverlay({
       href: routes.feed.billing(),
       icon: Wallet,
     },
+    { label: t`Réglages`, href: '/settings', icon: Settings },
   ];
 
   const isItemActive = (href: string) => {
@@ -199,6 +209,15 @@ export function ReaderNavOverlay({
                     <span>{t`Studio Créateur`}</span>
                   </a>
                 )}
+
+                <Link
+                  href="/settings"
+                  onClick={() => setIsProfileOpen(false)}
+                  className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>{t`Réglages du compte`}</span>
+                </Link>
 
                 <div className="flex items-center justify-between gap-2 px-3 py-1.5">
                   <span className="text-xs font-medium text-muted-foreground">{t`Thème`}</span>

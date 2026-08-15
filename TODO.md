@@ -1,111 +1,59 @@
-# 🗺️ TODO & Roadmap — qoe.fi Platform
+# TODO — Prochaines étapes qoe.fi
 
-> Session du 2026-08-13 — Infra: React Compiler + pnpm 11 + Feature Flags (GrowthBook) câblés partout.
+> État au commit des réglages compte + outbox email. Ce qui est fait :
+> centre de réglages lecteur, confidentialité de profil, export/suppression de
+> compte, outbox de livraison email, écran admin `/admin/notifications`,
+> worker de drainage atomique. Ce qui reste à faire :
 
----
+## 📮 Livraison email (outbox)
 
-## ✅ Fait Récemment (2026-08-13)
+- [ ] Choisir et enregistrer un vrai `EmailProvider` (Resend, Postmark, SES ou SMTP/Nodemailer) dans le runtime worker — sans toucher au contrat existant
+- [ ] Démarrer un scheduler qui appelle `drainNotificationEmailOutbox(provider)` sur un intervalle (ex. toutes les 30 s), avec supervision des erreurs
+- [ ] Politique de retry/backoff : `availableAt` repoussé après échec, max d'essais, désactivation après N échecs
+- [ ] Templates email pour les autres types (like, follow, commentaire, mention, média) — seul l'invitation contributeur a un template aujourd'hui
+- [ ] Brancher `QOE_PUBLIC_URL` par publication (lien article sur le bon sous-domaine/custom domain)
+- [ ] Option de brouillon/debug : envoyer les emails vers une boîte de test quand `NODE_ENV !== production`
 
-- [x] **React Compiler activé** sur les 5 apps Next.js (`reactCompiler: true`) — mémoïsation automatique.
-- [x] **Upgrade pnpm 9 → 11.21.0** (config migrée vers `pnpm-workspace.yaml`, `nodeLinker: hoisted`, `packageImportMethod: hardlink`, `allowBuilds`). Fix du singleton `@lingui/core` dupliqué (crash prerender Lingui).
-- [x] **Scripts dev ciblés** : `pnpm dev:web / dev:feed / dev:dashboard / dev:landing / dev:admin / dev:api` → lancer UNE app (+ son API) au lieu des 5 en parallèle (premier build ~5× plus rapide, PC plus frais).
-- [x] **Package `@qoe/flags` créé** : registre typé (`FLAGS`/`defaultFor`), provider React hydraté depuis le SSR (no-flicker), évaluation serveur (`isFlagOn`, `createFlagsContext`) avec cache TTL 60s + dégradation gracieuse. Tests 9/9.
-- [x] **Feature flags câblés partout** : provider dans les 5 root layouts Next, middleware Hono (`c.get('flags').isOn`), kill-switch newsletter dans les workers, démo `feed-recommendations` (carousel home feed).
-- [x] **Infra GrowthBook dev** : MongoDB + `growthbook` dans `docker-compose.dev.yml` (UI :3100, API SDK :3200), vars dans `.env.docker.example`.
+## 🔐 Sécurité & sessions (réglages)
 
----
+- [ ] Page « Sécurité » : liste des sessions actives (Supabase Auth), révocation d'une session, déconnexion des autres appareils
+- [ ] Changement d'email et de mot de passe depuis les réglages (flux Supabase Auth)
+- [ ] Double authentification (2FA/TOTP ou WebAuthn) avec codes de récupération
+- [ ] Vérification d'identité pour les actions sensibles (export, suppression, changement d'email)
 
-## ✅ Fait (2026-08-04 / 2026-08-05)
+## 🗑️ Suppression de compte
 
-- [x] **Pont & Séparation Réglages** : Distinction nette entre Réglages Système Personnels (`qoe.fi/settings`) et Design du Média (`dashboard.qoe.fi/settings`).
-- [x] **Sidebar Dashboard Profil Utilisateur** : Affichage dynamique de l'utilisateur connecté dans `AppleSidebar.tsx` et popover avec lien direct vers `Mon Compte Personnel` (`qoe.fi/settings`).
-- [x] **Bandeau d'Information VisualStudio** : Banner dans `visual-studio.tsx` orientant le créateur pour ses données personnelles.
-- [x] **Refonte Front-End Silicon Valley (`qoe.fi/settings`)** : 9 onglets système (Compte, Sécurité, SSO, Sessions, Timeline, Notifications, Portefeuille, Accessibilité, Confidentialité RGPD & Danger Zone).
-- [x] **Nettoyage Design Strict (Anti-AI Slop)** : Suppression de tous les `font-mono` sur les handles/domaines/dates et éradication des pills/badges colorés tape-à-l'œil.
-- [x] **Carte E-mails de Sécurité Transactionnelle** : Réglage fin des alertes e-mails de connexion, modifications de sécurité et digests.
-- [x] **Module Mailer Transactionnel (`@qoe/auth/mailer`)** : Templates HTML d'e-mails de sécurité Apple-style (`sendSecurityLoginAlert`, `sendSecurityPasswordChangedAlert`, `sendGdprArchiveReadyEmail`).
-- [x] **Server Actions Backend Raccordées** : Actions pour l'archive RGPD, le gel de compte (Freeze), la révocation de sessions et la suppression contrôlée avec mot de passe.
+- [ ] Écran admin pour traiter `AccountDeletionRequest` (approuver / refuser, motif visible)
+- [ ] Job de suppression RGPD : cascade propre (pensées, articles, likes, abonnements, notifications, préférences…)
+- [ ] Notification email au user quand la suppression est traitée
+- [ ] Période de grâce + annulation déjà possible côté user (fait) — documenter le délai
 
----
+## 🔒 Confidentialité
 
-## 🚧 Feuilles de Route & Prochaines Étapes (Tasklist)
+- [ ] Appliquer `profileVisibility` aux autres surfaces (recherche, notifications, suggestions du feed)
+- [ ] Appliquer `showSensitiveContent` aux trigger warnings dans le feed et les profils
+- [ ] Gérer les `BlockedUser` et `MutedWord` depuis l'UI des réglages (la DB existe déjà)
 
-### 0. 🚩 FINIR LES FEATURE FLAGS (GrowthBook) — à faire dans les prochains jours
+## 🤝 Consentement contributeur & collaboration
 
-> ⏸️ **Pause actuelle** : le câblage code est complet et committé (`14fed3f`).
-> Reste la mise en route opérationnelle + la prod. Détaillé dans [DEV.md](./DEV.md) et [README.md](./README.md).
+- [ ] Remplacer le mode local par une vraie collaboration distante (Hocuspocus/WebSocket) : curseurs, présence, permissions par article
+- [ ] Historique des versions d'article et restauration
+- [ ] Verrouillage de publication tant qu'une invitation est en attente (ou décision explicite)
+- [ ] UI de retrait de consentement depuis le profil du contributeur (pas seulement depuis l'espace Avancé)
 
-- [ ] **Démarrer l'infra dev** : `docker compose -f docker-compose.dev.yml up -d mongodb growthbook`
-- [ ] **Créer le compte admin** sur http://localhost:3100 (premier run).
-- [ ] **Créer une SDK Connection** : Settings → SDK Connections → New → copier la clé `sdk-...`.
-- [ ] **Renseigner les env vars** dans `.env` **et** `.env.docker` :
-      `GROWTHBOOK_API_HOST=http://localhost:3200`, `GROWTHBOOK_CLIENT_KEY=sdk-...`,
-      `NEXT_PUBLIC_GROWTHBOOK_API_HOST=http://localhost:3200`, `NEXT_PUBLIC_GROWTHBOOK_CLIENT_KEY=sdk-...`
-- [ ] **Créer les features dans GrowthBook** pour chaque clé de `packages/flags/src/flags.ts`
-      (`feed-recommendations`, `web-newsletter-banner`, `dashboard-ai-title-suggestions`,
-      `landing-pricing-section`, `admin-audit-log`, `workers-newsletter-dispatch`) avec la même valeur par défaut.
-- [ ] **Tester le toggle en direct** : `pnpm dev:feed` → basculer `feed-recommendations` dans GrowthBook →
-      le carousel "Recommandations" de la home apparaît/disparaît sans redéployer.
-- [ ] **Ajouter GrowthBook au docker-compose de PROD** (`docker-compose.yml`) : services
-      `mongodb` + `growthbook` (+ `growthbook-worker` si expériences A/B), sur le réseau privé,
-      exposés via Caddy (`flags.qoe.fi` UI + API), volumes persistants, secrets dans `.env.docker`.
-- [ ] **Ajouter les domains Caddy prod** pour GrowthBook + les env vars GrowthBook aux services web/api/workers.
-- [ ] **(Optionnel) A/B testing** : configurer un `trackingCallback` + connecter un data source
-      (Postgres/Umami) dans GrowthBook pour mesurer les expériences.
-- [ ] **(Optionnel) Streaming SSE** : si besoin de mise à jour flags en temps réel côté navigateur
-      (exige un GrowthBook Proxy en self-host), activer `streaming: true` dans `provider.tsx`.
+## 🔔 Notifications
 
----
+- [ ] Parité Go/TS sur les nouveaux types de notification (délivrance, grouping)
+- [ ] Push réel (APNs/FCM) — aujourd'hui seuls les canaux email/in-app existent
+- [ ] Préférences par sous-type et par publication (pas seulement globales)
 
-### 1. 📧 Configuration Backend Mailer & Triggers Supabase Prod (À configurer plus tard)
+## 🧪 Tests & qualité
 
-- [ ] Configurer la clé d'API `RESEND_API_KEY` et l'adresse `EMAIL_FROM=security@qoe.fi` en production.
-- [ ] Personnaliser les templates e-mails par défaut de Supabase Auth (Confirmation d'inscription, Magic Link, Réinitialisation de mot de passe).
-- [ ] Raccorder le trigger de détection automatique de **Nouvelle Connexion sur un Nouvel Appareil/IP** pour expédier `sendSecurityLoginAlert`.
-- [ ] Mettre en place le worker d'exportation de données RGPD pour générer l'archive JSON lourde en tâche de fond et transmettre le lien temporaire.
+- [ ] E2E pour l'écran admin outbox (relance, erreurs) et la confidentialité de profil privé/abonnés
+- [ ] Tests du scheduler de drainage (idempotence, limites de batch, backoff)
+- [ ] Tests du parcours suppression de compte de bout en bout
 
----
+## 🌐 Divers
 
-### 2. 🎙️ Multi-Tenancy Média & Gestion des Médias depuis le Compte Créateur
-
-> Références : [`VISION_MULTI_TENANT_MEDIA.md`](file:///d:/Files/DEV/Main/qoe.fi/VISION_MULTI_TENANT_MEDIA.md) & Discussion _"Redesign Creator Dashboard Settings"_
-
-- [ ] **Création de Média en 1 Clic** : Permettre à un utilisateur / créateur de **créer un ou plusieurs nouveaux médias** (journal, magazine, revue) directement depuis son compte principal, sans devoir créer un compte supplémentaire ou passer par un compte admin média global.
-- [ ] **Gestion des Réglages Médias Dédiés** : Réserver les réglages du Dashboard Studio (`dashboard.qoe.fi/settings`) à la configuration fine de chaque média (subdomaine `.qoe.fi`, domaine personnalisé, logo, palette, SEO, rôles d'équipe).
-- [ ] **Cas d'Usage Multi-Médias** : Gérer un créateur qui possède son média propre **ET** qui travaille simultanément en tant que rédacteur/contributeur pour 3 autres médias.
-- [ ] **Context Switcher Média (En-tête Studio)** : Composant de basculement rapide de contexte de publication dans la topbar ou la sidebar.
-- [ ] **Empilement Progressif des Niveaux d'Interface (Studio Levels)** :
-  - **`Writer` (Niveau 1 — Socle & Blog Personnel)** : Interface minimale et épurée axée sur la rédaction d'articles, la gestion de brouillons et la publication sur son blog personnel.
-  - **`Creator` (Niveau 2 — Déclinaison Multi-Format & Réseaux)** : Inclus `Writer` + Outils de conversion automatique d'un article en **carrousels Instagram, micro-posts/tweets et visuels sociaux** + Analytics d'engagement & Newsletters.
-  - **`Advanced` (Niveau 3 — Multi-Médias & Gestion d'Équipes)** : Inclus `Writer` + `Creator` + Gestion de **plusieurs médias/publications simultanés**, invitation de rédacteurs, sous-domaines/domaines personnalisés complexes, monétisation Stripe & API.
-
----
-
-### 3. 📰 Redesign Front-End du Feed Lecteur (`apps/feed`)
-
-- [ ] Réviser le layout de la timeline principale et de la navigation lecteur selon les spécifications Apple Music Web ([`design/DESIGN.md`](file:///d:/Files/DEV/Main/qoe.fi/design/DESIGN.md)).
-- [ ] Adapter la sidebar de navigation du lecteur aux tokens sémantiques `@qoe/theme`.
-- [ ] Affichage fluide des cartes d'articles et micro-posts avec séparateurs capillaires extra-fins.
-
----
-
-### 4. 🔑 Authentification Avancée & Sécurité Renforcée
-
-- [ ] Intégration de la **Double Authentification TOTP (2FA)** (Google Authenticator / Authy avec QR Code).
-- [ ] Support des **Passkeys / WebAuthn** pour la connexion biométrique sans mot de passe (Touch ID / Face ID).
-- [ ] Cron worker de suppression définitive des comptes planifiés après la période de grâce de 30 jours.
-
----
-
-### 5. 💳 Stripe Connect & Monétisation Créateurs
-
-- [ ] Flux d'onboarding Stripe Connect Express pour les créateurs.
-- [ ] Recharges automatique du Wallet lecteur et payouts mensuels automatique vers les créateurs.
-
----
-
-### 6. 🌑 Dark Mode "Onyx" (Apple Dark)
-
-- [ ] Valider les tokens sémantiques `.dark` dans `packages/theme/src/styles/tokens.css`.
-- [ ] Bouton de basculement de thème dans le Header (Soleil/Lune).
-- [ ] Tester le basculement sans aucun artefact visuel sur `apps/feed` et `apps/dashboard`.
+- [ ] Traductions (i18n) pour toutes les nouvelles pages de réglages
+- [ ] Audit de sécurité : rate-limiting sur les actions de réglages, logs d'audit admin

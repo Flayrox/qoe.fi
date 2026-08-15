@@ -45,7 +45,7 @@ export default async function UserProfilePage({
     data: { user: currentUser },
   } = await supabase.auth.getUser();
 
-  const resolved = await resolveProfileByHandle(resolvedParams.username);
+  const resolved = await resolveProfileByHandle(resolvedParams.username, currentUser?.id);
   if (!resolved) {
     notFound();
   }

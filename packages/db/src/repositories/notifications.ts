@@ -84,7 +84,7 @@ export async function createNotification(data: {
       return existing;
     }
 
-    return await prisma.notification.create({
+    const notification = await prisma.notification.create({
       data: {
         recipientId: data.recipientId,
         senderId: data.senderId,
@@ -95,10 +95,75 @@ export async function createNotification(data: {
         publicationId: data.publicationId || null,
       },
     });
+
+    // Outbox désactivé par défaut tant qu'aucun fournisseur n'est choisi/configuré.
+    // Le worker pourra être activé ensuite sans modifier les événements métier.
+    if (process.env.NOTIFICATION_DELIVERY_ENABLED === 'true') {
+      void enqueueNotificationDeliveries(notification.id).catch((error) =>
+        logger.error('Erreur ajout livraison notification dans l’outbox', { err: error })
+      );
+    }
+
+    return notification;
   } catch (error) {
     logger.error('Erreur création notification', { err: error });
     return null;
   }
+}
+
+/**
+ * Ajoute les livraisons email activées dans l'outbox, sans effectuer d'appel réseau.
+ */
+export async function enqueueNotificationDeliveries(notificationId: string): Promise<number> {
+  const notification = await prisma.notification.findUnique({
+    where: { id: notificationId },
+    include: { recipient: true },
+  });
+  if (!notification) return 0;
+
+  const preferences = await getPreferences(notification.recipientId);
+  const emailEnabled = notificationTypeUsesPreference(notification.type, 'email', preferences);
+  if (!emailEnabled || !notification.recipient.email) return 0;
+
+  const result = await prisma.notificationDelivery.createMany({
+    data: [
+      {
+        notificationId,
+        channel: 'EMAIL',
+        status: 'QUEUED',
+        recipient: notification.recipient.email,
+        provider: process.env.EMAIL_PROVIDER || null,
+        dedupeKey: `${notificationId}:EMAIL`,
+      },
+    ],
+    skipDuplicates: true,
+  });
+  return result.count;
+}
+
+function notificationTypeUsesPreference(
+  type: NotificationType,
+  channel: 'email' | 'push',
+  preferences: Awaited<ReturnType<typeof getPreferences>>
+): boolean {
+  const suffixByType: Partial<Record<NotificationType, string>> = {
+    LIKE: 'Likes',
+    REPOST: 'Reposts',
+    REPLY: 'Replies',
+    COMMENT: 'Comments',
+    MENTION: 'Mentions',
+    FOLLOW: 'Follows',
+    MEDIA_INVITE: 'Media',
+    MEDIA_MEMBER_JOINED: 'Media',
+    MEDIA_ARTICLE_PUBLISHED: 'Media',
+    MEDIA_ARTICLE_SUBMITTED: 'Media',
+    ARTICLE_CONTRIBUTOR_INVITED: 'Collaborations',
+    ARTICLE_CONTRIBUTOR_ACCEPTED: 'Collaborations',
+    ARTICLE_CONTRIBUTOR_DECLINED: 'Collaborations',
+    ARTICLE_CONTRIBUTOR_REMOVED: 'Collaborations',
+  };
+  const key = `${channel}${suffixByType[type] || 'Collaborations'}` as keyof typeof preferences;
+  return preferences[key] === true;
 }
 
 /**

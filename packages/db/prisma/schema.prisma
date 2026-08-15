@@ -104,6 +104,8 @@ model User {
   receivedNotifications  Notification[]          @relation("UserNotifications")
   sentNotifications      Notification[]          @relation("NotificationSender")
   notificationPreference NotificationPreference?
+  settings              UserSettings?
+  accountDeletionRequests AccountDeletionRequest[]
 
   // AI Recs
   embedding Unsupported("vector(1536)")?
@@ -794,10 +796,64 @@ model Notification {
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
+  deliveries NotificationDelivery[]
+
   @@index([recipientId, isRead, createdAt])
   @@index([thoughtId])
   @@index([senderId])
   @@index([publicationId])
+}
+
+model UserSettings {
+  id                       String   @id @default(cuid())
+  userId                   String   @unique @db.Uuid
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileVisibility       String   @default("PUBLIC") // PUBLIC | FOLLOWERS | PRIVATE
+  allowMentions           Boolean  @default(true)
+  allowCollaborationInvites Boolean @default(true)
+  showSensitiveContent    Boolean  @default(true)
+  autoplayMedia           Boolean  @default(true)
+  reduceMotion            Boolean  @default(false)
+  highContrast            Boolean  @default(false)
+  fontScale               Int      @default(100)
+  defaultFeed             String   @default("FOLLOWING") // FOLLOWING | DISCOVER
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+model AccountDeletionRequest {
+  id          String    @id @default(cuid())
+  userId      String    @db.Uuid
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      String    @default("PENDING") // PENDING | PROCESSING | COMPLETED | CANCELED
+  reason      String?   @db.Text
+  requestedAt DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([userId, status])
+  @@index([status, requestedAt])
+}
+
+model NotificationDelivery {
+  id             String       @id @default(cuid())
+  notificationId String
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  channel        String       @default("EMAIL") // EMAIL | PUSH
+  status         String       @default("QUEUED") // QUEUED | PROCESSING | SENT | FAILED | DISABLED
+  recipient      String
+  provider       String?
+  providerId     String?
+  attempts       Int          @default(0)
+  availableAt    DateTime     @default(now())
+  sentAt         DateTime?
+  lastError      String?      @db.Text
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  dedupeKey      String       @unique
+
+  @@index([status, availableAt])
+  @@index([notificationId])
+  @@index([recipient, channel, status])
 }
 
 model NotificationPreference {
