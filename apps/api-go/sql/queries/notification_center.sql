@@ -12,7 +12,8 @@ SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n.
        a.title         AS article_title,
        a.slug          AS article_slug,
        c.content       AS comment_content,
-       p.name          AS publication_name
+       p.name          AS publication_name,
+       p.slug          AS publication_slug
 FROM "Notification" n
 JOIN "User" u ON u.id = n."senderId"
 LEFT JOIN "Post" t ON t.id = n."thoughtId"

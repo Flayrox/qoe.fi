@@ -1,16 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { createClient } from '@qoe/supabase/client';
+import { useState } from 'react';
 import {
   useNotificationsInfiniteQuery,
   useMarkNotificationsAsReadMutation,
-  notificationKeys,
   type NotificationFilter,
 } from '@qoe/api-client';
 import { CheckCheck, BellOff, Loader2, ChevronDown } from 'lucide-react';
 import { NotificationItem } from './NotificationItem';
+import { useRealtimeNotificationSync } from './useRealtimeNotificationSync';
 import { cn } from '@qoe/utils';
 
 const TABS: Array<{ id: NotificationFilter; label: string }> = [
@@ -22,35 +20,15 @@ const TABS: Array<{ id: NotificationFilter; label: string }> = [
 
 export function NotificationList() {
   const [filter, setFilter] = useState<NotificationFilter>('all');
-  const queryClient = useQueryClient();
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useNotificationsInfiniteQuery(filter);
   const notifications = (data?.pages ?? []).flatMap((p) => p.notifications);
   const markAsReadMutation = useMarkNotificationsAsReadMutation();
 
-  // Écouteur Supabase Realtime pour recevoir les notifications instantanément
-  useEffect(() => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel('public:Notification')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'Notification',
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: notificationKeys.all });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
+  // 📡 Realtime : reçoit les INSERT/UPDATE de Notification en direct
+  // (badge non-lu + liste) — canal filtré par recipientId.
+  useRealtimeNotificationSync();
 
   const handleMarkAllRead = () => {
     markAsReadMutation.mutate(undefined);

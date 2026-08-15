@@ -3,6 +3,7 @@
 package creator
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -236,6 +237,9 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 			response.Internal(w)
 			return
 		}
+		if err := deleteFollowNotification(ctx, h.q, targetID, userID); err != nil {
+			log.Printf("[creator] delete follow notification: %v", err)
+		}
 		count, err := h.q.CountFollowers(ctx, targetID)
 		if err != nil {
 			count = 0
@@ -254,11 +258,84 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 		response.Internal(w)
 		return
 	}
+	if err := notifyFollow(ctx, h.q, targetID, userID); err != nil {
+		log.Printf("[creator] follow notification: %v", err)
+	}
 	count, err := h.q.CountFollowers(ctx, targetID)
 	if err != nil {
 		count = 0
 	}
 	response.OK(w, map[string]any{"data": map[string]any{"following": true, "followersCount": count}})
+}
+
+// notifyFollow crée la notification FOLLOW au propriétaire d'une publication
+// (PERSONAL → créateur, MEDIA → membre owner). Best-effort, respecte les
+// préférences du destinataire et déduplique les suivis non lus.
+func notifyFollow(ctx context.Context, tq *db.Queries, publicationID, senderID string) error {
+	ownerID, err := tq.GetPublicationOwner(ctx, publicationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
+	if ownerID == "" || ownerID == senderID {
+		return nil
+	}
+
+	ownerUUID := toUUID(ownerID)
+	senderUUID := toUUID(senderID)
+
+	prefs, err := tq.GetFollowPrefs(ctx, ownerUUID)
+	if err == nil {
+		if !prefs.EmailFollows && !prefs.PushFollows {
+			return nil
+		}
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return err
+	}
+
+	exists, err := tq.ExistsUnreadFollowNotification(ctx, db.ExistsUnreadFollowNotificationParams{
+		RecipientId:   ownerUUID,
+		SenderId:      senderUUID,
+		PublicationId: pgtype.Text{String: publicationID, Valid: true},
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			exists = 0
+		} else {
+			return err
+		}
+	}
+	if exists == 1 {
+		return nil
+	}
+
+	return tq.InsertFollowNotification(ctx, db.InsertFollowNotificationParams{
+		RecipientId:   ownerUUID,
+		SenderId:      senderUUID,
+		PublicationId: pgtype.Text{String: publicationID, Valid: true},
+	})
+}
+
+// deleteFollowNotification supprime la notification FOLLOW lors d'un unfollow.
+func deleteFollowNotification(ctx context.Context, tq *db.Queries, publicationID, senderID string) error {
+	ownerID, err := tq.GetPublicationOwner(ctx, publicationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
+	if ownerID == "" || ownerID == senderID {
+		return nil
+	}
+
+	return tq.DeleteFollowNotification(ctx, db.DeleteFollowNotificationParams{
+		RecipientId:   toUUID(ownerID),
+		SenderId:      toUUID(senderID),
+		PublicationId: pgtype.Text{String: publicationID, Valid: true},
+	})
 }
 
 // toUUID convertit un id texte en pgtype.UUID (readerId UUID).

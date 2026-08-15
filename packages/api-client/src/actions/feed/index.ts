@@ -186,6 +186,13 @@ const unfurlCache = new Map<string, UnfurlResult>();
 
 export const toggleFollowCreatorHomeAction = safeAction<string, { followed: boolean }>(
   async (publicationId, user) => {
+    if (isGoEnabled()) {
+      const res = await goFetch<{ data: { following: boolean } }>(
+        `/v1/users/${encodeURIComponent(publicationId)}/follow`,
+        { method: 'POST' }
+      );
+      return { followed: res.data.following };
+    }
     return follows.toggleFollow(user.id, publicationId);
   }
 );

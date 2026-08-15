@@ -71,7 +71,8 @@ SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n.
        a.title         AS article_title,
        a.slug          AS article_slug,
        c.content       AS comment_content,
-       p.name          AS publication_name
+       p.name          AS publication_name,
+       p.slug          AS publication_slug
 FROM "Notification" n
 JOIN "User" u ON u.id = n."senderId"
 LEFT JOIN "Post" t ON t.id = n."thoughtId"
@@ -111,6 +112,7 @@ type GetNotificationsRow struct {
 	ArticleSlug      pgtype.Text      `json:"article_slug"`
 	CommentContent   pgtype.Text      `json:"comment_content"`
 	PublicationName  pgtype.Text      `json:"publication_name"`
+	PublicationSlug  pgtype.Text      `json:"publication_slug"`
 }
 
 // Centre de notifications : liste groupée, non-lus, lecture, préférences.
@@ -148,6 +150,7 @@ func (q *Queries) GetNotifications(ctx context.Context, arg GetNotificationsPara
 			&i.ArticleSlug,
 			&i.CommentContent,
 			&i.PublicationName,
+			&i.PublicationSlug,
 		); err != nil {
 			return nil, err
 		}

@@ -93,14 +93,17 @@ export async function searchUsers(query: string, limit = 15) {
 
 /**
  * 📖 Recherche d'articles publiés (avec publication brand + auteur humain).
+ * Si `publicationId` est fourni, restreint aux articles de cette publication
+ * (scope "mes articles" du dashboard créateur).
  */
-export async function searchArticles(query: string, limit = 10) {
+export async function searchArticles(query: string, limit = 10, publicationId?: string) {
   const cleanQuery = query.trim();
   if (!cleanQuery) return [];
 
   return prisma.article.findMany({
     where: {
       published: true,
+      ...(publicationId ? { publicationId } : {}),
       OR: [
         { title: { contains: cleanQuery, mode: 'insensitive' } },
         { content: { contains: cleanQuery, mode: 'insensitive' } },
