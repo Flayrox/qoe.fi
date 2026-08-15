@@ -10,54 +10,92 @@ import { notificationKeys } from '@qoe/api-client';
  *
  * Ouvre un canal Supabase Realtime sur `public:Notification` filtré par
  * `recipientId` et invalide les queries react-query du badge non-lu et de
- * la liste à chaque INSERT. Fonctionne aussi pour les mises à jour (isRead)
- * via UPDATE.
+ * la liste à chaque INSERT / UPDATE / DELETE.
  *
  * ⚠️ Le filtre `recipientId=eq.<uid>` est appliqué côté serveur : la table
  * doit avoir la Replication Realtime activée ET une RLS `select` sur
  * `authenticated` autorisant le lecteur à ne voir que ses propres lignes.
  */
+
+type Listener = (payload: unknown) => void;
+
+/**
+ * Un SEUL canal partagé au niveau du module.
+ *
+ * `useRealtimeNotificationSync` est appelé par plusieurs composants montés
+ * en parallèle (`UnreadBadge`, `useUnreadNotificationCount`, sidebar,
+ * header…). `createClient()` renvoie un client singleton et
+ * `client.channel(topic)` RÉUTILISE le canal existant pour un même topic :
+ * appeler `.on()` une seconde fois sur un canal déjà `subscribe()` lève
+ * « cannot add postgres_changes callbacks … after subscribe() ».
+ *
+ * On souscrit donc une seule fois (avec un garde anti-course) et on
+ * dispatche chaque payload à tous les listeners actifs. On ne fait plus
+ * `removeAllChannels()` au unmount : ça coupait le canal des autres
+ * instances encore montées.
+ */
+const listeners = new Set<Listener>();
+
+type SupabaseClient = ReturnType<typeof createClient>;
+type RealtimeChannel = ReturnType<SupabaseClient['channel']>;
+
+let channel: RealtimeChannel | null = null;
+let channelPromise: Promise<void> | null = null;
+
+function dispatch(payload: unknown) {
+  for (const listener of listeners) {
+    listener(payload);
+  }
+}
+
+function ensureChannel(): Promise<void> {
+  if (channel) return Promise.resolve();
+  if (channelPromise) return channelPromise;
+
+  channelPromise = (async () => {
+    const client = createClient();
+    const {
+      data: { user },
+    } = await client.auth.getUser();
+
+    // Pas de session : on ne souscrit pas, mais on laisse la main à une
+    // future instance du hook (channel reste null → nouvel essai).
+    if (!user) {
+      channelPromise = null;
+      return;
+    }
+
+    channel = client.channel('public:Notification').on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'Notification',
+        filter: `recipientId=eq.${user.id}`,
+      },
+      (payload) => dispatch(payload)
+    );
+
+    channel.subscribe();
+  })();
+
+  return channelPromise;
+}
+
 export function useRealtimeNotificationSync() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    let supabase: ReturnType<typeof createClient> | null = null;
-    let cancelled = false;
+    const listener: Listener = () => {
+      queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount() });
+      queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+    };
 
-    async function subscribe() {
-      const client = createClient();
-      supabase = client;
-      const {
-        data: { user },
-      } = await client.auth.getUser();
-
-      if (cancelled || !user) return;
-
-      client
-        .channel('public:Notification')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'Notification',
-            filter: `recipientId=eq.${user.id}`,
-          },
-          () => {
-            queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount() });
-            queryClient.invalidateQueries({ queryKey: notificationKeys.all });
-          }
-        )
-        .subscribe();
-    }
-
-    subscribe();
+    listeners.add(listener);
+    void ensureChannel();
 
     return () => {
-      cancelled = true;
-      if (supabase) {
-        supabase.removeAllChannels();
-      }
+      listeners.delete(listener);
     };
   }, [queryClient]);
 }
