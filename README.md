@@ -14,9 +14,9 @@ qoe.fi is structured as a modern Monorepo utilizing **Turborepo** and **pnpm wor
 
 | Domain               | Technology                                            |
 | -------------------- | ----------------------------------------------------- |
-| **Frameworks**       | Next.js 16 (App Router), Hono (API)                   |
+| **Frameworks**       | Next.js 16 (App Router), Go (`apps/api-go`)          |
 | **Package Manager**  | pnpm 11.21 (Workspaces) + Turborepo 2.9               |
-| **Database Layer**   | PostgreSQL 16 + pgvector, Prisma ORM, Redis (BullMQ)  |
+| **Database Layer**   | PostgreSQL 16 + pgvector, Prisma ORM, Redis (BullMQ TS + asynq Go) |
 | **Infrastructure**   | Docker, Docker Compose, Caddy 2 (Reverse Proxy / TLS) |
 | **State Management** | TanStack Query (React Query) + Optimistic Updates     |
 | **Typing**           | TypeScript 5.9 (Strict), Zod                          |
@@ -41,8 +41,10 @@ The front-facing and API surface areas of the platform.
    The super-admin cockpit for platform moderation, statistics, and global system configuration.
 5. **`apps/web` (`*.qoe.fi` / Custom Domains)**
    The highly optimized, multi-tenant rendering engine for creator blogs. Includes dynamic routing via Caddy, Paywall cutting, and virtualized text annotation UI.
-6. **`apps/api` (`api.qoe.fi`)**
-   Hono-based API for public endpoints and fast internal network requests.
+6. **`apps/api-go` (`api.qoe.fi`)**
+   Backend Go de référence (feed, posts, articles, notifications, analytics, webhooks). C'est le *backend-of-record* : les server actions y proxisent via `QOE_API_GO_URL`.
+7. **`apps/api` (`api-legacy.qoe.fi`) — en transition**
+   API Hono réservée aux créateurs/médias (clés `qoe_live_*`, qoe.fi comme CMS). À supprimer quand le Go couvre tout — voir `SUNSET_API_LEGACY.md`.
 
 ### Core Packages (`packages/*`)
 
@@ -54,7 +56,7 @@ The Single Source of Truth for logic, data, and configuration.
 - **`@qoe/supabase`**: Isomorphic Supabase client initialization handling complex Cookie behaviors for SSR, Middlewares, and client-side components.
 - **`@qoe/api-client`**: TanStack Query data layer encapsulating hooks, optimistic UI mutations (Like, Bookmark, Repost), and Server Action typings.
 - **`@qoe/billing`**: Stripe Webhook handlers, subscription plans, and the server-side Paywall AST Truncation engine.
-- **`@qoe/workers`**: Strongly typed async event bus (BullMQ) for Meilisearch sync, Stripe Webhooks, and fan-out newsletters.
+- **`@qoe/workers`**: Strongly typed async event bus (BullMQ) for Meilisearch sync, Stripe Webhooks, and fan-out newsletters (le backend Go utilise asynq via `apps/api-go/cmd/worker`).
 - **`@qoe/ui`**: Shared UI components and Shadcn UI library implementations (Command Menus, Modals).
 - **`@qoe/theme`**: Centralized design tokens and CSS variable registries to enforce UI consistency across all apps.
 - **`@qoe/analytics`**, **`@qoe/i18n`**, **`@qoe/utils`**, **`@qoe/tsconfig`**: Utilities for tracking, translation, formatting, and strict TS configurations.
