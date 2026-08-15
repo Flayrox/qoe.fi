@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Search, Command, Menu } from 'lucide-react';
 import { toast } from 'sonner';
-import { useCommandMenu } from '@qoe/ui';
+import { ThemeToggle, useCommandMenu } from '@qoe/ui';
 
 import { HeaderWorkspaceSwitcher } from './HeaderWorkspaceSwitcher';
 
@@ -88,6 +88,8 @@ export function HeaderClient() {
               Advanced
             </button>
           </nav>
+
+          <ThemeToggle />
         </div>
       </div>
     </header>
