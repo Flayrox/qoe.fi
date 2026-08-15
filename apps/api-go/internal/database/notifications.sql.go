@@ -376,6 +376,58 @@ func (q *Queries) InsertMediaArticleSubmittedFanout(ctx context.Context, arg Ins
 	return err
 }
 
+const insertMediaInviteNotification = `-- name: InsertMediaInviteNotification :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId")
+SELECT gen_random_uuid()::text, $1, $2, 'MEDIA_INVITE', $3
+WHERE $1 <> $2
+  AND (
+    COALESCE((SELECT "pushMedia" FROM "NotificationPreference" WHERE "userId" = $1), true)
+    OR COALESCE((SELECT "emailMedia" FROM "NotificationPreference" WHERE "userId" = $1), true)
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM "Notification" n
+    WHERE n."recipientId" = $1 AND n."senderId" = $2 AND n.type = 'MEDIA_INVITE'
+      AND n."publicationId" = $3 AND n."isRead" = false
+  )
+`
+
+type InsertMediaInviteNotificationParams struct {
+	RecipientId   pgtype.UUID `json:"recipientId"`
+	SenderId      pgtype.UUID `json:"senderId"`
+	PublicationId pgtype.Text `json:"publicationId"`
+}
+
+func (q *Queries) InsertMediaInviteNotification(ctx context.Context, arg InsertMediaInviteNotificationParams) error {
+	_, err := q.db.Exec(ctx, insertMediaInviteNotification, arg.RecipientId, arg.SenderId, arg.PublicationId)
+	return err
+}
+
+const insertMediaMemberJoinedNotification = `-- name: InsertMediaMemberJoinedNotification :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId")
+SELECT gen_random_uuid()::text, $1, $2, 'MEDIA_MEMBER_JOINED', $3
+WHERE $1 <> $2
+  AND (
+    COALESCE((SELECT "pushMedia" FROM "NotificationPreference" WHERE "userId" = $1), true)
+    OR COALESCE((SELECT "emailMedia" FROM "NotificationPreference" WHERE "userId" = $1), true)
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM "Notification" n
+    WHERE n."recipientId" = $1 AND n."senderId" = $2 AND n.type = 'MEDIA_MEMBER_JOINED'
+      AND n."publicationId" = $3 AND n."isRead" = false
+  )
+`
+
+type InsertMediaMemberJoinedNotificationParams struct {
+	RecipientId   pgtype.UUID `json:"recipientId"`
+	SenderId      pgtype.UUID `json:"senderId"`
+	PublicationId pgtype.Text `json:"publicationId"`
+}
+
+func (q *Queries) InsertMediaMemberJoinedNotification(ctx context.Context, arg InsertMediaMemberJoinedNotificationParams) error {
+	_, err := q.db.Exec(ctx, insertMediaMemberJoinedNotification, arg.RecipientId, arg.SenderId, arg.PublicationId)
+	return err
+}
+
 const insertRepostNotification = `-- name: InsertRepostNotification :exec
 INSERT INTO "Notification" (id, "recipientId", "senderId", type, "thoughtId")
 VALUES (gen_random_uuid()::text, $1, $2, 'REPOST', $3)
