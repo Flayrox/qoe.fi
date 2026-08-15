@@ -90,6 +90,62 @@ Une fois tout démarré, accède directement à tes applications via les domaine
 
 ---
 
+## 📱 App Mobile (React Native + Expo)
+
+App Expo **SDK 57** (`apps/mobile`) : expo-router + **Expo UI** (@expo/ui —
+composants natifs SwiftUI / Jetpack Compose, stable et inclus dans Expo Go).
+Intégrée au monorepo (pnpm + turbo), Metro est auto-configuré pour le monorepo.
+
+### Structure (calquée sur `apps/feed`)
+
+```
+apps/mobile/src/
+  app/          → routes expo-router (seules les routes vivent ici)
+  components/   → composants UI génériques (+ providers/)
+  features/     → fonctionnalités métier (home, puis feed, auth…)
+  hooks/        → hooks partagés
+  lib/          → infra : api (hôte auto), query-client
+  constants/    → thème
+```
+
+### Connexion à l'API
+
+- Le mobile importe **`@qoe/api-client/mobile`** : entrée RN-safe du client
+  partagé (client + types + query-keys + `useInfiniteFeed`), sans les actions
+  serveur (`'use server'` / Prisma) que tire l'index racine.
+- `src/lib/api.ts` résout l'hôte automatiquement : `localhost` sur simulateur,
+  IP locale (via `hostUri` Metro) sur appareil physique.
+- Data fetching : **@tanstack/react-query** (même version que les apps web).
+- La carte « API qoe.fi » de l'écran d'accueil affiche l'état de la connexion :
+  lance l'API (`pnpm dev:api`) pour la voir passer à « connectée ».
+
+### Lancer sur le simulateur iOS (recommandé sur Mac)
+
+```bash
+pnpm mobile:ios
+```
+
+Boote le simulateur, installe Expo Go (uniquement la 1ʳᵉ fois) puis ouvre
+l'app avec le hot reload. Metro tourne sur le port **8081**.
+
+### Autres cibles de test
+
+```bash
+pnpm mobile:web      # version web dans le navigateur (le plus rapide pour l'UI)
+pnpm mobile:android  # émulateur Android (Android Studio requis)
+pnpm mobile:start    # dev server seul → QR code pour un appareil physique (même WiFi)
+pnpm mobile:doctor   # diagnostic santé du projet Expo
+pnpm mobile:lint     # eslint (expo lint)
+pnpm mobile:typecheck
+```
+
+> 💡 L'Expo Go de l'App Store peut être en retard sur le dernier SDK. Sur un
+> **iPhone physique**, si le QR code ne charge pas l'app, il faudra passer par
+> un dev build (`npx expo run:ios` ou EAS) — sur le **simulateur**, ça marche
+> directement. La route web (`pnpm mobile:web`) reste le test le plus simple.
+
+---
+
 ## 🛑 Commandes d'Arrêt et Nettoyage
 
 - **Arrêter Caddy** : `caddy stop`
