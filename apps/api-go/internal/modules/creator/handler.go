@@ -31,9 +31,10 @@ func NewHandler(pool *pgxpool.Pool, umamiCli *umami.Client, defaultWebsiteID str
 }
 
 // RegisterAPIKey — routes créateur authentifiées par clé API (qoe_live_…).
+// Scopes (moindre privilège) : catégories = READ, analytics = ANALYTICS.
 func (h *Handler) RegisterAPIKey(r chi.Router) {
-	r.Get("/v1/categories", h.categories)
-	r.Get("/v1/analytics/stats", h.analyticsStats)
+	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/categories", h.categories)
+	r.With(middleware.RequireAPIScope(middleware.ScopeAnalytics)).Get("/v1/analytics/stats", h.analyticsStats)
 }
 
 // RegisterPublic — routes publiques.

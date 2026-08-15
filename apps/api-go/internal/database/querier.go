@@ -11,6 +11,8 @@ import (
 )
 
 type Querier interface {
+	// Compte des articles d'une publication (mêmes filtres que ListCreatorArticles).
+	CountCreatorArticles(ctx context.Context, arg CountCreatorArticlesParams) (int64, error)
 	CountFollowers(ctx context.Context, publicationid string) (int32, error)
 	CountFollowing(ctx context.Context, readerid pgtype.UUID) (int32, error)
 	CountOptionVotes(ctx context.Context, optionid string) (int32, error)
@@ -24,6 +26,7 @@ type Querier interface {
 	CreatePollOption(ctx context.Context, arg CreatePollOptionParams) (string, error)
 	CreateThought(ctx context.Context, arg CreateThoughtParams) (CreateThoughtRow, error)
 	CreateWalletTransaction(ctx context.Context, arg CreateWalletTransactionParams) (string, error)
+	CreateWebhook(ctx context.Context, arg CreateWebhookParams) (string, error)
 	CreateWebhookDelivery(ctx context.Context, arg CreateWebhookDeliveryParams) (string, error)
 	DecrementLikeCount(ctx context.Context, id string) error
 	DecrementReplyCount(ctx context.Context, id string) error
@@ -35,6 +38,7 @@ type Querier interface {
 	DeleteLikeNotification(ctx context.Context, arg DeleteLikeNotificationParams) error
 	DeletePureReposts(ctx context.Context, arg DeletePureRepostsParams) error
 	DeleteRepostNotification(ctx context.Context, arg DeleteRepostNotificationParams) error
+	DeleteWebhook(ctx context.Context, arg DeleteWebhookParams) error
 	ExistsUnreadLikeNotification(ctx context.Context, arg ExistsUnreadLikeNotificationParams) (int32, error)
 	ExistsUnreadMentionNotification(ctx context.Context, arg ExistsUnreadMentionNotificationParams) (int32, error)
 	ExistsUnreadReplyNotification(ctx context.Context, arg ExistsUnreadReplyNotificationParams) (int32, error)
@@ -52,6 +56,9 @@ type Querier interface {
 	GetAttachmentsByIDs(ctx context.Context, dollar_1 []string) ([]GetAttachmentsByIDsRow, error)
 	GetAudienceSummary(ctx context.Context, publicationid string) (GetAudienceSummaryRow, error)
 	GetCanonicalThoughtID(ctx context.Context, id string) (string, error)
+	// Lecture d'un article PUBLIÉ d'une publication au format contrat créateurs
+	// (clé API → publication du créateur), catégorie embarquée.
+	GetCreatorArticleBySlug(ctx context.Context, arg GetCreatorArticleBySlugParams) (GetCreatorArticleBySlugRow, error)
 	GetExistingBookmark(ctx context.Context, arg GetExistingBookmarkParams) (int32, error)
 	GetExistingFollow(ctx context.Context, arg GetExistingFollowParams) (int32, error)
 	GetExistingLike(ctx context.Context, arg GetExistingLikeParams) (int32, error)
@@ -96,6 +103,7 @@ type Querier interface {
 	GetUserUsername(ctx context.Context, id string) (pgtype.Text, error)
 	GetUserVotesByIDs(ctx context.Context, arg GetUserVotesByIDsParams) ([]GetUserVotesByIDsRow, error)
 	GetUsersByUsernames(ctx context.Context, dollar_1 []string) ([]GetUsersByUsernamesRow, error)
+	GetWebhookByID(ctx context.Context, id string) (Webhook, error)
 	IncrementLikeCount(ctx context.Context, id string) error
 	IncrementReplyCount(ctx context.Context, id string) error
 	IncrementRepostCount(ctx context.Context, id string) error
@@ -108,8 +116,12 @@ type Querier interface {
 	InsertPureRepost(ctx context.Context, arg InsertPureRepostParams) (string, error)
 	InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error
 	InsertRepostNotification(ctx context.Context, arg InsertRepostNotificationParams) error
-	ListArticlesByPublication(ctx context.Context, arg ListArticlesByPublicationParams) ([]ListArticlesByPublicationRow, error)
 	ListCategoriesByPublication(ctx context.Context, publicationid string) ([]ListCategoriesByPublicationRow, error)
+	// Liste des articles d'une publication au format contrat créateurs (Hono) :
+	// filtres `published` (défaut true) et `category` (slug), catégorie embarquée.
+	ListCreatorArticles(ctx context.Context, arg ListCreatorArticlesParams) ([]ListCreatorArticlesRow, error)
+	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
+	ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error)
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
 	SetArticleStatus(ctx context.Context, arg SetArticleStatusParams) (string, error)
 	SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error

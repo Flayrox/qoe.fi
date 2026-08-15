@@ -5,9 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api-go/internal/database"
@@ -16,8 +18,9 @@ import (
 )
 
 var (
-	errNotFound  = errors.New("article introuvable")
-	errForbidden = errors.New("permission insuffisante")
+	errNotFound             = errors.New("article introuvable")
+	errForbidden            = errors.New("permission insuffisante")
+	errInvalidContentFormat = errors.New("contentFormat invalide (markdown|html)")
 )
 
 // ArticleResponse est la forme API d'un article (contenu éventuellement tronqué).
@@ -63,11 +66,13 @@ type PublicationInfo struct {
 }
 
 // CreateArticleInput est l'entrée de création d'un article.
+// ContentFormat : "" ou "html" (tel quel) | "markdown" (converti en HTML).
 type CreateArticleInput struct {
 	PublicationID  string
 	Title          string
 	Slug           string
 	Content        string
+	ContentFormat  string
 	IsPremium      bool
 	Visibility     string
 	CategoryID     *string
@@ -79,9 +84,11 @@ type CreateArticleInput struct {
 }
 
 // UpdateArticleInput est l'entrée de mise à jour.
+// ContentFormat : "" ou "html" (tel quel) | "markdown" (converti en HTML).
 type UpdateArticleInput struct {
 	Title          string
 	Content        string
+	ContentFormat  string
 	Slug           string
 	IsPremium      bool
 	CategoryID     *string
@@ -138,7 +145,7 @@ func (s *Service) canPublish(role string) bool { return role == "owner" || role 
 func (s *Service) GetBySlug(ctx context.Context, slug, publicationID string, viewerID string, viewerEmail string) (ArticleResponse, error) {
 	row, err := s.q.GetArticleBySlug(ctx, db.GetArticleBySlugParams{Slug: slug, PublicationId: publicationID})
 	if err != nil {
-		if errors.Is(err, errNotFound) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return ArticleResponse{}, errNotFound
 		}
 		return ArticleResponse{}, err
@@ -165,8 +172,48 @@ func (s *Service) GetBySlug(ctx context.Context, slug, publicationID string, vie
 	return articleFromSlugRow(row, cut), nil
 }
 
+// GetCreatorBySlug lit un article PUBLIÉ de la publication du créateur (contrat
+// créateurs, clé API) : item `contentHtml` tronqué + catégorie embarquée.
+func (s *Service) GetCreatorBySlug(ctx context.Context, slug, publicationID string) (CreatorItem, error) {
+	row, err := s.q.GetCreatorArticleBySlug(ctx, db.GetCreatorArticleBySlugParams{Slug: slug, PublicationId: publicationID})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return CreatorItem{}, errNotFound
+		}
+		return CreatorItem{}, err
+	}
+
+	// Troncature zéro-fuite : jamais de contenu payant au-delà du marqueur.
+	cut := SliceContentAtPaywall(row.Content, UserEntitlements{}, string(row.Visibility), textPtr(row.TierId))
+	ar := ArticleResponse{
+		ID: row.ID, Title: row.Title, Slug: row.Slug,
+		Content:     cut.Content,
+		IsTruncated: cut.IsTruncated,
+		Visibility:  string(row.Visibility),
+		ReadingTime: int(row.ReadingTime),
+		IsPremium:   row.IsPremium,
+		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
+		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
+		PaywallMeta: cut.PaywallMeta,
+	}
+
+	var cat *CreatorCategory
+	if row.CategoryID.Valid {
+		cat = &CreatorCategory{
+			ID:          row.CategoryID.String,
+			Name:        row.CategoryName.String,
+			Slug:        row.CategorySlug.String,
+			Description: textPtr(row.CategoryDescription),
+		}
+	}
+	return ToCreatorItem(ar, cat), nil
+}
+
 // Create crée un article avec RBAC (personnel owner ou membre média).
 func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInput) (string, error) {
+	if !IsValidContentFormat(in.ContentFormat) {
+		return "", errInvalidContentFormat
+	}
 	role, err := s.resolveRole(ctx, userID, in.PublicationID)
 	if err != nil {
 		return "", err
@@ -187,7 +234,7 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 	id, err := s.q.CreateArticle(ctx, db.CreateArticleParams{
 		Title:                  in.Title,
 		Slug:                   in.Slug,
-		Content:                in.Content,
+		Content:                NormalizeContent(in.Content, in.ContentFormat),
 		Published:              published,
 		IsPremium:              in.IsPremium,
 		Visibility:             db.ContentVisibility(in.Visibility),
@@ -209,33 +256,83 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 	return id, nil
 }
 
-// List liste les articles d'une publication (RBAC créateur requis).
-func (s *Service) List(ctx context.Context, userID, publicationID string, limit, offset int) ([]ArticleResponse, error) {
+// ListCreatorArticles liste les articles d'une publication au format du contrat
+// créateurs (enveloppe `{data, pagination}`, contenu tronqué `contentHtml`,
+// catégorie embarquée). Filtres : `published` (défaut true) et `category` (slug).
+// RBAC : l'utilisateur doit avoir un rôle sur la publication.
+func (s *Service) ListCreatorArticles(ctx context.Context, userID, publicationID string, page, limit int, categorySlug string, publishedOnly bool) (CreatorListResponse, error) {
 	if _, err := s.resolveRole(ctx, userID, publicationID); err != nil {
-		return nil, err
+		return CreatorListResponse{}, err
 	}
-	rows, err := s.q.ListArticlesByPublication(ctx, db.ListArticlesByPublicationParams{
-		PublicationId: publicationID, Limit: int32(limit), Offset: int32(offset),
+
+	var pub pgtype.Bool
+	if publishedOnly {
+		pub = pgtype.Bool{Bool: true, Valid: true}
+	}
+	var cat pgtype.Text
+	if categorySlug != "" {
+		cat = pgtype.Text{String: categorySlug, Valid: true}
+	}
+	offset := PageToOffset(page, limit)
+
+	rows, err := s.q.ListCreatorArticles(ctx, db.ListCreatorArticlesParams{
+		PublicationId: publicationID,
+		Published:     pub,
+		CategorySlug:  cat,
+		Offset:        int32(offset),
+		Limit:         int32(limit),
 	})
 	if err != nil {
-		return nil, err
+		return CreatorListResponse{}, err
 	}
-	out := make([]ArticleResponse, 0, len(rows))
+	total, err := s.q.CountCreatorArticles(ctx, db.CountCreatorArticlesParams{
+		PublicationId: publicationID,
+		Published:     pub,
+		CategorySlug:  cat,
+	})
+	if err != nil {
+		return CreatorListResponse{}, err
+	}
+
+	items := make([]CreatorItem, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, ArticleResponse{
-			ID: r.ID, Title: r.Title, Slug: r.Slug, Published: r.Published,
-			IsPremium: r.IsPremium, Visibility: string(r.Visibility), ReadingTime: int(r.ReadingTime),
-			Status: r.Status, PublicationID: publicationID,
-			CreatedAt:     r.CreatedAt.Time.Format(time.RFC3339),
-			UpdatedAt:     r.UpdatedAt.Time.Format(time.RFC3339),
-			AccessGranted: true,
-		})
+		// Troncature zéro-fuite : jamais de contenu payant au-delà du marqueur.
+		cut := SliceContentAtPaywall(r.Content, UserEntitlements{}, string(r.Visibility), textPtr(r.TierId))
+		ar := ArticleResponse{
+			ID: r.ID, Title: r.Title, Slug: r.Slug,
+			Content:     cut.Content,
+			IsTruncated: cut.IsTruncated,
+			Visibility:  string(r.Visibility),
+			ReadingTime: int(r.ReadingTime),
+			IsPremium:   r.IsPremium,
+			CreatedAt:   r.CreatedAt.Time.Format(time.RFC3339),
+			UpdatedAt:   r.UpdatedAt.Time.Format(time.RFC3339),
+			PaywallMeta: cut.PaywallMeta,
+		}
+		items = append(items, ToCreatorItem(ar, creatorCategoryFromRow(r)))
 	}
-	return out, nil
+	return ToCreatorList(items, int(total), page, limit), nil
+}
+
+// creatorCategoryFromRow construit la catégorie embarquée d'un item créateur
+// (nil si l'article n'a pas de catégorie).
+func creatorCategoryFromRow(r db.ListCreatorArticlesRow) *CreatorCategory {
+	if !r.CategoryID.Valid {
+		return nil
+	}
+	return &CreatorCategory{
+		ID:          r.CategoryID.String,
+		Name:        r.CategoryName.String,
+		Slug:        r.CategorySlug.String,
+		Description: textPtr(r.CategoryDescription),
+	}
 }
 
 // Update met à jour le contenu d'un article (RBAC).
 func (s *Service) Update(ctx context.Context, articleID, userID string, in UpdateArticleInput) error {
+	if !IsValidContentFormat(in.ContentFormat) {
+		return errInvalidContentFormat
+	}
 	row, err := s.q.GetArticleByID(ctx, articleID)
 	if err != nil {
 		return errNotFound
@@ -249,13 +346,14 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		return errForbidden
 	}
 	_, err = s.q.UpdateArticleContent(ctx, db.UpdateArticleContentParams{
-		ID: articleID, Title: in.Title, Content: in.Content, Slug: in.Slug,
+		ID: articleID, Title: in.Title, Content: NormalizeContent(in.Content, in.ContentFormat), Slug: in.Slug,
 		IsPremium: in.IsPremium, CategoryId: textVal(in.CategoryID),
 		SeoTitle: textVal(in.SeoTitle), SeoDescription: textVal(in.SeoDescription),
 		ReadingTime: int32(in.ReadingTime),
 	})
 	if err == nil {
 		s.queueSearchSync(articleID, "upsert")
+		s.emitArticleLifecycle(queue.TaskArticleUpdated, row, in.Title, in.Slug)
 	}
 	return err
 }
@@ -281,6 +379,30 @@ func (s *Service) SetStatus(ctx context.Context, articleID, userID, status strin
 		s.emitPublished(ctx, row)
 	}
 	return nil
+}
+
+// emitArticleLifecycle enqueue un événement article.{updated,deleted} pour les
+// webhooks abonnés (le worker dispatche vers les URLs HMAC-signées).
+func (s *Service) emitArticleLifecycle(taskType string, row db.GetArticleByIDRow, title, slug string) {
+	if s.ac == nil {
+		return
+	}
+	if title == "" {
+		title = row.Title
+	}
+	if slug == "" {
+		slug = row.Slug
+	}
+	_ = queue.PublishArticleLifecycle(s.ac, taskType, queue.ArticlePublishedPayload{
+		EventID:       "article_" + strings.TrimPrefix(taskType, "article.") + "_" + row.ID,
+		PublicationID: row.PublicationId,
+		ArticleID:     row.ID,
+		AuthorID:      row.AuthorID,
+		Title:         title,
+		Slug:          slug,
+		Visibility:    string(row.Visibility),
+		PublishedAt:   time.Now().UTC().Format(time.RFC3339),
+	})
 }
 
 // queueSearchSync enqueue un job de sync Meilisearch.
@@ -321,7 +443,11 @@ func (s *Service) Delete(ctx context.Context, articleID, userID string) error {
 	if !(role == "owner" || role == "editor") && uuidString(row.AuthorId) != userID {
 		return errForbidden
 	}
-	return s.q.DeleteArticle(ctx, articleID)
+	if err := s.q.DeleteArticle(ctx, articleID); err != nil {
+		return err
+	}
+	s.emitArticleLifecycle(queue.TaskArticleDeleted, row, row.Title, row.Slug)
+	return nil
 }
 
 func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) ArticleResponse {
