@@ -25,25 +25,11 @@ jobs:
         with:
           version: 11.21.0
 
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      # Le cache est un accélérateur, pas une exigence : le service de cache
-      # GitHub est parfois instable (2 runs parallèles → même clé → blocage).
-      # continue-on-error évite qu'une panne d'infra fasse échouer la CI.
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        continue-on-error: true
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
+      # Pas de cache pnpm : l'install à froid prend ~18s et le service de cache
+      # GitHub est instable (runs parallèles → clés en conflit → échec CI).
+      # Le gain de vitesse ne vaut pas la fragilité ajoutée.
       - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --network-timeout 600000
 
       - name: Generate Prisma Client
         run: pnpm prisma:generate
