@@ -136,7 +136,7 @@ qoe.fi/                              # 21 workspaces résolus
 │   ├── ui/                          # 🎨 Design System & composants partagés
 │   ├── theme/                       # 🎨 Design tokens CSS multi-apps (source unique)
 │   ├── supabase/                    # 🔌 Clients d'authentification SSR
-│   ├── i18n/                        # 🌐 Helpers de traduction Tolgee
+│   ├── i18n/                        # 🌐 Helpers de traduction Lingui
 │   ├── analytics/                   # 📊 Événements et tracking
 │   ├── api-client/                  # 🔄 Couche de données TanStack Query + actions
 │   ├── billing/                     # 💳 Logique Stripe abonnements
