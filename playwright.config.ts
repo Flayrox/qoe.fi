@@ -44,12 +44,20 @@ export default defineConfig({
       testMatch: /public\.spec\.ts/,
     },
     {
+      // Suite autonome (page.setContent, sans serveur/DB) — tourne en CI :
+      // contrat UI (drawer physics, tenant accent, paywall) sans dépendre
+      // de Supabase ni du seed.
+      name: 'annotations',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /annotations\.spec\.ts/,
+    },
+    {
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'playwright/.auth/user.json',
       },
-      testIgnore: /public\.spec\.ts/,
+      testIgnore: /(public|annotations)\.spec\.ts/,
       dependencies: ['setup'],
     },
   ],

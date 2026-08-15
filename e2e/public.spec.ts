@@ -49,4 +49,17 @@ test.describe('Feed (public)', () => {
     page.on('pageerror', (err) => pageErrors.push(err.message));
     expect(pageErrors).toEqual([]);
   });
+
+  test('affiche les articles publiés (contenu seedé via Prisma)', async ({ page }) => {
+    // Le seed de CI (prisma db seed) crée 3 articles PUBLIÉS sous la
+    // publication démo. Le feed /home doit les rendre — ça vérifie que le
+    // chemin Prisma complet (schéma + données) fonctionne en CI, pas
+    // seulement l'absence d'erreurs.
+    await page.goto('/', { waitUntil: 'networkidle' });
+
+    await expect(page.getByText('La souveraineté des médias indépendants')).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText('Pourquoi le temps long gagne toujours')).toBeVisible();
+  });
 });
