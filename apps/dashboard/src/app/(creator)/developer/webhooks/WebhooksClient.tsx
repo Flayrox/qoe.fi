@@ -13,21 +13,28 @@ import {
   Clock,
   Copy,
   Eye,
+  History,
+  RotateCcw,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@qoe/ui';
 import {
   createWebhookAction,
   listWebhooksAction,
   deleteWebhookAction,
   toggleWebhookAction,
   testWebhookAction,
+  listWebhookDeliveriesAction,
   type WebhookWithDeliveries,
   type WebhookEvent,
+  type WebhookDeliveryLog,
 } from './actions';
 
 const EVENT_LABELS: Record<string, string> = {
-  'article.published': 'Publication d’article',
+  'article.published': 'Article publié',
+  'article.updated': 'Article modifié',
+  'article.deleted': 'Article supprimé',
   'subscriber.created': 'Nouvel abonné',
 };
 
@@ -60,6 +67,9 @@ export function WebhooksClient({
   const [creating, setCreating] = useState(false);
   const [revealedSecret, setRevealedSecret] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [detailWebhook, setDetailWebhook] = useState<WebhookWithDeliveries | null>(null);
+  const [deliveries, setDeliveries] = useState<WebhookDeliveryLog[] | null>(null);
+  const [loadingDeliveries, setLoadingDeliveries] = useState(false);
 
   const handleCreate = async () => {
     if (!name.trim() || !url.trim()) {
@@ -120,6 +130,27 @@ export function WebhooksClient({
 
   const copySecret = (secret: string) => {
     navigator.clipboard?.writeText(secret).then(() => toast.success('Secret copié.'));
+  };
+
+  const openDeliveries = async (webhook: WebhookWithDeliveries) => {
+    setDetailWebhook(webhook);
+    setDeliveries(null);
+    setLoadingDeliveries(true);
+    const res = await listWebhookDeliveriesAction(webhook.id);
+    setLoadingDeliveries(false);
+    if (res.success) {
+      setDeliveries(res.deliveries);
+    } else {
+      toast.error(res.error || 'Impossible de charger les logs.');
+    }
+  };
+
+  const deliveryStatusIcon = (status: string) => {
+    if (status === 'SUCCESS')
+      return <CheckCircle2 className="w-3.5 h-3.5 text-success" strokeWidth={1.5} />;
+    if (status === 'FAILED')
+      return <XCircle className="w-3.5 h-3.5 text-destructive" strokeWidth={1.5} />;
+    return <Clock className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />;
   };
 
   return (
@@ -262,6 +293,13 @@ export function WebhooksClient({
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button
+                    onClick={() => openDeliveries(webhook)}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-primary hover:bg-muted/50 transition-colors cursor-pointer"
+                    title="Voir les logs de livraison"
+                  >
+                    Logs
+                  </button>
+                  <button
                     onClick={() => handleToggle(webhook.id)}
                     disabled={busyId === webhook.id}
                     className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer disabled:opacity-50"
@@ -306,7 +344,7 @@ export function WebhooksClient({
                       ) : (
                         <Clock className="w-3 h-3" strokeWidth={1.5} />
                       )}
-                      {d.event}
+                      {EVENT_LABELS[d.event] || d.event}
                       {d.httpStatus ? ` · HTTP ${d.httpStatus}` : ''} ·{' '}
                       {new Date(d.createdAt).toLocaleString('fr-FR')}
                     </span>
@@ -321,6 +359,86 @@ export function WebhooksClient({
           ))}
         </div>
       )}
+
+      {/* 🔍 Vue détaillée des livraisons */}
+      <Dialog
+        open={detailWebhook !== null}
+        onOpenChange={(open) => {
+          if (!open) setDetailWebhook(null);
+        }}
+      >
+        <DialogContent className="max-w-2xl p-6 rounded-2xl bg-card border border-border/40 shadow-2xl font-sans max-h-[85vh] flex flex-col">
+          <DialogHeader className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <History className="w-4 h-4 text-primary" strokeWidth={1.5} />
+              <DialogTitle className="text-base font-bold text-foreground">
+                Logs de livraison
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+              {detailWebhook?.name} · {detailWebhook?.url}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto mt-4 space-y-2 pr-1">
+            {loadingDeliveries ? (
+              <div className="flex items-center justify-center py-12 text-muted-foreground">
+                <Loader2 className="w-5 h-5 animate-spin text-primary mr-2" />
+                <span className="text-sm">Chargement des livraisons…</span>
+              </div>
+            ) : !deliveries || deliveries.length === 0 ? (
+              <div className="py-12 text-center text-sm text-muted-foreground">
+                Aucune livraison pour le moment.
+              </div>
+            ) : (
+              deliveries.map((d) => (
+                <div
+                  key={d.id}
+                  className="rounded-xl border border-border/30 bg-background/50 p-3.5"
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {deliveryStatusIcon(d.status)}
+                    <span className="text-xs font-semibold">
+                      {EVENT_LABELS[d.event] || d.event}
+                    </span>
+                    <span
+                      className={cn(
+                        'px-1.5 py-0.5 rounded-md text-[10px] font-bold',
+                        d.status === 'SUCCESS'
+                          ? 'bg-success/10 text-success'
+                          : d.status === 'FAILED'
+                            ? 'bg-destructive/10 text-destructive'
+                            : 'bg-muted text-muted-foreground'
+                      )}
+                    >
+                      {d.status}
+                    </span>
+                    {d.httpStatus ? (
+                      <span className="text-[11px] text-muted-foreground font-mono">
+                        HTTP {d.httpStatus}
+                      </span>
+                    ) : null}
+                    {typeof d.attempts === 'number' && d.attempts > 1 ? (
+                      <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <RotateCcw className="w-3 h-3" strokeWidth={1.5} />
+                        {d.attempts} tentatives
+                      </span>
+                    ) : null}
+                    <span className="ml-auto text-[11px] text-muted-foreground">
+                      {new Date(d.createdAt).toLocaleString('fr-FR')}
+                    </span>
+                  </div>
+                  {d.responseBody ? (
+                    <pre className="mt-2 p-2.5 rounded-lg bg-muted/40 text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+                      {d.responseBody}
+                    </pre>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
