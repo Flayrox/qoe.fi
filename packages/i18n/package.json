@@ -7,6 +7,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./core": "./src/core.ts",
+    "./catalogs": "./src/catalogs.ts",
     "./locales": "./src/locales.ts",
     "./provider": "./src/provider.tsx",
     "./server": "./src/server.ts"

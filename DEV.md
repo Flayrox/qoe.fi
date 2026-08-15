@@ -119,6 +119,49 @@ apps/mobile/src/
 - La carte « API qoe.fi » de l'écran d'accueil affiche l'état de la connexion :
   lance l'API (`pnpm dev:api`) pour la voir passer à « connectée ».
 
+### i18n (Lingui)
+
+- L'app réutilise **`@qoe/i18n/core` + `@qoe/i18n/catalogs`** (entrées RN-safe
+  ajoutées au package) : même singleton Lingui et mêmes catalogues
+  (`messages/`) que les apps web, chargés et fusionnés sans dépendance serveur.
+- `src/lib/i18n.ts` active la locale de l'appareil (`expo-localization`,
+  fr/en) et exporte un traducteur `t('clé', 'texte par défaut')` — même
+  contrat que les apps web. Les clés existantes (`login.*`, `common.*`…)
+  sont réutilisées telles quelles.
+
+### Auth (Supabase)
+
+- Client RN dans `src/lib/supabase.ts` : `@supabase/supabase-js` + session
+  persistée dans **AsyncStorage** (pas le client browser à cookies de
+  `@qoe/supabase`). Config publique dans `apps/mobile/.env` (`EXPO_PUBLIC_*`).
+- `AuthProvider` (src/features/auth) expose `session` / `signIn` / `signOut`
+  et synchronise le token d'accès dans `src/lib/session.ts`, lu par le
+  client API via `getAuthToken` → les appels API sont authentifiés.
+- Routes protégées : le layout racine affiche `LoginScreen` sans session,
+  les onglets avec. `useAuth()` doit être consommé DANS `AppProviders`.
+- L'écran de connexion a un **mode inscription** (nom + email + mot de passe,
+  clés de traduction `login.*` existantes) : `signUp` dans AuthProvider gère
+  la confirmation par email si activée côté Supabase.
+
+### DevTools
+
+- **Natif** : `cmd+d` sur le simulateur → menu dev Expo Go (React DevTools,
+  réseau, perf…). `j` dans le terminal `expo start` ouvre le debugger.
+- **Web** : React Query DevTools (inspecteur requêtes/cache) n'est monté que
+  sur `Platform.OS === 'web'` (le package rend du DOM, incompatible natif).
+- **URL API** : `EXPO_PUBLIC_API_URL` force l'URL (prod/staging). Sans elle,
+  l'app résout `localhost` (simulateur) ou l'IP Metro (appareil physique).
+
+> ⚠️ **Hono vs Go** : sur `main`, la migration est actée — `api.qoe.fi` →
+> **Go backend-of-record** (`apps/api-go`, contrat parallèle : `/v1/feed`,
+> `/v1/thoughts` en alias, users, bookmarks…), et l'API Hono (`apps/api`,
+> :3002) est devenue **legacy** ("api-legacy"). Le **sunset complet de Hono**
+> et les **19 tests Go** (Testcontainers Postgres réel, handlers, workers,
+> gate de couverture CI) sont portés par la branche `feat/theme-toggle`
+> (pas encore fusionnée sur main). En dev : Go = `:8080`, Hono legacy =
+> `:3002`. Le mobile vise l'API publique via `EXPO_PUBLIC_API_URL` → en dev
+> avec Go lancé : `http://localhost:8080` ; en prod : `https://api.qoe.fi`.
+
 ### Lancer sur le simulateur iOS (recommandé sur Mac)
 
 ```bash
