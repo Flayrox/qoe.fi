@@ -26,10 +26,11 @@
 | Couche                          | Nombre | Couverture réelle                         | Verdict                |
 | ------------------------------- | ------ | ----------------------------------------- | ---------------------- |
 | Go — unitaires + golden         | ~18    | contrats, scopes, webhooks                | ✅ bon socle           |
-| Go — intégration (vraie DB)     | 61     | articles (36) + webhooks (6) + settings (13) + posts (7) | 🚧 reste feed/e2e |
+| Go — intégration (vraie DB)     | ~115   | articles (54) + webhooks (25) + settings (29) + posts (7) + billing (5) | ✅ solide |
+| Go — smoke routeur complet      | 6      | assemblage main.go, flux créateur complet, clé API | ✅ attrape les bugs de wiring |
+| Go — worker (asynq)             | ~20    | webhook HMAC + newsletter + stripe + search mock | ✅ 61% coverage |
 | TS — unitaires (vitest)         | ~47    | db, ui, config                            | ✅ correct             |
-| TS — e2e (Playwright)           | ?      | smoke + parcours clés                     | ⚠️ à étoffer           |
-| Go — worker (asynq → HTTP)      | 5      | HMAC, SUCCESS/FAILED, filtrage, payload   | ✅ couvert             |
+| TS — e2e (Playwright)           | ~10    | smoke routes, public feed, annotations    | ✅ socle (à étendre)   |
 
 ---
 
@@ -124,8 +125,10 @@ apps/api-go/
 ## ✅ Critères « top du top » (definition of done)
 
 - [x] `go test -race ./...` vert avec intégration DB (Testcontainers) en CI
-- [x] Intégration vraie Postgres : articles (36) + webhooks (6) + settings (13) + posts (7) + worker (5)
-- [x] Worker webhook testé (HMAC, retries, filtrage) — 0 régression possible
-- [ ] Couverture ≥ 40% sur les modules critiques + handlers HTTP couverts
+- [x] Intégration vraie Postgres : articles, webhooks, settings, posts, billing + worker
+- [x] Worker webhook testé (HMAC, retries, filtrage) + newsletter + stripe + search
+- [x] Handlers HTTP couverts (JWT + clés API + scopes) — articles 54%, webhooks 76%, settings 68%
+- [x] Smoke test de l'assemblage complet (newRouter) — a attrapé un crash de prod au démarrage
+- [x] Gate de couverture CI par module critique (articles ≥50, webhooks ≥70, settings ≥60, posts ≥35, search ≥55, workers ≥60)
 - [ ] 3 parcours e2e Playwright verts (créateur, abonné/webhook, admin)
 - [ ] Un test qui échoue donne un rapport lisible en < 10 min de CI
