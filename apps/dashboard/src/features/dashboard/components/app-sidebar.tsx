@@ -1,5 +1,5 @@
 import React from 'react';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { createClient } from '@qoe/supabase/server';
 import { prisma } from '@qoe/db/client';
 import { logout } from '@/app/login/actions';
@@ -33,6 +33,15 @@ export async function AppSidebar() {
   const unreadCount = user
     ? await prisma.notification.count({ where: { recipientId: user.id, isRead: false } })
     : 0;
+
+  // 🔕 Pas de badge tant qu'on est sur la page notifications (header posé par middleware.ts)
+  let isOnNotificationsPage = false;
+  try {
+    const headerStore = await headers();
+    isOnNotificationsPage = (headerStore.get('x-pathname') || '').startsWith('/notifications');
+  } catch {
+    // headers() indisponible (edge cas rare) → on garde le badge
+  }
 
   // Résout le workspace actif (cookie) pour adapter le Studio
   let brandName = t`Studio`;
@@ -70,7 +79,7 @@ export async function AppSidebar() {
       title: t`Notifications`,
       url: '/notifications',
       iconName: 'Bell',
-      badge: unreadCount > 0 ? unreadCount : undefined,
+      badge: !isOnNotificationsPage && unreadCount > 0 ? unreadCount : undefined,
     },
     {
       title: t`Médias`,

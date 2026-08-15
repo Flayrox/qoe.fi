@@ -438,6 +438,7 @@ CREATE TABLE "ApiKey" (
     "name" TEXT NOT NULL,
     "keyPrefix" TEXT NOT NULL,
     "keyHash" TEXT NOT NULL,
+    "scopes" TEXT[] NOT NULL DEFAULT ARRAY['READ','WRITE','ANALYTICS']::TEXT[],
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lastUsedAt" TIMESTAMP(3),
     "userId" UUID NOT NULL,

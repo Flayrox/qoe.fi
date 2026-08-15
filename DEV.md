@@ -34,7 +34,7 @@ _(Caddy tourne en tâche de fond et libère ton terminal)._
 
 ### 3. Lancer les serveurs de dev (Natif)
 
-Démarre toutes les applications Next.js et l'API Hono en parallèle :
+Démarre toutes les applications Next.js en parallèle (backend de référence Go — `apps/api-go`) :
 
 ```bash
 pnpm dev
@@ -83,7 +83,7 @@ Une fois tout démarré, accède directement à tes applications via les domaine
 - **Dashboard Créateur** : [http://dashboard.localhost](http://dashboard.localhost) _(ou `localhost:3020`)_
 - **Administration Générale** : [http://admin.localhost](http://admin.localhost) _(ou `localhost:3030`)_
 - **Landing Vitrine** : [http://start.localhost](http://start.localhost) _(ou `localhost:3040`)_
-- **API Hono** : [http://api.localhost](http://api.localhost) _(ou `localhost:3002/health`)_
+- **API (Go)** : [http://api.localhost](http://api.localhost) _(ou `localhost:8080/health`)_ — `cd apps/api-go && go run ./cmd/server` (port 8080, activé via `QOE_API_GO_URL`)
 - **Blogs Créateurs** : `http://*.localhost:3001` _(wildcard multi-tenant, ex: `http://demo.localhost:3001`)_
 - **Prisma Studio (GUI)** : [http://localhost:5555](http://localhost:5555)
 - **GrowthBook (flags UI)** : [http://localhost:3100](http://localhost:3100)
@@ -117,7 +117,8 @@ apps/mobile/src/
   IP locale (via `hostUri` Metro) sur appareil physique.
 - Data fetching : **@tanstack/react-query** (même version que les apps web).
 - La carte « API qoe.fi » de l'écran d'accueil affiche l'état de la connexion :
-  lance l'API (`pnpm dev:api`) pour la voir passer à « connectée ».
+  lance l'API Go (`cd apps/api-go && go run ./cmd/server`) pour la voir
+  passer à « connectée ».
 
 ### i18n (Lingui)
 
@@ -152,15 +153,14 @@ apps/mobile/src/
 - **URL API** : `EXPO_PUBLIC_API_URL` force l'URL (prod/staging). Sans elle,
   l'app résout `localhost` (simulateur) ou l'IP Metro (appareil physique).
 
-> ⚠️ **Hono vs Go** : sur `main`, la migration est actée — `api.qoe.fi` →
-> **Go backend-of-record** (`apps/api-go`, contrat parallèle : `/v1/feed`,
-> `/v1/thoughts` en alias, users, bookmarks…), et l'API Hono (`apps/api`,
-> :3002) est devenue **legacy** ("api-legacy"). Le **sunset complet de Hono**
-> et les **19 tests Go** (Testcontainers Postgres réel, handlers, workers,
-> gate de couverture CI) sont portés par la branche `feat/theme-toggle`
-> (pas encore fusionnée sur main). En dev : Go = `:8080`, Hono legacy =
-> `:3002`. Le mobile vise l'API publique via `EXPO_PUBLIC_API_URL` → en dev
-> avec Go lancé : `http://localhost:8080` ; en prod : `https://api.qoe.fi`.
+> ✅ **Backend unique Go** : le sunset de l'API Hono (`apps/api`) est acté et
+> fusionné — **Go (`apps/api-go`) est le seul backend** (`api.qoe.fi`),
+> contrat parallèle (`/v1/feed`, `/v1/thoughts` en alias, users, bookmarks…)
+> avec **19 tests Go** (Testcontainers Postgres réel, handlers HTTP, workers,
+> gate de couverture CI) sur `main`. Dev : Go = `:8080`
+> (`cd apps/api-go && go run ./cmd/server`). Le mobile vise l'API publique
+> via `EXPO_PUBLIC_API_URL` → en dev : `http://localhost:8080` ; en prod :
+> `https://api.qoe.fi`.
 
 ### Lancer sur le simulateur iOS (recommandé sur Mac)
 

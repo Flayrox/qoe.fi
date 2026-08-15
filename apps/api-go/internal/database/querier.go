@@ -17,6 +17,8 @@ type Querier interface {
 	CheckSubdomainExists(ctx context.Context, subdomain pgtype.Text) (bool, error)
 	CompleteOnboardingUser(ctx context.Context, arg CompleteOnboardingUserParams) error
 	CountArticlesByPublication(ctx context.Context, publicationid string) (int32, error)
+	// Compte des articles d'une publication (mêmes filtres que ListCreatorArticles).
+	CountCreatorArticles(ctx context.Context, arg CountCreatorArticlesParams) (int64, error)
 	CountFollowers(ctx context.Context, publicationid string) (int32, error)
 	CountFollowing(ctx context.Context, readerid pgtype.UUID) (int32, error)
 	CountOptionVotes(ctx context.Context, optionid string) (int32, error)
@@ -82,6 +84,9 @@ type Querier interface {
 	GetCommentParentAuthor(ctx context.Context, id string) (string, error)
 	GetCommentPrefs(ctx context.Context, userid pgtype.UUID) (GetCommentPrefsRow, error)
 	GetCommentWithAuthor(ctx context.Context, id string) (GetCommentWithAuthorRow, error)
+	// Lecture d'un article PUBLIÉ d'une publication au format contrat créateurs
+	// (clé API → publication du créateur), catégorie embarquée.
+	GetCreatorArticleBySlug(ctx context.Context, arg GetCreatorArticleBySlugParams) (GetCreatorArticleBySlugRow, error)
 	GetExistingBookmark(ctx context.Context, arg GetExistingBookmarkParams) (int32, error)
 	GetExistingFollow(ctx context.Context, arg GetExistingFollowParams) (int32, error)
 	GetExistingLike(ctx context.Context, arg GetExistingLikeParams) (int32, error)
@@ -141,7 +146,7 @@ type Querier interface {
 	GetUserUsername(ctx context.Context, id string) (pgtype.Text, error)
 	GetUserVotesByIDs(ctx context.Context, arg GetUserVotesByIDsParams) ([]GetUserVotesByIDsRow, error)
 	GetUsersByUsernames(ctx context.Context, dollar_1 []string) ([]GetUsersByUsernamesRow, error)
-	GetWebhook(ctx context.Context, id string) (GetWebhookRow, error)
+	GetWebhook(ctx context.Context, id string) (Webhook, error)
 	IncrementLikeCount(ctx context.Context, id string) error
 	IncrementReplyCount(ctx context.Context, id string) error
 	IncrementRepostCount(ctx context.Context, id string) error
@@ -168,11 +173,13 @@ type Querier interface {
 	InsertWebhookDeliveryResult(ctx context.Context, arg InsertWebhookDeliveryResultParams) error
 	LinkUserPublication(ctx context.Context, arg LinkUserPublicationParams) error
 	ListArticleComments(ctx context.Context, articleid string) ([]ListArticleCommentsRow, error)
-	ListArticlesByPublication(ctx context.Context, arg ListArticlesByPublicationParams) ([]ListArticlesByPublicationRow, error)
 	ListArticlesWithCategory(ctx context.Context, arg ListArticlesWithCategoryParams) ([]ListArticlesWithCategoryRow, error)
 	ListCategoriesByPublication(ctx context.Context, publicationid string) ([]ListCategoriesByPublicationRow, error)
+	// Liste des articles d'une publication au format contrat créateurs (Hono) :
+	// filtres `published` (défaut true) et `category` (slug), catégorie embarquée.
+	ListCreatorArticles(ctx context.Context, arg ListCreatorArticlesParams) ([]ListCreatorArticlesRow, error)
 	ListMediaMembers(ctx context.Context, mediaid string) ([]ListMediaMembersRow, error)
-	ListWebhookDeliveries(ctx context.Context, webhookid string) ([]ListWebhookDeliveriesRow, error)
+	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
 	ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error)
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
 	SetApiApplication(ctx context.Context, arg SetApiApplicationParams) error

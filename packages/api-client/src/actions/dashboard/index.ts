@@ -286,41 +286,61 @@ export const submitApiApplicationAction = safeAction<string, { success: boolean 
   }
 );
 
-export const generateApiKeyAction = safeAction<string, { apiKey: string }>(async (name, user) => {
-  if (isGoEnabled()) {
-    const res = await goFetch<{ apiKey: string }>('/v1/settings/api-keys', {
-      method: 'POST',
-      body: { name },
+// Scopes autorisés pour une clé API (moindre privilège).
+const API_KEY_SCOPES = ['READ', 'WRITE', 'ANALYTICS'] as const;
+export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
+
+export interface GenerateApiKeyInput {
+  name: string;
+  scopes: ApiKeyScope[];
+}
+
+export const generateApiKeyAction = safeAction<GenerateApiKeyInput, { apiKey: string }>(
+  async ({ name, scopes }, user) => {
+    if (isGoEnabled()) {
+      const res = await goFetch<{ apiKey: string }>('/v1/settings/api-keys', {
+        method: 'POST',
+        body: { name, scopes },
+      });
+      revalidatePath('/developer');
+      return res;
+    }
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { apiAccessStatus: true },
     });
+
+    if (!dbUser || dbUser.apiAccessStatus !== 'approved') {
+      throw new Error("Votre demande d'accès à l'API doit être approuvée par un administrateur.");
+    }
+
+    // Validation stricte côté serveur : seuls les scopes connus sont acceptés,
+    // jamais de valeur arbitraire.
+    const scopesSet = new Set<string>(scopes ?? []);
+    const finalScopes = API_KEY_SCOPES.filter((s) => scopesSet.has(s));
+    if (finalScopes.length === 0) {
+      throw new Error('Sélectionnez au moins un scope pour la clé API.');
+    }
+
+    const { randomBytes, createHash } = await import('node:crypto');
+    const rawToken = randomBytes(16).toString('hex');
+    const apiKey = `qoe_live_${rawToken}`;
+    const keyHash = createHash('sha256').update(apiKey).digest('hex');
+
+    await prisma.apiKey.create({
+      data: {
+        name: name.trim() || 'Clé API',
+        keyHash,
+        keyPrefix: 'qoe_live',
+        scopes: finalScopes,
+        user: { connect: { id: user.id } },
+      },
+    });
+
     revalidatePath('/developer');
-    return res;
+    return { apiKey };
   }
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { apiAccessStatus: true },
-  });
-
-  if (!dbUser || dbUser.apiAccessStatus !== 'approved') {
-    throw new Error("Votre demande d'accès à l'API doit être approuvée par un administrateur.");
-  }
-
-  const { randomBytes, createHash } = await import('node:crypto');
-  const rawToken = randomBytes(16).toString('hex');
-  const apiKey = `qoe_live_${rawToken}`;
-  const keyHash = createHash('sha256').update(apiKey).digest('hex');
-
-  await prisma.apiKey.create({
-    data: {
-      name: name.trim() || 'Clé API',
-      keyHash,
-      keyPrefix: 'qoe_live',
-      user: { connect: { id: user.id } },
-    },
-  });
-
-  revalidatePath('/developer');
-  return { apiKey };
-});
+);
 
 export const revokeApiKeyAction = safeAction<string, { success: boolean }>(async (id, user) => {
   if (isGoEnabled()) {

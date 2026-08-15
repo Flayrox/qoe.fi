@@ -41,6 +41,195 @@ async function main() {
     data: { publicationId },
   });
 
+  // Publication certifiée → les articles seedés apparaissent aussi dans
+  // Discover et les suggestions de créateurs (feed).
+  await prisma.publication.update({
+    where: { id: publicationId },
+    data: { isCertified: true },
+  });
+
+  // 0d. Média complet (parcours média : publication MEDIA + membres + article)
+  // ── Le feed Discover (Explorer) montre les publications certifiées ; un
+  //    média certifié avec son équipe et son article est requis par l'e2e.
+  const mediaUsers = [
+    {
+      id: '20000000-0000-0000-0000-000000000001',
+      email: 'directrice@media-clair.fr',
+      name: 'Camille Roux',
+      username: 'camilleroux',
+      role: 'creator',
+    },
+    {
+      id: '20000000-0000-0000-0000-000000000002',
+      email: 'redac-chef@media-clair.fr',
+      name: 'Yann Delcourt',
+      username: 'yanndelcourt',
+      role: 'creator',
+    },
+    {
+      id: '20000000-0000-0000-0000-000000000003',
+      email: 'journaliste@media-clair.fr',
+      name: 'Salomé Petit',
+      username: 'salomepetit',
+      role: 'creator',
+    },
+    {
+      id: '20000000-0000-0000-0000-000000000004',
+      email: 'lectrice@media-clair.fr',
+      name: 'Inès Bernard',
+      username: 'inesbernard',
+      role: 'user',
+    },
+  ];
+
+  for (const mu of mediaUsers) {
+    await prisma.user.upsert({
+      where: { id: mu.id },
+      update: { email: mu.email, name: mu.name, role: mu.role },
+      create: mu,
+    });
+  }
+
+  const mediaPublicationId = 'pub_media_00000000000000000001';
+  await prisma.publication.upsert({
+    where: { id: mediaPublicationId },
+    update: {
+      type: 'MEDIA',
+      name: 'Le Média Clair',
+      slug: 'media-clair',
+      subdomain: 'media-clair',
+      bio: 'Un média local indépendant, financé par ses lecteurs.',
+      isCertified: true,
+    },
+    create: {
+      id: mediaPublicationId,
+      type: 'MEDIA',
+      name: 'Le Média Clair',
+      slug: 'media-clair',
+      subdomain: 'media-clair',
+      bio: 'Un média local indépendant, financé par ses lecteurs.',
+      isCertified: true,
+    },
+  });
+
+  await prisma.media.upsert({
+    where: { publicationId: mediaPublicationId },
+    update: {},
+    create: {
+      id: 'media_00000000000000000001',
+      publicationId: mediaPublicationId,
+    },
+  });
+
+  const mediaMembers = [
+    { userId: mediaUsers[0].id, role: 'owner', permissions: ['manage_members', 'publish_any'] },
+    { userId: mediaUsers[1].id, role: 'editor', permissions: ['publish_any'] },
+    { userId: mediaUsers[2].id, role: 'writer', permissions: [] },
+    { userId: mediaUsers[3].id, role: 'viewer', permissions: [] },
+  ];
+
+  for (const m of mediaMembers) {
+    await prisma.mediaMember.upsert({
+      where: { mediaId_userId: { mediaId: 'media_00000000000000000001', userId: m.userId } },
+      update: { role: m.role, permissions: m.permissions, status: 'active' },
+      create: {
+        mediaId: 'media_00000000000000000001',
+        userId: m.userId,
+        role: m.role,
+        permissions: m.permissions,
+        status: 'active',
+      },
+    });
+  }
+
+  await prisma.article.upsert({
+    where: {
+      publicationId_slug: { publicationId: mediaPublicationId, slug: 'enquete-locale-pouvoir' },
+    },
+    update: { title: 'Enquête : qui détient vraiment le pouvoir local ?', published: true },
+    create: {
+      title: 'Enquête : qui détient vraiment le pouvoir local ?',
+      slug: 'enquete-locale-pouvoir',
+      content:
+        "<p>Six mois d'investigation sur les réseaux d'influence de notre région.</p><p>Un travail collectif de la rédaction, publié avec le soutien de nos abonnés.</p>",
+      published: true,
+      status: 'PUBLISHED',
+      visibility: 'PUBLIC',
+      readingTime: 7,
+      authorId: mediaUsers[2].id,
+      publicationId: mediaPublicationId,
+    },
+  });
+
+  // 0e. Article Premium (paywall) — requis par l'e2e parcours lecture :
+  //     le drawer coupe au marqueur et affiche le volet « réservé aux membres ».
+  await prisma.article.upsert({
+    where: { publicationId_slug: { publicationId, slug: 'essai-premium-souverainete' } },
+    update: { title: "L'économie de l'attention, dix ans après", published: true },
+    create: {
+      title: "L'économie de l'attention, dix ans après",
+      slug: 'essai-premium-souverainete',
+      content:
+        "<p>Premier paragraphe offert : le temps de lecture est une denrée rare.</p><p>Deuxième paragraphe offert : la plupart des plateformes en vivent.</p><!--paywall--><p>Ce passage est réservé aux abonnés premium de cette publication.</p><p>La suite de l'analyse est exclusive.</p>",
+      published: true,
+      status: 'PUBLISHED',
+      visibility: 'PAID_SUBSCRIBERS',
+      isPremium: true,
+      readingTime: 9,
+      authorId: userId,
+      publicationId,
+    },
+  });
+
+  // 0c. Articles démo (apparaissent dans le feed /home — requis par l'e2e)
+  const demoArticles = [
+    {
+      title: 'La souveraineté des médias indépendants',
+      slug: 'souverainete-medias-independants',
+      content:
+        "<p>Dans un monde saturé de plateformes, posséder son propre espace de publication n'est plus un luxe : c'est une condition de survie éditoriale.</p><p>Cet article explore ce que signifie réellement être souverain sur son audience, son contenu et ses revenus.</p>",
+      isEditorPick: true,
+    },
+    {
+      title: 'Pourquoi le temps long gagne toujours',
+      slug: 'pourquoi-temps-long-gagne',
+      content:
+        "<p>L'économie de l'attention récompense le bruit. L'histoire, elle, récompense la constance.</p><p>Les médias qui écrivent pour durer finissent toujours par gagner la confiance de leur lectorat.</p>",
+    },
+    {
+      title: "L'architecture du silence numérique",
+      slug: 'architecture-du-silence-numerique',
+      content:
+        "<p>Le silence n'est pas l'absence de contenu : c'est une architecture de lecture.</p><p>qoe.fi est construit autour de cette idée : moins d'interruptions, plus de sens.</p>",
+    },
+  ];
+
+  for (const art of demoArticles) {
+    await prisma.article.upsert({
+      where: { publicationId_slug: { publicationId, slug: art.slug } },
+      update: {
+        title: art.title,
+        content: art.content,
+        published: true,
+        status: 'PUBLISHED',
+        visibility: 'PUBLIC',
+        isEditorPick: art.isEditorPick ?? false,
+      },
+      create: {
+        title: art.title,
+        slug: art.slug,
+        content: art.content,
+        published: true,
+        status: 'PUBLISHED',
+        visibility: 'PUBLIC',
+        isEditorPick: art.isEditorPick ?? false,
+        readingTime: 4,
+        authorId: userId,
+        publicationId,
+      },
+    });
+  }
+
   // 1. Create Navigation
   await prisma.navigationItem.createMany({
     data: [

@@ -71,6 +71,7 @@ const getApiKeyByHash = `-- name: GetApiKeyByHash :one
 
 SELECT ak.id            AS api_key_id,
        ak."keyHash"     AS key_hash,
+       ak.scopes        AS scopes,
        u.id::text       AS user_id,
        u.email,
        u.username,
@@ -91,6 +92,7 @@ LIMIT 1
 type GetApiKeyByHashRow struct {
 	ApiKeyID        string      `json:"api_key_id"`
 	KeyHash         string      `json:"key_hash"`
+	Scopes          []string    `json:"scopes"`
 	UserID          string      `json:"user_id"`
 	Email           string      `json:"email"`
 	Username        pgtype.Text `json:"username"`
@@ -110,6 +112,7 @@ func (q *Queries) GetApiKeyByHash(ctx context.Context, keyhash string) (GetApiKe
 	err := row.Scan(
 		&i.ApiKeyID,
 		&i.KeyHash,
+		&i.Scopes,
 		&i.UserID,
 		&i.Email,
 		&i.Username,

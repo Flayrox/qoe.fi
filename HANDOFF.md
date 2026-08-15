@@ -54,7 +54,8 @@ qoe.fi/                              # 18 workspaces
 │   ├── dashboard/                   # Next.js 16 — dashboard.qoe.fi (studio créateur)
 │   ├── admin/                       # Next.js 16 — admin.qoe.fi (superadmin, modération, config CMS)
 │   ├── web/                         # Next.js 16 — *.qoe.fi & domaines customs (blogs créateurs)
-│   └── api/                         # Hono backend
+│   ├── api-go/                     # Backend Go de référence (backend-of-record)
+│   └── api/                         # Hono legacy (transition, API créateurs/médias)
 ├── packages/                        # 11 packages partagés
 │   ├── db/                          # 🐘 Prisma (SOURCE UNIQUE: prisma/)
 │   ├── auth/                        # 🔐 Roles, permissions, current-user
@@ -83,7 +84,8 @@ qoe.fi/                              # 18 workspaces
 | `admin.qoe.fi`     | admin     | Superadmin et modération                 |
 | `start.qoe.fi`     | landing   | Site vitrine, mentions légales et CMS    |
 | `*.qoe.fi`         | web       | Blogs créateurs (wildcard, multi-tenant) |
-| `api.qoe.fi`       | api       | Backend Hono                             |
+| `api.qoe.fi`       | api-go    | Backend Go (backend-of-record)           |
+| `api-legacy.qoe.fi` | api       | API Hono créateurs/médias (transition)   |
 
 ---
 
@@ -289,12 +291,10 @@ pnpm docker:deploy
 
 ## 🗺️ Roadmap future
 
-### 🟡 Workers BullMQ (scaffold en place, jobs à implémenter)
+### 🟢 Workers actifs
 
-- `workers/` existe avec BullMQ + ioredis configurés
-- `workers/src/index.ts` est le point d'entrée
-- Jobs à câbler : emails (Resend), AI embeddings (OpenAI → pgvector), billing webhooks (Stripe)
-- Variables d'env déjà disponibles via `@qoe/config`
+- `workers/` (TS, BullMQ) : emails, AI, billing, newsletters — actif
+- `apps/api-go/cmd/worker` (Go, asynq) : dispatch webhooks, newsletter fanout, sync Meilisearch
 
 ### 🟡 Stubs à remplacer
 

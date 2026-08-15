@@ -1,6 +1,6 @@
 # `@qoe/i18n`
 
-**Role:** Handles all translations and localization mappings within the qoe.fi platform via Tolgee.
+**Role:** Handles all translations and localization mappings within the qoe.fi platform (Lingui).
 
 ## File Exhaustive Listing
 

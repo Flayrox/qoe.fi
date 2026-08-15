@@ -169,25 +169,14 @@ func (q *Queries) GetActiveWebhooksByPublication(ctx context.Context, arg GetAct
 }
 
 const getWebhook = `-- name: GetWebhook :one
-SELECT id, "publicationId", name, url, secret, events, active, "createdAt"
+SELECT id, "publicationId", name, url, secret, events, active, "createdAt", "updatedAt"
 FROM "Webhook"
 WHERE id = $1
 `
 
-type GetWebhookRow struct {
-	ID            string           `json:"id"`
-	PublicationId string           `json:"publicationId"`
-	Name          string           `json:"name"`
-	Url           string           `json:"url"`
-	Secret        string           `json:"secret"`
-	Events        []string         `json:"events"`
-	Active        bool             `json:"active"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
-}
-
-func (q *Queries) GetWebhook(ctx context.Context, id string) (GetWebhookRow, error) {
+func (q *Queries) GetWebhook(ctx context.Context, id string) (Webhook, error) {
 	row := q.db.QueryRow(ctx, getWebhook, id)
-	var i GetWebhookRow
+	var i Webhook
 	err := row.Scan(
 		&i.ID,
 		&i.PublicationId,
@@ -197,13 +186,14 @@ func (q *Queries) GetWebhook(ctx context.Context, id string) (GetWebhookRow, err
 		&i.Events,
 		&i.Active,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const insertWebhookDeliveryResult = `-- name: InsertWebhookDeliveryResult :exec
-INSERT INTO "WebhookDelivery" (id, "webhookId", event, payload, status, "httpStatus", "responseBody", attempts)
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, 1)
+INSERT INTO "WebhookDelivery" (id, "webhookId", event, payload, status, "httpStatus", "responseBody")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6)
 `
 
 type InsertWebhookDeliveryResultParams struct {
@@ -228,23 +218,30 @@ func (q *Queries) InsertWebhookDeliveryResult(ctx context.Context, arg InsertWeb
 }
 
 const listWebhookDeliveries = `-- name: ListWebhookDeliveries :many
-SELECT id, status, "httpStatus", event, "createdAt"
-FROM "WebhookDelivery"
-WHERE "webhookId" = $1
-ORDER BY "createdAt" DESC
-LIMIT 5
+SELECT d.id, d.event, d.status, d."httpStatus", d."responseBody", d.attempts, d."createdAt"
+FROM "WebhookDelivery" d
+WHERE d."webhookId" = $1
+ORDER BY d."createdAt" DESC
+LIMIT $2
 `
 
-type ListWebhookDeliveriesRow struct {
-	ID         string           `json:"id"`
-	Status     string           `json:"status"`
-	HttpStatus pgtype.Int4      `json:"httpStatus"`
-	Event      string           `json:"event"`
-	CreatedAt  pgtype.Timestamp `json:"createdAt"`
+type ListWebhookDeliveriesParams struct {
+	WebhookId string `json:"webhookId"`
+	Limit     int32  `json:"limit"`
 }
 
-func (q *Queries) ListWebhookDeliveries(ctx context.Context, webhookid string) ([]ListWebhookDeliveriesRow, error) {
-	rows, err := q.db.Query(ctx, listWebhookDeliveries, webhookid)
+type ListWebhookDeliveriesRow struct {
+	ID           string           `json:"id"`
+	Event        string           `json:"event"`
+	Status       string           `json:"status"`
+	HttpStatus   pgtype.Int4      `json:"httpStatus"`
+	ResponseBody pgtype.Text      `json:"responseBody"`
+	Attempts     int32            `json:"attempts"`
+	CreatedAt    pgtype.Timestamp `json:"createdAt"`
+}
+
+func (q *Queries) ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error) {
+	rows, err := q.db.Query(ctx, listWebhookDeliveries, arg.WebhookId, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -254,9 +251,11 @@ func (q *Queries) ListWebhookDeliveries(ctx context.Context, webhookid string) (
 		var i ListWebhookDeliveriesRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.Event,
 			&i.Status,
 			&i.HttpStatus,
-			&i.Event,
+			&i.ResponseBody,
+			&i.Attempts,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -270,7 +269,7 @@ func (q *Queries) ListWebhookDeliveries(ctx context.Context, webhookid string) (
 }
 
 const listWebhooksByPublication = `-- name: ListWebhooksByPublication :many
-SELECT id, name, url, events, active, "createdAt"
+SELECT id, name, url, events, active, "createdAt", "updatedAt"
 FROM "Webhook"
 WHERE "publicationId" = $1
 ORDER BY "createdAt" DESC
@@ -283,6 +282,7 @@ type ListWebhooksByPublicationRow struct {
 	Events    []string         `json:"events"`
 	Active    bool             `json:"active"`
 	CreatedAt pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
 }
 
 func (q *Queries) ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error) {
@@ -301,6 +301,7 @@ func (q *Queries) ListWebhooksByPublication(ctx context.Context, publicationid s
 			&i.Events,
 			&i.Active,
 			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -314,7 +315,7 @@ func (q *Queries) ListWebhooksByPublication(ctx context.Context, publicationid s
 
 const updateWebhookActive = `-- name: UpdateWebhookActive :exec
 UPDATE "Webhook"
-SET active = $2
+SET active = $2, "updatedAt" = now()
 WHERE id = $1
 `
 

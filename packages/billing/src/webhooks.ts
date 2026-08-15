@@ -2,7 +2,7 @@
 // 💳 Stripe Webhooks — Handlers
 // =====================================================================
 // 📖 Centralise le traitement des webhooks Stripe pour qu'ils soient
-//    accessibles depuis apps/api (et plus tard depuis apps/console).
+//    accessibles depuis le backend Go (apps/api-go).
 //    Depuis le polymorphisme Publication, les abonnements (Subscriber)
 //    sont clé par publication (personnelle OU média).
 // =====================================================================

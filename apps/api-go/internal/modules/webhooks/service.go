@@ -1,4 +1,7 @@
-// Package webhooks — CRUD des webhooks sortants du dashboard créateur.
+// Package webhooks — abonnements webhooks sortants du dashboard créateur.
+// La livraison (HMAC + retries) est assurée par le worker asynq
+// (internal/workers/webhook.go) ; ce module expose l'API de gestion :
+// lister / s'abonner / supprimer / toggle / tester / consulter les logs.
 package webhooks
 
 import (
@@ -22,19 +25,32 @@ import (
 	db "github.com/qoefi/api-go/internal/database"
 )
 
-var errNotFound = errors.New("webhook introuvable")
+var (
+	errNotFound  = errors.New("webhook introuvable")
+	errForbidden = errors.New("permission insuffisante")
+)
 
 // ValidWebhookEvents est la liste blanche des événements souscriptibles.
-var ValidWebhookEvents = []string{"article.published", "subscriber.created"}
-
-type Delivery struct {
-	ID         string `json:"id"`
-	Status     string `json:"status"`
-	HTTPStatus *int32 `json:"httpStatus"`
-	Event      string `json:"event"`
-	CreatedAt  string `json:"createdAt"`
+var ValidWebhookEvents = []string{
+	"article.published",
+	"article.updated",
+	"article.deleted",
+	"article.scheduled",
+	"subscriber.created",
 }
 
+// Delivery est un log de livraison (statut, HTTP, corps, tentatives).
+type Delivery struct {
+	ID           string  `json:"id"`
+	Status       string  `json:"status"`
+	HTTPStatus   *int32  `json:"httpStatus"`
+	Event        string  `json:"event"`
+	CreatedAt    string  `json:"createdAt"`
+	ResponseBody *string `json:"responseBody,omitempty"`
+	Attempts     int     `json:"attempts,omitempty"`
+}
+
+// Webhook est un abonnement (le secret n'y figure JAMAIS sauf à la création).
 type Webhook struct {
 	ID           string     `json:"id"`
 	Name         string     `json:"name"`
@@ -42,8 +58,15 @@ type Webhook struct {
 	Events       []string   `json:"events"`
 	Active       bool       `json:"active"`
 	CreatedAt    string     `json:"createdAt"`
+	UpdatedAt    string     `json:"updatedAt,omitempty"`
 	Deliveries   []Delivery `json:"deliveries"`
 	LastDelivery *Delivery  `json:"lastDelivery"`
+}
+
+// TestResult est la réponse d'un ping de test.
+type TestResult struct {
+	Status   int    `json:"status"`
+	Response string `json:"response"`
 }
 
 type Service struct {
@@ -55,8 +78,35 @@ func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{pool: pool, q: db.New(pool)}
 }
 
+// resolveRole retourne le rôle de l'utilisateur sur la publication
+// ("owner" personnel ou rôle média owner/editor/writer/viewer).
+func (s *Service) resolveRole(ctx context.Context, userID, publicationID string) (string, error) {
+	if personal, err := s.q.GetUserPersonalPublication(ctx, userID); err == nil && personal.String == publicationID {
+		return "owner", nil
+	}
+	role, err := s.q.GetMediaRoleForUser(ctx, db.GetMediaRoleForUserParams{
+		PublicationId: publicationID, UserId: toUUID(userID),
+	})
+	if err != nil {
+		return "", errForbidden
+	}
+	return role, nil
+}
+
+func toUUID(id string) pgtype.UUID {
+	u := pgtype.UUID{}
+	_ = u.Scan(id)
+	return u
+}
+
+// canManage : seuls owner/editor gèrent (create/delete/toggle/test) les webhooks.
+func canManage(role string) bool { return role == "owner" || role == "editor" }
+
 // List renvoie les webhooks d'une publication avec leurs livraisons récentes.
-func (s *Service) List(ctx context.Context, publicationID string) ([]Webhook, error) {
+func (s *Service) List(ctx context.Context, userID, publicationID string) ([]Webhook, error) {
+	if _, err := s.resolveRole(ctx, userID, publicationID); err != nil {
+		return nil, err
+	}
 	rows, err := s.q.ListWebhooksByPublication(ctx, publicationID)
 	if err != nil {
 		return nil, err
@@ -70,9 +120,11 @@ func (s *Service) List(ctx context.Context, publicationID string) ([]Webhook, er
 			Events:     r.Events,
 			Active:     r.Active,
 			CreatedAt:  r.CreatedAt.Time.Format(time.RFC3339),
+			UpdatedAt:  r.UpdatedAt.Time.Format(time.RFC3339),
 			Deliveries: []Delivery{},
 		}
-		if ds, err := s.q.ListWebhookDeliveries(ctx, r.ID); err == nil {
+		ds, err := s.q.ListWebhookDeliveries(ctx, db.ListWebhookDeliveriesParams{WebhookId: r.ID, Limit: 5})
+		if err == nil {
 			for _, d := range ds {
 				w.Deliveries = append(w.Deliveries, deliveryFromRow(d))
 			}
@@ -86,8 +138,17 @@ func (s *Service) List(ctx context.Context, publicationID string) ([]Webhook, er
 	return out, nil
 }
 
-// Create crée un webhook et retourne le secret (affiché une seule fois).
-func (s *Service) Create(ctx context.Context, publicationID, name, url string, events []string) (Webhook, string, error) {
+// Create crée un webhook (owner/editor requis) et retourne le secret
+// (affiché une seule fois, signature HMAC des livraisons).
+func (s *Service) Create(ctx context.Context, userID, publicationID, name, url string, events []string) (Webhook, string, error) {
+	role, err := s.resolveRole(ctx, userID, publicationID)
+	if err != nil {
+		return Webhook{}, "", err
+	}
+	if !canManage(role) {
+		return Webhook{}, "", errForbidden
+	}
+
 	secret, err := newSecret()
 	if err != nil {
 		return Webhook{}, "", err
@@ -109,8 +170,15 @@ func (s *Service) Create(ctx context.Context, publicationID, name, url string, e
 	}, secret, nil
 }
 
-// Delete supprime un webhook (après contrôle d'appartenance à la publication).
-func (s *Service) Delete(ctx context.Context, id, publicationID string) error {
+// Delete supprime un webhook (après contrôle d'appartenance + RBAC).
+func (s *Service) Delete(ctx context.Context, userID, id, publicationID string) error {
+	role, err := s.resolveRole(ctx, userID, publicationID)
+	if err != nil {
+		return err
+	}
+	if !canManage(role) {
+		return errForbidden
+	}
 	if _, err := s.ensureOwnership(ctx, id, publicationID); err != nil {
 		return err
 	}
@@ -118,7 +186,14 @@ func (s *Service) Delete(ctx context.Context, id, publicationID string) error {
 }
 
 // Toggle inverse l'état actif et le retourne.
-func (s *Service) Toggle(ctx context.Context, id, publicationID string) (bool, error) {
+func (s *Service) Toggle(ctx context.Context, userID, id, publicationID string) (bool, error) {
+	role, err := s.resolveRole(ctx, userID, publicationID)
+	if err != nil {
+		return false, err
+	}
+	if !canManage(role) {
+		return false, errForbidden
+	}
 	wh, err := s.ensureOwnership(ctx, id, publicationID)
 	if err != nil {
 		return false, err
@@ -130,14 +205,15 @@ func (s *Service) Toggle(ctx context.Context, id, publicationID string) (bool, e
 	return next, nil
 }
 
-// TestResult est la réponse d'un ping de test.
-type TestResult struct {
-	Status   int    `json:"status"`
-	Response string `json:"response"`
-}
-
 // Test envoie un ping signé HMAC au endpoint et enregistre la livraison.
-func (s *Service) Test(ctx context.Context, id, publicationID string) (TestResult, error) {
+func (s *Service) Test(ctx context.Context, userID, id, publicationID string) (TestResult, error) {
+	role, err := s.resolveRole(ctx, userID, publicationID)
+	if err != nil {
+		return TestResult{}, err
+	}
+	if !canManage(role) {
+		return TestResult{}, errForbidden
+	}
 	wh, err := s.ensureOwnership(ctx, id, publicationID)
 	if err != nil {
 		return TestResult{}, err
@@ -201,16 +277,38 @@ func (s *Service) Test(ctx context.Context, id, publicationID string) (TestResul
 	return TestResult{Status: status, Response: truncate(responseText, 500)}, nil
 }
 
-func (s *Service) ensureOwnership(ctx context.Context, id, publicationID string) (db.GetWebhookRow, error) {
+// ListDeliveries liste les logs de livraison d'un abonnement (RBAC requis).
+func (s *Service) ListDeliveries(ctx context.Context, userID, publicationID, webhookID string, limit int) ([]Delivery, error) {
+	if _, err := s.resolveRole(ctx, userID, publicationID); err != nil {
+		return nil, err
+	}
+	if _, err := s.ensureOwnership(ctx, webhookID, publicationID); err != nil {
+		return nil, err
+	}
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	rows, err := s.q.ListWebhookDeliveries(ctx, db.ListWebhookDeliveriesParams{WebhookId: webhookID, Limit: int32(limit)})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Delivery, 0, len(rows))
+	for _, d := range rows {
+		out = append(out, deliveryFromRow(d))
+	}
+	return out, nil
+}
+
+func (s *Service) ensureOwnership(ctx context.Context, id, publicationID string) (db.Webhook, error) {
 	wh, err := s.q.GetWebhook(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return db.GetWebhookRow{}, errNotFound
+			return db.Webhook{}, errNotFound
 		}
-		return db.GetWebhookRow{}, err
+		return db.Webhook{}, err
 	}
 	if wh.PublicationId != publicationID {
-		return db.GetWebhookRow{}, errNotFound
+		return db.Webhook{}, errNotFound
 	}
 	return wh, nil
 }
@@ -221,13 +319,19 @@ func deliveryFromRow(r db.ListWebhookDeliveriesRow) Delivery {
 		v := r.HttpStatus.Int32
 		httpStatus = &v
 	}
-	return Delivery{
+	d := Delivery{
 		ID:         r.ID,
 		Status:     r.Status,
 		HTTPStatus: httpStatus,
 		Event:      r.Event,
 		CreatedAt:  r.CreatedAt.Time.Format(time.RFC3339),
+		Attempts:   int(r.Attempts),
 	}
+	if r.ResponseBody.Valid {
+		v := r.ResponseBody.String
+		d.ResponseBody = &v
+	}
+	return d
 }
 
 func newSecret() (string, error) {

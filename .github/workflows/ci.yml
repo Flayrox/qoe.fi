@@ -15,31 +15,24 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # pnpm 11 exige Node >= 22.13 (node:sqlite) — Node 20 plantait au
+      # démarrage de pnpm (ERR_UNKNOWN_BUILTIN_MODULE). Le package.json
+      # déclare "node": ">=20", Node 22 est donc compatible.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 11.21.0
 
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
+      # Pas de cache pnpm : l'install à froid prend ~18s et le service de cache
+      # GitHub est instable (runs parallèles → clés en conflit → échec CI).
+      # Le gain de vitesse ne vaut pas la fragilité ajoutée.
       - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --fetch-timeout 600000
 
       - name: Generate Prisma Client
         run: pnpm prisma:generate
@@ -55,19 +48,100 @@ jobs:
 
       - name: Run Unit & Integration Tests
         run: pnpm test
-
-      - name: Run API Coverage Gate (apps/api)
-        working-directory: apps/api
-        run: pnpm exec vitest run --coverage
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          DIRECT_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
+          SKIP_ENV_VALIDATION: 'true'
 
       - name: Build Production Packages & Applications
         run: pnpm build
+
+  api-go:
+    name: Go Backend (apps/api-go)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api-go/go.mod
+          cache-dependency-path: apps/api-go/go.sum
+
+      # Testcontainers (tests d'intégration DB) a besoin du daemon Docker :
+      # disponible nativement sur les runners ubuntu. On force l'isolation
+      # réseau pour éviter les conflits de réseau Docker entre jobs.
+      - name: Vet, Build & Test Go Backend
+        working-directory: apps/api-go
+        run: |
+          go vet ./...
+          go build ./...
+          go test -race -count=1 ./...
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: 'true'
+
+      # Gate de couverture des modules critiques (contrat créateurs + worker).
+      # Chaque package doit rester au-dessus de son seuil — une baisse de
+      # couverture due à une refactorisation DOIT s'accompagner de nouveaux
+      # tests, pas d'un seuil abaissé.
+      - name: Coverage Gate (modules critiques)
+        working-directory: apps/api-go
+        run: |
+          set -e
+          check() {
+            pkg="$1"; threshold="$2"
+            pct=$(go test -count=1 -cover ./"$pkg" 2>/dev/null \
+              | sed -n 's/.*coverage: \([0-9.]*\)% of statements.*/\1/p' | head -1)
+            if [ -z "$pct" ]; then
+              echo "✗ $pkg : couverture non mesurée"
+              exit 1
+            fi
+            if awk -v p="$pct" -v t="$threshold" 'BEGIN{exit !(p < t)}'; then
+              echo "✗ $pkg : $pct% < seuil $threshold%"
+              exit 1
+            fi
+            echo "✓ $pkg : $pct% (seuil $threshold%)"
+          }
+          check "internal/modules/articles" 50
+          check "internal/modules/webhooks" 70
+          check "internal/modules/settings" 60
+          check "internal/modules/posts" 35
+          check "internal/modules/search" 55
+          check "internal/workers" 60
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: 'true'
 
   e2e:
     name: E2E (Playwright)
     needs: build-and-test
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
+    # La page /home interroge Prisma (article.findMany) : sans Postgres, le
+    # serveur Next démarre mais chaque requête DB échoue (500) → e2e rouge.
+    # On monte un Postgres de service et on applique le schéma Prisma avant.
+    # NB : image pgvector (le schéma déclare extensions=[vector]) ; l'historique
+    # de migrations n'est pas rejouable depuis zéro (deltas sur un schéma créé
+    # par db push) → db push, pas migrate deploy.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: qoe
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qoe"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout Repository
@@ -76,7 +150,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -84,13 +158,32 @@ jobs:
           version: 11.21.0
 
       - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --fetch-timeout 600000
+
+      # Schéma Prisma appliqué au Postgres de service. db push (et non migrate
+      # deploy) car les migrations du repo sont des deltas sur un schéma créé
+      # originellement par db push : un deploy from-scratch échoue sur des types
+      # manquants. Sur une DB éphémère de CI, db push est sûr et non-interactif.
+      - name: Prepare Database (Prisma schema)
+        run: cd packages/db && pnpm prisma db push --accept-data-loss
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          DIRECT_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+
+      # Contenu démo (3 articles publiés + publication certifiée) pour que
+      # les tests e2e vérifient du contenu réellement rendu, pas seulement
+      # l'absence d'erreurs.
+      - name: Seed Database (demo content)
+        run: cd packages/db && pnpm prisma db seed
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          DIRECT_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
 
       - name: Install Playwright Chromium
         run: pnpm e2e:install
 
-      - name: Run E2E (public + self-contained suites)
-        run: pnpm e2e --project=public-web
+      - name: Run E2E (public + annotations suites)
+        run: pnpm e2e --project=public-web --project=annotations
         env:
           CI: 'true'
           PLAYWRIGHT_TEST_BASE_URL: 'http://localhost:3010'
@@ -105,3 +198,4 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+          if-no-files-found: ignore

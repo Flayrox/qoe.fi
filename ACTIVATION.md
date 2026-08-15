@@ -1,6 +1,7 @@
 # 🚀 Guide d'activation — qoe.fi monorepo (état post-découplage)
 
-> **La plateforme a été scindée avec succès en 5 applications Next.js indépendantes et 1 API Hono.**
+> **La plateforme : 5 applications Next.js indépendantes + un backend Go (`apps/api-go`).**
+> L'API Hono legacy (`apps/api`) reste en transition (API créateurs/médias — voir `SUNSET_API_LEGACY.md`).
 > Ce guide explique comment démarrer et gérer le développement après cette refactorisation majeure.
 
 ---
@@ -45,7 +46,8 @@ pnpm docker:dev
 # → Dashboard (Studio):      http://localhost:4020  (interne: 3020)
 # → Admin (Platform):        http://localhost:4030  (interne: 3030)
 # → Landing (Vitrines/CMS):  http://localhost:4040  (interne: 3040)
-# → API:                     http://localhost:4002/health (interne: 3002)
+# → API (Go) : http://localhost:8080/health
+#   Backend de référence : apps/api-go (Go) — voir SUNSET_API_LEGACY.md
 ```
 
 **C'est tout.** En 5 minutes tu as le stack complet qui tourne.
@@ -56,7 +58,7 @@ pnpm docker:dev
 
 ### Développement Local Hybride (Recommandé)
 
-Le mode hybride lance les bases de données dans Docker et exécute les serveurs Next.js/Hono localement sur ton hôte pour des performances maximales et un Hot-Reload ultra-rapide.
+Le mode hybride lance les bases de données dans Docker et exécute les serveurs Next.js localement sur ton hôte (le backend de référence est Go : `apps/api-go`) pour des performances maximales et un Hot-Reload ultra-rapide.
 
 ```bash
 # Lancer uniquement la DB et Redis dans Docker
@@ -69,7 +71,7 @@ pnpm dev
 # → @qoe/dashboard (Studio d'écriture) sur :3020
 # → @qoe/admin (Pilotage superadmin) sur :3030
 # → @qoe/landing (Vitrine & Textes légaux) sur :3040
-# → @qoe/api (Hono backend) sur :3002
+# → backend Go (apps/api-go) sur :8080
 ```
 
 ### Commandes par application
@@ -80,7 +82,8 @@ pnpm --filter @qoe/feed dev         # Uniquement le flux lecteur
 pnpm --filter @qoe/dashboard dev    # Uniquement l'espace créateur
 pnpm --filter @qoe/admin dev        # Uniquement l'espace administrateur
 pnpm --filter @qoe/web dev          # Uniquement le moteur multi-tenant des blogs
-pnpm --filter @qoe/api dev          # Uniquement l'API Hono
+cd apps/api-go && go run ./cmd/server   # Backend Go (unique)
+# Backend de référence (Go) : cd apps/api-go && go run ./cmd/server
 ```
 
 ### Qualité & Build global
@@ -129,14 +132,14 @@ qoe.fi/                              # 21 workspaces résolus
 │   ├── dashboard/                   # Next.js 16 — dashboard.qoe.fi (studio créateur & TipTap)
 │   ├── admin/                       # Next.js 16 — admin.qoe.fi (superadmin & CMS config)
 │   ├── web/                         # Next.js 16 — *.qoe.fi & domaines customs (blogs créateurs)
-│   └── api/                         # Hono backend (endpoints légers)
+│   └── api-go/                      # Backend Go unique (backend-of-record)
 ├── packages/                        # 14 packages partagés
 │   ├── db/                          # 🐘 Prisma Singleton (Source unique de vérité DB)
 │   ├── auth/                        # 🔐 Rôles, permissions et helpers session
 │   ├── ui/                          # 🎨 Design System & composants partagés
 │   ├── theme/                       # 🎨 Design tokens CSS multi-apps (source unique)
 │   ├── supabase/                    # 🔌 Clients d'authentification SSR
-│   ├── i18n/                        # 🌐 Helpers de traduction Tolgee
+│   ├── i18n/                        # 🌐 Helpers de traduction Lingui
 │   ├── analytics/                   # 📊 Événements et tracking
 │   ├── api-client/                  # 🔄 Couche de données TanStack Query + actions
 │   ├── billing/                     # 💳 Logique Stripe abonnements
@@ -159,7 +162,7 @@ qoe.fi/                              # 21 workspaces résolus
 | `admin.qoe.fi`        | `apps/admin`        | Panel de modération de la plateforme et édition du CMS       |
 | `start.qoe.fi`        | `apps/landing`      | Vitrine commerciale, mentions légales et CGU de la marque    |
 | `*.qoe.fi` (wildcard) | `apps/web`          | Moteur multi-tenant servant les blogs publics des créateurs  |
-| `api.qoe.fi`          | `apps/api`          | Backend Hono (endpoints à haute performance)                 |
+| `api.qoe.fi`          | `apps/api-go`       | Backend Go unique (feed, posts, articles, webhooks, analytics) |
 
 ---
 

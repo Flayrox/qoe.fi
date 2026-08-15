@@ -27,6 +27,8 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
   supabaseResponse.headers.set('x-locale', localeCookie);
+  // Chemin courant pour les composants serveur (ex: badge notifications)
+  supabaseResponse.headers.set('x-pathname', request.nextUrl.pathname);
 
   // 2. Protection de l'espace créateur avec résolution universelle getMonorepoUrl
   if (!user) {

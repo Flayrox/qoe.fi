@@ -54,8 +54,8 @@ WHERE id = $1;
 SELECT "apiAccessStatus" FROM "User" WHERE id = $1;
 
 -- name: InsertApiKey :exec
-INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", "userId")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4);
+INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "userId")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5);
 
 -- name: DeleteApiKey :exec
 DELETE FROM "ApiKey" WHERE id = $1 AND "userId" = $2;

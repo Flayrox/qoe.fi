@@ -46,6 +46,12 @@ func main() {
 		}
 		return newsletterWorker.HandleArticlePublished(ctx, t)
 	})
+	mux.HandleFunc(queue.TaskArticleUpdated, func(ctx context.Context, t *asynq.Task) error {
+		return webhookWorker.HandleProcesses(ctx, t, queue.TaskArticleUpdated)
+	})
+	mux.HandleFunc(queue.TaskArticleDeleted, func(ctx context.Context, t *asynq.Task) error {
+		return webhookWorker.HandleProcesses(ctx, t, queue.TaskArticleDeleted)
+	})
 	mux.HandleFunc(queue.TaskSubscriberCreated, func(ctx context.Context, t *asynq.Task) error {
 		return webhookWorker.HandleProcesses(ctx, t, queue.TaskSubscriberCreated)
 	})

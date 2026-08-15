@@ -35,10 +35,15 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+// Scopes de clé API (moindre privilège) — miroir de packages/api-client actions/dashboard.
+const API_KEY_SCOPES = ['READ', 'WRITE', 'ANALYTICS'] as const;
+type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
+
 interface ApiKeyType {
   id: string;
   name: string;
   keyPrefix: string;
+  scopes: string[];
   createdAt: string;
   lastUsedAt: string | null;
 }
@@ -64,6 +69,7 @@ export function DeveloperClient({
   const [isRevokingKeyId, setIsRevokingKeyId] = useState<string | null>(null);
 
   const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyScopes, setNewKeyScopes] = useState<ApiKeyScope[]>(() => [...API_KEY_SCOPES]);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -142,13 +148,24 @@ export function DeveloperClient({
 
     setIsGeneratingKey(true);
     try {
-      const res = await generateApiKeyAction(newKeyName);
+      const res = await generateApiKeyAction({ name: newKeyName, scopes: newKeyScopes });
       if (res.ok && res.data?.apiKey) {
         setGeneratedKey(res.data.apiKey);
-        setKeys([res.data.apiKey as unknown as ApiKeyType, ...keys]);
+        setKeys([
+          {
+            id: `tmp-${Date.now()}`,
+            name: newKeyName.trim(),
+            keyPrefix: 'qoe_live',
+            scopes: newKeyScopes,
+            createdAt: new Date().toISOString(),
+            lastUsedAt: null,
+          },
+          ...keys,
+        ]);
         setShowKeyModal(true);
 
         setNewKeyName('');
+        setNewKeyScopes([...API_KEY_SCOPES]);
         toast.success("Nouvelle clé d'API générée avec succès !");
       }
     } catch (err: unknown) {
@@ -156,6 +173,12 @@ export function DeveloperClient({
     } finally {
       setIsGeneratingKey(false);
     }
+  };
+
+  const toggleKeyScope = (scope: ApiKeyScope) => {
+    setNewKeyScopes((prev) =>
+      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]
+    );
   };
 
   // Handle revoking key
@@ -420,7 +443,7 @@ export function DeveloperClient({
                 />
                 <button
                   type="submit"
-                  disabled={isGeneratingKey || !newKeyName.trim()}
+                  disabled={isGeneratingKey || !newKeyName.trim() || newKeyScopes.length === 0}
                   className="bg-foreground hover:bg-[#EE4B2B] text-background disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed text-xs font-semibold px-6 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-300"
                 >
                   {isGeneratingKey ? (
@@ -431,6 +454,42 @@ export function DeveloperClient({
                   Générer la clé
                 </button>
               </form>
+
+              {/* Permissions de la clé (moindre privilège) */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Permissions de la clé
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {API_KEY_SCOPES.map((scope) => {
+                    const active = newKeyScopes.includes(scope);
+                    return (
+                      <button
+                        key={scope}
+                        type="button"
+                        onClick={() => toggleKeyScope(scope)}
+                        className={`text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-all duration-200 ${
+                          active
+                            ? 'bg-[#EE4B2B]/10 border-[#EE4B2B]/40 text-[#EE4B2B]'
+                            : 'bg-muted border-border text-muted-foreground hover:border-muted-foreground/40'
+                        }`}
+                      >
+                        {active ? '✓ ' : ''}
+                        {scope}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  READ : lecture des articles et catégories · WRITE : créer, modifier, publier ·
+                  ANALYTICS : statistiques de lecture
+                </p>
+                {newKeyScopes.length === 0 && (
+                  <p className="text-[11px] font-semibold text-destructive">
+                    Sélectionnez au moins un scope pour générer la clé.
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* List active keys */}
@@ -462,6 +521,7 @@ export function DeveloperClient({
                       <tr className="bg-muted border-b border-border text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
                         <th className="px-6 py-3.5">Nom</th>
                         <th className="px-6 py-3.5">Prévisualisation de la clé</th>
+                        <th className="px-6 py-3.5">Permissions</th>
                         <th className="px-6 py-3.5">Créée le</th>
                         <th className="px-6 py-3.5">Dernière utilisation</th>
                         <th className="px-6 py-3.5 text-right">Actions</th>
@@ -475,6 +535,21 @@ export function DeveloperClient({
                             <code className="bg-muted text-muted-foreground px-2 py-0.5 rounded font-mono text-[11px]">
                               {key.keyPrefix}••••••••••••••••
                             </code>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-wrap gap-1">
+                              {(key.scopes?.length
+                                ? key.scopes
+                                : ['READ', 'WRITE', 'ANALYTICS']
+                              ).map((scope) => (
+                                <span
+                                  key={scope}
+                                  className="text-[9px] font-bold uppercase tracking-wide border border-border bg-muted text-muted-foreground px-1.5 py-0.5 rounded"
+                                >
+                                  {scope}
+                                </span>
+                              ))}
+                            </div>
                           </td>
                           <td className="px-6 py-4 text-muted-foreground">
                             {new Date(key.createdAt).toLocaleDateString('fr-FR', {
@@ -559,7 +634,7 @@ export function DeveloperClient({
                     </span>{' '}
                     \
                   </div>
-                  <div className="pl-5">https://api-legacy.qoe.fi/v1/articles</div>
+                  <div className="pl-5">https://api.qoe.fi/v1/articles</div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">

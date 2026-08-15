@@ -21,7 +21,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@qoe/utils": "workspace:*",
     "next-themes": "^0.4.6"
   },
   "peerDependencies": {

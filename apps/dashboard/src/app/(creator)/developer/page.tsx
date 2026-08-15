@@ -43,6 +43,7 @@ export default async function DeveloperPage() {
       id: true,
       name: true,
       keyPrefix: true,
+      scopes: true,
       createdAt: true,
       lastUsedAt: true,
     },
@@ -56,6 +57,7 @@ export default async function DeveloperPage() {
     id: key.id,
     name: key.name,
     keyPrefix: key.keyPrefix,
+    scopes: key.scopes,
     createdAt: key.createdAt.toISOString(),
     lastUsedAt: key.lastUsedAt ? key.lastUsedAt.toISOString() : null,
   }));
