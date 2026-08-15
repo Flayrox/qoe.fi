@@ -10,7 +10,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
@@ -27,20 +29,31 @@ func NewHandler(client *asynq.Client, webhookSecret string) *Handler {
 	return &Handler{client: client, webhookSecret: webhookSecret}
 }
 
+// Register enregistre les webhooks ENTRANTS Stripe/Supabase. Routes en
+// siblings directs (pas de r.Route("/v1/webhooks")) : le module webhooks de
+// gestion monte aussi /v1/webhooks — deux sous-arbres sur le même chemin font
+// paniquer chi au démarrage (vérifié par le smoke test du routeur).
 func (h *Handler) Register(r chi.Router) {
-	r.Route("/v1/webhooks", func(r chi.Router) {
-		r.Post("/stripe", h.stripe)
-		r.Post("/supabase", h.supabase)
-	})
+	r.Post("/v1/webhooks/stripe", h.stripe)
+	r.Post("/v1/webhooks/supabase", h.supabase)
 }
 
-// verifySignature vérifie le header Stripe-Signature (t=…,v1=…) avec HMAC-SHA256.
+// verifySignature vérifie le header Stripe-Signature (t=…,v1=…) avec HMAC-SHA256
+// + fenêtre anti-replay (le timestamp doit être proche de maintenant).
 func (h *Handler) verifySignature(sigHeader string, rawBody []byte) bool {
 	if h.webhookSecret == "" || sigHeader == "" {
 		return false
 	}
 	timestamp, signature := parseSigHeader(sigHeader)
 	if timestamp == "" || signature == "" {
+		return false
+	}
+	ts, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return false
+	}
+	// Anti-replay : un rejeu d'une ancienne requête valide est refusé.
+	if diff := time.Now().Unix() - ts; diff < -300 || diff > 300 {
 		return false
 	}
 	payload := timestamp + "." + string(rawBody)
