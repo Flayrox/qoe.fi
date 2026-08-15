@@ -639,7 +639,7 @@ export async function createThoughtThread(
   }
 
   // 1. Transaction Prisma atomique
-  return await prisma.$transaction(async (tx) => {
+  const createdPosts = await prisma.$transaction(async (tx) => {
     let lastPostId = data.parentId || null;
     const list: Array<ThreadThought & { poll: CreatedPoll | null }> = [];
 
@@ -765,6 +765,35 @@ export async function createThoughtThread(
 
     return list;
   });
+
+  // 🔔 Notifier les @mentions du post racine d'un fil standalone.
+  // (Les réponses passent par replyToPost / replyNotifications.)
+  if (!data.parentId && createdPosts.length > 0) {
+    const root = createdPosts[0];
+    const mentions = root.content.match(/@([a-zA-Z0-9_]+)/g);
+    if (mentions && mentions.length > 0) {
+      const usernames = Array.from(new Set(mentions.map((m) => m.slice(1))));
+      try {
+        const mentionedUsers = await prisma.user.findMany({
+          where: { username: { in: usernames } },
+          select: { id: true },
+        });
+        for (const u of mentionedUsers) {
+          if (u.id === authorId) continue;
+          createNotification({
+            recipientId: u.id,
+            senderId: authorId,
+            type: 'MENTION',
+            thoughtId: root.id,
+          }).catch((err) => logger.error('Erreur notification mention (thread)', { err }));
+        }
+      } catch (err) {
+        logger.error('Erreur recherche utilisateurs mentionnés (thread)', { err });
+      }
+    }
+  }
+
+  return createdPosts;
 }
 
 /**
