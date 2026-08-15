@@ -41,9 +41,19 @@ export async function sendCollaborationRequestAction(articleId: string, inviteeE
       };
     }
 
-    const invitee = await prisma.user.findUnique({ where: { email: inviteeEmail } });
+    const invitee = await prisma.user.findUnique({
+      where: { email: inviteeEmail },
+      include: { settings: { select: { allowCollaborationInvites: true } } },
+    });
     if (!invitee) {
       return { success: false, error: 'Aucun utilisateur trouvé avec cet email' };
+    }
+
+    if (invitee.settings?.allowCollaborationInvites === false) {
+      return {
+        success: false,
+        error: 'Ce contributeur a désactivé les invitations de collaboration.',
+      };
     }
 
     if (invitee.id === inviter.id) {
@@ -221,10 +231,21 @@ export async function sendArticleContributorInvitationAction(data: {
 
     const invitee = await prisma.user.findUnique({
       where: { id: data.inviteeId },
-      select: { id: true, isSuspended: true, isShadowbanned: true },
+      select: {
+        id: true,
+        isSuspended: true,
+        isShadowbanned: true,
+        settings: { select: { allowCollaborationInvites: true } },
+      },
     });
     if (!invitee || invitee.isSuspended || invitee.isShadowbanned) {
       return { success: false, error: 'Ce contributeur est indisponible.' };
+    }
+    if (invitee.settings?.allowCollaborationInvites === false) {
+      return {
+        success: false,
+        error: 'Ce contributeur a désactivé les invitations de collaboration.',
+      };
     }
     if (invitee.id === article.authorId) {
       return { success: false, error: "L'auteur principal n'a pas besoin d'une invitation." };

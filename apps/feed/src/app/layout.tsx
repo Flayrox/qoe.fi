@@ -10,7 +10,7 @@
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono, Geist } from 'next/font/google';
 import { I18nClientProvider } from '@qoe/i18n/provider';
-import { getStaticTranslations, getLanguage, initI18n } from '@qoe/i18n/server';
+import { getStaticTranslations, initI18n } from '@qoe/i18n/server';
 import { GrowthBookProvider } from '@qoe/flags';
 import { getGrowthBookPayload } from '@qoe/flags/server';
 import { TooltipProvider } from '@qoe/ui/ui/tooltip';
@@ -20,6 +20,7 @@ import { cn } from '@qoe/utils';
 import { DevtoolsPanel, ThemeProvider, ThemeSeedScript, GlobalAuthModalProvider } from '@qoe/ui';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { getCurrentUser } from '@qoe/auth';
+import { prisma } from '@qoe/db/client';
 import {
   getDevtoolsData,
   createMockUserAction,
@@ -58,6 +59,12 @@ export default async function RootLayout({
   const staticTranslations = await getStaticTranslations();
   const staticData = await staticTranslations.loadTranslations();
   const currentUser = await getCurrentUser().catch(() => null);
+  const accountSettings = currentUser
+    ? await prisma.userSettings.findUnique({
+        where: { userId: currentUser.id },
+        select: { fontScale: true, reduceMotion: true, highContrast: true },
+      })
+    : null;
   const flagsPayload = await getGrowthBookPayload();
 
   const devtoolsActions = {
@@ -79,10 +86,13 @@ export default async function RootLayout({
     <html
       lang={locale}
       className={cn('scroll-smooth', 'font-sans', geist.variable)}
+      data-qoe-reduce-motion={accountSettings?.reduceMotion ? 'true' : 'false'}
+      data-qoe-high-contrast={accountSettings?.highContrast ? 'true' : 'false'}
       suppressHydrationWarning
     >
       <body
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
+        style={{ fontSize: `${accountSettings?.fontScale ?? 100}%` }}
       >
         <ThemeSeedScript />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>

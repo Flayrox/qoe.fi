@@ -244,10 +244,20 @@ export const saveArticleAction = safeAction<
         isSuspended: false,
         isShadowbanned: false,
       },
-      select: { id: true },
+      select: { id: true, settings: { select: { allowCollaborationInvites: true } } },
     });
     if (users.length !== entries.length) {
       throw new Error('Un ou plusieurs contributeurs sont introuvables ou indisponibles.');
+    }
+    const blocked = users.filter((candidate) => {
+      const entry = entries.find((item) => item.userId === candidate.id);
+      return (
+        entry?.consentStatus === 'PENDING' &&
+        candidate.settings?.allowCollaborationInvites === false
+      );
+    });
+    if (blocked.length > 0) {
+      throw new Error('Un contributeur a désactivé les invitations de collaboration.');
     }
   };
 

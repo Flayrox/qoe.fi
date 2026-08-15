@@ -17,7 +17,10 @@
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
     "TOLGEE_API_KEY",
-    "SENTRY_DSN"
+    "SENTRY_DSN",
+    "NOTIFICATION_DELIVERY_ENABLED",
+    "EMAIL_PROVIDER",
+    "QOE_PUBLIC_URL"
   ],
 
   "tasks": {

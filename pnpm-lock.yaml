@@ -1245,6 +1245,22 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  packages/workers:
+    dependencies:
+      '@qoe/db':
+        specifier: workspace:*
+        version: link:../db
+    devDependencies:
+      '@qoe/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^20
+        version: 20.19.43
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
   workers:
     dependencies:
       '@qoe/billing':
