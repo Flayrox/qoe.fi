@@ -122,6 +122,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    # La page /home interroge Prisma (article.findMany) : sans Postgres, le
+    # serveur Next démarre mais chaque requête DB échoue (500) → e2e rouge.
+    # On monte un Postgres de service et on applique le schéma Prisma avant.
+    # NB : image pgvector (le schéma déclare extensions=[vector]) ; l'historique
+    # de migrations n'est pas rejouable depuis zéro (deltas sur un schéma créé
+    # par db push) → db push, pas migrate deploy.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: qoe
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qoe"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -138,6 +159,16 @@ jobs:
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --fetch-timeout 600000
+
+      # Schéma Prisma appliqué au Postgres de service. db push (et non migrate
+      # deploy) car les migrations du repo sont des deltas sur un schéma créé
+      # originellement par db push : un deploy from-scratch échoue sur des types
+      # manquants. Sur une DB éphémère de CI, db push est sûr et non-interactif.
+      - name: Prepare Database (Prisma schema)
+        run: cd packages/db && pnpm prisma db push --accept-data-loss
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          DIRECT_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
 
       - name: Install Playwright Chromium
         run: pnpm e2e:install
@@ -158,3 +189,4 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+          if-no-files-found: ignore
