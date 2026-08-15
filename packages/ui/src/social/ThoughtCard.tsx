@@ -70,7 +70,7 @@ export interface ThoughtData {
   tags?: string[];
   attachments?: Array<{ id?: string; url: string; type?: string; altText?: string | null }> | null;
   articleQuote?: QuotedArticleData | null;
-  quotedExcerpt?: string;
+  quotedExcerpt?: string | null;
   poll?: {
     id: string;
     thoughtId: string;
@@ -170,13 +170,14 @@ export function ThoughtCard({
 
   const displayAuthor = isPureRepost ? post.repost!.author : post.author;
   const displayContent = isPureRepost ? post.repost!.content : post.content;
+  const rawDisplayContent = displayContent;
   const displayImageUrl = isPureRepost ? post.repost!.imageUrl : post.imageUrl;
   const displayPostId = isPureRepost ? post.repost!.id : post.id;
   const displayCreatedAt = isPureRepost ? post.repost!.createdAt || post.createdAt : post.createdAt;
 
   const authorHandle =
     displayAuthor.username || displayAuthor.subdomain || displayAuthor.id?.slice(0, 8) || 'auteur';
-  const urls = getUrls(displayContent || '');
+  const urls = getUrls(rawDisplayContent || '');
   const quotedExcerpt = post.quotedExcerpt;
 
   const handleQuoteClick = (e: React.MouseEvent) => {
@@ -299,7 +300,7 @@ export function ThoughtCard({
           )}
 
           {/* Reply Context Banner (Only in main feed timeline view) */}
-          {post.parent && !isParent && !isFocus && variant === 'timeline' && (
+          {post.parent && !isThreadChild && !isParent && !isFocus && variant === 'timeline' && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground pb-0.5 font-sans">
               <CornerDownRight className="w-3.5 h-3.5 text-brand" />
               <span>
@@ -378,7 +379,7 @@ export function ThoughtCard({
           {post.articleQuote && (
             <QuotedArticleCard
               article={post.articleQuote}
-              quotedExcerpt={quotedExcerpt}
+              quotedExcerpt={quotedExcerpt || undefined}
               onOpenArticle={onOpenArticle}
             />
           )}
@@ -387,7 +388,7 @@ export function ThoughtCard({
           {!post.articleQuote && urls.length > 0 && (
             <LinkPreview
               urls={urls}
-              quotedExcerpt={quotedExcerpt}
+              quotedExcerpt={quotedExcerpt || undefined}
               unfurlFn={unfurlFn}
               onNavigate={(target) => {
                 if (target.type === 'post') {
