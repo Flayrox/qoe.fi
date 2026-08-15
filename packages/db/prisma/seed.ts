@@ -41,6 +41,62 @@ async function main() {
     data: { publicationId },
   });
 
+  // Publication certifiée → les articles seedés apparaissent aussi dans
+  // Discover et les suggestions de créateurs (feed).
+  await prisma.publication.update({
+    where: { id: publicationId },
+    data: { isCertified: true },
+  });
+
+  // 0c. Articles démo (apparaissent dans le feed /home — requis par l'e2e)
+  const demoArticles = [
+    {
+      title: 'La souveraineté des médias indépendants',
+      slug: 'souverainete-medias-independants',
+      content:
+        "<p>Dans un monde saturé de plateformes, posséder son propre espace de publication n'est plus un luxe : c'est une condition de survie éditoriale.</p><p>Cet article explore ce que signifie réellement être souverain sur son audience, son contenu et ses revenus.</p>",
+      isEditorPick: true,
+    },
+    {
+      title: 'Pourquoi le temps long gagne toujours',
+      slug: 'pourquoi-temps-long-gagne',
+      content:
+        "<p>L'économie de l'attention récompense le bruit. L'histoire, elle, récompense la constance.</p><p>Les médias qui écrivent pour durer finissent toujours par gagner la confiance de leur lectorat.</p>",
+    },
+    {
+      title: "L'architecture du silence numérique",
+      slug: 'architecture-du-silence-numerique',
+      content:
+        "<p>Le silence n'est pas l'absence de contenu : c'est une architecture de lecture.</p><p>qoe.fi est construit autour de cette idée : moins d'interruptions, plus de sens.</p>",
+    },
+  ];
+
+  for (const art of demoArticles) {
+    await prisma.article.upsert({
+      where: { publicationId_slug: { publicationId, slug: art.slug } },
+      update: {
+        title: art.title,
+        content: art.content,
+        published: true,
+        status: 'PUBLISHED',
+        visibility: 'PUBLIC',
+        isEditorPick: art.isEditorPick ?? false,
+      },
+      create: {
+        title: art.title,
+        slug: art.slug,
+        content: art.content,
+        published: true,
+        status: 'PUBLISHED',
+        visibility: 'PUBLIC',
+        isEditorPick: art.isEditorPick ?? false,
+        readingTime: 4,
+        authorId: userId,
+        publicationId,
+      },
+    });
+  }
+
   // 1. Create Navigation
   await prisma.navigationItem.createMany({
     data: [

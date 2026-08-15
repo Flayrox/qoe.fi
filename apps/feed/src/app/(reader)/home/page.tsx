@@ -274,12 +274,19 @@ export default async function ReaderHomePage() {
     };
   };
 
-  const mapArticleToFeedItem = (art: ArticleWithDetails) => ({
-    ...art,
-    createdAt: art.createdAt.toISOString(),
-    author: mapPublicationToAuthor(art.publication, art.author?.name),
-    tags: art.semanticTags || [],
-  });
+  const mapArticleToFeedItem = (art: ArticleWithDetails) => {
+    // ⚠️ unstable_cache (featured article) sérialise les Dates en ISO strings :
+    // on normalise ici pour accepter les deux formes (Date directe Prisma ou
+    // string issue du cache Next) — sinon toISOString() crashe au 2e hit.
+    const createdAtIso =
+      art.createdAt instanceof Date ? art.createdAt.toISOString() : String(art.createdAt);
+    return {
+      ...art,
+      createdAt: createdAtIso,
+      author: mapPublicationToAuthor(art.publication, art.author?.name),
+      tags: art.semanticTags || [],
+    };
+  };
 
   // Étape 2 : Définir les promesses de base de données parallèles
   const dbFollowingArticlesPromise =

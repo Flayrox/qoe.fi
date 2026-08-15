@@ -170,11 +170,20 @@ jobs:
           DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
           DIRECT_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
 
+      # Contenu démo (3 articles publiés + publication certifiée) pour que
+      # les tests e2e vérifient du contenu réellement rendu, pas seulement
+      # l'absence d'erreurs.
+      - name: Seed Database (demo content)
+        run: cd packages/db && pnpm prisma db seed
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          DIRECT_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+
       - name: Install Playwright Chromium
         run: pnpm e2e:install
 
-      - name: Run E2E (public + self-contained suites)
-        run: pnpm e2e --project=public-web
+      - name: Run E2E (public + annotations suites)
+        run: pnpm e2e --project=public-web --project=annotations
         env:
           CI: 'true'
           PLAYWRIGHT_TEST_BASE_URL: 'http://localhost:3010'
