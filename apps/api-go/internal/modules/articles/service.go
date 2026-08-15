@@ -171,7 +171,8 @@ func (mc memberContext) can(perm string) bool {
 func (s *Service) GetBySlug(ctx context.Context, slug, publicationID string, viewerID string, viewerEmail string) (ArticleResponse, error) {
 	row, err := s.q.GetArticleBySlug(ctx, db.GetArticleBySlugParams{Slug: slug, PublicationId: publicationID})
 	if err != nil {
-		if errors.Is(err, errNotFound) {
+		// pgx.ErrNoRows → 404 propre (sinon le handler renvoie 500).
+		if errors.Is(err, pgx.ErrNoRows) {
 			return ArticleResponse{}, errNotFound
 		}
 		return ArticleResponse{}, err
