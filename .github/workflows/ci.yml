@@ -92,6 +92,37 @@ jobs:
         env:
           TESTCONTAINERS_RYUK_DISABLED: 'true'
 
+      # Gate de couverture des modules critiques (contrat créateurs + worker).
+      # Chaque package doit rester au-dessus de son seuil — une baisse de
+      # couverture due à une refactorisation DOIT s'accompagner de nouveaux
+      # tests, pas d'un seuil abaissé.
+      - name: Coverage Gate (modules critiques)
+        working-directory: apps/api-go
+        run: |
+          set -e
+          check() {
+            pkg="$1"; threshold="$2"
+            pct=$(go test -count=1 -cover ./"$pkg" 2>/dev/null \
+              | sed -n 's/.*coverage: \([0-9.]*\)% of statements.*/\1/p' | head -1)
+            if [ -z "$pct" ]; then
+              echo "✗ $pkg : couverture non mesurée"
+              exit 1
+            fi
+            if awk -v p="$pct" -v t="$threshold" 'BEGIN{exit !(p < t)}'; then
+              echo "✗ $pkg : $pct% < seuil $threshold%"
+              exit 1
+            fi
+            echo "✓ $pkg : $pct% (seuil $threshold%)"
+          }
+          check "internal/modules/articles" 50
+          check "internal/modules/webhooks" 70
+          check "internal/modules/settings" 60
+          check "internal/modules/posts" 35
+          check "internal/modules/search" 55
+          check "internal/workers" 60
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: 'true'
+
   e2e:
     name: E2E (Playwright)
     needs: build-and-test
