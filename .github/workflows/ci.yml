@@ -15,10 +15,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # pnpm 11 exige Node >= 22.13 (node:sqlite) — Node 20 plantait au
+      # démarrage de pnpm (ERR_UNKNOWN_BUILTIN_MODULE). Le package.json
+      # déclare "node": ">=20", Node 22 est donc compatible.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -126,7 +129,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -134,7 +137,7 @@ jobs:
           version: 11.21.0
 
       - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --fetch-timeout 600000
 
       - name: Install Playwright Chromium
         run: pnpm e2e:install
