@@ -74,8 +74,7 @@ export async function createNotification(data: {
     if (
       data.type === 'MEDIA_INVITE' ||
       data.type === 'MEDIA_MEMBER_JOINED' ||
-      data.type === 'MEDIA_ARTICLE_PUBLISHED' ||
-      data.type === 'MEDIA_MENTION'
+      data.type === 'MEDIA_ARTICLE_PUBLISHED'
     ) {
       if (!prefs.pushMedia && !prefs.emailMedia) return null;
     }

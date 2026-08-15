@@ -17,8 +17,7 @@ export type GroupedNotificationLike = {
     | 'MEDIA_INVITE'
     | 'MEDIA_MEMBER_JOINED'
     | 'MEDIA_ARTICLE_PUBLISHED'
-    | 'MEDIA_ARTICLE_SUBMITTED'
-    | 'MEDIA_MENTION';
+    | 'MEDIA_ARTICLE_SUBMITTED';
   isRead: boolean;
   createdAt: string | Date;
   thoughtId?: string | null;
@@ -109,11 +108,6 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
       actionText = notification.publication?.name
         ? `a soumis un article pour revue dans le Média`
         : 'a soumis un article pour revue';
-      break;
-    case 'MEDIA_MENTION':
-      Icon = AtSign;
-      iconColorClass = 'text-highlight bg-highlight/10';
-      actionText = 'vous a mentionné dans le Média';
       break;
   }
 
