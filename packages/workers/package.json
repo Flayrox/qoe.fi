@@ -1,5 +1,5 @@
 {
-  "name": "@qoe/workers",
+  "name": "@qoe/email",
   "version": "0.0.0",
   "private": true,
   "type": "module",
