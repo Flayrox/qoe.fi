@@ -5,7 +5,6 @@
   "description": "qoe.fi monorepo — Turborepo + pnpm + Next.js (web, console) + Hono (api) + BullMQ (workers)",
   "scripts": {
     "test": "turbo run test",
-    "test:ui": "turbo run test:ui",
     "build": "lingui compile && turbo run build",
     "dev": "node scripts/copy-env.js && lingui compile && turbo run dev --parallel",
     "dev:web": "node scripts/copy-env.js && lingui compile && turbo run dev --filter=@qoe/web... --filter=@qoe/api... --parallel",
@@ -74,12 +73,9 @@
     "prisma:generate": "cd packages/db && pnpm prisma generate",
     "prisma:studio": "cd packages/db && pnpm prisma studio",
     "prisma:format": "cd packages/db && pnpm prisma format",
-    "prisma:seed": "cd packages/db && pnpm prisma db seed",
-    "zip:win": "powershell -ExecutionPolicy Bypass -File scripts/zip.ps1",
-    "zip:mac": "bash scripts/zip.sh"
+    "prisma:seed": "cd packages/db && pnpm prisma db seed"
   },
   "devDependencies": {
-    "@lingui/babel-plugin-lingui-macro": "^6.6.0",
     "@lingui/cli": "^6.6.0",
     "@lingui/format-po": "6.6.0",
     "@lingui/swc-plugin": "^6.6.0",
@@ -87,7 +83,6 @@
     "@prisma/client": "6.19.3",
     "@types/node": "^20.19.43",
     "@vitest/coverage-v8": "^4.1.7",
-    "@vitest/ui": "^4.1.7",
     "eslint": "^9",
     "eslint-config-next": "^16.2.10",
     "husky": "^9.1.7",

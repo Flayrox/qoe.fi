@@ -32,7 +32,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@qoe/config": "workspace:*",
     "@qoe/db": "workspace:*"
   },
   "peerDependencies": {

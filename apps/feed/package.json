@@ -13,8 +13,6 @@
   "dependencies": {
     "@base-ui/react": "^1.4.1",
     "@lingui/core": "6.6.0",
-    "@lingui/react": "6.6.0",
-    "@prisma/client": "^6.19.3",
     "@qoe/analytics": "workspace:*",
     "@qoe/api-client": "workspace:*",
     "@qoe/auth": "workspace:*",
@@ -30,12 +28,10 @@
     "@qoe/utils": "workspace:*",
     "@sentry/nextjs": "10.65.0",
     "@supabase/ssr": "^0.10.3",
-    "@supabase/supabase-js": "^2.105.4",
     "@tanstack/react-virtual": "^3.13.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "date-fns": "^4.4.0",
     "framer-motion": "^12.39.0",
     "lucide-react": "^1.16.0",
     "next": "16.2.6",
@@ -43,12 +39,8 @@
     "react": "19.2.4",
     "react-day-picker": "^10.0.1",
     "react-dom": "19.2.4",
-    "react-wrap-balancer": "^1.1.1",
     "sonner": "^2.0.7",
-    "tailwind-merge": "^3.6.0",
-    "use-debounce": "^10.1.1",
-    "zod": "^3.23.8",
-    "zustand": "^5.0.13"
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@qoe/tsconfig": "workspace:*",
