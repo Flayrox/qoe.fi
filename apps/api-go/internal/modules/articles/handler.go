@@ -28,19 +28,23 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 // RegisterProtected enregistre les routes créateur (auth requise + scopes clé API).
 // requireScope est injecté depuis main.go (middleware.RequireAPIScope) pour
 // appliquer le moindre privilège : lecture = READ, écriture = WRITE.
+//
+// IMPORTANT : les routes sont enregistrées en siblings directs (pas via
+// r.Route("/v1/articles", …)). En chi, un sous-arbre monté a une priorité
+// inférieure à une route paramétrée enregistrée au niveau parent — le param
+// public GET /v1/articles/{slug} masquerait /by-id/{id} et /capabilities.
+// (Vérifié par TestRoutePriority_* : statique > param dans l'arbre.)
 func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func(http.Handler) http.Handler) {
-	r.Route("/v1/articles", func(r chi.Router) {
-		r.With(requireScope(middleware.ScopeRead)).Get("/", h.list)
-		r.With(requireScope(middleware.ScopeWrite)).Post("/", h.create)
-		r.With(requireScope(middleware.ScopeRead)).Get("/by-id/{id}", h.getByID)
-		r.With(requireScope(middleware.ScopeRead)).Get("/capabilities", h.capabilities)
-		r.With(requireScope(middleware.ScopeWrite)).Patch("/{id}", h.update)
-		r.With(requireScope(middleware.ScopeWrite)).Post("/{id}/publish", h.publish)
-		r.With(requireScope(middleware.ScopeWrite)).Post("/{id}/review", h.review)
-		r.With(requireScope(middleware.ScopeWrite)).Delete("/{id}", h.delete)
-		r.With(requireScope(middleware.ScopeWrite)).Post("/{id}/comments", h.createComment)
-		r.With(requireScope(middleware.ScopeWrite)).Delete("/comments/{commentId}", h.deleteComment)
-	})
+	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles", h.list)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles", h.create)
+	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/by-id/{id}", h.getByID)
+	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/capabilities", h.capabilities)
+	r.With(requireScope(middleware.ScopeWrite)).Patch("/v1/articles/{id}", h.update)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/publish", h.publish)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/review", h.review)
+	r.With(requireScope(middleware.ScopeWrite)).Delete("/v1/articles/{id}", h.delete)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/comments", h.createComment)
+	r.With(requireScope(middleware.ScopeWrite)).Delete("/v1/articles/comments/{commentId}", h.deleteComment)
 }
 
 // GET /v1/articles/{slug} — double mode :
