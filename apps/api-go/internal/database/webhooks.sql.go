@@ -11,6 +11,49 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createWebhook = `-- name: CreateWebhook :one
+INSERT INTO "Webhook" (id, "publicationId", name, url, secret, events, active, "createdAt", "updatedAt")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, true, now(), now())
+RETURNING id, name, url, events, active, "createdAt"
+`
+
+type CreateWebhookParams struct {
+	PublicationId string   `json:"publicationId"`
+	Name          string   `json:"name"`
+	Url           string   `json:"url"`
+	Secret        string   `json:"secret"`
+	Events        []string `json:"events"`
+}
+
+type CreateWebhookRow struct {
+	ID        string           `json:"id"`
+	Name      string           `json:"name"`
+	Url       string           `json:"url"`
+	Events    []string         `json:"events"`
+	Active    bool             `json:"active"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
+func (q *Queries) CreateWebhook(ctx context.Context, arg CreateWebhookParams) (CreateWebhookRow, error) {
+	row := q.db.QueryRow(ctx, createWebhook,
+		arg.PublicationId,
+		arg.Name,
+		arg.Url,
+		arg.Secret,
+		arg.Events,
+	)
+	var i CreateWebhookRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Url,
+		&i.Events,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createWebhookDelivery = `-- name: CreateWebhookDelivery :one
 INSERT INTO "WebhookDelivery" (id, "webhookId", event, payload, status)
 VALUES (gen_random_uuid()::text, $1, $2, $3, 'PENDING')
@@ -28,6 +71,16 @@ func (q *Queries) CreateWebhookDelivery(ctx context.Context, arg CreateWebhookDe
 	var id string
 	err := row.Scan(&id)
 	return id, err
+}
+
+const deleteWebhook = `-- name: DeleteWebhook :exec
+DELETE FROM "Webhook"
+WHERE id = $1
+`
+
+func (q *Queries) DeleteWebhook(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, deleteWebhook, id)
+	return err
 }
 
 const getActiveSubscribersByPublication = `-- name: GetActiveSubscribersByPublication :many
@@ -113,6 +166,166 @@ func (q *Queries) GetActiveWebhooksByPublication(ctx context.Context, arg GetAct
 		return nil, err
 	}
 	return items, nil
+}
+
+const getWebhook = `-- name: GetWebhook :one
+SELECT id, "publicationId", name, url, secret, events, active, "createdAt"
+FROM "Webhook"
+WHERE id = $1
+`
+
+type GetWebhookRow struct {
+	ID            string           `json:"id"`
+	PublicationId string           `json:"publicationId"`
+	Name          string           `json:"name"`
+	Url           string           `json:"url"`
+	Secret        string           `json:"secret"`
+	Events        []string         `json:"events"`
+	Active        bool             `json:"active"`
+	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+}
+
+func (q *Queries) GetWebhook(ctx context.Context, id string) (GetWebhookRow, error) {
+	row := q.db.QueryRow(ctx, getWebhook, id)
+	var i GetWebhookRow
+	err := row.Scan(
+		&i.ID,
+		&i.PublicationId,
+		&i.Name,
+		&i.Url,
+		&i.Secret,
+		&i.Events,
+		&i.Active,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const insertWebhookDeliveryResult = `-- name: InsertWebhookDeliveryResult :exec
+INSERT INTO "WebhookDelivery" (id, "webhookId", event, payload, status, "httpStatus", "responseBody", attempts)
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, 1)
+`
+
+type InsertWebhookDeliveryResultParams struct {
+	WebhookId    string      `json:"webhookId"`
+	Event        string      `json:"event"`
+	Payload      []byte      `json:"payload"`
+	Status       string      `json:"status"`
+	HttpStatus   pgtype.Int4 `json:"httpStatus"`
+	ResponseBody pgtype.Text `json:"responseBody"`
+}
+
+func (q *Queries) InsertWebhookDeliveryResult(ctx context.Context, arg InsertWebhookDeliveryResultParams) error {
+	_, err := q.db.Exec(ctx, insertWebhookDeliveryResult,
+		arg.WebhookId,
+		arg.Event,
+		arg.Payload,
+		arg.Status,
+		arg.HttpStatus,
+		arg.ResponseBody,
+	)
+	return err
+}
+
+const listWebhookDeliveries = `-- name: ListWebhookDeliveries :many
+SELECT id, status, "httpStatus", event, "createdAt"
+FROM "WebhookDelivery"
+WHERE "webhookId" = $1
+ORDER BY "createdAt" DESC
+LIMIT 5
+`
+
+type ListWebhookDeliveriesRow struct {
+	ID         string           `json:"id"`
+	Status     string           `json:"status"`
+	HttpStatus pgtype.Int4      `json:"httpStatus"`
+	Event      string           `json:"event"`
+	CreatedAt  pgtype.Timestamp `json:"createdAt"`
+}
+
+func (q *Queries) ListWebhookDeliveries(ctx context.Context, webhookid string) ([]ListWebhookDeliveriesRow, error) {
+	rows, err := q.db.Query(ctx, listWebhookDeliveries, webhookid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWebhookDeliveriesRow{}
+	for rows.Next() {
+		var i ListWebhookDeliveriesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.HttpStatus,
+			&i.Event,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWebhooksByPublication = `-- name: ListWebhooksByPublication :many
+SELECT id, name, url, events, active, "createdAt"
+FROM "Webhook"
+WHERE "publicationId" = $1
+ORDER BY "createdAt" DESC
+`
+
+type ListWebhooksByPublicationRow struct {
+	ID        string           `json:"id"`
+	Name      string           `json:"name"`
+	Url       string           `json:"url"`
+	Events    []string         `json:"events"`
+	Active    bool             `json:"active"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
+func (q *Queries) ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error) {
+	rows, err := q.db.Query(ctx, listWebhooksByPublication, publicationid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWebhooksByPublicationRow{}
+	for rows.Next() {
+		var i ListWebhooksByPublicationRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Url,
+			&i.Events,
+			&i.Active,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateWebhookActive = `-- name: UpdateWebhookActive :exec
+UPDATE "Webhook"
+SET active = $2
+WHERE id = $1
+`
+
+type UpdateWebhookActiveParams struct {
+	ID     string `json:"id"`
+	Active bool   `json:"active"`
+}
+
+func (q *Queries) UpdateWebhookActive(ctx context.Context, arg UpdateWebhookActiveParams) error {
+	_, err := q.db.Exec(ctx, updateWebhookActive, arg.ID, arg.Active)
+	return err
 }
 
 const updateWebhookDelivery = `-- name: UpdateWebhookDelivery :exec

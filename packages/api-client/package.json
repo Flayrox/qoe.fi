@@ -15,7 +15,8 @@
     "./actions/articles": "./src/actions/articles/index.ts",
     "./actions/dashboard": "./src/actions/dashboard/index.ts",
     "./actions/admin": "./src/actions/admin/index.ts",
-    "./actions/tenant": "./src/actions/tenant/index.ts"
+    "./actions/tenant": "./src/actions/tenant/index.ts",
+    "./actions/utils/go-client": "./src/actions/utils/go-client.ts"
   },
   "scripts": {
     "test": "vitest run",
