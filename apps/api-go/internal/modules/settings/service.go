@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api-go/internal/database"
 	"github.com/qoefi/api-go/internal/permissions"
+	"github.com/qoefi/api-go/internal/slug"
 )
 
 var (
@@ -330,13 +331,13 @@ func (s *Service) CompleteOnboarding(ctx context.Context, userID string, in Onbo
 		return err
 	}
 
-	slug := name
+	pubSlug := name
 	if user.Username.Valid && user.Username.String != "" {
-		slug = user.Username.String
+		pubSlug = user.Username.String
 	}
-	slug = slugify(slug)
-	if slug == "" {
-		slug = "creator"
+	pubSlug = slug.Slugify(pubSlug)
+	if pubSlug == "" {
+		pubSlug = "creator"
 	}
 
 	subdomain := textFromString(in.Subdomain)
@@ -352,7 +353,7 @@ func (s *Service) CompleteOnboarding(ctx context.Context, userID string, in Onbo
 	}
 
 	id, err := s.q.CreatePersonalPublication(ctx, db.CreatePersonalPublicationParams{
-		Name: name, Slug: slug, Subdomain: subdomain, HeroText: heroText,
+		Name: name, Slug: pubSlug, Subdomain: subdomain, HeroText: heroText,
 		LayoutStyle: layoutStyle, LogoUrl: user.LogoUrl, IsCertified: user.IsCertified,
 	})
 	if err != nil {
@@ -361,26 +362,6 @@ func (s *Service) CompleteOnboarding(ctx context.Context, userID string, in Onbo
 	return s.q.LinkUserPublication(ctx, db.LinkUserPublicationParams{
 		ID: userID, PublicationId: textFromString(id),
 	})
-}
-
-// slugify reproduit @qoe/utils slugify pour les slugs de publication.
-func slugify(input string) string {
-	lower := strings.ToLower(strings.TrimSpace(input))
-	var b strings.Builder
-	lastDash := false
-	for _, r := range lower {
-		switch {
-		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
-			b.WriteRune(r)
-			lastDash = false
-		default:
-			if !lastDash && b.Len() > 0 {
-				b.WriteByte('-')
-				lastDash = true
-			}
-		}
-	}
-	return strings.Trim(b.String(), "-")
 }
 
 func toUUID(id string) pgtype.UUID {

@@ -337,6 +337,45 @@ func (q *Queries) InsertMediaArticlePublishedFanout(ctx context.Context, arg Ins
 	return err
 }
 
+const insertMediaArticleSubmittedFanout = `-- name: InsertMediaArticleSubmittedFanout :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publicationId")
+SELECT gen_random_uuid()::text,
+       m."userId",
+       $1,
+       'MEDIA_ARTICLE_SUBMITTED',
+       $2,
+       md."publicationId"
+FROM "MediaMember" m
+JOIN "Media" md ON md.id = m."mediaId"
+WHERE md."publicationId" = $3
+  AND m."userId" <> $1
+  AND (m.status = 'active' OR m.status = 'invited')
+  AND (
+    (m.role IN ('owner', 'editor') AND NOT (COALESCE(m.permissions, ARRAY[]::text[]) && ARRAY['-media:review']::text[]))
+    OR (COALESCE(m.permissions, ARRAY[]::text[]) && ARRAY['media:review']::text[])
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM "Notification" n
+    WHERE n."recipientId" = m."userId"
+      AND n."senderId" = $1
+      AND n.type = 'MEDIA_ARTICLE_SUBMITTED'
+      AND n."articleId" = $2
+      AND n."isRead" = false
+  )
+LIMIT 500
+`
+
+type InsertMediaArticleSubmittedFanoutParams struct {
+	SenderID      pgtype.UUID `json:"sender_id"`
+	ArticleID     pgtype.Text `json:"article_id"`
+	PublicationID string      `json:"publication_id"`
+}
+
+func (q *Queries) InsertMediaArticleSubmittedFanout(ctx context.Context, arg InsertMediaArticleSubmittedFanoutParams) error {
+	_, err := q.db.Exec(ctx, insertMediaArticleSubmittedFanout, arg.SenderID, arg.ArticleID, arg.PublicationID)
+	return err
+}
+
 const insertRepostNotification = `-- name: InsertRepostNotification :exec
 INSERT INTO "Notification" (id, "recipientId", "senderId", type, "thoughtId")
 VALUES (gen_random_uuid()::text, $1, $2, 'REPOST', $3)

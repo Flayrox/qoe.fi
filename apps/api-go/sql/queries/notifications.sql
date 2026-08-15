@@ -124,3 +124,30 @@ WHERE f."publicationId" = sqlc.arg('publication_id')
       AND n."isRead" = false
   )
 LIMIT 500;
+
+-- name: InsertMediaArticleSubmittedFanout :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publicationId")
+SELECT gen_random_uuid()::text,
+       m."userId",
+       sqlc.arg('sender_id'),
+       'MEDIA_ARTICLE_SUBMITTED',
+       sqlc.arg('article_id'),
+       md."publicationId"
+FROM "MediaMember" m
+JOIN "Media" md ON md.id = m."mediaId"
+WHERE md."publicationId" = sqlc.arg('publication_id')
+  AND m."userId" <> sqlc.arg('sender_id')
+  AND (m.status = 'active' OR m.status = 'invited')
+  AND (
+    (m.role IN ('owner', 'editor') AND NOT (COALESCE(m.permissions, ARRAY[]::text[]) && ARRAY['-media:review']::text[]))
+    OR (COALESCE(m.permissions, ARRAY[]::text[]) && ARRAY['media:review']::text[])
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM "Notification" n
+    WHERE n."recipientId" = m."userId"
+      AND n."senderId" = sqlc.arg('sender_id')
+      AND n.type = 'MEDIA_ARTICLE_SUBMITTED'
+      AND n."articleId" = sqlc.arg('article_id')
+      AND n."isRead" = false
+  )
+LIMIT 500;

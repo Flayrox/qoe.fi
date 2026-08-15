@@ -361,6 +361,79 @@ func (q *Queries) ListArticlesByPublication(ctx context.Context, arg ListArticle
 	return items, nil
 }
 
+const listArticlesWithCategory = `-- name: ListArticlesWithCategory :many
+SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readingTime",
+       a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId",
+       c.id  AS category_id,
+       c.name AS category_name,
+       c.slug AS category_slug
+FROM "Article" a
+LEFT JOIN "Category" c ON c.id = a."categoryId"
+WHERE a."publicationId" = $1
+ORDER BY a."createdAt" DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListArticlesWithCategoryParams struct {
+	PublicationId string `json:"publicationId"`
+	Limit         int32  `json:"limit"`
+	Offset        int32  `json:"offset"`
+}
+
+type ListArticlesWithCategoryRow struct {
+	ID            string            `json:"id"`
+	Title         string            `json:"title"`
+	Slug          string            `json:"slug"`
+	Published     bool              `json:"published"`
+	IsPremium     bool              `json:"isPremium"`
+	Visibility    ContentVisibility `json:"visibility"`
+	ReadingTime   int32             `json:"readingTime"`
+	Status        string            `json:"status"`
+	CreatedAt     pgtype.Timestamp  `json:"createdAt"`
+	UpdatedAt     pgtype.Timestamp  `json:"updatedAt"`
+	CategoryId    pgtype.Text       `json:"categoryId"`
+	PublicationId string            `json:"publicationId"`
+	CategoryID    pgtype.Text       `json:"category_id"`
+	CategoryName  pgtype.Text       `json:"category_name"`
+	CategorySlug  pgtype.Text       `json:"category_slug"`
+}
+
+func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticlesWithCategoryParams) ([]ListArticlesWithCategoryRow, error) {
+	rows, err := q.db.Query(ctx, listArticlesWithCategory, arg.PublicationId, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListArticlesWithCategoryRow{}
+	for rows.Next() {
+		var i ListArticlesWithCategoryRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Slug,
+			&i.Published,
+			&i.IsPremium,
+			&i.Visibility,
+			&i.ReadingTime,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CategoryId,
+			&i.PublicationId,
+			&i.CategoryID,
+			&i.CategoryName,
+			&i.CategorySlug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setArticleStatus = `-- name: SetArticleStatus :one
 UPDATE "Article"
 SET status = $2, published = $3, "updatedAt" = now()
@@ -407,6 +480,47 @@ func (q *Queries) UpdateArticleContent(ctx context.Context, arg UpdateArticleCon
 		arg.Title,
 		arg.Content,
 		arg.Slug,
+		arg.IsPremium,
+		arg.CategoryId,
+		arg.SeoTitle,
+		arg.SeoDescription,
+		arg.ReadingTime,
+	)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
+const updateArticleFull = `-- name: UpdateArticleFull :one
+UPDATE "Article"
+SET title = $2, content = $3, slug = $4, published = $5, status = $6, "isPremium" = $7,
+    "categoryId" = $8, "seoTitle" = $9, "seoDescription" = $10, "readingTime" = $11, "updatedAt" = now()
+WHERE id = $1
+RETURNING id
+`
+
+type UpdateArticleFullParams struct {
+	ID             string      `json:"id"`
+	Title          string      `json:"title"`
+	Content        string      `json:"content"`
+	Slug           string      `json:"slug"`
+	Published      bool        `json:"published"`
+	Status         string      `json:"status"`
+	IsPremium      bool        `json:"isPremium"`
+	CategoryId     pgtype.Text `json:"categoryId"`
+	SeoTitle       pgtype.Text `json:"seoTitle"`
+	SeoDescription pgtype.Text `json:"seoDescription"`
+	ReadingTime    int32       `json:"readingTime"`
+}
+
+func (q *Queries) UpdateArticleFull(ctx context.Context, arg UpdateArticleFullParams) (string, error) {
+	row := q.db.QueryRow(ctx, updateArticleFull,
+		arg.ID,
+		arg.Title,
+		arg.Content,
+		arg.Slug,
+		arg.Published,
+		arg.Status,
 		arg.IsPremium,
 		arg.CategoryId,
 		arg.SeoTitle,

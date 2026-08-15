@@ -154,6 +154,11 @@ export const getArticlesAction = safeAction<
 >(async () => {
   const user = await authenticateUser();
   const publicationId = await getActivePublicationId(user.id);
+  if (isGoEnabled()) {
+    return goFetch<Prisma.ArticleGetPayload<{ include: { category: true } }>[]>(
+      `/v1/articles/?publicationId=${publicationId}`
+    );
+  }
   return prisma.article.findMany({
     where: { publicationId },
     include: { category: true },
@@ -166,6 +171,11 @@ export const getArticleByIdAction = safeAction<
   Prisma.ArticleGetPayload<{ include: { category: true } }> | null
 >(async (id) => {
   const user = await authenticateUser();
+  if (isGoEnabled()) {
+    return goFetch<Prisma.ArticleGetPayload<{ include: { category: true } }>>(
+      `/v1/articles/by-id/${id}`
+    );
+  }
   const article = await prisma.article.findUnique({
     where: { id },
     include: { category: true },
@@ -232,6 +242,45 @@ export const saveArticleAction = safeAction<
     .split(/\s+/)
     .filter(Boolean).length;
   const readingTime = Math.max(1, Math.ceil(wordCount / 200));
+
+  if (isGoEnabled()) {
+    if (id) {
+      const activePublicationId = await getActivePublicationId(user.id);
+      return goFetch<Article>(`/v1/articles/${id}`, {
+        method: 'PATCH',
+        body: {
+          title,
+          content,
+          slug: finalSlug,
+          published,
+          status,
+          isPremium,
+          categoryId,
+          seoTitle,
+          seoDescription,
+          readingTime,
+          activePublicationId,
+        },
+      });
+    }
+    const publicationId = await getActivePublicationId(user.id);
+    return goFetch<Article>(`/v1/articles/`, {
+      method: 'POST',
+      body: {
+        publicationId,
+        title,
+        content,
+        slug: finalSlug,
+        published,
+        status,
+        isPremium,
+        categoryId,
+        seoTitle,
+        seoDescription,
+        readingTime,
+      },
+    });
+  }
 
   if (id) {
     const existing = await prisma.article.findUnique({ where: { id } });
@@ -368,6 +417,15 @@ export const saveArticleAction = safeAction<
 
 export const deleteArticleAction = safeAction<string, { success: boolean }>(async (id) => {
   const user = await authenticateUser();
+  if (isGoEnabled()) {
+    const activePublicationId = await getActivePublicationId(user.id);
+    await goFetch(
+      `/v1/articles/${id}?activePublicationId=${encodeURIComponent(activePublicationId)}`,
+      { method: 'DELETE' }
+    );
+    revalidatePath('/articles');
+    return { success: true };
+  }
   const existing = await prisma.article.findUnique({ where: { id } });
   if (!existing) throw new Error('Article introuvable.');
   const activePublicationId = await getActivePublicationId(user.id);
@@ -401,6 +459,14 @@ export const deleteArticleAction = safeAction<string, { success: boolean }>(asyn
 export const reviewArticleAction = safeAction<{ id: string; approve: boolean }, Article>(
   async (data) => {
     const user = await authenticateUser();
+    if (isGoEnabled()) {
+      const res = await goFetch<Article>(`/v1/articles/${data.id}/review`, {
+        method: 'POST',
+        body: { approve: data.approve },
+      });
+      revalidatePath('/articles');
+      return res;
+    }
     const { id, approve } = data;
 
     const article = await prisma.article.findUnique({ where: { id } });
@@ -442,6 +508,26 @@ export const getCategoriesAction = safeAction<
 >(async () => {
   const user = await authenticateUser();
   const publicationId = await getActivePublicationId(user.id);
+  if (isGoEnabled()) {
+    const res = await goFetch<{
+      data: Array<{
+        id: string;
+        name: string;
+        slug: string;
+        description: string | null;
+        articlesCount: number;
+      }>;
+    }>(`/v1/categories?publicationId=${publicationId}`);
+    return res.data.map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      description: c.description,
+      publicationId,
+      parentId: null,
+      _count: { articles: c.articlesCount },
+    })) as Prisma.CategoryGetPayload<{ include: { _count: { select: { articles: true } } } }>[];
+  }
   return prisma.category.findMany({
     where: { publicationId },
     include: { _count: { select: { articles: true } } },
@@ -463,6 +549,10 @@ export interface EditorCapabilities {
  * Utilisé par l'éditeur pour adapter les actions (Publier vs Soumettre).
  */
 export const getEditorCapabilitiesAction = safeAction<void, EditorCapabilities>(async (_, user) => {
+  if (isGoEnabled()) {
+    const publicationId = await getActivePublicationId(user.id);
+    return goFetch<EditorCapabilities>(`/v1/articles/capabilities?publicationId=${publicationId}`);
+  }
   const publicationId = await getActivePublicationId(user.id);
   const publication = await prisma.publication.findUnique({
     where: { id: publicationId },
@@ -516,6 +606,24 @@ export const saveCategoryAction = safeAction<
 
   if (!name.trim()) throw new Error('Le nom de la catégorie est requis.');
 
+  if (isGoEnabled()) {
+    if (id) {
+      const res = await goFetch<Category>(`/v1/categories/${id}`, {
+        method: 'PATCH',
+        body: { name, slug, description },
+      });
+      revalidatePath('/articles');
+      return res;
+    }
+    const publicationId = await getActivePublicationId(user.id);
+    const res = await goFetch<Category>(`/v1/categories`, {
+      method: 'POST',
+      body: { publicationId, name, slug, description },
+    });
+    revalidatePath('/articles');
+    return res;
+  }
+
   let finalSlug = slugify(slug || name);
   if (!finalSlug) finalSlug = `cat-${shortId()}`;
 
@@ -556,6 +664,11 @@ export const saveCategoryAction = safeAction<
 
 export const deleteCategoryAction = safeAction<string, { success: boolean }>(async (id) => {
   const user = await authenticateUser();
+  if (isGoEnabled()) {
+    await goFetch(`/v1/categories/${id}`, { method: 'DELETE' });
+    revalidatePath('/articles');
+    return { success: true };
+  }
   const existing = await prisma.category.findUnique({ where: { id } });
   if (!existing) throw new Error('Catégorie introuvable.');
   const publicationId = await getActivePublicationId(user.id);
