@@ -24,15 +24,17 @@ func NewHandler(svc *Service) *Handler {
 // RegisterProtected enregistre les routes webhooks (auth requise + scopes clé API).
 // requireScope est injecté depuis main.go (middleware.RequireAPIScope) : lecture
 // = READ, gestion (create/delete/toggle/test) = WRITE.
+//
+// Routes en siblings directs (pas de r.Route("/v1/webhooks")) : le module
+// billing monte aussi /v1/webhooks/{stripe,supabase} — deux sous-arbres sur le
+// même chemin font paniquer chi au démarrage (vérifié par le smoke test).
 func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func(http.Handler) http.Handler) {
-	r.Route("/v1/webhooks", func(r chi.Router) {
-		r.With(requireScope(middleware.ScopeRead)).Get("/", h.list)
-		r.With(requireScope(middleware.ScopeWrite)).Post("/", h.create)
-		r.With(requireScope(middleware.ScopeRead)).Get("/{id}/deliveries", h.listDeliveries)
-		r.With(requireScope(middleware.ScopeWrite)).Delete("/{id}", h.delete)
-		r.With(requireScope(middleware.ScopeWrite)).Post("/{id}/toggle", h.toggle)
-		r.With(requireScope(middleware.ScopeWrite)).Post("/{id}/test", h.test)
-	})
+	r.With(requireScope(middleware.ScopeRead)).Get("/v1/webhooks", h.list)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/webhooks", h.create)
+	r.With(requireScope(middleware.ScopeRead)).Get("/v1/webhooks/{id}/deliveries", h.listDeliveries)
+	r.With(requireScope(middleware.ScopeWrite)).Delete("/v1/webhooks/{id}", h.delete)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/webhooks/{id}/toggle", h.toggle)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/webhooks/{id}/test", h.test)
 }
 
 // publicationID résout la publication depuis la clé API (contexte) ou le query

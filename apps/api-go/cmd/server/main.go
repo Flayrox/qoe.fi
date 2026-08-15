@@ -11,7 +11,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/qoefi/api-go/internal/cache"
 	"github.com/qoefi/api-go/internal/config"
@@ -49,8 +52,63 @@ func main() {
 	}
 	defer pool.Close()
 
-	rc := cache.Client(cfg.RedisURL)
-	asynqClient := queue.NewClient(cfg.RedisURL)
+	r := newRouter(RouterDeps{
+		Pool:             pool,
+		Redis:            cache.Client(cfg.RedisURL),
+		Asynq:            queue.NewClient(cfg.RedisURL),
+		JWTSecret:        cfg.JWTSecret,
+		SupabaseAuthURL:  cfg.SupabaseAuthURL,
+		StripeWebhookKey: cfg.StripeWebhookSecret,
+		InternalSecret:   cfg.InternalSecret,
+		UmamiAPIURL:      cfg.UmamiAPIURL,
+		UmamiAPIKey:      cfg.UmamiAPIKey,
+		UmamiUser:        cfg.UmamiUser,
+		UmamiPass:        cfg.UmamiPass,
+		DefaultUmamiSite: cfg.DefaultUmamiWebsiteID,
+	})
+
+	srv := &http.Server{
+		Addr:              ":" + cfg.Port,
+		Handler:           r,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	go func() {
+		log.Printf("api-go démarré sur :%s", cfg.Port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("serveur: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+	log.Println("arrêt en cours…")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_ = srv.Shutdown(shutdownCtx)
+}
+
+// RouterDeps porte les dépendances partagées par newRouter (injectables en test).
+type RouterDeps struct {
+	Pool             *pgxpool.Pool
+	Redis            *redis.Client
+	Asynq            *asynq.Client
+	JWTSecret        string
+	SupabaseAuthURL  string
+	StripeWebhookKey string
+	InternalSecret   string
+	UmamiAPIURL      string
+	UmamiAPIKey      string
+	UmamiUser        string
+	UmamiPass        string
+	DefaultUmamiSite string
+}
+
+// newRouter assemble l'API complète (routes publiques + créateur + workers
+// events). Séparée de main() pour être testable de bout en bout (smoke test).
+func newRouter(d RouterDeps) *chi.Mux {
+	rc := d.Redis
+	asynqClient := d.Asynq
+	pool := d.Pool
 
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
@@ -75,15 +133,15 @@ func main() {
 	searchHandler.RegisterPublic(r)
 
 	// Endpoints internes (émission d'événements → asynq), protégés par secret.
-	eventsHandler := events.NewHandler(asynqClient, cfg.InternalSecret)
+	eventsHandler := events.NewHandler(asynqClient, d.InternalSecret)
 	eventsHandler.Register(r)
 
 	// Webhooks Stripe (vérif signature + enqueue asynq).
-	billingHandler := billing.NewHandler(asynqClient, cfg.StripeWebhookSecret)
+	billingHandler := billing.NewHandler(asynqClient, d.StripeWebhookKey)
 	billingHandler.Register(r)
 
 	// Auth JWT Supabase (instance partagée : Middleware obligatoire + OptionalAuth).
-	auth := authmw.NewAuth(cfg.JWTSecret, cfg.SupabaseAuthURL)
+	auth := authmw.NewAuth(d.JWTSecret, d.SupabaseAuthURL)
 
 	// Articles : lecture publique (auth optionnelle, paywall) hors groupe protégé.
 	articlesHandler := articles.NewHandler(articles.NewService(pool, rc, asynqClient))
@@ -115,7 +173,7 @@ func main() {
 		analyticsHandler := analytics.NewHandler(analytics.NewService(pool))
 		analyticsHandler.Register(protected)
 
-		creatorHandler := creator.NewHandler(pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey, cfg.UmamiUser, cfg.UmamiPass), cfg.DefaultUmamiWebsiteID)
+		creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
 		creatorHandler.RegisterProtected(protected)
 
 		settingsHandler.RegisterProtected(protected)
@@ -127,30 +185,13 @@ func main() {
 	// API créateur par clé API (qoe_live_…) : catégories + analytics/stats (proxy Umami).
 	r.Group(func(apiKey chi.Router) {
 		apiKey.Use(authmw.APIKeyAuth(db.New(pool)))
-		creatorHandler := creator.NewHandler(pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey, cfg.UmamiUser, cfg.UmamiPass), cfg.DefaultUmamiWebsiteID)
+		creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
 		creatorHandler.RegisterAPIKey(apiKey)
 	})
 
 	// Profils publics (résolution publication par slug/subdomain).
-	creatorPublic := creator.NewHandler(pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey, cfg.UmamiUser, cfg.UmamiPass), cfg.DefaultUmamiWebsiteID)
+	creatorPublic := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
 	creatorPublic.RegisterPublic(r)
 
-	srv := &http.Server{
-		Addr:              ":" + cfg.Port,
-		Handler:           r,
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-
-	go func() {
-		log.Printf("api-go démarré sur :%s", cfg.Port)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("serveur: %v", err)
-		}
-	}()
-
-	<-ctx.Done()
-	log.Println("arrêt en cours…")
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	_ = srv.Shutdown(shutdownCtx)
+	return r
 }
