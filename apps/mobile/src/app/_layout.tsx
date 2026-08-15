@@ -4,6 +4,7 @@ import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
+import { AppDrawer } from '@/components/drawer/app-drawer';
 import { AppProviders } from '@/components/providers/app-providers';
 import { useAuth } from '@/features/auth/auth-provider';
 import { LoginScreen } from '@/features/auth/login-screen';
@@ -18,7 +19,15 @@ function RootContent() {
   if (isLoading) {
     return null;
   }
-  return session ? <AppTabs /> : <LoginScreen />;
+  // Connecté : la sidebar (façon Twitter) entoure les onglets et assombrit
+  // le contenu quand elle s'ouvre. Déconnecté : écran de connexion.
+  return session ? (
+    <AppDrawer>
+      <AppTabs />
+    </AppDrawer>
+  ) : (
+    <LoginScreen />
+  );
 }
 
 export default function TabLayout() {

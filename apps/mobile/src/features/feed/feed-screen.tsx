@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useDrawer } from '@/components/drawer/drawer-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -37,6 +38,7 @@ const fetcher: FeedFetcherFn = async ({ cursor, limit }) => {
 export function FeedScreen() {
   const theme = useTheme();
   const { signOut } = useAuth();
+  const { openDrawer } = useDrawer();
 
   const {
     data,
@@ -96,6 +98,13 @@ export function FeedScreen() {
           }
           ListHeaderComponent={
             <View style={styles.header}>
+              <Pressable
+                onPress={openDrawer}
+                style={({ pressed }) => [styles.menuButton, { opacity: pressed ? 0.5 : 1 }]}
+                accessibilityLabel={t('sidebar.open', 'Ouvrir le menu')}
+              >
+                <ThemedText style={styles.menuGlyph}>☰</ThemedText>
+              </Pressable>
               <ApiStatus />
               <Pressable
                 onPress={() => void signOut()}
@@ -147,6 +156,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three,
     paddingBottom: Spacing.two,
+  },
+  menuButton: {
+    paddingVertical: Spacing.one,
+    paddingRight: Spacing.one,
+  },
+  menuGlyph: {
+    fontSize: 22,
+    lineHeight: 24,
   },
   signOut: {
     paddingVertical: Spacing.one,
