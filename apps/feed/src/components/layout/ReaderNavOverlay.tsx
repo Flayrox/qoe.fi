@@ -140,6 +140,9 @@ export function ReaderNavOverlay({
 
         <div className="h-4 w-px bg-border/60 mx-0.5" />
 
+        {/* Thème clair/sombre (Soleil/Lune) — synchronisé entre sous-domaines */}
+        <ThemeToggle />
+
         {/* User Profile / Menu Trigger */}
         <div className="relative">
           <button
