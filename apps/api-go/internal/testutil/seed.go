@@ -76,13 +76,13 @@ func SeedArticles(ctx context.Context, pool *pgxpool.Pool) (*Fixtures, error) {
 	// RÉCENT (delta = 0) → ListCreatorArticles (ORDER BY createdAt DESC)
 	// retourne le brouillon en premier.
 	articles := []struct {
-		slug, title, content, category, status string
-		published, isPremium                   bool
+		slug, title, content, category, status, visibility string
+		published, isPremium                               bool
 	}{
-		{"premier-article", "Premier article", "<p>Contenu public A</p>", fx.CategoryTech, "PUBLISHED", true, false},
-		{"article-payant", "Article payant", "<p>Intro gratuite</p><p>Contenu PAYANT SENSIBLE</p>", fx.CategoryTech, "PUBLISHED", true, true},
-		{"recette-pates", "Recette de pâtes", "<p>Recette complète</p>", fx.CategoryFood, "PUBLISHED", true, false},
-		{"brouillon", "Brouillon secret", "<p>Pas encore publié</p>", fx.CategoryTech, "DRAFT", false, false},
+		{"premier-article", "Premier article", "<p>Contenu public A</p>", fx.CategoryTech, "PUBLISHED", "PUBLIC", true, false},
+		{"article-payant", "Article payant", "<p>Intro gratuite</p><!--paywall--><p>Contenu PAYANT SENSIBLE</p>", fx.CategoryTech, "PUBLISHED", "PAID_SUBSCRIBERS", true, true},
+		{"recette-pates", "Recette de pâtes", "<p>Recette complète</p>", fx.CategoryFood, "PUBLISHED", "PUBLIC", true, false},
+		{"brouillon", "Brouillon secret", "<p>Pas encore publié</p>", fx.CategoryTech, "DRAFT", "PUBLIC", false, false},
 	}
 	for i, a := range articles {
 		delta := len(articles) - 1 - i // 3,2,1,0 → plus récent en dernier
@@ -91,11 +91,11 @@ func SeedArticles(ctx context.Context, pool *pgxpool.Pool) (*Fixtures, error) {
 			`INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
 			                        "readingTime", status, "publicationId", "authorId", "categoryId",
 			                        "createdAt", "updatedAt")
-			 VALUES ('art_test_00'||$1, $2, $3, $4, $5, $6, 'PUBLIC', 5, $7, $8, $9, $10,
-			         now() - $11::text::interval, now())
+			 VALUES ('art_test_00'||$1, $2, $3, $4, $5, $6, $7, 5, $8, $9, $10, $11,
+			         now() - $12::text::interval, now())
 			 RETURNING id`,
 			fmt.Sprintf("%d", i), a.title, a.slug, a.content, a.published, a.isPremium,
-			a.status, fx.PublicationID, fx.AuthorID, a.category,
+			a.visibility, a.status, fx.PublicationID, fx.AuthorID, a.category,
 			fmt.Sprintf("%d minutes", delta),
 		).Scan(&id); err != nil {
 			return nil, fmt.Errorf("article %s: %w", a.slug, err)
