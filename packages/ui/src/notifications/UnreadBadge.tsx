@@ -1,12 +1,14 @@
 'use client';
 
 import { useUnreadNotificationCountQuery } from '@qoe/api-client';
+import { useRealtimeNotificationSync } from './useRealtimeNotificationSync';
 import { cn } from '@qoe/utils';
 
 /**
  * 🔴 Pastille de notifications non lues (sidebar / cloche).
  */
 export function UnreadBadge({ className }: { className?: string }) {
+  useRealtimeNotificationSync();
   const { data: count = 0 } = useUnreadNotificationCountQuery();
 
   if (count <= 0) return null;
@@ -25,8 +27,10 @@ export function UnreadBadge({ className }: { className?: string }) {
 
 /**
  * 🔴 Compteur non-lu sous forme de texte (pour badge sidebar sans bulle).
+ * Active aussi la synchro Realtime pour une mise à jour en direct.
  */
 export function useUnreadNotificationCount() {
+  useRealtimeNotificationSync();
   const { data: count = 0 } = useUnreadNotificationCountQuery();
   return count;
 }

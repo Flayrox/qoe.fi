@@ -61,6 +61,7 @@ export function GlobalCommandMenu() {
           query: trimmed,
           type: 'articles',
           limit: 10,
+          scope: 'mine',
         });
         if (isMounted) {
           if (result.ok) {

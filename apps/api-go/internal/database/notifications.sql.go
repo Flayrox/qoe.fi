@@ -11,6 +11,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deleteFollowNotification = `-- name: DeleteFollowNotification :exec
+DELETE FROM "Notification"
+WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'FOLLOW' AND "publicationId" = $3
+`
+
+type DeleteFollowNotificationParams struct {
+	RecipientId   pgtype.UUID `json:"recipientId"`
+	SenderId      pgtype.UUID `json:"senderId"`
+	PublicationId pgtype.Text `json:"publicationId"`
+}
+
+func (q *Queries) DeleteFollowNotification(ctx context.Context, arg DeleteFollowNotificationParams) error {
+	_, err := q.db.Exec(ctx, deleteFollowNotification, arg.RecipientId, arg.SenderId, arg.PublicationId)
+	return err
+}
+
 const deleteLikeNotification = `-- name: DeleteLikeNotification :exec
 DELETE FROM "Notification"
 WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'LIKE' AND "thoughtId" = $3
@@ -41,6 +57,29 @@ type DeleteRepostNotificationParams struct {
 func (q *Queries) DeleteRepostNotification(ctx context.Context, arg DeleteRepostNotificationParams) error {
 	_, err := q.db.Exec(ctx, deleteRepostNotification, arg.RecipientId, arg.SenderId, arg.ThoughtId)
 	return err
+}
+
+const existsUnreadFollowNotification = `-- name: ExistsUnreadFollowNotification :one
+SELECT 1 AS present
+FROM "Notification"
+WHERE "recipientId" = $1
+  AND "senderId" = $2
+  AND type = 'FOLLOW'
+  AND "publicationId" = $3
+  AND "isRead" = false
+`
+
+type ExistsUnreadFollowNotificationParams struct {
+	RecipientId   pgtype.UUID `json:"recipientId"`
+	SenderId      pgtype.UUID `json:"senderId"`
+	PublicationId pgtype.Text `json:"publicationId"`
+}
+
+func (q *Queries) ExistsUnreadFollowNotification(ctx context.Context, arg ExistsUnreadFollowNotificationParams) (int32, error) {
+	row := q.db.QueryRow(ctx, existsUnreadFollowNotification, arg.RecipientId, arg.SenderId, arg.PublicationId)
+	var present int32
+	err := row.Scan(&present)
+	return present, err
 }
 
 const existsUnreadLikeNotification = `-- name: ExistsUnreadLikeNotification :one
@@ -89,6 +128,24 @@ func (q *Queries) ExistsUnreadRepostNotification(ctx context.Context, arg Exists
 	return present, err
 }
 
+const getFollowPrefs = `-- name: GetFollowPrefs :one
+SELECT "emailFollows", "pushFollows"
+FROM "NotificationPreference"
+WHERE "userId" = $1
+`
+
+type GetFollowPrefsRow struct {
+	EmailFollows bool `json:"emailFollows"`
+	PushFollows  bool `json:"pushFollows"`
+}
+
+func (q *Queries) GetFollowPrefs(ctx context.Context, userid pgtype.UUID) (GetFollowPrefsRow, error) {
+	row := q.db.QueryRow(ctx, getFollowPrefs, userid)
+	var i GetFollowPrefsRow
+	err := row.Scan(&i.EmailFollows, &i.PushFollows)
+	return i, err
+}
+
 const getLikePrefs = `-- name: GetLikePrefs :one
 SELECT "emailLikes", "pushLikes"
 FROM "NotificationPreference"
@@ -118,6 +175,48 @@ func (q *Queries) GetPostAuthor(ctx context.Context, id string) (string, error) 
 	var author_id string
 	err := row.Scan(&author_id)
 	return author_id, err
+}
+
+const getPublicationOwner = `-- name: GetPublicationOwner :one
+SELECT COALESCE(
+  CASE
+    WHEN p.type = 'MEDIA' THEN (
+      SELECT mm."userId"::text
+      FROM "MediaMember" mm
+      JOIN "Media" m ON m.id = mm."mediaId"
+      WHERE m."publicationId" = p.id AND mm.role = 'owner' AND mm.status = 'active'
+      LIMIT 1
+    )
+    ELSE u.id::text
+  END,
+  ''
+)::text AS owner_id
+FROM "Publication" p
+LEFT JOIN "User" u ON u."publicationId" = p.id
+WHERE p.id = $1
+`
+
+func (q *Queries) GetPublicationOwner(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, getPublicationOwner, id)
+	var owner_id string
+	err := row.Scan(&owner_id)
+	return owner_id, err
+}
+
+const insertFollowNotification = `-- name: InsertFollowNotification :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId")
+VALUES (gen_random_uuid()::text, $1, $2, 'FOLLOW', $3)
+`
+
+type InsertFollowNotificationParams struct {
+	RecipientId   pgtype.UUID `json:"recipientId"`
+	SenderId      pgtype.UUID `json:"senderId"`
+	PublicationId pgtype.Text `json:"publicationId"`
+}
+
+func (q *Queries) InsertFollowNotification(ctx context.Context, arg InsertFollowNotificationParams) error {
+	_, err := q.db.Exec(ctx, insertFollowNotification, arg.RecipientId, arg.SenderId, arg.PublicationId)
+	return err
 }
 
 const insertLikeNotification = `-- name: InsertLikeNotification :exec

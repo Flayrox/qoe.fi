@@ -31,6 +31,7 @@ export interface GroupedNotification {
   publication?: {
     id: string;
     name: string | null;
+    slug?: string | null;
   } | null;
   senders: Array<{
     id: string;
@@ -238,6 +239,7 @@ export async function getNotifications(
         select: {
           id: true,
           name: true,
+          slug: true,
         },
       },
     },

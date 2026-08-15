@@ -31,10 +31,12 @@ type Querier interface {
 	DeleteArticle(ctx context.Context, id string) error
 	DeleteBookmark(ctx context.Context, arg DeleteBookmarkParams) error
 	DeleteFollow(ctx context.Context, arg DeleteFollowParams) error
+	DeleteFollowNotification(ctx context.Context, arg DeleteFollowNotificationParams) error
 	DeleteLike(ctx context.Context, arg DeleteLikeParams) error
 	DeleteLikeNotification(ctx context.Context, arg DeleteLikeNotificationParams) error
 	DeletePureReposts(ctx context.Context, arg DeletePureRepostsParams) error
 	DeleteRepostNotification(ctx context.Context, arg DeleteRepostNotificationParams) error
+	ExistsUnreadFollowNotification(ctx context.Context, arg ExistsUnreadFollowNotificationParams) (int32, error)
 	ExistsUnreadLikeNotification(ctx context.Context, arg ExistsUnreadLikeNotificationParams) (int32, error)
 	ExistsUnreadMentionNotification(ctx context.Context, arg ExistsUnreadMentionNotificationParams) (int32, error)
 	ExistsUnreadReplyNotification(ctx context.Context, arg ExistsUnreadReplyNotificationParams) (int32, error)
@@ -56,6 +58,7 @@ type Querier interface {
 	GetExistingFollow(ctx context.Context, arg GetExistingFollowParams) (int32, error)
 	GetExistingLike(ctx context.Context, arg GetExistingLikeParams) (int32, error)
 	GetFollowForReply(ctx context.Context, arg GetFollowForReplyParams) (int32, error)
+	GetFollowPrefs(ctx context.Context, userid pgtype.UUID) (GetFollowPrefsRow, error)
 	GetFollowedPersonalPublicationOwnerIDs(ctx context.Context, readerid pgtype.UUID) ([]string, error)
 	GetFreeSubscriberCount(ctx context.Context, publicationid string) (int32, error)
 	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
@@ -78,6 +81,7 @@ type Querier interface {
 	GetPremiumActiveSubscribers(ctx context.Context, publicationid string) ([]GetPremiumActiveSubscribersRow, error)
 	GetPublicationByID(ctx context.Context, id string) (string, error)
 	GetPublicationBySlugOrSubdomain(ctx context.Context, slug string) (GetPublicationBySlugOrSubdomainRow, error)
+	GetPublicationOwner(ctx context.Context, id string) (string, error)
 	GetRecentArticlesForAnalytics(ctx context.Context, arg GetRecentArticlesForAnalyticsParams) ([]GetRecentArticlesForAnalyticsRow, error)
 	GetRecentThoughtsForAnalytics(ctx context.Context, arg GetRecentThoughtsForAnalyticsParams) ([]GetRecentThoughtsForAnalyticsRow, error)
 	GetRepliesForThought(ctx context.Context, arg GetRepliesForThoughtParams) ([]GetRepliesForThoughtRow, error)
@@ -102,6 +106,7 @@ type Querier interface {
 	IncrementWalletBalance(ctx context.Context, arg IncrementWalletBalanceParams) error
 	InsertBookmark(ctx context.Context, arg InsertBookmarkParams) error
 	InsertFollow(ctx context.Context, arg InsertFollowParams) error
+	InsertFollowNotification(ctx context.Context, arg InsertFollowNotificationParams) error
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
 	InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error
 	InsertMentionNotification(ctx context.Context, arg InsertMentionNotificationParams) error

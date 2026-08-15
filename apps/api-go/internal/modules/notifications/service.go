@@ -36,6 +36,7 @@ type ArticleRef struct {
 type PublicationRef struct {
 	ID   string  `json:"id"`
 	Name *string `json:"name"`
+	Slug *string `json:"slug"`
 }
 
 // Notification est la forme groupée d'une notification (miroir TS).
@@ -285,7 +286,7 @@ func notificationFromRow(r *db.GetNotificationsRow) Notification {
 		}
 	}
 	if r.PublicationId.Valid {
-		n.Publication = &PublicationRef{ID: r.PublicationId.String, Name: textPtr(r.PublicationName)}
+		n.Publication = &PublicationRef{ID: r.PublicationId.String, Name: textPtr(r.PublicationName), Slug: textPtr(r.PublicationSlug)}
 	}
 	return n
 }

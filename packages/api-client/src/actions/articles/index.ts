@@ -69,7 +69,7 @@ async function authenticateUser() {
  * 🎛️ Résout la publication active (personnelle OU média) depuis le cookie du workspace.
  * Le dashboard opère sur le workspace sélectionné sans changer de compte.
  */
-async function getActivePublicationId(userId: string): Promise<string> {
+export async function getActivePublicationId(userId: string): Promise<string> {
   let saved: { type?: string; id?: string } | null = null;
   try {
     const cookieStore = await cookies();
