@@ -45,6 +45,30 @@ interface FeedPostRecord {
     };
   } | null;
   repost?: FeedPostRecord | null;
+  quotedExcerpt?: string | null;
+  quotedArticle?: {
+    id: string;
+    title: string;
+    slug: string;
+    content: string;
+    isPremium: boolean;
+    publication: {
+      name: string;
+      slug: string;
+      subdomain: string | null;
+      customDomain: string | null;
+      type: 'PERSONAL' | 'MEDIA';
+      logoUrl: string | null;
+      isCertified: boolean;
+    };
+    author: {
+      id: string;
+      name: string | null;
+      username: string | null;
+      logoUrl: string | null;
+      isCertified: boolean;
+    };
+  } | null;
   likes?: { userId: string }[];
   reposts?: { id: string; authorId?: string; content?: string | null }[];
   _count?: { likes: number; replies: number; reposts: number };
@@ -116,6 +140,31 @@ const getPostIncludeSelect = (userId?: string) => ({
           }
         : false,
       _count: { select: { likes: true, replies: true, reposts: true } },
+    },
+  },
+  quotedArticle: {
+    include: {
+      publication: {
+        select: {
+          id: true,
+          type: true,
+          name: true,
+          slug: true,
+          subdomain: true,
+          customDomain: true,
+          logoUrl: true,
+          isCertified: true,
+        },
+      },
+      author: {
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          logoUrl: true,
+          isCertified: true,
+        },
+      },
     },
   },
   likes: userId ? { where: { userId }, select: { userId: true } } : false,
@@ -200,6 +249,25 @@ export default async function ReaderHomePage() {
   });
 
   // Fonctions utilitaires de remappage typées strictement
+  const mapQuotedArticle = (article: FeedPostRecord['quotedArticle']) =>
+    article
+      ? {
+          id: article.id,
+          title: article.title,
+          slug: article.slug,
+          content: article.content,
+          isPremium: article.isPremium,
+          author: {
+            id: article.author.id,
+            name: article.author.name,
+            username: article.author.username,
+            subdomain: article.publication.subdomain,
+            logoUrl: article.publication.logoUrl,
+            isCertified: article.publication.isCertified,
+          },
+        }
+      : null;
+
   const mapPostToFeedItem = (post: FeedPostRecord) => {
     const canonicalPost = post.repost || post;
     const likesCount = canonicalPost._count?.likes ?? post._count?.likes ?? 0;
@@ -228,6 +296,8 @@ export default async function ReaderHomePage() {
       slug: `post-${post.id}`,
       content: post.content,
       imageUrl: post.imageUrl || null,
+      quotedExcerpt: post.quotedExcerpt || canonicalPost.quotedExcerpt || undefined,
+      articleQuote: mapQuotedArticle(post.quotedArticle || canonicalPost.quotedArticle),
       published: true,
       isPremium: false,
       readingTime: 1,
@@ -276,7 +346,11 @@ export default async function ReaderHomePage() {
 
   const mapArticleToFeedItem = (art: ArticleWithDetails) => ({
     ...art,
-    createdAt: art.createdAt.toISOString(),
+    // `dbFeaturedArticle` vient d'`unstable_cache` : les Dates y sont sérialisées en strings.
+    createdAt: (art.createdAt instanceof Date
+      ? art.createdAt
+      : new Date(art.createdAt)
+    ).toISOString(),
     author: mapPublicationToAuthor(art.publication, art.author?.name),
     tags: art.semanticTags || [],
   });

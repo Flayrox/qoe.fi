@@ -110,6 +110,8 @@ interface CreatedPostRecord {
   repost?: CreatedPostRecord | null;
   parent?: CreatedPostRecord | null;
   tags?: string[] | null;
+  quotedExcerpt?: string | null;
+  quotedArticle?: QuotedArticleData | null;
 }
 
 interface MentionSuggestion {
@@ -1039,28 +1041,16 @@ export function ThoughtComposer({
             ? { options: validPollOptions, durationHours: node.pollDurationHours }
             : null;
 
-        // Préparer la citation (seulement sur la toute première pensée du fil)
-
-        let contentToSubmit = textContent;
-        if (i === 0 && quotedArticle) {
-          const subdomain = quotedArticle.author?.subdomain;
-          const articleUrl = subdomain
-            ? `https://${subdomain}.qoe.fi/article/${quotedArticle.slug}`
-            : `https://qoe.fi/article/${quotedArticle.slug}`;
-
-          if (quotedExcerpt) {
-            contentToSubmit = contentToSubmit
-              ? `${contentToSubmit}\n\n« ${quotedExcerpt} »\n\n${articleUrl}`
-              : `« ${quotedExcerpt} »\n\n${articleUrl}`;
-          } else {
-            contentToSubmit = contentToSubmit ? `${contentToSubmit}\n\n${articleUrl}` : articleUrl;
-          }
-        }
+        // La citation est stockée séparément du texte du post : le feed pourra
+        // reconstruire la carte et surligner l'extrait sans afficher l'URL source.
+        const contentToSubmit = textContent;
 
         thoughtsPayload.push({
           content: contentToSubmit,
           tags,
           imageUrl: imagePayload,
+          quotedArticleId: i === 0 ? quotedArticle?.id || null : null,
+          quotedExcerpt: i === 0 ? quotedExcerpt?.trim() || null : null,
           attachments: attachmentPayload,
           triggerWarning:
             node.isTriggerWarning && node.triggerWarning.trim() ? node.triggerWarning.trim() : null,
@@ -1127,6 +1117,8 @@ export function ThoughtComposer({
           slug: `post-${firstCreatedPost.id}`,
           content: firstCreatedPost.content,
           imageUrl: firstCreatedPost.imageUrl || null,
+          quotedExcerpt: quotedExcerpt || null,
+          articleQuote: quotedArticle,
           published: true,
           isPremium: false,
           readingTime: 1,

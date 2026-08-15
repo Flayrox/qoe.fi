@@ -549,7 +549,10 @@ export function FeedDashboard({
     const handleThoughtCreated = (e: Event) => {
       const customDetail = (e as CustomEvent)?.detail;
       if (customDetail && customDetail.id) {
-        setLocalPosts((prev) => [customDetail, ...prev]);
+        setLocalPosts((prev) => [
+          customDetail,
+          ...prev.filter((post) => post.id !== customDetail.id),
+        ]);
       }
     };
 
@@ -791,7 +794,9 @@ export function FeedDashboard({
         quotedExcerpt={composerQuotedExcerpt}
         initialText={composerInitialText}
         initialMode={composerInitialMode}
-        onPostCreated={(post) => setLocalPosts((prev) => [post, ...prev])}
+        onPostCreated={(post) =>
+          setLocalPosts((prev) => [post, ...prev.filter((existing) => existing.id !== post.id)])
+        }
         onLoginRequired={() => openAuthModal({ mode: 'signup', actionContext: 'comment' })}
       />
       <MediaLightbox

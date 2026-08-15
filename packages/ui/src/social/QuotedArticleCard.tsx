@@ -15,6 +15,11 @@ export interface QuotedArticleData {
     username?: string | null;
     subdomain?: string | null;
   } | null;
+  publication?: {
+    name?: string | null;
+    subdomain?: string | null;
+    customDomain?: string | null;
+  } | null;
 }
 
 export interface QuotedArticleCardProps {
@@ -31,48 +36,47 @@ export function QuotedArticleCard({
   className,
 }: QuotedArticleCardProps) {
   const authorName = article.author?.name || article.author?.username || 'Auteur';
-  const subdomain = article.author?.subdomain ? `${article.author.subdomain}.qoe.fi` : 'qoe.fi';
+  const articleDomain =
+    article.author?.subdomain ||
+    article.publication?.subdomain ||
+    article.publication?.customDomain;
+  const subdomain = articleDomain ? articleDomain.replace(/^https?:\/\//, '') : 'qoe.fi';
 
-  const rawText = article.content ? article.content.replace(/<[^>]*>?/gm, '').trim() : '';
-  const highlightTarget = quotedExcerpt?.trim() || '';
+  const rawText = article.content
+    ? article.content
+        .replace(/<[^>]*>/gm, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/\s+/g, ' ')
+        .trim()
+    : '';
+  const highlightTarget = quotedExcerpt?.replace(/\s+/g, ' ').trim() || '';
 
   let beforeContext = '';
   let highlightedText = '';
   let afterContext = '';
 
-  if (highlightTarget && rawText.includes(highlightTarget)) {
-    const idx = rawText.indexOf(highlightTarget);
+  const highlightIndex = highlightTarget ? rawText.indexOf(highlightTarget) : -1;
+  if (highlightIndex >= 0) {
+    const contextLength = 90;
+    const startCandidate = Math.max(0, highlightIndex - contextLength);
+    const startIdx = startCandidate === 0 ? 0 : rawText.indexOf(' ', startCandidate) + 1;
+    const endCandidate = Math.min(
+      rawText.length,
+      highlightIndex + highlightTarget.length + contextLength
+    );
+    const nextSpace = rawText.indexOf(' ', endCandidate);
+    const endIdx = nextSpace === -1 ? rawText.length : nextSpace;
 
-    // Find the nearest word boundary before
-    let startIdx = Math.max(0, idx - 80);
-    while (startIdx > 0 && rawText[startIdx] !== ' ') {
-      startIdx++;
-      if (startIdx >= idx) {
-        startIdx = Math.max(0, idx - 80);
-        break;
-      }
-    }
+    beforeContext = rawText.substring(startIdx, highlightIndex).trim();
+    if (startIdx > 0) beforeContext = `... ${beforeContext}`;
 
-    // Find the nearest word boundary after
-    let endIdx = Math.min(rawText.length, idx + highlightTarget.length + 80);
-    while (endIdx < rawText.length && rawText[endIdx] !== ' ' && rawText[endIdx] !== '.') {
-      endIdx--;
-      if (endIdx <= idx + highlightTarget.length) {
-        endIdx = Math.min(rawText.length, idx + highlightTarget.length + 80);
-        break;
-      }
-    }
-
-    beforeContext = rawText.substring(startIdx, idx).trim();
-    if (startIdx > 0) beforeContext = '... ' + beforeContext;
-
-    highlightedText = highlightTarget;
-
-    afterContext = rawText.substring(idx + highlightTarget.length, endIdx).trim();
-    if (endIdx < rawText.length && !afterContext.endsWith('.')) afterContext += '...';
+    highlightedText = rawText.substring(highlightIndex, highlightIndex + highlightTarget.length);
+    afterContext = rawText.substring(highlightIndex + highlightTarget.length, endIdx).trim();
+    if (endIdx < rawText.length) afterContext = `${afterContext}...`;
   } else if (highlightTarget) {
-    highlightedText = highlightTarget;
-    afterContext = rawText ? ' ... ' + rawText.substring(0, 90) + '...' : '';
+    highlightedText = quotedExcerpt?.trim() || highlightTarget;
+    afterContext = rawText ? ` ... ${rawText.substring(0, 100)}...` : '';
   } else if (rawText) {
     highlightedText = rawText.substring(0, 130);
     afterContext = rawText.length > 130 ? '...' : '';
@@ -84,8 +88,8 @@ export function QuotedArticleCard({
     if (onOpenArticle) {
       onOpenArticle(article);
     } else {
-      const url = article.author?.subdomain
-        ? `https://${article.author.subdomain}.qoe.fi/article/${article.slug}`
+      const url = articleDomain
+        ? `https://${articleDomain}/article/${article.slug}`
         : `/article/${article.slug}`;
       window.open(url, '_blank');
     }
@@ -135,9 +139,9 @@ export function QuotedArticleCard({
             {beforeContext && (
               <span className="text-muted-foreground/60 not-italic">{beforeContext} </span>
             )}
-            <span className="font-medium text-foreground not-italic bg-brand/10 text-brand-foreground px-1 py-0.5 rounded">
-              "{highlightedText}"
-            </span>
+            <mark className="font-medium text-foreground not-italic bg-highlight/20 dark:bg-highlight/30 px-1 py-0.5 rounded">
+              {highlightedText}
+            </mark>
             {afterContext && (
               <span className="text-muted-foreground/60 not-italic"> {afterContext}</span>
             )}

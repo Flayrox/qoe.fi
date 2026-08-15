@@ -35,6 +35,10 @@ export interface ArticleAnnotatorViewProps {
       subdomain?: string | null;
       customDomain?: string | null;
     };
+    publication?: {
+      subdomain?: string | null;
+      customDomain?: string | null;
+    } | null;
     isLoading?: boolean;
   };
   onClose?: () => void;
@@ -128,7 +132,11 @@ export function ArticleAnnotatorView({ article }: ArticleAnnotatorViewProps) {
                 title: article.title,
                 slug: article.slug,
                 content: article.content,
-                author: article.author,
+                author: {
+                  ...article.author,
+                  subdomain: article.author.subdomain || article.publication?.subdomain,
+                  customDomain: article.author.customDomain || article.publication?.customDomain,
+                },
               },
               quotedExcerpt: text,
               initialText: commentary || '',

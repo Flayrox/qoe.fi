@@ -203,6 +203,8 @@ export const createThoughtThreadAction = safeAction<
       tags: string[];
       imageUrl?: string | null;
       attachments?: Array<{ url: string; type?: string; altText?: string; order?: number }>;
+      quotedArticleId?: string | null;
+      quotedExcerpt?: string | null;
       triggerWarning?: string | null;
       poll?: { options: string[]; durationHours?: number } | null;
     }>;
@@ -249,6 +251,8 @@ export const createThoughtThreadAction = safeAction<
       tags: t.tags ?? [],
       imageUrl: t.imageUrl || null,
       attachments: t.attachments ?? [],
+      quotedArticleId: t.quotedArticleId || null,
+      quotedExcerpt: t.quotedExcerpt || null,
       triggerWarning: t.triggerWarning || null,
       poll: t.poll ?? null,
     })),

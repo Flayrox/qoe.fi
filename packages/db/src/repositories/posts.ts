@@ -8,6 +8,32 @@ import { POST_VISIBILITY } from '@qoe/config';
 import { getFollowedUserIds } from './follows';
 import { getOrCreatePersonalPublication } from './publications';
 
+const quotedArticleInclude = {
+  include: {
+    publication: {
+      select: {
+        id: true,
+        type: true,
+        name: true,
+        slug: true,
+        subdomain: true,
+        customDomain: true,
+        logoUrl: true,
+        isCertified: true,
+      },
+    },
+    author: {
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        logoUrl: true,
+        isCertified: true,
+      },
+    },
+  },
+} as const;
+
 export type FeedThought = Prisma.ThoughtGetPayload<{
   include: {
     author: {
@@ -49,6 +75,7 @@ export type FeedThought = Prisma.ThoughtGetPayload<{
       };
     };
     attachments: { orderBy: { order: 'asc' } };
+    quotedArticle: typeof quotedArticleInclude;
     poll: {
       include: {
         options: { orderBy: { order: 'asc' }; include: { _count: { select: { votes: true } } } };
@@ -89,6 +116,7 @@ export type FeedPost = Omit<FeedThought, 'poll'> & { poll: FormattedPoll | null 
 type ThreadThought = Prisma.ThoughtGetPayload<{
   include: {
     attachments: { orderBy: { order: 'asc' } };
+    quotedArticle: typeof quotedArticleInclude;
     author: {
       select: {
         id: true;
@@ -119,6 +147,45 @@ type CreatedPoll = Prisma.PollGetPayload<{ include: { options: { orderBy: { orde
 export interface ThreadNode {
   id: string;
   content: string;
+  quotedExcerpt?: string | null;
+  quotedArticle?: {
+    id: string;
+    title: string;
+    slug: string;
+    content: string;
+    isPremium: boolean;
+    publication: {
+      subdomain: string | null;
+      customDomain: string | null;
+      name: string;
+      slug: string;
+      type: 'PERSONAL' | 'MEDIA';
+      logoUrl: string | null;
+      isCertified: boolean;
+    };
+    author: {
+      id: string;
+      name: string | null;
+      username: string | null;
+      logoUrl: string | null;
+      isCertified: boolean;
+    };
+  } | null;
+  articleQuote?: {
+    id: string;
+    title: string;
+    slug: string;
+    content: string;
+    isPremium: boolean;
+    author: {
+      id: string;
+      name: string | null;
+      username: string | null;
+      subdomain: string | null;
+      logoUrl: string | null;
+      isCertified: boolean;
+    };
+  } | null;
   imageUrl?: string | null;
   authorId?: string;
   parentId?: string | null;
@@ -212,6 +279,7 @@ export async function buildFeedSlices(
           },
         },
         attachments: { orderBy: { order: 'asc' } },
+        quotedArticle: quotedArticleInclude,
         poll: {
           include: {
             options: {
@@ -346,6 +414,7 @@ export async function findFollowingFeed(
           },
         },
         attachments: { orderBy: { order: 'asc' } },
+        quotedArticle: quotedArticleInclude,
         poll: {
           include: {
             options: {
@@ -422,6 +491,7 @@ export async function findTrending(limit: number = 20, currentUserId?: string) {
       take: limit,
       include: {
         attachments: { orderBy: { order: 'asc' } },
+        quotedArticle: quotedArticleInclude,
         poll: {
           include: {
             options: {
@@ -499,6 +569,8 @@ export async function createThought(data: {
   isDraft?: boolean;
   scheduledAt?: Date | null;
   triggerWarning?: string | null;
+  quotedArticleId?: string | null;
+  quotedExcerpt?: string | null;
   repostId?: string | null;
   parentId?: string | null;
   replyRestriction?: string;
@@ -539,6 +611,8 @@ export async function createThought(data: {
       isDraft: data.isDraft ?? false,
       scheduledAt: data.scheduledAt || null,
       triggerWarning: data.triggerWarning || null,
+      quotedArticleId: data.quotedArticleId || null,
+      quotedExcerpt: data.quotedExcerpt || null,
       repostId: data.repostId || null,
       parentId: data.parentId || null,
       rootId: computedRootId,
@@ -546,6 +620,7 @@ export async function createThought(data: {
     },
     include: {
       attachments: { orderBy: { order: 'asc' } },
+      quotedArticle: quotedArticleInclude,
       author: {
         select: {
           id: true,
@@ -625,6 +700,8 @@ export async function createThoughtThread(
       imageUrl?: string | null;
       attachments?: Array<{ url: string; type?: string; altText?: string; order?: number }>;
       triggerWarning?: string | null;
+      quotedArticleId?: string | null;
+      quotedExcerpt?: string | null;
       poll?: { options: string[]; durationHours?: number } | null;
     }>;
     visibility?: string;
@@ -688,12 +765,15 @@ export async function createThoughtThread(
           isDraft: data.isDraft ?? false,
           scheduledAt: i === 0 ? data.scheduledAt || null : null, // Seul le post racine est planifié
           triggerWarning: node.triggerWarning || null,
+          quotedArticleId: i === 0 ? node.quotedArticleId || null : null,
+          quotedExcerpt: i === 0 ? node.quotedExcerpt || null : null,
           parentId: lastPostId,
           rootId: computedRootId,
           replyRestriction: data.replyRestriction || 'everyone',
         },
         include: {
           attachments: { orderBy: { order: 'asc' } },
+          quotedArticle: quotedArticleInclude,
           author: {
             select: {
               id: true,
@@ -1001,6 +1081,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
     where: { id: postId },
     include: {
       author: authorSelect,
+      quotedArticle: quotedArticleInclude,
       likes: likesInclude,
       reposts: repostsInclude,
       poll: pollIncludeQuery,
@@ -1008,6 +1089,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
       parent: {
         include: {
           author: authorSelect,
+          quotedArticle: quotedArticleInclude,
           likes: likesInclude,
           reposts: repostsInclude,
           poll: pollIncludeQuery,
@@ -1015,6 +1097,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
           parent: {
             include: {
               author: authorSelect,
+              quotedArticle: quotedArticleInclude,
               likes: likesInclude,
               reposts: repostsInclude,
               poll: pollIncludeQuery,
@@ -1026,6 +1109,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
       repost: {
         include: {
           author: authorSelect,
+          quotedArticle: quotedArticleInclude,
           likes: likesInclude,
           reposts: repostsInclude,
           poll: pollIncludeQuery,
@@ -1035,6 +1119,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
       replies: {
         include: {
           author: authorSelect,
+          quotedArticle: quotedArticleInclude,
           parent: { include: { author: authorSelect } },
           likes: likesInclude,
           reposts: repostsInclude,
@@ -1043,6 +1128,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
           replies: {
             include: {
               author: authorSelect,
+              quotedArticle: quotedArticleInclude,
               parent: { include: { author: authorSelect } },
               likes: likesInclude,
               reposts: repostsInclude,
@@ -1065,6 +1151,7 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
         where: { id: node.parentId },
         include: {
           author: authorSelect,
+          quotedArticle: quotedArticleInclude,
           likes: likesInclude,
           reposts: repostsInclude,
           poll: pollIncludeQuery,
@@ -1123,6 +1210,23 @@ export async function findThreadById(postId: string, currentUserId?: string | nu
     node.repostsCount =
       canonicalNode.repostCount ?? canonicalNode._count?.reposts ?? node._count?.reposts ?? 0;
     node.poll = formatPollData(node.poll as FeedPoll | null | undefined, currentUserId);
+    node.articleQuote = node.quotedArticle
+      ? {
+          id: node.quotedArticle.id,
+          title: node.quotedArticle.title,
+          slug: node.quotedArticle.slug,
+          content: node.quotedArticle.content,
+          isPremium: node.quotedArticle.isPremium,
+          author: {
+            id: node.quotedArticle.author.id,
+            name: node.quotedArticle.author.name,
+            username: node.quotedArticle.author.username,
+            subdomain: node.quotedArticle.publication.subdomain,
+            logoUrl: node.quotedArticle.publication.logoUrl,
+            isCertified: node.quotedArticle.publication.isCertified,
+          },
+        }
+      : null;
 
     if (node.parent) {
       node.parent = processPostNode(node.parent);
