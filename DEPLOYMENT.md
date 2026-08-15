@@ -41,11 +41,6 @@ ls -la
 2. Vérifie ton domaine (`qoe.fi` + DKIM + DMARC)
 3. Note ta clé `re_...`
 
-### Configuration Tolgee
-
-1. Crée un projet sur [tolgee.io](https://tolgee.io)
-2. Note ta clé `tgpk_...`
-
 ---
 
 ## ⚙️ Variables d'environnement
@@ -82,10 +77,6 @@ RESEND_API_KEY=re_...
 
 # === OPENAI (optionnel) ===
 OPENAI_API_KEY=sk-...
-
-# === TOLGEE (i18n) ===
-NEXT_PUBLIC_TOLGEE_API_KEY=tgpk_...
-NEXT_PUBLIC_TOLGEE_URL=https://app.tolgee.io
 
 # === REDIS (interne Docker) ===
 REDIS_URL=redis://redis:6379
