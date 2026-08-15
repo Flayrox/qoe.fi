@@ -160,6 +160,10 @@ const eslintConfig = defineConfig([
     // Generated files
     '**/next-env.d.ts',
     '**/*.tsbuildinfo',
+    // Lingui compiled catalogs (messages/*.js) — générés par lingui compile,
+    // formatés par prettier via pnpm intl:compile. Ignorés ici pour que le
+    // commentaire /*eslint-disable*/ de Lingui ne soit pas retiré par --fix.
+    'messages/**',
     // Native / vendored binaries
     '**/*.rar',
     // Default ignores shipped by eslint-config-next

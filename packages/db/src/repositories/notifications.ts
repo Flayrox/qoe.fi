@@ -31,6 +31,7 @@ export interface GroupedNotification {
   publication?: {
     id: string;
     name: string | null;
+    slug?: string | null;
   } | null;
   senders: Array<{
     id: string;
@@ -73,8 +74,7 @@ export async function createNotification(data: {
     if (
       data.type === 'MEDIA_INVITE' ||
       data.type === 'MEDIA_MEMBER_JOINED' ||
-      data.type === 'MEDIA_ARTICLE_PUBLISHED' ||
-      data.type === 'MEDIA_MENTION'
+      data.type === 'MEDIA_ARTICLE_PUBLISHED'
     ) {
       if (!prefs.pushMedia && !prefs.emailMedia) return null;
     }
@@ -238,6 +238,7 @@ export async function getNotifications(
         select: {
           id: true,
           name: true,
+          slug: true,
         },
       },
     },

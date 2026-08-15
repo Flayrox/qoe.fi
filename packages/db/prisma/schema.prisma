@@ -732,7 +732,6 @@ enum NotificationType {
   MEDIA_MEMBER_JOINED
   MEDIA_ARTICLE_PUBLISHED
   MEDIA_ARTICLE_SUBMITTED
-  MEDIA_MENTION
 }
 
 model Notification {

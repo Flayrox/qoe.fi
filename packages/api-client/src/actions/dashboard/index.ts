@@ -5,6 +5,7 @@ import { publications } from '@qoe/db';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { safeAction } from '../utils/safe-action';
+import { goFetch, isGoEnabled } from '../utils/go-client';
 
 /**
  * 🎛️ Résout la publication active (personnelle OU média) depuis le cookie du workspace.
@@ -69,6 +70,12 @@ interface CompleteOnboardingInput {
 export const updateCreatorProfileAction = safeAction<UpdateCreatorProfileInput, User>(
   async (data, user) => {
     const publicationId = await getActivePublicationId(user.id);
+    if (isGoEnabled()) {
+      return goFetch<User>('/v1/settings/profile', {
+        method: 'PATCH',
+        body: { publicationId, ...data },
+      });
+    }
     const updateData: Prisma.PublicationUpdateInput = {
       ...(data.heroText !== undefined ? { heroText: data.heroText } : {}),
       ...(data.accentColor !== undefined ? { accentColor: data.accentColor } : {}),
@@ -133,6 +140,11 @@ export const checkSubdomainAvailabilityAction = safeAction<
   { available: boolean; reason?: string }
 >(
   async (subdomain) => {
+    if (isGoEnabled()) {
+      return goFetch<{ available: boolean; reason?: string }>(
+        `/v1/settings/subdomain/check?subdomain=${encodeURIComponent(subdomain)}`
+      );
+    }
     const clean = subdomain.trim().toLowerCase();
     const regex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
     if (!regex.test(clean)) {
@@ -166,6 +178,13 @@ export const checkSubdomainAvailabilityAction = safeAction<
 
 export const updateSubdomainAction = safeAction<string, { success: boolean; subdomain: string }>(
   async (subdomain, user) => {
+    if (isGoEnabled()) {
+      const publicationId = await getActivePublicationId(user.id);
+      return goFetch<{ success: boolean; subdomain: string }>('/v1/settings/subdomain', {
+        method: 'POST',
+        body: { publicationId, subdomain },
+      });
+    }
     const check = await checkSubdomainAvailabilityAction(subdomain);
     if (!check.ok || !check.data.available) {
       throw new Error(check.ok ? check.data.reason : 'Sous-domaine invalide.');
@@ -185,6 +204,14 @@ export const updateSubdomainAction = safeAction<string, { success: boolean; subd
 export const saveNavigationLinksAction = safeAction<NavigationLinkInput[], { success: boolean }>(
   async (links, user) => {
     const publicationId = await getActivePublicationId(user.id);
+    if (isGoEnabled()) {
+      await goFetch('/v1/settings/navigation', {
+        method: 'PUT',
+        body: { publicationId, links },
+      });
+      revalidatePath('/settings');
+      return { success: true };
+    }
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.navigationItem.deleteMany({ where: { publicationId } });
       if (links.length > 0) {
@@ -206,6 +233,14 @@ export const saveNavigationLinksAction = safeAction<NavigationLinkInput[], { suc
 export const saveSocialLinksAction = safeAction<SocialLinkInput[], { success: boolean }>(
   async (links, user) => {
     const publicationId = await getActivePublicationId(user.id);
+    if (isGoEnabled()) {
+      await goFetch('/v1/settings/social', {
+        method: 'PUT',
+        body: { publicationId, links },
+      });
+      revalidatePath('/settings');
+      return { success: true };
+    }
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.socialLink.deleteMany({ where: { publicationId } });
       if (links.length > 0) {
@@ -226,6 +261,14 @@ export const saveSocialLinksAction = safeAction<SocialLinkInput[], { success: bo
 
 export const submitApiApplicationAction = safeAction<string, { success: boolean }>(
   async (reason, user) => {
+    if (isGoEnabled()) {
+      await goFetch('/v1/settings/api-application', {
+        method: 'POST',
+        body: { reason },
+      });
+      revalidatePath('/developer');
+      return { success: true };
+    }
     if (!reason || reason.trim().length < 10) {
       throw new Error('Veuillez fournir une explication détaillée (au moins 10 caractères).');
     }
@@ -254,6 +297,14 @@ export interface GenerateApiKeyInput {
 
 export const generateApiKeyAction = safeAction<GenerateApiKeyInput, { apiKey: string }>(
   async ({ name, scopes }, user) => {
+    if (isGoEnabled()) {
+      const res = await goFetch<{ apiKey: string }>('/v1/settings/api-keys', {
+        method: 'POST',
+        body: { name, scopes },
+      });
+      revalidatePath('/developer');
+      return res;
+    }
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
       select: { apiAccessStatus: true },
@@ -292,6 +343,11 @@ export const generateApiKeyAction = safeAction<GenerateApiKeyInput, { apiKey: st
 );
 
 export const revokeApiKeyAction = safeAction<string, { success: boolean }>(async (id, user) => {
+  if (isGoEnabled()) {
+    await goFetch(`/v1/settings/api-keys/${id}`, { method: 'DELETE' });
+    revalidatePath('/developer');
+    return { success: true };
+  }
   await prisma.apiKey.deleteMany({
     where: { id, userId: user.id },
   });
@@ -301,6 +357,19 @@ export const revokeApiKeyAction = safeAction<string, { success: boolean }>(async
 
 export const completeOnboardingAction = safeAction<CompleteOnboardingInput, { success: boolean }>(
   async (data, user) => {
+    if (isGoEnabled()) {
+      await goFetch('/v1/settings/onboarding', {
+        method: 'POST',
+        body: {
+          name: data.name,
+          heroText: data.heroText,
+          subdomain: data.subdomain,
+          layoutStyle: data.layoutStyle,
+        },
+      });
+      revalidatePath('/');
+      return { success: true };
+    }
     await prisma.user.update({
       where: { id: user.id },
       data: {

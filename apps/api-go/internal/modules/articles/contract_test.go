@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -58,23 +59,31 @@ func sampleArticleResponse() ArticleResponse {
 	}
 }
 
+// assertGoldenJSON compare sémantiquement (JSON parsé) : la forme compte
+// (noms de champs, valeurs), pas l'ordre des clés ni le formatage des fixtures.
+func assertGoldenJSON(t *testing.T, got []byte, fixture string) {
+	t.Helper()
+	var gotV, wantV any
+	if err := json.Unmarshal(got, &gotV); err != nil {
+		t.Fatalf("got non-JSON: %v", err)
+	}
+	if err := json.Unmarshal(mustReadGolden(t, fixture), &wantV); err != nil {
+		t.Fatalf("fixture %s non-JSON: %v", fixture, err)
+	}
+	if !reflect.DeepEqual(gotV, wantV) {
+		t.Errorf("contrat divergent du golden Hono (%s)\n--- got ---\n%s\n--- want ---\n%s", fixture, got, mustReadGolden(t, fixture))
+	}
+}
+
 func TestToCreatorItemGolden(t *testing.T) {
 	item := ToCreatorItem(sampleArticleResponse(), sampleCategory())
-	got := mustMarshal(t, item)
-
-	if want := strings.TrimSpace(string(mustReadGolden(t, "creator-article-item.golden.json"))); string(got) != want {
-		t.Errorf("item contrat créateur divergent du golden Hono\n--- got ---\n%s\n--- want ---\n%s", got, want)
-	}
+	assertGoldenJSON(t, mustMarshal(t, item), "creator-article-item.golden.json")
 }
 
 func TestToCreatorListGolden(t *testing.T) {
 	item := ToCreatorItem(sampleArticleResponse(), sampleCategory())
 	resp := ToCreatorList([]CreatorItem{item}, 1, 1, 10)
-	got := mustMarshal(t, resp)
-
-	if want := strings.TrimSpace(string(mustReadGolden(t, "creator-articles-list.golden.json"))); string(got) != want {
-		t.Errorf("liste contrat créateur divergente du golden Hono\n--- got ---\n%s\n--- want ---\n%s", got, want)
-	}
+	assertGoldenJSON(t, mustMarshal(t, resp), "creator-articles-list.golden.json")
 }
 
 func TestParsePageLimit(t *testing.T) {

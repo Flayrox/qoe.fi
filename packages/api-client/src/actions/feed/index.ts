@@ -6,18 +6,12 @@ import { prisma, type User, type Prisma } from '@qoe/db/client';
 import { sliceContentAtPaywall, type PaywallCutResult } from '@qoe/utils';
 import { ContentVisibility } from '@qoe/db/types';
 
-import {
-  createThoughtSchema,
-  replyToPostSchema,
-  createReportSchema,
-  type CreateReportInput,
-} from '@qoe/config';
+import { replyToPostSchema, createReportSchema, type CreateReportInput } from '@qoe/config';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch, isGoEnabled } from '../utils/go-client';
 
 import { safeAction } from '../utils/safe-action';
 
-type Thought = Awaited<ReturnType<typeof posts.createThought>>;
 type ThoughtThreadPost = Awaited<ReturnType<typeof posts.createThoughtThread>>[number];
 type Reply = Awaited<ReturnType<typeof posts.replyToPost>>;
 type ThreadPost = Awaited<ReturnType<typeof posts.findThreadById>>;
@@ -25,7 +19,6 @@ type RepostResult = Awaited<ReturnType<typeof posts.toggleRepost>>;
 type Draft = Awaited<ReturnType<typeof posts.getUserDrafts>>[number];
 type ArticleRecord = Awaited<ReturnType<typeof articles.findFirstBySlug>>;
 type SearchedUser = Awaited<ReturnType<typeof users.searchUsers>>[number];
-type Poll = Awaited<ReturnType<typeof import('@qoe/db').polls.createPollForThought>>;
 
 type ProfileThought = Prisma.ThoughtGetPayload<{
   include: {
@@ -186,6 +179,13 @@ const unfurlCache = new Map<string, UnfurlResult>();
 
 export const toggleFollowCreatorHomeAction = safeAction<string, { followed: boolean }>(
   async (publicationId, user) => {
+    if (isGoEnabled()) {
+      const res = await goFetch<{ data: { following: boolean } }>(
+        `/v1/users/${encodeURIComponent(publicationId)}/follow`,
+        { method: 'POST' }
+      );
+      return { followed: res.data.following };
+    }
     return follows.toggleFollow(user.id, publicationId);
   }
 );
@@ -195,96 +195,6 @@ export const toggleBookmarkArticleHomeAction = safeAction<string, { bookmarked: 
     return bookmarks.toggleBookmark(user.id, articleId);
   }
 );
-
-export const createThoughtAction = safeAction<
-  {
-    content: string;
-    tags: string[];
-    imageUrl?: string | null;
-    visibility?: string;
-    isDraft?: boolean;
-    scheduledAt?: string | null;
-    triggerWarning?: string | null;
-    repostId?: string | null;
-    parentId?: string | null;
-    replyRestriction?: string | null;
-    attachments?: Array<{ url: string; type?: string; altText?: string; order?: number }>;
-    poll?: { options: string[]; durationHours?: number } | null;
-  },
-  { post: Thought & { poll: Poll | null } }
->(async (rawInput, user) => {
-  const input = createThoughtSchema.parse(rawInput);
-  const cleanContent = input.content;
-
-  const urlRegex = /https?:\/\/[^\s]+/gi;
-  const urls = cleanContent.match(urlRegex) || [];
-  let charLength = cleanContent.length;
-  for (const url of urls) {
-    charLength -= url.length;
-    const isInternal =
-      url.includes('/post/') || url.includes('/article/') || url.includes('/thought/');
-    if (!isInternal) {
-      charLength += 20;
-    }
-  }
-
-  if (charLength > 500) {
-    throw new Error('INVALID_CONTENT_LENGTH');
-  }
-
-  // 🔗 Proxy Go : validation, insert, pièces jointes, sondage + invalidation cache.
-  if (
-    isGoEnabled() &&
-    !input.isDraft &&
-    !input.scheduledAt &&
-    (!input.visibility || input.visibility === 'public')
-  ) {
-    const goPost = await goFetch<unknown>('/v1/posts', {
-      method: 'POST',
-      body: {
-        content: cleanContent,
-        tags: input.tags,
-        imageUrl: input.imageUrl || undefined,
-        parentId: input.parentId || undefined,
-        repostId: input.repostId || undefined,
-        replyRestriction: rawInput.replyRestriction || undefined,
-        attachments: rawInput.attachments || undefined,
-        poll: rawInput.poll || undefined,
-      },
-    });
-    return { post: goPost as Thought & { poll: Poll | null } };
-  }
-
-  const newPost = await posts.createThought({
-    content: cleanContent,
-    authorId: user.id,
-    tags: input.tags,
-    imageUrl: input.imageUrl || null,
-    attachments: rawInput.attachments || [],
-    visibility: input.visibility,
-    isDraft: input.isDraft,
-    scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
-    triggerWarning: input.triggerWarning || null,
-    repostId: input.repostId || null,
-    parentId: input.parentId || null,
-    replyRestriction: rawInput.replyRestriction || 'everyone',
-  });
-
-  let createdPoll: Poll | null = null;
-  if (rawInput.poll && Array.isArray(rawInput.poll.options)) {
-    const validOpts = rawInput.poll.options.map((o) => o.trim()).filter(Boolean);
-    if (validOpts.length >= 2) {
-      const { polls } = await import('@qoe/db');
-      createdPoll = await polls.createPollForThought({
-        thoughtId: newPost.id,
-        options: validOpts,
-        durationHours: rawInput.poll.durationHours || 24,
-      });
-    }
-  }
-
-  return { post: { ...newPost, poll: createdPoll } };
-});
 
 export const createThoughtThreadAction = safeAction<
   {
@@ -512,14 +422,6 @@ export const toggleRepostPostAction = safeAction<
   const result = await posts.toggleRepost(postId, user.id);
   return result;
 });
-
-export const repostPostAction = safeAction<string, { repost: RepostResult['post'] }>(
-  async (postId, user) => {
-    const res = await posts.toggleRepost(postId, user.id);
-
-    return { repost: res.post };
-  }
-);
 
 export const deletePostAction = safeAction<string, { success: boolean }>(async (postId, user) => {
   const deleted = await posts.deletePost(postId, user.id);

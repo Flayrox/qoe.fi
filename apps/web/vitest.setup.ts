@@ -1,3 +1,10 @@
+// ⚠️ Sans `.env` local (CI, clone frais, worktree), la validation d'env client
+// de `@qoe/config/env` (branche jsdom) échoue sur les `NEXT_PUBLIC_SUPABASE_*`.
+// Mêmes fallbacks que `vitest.workspace.ts` au niveau monorepo : les vraies
+// valeurs du `.env` restent prioritaires quand le fichier est présent.
+process.env.NEXT_PUBLIC_SUPABASE_URL ??= 'https://placeholder.supabase.co';
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= 'placeholder_anon_key';
+
 import '@testing-library/jest-dom/vitest';
 
 // Polyfills jsdom pour les libs qui les attendent

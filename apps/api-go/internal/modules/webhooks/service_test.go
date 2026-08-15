@@ -2,12 +2,12 @@ package webhooks
 
 import "testing"
 
-func TestGenerateSecret(t *testing.T) {
-	s1, err := generateSecret()
+func TestNewSecret(t *testing.T) {
+	s1, err := newSecret()
 	if err != nil {
 		t.Fatalf("génération secret: %v", err)
 	}
-	s2, err := generateSecret()
+	s2, err := newSecret()
 	if err != nil {
 		t.Fatalf("génération secret: %v", err)
 	}
@@ -20,40 +20,31 @@ func TestGenerateSecret(t *testing.T) {
 	}
 }
 
-func TestValidateWebhookURL(t *testing.T) {
-	for _, ok := range []string{
-		"https://site.com/hook",
-		"http://localhost:3000/hook",
-		"https://sub.example.org/path?q=1",
-	} {
-		if err := validateWebhookURL(ok); err != nil {
-			t.Errorf("%q doit être valide: %v", ok, err)
-		}
+func TestFilterValidEvents(t *testing.T) {
+	// Événements connus conservés, inconnus filtrés, doublons dédupliqués.
+	got := filterValidEvents([]string{"article.published", "article.unknown", "article.published", "subscriber.created"})
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2: %v", len(got), got)
 	}
-	for _, bad := range []string{
-		"",
-		"ftp://x.com",
-		"https://",
-		"javascript:alert(1)",
-		"not-a-url",
-	} {
-		if err := validateWebhookURL(bad); err == nil {
-			t.Errorf("%q doit être invalide", bad)
-		}
+	if got[0] != "article.published" || got[1] != "subscriber.created" {
+		t.Errorf("événements inattendus: %v", got)
+	}
+	if len(filterValidEvents(nil)) != 0 {
+		t.Error("liste vide doit rester vide")
 	}
 }
 
-func TestValidateEvents(t *testing.T) {
-	if err := validateEvents([]string{"article.published"}); err != nil {
-		t.Errorf("événement valide rejeté: %v", err)
+func TestSignHMAC(t *testing.T) {
+	sig1 := signHMAC("secret", `{"event":"webhook.test"}`)
+	sig2 := signHMAC("secret", `{"event":"webhook.test"}`)
+	sig3 := signHMAC("autre-secret", `{"event":"webhook.test"}`)
+	if sig1 != sig2 {
+		t.Error("signature instable pour les mêmes entrées")
 	}
-	if err := validateEvents([]string{"article.published", "subscriber.created"}); err != nil {
-		t.Errorf("événements valides rejetés: %v", err)
+	if sig1 == sig3 {
+		t.Error("signatures identiques avec des secrets différents")
 	}
-	if err := validateEvents(nil); err == nil {
-		t.Error("liste vide doit être refusée")
-	}
-	if err := validateEvents([]string{"article.unknown"}); err == nil {
-		t.Error("événement inconnu doit être refusé")
+	if len(sig1) != 64 {
+		t.Errorf("longueur signature = %d, want 64 (SHA-256 hex)", len(sig1))
 	}
 }

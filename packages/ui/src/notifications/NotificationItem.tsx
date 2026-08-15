@@ -17,8 +17,7 @@ export type GroupedNotificationLike = {
     | 'MEDIA_INVITE'
     | 'MEDIA_MEMBER_JOINED'
     | 'MEDIA_ARTICLE_PUBLISHED'
-    | 'MEDIA_ARTICLE_SUBMITTED'
-    | 'MEDIA_MENTION';
+    | 'MEDIA_ARTICLE_SUBMITTED';
   isRead: boolean;
   createdAt: string | Date;
   thoughtId?: string | null;
@@ -26,7 +25,7 @@ export type GroupedNotificationLike = {
   commentId?: string | null;
   thought?: { id: string; content: string; createdAt: string | Date } | null;
   article?: { id: string; title: string; slug: string } | null;
-  publication?: { id: string; name: string | null } | null;
+  publication?: { id: string; name: string | null; slug?: string | null } | null;
   senders: Array<{
     id: string;
     name: string | null;
@@ -110,11 +109,6 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
         ? `a soumis un article pour revue dans le Média`
         : 'a soumis un article pour revue';
       break;
-    case 'MEDIA_MENTION':
-      Icon = AtSign;
-      iconColorClass = 'text-highlight bg-highlight/10';
-      actionText = 'vous a mentionné dans le Média';
-      break;
   }
 
   // Temps relatif
@@ -130,15 +124,18 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
     timeAgo = `${diffInMinutes}m`;
   }
 
-  const targetLink = notification.thoughtId
-    ? `/thought/${notification.thoughtId}`
-    : notification.article
-      ? `/article/${notification.article.slug}`
-      : notification.publication
-        ? `/m/${notification.publication.id}`
-        : firstSender?.username
-          ? `/@${firstSender.username}`
-          : '#';
+  const targetLink =
+    type === 'FOLLOW' && notification.publication?.slug
+      ? `/${notification.publication.slug}`
+      : notification.thoughtId
+        ? `/thought/${notification.thoughtId}`
+        : notification.article
+          ? `/article/${notification.article.slug}`
+          : notification.publication
+            ? `/m/${notification.publication.id}`
+            : firstSender?.username
+              ? `/@${firstSender.username}`
+              : '#';
 
   return (
     <Link

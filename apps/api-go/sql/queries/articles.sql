@@ -67,6 +67,18 @@ WHERE a."publicationId" = sqlc.arg('publicationId')
   AND (sqlc.narg('published')::boolean IS NULL OR a.published = sqlc.narg('published'))
   AND (sqlc.narg('categorySlug')::text IS NULL OR c.slug = sqlc.narg('categorySlug'));
 
+-- name: ListArticlesWithCategory :many
+SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readingTime",
+       a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId",
+       c.id  AS category_id,
+       c.name AS category_name,
+       c.slug AS category_slug
+FROM "Article" a
+LEFT JOIN "Category" c ON c.id = a."categoryId"
+WHERE a."publicationId" = $1
+ORDER BY a."createdAt" DESC
+LIMIT $2 OFFSET $3;
+
 -- name: CreateArticle :one
 INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
                        "readingTime", "allowPublicAnnotations", "allowComments", status,
@@ -78,6 +90,13 @@ RETURNING id;
 UPDATE "Article"
 SET title = $2, content = $3, slug = $4, "isPremium" = $5, "categoryId" = $6,
     "seoTitle" = $7, "seoDescription" = $8, "readingTime" = $9, "updatedAt" = now()
+WHERE id = $1
+RETURNING id;
+
+-- name: UpdateArticleFull :one
+UPDATE "Article"
+SET title = $2, content = $3, slug = $4, published = $5, status = $6, "isPremium" = $7,
+    "categoryId" = $8, "seoTitle" = $9, "seoDescription" = $10, "readingTime" = $11, "updatedAt" = now()
 WHERE id = $1
 RETURNING id;
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api-go/internal/database"
 	"github.com/qoefi/api-go/internal/queue"
@@ -35,6 +36,15 @@ func (n *NewsletterWorker) HandleArticlePublished(ctx context.Context, t *asynq.
 	}
 
 	log.Printf("[newsletter] article %s (%s) — fanout pour publication %s", p.ArticleID, p.Visibility, p.PublicationID)
+
+	// 🔔 Notification MEDIA_ARTICLE_PUBLISHED (fan-out ≤500, prefs + dédup, no-op hors MEDIA) — best-effort.
+	if err := n.q.InsertMediaArticlePublishedFanout(ctx, db.InsertMediaArticlePublishedFanoutParams{
+		SenderID:      toUUID(p.AuthorID),
+		ArticleID:     pgtype.Text{String: p.ArticleID, Valid: true},
+		PublicationID: p.PublicationID,
+	}); err != nil {
+		log.Printf("[newsletter] notif MEDIA_ARTICLE_PUBLISHED fanout: %v", err)
+	}
 
 	offset := 0
 	processed := 0

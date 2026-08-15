@@ -3,7 +3,10 @@
 package creator
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -15,7 +18,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api-go/internal/database"
 	"github.com/qoefi/api-go/internal/middleware"
+	"github.com/qoefi/api-go/internal/permissions"
 	"github.com/qoefi/api-go/internal/response"
+	"github.com/qoefi/api-go/internal/slug"
 	"github.com/qoefi/api-go/internal/umami"
 )
 
@@ -42,10 +47,14 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/users/{username}", h.userByUsername)
 }
 
-// RegisterProtected — routes créateur authentifiées JWT.
+// RegisterProtected — routes créateur authentifiées JWT (ou clé API via CombinedAuth).
 func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Get("/v1/users/me", h.userMe)
 	r.Post("/v1/users/{id}/follow", h.followToggle)
+	r.Get("/v1/categories", h.categories)
+	r.Post("/v1/categories", h.createCategory)
+	r.Patch("/v1/categories/{id}", h.updateCategory)
+	r.Delete("/v1/categories/{id}", h.deleteCategory)
 }
 
 // category est la forme API d'une catégorie (parité Hono).
@@ -58,8 +67,11 @@ type category struct {
 }
 
 func (h *Handler) categories(w http.ResponseWriter, r *http.Request) {
-	pubID, ok := middleware.PublicationID(r.Context())
-	if !ok || pubID == "" {
+	pubID := r.URL.Query().Get("publicationId")
+	if pubID == "" {
+		pubID, _ = middleware.PublicationID(r.Context())
+	}
+	if pubID == "" {
 		response.NotFound(w, "Publication not found")
 		return
 	}
@@ -86,6 +98,145 @@ func (h *Handler) categories(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	response.OK(w, map[string]any{"data": out})
+}
+
+// authorizeCategories vérifie que l'utilisateur peut gérer les catégories de la publication.
+func (h *Handler) authorizeCategories(ctx context.Context, userID, publicationID string) error {
+	if personal, err := h.q.GetUserPersonalPublication(ctx, userID); err == nil && personal.String == publicationID {
+		return nil
+	}
+	member, err := h.q.GetMediaMemberContext(ctx, db.GetMediaMemberContextParams{
+		PublicationId: publicationID, UserId: toUUID(userID),
+	})
+	if err != nil {
+		return errForbidden
+	}
+	if !permissions.CanMedia(&permissions.MediaMember{
+		Role: member.Role, Permissions: member.Permissions, Status: member.Status,
+	}, permissions.PermManageCategories) {
+		return errForbidden
+	}
+	return nil
+}
+
+// categoryInput est la charge utile de création/édition d'une catégorie.
+type categoryInput struct {
+	PublicationID string  `json:"publicationId"`
+	Name          string  `json:"name"`
+	Slug          string  `json:"slug"`
+	Description   *string `json:"description"`
+}
+
+func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	var in categoryInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if in.PublicationID == "" || in.Name == "" {
+		response.BadRequest(w, "publicationId et name requis")
+		return
+	}
+	if err := h.authorizeCategories(r.Context(), userID, in.PublicationID); err != nil {
+		response.Forbidden(w, "Accès refusé à cette publication.")
+		return
+	}
+
+	finalSlug := in.Slug
+	if finalSlug == "" {
+		finalSlug = slug.Slugify(in.Name)
+	}
+	if finalSlug == "" {
+		finalSlug = "cat-" + slug.ShortID(8)
+	}
+	exists, err := h.q.CheckCategorySlugExists(r.Context(), db.CheckCategorySlugExistsParams{
+		PublicationId: in.PublicationID, Slug: finalSlug, ID: "",
+	})
+	if err == nil && exists {
+		response.BadRequest(w, fmt.Sprintf("Le slug %q est déjà utilisé par une autre de vos catégories.", finalSlug))
+		return
+	}
+
+	row, err := h.q.CreateCategory(r.Context(), db.CreateCategoryParams{
+		Name: in.Name, Slug: finalSlug, Description: textVal(in.Description), PublicationId: in.PublicationID,
+	})
+	if err != nil {
+		log.Printf("[creator] createCategory: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.Created(w, row)
+}
+
+func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+	var in categoryInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+
+	existing, err := h.q.GetCategoryByID(r.Context(), id)
+	if err != nil {
+		response.NotFound(w, "Catégorie introuvable.")
+		return
+	}
+	if err := h.authorizeCategories(r.Context(), userID, existing.PublicationId); err != nil {
+		response.Forbidden(w, "Vous n'êtes pas autorisé à modifier cette catégorie.")
+		return
+	}
+
+	finalSlug := in.Slug
+	if finalSlug == "" {
+		finalSlug = slug.Slugify(in.Name)
+	}
+	if finalSlug == "" {
+		finalSlug = "cat-" + slug.ShortID(8)
+	}
+	exists, err := h.q.CheckCategorySlugExists(r.Context(), db.CheckCategorySlugExistsParams{
+		PublicationId: existing.PublicationId, Slug: finalSlug, ID: id,
+	})
+	if err == nil && exists {
+		response.BadRequest(w, fmt.Sprintf("Le slug %q est déjà utilisé par une autre de vos catégories.", finalSlug))
+		return
+	}
+
+	if err := h.q.UpdateCategory(r.Context(), db.UpdateCategoryParams{
+		ID: id, Name: in.Name, Slug: finalSlug, Description: textVal(in.Description),
+	}); err != nil {
+		log.Printf("[creator] updateCategory: %v", err)
+		response.Internal(w)
+		return
+	}
+	row, err := h.q.GetCategoryByID(r.Context(), id)
+	if err != nil {
+		response.OK(w, map[string]bool{"success": true})
+		return
+	}
+	response.OK(w, row)
+}
+
+func (h *Handler) deleteCategory(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+
+	existing, err := h.q.GetCategoryByID(r.Context(), id)
+	if err != nil {
+		response.NotFound(w, "Catégorie introuvable.")
+		return
+	}
+	if err := h.authorizeCategories(r.Context(), userID, existing.PublicationId); err != nil {
+		response.Forbidden(w, "Vous n'êtes pas autorisé à supprimer cette catégorie.")
+		return
+	}
+	if err := h.q.DeleteCategory(r.Context(), id); err != nil {
+		log.Printf("[creator] deleteCategory: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
 }
 
 // analyticsStats proxi Umami (stats + topPages) pour la publication du créateur.
@@ -237,6 +388,9 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 			response.Internal(w)
 			return
 		}
+		if err := deleteFollowNotification(ctx, h.q, targetID, userID); err != nil {
+			log.Printf("[creator] delete follow notification: %v", err)
+		}
 		count, err := h.q.CountFollowers(ctx, targetID)
 		if err != nil {
 			count = 0
@@ -255,11 +409,84 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 		response.Internal(w)
 		return
 	}
+	if err := notifyFollow(ctx, h.q, targetID, userID); err != nil {
+		log.Printf("[creator] follow notification: %v", err)
+	}
 	count, err := h.q.CountFollowers(ctx, targetID)
 	if err != nil {
 		count = 0
 	}
 	response.OK(w, map[string]any{"data": map[string]any{"following": true, "followersCount": count}})
+}
+
+// notifyFollow crée la notification FOLLOW au propriétaire d'une publication
+// (PERSONAL → créateur, MEDIA → membre owner). Best-effort, respecte les
+// préférences du destinataire et déduplique les suivis non lus.
+func notifyFollow(ctx context.Context, tq *db.Queries, publicationID, senderID string) error {
+	ownerID, err := tq.GetPublicationOwner(ctx, publicationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
+	if ownerID == "" || ownerID == senderID {
+		return nil
+	}
+
+	ownerUUID := toUUID(ownerID)
+	senderUUID := toUUID(senderID)
+
+	prefs, err := tq.GetFollowPrefs(ctx, ownerUUID)
+	if err == nil {
+		if !prefs.EmailFollows && !prefs.PushFollows {
+			return nil
+		}
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return err
+	}
+
+	exists, err := tq.ExistsUnreadFollowNotification(ctx, db.ExistsUnreadFollowNotificationParams{
+		RecipientId:   ownerUUID,
+		SenderId:      senderUUID,
+		PublicationId: pgtype.Text{String: publicationID, Valid: true},
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			exists = 0
+		} else {
+			return err
+		}
+	}
+	if exists == 1 {
+		return nil
+	}
+
+	return tq.InsertFollowNotification(ctx, db.InsertFollowNotificationParams{
+		RecipientId:   ownerUUID,
+		SenderId:      senderUUID,
+		PublicationId: pgtype.Text{String: publicationID, Valid: true},
+	})
+}
+
+// deleteFollowNotification supprime la notification FOLLOW lors d'un unfollow.
+func deleteFollowNotification(ctx context.Context, tq *db.Queries, publicationID, senderID string) error {
+	ownerID, err := tq.GetPublicationOwner(ctx, publicationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
+	if ownerID == "" || ownerID == senderID {
+		return nil
+	}
+
+	return tq.DeleteFollowNotification(ctx, db.DeleteFollowNotificationParams{
+		RecipientId:   toUUID(ownerID),
+		SenderId:      toUUID(senderID),
+		PublicationId: pgtype.Text{String: publicationID, Valid: true},
+	})
 }
 
 // toUUID convertit un id texte en pgtype.UUID (readerId UUID).
@@ -268,6 +495,15 @@ func toUUID(id string) pgtype.UUID {
 	_ = uuid.Scan(id)
 	return uuid
 }
+
+func textVal(p *string) pgtype.Text {
+	if p == nil || *p == "" {
+		return pgtype.Text{}
+	}
+	return pgtype.Text{String: *p, Valid: true}
+}
+
+var errForbidden = errors.New("permission insuffisante")
 
 func textPtr(t pgtype.Text) *string {
 	if !t.Valid {
