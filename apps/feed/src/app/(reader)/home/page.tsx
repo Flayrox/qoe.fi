@@ -90,7 +90,15 @@ const publicationProfileSelect = {
 type ArticleWithDetails = Prisma.ArticleGetPayload<{
   include: {
     publication: { select: typeof publicationProfileSelect };
-    author: { select: { id: true; name: true } };
+    author: {
+      select: {
+        id: true;
+        name: true;
+        username: true;
+        logoUrl: true;
+        isCertified: true;
+      };
+    };
     category: { select: { name: true } };
   };
 }>;
@@ -351,7 +359,18 @@ export default async function ReaderHomePage() {
       ? art.createdAt
       : new Date(art.createdAt)
     ).toISOString(),
-    author: mapPublicationToAuthor(art.publication, art.author?.name),
+    author: {
+      ...mapPublicationToAuthor(art.publication, art.author?.name),
+      journalist: art.author
+        ? {
+            id: art.author.id,
+            name: art.author.name,
+            username: art.author.username,
+            logoUrl: art.author.logoUrl,
+            isCertified: art.author.isCertified,
+          }
+        : null,
+    },
     tags: art.semanticTags || [],
   });
 
@@ -366,7 +385,15 @@ export default async function ReaderHomePage() {
           },
           include: {
             publication: { select: publicationProfileSelect },
-            author: { select: { id: true, name: true } },
+            author: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                logoUrl: true,
+                isCertified: true,
+              },
+            },
             category: { select: { name: true } },
           },
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -407,7 +434,15 @@ export default async function ReaderHomePage() {
     },
     include: {
       publication: { select: publicationProfileSelect },
-      author: { select: { id: true, name: true } },
+      author: {
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          logoUrl: true,
+          isCertified: true,
+        },
+      },
       category: { select: { name: true } },
     },
     orderBy: [{ isEditorPick: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
@@ -455,7 +490,15 @@ export default async function ReaderHomePage() {
     },
     include: {
       publication: { select: publicationProfileSelect },
-      author: { select: { id: true, name: true } },
+      author: {
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          logoUrl: true,
+          isCertified: true,
+        },
+      },
       category: { select: { name: true } },
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -495,7 +538,15 @@ export default async function ReaderHomePage() {
           article: {
             include: {
               publication: { select: publicationProfileSelect },
-              author: { select: { id: true, name: true } },
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  username: true,
+                  logoUrl: true,
+                  isCertified: true,
+                },
+              },
               category: { select: { name: true } },
             },
           },

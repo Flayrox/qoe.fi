@@ -1,18 +1,32 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
-import { UserPlus, UserCheck, Bookmark, BookMarked, FileText, Clock, Crown } from 'lucide-react';
+import {
+  UserPlus,
+  UserCheck,
+  Bookmark,
+  BookMarked,
+  Clock,
+  Crown,
+  ArrowUpRight,
+} from 'lucide-react';
 import { cn } from '@qoe/utils';
 
 import { ThoughtCard, type ThoughtData } from '@/components/social/ThoughtCard';
 import { t } from '@lingui/core/macro';
 import { routes } from '@qoe/config/routes';
-import { Balancer } from 'react-wrap-balancer';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@qoe/ui/ui/hover-card';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
+
+interface Journalist {
+  id: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  isCertified?: boolean;
+}
 
 interface Author {
   id: string;
@@ -25,27 +39,7 @@ interface Author {
   isCertified?: boolean;
   type?: 'PERSONAL' | 'MEDIA';
   authorName?: string | null;
-}
-
-function BrandAvatar({ author, size }: { author: Author; size: number }) {
-  const isMedia = author.type === 'MEDIA';
-  if (isMedia) {
-    return (
-      <div
-        className="relative overflow-hidden border border-border/40 shrink-0 rounded-lg bg-muted"
-        style={{ width: size, height: size }}
-      >
-        {author.logoUrl ? (
-          <Image src={author.logoUrl} alt={author.name || ''} fill className="object-cover" />
-        ) : (
-          <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-xs text-brand">
-            {author.name?.substring(0, 2) || 'NA'}
-          </div>
-        )}
-      </div>
-    );
-  }
-  return <AuthorAvatar user={author} size={size === 40 ? 'md' : 'sm'} showBadge={false} />;
+  journalist?: Journalist | null;
 }
 
 interface Article {
@@ -81,17 +75,46 @@ export interface ArticleCardProps {
 
 function getAuthorGradient(name: string | null): string {
   const hues = [12, 200, 260, 140, 30, 340];
-  const idx = (name?.charCodeAt(0) || 0) % hues.length;
-  return `linear-gradient(135deg, hsl(${hues[idx]}, 60%, 96%) 0%, hsl(${hues[(idx + 2) % hues.length]}, 40%, 98%) 100%)`;
+  const index = (name?.charCodeAt(0) || 0) % hues.length;
+  return `linear-gradient(135deg, hsl(${hues[index]}, 62%, 82%) 0%, hsl(${hues[(index + 2) % hues.length]}, 48%, 94%) 100%)`;
+}
+
+function getPlainExcerpt(content: string): string {
+  return content
+    .replace(/<[^>]*>?/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function BrandAvatar({ author, size = 40 }: { author: Author; size?: number }) {
+  const isMedia = author.type === 'MEDIA';
+
+  if (isMedia) {
+    return (
+      <div
+        className="relative shrink-0 overflow-hidden rounded-[13px] border border-white/50 bg-muted shadow-xs"
+        style={{ width: size, height: size }}
+      >
+        {author.logoUrl ? (
+          <Image src={author.logoUrl} alt={author.name || ''} fill className="object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-brand/10 text-xs font-semibold text-brand">
+            {author.name?.substring(0, 2) || 'NA'}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return <AuthorAvatar user={author} size={size === 40 ? 'md' : 'sm'} showBadge={false} />;
 }
 
 /**
- * 📰 ArticleCard — Carte d'article principale avec 0ms Optimistic UI
- * Conforme au Compound Component Pattern & Onyx Theme Tokens (AGENTS.md)
+ * Article card inspired by Apple Music: a quiet identity row over a cover image
+ * that fades into the feed surface before the title and reading metadata.
  */
 export function ArticleCard({
   article,
-  idx,
   dbUser,
   isBookmarked,
   isFollowed,
@@ -102,9 +125,6 @@ export function ArticleCard({
   onOpenProfile,
   onOpenPost,
 }: ArticleCardProps) {
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
-
-  // ⚡ 0ms Optimistic UI States
   const [localBookmarked, setLocalBookmarked] = useState(isBookmarked);
   const [localFollowed, setLocalFollowed] = useState(isFollowed);
 
@@ -116,105 +136,46 @@ export function ArticleCard({
     setLocalFollowed(isFollowed);
   }, [isFollowed]);
 
-  const onToggleBookmarkLocal = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setLocalBookmarked((prev) => !prev);
-    handleBookmarkToggle(article);
-  };
-
-  const onToggleFollowLocal = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setLocalFollowed((prev) => !prev);
-    handleFollowToggle(article.author);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
-    const card = e.currentTarget;
-    const rect = card.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-    const mouseX = e.clientX - rect.left - width / 2;
-    const mouseY = e.clientY - rect.top - height / 2;
-
-    const rX = -(mouseY / (height / 2)) * 0.8;
-    const rY = (mouseX / (width / 2)) * 0.8;
-    setTilt({ x: rX, y: rY });
-  };
-
-  const handleMouseLeave = () => {
-    setTilt({ x: 0, y: 0 });
-  };
-
   const isThought = !article.title;
-  const url = isThought
-    ? '#'
-    : article.author.subdomain
-      ? routes.tenant.article(article.author.subdomain, article.slug)
-      : routes.feed.article(article.slug);
-
   if (isThought) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.99 }}
-        transition={{ duration: 0.25, delay: idx * 0.03, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <ThoughtCard
-          post={article as unknown as ThoughtData}
-          currentUserId={dbUser?.id || null}
-          onOpenPost={onOpenPost}
-          onOpenProfile={onOpenProfile}
-        />
-      </motion.div>
+      <ThoughtCard
+        post={article as unknown as ThoughtData}
+        currentUserId={dbUser?.id || null}
+        onOpenPost={onOpenPost}
+        onOpenProfile={onOpenProfile}
+      />
     );
   }
 
-  const renderAuthorHoverCard = () => (
-    <HoverCardContent className="w-72 p-4 bg-card border border-border/40 rounded-xl shadow-xl z-50 font-sans">
-      <div className="flex justify-between space-x-4">
-        <div className="w-10 h-10 rounded-md overflow-hidden border border-border/40 shrink-0">
-          {article.author.logoUrl ? (
-            <Image
-              src={article.author.logoUrl}
-              className="w-full h-full object-cover"
-              alt=""
-              width={40}
-              height={40}
-            />
-          ) : (
-            <div className="w-full h-full bg-brand/10 flex items-center justify-center font-bold text-xs text-brand">
-              {article.author.name?.substring(0, 2) || 'NA'}
-            </div>
-          )}
-        </div>
-        <div className="space-y-1.5 flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <h4 className="text-xs font-bold text-foreground leading-none">
-              {article.author.name}
-            </h4>
-            {article.author.isCertified && <CertifiedBadge />}
-          </div>
-          <p className="text-[10px] text-muted-foreground leading-none">
-            @{article.author.username || article.author.subdomain}
-          </p>
-          {article.author.heroText && (
-            <p className="text-[10px] text-muted-foreground leading-normal line-clamp-2 pt-0.5">
-              {article.author.heroText}
-            </p>
-          )}
-          <div className="flex items-center pt-2 gap-4 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-            <span className="text-brand">{t`Écrits certifiés`}</span>
-            <span>{t`Abonnés`}</span>
-          </div>
-        </div>
-      </div>
-    </HoverCardContent>
-  );
+  const articleUrl = article.author.subdomain
+    ? routes.tenant.article(article.author.subdomain, article.slug)
+    : routes.feed.article(article.slug);
+  const formattedDate = new Date(article.createdAt).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+  });
+  const excerpt = getPlainExcerpt(article.content);
+  const hasHeroImage = Boolean(article.imageUrl);
+  const authorHandle = article.author.username || article.author.subdomain || 'qoe.fi';
+  const journalist = article.author.journalist;
+  const journalistHandle = journalist?.username || journalist?.id || 'journaliste';
 
-  const handleOpenInTab = (e?: React.MouseEvent) => {
+  const onToggleBookmark = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLocalBookmarked((previous) => !previous);
+    handleBookmarkToggle(article);
+  };
+
+  const onToggleFollow = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLocalFollowed((previous) => !previous);
+    handleFollowToggle(article.author);
+  };
+
+  const handleOpenArticle = (e?: React.MouseEvent) => {
     if (onOpenArticle) {
       if (e) {
         e.preventDefault();
@@ -233,225 +194,187 @@ export function ArticleCard({
   const handleOpenProfile = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const targetUsername = article.author.username || article.author.subdomain;
-    if (!targetUsername) return;
     if (onOpenProfile) {
-      onOpenProfile(targetUsername);
+      onOpenProfile(authorHandle);
     } else {
-      window.location.href = routes.feed.profile(targetUsername);
+      window.location.href = routes.feed.profile(authorHandle);
     }
   };
 
-  const formattedDate = new Date(article.createdAt).toLocaleDateString('fr-FR', {
-    month: 'short',
-    day: 'numeric',
-  });
+  const handleOpenJournalistProfile = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onOpenProfile && journalist?.username) {
+      onOpenProfile(journalist.username);
+    }
+  };
 
-  const hasHeroImage = !!article.imageUrl;
+  const renderAuthorHoverCard = () => (
+    <HoverCardContent className="z-50 w-72 rounded-2xl border border-border/40 bg-card p-4 font-sans shadow-xl">
+      <div className="flex gap-3">
+        <BrandAvatar author={article.author} size={40} />
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <h4 className="truncate text-xs font-semibold text-foreground">
+              {article.author.name}
+            </h4>
+            {article.author.isCertified && <CertifiedBadge />}
+          </div>
+          <p className="text-[11px] text-muted-foreground">@{authorHandle}</p>
+          {article.author.heroText && (
+            <p className="line-clamp-2 pt-0.5 text-[11px] leading-normal text-muted-foreground">
+              {article.author.heroText}
+            </p>
+          )}
+        </div>
+      </div>
+    </HoverCardContent>
+  );
 
-  // ── FEATURED CARD ────────────────────────────────────────────────────────────
-  if (featured) {
-    return (
-      <motion.article
-        initial={{ opacity: 0, y: 12 }}
-        animate={{
-          opacity: 1,
-          y: 0,
-          rotateX: tilt.x,
-          rotateY: tilt.y,
-        }}
-        whileTap={{ scale: 0.99 }}
-        exit={{ opacity: 0, scale: 0.985 }}
-        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
+  const renderJournalistHoverCard = () =>
+    journalist ? (
+      <HoverCardContent className="z-50 w-72 rounded-2xl border border-border/40 bg-card p-4 font-sans shadow-xl">
+        <div className="flex items-center gap-3">
+          <AuthorAvatar user={journalist} size="md" showBadge={false} />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-sm font-semibold text-foreground">{journalist.name}</p>
+              {journalist.isCertified && <CertifiedBadge />}
+            </div>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">@{journalistHandle}</p>
+          </div>
+        </div>
+      </HoverCardContent>
+    ) : null;
+
+  return (
+    <article
+      className={cn(
+        'group relative isolate min-h-[250px] overflow-hidden border-y border-border/25 bg-card/35 backdrop-blur-[2px] transition-colors duration-300 hover:bg-card/40',
+        featured && 'min-h-[290px]'
+      )}
+    >
+      {/* Cover image: it belongs to the whole surface, then quietly disappears into the feed. */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        {hasHeroImage ? (
+          <div
+            className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+            style={{
+              maskImage: 'linear-gradient(to bottom, black 0%, black 48%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 48%, transparent 100%)',
+            }}
+          >
+            <Image
+              src={article.imageUrl!}
+              alt=""
+              fill
+              priority={featured}
+              className="object-cover object-center opacity-[0.42] saturate-[0.78]"
+              sizes="(max-width: 768px) 100vw, 768px"
+            />
+          </div>
+        ) : (
+          <div
+            className="absolute inset-0 opacity-[0.45]"
+            style={{
+              background: getAuthorGradient(article.author.name),
+              maskImage: 'linear-gradient(to bottom, black 0%, black 42%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 42%, transparent 100%)',
+            }}
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-card/0 via-card/25 to-card/75" />
+        <div className="absolute inset-0 bg-gradient-to-r from-card/55 via-card/15 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-card/65" />
+      </div>
+
+      <div
         className={cn(
-          'group relative rounded-2xl bg-card border border-border/40 shadow-xs overflow-hidden',
-          'hover:border-border/80 transition-all duration-300 font-sans'
+          'relative flex min-h-[250px] flex-col p-4 sm:p-5',
+          featured && 'min-h-[290px]'
         )}
       >
-        <div className="flex flex-col md:flex-row items-stretch">
-          {/* Cover Hero */}
-          <div className="w-full md:w-5/12 relative min-h-[220px] md:min-h-full overflow-hidden bg-muted">
-            {hasHeroImage ? (
-              <Image
-                src={article.imageUrl!}
-                alt={article.title}
-                fill
-                className="object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
-                sizes="(max-width: 768px) 100vw, 42vw"
-              />
-            ) : (
-              <div
-                className="w-full h-full min-h-[220px] flex items-center justify-center p-8 relative overflow-hidden"
-                style={{ background: getAuthorGradient(article.author.name) }}
-              >
-                <span className="font-serif text-[70px] md:text-[90px] font-black text-foreground/10 select-none leading-none">
-                  {article.title.charAt(0).toUpperCase()}
-                </span>
-              </div>
-            )}
-            <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
-              <span className="px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-md text-[10px] font-bold text-foreground tracking-wider uppercase border border-border/40">
-                {t`À la une`}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <BrandAvatar author={article.author} size={40} />
+            <div className="min-w-0">
+              <HoverCard>
+                <HoverCardTrigger>
+                  <button
+                    type="button"
+                    onClick={handleOpenProfile}
+                    className="group/author flex items-center gap-1.5 text-left outline-none"
+                  >
+                    <span className="truncate text-sm font-semibold tracking-[-0.01em] text-foreground transition-colors group-hover/author:text-brand">
+                      {article.author.name}
+                    </span>
+                    {article.author.isCertified && <CertifiedBadge />}
+                  </button>
+                </HoverCardTrigger>
+                {renderAuthorHoverCard()}
+              </HoverCard>
+              {journalist && (
+                <HoverCard>
+                  <HoverCardTrigger>
+                    <button
+                      type="button"
+                      onClick={handleOpenJournalistProfile}
+                      className="mt-0.5 block max-w-full truncate text-left text-[11px] text-muted-foreground transition-colors hover:text-brand"
+                    >
+                      Par {journalist.name}
+                    </button>
+                  </HoverCardTrigger>
+                  {renderJournalistHoverCard()}
+                </HoverCard>
+              )}
+              <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/75">
+                @{authorHandle} · {formattedDate}
               </span>
             </div>
           </div>
 
-          {/* Body */}
-          <div className="w-full md:w-7/12 p-6 md:p-8 flex flex-col justify-between gap-4">
-            {/* Author */}
-            <div className="flex items-center justify-between">
-              <HoverCard>
-                <HoverCardTrigger>
-                  <motion.button
-                    onClick={handleOpenProfile}
-                    whileTap={{ scale: 0.98 }}
-                    className="flex items-center gap-2.5 hover:opacity-85 transition-opacity group/author outline-none cursor-pointer"
-                  >
-                    <BrandAvatar author={article.author} size={24} />
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[13px] font-bold text-foreground tracking-tight group-hover/author:text-brand transition-colors">
-                          {article.author.name}
-                        </span>
-                        {article.author.isCertified && <CertifiedBadge />}
-                      </div>
-                      {article.author.type === 'MEDIA' && article.author.authorName && (
-                        <span className="text-[10px] text-muted-foreground font-medium">
-                          {t`Par ${article.author.authorName}`}
-                        </span>
-                      )}
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider block mt-0.5">
-                        @{article.author.username || article.author.subdomain} · {formattedDate}
-                      </span>
-                    </div>
-                  </motion.button>
-                </HoverCardTrigger>
-                {renderAuthorHoverCard()}
-              </HoverCard>
-
-              {dbUser && dbUser.id !== article.author.id && (
-                <FollowButton isFollowed={localFollowed} onToggle={onToggleFollowLocal} />
-              )}
-            </div>
-
-            {/* Title + Content */}
-            <a
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              onClick={handleOpenInTab}
-              className="block group/title flex-1"
-            >
-              <h3 className="font-serif text-[22px] sm:text-[26px] font-bold text-foreground leading-[1.2] tracking-tight mb-3 group-hover/title:text-brand transition-colors duration-300">
-                <Balancer>{article.title}</Balancer>
-              </h3>
-              <p className="font-serif text-[14px] text-muted-foreground leading-[1.75] line-clamp-3">
-                {article.content.replace(/<[^>]*>?/gm, '').substring(0, 260)}
-              </p>
-            </a>
-
-            {/* Footer */}
-            <CardFooter
-              article={article}
-              isBookmarked={localBookmarked}
-              handleBookmarkToggle={onToggleBookmarkLocal}
-              handleOpenInTab={handleOpenInTab}
-            />
+          <div className="flex items-center gap-2">
+            {featured && (
+              <span className="rounded-full border border-border/35 bg-card/45 px-3 py-1.5 text-[11px] font-medium text-foreground/80 backdrop-blur-md">
+                À la une
+              </span>
+            )}
+            {dbUser && dbUser.id !== article.author.id && (
+              <FollowButton isFollowed={localFollowed} onToggle={onToggleFollow} />
+            )}
           </div>
         </div>
-      </motion.article>
-    );
-  }
 
-  // ── STANDARD CARD ────────────────────────────────────────────────────────────
-  return (
-    <motion.article
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.985 }}
-      transition={{ duration: 0.25, delay: idx * 0.03, ease: [0.16, 1, 0.3, 1] }}
-      className={cn(
-        'group relative rounded-2xl bg-card border border-border/40 shadow-xs overflow-hidden flex flex-col justify-between p-6',
-        'hover:border-border/80 transition-all duration-300 font-sans'
-      )}
-    >
-      <div className="space-y-4">
-        {/* Cover Hero */}
-        {hasHeroImage && (
-          <div className="w-full h-44 rounded-xl overflow-hidden bg-muted border border-border/20 mb-4">
-            <Image
-              src={article.imageUrl!}
-              alt={article.title}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-              sizes="(max-width: 768px) 100vw, 640px"
-            />
-          </div>
-        )}
-
-        {/* Header Author */}
-        <div className="flex items-center justify-between">
-          <HoverCard>
-            <HoverCardTrigger>
-              <motion.button
-                onClick={handleOpenProfile}
-                whileTap={{ scale: 0.98 }}
-                className="flex items-center gap-2.5 hover:opacity-85 transition-opacity group/author outline-none cursor-pointer"
-              >
-                <BrandAvatar author={article.author} size={24} />
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-foreground truncate group-hover/author:text-brand transition-colors">
-                      {article.author.name}
-                    </span>
-                    {article.author.isCertified && <CertifiedBadge />}
-                  </div>
-                  {article.author.type === 'MEDIA' && article.author.authorName && (
-                    <span className="text-[10px] text-muted-foreground font-medium truncate">
-                      {t`Par ${article.author.authorName}`}
-                    </span>
-                  )}
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider block mt-0.5">
-                    @{article.author.username || article.author.subdomain} · {formattedDate}
-                  </span>
-                </div>
-              </motion.button>
-            </HoverCardTrigger>
-            {renderAuthorHoverCard()}
-          </HoverCard>
-
-          {dbUser && dbUser.id !== article.author.id && (
-            <FollowButton isFollowed={localFollowed} onToggle={onToggleFollowLocal} />
-          )}
-        </div>
-
-        {/* Title + Content */}
         <a
-          href={url}
+          href={articleUrl}
           target="_blank"
           rel="noreferrer"
-          onClick={handleOpenInTab}
-          className="block group/title"
+          onClick={handleOpenArticle}
+          className="mt-8 block max-w-2xl text-left"
         >
-          <h3 className="font-serif text-lg font-bold text-foreground leading-snug tracking-tight mb-2 group-hover/title:text-brand transition-colors duration-200">
-            <Balancer>{article.title}</Balancer>
+          <h3
+            className={cn(
+              'font-sans font-semibold tracking-[-0.035em] text-foreground transition-colors duration-300 group-hover:text-brand',
+              featured ? 'text-[28px] leading-[1.08] sm:text-[34px]' : 'text-[23px] leading-[1.12]'
+            )}
+          >
+            {article.title}
           </h3>
-          <p className="font-serif text-xs text-muted-foreground leading-relaxed line-clamp-3">
-            {article.content.replace(/<[^>]*>?/gm, '').substring(0, 180)}
-          </p>
+          {excerpt && (
+            <p className="mt-2.5 line-clamp-2 max-w-xl text-[13px] leading-relaxed text-muted-foreground/90 sm:text-sm">
+              {excerpt}
+            </p>
+          )}
         </a>
-      </div>
 
-      {/* Footer */}
-      <CardFooter
-        article={article}
-        isBookmarked={localBookmarked}
-        handleBookmarkToggle={onToggleBookmarkLocal}
-        handleOpenInTab={handleOpenInTab}
-      />
-    </motion.article>
+        <CardFooter
+          article={article}
+          isBookmarked={localBookmarked}
+          handleBookmarkToggle={onToggleBookmark}
+          handleOpenInTab={handleOpenArticle}
+        />
+      </div>
+    </article>
   );
 }
 
@@ -463,29 +386,24 @@ function FollowButton({
   onToggle: (e: React.MouseEvent) => void;
 }) {
   return (
-    <motion.button
+    <button
+      type="button"
       onClick={onToggle}
-      whileTap={{ scale: 0.98 }}
       className={cn(
-        'flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full',
-        'transition-all duration-200 cursor-pointer outline-none select-none',
+        'flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all duration-200',
+        'cursor-pointer outline-none',
         isFollowed
-          ? 'bg-muted text-muted-foreground hover:bg-muted/80'
-          : 'bg-primary text-primary-foreground hover:opacity-90 shadow-xs'
+          ? 'bg-card/65 text-muted-foreground backdrop-blur-md hover:bg-card/85'
+          : 'bg-foreground text-background shadow-xs hover:opacity-85'
       )}
     >
       {isFollowed ? (
-        <>
-          <UserCheck className="w-3 h-3 text-success" />
-          <span>{t`Abonné`}</span>
-        </>
+        <UserCheck className="h-3.5 w-3.5 text-success" />
       ) : (
-        <>
-          <UserPlus className="w-3 h-3" />
-          <span>{t`Suivre`}</span>
-        </>
+        <UserPlus className="h-3.5 w-3.5" />
       )}
-    </motion.button>
+      <span>{isFollowed ? t`Abonné` : t`Suivre`}</span>
+    </button>
   );
 }
 
@@ -498,71 +416,60 @@ function CardFooter({
   article: Article;
   isBookmarked: boolean;
   handleBookmarkToggle: (e: React.MouseEvent) => void;
-  handleOpenInTab: () => void;
+  handleOpenInTab: (e?: React.MouseEvent) => void;
 }) {
   return (
-    <div className="flex items-center justify-between pt-4 border-t border-border/30 mt-4">
-      {/* Left : Category · Time · Premium */}
-      <div className="flex items-center gap-2">
+    <div className="mt-5 flex items-center justify-between gap-4 border-t border-border/25 pt-3.5">
+      <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
         {article.category && (
-          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-            {article.category.name}
+          <span className="truncate text-foreground/75">{article.category.name}</span>
+        )}
+        {article.category && article.readingTime > 0 && (
+          <span className="text-muted-foreground/50">·</span>
+        )}
+        {article.readingTime > 0 && (
+          <span className="flex shrink-0 items-center gap-1">
+            <Clock className="h-3.5 w-3.5" strokeWidth={1.7} />
+            {t`${article.readingTime} min de lecture`}
           </span>
         )}
-
-        {article.readingTime > 0 && (
-          <>
-            {article.category && <span className="text-muted-foreground/60 text-xs">·</span>}
-            <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
-              <Clock className="w-2.5 h-2.5" strokeWidth={1.5} />
-              {t`${article.readingTime} min de lecture`}
-            </span>
-          </>
-        )}
-
         {article.isPremium && (
-          <>
-            <span className="text-muted-foreground/60 text-xs">·</span>
-            <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-highlight">
-              <Crown className="w-2.5 h-2.5" />
-              {t`Premium`}
-            </span>
-          </>
+          <span className="flex shrink-0 items-center gap-1 text-highlight">
+            <Crown className="h-3.5 w-3.5" />
+            {t`Premium`}
+          </span>
         )}
       </div>
 
-      {/* Right : Action Buttons (0ms) */}
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      <div className="flex shrink-0 items-center gap-1 opacity-75 transition-opacity duration-200 group-hover:opacity-100">
         <button
           type="button"
           onClick={handleBookmarkToggle}
           className={cn(
-            'p-1.5 rounded-lg transition-colors cursor-pointer',
-            isBookmarked
-              ? 'text-primary bg-primary/10'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            'rounded-full p-2 transition-colors',
+            'cursor-pointer hover:bg-muted/70',
+            isBookmarked ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
           )}
           title={isBookmarked ? t`Retirer de la bibliothèque` : t`Mettre en signet`}
         >
           {isBookmarked ? (
-            <BookMarked className="w-3.5 h-3.5 fill-primary" />
+            <BookMarked className="h-4 w-4 fill-current" />
           ) : (
-            <Bookmark className="w-3.5 h-3.5" />
+            <Bookmark className="h-4 w-4" />
           )}
         </button>
         <button
           type="button"
           onClick={handleOpenInTab}
-          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-          title={t`Lire`}
+          className="cursor-pointer rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+          title={t`Lire l'article`}
         >
-          <FileText className="w-3.5 h-3.5" />
+          <ArrowUpRight className="h-4 w-4" />
         </button>
       </div>
     </div>
   );
 }
 
-// 🧩 Compound Component Pattern Exports
 ArticleCard.Root = ArticleCard;
 ArticleCard.Footer = CardFooter;
