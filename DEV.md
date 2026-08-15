@@ -34,7 +34,7 @@ _(Caddy tourne en tâche de fond et libère ton terminal)._
 
 ### 3. Lancer les serveurs de dev (Natif)
 
-Démarre toutes les applications Next.js et l'API Hono en parallèle :
+Démarre toutes les applications Next.js et l'API Hono legacy en parallèle (le backend de référence est Go — `apps/api-go`) :
 
 ```bash
 pnpm dev
@@ -83,7 +83,7 @@ Une fois tout démarré, accède directement à tes applications via les domaine
 - **Dashboard Créateur** : [http://dashboard.localhost](http://dashboard.localhost) _(ou `localhost:3020`)_
 - **Administration Générale** : [http://admin.localhost](http://admin.localhost) _(ou `localhost:3030`)_
 - **Landing Vitrine** : [http://start.localhost](http://start.localhost) _(ou `localhost:3040`)_
-- **API Hono** : [http://api.localhost](http://api.localhost) _(ou `localhost:3002/health`)_
+- **API Hono (legacy, transition)** : [http://api.localhost](http://api.localhost) _(ou `localhost:3002/health`)_ — backend de référence : `cd apps/api-go && go run ./cmd/server` (port 8080, activé via `QOE_API_GO_URL`)
 - **Blogs Créateurs** : `http://*.localhost:3001` _(wildcard multi-tenant, ex: `http://demo.localhost:3001`)_
 - **Prisma Studio (GUI)** : [http://localhost:5555](http://localhost:5555)
 - **GrowthBook (flags UI)** : [http://localhost:3100](http://localhost:3100)

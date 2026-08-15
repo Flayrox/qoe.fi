@@ -324,7 +324,7 @@ Pour éviter les frais récurrents et garder une maîtrise souveraine des donné
 3. **Premier déploiement du monorepo** :
    ```bash
    cd /var/www/qoe.fi
-   # Build de toutes les applications (Next.js, Hono API, Workers)
+   # Build de toutes les applications (Next.js, API Go, Workers)
    pnpm docker:prod:build
 
    # Lancement en arrière-plan (sans recréer de DB locale car la DB est celle de Supabase !)
@@ -397,8 +397,8 @@ pnpm docker:prod:logs:landing     # Landing (vitrine)
 pnpm docker:prod:logs:feed        # Feed (flux lecteur + auth)
 pnpm docker:prod:logs:dashboard   # Dashboard (studio créateur)
 pnpm docker:prod:logs:admin       # Admin (cockpit superadmin)
-pnpm docker:prod:logs:api         # API Hono
-pnpm docker:prod:logs:workers     # Workers BullMQ
+pnpm docker:prod:logs:api         # API (Hono legacy, transition)
+pnpm docker:prod:logs:workers     # Workers TS (BullMQ) + Go (asynq)
 ```
 
 ### État

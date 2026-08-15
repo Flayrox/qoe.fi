@@ -10,14 +10,14 @@
 
 - **Core Purpose**: Multi-tenant creator platform (qoe.fi) with a decoupled architecture featuring a central reader feed, creator studio, superadmin dashboard, and custom-domain tenant blogs.
 - **Exhaustive Tech Stack Matrix**:
-  - **Framework**: Next.js 16 (App Router), Hono
+  - **Framework**: Next.js 16 (App Router) + backend Go (`apps/api-go`)
   - **Language**: TypeScript 5.9
   - **State**: React State, Server Components
   - **UI**: shadcn/ui, Tailwind CSS
   - **Database**: PostgreSQL 16, pgvector, Redis
   - **ORM**: Prisma Client 6
   - **Auth**: Supabase (SSR clients)
-  - **API Protocols**: REST (via Hono/Next API Routes)
+  - **API Protocols**: REST (backend Go `api-go` ; Hono legacy `apps/api` en transition)
   - **Build System**: Turborepo 2, pnpm workspaces, Docker
   - **Architectural Paradigm**: Monorepo, Feature-Sliced Design / Package-driven, Strangler Fig Pattern
 
@@ -25,9 +25,10 @@
 
 ```text
 qoe.fi/ (Root Monorepo)
-├── apps/                  # Deployable Next.js/Hono applications
+├── apps/                  # Deployable applications
 │   ├── admin/             # Superadmin dashboard (admin.qoe.fi) - CMS editing & global stats
-│   ├── api/               # Hono backend API (api.qoe.fi) - Core API services
+│   ├── api-go/            # Backend Go de référence (api.qoe.fi) - backend-of-record
+│   ├── api/               # Hono legacy (api-legacy.qoe.fi) - API créateurs/médias, transition
 │   ├── dashboard/         # Creator studio (dashboard.qoe.fi) - TipTap editor & stripe analytics
 │   ├── feed/              # Reader feed & central auth (qoe.fi) - Feature-Sliced Design (src/features/)
 │   │   └── src/features/  # Feed, Auth, and Post-View domain modules
@@ -581,8 +582,8 @@ Table of all UI pages, API endpoints, Server Actions, and Middlewares:
 | `[admin] /(admin)/admin/users/[id]`     | `apps/admin/src/app/(admin)/admin/users/[id]/page.tsx`     | Admin                         | Next.js App Router (UI Page)                   |
 | `[admin] /(admin)/admin/widgets`        | `apps/admin/src/app/(admin)/admin/widgets/page.tsx`        | Admin                         | Next.js App Router (UI Page)                   |
 | `[admin] Middleware`                    | `apps/admin/middleware.ts`                                 | System                        | Next.js Middleware (Supabase Session, Routing) |
-| `[api] GET /health`                     | `apps/api/src/index.ts`                                    | Inferred from Hono middleware | Hono API                                       |
-| `[api] GET /v1/articles`                | `apps/api/src/index.ts`                                    | Inferred from Hono middleware | Hono API                                       |
+| `[api] GET /health`                     | `apps/api/src/index.ts`                                    | Inferred from Hono middleware | Hono legacy (transition)                      |
+| `[api] GET /v1/articles`                | `apps/api/src/index.ts`                                    | Inferred from Hono middleware | Hono legacy (transition)                      |
 | `[api] GET /v1/articles/:slug`          | `apps/api/src/index.ts`                                    | Inferred from Hono middleware | Hono API                                       |
 | `[api] GET /v1/categories`              | `apps/api/src/index.ts`                                    | Inferred from Hono middleware | Hono API                                       |
 | `[api] GET /v1/users/:username`         | `apps/api/src/index.ts`                                    | Inferred from Hono middleware | Hono API                                       |
