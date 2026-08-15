@@ -37,9 +37,9 @@ import (
 )
 
 func main() {
-	// Charge le .env à la racine du monorepo ou local.
-	_ = godotenv.Load("../../../.env")
-	_ = godotenv.Load()
+	// Charge le .env local (apps/api-go/.env, synchronisé par scripts/copy-env.js)
+	// ou celui de la racine du monorepo, selon le CWD de lancement.
+	_ = godotenv.Load(".env", "../.env", "../../.env")
 
 	cfg := config.Load()
 

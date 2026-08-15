@@ -4,21 +4,22 @@ import { StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { apiClient } from '@/lib/api';
+import { getApiBaseUrl } from '@/lib/api';
 
 /**
- * Carte de démonstration : prouve que l'app mobile parle à l'API qoe.fi
- * via le client partagé (@qoe/api-client) + TanStack Query.
+ * Carte de démonstration : prouve que l'app mobile atteint l'API Go
+ * (apps/api-go). On sonde `/healthz` (public) plutôt que le feed, qui
+ * exige un JWT — la carte reflète la connectivité, pas l'auth.
  */
 export function ApiStatus() {
-  const { data, isPending, isError } = useQuery({
-    queryKey: ['api', 'feed'],
+  const { isPending, isError } = useQuery({
+    queryKey: ['api', 'health'],
     queryFn: async () => {
-      const res = await apiClient.getFeed({ limit: 1 });
+      const res = await fetch(`${getApiBaseUrl()}/healthz`);
       if (!res.ok) {
-        throw new Error(res.error);
+        throw new Error(`HTTP ${res.status}`);
       }
-      return res.data;
+      return res.json() as Promise<{ status: string }>;
     },
   });
 
@@ -28,8 +29,7 @@ export function ApiStatus() {
   } else if (isError) {
     label = 'API qoe.fi · indisponible';
   } else {
-    const count = data.items.length;
-    label = `API qoe.fi · connectée${count > 0 ? ` · ${count} pensée(s)` : ''}`;
+    label = 'API qoe.fi · connectée';
   }
 
   return (
