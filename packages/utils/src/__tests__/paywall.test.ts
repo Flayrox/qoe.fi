@@ -60,4 +60,49 @@ describe('sliceContentAtPaywall', () => {
     expect(res.isTruncated).toBe(false);
     expect(res.content).toBe('<p>Just public</p>');
   });
+
+  it('tronque au marker HTML comment <!--paywall--> (format legacy Ghost/WordPress)', () => {
+    const content =
+      '<p>Teaser offert</p><p>Second teaser</p><!--paywall--><p>Secret premium body</p>';
+    const res = sliceContentAtPaywall(
+      content,
+      { isMember: false, isPaidSubscriber: false },
+      'PAID_SUBSCRIBERS'
+    );
+
+    expect(res.isTruncated).toBe(true);
+    expect(res.accessGranted).toBe(false);
+    expect(res.content).toContain('Teaser offert');
+    expect(res.content).not.toContain('Secret premium body');
+    expect(res.paywallMeta?.teaserParagraphsCount).toBe(2);
+  });
+
+  it('fallback zéro-leak : sans marker, tronque aux 2 premiers paragraphes', () => {
+    const content =
+      '<p>Premier paragraphe public</p><p>Deuxième paragraphe public</p><p>Troisième secret</p>';
+    const res = sliceContentAtPaywall(
+      content,
+      { isMember: false, isPaidSubscriber: false },
+      'PAID_SUBSCRIBERS'
+    );
+
+    expect(res.isTruncated).toBe(true);
+    expect(res.accessGranted).toBe(false);
+    expect(res.content).toContain('Premier paragraphe public');
+    expect(res.content).toContain('Deuxième paragraphe public');
+    expect(res.content).not.toContain('Troisième secret');
+  });
+
+  it('membre inscrit (email) accède au contenu MEMBERS_ONLY mais pas PAID_SUBSCRIBERS', () => {
+    const content = '<p>Teaser</p><!--paywall--><p>Secret</p>';
+    const entitlements = { isMember: true, isPaidSubscriber: false };
+
+    const membersOnly = sliceContentAtPaywall(content, entitlements, 'MEMBERS_ONLY');
+    expect(membersOnly.accessGranted).toBe(true);
+    expect(membersOnly.content).toContain('Secret');
+
+    const paidOnly = sliceContentAtPaywall(content, entitlements, 'PAID_SUBSCRIBERS');
+    expect(paidOnly.accessGranted).toBe(false);
+    expect(paidOnly.content).not.toContain('Secret');
+  });
 });

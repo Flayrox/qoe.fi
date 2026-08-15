@@ -41,7 +41,9 @@ export default defineConfig({
     {
       name: 'public-web',
       use: { ...devices['Desktop Chrome'] },
-      testMatch: /public\.spec\.ts/,
+      // public.spec.ts (smoke) + public-reading.spec.ts (parcours lecture) —
+      // les deux tournent en CI avec le seed Prisma.
+      testMatch: /public.*\.spec\.ts/,
     },
     {
       // Suite autonome (page.setContent, sans serveur/DB) — tourne en CI :
