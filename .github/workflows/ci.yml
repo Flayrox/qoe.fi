@@ -29,7 +29,7 @@ jobs:
       # GitHub est instable (runs parallèles → clés en conflit → échec CI).
       # Le gain de vitesse ne vaut pas la fragilité ajoutée.
       - name: Install Dependencies
-        run: pnpm install --frozen-lockfile --network-timeout 600000
+        run: pnpm install --frozen-lockfile --fetch-timeout 600000
 
       - name: Generate Prisma Client
         run: pnpm prisma:generate
