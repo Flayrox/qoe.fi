@@ -88,7 +88,15 @@ export const getCachedStandardArticles = unstable_cache(
             isCertified: true,
           },
         },
-        author: { select: { id: true, name: true } },
+        author: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            logoUrl: true,
+            isCertified: true,
+          },
+        },
         category: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -141,7 +149,15 @@ export const getCachedFeaturedArticle = unstable_cache(
             isCertified: true,
           },
         },
-        author: { select: { id: true, name: true } },
+        author: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            logoUrl: true,
+            isCertified: true,
+          },
+        },
         category: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
