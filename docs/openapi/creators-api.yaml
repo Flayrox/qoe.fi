@@ -1,0 +1,790 @@
+# 🎯 qoe.fi — API Créateurs & Médias (v1) — Contrat cible (source de vérité)
+#
+# Ce fichier est la SOURCE DE VÉRITÉ du contrat de l'API créateurs (voir
+# VISION_CREATORS_API.md). Il décrit la cible : parité Hono (apps/api) alignée
+# sur le backend Go (apps/api-go) + extensions plateforme.
+#
+# - Auth : clé API `qoe_live_*` (médias/créateurs, délivrée après revue) ;
+#          OAuth 2.0 (apps tierces — à construire) ; JWT Supabase (app mobile).
+# - Formats de contenu : markdown ET html (WordPress vs Ghost/Payload).
+# - Idempotency-Key : obligatoire sur POST/PATCH pour des réessais sûrs.
+# - Les endpoints webhooks (sortants) sont la cible plateforme — marqués ⚠️.
+#
+# Reference de l'implémentation actuelle :
+#   Hono : apps/api/src/app.ts        (contrat actuel, api-legacy)
+#   Go   : apps/api-go/internal/modules/articles/
+openapi: 3.1.0
+info:
+  title: qoe.fi — API Créateurs & Médias
+  version: 1.0.0
+  description: >-
+    API pour les médias et créateurs qui utilisent qoe.fi comme plateforme de
+    diffusion (publier sur qoe.fi depuis leur CMS) ou comme CMS headless
+    (diffuser leurs articles sur leur propre site). Contrat stable — les
+    changements sont versionnés, jamais cassants.
+  contact:
+    name: qoe.fi
+    url: https://qoe.fi
+servers:
+  - url: https://api.qoe.fi
+    description: Production (backend Go)
+  - url: http://localhost:8080
+    description: Développement local
+tags:
+  - name: articles
+    description: CRUD + workflow éditorial des articles
+  - name: categories
+    description: Catégories de la publication
+  - name: analytics
+    description: Statistiques de lecture (proxy Umami)
+  - name: search
+    description: Recherche plein-texte (Meilisearch)
+  - name: webhooks
+    description: Webhooks sortants signés (notification du site du média)
+security:
+  - apiKeyAuth: []
+paths:
+  /v1/articles:
+    get:
+      tags: [articles]
+      operationId: listArticles
+      summary: Liste les articles de la publication du créateur (publiés par défaut)
+      description: >-
+        Pagination par `page`/`limit`, filtre par `category` (slug). Seuls les
+        articles **publiés** sont renvoyés par défaut. Le contenu est tronqué
+        au paywall (`contentHtml`, `isTruncated`, `paywallMeta`) — jamais de
+        fuite de contenu payant.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Page'
+        - name: category
+          in: query
+          description: Slug de la catégorie (filtre)
+          schema:
+            type: string
+        - name: published
+          in: query
+          description: Filtrer sur les articles publiés (défaut true)
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Liste paginée d'articles (contrat créateur)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ArticleItem'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [articles]
+      operationId: createArticle
+      summary: Crée un article (brouillon ou publication directe)
+      description: >-
+        Accepte `markdown` ou `html` via `contentFormat`. L'idempotence est
+        garantie par l'en-tête `Idempotency-Key`. Un rédacteur (`writer`) ne
+        peut pas publier directement — l'article est créé en `DRAFT`.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArticleInput'
+      responses:
+        '201':
+          description: Article créé
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/articles/{slug}:
+    get:
+      tags: [articles]
+      operationId: getArticleBySlug
+      summary: Lit un article publié par slug (public, avec paywall)
+      description: >-
+        Lecture publique : `publicationId` requis en query. Le contenu payant
+        est tronqué sauf si le lecteur (JWT `viewerEmail`) a les droits.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: publicationId
+          in: query
+          required: true
+          description: Publication (personnelle ou média) de l'article
+          schema:
+            type: string
+        - name: viewerEmail
+          in: query
+          description: Email du lecteur (résolution d'abonnement pour le paywall)
+          schema:
+            type: string
+            format: email
+      responses:
+        '200':
+          description: Article complet (contenu tronqué selon droits)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Article'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /v1/articles/{id}:
+    patch:
+      tags: [articles]
+      operationId: updateArticle
+      summary: Met à jour un article
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArticleUpdateInput'
+      responses:
+        '200':
+          description: Article mis à jour
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updated:
+                    type: boolean
+                    example: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags: [articles]
+      operationId: deleteArticle
+      summary: Supprime un article
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Article supprimé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                    example: true
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /v1/articles/{id}/publish:
+    post:
+      tags: [articles]
+      operationId: publishArticle
+      summary: Publie un article (status PUBLISHED)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Article publié
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  published:
+                    type: boolean
+                    example: true
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /v1/categories:
+    get:
+      tags: [categories]
+      operationId: listCategories
+      summary: Liste les catégories de la publication avec le comptage d'articles publiés
+      responses:
+        '200':
+          description: Catégories
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/analytics/stats:
+    get:
+      tags: [analytics]
+      operationId: getAnalyticsStats
+      summary: Statistiques de lecture (proxy Umami)
+      parameters:
+        - name: startAt
+          in: query
+          description: 'Timestamp ms de début (défaut : 30 jours)'
+          schema:
+            type: integer
+            format: int64
+        - name: endAt
+          in: query
+          description: 'Timestamp ms de fin (défaut : maintenant)'
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Stats + pages les plus lues
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [stats, topPages]
+                    properties:
+                      stats:
+                        type: object
+                        additionalProperties: true
+                      topPages:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/search/articles:
+    get:
+      tags: [search]
+      operationId: searchArticles
+      summary: Recherche plein-texte des articles publiés (Meilisearch)
+      description: >-
+        À recréer en Go si des consommateurs externes l'utilisent (voir
+        SUNSET_API_LEGACY.md §2.3). Décision en attente.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Résultats de recherche
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ArticleItem'
+  /v1/webhooks: # ⚠️ cible plateforme (à construire)
+    get:
+      tags: [webhooks]
+      operationId: listWebhookSubscriptions
+      summary: Liste les abonnements webhooks de la publication
+      responses:
+        '200':
+          description: Abonnements
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WebhookSubscription'
+    post:
+      tags: [webhooks]
+      operationId: createWebhookSubscription
+      summary: Crée un abonnement webhook (URL + événements)
+      description: >-
+        Les livraisons sont signées HMAC-SHA256 (`X-Qoe-Signature`) avec un
+        secret par abonnement. Retries avec backoff exponentiel et logs de
+        livraison visibles dans le dashboard.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookSubscriptionInput'
+      responses:
+        '201':
+          description: Abonnement créé (secret à récupérer une seule fois)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WebhookSubscription'
+  /v1/webhooks/{id}:
+    delete:
+      tags: [webhooks]
+      operationId: deleteWebhookSubscription
+      summary: Supprime un abonnement webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Abonnement supprimé
+  /v1/webhooks/{id}/deliveries:
+    get:
+      tags: [webhooks]
+      operationId: listWebhookDeliveries
+      summary: Logs de livraison d'un webhook (statut, tentatives, corps)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Livraisons
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WebhookDelivery'
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: http
+      scheme: bearer
+      description: >-
+        Clé API `qoe_live_*` (délivrée après revue manuelle du média). Scopes
+        (moindre privilège) : READ (articles/catégories), WRITE
+        (créer/modifier/publier/supprimer), ANALYTICS (stats). Une clé n'a
+        accès qu'aux endpoints de ses scopes — 403 sinon.
+    jwtAuth:
+      type: http
+      scheme: bearer
+      description: JWT Supabase (app mobile)
+    oauth2: # ⚠️ à construire
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.qoe.fi/authorize
+          tokenUrl: https://auth.qoe.fi/token
+          scopes:
+            articles:read: Lire les articles
+            articles:write: Créer/modifier des articles
+            analytics:read: Lire les statistiques
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      description: Nombre d'articles par page (1–100, défaut 10)
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+    Page:
+      name: page
+      in: query
+      description: Numéro de page (1-based, défaut 1)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      description: Clé d'idempotence (UUID) — un réessai avec la même clé ne crée pas de doublon
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: Requête invalide
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Clé API / JWT manquant ou invalide
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Permissions insuffisantes (RBAC publication)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Ressource introuvable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Erreur interne (message générique, détails en logs)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    Pagination:
+      type: object
+      required: [total, page, limit, pages]
+      properties:
+        total:
+          type: integer
+          description: Nombre total d'articles (filtres appliqués)
+        page:
+          type: integer
+        limit:
+          type: integer
+        pages:
+          type: integer
+          description: Nombre total de pages
+    Category:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: [string, 'null']
+        articlesCount:
+          type: integer
+          description: Nombre d'articles publiés dans la catégorie
+    PaywallMeta:
+      type: object
+      required: [visibility, teaserParagraphsCount, totalLengthBytes, previewLengthBytes]
+      properties:
+        visibility:
+          $ref: '#/components/schemas/ContentVisibility'
+        teaserParagraphsCount:
+          type: integer
+        requiredTierId:
+          type: [string, 'null']
+        totalLengthBytes:
+          type: integer
+        previewLengthBytes:
+          type: integer
+    ContentVisibility:
+      type: string
+      enum: [PUBLIC, MEMBERS_ONLY, PAID_SUBSCRIBERS, TIER_SPECIFIC]
+    ArticleStatus:
+      type: string
+      enum: [DRAFT, SCHEDULED, PUBLISHED]
+    ArticleItem:
+      type: object
+      description: Article dans les listes du contrat créateur (contenu tronqué)
+      required:
+        - id
+        - title
+        - slug
+        - contentHtml
+        - isTruncated
+        - visibility
+        - readingTime
+        - isPremium
+        - createdAt
+        - updatedAt
+        - category
+        - paywallMeta
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        slug:
+          type: string
+        contentHtml:
+          type: string
+          description: Contenu tronqué au paywall (zéro-fuite)
+        isTruncated:
+          type: boolean
+        visibility:
+          $ref: '#/components/schemas/ContentVisibility'
+        readingTime:
+          type: integer
+        isPremium:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        category:
+          oneOf:
+            - $ref: '#/components/schemas/Category'
+            - type: 'null'
+        paywallMeta:
+          oneOf:
+            - $ref: '#/components/schemas/PaywallMeta'
+            - type: 'null'
+    Article:
+      type: object
+      description: Article complet (lecture publique avec droits paywall)
+      allOf:
+        - $ref: '#/components/schemas/ArticleItem'
+        - type: object
+          properties:
+            content:
+              type: string
+              description: Contenu brut (tronqué selon les droits du lecteur)
+            published:
+              type: boolean
+            status:
+              $ref: '#/components/schemas/ArticleStatus'
+            publicationId:
+              type: string
+            authorId:
+              type: string
+            categoryId:
+              type: [string, 'null']
+            tierId:
+              type: [string, 'null']
+            seoTitle:
+              type: [string, 'null']
+            seoDescription:
+              type: [string, 'null']
+            accessGranted:
+              type: boolean
+            author:
+              $ref: '#/components/schemas/Author'
+            publication:
+              $ref: '#/components/schemas/Publication'
+    Author:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: [string, 'null']
+        username:
+          type: [string, 'null']
+        logoUrl:
+          type: [string, 'null']
+    Publication:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        subdomain:
+          type: [string, 'null']
+    ContentFormat:
+      type: string
+      enum: [markdown, html]
+    ArticleInput:
+      type: object
+      description: Création d'article — accepte markdown OU html (normalisé en interne)
+      required: [publicationId, title]
+      properties:
+        publicationId:
+          type: string
+        title:
+          type: string
+        slug:
+          type: string
+        content:
+          type: string
+        contentFormat:
+          $ref: '#/components/schemas/ContentFormat'
+        isPremium:
+          type: boolean
+          default: false
+        visibility:
+          $ref: '#/components/schemas/ContentVisibility'
+          default: PUBLIC
+        categoryId:
+          type: [string, 'null']
+        tierId:
+          type: [string, 'null']
+        seoTitle:
+          type: [string, 'null']
+        seoDescription:
+          type: [string, 'null']
+        readingTime:
+          type: integer
+        published:
+          type: boolean
+          default: false
+        scheduledAt:
+          type: string
+          format: date-time
+          description: Publication programmée (status SCHEDULED)
+    ArticleUpdateInput:
+      type: object
+      description: Mise à jour partielle d'un article
+      properties:
+        title:
+          type: string
+        slug:
+          type: string
+        content:
+          type: string
+        contentFormat:
+          $ref: '#/components/schemas/ContentFormat'
+        isPremium:
+          type: boolean
+        visibility:
+          $ref: '#/components/schemas/ContentVisibility'
+        categoryId:
+          type: [string, 'null']
+        tierId:
+          type: [string, 'null']
+        seoTitle:
+          type: [string, 'null']
+        seoDescription:
+          type: [string, 'null']
+        readingTime:
+          type: integer
+        scheduledAt:
+          type: [string, 'null']
+          format: date-time
+    WebhookSubscription: # ⚠️ cible plateforme
+      type: object
+      required: [id, url, events, createdAt]
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookEventType'
+        active:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+    WebhookSubscriptionInput:
+      type: object
+      required: [url, events]
+      properties:
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/WebhookEventType'
+    WebhookEventType:
+      type: string
+      enum:
+        - article.published
+        - article.updated
+        - article.deleted
+        - article.scheduled
+        - subscriber.created
+    WebhookDelivery:
+      type: object
+      required: [id, event, status, attempts, createdAt]
+      properties:
+        id:
+          type: string
+        event:
+          type: string
+        status:
+          type: string
+          enum: [delivered, failed, retrying]
+        attempts:
+          type: integer
+        statusCode:
+          type: integer
+        nextRetryAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
