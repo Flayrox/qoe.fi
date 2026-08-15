@@ -42,9 +42,7 @@ The front-facing and API surface areas of the platform.
 5. **`apps/web` (`*.qoe.fi` / Custom Domains)**
    The highly optimized, multi-tenant rendering engine for creator blogs. Includes dynamic routing via Caddy, Paywall cutting, and virtualized text annotation UI.
 6. **`apps/api-go` (`api.qoe.fi`)**
-   Backend Go de référence (feed, posts, articles, notifications, analytics, webhooks). C'est le *backend-of-record* : les server actions y proxisent via `QOE_API_GO_URL`.
-7. **`apps/api` (`api-legacy.qoe.fi`) — en transition**
-   API Hono réservée aux créateurs/médias (clés `qoe_live_*`, qoe.fi comme CMS). À supprimer quand le Go couvre tout — voir `SUNSET_API_LEGACY.md`.
+   Backend Go unique de la plateforme (feed, posts, articles, notifications, analytics, webhooks, recherche Meilisearch). C'est le *backend-of-record* : les server actions y proxisent via `QOE_API_GO_URL`.
 
 ### Core Packages (`packages/*`)
 
@@ -134,7 +132,7 @@ pnpm prisma:seed       # Seed the database
 
 ## 🚩 Feature Flags (GrowthBook self-hosté)
 
-Le monorepo est câblé pour les feature flags via **GrowthBook**, intégré dans les 5 apps Next.js, l'API Hono et les workers BullMQ via le package partagé `@qoe/flags`.
+Le monorepo est câblé pour les feature flags via **GrowthBook**, intégré dans les 5 apps Next.js, le backend Go et les workers via le package partagé `@qoe/flags`.
 
 ### Utilisation
 

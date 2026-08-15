@@ -67,7 +67,7 @@ qoe.fi/
 │   ├── dashboard/                       # dashboard.qoe.fi (studio créateur)
 │   ├── admin/                           # admin.qoe.fi (superadmin, config CMS)
 │   ├── web/                             # *.qoe.fi (blogs créateurs multi-tenant)
-│   └── api/                             # api.qoe.fi (Hono API)
+│   └── api-go/                          # api.qoe.fi (backend Go)
 ├── packages/                            # 11 packages partagés
 │   ├── db/                              # Prisma (SOURCE UNIQUE)
 │   ├── auth/                            # Roles, permissions, current-user
@@ -130,7 +130,7 @@ qoe.fi/
 
 - **`apps/console`** : Next.js 16, sert qoe.fi + dashboard + admin
 - **`apps/web`** : Next.js 16, sert start.qoe.fi + tenants
-- **`apps/api`** : Hono backend avec `/health`
+- **`apps/api-go`** : backend Go (feed, posts, articles, webhooks, analytics)
 
 #### 3. Code migré physiquement
 
@@ -226,7 +226,7 @@ qoe.fi/
 - **`apps/dashboard`** (`@qoe/dashboard`) : Gère `dashboard.qoe.fi`. C'est le studio de création complet (éditeur d'articles, analytics, gestion de l'audience et des newsletters).
 - **`apps/admin`** (`@qoe/admin`) : Gère `admin.qoe.fi`. C'est le panel de super-administration, de modération de la plateforme et de configuration CMS.
 - **`apps/web`** (`@qoe/web`) : Gère le rendu dynamique multi-tenant des blogs des créateurs (`*.qoe.fi` et domaines personnalisés).
-- **`apps/api`** (`@qoe/api`) : API Hono restée autonome sous `api.qoe.fi`.
+- **`apps/api-go`** : backend Go unique sous `api.qoe.fi` (l'ancienne API Hono `apps/api` a été supprimée — voir `SUNSET_API_LEGACY.md`).
 
 #### 2. Alignements & Résolutions techniques clés
 

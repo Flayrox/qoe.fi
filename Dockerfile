@@ -4,13 +4,13 @@
 # 📖 Un SEUL Dockerfile qui build 4 cibles :
 #    - web      : apps/web (Next.js public)
 #    - console  : apps/console (Next.js auth)
-#    - api      : apps/api (Hono backend)
+#    - api-go   : apps/api-go (backend Go)
 #    - workers  : workers/ (BullMQ)
 #
 # 🎯 Usage :
 #    docker build --target web -t qoefi-web .
 #    docker build --target console -t qoefi-console .
-#    docker build --target api -t qoefi-api .
+#    docker build --target api-go -t qoefi-api-go .
 #    docker build --target workers -t qoefi-workers .
 #
 # 📖 Stratégie : stages de base communs + stages spécifiques
@@ -190,29 +190,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 CMD ["node", "apps/admin/server.js"]
 
 # ─────────────────────────────────────────────────────────────────────
-# 🔌 TARGET : API (Hono backend — api.qoe.fi)
-# ─────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS api
-RUN apk add --no-cache libc6-compat openssl wget
-WORKDIR /app
-ENV NODE_ENV=production
-ENV PORT=3001
-
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 hono
-
-COPY --from=builder --chown=hono:nodejs /app/apps/api/dist ./dist
-COPY --from=builder --chown=hono:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=hono:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-
-USER hono
-EXPOSE 3001
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
-
-CMD ["node", "dist/index.js"]
-
 # ─────────────────────────────────────────────────────────────────────
 # ⚙️ TARGET : WORKERS (BullMQ — jobs async)
 # ─────────────────────────────────────────────────────────────────────
