@@ -26,6 +26,7 @@ import (
 	"github.com/qoefi/api-go/internal/modules/feed"
 	"github.com/qoefi/api-go/internal/modules/notifications"
 	"github.com/qoefi/api-go/internal/modules/posts"
+	"github.com/qoefi/api-go/internal/modules/settings"
 	"github.com/qoefi/api-go/internal/modules/webhooks"
 	"github.com/qoefi/api-go/internal/queue"
 	"github.com/qoefi/api-go/internal/umami"
@@ -85,6 +86,10 @@ func main() {
 		articlesHandler.RegisterPublic(pub)
 	})
 
+	// Settings créateur : sous-domaine (public) + profil/onboarding/clés API (protégé).
+	settingsHandler := settings.NewHandler(settings.NewService(pool))
+	settingsHandler.RegisterPublic(r)
+
 	// Toute l'API créateur exige un Bearer token valide (JWT OU clé API qoe_live_).
 	r.Group(func(protected chi.Router) {
 		// 600 req/min par utilisateur (usage créateur légitime, généreux).
@@ -110,6 +115,8 @@ func main() {
 
 		creatorHandler := creator.NewHandler(pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey, cfg.UmamiUser, cfg.UmamiPass), cfg.DefaultUmamiWebsiteID)
 		creatorHandler.RegisterProtected(protected)
+
+		settingsHandler.RegisterProtected(protected)
 	})
 
 	// API créateur par clé API (qoe_live_…) : catégories + analytics/stats (proxy Umami).

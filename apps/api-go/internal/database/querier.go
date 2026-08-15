@@ -11,6 +11,8 @@ import (
 )
 
 type Querier interface {
+	CheckSubdomainExists(ctx context.Context, subdomain pgtype.Text) (bool, error)
+	CompleteOnboardingUser(ctx context.Context, arg CompleteOnboardingUserParams) error
 	CountFollowers(ctx context.Context, publicationid string) (int32, error)
 	CountFollowing(ctx context.Context, readerid pgtype.UUID) (int32, error)
 	CountOptionVotes(ctx context.Context, optionid string) (int32, error)
@@ -20,6 +22,7 @@ type Querier interface {
 	CountPureReposts(ctx context.Context, arg CountPureRepostsParams) (int32, error)
 	CreateArticle(ctx context.Context, arg CreateArticleParams) (string, error)
 	CreateAttachment(ctx context.Context, arg CreateAttachmentParams) (string, error)
+	CreatePersonalPublication(ctx context.Context, arg CreatePersonalPublicationParams) (string, error)
 	CreatePoll(ctx context.Context, arg CreatePollParams) (CreatePollRow, error)
 	CreatePollOption(ctx context.Context, arg CreatePollOptionParams) (string, error)
 	CreateThought(ctx context.Context, arg CreateThoughtParams) (CreateThoughtRow, error)
@@ -29,6 +32,7 @@ type Querier interface {
 	DecrementLikeCount(ctx context.Context, id string) error
 	DecrementReplyCount(ctx context.Context, id string) error
 	DecrementRepostCount(ctx context.Context, id string) error
+	DeleteApiKey(ctx context.Context, arg DeleteApiKeyParams) error
 	DeleteArticle(ctx context.Context, id string) error
 	DeleteArticleComment(ctx context.Context, id string) error
 	DeleteBookmark(ctx context.Context, arg DeleteBookmarkParams) error
@@ -36,8 +40,10 @@ type Querier interface {
 	DeleteFollowNotification(ctx context.Context, arg DeleteFollowNotificationParams) error
 	DeleteLike(ctx context.Context, arg DeleteLikeParams) error
 	DeleteLikeNotification(ctx context.Context, arg DeleteLikeNotificationParams) error
+	DeleteNavigationItems(ctx context.Context, publicationid string) error
 	DeletePureReposts(ctx context.Context, arg DeletePureRepostsParams) error
 	DeleteRepostNotification(ctx context.Context, arg DeleteRepostNotificationParams) error
+	DeleteSocialLinks(ctx context.Context, publicationid string) error
 	DeleteWebhook(ctx context.Context, id string) error
 	ExistsUnreadCommentNotification(ctx context.Context, arg ExistsUnreadCommentNotificationParams) (int32, error)
 	ExistsUnreadFollowNotification(ctx context.Context, arg ExistsUnreadFollowNotificationParams) (int32, error)
@@ -71,6 +77,8 @@ type Querier interface {
 	GetFollowedPersonalPublicationOwnerIDs(ctx context.Context, readerid pgtype.UUID) ([]string, error)
 	GetFreeSubscriberCount(ctx context.Context, publicationid string) (int32, error)
 	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
+	// RBAC Média (rôles + permissions) — partagé par settings, articles et media.
+	GetMediaMemberContext(ctx context.Context, arg GetMediaMemberContextParams) (GetMediaMemberContextRow, error)
 	GetMediaOwnerForCredit(ctx context.Context, publicationid string) (GetMediaOwnerForCreditRow, error)
 	GetMediaRoleForUser(ctx context.Context, arg GetMediaRoleForUserParams) (string, error)
 	GetNotificationPreferences(ctx context.Context, userid pgtype.UUID) (GetNotificationPreferencesRow, error)
@@ -91,6 +99,7 @@ type Querier interface {
 	GetPublicationByID(ctx context.Context, id string) (string, error)
 	GetPublicationBySlugOrSubdomain(ctx context.Context, slug string) (GetPublicationBySlugOrSubdomainRow, error)
 	GetPublicationOwner(ctx context.Context, id string) (string, error)
+	GetPublicationTypeByID(ctx context.Context, id string) (PublicationType, error)
 	GetRecentArticlesForAnalytics(ctx context.Context, arg GetRecentArticlesForAnalyticsParams) ([]GetRecentArticlesForAnalyticsRow, error)
 	GetRecentThoughtsForAnalytics(ctx context.Context, arg GetRecentThoughtsForAnalyticsParams) ([]GetRecentThoughtsForAnalyticsRow, error)
 	GetRepliesForThought(ctx context.Context, arg GetRepliesForThoughtParams) ([]GetRepliesForThoughtRow, error)
@@ -102,8 +111,11 @@ type Querier interface {
 	// Threadgates & réponses
 	GetThoughtReplyGate(ctx context.Context, id string) (GetThoughtReplyGateRow, error)
 	GetUnreadCount(ctx context.Context, recipientid pgtype.UUID) (int32, error)
+	GetUserApiAccessStatus(ctx context.Context, id string) (string, error)
 	GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error)
 	GetUserByIDFull(ctx context.Context, id string) (GetUserByIDFullRow, error)
+	// Profil créateur, onboarding, sous-domaine, liens, clés API (migration dashboard → Go).
+	GetUserForSettings(ctx context.Context, id string) (GetUserForSettingsRow, error)
 	GetUserPersonalPublication(ctx context.Context, id string) (pgtype.Text, error)
 	GetUserPollVote(ctx context.Context, arg GetUserPollVoteParams) (string, error)
 	GetUserUsername(ctx context.Context, id string) (pgtype.Text, error)
@@ -114,6 +126,7 @@ type Querier interface {
 	IncrementReplyCount(ctx context.Context, id string) error
 	IncrementRepostCount(ctx context.Context, id string) error
 	IncrementWalletBalance(ctx context.Context, arg IncrementWalletBalanceParams) error
+	InsertApiKey(ctx context.Context, arg InsertApiKeyParams) error
 	InsertArticleComment(ctx context.Context, arg InsertArticleCommentParams) (InsertArticleCommentRow, error)
 	InsertBookmark(ctx context.Context, arg InsertBookmarkParams) error
 	InsertCommentNotification(ctx context.Context, arg InsertCommentNotificationParams) error
@@ -123,20 +136,27 @@ type Querier interface {
 	InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error
 	InsertMediaArticlePublishedFanout(ctx context.Context, arg InsertMediaArticlePublishedFanoutParams) error
 	InsertMentionNotification(ctx context.Context, arg InsertMentionNotificationParams) error
+	InsertNavigationItem(ctx context.Context, arg InsertNavigationItemParams) error
 	InsertPureRepost(ctx context.Context, arg InsertPureRepostParams) (string, error)
 	InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error
 	InsertRepostNotification(ctx context.Context, arg InsertRepostNotificationParams) error
+	InsertSocialLink(ctx context.Context, arg InsertSocialLinkParams) error
 	InsertWebhookDeliveryResult(ctx context.Context, arg InsertWebhookDeliveryResultParams) error
+	LinkUserPublication(ctx context.Context, arg LinkUserPublicationParams) error
 	ListArticleComments(ctx context.Context, articleid string) ([]ListArticleCommentsRow, error)
 	ListArticlesByPublication(ctx context.Context, arg ListArticlesByPublicationParams) ([]ListArticlesByPublicationRow, error)
 	ListCategoriesByPublication(ctx context.Context, publicationid string) ([]ListCategoriesByPublicationRow, error)
 	ListWebhookDeliveries(ctx context.Context, webhookid string) ([]ListWebhookDeliveriesRow, error)
 	ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error)
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
+	SetApiApplication(ctx context.Context, arg SetApiApplicationParams) error
 	SetArticleStatus(ctx context.Context, arg SetArticleStatusParams) (string, error)
 	SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error
 	UpdateApiKeyLastUsed(ctx context.Context, id string) error
 	UpdateArticleContent(ctx context.Context, arg UpdateArticleContentParams) (string, error)
+	UpdatePersonalPublication(ctx context.Context, arg UpdatePersonalPublicationParams) error
+	UpdatePublicationSubdomain(ctx context.Context, arg UpdatePublicationSubdomainParams) error
+	UpdateUserOnboardingText(ctx context.Context, arg UpdateUserOnboardingTextParams) error
 	UpdateWebhookActive(ctx context.Context, arg UpdateWebhookActiveParams) error
 	UpdateWebhookDelivery(ctx context.Context, arg UpdateWebhookDeliveryParams) error
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) error
