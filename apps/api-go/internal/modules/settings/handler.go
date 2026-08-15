@@ -184,17 +184,18 @@ func (h *Handler) submitApiApplication(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, map[string]bool{"success": true})
 }
 
-// POST /v1/settings/api-keys — génère une clé API.
+// POST /v1/settings/api-keys — génère une clé API (avec scopes optionnels).
 func (h *Handler) generateApiKey(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	var in struct {
-		Name string `json:"name"`
+		Name   string   `json:"name"`
+		Scopes []string `json:"scopes"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	apiKey, err := h.svc.GenerateApiKey(r.Context(), userID, in.Name)
+	apiKey, err := h.svc.GenerateApiKey(r.Context(), userID, in.Name, in.Scopes)
 	if err != nil {
 		response.Forbidden(w, err.Error())
 		return

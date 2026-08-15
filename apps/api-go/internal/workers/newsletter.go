@@ -81,9 +81,12 @@ func (n *NewsletterWorker) HandlePostLiked(ctx context.Context, t *asynq.Task) e
 	return nil
 }
 
-// stripHTML enlève les balises pour une preview texte (utile au contenu).
+// stripHTML enlève les balises et compresse les espaces pour une preview
+// texte propre (ex. aperçu de newsletter).
 func stripHTML(html string) string {
 	re := regexp.MustCompile(`<[^>]*>`)
 	text := re.ReplaceAllString(html, " ")
-	return strings.TrimSpace(text)
+	// Remplace les suites d'espaces (y compris \n\t) par un seul espace.
+	spaces := regexp.MustCompile(`\s+`)
+	return strings.TrimSpace(spaces.ReplaceAllString(text, " "))
 }

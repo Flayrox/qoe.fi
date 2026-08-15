@@ -14,7 +14,7 @@ User Request -> Caddy Reverse Proxy
 ├── dashboard.qoe.fi (Studio) -> `apps/dashboard`
 ├── admin.qoe.fi (Admin)      -> `apps/admin`
 ├── start.qoe.fi (Landing)    -> `apps/landing`
-├── api.qoe.fi (Hono API)     -> `apps/api`
+├── api.qoe.fi (Go backend)   -> `apps/api-go`
 └── *.qoe.fi / Custom Domains -> `apps/web` (Tenant Engine)
 ```
 
@@ -30,7 +30,7 @@ User Request -> Caddy Reverse Proxy
 - **Status:** **PASS**.
 - The schema is strictly confined to `packages/db/prisma/schema.prisma`. All interfaces and Zod schemas in `@qoe/config` inherit types from this source.
 - **UUID Strategy:** The system has fully migrated to UUIDs (`@db.Uuid`) for critical entities (Users, Articles) to prevent enumeration attacks and support distributed database sharding if required in the future.
-- **pgvector Integration:** The `Thought` and `Article` tables are equipped with PostgreSQL vector columns (`vector(1536)`) for AI-powered semantic search and RAG capabilities (setup via `setup-pgvector.ts`).
+- **pgvector Integration:** The `Thought` and `Article` tables are equipped with PostgreSQL vector columns (`vector(1536)`) for AI-powered semantic search and RAG capabilities (extension pré-activée par l'image `pgvector/pgvector`, cf. `docker/postgres/init.sql`).
 
 ### Authentication & Cookies
 
@@ -48,7 +48,7 @@ User Request -> Caddy Reverse Proxy
 - **Why this matters:** The system does not hide content using CSS (`display: none;`). It intercepts the Tiptap HTML string and splits it at the `<div data-type="paywall-divider">` marker. If the marker is missing, it falls back to paragraph limits or strict character limits (400 chars).
 - **Scalability Win:** Ensures 0 bytes of premium content leak over the network, completely mitigating DOM inspection bypasses.
 
-### Asynchronous Workers (BullMQ)
+### Asynchronous Workers (BullMQ TS + asynq Go)
 
 - **Event Bus (`packages/workers/src/events/eventBus.ts`):**
   - Strictly typed via Zod schemas.

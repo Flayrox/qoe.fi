@@ -166,8 +166,18 @@ func (s *Service) UnreadCount(ctx context.Context, recipientID string) (int, err
 // MarkRead marque comme lues (toutes si ids vide).
 func (s *Service) MarkRead(ctx context.Context, recipientID string, ids []string) error {
 	return s.q.MarkNotificationsRead(ctx, db.MarkNotificationsReadParams{
-		RecipientId: toUUID(recipientID), Column2: ids,
+		RecipientId: toUUID(recipientID), Column2: markReadIDs(ids),
 	})
+}
+
+// markReadIDs normalise la liste d'ids passée à la requête SQL :
+// un tableau vide `{}` ne matcherait aucun id (`id = ANY('{}')`), on renvoie
+// donc nil pour que pgx encode NULL et que la requête marque tout.
+func markReadIDs(ids []string) []string {
+	if len(ids) == 0 {
+		return nil
+	}
+	return ids
 }
 
 // InsertMediaInvite crée une notification MEDIA_INVITE (dédup + prefs en SQL).

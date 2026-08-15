@@ -11,6 +11,29 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countCreatorArticles = `-- name: CountCreatorArticles :one
+SELECT COUNT(*)
+FROM "Article" a
+LEFT JOIN "Category" c ON c.id = a."categoryId"
+WHERE a."publicationId" = $1
+  AND ($2::boolean IS NULL OR a.published = $2)
+  AND ($3::text IS NULL OR c.slug = $3)
+`
+
+type CountCreatorArticlesParams struct {
+	PublicationId string      `json:"publicationId"`
+	Published     pgtype.Bool `json:"published"`
+	CategorySlug  pgtype.Text `json:"categorySlug"`
+}
+
+// Compte des articles d'une publication (mêmes filtres que ListCreatorArticles).
+func (q *Queries) CountCreatorArticles(ctx context.Context, arg CountCreatorArticlesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countCreatorArticles, arg.PublicationId, arg.Published, arg.CategorySlug)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createArticle = `-- name: CreateArticle :one
 INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
                        "readingTime", "allowPublicAnnotations", "allowComments", status,
@@ -243,6 +266,66 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugPara
 	return i, err
 }
 
+const getCreatorArticleBySlug = `-- name: GetCreatorArticleBySlug :one
+SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
+       a."readingTime", a.status, a."tierId", a."createdAt", a."updatedAt",
+       c.id AS category_id, c.name AS category_name, c.slug AS category_slug,
+       c.description AS category_description
+FROM "Article" a
+LEFT JOIN "Category" c ON c.id = a."categoryId"
+WHERE a.slug = $1 AND a."publicationId" = $2 AND a.published = true
+`
+
+type GetCreatorArticleBySlugParams struct {
+	Slug          string `json:"slug"`
+	PublicationId string `json:"publicationId"`
+}
+
+type GetCreatorArticleBySlugRow struct {
+	ID                  string            `json:"id"`
+	Title               string            `json:"title"`
+	Slug                string            `json:"slug"`
+	Content             string            `json:"content"`
+	Published           bool              `json:"published"`
+	IsPremium           bool              `json:"isPremium"`
+	Visibility          ContentVisibility `json:"visibility"`
+	ReadingTime         int32             `json:"readingTime"`
+	Status              string            `json:"status"`
+	TierId              pgtype.Text       `json:"tierId"`
+	CreatedAt           pgtype.Timestamp  `json:"createdAt"`
+	UpdatedAt           pgtype.Timestamp  `json:"updatedAt"`
+	CategoryID          pgtype.Text       `json:"category_id"`
+	CategoryName        pgtype.Text       `json:"category_name"`
+	CategorySlug        pgtype.Text       `json:"category_slug"`
+	CategoryDescription pgtype.Text       `json:"category_description"`
+}
+
+// Lecture d'un article PUBLIÉ d'une publication au format contrat créateurs
+// (clé API → publication du créateur), catégorie embarquée.
+func (q *Queries) GetCreatorArticleBySlug(ctx context.Context, arg GetCreatorArticleBySlugParams) (GetCreatorArticleBySlugRow, error) {
+	row := q.db.QueryRow(ctx, getCreatorArticleBySlug, arg.Slug, arg.PublicationId)
+	var i GetCreatorArticleBySlugRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Slug,
+		&i.Content,
+		&i.Published,
+		&i.IsPremium,
+		&i.Visibility,
+		&i.ReadingTime,
+		&i.Status,
+		&i.TierId,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CategoryID,
+		&i.CategoryName,
+		&i.CategorySlug,
+		&i.CategoryDescription,
+	)
+	return i, err
+}
+
 const getMediaRoleForUser = `-- name: GetMediaRoleForUser :one
 SELECT m.role
 FROM "MediaMember" m
@@ -301,64 +384,6 @@ func (q *Queries) GetUserPersonalPublication(ctx context.Context, id string) (pg
 	var id_2 pgtype.Text
 	err := row.Scan(&id_2)
 	return id_2, err
-}
-
-const listArticlesByPublication = `-- name: ListArticlesByPublication :many
-SELECT id, title, slug, published, "isPremium", visibility, "readingTime", status, "createdAt", "updatedAt"
-FROM "Article"
-WHERE "publicationId" = $1
-ORDER BY "createdAt" DESC
-LIMIT $2 OFFSET $3
-`
-
-type ListArticlesByPublicationParams struct {
-	PublicationId string `json:"publicationId"`
-	Limit         int32  `json:"limit"`
-	Offset        int32  `json:"offset"`
-}
-
-type ListArticlesByPublicationRow struct {
-	ID          string            `json:"id"`
-	Title       string            `json:"title"`
-	Slug        string            `json:"slug"`
-	Published   bool              `json:"published"`
-	IsPremium   bool              `json:"isPremium"`
-	Visibility  ContentVisibility `json:"visibility"`
-	ReadingTime int32             `json:"readingTime"`
-	Status      string            `json:"status"`
-	CreatedAt   pgtype.Timestamp  `json:"createdAt"`
-	UpdatedAt   pgtype.Timestamp  `json:"updatedAt"`
-}
-
-func (q *Queries) ListArticlesByPublication(ctx context.Context, arg ListArticlesByPublicationParams) ([]ListArticlesByPublicationRow, error) {
-	rows, err := q.db.Query(ctx, listArticlesByPublication, arg.PublicationId, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListArticlesByPublicationRow{}
-	for rows.Next() {
-		var i ListArticlesByPublicationRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Slug,
-			&i.Published,
-			&i.IsPremium,
-			&i.Visibility,
-			&i.ReadingTime,
-			&i.Status,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const listArticlesWithCategory = `-- name: ListArticlesWithCategory :many
@@ -423,6 +448,92 @@ func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticles
 			&i.CategoryID,
 			&i.CategoryName,
 			&i.CategorySlug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCreatorArticles = `-- name: ListCreatorArticles :many
+SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
+       a."readingTime", a.status, a."tierId", a."createdAt", a."updatedAt",
+       c.id AS category_id, c.name AS category_name, c.slug AS category_slug,
+       c.description AS category_description
+FROM "Article" a
+LEFT JOIN "Category" c ON c.id = a."categoryId"
+WHERE a."publicationId" = $1
+  AND ($2::boolean IS NULL OR a.published = $2)
+  AND ($3::text IS NULL OR c.slug = $3)
+ORDER BY a."createdAt" DESC
+LIMIT $5 OFFSET $4
+`
+
+type ListCreatorArticlesParams struct {
+	PublicationId string      `json:"publicationId"`
+	Published     pgtype.Bool `json:"published"`
+	CategorySlug  pgtype.Text `json:"categorySlug"`
+	Offset        int32       `json:"offset"`
+	Limit         int32       `json:"limit"`
+}
+
+type ListCreatorArticlesRow struct {
+	ID                  string            `json:"id"`
+	Title               string            `json:"title"`
+	Slug                string            `json:"slug"`
+	Content             string            `json:"content"`
+	Published           bool              `json:"published"`
+	IsPremium           bool              `json:"isPremium"`
+	Visibility          ContentVisibility `json:"visibility"`
+	ReadingTime         int32             `json:"readingTime"`
+	Status              string            `json:"status"`
+	TierId              pgtype.Text       `json:"tierId"`
+	CreatedAt           pgtype.Timestamp  `json:"createdAt"`
+	UpdatedAt           pgtype.Timestamp  `json:"updatedAt"`
+	CategoryID          pgtype.Text       `json:"category_id"`
+	CategoryName        pgtype.Text       `json:"category_name"`
+	CategorySlug        pgtype.Text       `json:"category_slug"`
+	CategoryDescription pgtype.Text       `json:"category_description"`
+}
+
+// Liste des articles d'une publication au format contrat créateurs (Hono) :
+// filtres `published` (défaut true) et `category` (slug), catégorie embarquée.
+func (q *Queries) ListCreatorArticles(ctx context.Context, arg ListCreatorArticlesParams) ([]ListCreatorArticlesRow, error) {
+	rows, err := q.db.Query(ctx, listCreatorArticles,
+		arg.PublicationId,
+		arg.Published,
+		arg.CategorySlug,
+		arg.Offset,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCreatorArticlesRow{}
+	for rows.Next() {
+		var i ListCreatorArticlesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Slug,
+			&i.Content,
+			&i.Published,
+			&i.IsPremium,
+			&i.Visibility,
+			&i.ReadingTime,
+			&i.Status,
+			&i.TierId,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CategoryID,
+			&i.CategoryName,
+			&i.CategorySlug,
+			&i.CategoryDescription,
 		); err != nil {
 			return nil, err
 		}

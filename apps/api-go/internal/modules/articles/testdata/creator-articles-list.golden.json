@@ -1,0 +1,25 @@
+{
+  "data": [
+    {
+      "id": "art_1",
+      "title": "First Post",
+      "slug": "first-post",
+      "contentHtml": "\u003cp\u003eFree teaser\u003c/p\u003e",
+      "isTruncated": true,
+      "visibility": "PAID_SUBSCRIBERS",
+      "readingTime": 5,
+      "isPremium": true,
+      "createdAt": "2026-08-01T10:00:00Z",
+      "updatedAt": "2026-08-01T10:00:00Z",
+      "category": { "id": "cat-1", "name": "Tech", "slug": "tech", "description": null },
+      "paywallMeta": {
+        "visibility": "PAID_SUBSCRIBERS",
+        "teaserParagraphsCount": 1,
+        "requiredTierId": null,
+        "totalLengthBytes": 120,
+        "previewLengthBytes": 60
+      }
+    }
+  ],
+  "pagination": { "total": 1, "page": 1, "limit": 10, "pages": 1 }
+}

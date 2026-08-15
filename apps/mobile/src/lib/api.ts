@@ -6,8 +6,8 @@ import { Platform } from 'react-native';
 
 import { getAccessToken } from '@/lib/session';
 
-// Port de l'API Hono locale (cf. apps/api + .env : NEXT_PUBLIC_API_URL).
-const API_PORT = 3002;
+// Port de l'API Go locale (cf. apps/api-go : PORT=8080, backend unique).
+const API_PORT = 8080;
 
 /**
  * Résout l'hôte de l'API en fonction du contexte d'exécution :

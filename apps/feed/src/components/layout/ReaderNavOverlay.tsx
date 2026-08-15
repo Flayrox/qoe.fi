@@ -41,6 +41,8 @@ export function ReaderNavOverlay({
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const unreadCount = useUnreadNotificationCount();
+  // 🔕 Pas de badge tant qu'on est sur la page notifications
+  const showNotificationBadge = !pathname.startsWith('/notifications') && unreadCount > 0;
 
   useEffect(() => {
     setIsMounted(true);
@@ -48,7 +50,12 @@ export function ReaderNavOverlay({
 
   const navItems = [
     { label: t`Accueil`, href: routes.feed.home(), icon: Home },
-    { label: t`Notifications`, href: '/notifications', icon: Bell, badge: unreadCount },
+    {
+      label: t`Notifications`,
+      href: '/notifications',
+      icon: Bell,
+      badge: showNotificationBadge ? unreadCount : 0,
+    },
     { label: t`Signets`, href: routes.feed.library(), icon: Bookmark },
     {
       label: t`Surlignages`,

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   useNotificationsInfiniteQuery,
   useMarkNotificationsAsReadMutation,
+  useUnreadNotificationCountQuery,
   type NotificationFilter,
 } from '@qoe/api-client';
 import { CheckCheck, BellOff, Loader2, ChevronDown } from 'lucide-react';
@@ -25,7 +26,34 @@ export function NotificationList() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useNotificationsInfiniteQuery(filter);
   const notifications = (data?.pages ?? []).flatMap((p) => p.notifications);
+  const { data: unreadCount = 0 } = useUnreadNotificationCountQuery();
   const markAsReadMutation = useMarkNotificationsAsReadMutation();
+  const autoMarkedRef = useRef(false);
+  const unreadCountRef = useRef(0);
+
+  // 🔔 Dès l'ouverture du panneau, tout marquer comme lu (une seule fois par
+  // visite) pour que le badge de la sidebar disparaisse — les notifications
+  // restent dans la liste.
+  useEffect(() => {
+    if (autoMarkedRef.current || unreadCount <= 0) return;
+    autoMarkedRef.current = true;
+    markAsReadMutation.mutate(undefined);
+  }, [unreadCount, markAsReadMutation]);
+
+  useEffect(() => {
+    unreadCountRef.current = unreadCount;
+  }, [unreadCount]);
+
+  // 🔔 À la fermeture du panneau : marquer comme lu ce qui est arrivé pendant
+  // la visite, pour que le badge ne réapparaisse que pour les nouvelles
+  // notifications reçues après être revenu sur le fil.
+  useEffect(() => {
+    return () => {
+      if (unreadCountRef.current > 0) {
+        markAsReadMutation.mutate(undefined);
+      }
+    };
+  }, [markAsReadMutation]);
 
   // 📡 Realtime : reçoit les INSERT/UPDATE de Notification en direct
   // (badge non-lu + liste) — canal filtré par recipientId.

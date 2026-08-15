@@ -175,14 +175,15 @@ func (q *Queries) GetUserForSettings(ctx context.Context, id string) (GetUserFor
 }
 
 const insertApiKey = `-- name: InsertApiKey :exec
-INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", "userId")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4)
+INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "userId")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5)
 `
 
 type InsertApiKeyParams struct {
 	Name      string      `json:"name"`
 	KeyPrefix string      `json:"keyPrefix"`
 	KeyHash   string      `json:"keyHash"`
+	Scopes    []string    `json:"scopes"`
 	UserId    pgtype.UUID `json:"userId"`
 }
 
@@ -191,6 +192,7 @@ func (q *Queries) InsertApiKey(ctx context.Context, arg InsertApiKeyParams) erro
 		arg.Name,
 		arg.KeyPrefix,
 		arg.KeyHash,
+		arg.Scopes,
 		arg.UserId,
 	)
 	return err

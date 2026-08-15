@@ -3,6 +3,7 @@
 -- name: GetApiKeyByHash :one
 SELECT ak.id            AS api_key_id,
        ak."keyHash"     AS key_hash,
+       ak.scopes        AS scopes,
        u.id::text       AS user_id,
        u.email,
        u.username,

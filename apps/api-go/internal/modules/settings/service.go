@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api-go/internal/database"
+	"github.com/qoefi/api-go/internal/middleware"
 	"github.com/qoefi/api-go/internal/permissions"
 	"github.com/qoefi/api-go/internal/slug"
 )
@@ -261,14 +262,35 @@ func (s *Service) SubmitApiApplication(ctx context.Context, userID, reason strin
 	})
 }
 
+// scopesValides est l'allowlist des scopes de clé API (moindre privilège).
+var scopesValides = map[string]bool{"READ": true, "WRITE": true, "ANALYTICS": true}
+
 // GenerateApiKey crée une clé API qoe_live_ et retourne le token en clair.
-func (s *Service) GenerateApiKey(ctx context.Context, userID, name string) (string, error) {
+// scopes : vide = accès complet (rétro-compatibilité), sinon filtrage strict.
+func (s *Service) GenerateApiKey(ctx context.Context, userID, name string, scopes []string) (string, error) {
 	status, err := s.q.GetUserApiAccessStatus(ctx, userID)
 	if err != nil {
 		return "", errNotFound
 	}
 	if status != "approved" {
 		return "", errors.New("Votre demande d'accès à l'API doit être approuvée par un administrateur.")
+	}
+
+	finalScopes := make([]string, 0, len(scopes))
+	seen := map[string]bool{}
+	for _, s := range scopes {
+		if !scopesValides[s] || seen[s] {
+			continue
+		}
+		seen[s] = true
+		finalScopes = append(finalScopes, s)
+	}
+	if len(scopes) > 0 && len(finalScopes) == 0 {
+		return "", errors.New("Sélectionnez au moins un scope pour la clé API.")
+	}
+	// scopes vide = accès complet explicite (rétro-compatibilité).
+	if len(finalScopes) == 0 {
+		finalScopes = middleware.AllScopes
 	}
 
 	raw := make([]byte, 16)
@@ -283,7 +305,7 @@ func (s *Service) GenerateApiKey(ctx context.Context, userID, name string) (stri
 		name = "Clé API"
 	}
 	if err := s.q.InsertApiKey(ctx, db.InsertApiKeyParams{
-		Name: name, KeyPrefix: "qoe_live", KeyHash: keyHash, UserId: toUUID(userID),
+		Name: name, KeyPrefix: "qoe_live", KeyHash: keyHash, Scopes: finalScopes, UserId: toUUID(userID),
 	}); err != nil {
 		return "", err
 	}

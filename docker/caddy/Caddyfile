@@ -180,33 +180,6 @@ api.qoe.fi {
     }
 }
 
-# 🔌 API LÉGACY (créateur Hono) : api-legacy.qoe.fi — transition.
-#   Endpoints créateur pas encore migrés vers Go (clés API qoe_live_*,
-#   users, categories, thoughts). À supprimer quand Go couvre tout.
-# ─────────────────────────────────────────────────────────────────────
-api-legacy.qoe.fi {
-    import qoe_cert
-    encode zstd gzip
-
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains"
-        X-Content-Type-Options "nosniff"
-        Access-Control-Allow-Origin "*"
-    }
-
-    reverse_proxy api:3001 {
-        transport http {
-            dial_timeout 60s
-            response_header_timeout 60s
-        }
-    }
-
-    log {
-        output stdout
-        format console
-    }
-}
-
 # ─────────────────────────────────────────────────────────────────────
 # 📚 BLOGS CRÉATEURS (WILDCARD) : *.qoe.fi (Tenants)
 # ─────────────────────────────────────────────────────────────────────
@@ -250,7 +223,7 @@ api-legacy.qoe.fi {
 #    ⚠️ Nécessite que le DNS pointe vers le VPS.
 :80 {
     # Catch-all pour custom domains (tout ce qui n'est pas qoe.fi)
-    @custom not host qoe.fi www.qoe.fi start.qoe.fi api.qoe.fi api-legacy.qoe.fi umami.qoe.fi admin-studio.qoe.fi dashboard.qoe.fi admin.qoe.fi
+    @custom not host qoe.fi www.qoe.fi start.qoe.fi api.qoe.fi umami.qoe.fi admin-studio.qoe.fi dashboard.qoe.fi admin.qoe.fi
     handle @custom {
         reverse_proxy web:3000 {
             header_up Host {host}

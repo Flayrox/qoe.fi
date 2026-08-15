@@ -67,6 +67,29 @@ func PublishArticlePublished(c *asynq.Client, p ArticlePublishedPayload) error {
 	return err
 }
 
+// NewArticleLifecycleTask construit une tâche asynq article.{updated,deleted}.
+func NewArticleLifecycleTask(taskType string, p ArticlePublishedPayload) (*asynq.Task, error) {
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	return asynq.NewTask(taskType, payload, asynq.MaxRetry(3), asynq.Timeout(30*time.Second)), nil
+}
+
+// PublishArticleLifecycle enqueue un événement article.updated / article.deleted
+// (même payload que published — notifie les webhooks abonnés).
+func PublishArticleLifecycle(c *asynq.Client, taskType string, p ArticlePublishedPayload) error {
+	if c == nil {
+		return nil
+	}
+	task, err := NewArticleLifecycleTask(taskType, p)
+	if err != nil {
+		return err
+	}
+	_, err = c.Enqueue(task, asynq.Queue("default"), asynq.ProcessIn(1*time.Second))
+	return err
+}
+
 // PublishSearchSync enqueue un job de sync Meilisearch.
 func PublishSearchSync(c *asynq.Client, p SearchSyncPayload) error {
 	if c == nil {

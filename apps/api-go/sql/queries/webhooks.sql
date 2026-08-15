@@ -23,17 +23,17 @@ ORDER BY id ASC
 LIMIT $2 OFFSET $3;
 
 -- name: ListWebhooksByPublication :many
-SELECT id, name, url, events, active, "createdAt"
+SELECT id, name, url, events, active, "createdAt", "updatedAt"
 FROM "Webhook"
 WHERE "publicationId" = $1
 ORDER BY "createdAt" DESC;
 
 -- name: ListWebhookDeliveries :many
-SELECT id, status, "httpStatus", event, "createdAt"
-FROM "WebhookDelivery"
-WHERE "webhookId" = $1
-ORDER BY "createdAt" DESC
-LIMIT 5;
+SELECT d.id, d.event, d.status, d."httpStatus", d."responseBody", d.attempts, d."createdAt"
+FROM "WebhookDelivery" d
+WHERE d."webhookId" = $1
+ORDER BY d."createdAt" DESC
+LIMIT $2;
 
 -- name: CreateWebhook :one
 INSERT INTO "Webhook" (id, "publicationId", name, url, secret, events, active, "createdAt", "updatedAt")
@@ -41,7 +41,7 @@ VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, true, now(), now())
 RETURNING id, name, url, events, active, "createdAt";
 
 -- name: GetWebhook :one
-SELECT id, "publicationId", name, url, secret, events, active, "createdAt"
+SELECT id, "publicationId", name, url, secret, events, active, "createdAt", "updatedAt"
 FROM "Webhook"
 WHERE id = $1;
 
@@ -51,9 +51,9 @@ WHERE id = $1;
 
 -- name: UpdateWebhookActive :exec
 UPDATE "Webhook"
-SET active = $2
+SET active = $2, "updatedAt" = now()
 WHERE id = $1;
 
 -- name: InsertWebhookDeliveryResult :exec
-INSERT INTO "WebhookDelivery" (id, "webhookId", event, payload, status, "httpStatus", "responseBody", attempts)
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, 1);
+INSERT INTO "WebhookDelivery" (id, "webhookId", event, payload, status, "httpStatus", "responseBody")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6);
