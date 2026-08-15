@@ -235,6 +235,43 @@ func (q *Queries) InsertLikeNotification(ctx context.Context, arg InsertLikeNoti
 	return err
 }
 
+const insertMediaArticlePublishedFanout = `-- name: InsertMediaArticlePublishedFanout :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publicationId")
+SELECT gen_random_uuid()::text,
+       f."readerId",
+       $1,
+       'MEDIA_ARTICLE_PUBLISHED',
+       $2,
+       f."publicationId"
+FROM "Follows" f
+JOIN "Publication" pub ON pub.id = f."publicationId"
+LEFT JOIN "NotificationPreference" np ON np."userId" = f."readerId"
+WHERE f."publicationId" = $3
+  AND pub.type = 'MEDIA'
+  AND f."readerId" <> $1
+  AND (COALESCE(np."emailMedia", true) OR COALESCE(np."pushMedia", true))
+  AND NOT EXISTS (
+    SELECT 1 FROM "Notification" n
+    WHERE n."recipientId" = f."readerId"
+      AND n."senderId" = $1
+      AND n.type = 'MEDIA_ARTICLE_PUBLISHED'
+      AND n."articleId" = $2
+      AND n."isRead" = false
+  )
+LIMIT 500
+`
+
+type InsertMediaArticlePublishedFanoutParams struct {
+	SenderID      pgtype.UUID `json:"sender_id"`
+	ArticleID     pgtype.Text `json:"article_id"`
+	PublicationID string      `json:"publication_id"`
+}
+
+func (q *Queries) InsertMediaArticlePublishedFanout(ctx context.Context, arg InsertMediaArticlePublishedFanoutParams) error {
+	_, err := q.db.Exec(ctx, insertMediaArticlePublishedFanout, arg.SenderID, arg.ArticleID, arg.PublicationID)
+	return err
+}
+
 const insertRepostNotification = `-- name: InsertRepostNotification :exec
 INSERT INTO "Notification" (id, "recipientId", "senderId", type, "thoughtId")
 VALUES (gen_random_uuid()::text, $1, $2, 'REPOST', $3)
