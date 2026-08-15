@@ -11,6 +11,8 @@ import (
 )
 
 type Querier interface {
+	CheckArticleSlugExists(ctx context.Context, arg CheckArticleSlugExistsParams) (bool, error)
+	CheckCategorySlugExists(ctx context.Context, arg CheckCategorySlugExistsParams) (bool, error)
 	CheckSubdomainExists(ctx context.Context, subdomain pgtype.Text) (bool, error)
 	CompleteOnboardingUser(ctx context.Context, arg CompleteOnboardingUserParams) error
 	CountFollowers(ctx context.Context, publicationid string) (int32, error)
@@ -22,6 +24,7 @@ type Querier interface {
 	CountPureReposts(ctx context.Context, arg CountPureRepostsParams) (int32, error)
 	CreateArticle(ctx context.Context, arg CreateArticleParams) (string, error)
 	CreateAttachment(ctx context.Context, arg CreateAttachmentParams) (string, error)
+	CreateCategory(ctx context.Context, arg CreateCategoryParams) (Category, error)
 	CreatePersonalPublication(ctx context.Context, arg CreatePersonalPublicationParams) (string, error)
 	CreatePoll(ctx context.Context, arg CreatePollParams) (CreatePollRow, error)
 	CreatePollOption(ctx context.Context, arg CreatePollOptionParams) (string, error)
@@ -36,6 +39,7 @@ type Querier interface {
 	DeleteArticle(ctx context.Context, id string) error
 	DeleteArticleComment(ctx context.Context, id string) error
 	DeleteBookmark(ctx context.Context, arg DeleteBookmarkParams) error
+	DeleteCategory(ctx context.Context, id string) error
 	DeleteFollow(ctx context.Context, arg DeleteFollowParams) error
 	DeleteFollowNotification(ctx context.Context, arg DeleteFollowNotificationParams) error
 	DeleteLike(ctx context.Context, arg DeleteLikeParams) error
@@ -66,6 +70,8 @@ type Querier interface {
 	GetAttachmentsByIDs(ctx context.Context, dollar_1 []string) ([]GetAttachmentsByIDsRow, error)
 	GetAudienceSummary(ctx context.Context, publicationid string) (GetAudienceSummaryRow, error)
 	GetCanonicalThoughtID(ctx context.Context, id string) (string, error)
+	// Catégories d'articles (éditeur dashboard).
+	GetCategoryByID(ctx context.Context, id string) (Category, error)
 	GetCommentParentAuthor(ctx context.Context, id string) (string, error)
 	GetCommentPrefs(ctx context.Context, userid pgtype.UUID) (GetCommentPrefsRow, error)
 	GetCommentWithAuthor(ctx context.Context, id string) (GetCommentWithAuthorRow, error)
@@ -99,7 +105,7 @@ type Querier interface {
 	GetPublicationByID(ctx context.Context, id string) (string, error)
 	GetPublicationBySlugOrSubdomain(ctx context.Context, slug string) (GetPublicationBySlugOrSubdomainRow, error)
 	GetPublicationOwner(ctx context.Context, id string) (string, error)
-	GetPublicationTypeByID(ctx context.Context, id string) (PublicationType, error)
+	GetPublicationTypeByID(ctx context.Context, id string) (GetPublicationTypeByIDRow, error)
 	GetRecentArticlesForAnalytics(ctx context.Context, arg GetRecentArticlesForAnalyticsParams) ([]GetRecentArticlesForAnalyticsRow, error)
 	GetRecentThoughtsForAnalytics(ctx context.Context, arg GetRecentThoughtsForAnalyticsParams) ([]GetRecentThoughtsForAnalyticsRow, error)
 	GetRepliesForThought(ctx context.Context, arg GetRepliesForThoughtParams) ([]GetRepliesForThoughtRow, error)
@@ -135,6 +141,7 @@ type Querier interface {
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
 	InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error
 	InsertMediaArticlePublishedFanout(ctx context.Context, arg InsertMediaArticlePublishedFanoutParams) error
+	InsertMediaArticleSubmittedFanout(ctx context.Context, arg InsertMediaArticleSubmittedFanoutParams) error
 	InsertMentionNotification(ctx context.Context, arg InsertMentionNotificationParams) error
 	InsertNavigationItem(ctx context.Context, arg InsertNavigationItemParams) error
 	InsertPureRepost(ctx context.Context, arg InsertPureRepostParams) (string, error)
@@ -145,6 +152,7 @@ type Querier interface {
 	LinkUserPublication(ctx context.Context, arg LinkUserPublicationParams) error
 	ListArticleComments(ctx context.Context, articleid string) ([]ListArticleCommentsRow, error)
 	ListArticlesByPublication(ctx context.Context, arg ListArticlesByPublicationParams) ([]ListArticlesByPublicationRow, error)
+	ListArticlesWithCategory(ctx context.Context, arg ListArticlesWithCategoryParams) ([]ListArticlesWithCategoryRow, error)
 	ListCategoriesByPublication(ctx context.Context, publicationid string) ([]ListCategoriesByPublicationRow, error)
 	ListWebhookDeliveries(ctx context.Context, webhookid string) ([]ListWebhookDeliveriesRow, error)
 	ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error)
@@ -154,6 +162,8 @@ type Querier interface {
 	SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error
 	UpdateApiKeyLastUsed(ctx context.Context, id string) error
 	UpdateArticleContent(ctx context.Context, arg UpdateArticleContentParams) (string, error)
+	UpdateArticleFull(ctx context.Context, arg UpdateArticleFullParams) (string, error)
+	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) error
 	UpdatePersonalPublication(ctx context.Context, arg UpdatePersonalPublicationParams) error
 	UpdatePublicationSubdomain(ctx context.Context, arg UpdatePublicationSubdomainParams) error
 	UpdateUserOnboardingText(ctx context.Context, arg UpdateUserOnboardingTextParams) error

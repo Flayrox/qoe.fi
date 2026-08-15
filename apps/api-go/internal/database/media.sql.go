@@ -52,12 +52,17 @@ func (q *Queries) GetMediaMemberContext(ctx context.Context, arg GetMediaMemberC
 }
 
 const getPublicationTypeByID = `-- name: GetPublicationTypeByID :one
-SELECT type FROM "Publication" WHERE id = $1
+SELECT type, name FROM "Publication" WHERE id = $1
 `
 
-func (q *Queries) GetPublicationTypeByID(ctx context.Context, id string) (PublicationType, error) {
+type GetPublicationTypeByIDRow struct {
+	Type PublicationType `json:"type"`
+	Name string          `json:"name"`
+}
+
+func (q *Queries) GetPublicationTypeByID(ctx context.Context, id string) (GetPublicationTypeByIDRow, error) {
 	row := q.db.QueryRow(ctx, getPublicationTypeByID, id)
-	var type_ PublicationType
-	err := row.Scan(&type_)
-	return type_, err
+	var i GetPublicationTypeByIDRow
+	err := row.Scan(&i.Type, &i.Name)
+	return i, err
 }

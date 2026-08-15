@@ -12,4 +12,4 @@ WHERE md."publicationId" = $1 AND m."userId" = $2
 LIMIT 1;
 
 -- name: GetPublicationTypeByID :one
-SELECT type FROM "Publication" WHERE id = $1;
+SELECT type, name FROM "Publication" WHERE id = $1;
