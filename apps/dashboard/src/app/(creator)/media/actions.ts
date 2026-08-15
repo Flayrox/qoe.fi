@@ -3,10 +3,36 @@
 import { createClient as createServerClient } from '@qoe/supabase/server';
 import { prisma, type Prisma } from '@qoe/db/client';
 import { notifications } from '@qoe/db';
+import { goFetch, isGoEnabled } from '@qoe/api-client/actions/utils/go-client';
 import { logger } from '@qoe/observability';
 import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
 import { MEDIA_ROLES, canMedia } from '@qoe/auth';
+
+/**
+ * 🔔 Notifie via le backend Go quand il est actif (dédup + prefs gérés en
+ * SQL par InsertMediaInviteNotification / InsertMediaMemberJoinedNotification),
+ * sinon via le repo Prisma (fallback). Le sender est toujours l'utilisateur
+ * authentifié côté Go.
+ */
+async function createMediaNotification(opts: {
+  recipientId: string;
+  senderId: string;
+  type: 'MEDIA_INVITE' | 'MEDIA_MEMBER_JOINED';
+  publicationId: string;
+}) {
+  if (isGoEnabled()) {
+    const path =
+      opts.type === 'MEDIA_INVITE'
+        ? '/v1/notifications/media-invite'
+        : '/v1/notifications/media-member-joined';
+    return goFetch<{ success: boolean }>(path, {
+      method: 'POST',
+      body: { recipientId: opts.recipientId, publicationId: opts.publicationId },
+    });
+  }
+  return notifications.createNotification(opts);
+}
 
 async function getAuthenticatedUser() {
   const supabase = await createServerClient();
@@ -317,14 +343,12 @@ export async function inviteMediaMemberAction(
         include: { publication: { select: { id: true, name: true } } },
       });
       if (media) {
-        await notifications
-          .createNotification({
-            recipientId: targetUser.id,
-            senderId: user.id,
-            type: 'MEDIA_INVITE',
-            publicationId: media.publication.id,
-          })
-          .catch((err: unknown) => logger.error('Erreur notification invite média', { err }));
+        await createMediaNotification({
+          recipientId: targetUser.id,
+          senderId: user.id,
+          type: 'MEDIA_INVITE',
+          publicationId: media.publication.id,
+        }).catch((err: unknown) => logger.error('Erreur notification invite média', { err }));
       }
     }
 
@@ -390,14 +414,12 @@ export async function acceptMediaInviteAction(token: string) {
         include: { publication: { select: { id: true, name: true } } },
       });
       if (media) {
-        await notifications
-          .createNotification({
-            recipientId: invite.inviterId,
-            senderId: user.id,
-            type: 'MEDIA_MEMBER_JOINED',
-            publicationId: media.publication.id,
-          })
-          .catch((err: unknown) => logger.error('Erreur notification member joined', { err }));
+        await createMediaNotification({
+          recipientId: invite.inviterId,
+          senderId: user.id,
+          type: 'MEDIA_MEMBER_JOINED',
+          publicationId: media.publication.id,
+        }).catch((err: unknown) => logger.error('Erreur notification member joined', { err }));
       }
     }
 
