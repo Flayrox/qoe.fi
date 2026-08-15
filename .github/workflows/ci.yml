@@ -30,8 +30,12 @@ jobs:
         run: |
           echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
+      # Le cache est un accélérateur, pas une exigence : le service de cache
+      # GitHub est parfois instable (2 runs parallèles → même clé → blocage).
+      # continue-on-error évite qu'une panne d'infra fasse échouer la CI.
       - name: Setup pnpm cache
         uses: actions/cache@v4
+        continue-on-error: true
         with:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
