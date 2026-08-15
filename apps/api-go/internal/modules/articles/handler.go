@@ -23,6 +23,7 @@ func NewHandler(svc *Service) *Handler {
 // RegisterPublic enregistre la lecture publique (auth optionnelle) — hors auth.
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/articles/{slug}", h.getBySlug)
+	r.Get("/v1/articles/{id}/comments", h.listComments)
 }
 
 // RegisterProtected enregistre les routes créateur (auth requise).
@@ -33,6 +34,8 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 		r.Patch("/{id}", h.update)
 		r.Post("/{id}/publish", h.publish)
 		r.Delete("/{id}", h.delete)
+		r.Post("/{id}/comments", h.createComment)
+		r.Delete("/comments/{commentId}", h.deleteComment)
 	})
 }
 
@@ -170,4 +173,69 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]bool{"deleted": true})
+}
+
+// GET /v1/articles/{id}/comments — liste publique des commentaires.
+func (h *Handler) listComments(w http.ResponseWriter, r *http.Request) {
+	articleID := chi.URLParam(r, "id")
+	comments, err := h.svc.ListComments(r.Context(), articleID)
+	if err != nil {
+		log.Printf("[articles] listComments: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, comments)
+}
+
+type createCommentInput struct {
+	Content  string  `json:"content"`
+	ParentID *string `json:"parentId"`
+}
+
+// POST /v1/articles/{id}/comments — crée un commentaire (auth requise).
+func (h *Handler) createComment(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	articleID := chi.URLParam(r, "id")
+	var in createCommentInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if in.Content == "" {
+		response.BadRequest(w, "content requis")
+		return
+	}
+	comment, err := h.svc.CreateComment(r.Context(), articleID, userID, in.Content, in.ParentID)
+	if err != nil {
+		switch {
+		case errors.Is(err, errNotFound):
+			response.NotFound(w, "Article introuvable")
+		case errors.Is(err, errCommentsDisabled):
+			response.Forbidden(w, err.Error())
+		default:
+			log.Printf("[articles] createComment: %v", err)
+			response.Internal(w)
+		}
+		return
+	}
+	response.Created(w, comment)
+}
+
+// DELETE /v1/articles/comments/{commentId} — supprime son commentaire (auth requise).
+func (h *Handler) deleteComment(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	commentID := chi.URLParam(r, "commentId")
+	if err := h.svc.DeleteComment(r.Context(), commentID, userID); err != nil {
+		switch {
+		case errors.Is(err, errNotFound):
+			response.NotFound(w, "Commentaire introuvable")
+		case errors.Is(err, errForbidden):
+			response.Forbidden(w, err.Error())
+		default:
+			log.Printf("[articles] deleteComment: %v", err)
+			response.Internal(w)
+		}
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
 }

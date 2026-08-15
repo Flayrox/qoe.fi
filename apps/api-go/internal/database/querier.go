@@ -29,6 +29,7 @@ type Querier interface {
 	DecrementReplyCount(ctx context.Context, id string) error
 	DecrementRepostCount(ctx context.Context, id string) error
 	DeleteArticle(ctx context.Context, id string) error
+	DeleteArticleComment(ctx context.Context, id string) error
 	DeleteBookmark(ctx context.Context, arg DeleteBookmarkParams) error
 	DeleteFollow(ctx context.Context, arg DeleteFollowParams) error
 	DeleteFollowNotification(ctx context.Context, arg DeleteFollowNotificationParams) error
@@ -36,6 +37,7 @@ type Querier interface {
 	DeleteLikeNotification(ctx context.Context, arg DeleteLikeNotificationParams) error
 	DeletePureReposts(ctx context.Context, arg DeletePureRepostsParams) error
 	DeleteRepostNotification(ctx context.Context, arg DeleteRepostNotificationParams) error
+	ExistsUnreadCommentNotification(ctx context.Context, arg ExistsUnreadCommentNotificationParams) (int32, error)
 	ExistsUnreadFollowNotification(ctx context.Context, arg ExistsUnreadFollowNotificationParams) (int32, error)
 	ExistsUnreadLikeNotification(ctx context.Context, arg ExistsUnreadLikeNotificationParams) (int32, error)
 	ExistsUnreadMentionNotification(ctx context.Context, arg ExistsUnreadMentionNotificationParams) (int32, error)
@@ -50,10 +52,15 @@ type Querier interface {
 	GetApiKeyByHash(ctx context.Context, keyhash string) (GetApiKeyByHashRow, error)
 	GetArticleByID(ctx context.Context, id string) (GetArticleByIDRow, error)
 	GetArticleBySlug(ctx context.Context, arg GetArticleBySlugParams) (GetArticleBySlugRow, error)
+	GetArticleCommentAuthor(ctx context.Context, id string) (string, error)
+	GetArticleCommentsConfig(ctx context.Context, id string) (GetArticleCommentsConfigRow, error)
 	GetArticleForSearch(ctx context.Context, id string) (GetArticleForSearchRow, error)
 	GetAttachmentsByIDs(ctx context.Context, dollar_1 []string) ([]GetAttachmentsByIDsRow, error)
 	GetAudienceSummary(ctx context.Context, publicationid string) (GetAudienceSummaryRow, error)
 	GetCanonicalThoughtID(ctx context.Context, id string) (string, error)
+	GetCommentParentAuthor(ctx context.Context, id string) (string, error)
+	GetCommentPrefs(ctx context.Context, userid pgtype.UUID) (GetCommentPrefsRow, error)
+	GetCommentWithAuthor(ctx context.Context, id string) (GetCommentWithAuthorRow, error)
 	GetExistingBookmark(ctx context.Context, arg GetExistingBookmarkParams) (int32, error)
 	GetExistingFollow(ctx context.Context, arg GetExistingFollowParams) (int32, error)
 	GetExistingLike(ctx context.Context, arg GetExistingLikeParams) (int32, error)
@@ -104,7 +111,9 @@ type Querier interface {
 	IncrementReplyCount(ctx context.Context, id string) error
 	IncrementRepostCount(ctx context.Context, id string) error
 	IncrementWalletBalance(ctx context.Context, arg IncrementWalletBalanceParams) error
+	InsertArticleComment(ctx context.Context, arg InsertArticleCommentParams) (InsertArticleCommentRow, error)
 	InsertBookmark(ctx context.Context, arg InsertBookmarkParams) error
+	InsertCommentNotification(ctx context.Context, arg InsertCommentNotificationParams) error
 	InsertFollow(ctx context.Context, arg InsertFollowParams) error
 	InsertFollowNotification(ctx context.Context, arg InsertFollowNotificationParams) error
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
@@ -114,6 +123,7 @@ type Querier interface {
 	InsertPureRepost(ctx context.Context, arg InsertPureRepostParams) (string, error)
 	InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error
 	InsertRepostNotification(ctx context.Context, arg InsertRepostNotificationParams) error
+	ListArticleComments(ctx context.Context, articleid string) ([]ListArticleCommentsRow, error)
 	ListArticlesByPublication(ctx context.Context, arg ListArticlesByPublicationParams) ([]ListArticlesByPublicationRow, error)
 	ListCategoriesByPublication(ctx context.Context, publicationid string) ([]ListCategoriesByPublicationRow, error)
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error

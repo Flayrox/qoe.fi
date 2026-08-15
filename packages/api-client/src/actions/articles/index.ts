@@ -9,7 +9,7 @@ import { publications, notifications, articleComments } from '@qoe/db';
 import { canMedia, canEditMediaArticle, type MediaMemberContext } from '@qoe/auth';
 import { eventBus } from '@qoe/workers/events';
 import { safeAction } from '../utils/safe-action';
-import { GO_API_URL, isGoEnabled } from '../utils/go-client';
+import { GO_API_URL, isGoEnabled, goFetch } from '../utils/go-client';
 
 /** 📣 Publie l'événement de domaine article.published (newsletter + webhooks). */
 async function emitArticlePublished(
@@ -568,17 +568,26 @@ export const deleteCategoryAction = safeAction<string, { success: boolean }>(asy
   return { success: true };
 });
 
+type ArticleCommentPayload = Prisma.ArticleCommentGetPayload<{
+  include: {
+    author: {
+      select: { id: true; name: true; username: true; logoUrl: true; isCertified: true };
+    };
+  };
+}>;
+
 export const postArticleCommentAction = safeAction<
   { articleId: string; content: string; parentId?: string | null },
-  Prisma.ArticleCommentGetPayload<{
-    include: {
-      author: {
-        select: { id: true; name: true; username: true; logoUrl: true; isCertified: true };
-      };
-    };
-  }>
+  ArticleCommentPayload
 >(async (data, user) => {
   const { articleId, content, parentId } = data;
+  // 🔗 Proxy Go : création + notification COMMENT déléguées au backend Go.
+  if (isGoEnabled()) {
+    return goFetch<ArticleCommentPayload>(`/v1/articles/${articleId}/comments`, {
+      method: 'POST',
+      body: { content, parentId: parentId || null },
+    });
+  }
   const comment = await articleComments.createArticleComment({
     articleId,
     authorId: user.id,
@@ -590,6 +599,12 @@ export const postArticleCommentAction = safeAction<
 
 export const deleteArticleCommentAction = safeAction<string, { success: boolean }>(
   async (commentId, user) => {
+    if (isGoEnabled()) {
+      await goFetch<{ success: boolean }>(`/v1/articles/comments/${commentId}`, {
+        method: 'DELETE',
+      });
+      return { success: true };
+    }
     const comment = await prisma.articleComment.findUnique({ where: { id: commentId } });
     if (!comment) throw new Error('COMMENT_NOT_FOUND');
     if (comment.authorId !== user.id) throw new Error('UNAUTHORIZED');
@@ -599,17 +614,11 @@ export const deleteArticleCommentAction = safeAction<string, { success: boolean 
   }
 );
 
-export const getArticleCommentsAction = safeAction<
-  string,
-  Prisma.ArticleCommentGetPayload<{
-    include: {
-      author: {
-        select: { id: true; name: true; username: true; logoUrl: true; isCertified: true };
-      };
-    };
-  }>[]
->(
+export const getArticleCommentsAction = safeAction<string, ArticleCommentPayload[]>(
   async (articleId) => {
+    if (isGoEnabled()) {
+      return goFetch<ArticleCommentPayload[]>(`/v1/articles/${articleId}/comments`);
+    }
     return prisma.articleComment.findMany({
       where: { articleId },
       include: {

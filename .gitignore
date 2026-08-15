@@ -112,3 +112,6 @@ blob-report/
 
 # ─── Freebuff (agent desktop artifacts) ────────────────────
 .freebuff/
+
+# ─── Secrets de déploiement (NE PAS committer) ─────────────
+.env.docker
