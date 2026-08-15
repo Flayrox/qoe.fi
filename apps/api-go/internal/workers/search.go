@@ -24,20 +24,28 @@ import (
 
 const searchIndex = "articles"
 
+// documentSyncer est la surface minimale de Meilisearch utilisée par le
+// worker (upsert/delete). Interface étroite → mockable en test.
+type documentSyncer interface {
+	DeleteDocument(identifier string, opts *meilisearch.DocumentOptions) (*meilisearch.TaskInfo, error)
+	AddDocuments(documentsPtr interface{}, opts *meilisearch.DocumentOptions) (*meilisearch.TaskInfo, error)
+}
+
 // SearchWorker synchronise les articles vers Meilisearch.
 type SearchWorker struct {
-	pool   *pgxpool.Pool
-	q      *db.Queries
-	client meilisearch.ServiceManager
+	pool *pgxpool.Pool
+	q    *db.Queries
+	// idx est le client d'index réel ; overrideable en test via newTestSearchWorker.
+	idx documentSyncer
 }
 
 func NewSearchWorker(pool *pgxpool.Pool) *SearchWorker {
 	host := envOr("MEILISEARCH_HOST", "http://localhost:7700")
 	key := envOr("MEILI_MASTER_KEY", "qoe_master_key_123")
 	return &SearchWorker{
-		pool:   pool,
-		q:      db.New(pool),
-		client: meilisearch.New(host, meilisearch.WithAPIKey(key)),
+		pool: pool,
+		q:    db.New(pool),
+		idx:  meilisearch.New(host, meilisearch.WithAPIKey(key)).Index(searchIndex),
 	}
 }
 
@@ -122,10 +130,8 @@ func (s *SearchWorker) HandleSearchSync(ctx context.Context, t *asynq.Task) erro
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
 		return err
 	}
-	index := s.client.Index(searchIndex)
-
 	if p.Action == "delete" || p.Action == "" {
-		if _, err := index.DeleteDocument(p.ArticleID, nil); err != nil {
+		if _, err := s.idx.DeleteDocument(p.ArticleID, nil); err != nil {
 			return err
 		}
 		log.Printf("[search] document supprimé %s", p.ArticleID)
@@ -135,7 +141,7 @@ func (s *SearchWorker) HandleSearchSync(ctx context.Context, t *asynq.Task) erro
 	article, err := s.q.GetArticleForSearch(ctx, p.ArticleID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			_, _ = index.DeleteDocument(p.ArticleID, nil)
+			_, _ = s.idx.DeleteDocument(p.ArticleID, nil)
 			return nil
 		}
 		return err
@@ -155,7 +161,7 @@ func (s *SearchWorker) HandleSearchSync(ctx context.Context, t *asynq.Task) erro
 		"createdAt":      article.CreatedAt.Time.UnixMilli(),
 		"updatedAt":      article.UpdatedAt.Time.UnixMilli(),
 	}
-	if _, err := index.AddDocuments([]any{doc}, nil); err != nil {
+	if _, err := s.idx.AddDocuments([]any{doc}, nil); err != nil {
 		return err
 	}
 	log.Printf("[search] document upserté %s", p.ArticleID)
