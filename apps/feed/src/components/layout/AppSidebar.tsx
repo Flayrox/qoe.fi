@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { Sidebar } from '@qoe/ui/sidebar';
 import { Logo } from '@qoe/ui';
 import { useUnreadNotificationCount } from '@qoe/ui/notifications';
@@ -23,6 +24,9 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const userFallback = userName.slice(0, 2).toUpperCase();
   const unreadCount = useUnreadNotificationCount();
+  const pathname = usePathname();
+  // 🔕 Pas de badge tant qu'on est sur la page notifications
+  const isOnNotificationsPage = pathname.startsWith('/notifications');
 
   const menuItems = [
     {
@@ -39,7 +43,7 @@ export function AppSidebar({
       title: t`Notifications`,
       url: '/notifications',
       iconName: 'Bell',
-      badge: unreadCount > 0 ? unreadCount : undefined,
+      badge: !isOnNotificationsPage && unreadCount > 0 ? unreadCount : undefined,
     },
     {
       title: t`Starter Packs`,
