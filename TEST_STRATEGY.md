@@ -23,13 +23,13 @@
 
 ## 📊 État actuel (audit août 2026)
 
-| Couche                          | Nombre | Couverture réelle          | Verdict                |
-| ------------------------------- | ------ | -------------------------- | ---------------------- |
-| Go — unitaires + golden         | ~18    | contrats, scopes, webhooks | ✅ bon socle           |
-| Go — intégration (vraie DB)     | **0**  | requêtes sqlc, RBAC réel   | ❌ **le trou principal** |
-| TS — unitaires (vitest)         | ~47    | db, ui, config             | ✅ correct             |
-| TS — e2e (Playwright)           | ?      | smoke + parcours clés      | ⚠️ à étoffer           |
-| Go — worker (asynq → HTTP)      | **0**  | livraison HMAC, retries    | ❌ manquant            |
+| Couche                          | Nombre | Couverture réelle                  | Verdict                |
+| ------------------------------- | ------ | ---------------------------------- | ---------------------- |
+| Go — unitaires + golden         | ~18    | contrats, scopes, webhooks         | ✅ bon socle           |
+| Go — intégration (vraie DB)     | 6      | articles (filtres, pagination, 404)| 🚧 articles OK, reste webhooks/settings/feed |
+| TS — unitaires (vitest)         | ~47    | db, ui, config                     | ✅ correct             |
+| TS — e2e (Playwright)           | ?      | smoke + parcours clés              | ⚠️ à étoffer           |
+| Go — worker (asynq → HTTP)      | **0**  | livraison HMAC, retries            | ❌ manquant            |
 
 ---
 
