@@ -7,7 +7,14 @@ import { revalidatePath } from 'next/cache';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import { goFetch, isGoEnabled } from '@qoe/api-client/actions/utils/go-client';
 
-const WEBHOOK_EVENTS = ['article.published', 'subscriber.created'] as const;
+// Aligné sur ValidWebhookEvents (apps/api-go/internal/modules/webhooks/service.go).
+// `article.scheduled` existe côté Go mais n'est encore émis par aucun flux.
+const WEBHOOK_EVENTS = [
+  'article.published',
+  'article.updated',
+  'article.deleted',
+  'subscriber.created',
+] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
 async function getAuthenticatedUser() {
@@ -67,6 +74,62 @@ function toWebhookDto(webhook: {
     deliveries: webhook.deliveries.slice(0, 5),
     lastDelivery: webhook.deliveries[0] ?? null,
   };
+}
+
+export interface WebhookDeliveryLog {
+  id: string;
+  status: string;
+  httpStatus: number | null;
+  event: string;
+  responseBody?: string | null;
+  attempts?: number;
+  createdAt: string | Date;
+}
+
+/** 📜 Logs de livraison détaillés d'un webhook (via GET /v1/webhooks/{id}/deliveries en Go). */
+export async function listWebhookDeliveriesAction(webhookId: string) {
+  const user = await getAuthenticatedUser();
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
+
+  const workspace = await getActiveWorkspace(user.id);
+
+  if (isGoEnabled()) {
+    try {
+      const deliveries = await goFetch<WebhookDeliveryLog[]>(
+        `/v1/webhooks/${webhookId}/deliveries?publicationId=${encodeURIComponent(
+          workspace.publicationId
+        )}&limit=50`
+      );
+      return { success: true as const, deliveries };
+    } catch (err) {
+      return {
+        success: false as const,
+        error: err instanceof Error ? err.message : 'Erreur serveur',
+      };
+    }
+  }
+
+  const webhook = await prisma.webhook.findUnique({ where: { id: webhookId } });
+  if (!webhook || webhook.publicationId !== workspace.publicationId) {
+    return { success: false as const, error: 'Webhook introuvable' };
+  }
+
+  const deliveries = await prisma.webhookDelivery.findMany({
+    where: { webhookId },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+    select: {
+      id: true,
+      status: true,
+      httpStatus: true,
+      event: true,
+      responseBody: true,
+      attempts: true,
+      createdAt: true,
+    },
+  });
+  return { success: true as const, deliveries };
 }
 
 export async function listWebhooksAction() {
