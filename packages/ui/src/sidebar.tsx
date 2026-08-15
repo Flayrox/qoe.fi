@@ -389,6 +389,8 @@ export function Sidebar({
                     </span>
                   )}
                 </Link>
+                {/* Bascule clair/sombre toujours visible (Soleil/Lune) */}
+                <ThemeToggle />
               </SidebarHeader>
 
               {/* ── OPTIONAL SEARCH BAR ── */}
