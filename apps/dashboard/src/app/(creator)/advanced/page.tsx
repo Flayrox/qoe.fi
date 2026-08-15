@@ -37,6 +37,7 @@ export default function CreatorAdvancedPage() {
   const [inviteArticleId, setInviteArticleId] = useState('');
   const [sendingInvite, setSendingInvite] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [profileVisibility, setProfileVisibility] = useState<Record<string, boolean>>({});
 
   // Media Creation State
   const [mediaName, setMediaName] = useState('');
@@ -149,9 +150,9 @@ export default function CreatorAdvancedPage() {
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">Demandes Reçues</h2>
+              <h2 className="text-xl font-bold">Demandes Reçues</h2>{' '}
               <p className="text-xs text-muted-foreground">
-                Invitations de co-rédaction reçues d'autres auteurs
+                Vous gardez le contrôle de votre consentement et de votre visibilité publique.
               </p>
             </div>
           </div>
@@ -196,8 +197,24 @@ export default function CreatorAdvancedPage() {
 
                   {req.status === 'PENDING' && (
                     <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/20">
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={profileVisibility[req.id] ?? true}
+                          onChange={(event) =>
+                            setProfileVisibility((current) => ({
+                              ...current,
+                              [req.id]: event.target.checked,
+                            }))
+                          }
+                          className="h-3.5 w-3.5 accent-primary"
+                        />
+                        Afficher sur mon profil
+                      </label>
                       <button
-                        onClick={() => handleRespond(req.id, true, true)}
+                        onClick={() =>
+                          handleRespond(req.id, true, profileVisibility[req.id] ?? true)
+                        }
                         className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-all cursor-pointer flex items-center gap-1.5"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />

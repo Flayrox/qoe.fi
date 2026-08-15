@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { safeAction } from '../utils/safe-action';
 import { goFetch, isGoEnabled } from '../utils/go-client';
 
-export type NotificationFilter = 'all' | 'mentions' | 'replies' | 'likes';
+export type NotificationFilter = 'all' | 'mentions' | 'replies' | 'likes' | 'collaborations';
 
 export const getNotificationsAction = safeAction<
   { filter?: NotificationFilter; limit?: number; cursor?: string },
@@ -85,6 +85,8 @@ export const updateNotificationPreferencesAction = safeAction<
     pushComments: boolean;
     emailMedia: boolean;
     pushMedia: boolean;
+    emailCollaborations: boolean;
+    pushCollaborations: boolean;
   }>,
   { preferences: Awaited<ReturnType<typeof notifications.updatePreferences>> }
 >(async (input, user) => {

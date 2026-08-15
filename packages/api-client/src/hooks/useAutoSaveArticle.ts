@@ -12,6 +12,12 @@ export interface AutoSavePayload {
   categoryId?: string | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
+  attributions?: Array<{
+    userId: string;
+    role?: string;
+    order?: number;
+    isVisible?: boolean;
+  }>;
 }
 
 export interface UseAutoSaveArticleOptions {

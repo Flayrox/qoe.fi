@@ -74,6 +74,7 @@ model User {
   // Relations
   articles           Article[]          @relation("PrimaryAuthor")
   coAuthoredArticles Article[]          @relation("CoAuthors")
+  articleAttributions ArticleAttribution[] @relation("UserArticleAttributions")
   userSubscriptions  Subscriber[]       @relation("UserSubscriptions")
   following          Follows[]          @relation("ReaderFollowing")
   bookmarks          Bookmark[]
@@ -351,6 +352,8 @@ model Article {
   title                  String
   slug                   String
   content                String            @db.Text
+  // Image de couverture dédiée à la carte du feed (indépendante des images inline)
+  imageUrl               String?           @db.Text
   published              Boolean           @default(false)
   isPremium              Boolean           @default(false)
   visibility             ContentVisibility @default(PUBLIC)
@@ -374,6 +377,7 @@ model Article {
   author   User   @relation("PrimaryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 
   coAuthors User[] @relation("CoAuthors")
+  attributions ArticleAttribution[] @relation("ArticleAttributions")
 
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -405,6 +409,27 @@ model Article {
   @@index([published, createdAt])
   @@index([categoryId])
   @@index([status, scheduledAt])
+}
+
+model ArticleAttribution {
+  id        String  @id @default(cuid())
+  articleId String
+  article   Article @relation("ArticleAttributions", fields: [articleId], references: [id], onDelete: Cascade)
+  userId    String  @db.Uuid
+  user      User    @relation("UserArticleAttributions", fields: [userId], references: [id], onDelete: Cascade)
+  role      String  @default("CO_AUTHOR") // PRIMARY_AUTHOR | CO_AUTHOR | EDITOR | CONTRIBUTOR | TRANSLATOR | PHOTOGRAPHER
+  order     Int     @default(0)
+  isVisible       Boolean  @default(true)
+  // PENDING/ACCEPTED/DECLINED/WITHDRAWN/REVOKED — public byline requires ACCEPTED.
+  consentStatus   String   @default("ACCEPTED")
+  consentUpdatedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([articleId, userId])
+  @@index([articleId, order])
+  @@index([articleId, consentStatus, isVisible])
+  @@index([userId])
 }
 
 model Publication {
@@ -537,8 +562,11 @@ model CollaborationRequest {
   inviter             User     @relation("SentCollaborationRequests", fields: [inviterId], references: [id], onDelete: Cascade)
   inviteeId           String   @db.Uuid
   invitee             User     @relation("ReceivedCollaborationRequests", fields: [inviteeId], references: [id], onDelete: Cascade)
-  status              String   @default("PENDING") // "PENDING", "ACCEPTED", "DECLINED"
+  status              String   @default("PENDING") // "PENDING", "ACCEPTED", "DECLINED", "REVOKED"
+  requestedRole       String   @default("CO_AUTHOR")
+  requestedOrder      Int      @default(1)
   showOnPublicProfile Boolean  @default(true)
+  acceptedAt          DateTime?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -740,6 +768,10 @@ enum NotificationType {
   MEDIA_MEMBER_JOINED
   MEDIA_ARTICLE_PUBLISHED
   MEDIA_ARTICLE_SUBMITTED
+  ARTICLE_CONTRIBUTOR_INVITED
+  ARTICLE_CONTRIBUTOR_ACCEPTED
+  ARTICLE_CONTRIBUTOR_DECLINED
+  ARTICLE_CONTRIBUTOR_REMOVED
 }
 
 model Notification {
@@ -784,8 +816,10 @@ model NotificationPreference {
   pushReposts   Boolean  @default(true)
   emailComments Boolean  @default(true)
   pushComments  Boolean  @default(true)
-  emailMedia    Boolean  @default(true)
-  pushMedia     Boolean  @default(true)
+  emailMedia          Boolean @default(true)
+  pushMedia           Boolean @default(true)
+  emailCollaborations Boolean @default(true)
+  pushCollaborations  Boolean @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

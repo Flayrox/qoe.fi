@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Editor } from '@/features/editor/components/Editor';
+import type { ArticleAttributionDraft } from '@/features/editor/components/ArticleAttributionEditor';
 import { saveArticleAction } from '@qoe/api-client/actions/articles';
 import type { EditorCapabilities } from '@qoe/api-client/actions/articles';
 
@@ -18,6 +19,7 @@ export function NewArticleClient({ categories, capabilities }: NewArticleClientP
   const handleSave = async (data: {
     title: string;
     content: string;
+    imageUrl: string | null;
     slug: string;
     published: boolean;
     status?: string;
@@ -25,6 +27,7 @@ export function NewArticleClient({ categories, capabilities }: NewArticleClientP
     categoryId: string | null;
     seoTitle: string | null;
     seoDescription: string | null;
+    attributions?: ArticleAttributionDraft[];
   }) => {
     try {
       const res = await saveArticleAction(data);

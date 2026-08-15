@@ -99,6 +99,29 @@ type ArticleWithDetails = Prisma.ArticleGetPayload<{
         isCertified: true;
       };
     };
+    coAuthors: {
+      select: {
+        id: true;
+        name: true;
+        username: true;
+        logoUrl: true;
+        isCertified: true;
+      };
+    };
+    attributions: {
+      orderBy: { order: 'asc' };
+      include: {
+        user: {
+          select: {
+            id: true;
+            name: true;
+            username: true;
+            logoUrl: true;
+            isCertified: true;
+          };
+        };
+      };
+    };
     category: { select: { name: true } };
   };
 }>;
@@ -242,14 +265,15 @@ export default async function ReaderHomePage() {
       heroText: string | null;
       isCertified: boolean;
     },
-    authorName?: string | null
+    authorName?: string | null,
+    authorLogoUrl?: string | null
   ) => ({
     id: pub.id,
     name: pub.name,
     username: pub.slug,
     subdomain: pub.subdomain,
     customDomain: pub.customDomain,
-    logoUrl: pub.logoUrl,
+    logoUrl: pub.type === 'PERSONAL' ? (authorLogoUrl ?? pub.logoUrl) : pub.logoUrl,
     heroText: pub.heroText ?? null,
     isCertified: pub.isCertified ?? false,
     type: pub.type,
@@ -360,7 +384,7 @@ export default async function ReaderHomePage() {
       : new Date(art.createdAt)
     ).toISOString(),
     author: {
-      ...mapPublicationToAuthor(art.publication, art.author?.name),
+      ...mapPublicationToAuthor(art.publication, art.author?.name, art.author?.logoUrl),
       journalist: art.author
         ? {
             id: art.author.id,
@@ -370,6 +394,36 @@ export default async function ReaderHomePage() {
             isCertified: art.author.isCertified,
           }
         : null,
+      coAuthors: art.coAuthors
+        .filter((coAuthor) => {
+          if (art.attributions.length === 0) return true;
+          return art.attributions.some(
+            (attribution) =>
+              attribution.user.id === coAuthor.id &&
+              attribution.consentStatus === 'ACCEPTED' &&
+              attribution.isVisible
+          );
+        })
+        .map((coAuthor) => ({
+          id: coAuthor.id,
+          name: coAuthor.name,
+          username: coAuthor.username,
+          logoUrl: coAuthor.logoUrl,
+          isCertified: coAuthor.isCertified,
+        })),
+      contributors: art.attributions
+        .filter((attribution) => attribution.consentStatus === 'ACCEPTED' && attribution.isVisible)
+        .map((attribution) => ({
+          id: attribution.user.id,
+          name: attribution.user.name,
+          username: attribution.user.username,
+          logoUrl: attribution.user.logoUrl,
+          isCertified: attribution.user.isCertified,
+          role: attribution.role,
+          order: attribution.order,
+          isVisible: attribution.isVisible,
+          consentStatus: attribution.consentStatus,
+        })),
     },
     tags: art.semanticTags || [],
   });
@@ -392,6 +446,29 @@ export default async function ReaderHomePage() {
                 username: true,
                 logoUrl: true,
                 isCertified: true,
+              },
+            },
+            coAuthors: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                logoUrl: true,
+                isCertified: true,
+              },
+            },
+            attributions: {
+              orderBy: { order: 'asc' as const },
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    username: true,
+                    logoUrl: true,
+                    isCertified: true,
+                  },
+                },
               },
             },
             category: { select: { name: true } },
@@ -441,6 +518,29 @@ export default async function ReaderHomePage() {
           username: true,
           logoUrl: true,
           isCertified: true,
+        },
+      },
+      coAuthors: {
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          logoUrl: true,
+          isCertified: true,
+        },
+      },
+      attributions: {
+        orderBy: { order: 'asc' as const },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              logoUrl: true,
+              isCertified: true,
+            },
+          },
         },
       },
       category: { select: { name: true } },
@@ -499,6 +599,29 @@ export default async function ReaderHomePage() {
           isCertified: true,
         },
       },
+      coAuthors: {
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          logoUrl: true,
+          isCertified: true,
+        },
+      },
+      attributions: {
+        orderBy: { order: 'asc' as const },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              logoUrl: true,
+              isCertified: true,
+            },
+          },
+        },
+      },
       category: { select: { name: true } },
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -545,6 +668,29 @@ export default async function ReaderHomePage() {
                   username: true,
                   logoUrl: true,
                   isCertified: true,
+                },
+              },
+              coAuthors: {
+                select: {
+                  id: true,
+                  name: true,
+                  username: true,
+                  logoUrl: true,
+                  isCertified: true,
+                },
+              },
+              attributions: {
+                orderBy: { order: 'asc' as const },
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      username: true,
+                      logoUrl: true,
+                      isCertified: true,
+                    },
+                  },
                 },
               },
               category: { select: { name: true } },
@@ -679,6 +825,7 @@ export default async function ReaderHomePage() {
     followedCreators: followedPublications.map((f) => mapPublicationToAuthor(f.publication)),
     suggestedCreators: suggestedCreators.map((s) => mapPublicationToAuthor(s)),
     initialFollowsCount: followsCount,
+    followedAuthorIds: followedUserIds,
     initialBookmarksCount: bookmarksCount,
     initialHighlightsCount: highlightsCount,
     mutedWords: mutedWordsList,

@@ -8,6 +8,7 @@ import { logger } from '@qoe/observability';
 
 export interface GroupedNotification {
   id: string;
+  notificationIds: string[];
   type: NotificationType;
   isRead: boolean;
   createdAt: Date;
@@ -61,23 +62,9 @@ export async function createNotification(data: {
   }
 
   try {
-    // Vérifier les préférences de notification du destinataire
-    const prefs = await getPreferences(data.recipientId);
-
-    // Filtrer selon le type
-    if (data.type === 'LIKE' && !prefs.pushLikes && !prefs.emailLikes) return null;
-    if (data.type === 'REPLY' && !prefs.pushReplies && !prefs.emailReplies) return null;
-    if (data.type === 'COMMENT' && !prefs.pushComments && !prefs.emailComments) return null;
-    if (data.type === 'MENTION' && !prefs.pushMentions && !prefs.emailMentions) return null;
-    if (data.type === 'FOLLOW' && !prefs.pushFollows && !prefs.emailFollows) return null;
-    if (data.type === 'REPOST' && !prefs.pushReposts && !prefs.emailReposts) return null;
-    if (
-      data.type === 'MEDIA_INVITE' ||
-      data.type === 'MEDIA_MEMBER_JOINED' ||
-      data.type === 'MEDIA_ARTICLE_PUBLISHED'
-    ) {
-      if (!prefs.pushMedia && !prefs.emailMedia) return null;
-    }
+    // Les préférences contrôlent les canaux email/push, pas le centre in-app.
+    // On conserve toujours l'événement ici afin qu'une invitation ou un refus ne soit
+    // jamais perdu simplement parce que l'utilisateur a désactivé les push.
 
     // Idempotence : éviter les doublons identiques non lus
     const existing = await prisma.notification.findFirst({
@@ -182,7 +169,7 @@ export async function deleteNotification(data: {
  */
 export async function getNotifications(
   recipientId: string,
-  filter: 'all' | 'mentions' | 'replies' | 'likes' = 'all',
+  filter: 'all' | 'mentions' | 'replies' | 'likes' | 'collaborations' = 'all',
   limit = 30,
   cursor?: string
 ): Promise<{ notifications: GroupedNotification[]; nextCursor: string | null }> {
@@ -194,6 +181,16 @@ export async function getNotifications(
     typeFilter = ['REPLY', 'COMMENT'];
   } else if (filter === 'likes') {
     typeFilter = ['LIKE'];
+  } else if (filter === 'collaborations') {
+    typeFilter = [
+      'ARTICLE_CONTRIBUTOR_INVITED',
+      'ARTICLE_CONTRIBUTOR_ACCEPTED',
+      'ARTICLE_CONTRIBUTOR_DECLINED',
+      'ARTICLE_CONTRIBUTOR_REMOVED',
+      'MEDIA_INVITE',
+      'MEDIA_MEMBER_JOINED',
+      'MEDIA_ARTICLE_SUBMITTED',
+    ];
   }
 
   const rawNotifications = await prisma.notification.findMany({
@@ -264,6 +261,7 @@ export async function getNotifications(
     );
 
     if (existingGroup) {
+      existingGroup.notificationIds.push(item.id);
       if (!existingGroup.senders.some((s) => s.id === item.sender.id)) {
         existingGroup.senders.push(item.sender);
         existingGroup.totalCount += 1;
@@ -274,6 +272,7 @@ export async function getNotifications(
     } else {
       grouped.push({
         id: item.id,
+        notificationIds: [item.id],
         type: item.type,
         isRead: item.isRead,
         createdAt: item.createdAt,
@@ -371,6 +370,8 @@ export async function updatePreferences(
     pushComments: boolean;
     emailMedia: boolean;
     pushMedia: boolean;
+    emailCollaborations: boolean;
+    pushCollaborations: boolean;
   }>
 ) {
   return prisma.notificationPreference.upsert({
