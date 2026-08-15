@@ -1,7 +1,7 @@
 # 🎯 Vision — API Créateurs & Médias (qoe.fi comme plateforme CMS)
 
 > **Statut** : document de référence (living doc). Décisions actées en ✅, restantes en ⚠️.
-> L'API créateurs remplace `apps/api` (Hono / api-legacy) — voir `SUNSET_API_LEGACY.md`
+> L'API créateurs a remplacé `apps/api` (Hono / api-legacy), désormais supprimé — voir `SUNSET_API_LEGACY.md`
 > pour le plan de migration et la carte des endpoints.
 
 ---
@@ -148,7 +148,7 @@ Source : `apps/api/src/app.ts` (Hono) + `apps/api-go/internal/modules/articles/`
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
 | **0 — Contrat-first** | Spec OpenAPI `docs/openapi/creators-api.yaml` + golden tests Go (`contract.go`/`contract_test.go`) verrouillant enveloppe, pagination et zéro-fuite | ✅ **fait**                    |     | **1 — Aligner `articles`** | Contrat complet : liste + slug (enveloppe, `page`, filtres, `contentHtml`, catégorie embarquée, clé API → publication) **et** `contentFormat` markdown/html (conversion safe côté serveur) | ✅  |     | **2 — Plateforme créateurs** | Scopes ✅ (READ/WRITE/ANALYTICS) · Webhooks sortants ✅ (API de gestion Go + worker HMAC/retries + événements published/updated/deleted). Reste : UI dashboard webhooks, rotation de clés, rate-limit par clé, idempotency, API explorer, import bulk, upload média | 🚧 scopes + webhooks backend ✅ |
 | **3 — Ops**           | slog JSON, metrics/traces (Prometheus/OTel), migrations goose, Sentry                                                                               | ⏳                             |
-| **4 — Sunset Hono**   | Observation trafic → retrait infra → suppression `apps/api`                                                                                         | ⏳ (voir SUNSET_API_LEGACY.md) |
+| **4 — Sunset Hono**   | Suppression de `apps/api` (Hono / api-legacy) — backend Go unique                                                     | ✅ terminé (voir SUNSET_API_LEGACY.md) |
 
 ---
 

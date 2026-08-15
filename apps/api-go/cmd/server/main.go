@@ -26,6 +26,7 @@ import (
 	"github.com/qoefi/api-go/internal/modules/feed"
 	"github.com/qoefi/api-go/internal/modules/notifications"
 	"github.com/qoefi/api-go/internal/modules/posts"
+	"github.com/qoefi/api-go/internal/modules/search"
 	"github.com/qoefi/api-go/internal/modules/settings"
 	"github.com/qoefi/api-go/internal/modules/webhooks"
 	"github.com/qoefi/api-go/internal/queue"
@@ -68,6 +69,10 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
+
+	// Recherche publique (articles Meilisearch) — parité Hono /search/articles.
+	searchHandler := search.NewHandler()
+	searchHandler.RegisterPublic(r)
 
 	// Endpoints internes (émission d'événements → asynq), protégés par secret.
 	eventsHandler := events.NewHandler(asynqClient, cfg.InternalSecret)

@@ -62,10 +62,6 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
           SKIP_ENV_VALIDATION: 'true'
 
-      - name: Run API Coverage Gate (apps/api)
-        working-directory: apps/api
-        run: pnpm exec vitest run --coverage
-
       - name: Build Production Packages & Applications
         run: pnpm build
 

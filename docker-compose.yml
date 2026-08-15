@@ -53,8 +53,6 @@ services:
         condition: service_started
       landing:
         condition: service_started
-      api:
-        condition: service_started
 
     networks:
       - qoefi-public
@@ -357,61 +355,6 @@ services:
           cpus: '0.5'
         reservations:
           memory: 128M
-
-    logging:
-      driver: json-file
-      options:
-        max-size: '10m'
-        max-file: '3'
-
-  # ───────────────────────────────────────────────────────────────────
-  # 🔌 API : Hono backend
-  # ───────────────────────────────────────────────────────────────────
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: api
-    image: qoefi-api:latest
-    container_name: qoefi-api
-    restart: unless-stopped
-
-    expose:
-      - '3001'
-
-    env_file:
-      - .env.docker
-
-    environment:
-      NODE_ENV: production
-      PORT: 3001
-      HOSTNAME: 0.0.0.0
-      REDIS_URL: redis://redis:6379
-      SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
-
-    networks:
-      - qoefi-public
-      - qoefi-private
-      - supabase_default
-
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      redis:
-        condition: service_started
-
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
 
     logging:
       driver: json-file

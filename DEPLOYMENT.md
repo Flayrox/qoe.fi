@@ -397,7 +397,7 @@ pnpm docker:prod:logs:landing     # Landing (vitrine)
 pnpm docker:prod:logs:feed        # Feed (flux lecteur + auth)
 pnpm docker:prod:logs:dashboard   # Dashboard (studio créateur)
 pnpm docker:prod:logs:admin       # Admin (cockpit superadmin)
-pnpm docker:prod:logs:api         # API (Hono legacy, transition)
+pnpm docker:prod:logs             # logs de tous les services (dont api-go)
 pnpm docker:prod:logs:workers     # Workers TS (BullMQ) + Go (asynq)
 ```
 

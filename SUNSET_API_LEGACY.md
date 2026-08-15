@@ -1,151 +1,84 @@
-# 🧭 Sunset de `apps/api` (api-legacy.qoe.fi) — Plan de migration
+# 🧭 Sunset de `apps/api` (api-legacy.qoe.fi) — TERMINÉ ✅
 
-> **Contexte** : le backend Go (`apps/api-go`) est le _backend-of-record_.
-> `api.qoe.fi` route vers Go ; `api-legacy.qoe.fi` route encore vers l'API Hono
-> (`apps/api`).
+> **Statut : sunset complet.** Le backend Hono (`apps/api`) a été supprimé du
+> monorepo. Le backend Go (`apps/api-go`) est l'unique backend de la plateforme.
 >
-> **Positionnement** :
+> **Date** : 15 août 2026 (commit « sunset api-legacy »).
 >
-> - **Mobile (iOS/Android) → backend Go** directement (`/v1/posts`, `/v1/feed`,
->   `/v1/users`, `/v1/notifications`…). Les endpoints mobiles de Hono
->   (`/v1/feed`, `/v1/thoughts*`, `/v1/users*`) ne servent plus que les
->   **anciennes versions** de l'app et peuvent disparaître avec le sunset.
-> - **`apps/api` (Hono) = API créateurs/médias uniquement** : le cas d'usage est
->   _« utiliser qoe.fi comme CMS »_ — un créateur publie ses articles ailleurs et
->   les importe via API, ou un média publie sur qoe.fi depuis son propre CMS.
->   Clés `qoe_live_*`, endpoints lecture (`/v1/articles`, `/v1/categories`,
->   `/v1/analytics/stats`).
->
-> **Aucun code du monorepo n'appelle l'API Hono** (server actions → `goFetch`/
-> `QOE_API_GO_URL` ou Prisma). La migration se coordonne donc avec les
-> **consommateurs externes** (apps mobiles en store, intégrations créateurs,
-> webhooks Stripe/Supabase).
+> - `api.qoe.fi` → Go (`api-go:8080`) — seul point d'entrée API.
+> - `api-legacy.qoe.fi` → **supprimé** (bloc Caddy retiré).
+> - `apps/api` → **supprimé** du dépôt.
+> - Le client universel (`@qoe/api-client` `QoeApiClient`, mobile) pointe vers le
+>   Go : baseUrl par défaut `http://localhost:8080` en dev, `api.qoe.fi` en prod.
 
 ---
 
-## 1. Inventaire : endpoints Hono vs couverture Go
+## Ce qui a été fait (récapitulatif de la migration)
 
-| Endpoint Hono (`apps/api`)                                        | Usage                  | Équivalent Go (`apps/api-go`)                                 | Statut                                                |
-| ----------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------- | ----------------------------------------------------- |
-| `GET /health`                                                     | ops                    | `GET /health` + `/healthz`                                    | ✅ couvert                                            |
-| `POST /webhooks/stripe` (BullMQ)                                  | Stripe                 | `POST /v1/webhooks/stripe` (asynq, idempotence Redis)         | ✅ couvert — ⚠️ vérifier l'URL configurée côté Stripe |
-| `POST /webhooks/supabase` (stub)                                  | Supabase               | `POST /v1/webhooks/supabase`                                  | ✅ couvert                                            |
-| `GET /v1/articles` (liste)                                        | **CMS créateurs**      | `GET /v1/articles` (JWT ou clé API)                           | ⚠️ **contrat à aligner** (§2.2)                       |
-| `GET /v1/articles/:slug`                                          | **CMS créateurs**      | `GET /v1/articles/{slug}` (public, `publicationId` + paywall) | ⚠️ contrat différent (§2.2)                           |
-| `GET /v1/categories`                                              | **CMS créateurs**      | `GET /v1/categories` (clé API)                                | ✅ parité                                             |
-| `GET /v1/analytics/stats`                                         | **CMS créateurs**      | `GET /v1/analytics/stats` (clé API, proxy Umami)              | ✅ parité                                             |
-| `GET /v1/feed`                                                    | anciennes apps mobiles | `GET /v1/feed` (Go, feed « following »)                       | 🗑️ **plus nécessaire** (mobile → Go)                  |
-| `POST /v1/thoughts{/like,/repost,/bookmark}`                      | anciennes apps mobiles | `/v1/thoughts*` (alias posts)                                 | 🗑️ plus nécessaire (mobile → Go)                      |
-| `GET /v1/users/me`, `/v1/users/:username`, `/v1/users/:id/follow` | anciennes apps mobiles | équivalents Go                                                | 🗑️ plus nécessaire (mobile → Go)                      |
-| `GET /search/articles` (Meilisearch)                              | externe ?              | ❌ absent en Go                                               | ⚠️ à recréer **si** des consommateurs l'utilisent     |
+| Endpoint Hono (`apps/api`)                          | Équivalent Go final (`apps/api-go`)                                | Statut  |
+| --------------------------------------------------- | ------------------------------------------------------------------ | ------- |
+| `GET /health`                                       | `GET /health` + `/healthz`                                         | ✅ Go   |
+| `POST /webhooks/stripe`                             | `POST /v1/webhooks/stripe` (asynq, signature HMAC vérifiée)        | ✅ Go   |
+| `POST /webhooks/supabase`                           | `POST /v1/webhooks/supabase`                                       | ✅ Go   |
+| `GET /v1/articles`                                  | `GET /v1/articles` (JWT ou clé API, enveloppe + pagination `page`) | ✅ Go   |
+| `GET /v1/articles/:slug`                            | `GET /v1/articles/{slug}` (public + mode créateur clé API)         | ✅ Go   |
+| `GET /v1/categories`                                | `GET /v1/categories` (clé API)                                     | ✅ Go   |
+| `GET /v1/analytics/stats`                           | `GET /v1/analytics/stats` (clé API, proxy Umami)                   | ✅ Go   |
+| `GET /v1/feed`                                      | `GET /v1/feed` + `/v1/feed/trending`                               | ✅ Go   |
+| `POST /v1/thoughts{/like,/repost,/bookmark}`        | `/v1/posts` (+ like/repost/bookmark)                               | ✅ Go   |
+| `GET /v1/users/me`, `/users/:username`, `/follow`   | `GET /v1/users/me`, `/v1/users/{username}`, `/v1/users/{id}/follow` | ✅ Go |
+| `GET /search/articles` (Meilisearch)                | `GET /search/articles` (module `search`, Meilisearch, limit 10)    | ✅ Go   |
 
-**Verdict** : le périmètre à préserver = **l'API créateurs (CMS)**. Les endpoints
-mobiles peuvent être abandonnés (mobile → Go). Il reste **1 contrat à aligner**
-(articles) et **1 décision** (search).
+**Toutes les routes Hono ont un équivalent Go.** Aucun endpoint n'a été perdu.
 
 ---
 
-## 2. Écarts à traiter
+## Détails de la bascule (ordre d'exécution)
 
-### 2.1 — Endpoints mobiles : à abandonner, pas à migrer
-
-`/v1/feed`, `/v1/thoughts*`, `/v1/users*` de Hono n'ont plus de raison d'être
-dès que les versions actuelles de l'app mobile pointent vers Go
-(`/v1/posts`, `/v1/feed` Go, `/v1/users/me`…). Ils restent servis par
-api-legacy pendant la transition (anciennes versions en prod), puis disparaissent
-avec le sunset. **Aucun travail Go nécessaire.**
-
-### 2.2 — Contrat `GET /v1/articles` (créateurs/médias)
-
-|                   | Hono                                                          | Go                                              |
-| ----------------- | ------------------------------------------------------------- | ----------------------------------------------- |
-| Résolution auteur | via clé API (`qoe_live_*`)                                    | `publicationId` en query + RBAC                 |
-| Pagination        | `limit` + `page` (+ `total`/`pages`)                          | `limit` + `offset`                              |
-| Filtres           | `published: true`, `category`                                 | —                                               |
-| Contenu           | tronqué paywall (`contentHtml`, `isTruncated`, `paywallMeta`) | —                                               |
-| Création/édition  | ❌ (lecture seule)                                            | ✅ `POST/PATCH /v1/articles` (+ publish/delete) |
-
-C'est **le cœur du cas d'usage CMS** : un créateur/média doit pouvoir lister et
-lire ses articles publiés depuis son propre CMS. Deux options :
-
-- **Option A — étendre Go** (recommandé si des intégrations existent en prod) :
-  le handler `list` accepte `page`/`category`, filtre `published`, tronque le
-  paywall et résout la publication via la clé API. Parité stricte + docs à jour.
-- **Option B — documenter le contrat Go** : mettre à jour la doc développeur
-  (`publicationId` + `offset`). Plus simple, mais breaking pour les
-  intégrations existantes.
-
-Le Go couvre en plus **create/update/publish/delete** (utile pour le cas
-« publier depuis son CMS ») — à documenter comme bonus de l'API créateurs.
-
-### 2.3 — `GET /v1/search/articles`
-
-- **Décision** : est-il consommé par des clients externes ? Si oui, le recréer en
-  Go (`modules/search`, client Meilisearch déjà en dépendance, index déjà
-  peuplé par le worker `search.sync`). Sinon, l'abandonner avec le sunset.
+1. **`GET /search/articles` recréé en Go** (`internal/modules/search`) — c'était
+   la seule route manquante, et elle était **consommée** par le CommandMenu
+   (`packages/ui/src/cmdk/CommandMenu.tsx` → `URLS.API/search/articles`).
+   Parité stricte : `{ hits, estimatedTotalHits }`, limit 10, `q` vide → hits `[]`.
+   Mini-interface `Searcher` (mockable) + 3 tests unitaires
+   (`handler_test.go` : q vide, hits, erreur Meili → 500).
+2. **Client universel & URLs** : `client.ts` baseUrl défaut → `:8080` (Go) ;
+   `packages/config` `apiPort` → `:8080` ; `Caddyfile.dev` `api.localhost` →
+   `localhost:8080`.
+3. **Suppression du code** : `git rm -r apps/api` (20 fichiers, tests inclus).
+4. **Nettoyage infra** :
+   - `docker-compose.yml` : service `api` supprimé + `depends_on` Caddy nettoyé
+   - `docker-compose.dev.yml` : service `api` (HMR) + volume mount supprimés
+   - `docker/caddy/Caddyfile` : bloc `api-legacy.qoe.fi` supprimé + `@custom` nettoyé
+   - `Dockerfile` : cible `api` supprimée (commentaire build → `api-go`)
+   - `packages/config/src/tenant.ts` : `api-legacy.qoe.fi` retiré de `SYSTEM_DOMAINS`
+   - `scripts/copy-env.js` : `'api'` retiré de la liste des apps
+   - `.github/workflows/ci.yml` : étape « Run API Coverage Gate (apps/api) » retirée
+   - `package.json` : scripts `dev:api`, `docker:dev:api`, `docker:prod:api`,
+     `docker:prod:logs:api` et filtres `--filter=@qoe/api...` supprimés
+5. **Docs** : ce fichier (état final), ARCHITECTURE, README, ACTIVATION, MIGRATION
+   et VISION_CREATORS_API mis à jour.
 
 ---
 
-## 3. Plan de migration (phases)
+## Conséquences à connaître
 
-### Phase 1 — Aligner l'API créateurs en Go
-
-- [x] **Option A retenue** (étendre Go pour parité stricte) — `GET /v1/articles`
-      aligné : enveloppe `{data, pagination}`, pagination `page` (1-based,
-      défaut 10, max 100), filtres `category` (slug) + `published` (défaut true),
-      `contentHtml` tronqué, catégorie embarquée (queries sqlc
-      `ListCreatorArticles`/`CountCreatorArticles` + `contract.go`/`contract_test.go`)
-- [x] Résolution slug créateur : `GET /v1/articles/{slug}` avec clé API →
-      `{ data: CreatorItem }` (contentHtml tronqué, publié uniquement) ; fix au
-      passage du mapping `pgx.ErrNoRows` → 404 (avant : 500)
-- [x] `contentFormat: markdown|html` — conversion markdown → HTML côté serveur
-      (goldmark, raw HTML échappé) sur create/update + tests (`content.go`/`content_test.go`)
-- [ ] Trancher §2.3 (recréer `/v1/search/articles` en Go ou l'abandonner)
-- [x] Tests Go + `go vet ./... && go test ./... && go build ./...`
-
-### Phase 2 — Documentation & configuration
-
-- [ ] `developer-client.tsx` (dashboard) : `https://api-legacy.qoe.fi/v1/articles`
-      → `https://api.qoe.fi/v1/articles` (toutes les occurrences `api-legacy`)
-- [ ] `apps/api-go/README.md` : table des endpoints créateurs à jour
-- [ ] Vérifier la config webhook **Stripe** → `https://api.qoe.fi/v1/webhooks/stripe`
-- [ ] Vérifier la config webhook **Supabase** → `https://api.qoe.fi/v1/webhooks/supabase`
-- [ ] Mise à jour des md d'architecture (README, ARCHITECTURE, ACTIVATION, DEV,
-      DOCKER, GETTING_STARTED, DEPLOYMENT, HANDOFF, AI_CODEBASE_MAP)
-
-### Phase 3 — Observation du trafic
-
-- [ ] Logs Caddy d'`api-legacy.qoe.fi` pendant 7–14 jours : objectif **zéro
-      requête** (anciennes apps mobiles mises à jour, webhooks basculés)
-- [ ] Migrer tout consommateur résiduel (release mobile, intégration CMS)
-
-### Phase 4 — Retrait de l'infra (trafic nul)
-
-- [ ] `docker/caddy/Caddyfile` : supprimer le bloc `api-legacy.qoe.fi`
-- [ ] `docker-compose.yml` : supprimer le service `api`
-- [ ] `Dockerfile` : supprimer la cible `api`
-- [ ] `packages/config/src/tenant.ts` : retirer `api-legacy.qoe.fi` de `SYSTEM_DOMAINS`
-- [ ] `docker-compose*.yml` : retirer `NEXT_PUBLIC_API_URL` des 5 apps
-- [ ] `.github/workflows/ci.yml` : retirer l'étape coverage `apps/api`
-
-### Phase 5 — Suppression du code
-
-- [ ] `git rm -r apps/api` (+ `apps/api/src/test`)
-- [ ] Nettoyage des deps mortes (`@qoe/billing` : garder
-      `truncateArticleContentForPaywall` pour `workers/`, retirer `verifyWebhook`
-      si non utilisé ailleurs)
-- [ ] Docs finales (README, HANDOFF…)
+- **Stripe** : le webhook doit pointer vers `https://api.qoe.fi/v1/webhooks/stripe`
+  (le Go vérifie `Stripe-Signature`). ⚠️ Vérifier la config dans le dashboard Stripe
+  si un ancien endpoint `api-legacy.qoe.fi` y était enregistré.
+- **Supabase** : `POST /v1/webhooks/supabase` côté Go (stub acceptant 200).
+- **Mobile (à venir)** : le client universel `@qoe/api-client` (`QoeApiClient`)
+  cible le Go (`/v1/posts`, `/v1/feed`, `/v1/users…`) — prêt pour Expo/React
+  Native, aucun endpoint Hono n'est nécessaire.
+- **Rollback** : l'ancien déploiement Hono reste dans l'historique git
+  (`git revert` sur le commit de suppression) — aucune donnée perdue.
 
 ---
 
-## 4. Risques & rollback
+## Vérifications effectuées
 
-| Risque                                                        | Mitigation                                                                              |
-| ------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Intégrations créateurs en prod sur le contrat Hono `articles` | Golden tests Hono→Go ; Option A (§2.2) avant bascule                                    |
-| Anciennes apps mobiles encore sur api-legacy                  | Phase 3 (logs) avant toute suppression ; coordonner la release mobile                   |
-| Webhook Stripe livré aux deux URLs (double traitement)        | Vérifier la config Stripe ; idempotence des deux côtés                                  |
-| Régressions après suppression                                 | Rollback : `git revert` tant que Phase 4 n'est pas poussée ; Go testé (`go test ./...`) |
-
-**Rollback** : tant que Phase 4 n'est pas committée, il suffit de ne pas pousser —
-l'ancien déploiement Hono reste intact dans l'historique.
+- `pnpm typecheck` : 20/20 ✅ (le workspace `@qoe/api` a disparu du monorepo)
+- `pnpm lint` : ✅
+- `go build ./... && go vet ./... && go test ./...` (api-go) : ✅
+  — dont les nouveaux tests du module `search`
+- `docker compose -f docker-compose.yml config -q` et `docker-compose.dev.yml` : ✅
+- Aucune référence `@qoe/api` ou `api-legacy` résiduelle dans `apps/` et `packages/` ✅

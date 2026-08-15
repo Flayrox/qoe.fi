@@ -1,7 +1,7 @@
 # 🎯 qoe.fi — API Créateurs & Médias (v1) — Contrat cible (source de vérité)
 #
 # Ce fichier est la SOURCE DE VÉRITÉ du contrat de l'API créateurs (voir
-# VISION_CREATORS_API.md). Il décrit la cible : parité Hono (apps/api) alignée
+# VISION_CREATORS_API.md). Il décrit la cible : parité avec l'ancienne API Hono, alignée
 # sur le backend Go (apps/api-go) + extensions plateforme.
 #
 # - Auth : clé API `qoe_live_*` (médias/créateurs, délivrée après revue) ;
@@ -11,7 +11,7 @@
 # - Les endpoints webhooks (sortants) sont la cible plateforme — marqués ⚠️.
 #
 # Reference de l'implémentation actuelle :
-#   Hono : apps/api/src/app.ts        (contrat actuel, api-legacy)
+#   Hono : ancien contrat apps/api (désormais supprimé — backend Go unique)
 #   Go   : apps/api-go/internal/modules/articles/
 openapi: 3.1.0
 info:

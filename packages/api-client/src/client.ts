@@ -18,7 +18,7 @@ export class QoeApiClient {
   constructor(config?: QoeApiClientConfig) {
     this.baseUrl =
       config?.baseUrl ||
-      (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3002');
+      (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080');
     this.getAuthToken = config?.getAuthToken;
   }
 

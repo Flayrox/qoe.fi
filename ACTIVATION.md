@@ -46,7 +46,7 @@ pnpm docker:dev
 # → Dashboard (Studio):      http://localhost:4020  (interne: 3020)
 # → Admin (Platform):        http://localhost:4030  (interne: 3030)
 # → Landing (Vitrines/CMS):  http://localhost:4040  (interne: 3040)
-# → API Hono (legacy, transition): http://localhost:4002/health (interne: 3002)
+# → API (Go) : http://localhost:8080/health
 #   Backend de référence : apps/api-go (Go) — voir SUNSET_API_LEGACY.md
 ```
 
@@ -71,7 +71,7 @@ pnpm dev
 # → @qoe/dashboard (Studio d'écriture) sur :3020
 # → @qoe/admin (Pilotage superadmin) sur :3030
 # → @qoe/landing (Vitrine & Textes légaux) sur :3040
-# → @qoe/api (Hono legacy, transition) sur :3002
+# → backend Go (apps/api-go) sur :8080
 ```
 
 ### Commandes par application
@@ -82,7 +82,7 @@ pnpm --filter @qoe/feed dev         # Uniquement le flux lecteur
 pnpm --filter @qoe/dashboard dev    # Uniquement l'espace créateur
 pnpm --filter @qoe/admin dev        # Uniquement l'espace administrateur
 pnpm --filter @qoe/web dev          # Uniquement le moteur multi-tenant des blogs
-pnpm --filter @qoe/api dev          # API Hono legacy (transition)
+cd apps/api-go && go run ./cmd/server   # Backend Go (unique)
 # Backend de référence (Go) : cd apps/api-go && go run ./cmd/server
 ```
 
@@ -132,7 +132,7 @@ qoe.fi/                              # 21 workspaces résolus
 │   ├── dashboard/                   # Next.js 16 — dashboard.qoe.fi (studio créateur & TipTap)
 │   ├── admin/                       # Next.js 16 — admin.qoe.fi (superadmin & CMS config)
 │   ├── web/                         # Next.js 16 — *.qoe.fi & domaines customs (blogs créateurs)
-│   └── api/                         # Hono legacy (transition, API créateurs/médias)
+│   └── api-go/                      # Backend Go unique (backend-of-record)
 ├── packages/                        # 14 packages partagés
 │   ├── db/                          # 🐘 Prisma Singleton (Source unique de vérité DB)
 │   ├── auth/                        # 🔐 Rôles, permissions et helpers session
@@ -162,7 +162,7 @@ qoe.fi/                              # 21 workspaces résolus
 | `admin.qoe.fi`        | `apps/admin`        | Panel de modération de la plateforme et édition du CMS       |
 | `start.qoe.fi`        | `apps/landing`      | Vitrine commerciale, mentions légales et CGU de la marque    |
 | `*.qoe.fi` (wildcard) | `apps/web`          | Moteur multi-tenant servant les blogs publics des créateurs  |
-| `api.qoe.fi`          | `apps/api`          | Backend Hono (endpoints à haute performance)                 |
+| `api.qoe.fi`          | `apps/api-go`       | Backend Go unique (feed, posts, articles, webhooks, analytics) |
 
 ---
 
