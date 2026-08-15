@@ -4,6 +4,8 @@ package queue
 // Types de tâches (miroir des événements de domaine TS).
 const (
 	TaskArticlePublished  = "article.published"
+	TaskArticleUpdated    = "article.updated"
+	TaskArticleDeleted    = "article.deleted"
 	TaskSubscriberCreated = "subscriber.created"
 	TaskPostLiked         = "post.liked"
 	TaskStripeEvent       = "stripe.event"

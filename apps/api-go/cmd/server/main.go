@@ -26,6 +26,7 @@ import (
 	"github.com/qoefi/api-go/internal/modules/feed"
 	"github.com/qoefi/api-go/internal/modules/notifications"
 	"github.com/qoefi/api-go/internal/modules/posts"
+	"github.com/qoefi/api-go/internal/modules/webhooks"
 	"github.com/qoefi/api-go/internal/queue"
 	"github.com/qoefi/api-go/internal/umami"
 )
@@ -96,7 +97,7 @@ func main() {
 		feedHandler := feed.NewHandler(feed.NewService(pool, rc))
 		feedHandler.Register(protected)
 
-		articlesHandler.RegisterProtected(protected)
+		articlesHandler.RegisterProtected(protected, authmw.RequireAPIScope)
 
 		notifHandler := notifications.NewHandler(notifications.NewService(pool))
 		notifHandler.Register(protected)
@@ -106,6 +107,9 @@ func main() {
 
 		creatorHandler := creator.NewHandler(pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey, cfg.UmamiUser, cfg.UmamiPass), cfg.DefaultUmamiWebsiteID)
 		creatorHandler.RegisterProtected(protected)
+
+		webhooksHandler := webhooks.NewHandler(webhooks.NewService(pool))
+		webhooksHandler.RegisterProtected(protected, authmw.RequireAPIScope)
 	})
 
 	// API créateur par clé API (qoe_live_…) : catégories + analytics/stats (proxy Umami).

@@ -214,6 +214,7 @@ type ApiKey struct {
 	Name       string           `json:"name"`
 	KeyPrefix  string           `json:"keyPrefix"`
 	KeyHash    string           `json:"keyHash"`
+	Scopes     []string         `json:"scopes"`
 	CreatedAt  pgtype.Timestamp `json:"createdAt"`
 	LastUsedAt pgtype.Timestamp `json:"lastUsedAt"`
 	UserId     pgtype.UUID      `json:"userId"`

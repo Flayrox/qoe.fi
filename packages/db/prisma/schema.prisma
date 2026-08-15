@@ -639,6 +639,7 @@ model ApiKey {
   name       String
   keyPrefix  String // e.g. "qoe_live_" followed by the prefix characters
   keyHash    String    @unique // SHA-256 hash of the complete key
+  scopes     String[]  @default(["READ", "WRITE", "ANALYTICS"]) // moindre privilège : READ | WRITE | ANALYTICS
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
 
