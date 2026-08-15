@@ -108,9 +108,13 @@ go build ./... && go vet ./...
       secret `QOE_INTERNAL_SECRET`) ; article.published + subscriber.created
       câblés côté TS (goFetch) — **testé bout en bout** (receiver HTTP reçoit
       le POST signé, delivery SUCCESS)
-- [ ] Modules suivants : articles/paywall, notifications, creator analytics,
-      getPostThread endpoint, meilisearch/stripe workers asynq
-- [ ] Docker multi-stage + Caddy reverse-proxy
+- [x] **getPostThread endpoint** (`GET /v1/posts/{id}/thread`) + proxy TS
+- [x] **Docker multi-stage** (`apps/api-go/Dockerfile`) : service `api-go` +
+      `api-go-worker` dans `docker-compose.yml` (réseau privé), reverse-proxy
+      Caddy `api.qoe.fi → api-go:8080`
+- [x] **Marquage lu (toutes) en Go** : `markReadIDs` normalise un tableau vide
+      en `nil` (NULL SQL) pour que `POST /v1/notifications/read` marque tout —
+      testé unitairement (`go test ./...` sans DB)
 
 ## Workers (asynq)
 ```bash
