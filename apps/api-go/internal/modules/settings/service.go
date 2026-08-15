@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api-go/internal/database"
+	"github.com/qoefi/api-go/internal/middleware"
 	"github.com/qoefi/api-go/internal/permissions"
 	"github.com/qoefi/api-go/internal/slug"
 )
@@ -286,6 +287,10 @@ func (s *Service) GenerateApiKey(ctx context.Context, userID, name string, scope
 	}
 	if len(scopes) > 0 && len(finalScopes) == 0 {
 		return "", errors.New("Sélectionnez au moins un scope pour la clé API.")
+	}
+	// scopes vide = accès complet explicite (rétro-compatibilité).
+	if len(finalScopes) == 0 {
+		finalScopes = middleware.AllScopes
 	}
 
 	raw := make([]byte, 16)

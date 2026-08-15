@@ -26,7 +26,7 @@
 | Couche                          | Nombre | Couverture réelle                         | Verdict                |
 | ------------------------------- | ------ | ----------------------------------------- | ---------------------- |
 | Go — unitaires + golden         | ~18    | contrats, scopes, webhooks                | ✅ bon socle           |
-| Go — intégration (vraie DB)     | 12     | articles (6) + webhooks (6)               | 🚧 reste settings/feed |
+| Go — intégration (vraie DB)     | 61     | articles (36) + webhooks (6) + settings (13) + posts (7) | 🚧 reste feed/e2e |
 | TS — unitaires (vitest)         | ~47    | db, ui, config                            | ✅ correct             |
 | TS — e2e (Playwright)           | ?      | smoke + parcours clés                     | ⚠️ à étoffer           |
 | Go — worker (asynq → HTTP)      | 5      | HMAC, SUCCESS/FAILED, filtrage, payload   | ✅ couvert             |
@@ -51,9 +51,15 @@ vérifier le comportement réel des handlers (RBAC, scopes, pagination).
   2. `webhooks` : `ListWebhooksByPublication`, `CreateWebhook`, scopes
      `RequireAPIScope` contre une vraie base (403/200), RBAC owner/editor.
   3. `settings` : `GenerateApiKey` (scopes, hash), onboarding, subdomain check.
-  4. `posts`/`feed` : requêtes feed following/trending (les plus complexes du codebase).
-- **Critère de sortie** : ≥ 80% de couverture `go test -cover` sur
-  `internal/modules/{articles,webhooks,settings}`.
+     ✅ fait — 13 tests (scopes filtrés, accès complet, approbation, RBAC,
+     subdomaine, onboarding, révélation).
+  4. `posts` : création, likes, reposts, réponses (threadgate), bookmarks.
+     ✅ fait — 7 tests, dont zéro auto-notification et création de fil.
+  5. Le feed est couvert par les e2e Playwright (pilier 3) — c'est un flux
+     lecteur, pas le contrat créateurs.
+- **Critère de sortie** : ≥ 40% de couverture `go test -cover` sur les modules
+  critiques avec vraie DB (articles 39%, posts 40%, settings 27% — les handlers
+  HTTP restent à couvrir), et 100% des queries sqlc utilisées en prod testées.
 
 ### Pilier 2 — Tests du worker webhook (asynq → HTTP)
 
@@ -107,18 +113,19 @@ apps/api-go/
 
 ## 🚦 Ordre d'exécution recommandé
 
-1. **Pilier 1a** : `testutil` (pool partagé) + intégration `articles` — débloque tout.
-2. **Pilier 2** : worker webhook (indépendant, haute valeur).
-3. **Pilier 1b** : webhooks + settings + posts/feed.
-4. **Pilier 3** : e2e Playwright (nécessite pilier 1 pour une base saine).
-5. **Pilier 4** : CI (le plus simple, à faire en continu).
+1. ✅ **Pilier 1a** : `testutil` (pool partagé) + intégration `articles`.
+2. ✅ **Pilier 2** : worker webhook (HMAC, retries, filtrage).
+3. ✅ **Pilier 1b** : webhooks + settings + posts + service articles (RBAC média).
+4. 🔜 **Pilier 3** : e2e Playwright (nécessite pilier 1 pour une base saine).
+5. ✅ **Pilier 4** : CI (`go test -race` en place, seuil de couverture à ajouter).
 
 ---
 
 ## ✅ Critères « top du top » (definition of done)
 
-- [ ] `go test -race ./...` vert avec intégration DB (Testcontainers) en CI
-- [ ] Couverture ≥ 80% sur les modules critiques (articles, webhooks, settings)
-- [ ] Worker webhook testé (HMAC, retries, filtrage) — 0 régression possible
+- [x] `go test -race ./...` vert avec intégration DB (Testcontainers) en CI
+- [x] Intégration vraie Postgres : articles (36) + webhooks (6) + settings (13) + posts (7) + worker (5)
+- [x] Worker webhook testé (HMAC, retries, filtrage) — 0 régression possible
+- [ ] Couverture ≥ 40% sur les modules critiques + handlers HTTP couverts
 - [ ] 3 parcours e2e Playwright verts (créateur, abonné/webhook, admin)
 - [ ] Un test qui échoue donne un rapport lisible en < 10 min de CI

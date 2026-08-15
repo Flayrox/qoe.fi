@@ -1,0 +1,291 @@
+package posts
+
+import (
+	"context"
+	"log"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api-go/internal/testutil"
+)
+
+var poolTest *pgxpool.Pool
+
+func TestMain(m *testing.M) {
+	p, err := testutil.Pool(context.Background())
+	if err != nil {
+		log.Fatalf("testcontainers: %v", err)
+	}
+	poolTest = p
+	code := m.Run()
+	testutil.Cleanup()
+	os.Exit(code)
+}
+
+func seedPosts(t *testing.T) *testutil.PostFixtures {
+	t.Helper()
+	fx, err := testutil.SeedPosts(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed posts: %v", err)
+	}
+	return fx
+}
+
+func newTestService() *Service {
+	// Pas de Redis en test : les invalidations de cache sont des no-op (nil safe).
+	return NewService(poolTest, nil)
+}
+
+// ─── Création ──────────────────────────────────────────────────────────
+
+func TestCreateThought_Basic(t *testing.T) {
+	fx := seedPosts(t)
+	svc := newTestService()
+	ctx := context.Background()
+
+	thought, err := svc.Create(ctx, fx.AuthorID, "Nouvelle pensée avec #tags", []string{"go", "test"}, nil, nil)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if thought.Content != "Nouvelle pensée avec #tags" {
+		t.Fatalf("content = %q", thought.Content)
+	}
+	if thought.AuthorID != fx.AuthorID {
+		t.Fatalf("authorId = %q", thought.AuthorID)
+	}
+	if len(thought.Tags) != 2 || thought.Tags[0] != "go" {
+		t.Fatalf("tags = %v", thought.Tags)
+	}
+	if thought.LikeCount != 0 || thought.RepostCount != 0 || thought.ReplyCount != 0 {
+		t.Fatalf("counts = %d/%d/%d", thought.LikeCount, thought.RepostCount, thought.ReplyCount)
+	}
+	if thought.ViewerLiked {
+		t.Fatal("viewerLiked = true pour un nouveau post")
+	}
+	if thought.Author.ID != fx.AuthorID || thought.Author.Username == nil || *thought.Author.Username != "alice" {
+		t.Fatalf("author = %+v", thought.Author)
+	}
+}
+
+func TestCreateThought_EmptyContent_Error(t *testing.T) {
+	fx := seedPosts(t)
+	svc := newTestService()
+	ctx := context.Background()
+
+	_, err := svc.Create(ctx, fx.AuthorID, "", nil, nil, nil)
+	if err == nil || !strings.Contains(err.Error(), "contenu requis") {
+		t.Fatalf("Create(vide) = %v, attendu erreur contenu requis", err)
+	}
+}
+
+// ─── Likes ─────────────────────────────────────────────────────────────
+
+func TestToggleLike_AddThenRemove(t *testing.T) {
+	fx := seedPosts(t)
+	svc := newTestService()
+	ctx := context.Background()
+
+	// Bob like la pensée d'Alice → liked.
+	liked, err := svc.ToggleLike(ctx, fx.PostID, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("ToggleLike(add): %v", err)
+	}
+	if !liked {
+		t.Fatal("ToggleLike(add) = false, attendu true")
+	}
+
+	var likeCount int
+	if err := poolTest.QueryRow(ctx, `SELECT "likeCount" FROM "Post" WHERE id = $1`, fx.PostID).Scan(&likeCount); err != nil {
+		t.Fatalf("likeCount: %v", err)
+	}
+	if likeCount != 1 {
+		t.Fatalf("likeCount = %d, attendu 1", likeCount)
+	}
+
+	// Notification LIKE créée pour Alice.
+	var notifType string
+	err = poolTest.QueryRow(ctx,
+		`SELECT type FROM "Notification" WHERE "recipientId" = $1 AND "senderId" = $2 AND "thoughtId" = $3`,
+		fx.AuthorID, fx.ViewerID, fx.PostID,
+	).Scan(&notifType)
+	if err != nil {
+		t.Fatalf("notification LIKE: %v", err)
+	}
+	if notifType != "LIKE" {
+		t.Fatalf("notification type = %q", notifType)
+	}
+
+	// Bob unlike → removed.
+	liked, err = svc.ToggleLike(ctx, fx.PostID, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("ToggleLike(remove): %v", err)
+	}
+	if liked {
+		t.Fatal("ToggleLike(remove) = true, attendu false")
+	}
+	if err := poolTest.QueryRow(ctx, `SELECT "likeCount" FROM "Post" WHERE id = $1`, fx.PostID).Scan(&likeCount); err != nil {
+		t.Fatalf("likeCount: %v", err)
+	}
+	if likeCount != 0 {
+		t.Fatalf("likeCount après unlike = %d, attendu 0", likeCount)
+	}
+}
+
+func TestToggleLike_NoSelfNotification(t *testing.T) {
+	fx := seedPosts(t)
+	svc := newTestService()
+	ctx := context.Background()
+
+	// Alice like sa propre pensée → pas de notification (pas d'auto-notif).
+	if _, err := svc.ToggleLike(ctx, fx.PostID, fx.AuthorID); err != nil {
+		t.Fatalf("ToggleLike(self): %v", err)
+	}
+	var n int
+	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "Notification"`).Scan(&n); err != nil {
+		t.Fatalf("count notifications: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("notifications = %d, attendu 0 (self-like)", n)
+	}
+}
+
+// ─── Reposts ───────────────────────────────────────────────────────────
+
+func TestToggleRepost_AddThenRemove(t *testing.T) {
+	fx := seedPosts(t)
+	svc := newTestService()
+	ctx := context.Background()
+
+	reposted, err := svc.ToggleRepost(ctx, fx.PostID, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("ToggleRepost(add): %v", err)
+	}
+	if !reposted {
+		t.Fatal("ToggleRepost(add) = false, attendu true")
+	}
+
+	var repostCount int
+	if err := poolTest.QueryRow(ctx, `SELECT "repostCount" FROM "Post" WHERE id = $1`, fx.PostID).Scan(&repostCount); err != nil {
+		t.Fatalf("repostCount: %v", err)
+	}
+	if repostCount != 1 {
+		t.Fatalf("repostCount = %d, attendu 1", repostCount)
+	}
+
+	// Le repost pur existe (pensée vide pointant vers l'original).
+	var pureCount int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "Post" WHERE "authorId" = $1 AND "repostId" = $2`,
+		fx.ViewerID, fx.PostID,
+	).Scan(&pureCount); err != nil {
+		t.Fatalf("count pure reposts: %v", err)
+	}
+	if pureCount != 1 {
+		t.Fatalf("pure reposts = %d, attendu 1", pureCount)
+	}
+
+	// Retrait du repost.
+	reposted, err = svc.ToggleRepost(ctx, fx.PostID, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("ToggleRepost(remove): %v", err)
+	}
+	if reposted {
+		t.Fatal("ToggleRepost(remove) = true, attendu false")
+	}
+	if err := poolTest.QueryRow(ctx, `SELECT "repostCount" FROM "Post" WHERE id = $1`, fx.PostID).Scan(&repostCount); err != nil {
+		t.Fatalf("repostCount: %v", err)
+	}
+	if repostCount != 0 {
+		t.Fatalf("repostCount après retrait = %d, attendu 0", repostCount)
+	}
+}
+
+// ─── Réponses ──────────────────────────────────────────────────────────
+
+func TestReply_CreatesThreadAndIncrementsCount(t *testing.T) {
+	fx := seedPosts(t)
+	svc := newTestService()
+	ctx := context.Background()
+
+	reply, err := svc.Reply(ctx, fx.PostID, fx.ViewerID, "Réponse de Bob")
+	if err != nil {
+		t.Fatalf("Reply: %v", err)
+	}
+	if reply.ParentID != fx.PostID {
+		t.Fatalf("parentId = %q, attendu %q", reply.ParentID, fx.PostID)
+	}
+	if reply.RootID != fx.PostID {
+		t.Fatalf("rootId = %q, attendu %q", reply.RootID, fx.PostID)
+	}
+	if reply.AuthorID != fx.ViewerID {
+		t.Fatalf("authorId = %q", reply.AuthorID)
+	}
+
+	// Le compteur du parent a été incrémenté.
+	var replyCount int
+	if err := poolTest.QueryRow(ctx, `SELECT "replyCount" FROM "Post" WHERE id = $1`, fx.PostID).Scan(&replyCount); err != nil {
+		t.Fatalf("replyCount: %v", err)
+	}
+	if replyCount != 1 {
+		t.Fatalf("replyCount = %d, attendu 1", replyCount)
+	}
+
+	// Notification REPLY créée pour Alice (best-effort).
+	var n int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "Notification" WHERE type = 'REPLY' AND "recipientId" = $1`,
+		fx.AuthorID,
+	).Scan(&n); err != nil {
+		t.Fatalf("count REPLY notifications: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("REPLY notifications = %d, attendu 1", n)
+	}
+}
+
+// ─── Bookmarks ─────────────────────────────────────────────────────────
+
+func TestToggleBookmark_AddThenRemove(t *testing.T) {
+	fx := seedPosts(t)
+	svc := newTestService()
+	ctx := context.Background()
+
+	added, err := svc.ToggleBookmark(ctx, fx.ArticleID, fx.AuthorID)
+	if err != nil {
+		t.Fatalf("ToggleBookmark(add): %v", err)
+	}
+	if !added {
+		t.Fatal("ToggleBookmark(add) = false, attendu true")
+	}
+
+	var n int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "Bookmark" WHERE "readerId" = $1 AND "articleId" = $2`,
+		fx.AuthorID, fx.ArticleID,
+	).Scan(&n); err != nil {
+		t.Fatalf("count bookmarks: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("bookmarks = %d, attendu 1", n)
+	}
+
+	// Retrait.
+	added, err = svc.ToggleBookmark(ctx, fx.ArticleID, fx.AuthorID)
+	if err != nil {
+		t.Fatalf("ToggleBookmark(remove): %v", err)
+	}
+	if added {
+		t.Fatal("ToggleBookmark(remove) = true, attendu false")
+	}
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "Bookmark" WHERE "readerId" = $1 AND "articleId" = $2`,
+		fx.AuthorID, fx.ArticleID,
+	).Scan(&n); err != nil {
+		t.Fatalf("count bookmarks: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("bookmarks après retrait = %d, attendu 0", n)
+	}
+}
