@@ -1,5 +1,5 @@
 import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AnimatedIcon } from '@/components/animated-icon';
@@ -8,7 +8,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { WebBadge } from '@/components/web-badge';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useAuth } from '@/features/auth/auth-provider';
 import { ApiStatus } from '@/features/home/api-status';
+import { t } from '@/lib/i18n';
 
 function getDevMenuHint() {
   if (Platform.OS === 'web') {
@@ -30,33 +32,43 @@ function getDevMenuHint() {
 }
 
 export default function HomeScreen() {
+  const { signOut } = useAuth();
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView style={styles.heroSection}>
           <AnimatedIcon />
           <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
+            {t('home.welcome', 'Welcome to Expo')}
           </ThemedText>
         </ThemedView>
 
         <ThemedText type="code" style={styles.code}>
-          get started
+          {t('home.get_started', 'get started')}
         </ThemedText>
 
         <ThemedView type="backgroundElement" style={styles.stepContainer}>
           <HintRow
-            title="Try editing"
+            title={t('home.try_editing', 'Try editing')}
             hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
           />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
+          <HintRow title={t('home.dev_tools', 'Dev tools')} hint={getDevMenuHint()} />
           <HintRow
-            title="Fresh start"
+            title={t('home.fresh_start', 'Fresh start')}
             hint={<ThemedText type="code">npm run reset-project</ThemedText>}
           />
         </ThemedView>
 
         <ApiStatus />
+
+        <Pressable
+          onPress={() => void signOut()}
+          style={({ pressed }) => [styles.signOut, { opacity: pressed ? 0.5 : 1 }]}
+        >
+          <ThemedText type="small">{t('auth.sign_out', 'Se déconnecter')}</ThemedText>
+        </Pressable>
+
         {Platform.OS === 'web' && <WebBadge />}
       </SafeAreaView>
     </ThemedView>
@@ -96,5 +108,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.four,
     borderRadius: Spacing.four,
+  },
+  signOut: {
+    paddingVertical: Spacing.two,
   },
 });
