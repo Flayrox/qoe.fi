@@ -39,6 +39,9 @@
   --accent: #1c1c20;
   --accent-foreground: #fafafa;
 
+  /* Destructif éclairci en dark pour rester lisible sur fond sombre */
+  --destructive: var(--vermillion-400);
+
   --border: rgba(255, 255, 255, 0.06);
   --input: rgba(255, 255, 255, 0.08);
   --ring: var(--zinc-50);
