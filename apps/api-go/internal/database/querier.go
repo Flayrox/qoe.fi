@@ -109,6 +109,7 @@ type Querier interface {
 	InsertFollowNotification(ctx context.Context, arg InsertFollowNotificationParams) error
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
 	InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error
+	InsertMediaArticlePublishedFanout(ctx context.Context, arg InsertMediaArticlePublishedFanoutParams) error
 	InsertMentionNotification(ctx context.Context, arg InsertMentionNotificationParams) error
 	InsertPureRepost(ctx context.Context, arg InsertPureRepostParams) (string, error)
 	InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error

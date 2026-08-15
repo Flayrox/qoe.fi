@@ -81,3 +81,28 @@ VALUES (gen_random_uuid()::text, $1, $2, 'FOLLOW', $3);
 -- name: DeleteFollowNotification :exec
 DELETE FROM "Notification"
 WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'FOLLOW' AND "publicationId" = $3;
+
+-- name: InsertMediaArticlePublishedFanout :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publicationId")
+SELECT gen_random_uuid()::text,
+       f."readerId",
+       sqlc.arg('sender_id'),
+       'MEDIA_ARTICLE_PUBLISHED',
+       sqlc.arg('article_id'),
+       f."publicationId"
+FROM "Follows" f
+JOIN "Publication" pub ON pub.id = f."publicationId"
+LEFT JOIN "NotificationPreference" np ON np."userId" = f."readerId"
+WHERE f."publicationId" = sqlc.arg('publication_id')
+  AND pub.type = 'MEDIA'
+  AND f."readerId" <> sqlc.arg('sender_id')
+  AND (COALESCE(np."emailMedia", true) OR COALESCE(np."pushMedia", true))
+  AND NOT EXISTS (
+    SELECT 1 FROM "Notification" n
+    WHERE n."recipientId" = f."readerId"
+      AND n."senderId" = sqlc.arg('sender_id')
+      AND n.type = 'MEDIA_ARTICLE_PUBLISHED'
+      AND n."articleId" = sqlc.arg('article_id')
+      AND n."isRead" = false
+  )
+LIMIT 500;
