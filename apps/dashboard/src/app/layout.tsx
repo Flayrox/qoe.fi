@@ -18,6 +18,7 @@ import { Toaster } from '@qoe/ui/ui/sonner';
 import { AnalyticsScript } from '@qoe/analytics/client';
 import { cn } from '@qoe/utils';
 import { DevtoolsPanel, ThemeProvider, ThemeSeedScript } from '@qoe/ui';
+import { QueryProvider } from '@/components/providers/QueryProvider';
 import {
   getDevtoolsData,
   createMockUserAction,
@@ -85,13 +86,15 @@ export default async function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <GrowthBookProvider payload={flagsPayload}>
             <I18nClientProvider language={locale} staticData={staticData}>
-              <TooltipProvider>
-                {children}
-                <Toaster />
-                {process.env.NODE_ENV === 'development' && (
-                  <DevtoolsPanel actions={devtoolsActions} />
-                )}
-              </TooltipProvider>
+              <QueryProvider>
+                <TooltipProvider>
+                  {children}
+                  <Toaster />
+                  {process.env.NODE_ENV === 'development' && (
+                    <DevtoolsPanel actions={devtoolsActions} />
+                  )}
+                </TooltipProvider>
+              </QueryProvider>
             </I18nClientProvider>
           </GrowthBookProvider>
         </ThemeProvider>
