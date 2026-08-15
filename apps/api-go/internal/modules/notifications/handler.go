@@ -1,6 +1,7 @@
 package notifications
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -26,6 +27,8 @@ func (h *Handler) Register(r chi.Router) {
 		r.Post("/read", h.markRead)
 		r.Get("/preferences", h.getPrefs)
 		r.Patch("/preferences", h.updatePrefs)
+		r.Post("/media-invite", h.insertMediaInvite)
+		r.Post("/media-member-joined", h.insertMediaMemberJoined)
 	})
 }
 
@@ -102,4 +105,46 @@ func (h *Handler) updatePrefs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]any{"preferences": prefs})
+}
+
+type mediaNotificationInput struct {
+	RecipientId   string `json:"recipientId"`
+	PublicationId string `json:"publicationId"`
+}
+
+// insertMediaNotification partagé : sender = utilisateur authentifié (jamais
+// client-provided). Dédup + préférences gérées par le SQL des queries.
+func (h *Handler) insertMediaNotification(
+	w http.ResponseWriter,
+	r *http.Request,
+	insert func(ctx context.Context, recipientID, senderID, publicationID string) error,
+) {
+	senderID, ok := middleware.UserID(r.Context())
+	if !ok {
+		response.Unauthorized(w, "Non authentifié")
+		return
+	}
+	var in mediaNotificationInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if in.RecipientId == "" || in.PublicationId == "" {
+		response.BadRequest(w, "recipientId et publicationId requis")
+		return
+	}
+	if err := insert(r.Context(), in.RecipientId, senderID, in.PublicationId); err != nil {
+		log.Printf("[notifications] media-notification: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
+}
+
+func (h *Handler) insertMediaInvite(w http.ResponseWriter, r *http.Request) {
+	h.insertMediaNotification(w, r, h.svc.InsertMediaInvite)
+}
+
+func (h *Handler) insertMediaMemberJoined(w http.ResponseWriter, r *http.Request) {
+	h.insertMediaNotification(w, r, h.svc.InsertMediaMemberJoined)
 }
