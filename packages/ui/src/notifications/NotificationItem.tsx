@@ -2,11 +2,21 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Heart, Repeat, MessageCircle, AtSign, UserPlus, Newspaper, Clock } from 'lucide-react';
+import {
+  Heart,
+  Repeat,
+  MessageCircle,
+  AtSign,
+  UserPlus,
+  Newspaper,
+  Clock,
+  UsersRound,
+} from 'lucide-react';
 import { cn } from '@qoe/utils';
 
 export type GroupedNotificationLike = {
   id: string;
+  notificationIds?: string[];
   type:
     | 'LIKE'
     | 'REPOST'
@@ -17,7 +27,11 @@ export type GroupedNotificationLike = {
     | 'MEDIA_INVITE'
     | 'MEDIA_MEMBER_JOINED'
     | 'MEDIA_ARTICLE_PUBLISHED'
-    | 'MEDIA_ARTICLE_SUBMITTED';
+    | 'MEDIA_ARTICLE_SUBMITTED'
+    | 'ARTICLE_CONTRIBUTOR_INVITED'
+    | 'ARTICLE_CONTRIBUTOR_ACCEPTED'
+    | 'ARTICLE_CONTRIBUTOR_DECLINED'
+    | 'ARTICLE_CONTRIBUTOR_REMOVED';
   isRead: boolean;
   createdAt: string | Date;
   thoughtId?: string | null;
@@ -38,12 +52,15 @@ export type GroupedNotificationLike = {
 
 interface NotificationItemProps {
   notification: GroupedNotificationLike;
-  /** Marque la notification comme lue (peut être appelé au clic). */
-  onMarkRead?: (id: string) => void;
+  /** Marque le groupe complet comme lu (pas seulement sa première ligne). */
+  onMarkRead?: (ids: string[]) => void;
 }
 
 export function NotificationItem({ notification, onMarkRead }: NotificationItemProps) {
   const { type, senders, totalCount, thought, article, isRead, createdAt } = notification;
+  const notificationIds = notification.notificationIds?.length
+    ? notification.notificationIds
+    : [notification.id];
 
   const firstSender = senders[0];
   const otherSendersCount = totalCount - 1;
@@ -109,6 +126,26 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
         ? `a soumis un article pour revue dans le Média`
         : 'a soumis un article pour revue';
       break;
+    case 'ARTICLE_CONTRIBUTOR_INVITED':
+      Icon = UsersRound;
+      iconColorClass = 'text-primary bg-primary/10';
+      actionText = 'vous invite à apparaître comme contributeur de cet article';
+      break;
+    case 'ARTICLE_CONTRIBUTOR_ACCEPTED':
+      Icon = UsersRound;
+      iconColorClass = 'text-success bg-success/10';
+      actionText = 'a accepté votre invitation de contribution';
+      break;
+    case 'ARTICLE_CONTRIBUTOR_DECLINED':
+      Icon = UsersRound;
+      iconColorClass = 'text-destructive bg-destructive/10';
+      actionText = 'a refusé votre invitation de contribution';
+      break;
+    case 'ARTICLE_CONTRIBUTOR_REMOVED':
+      Icon = UsersRound;
+      iconColorClass = 'text-muted-foreground bg-muted';
+      actionText = 'a retiré votre attribution de cet article';
+      break;
   }
 
   // Temps relatif
@@ -125,23 +162,25 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
   }
 
   const targetLink =
-    type === 'FOLLOW' && notification.publication?.slug
-      ? `/${notification.publication.slug}`
-      : notification.thoughtId
-        ? `/thought/${notification.thoughtId}`
-        : notification.article
-          ? `/article/${notification.article.slug}`
-          : notification.publication
-            ? `/m/${notification.publication.id}`
-            : firstSender?.username
-              ? `/@${firstSender.username}`
-              : '#';
+    type === 'ARTICLE_CONTRIBUTOR_INVITED'
+      ? '/advanced'
+      : type === 'FOLLOW' && notification.publication?.slug
+        ? `/${notification.publication.slug}`
+        : notification.thoughtId
+          ? `/thought/${notification.thoughtId}`
+          : notification.article
+            ? `/article/${notification.article.slug}`
+            : notification.publication
+              ? `/m/${notification.publication.id}`
+              : firstSender?.username
+                ? `/@${firstSender.username}`
+                : '#';
 
   return (
     <Link
       href={targetLink}
       onClick={() => {
-        if (!isRead && onMarkRead) onMarkRead(notification.id);
+        if (!isRead && onMarkRead) onMarkRead(notificationIds);
       }}
       className={cn(
         'block p-4 border-b border-border transition-colors hover:bg-muted/40',

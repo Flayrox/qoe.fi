@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { prisma, type Article, type Category, type Prisma } from '@qoe/db/client';
 import { createClient } from '@qoe/supabase/server';
+import { normalizeArticleAttributions, type ArticleAttributionInput } from '@qoe/utils';
 import { slugify, shortId } from '@qoe/utils';
 import { publications, notifications, articleComments } from '@qoe/db';
 import { canMedia, canEditMediaArticle, type MediaMemberContext } from '@qoe/auth';
@@ -166,19 +167,34 @@ export const getArticlesAction = safeAction<
   });
 });
 
-export const getArticleByIdAction = safeAction<
-  string,
-  Prisma.ArticleGetPayload<{ include: { category: true } }> | null
->(async (id) => {
+const articleEditorInclude = {
+  category: true,
+  author: {
+    select: { id: true, name: true, username: true, logoUrl: true, isCertified: true },
+  },
+  coAuthors: {
+    select: { id: true, name: true, username: true, logoUrl: true, isCertified: true },
+  },
+  attributions: {
+    orderBy: { order: 'asc' as const },
+    include: {
+      user: {
+        select: { id: true, name: true, username: true, logoUrl: true, isCertified: true },
+      },
+    },
+  },
+} as const;
+
+type ArticleEditorPayload = Prisma.ArticleGetPayload<{ include: typeof articleEditorInclude }>;
+
+export const getArticleByIdAction = safeAction<string, ArticleEditorPayload | null>(async (id) => {
   const user = await authenticateUser();
   if (isGoEnabled()) {
-    return goFetch<Prisma.ArticleGetPayload<{ include: { category: true } }>>(
-      `/v1/articles/by-id/${id}`
-    );
+    return goFetch<ArticleEditorPayload>(`/v1/articles/by-id/${id}`);
   }
   const article = await prisma.article.findUnique({
     where: { id },
-    include: { category: true },
+    include: articleEditorInclude,
   });
   if (!article) return null;
   // Auteur direct, OU membre de la publication active (média) qui porte l'article
@@ -193,6 +209,7 @@ export const saveArticleAction = safeAction<
     id?: string;
     title: string;
     content: string;
+    imageUrl?: string | null;
     slug?: string;
     published?: boolean;
     status?: string;
@@ -200,6 +217,7 @@ export const saveArticleAction = safeAction<
     categoryId?: string | null;
     seoTitle?: string | null;
     seoDescription?: string | null;
+    attributions?: ArticleAttributionInput[];
   },
   Article
 >(async (data) => {
@@ -208,6 +226,7 @@ export const saveArticleAction = safeAction<
     id,
     title,
     content,
+    imageUrl = null,
     slug,
     published = false,
     status,
@@ -215,7 +234,102 @@ export const saveArticleAction = safeAction<
     categoryId = null,
     seoTitle = null,
     seoDescription = null,
+    attributions,
   } = data;
+
+  const validateAttributions = async (entries: ReturnType<typeof normalizeArticleAttributions>) => {
+    const users = await prisma.user.findMany({
+      where: {
+        id: { in: entries.map((entry) => entry.userId) },
+        isSuspended: false,
+        isShadowbanned: false,
+      },
+      select: { id: true },
+    });
+    if (users.length !== entries.length) {
+      throw new Error('Un ou plusieurs contributeurs sont introuvables ou indisponibles.');
+    }
+  };
+
+  type ExistingAttribution = {
+    userId: string;
+    consentStatus: string;
+    isVisible: boolean;
+  };
+  type ExistingRequest = { inviteeId: string; status: string };
+
+  // Le client peut proposer une byline, mais il ne peut jamais fabriquer un consentement.
+  // Seul un consentement déjà accepté en base (ou l'auteur principal) reste public.
+  const prepareAttributions = (
+    entries: ReturnType<typeof normalizeArticleAttributions>,
+    primaryAuthorId: string,
+    existingAttributions: ExistingAttribution[],
+    existingRequests: ExistingRequest[]
+  ) => {
+    const existingByUserId = new Map(existingAttributions.map((entry) => [entry.userId, entry]));
+    const acceptedIds = new Set(
+      existingAttributions
+        .filter((entry) => entry.consentStatus === 'ACCEPTED')
+        .map((entry) => entry.userId)
+    );
+    for (const request of existingRequests) {
+      if (request.status === 'ACCEPTED') acceptedIds.add(request.inviteeId);
+    }
+
+    return entries.map((entry) => {
+      const isPrimary = entry.userId === primaryAuthorId;
+      const accepted = isPrimary || acceptedIds.has(entry.userId);
+      return {
+        ...entry,
+        consentStatus: accepted ? 'ACCEPTED' : 'PENDING',
+        // La visibilité d'un contributeur accepté est son choix, pas celui de l'éditeur.
+        isVisible: isPrimary
+          ? true
+          : accepted
+            ? (existingByUserId.get(entry.userId)?.isVisible ?? true)
+            : false,
+      };
+    });
+  };
+
+  const requestPendingContributors = async (
+    articleId: string,
+    inviterId: string,
+    entries: ReturnType<typeof prepareAttributions>
+  ) => {
+    await Promise.allSettled(
+      entries
+        .filter((entry) => entry.consentStatus === 'PENDING' && entry.userId !== inviterId)
+        .map(async (entry) => {
+          await prisma.collaborationRequest.upsert({
+            where: { articleId_inviteeId: { articleId, inviteeId: entry.userId } },
+            update: {
+              inviterId,
+              status: 'PENDING',
+              requestedRole: entry.role,
+              requestedOrder: entry.order,
+              showOnPublicProfile: false,
+              acceptedAt: null,
+            },
+            create: {
+              articleId,
+              inviterId,
+              inviteeId: entry.userId,
+              status: 'PENDING',
+              requestedRole: entry.role,
+              requestedOrder: entry.order,
+              showOnPublicProfile: false,
+            },
+          });
+          await notifications.createNotification({
+            recipientId: entry.userId,
+            senderId: inviterId,
+            type: 'ARTICLE_CONTRIBUTOR_INVITED',
+            articleId,
+          });
+        })
+    );
+  };
 
   if (!title.trim()) {
     throw new Error("Le titre de l'article est requis.");
@@ -251,6 +365,7 @@ export const saveArticleAction = safeAction<
         body: {
           title,
           content,
+          imageUrl,
           slug: finalSlug,
           published,
           status,
@@ -259,6 +374,7 @@ export const saveArticleAction = safeAction<
           seoTitle,
           seoDescription,
           readingTime,
+          attributions: normalizeArticleAttributions(attributions, user.id),
           activePublicationId,
         },
       });
@@ -270,6 +386,7 @@ export const saveArticleAction = safeAction<
         publicationId,
         title,
         content,
+        imageUrl,
         slug: finalSlug,
         published,
         status,
@@ -278,17 +395,36 @@ export const saveArticleAction = safeAction<
         seoTitle,
         seoDescription,
         readingTime,
+        attributions: normalizeArticleAttributions(attributions, user.id),
       },
     });
   }
 
   if (id) {
-    const existing = await prisma.article.findUnique({ where: { id } });
+    const existing = await prisma.article.findUnique({
+      where: { id },
+      include: { attributions: true, collaborationRequests: true },
+    });
     if (!existing) throw new Error('Article introuvable.');
     const activePublicationId = await getActivePublicationId(user.id);
     if (existing.authorId !== user.id && existing.publicationId !== activePublicationId) {
       throw new Error("Vous n'êtes pas autorisé à modifier cet article.");
     }
+
+    const normalizedAttributions = normalizeArticleAttributions(attributions, existing.authorId);
+    await validateAttributions(normalizedAttributions);
+    const preparedAttributions = prepareAttributions(
+      normalizedAttributions,
+      existing.authorId,
+      existing.attributions,
+      existing.collaborationRequests
+    ).map((entry) => ({
+      ...entry,
+      consentStatus: entry.userId === existing.authorId ? 'ACCEPTED' : entry.consentStatus,
+    }));
+    const legacyCoAuthorIds = preparedAttributions
+      .filter((entry) => entry.userId !== existing.authorId && entry.consentStatus === 'ACCEPTED')
+      .map((entry) => entry.userId);
 
     // RBAC média : édition d'un article du Média
     const { member: mediaMember, isMedia } = await getMediaMemberContext(
@@ -335,6 +471,7 @@ export const saveArticleAction = safeAction<
       data: {
         title,
         content,
+        imageUrl,
         slug: finalSlug,
         published: effectivePublished,
         status: effectiveStatus,
@@ -343,8 +480,46 @@ export const saveArticleAction = safeAction<
         categoryId: categoryId || null,
         seoTitle,
         seoDescription,
+        coAuthors: { set: legacyCoAuthorIds.map((id) => ({ id })) },
       },
     });
+
+    await prisma.$transaction([
+      prisma.articleAttribution.deleteMany({ where: { articleId: updated.id } }),
+      prisma.articleAttribution.createMany({
+        data: preparedAttributions.map((entry) => ({ articleId: updated.id, ...entry })),
+      }),
+    ]);
+
+    await requestPendingContributors(updated.id, user.id, preparedAttributions);
+
+    const nextContributorIds = new Set(
+      preparedAttributions
+        .filter((entry) => entry.consentStatus === 'ACCEPTED')
+        .map((entry) => entry.userId)
+    );
+    const removedContributorIds = existing.attributions
+      .filter(
+        (entry) =>
+          entry.userId !== existing.authorId &&
+          entry.consentStatus === 'ACCEPTED' &&
+          !nextContributorIds.has(entry.userId)
+      )
+      .map((entry) => entry.userId);
+    await Promise.allSettled(
+      removedContributorIds.map(async (contributorId) => {
+        await prisma.collaborationRequest.updateMany({
+          where: { articleId: updated.id, inviteeId: contributorId },
+          data: { status: 'REVOKED', showOnPublicProfile: false },
+        });
+        await notifications.createNotification({
+          recipientId: contributorId,
+          senderId: user.id,
+          type: 'ARTICLE_CONTRIBUTOR_REMOVED',
+          articleId: updated.id,
+        });
+      })
+    );
 
     // 🔔 Fan-out aux abonnés du Média à la publication (transition draft→publié)
     if (effectivePublished && !existing.published) {
@@ -384,10 +559,24 @@ export const saveArticleAction = safeAction<
       }
     }
 
+    const normalizedAttributions = normalizeArticleAttributions(attributions, user.id);
+    await validateAttributions(normalizedAttributions);
+    const preparedAttributions = prepareAttributions(normalizedAttributions, user.id, [], []).map(
+      (entry) => ({
+        ...entry,
+        consentStatus: entry.userId === user.id ? 'ACCEPTED' : 'PENDING',
+        isVisible: entry.userId === user.id,
+      })
+    );
+    const legacyCoAuthorIds = preparedAttributions
+      .filter((entry) => entry.userId !== user.id && entry.consentStatus === 'ACCEPTED')
+      .map((entry) => entry.userId);
+
     const created = await prisma.article.create({
       data: {
         title,
         content,
+        imageUrl,
         slug: finalSlug,
         published: effectivePublished,
         status: effectiveStatus,
@@ -398,8 +587,15 @@ export const saveArticleAction = safeAction<
         categoryId: categoryId || null,
         seoTitle,
         seoDescription,
+        coAuthors: { connect: legacyCoAuthorIds.map((id) => ({ id })) },
       },
     });
+
+    await prisma.articleAttribution.createMany({
+      data: preparedAttributions.map((entry) => ({ articleId: created.id, ...entry })),
+    });
+
+    await requestPendingContributors(created.id, user.id, preparedAttributions);
 
     if (effectiveStatus === 'SUBMITTED') {
       await notifyReviewers(publicationId, created.id, user.id);
@@ -413,6 +609,36 @@ export const saveArticleAction = safeAction<
     revalidatePath('/articles');
     return created;
   }
+});
+
+export const searchArticleContributorsAction = safeAction<
+  { query: string; excludeIds?: string[] },
+  Array<{
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+    isCertified: boolean;
+  }>
+>(async ({ query, excludeIds = [] }) => {
+  const normalizedQuery = query.trim();
+  if (normalizedQuery.length < 2) return [];
+
+  return prisma.user.findMany({
+    where: {
+      id: { notIn: excludeIds },
+      isSuspended: false,
+      isShadowbanned: false,
+      OR: [
+        { name: { contains: normalizedQuery, mode: 'insensitive' } },
+        { username: { contains: normalizedQuery, mode: 'insensitive' } },
+        { email: { contains: normalizedQuery, mode: 'insensitive' } },
+      ],
+    },
+    select: { id: true, name: true, username: true, logoUrl: true, isCertified: true },
+    orderBy: { name: 'asc' },
+    take: 8,
+  });
 });
 
 export const deleteArticleAction = safeAction<string, { success: boolean }>(async (id) => {

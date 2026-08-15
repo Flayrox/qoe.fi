@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Image from '@tiptap/extension-image';
+import Collaboration from '@tiptap/extension-collaboration';
+import * as Y from 'yjs';
 import { PaywallDivider } from '../extensions/PaywallDivider';
 import { AnnotationMark } from '../extensions/AnnotationMark';
 import {
@@ -38,6 +40,7 @@ import {
   X,
   ExternalLink,
   MessageSquare,
+  UsersRound,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { compressImage } from '@/lib/image-compressor';
@@ -46,6 +49,8 @@ import { useAutoSaveArticle, type AutoSavePayload } from '@qoe/api-client';
 import type { EditorCapabilities } from '@qoe/api-client/actions/articles';
 import { ArticleInspectorModal } from '@/app/(creator)/analytics/components/ArticleInspectorModal';
 import { t } from '@lingui/core/macro';
+import { ArticleAttributionEditor, type ArticleAttributionDraft } from './ArticleAttributionEditor';
+import { LocalCollaborationProvider } from '../collaboration/LocalCollaborationProvider';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) return error.message;
@@ -60,6 +65,7 @@ export interface EditorProps {
   initialTitle?: string;
   initialSlug?: string;
   initialContent?: string;
+  initialImageUrl?: string | null;
   initialPublished?: boolean;
   initialScheduledAt?: string | null;
   initialStatus?: string;
@@ -69,6 +75,9 @@ export interface EditorProps {
   initialSeoDescription?: string | null;
   initialAllowPublicAnnotations?: boolean;
   initialAllowComments?: boolean;
+  initialAttributions?: ArticleAttributionDraft[];
+  collaborationRoomId?: string;
+  collaborationEnabled?: boolean;
   subdomain?: string;
   categories?: { id: string; name: string }[];
   isSaving?: boolean;
@@ -76,6 +85,7 @@ export interface EditorProps {
   onSave: (data: {
     title: string;
     content: string;
+    imageUrl: string | null;
     slug: string;
     published: boolean;
     scheduledAt?: string | null;
@@ -86,6 +96,7 @@ export interface EditorProps {
     seoDescription: string | null;
     allowPublicAnnotations?: boolean;
     allowComments?: boolean;
+    attributions?: ArticleAttributionDraft[];
   }) => Promise<void>;
   onBack?: () => void;
 }
@@ -94,6 +105,7 @@ export function Editor({
   initialTitle = '',
   initialSlug = '',
   initialContent = '',
+  initialImageUrl = null,
   initialPublished = false,
   initialStatus = 'DRAFT',
   initialIsPremium = false,
@@ -102,6 +114,9 @@ export function Editor({
   initialSeoDescription = '',
   initialAllowPublicAnnotations = true,
   initialAllowComments = true,
+  initialAttributions = [],
+  collaborationRoomId,
+  collaborationEnabled = true,
   subdomain,
   categories = [],
   isSaving = false,
@@ -111,6 +126,7 @@ export function Editor({
 }: EditorProps) {
   const [title, setTitle] = useState(initialTitle);
   const [slug, setSlug] = useState(initialSlug);
+  const [imageUrl, setImageUrl] = useState<string | null>(initialImageUrl);
   const [published, setPublished] = useState(initialPublished);
   const [status, setStatus] = useState<string>(initialStatus || 'DRAFT');
   const [isPremium, setIsPremium] = useState(initialIsPremium);
@@ -121,6 +137,7 @@ export function Editor({
     initialAllowPublicAnnotations
   );
   const [allowComments, setAllowComments] = useState(initialAllowComments);
+  const [attributions, setAttributions] = useState<ArticleAttributionDraft[]>(initialAttributions);
 
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -134,6 +151,34 @@ export function Editor({
   const [annotationToast, setAnnotationToast] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
+  const collaborationDoc = useMemo(
+    () =>
+      collaborationEnabled && collaborationRoomId && typeof window !== 'undefined'
+        ? new Y.Doc()
+        : null,
+    [collaborationEnabled, collaborationRoomId]
+  );
+  const collaborationProvider = useMemo(
+    () =>
+      collaborationDoc && collaborationRoomId
+        ? new LocalCollaborationProvider(collaborationDoc, `qoe-article-${collaborationRoomId}`)
+        : null,
+    [collaborationDoc, collaborationRoomId]
+  );
+  const [collaborationPeerCount, setCollaborationPeerCount] = useState(0);
+
+  useEffect(() => {
+    if (!collaborationProvider) return;
+    const unsubscribe = collaborationProvider.onStatus((status, peerCount) => {
+      setCollaborationPeerCount(status === 'disconnected' ? 0 : peerCount);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [collaborationProvider]);
+
+  useEffect(() => () => collaborationProvider?.destroy(), [collaborationProvider]);
 
   const editor = useEditor({
     extensions: [
@@ -146,8 +191,11 @@ export function Editor({
           class: 'rounded-2xl border border-border/40 my-10 max-w-full h-auto shadow-sm',
         },
       }),
+      ...(collaborationDoc
+        ? [Collaboration.configure({ document: collaborationDoc, field: 'default' })]
+        : []),
     ],
-    content: initialContent,
+    content: collaborationDoc ? '' : initialContent,
     editorProps: {
       attributes: {
         class:
@@ -173,12 +221,23 @@ export function Editor({
     },
   });
 
+  useEffect(() => {
+    if (!editor || !collaborationDoc || !initialContent) return;
+    const seedTimer = window.setTimeout(() => {
+      if (collaborationDoc.getXmlFragment('default').length === 0) {
+        editor.commands.setContent(initialContent, { emitUpdate: false });
+      }
+    }, 500);
+    return () => window.clearTimeout(seedTimer);
+  }, [editor, collaborationDoc, initialContent]);
+
   const { scheduleAutoSave, status: autoSaveStatus } = useAutoSaveArticle({
     delay: 2500,
     onSave: async (payload: AutoSavePayload) => {
       await onSave({
         title: payload.title,
         content: payload.content,
+        imageUrl,
         slug: payload.slug || slug,
         published: payload.published ?? published,
         isPremium: payload.isPremium ?? isPremium,
@@ -187,6 +246,7 @@ export function Editor({
         seoDescription: payload.seoDescription ?? seoDescription,
         allowPublicAnnotations,
         allowComments,
+        attributions,
       });
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
@@ -201,7 +261,8 @@ export function Editor({
       slug !== initialSlug ||
       categoryId !== initialCategoryId ||
       seoTitle !== (initialSeoTitle || '') ||
-      seoDescription !== (initialSeoDescription || '')
+      seoDescription !== (initialSeoDescription || '') ||
+      attributions !== initialAttributions
     ) {
       setHasUnsavedChanges(true);
       if (title.trim() && editor) {
@@ -217,7 +278,17 @@ export function Editor({
         });
       }
     }
-  }, [title, slug, categoryId, seoTitle, seoDescription, published, isPremium]);
+  }, [
+    title,
+    slug,
+    categoryId,
+    seoTitle,
+    seoDescription,
+    published,
+    isPremium,
+    attributions,
+    initialAttributions,
+  ]);
 
   // Generate slug automatically
   useEffect(() => {
@@ -260,6 +331,27 @@ export function Editor({
     }
   };
 
+  const handleCoverFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploading(true);
+      const compressedFile = await compressImage(file);
+      const url = await uploadImageToRoute(
+        compressedFile,
+        '/api/articles/upload',
+        IMAGE_FOLDERS.articles
+      );
+      setImageUrl(url);
+      setHasUnsavedChanges(true);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Une erreur est survenue lors de l'upload de la couverture."));
+    } finally {
+      setIsUploading(false);
+      if (coverFileInputRef.current) coverFileInputRef.current.value = '';
+    }
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -293,6 +385,7 @@ export function Editor({
       await onSave({
         title,
         content: htmlContent,
+        imageUrl,
         slug: finalSlug,
         published,
         status: statusOverride ?? status,
@@ -302,6 +395,7 @@ export function Editor({
         seoDescription: seoDescription || null,
         allowPublicAnnotations,
         allowComments,
+        attributions,
       });
       if (statusOverride) setStatus(statusOverride);
       setLastSaved(new Date());
@@ -347,6 +441,17 @@ export function Editor({
           <div>
             <h2 className="text-xl font-bold text-foreground font-sans tracking-tight flex items-center gap-3">
               {initialTitle ? 'Édition' : 'Nouvel écrit'}
+              {collaborationProvider && (
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary"
+                  data-testid="collaboration-status"
+                >
+                  <UsersRound className="h-3 w-3" />
+                  {collaborationPeerCount > 0
+                    ? `${collaborationPeerCount + 1} éditeurs`
+                    : 'Co-édition · essai local'}
+                </span>
+              )}
               {(isSaving || autoSaveStatus === 'saving') && (
                 <span className="text-xs text-muted-foreground font-sans flex items-center gap-1.5">
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />{' '}
@@ -638,6 +743,14 @@ export function Editor({
                 className="hidden"
                 aria-label="Insérer image"
               />
+              <input
+                type="file"
+                ref={coverFileInputRef}
+                onChange={handleCoverFileSelect}
+                accept="image/*"
+                className="hidden"
+                aria-label="Choisir la couverture de l'article"
+              />
               <ToolbarButton
                 onClick={() => fileInputRef.current?.click()}
                 icon={
@@ -700,6 +813,40 @@ export function Editor({
         {/* Options / Settings Sidebar */}
         {showSettings && (
           <div className="space-y-8 lg:col-span-1 animate-in fade-in-50 duration-200 lg:sticky lg:top-24 bg-card border border-border/40 rounded-2xl p-6 shadow-none">
+            {/* Article cover */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
+                <ImageIcon className="h-3.5 w-3.5 text-muted-foreground stroke-[1.5]" />
+                Image de couverture
+              </h3>
+              <button
+                type="button"
+                onClick={() => coverFileInputRef.current?.click()}
+                disabled={isUploading}
+                className="group relative flex aspect-[16/7] w-full items-center justify-center overflow-hidden rounded-xl border border-border/40 bg-muted/30 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground disabled:opacity-50"
+              >
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                ) : (
+                  <span>Ajouter une image pour la carte du feed</span>
+                )}
+                <span className="absolute inset-x-2 bottom-2 rounded-lg bg-background/80 px-2 py-1 text-[10px] backdrop-blur-sm">
+                  {imageUrl ? 'Remplacer la couverture' : 'Choisir une couverture'}
+                </span>
+              </button>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Cette image sera utilisée en priorité dans la carte article. Sans image, la photo de
+                profil sera utilisée.
+              </p>
+            </div>
+
+            {/* Editorial byline */}
+            <ArticleAttributionEditor value={attributions} onChange={setAttributions} />
+
             {/* Category Selection */}
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">

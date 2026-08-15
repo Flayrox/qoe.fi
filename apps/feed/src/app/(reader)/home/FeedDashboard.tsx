@@ -46,6 +46,30 @@ interface Author {
   isCertified?: boolean;
   type?: 'PERSONAL' | 'MEDIA';
   authorName?: string | null;
+  journalist?: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+    isCertified?: boolean;
+  } | null;
+  coAuthors?: Array<{
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+    isCertified?: boolean;
+  }>;
+  contributors?: Array<{
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+    isCertified?: boolean;
+    role?: string;
+    order?: number;
+    isVisible?: boolean;
+  }>;
 }
 
 interface Creator {
@@ -141,6 +165,7 @@ interface FeedDashboardProps {
   followedCreators: Creator[];
   suggestedCreators: Creator[];
   initialFollowsCount: number;
+  followedAuthorIds: string[];
   initialBookmarksCount: number;
   initialHighlightsCount: number;
   mutedWords?: string[];
@@ -157,6 +182,7 @@ export function FeedDashboard({
   discoverArticles,
   bookmarks: initialBookmarks,
   followedCreators: initialFollowedCreators,
+  followedAuthorIds,
   mutedWords = [],
 }: FeedDashboardProps) {
   const [activeFeed, setActiveFeed] = useState<string>('recommandation');
@@ -700,6 +726,12 @@ export function FeedDashboard({
                               article.author?.id ||
                               (article as FeedSliceItem).targetPost?.author?.id;
                             const isFollowed = authorId ? isCreatorFollowed(authorId) : false;
+                            const isFollowedAuthor =
+                              'journalist' in article &&
+                              Boolean(
+                                article.author?.journalist?.id &&
+                                followedAuthorIds.includes(article.author.journalist.id)
+                              );
 
                             if (!article.title) {
                               const isSlice = 'targetPost' in article;
@@ -748,6 +780,7 @@ export function FeedDashboard({
                                 dbUser={dbUser}
                                 isBookmarked={isBookmarked}
                                 isFollowed={isFollowed}
+                                isFollowedAuthor={isFollowedAuthor}
                                 handleFollowToggle={handleFollowToggle}
                                 handleBookmarkToggle={handleBookmarkToggle}
                                 featured={idx === 0 && activeFeed === 'recommandation'}

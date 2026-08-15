@@ -40,6 +40,7 @@ type SupabaseClient = ReturnType<typeof createClient>;
 type RealtimeChannel = ReturnType<SupabaseClient['channel']>;
 
 let channel: RealtimeChannel | null = null;
+let channelUserId: string | null = null;
 let channelPromise: Promise<void> | null = null;
 
 function dispatch(payload: unknown) {
@@ -65,6 +66,15 @@ function ensureChannel(): Promise<void> {
       return;
     }
 
+    // Un changement de session ne doit jamais laisser l'ancien utilisateur
+    // écouter le canal temps réel.
+    if (channel && channelUserId !== user.id) {
+      await client.removeChannel(channel);
+      channel = null;
+      channelUserId = null;
+    }
+    if (channel) return;
+
     channel = client.channel('public:Notification').on(
       'postgres_changes',
       {
@@ -76,7 +86,17 @@ function ensureChannel(): Promise<void> {
       (payload) => dispatch(payload)
     );
 
-    channel.subscribe();
+    channelUserId = user.id;
+    channel.subscribe((status) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        channel = null;
+        channelUserId = null;
+        channelPromise = null;
+        if (listeners.size > 0) {
+          window.setTimeout(() => void ensureChannel(), 1000);
+        }
+      }
+    });
   })();
 
   return channelPromise;

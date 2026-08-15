@@ -4,7 +4,16 @@ import {
   useNotificationPreferencesQuery,
   useUpdateNotificationPreferencesMutation,
 } from '@qoe/api-client';
-import { Loader2, Heart, MessageCircle, AtSign, UserPlus, Repeat, Building2 } from 'lucide-react';
+import {
+  Loader2,
+  Heart,
+  MessageCircle,
+  AtSign,
+  UserPlus,
+  Repeat,
+  Building2,
+  UsersRound,
+} from 'lucide-react';
 
 export function NotificationSettingsForm() {
   const { data: prefs, isLoading } = useNotificationPreferencesQuery();
@@ -80,6 +89,15 @@ export function NotificationSettingsForm() {
       pushKey: 'pushMedia',
       description:
         'Invitations à rejoindre un Média, arrivées de membres, nouvelles publications de vos Médias.',
+    },
+    {
+      title: 'Collaborations & attributions',
+      icon: UsersRound,
+      iconColor: 'text-primary',
+      emailKey: 'emailCollaborations',
+      pushKey: 'pushCollaborations',
+      description:
+        'Invitations à signer un article, acceptations, refus et retraits de consentement.',
     },
   ] as const;
 

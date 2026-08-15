@@ -16,6 +16,7 @@ export type {
   MediaInvite,
   MediaAuditLog,
   Article,
+  ArticleAttribution,
   Thought,
   Subscriber,
   Follows,
@@ -65,6 +66,18 @@ export interface PublicationDTO {
  * 👤 DTO Profil Créateur / Auteur — désormais une Publication brand.
  * `authorName` = le nom de l'auteur humain (byline "Par Sophie • Médium").
  */
+export interface ArticleContributorDTO {
+  id: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  isCertified?: boolean;
+  role?: string;
+  order?: number;
+  isVisible?: boolean;
+  consentStatus?: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN' | 'REVOKED' | string;
+}
+
 export interface CreatorProfileDTO {
   id: string;
   name: string | null;
@@ -76,6 +89,9 @@ export interface CreatorProfileDTO {
   isCertified?: boolean;
   type?: 'PERSONAL' | 'MEDIA';
   authorName?: string | null;
+  journalist?: ArticleContributorDTO | null;
+  coAuthors?: ArticleContributorDTO[];
+  contributors?: ArticleContributorDTO[];
 }
 
 /**
@@ -94,6 +110,7 @@ export interface FeedArticleDTO {
   author: CreatorProfileDTO;
   category: { name: string } | null;
   tags?: string[];
+  contributors?: ArticleContributorDTO[];
   likesCount?: number;
   repliesCount?: number;
   liked?: boolean;

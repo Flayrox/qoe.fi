@@ -16,6 +16,7 @@ const TABS: Array<{ id: NotificationFilter; label: string }> = [
   { id: 'mentions', label: 'Mentions' },
   { id: 'replies', label: 'Réponses' },
   { id: 'likes', label: "J'aime" },
+  { id: 'collaborations', label: 'Collaborations' },
 ];
 
 export function NotificationList() {
@@ -34,8 +35,8 @@ export function NotificationList() {
     markAsReadMutation.mutate(undefined);
   };
 
-  const handleMarkOneRead = (id: string) => {
-    markAsReadMutation.mutate([id]);
+  const handleMarkOneRead = (ids: string[]) => {
+    markAsReadMutation.mutate(ids);
   };
 
   return (

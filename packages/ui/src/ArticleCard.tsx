@@ -1,17 +1,29 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MessageSquare, Repeat, Heart, Bookmark } from 'lucide-react';
+import Image from 'next/image';
+import {
+  ArrowUpRight,
+  BookMarked,
+  Bookmark,
+  Clock,
+  Crown,
+  Heart,
+  MessageSquare,
+  Repeat,
+} from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { routes } from '@qoe/config';
 import type { FeedArticleDTO } from '@qoe/db/types';
 import { useRequireAuth } from './auth/AuthModalContext';
+import { CertifiedBadge } from './ui/CertifiedBadge';
 import { t } from '@lingui/core/macro';
 
 export type { FeedArticleDTO as Article };
 
 interface ArticleCardProps {
   article: FeedArticleDTO;
+  isFollowedAuthor?: boolean;
   isBookmarked?: boolean;
   handleBookmarkToggle?: (article: FeedArticleDTO) => void;
   featured?: boolean;
@@ -21,241 +33,352 @@ interface ArticleCardProps {
   onOpenPost?: (postId: string) => void;
 }
 
+function ProfileMark({ author, size = 40 }: { author: FeedArticleDTO['author']; size?: number }) {
+  const isMedia = author.type === 'MEDIA';
+  const fallback = (author.name || 'QO').slice(0, 2).toUpperCase();
+
+  return (
+    <div
+      className={cn(
+        'relative shrink-0 overflow-hidden border border-black/10 bg-muted',
+        isMedia ? 'rounded-[12px]' : 'rounded-full'
+      )}
+      style={{ width: size, height: size }}
+    >
+      {author.logoUrl ? (
+        <Image src={author.logoUrl} alt="" fill className="object-cover" />
+      ) : (
+        <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-primary">
+          {fallback}
+        </span>
+      )}
+    </div>
+  );
+}
+
+type SharedContributor = {
+  id: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  isCertified?: boolean;
+  isMedia?: boolean;
+  handleOnly?: boolean;
+  consentStatus?: string;
+};
+
+function SharedContributorLine({ people }: { people: SharedContributor[] }) {
+  if (people.length === 0) return null;
+  return (
+    <span className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-[11px] text-black/60 dark:text-white/60">
+      <span className="flex shrink-0 items-center -space-x-1">
+        {people.slice(0, 3).map((person) => (
+          <span
+            key={person.id}
+            className={cn(
+              'relative h-4 w-4 overflow-hidden border border-white/80 bg-muted dark:border-black/60',
+              person.isMedia ? 'rounded-[4px]' : 'rounded-full'
+            )}
+          >
+            {person.logoUrl ? (
+              <Image src={person.logoUrl} alt="" fill className="object-cover" sizes="16px" />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-[6px] font-semibold text-primary">
+                {(person.name || 'A').slice(0, 1).toUpperCase()}
+              </span>
+            )}
+          </span>
+        ))}
+      </span>
+      <span className="truncate">
+        {people
+          .slice(0, 2)
+          .map((person) => {
+            const handle = person.username || person.id.slice(0, 8);
+            return person.handleOnly ? `@${handle}` : `${person.name || 'Auteur'} @${handle}`;
+          })
+          .join(' · ')}
+        {people.length > 2 ? ` +${people.length - 2}` : ''}
+      </span>
+    </span>
+  );
+}
+
 export function ArticleCard({
   article,
+  isFollowedAuthor = false,
   isBookmarked = false,
   handleBookmarkToggle,
+  featured = false,
+  isPreview = false,
   onOpenArticle,
   onOpenProfile,
   onOpenPost,
 }: ArticleCardProps) {
   const { withAuth } = useRequireAuth();
+  const [bookmarked, setBookmarked] = useState(isBookmarked);
   const [liked, setLiked] = useState(article.liked || false);
   const [likesCount, setLikesCount] = useState(article.likesCount || 0);
   const [reposted, setReposted] = useState(false);
   const [repostsCount, setRepostsCount] = useState(0);
 
   const isThought = !article.title;
-  const url = isThought
-    ? '#'
-    : article.author.subdomain
-      ? routes.tenant.article(article.author.subdomain, article.slug)
-      : routes.feed.article(article.slug);
+  const authorHandle = article.author.username || article.author.subdomain || 'qoe.fi';
+  const explicitContributors = (article.author.contributors || [])
+    .filter(
+      (contributor) =>
+        contributor.isVisible !== false &&
+        (contributor.consentStatus === undefined || contributor.consentStatus === 'ACCEPTED')
+    )
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const explicitPrimary = explicitContributors.find(
+    (contributor) => contributor.role === 'PRIMARY_AUTHOR'
+  );
+  const journalist = article.author.journalist || explicitPrimary || null;
+  const legacyCoAuthors = (article.author.coAuthors || []).filter(
+    (contributor) =>
+      contributor.consentStatus === undefined || contributor.consentStatus === 'ACCEPTED'
+  );
+  const explicitContributorIds = new Set(explicitContributors.map((contributor) => contributor.id));
+  const coAuthors = [
+    ...explicitContributors.filter((contributor) => contributor.id !== journalist?.id),
+    ...legacyCoAuthors.filter((contributor) => !explicitContributorIds.has(contributor.id)),
+  ];
+  const isMedia = article.author.type === 'MEDIA';
+  const useAuthorAsPrimary = isMedia && Boolean(journalist?.id && isFollowedAuthor);
+  const primaryPerson = useAuthorAsPrimary ? journalist : null;
+  const primaryName = primaryPerson?.name || article.author.name || t`Auteur`;
+  const primaryHandle = primaryPerson?.username || primaryPerson?.id?.slice(0, 8) || authorHandle;
+  const primaryAuthor = primaryPerson
+    ? {
+        ...article.author,
+        ...primaryPerson,
+        type: 'PERSONAL' as const,
+        subdomain: null,
+        customDomain: null,
+      }
+    : article.author;
+  const secondaryPeople = useAuthorAsPrimary
+    ? [{ ...article.author, isMedia: true, handleOnly: true }, ...coAuthors]
+    : isMedia
+      ? journalist
+        ? [journalist, ...coAuthors]
+        : coAuthors.length > 0
+          ? coAuthors
+          : [{ ...article.author, isMedia: true, handleOnly: true }]
+      : coAuthors;
+  const coverImage =
+    article.imageUrl || (useAuthorAsPrimary ? journalist?.logoUrl : article.author.logoUrl);
+  const excerpt = article.content
+    ? article.content
+        .replace(/<[^>]*>?/gm, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+    : '';
+  const date = new Date(article.createdAt).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  const url = article.author.subdomain
+    ? routes.tenant.article(article.author.subdomain, article.slug)
+    : routes.feed.article(article.slug);
 
-  const handleOpenProfile = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const targetUsername = article.author.username || article.author.subdomain;
-    if (!targetUsername) return;
-    if (onOpenProfile) {
-      onOpenProfile(targetUsername);
-    } else {
-      window.location.href = routes.feed.profile(targetUsername);
-    }
+  const openProfile = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onOpenProfile?.(primaryHandle);
   };
 
-  const handleCardClick = () => {
+  const openArticle = (event: React.MouseEvent) => {
     if (onOpenArticle) {
+      event.preventDefault();
+      event.stopPropagation();
       onOpenArticle(article);
-    } else if (isThought && onOpenPost) {
-      onOpenPost(article.id);
     }
   };
 
-  const handleTitleClick = (e: React.MouseEvent) => {
-    if (onOpenArticle) {
-      e.preventDefault();
-      e.stopPropagation();
-      onOpenArticle(article);
-    } else if (onOpenPost) {
-      e.preventDefault();
-      e.stopPropagation();
-      onOpenPost(article.id);
-    }
+  const toggleBookmark = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setBookmarked((value) => !value);
+    handleBookmarkToggle?.(article);
   };
 
-  const handleLike = withAuth(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setLiked((prev: boolean) => !prev);
-      setLikesCount((prev: number) => (liked ? Math.max(0, prev - 1) : prev + 1));
+  const toggleLike = withAuth(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setLiked((value) => !value);
+      setLikesCount((value) => (liked ? Math.max(0, value - 1) : value + 1));
     },
     { actionContext: 'like' }
   );
 
-  const handleRepost = withAuth(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setReposted((prev: boolean) => !prev);
-      setRepostsCount((prev: number) => (reposted ? Math.max(0, prev - 1) : prev + 1));
+  const toggleRepost = withAuth(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setReposted((value) => !value);
+      setRepostsCount((value) => (reposted ? Math.max(0, value - 1) : value + 1));
     },
     { actionContext: 'repost' }
   );
 
-  const formattedDate = new Date(article.createdAt).toLocaleDateString('fr-FR', {
-    month: 'short',
-    day: 'numeric',
-  });
-
-  const rawExcerpt = article.content ? article.content.replace(/<[^>]*>?/gm, '') : '';
+  if (isThought) return null;
 
   return (
     <article
-      onClick={handleCardClick}
       className={cn(
-        'group relative pt-6 pb-6 first:pt-0 font-sans antialiased select-none',
-        isThought || onOpenArticle ? 'cursor-pointer' : ''
+        'group relative overflow-hidden bg-card shadow-none transition-colors',
+        'rounded-[24px] p-2.5 sm:p-3',
+        featured && 'rounded-[28px]'
       )}
     >
-      {/* Top subtle gradient divider line */}
-      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-border/30 to-transparent" />
+      <div
+        className={cn(
+          'relative overflow-hidden rounded-[17px] bg-muted',
+          featured ? 'h-[250px]' : 'h-[205px]'
+        )}
+      >
+        {coverImage ? (
+          <Image
+            src={coverImage}
+            alt=""
+            fill
+            className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.025]"
+            sizes="(max-width: 768px) 100vw, 720px"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/25 via-muted to-background" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/30" />
 
-      <div className="flex items-start gap-4">
-        {/* Author Avatar */}
-        <button
-          type="button"
-          onClick={handleOpenProfile}
-          className="shrink-0 outline-none group/avatar cursor-pointer"
-        >
-          <div className="w-10 h-10 rounded-full overflow-hidden ring-1 ring-border/40 group-hover/avatar:ring-primary/50 transition-all">
-            {article.author.logoUrl ? (
-              <img
-                src={article.author.logoUrl}
-                alt={article.author.name || t`Auteur`}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-primary/10 flex items-center justify-center font-semibold text-xs text-primary">
-                {(article.author.name || 'A').substring(0, 2).toUpperCase()}
-              </div>
-            )}
-          </div>
-        </button>
-
-        {/* Content Body */}
-        <div className="flex-1 space-y-2 min-w-0">
-          {/* Header Metadata */}
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2 truncate">
-              <button
-                type="button"
-                onClick={handleOpenProfile}
-                className="font-medium text-foreground hover:text-primary transition-colors truncate outline-none cursor-pointer"
-              >
-                {article.author.name || t`Auteur`}
-              </button>
-              <span className="text-muted-foreground truncate">
-                @{article.author.username || article.author.subdomain || 'qoe'}
-              </span>
-              {!isThought && (
-                <span className="px-2 py-0.5 text-[10px] bg-primary/10 text-primary rounded-full border border-primary/20 font-medium">
-                  {t`Article`}
+        <div className="absolute inset-x-3 top-3 flex items-center justify-between gap-3 rounded-[14px] bg-white/90 px-2.5 py-2 text-black backdrop-blur-md dark:bg-black/75 dark:text-white">
+          <button
+            type="button"
+            onClick={openProfile}
+            className="flex min-w-0 items-center gap-2.5 text-left"
+          >
+            <ProfileMark author={primaryAuthor} size={40} />
+            <span className="min-w-0">
+              <span className="flex items-center gap-1.5">
+                <span className="truncate text-[15px] font-semibold tracking-[-0.02em]">
+                  {primaryName}
                 </span>
-              )}
-            </div>
-            <span className="text-muted-foreground shrink-0">{formattedDate}</span>
-          </div>
-
-          {/* Article Title (if long-form article) */}
-          {article.title && (
-            <a
-              href={url}
-              onClick={handleTitleClick}
-              target={article.author.subdomain && !onOpenArticle ? '_blank' : '_self'}
-              rel="noreferrer"
-              className="block group/title pt-1 cursor-pointer"
+                {(primaryPerson?.isCertified || article.author.isCertified) && <CertifiedBadge />}
+                <span className="text-[11px] font-normal text-black/60 dark:text-white/60">
+                  · {date}
+                </span>
+              </span>
+              <SharedContributorLine people={secondaryPeople} />
+            </span>
+          </button>
+          {!isPreview && (
+            <button
+              type="button"
+              onClick={openProfile}
+              className="shrink-0 text-[11px] font-medium uppercase tracking-[0.08em]"
             >
-              <h2 className="text-lg font-medium text-foreground tracking-tight leading-snug group-hover/title:text-primary transition-colors">
-                {article.title}
-              </h2>
-            </a>
+              {t`Voir le profil`}
+            </button>
           )}
+        </div>
+      </div>
 
-          {/* Excerpt Text */}
-          <p className="text-sm text-muted-foreground leading-relaxed font-normal line-clamp-3">
-            {rawExcerpt}
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        onClick={openArticle}
+        className="block px-1.5 pb-1 pt-3"
+      >
+        <h2 className="line-clamp-2 text-[21px] font-semibold leading-[1.08] tracking-[-0.04em] text-foreground">
+          {article.title}
+        </h2>
+        {excerpt && (
+          <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug text-muted-foreground">
+            {excerpt}
           </p>
+        )}
+      </a>
 
-          {/* Optional Hero Image Preview */}
-          {article.imageUrl && (
-            <div className="mt-2.5 rounded-xl overflow-hidden border border-border/40 max-h-64 bg-muted/40">
-              <img src={article.imageUrl} alt="" className="w-full h-full object-cover max-h-64" />
-            </div>
+      <div className="flex items-center justify-between gap-3 border-t border-border/35 px-1.5 pt-2.5 text-xs text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {article.category && (
+            <span className="truncate text-foreground/80">{article.category.name}</span>
           )}
+          {article.category && article.readingTime > 0 && <span>·</span>}
+          {article.readingTime > 0 && (
+            <span className="flex items-center gap-1 whitespace-nowrap">
+              <Clock className="h-3.5 w-3.5" />
+              {article.readingTime} min de lecture
+            </span>
+          )}
+          {article.isPremium && <Crown className="h-3.5 w-3.5 text-highlight" />}
+        </div>
 
-          {/* Footer Actions Row (Exact Rauno Apple Geometry) */}
-          <div className="flex items-center justify-between pt-3 text-xs text-muted-foreground">
-            <div className="flex items-center gap-6">
-              {/* Comment / Thread */}
+        <div className="flex shrink-0 items-center gap-1">
+          {!isPreview && (
+            <>
               <button
                 type="button"
-                onClick={() => onOpenPost && onOpenPost(article.id)}
-                className="flex items-center gap-1.5 hover:text-foreground transition-colors outline-none cursor-pointer"
-                title={t`Commenter`}
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>{article.repliesCount || 0}</span>
-              </button>
-
-              {/* Repost */}
-              <button
-                type="button"
-                onClick={handleRepost}
+                onClick={toggleLike}
                 className={cn(
-                  'flex items-center gap-1.5 transition-colors outline-none cursor-pointer',
-                  reposted ? 'text-success' : 'hover:text-success'
-                )}
-                title={t`Reposter`}
-              >
-                <Repeat className="w-3.5 h-3.5" />
-                <span>{repostsCount}</span>
-              </button>
-
-              {/* Like */}
-              <button
-                type="button"
-                onClick={handleLike}
-                className={cn(
-                  'flex items-center gap-1.5 transition-colors outline-none cursor-pointer',
-                  liked ? 'text-primary' : 'hover:text-primary'
+                  'flex items-center gap-1 rounded-full p-1.5 hover:bg-muted',
+                  liked && 'text-primary'
                 )}
                 title={t`Aimer`}
               >
-                <Heart className={cn('w-3.5 h-3.5', liked ? 'fill-primary text-primary' : '')} />
-                <span>{likesCount}</span>
+                <Heart className={cn('h-4 w-4', liked && 'fill-current')} />
+                {likesCount > 0 && <span>{likesCount}</span>}
               </button>
-            </div>
-
-            {/* Right: Reading time & Bookmark */}
-            <div className="flex items-center gap-3">
-              {article.readingTime > 0 && (
-                <span className="text-[11px] text-muted-foreground">
-                  {t`${article.readingTime} min de lecture`}
-                </span>
+              <button
+                type="button"
+                onClick={toggleRepost}
+                className={cn(
+                  'flex items-center gap-1 rounded-full p-1.5 hover:bg-muted',
+                  reposted && 'text-success'
+                )}
+                title={t`Reposter`}
+              >
+                <Repeat className="h-4 w-4" />
+                {repostsCount > 0 && <span>{repostsCount}</span>}
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenPost?.(article.id)}
+                className="rounded-full p-1.5 hover:bg-muted"
+                title={t`Commenter`}
+              >
+                <MessageSquare className="h-4 w-4" />
+              </button>
+            </>
+          )}
+          {handleBookmarkToggle && (
+            <button
+              type="button"
+              onClick={toggleBookmark}
+              className="rounded-full p-1.5 hover:bg-muted"
+              title={t`Mettre en signet`}
+            >
+              {bookmarked ? (
+                <BookMarked className="h-4 w-4 fill-current text-primary" />
+              ) : (
+                <Bookmark className="h-4 w-4" />
               )}
-              {handleBookmarkToggle && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleBookmarkToggle(article);
-                  }}
-                  className={cn(
-                    'p-1 hover:text-foreground transition-colors outline-none cursor-pointer',
-                    isBookmarked ? 'text-primary' : ''
-                  )}
-                  title={isBookmarked ? t`Retirer le signet` : t`Ajouter aux signets`}
-                >
-                  <Bookmark
-                    className={cn('w-3.5 h-3.5', isBookmarked ? 'fill-primary text-primary' : '')}
-                  />
-                </button>
-              )}
-            </div>
-          </div>
+            </button>
+          )}
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={openArticle}
+            className="rounded-full p-1.5 hover:bg-muted"
+            title={t`Lire l'article`}
+          >
+            <ArrowUpRight className="h-4 w-4" />
+          </a>
         </div>
       </div>
     </article>
