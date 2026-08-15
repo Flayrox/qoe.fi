@@ -240,10 +240,7 @@ export function SidebarItem({
         {badge !== undefined && (
           <span
             className={cn(
-              'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
-              active
-                ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                : 'bg-sidebar-accent text-muted-foreground'
+              'text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-sidebar-primary text-sidebar-primary-foreground'
             )}
           >
             {badge}
