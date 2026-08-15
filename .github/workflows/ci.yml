@@ -55,6 +55,12 @@ jobs:
 
       - name: Run Unit & Integration Tests
         run: pnpm test
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          DIRECT_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
+          SKIP_ENV_VALIDATION: 'true'
 
       - name: Run API Coverage Gate (apps/api)
         working-directory: apps/api
@@ -62,6 +68,27 @@ jobs:
 
       - name: Build Production Packages & Applications
         run: pnpm build
+
+  api-go:
+    name: Go Backend (apps/api-go)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api-go/go.mod
+          cache-dependency-path: apps/api-go/go.sum
+
+      - name: Vet, Build & Test Go Backend
+        working-directory: apps/api-go
+        run: |
+          go vet ./...
+          go build ./...
+          go test ./...
 
   e2e:
     name: E2E (Playwright)
