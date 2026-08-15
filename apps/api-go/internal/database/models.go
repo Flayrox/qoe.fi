@@ -69,7 +69,6 @@ const (
 	NotificationTypeMEDIAMEMBERJOINED     NotificationType = "MEDIA_MEMBER_JOINED"
 	NotificationTypeMEDIAARTICLEPUBLISHED NotificationType = "MEDIA_ARTICLE_PUBLISHED"
 	NotificationTypeMEDIAARTICLESUBMITTED NotificationType = "MEDIA_ARTICLE_SUBMITTED"
-	NotificationTypeMEDIAMENTION          NotificationType = "MEDIA_MENTION"
 )
 
 func (e *NotificationType) Scan(src interface{}) error {

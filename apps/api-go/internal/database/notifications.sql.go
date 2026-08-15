@@ -11,6 +11,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deleteFollowNotification = `-- name: DeleteFollowNotification :exec
+DELETE FROM "Notification"
+WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'FOLLOW' AND "publicationId" = $3
+`
+
+type DeleteFollowNotificationParams struct {
+	RecipientId   pgtype.UUID `json:"recipientId"`
+	SenderId      pgtype.UUID `json:"senderId"`
+	PublicationId pgtype.Text `json:"publicationId"`
+}
+
+func (q *Queries) DeleteFollowNotification(ctx context.Context, arg DeleteFollowNotificationParams) error {
+	_, err := q.db.Exec(ctx, deleteFollowNotification, arg.RecipientId, arg.SenderId, arg.PublicationId)
+	return err
+}
+
 const deleteLikeNotification = `-- name: DeleteLikeNotification :exec
 DELETE FROM "Notification"
 WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'LIKE' AND "thoughtId" = $3
@@ -41,6 +57,52 @@ type DeleteRepostNotificationParams struct {
 func (q *Queries) DeleteRepostNotification(ctx context.Context, arg DeleteRepostNotificationParams) error {
 	_, err := q.db.Exec(ctx, deleteRepostNotification, arg.RecipientId, arg.SenderId, arg.ThoughtId)
 	return err
+}
+
+const existsUnreadCommentNotification = `-- name: ExistsUnreadCommentNotification :one
+SELECT 1 AS present
+FROM "Notification"
+WHERE "recipientId" = $1
+  AND "senderId" = $2
+  AND type = 'COMMENT'
+  AND "commentId" = $3
+  AND "isRead" = false
+`
+
+type ExistsUnreadCommentNotificationParams struct {
+	RecipientId pgtype.UUID `json:"recipientId"`
+	SenderId    pgtype.UUID `json:"senderId"`
+	CommentId   pgtype.Text `json:"commentId"`
+}
+
+func (q *Queries) ExistsUnreadCommentNotification(ctx context.Context, arg ExistsUnreadCommentNotificationParams) (int32, error) {
+	row := q.db.QueryRow(ctx, existsUnreadCommentNotification, arg.RecipientId, arg.SenderId, arg.CommentId)
+	var present int32
+	err := row.Scan(&present)
+	return present, err
+}
+
+const existsUnreadFollowNotification = `-- name: ExistsUnreadFollowNotification :one
+SELECT 1 AS present
+FROM "Notification"
+WHERE "recipientId" = $1
+  AND "senderId" = $2
+  AND type = 'FOLLOW'
+  AND "publicationId" = $3
+  AND "isRead" = false
+`
+
+type ExistsUnreadFollowNotificationParams struct {
+	RecipientId   pgtype.UUID `json:"recipientId"`
+	SenderId      pgtype.UUID `json:"senderId"`
+	PublicationId pgtype.Text `json:"publicationId"`
+}
+
+func (q *Queries) ExistsUnreadFollowNotification(ctx context.Context, arg ExistsUnreadFollowNotificationParams) (int32, error) {
+	row := q.db.QueryRow(ctx, existsUnreadFollowNotification, arg.RecipientId, arg.SenderId, arg.PublicationId)
+	var present int32
+	err := row.Scan(&present)
+	return present, err
 }
 
 const existsUnreadLikeNotification = `-- name: ExistsUnreadLikeNotification :one
@@ -89,6 +151,42 @@ func (q *Queries) ExistsUnreadRepostNotification(ctx context.Context, arg Exists
 	return present, err
 }
 
+const getCommentPrefs = `-- name: GetCommentPrefs :one
+SELECT "emailComments", "pushComments"
+FROM "NotificationPreference"
+WHERE "userId" = $1
+`
+
+type GetCommentPrefsRow struct {
+	EmailComments bool `json:"emailComments"`
+	PushComments  bool `json:"pushComments"`
+}
+
+func (q *Queries) GetCommentPrefs(ctx context.Context, userid pgtype.UUID) (GetCommentPrefsRow, error) {
+	row := q.db.QueryRow(ctx, getCommentPrefs, userid)
+	var i GetCommentPrefsRow
+	err := row.Scan(&i.EmailComments, &i.PushComments)
+	return i, err
+}
+
+const getFollowPrefs = `-- name: GetFollowPrefs :one
+SELECT "emailFollows", "pushFollows"
+FROM "NotificationPreference"
+WHERE "userId" = $1
+`
+
+type GetFollowPrefsRow struct {
+	EmailFollows bool `json:"emailFollows"`
+	PushFollows  bool `json:"pushFollows"`
+}
+
+func (q *Queries) GetFollowPrefs(ctx context.Context, userid pgtype.UUID) (GetFollowPrefsRow, error) {
+	row := q.db.QueryRow(ctx, getFollowPrefs, userid)
+	var i GetFollowPrefsRow
+	err := row.Scan(&i.EmailFollows, &i.PushFollows)
+	return i, err
+}
+
 const getLikePrefs = `-- name: GetLikePrefs :one
 SELECT "emailLikes", "pushLikes"
 FROM "NotificationPreference"
@@ -120,6 +218,72 @@ func (q *Queries) GetPostAuthor(ctx context.Context, id string) (string, error) 
 	return author_id, err
 }
 
+const getPublicationOwner = `-- name: GetPublicationOwner :one
+SELECT COALESCE(
+  CASE
+    WHEN p.type = 'MEDIA' THEN (
+      SELECT mm."userId"::text
+      FROM "MediaMember" mm
+      JOIN "Media" m ON m.id = mm."mediaId"
+      WHERE m."publicationId" = p.id AND mm.role = 'owner' AND mm.status = 'active'
+      LIMIT 1
+    )
+    ELSE u.id::text
+  END,
+  ''
+)::text AS owner_id
+FROM "Publication" p
+LEFT JOIN "User" u ON u."publicationId" = p.id
+WHERE p.id = $1
+`
+
+func (q *Queries) GetPublicationOwner(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, getPublicationOwner, id)
+	var owner_id string
+	err := row.Scan(&owner_id)
+	return owner_id, err
+}
+
+const insertCommentNotification = `-- name: InsertCommentNotification :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "commentId", "publicationId")
+VALUES (gen_random_uuid()::text, $1, $2, 'COMMENT', $3, $4, $5)
+`
+
+type InsertCommentNotificationParams struct {
+	RecipientId   pgtype.UUID `json:"recipientId"`
+	SenderId      pgtype.UUID `json:"senderId"`
+	ArticleId     pgtype.Text `json:"articleId"`
+	CommentId     pgtype.Text `json:"commentId"`
+	PublicationId pgtype.Text `json:"publicationId"`
+}
+
+func (q *Queries) InsertCommentNotification(ctx context.Context, arg InsertCommentNotificationParams) error {
+	_, err := q.db.Exec(ctx, insertCommentNotification,
+		arg.RecipientId,
+		arg.SenderId,
+		arg.ArticleId,
+		arg.CommentId,
+		arg.PublicationId,
+	)
+	return err
+}
+
+const insertFollowNotification = `-- name: InsertFollowNotification :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId")
+VALUES (gen_random_uuid()::text, $1, $2, 'FOLLOW', $3)
+`
+
+type InsertFollowNotificationParams struct {
+	RecipientId   pgtype.UUID `json:"recipientId"`
+	SenderId      pgtype.UUID `json:"senderId"`
+	PublicationId pgtype.Text `json:"publicationId"`
+}
+
+func (q *Queries) InsertFollowNotification(ctx context.Context, arg InsertFollowNotificationParams) error {
+	_, err := q.db.Exec(ctx, insertFollowNotification, arg.RecipientId, arg.SenderId, arg.PublicationId)
+	return err
+}
+
 const insertLikeNotification = `-- name: InsertLikeNotification :exec
 INSERT INTO "Notification" (id, "recipientId", "senderId", type, "thoughtId")
 VALUES (gen_random_uuid()::text, $1, $2, 'LIKE', $3)
@@ -133,6 +297,134 @@ type InsertLikeNotificationParams struct {
 
 func (q *Queries) InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error {
 	_, err := q.db.Exec(ctx, insertLikeNotification, arg.RecipientId, arg.SenderId, arg.ThoughtId)
+	return err
+}
+
+const insertMediaArticlePublishedFanout = `-- name: InsertMediaArticlePublishedFanout :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publicationId")
+SELECT gen_random_uuid()::text,
+       f."readerId",
+       $1,
+       'MEDIA_ARTICLE_PUBLISHED',
+       $2,
+       f."publicationId"
+FROM "Follows" f
+JOIN "Publication" pub ON pub.id = f."publicationId"
+LEFT JOIN "NotificationPreference" np ON np."userId" = f."readerId"
+WHERE f."publicationId" = $3
+  AND pub.type = 'MEDIA'
+  AND f."readerId" <> $1
+  AND (COALESCE(np."emailMedia", true) OR COALESCE(np."pushMedia", true))
+  AND NOT EXISTS (
+    SELECT 1 FROM "Notification" n
+    WHERE n."recipientId" = f."readerId"
+      AND n."senderId" = $1
+      AND n.type = 'MEDIA_ARTICLE_PUBLISHED'
+      AND n."articleId" = $2
+      AND n."isRead" = false
+  )
+LIMIT 500
+`
+
+type InsertMediaArticlePublishedFanoutParams struct {
+	SenderID      pgtype.UUID `json:"sender_id"`
+	ArticleID     pgtype.Text `json:"article_id"`
+	PublicationID string      `json:"publication_id"`
+}
+
+func (q *Queries) InsertMediaArticlePublishedFanout(ctx context.Context, arg InsertMediaArticlePublishedFanoutParams) error {
+	_, err := q.db.Exec(ctx, insertMediaArticlePublishedFanout, arg.SenderID, arg.ArticleID, arg.PublicationID)
+	return err
+}
+
+const insertMediaArticleSubmittedFanout = `-- name: InsertMediaArticleSubmittedFanout :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publicationId")
+SELECT gen_random_uuid()::text,
+       m."userId",
+       $1,
+       'MEDIA_ARTICLE_SUBMITTED',
+       $2,
+       md."publicationId"
+FROM "MediaMember" m
+JOIN "Media" md ON md.id = m."mediaId"
+WHERE md."publicationId" = $3
+  AND m."userId" <> $1
+  AND (m.status = 'active' OR m.status = 'invited')
+  AND (
+    (m.role IN ('owner', 'editor') AND NOT (COALESCE(m.permissions, ARRAY[]::text[]) && ARRAY['-media:review']::text[]))
+    OR (COALESCE(m.permissions, ARRAY[]::text[]) && ARRAY['media:review']::text[])
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM "Notification" n
+    WHERE n."recipientId" = m."userId"
+      AND n."senderId" = $1
+      AND n.type = 'MEDIA_ARTICLE_SUBMITTED'
+      AND n."articleId" = $2
+      AND n."isRead" = false
+  )
+LIMIT 500
+`
+
+type InsertMediaArticleSubmittedFanoutParams struct {
+	SenderID      pgtype.UUID `json:"sender_id"`
+	ArticleID     pgtype.Text `json:"article_id"`
+	PublicationID string      `json:"publication_id"`
+}
+
+func (q *Queries) InsertMediaArticleSubmittedFanout(ctx context.Context, arg InsertMediaArticleSubmittedFanoutParams) error {
+	_, err := q.db.Exec(ctx, insertMediaArticleSubmittedFanout, arg.SenderID, arg.ArticleID, arg.PublicationID)
+	return err
+}
+
+const insertMediaInviteNotification = `-- name: InsertMediaInviteNotification :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId")
+SELECT gen_random_uuid()::text, $1, $2, 'MEDIA_INVITE', $3
+WHERE $1 <> $2
+  AND (
+    COALESCE((SELECT "pushMedia" FROM "NotificationPreference" WHERE "userId" = $1), true)
+    OR COALESCE((SELECT "emailMedia" FROM "NotificationPreference" WHERE "userId" = $1), true)
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM "Notification" n
+    WHERE n."recipientId" = $1 AND n."senderId" = $2 AND n.type = 'MEDIA_INVITE'
+      AND n."publicationId" = $3 AND n."isRead" = false
+  )
+`
+
+type InsertMediaInviteNotificationParams struct {
+	RecipientId   pgtype.UUID `json:"recipientId"`
+	SenderId      pgtype.UUID `json:"senderId"`
+	PublicationId pgtype.Text `json:"publicationId"`
+}
+
+func (q *Queries) InsertMediaInviteNotification(ctx context.Context, arg InsertMediaInviteNotificationParams) error {
+	_, err := q.db.Exec(ctx, insertMediaInviteNotification, arg.RecipientId, arg.SenderId, arg.PublicationId)
+	return err
+}
+
+const insertMediaMemberJoinedNotification = `-- name: InsertMediaMemberJoinedNotification :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId")
+SELECT gen_random_uuid()::text, $1, $2, 'MEDIA_MEMBER_JOINED', $3
+WHERE $1 <> $2
+  AND (
+    COALESCE((SELECT "pushMedia" FROM "NotificationPreference" WHERE "userId" = $1), true)
+    OR COALESCE((SELECT "emailMedia" FROM "NotificationPreference" WHERE "userId" = $1), true)
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM "Notification" n
+    WHERE n."recipientId" = $1 AND n."senderId" = $2 AND n.type = 'MEDIA_MEMBER_JOINED'
+      AND n."publicationId" = $3 AND n."isRead" = false
+  )
+`
+
+type InsertMediaMemberJoinedNotificationParams struct {
+	RecipientId   pgtype.UUID `json:"recipientId"`
+	SenderId      pgtype.UUID `json:"senderId"`
+	PublicationId pgtype.Text `json:"publicationId"`
+}
+
+func (q *Queries) InsertMediaMemberJoinedNotification(ctx context.Context, arg InsertMediaMemberJoinedNotificationParams) error {
+	_, err := q.db.Exec(ctx, insertMediaMemberJoinedNotification, arg.RecipientId, arg.SenderId, arg.PublicationId)
 	return err
 }
 

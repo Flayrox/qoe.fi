@@ -3,11 +3,40 @@ package posts
 import (
 	"context"
 	"errors"
+	"regexp"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api-go/internal/database"
 )
+
+// mentionRe extrait les @usernames du contenu (même règle que threadgate).
+var mentionRe = regexp.MustCompile(`@([a-zA-Z0-9_]+)`)
+
+// notifyMentionsInContent notifie les @mentionnés d'un post (standalone OU réponse).
+// Best-effort : ignore les erreurs de résolution de username.
+func notifyMentionsInContent(ctx context.Context, tq *db.Queries, content, postID, senderID string) {
+	matches := mentionRe.FindAllStringSubmatch(content, -1)
+	seen := map[string]bool{}
+	var usernames []string
+	for _, m := range matches {
+		u := m[1]
+		if !seen[u] {
+			seen[u] = true
+			usernames = append(usernames, u)
+		}
+	}
+	if len(usernames) == 0 {
+		return
+	}
+	users, err := tq.GetUsersByUsernames(ctx, usernames)
+	if err != nil {
+		return
+	}
+	for _, u := range users {
+		_ = createReplyNotification(ctx, tq, "MENTION", u.UserID, senderID, postID)
+	}
+}
 
 // notifyLike crée la notification LIKE (repli du comportement Prisma TS) :
 // pas d'auto-notification, respect des préférences, déduplication non-lue.

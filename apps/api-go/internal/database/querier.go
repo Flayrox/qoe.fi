@@ -11,6 +11,12 @@ import (
 )
 
 type Querier interface {
+	CheckArticleSlugExists(ctx context.Context, arg CheckArticleSlugExistsParams) (bool, error)
+	CheckCategorySlugExists(ctx context.Context, arg CheckCategorySlugExistsParams) (bool, error)
+	CheckMediaSlugExists(ctx context.Context, slug string) (bool, error)
+	CheckSubdomainExists(ctx context.Context, subdomain pgtype.Text) (bool, error)
+	CompleteOnboardingUser(ctx context.Context, arg CompleteOnboardingUserParams) error
+	CountArticlesByPublication(ctx context.Context, publicationid string) (int32, error)
 	// Compte des articles d'une publication (mêmes filtres que ListCreatorArticles).
 	CountCreatorArticles(ctx context.Context, arg CountCreatorArticlesParams) (int64, error)
 	CountFollowers(ctx context.Context, publicationid string) (int32, error)
@@ -22,23 +28,38 @@ type Querier interface {
 	CountPureReposts(ctx context.Context, arg CountPureRepostsParams) (int32, error)
 	CreateArticle(ctx context.Context, arg CreateArticleParams) (string, error)
 	CreateAttachment(ctx context.Context, arg CreateAttachmentParams) (string, error)
+	CreateCategory(ctx context.Context, arg CreateCategoryParams) (Category, error)
+	CreateMedia(ctx context.Context, publicationid string) (string, error)
+	CreateMediaInvite(ctx context.Context, arg CreateMediaInviteParams) (string, error)
+	CreateMediaMember(ctx context.Context, arg CreateMediaMemberParams) error
+	CreateMediaPublication(ctx context.Context, arg CreateMediaPublicationParams) (string, error)
+	CreatePersonalPublication(ctx context.Context, arg CreatePersonalPublicationParams) (string, error)
 	CreatePoll(ctx context.Context, arg CreatePollParams) (CreatePollRow, error)
 	CreatePollOption(ctx context.Context, arg CreatePollOptionParams) (string, error)
 	CreateThought(ctx context.Context, arg CreateThoughtParams) (CreateThoughtRow, error)
 	CreateWalletTransaction(ctx context.Context, arg CreateWalletTransactionParams) (string, error)
-	CreateWebhook(ctx context.Context, arg CreateWebhookParams) (string, error)
+	CreateWebhook(ctx context.Context, arg CreateWebhookParams) (CreateWebhookRow, error)
 	CreateWebhookDelivery(ctx context.Context, arg CreateWebhookDeliveryParams) (string, error)
 	DecrementLikeCount(ctx context.Context, id string) error
 	DecrementReplyCount(ctx context.Context, id string) error
 	DecrementRepostCount(ctx context.Context, id string) error
+	DeleteApiKey(ctx context.Context, arg DeleteApiKeyParams) error
 	DeleteArticle(ctx context.Context, id string) error
+	DeleteArticleComment(ctx context.Context, id string) error
 	DeleteBookmark(ctx context.Context, arg DeleteBookmarkParams) error
+	DeleteCategory(ctx context.Context, id string) error
 	DeleteFollow(ctx context.Context, arg DeleteFollowParams) error
+	DeleteFollowNotification(ctx context.Context, arg DeleteFollowNotificationParams) error
 	DeleteLike(ctx context.Context, arg DeleteLikeParams) error
 	DeleteLikeNotification(ctx context.Context, arg DeleteLikeNotificationParams) error
+	DeleteMediaMember(ctx context.Context, arg DeleteMediaMemberParams) error
+	DeleteNavigationItems(ctx context.Context, publicationid string) error
 	DeletePureReposts(ctx context.Context, arg DeletePureRepostsParams) error
 	DeleteRepostNotification(ctx context.Context, arg DeleteRepostNotificationParams) error
-	DeleteWebhook(ctx context.Context, arg DeleteWebhookParams) error
+	DeleteSocialLinks(ctx context.Context, publicationid string) error
+	DeleteWebhook(ctx context.Context, id string) error
+	ExistsUnreadCommentNotification(ctx context.Context, arg ExistsUnreadCommentNotificationParams) (int32, error)
+	ExistsUnreadFollowNotification(ctx context.Context, arg ExistsUnreadFollowNotificationParams) (int32, error)
 	ExistsUnreadLikeNotification(ctx context.Context, arg ExistsUnreadLikeNotificationParams) (int32, error)
 	ExistsUnreadMentionNotification(ctx context.Context, arg ExistsUnreadMentionNotificationParams) (int32, error)
 	ExistsUnreadReplyNotification(ctx context.Context, arg ExistsUnreadReplyNotificationParams) (int32, error)
@@ -52,10 +73,17 @@ type Querier interface {
 	GetApiKeyByHash(ctx context.Context, keyhash string) (GetApiKeyByHashRow, error)
 	GetArticleByID(ctx context.Context, id string) (GetArticleByIDRow, error)
 	GetArticleBySlug(ctx context.Context, arg GetArticleBySlugParams) (GetArticleBySlugRow, error)
+	GetArticleCommentAuthor(ctx context.Context, id string) (string, error)
+	GetArticleCommentsConfig(ctx context.Context, id string) (GetArticleCommentsConfigRow, error)
 	GetArticleForSearch(ctx context.Context, id string) (GetArticleForSearchRow, error)
 	GetAttachmentsByIDs(ctx context.Context, dollar_1 []string) ([]GetAttachmentsByIDsRow, error)
 	GetAudienceSummary(ctx context.Context, publicationid string) (GetAudienceSummaryRow, error)
 	GetCanonicalThoughtID(ctx context.Context, id string) (string, error)
+	// Catégories d'articles (éditeur dashboard).
+	GetCategoryByID(ctx context.Context, id string) (Category, error)
+	GetCommentParentAuthor(ctx context.Context, id string) (string, error)
+	GetCommentPrefs(ctx context.Context, userid pgtype.UUID) (GetCommentPrefsRow, error)
+	GetCommentWithAuthor(ctx context.Context, id string) (GetCommentWithAuthorRow, error)
 	// Lecture d'un article PUBLIÉ d'une publication au format contrat créateurs
 	// (clé API → publication du créateur), catégorie embarquée.
 	GetCreatorArticleBySlug(ctx context.Context, arg GetCreatorArticleBySlugParams) (GetCreatorArticleBySlugRow, error)
@@ -63,16 +91,24 @@ type Querier interface {
 	GetExistingFollow(ctx context.Context, arg GetExistingFollowParams) (int32, error)
 	GetExistingLike(ctx context.Context, arg GetExistingLikeParams) (int32, error)
 	GetFollowForReply(ctx context.Context, arg GetFollowForReplyParams) (int32, error)
+	GetFollowPrefs(ctx context.Context, userid pgtype.UUID) (GetFollowPrefsRow, error)
 	GetFollowedPersonalPublicationOwnerIDs(ctx context.Context, readerid pgtype.UUID) ([]string, error)
 	GetFreeSubscriberCount(ctx context.Context, publicationid string) (int32, error)
 	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
+	GetMediaInviteByToken(ctx context.Context, token string) (GetMediaInviteByTokenRow, error)
+	// Administration Média (création, membres, invitations, réglages) — migration dashboard → Go.
+	GetMediaMemberByID(ctx context.Context, arg GetMediaMemberByIDParams) (GetMediaMemberByIDRow, error)
+	// RBAC Média (rôles + permissions) — partagé par settings, articles et media.
+	GetMediaMemberContext(ctx context.Context, arg GetMediaMemberContextParams) (GetMediaMemberContextRow, error)
 	GetMediaOwnerForCredit(ctx context.Context, publicationid string) (GetMediaOwnerForCreditRow, error)
 	GetMediaRoleForUser(ctx context.Context, arg GetMediaRoleForUserParams) (string, error)
+	GetMediaWithPublication(ctx context.Context, id string) (GetMediaWithPublicationRow, error)
 	GetNotificationPreferences(ctx context.Context, userid pgtype.UUID) (GetNotificationPreferencesRow, error)
 	// Centre de notifications : liste groupée, non-lus, lecture, préférences.
 	GetNotifications(ctx context.Context, arg GetNotificationsParams) ([]GetNotificationsRow, error)
 	GetPersonalOwnerForCredit(ctx context.Context, publicationid pgtype.Text) (GetPersonalOwnerForCreditRow, error)
 	GetPersonalPublicationByUserID(ctx context.Context, id string) (pgtype.Text, error)
+	GetPersonalPublicationForUser(ctx context.Context, id string) (GetPersonalPublicationForUserRow, error)
 	GetPersonalPublicationID(ctx context.Context, id string) (pgtype.Text, error)
 	// Polls, votes, pièces jointes
 	GetPollByThoughtID(ctx context.Context, thoughtid string) (GetPollByThoughtIDRow, error)
@@ -85,6 +121,8 @@ type Querier interface {
 	GetPremiumActiveSubscribers(ctx context.Context, publicationid string) ([]GetPremiumActiveSubscribersRow, error)
 	GetPublicationByID(ctx context.Context, id string) (string, error)
 	GetPublicationBySlugOrSubdomain(ctx context.Context, slug string) (GetPublicationBySlugOrSubdomainRow, error)
+	GetPublicationOwner(ctx context.Context, id string) (string, error)
+	GetPublicationTypeByID(ctx context.Context, id string) (GetPublicationTypeByIDRow, error)
 	GetRecentArticlesForAnalytics(ctx context.Context, arg GetRecentArticlesForAnalyticsParams) ([]GetRecentArticlesForAnalyticsRow, error)
 	GetRecentThoughtsForAnalytics(ctx context.Context, arg GetRecentThoughtsForAnalyticsParams) ([]GetRecentThoughtsForAnalyticsRow, error)
 	GetRepliesForThought(ctx context.Context, arg GetRepliesForThoughtParams) ([]GetRepliesForThoughtRow, error)
@@ -96,38 +134,70 @@ type Querier interface {
 	// Threadgates & réponses
 	GetThoughtReplyGate(ctx context.Context, id string) (GetThoughtReplyGateRow, error)
 	GetUnreadCount(ctx context.Context, recipientid pgtype.UUID) (int32, error)
+	GetUserApiAccessStatus(ctx context.Context, id string) (string, error)
+	GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error)
 	GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error)
 	GetUserByIDFull(ctx context.Context, id string) (GetUserByIDFullRow, error)
+	// Profil créateur, onboarding, sous-domaine, liens, clés API (migration dashboard → Go).
+	GetUserForSettings(ctx context.Context, id string) (GetUserForSettingsRow, error)
+	GetUserMediaMemberships(ctx context.Context, userid pgtype.UUID) ([]GetUserMediaMembershipsRow, error)
 	GetUserPersonalPublication(ctx context.Context, id string) (pgtype.Text, error)
 	GetUserPollVote(ctx context.Context, arg GetUserPollVoteParams) (string, error)
 	GetUserUsername(ctx context.Context, id string) (pgtype.Text, error)
 	GetUserVotesByIDs(ctx context.Context, arg GetUserVotesByIDsParams) ([]GetUserVotesByIDsRow, error)
 	GetUsersByUsernames(ctx context.Context, dollar_1 []string) ([]GetUsersByUsernamesRow, error)
-	GetWebhookByID(ctx context.Context, id string) (Webhook, error)
+	GetWebhook(ctx context.Context, id string) (Webhook, error)
 	IncrementLikeCount(ctx context.Context, id string) error
 	IncrementReplyCount(ctx context.Context, id string) error
 	IncrementRepostCount(ctx context.Context, id string) error
 	IncrementWalletBalance(ctx context.Context, arg IncrementWalletBalanceParams) error
+	InsertApiKey(ctx context.Context, arg InsertApiKeyParams) error
+	InsertArticleComment(ctx context.Context, arg InsertArticleCommentParams) (InsertArticleCommentRow, error)
 	InsertBookmark(ctx context.Context, arg InsertBookmarkParams) error
+	InsertCommentNotification(ctx context.Context, arg InsertCommentNotificationParams) error
 	InsertFollow(ctx context.Context, arg InsertFollowParams) error
+	InsertFollowNotification(ctx context.Context, arg InsertFollowNotificationParams) error
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
 	InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error
+	InsertMediaArticlePublishedFanout(ctx context.Context, arg InsertMediaArticlePublishedFanoutParams) error
+	InsertMediaArticleSubmittedFanout(ctx context.Context, arg InsertMediaArticleSubmittedFanoutParams) error
+	InsertMediaAuditLog(ctx context.Context, arg InsertMediaAuditLogParams) error
+	InsertMediaInviteNotification(ctx context.Context, arg InsertMediaInviteNotificationParams) error
+	InsertMediaMemberJoinedNotification(ctx context.Context, arg InsertMediaMemberJoinedNotificationParams) error
 	InsertMentionNotification(ctx context.Context, arg InsertMentionNotificationParams) error
+	InsertNavigationItem(ctx context.Context, arg InsertNavigationItemParams) error
 	InsertPureRepost(ctx context.Context, arg InsertPureRepostParams) (string, error)
 	InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error
 	InsertRepostNotification(ctx context.Context, arg InsertRepostNotificationParams) error
+	InsertSocialLink(ctx context.Context, arg InsertSocialLinkParams) error
+	InsertWebhookDeliveryResult(ctx context.Context, arg InsertWebhookDeliveryResultParams) error
+	LinkUserPublication(ctx context.Context, arg LinkUserPublicationParams) error
+	ListArticleComments(ctx context.Context, articleid string) ([]ListArticleCommentsRow, error)
+	ListArticlesWithCategory(ctx context.Context, arg ListArticlesWithCategoryParams) ([]ListArticlesWithCategoryRow, error)
 	ListCategoriesByPublication(ctx context.Context, publicationid string) ([]ListCategoriesByPublicationRow, error)
 	// Liste des articles d'une publication au format contrat créateurs (Hono) :
 	// filtres `published` (défaut true) et `category` (slug), catégorie embarquée.
 	ListCreatorArticles(ctx context.Context, arg ListCreatorArticlesParams) ([]ListCreatorArticlesRow, error)
+	ListMediaMembers(ctx context.Context, mediaid string) ([]ListMediaMembersRow, error)
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
 	ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error)
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
+	SetApiApplication(ctx context.Context, arg SetApiApplicationParams) error
 	SetArticleStatus(ctx context.Context, arg SetArticleStatusParams) (string, error)
 	SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error
 	UpdateApiKeyLastUsed(ctx context.Context, id string) error
 	UpdateArticleContent(ctx context.Context, arg UpdateArticleContentParams) (string, error)
+	UpdateArticleFull(ctx context.Context, arg UpdateArticleFullParams) (string, error)
+	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) error
+	UpdateMediaInviteStatus(ctx context.Context, arg UpdateMediaInviteStatusParams) error
+	UpdateMediaMemberPermissions(ctx context.Context, arg UpdateMediaMemberPermissionsParams) error
+	UpdateMediaMemberRole(ctx context.Context, arg UpdateMediaMemberRoleParams) error
+	UpdatePersonalPublication(ctx context.Context, arg UpdatePersonalPublicationParams) error
+	UpdatePublicationSubdomain(ctx context.Context, arg UpdatePublicationSubdomainParams) error
+	UpdateUserOnboardingText(ctx context.Context, arg UpdateUserOnboardingTextParams) error
+	UpdateWebhookActive(ctx context.Context, arg UpdateWebhookActiveParams) error
 	UpdateWebhookDelivery(ctx context.Context, arg UpdateWebhookDeliveryParams) error
+	UpsertMediaMember(ctx context.Context, arg UpsertMediaMemberParams) error
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) error
 	UpsertSubscriberPayment(ctx context.Context, arg UpsertSubscriberPaymentParams) (string, error)
 }

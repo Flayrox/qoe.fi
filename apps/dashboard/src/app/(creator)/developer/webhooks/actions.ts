@@ -5,6 +5,7 @@ import { createClient } from '@qoe/supabase/server';
 import { prisma, type Prisma } from '@qoe/db/client';
 import { revalidatePath } from 'next/cache';
 import { getActiveWorkspace } from '@/lib/active-workspace';
+import { goFetch, isGoEnabled } from '@qoe/api-client/actions/utils/go-client';
 
 const WEBHOOK_EVENTS = ['article.published', 'subscriber.created'] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
@@ -74,6 +75,19 @@ export async function listWebhooksAction() {
   if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
 
   const workspace = await getActiveWorkspace(user.id);
+
+  if (isGoEnabled()) {
+    const webhooks = await goFetch<WebhookWithDeliveries[]>(
+      `/v1/webhooks?publicationId=${encodeURIComponent(workspace.publicationId)}`
+    );
+    return {
+      success: true as const,
+      webhooks,
+      events: WEBHOOK_EVENTS,
+      workspaceName: workspace.name,
+    };
+  }
+
   const webhooks = await prisma.webhook.findMany({
     where: { publicationId: workspace.publicationId },
     include: {
@@ -116,6 +130,26 @@ export async function createWebhookAction(input: {
     return { success: false as const, error: 'Sélectionnez au moins un événement' };
 
   const workspace = await getActiveWorkspace(user.id);
+
+  if (isGoEnabled()) {
+    try {
+      const res = await goFetch<{ webhook: WebhookWithDeliveries; secret: string }>(
+        '/v1/webhooks',
+        {
+          method: 'POST',
+          body: { publicationId: workspace.publicationId, name, url, events },
+        }
+      );
+      revalidatePath('/developer/webhooks');
+      return { success: true as const, webhook: res.webhook, secret: res.secret };
+    } catch (err) {
+      return {
+        success: false as const,
+        error: err instanceof Error ? err.message : 'Erreur serveur',
+      };
+    }
+  }
+
   const secret = crypto.randomBytes(32).toString('hex');
 
   const webhook = await prisma.webhook.create({
@@ -139,6 +173,25 @@ export async function deleteWebhookAction(id: string) {
   if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
 
   const workspace = await getActiveWorkspace(user.id);
+
+  if (isGoEnabled()) {
+    try {
+      await goFetch(
+        `/v1/webhooks/${id}?publicationId=${encodeURIComponent(workspace.publicationId)}`,
+        {
+          method: 'DELETE',
+        }
+      );
+      revalidatePath('/developer/webhooks');
+      return { success: true as const };
+    } catch (err) {
+      return {
+        success: false as const,
+        error: err instanceof Error ? err.message : 'Erreur serveur',
+      };
+    }
+  }
+
   const existing = await prisma.webhook.findUnique({ where: { id } });
   if (!existing || existing.publicationId !== workspace.publicationId) {
     return { success: false as const, error: 'Webhook introuvable' };
@@ -155,6 +208,23 @@ export async function toggleWebhookAction(id: string) {
   if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
 
   const workspace = await getActiveWorkspace(user.id);
+
+  if (isGoEnabled()) {
+    try {
+      const res = await goFetch<{ success: boolean; active: boolean }>(
+        `/v1/webhooks/${id}/toggle?publicationId=${encodeURIComponent(workspace.publicationId)}`,
+        { method: 'POST' }
+      );
+      revalidatePath('/developer/webhooks');
+      return { success: true as const, active: res.active };
+    } catch (err) {
+      return {
+        success: false as const,
+        error: err instanceof Error ? err.message : 'Erreur serveur',
+      };
+    }
+  }
+
   const existing = await prisma.webhook.findUnique({ where: { id } });
   if (!existing || existing.publicationId !== workspace.publicationId) {
     return { success: false as const, error: 'Webhook introuvable' };
@@ -172,6 +242,26 @@ export async function testWebhookAction(id: string) {
   if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
 
   const workspace = await getActiveWorkspace(user.id);
+
+  if (isGoEnabled()) {
+    try {
+      const res = await goFetch<{ success: boolean; status: number; response: string }>(
+        `/v1/webhooks/${id}/test?publicationId=${encodeURIComponent(workspace.publicationId)}`,
+        { method: 'POST' }
+      );
+      revalidatePath('/developer/webhooks');
+      if (res.success) {
+        return { success: true as const, status: res.status, response: res.response };
+      }
+      return { success: false as const, error: res.response || 'Test échoué' };
+    } catch (err) {
+      return {
+        success: false as const,
+        error: err instanceof Error ? err.message : 'Erreur serveur',
+      };
+    }
+  }
+
   const webhook = await prisma.webhook.findUnique({ where: { id } });
   if (!webhook || webhook.publicationId !== workspace.publicationId) {
     return { success: false as const, error: 'Webhook introuvable' };

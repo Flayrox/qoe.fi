@@ -109,24 +109,7 @@ func (s *Service) replyNotifications(ctx context.Context, tq *db.Queries, replyI
 	}
 
 	// @mentions → MENTION (remplace REPLY pour les mentionnés)
-	mentionRe := regexp.MustCompile(`@([a-zA-Z0-9_]+)`)
-	matches := mentionRe.FindAllStringSubmatch(content, -1)
-	seen := map[string]bool{}
-	var usernames []string
-	for _, m := range matches {
-		u := m[1]
-		if !seen[u] {
-			seen[u] = true
-			usernames = append(usernames, u)
-		}
-	}
-	if len(usernames) > 0 {
-		if users, err := s.q.GetUsersByUsernames(ctx, usernames); err == nil {
-			for _, u := range users {
-				recipients[u.UserID] = "MENTION"
-			}
-		}
-	}
+	notifyMentionsInContent(ctx, tq, content, replyID, replyAuthor)
 
 	for uid, kind := range recipients {
 		_ = createReplyNotification(ctx, tq, kind, uid, replyAuthor, replyID)
