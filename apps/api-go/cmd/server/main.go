@@ -26,6 +26,7 @@ import (
 	"github.com/qoefi/api-go/internal/modules/feed"
 	"github.com/qoefi/api-go/internal/modules/notifications"
 	"github.com/qoefi/api-go/internal/modules/posts"
+	"github.com/qoefi/api-go/internal/modules/webhooks"
 	"github.com/qoefi/api-go/internal/queue"
 	"github.com/qoefi/api-go/internal/umami"
 )
@@ -103,6 +104,9 @@ func main() {
 
 		analyticsHandler := analytics.NewHandler(analytics.NewService(pool))
 		analyticsHandler.Register(protected)
+
+		webhooksHandler := webhooks.NewHandler(webhooks.NewService(pool))
+		webhooksHandler.Register(protected)
 
 		creatorHandler := creator.NewHandler(pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey, cfg.UmamiUser, cfg.UmamiPass), cfg.DefaultUmamiWebsiteID)
 		creatorHandler.RegisterProtected(protected)
