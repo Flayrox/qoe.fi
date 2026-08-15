@@ -82,6 +82,24 @@ VALUES (gen_random_uuid()::text, $1, $2, 'FOLLOW', $3);
 DELETE FROM "Notification"
 WHERE "recipientId" = $1 AND "senderId" = $2 AND type = 'FOLLOW' AND "publicationId" = $3;
 
+-- name: GetCommentPrefs :one
+SELECT "emailComments", "pushComments"
+FROM "NotificationPreference"
+WHERE "userId" = $1;
+
+-- name: ExistsUnreadCommentNotification :one
+SELECT 1 AS present
+FROM "Notification"
+WHERE "recipientId" = $1
+  AND "senderId" = $2
+  AND type = 'COMMENT'
+  AND "commentId" = $3
+  AND "isRead" = false;
+
+-- name: InsertCommentNotification :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "commentId", "publicationId")
+VALUES (gen_random_uuid()::text, $1, $2, 'COMMENT', $3, $4, $5);
+
 -- name: InsertMediaArticlePublishedFanout :exec
 INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publicationId")
 SELECT gen_random_uuid()::text,

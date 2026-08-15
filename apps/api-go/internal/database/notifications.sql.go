@@ -59,6 +59,29 @@ func (q *Queries) DeleteRepostNotification(ctx context.Context, arg DeleteRepost
 	return err
 }
 
+const existsUnreadCommentNotification = `-- name: ExistsUnreadCommentNotification :one
+SELECT 1 AS present
+FROM "Notification"
+WHERE "recipientId" = $1
+  AND "senderId" = $2
+  AND type = 'COMMENT'
+  AND "commentId" = $3
+  AND "isRead" = false
+`
+
+type ExistsUnreadCommentNotificationParams struct {
+	RecipientId pgtype.UUID `json:"recipientId"`
+	SenderId    pgtype.UUID `json:"senderId"`
+	CommentId   pgtype.Text `json:"commentId"`
+}
+
+func (q *Queries) ExistsUnreadCommentNotification(ctx context.Context, arg ExistsUnreadCommentNotificationParams) (int32, error) {
+	row := q.db.QueryRow(ctx, existsUnreadCommentNotification, arg.RecipientId, arg.SenderId, arg.CommentId)
+	var present int32
+	err := row.Scan(&present)
+	return present, err
+}
+
 const existsUnreadFollowNotification = `-- name: ExistsUnreadFollowNotification :one
 SELECT 1 AS present
 FROM "Notification"
@@ -126,6 +149,24 @@ func (q *Queries) ExistsUnreadRepostNotification(ctx context.Context, arg Exists
 	var present int32
 	err := row.Scan(&present)
 	return present, err
+}
+
+const getCommentPrefs = `-- name: GetCommentPrefs :one
+SELECT "emailComments", "pushComments"
+FROM "NotificationPreference"
+WHERE "userId" = $1
+`
+
+type GetCommentPrefsRow struct {
+	EmailComments bool `json:"emailComments"`
+	PushComments  bool `json:"pushComments"`
+}
+
+func (q *Queries) GetCommentPrefs(ctx context.Context, userid pgtype.UUID) (GetCommentPrefsRow, error) {
+	row := q.db.QueryRow(ctx, getCommentPrefs, userid)
+	var i GetCommentPrefsRow
+	err := row.Scan(&i.EmailComments, &i.PushComments)
+	return i, err
 }
 
 const getFollowPrefs = `-- name: GetFollowPrefs :one
@@ -201,6 +242,30 @@ func (q *Queries) GetPublicationOwner(ctx context.Context, id string) (string, e
 	var owner_id string
 	err := row.Scan(&owner_id)
 	return owner_id, err
+}
+
+const insertCommentNotification = `-- name: InsertCommentNotification :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "commentId", "publicationId")
+VALUES (gen_random_uuid()::text, $1, $2, 'COMMENT', $3, $4, $5)
+`
+
+type InsertCommentNotificationParams struct {
+	RecipientId   pgtype.UUID `json:"recipientId"`
+	SenderId      pgtype.UUID `json:"senderId"`
+	ArticleId     pgtype.Text `json:"articleId"`
+	CommentId     pgtype.Text `json:"commentId"`
+	PublicationId pgtype.Text `json:"publicationId"`
+}
+
+func (q *Queries) InsertCommentNotification(ctx context.Context, arg InsertCommentNotificationParams) error {
+	_, err := q.db.Exec(ctx, insertCommentNotification,
+		arg.RecipientId,
+		arg.SenderId,
+		arg.ArticleId,
+		arg.CommentId,
+		arg.PublicationId,
+	)
+	return err
 }
 
 const insertFollowNotification = `-- name: InsertFollowNotification :exec
