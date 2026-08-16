@@ -21,11 +21,11 @@ import { DrawerContext } from './drawer-context';
 // fait un mini-pop doux à l'ouverture — pas agressif du tout.
 const TIMING_CONFIG = { duration: 250 } as const;
 const EDGE_SWIPE_WIDTH = 40;
-const DECK_RADIUS = 55; // l'arrondi des iPhone (super-ellipse)
+const DECK_RADIUS = 60; // arrondi iPhone, un poil plus marqué
 const SHADOW_OPEN = 0.12;
 const SHADOW_RADIUS = 8;
 const SHADOW_OFFSET_X = -4;
-const SIDEBAR_REST_OPACITY = 0.8;
+const SIDEBAR_REST_OPACITY = 0.45;
 const SIDEBAR_REST_SCALE = 0.97;
 
 function clamp(value: number, min: number, max: number) {
@@ -62,9 +62,9 @@ export function AppDrawer({ children }: PropsWithChildren) {
     transform: [{ translateX: interpolate(progress.value, [0, 1], [0, drawerOffset]) }],
   }));
 
-  // Mini-pop de la sidebar : au repos elle est à peine transparente et à
-  // peine reculée ; à l'ouverture elle revient à 100% / échelle 1 dès la
-  // moitié du geste (mi-pop), en douceur, sans rebond ni slide latéral.
+  // Mini-pop de la sidebar : au début du scroll elle est nettement plus
+  // transparente et à peine reculée ; elle revient à 100% / échelle 1 à
+  // mi-parcours, en douceur, sans rebond ni slide latéral.
   const sidebarStyle = useAnimatedStyle(() => ({
     opacity: interpolate(progress.value, [0, 0.5], [SIDEBAR_REST_OPACITY, 1]),
     transform: [{ scale: interpolate(progress.value, [0, 0.5], [SIDEBAR_REST_SCALE, 1]) }],
