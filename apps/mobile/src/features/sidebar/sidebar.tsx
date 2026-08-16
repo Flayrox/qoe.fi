@@ -106,7 +106,9 @@ export function Sidebar() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: Spacing.three,
+    // Contenu moins collé au bord gauche — la sidebar occupe toute la
+    // largeur, on la décale légèrement vers la droite.
+    paddingHorizontal: 28,
   },
   header: {
     flexDirection: 'row',
