@@ -135,12 +135,12 @@ export function LoginScreen() {
             />
 
             {error ? (
-              <ThemedText type="small" style={styles.error}>
+              <ThemedText type="small" style={{ color: theme.destructive }}>
                 {error}
               </ThemedText>
             ) : null}
             {notice ? (
-              <ThemedText type="small" style={styles.notice}>
+              <ThemedText type="small" style={{ color: theme.success }}>
                 {notice}
               </ThemedText>
             ) : null}
@@ -212,12 +212,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
     fontSize: 16,
-  },
-  error: {
-    color: '#E5484D',
-  },
-  notice: {
-    color: '#30A46C',
   },
   button: {
     alignItems: 'center',

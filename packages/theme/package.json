@@ -14,7 +14,8 @@
     "./registry": "./src/registry.ts",
     "./ThemeProvider": "./src/ThemeProvider.tsx",
     "./ThemeStyle": "./src/ThemeStyle.tsx",
-    "./tokens": "./src/tokens.ts"
+    "./tokens": "./src/tokens.ts",
+    "./native": "./src/native.ts"
   },
   "scripts": {
     "lint": "eslint .",

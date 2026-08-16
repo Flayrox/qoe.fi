@@ -9,8 +9,6 @@ import { useAuth } from '@/features/auth/auth-provider';
 import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/lib/i18n';
 
-const BRAND = '#EE4B2B'; // vermillon — accent brand qoe.fi
-
 export function Sidebar() {
   const theme = useTheme();
   const pathname = usePathname();
@@ -61,7 +59,9 @@ export function Sidebar() {
               onPress={item.onPress}
               style={({ pressed }) => [styles.item, { opacity: pressed ? 0.6 : 1 }]}
             >
-              {active ? <View style={[styles.activeBar, { backgroundColor: BRAND }]} /> : null}
+              {active ? (
+                <View style={[styles.activeBar, { backgroundColor: theme.primary }]} />
+              ) : null}
               <ThemedText style={[styles.itemLabel, active && styles.itemLabelActive]}>
                 {item.label}
               </ThemedText>

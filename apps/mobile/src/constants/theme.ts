@@ -1,31 +1,38 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Thème mobile — piloté par le package partagé @qoe/theme (le même que
+ * les apps web). Aucune couleur n'est hardcodée ici : on mappe les tokens
+ * sémantiques du web vers les noms consommés par les composants mobile.
+ *
+ * Choix de mapping (décision produit mobile) :
+ *   - La « page » mobile (deck/feed) = la surface `card` du web (blanche).
+ *   - La sidebar mobile = le `background` du web (#f5f5f7, gris très léger).
  */
 
 import '@/global.css';
 
 import { Platform } from 'react-native';
 
+import { nativeTokens, type NativeTokens } from '@qoe/theme/native';
+
+function toMobileTheme(t: NativeTokens) {
+  return {
+    text: t.foreground,
+    background: t.card,
+    backgroundElement: t.secondary,
+    backgroundSelected: t.muted,
+    textSecondary: t.textSecondary,
+    sidebar: t.background,
+    primary: t.primary,
+    link: t.primary,
+    border: t.border,
+    destructive: t.destructive,
+    success: t.success,
+  };
+}
+
 export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-    // Sidebar : un gris très léger, plus clair que le gris du feed
-    // (backgroundElement) — la page principale reste blanche.
-    sidebar: '#F5F5F7',
-  },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-    sidebar: '#141416',
-  },
+  light: toMobileTheme(nativeTokens.light),
+  dark: toMobileTheme(nativeTokens.dark),
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
