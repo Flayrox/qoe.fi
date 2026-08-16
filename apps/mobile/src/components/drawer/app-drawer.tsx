@@ -27,6 +27,9 @@ const SHADOW_RADIUS = 8;
 const SHADOW_OFFSET_X = -4;
 const SIDEBAR_REST_OPACITY = 0.45;
 const SIDEBAR_REST_SCALE = 0.97;
+// Progression où le pop se termine : un poil après mi-parcours (0.65)
+// pour laisser l'opacité monter un tout petit peu plus longtemps.
+const POP_END = 0.65;
 
 function clamp(value: number, min: number, max: number) {
   'worklet';
@@ -63,11 +66,12 @@ export function AppDrawer({ children }: PropsWithChildren) {
   }));
 
   // Mini-pop de la sidebar : au début du scroll elle est nettement plus
-  // transparente et à peine reculée ; elle revient à 100% / échelle 1 à
-  // mi-parcours, en douceur, sans rebond ni slide latéral.
+  // transparente et à peine reculée ; elle revient à 100% / échelle 1 un
+  // poil après mi-parcours (POP_END), en douceur, sans rebond ni slide
+  // latéral.
   const sidebarStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 0.5], [SIDEBAR_REST_OPACITY, 1]),
-    transform: [{ scale: interpolate(progress.value, [0, 0.5], [SIDEBAR_REST_SCALE, 1]) }],
+    opacity: interpolate(progress.value, [0, POP_END], [SIDEBAR_REST_OPACITY, 1]),
+    transform: [{ scale: interpolate(progress.value, [0, POP_END], [SIDEBAR_REST_SCALE, 1]) }],
   }));
 
   const panGesture = Gesture.Pan()

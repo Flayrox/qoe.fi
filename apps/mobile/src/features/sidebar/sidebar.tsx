@@ -42,7 +42,7 @@ export function Sidebar() {
   ];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.sidebar }]}>
       <View style={styles.header}>
         <View style={[styles.avatar, { backgroundColor: theme.backgroundSelected }]}>
           <ThemedText style={styles.avatarText}>{initial}</ThemedText>

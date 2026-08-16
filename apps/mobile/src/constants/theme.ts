@@ -14,6 +14,9 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
+    // Sidebar : un gris très léger, plus clair que le gris du feed
+    // (backgroundElement) — la page principale reste blanche.
+    sidebar: '#F5F5F7',
   },
   dark: {
     text: '#ffffff',
@@ -21,6 +24,7 @@ export const Colors = {
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
+    sidebar: '#141416',
   },
 } as const;
 
