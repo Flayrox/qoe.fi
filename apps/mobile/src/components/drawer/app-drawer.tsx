@@ -5,7 +5,7 @@ import Animated, {
   interpolate,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 
 import { Sidebar } from '@/features/sidebar/sidebar';
@@ -13,13 +13,13 @@ import { useTheme } from '@/hooks/use-theme';
 
 import { DrawerContext } from './drawer-context';
 
-// Scaled Deck Drawer — l'effet signature de X : la sidebar vit en
-// arrière-plan (zIndex 1) et c'est l'écran principal qui se décale,
-// rétrécit et prend des coins arrondis pour la révéler.
-const SPRING_CONFIG = { damping: 18, stiffness: 120 } as const;
+// Drawer deck (façon X) : la sidebar vit en arrière-plan (zIndex 1) et
+// c'est l'écran principal qui se décale pour la révéler. Pas d'échelle ni
+// de spring : le deck garde sa taille, les coins sont arrondis en permanence
+// et le mouvement se termine sans rebond (withTiming).
+const TIMING_CONFIG = { duration: 250 } as const;
 const EDGE_SWIPE_WIDTH = 40;
-const SCALE_OPEN = 0.88;
-const RADIUS_OPEN = 32;
+const DECK_RADIUS = 32;
 const SHADOW_OPEN = 0.25;
 const PARALLAX_OFFSET = -40;
 
@@ -41,32 +41,22 @@ export function AppDrawer({ children }: PropsWithChildren) {
   // légitimes (worklets), d'où les désactivations ciblées.
   const openDrawer = useCallback(() => {
     // eslint-disable-next-line react-hooks/immutability -- mutation de shared value reanimated
-    progress.value = withSpring(1, SPRING_CONFIG);
+    progress.value = withTiming(1, TIMING_CONFIG);
   }, [progress]);
 
   const closeDrawer = useCallback(() => {
     // eslint-disable-next-line react-hooks/immutability -- mutation de shared value reanimated
-    progress.value = withSpring(0, SPRING_CONFIG);
+    progress.value = withTiming(0, TIMING_CONFIG);
   }, [progress]);
 
   const value = useMemo(() => ({ openDrawer, closeDrawer }), [openDrawer, closeDrawer]);
 
-  // L'écran principal : translation + échelle + coins arrondis + ombre.
-  // Tout s'exécute sur le thread UI (reanimated), sans bridge.
+  // L'écran principal : translation + ombre portée qui apparaît à
+  // l'ouverture. Tout s'exécute sur le thread UI (reanimated), sans bridge.
   const canvasStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: interpolate(progress.value, [0, 1], [0, drawerOffset]) },
-      { scale: interpolate(progress.value, [0, 1], [1, SCALE_OPEN]) },
-    ],
-    borderRadius: interpolate(progress.value, [0, 1], [0, RADIUS_OPEN]),
+    transform: [{ translateX: interpolate(progress.value, [0, 1], [0, drawerOffset]) }],
     shadowOpacity: interpolate(progress.value, [0, 1], [0, SHADOW_OPEN]),
     elevation: interpolate(progress.value, [0, 1], [0, 20]),
-  }));
-
-  // Couche interne : même rayon, fond plein + overflow hidden pour clipper
-  // le contenu dans les coins arrondis (l'ombre vit sur la couche externe).
-  const deckStyle = useAnimatedStyle(() => ({
-    borderRadius: interpolate(progress.value, [0, 1], [0, RADIUS_OPEN]),
   }));
 
   // Parallaxe du menu : il glisse de -40 → 0 et apparaît en fondu.
@@ -98,7 +88,7 @@ export function AppDrawer({ children }: PropsWithChildren) {
       'worklet';
       const shouldOpen = event.velocityX > 500 || progress.value > 0.4;
       // eslint-disable-next-line react-hooks/immutability -- mutation de shared value reanimated
-      progress.value = withSpring(shouldOpen ? 1 : 0, SPRING_CONFIG);
+      progress.value = withTiming(shouldOpen ? 1 : 0, TIMING_CONFIG);
     });
 
   return (
@@ -114,9 +104,11 @@ export function AppDrawer({ children }: PropsWithChildren) {
           </Pressable>
         </View>
 
-        {/* 2. Écran principal interactif (le deck). */}
+        {/* 2. Écran principal interactif (le deck) — coins arrondis en
+            permanence ; l'ombre vit sur la couche externe, le contenu est
+            clippé par la couche interne au même rayon. */}
         <Animated.View style={[styles.deckShadow, canvasStyle]}>
-          <Animated.View style={[styles.deck, deckStyle, { backgroundColor: theme.background }]}>
+          <Animated.View style={[styles.deck, { backgroundColor: theme.background }]}>
             <GestureDetector gesture={panGesture}>
               <View style={styles.deckSurface}>{children}</View>
             </GestureDetector>
@@ -156,12 +148,14 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 2,
+    borderRadius: DECK_RADIUS,
     shadowColor: '#000000',
     shadowOffset: { width: -8, height: 0 },
     shadowRadius: 16,
   },
   deck: {
     flex: 1,
+    borderRadius: DECK_RADIUS,
     overflow: 'hidden',
   },
   deckSurface: {
