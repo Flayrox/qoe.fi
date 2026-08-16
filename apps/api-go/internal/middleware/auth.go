@@ -25,7 +25,7 @@ func UserID(ctx context.Context) (string, bool) {
 	return id, ok
 }
 
-// Auth est un validateur de jetons Supabase (RS256 via JWKS, fallback HS256).
+// Auth est un validateur de jetons Supabase (RS256/ES256 via JWKS, fallback HS256).
 type Auth struct {
 	jwtSecret string
 	jwksURL   string
@@ -40,6 +40,9 @@ type jwkKey struct {
 	Kid string `json:"kid"`
 	N   string `json:"n"`
 	E   string `json:"e"`
+	Crv string `json:"crv"`
+	X   string `json:"x"`
+	Y   string `json:"y"`
 }
 type jwkSet struct {
 	Keys []jwkKey `json:"keys"`
@@ -156,14 +159,11 @@ func (a *Auth) parseToken(tokenString string) (jwt.MapClaims, error) {
 		}
 	}
 
-	// 2) RS256 via JWKS (Supabase moderne / self-hosted).
+	// 2) RS256/ES256 via JWKS (Supabase moderne / self-hosted).
 	if a.jwksURL != "" {
-		key, err := a.findRSAKey(tokenString)
+		key, err := a.findJWKSKey(tokenString)
 		if err == nil {
 			token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-				if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
-					return nil, fmt.Errorf("méthode de signature inattendue: %v", t.Header["alg"])
-				}
 				return key, nil
 			})
 			if err == nil && token.Valid {
@@ -200,7 +200,10 @@ func (a *Auth) hmacSecret() []byte {
 	return []byte(s)
 }
 
-func (a *Auth) findRSAKey(tokenString string) (*rsaPublicKey, error) {
+// findJWKSKey retrouve la clé publique (RSA ou ECDSA) qui valide le token,
+// en essayant chaque clé du JWKS. Supabase signe en ES256 (P-256) sur les
+// projets récents, en RS256 sur les plus anciens — on gère les deux.
+func (a *Auth) findJWKSKey(tokenString string) (interface{}, error) {
 	set, err := a.getJWKS()
 	if err != nil {
 		return nil, err
@@ -208,7 +211,16 @@ func (a *Auth) findRSAKey(tokenString string) (*rsaPublicKey, error) {
 	// On essaie sans connaître le kid : on tente chaque clé.
 	var lastErr error
 	for _, k := range set.Keys {
-		key, err := buildRSAKey(k)
+		var key interface{}
+		switch k.Kty {
+		case "RSA":
+			key, err = buildRSAKey(k)
+		case "EC":
+			key, err = buildECKey(k)
+		default:
+			lastErr = fmt.Errorf("type de clé JWKS non supporté: %s", k.Kty)
+			continue
+		}
 		if err != nil {
 			lastErr = err
 			continue
