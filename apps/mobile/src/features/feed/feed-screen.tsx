@@ -1,13 +1,7 @@
 import { useInfiniteFeed, type FeedFetcherFn, type ThoughtData } from '@qoe/api-client/mobile';
+import { FlashList } from '@shopify/flash-list';
 import { useCallback, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useDrawer } from '@/components/drawer/drawer-context';
@@ -83,19 +77,14 @@ export function FeedScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <FlatList
+        <FlashList
           data={items}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <ThoughtCard thought={item} />}
           onEndReached={onEndReached}
           onEndReachedThreshold={0.4}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={() => void refetch()}
-              tintColor={theme.text}
-            />
-          }
+          refreshing={isRefetching}
+          onRefresh={() => void refetch()}
           ListHeaderComponent={
             <View style={styles.header}>
               <Pressable
