@@ -10,8 +10,9 @@ export default function AppTabs() {
   return (
     <NativeTabs
       backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}
+      // Indicateur + libellé de l'onglet actif en brand (vermillon).
+      indicatorColor={colors.primary}
+      labelStyle={{ selected: { color: colors.primary } }}
     >
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Feed</NativeTabs.Trigger.Label>

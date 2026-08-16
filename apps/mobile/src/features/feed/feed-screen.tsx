@@ -65,10 +65,15 @@ export function FeedScreen() {
     return (
       <SafeAreaView style={styles.center}>
         <ThemedText type="small">{t('feed.error', 'Impossible de charger le feed')}</ThemedText>
-        <Pressable onPress={() => void refetch()}>
-          <ThemedText type="small" style={styles.retry}>
-            {t('common.retry', 'Réessayer')}
-          </ThemedText>
+        <Pressable onPress={() => void refetch()} style={styles.signOut}>
+          {({ pressed }) => (
+            <ThemedText
+              type="small"
+              style={[styles.retry, { color: pressed ? theme.primary : theme.text }]}
+            >
+              {t('common.retry', 'Réessayer')}
+            </ThemedText>
+          )}
         </Pressable>
       </SafeAreaView>
     );
@@ -89,17 +94,31 @@ export function FeedScreen() {
             <View style={styles.header}>
               <Pressable
                 onPress={openDrawer}
-                style={({ pressed }) => [styles.menuButton, { opacity: pressed ? 0.5 : 1 }]}
+                style={({ pressed }) => [
+                  styles.menuButton,
+                  // Appui → fond brand (vermillon) pour le bouton menu.
+                  pressed && {
+                    backgroundColor: theme.primary,
+                    borderRadius: Spacing.two,
+                  },
+                ]}
                 accessibilityLabel={t('sidebar.open', 'Ouvrir le menu')}
               >
-                <ThemedText style={styles.menuGlyph}>☰</ThemedText>
+                {({ pressed }) => (
+                  <ThemedText
+                    style={[styles.menuGlyph, { color: pressed ? '#ffffff' : theme.text }]}
+                  >
+                    ☰
+                  </ThemedText>
+                )}
               </Pressable>
               <ApiStatus />
-              <Pressable
-                onPress={() => void signOut()}
-                style={({ pressed }) => [styles.signOut, { opacity: pressed ? 0.5 : 1 }]}
-              >
-                <ThemedText type="small">{t('auth.sign_out', 'Se déconnecter')}</ThemedText>
+              <Pressable onPress={() => void signOut()} style={styles.signOut}>
+                {({ pressed }) => (
+                  <ThemedText type="small" style={{ color: pressed ? theme.primary : theme.text }}>
+                    {t('auth.sign_out', 'Se déconnecter')}
+                  </ThemedText>
+                )}
               </Pressable>
             </View>
           }
