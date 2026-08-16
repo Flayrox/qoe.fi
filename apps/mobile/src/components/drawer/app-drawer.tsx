@@ -16,14 +16,17 @@ import { DrawerContext } from './drawer-context';
 // Drawer deck (façon X) : la sidebar vit en arrière-plan (zIndex 1) et
 // c'est l'écran principal qui se décale pour la révéler. Pas d'échelle ni
 // de spring : le deck garde sa taille, les coins sont arrondis en permanence
-// et le mouvement se termine sans rebond (withTiming). La sidebar est
-// « déjà là » : pleine opacité, sans glissement latéral.
+// (façon iPhone) et le mouvement se termine sans rebond (withTiming).
+// Au repos, la sidebar est à peine transparente / à peine « reculée » et
+// fait un mini-pop doux à l'ouverture — pas agressif du tout.
 const TIMING_CONFIG = { duration: 250 } as const;
 const EDGE_SWIPE_WIDTH = 40;
-const DECK_RADIUS = 32;
+const DECK_RADIUS = 55; // l'arrondi des iPhone (super-ellipse)
 const SHADOW_OPEN = 0.12;
 const SHADOW_RADIUS = 8;
 const SHADOW_OFFSET_X = -4;
+const SIDEBAR_REST_OPACITY = 0.8;
+const SIDEBAR_REST_SCALE = 0.97;
 
 function clamp(value: number, min: number, max: number) {
   'worklet';
@@ -53,16 +56,19 @@ export function AppDrawer({ children }: PropsWithChildren) {
 
   const value = useMemo(() => ({ openDrawer, closeDrawer }), [openDrawer, closeDrawer]);
 
-  // L'écran principal : translation + ombre portée qui apparaît à
-  // l'ouverture. Tout s'exécute sur le thread UI (reanimated), sans bridge.
+  // L'écran principal : translation seule. L'ombre est statique (déjà là),
+  // pas d'animation. Tout s'exécute sur le thread UI (reanimated).
   const canvasStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: interpolate(progress.value, [0, 1], [0, drawerOffset]) }],
-    shadowOpacity: interpolate(progress.value, [0, 1], [0, SHADOW_OPEN]),
-    elevation: interpolate(progress.value, [0, 1], [0, 12]),
   }));
 
-  // La sidebar est statique : pas de slide ni de fondu, elle est « déjà
-  // là » en pleine opacité — c'est le deck qui se déplace pour la révéler.
+  // Mini-pop de la sidebar : au repos elle est à peine transparente et à
+  // peine reculée ; à l'ouverture elle revient à 100% / échelle 1 dès la
+  // moitié du geste (mi-pop), en douceur, sans rebond ni slide latéral.
+  const sidebarStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.5], [SIDEBAR_REST_OPACITY, 1]),
+    transform: [{ scale: interpolate(progress.value, [0, 0.5], [SIDEBAR_REST_SCALE, 1]) }],
+  }));
 
   const panGesture = Gesture.Pan()
     .activeOffsetX([-12, 12])
@@ -97,9 +103,9 @@ export function AppDrawer({ children }: PropsWithChildren) {
             les Pressables du menu (enfants) captent leurs propres taps. */}
         <View style={styles.sidecarContainer}>
           <Pressable style={styles.sidecarPressable} onPress={closeDrawer}>
-            <View style={styles.sidecarInner} pointerEvents="box-none">
+            <Animated.View style={[styles.sidecarInner, sidebarStyle]} pointerEvents="box-none">
               <Sidebar />
-            </View>
+            </Animated.View>
           </Pressable>
         </View>
 
@@ -150,7 +156,9 @@ const styles = StyleSheet.create({
     borderRadius: DECK_RADIUS,
     shadowColor: '#000000',
     shadowOffset: { width: SHADOW_OFFSET_X, height: 0 },
+    shadowOpacity: SHADOW_OPEN,
     shadowRadius: SHADOW_RADIUS,
+    elevation: 12,
   },
   deck: {
     flex: 1,
