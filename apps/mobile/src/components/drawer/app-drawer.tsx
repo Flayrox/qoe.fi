@@ -16,12 +16,14 @@ import { DrawerContext } from './drawer-context';
 // Drawer deck (façon X) : la sidebar vit en arrière-plan (zIndex 1) et
 // c'est l'écran principal qui se décale pour la révéler. Pas d'échelle ni
 // de spring : le deck garde sa taille, les coins sont arrondis en permanence
-// et le mouvement se termine sans rebond (withTiming).
+// et le mouvement se termine sans rebond (withTiming). La sidebar est
+// « déjà là » : pleine opacité, sans glissement latéral.
 const TIMING_CONFIG = { duration: 250 } as const;
 const EDGE_SWIPE_WIDTH = 40;
 const DECK_RADIUS = 32;
-const SHADOW_OPEN = 0.25;
-const PARALLAX_OFFSET = -40;
+const SHADOW_OPEN = 0.12;
+const SHADOW_RADIUS = 8;
+const SHADOW_OFFSET_X = -4;
 
 function clamp(value: number, min: number, max: number) {
   'worklet';
@@ -56,14 +58,11 @@ export function AppDrawer({ children }: PropsWithChildren) {
   const canvasStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: interpolate(progress.value, [0, 1], [0, drawerOffset]) }],
     shadowOpacity: interpolate(progress.value, [0, 1], [0, SHADOW_OPEN]),
-    elevation: interpolate(progress.value, [0, 1], [0, 20]),
+    elevation: interpolate(progress.value, [0, 1], [0, 12]),
   }));
 
-  // Parallaxe du menu : il glisse de -40 → 0 et apparaît en fondu.
-  const sidebarStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 1], [0, 1]),
-    transform: [{ translateX: interpolate(progress.value, [0, 1], [PARALLAX_OFFSET, 0]) }],
-  }));
+  // La sidebar est statique : pas de slide ni de fondu, elle est « déjà
+  // là » en pleine opacité — c'est le deck qui se déplace pour la révéler.
 
   const panGesture = Gesture.Pan()
     .activeOffsetX([-12, 12])
@@ -98,9 +97,9 @@ export function AppDrawer({ children }: PropsWithChildren) {
             les Pressables du menu (enfants) captent leurs propres taps. */}
         <View style={styles.sidecarContainer}>
           <Pressable style={styles.sidecarPressable} onPress={closeDrawer}>
-            <Animated.View style={[styles.sidecarInner, sidebarStyle]} pointerEvents="box-none">
+            <View style={styles.sidecarInner} pointerEvents="box-none">
               <Sidebar />
-            </Animated.View>
+            </View>
           </Pressable>
         </View>
 
@@ -150,8 +149,8 @@ const styles = StyleSheet.create({
     zIndex: 2,
     borderRadius: DECK_RADIUS,
     shadowColor: '#000000',
-    shadowOffset: { width: -8, height: 0 },
-    shadowRadius: 16,
+    shadowOffset: { width: SHADOW_OFFSET_X, height: 0 },
+    shadowRadius: SHADOW_RADIUS,
   },
   deck: {
     flex: 1,
