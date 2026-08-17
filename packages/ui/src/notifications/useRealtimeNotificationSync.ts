@@ -71,7 +71,6 @@ function ensureChannel(): Promise<void> {
         await client.removeChannel(channel);
       } catch {}
       channel = null;
-      channelUserId = null;
     }
 
     const channelTopic = `user-notifications:${user.id}`;
@@ -95,11 +94,9 @@ function ensureChannel(): Promise<void> {
       (payload) => dispatch(payload)
     );
 
-    channelUserId = user.id;
     channel.subscribe((status) => {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
         channel = null;
-        channelUserId = null;
         channelPromise = null;
         if (listeners.size > 0) {
           window.setTimeout(() => void ensureChannel(), 1000);

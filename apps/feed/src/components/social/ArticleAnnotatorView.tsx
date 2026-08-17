@@ -190,7 +190,7 @@ export function ArticleAnnotatorView({ article }: ArticleAnnotatorViewProps) {
           <span>
             Par{' '}
             <strong className="text-foreground">
-              {article.author.name || article.author.username || 'Auteur'}
+              {article.author?.name || article.author?.username || 'Auteur'}
             </strong>
           </span>
           <span>•</span>
@@ -198,12 +198,16 @@ export function ArticleAnnotatorView({ article }: ArticleAnnotatorViewProps) {
           <span>•</span>
           <time
             dateTime={
-              typeof article.createdAt === 'string'
-                ? article.createdAt
-                : article.createdAt.toISOString()
+              article.createdAt
+                ? typeof article.createdAt === 'string'
+                  ? article.createdAt
+                  : article.createdAt instanceof Date
+                    ? article.createdAt.toISOString()
+                    : String(article.createdAt)
+                : new Date().toISOString()
             }
           >
-            {new Date(article.createdAt).toLocaleDateString('fr-FR', {
+            {new Date(article.createdAt || Date.now()).toLocaleDateString('fr-FR', {
               day: 'numeric',
               month: 'long',
               year: 'numeric',
@@ -215,14 +219,14 @@ export function ArticleAnnotatorView({ article }: ArticleAnnotatorViewProps) {
       {/* Shared Genius Text Selection Highlighter Engine */}
       <TextHighlighter
         articleId={article.id}
-        creatorName={article.author.name || article.author.username || "L'Auteur"}
+        creatorName={article.author?.name || article.author?.username || "L'Auteur"}
         allowPublicAnnotations={true}
         isAuthenticated={!!user}
         initialHighlights={initialHighlights}
         publicHighlights={publicHighlights}
         currentUserId={user?.id || null}
         currentUserProfile={currentUserProfile}
-        articleAuthorId={article.author.id}
+        articleAuthorId={article.author?.id || ''}
         mainAppUrl=""
         containerId="article-content"
         callbacks={callbacks}
