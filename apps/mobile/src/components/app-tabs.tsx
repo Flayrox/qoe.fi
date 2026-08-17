@@ -1,64 +1,39 @@
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useColorScheme } from 'react-native';
-
-import { Colors } from '@/constants/theme';
+import { Tabs } from 'expo-router';
+import { LiquidTabBar } from '@/components/liquid-tab-bar';
+import { useDrawer } from '@/components/drawer/drawer-context';
 
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const { openDrawer } = useDrawer();
 
   return (
-    <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.primary}
-      labelVisibilityMode="unlabeled"
-      blurEffect="systemMaterial"
-      disableTransparentOnScrollEdge={false}
+    <Tabs
+      tabBar={(props) => <LiquidTabBar {...props} onProfilePress={openDrawer} />}
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          position: 'absolute',
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
+          elevation: 0,
+        },
+      }}
     >
-      <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label hidden>Feed</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
-          selectedColor={colors.primary}
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label hidden>Explorer</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-          selectedColor={colors.primary}
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="search">
-        <NativeTabs.Trigger.Label hidden>Recherche</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          sf={{ default: 'magnifyingglass', selected: 'magnifyingglass' }}
-          renderingMode="template"
-          selectedColor={colors.primary}
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="notifications">
-        <NativeTabs.Trigger.Label hidden>Notifications</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          sf={{ default: 'bell', selected: 'bell.fill' }}
-          renderingMode="template"
-          selectedColor={colors.primary}
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="messages">
-        <NativeTabs.Trigger.Label hidden>Messages</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          sf={{ default: 'envelope', selected: 'envelope.fill' }}
-          renderingMode="template"
-          selectedColor={colors.primary}
-        />
-      </NativeTabs.Trigger>
-    </NativeTabs>
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profil',
+        }}
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            openDrawer();
+          },
+        }}
+      />
+      <Tabs.Screen name="index" options={{ title: 'Feed' }} />
+      <Tabs.Screen name="explore" options={{ title: 'Explorer' }} />
+      <Tabs.Screen name="notifications" options={{ title: 'Notifications' }} />
+      <Tabs.Screen name="messages" options={{ title: 'Messages' }} />
+    </Tabs>
   );
 }

@@ -57,7 +57,10 @@ export function AppDrawer({ children }: PropsWithChildren) {
     progress.value = withTiming(0, TIMING_CONFIG);
   }, [progress]);
 
-  const value = useMemo(() => ({ openDrawer, closeDrawer }), [openDrawer, closeDrawer]);
+  const value = useMemo(
+    () => ({ openDrawer, closeDrawer, progress }),
+    [openDrawer, closeDrawer, progress]
+  );
 
   // L'écran principal : translation seule. L'ombre est statique (déjà là),
   // pas d'animation. Tout s'exécute sur le thread UI (reanimated).
