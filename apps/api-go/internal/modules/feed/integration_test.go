@@ -75,6 +75,42 @@ func TestThread_AncestorChain(t *testing.T) {
 	}
 }
 
+// TestPublicationArticles vérifie que les articles d'une publication (profil)
+// sont listés par slug (insensible à la casse) avec le même shape que le feed.
+func TestPublicationArticles(t *testing.T) {
+	fx, err := testutil.SeedPosts(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	svc := newTestService()
+	res, err := svc.PublicationArticles(context.Background(), "PUBLICATION-TEST", 20, 0)
+	if err != nil {
+		t.Fatalf("PublicationArticles: %v", err)
+	}
+	if len(res.Items) == 0 {
+		t.Fatal("PublicationArticles ne renvoie aucun article")
+	}
+	found := false
+	for _, a := range res.Items {
+		if a.ID == fx.ArticleID {
+			found = true
+			if a.Title != "Article bookmarké" {
+				t.Fatalf("title = %q", a.Title)
+			}
+			if a.Author.Username == nil || *a.Author.Username != "alice" {
+				t.Fatalf("author = %+v", a.Author)
+			}
+			if a.PublicationID == "" {
+				t.Fatal("publicationId vide")
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("article %q absent des articles de la publication", fx.ArticleID)
+	}
+}
+
 // TestRecentArticles vérifie que le feed d'articles renvoie l'article publié
 // seedé avec auteur/publication/catégorie dénormalisés.
 func TestRecentArticles(t *testing.T) {

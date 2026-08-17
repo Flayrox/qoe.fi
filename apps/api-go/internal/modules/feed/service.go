@@ -354,6 +354,76 @@ type ArticleFeedResult struct {
 	HasMore    bool          `json:"hasMore"`
 }
 
+// publishedArticleRow est la vue commune des lignes sqlc d'articles publiés
+// (RecentArticles et PublicationArticles ont le même shape de colonnes).
+type publishedArticleRow struct {
+	ID                   string
+	Title                string
+	Slug                 string
+	Content              string
+	IsPremium            bool
+	Visibility           db.ContentVisibility
+	ReadingTime          int32
+	CreatedAt            pgtype.Timestamp
+	PublicationID        string
+	AuthorID             string
+	AuthorName           pgtype.Text
+	AuthorUsername       pgtype.Text
+	AuthorLogo           pgtype.Text
+	AuthorCertified      bool
+	PublicationName      string
+	PublicationSlug      string
+	PublicationSubdomain pgtype.Text
+	PublicationLogo      pgtype.Text
+	PublicationType      db.PublicationType
+	CategoryID           pgtype.Text
+	CategoryName         pgtype.Text
+	CategorySlug         pgtype.Text
+}
+
+// buildFeedArticle construit la carte d'article du feed depuis la vue commune.
+func buildFeedArticle(r *publishedArticleRow) FeedArticle {
+	return FeedArticle{
+		ID:            r.ID,
+		Title:         r.Title,
+		Slug:          r.Slug,
+		Content:       r.Content,
+		IsPremium:     r.IsPremium,
+		Visibility:    string(r.Visibility),
+		ReadingTime:   int(r.ReadingTime),
+		CreatedAt:     r.CreatedAt.Time.Format(time.RFC3339),
+		PublicationID: r.PublicationID,
+		Author: FeedArticleAuthor{
+			ID:          r.AuthorID,
+			Name:        pgtypeTextPtr(r.AuthorName),
+			Username:    pgtypeTextPtr(r.AuthorUsername),
+			LogoURL:     pgtypeTextPtr(r.AuthorLogo),
+			IsCertified: r.AuthorCertified,
+		},
+		Publication: FeedArticlePub{
+			ID:        r.PublicationID,
+			Name:      r.PublicationName,
+			Slug:      r.PublicationSlug,
+			Subdomain: pgtypeTextPtr(r.PublicationSubdomain),
+			LogoURL:   pgtypeTextPtr(r.PublicationLogo),
+			Type:      string(r.PublicationType),
+		},
+		Category: feedArticleCat(&r.CategoryID, &r.CategoryName, &r.CategorySlug),
+	}
+}
+
+// feedArticleCat construit la catégorie d'un article du feed (nil si absente).
+func feedArticleCat(id, name, slug *pgtype.Text) *FeedArticleCat {
+	if id == nil || !id.Valid {
+		return nil
+	}
+	return &FeedArticleCat{
+		ID:   id.String,
+		Name: name.String,
+		Slug: slug.String,
+	}
+}
+
 // RecentArticles retourne les articles publiés récents (feed mobile), paginés.
 func (s *Service) RecentArticles(ctx context.Context, limit, offset int) (ArticleFeedResult, error) {
 	if limit <= 0 || limit > 100 {
@@ -377,33 +447,30 @@ func (s *Service) RecentArticles(ctx context.Context, limit, offset int) (Articl
 	items := make([]FeedArticle, 0, len(rows))
 	for i := range rows {
 		r := &rows[i]
-		items = append(items, FeedArticle{
-			ID:            r.ID,
-			Title:         r.Title,
-			Slug:          r.Slug,
-			Content:       r.Content,
-			IsPremium:     r.IsPremium,
-			Visibility:    string(r.Visibility),
-			ReadingTime:   int(r.ReadingTime),
-			CreatedAt:     r.CreatedAt.Time.Format(time.RFC3339),
-			PublicationID: r.PublicationId,
-			Author: FeedArticleAuthor{
-				ID:          r.AuthorID,
-				Name:        pgtypeTextPtr(r.AuthorName),
-				Username:    pgtypeTextPtr(r.AuthorUsername),
-				LogoURL:     pgtypeTextPtr(r.AuthorLogo),
-				IsCertified: r.AuthorCertified,
-			},
-			Publication: FeedArticlePub{
-				ID:        r.PublicationId,
-				Name:      r.PublicationName,
-				Slug:      r.PublicationSlug,
-				Subdomain: pgtypeTextPtr(r.PublicationSubdomain),
-				LogoURL:   pgtypeTextPtr(r.PublicationLogo),
-				Type:      string(r.PublicationType),
-			},
-			Category: feedArticleCat(r),
-		})
+		items = append(items, buildFeedArticle(&publishedArticleRow{
+			ID:                   r.ID,
+			Title:                r.Title,
+			Slug:                 r.Slug,
+			Content:              r.Content,
+			IsPremium:            r.IsPremium,
+			Visibility:           r.Visibility,
+			ReadingTime:          r.ReadingTime,
+			CreatedAt:            r.CreatedAt,
+			PublicationID:        r.PublicationId,
+			AuthorID:             r.AuthorID,
+			AuthorName:           r.AuthorName,
+			AuthorUsername:       r.AuthorUsername,
+			AuthorLogo:           r.AuthorLogo,
+			AuthorCertified:      r.AuthorCertified,
+			PublicationName:      r.PublicationName,
+			PublicationSlug:      r.PublicationSlug,
+			PublicationSubdomain: r.PublicationSubdomain,
+			PublicationLogo:      r.PublicationLogo,
+			PublicationType:      r.PublicationType,
+			CategoryID:           r.CategoryID,
+			CategoryName:         r.CategoryName,
+			CategorySlug:         r.CategorySlug,
+		}))
 	}
 
 	result := ArticleFeedResult{
@@ -416,16 +483,65 @@ func (s *Service) RecentArticles(ctx context.Context, limit, offset int) (Articl
 	return result, nil
 }
 
-// feedArticleCat construit la catégorie d'un article du feed (nil si absente).
-func feedArticleCat(r *db.ListRecentPublishedArticlesRow) *FeedArticleCat {
-	if !r.CategoryID.Valid {
-		return nil
+// PublicationArticles retourne les articles publiés d'une publication (profil),
+// résolue par slug OU subdomain (insensible à la casse), paginés.
+func (s *Service) PublicationArticles(ctx context.Context, username string, limit, offset int) (ArticleFeedResult, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
 	}
-	return &FeedArticleCat{
-		ID:   r.CategoryID.String,
-		Name: r.CategoryName.String,
-		Slug: r.CategorySlug.String,
+	fetch := limit + 1
+
+	rows, err := s.q.ListPublishedArticlesByPublication(ctx, db.ListPublishedArticlesByPublicationParams{
+		Lower:  username,
+		Limit:  int32(fetch),
+		Offset: int32(offset),
+	})
+	if err != nil {
+		return ArticleFeedResult{}, err
 	}
+
+	hasMore := len(rows) > limit
+	if hasMore {
+		rows = rows[:limit]
+	}
+
+	items := make([]FeedArticle, 0, len(rows))
+	for i := range rows {
+		r := &rows[i]
+		items = append(items, buildFeedArticle(&publishedArticleRow{
+			ID:                   r.ID,
+			Title:                r.Title,
+			Slug:                 r.Slug,
+			Content:              r.Content,
+			IsPremium:            r.IsPremium,
+			Visibility:           r.Visibility,
+			ReadingTime:          r.ReadingTime,
+			CreatedAt:            r.CreatedAt,
+			PublicationID:        r.PublicationId,
+			AuthorID:             r.AuthorID,
+			AuthorName:           r.AuthorName,
+			AuthorUsername:       r.AuthorUsername,
+			AuthorLogo:           r.AuthorLogo,
+			AuthorCertified:      r.AuthorCertified,
+			PublicationName:      r.PublicationName,
+			PublicationSlug:      r.PublicationSlug,
+			PublicationSubdomain: r.PublicationSubdomain,
+			PublicationLogo:      r.PublicationLogo,
+			PublicationType:      r.PublicationType,
+			CategoryID:           r.CategoryID,
+			CategoryName:         r.CategoryName,
+			CategorySlug:         r.CategorySlug,
+		}))
+	}
+
+	result := ArticleFeedResult{
+		Items:   items,
+		HasMore: hasMore,
+	}
+	if hasMore {
+		result.NextCursor = strconv.Itoa(offset + len(rows))
+	}
+	return result, nil
 }
 
 // ErrNotFound est renvoyé quand un post n'existe pas.

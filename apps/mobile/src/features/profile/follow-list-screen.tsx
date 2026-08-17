@@ -66,12 +66,12 @@ export function FollowListScreen({ username, tab }: { username: string; tab: Fol
   }, [hasNextPage, isFetching, fetchNextPage]);
 
   const toggleFollow = async (actor: FollowActor) => {
-    if (busyId || !actor.username) return;
+    if (busyId || !actor.publicationId) return;
     setBusyId(actor.id);
     try {
-      // Le follow cible la publication : on utilise l'username (résolu par
-      // slug/subdomain côté Go).
-      const res = await apiClient.toggleFollowUser(actor.username);
+      // Le follow cible la publication : `publicationId` est fourni par
+      // l'API Go (POST /v1/users/{publicationId}/follow).
+      const res = await apiClient.toggleFollowUser(actor.publicationId);
       if (res.ok) {
         await queryClient.invalidateQueries({ queryKey: userKeys.all });
       }

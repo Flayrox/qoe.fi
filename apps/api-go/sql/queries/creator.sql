@@ -104,12 +104,13 @@ WHERE "readerId" = $1 AND "publicationId" = $2;
 
 -- name: ListFollowersByPublication :many
 -- Abonnés d'une publication (profil), paginés — avec état follow du viewer.
-SELECT u.id::text       AS user_id,
-       u.name           AS user_name,
-       u.username       AS user_username,
-       u."logoUrl"      AS user_logo,
-       u."isCertified" AS user_certified,
-       f."createdAt"   AS followed_at,
+SELECT u.id::text            AS user_id,
+       u.name                AS user_name,
+       u.username            AS user_username,
+       u."logoUrl"           AS user_logo,
+       u."isCertified"      AS user_certified,
+       u."publicationId"::text AS user_publication_id,
+       f."createdAt"        AS followed_at,
        (vf.id IS NOT NULL)::boolean AS viewer_follows
 FROM "Follows" f
 JOIN "User" u ON u.id = f."readerId"
@@ -122,12 +123,13 @@ LIMIT $2 OFFSET $3;
 -- name: ListFollowingByUser :many
 -- Abonnements d'un utilisateur (profil), résolus vers les propriétaires des
 -- publications suivies (PERSONAL), paginés — avec état follow du viewer.
-SELECT owner.id::text    AS user_id,
-       owner.name        AS user_name,
-       owner.username    AS user_username,
-       owner."logoUrl"   AS user_logo,
-       owner."isCertified" AS user_certified,
-       f."createdAt"    AS followed_at,
+SELECT owner.id::text         AS user_id,
+       owner.name             AS user_name,
+       owner.username         AS user_username,
+       owner."logoUrl"        AS user_logo,
+       owner."isCertified"   AS user_certified,
+       owner."publicationId"::text AS user_publication_id,
+       f."createdAt"         AS followed_at,
        (vf.id IS NOT NULL)::boolean AS viewer_follows
 FROM "Follows" f
 JOIN "Publication" p ON p.id = f."publicationId"

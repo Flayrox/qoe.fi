@@ -416,6 +416,20 @@ export class QoeApiClient {
   }
 
   /**
+   * GET /v1/users/{username}/articles — articles publiés d'une publication
+   * (profil), paginés. Même shape que le feed d'articles.
+   */
+  public async getProfileArticles(username: string, params?: { cursor?: string; limit?: number }) {
+    const query = new URLSearchParams();
+    if (params?.cursor) query.set('cursor', params.cursor);
+    if (params?.limit) query.set('limit', params.limit.toString());
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    return this.request<ArticleFeedResult>(
+      `/v1/users/${encodeURIComponent(username)}/articles${queryString}`
+    );
+  }
+
+  /**
    * GET /v1/users/{username}/posts — pensées publiques d'un utilisateur
    * (profil), paginées. ⚠️ Renvoie des `FeedSlice` comme /v1/feed.
    */

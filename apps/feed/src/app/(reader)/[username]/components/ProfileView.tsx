@@ -88,6 +88,8 @@ interface ProfileViewProps {
   isOwnProfile: boolean;
   initialIsFollowing: boolean;
   initialTab?: string;
+  /** PublicationId (cible de l'endpoint follow) — le profile.id du Go. */
+  initialPublicationId?: string;
 }
 
 type ProfileTab =
@@ -109,6 +111,7 @@ export function ProfileView({
   isOwnProfile,
   initialIsFollowing,
   initialTab = 'thoughts',
+  initialPublicationId,
 }: ProfileViewProps) {
   const [user, setUser] = useState(initialProfileUser);
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
@@ -152,7 +155,7 @@ export function ProfileView({
     setIsFollowing(nextState);
     setFollowersCount((prev: number) => (nextState ? prev + 1 : prev - 1));
 
-    const res = await toggleFollowCreator(user.id);
+    const res = await toggleFollowCreator(initialPublicationId || user.id);
     if (!res.ok) {
       setIsFollowing(!nextState);
       setFollowersCount((prev: number) => (!nextState ? prev + 1 : prev - 1));

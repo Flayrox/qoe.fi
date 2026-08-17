@@ -7,17 +7,17 @@
 // navigation / réseaux sociaux, onboarding, et gestion des clés API
 // (demande d'accès, génération `qoe_live_…` avec scopes à moindre
 // privilège, révocation).
-// 🔗 Proxy Go : la plupart des mutations sont déléguées au backend Go
-//    (apps/api-go/internal/modules/settings) quand QOE_API_GO_URL est défini.
+// ✅ AOÛT 2026 : 100 % délégué au backend Go (apps/api-go/internal/
+//    modules/settings). QOE_API_GO_URL requis (backend-of-record).
 // ⚠️ Fichier serveur — non exposé au mobile.
 // =====================================================================
 
-import { prisma, type User, type Prisma } from '@qoe/db/client';
+import { prisma, type User } from '@qoe/db/client';
 import { publications } from '@qoe/db';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { safeAction } from '../utils/safe-action';
-import { goFetch, isGoEnabled } from '../utils/go-client';
+import { goFetch } from '../utils/go-client';
 
 /**
  * 🎛️ Résout la publication active (personnelle OU média) depuis le cookie du workspace.
@@ -82,160 +82,38 @@ interface CompleteOnboardingInput {
 export const updateCreatorProfileAction = safeAction<UpdateCreatorProfileInput, User>(
   async (data, user) => {
     const publicationId = await getActivePublicationId(user.id);
-    if (isGoEnabled()) {
-      return goFetch<User>('/v1/settings/profile', {
-        method: 'PATCH',
-        body: { publicationId, ...data },
-      });
-    }
-    const updateData: Prisma.PublicationUpdateInput = {
-      ...(data.heroText !== undefined ? { heroText: data.heroText } : {}),
-      ...(data.accentColor !== undefined ? { accentColor: data.accentColor } : {}),
-      ...(data.layoutStyle !== undefined ? { layoutStyle: data.layoutStyle } : {}),
-      ...(data.logoUrl !== undefined ? { logoUrl: data.logoUrl } : {}),
-      ...(data.headerImageUrl !== undefined ? { headerImageUrl: data.headerImageUrl } : {}),
-      ...(data.fontFamily !== undefined ? { fontFamily: data.fontFamily } : {}),
-      ...(data.themeMode !== undefined ? { themeMode: data.themeMode } : {}),
-      ...(data.footerText !== undefined ? { footerText: data.footerText } : {}),
-      ...(data.seoTitle !== undefined ? { seoTitle: data.seoTitle } : {}),
-      ...(data.seoDescription !== undefined ? { seoDescription: data.seoDescription } : {}),
-      ...(data.allowIndexing !== undefined ? { allowIndexing: data.allowIndexing } : {}),
-      ...(data.supportUrl !== undefined ? { supportUrl: data.supportUrl } : {}),
-      ...(data.name !== undefined && data.name ? { name: data.name } : {}),
-    };
-    await prisma.publication.update({ where: { id: publicationId }, data: updateData });
-    if (data.onboardingText !== undefined) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { onboardingText: data.onboardingText },
-      });
-    }
-    const updated = await prisma.user.findUnique({ where: { id: user.id } });
-    if (!updated) throw new Error('Utilisateur introuvable');
-    revalidatePath('/settings');
-    return updated;
+    return goFetch<User>('/v1/settings/profile', {
+      method: 'PATCH',
+      body: { publicationId, ...data },
+    });
   }
 );
-
-const RESERVED_SUBDOMAINS = [
-  'admin',
-  'api',
-  'app',
-  'auth',
-  'billing',
-  'blog',
-  'dashboard',
-  'dev',
-  'developer',
-  'docs',
-  'feed',
-  'help',
-  'login',
-  'main',
-  'media',
-  'onboarding',
-  'portal',
-  'qoe',
-  'root',
-  'settings',
-  'start',
-  'static',
-  'status',
-  'store',
-  'studio',
-  'support',
-  'www',
-];
 
 export const checkSubdomainAvailabilityAction = safeAction<
   string,
   { available: boolean; reason?: string }
->(
-  async (subdomain) => {
-    if (isGoEnabled()) {
-      return goFetch<{ available: boolean; reason?: string }>(
-        `/v1/settings/subdomain/check?subdomain=${encodeURIComponent(subdomain)}`
-      );
-    }
-    const clean = subdomain.trim().toLowerCase();
-    const regex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-    if (!regex.test(clean)) {
-      return {
-        available: false,
-        reason: 'Le sous-domaine ne doit contenir que des lettres minuscules, chiffres et tirets.',
-      };
-    }
-    if (clean.length < 3 || clean.length > 30) {
-      return {
-        available: false,
-        reason: 'La longueur doit être comprise entre 3 et 30 caractères.',
-      };
-    }
-    if (RESERVED_SUBDOMAINS.includes(clean)) {
-      return { available: false, reason: 'Ce nom de sous-domaine est réservé par la plateforme.' };
-    }
-
-    const existing = await prisma.publication.findFirst({ where: { subdomain: clean } });
-    if (existing) {
-      return {
-        available: false,
-        reason: 'Ce sous-domaine est déjà attribué à une autre publication.',
-      };
-    }
-
-    return { available: true };
-  },
-  { requireAuth: false }
-);
+>(async (subdomain) => {
+  return goFetch<{ available: boolean; reason?: string }>(
+    `/v1/settings/subdomain/check?subdomain=${encodeURIComponent(subdomain)}`
+  );
+});
 
 export const updateSubdomainAction = safeAction<string, { success: boolean; subdomain: string }>(
   async (subdomain, user) => {
-    if (isGoEnabled()) {
-      const publicationId = await getActivePublicationId(user.id);
-      return goFetch<{ success: boolean; subdomain: string }>('/v1/settings/subdomain', {
-        method: 'POST',
-        body: { publicationId, subdomain },
-      });
-    }
-    const check = await checkSubdomainAvailabilityAction(subdomain);
-    if (!check.ok || !check.data.available) {
-      throw new Error(check.ok ? check.data.reason : 'Sous-domaine invalide.');
-    }
-
     const publicationId = await getActivePublicationId(user.id);
-    const updated = await prisma.publication.update({
-      where: { id: publicationId },
-      data: { subdomain: subdomain.trim().toLowerCase() },
+    return goFetch<{ success: boolean; subdomain: string }>('/v1/settings/subdomain', {
+      method: 'POST',
+      body: { publicationId, subdomain },
     });
-
-    revalidatePath('/settings');
-    return { success: true, subdomain: updated.subdomain! };
   }
 );
 
 export const saveNavigationLinksAction = safeAction<NavigationLinkInput[], { success: boolean }>(
   async (links, user) => {
     const publicationId = await getActivePublicationId(user.id);
-    if (isGoEnabled()) {
-      await goFetch('/v1/settings/navigation', {
-        method: 'PUT',
-        body: { publicationId, links },
-      });
-      revalidatePath('/settings');
-      return { success: true };
-    }
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.navigationItem.deleteMany({ where: { publicationId } });
-      if (links.length > 0) {
-        await tx.navigationItem.createMany({
-          data: links.map((link, idx) => ({
-            publicationId,
-            label: link.label,
-            url: link.url,
-            order: idx,
-          })),
-        });
-      }
+    await goFetch('/v1/settings/navigation', {
+      method: 'PUT',
+      body: { publicationId, links },
     });
     revalidatePath('/settings');
     return { success: true };
@@ -245,62 +123,28 @@ export const saveNavigationLinksAction = safeAction<NavigationLinkInput[], { suc
 export const saveSocialLinksAction = safeAction<SocialLinkInput[], { success: boolean }>(
   async (links, user) => {
     const publicationId = await getActivePublicationId(user.id);
-    if (isGoEnabled()) {
-      await goFetch('/v1/settings/social', {
-        method: 'PUT',
-        body: { publicationId, links },
-      });
-      revalidatePath('/settings');
-      return { success: true };
-    }
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.socialLink.deleteMany({ where: { publicationId } });
-      if (links.length > 0) {
-        await tx.socialLink.createMany({
-          data: links.map((link) => ({
-            publicationId,
-            platform: link.platform,
-            url: link.url,
-          })),
-        });
-      }
+    await goFetch('/v1/settings/social', {
+      method: 'PUT',
+      body: { publicationId, links },
     });
-
     revalidatePath('/settings');
     return { success: true };
   }
 );
 
 export const submitApiApplicationAction = safeAction<string, { success: boolean }>(
-  async (reason, user) => {
-    if (isGoEnabled()) {
-      await goFetch('/v1/settings/api-application', {
-        method: 'POST',
-        body: { reason },
-      });
-      revalidatePath('/developer');
-      return { success: true };
-    }
-    if (!reason || reason.trim().length < 10) {
-      throw new Error('Veuillez fournir une explication détaillée (au moins 10 caractères).');
-    }
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        apiAccessStatus: 'pending',
-        apiApplicationReason: reason.trim(),
-      },
+  async (reason) => {
+    await goFetch('/v1/settings/api-application', {
+      method: 'POST',
+      body: { reason },
     });
-
     revalidatePath('/developer');
     return { success: true };
   }
 );
 
 // Scopes autorisés pour une clé API (moindre privilège).
-const API_KEY_SCOPES = ['READ', 'WRITE', 'ANALYTICS'] as const;
-export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
+export type ApiKeyScope = 'READ' | 'WRITE' | 'ANALYTICS';
 
 export interface GenerateApiKeyInput {
   name: string;
@@ -308,105 +152,33 @@ export interface GenerateApiKeyInput {
 }
 
 export const generateApiKeyAction = safeAction<GenerateApiKeyInput, { apiKey: string }>(
-  async ({ name, scopes }, user) => {
-    if (isGoEnabled()) {
-      const res = await goFetch<{ apiKey: string }>('/v1/settings/api-keys', {
-        method: 'POST',
-        body: { name, scopes },
-      });
-      revalidatePath('/developer');
-      return res;
-    }
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { apiAccessStatus: true },
+  async ({ name, scopes }) => {
+    const res = await goFetch<{ apiKey: string }>('/v1/settings/api-keys', {
+      method: 'POST',
+      body: { name, scopes },
     });
-
-    if (!dbUser || dbUser.apiAccessStatus !== 'approved') {
-      throw new Error("Votre demande d'accès à l'API doit être approuvée par un administrateur.");
-    }
-
-    // Validation stricte côté serveur : seuls les scopes connus sont acceptés,
-    // jamais de valeur arbitraire.
-    const scopesSet = new Set<string>(scopes ?? []);
-    const finalScopes = API_KEY_SCOPES.filter((s) => scopesSet.has(s));
-    if (finalScopes.length === 0) {
-      throw new Error('Sélectionnez au moins un scope pour la clé API.');
-    }
-
-    const { randomBytes, createHash } = await import('node:crypto');
-    const rawToken = randomBytes(16).toString('hex');
-    const apiKey = `qoe_live_${rawToken}`;
-    const keyHash = createHash('sha256').update(apiKey).digest('hex');
-
-    await prisma.apiKey.create({
-      data: {
-        name: name.trim() || 'Clé API',
-        keyHash,
-        keyPrefix: 'qoe_live',
-        scopes: finalScopes,
-        user: { connect: { id: user.id } },
-      },
-    });
-
     revalidatePath('/developer');
-    return { apiKey };
+    return res;
   }
 );
 
-export const revokeApiKeyAction = safeAction<string, { success: boolean }>(async (id, user) => {
-  if (isGoEnabled()) {
-    await goFetch(`/v1/settings/api-keys/${id}`, { method: 'DELETE' });
-    revalidatePath('/developer');
-    return { success: true };
-  }
-  await prisma.apiKey.deleteMany({
-    where: { id, userId: user.id },
-  });
+export const revokeApiKeyAction = safeAction<string, { success: boolean }>(async (id) => {
+  await goFetch(`/v1/settings/api-keys/${id}`, { method: 'DELETE' });
   revalidatePath('/developer');
   return { success: true };
 });
 
 export const completeOnboardingAction = safeAction<CompleteOnboardingInput, { success: boolean }>(
-  async (data, user) => {
-    if (isGoEnabled()) {
-      await goFetch('/v1/settings/onboarding', {
-        method: 'POST',
-        body: {
-          name: data.name,
-          heroText: data.heroText,
-          subdomain: data.subdomain,
-          layoutStyle: data.layoutStyle,
-        },
-      });
-      revalidatePath('/');
-      return { success: true };
-    }
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        role: user.role === 'superadmin' ? 'superadmin' : 'creator',
-        hasCompletedOnboarding: true,
-        name: data.name || user.user_metadata?.['name'],
+  async (data) => {
+    await goFetch('/v1/settings/onboarding', {
+      method: 'POST',
+      body: {
+        name: data.name,
+        heroText: data.heroText,
+        subdomain: data.subdomain,
+        layoutStyle: data.layoutStyle,
       },
     });
-    await publications
-      .createPersonalPublication(user.id, {
-        name: data.name || user.user_metadata?.['name'] || 'Créateur',
-        subdomain: data.subdomain,
-        heroText: data.heroText,
-        layoutStyle: data.layoutStyle,
-        slug: (user.user_metadata?.['username'] as string | undefined) || data.name || 'creator',
-      })
-      .catch(async () => {
-        // Publication déjà créée (re-onboarding) : on synchronise
-        await publications.syncUserPublication(user.id, {
-          name: data.name || undefined,
-          subdomain: data.subdomain,
-          heroText: data.heroText,
-          layoutStyle: data.layoutStyle,
-        });
-      });
     revalidatePath('/');
     return { success: true };
   }

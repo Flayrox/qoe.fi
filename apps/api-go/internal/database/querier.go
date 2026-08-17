@@ -226,6 +226,9 @@ type Querier interface {
 	ListMediaMembers(ctx context.Context, mediaid string) ([]ListMediaMembersRow, error)
 	// Tous les surlignages d'un lecteur (bibliothèque), avec l'article associé.
 	ListMyHighlights(ctx context.Context, arg ListMyHighlightsParams) ([]ListMyHighlightsRow, error)
+	// Articles publiés d'une publication (profil), résolue par slug OU subdomain
+	// (insensible à la casse). Même shape que ListRecentPublishedArticles.
+	ListPublishedArticlesByPublication(ctx context.Context, arg ListPublishedArticlesByPublicationParams) ([]ListPublishedArticlesByPublicationRow, error)
 	ListQuotePostIDs(ctx context.Context, arg ListQuotePostIDsParams) ([]string, error)
 	// Articles publiés récents (feed mobile « écran principal »), avec auteur /
 	// publication / catégorie dénormalisés. Public, trié par date décroissante.

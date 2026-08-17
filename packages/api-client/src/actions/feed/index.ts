@@ -7,7 +7,7 @@
 // (threads, likes, reposts, bookmarks, rapports), profils publics, drafts,
 // épinglage, unfurl de liens, réglages de modération.
 //
-// 🔗 PATTERN PROXY GO : quand `QOE_API_GO_URL` est défini (isGoEnabled),
+// 🔗 GO-ONLY : l'API Go est la source de vérité (QOE_API_GO_URL défini),
 //    plusieurs actions délèguent la logique au backend Go (apps/api-go)
 //    via `goFetch()` — le contrat TS (ActionResult<T>) reste identique,
 //    seules l'implémentation et l'authentification changent (JWT en header).
@@ -21,15 +21,23 @@
 
 import { follows, bookmarks, posts, articles, users, moderation, threadgates } from '@qoe/db';
 import type { FeedSlice } from '@qoe/db/repositories/posts';
-import { prisma, type User, type Prisma } from '@qoe/db/client';
+import { prisma, type User } from '@qoe/db/client';
 import { sliceContentAtPaywall, type PaywallCutResult } from '@qoe/utils';
 import { ContentVisibility } from '@qoe/db/types';
 
 import { replyToPostSchema, createReportSchema, type CreateReportInput } from '@qoe/config';
-import { createClient } from '@qoe/supabase/server';
-import { goFetch, isGoEnabled } from '../utils/go-client';
+import { goFetch } from '../utils/go-client';
 
 import { safeAction } from '../utils/safe-action';
+import type {
+  FeedSlice as ApiFeedSlice,
+  FeedPost as ApiFeedPost,
+  FeedArticle as ApiFeedArticle,
+  FeedResult as ApiFeedResult,
+  ArticleFeedResult as ApiArticleFeedResult,
+  PublicProfileData,
+  FollowActor as ApiFollowActor,
+} from '../../types';
 
 type ThoughtThreadPost = Awaited<ReturnType<typeof posts.createThoughtThread>>[number];
 type Reply = Awaited<ReturnType<typeof posts.replyToPost>>;
@@ -38,148 +46,6 @@ type RepostResult = Awaited<ReturnType<typeof posts.toggleRepost>>;
 type Draft = Awaited<ReturnType<typeof posts.getUserDrafts>>[number];
 type ArticleRecord = Awaited<ReturnType<typeof articles.findFirstBySlug>>;
 type SearchedUser = Awaited<ReturnType<typeof users.searchUsers>>[number];
-
-type ProfileThought = Prisma.ThoughtGetPayload<{
-  include: {
-    author: {
-      select: {
-        id: true;
-        name: true;
-        username: true;
-        logoUrl: true;
-        isCertified: true;
-      };
-    };
-    parent: {
-      select: {
-        id: true;
-        content: true;
-        createdAt: true;
-        author: {
-          select: {
-            id: true;
-            name: true;
-            username: true;
-            logoUrl: true;
-            isCertified: true;
-          };
-        };
-      };
-    };
-    repost: {
-      include: {
-        author: {
-          select: {
-            id: true;
-            name: true;
-            username: true;
-            logoUrl: true;
-            isCertified: true;
-          };
-        };
-      };
-    };
-    likes: { select: { userId: true } };
-    reposts: {
-      where: { authorId: string; deletedAt: null };
-      select: { id: true; authorId: true; content: true };
-    };
-    _count: { select: { likes: true; replies: true; reposts: true } };
-  };
-}>;
-
-type ProfileArticle = Awaited<ReturnType<typeof articles.findPublishedByAuthor>>[number];
-
-interface ProfilePostAuthor {
-  id: string;
-  name: string | null;
-  username: string | null;
-  logoUrl: string | null;
-  isCertified: boolean;
-}
-
-interface ProfilePostParent {
-  id: string;
-  content: string;
-  createdAt?: string;
-  author: ProfilePostAuthor;
-}
-
-interface ProfilePostRepost {
-  id: string;
-  content: string;
-  createdAt: string;
-  author: ProfilePostAuthor;
-}
-
-interface ProfilePost {
-  id: string;
-  content: string;
-  createdAt: string;
-  parent: ProfilePostParent | null;
-  repost: ProfilePostRepost | null;
-  likesCount: number;
-  repliesCount: number;
-  repostsCount: number;
-  liked: boolean;
-  reposted: boolean;
-}
-
-interface ProfileData {
-  profileUser: Omit<
-    Prisma.UserGetPayload<{
-      select: {
-        id: true;
-        name: true;
-        email: true;
-        username: true;
-        role: true;
-        logoUrl: true;
-        onboardingText: true;
-        isCertified: true;
-        createdAt: true;
-        publication: {
-          select: { id: true; slug: true; heroText: true; subdomain: true; headerImageUrl: true };
-        };
-      };
-    }>,
-    'createdAt'
-  > & {
-    createdAt: string;
-    heroText: string | null;
-    subdomain: string | null;
-    headerImageUrl: string | null;
-  };
-  isFollowing: boolean;
-  followersCount: number;
-  followingCount: number;
-  postsCount: number;
-  posts: ProfilePost[];
-  articles: Array<
-    Omit<ProfileArticle, 'createdAt' | 'updatedAt'> & { createdAt: string; updatedAt: string }
-  >;
-  highlights: Array<
-    Omit<
-      Prisma.HighlightGetPayload<{
-        include: {
-          article: { select: { title: true; slug: true; author: { select: { name: true } } } };
-        };
-      }>,
-      'createdAt'
-    > & { createdAt: string }
-  >;
-  letters: Array<
-    Omit<
-      Prisma.LetterGetPayload<{
-        include: {
-          sender: { select: { name: true; username: true; logoUrl: true; isCertified: true } };
-        };
-      }>,
-      'createdAt'
-    > & { createdAt: string }
-  >;
-  initialMutedWords: Array<{ id: string; word: string }>;
-}
 
 interface UnfurlExternalMetadata {
   title: string;
@@ -198,18 +64,15 @@ type UnfurlResult =
 const unfurlCache = new Map<string, UnfurlResult>();
 
 // ─────────────────────────────────────────────────────────────────────
-// Actions d'écriture (proxy Go quand disponible)
+// Actions d'écriture (Go-only — l'API Go est la source de vérité)
 // ─────────────────────────────────────────────────────────────────────
 export const toggleFollowCreatorHomeAction = safeAction<string, { followed: boolean }>(
-  async (publicationId, user) => {
-    if (isGoEnabled()) {
-      const res = await goFetch<{ data: { following: boolean } }>(
-        `/v1/users/${encodeURIComponent(publicationId)}/follow`,
-        { method: 'POST' }
-      );
-      return { followed: res.data.following };
-    }
-    return follows.toggleFollow(user.id, publicationId);
+  async (publicationId) => {
+    const res = await goFetch<{ data: { following: boolean } }>(
+      `/v1/users/${encodeURIComponent(publicationId)}/follow`,
+      { method: 'POST' }
+    );
+    return { followed: res.data.following };
   }
 );
 
@@ -222,50 +85,32 @@ export const toggleFollowCreatorHomeAction = safeAction<string, { followed: bool
 export const getFollowListAction = safeAction<
   { handle: string; tab: 'followers' | 'following'; cursor?: number; limit?: number },
   { items: follows.FollowActorDTO[]; nextCursor: string | null; hasMore: boolean }
->(async ({ handle, tab, cursor = 0, limit = 30 }, user) => {
-  const clean = decodeURIComponent(handle).replace(/^@/, '');
-  const publication = await prisma.publication.findFirst({
-    where: {
-      OR: [
-        { slug: { equals: clean, mode: 'insensitive' } },
-        { subdomain: { equals: clean, mode: 'insensitive' } },
-      ],
-    },
-    select: { id: true, user: { select: { id: true } } },
-  });
-  if (!publication) return { items: [], nextCursor: null, hasMore: false };
-
-  const viewerId = user?.id ?? null;
-  const fetchLimit = limit + 1;
-
-  if (tab === 'followers') {
-    const rows = await follows.listFollowers(publication.id, viewerId, {
-      limit: fetchLimit,
-      offset: cursor,
-    });
-    const hasMore = rows.length > limit;
-    const items = hasMore ? rows.slice(0, limit) : rows;
+>(
+  async ({ handle, tab, cursor = 0, limit = 30 }) => {
+    const clean = decodeURIComponent(handle).replace(/^@/, '');
+    const path = tab === 'followers' ? 'followers' : 'following';
+    const page = await goFetch<{ items: ApiFollowActor[]; nextCursor: string; hasMore: boolean }>(
+      `/v1/users/${encodeURIComponent(clean)}/${path}?limit=${limit}&cursor=${cursor}`
+    );
+    const items: follows.FollowActorDTO[] = (page.items ?? []).map((a) => ({
+      id: a.id,
+      publicationId: a.publicationId,
+      name: a.name,
+      username: a.username,
+      subdomain: null,
+      logoUrl: a.logoUrl,
+      isCertified: a.isCertified,
+      followedAt: a.followedAt,
+      viewerFollows: a.viewerFollows,
+    }));
     return {
       items,
-      nextCursor: hasMore ? String(cursor + items.length) : null,
-      hasMore,
+      nextCursor: page.nextCursor ?? null,
+      hasMore: page.hasMore,
     };
-  }
-
-  const ownerId = publication.user?.id ?? null;
-  if (!ownerId) return { items: [], nextCursor: null, hasMore: false };
-  const rows = await follows.listFollowing(ownerId, viewerId, {
-    limit: fetchLimit,
-    offset: cursor,
-  });
-  const hasMore = rows.length > limit;
-  const items = hasMore ? rows.slice(0, limit) : rows;
-  return {
-    items,
-    nextCursor: hasMore ? String(cursor + items.length) : null,
-    hasMore,
-  };
-});
+  },
+  { requireAuth: false }
+);
 
 export const toggleBookmarkArticleHomeAction = safeAction<string, { bookmarked: boolean }>(
   async (articleId, user) => {
@@ -343,50 +188,31 @@ export const createThoughtThreadAction = safeAction<
   return { posts: createdPosts };
 });
 
-export const toggleLikePostAction = safeAction<string, { liked: boolean }>(async (postId, user) => {
-  // 🔗 Proxy Go : la logique (DB + notification LIKE) est déléguée au backend Go.
-  if (isGoEnabled()) {
-    const body = await goFetch<{ liked: boolean }>(`/v1/posts/${postId}/like`, {
-      method: 'POST',
-    });
-    return body;
-  }
-  const res = await posts.toggleLike(postId, user.id);
-  return res;
+export const toggleLikePostAction = safeAction<string, { liked: boolean }>(async (postId) => {
+  // ✅ Go-only : logique (DB + notification LIKE) déléguée au backend Go.
+  return goFetch<{ liked: boolean }>(`/v1/posts/${postId}/like`, {
+    method: 'POST',
+  });
 });
 
 export const replyToPostAction = safeAction<{ postId: string; content: string }, { reply: Reply }>(
-  async (rawInput, user) => {
+  async (rawInput) => {
     const { postId, content } = replyToPostSchema.parse(rawInput);
 
-    // 🔗 Proxy Go : threadgate + notifications MENTION/REPLY + invalidation cache.
-    if (isGoEnabled()) {
-      const reply = await goFetch<unknown>(`/v1/posts/${postId}/reply`, {
-        method: 'POST',
-        body: { content },
-      });
-      return { reply: reply as Reply };
-    }
-
-    const reply = await posts.replyToPost(postId, user.id, content);
-
-    return { reply };
+    // ✅ Go-only : threadgate + notifications MENTION/REPLY + invalidation cache.
+    const reply = await goFetch<unknown>(`/v1/posts/${postId}/reply`, {
+      method: 'POST',
+      body: { content },
+    });
+    return { reply: reply as Reply };
   }
 );
 
 export const getPostThreadAction = safeAction<string, { post: ThreadPost }>(
   async (postId) => {
-    // 🔗 Proxy Go : thread (racine + réponses + chaîne parent/repost).
-    if (isGoEnabled()) {
-      const res = await goFetch<{ post: unknown }>(`/v1/posts/${postId}/thread`);
-      return { post: res.post as ThreadPost };
-    }
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    const post = await posts.findThreadById(postId, user?.id);
-    return { post };
+    // ✅ Go-only : thread (racine + réponses + chaîne parent/repost).
+    const res = await goFetch<{ post: unknown }>(`/v1/posts/${postId}/thread`);
+    return { post: res.post as ThreadPost };
   },
   { requireAuth: false }
 );
@@ -492,261 +318,19 @@ export const reportTargetAction = safeAction<CreateReportInput, { success: boole
 export const toggleRepostPostAction = safeAction<
   string,
   { reposted: boolean; canonicalId: string; post?: RepostResult['post'] }
->(async (postId, user) => {
-  // 🔗 Proxy Go : logique + notification REPOST déléguées au backend Go.
-  if (isGoEnabled()) {
-    const body = await goFetch<{ reposted: boolean }>(`/v1/posts/${postId}/repost`, {
-      method: 'POST',
-    });
-    return { reposted: body.reposted, canonicalId: postId };
-  }
-  const result = await posts.toggleRepost(postId, user.id);
-  return result;
+>(async (postId) => {
+  // ✅ Go-only : logique + notification REPOST déléguées au backend Go.
+  const body = await goFetch<{ reposted: boolean }>(`/v1/posts/${postId}/repost`, {
+    method: 'POST',
+  });
+  return { reposted: body.reposted, canonicalId: postId };
 });
 
-export const deletePostAction = safeAction<string, { success: boolean }>(async (postId, user) => {
-  const deleted = await posts.deletePost(postId, user.id);
-  if (!deleted) throw new Error('UNAUTHORIZED');
+export const deletePostAction = safeAction<string, { success: boolean }>(async (postId) => {
+  // ✅ Go-only : logique + notifications déléguées au backend Go.
+  await goFetch(`/v1/posts/${postId}`, { method: 'DELETE' });
   return { success: true };
 });
-
-// ─────────────────────────────────────────────────────────────────────
-// Lecture : profil public complet (posts + articles + highlights +
-// lettres + mots masqués). Requiert l'auth OPTIONNELLE (le contenu
-// « followers » n'est visible que si l'utilisateur suit le créateur).
-// ─────────────────────────────────────────────────────────────────────
-export const getProfileDataAction = safeAction<string, ProfileData>(
-  async (username) => {
-    const supabase = await createClient();
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-    const currentUserId = authUser?.id || null;
-
-    const { prisma } = await import('@qoe/db/client');
-    const profileUser = await prisma.user.findUnique({
-      where: { username },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        username: true,
-        role: true,
-        logoUrl: true,
-        onboardingText: true,
-        isCertified: true,
-        createdAt: true,
-        publication: {
-          select: { id: true, slug: true, heroText: true, subdomain: true, headerImageUrl: true },
-        },
-      },
-    });
-
-    if (!profileUser) throw new Error('NOT_FOUND');
-
-    const publicationId = profileUser.publication?.id ?? null;
-
-    let isFollowingUser = false;
-    if (currentUserId && publicationId && currentUserId !== profileUser.id) {
-      isFollowingUser = await follows.isFollowing(currentUserId, publicationId);
-    }
-
-    const followersCount = publicationId ? await follows.countFollowers(publicationId) : 0;
-    const followingCount = await follows.countFollowing(profileUser.id);
-    const isOwnProfile = currentUserId === profileUser.id;
-
-    const postsCount = await prisma.thought.count({
-      where: {
-        authorId: profileUser.id,
-        ...(isOwnProfile
-          ? {}
-          : {
-              isDraft: false,
-              OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
-              visibility: isFollowingUser ? { in: ['public', 'followers'] } : 'public',
-            }),
-      },
-    });
-
-    const dbPosts = await prisma.thought.findMany({
-      where: {
-        authorId: profileUser.id,
-        ...(isOwnProfile
-          ? {}
-          : {
-              isDraft: false,
-              OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
-              visibility: isFollowingUser ? { in: ['public', 'followers'] } : 'public',
-            }),
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            logoUrl: true,
-            isCertified: true,
-          },
-        },
-        parent: {
-          select: {
-            id: true,
-            content: true,
-            createdAt: true,
-            author: {
-              select: {
-                id: true,
-                name: true,
-                username: true,
-                logoUrl: true,
-                isCertified: true,
-              },
-            },
-          },
-        },
-        repost: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                name: true,
-                username: true,
-                logoUrl: true,
-                isCertified: true,
-              },
-            },
-          },
-        },
-        likes: { select: { userId: true } },
-        reposts: currentUserId
-          ? {
-              where: { authorId: currentUserId, deletedAt: null },
-              select: { id: true, authorId: true, content: true },
-            }
-          : false,
-        _count: { select: { likes: true, replies: true, reposts: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const dbArticles =
-      profileUser.role === 'creator' || profileUser.role === 'superadmin'
-        ? await articles.findPublishedByAuthor(profileUser.id, { take: 50 })
-        : [];
-
-    const dbHighlights = await prisma.highlight.findMany({
-      where: { readerId: profileUser.id },
-      include: {
-        article: { select: { title: true, slug: true, author: { select: { name: true } } } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 15,
-    });
-
-    const dbLetters = await prisma.letter.findMany({
-      where: { recipientId: profileUser.id, isPublic: true },
-      include: {
-        sender: { select: { name: true, username: true, logoUrl: true, isCertified: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    let dbMutedWords: Array<{ id: string; word: string }> = [];
-    if (currentUserId && currentUserId === profileUser.id) {
-      dbMutedWords = await prisma.mutedWord.findMany({
-        where: { userId: currentUserId },
-        select: { id: true, word: true },
-        orderBy: { createdAt: 'desc' },
-      });
-    }
-
-    return {
-      profileUser: {
-        ...profileUser,
-        createdAt: profileUser.createdAt.toISOString(),
-        heroText: profileUser.publication?.heroText ?? null,
-        subdomain: profileUser.publication?.subdomain ?? null,
-        headerImageUrl: profileUser.publication?.headerImageUrl ?? null,
-      },
-      isFollowing: isFollowingUser,
-      followersCount,
-      followingCount,
-      postsCount,
-      posts: dbPosts.map((p: ProfileThought) => {
-        const canonicalPost = (p.repost || p) as ProfileThought;
-        const likesCount = canonicalPost._count?.likes ?? p._count?.likes ?? 0;
-        const repliesCount = canonicalPost._count?.replies ?? p._count?.replies ?? 0;
-        const repostsCount = canonicalPost._count?.reposts ?? p._count?.reposts ?? 0;
-
-        const liked =
-          (canonicalPost.likes &&
-            Array.isArray(canonicalPost.likes) &&
-            canonicalPost.likes.some((l: { userId: string }) => l.userId === currentUserId)) ||
-          (p.likes &&
-            Array.isArray(p.likes) &&
-            p.likes.some((l: { userId: string }) => l.userId === currentUserId)) ||
-          false;
-
-        const reposted =
-          (canonicalPost.reposts &&
-            Array.isArray(canonicalPost.reposts) &&
-            canonicalPost.reposts.some(
-              (r: { authorId: string; content: string }) =>
-                r.authorId === currentUserId && (!r.content || !r.content.trim())
-            )) ||
-          (p.reposts &&
-            Array.isArray(p.reposts) &&
-            p.reposts.some(
-              (r: { authorId: string; content: string }) =>
-                r.authorId === currentUserId && (!r.content || !r.content.trim())
-            )) ||
-          false;
-
-        return {
-          ...p,
-          createdAt: p.createdAt.toISOString(),
-          parent: p.parent
-            ? {
-                ...p.parent,
-                createdAt: p.parent.createdAt ? p.parent.createdAt.toISOString() : undefined,
-                author: {
-                  ...p.parent.author,
-                  isCertified: p.parent.author.isCertified || false,
-                },
-              }
-            : null,
-          repost: p.repost
-            ? {
-                ...p.repost,
-                createdAt: p.repost.createdAt
-                  ? p.repost.createdAt.toISOString()
-                  : p.createdAt.toISOString(),
-                author: {
-                  ...p.repost.author,
-                  isCertified: p.repost.author.isCertified || false,
-                },
-              }
-            : null,
-          likesCount,
-          repliesCount,
-          repostsCount,
-          liked,
-          reposted,
-        };
-      }),
-      articles: dbArticles.map((a: ProfileArticle) => ({
-        ...a,
-        createdAt: a.createdAt.toISOString(),
-        updatedAt: a.updatedAt ? a.updatedAt.toISOString() : new Date().toISOString(),
-      })),
-      highlights: dbHighlights.map((h) => ({ ...h, createdAt: h.createdAt.toISOString() })),
-      letters: dbLetters.map((l) => ({ ...l, createdAt: l.createdAt.toISOString() })),
-      initialMutedWords: dbMutedWords,
-    };
-  },
-  { requireAuth: false }
-);
 
 export const getUserDraftsAction = safeAction<void, { drafts: Draft[] }>(async (_, user) => {
   const drafts = await posts.getUserDrafts(user.id);
@@ -1067,50 +651,230 @@ export const getFeedItemsAction = safeAction<
   { items: FeedSlice[]; nextCursor: string | null; hasMore: boolean }
 >(
   async ({ feedType = 'recommandation', cursor = null, limit = 20, username }) => {
-    // 🔗 Proxy Go : le feed (shape FeedSlice + pagination + invalidation cache)
+    // ✅ Go-only : le feed (shape FeedSlice + pagination + invalidation cache)
     //    est servi par le backend Go.
-    if (isGoEnabled() && !username) {
-      const path =
-        feedType === 'following'
-          ? `/v1/feed?limit=${Math.min(limit, 50)}&cursor=${encodeURIComponent(cursor ?? '')}`
-          : `/v1/feed/trending?limit=${Math.min(limit, 50)}&cursor=${encodeURIComponent(cursor ?? '')}`;
-      const body = await goFetch<{
-        items: unknown[];
-        nextCursor: string | null;
-        hasMore: boolean;
-      }>(path);
-      return {
-        items: body.items as unknown as FeedSlice[],
-        nextCursor: body.nextCursor,
-        hasMore: body.hasMore,
+    const path = username
+      ? `/v1/users/${encodeURIComponent(username)}/posts?limit=${Math.min(limit, 50)}&cursor=${encodeURIComponent(cursor ?? '')}`
+      : feedType === 'following'
+        ? `/v1/feed?limit=${Math.min(limit, 50)}&cursor=${encodeURIComponent(cursor ?? '')}`
+        : `/v1/feed/trending?limit=${Math.min(limit, 50)}&cursor=${encodeURIComponent(cursor ?? '')}`;
+    const body = await goFetch<{
+      items: unknown[];
+      nextCursor: string | null;
+      hasMore: boolean;
+    }>(path);
+    return {
+      items: body.items as unknown as FeedSlice[],
+      nextCursor: body.nextCursor,
+      hasMore: body.hasMore,
+    };
+  },
+  { requireAuth: false }
+);
+
+// ─────────────────────────────────────────────────────────────────────
+// 👤 Profil public — lecture depuis l'API Go (shape unifié FeedPost)
+// ─────────────────────────────────────────────────────────────────────
+
+/** Pensée de profil (contrat web, mappé depuis FeedSlice/FeedPost Go). */
+export interface ProfilePostPayload {
+  id: string;
+  content: string;
+  imageUrl: string | null;
+  createdAt: string | Date;
+  triggerWarning?: string | null;
+  isPinned?: boolean;
+  author: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+    isCertified: boolean;
+  };
+  parentId?: string | null;
+  repostId?: string | null;
+  parent?: ProfilePostPayload | null;
+  repost?: ProfilePostPayload | null;
+  likesCount?: number;
+  repliesCount?: number;
+  repostsCount?: number;
+  liked?: boolean;
+  _count?: { likes?: number; replies?: number; reposts?: number };
+}
+
+/** Profil résolu (contrat web de la page /[username]). */
+export interface ProfileResolvePayload {
+  profileUser: {
+    id: string;
+    ownerUserId?: string | null;
+    type: 'PERSONAL' | 'MEDIA';
+    name: string | null;
+    username: string | null;
+    subdomain: string | null;
+    customDomain: string | null;
+    logoUrl: string | null;
+    heroText: string | null;
+    headerImageUrl: string | null;
+    onboardingText: string | null;
+    isCertified: boolean;
+    createdAt: string;
+    posts: ProfilePostPayload[];
+    articles: Array<{
+      id: string;
+      title: string;
+      slug: string;
+      content: string;
+      published: boolean;
+      isPremium: boolean;
+      visibility: string;
+      readingTime: number;
+      createdAt: string;
+      publicationId: string;
+      author: {
+        id: string;
+        name: string | null;
+        username: string | null;
+        logoUrl: string | null;
+        subdomain: string | null;
+        customDomain: string | null;
+        heroText: string | null;
+        isCertified: boolean;
+        authorName: string | null;
+        contributors: Array<{
+          id: string;
+          name: string | null;
+          username: string | null;
+          logoUrl: string | null;
+          isCertified: boolean;
+          role: string;
+          order: number;
+          isVisible: boolean;
+          consentStatus: string;
+        }>;
       };
-    }
+      category: { id: string; name: string; slug: string } | null;
+    }>;
+    _count: { followers: number; following: number; posts: number; articles: number };
+  };
+  isFollowing: boolean;
+  publicationId: string;
+}
 
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+function mapProfilePost(fp: ApiFeedPost): ProfilePostPayload {
+  const author = fp.author as ApiFeedPost['author'] | undefined;
+  return {
+    id: fp.id,
+    content: fp.content ?? '',
+    imageUrl: fp.imageUrl ?? null,
+    createdAt: fp.createdAt,
+    isPinned: fp.isPinned ?? false,
+    author: {
+      id: author?.id ?? '',
+      name: author?.name ?? null,
+      username: author?.username ?? null,
+      logoUrl: author?.logoUrl ?? null,
+      isCertified: author?.isCertified ?? false,
+    },
+    parentId: fp.parentId ?? null,
+    repostId: fp.repostId ?? null,
+    parent: fp.parent ? mapProfilePost(fp.parent) : null,
+    repost: fp.repost ? mapProfilePost(fp.repost) : null,
+    likesCount: fp.likeCount ?? fp._count?.likes ?? 0,
+    repliesCount: fp.replyCount ?? fp._count?.replies ?? 0,
+    repostsCount: fp.repostCount ?? fp._count?.reposts ?? 0,
+    liked: !!fp.liked,
+    _count: fp._count
+      ? {
+          likes: fp._count.likes,
+          replies: fp._count.replies,
+          reposts: fp._count.reposts,
+        }
+      : undefined,
+  };
+}
 
-    const fetchLimit = Math.min(limit, 50);
+function mapProfileSlice(slice: ApiFeedSlice): ProfilePostPayload {
+  const base = mapProfilePost(slice.targetPost);
+  // Contexte de réponse absent du targetPost → on l'attache depuis la slice.
+  if (!base.parent && slice.parentPost) base.parent = mapProfilePost(slice.parentPost);
+  return base;
+}
 
-    let rawPosts: FeedSlice[] = [];
-    if (feedType === 'following' && user) {
-      rawPosts = await posts.findFollowingFeed(user.id, {
-        take: fetchLimit,
-        cursor: cursor || undefined,
-      });
-    } else {
-      rawPosts = await posts.findTrending(fetchLimit + 1, user?.id);
-    }
+function mapProfileArticle(
+  a: ApiFeedArticle
+): ProfileResolvePayload['profileUser']['articles'][number] {
+  return {
+    id: a.id,
+    title: a.title,
+    slug: a.slug,
+    content: a.content ?? '',
+    published: true,
+    isPremium: a.isPremium,
+    visibility: a.visibility,
+    readingTime: a.readingTime,
+    createdAt: a.createdAt,
+    publicationId: a.publicationId,
+    author: {
+      id: a.author.id,
+      name: a.author.name,
+      username: a.author.username,
+      logoUrl: a.author.logoUrl,
+      subdomain: a.publication?.subdomain ?? null,
+      customDomain: null,
+      heroText: null,
+      isCertified: a.author.isCertified,
+      authorName: a.author.name,
+      contributors: [],
+    } as ProfileResolvePayload['profileUser']['articles'][number]['author'],
+    category: a.category
+      ? { id: a.category.id, name: a.category.name, slug: a.category.slug }
+      : null,
+  };
+}
 
-    const hasMore = rawPosts.length > fetchLimit;
-    const itemsList = hasMore ? rawPosts.slice(0, fetchLimit) : rawPosts;
-    const nextCursor = hasMore && itemsList.length > 0 ? itemsList[itemsList.length - 1].id : null;
+/**
+ * 👤 Profil public complet (profil + pensées + articles), depuis l'API Go.
+ * Remplace la lecture Prisma directe de getProfileData.ts (web).
+ * ⚠️ Go-only — l'API Go EST la source (QOE_API_GO_URL).
+ */
+export const resolveProfileAction = safeAction<string, ProfileResolvePayload>(
+  async (username) => {
+    const handle = decodeURIComponent(username).replace(/^@/, '');
+
+    const [profile, postsRes, articlesRes] = await Promise.all([
+      goFetch<PublicProfileData>(`/v1/users/${encodeURIComponent(handle)}`),
+      goFetch<ApiFeedResult>(`/v1/users/${encodeURIComponent(handle)}/posts?limit=50`),
+      goFetch<ApiArticleFeedResult>(`/v1/users/${encodeURIComponent(handle)}/articles?limit=30`),
+    ]);
+
+    const profileUser = {
+      id: profile.id,
+      ownerUserId: profile.ownerUserId ?? null,
+      type: profile.type,
+      name: profile.name,
+      username: profile.slug,
+      subdomain: profile.subdomain,
+      customDomain: profile.customDomain,
+      logoUrl: profile.logoUrl,
+      heroText: profile.heroText,
+      headerImageUrl: profile.headerImageUrl,
+      onboardingText: null,
+      isCertified: profile.isCertified,
+      createdAt: profile.createdAt,
+      posts: postsRes.items.map(mapProfileSlice),
+      articles: articlesRes.items.map(mapProfileArticle),
+      _count: {
+        followers: profile._count?.followers ?? 0,
+        following: profile._count?.following ?? 0,
+        posts: postsRes.items.length,
+        articles: profile._count?.articles ?? articlesRes.items.length,
+      },
+    };
 
     return {
-      items: itemsList,
-      nextCursor,
-      hasMore,
+      profileUser,
+      isFollowing: profile.isFollowing,
+      publicationId: profile.id,
     };
   },
   { requireAuth: false }

@@ -42,17 +42,18 @@ func (h *Handler) RegisterAPIKey(r chi.Router) {
 	r.With(middleware.RequireAPIScope(middleware.ScopeAnalytics)).Get("/v1/analytics/stats", h.analyticsStats)
 }
 
-// RegisterPublic — routes publiques.
+// RegisterPublic — routes publiques (auth optionnelle : le viewer connecté
+// voit `isFollowing` / `viewerFollows` renseignés, sinon false).
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/users/{username}", h.userByUsername)
+	r.Get("/v1/users/{username}/followers", h.userFollowers)
+	r.Get("/v1/users/{username}/following", h.userFollowing)
 }
 
 // RegisterProtected — routes créateur authentifiées JWT (ou clé API via CombinedAuth).
 func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Get("/v1/users/me", h.userMe)
 	r.Post("/v1/users/{id}/follow", h.followToggle)
-	r.Get("/v1/users/{username}/followers", h.userFollowers)
-	r.Get("/v1/users/{username}/following", h.userFollowing)
 	r.Get("/v1/categories", h.categories)
 	r.Post("/v1/categories", h.createCategory)
 	r.Patch("/v1/categories/{id}", h.updateCategory)
@@ -367,9 +368,12 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Nombre d'abonnements du propriétaire de la publication (CountFollowing).
+	// Nombre d'abonnements du propriétaire de la publication (CountFollowing)
+	// + id du User propriétaire (isOwnProfile côté client).
 	var followingCount int32
+	var ownerUserID string
 	if ownerID, err := h.q.GetPublicationOwner(r.Context(), row.ID); err == nil {
+		ownerUserID = ownerID
 		if n, err := h.q.CountFollowing(r.Context(), toUUID(ownerID)); err == nil {
 			followingCount = n
 		}
@@ -377,6 +381,7 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 
 	response.OK(w, map[string]any{"data": map[string]any{
 		"id":             row.ID,
+		"ownerUserId":    ownerUserID,
 		"name":           row.Name,
 		"slug":           row.Slug,
 		"subdomain":      textPtr(row.Subdomain),
@@ -394,13 +399,14 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 
 // followActor est un utilisateur listé dans followers/following.
 type followActor struct {
-	ID          string `json:"id"`
-	Name        *string `json:"name"`
-	Username    *string `json:"username"`
-	LogoURL     *string `json:"logoUrl"`
-	IsCertified bool   `json:"isCertified"`
-	FollowedAt  string `json:"followedAt"`
-	ViewerFollows bool `json:"viewerFollows"`
+	ID            string  `json:"id"`
+	PublicationID *string `json:"publicationId"`
+	Name          *string `json:"name"`
+	Username      *string `json:"username"`
+	LogoURL       *string `json:"logoUrl"`
+	IsCertified   bool    `json:"isCertified"`
+	FollowedAt    string  `json:"followedAt"`
+	ViewerFollows bool    `json:"viewerFollows"`
 }
 
 // followPage est une page d'abonnés/abonnements paginée.
@@ -444,8 +450,10 @@ func (h *Handler) userFollowers(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]followActor, 0, len(rows))
 	for _, row := range rows {
+		pubID := row.UserPublicationID
 		items = append(items, followActor{
 			ID:            row.UserID,
+			PublicationID: &pubID,
 			Name:          textPtr(row.UserName),
 			Username:      textPtr(row.UserUsername),
 			LogoURL:       textPtr(row.UserLogo),
@@ -505,8 +513,10 @@ func (h *Handler) userFollowing(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]followActor, 0, len(rows))
 	for _, row := range rows {
+		pubID := row.UserPublicationID
 		items = append(items, followActor{
 			ID:            row.UserID,
+			PublicationID: &pubID,
 			Name:          textPtr(row.UserName),
 			Username:      textPtr(row.UserUsername),
 			LogoURL:       textPtr(row.UserLogo),

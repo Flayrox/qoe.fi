@@ -284,6 +284,12 @@ type CoAuthor struct {
 	B pgtype.UUID `json:"B"`
 }
 
+type CollabDocument struct {
+	DocumentName string             `json:"document_name"`
+	State        []byte             `json:"state"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
 type CollaborationRequest struct {
 	ID                  string           `json:"id"`
 	ArticleId           string           `json:"articleId"`
