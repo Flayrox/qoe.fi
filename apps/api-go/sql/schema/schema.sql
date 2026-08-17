@@ -1169,3 +1169,18 @@ ALTER TABLE "_CoAuthors" ADD CONSTRAINT "_CoAuthors_A_fkey" FOREIGN KEY ("A") RE
 -- AddForeignKey
 ALTER TABLE "_CoAuthors" ADD CONSTRAINT "_CoAuthors_B_fkey" FOREIGN KEY ("B") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+
+-- =====================================================================
+-- 🧵 collab_documents — documents Yjs de collaboration (Hocuspocus)
+-- =====================================================================
+-- État binaire (update Yjs) d'un document de co-édition d'article.
+-- Écrit par apps/collab-server (CREATE TABLE IF NOT EXISTS idempotent).
+-- =====================================================================
+CREATE TABLE "collab_documents" (
+    "document_name" TEXT NOT NULL,
+    "state" BYTEA NOT NULL,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "collab_documents_pkey" PRIMARY KEY ("document_name")
+);
+
+CREATE INDEX "collab_documents_updated_at_idx" ON "collab_documents" ("updated_at");

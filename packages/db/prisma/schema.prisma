@@ -426,6 +426,21 @@ model Article {
   @@index([status, scheduledAt])
 }
 
+// =====================================================================
+// 🧵 Documents de collaboration temps réel (Hocuspocus/Yjs)
+// =====================================================================
+// Chaque ligne = l'état binaire (update Yjs) d'un document de co-édition,
+// nommé `article:{id}`. Écrit par le serveur apps/collab-server.
+// =====================================================================
+model CollabDocument {
+  documentName String   @id @map("document_name")
+  state        Bytes    @db.ByteA
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([updatedAt])
+  @@map("collab_documents")
+}
+
 model ArticleAttribution {
   id        String  @id @default(cuid())
   articleId String

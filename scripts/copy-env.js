@@ -7,7 +7,7 @@ const path = require('path');
 const rootDir = path.resolve(__dirname, '..');
 const rootEnvPath = path.join(rootDir, '.env');
 
-const apps = ['landing', 'feed', 'dashboard', 'admin', 'web', 'api-go'];
+const apps = ['landing', 'feed', 'dashboard', 'admin', 'web', 'api-go', 'collab-server'];
 
 if (!fs.existsSync(rootEnvPath)) {
   console.warn('⚠️  No root .env file found. Copying .env.docker.example as .env...');
