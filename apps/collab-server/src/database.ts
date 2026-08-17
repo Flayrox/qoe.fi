@@ -29,7 +29,8 @@ const SCHEMA_SQL = `
 `;
 
 export class PostgresDatabase implements CollabDatabase {
-  private readonly pool: Pool;
+  /** Pool pg exposé pour les autres services (ex: RBAC publication). */
+  readonly pool: Pool;
 
   constructor(connectionString: string, poolSize = 5) {
     this.pool = new Pool({ connectionString, max: poolSize });

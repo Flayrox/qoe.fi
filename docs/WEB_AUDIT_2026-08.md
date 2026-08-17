@@ -12,7 +12,7 @@
 | # | Domaine | État actuel | Action critique |
 |---|---|---|---|
 | 1 | Embedding IA | Colonnes `vector(1536)` vides, **aucun code** | Pipeline jina-embeddings-v3 (1024 dims) + HNSW + usages |
-| 2 | Collaboratif | ✅ **FAIT** — serveur Hocuspocus (`apps/collab-server`), persistance Postgres, auth JWT Supabase, curseurs + awareness | Reste : RBAC publication dans `onLoadDocument`, nettoyage TTL |
+| 2 | Collaboratif | ✅ **FAIT** — serveur Hocuspocus (`apps/collab-server`), persistance Postgres, auth JWT Supabase, **RBAC publication**, curseurs + awareness | Reste : nettoyage TTL des brouillons |
 | 3 | Mails | Template + outbox TS **orphelins** (rien n'enqueue) | Câbler Go → NotificationDelivery → worker |
 | 4 | Web → API | Server actions = proxy fin via `goFetch` quand `QOE_API_GO_URL` | Terminer la bascule des actions restantes (articles legacy) |
 | 5 | Profil web | Page fonctionnelle mais datée, stats non cliquables partout | Refonte + onglets Followers/Abonnements (déjà ajoutés) |
@@ -85,9 +85,9 @@
   (copiés par `scripts/copy-env.js`, ajoutés au `globalEnv` turbo).
 
 ### Ce qui reste (durcissement)
-1. **RBAC publication** dans `onLoadDocument` : vérifier que l'utilisateur est
-   owner/editor/writer de la publication de l'article (via Prisma) avant de
-   servir le document.
+1. ✅ **RBAC publication** : dans `onLoadDocument`, seul l'auteur, les
+   co-auteurs et les membres actifs du média peuvent éditer (requête SQL
+   dans `apps/collab-server/src/permissions.ts`).
 2. **TTL / nettoyage** : purger `collab_documents` des brouillons non touchés
    depuis N jours (cron Go existant ou worker).
 3. **Historique** : l'état canonique public reste le HTML autosavé ; Yjs peut
