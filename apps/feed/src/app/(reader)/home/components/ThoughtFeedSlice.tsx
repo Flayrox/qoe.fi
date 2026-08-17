@@ -1,5 +1,21 @@
 'use client';
 
+// =====================================================================
+// 🧵 ThoughtFeedSlice — Rendu d'un élément du feed (slice de conversation)
+// =====================================================================
+// Prend un `FeedSlice` (cf. @qoe/db/repositories/posts et l'API Go
+// /v1/feed) et le rend en 4 cas :
+//   1. Post isolé (pas de parent/root) → ThoughtCard simple.
+//   2. Fil multi-posts : Root → [séparateur pointillé si fil incomplet] →
+//      Parent → Target (la réponse), reliés par des connecteurs verticaux
+//      de 2px dans la colonne avatar.
+// Le séparateur pointillé « Afficher la suite du fil (N messages de plus) »
+// s'affiche quand `isIncompleteThread` (réponses intermédiaires masquées).
+// ⚠️ C'EST LE COMPOSANT QUE LE MOBILE DOIT PORTER pour corriger le gap
+//    feed (voir docs/API_CONTRACT.md §8 #1) : le mobile reçoit des
+//    FeedSlice mais rend actuellement des ThoughtData plats.
+// =====================================================================
+
 import React from 'react';
 import { MessageSquare } from 'lucide-react';
 import { ThoughtCard } from '@/components/social/ThoughtCard';

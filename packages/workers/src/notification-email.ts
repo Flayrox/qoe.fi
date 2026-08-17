@@ -1,3 +1,18 @@
+// =====================================================================
+// 📧 @qoe/workers — Notification email outbox (BullMQ worker)
+// =====================================================================
+// Traitement des livraisons d'emails de notification en file (`outbox`) :
+// - renderNotificationEmail : template pur (facile à snapshot-tester).
+// - processNotificationEmailDelivery : réclame atomiquement une ligne
+//   (plusieurs workers possibles sans doublon), envoie via le provider
+//   injecté, persiste le statut SENT/FAILED.
+// - drainNotificationEmailOutbox : traite une tranche de l'outbox (appelé
+//   périodiquement par le scheduler).
+// ⚠️ Côté mobile : les notifications push / emails sont hors scope client ;
+//    le mobile lit les notifications via l'API Go
+//    (apps/api-go/internal/modules/notifications).
+// =====================================================================
+
 import { prisma } from '@qoe/db/client';
 import type { EmailProvider, OutboundEmail } from './email-provider';
 

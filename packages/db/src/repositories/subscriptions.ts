@@ -1,3 +1,16 @@
+// =====================================================================
+// 💳 Subscriptions Repository — Droits d'accès & entités d'abonnement
+// =====================================================================
+// - getReaderEntitlement : résout l'état d'accès d'un lecteur (membre /
+//   abonné payant) pour une publication — utilisé par le paywall.
+// - upsertSubscriberEntitlement : alimenté par les webhooks Stripe ; crédite
+//   aussi le wallet du propriétaire de la publication à chaque paiement.
+// - getCreatorTiers : offres d'abonnement d'un créateur.
+// ⚠️ Côté mobile, l'équivalent est servie par l'API Go
+//    (apps/api-go/internal/modules/billing) et le paywall article
+//    (apps/api-go/internal/modules/articles/paywall.go).
+// =====================================================================
+
 import { prisma } from '../client';
 import { SubscriptionStatus } from '@prisma/client';
 import { getPublicationOwner } from './follows';

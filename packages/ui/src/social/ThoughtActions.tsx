@@ -1,5 +1,22 @@
 'use client';
 
+// =====================================================================
+// ⚡ ThoughtActions — Barre d'actions d'une pensée (like/reply/repost/quote/share)
+// =====================================================================
+// Composant central du feed web, réutilisé par toutes les variantes de
+// ThoughtCard (timeline, focus, parent, reply).
+// - Like : coeur (rempli si liké, brand/vermillon), scale 1.3 au tap.
+// - Reply : MessageSquare + compteur de réponses.
+// - Repost : Popover avec « Repartager » (success/vert) ou « Citer la
+//   pensée » (brand) ; l'état actif est en vert (success).
+// - Share : copie l'URL `/thought/{handle}/{id}` dans le presse-papier.
+// Les compteurs sont résolus avec priorité : `likesCount ?? likeCount ??
+// _count.likes` (tolerant aux deux shapes Prisma/API).
+// ⚠️ À PORTER EN MOBILE (RN) : remplacer framer-motion par reanimated
+//    (whileTap → withTiming scale), sonner par un toast natif, et le
+//    presse-papier par expo-clipboard / RN Share API.
+// =====================================================================
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, MessageSquare, Repeat, Share2, Quote } from 'lucide-react';
