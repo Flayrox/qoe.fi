@@ -11,6 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearPinnedPosts = `-- name: ClearPinnedPosts :exec
+UPDATE "Post"
+SET "isPinned" = false
+WHERE "authorId" = $1
+  AND "isPinned" = true
+  AND "deletedAt" IS NULL
+`
+
+func (q *Queries) ClearPinnedPosts(ctx context.Context, authorid string) error {
+	_, err := q.db.Exec(ctx, clearPinnedPosts, authorid)
+	return err
+}
+
 const countPureReposts = `-- name: CountPureReposts :one
 SELECT COUNT(*)::int AS count
 FROM "Post"
@@ -388,4 +401,61 @@ func (q *Queries) InsertPureRepost(ctx context.Context, arg InsertPureRepostPara
 	var id string
 	err := row.Scan(&id)
 	return id, err
+}
+
+const pinPost = `-- name: PinPost :one
+UPDATE "Post"
+SET "isPinned" = true
+WHERE id = $1 AND "authorId" = $2 AND "deletedAt" IS NULL
+RETURNING "isPinned"
+`
+
+type PinPostParams struct {
+	ID       string `json:"id"`
+	AuthorId string `json:"authorId"`
+}
+
+func (q *Queries) PinPost(ctx context.Context, arg PinPostParams) (bool, error) {
+	row := q.db.QueryRow(ctx, pinPost, arg.ID, arg.AuthorId)
+	var isPinned bool
+	err := row.Scan(&isPinned)
+	return isPinned, err
+}
+
+const softDeletePost = `-- name: SoftDeletePost :one
+UPDATE "Post"
+SET "deletedAt" = now()
+WHERE id = $1 AND "authorId" = $2 AND "deletedAt" IS NULL
+RETURNING id
+`
+
+type SoftDeletePostParams struct {
+	ID       string `json:"id"`
+	AuthorId string `json:"authorId"`
+}
+
+func (q *Queries) SoftDeletePost(ctx context.Context, arg SoftDeletePostParams) (string, error) {
+	row := q.db.QueryRow(ctx, softDeletePost, arg.ID, arg.AuthorId)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
+const unpinPost = `-- name: UnpinPost :one
+UPDATE "Post"
+SET "isPinned" = false
+WHERE id = $1 AND "authorId" = $2
+RETURNING "isPinned"
+`
+
+type UnpinPostParams struct {
+	ID       string `json:"id"`
+	AuthorId string `json:"authorId"`
+}
+
+func (q *Queries) UnpinPost(ctx context.Context, arg UnpinPostParams) (bool, error) {
+	row := q.db.QueryRow(ctx, unpinPost, arg.ID, arg.AuthorId)
+	var isPinned bool
+	err := row.Scan(&isPinned)
+	return isPinned, err
 }

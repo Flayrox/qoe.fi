@@ -37,7 +37,33 @@ export function Sidebar() {
         router.navigate('/explore');
       },
     },
+    {
+      key: '/library',
+      label: t('sidebar.library', 'Bibliothèque'),
+      onPress: () => {
+        closeDrawer();
+        router.push('/library');
+      },
+    },
+    {
+      key: '/compose',
+      label: t('sidebar.compose', 'Nouvelle pensée'),
+      onPress: () => {
+        closeDrawer();
+        router.push('/compose');
+      },
+    },
   ];
+
+  // Profil courant : la sidebar l'ouvre via le username de la session.
+  const username = user?.user_metadata?.username as string | undefined;
+  const profileHandle = username || user?.email?.split('@')[0];
+  const openProfile = () => {
+    closeDrawer();
+    if (profileHandle) {
+      router.push({ pathname: '/user/[username]', params: { username: profileHandle } });
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.sidebar }]}>
@@ -92,6 +118,14 @@ export function Sidebar() {
             ) : null}
           </View>
         </View>
+        {profileHandle ? (
+          <Pressable
+            onPress={openProfile}
+            style={({ pressed }) => [styles.signOut, { opacity: pressed ? 0.5 : 1 }]}
+          >
+            <ThemedText type="small">{t('sidebar.profile', 'Voir mon profil')}</ThemedText>
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={() => void signOut()}
           style={({ pressed }) => [styles.signOut, { opacity: pressed ? 0.5 : 1 }]}

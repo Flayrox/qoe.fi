@@ -1,5 +1,16 @@
 'use server';
 
+// =====================================================================
+// 🏠 actions/tenant — Server Actions des sites créateurs (blogs multi-tenant)
+// =====================================================================
+// Actions utilisées par les pages publiques des blogs (apps/web) et le
+// widget tenant : inscription newsletter, follow créateur, bookmarks,
+// surlignages/annotations, « citer un passage dans le feed », et
+// déblocage d'article par wallet.
+// 🔗 Proxy Go partiel (follow) ; le reste passe par les dépôts Prisma.
+// ⚠️ Fichier serveur — non exposé au mobile.
+// =====================================================================
+
 import { prisma } from '@qoe/db/client';
 import { follows, bookmarks, highlights, posts, wallet } from '@qoe/db';
 import { safeAction } from '../utils/safe-action';

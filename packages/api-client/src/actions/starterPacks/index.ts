@@ -1,5 +1,13 @@
 'use server';
 
+// =====================================================================
+// 🎒 actions/starterPacks — Server Actions des « packs de démarrage »
+// =====================================================================
+// Curated lists de créateurs à suivre (style Bluesky Starter Packs) :
+// lecture paginée, création, et « tout suivre d'un coup ».
+// ⚠️ Fichier serveur — pas encore d'endpoint Go équivalent pour le mobile.
+// =====================================================================
+
 import { starterPacks, publications } from '@qoe/db';
 import { revalidatePath } from 'next/cache';
 import { safeAction } from '../utils/safe-action';

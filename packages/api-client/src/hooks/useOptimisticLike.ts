@@ -1,3 +1,17 @@
+// =====================================================================
+// ❤️ useOptimisticLike — Mutation optimiste « J'aime »
+// =====================================================================
+// Met à jour le cache React Query AVANT la réponse serveur (optimistic UI),
+// avec snapshot + rollback en cas d'échec (règle architecturale n°4).
+// - `onMutate` : annule les requêtes feed en vol, snapshot, puis met à jour
+//   TOUTES les structures feed (infinite query `.pages` ou tableau plat).
+// - `onError` : restaure les snapshots + notifie l'UI d'un 401 (modal login).
+// - `onSettled` : invalide le feed pour resynchroniser avec le serveur.
+// ⚠️ Le mobile utilise le shadow store (packages/api-client/src/shadow.ts)
+//    plutôt que ce hook (le cache React Query y est partagé, mais les
+//    mutations passent par l'API Go via QoeApiClient).
+// =====================================================================
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { feedKeys } from '../query-keys';
 import { isUnauthorizedError, notifyUnauthorized } from '../utils/authError';

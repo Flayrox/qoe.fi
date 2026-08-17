@@ -1,0 +1,225 @@
+// =====================================================================
+// ⋯ PostMenu — Menu d'actions d'une pensée (port de
+//    .reference/bluesky/src/components/PostControls/PostMenu/PostMenuItems.tsx)
+// =====================================================================
+// Regroupe : copier le texte, traduire (Google Translate), masquer pour
+// moi, muet/block (stub), signaler, et si c'est la mienne : épingler,
+// supprimer. Rendu en ActionSheet bottom-sheet.
+// =====================================================================
+
+import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import { useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+
+import { SymbolView } from 'expo-symbols';
+
+import { ActionSheet, type ActionSheetGroup } from '@/components/ui/action-sheet';
+import { Toast } from '@/components/ui/toast';
+import { useMe } from '@/hooks/use-me';
+import { useTheme } from '@/hooks/use-theme';
+import { apiClient } from '@/lib/api';
+import { copyText } from '@/lib/clipboard';
+import { t } from '@/lib/i18n';
+import { feedKeys } from '@qoe/api-client/mobile';
+import type { NormalizedThought } from './normalize';
+
+const ICON = {
+  pin: { ios: 'pin', android: 'push_pin', web: 'push_pin' },
+  trash: { ios: 'trash', android: 'delete', web: 'delete' },
+  copy: { ios: 'doc.on.doc', android: 'content_copy', web: 'content_copy' },
+  translate: { ios: 'character.bubble', android: 'translate', web: 'translate' },
+  eyeSlash: { ios: 'eye.slash', android: 'visibility_off', web: 'visibility_off' },
+  mute: { ios: 'speaker.slash', android: 'volume_off', web: 'volume_off' },
+  personX: { ios: 'person.crop.circle.badge.xmark', android: 'block', web: 'block' },
+  warning: { ios: 'exclamationmark.triangle', android: 'warning', web: 'warning' },
+  smile: { ios: 'face.smiling', android: 'sentiment_satisfied', web: 'sentiment_satisfied' },
+  sad: { ios: 'face.dashed', android: 'sentiment_dissatisfied', web: 'sentiment_dissatisfied' },
+} as const;
+
+export function PostMenuButton({ post }: { post: NormalizedThought }) {
+  const theme = useTheme();
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { data: me } = useMe();
+  const [busy, setBusy] = useState(false);
+
+  const isOwn = me?.id === post.author.id;
+  const url = `https://qoe.fi/thought/${post.author.username || post.author.id}/${post.id}`;
+
+  const onCopyText = async () => {
+    setOpen(false);
+    await copyText(post.content);
+    Toast.show(t('post.copied', 'Copié dans le presse-papiers'), 'success');
+  };
+
+  const onTranslate = () => {
+    setOpen(false);
+    void WebBrowser.openBrowserAsync(
+      `https://translate.google.com/?sl=auto&tl=fr&text=${encodeURIComponent(post.content.slice(0, 900))}`
+    );
+  };
+
+  const onDelete = async () => {
+    setOpen(false);
+    if (busy) return;
+    setBusy(true);
+    const res = await apiClient.deleteThought(post.id);
+    setBusy(false);
+    if (res.ok) {
+      Toast.show(t('post.deleted', 'Pensée supprimée'), 'success');
+      await queryClient.invalidateQueries({ queryKey: feedKeys.all });
+      if (router.canGoBack()) router.back();
+    } else {
+      Toast.show(res.error, 'error');
+    }
+  };
+
+  const onTogglePin = async () => {
+    setOpen(false);
+    const res = await apiClient.togglePin(post.id);
+    if (res.ok) {
+      Toast.show(
+        res.data.pinned ? t('post.pinned', 'Épinglé au profil') : t('post.unpinned', 'Désépinglé'),
+        'success'
+      );
+      await queryClient.invalidateQueries({ queryKey: feedKeys.all });
+    } else {
+      Toast.show(res.error, 'error');
+    }
+  };
+
+  const onStub = (label: string) => {
+    setOpen(false);
+    Toast.show(t('post.coming_soon', `${label} — bientôt disponible`));
+  };
+
+  const groups: ActionSheetGroup[] = [];
+
+  if (isOwn) {
+    groups.push({
+      items: [
+        {
+          key: 'pin',
+          label: post.isPinned
+            ? t('post.unpin', 'Désépingler du profil')
+            : t('post.pin', 'Épingler au profil'),
+          icon: ICON.pin,
+          onPress: () => void onTogglePin(),
+          disabled: busy,
+        },
+        {
+          key: 'delete',
+          label: t('post.delete', 'Supprimer la pensée'),
+          icon: ICON.trash,
+          destructive: true,
+          onPress: () => void onDelete(),
+          disabled: busy,
+        },
+      ],
+    });
+  }
+
+  groups.push({
+    items: [
+      {
+        key: 'copy',
+        label: t('post.copy', 'Copier le texte'),
+        icon: ICON.copy,
+        onPress: () => void onCopyText(),
+      },
+      {
+        key: 'translate',
+        label: t('post.translate', 'Traduire'),
+        icon: ICON.translate,
+        onPress: onTranslate,
+      },
+    ],
+  });
+
+  if (!isOwn) {
+    groups.push({
+      items: [
+        {
+          key: 'hide',
+          label: t('post.hide', 'Masquer cette pensée'),
+          icon: ICON.eyeSlash,
+          onPress: () => onStub('Masquer'),
+        },
+        {
+          key: 'muteThread',
+          label: t('post.mute_thread', 'Mettre le fil en sourdine'),
+          icon: ICON.mute,
+          onPress: () => onStub('Mettre en sourdine'),
+        },
+        {
+          key: 'mute',
+          label: t('post.mute_account', `Masquer @${post.author.username || '…'}`),
+          icon: ICON.mute,
+          onPress: () => onStub('Masquer le compte'),
+        },
+        {
+          key: 'block',
+          label: t('post.block', 'Bloquer le compte'),
+          icon: ICON.personX,
+          destructive: true,
+          onPress: () => onStub('Bloquer'),
+        },
+        {
+          key: 'report',
+          label: t('post.report', 'Signaler la pensée'),
+          icon: ICON.warning,
+          destructive: true,
+          onPress: () => onStub('Signaler'),
+        },
+      ],
+    });
+  }
+
+  // Feedback algorithme (parité Show more/less like this).
+  groups.push({
+    items: [
+      {
+        key: 'more',
+        label: t('post.show_more', 'Voir plus de contenu comme ça'),
+        icon: ICON.smile,
+        onPress: () => onStub('Feedback envoyé'),
+      },
+      {
+        key: 'less',
+        label: t('post.show_less', 'Voir moins de contenu comme ça'),
+        icon: ICON.sad,
+        onPress: () => onStub('Feedback envoyé'),
+      },
+    ],
+  });
+
+  return (
+    <>
+      <Pressable
+        onPress={() => setOpen(true)}
+        hitSlop={8}
+        style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
+        accessibilityLabel={t('post.more', 'Plus d’options')}
+      >
+        <SymbolView
+          name={{ ios: 'ellipsis', android: 'more_horiz', web: 'more_horiz' }}
+          size={18}
+          tintColor={theme.textSecondary}
+          weight="regular"
+        />
+      </Pressable>
+      <ActionSheet visible={open} groups={groups} onClose={() => setOpen(false)} />
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  btn: {
+    padding: 4,
+  },
+  pressed: {
+    opacity: 0.5,
+  },
+});

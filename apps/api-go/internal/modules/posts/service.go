@@ -4,6 +4,7 @@ package posts
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -289,4 +290,141 @@ func (s *Service) ToggleBookmark(ctx context.Context, targetID, userID string) (
 		return false, err
 	}
 	return true, nil
+}
+
+// VotePoll enregistre le vote d'un utilisateur sur une option de sondage
+// (idempotent : changer d'option remplace le vote). Renvoie le sondage
+// reformaté (avec les nouveaux scores) pour mise à jour du client.
+func (s *Service) VotePoll(ctx context.Context, thoughtID, optionID, userID string) (*Poll, error) {
+	// Le sondage doit exister pour cette pensée.
+	poll, err := s.q.GetPollByThoughtID(ctx, thoughtID)
+	if err != nil {
+		return nil, errors.New("sondage introuvable")
+	}
+	// L'option doit appartenir au sondage.
+	opt, err := s.q.GetPollOptionByID(ctx, optionID)
+	if err != nil {
+		return nil, errors.New("option introuvable")
+	}
+	if opt.PollId != poll.ID {
+		return nil, errors.New("option ne correspond pas au sondage")
+	}
+
+	if _, err := s.q.InsertPollVote(ctx, db.InsertPollVoteParams{
+		PollId:   poll.ID,
+		OptionId: optionID,
+		UserId:   toUUID(userID),
+	}); err != nil {
+		return nil, err
+	}
+
+	return s.formatPoll(ctx, poll.ID, thoughtID, userID)
+}
+
+// UnvotePoll retire le vote de l'utilisateur sur un sondage.
+func (s *Service) UnvotePoll(ctx context.Context, thoughtID, userID string) (*Poll, error) {
+	poll, err := s.q.GetPollByThoughtID(ctx, thoughtID)
+	if err != nil {
+		return nil, errors.New("sondage introuvable")
+	}
+	if err := s.q.DeletePollVote(ctx, db.DeletePollVoteParams{
+		PollId: poll.ID,
+		UserId: toUUID(userID),
+	}); err != nil {
+		return nil, err
+	}
+	return s.formatPoll(ctx, poll.ID, thoughtID, userID)
+}
+
+// formatPoll reformate un sondage avec les scores à jour (miroir du
+// formatage fait dans le feed — cf. feed/assembly.go pollsFor).
+func (s *Service) formatPoll(ctx context.Context, pollID, thoughtID, userID string) (*Poll, error) {
+	rows, err := s.q.GetPollOptionsByIDs(ctx, []string{pollID})
+	if err != nil {
+		return nil, err
+	}
+	total, err := s.q.CountPollVotesByPollID(ctx, pollID)
+	if err != nil {
+		return nil, err
+	}
+	optionVotes, err := s.q.CountOptionVotesByIDs(ctx, []string{pollID})
+	if err != nil {
+		return nil, err
+	}
+	userVote, err := s.q.GetUserVoteForPoll(ctx, db.GetUserVoteForPollParams{
+		PollId: pollID,
+		UserId: toUUID(userID),
+	})
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+
+	votesByOption := map[string]int{}
+	for _, v := range optionVotes {
+		votesByOption[v.OptionId] = int(v.Count)
+	}
+
+	var opts []PollOption
+	for _, o := range rows {
+		vc := votesByOption[o.ID]
+		percentage := 0
+		if total > 0 {
+			percentage = int(float64(vc) / float64(total) * 100)
+		}
+		opts = append(opts, PollOption{
+			ID: o.ID, Text: o.Text, Order: int(o.Order), VoteCount: vc, Percentage: percentage,
+		})
+	}
+
+	var userVoteOptionID *string
+	if userVote != "" {
+		v := userVote
+		userVoteOptionID = &v
+	}
+
+	poll, err := s.q.GetPollByThoughtID(ctx, thoughtID)
+	if err != nil {
+		return nil, err
+	}
+	return &Poll{
+		ID:                poll.ID,
+		ThoughtID:         poll.ThoughtId,
+		ExpiresAt:         poll.ExpiresAt.Time.Format(time.RFC3339),
+		IsExpired:         time.Now().After(poll.ExpiresAt.Time),
+		TotalVotes:        int(total),
+		UserVotedOptionID: userVoteOptionID,
+		Options:           opts,
+	}, nil
+}
+
+// Delete supprime (soft delete) une pensée de l'auteur.
+func (s *Service) Delete(ctx context.Context, postID, userID string) error {
+	_, err := s.q.SoftDeletePost(ctx, db.SoftDeletePostParams{
+		ID:       postID,
+		AuthorId: userID,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return errThoughtNotFound
+	}
+	return err
+}
+
+// TogglePin épingle/désépingle une pensée sur le profil de l'auteur.
+// Épingler efface les épingles précédentes (un seul épinglé à la fois).
+func (s *Service) TogglePin(ctx context.Context, postID, userID string) (bool, error) {
+	row, err := s.q.GetThoughtByID(ctx, postID)
+	if err != nil {
+		return false, errThoughtNotFound
+	}
+	if row.AuthorId != userID {
+		return false, errors.New("seul l'auteur peut épingler")
+	}
+	if row.IsPinned {
+		return s.q.UnpinPost(ctx, db.UnpinPostParams{ID: postID, AuthorId: userID})
+	}
+	// Un seul épinglé par profil : on désépingle tout puis on épingle.
+	if err := s.q.ClearPinnedPosts(ctx, userID); err != nil {
+		return false, err
+	}
+	return s.q.PinPost(ctx, db.PinPostParams{ID: postID, AuthorId: userID})
 }

@@ -129,6 +129,124 @@ func (q *Queries) FindFollowingFeed(ctx context.Context, arg FindFollowingFeedPa
 	return items, nil
 }
 
+const findPostsByAuthor = `-- name: FindPostsByAuthor :many
+SELECT p.id,
+       p.content,
+       p."authorId",
+       p."createdAt",
+       p.tags,
+       p."imageUrl",
+       p."likeCount",
+       p."repostCount",
+       p."replyCount",
+       p."parentId",
+       p."rootId",
+       p."repostId",
+       p."replyRestriction",
+       p."isPinned",
+       p."isHiddenByAuthor",
+       u.id::text     AS author_id,
+       u.name         AS author_name,
+       u.username     AS author_username,
+       u."logoUrl"    AS author_logo,
+       u."isCertified" AS author_certified,
+       (CASE WHEN l."userId" IS NOT NULL THEN true ELSE false END) AS viewer_liked,
+       (CASE WHEN r.id IS NOT NULL THEN true ELSE false END)      AS viewer_reposted
+FROM "Post" p
+JOIN "User" u ON u.id = p."authorId"
+LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = $1
+LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = $1 AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
+WHERE p."authorId" = $2::uuid
+  AND u."isShadowbanned" = false
+  AND u."isSuspended" = false
+  AND p."isDraft" = false
+  AND p."deletedAt" IS NULL
+  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
+  AND p.visibility = 'public'
+ORDER BY p."createdAt" DESC, p.id DESC
+LIMIT $4 OFFSET $3
+`
+
+type FindPostsByAuthorParams struct {
+	ViewerID  pgtype.UUID `json:"viewer_id"`
+	AuthorID  pgtype.UUID `json:"author_id"`
+	SkipCount int32       `json:"skip_count"`
+	TakeCount int32       `json:"take_count"`
+}
+
+type FindPostsByAuthorRow struct {
+	ID               string           `json:"id"`
+	Content          string           `json:"content"`
+	AuthorId         string           `json:"authorId"`
+	CreatedAt        pgtype.Timestamp `json:"createdAt"`
+	Tags             []string         `json:"tags"`
+	ImageUrl         pgtype.Text      `json:"imageUrl"`
+	LikeCount        int32            `json:"likeCount"`
+	RepostCount      int32            `json:"repostCount"`
+	ReplyCount       int32            `json:"replyCount"`
+	ParentId         pgtype.Text      `json:"parentId"`
+	RootId           pgtype.Text      `json:"rootId"`
+	RepostId         pgtype.Text      `json:"repostId"`
+	ReplyRestriction string           `json:"replyRestriction"`
+	IsPinned         bool             `json:"isPinned"`
+	IsHiddenByAuthor bool             `json:"isHiddenByAuthor"`
+	AuthorID         string           `json:"author_id"`
+	AuthorName       pgtype.Text      `json:"author_name"`
+	AuthorUsername   pgtype.Text      `json:"author_username"`
+	AuthorLogo       pgtype.Text      `json:"author_logo"`
+	AuthorCertified  bool             `json:"author_certified"`
+	ViewerLiked      bool             `json:"viewer_liked"`
+	ViewerReposted   bool             `json:"viewer_reposted"`
+}
+
+func (q *Queries) FindPostsByAuthor(ctx context.Context, arg FindPostsByAuthorParams) ([]FindPostsByAuthorRow, error) {
+	rows, err := q.db.Query(ctx, findPostsByAuthor,
+		arg.ViewerID,
+		arg.AuthorID,
+		arg.SkipCount,
+		arg.TakeCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FindPostsByAuthorRow{}
+	for rows.Next() {
+		var i FindPostsByAuthorRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Content,
+			&i.AuthorId,
+			&i.CreatedAt,
+			&i.Tags,
+			&i.ImageUrl,
+			&i.LikeCount,
+			&i.RepostCount,
+			&i.ReplyCount,
+			&i.ParentId,
+			&i.RootId,
+			&i.RepostId,
+			&i.ReplyRestriction,
+			&i.IsPinned,
+			&i.IsHiddenByAuthor,
+			&i.AuthorID,
+			&i.AuthorName,
+			&i.AuthorUsername,
+			&i.AuthorLogo,
+			&i.AuthorCertified,
+			&i.ViewerLiked,
+			&i.ViewerReposted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findTrending = `-- name: FindTrending :many
 SELECT p.id,
        p.content,

@@ -1,3 +1,15 @@
+// =====================================================================
+// 🔑 query-keys.ts — Clés de cache TanStack Query (web + mobile)
+// =====================================================================
+// Registre central des clés de cache : chaque domaine métier a sa famille
+// de clés (feed, users, tenants, articles, notifications, recherche…).
+// VALEUR : l'invalidation et les updates optimistes ciblent ces familles
+// (`queryClient.invalidateQueries({ queryKey: feedKeys.all })`), donc
+// renommer une clé ici casse silencieusement le cache — attention.
+// ⚠️ Le mobile importe ce module via `@qoe/api-client/mobile` : ajouter une
+//    famille de clés ici la rend disponible au React Query de l'app mobile.
+// =====================================================================
+
 export const feedKeys = {
   all: ['feed'] as const,
   timeline: (type: 'for-you' | 'following' | 'highlights' = 'for-you') =>
@@ -5,6 +17,7 @@ export const feedKeys = {
   userPosts: (username: string) => [...feedKeys.all, 'user', username] as const,
   thread: (thoughtId: string) => [...feedKeys.all, 'thread', thoughtId] as const,
   likes: (thoughtId: string) => [...feedKeys.all, 'likes', thoughtId] as const,
+  articles: () => [...feedKeys.all, 'articles'] as const,
 };
 
 export const userKeys = {

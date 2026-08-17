@@ -1,3 +1,12 @@
+// =====================================================================
+// 🤝 useRecommendations — Créateurs recommandés (style Substack)
+// =====================================================================
+// Récupère les créateurs recommandés pour un site locataire (tenant).
+// Appelle une route Next.js locale `/api/recommendations` (pas l'API Go) —
+// ⚠️ à garder en tête si le mobile veut la même donnée : il faudra un
+//    endpoint Go équivalent.
+// =====================================================================
+
 import { useQuery } from '@tanstack/react-query';
 import { recommendationKeys } from '../query-keys';
 

@@ -1,3 +1,12 @@
+// =====================================================================
+// 🔁 useOptimisticRepost — Mutation optimiste « Repartager »
+// =====================================================================
+// Même patron que useOptimisticLike : update optimiste du cache feed,
+// snapshot + rollback sur erreur, invalidation à la fin. Gère l'offset du
+// compteur `repostCount` (dérivé de l'état courant, jamais désynchronisé).
+// ⚠️ Côté mobile, le repost passe par QoeApiClient.toggleRepost + shadow.
+// =====================================================================
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { feedKeys } from '../query-keys';
 import { isUnauthorizedError, notifyUnauthorized } from '../utils/authError';

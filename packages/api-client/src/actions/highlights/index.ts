@@ -1,5 +1,14 @@
 'use server';
 
+// =====================================================================
+// 🖍️ actions/highlights — Server Actions des surlignages & annotations
+// =====================================================================
+// Surlignage de passages d'articles, notes, visibilité publique, upvotes,
+// commentaires d'annotation, et « citer dans le feed » (quotePassageToFeed).
+// ⚠️ Fichier serveur (dépôts Prisma @qoe/db) — non exposé au mobile pour
+//    l'instant ; un endpoint Go équivalent serait nécessaire pour l'app.
+// =====================================================================
+
 import { highlights } from '@qoe/db';
 import { revalidatePath } from 'next/cache';
 import { safeAction } from '../utils/safe-action';

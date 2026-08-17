@@ -92,7 +92,7 @@ export function LoginScreen() {
             </ThemedText>
           </ThemedView>
 
-          <ThemedView type="backgroundElement" style={styles.form}>
+          <ThemedView type="card" style={styles.form}>
             {isSignup ? (
               <>
                 <ThemedText type="small">{t('login.label_name', 'Nom complet')}</ThemedText>

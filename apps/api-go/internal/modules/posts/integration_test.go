@@ -245,6 +245,75 @@ func TestReply_CreatesThreadAndIncrementsCount(t *testing.T) {
 	}
 }
 
+// ─── Sondages ──────────────────────────────────────────────────────────
+
+func TestVotePoll_AddThenChange(t *testing.T) {
+	fx := seedPosts(t)
+	svc := newTestService()
+	ctx := context.Background()
+
+	// Crée un sondage sur la pensée d'Alice avec 2 options.
+	var pollID string
+	if err := poolTest.QueryRow(ctx,
+		`INSERT INTO "Poll" (id, "thoughtId", "expiresAt") VALUES (gen_random_uuid()::text, $1, now() + interval '1 day') RETURNING id`,
+		fx.PostID,
+	).Scan(&pollID); err != nil {
+		t.Fatalf("create poll: %v", err)
+	}
+	var opt1, opt2 string
+	if err := poolTest.QueryRow(ctx,
+		`INSERT INTO "PollOption" (id, "pollId", text, "order") VALUES (gen_random_uuid()::text, $1, 'Option A', 0) RETURNING id`,
+		pollID,
+	).Scan(&opt1); err != nil {
+		t.Fatalf("create option 1: %v", err)
+	}
+	if err := poolTest.QueryRow(ctx,
+		`INSERT INTO "PollOption" (id, "pollId", text, "order") VALUES (gen_random_uuid()::text, $1, 'Option B', 1) RETURNING id`,
+		pollID,
+	).Scan(&opt2); err != nil {
+		t.Fatalf("create option 2: %v", err)
+	}
+
+	// Bob vote pour l'option A.
+	poll, err := svc.VotePoll(ctx, fx.PostID, opt1, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("VotePoll: %v", err)
+	}
+	if poll.UserVotedOptionID == nil || *poll.UserVotedOptionID != opt1 {
+		t.Fatalf("userVotedOptionId = %v, attendu %s", poll.UserVotedOptionID, opt1)
+	}
+	if poll.TotalVotes != 1 {
+		t.Fatalf("totalVotes = %d, attendu 1", poll.TotalVotes)
+	}
+	if poll.Options[0].VoteCount != 1 || poll.Options[0].Percentage != 100 {
+		t.Fatalf("option A = %+v, attendu voteCount=1 percentage=100", poll.Options[0])
+	}
+
+	// Bob change pour l'option B (idempotent, remplace le vote).
+	poll, err = svc.VotePoll(ctx, fx.PostID, opt2, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("VotePoll(change): %v", err)
+	}
+	if poll.UserVotedOptionID == nil || *poll.UserVotedOptionID != opt2 {
+		t.Fatalf("userVotedOptionId = %v, attendu %s", poll.UserVotedOptionID, opt2)
+	}
+	if poll.TotalVotes != 1 {
+		t.Fatalf("totalVotes = %d, attendu 1 (changement d'option)", poll.TotalVotes)
+	}
+
+	// Bob retire son vote.
+	poll, err = svc.UnvotePoll(ctx, fx.PostID, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("UnvotePoll: %v", err)
+	}
+	if poll.UserVotedOptionID != nil {
+		t.Fatalf("userVotedOptionId = %v, attendu nil", poll.UserVotedOptionID)
+	}
+	if poll.TotalVotes != 0 {
+		t.Fatalf("totalVotes = %d, attendu 0", poll.TotalVotes)
+	}
+}
+
 // ─── Bookmarks ─────────────────────────────────────────────────────────
 
 func TestToggleBookmark_AddThenRemove(t *testing.T) {

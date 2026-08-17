@@ -75,3 +75,30 @@ WHERE "pollId" = ANY($1::text[]) AND "userId" = $2;
 INSERT INTO "MediaAttachment" (id, "thoughtId", type, url, "altText", width, height, "order")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7)
 RETURNING id;
+
+-- name: GetPollOptionByID :one
+SELECT id, "pollId", text, "order"
+FROM "PollOption"
+WHERE id = $1;
+
+-- name: GetUserVoteForPoll :one
+SELECT v."optionId"
+FROM "PollVote" v
+WHERE v."pollId" = $1 AND v."userId" = $2
+LIMIT 1;
+
+-- name: InsertPollVote :one
+-- Vote (idempotent : ON CONFLICT DO UPDATE pour changer d'option).
+INSERT INTO "PollVote" (id, "pollId", "optionId", "userId")
+VALUES (gen_random_uuid()::text, $1, $2, $3)
+ON CONFLICT ("pollId", "userId") DO UPDATE SET "optionId" = EXCLUDED."optionId"
+RETURNING id;
+
+-- name: DeletePollVote :exec
+DELETE FROM "PollVote"
+WHERE "pollId" = $1 AND "userId" = $2;
+
+-- name: CountPollVotesByPollID :one
+SELECT COUNT(*)::int AS count
+FROM "PollVote"
+WHERE "pollId" = $1;

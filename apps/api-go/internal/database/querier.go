@@ -15,20 +15,25 @@ type Querier interface {
 	CheckCategorySlugExists(ctx context.Context, arg CheckCategorySlugExistsParams) (bool, error)
 	CheckMediaSlugExists(ctx context.Context, slug string) (bool, error)
 	CheckSubdomainExists(ctx context.Context, subdomain pgtype.Text) (bool, error)
+	ClearPinnedPosts(ctx context.Context, authorid string) error
 	CompleteOnboardingUser(ctx context.Context, arg CompleteOnboardingUserParams) error
 	CountArticlesByPublication(ctx context.Context, publicationid string) (int32, error)
 	// Compte des articles d'une publication (mêmes filtres que ListCreatorArticles).
 	CountCreatorArticles(ctx context.Context, arg CountCreatorArticlesParams) (int64, error)
 	CountFollowers(ctx context.Context, publicationid string) (int32, error)
 	CountFollowing(ctx context.Context, readerid pgtype.UUID) (int32, error)
+	CountHighlightUpvotes(ctx context.Context, highlightid string) (int32, error)
 	CountOptionVotes(ctx context.Context, optionid string) (int32, error)
 	CountOptionVotesByIDs(ctx context.Context, dollar_1 []string) ([]CountOptionVotesByIDsRow, error)
 	CountPollVotes(ctx context.Context, pollid string) (int32, error)
 	CountPollVotesByIDs(ctx context.Context, dollar_1 []string) ([]CountPollVotesByIDsRow, error)
+	CountPollVotesByPollID(ctx context.Context, pollid string) (int32, error)
 	CountPureReposts(ctx context.Context, arg CountPureRepostsParams) (int32, error)
+	CreateAnnotationComment(ctx context.Context, arg CreateAnnotationCommentParams) (string, error)
 	CreateArticle(ctx context.Context, arg CreateArticleParams) (string, error)
 	CreateAttachment(ctx context.Context, arg CreateAttachmentParams) (string, error)
 	CreateCategory(ctx context.Context, arg CreateCategoryParams) (Category, error)
+	CreateHighlight(ctx context.Context, arg CreateHighlightParams) (string, error)
 	CreateMedia(ctx context.Context, publicationid string) (string, error)
 	CreateMediaInvite(ctx context.Context, arg CreateMediaInviteParams) (string, error)
 	CreateMediaMember(ctx context.Context, arg CreateMediaMemberParams) error
@@ -43,6 +48,7 @@ type Querier interface {
 	DecrementLikeCount(ctx context.Context, id string) error
 	DecrementReplyCount(ctx context.Context, id string) error
 	DecrementRepostCount(ctx context.Context, id string) error
+	DeleteAnnotationComment(ctx context.Context, arg DeleteAnnotationCommentParams) error
 	DeleteApiKey(ctx context.Context, arg DeleteApiKeyParams) error
 	DeleteArticle(ctx context.Context, id string) error
 	DeleteArticleComment(ctx context.Context, id string) error
@@ -50,10 +56,13 @@ type Querier interface {
 	DeleteCategory(ctx context.Context, id string) error
 	DeleteFollow(ctx context.Context, arg DeleteFollowParams) error
 	DeleteFollowNotification(ctx context.Context, arg DeleteFollowNotificationParams) error
+	DeleteHighlight(ctx context.Context, arg DeleteHighlightParams) error
+	DeleteHighlightUpvote(ctx context.Context, arg DeleteHighlightUpvoteParams) error
 	DeleteLike(ctx context.Context, arg DeleteLikeParams) error
 	DeleteLikeNotification(ctx context.Context, arg DeleteLikeNotificationParams) error
 	DeleteMediaMember(ctx context.Context, arg DeleteMediaMemberParams) error
 	DeleteNavigationItems(ctx context.Context, publicationid string) error
+	DeletePollVote(ctx context.Context, arg DeletePollVoteParams) error
 	DeletePureReposts(ctx context.Context, arg DeletePureRepostsParams) error
 	DeleteRepostNotification(ctx context.Context, arg DeleteRepostNotificationParams) error
 	DeleteSocialLinks(ctx context.Context, publicationid string) error
@@ -65,6 +74,7 @@ type Querier interface {
 	ExistsUnreadReplyNotification(ctx context.Context, arg ExistsUnreadReplyNotificationParams) (int32, error)
 	ExistsUnreadRepostNotification(ctx context.Context, arg ExistsUnreadRepostNotificationParams) (int32, error)
 	FindFollowingFeed(ctx context.Context, arg FindFollowingFeedParams) ([]FindFollowingFeedRow, error)
+	FindPostsByAuthor(ctx context.Context, arg FindPostsByAuthorParams) ([]FindPostsByAuthorRow, error)
 	FindTrending(ctx context.Context, arg FindTrendingParams) ([]FindTrendingRow, error)
 	GetActiveSubscribersByPublication(ctx context.Context, arg GetActiveSubscribersByPublicationParams) ([]GetActiveSubscribersByPublicationRow, error)
 	GetActiveSubscriptionForReply(ctx context.Context, arg GetActiveSubscriptionForReplyParams) (int32, error)
@@ -94,6 +104,10 @@ type Querier interface {
 	GetFollowPrefs(ctx context.Context, userid pgtype.UUID) (GetFollowPrefsRow, error)
 	GetFollowedPersonalPublicationOwnerIDs(ctx context.Context, readerid pgtype.UUID) ([]string, error)
 	GetFreeSubscriberCount(ctx context.Context, publicationid string) (int32, error)
+	// Highlights & annotations : surlignage de passages d'articles, notes,
+	// visibilité publique, upvotes et commentaires d'annotation.
+	// Tables : Highlight, AnnotationComment, AnnotationUpvote.
+	GetHighlightByID(ctx context.Context, id string) (GetHighlightByIDRow, error)
 	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
 	GetMediaInviteByToken(ctx context.Context, token string) (GetMediaInviteByTokenRow, error)
 	// Administration Média (création, membres, invitations, réglages) — migration dashboard → Go.
@@ -112,6 +126,7 @@ type Querier interface {
 	GetPersonalPublicationID(ctx context.Context, id string) (pgtype.Text, error)
 	// Polls, votes, pièces jointes
 	GetPollByThoughtID(ctx context.Context, thoughtid string) (GetPollByThoughtIDRow, error)
+	GetPollOptionByID(ctx context.Context, id string) (PollOption, error)
 	GetPollOptions(ctx context.Context, pollid string) ([]PollOption, error)
 	GetPollOptionsByIDs(ctx context.Context, dollar_1 []string) ([]PollOption, error)
 	GetPollsByIDs(ctx context.Context, dollar_1 []string) ([]GetPollsByIDsRow, error)
@@ -144,6 +159,7 @@ type Querier interface {
 	GetUserPersonalPublication(ctx context.Context, id string) (pgtype.Text, error)
 	GetUserPollVote(ctx context.Context, arg GetUserPollVoteParams) (string, error)
 	GetUserUsername(ctx context.Context, id string) (pgtype.Text, error)
+	GetUserVoteForPoll(ctx context.Context, arg GetUserVoteForPollParams) (string, error)
 	GetUserVotesByIDs(ctx context.Context, arg GetUserVotesByIDsParams) ([]GetUserVotesByIDsRow, error)
 	GetUsersByUsernames(ctx context.Context, dollar_1 []string) ([]GetUsersByUsernamesRow, error)
 	GetWebhook(ctx context.Context, id string) (Webhook, error)
@@ -166,25 +182,46 @@ type Querier interface {
 	InsertMediaMemberJoinedNotification(ctx context.Context, arg InsertMediaMemberJoinedNotificationParams) error
 	InsertMentionNotification(ctx context.Context, arg InsertMentionNotificationParams) error
 	InsertNavigationItem(ctx context.Context, arg InsertNavigationItemParams) error
+	// Vote (idempotent : ON CONFLICT DO UPDATE pour changer d'option).
+	InsertPollVote(ctx context.Context, arg InsertPollVoteParams) (string, error)
 	InsertPureRepost(ctx context.Context, arg InsertPureRepostParams) (string, error)
 	InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error
 	InsertRepostNotification(ctx context.Context, arg InsertRepostNotificationParams) error
 	InsertSocialLink(ctx context.Context, arg InsertSocialLinkParams) error
 	InsertWebhookDeliveryResult(ctx context.Context, arg InsertWebhookDeliveryResultParams) error
 	LinkUserPublication(ctx context.Context, arg LinkUserPublicationParams) error
+	// Commentaires d'un surlignage, avec auteur.
+	ListAnnotationComments(ctx context.Context, highlightid string) ([]ListAnnotationCommentsRow, error)
 	ListArticleComments(ctx context.Context, articleid string) ([]ListArticleCommentsRow, error)
 	ListArticlesWithCategory(ctx context.Context, arg ListArticlesWithCategoryParams) ([]ListArticlesWithCategoryRow, error)
+	// Articles sauvegardés (bookmarks) d'un lecteur, avec titre/slug/publication
+	// et la date de sauvegarde — pour la bibliothèque mobile.
+	ListBookmarksByReader(ctx context.Context, arg ListBookmarksByReaderParams) ([]ListBookmarksByReaderRow, error)
 	ListCategoriesByPublication(ctx context.Context, publicationid string) ([]ListCategoriesByPublicationRow, error)
 	// Liste des articles d'une publication au format contrat créateurs (Hono) :
 	// filtres `published` (défaut true) et `category` (slug), catégorie embarquée.
 	ListCreatorArticles(ctx context.Context, arg ListCreatorArticlesParams) ([]ListCreatorArticlesRow, error)
+	// Surlignages d'un article : publics + les siens (privés) + état upvote du viewer.
+	ListHighlightsByArticle(ctx context.Context, arg ListHighlightsByArticleParams) ([]ListHighlightsByArticleRow, error)
 	ListMediaMembers(ctx context.Context, mediaid string) ([]ListMediaMembersRow, error)
+	// Tous les surlignages d'un lecteur (bibliothèque), avec l'article associé.
+	ListMyHighlights(ctx context.Context, arg ListMyHighlightsParams) ([]ListMyHighlightsRow, error)
+	// Articles publiés récents (feed mobile « écran principal »), avec auteur /
+	// publication / catégorie dénormalisés. Public, trié par date décroissante.
+	ListRecentPublishedArticles(ctx context.Context, arg ListRecentPublishedArticlesParams) ([]ListRecentPublishedArticlesRow, error)
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
 	ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error)
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
+	PinPost(ctx context.Context, arg PinPostParams) (bool, error)
 	SetApiApplication(ctx context.Context, arg SetApiApplicationParams) error
 	SetArticleStatus(ctx context.Context, arg SetArticleStatusParams) (string, error)
 	SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error
+	SoftDeletePost(ctx context.Context, arg SoftDeletePostParams) (string, error)
+	// Ajoute un upvote (idempotent). ⚠️ Le retrait et le comptage sont gérés
+	// séparément dans le service (les CTE PostgreSQL sont matérialisés, un
+	// COUNT dans le même statement ne verrait pas l'insertion).
+	ToggleHighlightUpvote(ctx context.Context, arg ToggleHighlightUpvoteParams) (int32, error)
+	UnpinPost(ctx context.Context, arg UnpinPostParams) (bool, error)
 	UpdateApiKeyLastUsed(ctx context.Context, id string) error
 	UpdateArticleContent(ctx context.Context, arg UpdateArticleContentParams) (string, error)
 	UpdateArticleFull(ctx context.Context, arg UpdateArticleFullParams) (string, error)

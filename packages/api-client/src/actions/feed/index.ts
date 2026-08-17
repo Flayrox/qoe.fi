@@ -1,5 +1,24 @@
 'use server';
 
+// =====================================================================
+// 🍞 actions/feed — Server Actions du feed & des pensées (web uniquement)
+// =====================================================================
+// Le plus gros module d'actions : lecture/écriture du feed, pensées
+// (threads, likes, reposts, bookmarks, rapports), profils publics, drafts,
+// épinglage, unfurl de liens, réglages de modération.
+//
+// 🔗 PATTERN PROXY GO : quand `QOE_API_GO_URL` est défini (isGoEnabled),
+//    plusieurs actions délèguent la logique au backend Go (apps/api-go)
+//    via `goFetch()` — le contrat TS (ActionResult<T>) reste identique,
+//    seules l'implémentation et l'authentification changent (JWT en header).
+//    Sans Go, elles retombent sur les dépôts Prisma de `@qoe/db`.
+//
+// ⚠️ Fichier serveur : NON exposé au mobile via @qoe/api-client/mobile.
+//    Le mobile appelle directement l'API Go (QoeApiClient.getFeed,
+//    toggleLike, toggleRepost, toggleBookmark…). Les contrats de données
+//    correspondent à ceux de `@qoe/api-client/types`.
+// =====================================================================
+
 import { follows, bookmarks, posts, articles, users, moderation, threadgates } from '@qoe/db';
 import type { FeedSlice } from '@qoe/db/repositories/posts';
 import { prisma, type User, type Prisma } from '@qoe/db/client';
@@ -175,8 +194,12 @@ type UnfurlResult =
   | { isInternal: true; postType: 'article'; data: ArticleRecord }
   | { isInternal: false; externalMetadata: UnfurlExternalMetadata };
 
+// Cache mémoire simple pour l'unfurl (évite de re-télécharger la même URL).
 const unfurlCache = new Map<string, UnfurlResult>();
 
+// ─────────────────────────────────────────────────────────────────────
+// Actions d'écriture (proxy Go quand disponible)
+// ─────────────────────────────────────────────────────────────────────
 export const toggleFollowCreatorHomeAction = safeAction<string, { followed: boolean }>(
   async (publicationId, user) => {
     if (isGoEnabled()) {
@@ -433,6 +456,11 @@ export const deletePostAction = safeAction<string, { success: boolean }>(async (
   return { success: true };
 });
 
+// ─────────────────────────────────────────────────────────────────────
+// Lecture : profil public complet (posts + articles + highlights +
+// lettres + mots masqués). Requiert l'auth OPTIONNELLE (le contenu
+// « followers » n'est visible que si l'utilisateur suit le créateur).
+// ─────────────────────────────────────────────────────────────────────
 export const getProfileDataAction = safeAction<string, ProfileData>(
   async (username) => {
     const supabase = await createClient();
@@ -685,6 +713,12 @@ export const unpinPostAction = safeAction<string, { success: boolean }>(async (p
   return { success: true };
 });
 
+// ─────────────────────────────────────────────────────────────────────
+// Unfurl de liens (aperçu de carte pour une URL collée dans le composeur)
+// ─────────────────────────────────────────────────────────────────────
+
+// Détecte les hôtes privés/réservés (SSRF guard : on ne fetch jamais
+// localhost, les IP privées, .local/.internal…).
 function isPrivateHost(hostname: string): boolean {
   const host = hostname.toLowerCase();
   if (
@@ -893,6 +927,9 @@ export const unfurlUrlAction = safeAction<string, UnfurlResult>(
   { requireAuth: false }
 );
 
+// ─────────────────────────────────────────────────────────────────────
+// Profil & modération
+// ─────────────────────────────────────────────────────────────────────
 export const updateProfileAction = safeAction<
   {
     name?: string;
@@ -963,6 +1000,9 @@ export const toggleMuteWordAction = safeAction<string, { muted: boolean; word: s
   }
 );
 
+// ─────────────────────────────────────────────────────────────────────
+// Feed paginé (proxy Go quand disponible : /v1/feed ou /v1/feed/trending)
+// ─────────────────────────────────────────────────────────────────────
 export const getFeedItemsAction = safeAction<
   {
     feedType?: string;

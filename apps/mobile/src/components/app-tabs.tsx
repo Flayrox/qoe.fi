@@ -19,6 +19,11 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/home.png')}
           renderingMode="template"
+          // iOS tinte l'icône sélectionnée avec cette couleur (≠ du
+          // indicatorColor, qui ne contrôle que la pill et le libellé).
+          // On passe la marque pour que les deux onglets (Feed & Explore)
+          // virent en vermillon au lieu du bleu système par défaut.
+          selectedColor={colors.primary}
         />
       </NativeTabs.Trigger>
 
@@ -27,6 +32,7 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/explore.png')}
           renderingMode="template"
+          selectedColor={colors.primary}
         />
       </NativeTabs.Trigger>
     </NativeTabs>

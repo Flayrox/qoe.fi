@@ -114,3 +114,30 @@ VALUES (gen_random_uuid()::text, $1, $2);
 -- name: DeleteBookmark :exec
 DELETE FROM "Bookmark"
 WHERE "readerId" = $1 AND "articleId" = $2;
+
+-- name: ListBookmarksByReader :many
+-- Articles sauvegardés (bookmarks) d'un lecteur, avec titre/slug/publication
+-- et la date de sauvegarde — pour la bibliothèque mobile.
+SELECT b.id                 AS bookmark_id,
+       b."createdAt"        AS bookmarked_at,
+       a.id                 AS article_id,
+       a.title              AS article_title,
+       a.slug               AS article_slug,
+       a."readingTime"      AS article_reading_time,
+       a."isPremium"        AS article_is_premium,
+       a."createdAt"        AS article_created_at,
+       p.id                 AS publication_id,
+       p.name               AS publication_name,
+       p.slug               AS publication_slug,
+       p.subdomain          AS publication_subdomain,
+       u.id::text           AS author_id,
+       u.name               AS author_name,
+       u.username           AS author_username,
+       u."logoUrl"          AS author_logo
+FROM "Bookmark" b
+JOIN "Article" a ON a.id = b."articleId" AND a.published = true
+JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "User" u ON u.id = a."authorId"
+WHERE b."readerId" = $1
+ORDER BY b."createdAt" DESC
+LIMIT $2 OFFSET $3;

@@ -1,5 +1,20 @@
 'use server';
 
+// =====================================================================
+// 🔐 actions/auth — Server Actions d'authentification (web uniquement)
+// =====================================================================
+// ⚠️ Fichier serveur : importe @qoe/supabase/server (cookies SSR) et
+//    @qoe/db/client (Prisma). Il N'EST PAS exposé via @qoe/api-client/mobile
+//    — sur mobile, l'auth passe par le client Supabase natif (AsyncStorage,
+//    cf. apps/mobile/src/lib/supabase.ts) et le JWT est envoyé en header
+//    `Authorization: Bearer` par le QoeApiClient.
+//
+// - getCurrentUserAction : résout l'utilisateur connecté (session Supabase)
+//   puis charge son profil enrichi depuis la DB (rôle, onboarding,
+//   publication associée). Retourne `null` si non connecté.
+// - logoutAction : invalide la session Supabase côté serveur (cookie).
+// =====================================================================
+
 import { createClient } from '@qoe/supabase/server';
 import { prisma } from '@qoe/db/client';
 

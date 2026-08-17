@@ -1,5 +1,16 @@
 'use server';
 
+// =====================================================================
+// 🔔 actions/notifications — Server Actions du centre de notifications
+// =====================================================================
+// Liste groupée paginée (par curseur), compteur non-lus, marquage lu,
+// préférences par canal (email/push).
+// 🔗 Proxy Go : quand QOE_API_GO_URL est défini, tout est délégué au
+//    backend Go (apps/api-go/internal/modules/notifications) — le contrat
+//    GroupedNotification est partagé.
+// ⚠️ Fichier serveur : non exposé au mobile (API Go /v1/notifications).
+// =====================================================================
+
 import { notifications } from '@qoe/db';
 import { revalidatePath } from 'next/cache';
 import { safeAction } from '../utils/safe-action';

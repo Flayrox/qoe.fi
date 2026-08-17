@@ -11,3 +11,5 @@ export * from './client';
 export * from './types';
 export * from './query-keys';
 export * from './hooks/useInfiniteFeed';
+// Shadow store (optimistic UI) — RN-safe, sans dépendance serveur.
+export * from './shadow';

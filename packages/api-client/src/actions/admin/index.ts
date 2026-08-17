@@ -1,5 +1,14 @@
 'use server';
 
+// =====================================================================
+// 🛡️ actions/admin — Server Actions de la console superadmin
+// =====================================================================
+// Toutes les actions vérifient `verifySuperadmin()` (rôle DB ==
+// 'superadmin') avant d'agir. Utilise le client Supabase admin (service
+// role key) pour les opérations d'auth (ban/unban).
+// ⚠️ Fichier serveur, app admin uniquement — jamais exposé au mobile.
+// =====================================================================
+
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@qoe/supabase/server';
 import { prisma } from '@qoe/db/client';

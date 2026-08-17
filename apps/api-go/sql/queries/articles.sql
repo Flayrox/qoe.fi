@@ -1,3 +1,40 @@
+-- name: ListRecentPublishedArticles :many
+-- Articles publiés récents (feed mobile « écran principal »), avec auteur /
+-- publication / catégorie dénormalisés. Public, trié par date décroissante.
+SELECT a.id,
+       a.title,
+       a.slug,
+       a.content,
+       a."isPremium",
+       a.visibility,
+       a."readingTime",
+       a."createdAt",
+       a."publicationId",
+       a."authorId",
+       u.id::text       AS author_id,
+       u.name           AS author_name,
+       u.username       AS author_username,
+       u."logoUrl"      AS author_logo,
+       u."isCertified"  AS author_certified,
+       p.name           AS publication_name,
+       p.slug           AS publication_slug,
+       p.subdomain      AS publication_subdomain,
+       p."logoUrl"      AS publication_logo,
+       p.type           AS publication_type,
+       c.id             AS category_id,
+       c.name           AS category_name,
+       c.slug           AS category_slug
+FROM "Article" a
+JOIN "User" u ON u.id = a."authorId"
+JOIN "Publication" p ON p.id = a."publicationId"
+LEFT JOIN "Category" c ON c.id = a."categoryId"
+WHERE a.published = true
+  AND u."isShadowbanned" = false
+  AND u."isSuspended" = false
+  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+ORDER BY a."createdAt" DESC, a.id DESC
+LIMIT $1 OFFSET $2;
+
 -- name: GetArticleByID :one
 SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."scheduledAt",
