@@ -16,6 +16,7 @@ import {
   toggleHighlightPrivacyAction,
   deleteHighlightAction,
 } from '@qoe/api-client';
+import { SimilarArticlesSection } from './SimilarArticlesSection';
 
 export interface ArticleAnnotatorViewProps {
   article: {
@@ -233,6 +234,9 @@ export function ArticleAnnotatorView({ article }: ArticleAnnotatorViewProps) {
         className="prose prose-sm sm:prose-base dark:prose-invert max-w-none leading-relaxed text-foreground/90 selection:bg-highlight/30 cursor-text space-y-4 pt-2"
         dangerouslySetInnerHTML={{ __html: article.content }}
       />
+
+      {/* 🧠 À lire aussi — recommandations sémantiques (pgvector) */}
+      <SimilarArticlesSection articleId={article.id} />
 
       {/* Paywall Cut Overlay for Premium Articles */}
       {article.isPremium && article.accessGranted === false && (
