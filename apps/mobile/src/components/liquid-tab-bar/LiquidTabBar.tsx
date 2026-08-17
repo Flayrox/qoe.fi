@@ -45,14 +45,14 @@ const computeBrakingBreach = (overdrag: number) => {
 function TabIcon({
   name,
   isFocused,
-  activeColor = '#FFFFFF',
-  inactiveColor = 'rgba(255, 255, 255, 0.72)',
+  activeColor,
+  inactiveColor,
   userAvatarProps,
 }: {
   name: string;
   isFocused: boolean;
-  activeColor?: string;
-  inactiveColor?: string;
+  activeColor: string;
+  inactiveColor: string;
   userAvatarProps?: {
     name: string;
     username: string;
@@ -177,14 +177,24 @@ function TabItem({
   );
 }
 
+// 6 tranches étagées de flou pour créer le véritable flou progressif exponentiel d'Apple
+const PROGRESSIVE_BLUR_STEPS = [
+  { bottom: 0, height: 135, intensity: 10, opacity: 0.3 },
+  { bottom: 0, height: 110, intensity: 22, opacity: 0.5 },
+  { bottom: 0, height: 88, intensity: 40, opacity: 0.7 },
+  { bottom: 0, height: 68, intensity: 62, opacity: 0.85 },
+  { bottom: 0, height: 48, intensity: 82, opacity: 0.95 },
+  { bottom: 0, height: 32, intensity: 98, opacity: 1 },
+];
+
 export function LiquidTabBar({
   state,
   navigation,
   variant = 'regular',
   iconsMap,
   glassProps,
-  activeTintColor = '#FFFFFF',
-  inactiveTintColor = 'rgba(255, 255, 255, 0.72)',
+  activeTintColor,
+  inactiveTintColor,
   glassTintColor,
   bottomOffset = 24,
   maxWidth = 392,
@@ -192,7 +202,13 @@ export function LiquidTabBar({
   onProfilePress,
 }: LiquidTabBarProps) {
   const scheme = useColorScheme();
-  const isDark = scheme === 'dark' || scheme === 'unspecified';
+  const isDark = scheme === 'dark';
+
+  const defaultActiveTint = isDark ? '#FFFFFF' : '#111113';
+  const defaultInactiveTint = isDark ? 'rgba(255, 255, 255, 0.72)' : 'rgba(0, 0, 0, 0.58)';
+
+  const resolvedActiveColor = activeTintColor ?? defaultActiveTint;
+  const resolvedInactiveColor = inactiveTintColor ?? defaultInactiveTint;
 
   const drawerContext = useContext(DrawerContext);
   const drawerProgress = drawerContext?.progress;
@@ -213,7 +229,7 @@ export function LiquidTabBar({
 
   // Pilule active : matière douce et feutrée
   const pillTranslateX = useSharedValue(0);
-  const pillOpacity = useSharedValue(0.14);
+  const pillOpacity = useSharedValue(isDark ? 0.14 : 0.09);
 
   // Onde de propagation liquide (déclenchée après 320ms à 100% de déploiement)
   const auraWaveProgress = useSharedValue(0);
@@ -229,7 +245,6 @@ export function LiquidTabBar({
   const startX = useSharedValue(0);
   const activeHoverIndex = useSharedValue(state?.index ?? 1);
 
-  // Déclenchement de la vague de propagation liquide uniquement à 100% avec 320ms de suspense
   useAnimatedReaction(
     () => drawerProgress?.value ?? 0,
     (currentProgress, previousProgress) => {
@@ -292,7 +307,7 @@ export function LiquidTabBar({
       activeHoverIndex.value = state?.index ?? 1;
 
       barScale.value = withSpring(1.04, SPRING_SETTLE);
-      pillOpacity.value = withTiming(0.22, { duration: 80 });
+      pillOpacity.value = withTiming(isDark ? 0.22 : 0.16, { duration: 80 });
     })
     .onUpdate((e) => {
       if (drawerProgress && drawerProgress.value > 0.05) return;
@@ -346,7 +361,7 @@ export function LiquidTabBar({
       barScaleX.value = withSpring(1.0, SPRING_SETTLE);
       barTranslateX.value = withSpring(0, SPRING_SETTLE);
 
-      pillOpacity.value = withTiming(0.14, { duration: 140 });
+      pillOpacity.value = withTiming(isDark ? 0.14 : 0.09, { duration: 140 });
 
       const relativeX = e.x - TRACK_PADDING;
       const releaseIndex = Math.max(
@@ -387,9 +402,13 @@ export function LiquidTabBar({
       currentX = interpolate(laggedProgress, [0, 1], [pillTranslateX.value, 0]);
     }
 
+    const pillBgColor = isDark
+      ? `rgba(255, 255, 255, ${pillOpacity.value})`
+      : `rgba(0, 0, 0, ${pillOpacity.value})`;
+
     return {
       transform: [{ translateX: currentX }],
-      backgroundColor: `rgba(255, 255, 255, ${pillOpacity.value})`,
+      backgroundColor: pillBgColor,
     };
   });
 
@@ -428,24 +447,29 @@ export function LiquidTabBar({
       style={[styles.wrapper, { bottom: bottomOffset }, containerStyle]}
       pointerEvents="box-none"
     >
-      {/* Fond de flou progressif Apple Music / iOS au bas de l'écran */}
+      {/* Véritable fond de flou progressif étagé Apple Music / iOS (multi-stage progressive blur) */}
       <View style={styles.appleBottomBackdrop} pointerEvents="none">
-        <BlurView
-          intensity={isDark ? 25 : 30}
-          tint={isDark ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'}
-          style={StyleSheet.absoluteFill}
-        />
-        {/* Dégradé d'estompage progressif vers le haut */}
+        {PROGRESSIVE_BLUR_STEPS.map((step, idx) => (
+          <BlurView
+            key={idx}
+            intensity={step.intensity}
+            tint={isDark ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'}
+            style={[
+              styles.blurSlice,
+              {
+                height: step.height,
+                opacity: step.opacity,
+              },
+            ]}
+          />
+        ))}
+        {/* Voile de fondu progressif de couleur pour absorber le scroll du Feed */}
         <View
           style={[
-            styles.fadingGradientTop,
-            { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.25)' },
-          ]}
-        />
-        <View
-          style={[
-            styles.fadingGradientBottom,
-            { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.65)' : 'rgba(255, 255, 255, 0.65)' },
+            styles.fadingTintBackdrop,
+            {
+              backgroundColor: isDark ? 'rgba(0, 0, 0, 0.45)' : 'rgba(255, 255, 255, 0.45)',
+            },
           ]}
         />
       </View>
@@ -453,20 +477,34 @@ export function LiquidTabBar({
       <GestureDetector gesture={panGesture}>
         <Animated.View style={[styles.barWrapper, { maxWidth }, barContainerStyle]}>
           <AdaptiveGlassView
-            style={styles.blurContainer}
+            style={[
+              styles.blurContainer,
+              isDark ? styles.blurContainerDark : styles.blurContainerLight,
+            ]}
             variant={variant}
             interactive={false}
-            intensity={45}
+            intensity={isDark ? 45 : 35}
             borderRadius={999}
             refraction={true}
             thickness={1.2}
             edgeReflectionStrength={0.85}
             tilt={true}
-            tintColor={glassTintColor ?? 'rgba(20, 20, 26, 0.40)'}
+            tintColor={
+              glassTintColor ?? (isDark ? 'rgba(20, 20, 26, 0.40)' : 'rgba(255, 255, 255, 0.40)')
+            }
             {...glassProps}
           >
             {/* Liseré supérieur doux et feutré */}
-            <View style={styles.softTopHighlight} />
+            <View
+              style={[
+                styles.softTopHighlight,
+                {
+                  backgroundColor: isDark
+                    ? 'rgba(255, 255, 255, 0.15)'
+                    : 'rgba(255, 255, 255, 0.65)',
+                },
+              ]}
+            />
 
             <View style={styles.trackContainer} onLayout={onLayout}>
               {tabWidth > 0 && (
@@ -486,9 +524,7 @@ export function LiquidTabBar({
                     style={[styles.avatarPropagationContainer, auraRippleStyle]}
                     pointerEvents="none"
                   >
-                    {/* Épicentre dense à 50% sous la photo de profil */}
                     <View style={styles.avatarCoreEpicenter} />
-                    {/* Halo de diffusion gaussienne qui s'éteint complètement aux bords */}
                     {userAvatarProps?.logoUrl ? (
                       <Image
                         source={{ uri: userAvatarProps.logoUrl }}
@@ -512,8 +548,8 @@ export function LiquidTabBar({
                       name={route.name}
                       isFocused={isFocused}
                       iconConfig={iconsMap?.[route.name]}
-                      activeColor={activeTintColor}
-                      inactiveColor={inactiveTintColor}
+                      activeColor={resolvedActiveColor}
+                      inactiveColor={resolvedInactiveColor}
                       userAvatarProps={userAvatarProps}
                     />
                   );
@@ -523,7 +559,15 @@ export function LiquidTabBar({
           </AdaptiveGlassView>
 
           {/* Bordure externe 360° discrète et sobre */}
-          <View style={styles.seamlessOuterBorder} pointerEvents="none" />
+          <View
+            style={[
+              styles.seamlessOuterBorder,
+              {
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.11)' : 'rgba(0, 0, 0, 0.08)',
+              },
+            ]}
+            pointerEvents="none"
+          />
         </Animated.View>
       </GestureDetector>
     </View>
@@ -539,28 +583,25 @@ const styles = StyleSheet.create({
   },
   appleBottomBackdrop: {
     position: 'absolute',
-    bottom: -34, // S'étend jusqu'au bas physique de l'écran sous la safe area
+    bottom: -34,
     left: -40,
     right: -40,
-    height: 125,
+    height: 135,
     overflow: 'hidden',
     zIndex: -1,
   },
-  fadingGradientTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '45%',
-    opacity: 0.4,
-  },
-  fadingGradientBottom: {
+  blurSlice: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: '55%',
-    opacity: 0.8,
+  },
+  fadingTintBackdrop: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 90,
   },
   barWrapper: {
     position: 'relative',
@@ -572,11 +613,17 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: 'transparent',
     paddingHorizontal: TRACK_PADDING,
-    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
     shadowRadius: 20,
     elevation: 8,
+  },
+  blurContainerDark: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.35,
+  },
+  blurContainerLight: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.12,
   },
   softTopHighlight: {
     position: 'absolute',
@@ -584,7 +631,6 @@ const styles = StyleSheet.create({
     left: 32,
     right: 32,
     height: 0.75,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 999,
     zIndex: 2,
   },
@@ -596,7 +642,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: 999,
     borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.11)',
     zIndex: 10,
   },
   trackContainer: {
