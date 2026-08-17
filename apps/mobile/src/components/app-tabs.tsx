@@ -10,27 +10,51 @@ export default function AppTabs() {
   return (
     <NativeTabs
       backgroundColor={colors.background}
-      // Indicateur + libellé de l'onglet actif en brand (vermillon).
       indicatorColor={colors.primary}
-      labelStyle={{ selected: { color: colors.primary } }}
+      labelVisibilityMode="unlabeled"
+      blurEffect="systemMaterial"
+      disableTransparentOnScrollEdge={false}
     >
       <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Feed</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label hidden>Feed</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/home.png')}
           renderingMode="template"
-          // iOS tinte l'icône sélectionnée avec cette couleur (≠ du
-          // indicatorColor, qui ne contrôle que la pill et le libellé).
-          // On passe la marque pour que les deux onglets (Feed & Explore)
-          // virent en vermillon au lieu du bleu système par défaut.
           selectedColor={colors.primary}
         />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label hidden>Explorer</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/explore.png')}
+          renderingMode="template"
+          selectedColor={colors.primary}
+        />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="search">
+        <NativeTabs.Trigger.Label hidden>Recherche</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'magnifyingglass', selected: 'magnifyingglass' }}
+          renderingMode="template"
+          selectedColor={colors.primary}
+        />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="notifications">
+        <NativeTabs.Trigger.Label hidden>Notifications</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'bell', selected: 'bell.fill' }}
+          renderingMode="template"
+          selectedColor={colors.primary}
+        />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="messages">
+        <NativeTabs.Trigger.Label hidden>Messages</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'envelope', selected: 'envelope.fill' }}
           renderingMode="template"
           selectedColor={colors.primary}
         />
