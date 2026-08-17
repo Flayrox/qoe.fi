@@ -11,49 +11,41 @@
 
 | # | Domaine | État actuel | Action critique |
 |---|---|---|---|
-| 1 | Embedding IA | Colonnes `vector(1536)` vides, **aucun code** | Pipeline jina-embeddings-v3 (1024 dims) + HNSW + usages |
-| 2 | Collaboratif | ✅ **FAIT** — serveur Hocuspocus (`apps/collab-server`), persistance Postgres, auth JWT Supabase, **RBAC publication**, curseurs + awareness | Reste : nettoyage TTL des brouillons |
-| 3 | Mails | Template + outbox TS **orphelins** (rien n'enqueue) | Câbler Go → NotificationDelivery → worker |
+| 1 | Embedding IA | ✅ **FAIT** — migration 1024 + HNSW, worker asynq (TEI/jina), `/articles/{id}/similar` + `/search/semantic`, **« À lire aussi » web + mobile** | Reste : déployer le service d'inférence (TEI) pour peupler les vecteurs |
+| 2 | Collaboratif | ✅ **FAIT** — serveur Hocuspocus (`apps/collab-server`), persistance Postgres, auth JWT Supabase, **RBAC publication**, curseurs + awareness, **TTL 14 jours** | — |
+| 3 | Mails | Template + outbox TS **orphelins** (rien n'enqueue) | Câbler Go → NotificationDelivery → worker (attend les clés) |
 | 4 | Web → API | Server actions = proxy fin via `goFetch` quand `QOE_API_GO_URL` | Terminer la bascule des actions restantes (articles legacy) |
-| 5 | Profil web | Page fonctionnelle mais datée, stats non cliquables partout | Refonte + onglets Followers/Abonnements (déjà ajoutés) |
+| 5 | Profil web | ✅ **AMÉLIORÉ** — épinglés en tête, grille médias, partage, stats cliquables, onglets Followers/Abonnements | Reste : shape unifié Go côté web (chantier) |
 
 ---
 
 ## 1. 🧠 Embedding IA / pgvector — jina-embeddings-v3 (auto-hébergé)
 
-### Ce qui existe
-- **Schéma** (`packages/db/prisma/schema.prisma` + `apps/api-go/sql/schema/schema.sql`) :
-  - `CREATE EXTENSION vector` ✅
-  - `User.embedding vector(1536)` (ligne 113) — **vide, jamais écrit**
-  - `Article.embedding vector(1536)` (ligne 417) — **vide, jamais écrit**
-- Testcontainers pgvector (`packages/db/src/__tests__/integration/setup.ts`).
-- `go.mod` : `pgvector-go` déclaré dans le README, à confirmer dans les deps.
+### ✅ Implémenté (17 août 2026)
+- **Migration** `20260817100000_resize_embedding_jina_1024` : colonnes
+  `vector(1024)` (jina-embeddings-v3) + **index HNSW** `vector_cosine_ops`
+  (Article + User).
+- **Worker asynq** `workers/embedding.go` : normalise le contenu (marqueur
+  paywall exclus), appelle le service d'inférence (endpoint OpenAI-compatible
+  configurable `EMBEDDING_BASE_URL`, TEI recommandé) et upsert le vecteur.
+  Enqueue automatique à la publication d'article (`articles/service.go`).
+- **Endpoints Go** : `GET /v1/articles/{id}/similar` (top-N voisins HNSW,
+  vide si non indexé) et `GET /v1/search/semantic?q=` (embed de la requête).
+- **UI** : section **« À lire aussi »** sous les articles (web + mobile),
+  alimentée par pgvector via `getSimilarArticles`.
+- Tests Go verts (upsert, dimension, tri, empty).
 
-### Ce qui manque (tout)
-1. **Décision dimension** : `jina-embeddings-v3` sort **1024 dims**, le schéma
-   est en **1536** (legacy OpenAI). → Migration `vector(1536) → vector(1024)`.
-2. **Service d'inférence** : jina-embeddings-v3 doit tourner **chez nous**
-   (local + VPS). Options :
-   - **`text-embeddings-inference`** (Hugging Face, Rust, API OpenAI-compatible) — recommandé,
-   - ou `sentence-transformers` (Python, plus lourd),
-   - ou `vLLM` (overkill pour un embedder seul).
-   → Endpoint interne `http://localhost:8081/embed` ou similaire.
-3. **Pipeline Go** (worker asynq, pattern `workers/search.go` existant) :
-   - tâche `embedding.article` déclenchée à la **publication** d'un article
-     (le hook `article.published` existe déjà dans `articles/service.go`),
-   - tâche `embedding.profile` à la mise à jour du profil créateur,
-   - upsert du vecteur avec `pgvector-go` via sqlc.
-4. **Index HNSW** (migration) :
-   ```sql
-   CREATE INDEX ON "Article" USING hnsw (embedding vector_cosine_ops);
-   CREATE INDEX ON "User"    USING hnsw (embedding vector_cosine_ops);
-   ```
-5. **Usages produit** (à implémenter) :
-   - recherche sémantique (`GET /v1/search/semantic?q=`) — en plus du
-     Meilisearch lexical (qui marche déjà),
-   - « articles similaires » sous un article,
-   - recommandations du feed,
-   - (idée) désamorçage de bulle idéologique — déjà évoqué dans le seed.
+### Ce qui reste
+1. **Déployer le service d'inférence** (TEI / jina-embeddings-v3) en local
+   puis sur le VPS, et pointer `EMBEDDING_BASE_URL` — c'est le seul blocage
+   pour peupler les vecteurs et activer réellement la recherche sémantique.
+2. **`embedding.profile`** : tâche asynq pour les profils créateurs
+   (bio → vecteur User) à la mise à jour du profil.
+3. **Recommandations du feed** : top-K par similarité vs l'historique de
+   lecture du viewer (API dédiée).
+4. **Recherche sémantique dans l'UI** : brancher `/search/semantic` dans la
+   recherche web/mobile une fois le service d'inférence actif (le Meilisearch
+   lexical reste la recherche par défaut).
 
 ### Décisions à trancher
 - Fournisseur du modèle : HF `jinaai/jina-embeddings-v3` quantisé (FP16) sur
@@ -198,10 +190,8 @@ Postgres (collab_documents, état Yjs binaire) + autosave HTML (API Go)
 
 ## 6. 🏗️ Décisions d'architecture en attente (récap)
 
-1. **Embedding** : chunking (table ArticleChunk) vs colonne unique ; inference
-   locale via TEI ; dimension 1024 (migration).
-2. **Collab** : ✅ Hocuspocus retenu et implémenté (persistance Postgres).
-   Décisions restantes : RBAC dans onLoadDocument, TTL de nettoyage.
+1. **Embedding** : ✅ colonne unique 1024 retenue + implémentée (worker + HNSW
+   + similaires + recherche sémantique). Reste : déployer TEI (inférence).
 3. **Mails** : réécrire l'envoi en Go (recommandé) vs worker TS + endpoint
    interne ; provider Resend vs SMTP (attend les clés).
 4. **Stripe** : webhook Go déjà en place (signature HMAC + asynq) ; attend les
@@ -211,16 +201,21 @@ Postgres (collab_documents, état Yjs binaire) + autosave HTML (API Go)
 
 ---
 
-## 7. Ordre d'exécution recommandé
+## 7. Ordre d'exécution — état au 17 août (soir)
 
-1. **Profil web** (déjà lancé) — refonte + shape unifié + tabs → livrable
-   visible rapidement.
-2. **Pipeline embedding jina** — migration 1024 + TEI local + worker asynq →
-   débloque recherche sémantique + similaires.
-3. **Hocuspocus** — ✅ fait (apps/collab-server) ; reste le RBAC publication.
-4. **Mails + Stripe** — à la toute fin (attend les clés).
-5. **Basculer 100 % des server actions sur Go** — purge des branches
-   `isGoEnabled()` legacy.
+✅ **FAITS** (commits de la journée) :
+1. Embedding : migration 1024 + HNSW, worker asynq TEI/jina, `/articles/{id}/similar`,
+   `/search/semantic`, « À lire aussi » web + mobile.
+2. Collaboratif : apps/collab-server (Hocuspocus), persistance Postgres, auth
+   JWT, RBAC publication, curseurs, TTL 14 jours.
+3. Profil web : épinglés en tête, grille médias, partage, stats cliquables,
+   onglets Followers/Abonnements.
+
+🔜 **RESTE** :
+4. Déployer TEI (inférence jina) → peupler les vecteurs → recherche sémantique UI.
+5. Mails + Stripe — à la toute fin (attend les clés).
+6. Basculer 100 % des server actions sur Go — purge des branches `isGoEnabled()`.
+7. Shape unifié Go côté profil web (même chantier que le mobile, déjà fait).
 
 ---
 
@@ -229,12 +224,15 @@ Postgres (collab_documents, état Yjs binaire) + autosave HTML (API Go)
 | Fichier | Rôle |
 |---|---|
 | `apps/api-go/README.md` | État de l'art du backend Go (source de vérité) |
-| `apps/api-go/internal/workers/search.go` | Pattern worker asynq → Meilisearch (à copier pour l'embedding) |
+| `apps/api-go/internal/workers/search.go` | Worker asynq → Meilisearch (lexical) |
+| `apps/api-go/internal/workers/embedding.go` | Worker asynq → embeddings jina (sémantique, pgvector) |
+| `apps/collab-server/src/permissions.ts` | RBAC publication (qui peut co-éditer) |
+| `apps/feed/src/components/social/SimilarArticlesSection.tsx` | « À lire aussi » web (pgvector) |
+| `apps/mobile/src/components/article/similar-articles.tsx` | « À lire aussi » mobile (pgvector) |
 | `apps/api-go/internal/workers/newsletter.go` | Fanout newsletter (logger seulement — envoi à brancher) |
 | `apps/api-go/internal/modules/articles/service.go` | Hook `article.published` (point d'accroche embedding) |
-| `apps/dashboard/src/features/editor/components/Editor.tsx` | Éditeur TipTap + branchement Collaboration (prêt) |
-| `apps/collab-server/` | Serveur Hocuspocus : persistance Postgres + auth JWT + factory testable |
 | `apps/dashboard/src/features/editor/components/Editor.tsx` | Éditeur TipTap + HocuspocusProvider + curseurs + seed post-sync |
+| `apps/collab-server/` | Serveur Hocuspocus : persistance Postgres + auth JWT + RBAC + factory testable |
 | `packages/workers/src/notification-email.ts` | Outbox email TS (à réécrire en Go ou brancher) |
 | `packages/api-client/src/actions/utils/go-client.ts` | Proxy fin web → Go (goFetch) |
-| `apps/feed/src/app/(reader)/[username]/components/ProfileView.tsx` | Profil web (refonte en cours) |
+| `apps/feed/src/app/(reader)/[username]/components/ProfileView.tsx` | Profil web (épinglés, grille médias, partage, stats) |
