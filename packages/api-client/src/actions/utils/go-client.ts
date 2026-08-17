@@ -39,12 +39,16 @@ export async function goFetch<T = Record<string, unknown>>(
   }
 
   const token = await getAccessToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${GO_API_URL}${path}`, {
     method: init?.method ?? 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: init?.body ? JSON.stringify(init.body) : undefined,
     cache: 'no-store',
   });

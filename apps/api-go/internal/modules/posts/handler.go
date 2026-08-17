@@ -32,31 +32,38 @@ type createThoughtInput struct {
 }
 
 func (h *Handler) Register(r chi.Router) {
-	r.Route("/v1/posts", func(r chi.Router) {
-		r.Post("/", h.create)
-		r.Get("/{id}", h.get)
-		r.Delete("/{id}", h.delete)
-		r.Get("/{id}/likes", h.likes)
-		r.Get("/{id}/reposts", h.reposts)
-		r.Get("/{id}/quotes", h.quotes)
-		r.Post("/{id}/like", h.toggleLike)
-		r.Post("/{id}/repost", h.toggleRepost)
-		r.Post("/{id}/reply", h.reply)
-		r.Post("/{id}/bookmark", h.toggleBookmark)
-		r.Post("/{id}/pin", h.togglePin)
-		r.Post("/{id}/poll/vote", h.votePoll)
-		r.Post("/{id}/poll/unvote", h.unvotePoll)
-	})
+	h.RegisterProtected(r)
+	h.RegisterPublic(r)
+}
+
+// RegisterProtected enregistre les routes nécessitant une authentification :
+// création/suppression, likes/reposts/réponses, signets, épingles, sondages, modération.
+func (h *Handler) RegisterProtected(r chi.Router) {
+	r.Post("/v1/posts", h.create)
+	r.Delete("/v1/posts/{id}", h.delete)
+	r.Post("/v1/posts/{id}/like", h.toggleLike)
+	r.Post("/v1/posts/{id}/repost", h.toggleRepost)
+	r.Post("/v1/posts/{id}/reply", h.reply)
+	r.Post("/v1/posts/{id}/bookmark", h.toggleBookmark)
+	r.Post("/v1/posts/{id}/pin", h.togglePin)
+	r.Post("/v1/posts/{id}/poll/vote", h.votePoll)
+	r.Post("/v1/posts/{id}/poll/unvote", h.unvotePoll)
 	r.Post("/v1/users/{id}/block", h.toggleBlock)
 	r.Post("/v1/users/{id}/mute", h.toggleMute)
 	r.Post("/v1/reports", h.createReport)
 	// Aliases mobile (parité Hono apps/api) : /v1/thoughts → posts.
-	r.Route("/v1/thoughts", func(r chi.Router) {
-		r.Post("/", h.create)
-		r.Post("/{id}/like", h.toggleLike)
-		r.Post("/{id}/repost", h.toggleRepost)
-		r.Post("/{id}/bookmark", h.toggleBookmark)
-	})
+	r.Post("/v1/thoughts", h.create)
+	r.Post("/v1/thoughts/{id}/like", h.toggleLike)
+	r.Post("/v1/thoughts/{id}/repost", h.toggleRepost)
+	r.Post("/v1/thoughts/{id}/bookmark", h.toggleBookmark)
+}
+
+// RegisterPublic enregistre la lecture publique d'un post et de ses listes d'engagement (auth optionnelle).
+func (h *Handler) RegisterPublic(r chi.Router) {
+	r.Get("/v1/posts/{id}", h.get)
+	r.Get("/v1/posts/{id}/likes", h.likes)
+	r.Get("/v1/posts/{id}/reposts", h.reposts)
+	r.Get("/v1/posts/{id}/quotes", h.quotes)
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {

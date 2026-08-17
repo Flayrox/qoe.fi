@@ -66,7 +66,13 @@ JOIN "User" u ON u.id = a."authorId"
 JOIN "Publication" p ON p.id = a."publicationId"
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a.published = true
-  AND (LOWER(p.slug) = LOWER($1) OR LOWER(p.subdomain) = LOWER($1))
+  AND (
+    LOWER(p.slug) = LOWER($1)
+    OR LOWER(COALESCE(p.subdomain, '')) = LOWER($1)
+    OR LOWER(COALESCE(u.username, '')) = LOWER($1)
+    OR LOWER(p.id) = LOWER($1)
+    OR LOWER(COALESCE(u.id::text, '')) = LOWER($1)
+  )
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
   AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())

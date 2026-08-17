@@ -147,7 +147,7 @@ type Querier interface {
 	GetPostsByIDs(ctx context.Context, arg GetPostsByIDsParams) ([]GetPostsByIDsRow, error)
 	GetPremiumActiveSubscribers(ctx context.Context, publicationid string) ([]GetPremiumActiveSubscribersRow, error)
 	GetPublicationByID(ctx context.Context, id string) (string, error)
-	GetPublicationBySlugOrSubdomain(ctx context.Context, slug string) (GetPublicationBySlugOrSubdomainRow, error)
+	GetPublicationBySlugOrSubdomain(ctx context.Context, lower string) (GetPublicationBySlugOrSubdomainRow, error)
 	GetPublicationOwner(ctx context.Context, id string) (string, error)
 	GetPublicationTypeByID(ctx context.Context, id string) (GetPublicationTypeByIDRow, error)
 	GetRecentArticlesForAnalytics(ctx context.Context, arg GetRecentArticlesForAnalyticsParams) ([]GetRecentArticlesForAnalyticsRow, error)
@@ -218,7 +218,7 @@ type Querier interface {
 	// Abonnés d'une publication (profil), paginés — avec état follow du viewer.
 	ListFollowersByPublication(ctx context.Context, arg ListFollowersByPublicationParams) ([]ListFollowersByPublicationRow, error)
 	// Abonnements d'un utilisateur (profil), résolus vers les propriétaires des
-	// publications suivies (PERSONAL), paginés — avec état follow du viewer.
+	// publications suivies (PERSONAL/MEDIA), paginés — avec état follow du viewer.
 	ListFollowingByUser(ctx context.Context, arg ListFollowingByUserParams) ([]ListFollowingByUserRow, error)
 	// Surlignages d'un article : publics + les siens (privés) + état upvote du viewer.
 	ListHighlightsByArticle(ctx context.Context, arg ListHighlightsByArticleParams) ([]ListHighlightsByArticleRow, error)

@@ -24,7 +24,7 @@ export interface QuotedThoughtData {
 
 export interface QuotedThoughtCardProps {
   post: QuotedThoughtData | null;
-  onOpenPost?: (postId: string) => void;
+  onOpenPost?: (postId: string, authorUsername?: string) => void;
   className?: string;
 }
 
@@ -38,7 +38,9 @@ export function QuotedThoughtCard({ post, onOpenPost, className }: QuotedThought
     e.preventDefault();
     e.stopPropagation();
     if (onOpenPost) {
-      onOpenPost(post.id);
+      onOpenPost(post.id, authorHandle);
+    } else {
+      window.location.href = `/${encodeURIComponent(authorHandle)}/thought/${encodeURIComponent(post.id)}`;
     }
   };
 

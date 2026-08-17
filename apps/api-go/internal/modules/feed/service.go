@@ -152,7 +152,7 @@ func (s *Service) UserPosts(ctx context.Context, username, viewerID string, limi
 	ownerID, err := s.q.GetPublicationOwner(ctx, pub.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return FeedResult{}, ErrNotFound
+			return FeedResult{Items: []posts.FeedSlice{}, HasMore: false}, nil
 		}
 		return FeedResult{}, err
 	}
@@ -252,7 +252,7 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 		}
 	}
 
-	// 1) Chaîne d'ancêtres : on remonte les parents jusqu'à la racine
+	// 1) Chaîne d'ancêtres & citations (quotes) : on remonte les parents et posts cités
 	//    (boucle bornée à 100 pour éviter les cycles). On collecte les ids,
 	//    on les charge en bloc, puis on répète pour les parents des parents.
 	more := true
@@ -263,6 +263,11 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 				if pid := posts.ParentIDOf(r); pid != nil && !want[*pid] {
 					want[*pid] = true
 					extras = append(extras, *pid)
+					more = true
+				}
+				if rid := posts.RepostIDOf(r); rid != nil && !want[*rid] {
+					want[*rid] = true
+					extras = append(extras, *rid)
 					more = true
 				}
 			}
@@ -313,6 +318,27 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 		for i := range extraRows {
 			all[extraRows[i].ID] = &extraRows[i]
 		}
+	}
+
+	// 3) Charger les posts cités (reposts / quotes) par les réponses
+	var missingQuotes []string
+	for _, id := range replyIDs {
+		if r, ok := all[id]; ok {
+			if rid := posts.RepostIDOf(r); rid != nil && !want[*rid] {
+				want[*rid] = true
+				missingQuotes = append(missingQuotes, *rid)
+			}
+		}
+	}
+	if len(missingQuotes) > 0 {
+		extraRows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: missingQuotes, ViewerID: toUUID(viewerID)})
+		if err != nil {
+			return nil, err
+		}
+		for i := range extraRows {
+			all[extraRows[i].ID] = &extraRows[i]
+		}
+		extras = append(extras, missingQuotes...)
 	}
 
 	allIDs := append([]string{postID}, extras...)

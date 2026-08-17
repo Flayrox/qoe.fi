@@ -42,6 +42,7 @@ export function ThoughtThreadView({
   currentUserId,
   dbUser,
   initialPost = null,
+  standalone = false,
   onClose,
   onOpenProfile,
   onOpenArticle,
@@ -68,17 +69,20 @@ export function ThoughtThreadView({
       currentUserId={currentUserId}
       dbUser={dbUser}
       initialPost={initialPost}
+      standalone={standalone}
       onClose={onClose}
       onOpenProfile={onOpenProfile}
       onOpenArticle={onOpenArticle}
       onInteractionUpdate={onInteractionUpdate}
       onLoginRequired={onLoginRequired}
     >
-      <div className="relative space-y-2">
+      <div className="relative font-sans">
         <ThoughtThread.ParentContext />
         <ThoughtThread.Focus />
-        <ThoughtThread.Composer placeholder="Exprimer une réponse..." />
-        <ThoughtThread.List />
+        <div className="mt-4 space-y-4">
+          <ThoughtThread.Composer placeholder="Exprimer une réponse..." />
+          <ThoughtThread.List />
+        </div>
         <ThoughtThread.Lightbox />
       </div>
     </ThoughtThread.Root>

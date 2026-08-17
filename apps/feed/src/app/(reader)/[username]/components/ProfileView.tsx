@@ -12,8 +12,6 @@ import {
   MessageSquare,
   FileText,
   Image as ImageIcon,
-  Users,
-  UserCheck,
   Pin,
   Share2,
 } from 'lucide-react';
@@ -24,6 +22,7 @@ import { EditProfileModal } from '@/components/profile/EditProfileModal';
 import { FollowList } from './FollowList';
 import { toggleFollowCreatorHomeAction as toggleFollowCreator } from '@qoe/api-client/actions/feed';
 import { useDeletePostMutation } from '@qoe/api-client';
+import { CertifiedBadge, Dialog, DialogContent, DialogHeader, DialogTitle } from '@qoe/ui';
 
 import { routes } from '@qoe/config/routes';
 import { toast } from 'sonner';
@@ -92,18 +91,9 @@ interface ProfileViewProps {
   initialPublicationId?: string;
 }
 
-type ProfileTab =
-  'thoughts' | 'with_replies' | 'articles' | 'reposts' | 'media' | 'followers' | 'following';
+type ProfileTab = 'thoughts' | 'with_replies' | 'articles' | 'reposts' | 'media';
 
-const PROFILE_TABS: ProfileTab[] = [
-  'thoughts',
-  'with_replies',
-  'articles',
-  'reposts',
-  'media',
-  'followers',
-  'following',
-];
+const PROFILE_TABS: ProfileTab[] = ['thoughts', 'with_replies', 'articles', 'reposts', 'media'];
 
 export function ProfileView({
   profileUser: initialProfileUser,
@@ -118,6 +108,9 @@ export function ProfileView({
   const [followersCount, setFollowersCount] = useState(user._count?.followers || 0);
   const [activeTab, setActiveTab] = useState<ProfileTab>(
     PROFILE_TABS.includes(initialTab as ProfileTab) ? (initialTab as ProfileTab) : 'thoughts'
+  );
+  const [followsModalTab, setFollowsModalTab] = useState<'followers' | 'following' | null>(
+    initialTab === 'followers' || initialTab === 'following' ? initialTab : null
   );
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const { mutateAsync: deletePost } = useDeletePostMutation();
@@ -310,11 +303,7 @@ export function ProfileView({
                 <h1 className="text-xl sm:text-2xl font-bold text-foreground leading-none">
                   {user.name}
                 </h1>
-                {user.isCertified && (
-                  <span className="text-brand text-sm font-black" title="Auteur certifié">
-                    ✓
-                  </span>
-                )}
+                {user.isCertified && <CertifiedBadge size={16} />}
               </div>
               <p className="text-xs text-muted-foreground font-medium">
                 @{user.username || user.subdomain}
@@ -353,19 +342,29 @@ export function ProfileView({
               )}
             </div>
 
-            {/* Stats — cliquables (parité Bluesky : pensées · abonnements · abonnés) */}
+            {/* Stats — cliquables */}
             <div className="flex items-center gap-6 pt-4 text-xs">
               <button
-                onClick={() => handleTabChange('thoughts')}
+                onClick={() =>
+                  handleTabChange(
+                    rootThoughts.length > 0
+                      ? 'thoughts'
+                      : replyThoughts.length > 0
+                        ? 'with_replies'
+                        : 'thoughts'
+                  )
+                }
                 className="flex items-center gap-1.5 cursor-pointer hover:underline group"
               >
-                <span className="font-bold text-foreground">{rootThoughts.length}</span>
+                <span className="font-bold text-foreground">
+                  {user.posts?.length || user._count?.posts || 0}
+                </span>
                 <span className="text-muted-foreground font-medium group-hover:text-foreground transition-colors">
                   pensées
                 </span>
               </button>
               <button
-                onClick={() => handleTabChange('following')}
+                onClick={() => setFollowsModalTab('following')}
                 className="flex items-center gap-1.5 cursor-pointer hover:underline group"
               >
                 <span className="font-bold text-foreground">
@@ -376,7 +375,7 @@ export function ProfileView({
                 </span>
               </button>
               <button
-                onClick={() => handleTabChange('followers')}
+                onClick={() => setFollowsModalTab('followers')}
                 className="flex items-center gap-1.5 cursor-pointer hover:underline group"
               >
                 <span className="font-bold text-foreground">{followersCount}</span>
@@ -424,20 +423,6 @@ export function ProfileView({
               label="Médias"
               count={mediaThoughts.length}
             />
-            <TabButton
-              active={activeTab === 'followers'}
-              onClick={() => handleTabChange('followers')}
-              icon={<Users className="w-3.5 h-3.5" />}
-              label="Abonnés"
-              count={followersCount}
-            />
-            <TabButton
-              active={activeTab === 'following'}
-              onClick={() => handleTabChange('following')}
-              icon={<UserCheck className="w-3.5 h-3.5" />}
-              label="Abonnements"
-              count={user._count?.following || user._count?.follows || 0}
-            />
           </div>
         </div>
 
@@ -446,7 +431,21 @@ export function ProfileView({
           {activeTab === 'thoughts' && (
             <div className="space-y-2">
               {rootThoughts.length === 0 ? (
-                <EmptyTabMessage message="Aucune pensée originale publiée pour le moment." />
+                replyThoughts.length > 0 ? (
+                  <div className="py-10 text-center text-xs text-muted-foreground bg-card/40 border border-border/30 rounded-xl space-y-3 p-4">
+                    <p className="italic">Aucune pensée principale publiée pour le moment.</p>
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange('with_replies')}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand/10 text-brand font-semibold rounded-lg hover:bg-brand/20 transition-colors cursor-pointer"
+                    >
+                      Afficher les {replyThoughts.length} réponse
+                      {replyThoughts.length > 1 ? 's' : ''} de @{profileHandle}
+                    </button>
+                  </div>
+                ) : (
+                  <EmptyTabMessage message="Aucune pensée originale publiée pour le moment." />
+                )
               ) : (
                 <>
                   {/* Pensées épinglées en tête (parité Bluesky) */}
@@ -589,16 +588,31 @@ export function ProfileView({
               )}
             </div>
           )}
-
-          {(activeTab === 'followers' || activeTab === 'following') && (
-            <FollowList
-              handle={user.username || user.subdomain || 'user'}
-              initialTab={activeTab}
-              currentUserId={currentUserId}
-            />
-          )}
         </div>
       </div>
+
+      {/* Follows Modal (Abonnés / Abonnements) */}
+      <Dialog
+        open={Boolean(followsModalTab)}
+        onOpenChange={(open) => {
+          if (!open) setFollowsModalTab(null);
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[85vh] p-4 sm:p-6 overflow-hidden flex flex-col">
+          <DialogHeader className="pb-2">
+            <DialogTitle>{user.name || user.username}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+            {followsModalTab && (
+              <FollowList
+                handle={user.username || user.subdomain || user.id}
+                initialTab={followsModalTab}
+                currentUserId={currentUserId}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Profile Modal */}
       {isOwnProfile && (

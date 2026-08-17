@@ -7,6 +7,7 @@ import { Loader2, UserCheck, UserPlus, Users } from 'lucide-react';
 
 import { routes } from '@qoe/config/routes';
 import { cn } from '@qoe/utils';
+import { CertifiedBadge } from '@qoe/ui';
 import {
   toggleFollowCreatorHomeAction as toggleFollowCreator,
   getFollowListAction,
@@ -161,18 +162,18 @@ export function FollowList({ handle, initialTab, currentUserId }: FollowListProp
                   </div>
                 )}
                 {actor.isCertified && (
-                  <span
-                    className="absolute -bottom-0.5 -right-0.5 text-[10px] text-brand bg-card rounded-full w-4 h-4 flex items-center justify-center ring-1 ring-border"
-                    title="Auteur certifié"
-                  >
-                    ✓
-                  </span>
+                  <div className="absolute -bottom-1 -right-1">
+                    <CertifiedBadge size={14} />
+                  </div>
                 )}
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate">
-                  {actor.name || actor.username || '?'}
-                </p>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {actor.name || actor.username || '?'}
+                  </p>
+                  {actor.isCertified && <CertifiedBadge size={13} />}
+                </div>
                 {actor.username && (
                   <p className="text-xs text-muted-foreground truncate">@{actor.username}</p>
                 )}

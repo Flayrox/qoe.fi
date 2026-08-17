@@ -172,6 +172,7 @@ func (s *Service) Get(ctx context.Context, id, viewerID string) (FeedPost, error
 	}
 	for i := range rows {
 		add(ParentIDOf(&rows[i]))
+		add(RepostIDOf(&rows[i]))
 	}
 	for more := true; more && len(extras) < 100; {
 		more = false
@@ -181,6 +182,11 @@ func (s *Service) Get(ctx context.Context, id, viewerID string) (FeedPost, error
 				if pid := ParentIDOf(r); pid != nil && !want[*pid] {
 					want[*pid] = true
 					next = append(next, *pid)
+					more = true
+				}
+				if rid := RepostIDOf(r); rid != nil && !want[*rid] {
+					want[*rid] = true
+					next = append(next, *rid)
 					more = true
 				}
 			}
