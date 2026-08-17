@@ -139,51 +139,48 @@ Postgres (collab_documents, état Yjs binaire) + autosave HTML (API Go)
 
 ---
 
-## 4. 🔌 Câblage web → API Go (proxies `goFetch`)
+## 4. 🔌 Câblage web → API Go (goFetch) — ✅ GO-ONLY (17 août, soir)
 
-### Ce qui existe (déjà proxyé)
-- Feed/posts : `getFeedItemsAction`, `createThoughtAction`, `replyToPostAction`,
-  `toggleLikePostAction`, `toggleRepostPostAction` (avec fallback TS).
-- Notifications : liste, unread-count, mark-read, préférences.
-- Dashboard : profile, subdomain, navigation, social, api-keys, onboarding.
-- Articles : get, create, update, publish, review, delete, capabilities,
-  categories (beaucoup de `isGoEnabled()` branches déjà présentes).
-- Tenants : follow state. Media : create/delete. Webhooks : CRUD + ping.
+### État final de la migration
+- **Toutes les branches `isGoEnabled()` sont supprimées** : le web ne parle
+  plus qu'à l'API Go (`QOE_API_GO_URL`), qui est le backend-of-record.
+- Fichiers purgés : `actions/feed` (like/reply/thread/repost/delete-post,
+  follow, follow-list, profil), `actions/articles` (CRUD, revue, catégories,
+  commentaires, similaires), `actions/dashboard` (profile, subdomain,
+  navigation, social, api-keys, onboarding), `actions/notifications`,
+  `actions/tenant`.
+- **`getProfileDataAction` supprimé** (lecture Prisma directe legacy) →
+  remplacé par `resolveProfileAction` (shape unifié Go `PublicProfileData`).
+- Fallbacks Prisma morts retirés (helpers RBAC/notifications/attributions
+  désormais inutiles côté web : le Go les gère).
+- **Backend Go étendu** : `/v1/users/{username}/articles` (articles d'une
+  publication), `followers`/`following` passés en lecture publique (auth
+  optionnelle), `publicationId` exposé dans les FollowActor (fixe le follow
+  par `username` → `publicationId` sur mobile), `ownerUserId` dans le profil.
 
-### Ce qui manque / points d'attention
-1. **Le web (`apps/feed`) consomme encore les shapes legacy** : `ThoughtData`
-   dans `apps/feed` (le type a été unifié en `FeedPost` côté mobile/api-client).
-   → Migrer `apps/feed` sur le shape unifié (normalize partagé).
-2. **Param `tab` du feed ignoré côté Go** : `/v1/feed` ne filtre pas par
-   tab (following/trending) — le client appelle des routes distinctes ;
-   vérifier la cohérence.
-3. **`QOE_API_GO_URL` non défini en dev par défaut** : les branches TS
-   restent le fallback ; risque de drift TS vs Go. → Mettre à jour
-   `docs/ARCHITECTURE_REFERENCE.md` et les envs de dev pour pointer le Go.
-4. **Événements internes** : `events.Handler` (secret partagé) — vérifier
-   que `article.published` côté TS passe bien par `/internal/events/*`
-   (le README dit « câblés côté TS (goFetch) » — à confirmer).
-5. **Analytics financières** : déjà en Go, vérifier que les server actions du
-   dashboard analytics passent par le Go (pas Prisma direct).
+### Restes assumés (pas de route Go — fonctionnalités web-composer)
+- `createThoughtThreadAction` (création multi-posts en une transaction),
+  `getUserDraftsAction` (brouillons), `searchArticleContributorsAction`
+  (sélecteur de contributeurs). Pas encore de route Go équivalente.
+- En dev, `QOE_API_GO_URL=http://localhost:8090` est défini dans le `.env`
+  racine (copié par `scripts/copy-env.js`).
 
 ---
 
 ## 5. 👤 Refonte du profil web (`apps/feed/src/app/(reader)/[username]/`)
 
-### Déjà fait dans cette passe
-- Onglets **Abonnés / Abonnements** (FollowList + server action
-  `getFollowListAction` + repo `follows.listFollowers/listFollowing`).
-- Stats cliquables (abonnés/abonnements → onglets), compteur `following`
-  ajouté à l'API Go.
+### État après migration (17 août, soir)
+- **La page profil web est désormais 100 % sur l'API Go** :
+  `page.tsx` + `[tab]/page.tsx` consomment `resolveProfileAction`
+  (shape unifié `PublicProfileData` + `FeedSlice`), `getProfileData.ts`
+  (Prisma legacy) supprimé.
+- Épinglés en tête (📌), grille médias 3 colonnes, bouton partager, stats
+  cliquables (Pensées · Abonnements · Abonnés), onglets Followers/Following.
 
-### À faire (refonte complète, inspirée de Bluesky/Bsky web)
+### Encore à faire (inspirée de Bluesky/Bsky web)
 - **Bannière de profil** (cover) + avatar certifié + bio riche.
-- **Compteurs** followers/following/likes cliquables (parité mobile).
-- **Onglets** : Pensées / Réponses / Médias / Articles / J'aime (Bluesky
-  profile tabs) — aujourd'hui seulement Pensées + Articles.
-- **Fil de pensées du profil** : utiliser le shape unifié `FeedPost`
-  (normalize partagé) au lieu de `ThoughtData` legacy.
-- **Boutons** : Suivre (état isFollowing déjà fourni), Message, ⋯ (signaler).
+- **Onglets supplémentaires** : Réponses / Médias / J'aime (parité mobile).
+- **Boutons** : Message, ⋯ (signaler).
 - **Responsive mobile-first** (le profil web doit matcher l'app mobile).
 
 ---
@@ -210,12 +207,16 @@ Postgres (collab_documents, état Yjs binaire) + autosave HTML (API Go)
    JWT, RBAC publication, curseurs, TTL 14 jours.
 3. Profil web : épinglés en tête, grille médias, partage, stats cliquables,
    onglets Followers/Abonnements.
+4. **Migration web → API Go terminée** : purge des branches `isGoEnabled()`
+   (feed, articles, dashboard, notifications, tenant), profil web sur le shape
+   unifié Go (`resolveProfileAction`), backend Go étendu (articles d'une
+   publication, followers/following publics, `publicationId` FollowActor).
 
 🔜 **RESTE** :
-4. Déployer TEI (inférence jina) → peupler les vecteurs → recherche sémantique UI.
-5. Mails + Stripe — à la toute fin (attend les clés).
-6. Basculer 100 % des server actions sur Go — purge des branches `isGoEnabled()`.
-7. Shape unifié Go côté profil web (même chantier que le mobile, déjà fait).
+5. Déployer TEI (inférence jina) → peupler les vecteurs → recherche sémantique UI.
+6. Mails + Stripe — à la toute fin (attend les clés).
+7. Basculer les 3 actions Prisma restantes (createThoughtThread, getUserDrafts,
+   searchArticleContributors) sur des routes Go dédiées.
 
 ---
 

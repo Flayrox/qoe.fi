@@ -463,12 +463,13 @@ func (q *Queries) ListCategoriesByPublication(ctx context.Context, publicationid
 }
 
 const listFollowersByPublication = `-- name: ListFollowersByPublication :many
-SELECT u.id::text       AS user_id,
-       u.name           AS user_name,
-       u.username       AS user_username,
-       u."logoUrl"      AS user_logo,
-       u."isCertified" AS user_certified,
-       f."createdAt"   AS followed_at,
+SELECT u.id::text            AS user_id,
+       u.name                AS user_name,
+       u.username            AS user_username,
+       u."logoUrl"           AS user_logo,
+       u."isCertified"      AS user_certified,
+       u."publicationId"::text AS user_publication_id,
+       f."createdAt"        AS followed_at,
        (vf.id IS NOT NULL)::boolean AS viewer_follows
 FROM "Follows" f
 JOIN "User" u ON u.id = f."readerId"
@@ -487,13 +488,14 @@ type ListFollowersByPublicationParams struct {
 }
 
 type ListFollowersByPublicationRow struct {
-	UserID        string           `json:"user_id"`
-	UserName      pgtype.Text      `json:"user_name"`
-	UserUsername  pgtype.Text      `json:"user_username"`
-	UserLogo      pgtype.Text      `json:"user_logo"`
-	UserCertified bool             `json:"user_certified"`
-	FollowedAt    pgtype.Timestamp `json:"followed_at"`
-	ViewerFollows bool             `json:"viewer_follows"`
+	UserID            string           `json:"user_id"`
+	UserName          pgtype.Text      `json:"user_name"`
+	UserUsername      pgtype.Text      `json:"user_username"`
+	UserLogo          pgtype.Text      `json:"user_logo"`
+	UserCertified     bool             `json:"user_certified"`
+	UserPublicationID string           `json:"user_publication_id"`
+	FollowedAt        pgtype.Timestamp `json:"followed_at"`
+	ViewerFollows     bool             `json:"viewer_follows"`
 }
 
 // Abonnés d'une publication (profil), paginés — avec état follow du viewer.
@@ -517,6 +519,7 @@ func (q *Queries) ListFollowersByPublication(ctx context.Context, arg ListFollow
 			&i.UserUsername,
 			&i.UserLogo,
 			&i.UserCertified,
+			&i.UserPublicationID,
 			&i.FollowedAt,
 			&i.ViewerFollows,
 		); err != nil {
@@ -531,12 +534,13 @@ func (q *Queries) ListFollowersByPublication(ctx context.Context, arg ListFollow
 }
 
 const listFollowingByUser = `-- name: ListFollowingByUser :many
-SELECT owner.id::text    AS user_id,
-       owner.name        AS user_name,
-       owner.username    AS user_username,
-       owner."logoUrl"   AS user_logo,
-       owner."isCertified" AS user_certified,
-       f."createdAt"    AS followed_at,
+SELECT owner.id::text         AS user_id,
+       owner.name             AS user_name,
+       owner.username         AS user_username,
+       owner."logoUrl"        AS user_logo,
+       owner."isCertified"   AS user_certified,
+       owner."publicationId"::text AS user_publication_id,
+       f."createdAt"         AS followed_at,
        (vf.id IS NOT NULL)::boolean AS viewer_follows
 FROM "Follows" f
 JOIN "Publication" p ON p.id = f."publicationId"
@@ -555,13 +559,14 @@ type ListFollowingByUserParams struct {
 }
 
 type ListFollowingByUserRow struct {
-	UserID        string           `json:"user_id"`
-	UserName      pgtype.Text      `json:"user_name"`
-	UserUsername  pgtype.Text      `json:"user_username"`
-	UserLogo      pgtype.Text      `json:"user_logo"`
-	UserCertified bool             `json:"user_certified"`
-	FollowedAt    pgtype.Timestamp `json:"followed_at"`
-	ViewerFollows bool             `json:"viewer_follows"`
+	UserID            string           `json:"user_id"`
+	UserName          pgtype.Text      `json:"user_name"`
+	UserUsername      pgtype.Text      `json:"user_username"`
+	UserLogo          pgtype.Text      `json:"user_logo"`
+	UserCertified     bool             `json:"user_certified"`
+	UserPublicationID string           `json:"user_publication_id"`
+	FollowedAt        pgtype.Timestamp `json:"followed_at"`
+	ViewerFollows     bool             `json:"viewer_follows"`
 }
 
 // Abonnements d'un utilisateur (profil), résolus vers les propriétaires des
@@ -586,6 +591,7 @@ func (q *Queries) ListFollowingByUser(ctx context.Context, arg ListFollowingByUs
 			&i.UserUsername,
 			&i.UserLogo,
 			&i.UserCertified,
+			&i.UserPublicationID,
 			&i.FollowedAt,
 			&i.ViewerFollows,
 		); err != nil {

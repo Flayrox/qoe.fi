@@ -12,9 +12,9 @@
 // =====================================================================
 
 import { prisma } from '@qoe/db/client';
-import { follows, bookmarks, highlights, posts, wallet } from '@qoe/db';
+import { bookmarks, highlights, posts, wallet } from '@qoe/db';
 import { safeAction } from '../utils/safe-action';
-import { goFetch, isGoEnabled } from '../utils/go-client';
+import { goFetch } from '../utils/go-client';
 
 export const subscribeToNewsletterAction = safeAction<
   { email: string; publicationId: string },
@@ -50,15 +50,12 @@ export const subscribeToNewsletterAction = safeAction<
 );
 
 export const toggleFollowCreatorAction = safeAction<string, { followed: boolean }>(
-  async (publicationId, user) => {
-    if (isGoEnabled()) {
-      const res = await goFetch<{ data: { following: boolean } }>(
-        `/v1/users/${encodeURIComponent(publicationId)}/follow`,
-        { method: 'POST' }
-      );
-      return { followed: res.data.following };
-    }
-    return follows.toggleFollow(user.id, publicationId);
+  async (publicationId) => {
+    const res = await goFetch<{ data: { following: boolean } }>(
+      `/v1/users/${encodeURIComponent(publicationId)}/follow`,
+      { method: 'POST' }
+    );
+    return { followed: res.data.following };
   }
 );
 

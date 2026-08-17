@@ -174,6 +174,8 @@ export interface QuotesPage {
 /** Utilisateur listé dans les abonnés/abonnements d'un profil. */
 export interface FollowActor {
   id: string;
+  /** Publication personnelle de l'acteur — cible de l'endpoint follow. */
+  publicationId: string | null;
   name: string | null;
   username: string | null;
   logoUrl: string | null;
@@ -224,6 +226,8 @@ export interface MyProfileData {
 /** Profil public d'une publication (GET /v1/users/{username}). */
 export interface PublicProfileData {
   id: string;
+  /** User propriétaire de la publication (isOwnProfile côté client). */
+  ownerUserId: string | null;
   name: string | null;
   slug: string;
   subdomain: string | null;

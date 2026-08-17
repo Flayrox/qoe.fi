@@ -28,10 +28,25 @@ func (h *Handler) Register(r chi.Router) {
 }
 
 // RegisterPublic enregistre les routes de lecture publique (auth optionnelle) :
-// les pensées publiques d'un utilisateur (profil) + les articles du feed.
+// les pensées d'un profil, ses articles, et les articles du feed.
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/users/{username}/posts", h.userPosts)
+	r.Get("/v1/users/{username}/articles", h.userArticles)
 	r.Get("/v1/feed/articles", h.articles)
+}
+
+// userArticles — articles publiés d'une publication (profil), paginés.
+func (h *Handler) userArticles(w http.ResponseWriter, r *http.Request) {
+	username := chi.URLParam(r, "username")
+	limit, offset := parseLimitCursor(r)
+
+	result, err := h.svc.PublicationArticles(r.Context(), username, limit, offset)
+	if err != nil {
+		log.Printf("[feed] userArticles: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, result)
 }
 
 // userPosts — pensées publiques d'un utilisateur, résolu par slug/subdomain.
