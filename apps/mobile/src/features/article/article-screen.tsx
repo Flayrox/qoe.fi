@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ArticleHighlights } from '@/components/article/article-highlights';
 import { ArticleHtml } from '@/components/article/html-blocks';
+import { SimilarArticles } from '@/components/article/similar-articles';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -158,6 +159,9 @@ export function ArticleScreen({ slug, publicationId }: { slug: string; publicati
 
         {/* Surlignages (publics + les miens) */}
         {data.id ? <ArticleHighlights articleId={data.id} /> : null}
+
+        {/* 🧠 À lire aussi — recommandations sémantiques (pgvector) */}
+        {data.id ? <SimilarArticles articleId={data.id} /> : null}
 
         {/* Panneau paywall */}
         {isLocked ? (

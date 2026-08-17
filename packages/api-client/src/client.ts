@@ -23,6 +23,7 @@ import type {
   NotificationResult,
   PublicProfileData,
   QuotesPage,
+  SimilarArticlesResult,
   Thought,
   ThreadData,
 } from './types';
@@ -473,6 +474,17 @@ export class QoeApiClient {
     const query = new URLSearchParams({ publicationId });
     return this.request<ArticleData>(
       `/v1/articles/${encodeURIComponent(slug)}?${query.toString()}`
+    );
+  }
+
+  /**
+   * GET /v1/articles/{id}/similar — recommandations sémantiques (pgvector).
+   * Retourne une liste vide tant que le worker d'embedding n'a pas indexé.
+   */
+  public async getSimilarArticles(articleId: string, limit = 6) {
+    const query = new URLSearchParams({ limit: limit.toString() });
+    return this.request<SimilarArticlesResult>(
+      `/v1/articles/${encodeURIComponent(articleId)}/similar?${query.toString()}`
     );
   }
 

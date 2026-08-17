@@ -321,6 +321,28 @@ export interface MyHighlight {
   publicationSlug: string;
 }
 
+/** Article recommandé sémantiquement (shape Go `/v1/articles/{id}/similar`). */
+export interface SimilarArticle {
+  id: string;
+  title: string;
+  slug: string;
+  isPremium: boolean;
+  readingTime: number;
+  createdAt: string;
+  publicationId: string;
+  authorId: string;
+  authorName: string | null;
+  authorUsername: string | null;
+  authorLogo: string | null;
+  publicationName: string | null;
+  score: number;
+}
+
+/** Réponse de l'endpoint articles similaires. */
+export interface SimilarArticlesResult {
+  items: SimilarArticle[];
+}
+
 /** Article du feed mobile (shape Go `FeedArticle` — miroir ArticleCard web). */
 export interface FeedArticle {
   id: string;

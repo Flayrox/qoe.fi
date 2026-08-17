@@ -28,6 +28,7 @@ import { canMedia, canEditMediaArticle, type MediaMemberContext } from '@qoe/aut
 import { eventBus } from '@qoe/workers/events';
 import { safeAction } from '../utils/safe-action';
 import { GO_API_URL, isGoEnabled, goFetch } from '../utils/go-client';
+import type { SimilarArticle } from '../../types';
 
 /** 📣 Publie l'événement de domaine article.published (newsletter + webhooks). */
 async function emitArticlePublished(
@@ -994,6 +995,64 @@ export const getArticleCommentsAction = safeAction<string, ArticleCommentPayload
       },
       orderBy: { createdAt: 'asc' },
     });
+  },
+  { requireAuth: false }
+);
+
+/**
+ * 🧠 Articles similaires — recommandations sémantiques (pgvector, API Go).
+ * Retourne une liste vide tant que le worker d'embedding n'a pas indexé.
+ * Fallback Prisma (sans Go) : articles publiés de la même catégorie, récents.
+ */
+export const getSimilarArticlesAction = safeAction<
+  { articleId: string; limit?: number },
+  SimilarArticle[]
+>(
+  async ({ articleId, limit = 6 }) => {
+    if (isGoEnabled()) {
+      const res = await goFetch<{ items: SimilarArticle[] }>(
+        `/v1/articles/${encodeURIComponent(articleId)}/similar?limit=${limit}`
+      );
+      return (res as { items?: SimilarArticle[] })?.items ?? [];
+    }
+
+    const article = await prisma.article.findUnique({
+      where: { id: articleId },
+      select: { categoryId: true },
+    });
+    if (!article) return [];
+
+    const fallback = await prisma.article.findMany({
+      where: {
+        published: true,
+        id: { not: articleId },
+        ...(article.categoryId ? { categoryId: article.categoryId } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        publication: {
+          select: { id: true, name: true, slug: true, subdomain: true, logoUrl: true },
+        },
+        author: { select: { id: true, name: true, username: true, logoUrl: true } },
+      },
+    });
+
+    return fallback.map((a) => ({
+      id: a.id,
+      title: a.title,
+      slug: a.slug,
+      isPremium: a.isPremium,
+      readingTime: a.readingTime,
+      createdAt: a.createdAt.toISOString(),
+      publicationId: a.publicationId,
+      authorId: a.author.id,
+      authorName: a.author.name,
+      authorUsername: a.author.username,
+      authorLogo: a.author.logoUrl,
+      publicationName: a.publication.name,
+      score: 0,
+    }));
   },
   { requireAuth: false }
 );
