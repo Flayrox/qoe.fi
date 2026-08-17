@@ -4,6 +4,7 @@ package posts
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -31,28 +32,7 @@ type Author struct {
 	Username    *string `json:"username"`
 	LogoURL     *string `json:"logoUrl"`
 	IsCertified bool    `json:"isCertified"`
-}
-
-// Thought est la forme API d'une pensée (avec l'état du viewer).
-type Thought struct {
-	ID               string   `json:"id"`
-	Content          string   `json:"content"`
-	AuthorID         string   `json:"authorId"`
-	CreatedAt        string   `json:"createdAt"`
-	Tags             []string `json:"tags"`
-	ImageURL         *string  `json:"imageUrl,omitempty"`
-	LikeCount        int      `json:"likeCount"`
-	RepostCount      int      `json:"repostCount"`
-	ReplyCount       int      `json:"replyCount"`
-	ParentID         string   `json:"parentId,omitempty"`
-	RootID           string   `json:"rootId,omitempty"`
-	RepostID         string   `json:"repostId,omitempty"`
-	ReplyRestriction string   `json:"replyRestriction"`
-	IsPinned         bool     `json:"isPinned"`
-	IsHiddenByAuthor bool     `json:"isHiddenByAuthor"`
-	Author           Author   `json:"author"`
-	ViewerLiked      bool     `json:"viewerLiked"`
-	ViewerReposted   bool     `json:"viewerReposted"`
+	IsFollowing bool    `json:"isFollowing"`
 }
 
 type Service struct {
@@ -71,9 +51,9 @@ func (s *Service) invalidateFeedCaches(ctx context.Context, authorID string) {
 }
 
 // Create crée une pensée (ou une réponse si parentID fourni).
-func (s *Service) Create(ctx context.Context, authorID, content string, tags []string, parentID, repostID *string) (Thought, error) {
+func (s *Service) Create(ctx context.Context, authorID, content string, tags []string, parentID, repostID *string) (FeedPost, error) {
 	if content == "" && repostID == nil {
-		return Thought{}, errors.New("contenu requis")
+		return FeedPost{}, errors.New("contenu requis")
 	}
 
 	var parentText, rootText, repostText pgtype.Text
@@ -104,12 +84,12 @@ func (s *Service) Create(ctx context.Context, authorID, content string, tags []s
 		ReplyRestriction:  "everyone",
 	})
 	if err != nil {
-		return Thought{}, err
+		return FeedPost{}, err
 	}
 
 	if parentID != nil {
 		if err := s.q.IncrementReplyCount(ctx, *parentID); err != nil {
-			return Thought{}, err
+			return FeedPost{}, err
 		}
 	}
 
@@ -119,13 +99,13 @@ func (s *Service) Create(ctx context.Context, authorID, content string, tags []s
 
 // Reply crée une réponse après contrôle du threadgate, avec notifications
 // REPLY/MENTION et invalidation du cache feed.
-func (s *Service) Reply(ctx context.Context, parentID, userID, content string) (Thought, error) {
+func (s *Service) Reply(ctx context.Context, parentID, userID, content string) (FeedPost, error) {
 	gate, err := s.CanReply(ctx, parentID, userID)
 	if err != nil {
-		return Thought{}, err
+		return FeedPost{}, err
 	}
 	if !gate.CanReply {
-		return Thought{}, errors.New(gate.Reason)
+		return FeedPost{}, errors.New(gate.Reason)
 	}
 
 	rootID, _ := s.q.GetCanonicalThoughtID(ctx, parentID)
@@ -145,11 +125,11 @@ func (s *Service) Reply(ctx context.Context, parentID, userID, content string) (
 		ReplyRestriction:  "everyone",
 	})
 	if err != nil {
-		return Thought{}, err
+		return FeedPost{}, err
 	}
 
 	if err := s.q.IncrementReplyCount(ctx, parentID); err != nil {
-		return Thought{}, err
+		return FeedPost{}, err
 	}
 
 	// Notifications REPLY / MENTION (best-effort)
@@ -164,16 +144,80 @@ func (s *Service) Reply(ctx context.Context, parentID, userID, content string) (
 	return s.Get(ctx, created.ID, userID)
 }
 
-// Get retourne une pensée avec son auteur et l'état du viewer.
-func (s *Service) Get(ctx context.Context, id, viewerID string) (Thought, error) {
-	row, err := s.q.GetThoughtByID(ctx, id)
+// Get retourne une pensée complète (shape FeedPost) avec l'état du viewer :
+// liked/reposted, compteurs, pièces jointes, sondage, chaîne d'ancêtres et
+// isFollowing de l'auteur. C'est LA même shape que /v1/feed et /thread.
+func (s *Service) Get(ctx context.Context, id, viewerID string) (FeedPost, error) {
+	rows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: []string{id}, ViewerID: toUUID(viewerID)})
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return Thought{}, errThoughtNotFound
-		}
-		return Thought{}, err
+		return FeedPost{}, err
 	}
-	return thoughtFromGetRow(row), nil
+	if len(rows) == 0 {
+		return FeedPost{}, errThoughtNotFound
+	}
+
+	all := map[string]*db.GetPostsByIDsRow{}
+	for i := range rows {
+		all[rows[i].ID] = &rows[i]
+	}
+
+	// Chaîne d'ancêtres (root → … → parent direct), boucle bornée (100).
+	want := map[string]bool{id: true}
+	var extras []string
+	add := func(pid *string) {
+		if pid != nil && *pid != "" && !want[*pid] {
+			want[*pid] = true
+			extras = append(extras, *pid)
+		}
+	}
+	for i := range rows {
+		add(ParentIDOf(&rows[i]))
+	}
+	for more := true; more && len(extras) < 100; {
+		more = false
+		var next []string
+		for _, eid := range extras {
+			if r, ok := all[eid]; ok {
+				if pid := ParentIDOf(r); pid != nil && !want[*pid] {
+					want[*pid] = true
+					next = append(next, *pid)
+					more = true
+				}
+			}
+		}
+		if len(next) > 0 {
+			extraRows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: next, ViewerID: toUUID(viewerID)})
+			if err != nil {
+				return FeedPost{}, err
+			}
+			for i := range extraRows {
+				all[extraRows[i].ID] = &extraRows[i]
+			}
+			extras = append(extras, next...)
+		}
+	}
+
+	allIDs := append([]string{id}, extras...)
+	attachments, err := AttachmentsFor(ctx, s.q, allIDs)
+	if err != nil {
+		return FeedPost{}, err
+	}
+	polls, err := PollsFor(ctx, s.q, allIDs, viewerID)
+	if err != nil {
+		return FeedPost{}, err
+	}
+	authorIDs := make([]string, 0, len(allIDs))
+	for _, aid := range allIDs {
+		if r, ok := all[aid]; ok {
+			authorIDs = append(authorIDs, r.AuthorID)
+		}
+	}
+	following, err := FollowingFor(ctx, s.q, viewerID, authorIDs)
+	if err != nil {
+		return FeedPost{}, err
+	}
+
+	return BuildFeedPostWithAncestors(all[id], all, attachments, polls, following, map[string]bool{}), nil
 }
 
 // ToggleLike ajoute ou retire un like, avec mise à jour atomique du compteur.
@@ -395,6 +439,231 @@ func (s *Service) formatPoll(ctx context.Context, pollID, thoughtID, userID stri
 		UserVotedOptionID: userVoteOptionID,
 		Options:           opts,
 	}, nil
+}
+
+// ─────────────────────────── Listes d'engagement ───────────────────────────
+
+// Actor est un utilisateur (liker / reposteur) listé sur un post.
+type Actor struct {
+	ID          string `json:"id"`
+	Name        *string `json:"name"`
+	Username    *string `json:"username"`
+	LogoURL     *string `json:"logoUrl"`
+	IsCertified bool   `json:"isCertified"`
+	FollowedAt  string `json:"followedAt"`
+}
+
+// ActorPage est une page d'acteurs (likes / reposts) paginée.
+type ActorPage struct {
+	Items      []Actor `json:"items"`
+	NextCursor string  `json:"nextCursor"`
+	HasMore    bool    `json:"hasMore"`
+}
+
+func actorFromLike(r db.ListLikesForPostRow) Actor {
+	return Actor{
+		ID:          r.UserID,
+		Name:        textPtr(r.UserName),
+		Username:    textPtr(r.UserUsername),
+		LogoURL:     textPtr(r.UserLogo),
+		IsCertified: r.UserCertified,
+		FollowedAt:  r.LikedAt.Time.Format(time.RFC3339),
+	}
+}
+
+func actorFromRepost(r db.ListRepostsForPostRow) Actor {
+	return Actor{
+		ID:          r.UserID,
+		Name:        textPtr(r.UserName),
+		Username:    textPtr(r.UserUsername),
+		LogoURL:     textPtr(r.UserLogo),
+		IsCertified: r.UserCertified,
+		FollowedAt:  r.RepostedAt.Time.Format(time.RFC3339),
+	}
+}
+
+// Likes retourne la liste paginée des utilisateurs qui ont liké une pensée.
+func (s *Service) Likes(ctx context.Context, postID string, limit, offset int) (ActorPage, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	rows, err := s.q.ListLikesForPost(ctx, db.ListLikesForPostParams{
+		PostId: postID, Limit: int32(limit + 1), Offset: int32(offset),
+	})
+	if err != nil {
+		return ActorPage{}, err
+	}
+	return actorPage(rows, limit, offset, actorFromLike), nil
+}
+
+// Reposts retourne la liste paginée des utilisateurs qui ont reposté (pur).
+func (s *Service) Reposts(ctx context.Context, postID string, limit, offset int) (ActorPage, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	rows, err := s.q.ListRepostsForPost(ctx, db.ListRepostsForPostParams{
+		RepostId: pgtype.Text{String: postID, Valid: true}, Limit: int32(limit + 1), Offset: int32(offset),
+	})
+	if err != nil {
+		return ActorPage{}, err
+	}
+	return actorPage(rows, limit, offset, actorFromRepost), nil
+}
+
+func actorPage[T any](rows []T, limit, offset int, conv func(T) Actor) ActorPage {
+	hasMore := len(rows) > limit
+	if hasMore {
+		rows = rows[:limit]
+	}
+	items := make([]Actor, 0, len(rows))
+	for _, r := range rows {
+		items = append(items, conv(r))
+	}
+	page := ActorPage{Items: items, HasMore: hasMore}
+	if hasMore {
+		page.NextCursor = fmt.Sprintf("%d", offset+len(rows))
+	}
+	return page
+}
+
+// Quotes retourne les citations d'une pensée (posts avec repostId + texte), paginées.
+func (s *Service) Quotes(ctx context.Context, postID, viewerID string, limit, offset int) (FeedResultPage, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	ids, err := s.q.ListQuotePostIDs(ctx, db.ListQuotePostIDsParams{
+		RepostId: pgtype.Text{String: postID, Valid: true}, Limit: int32(limit + 1), Offset: int32(offset),
+	})
+	if err != nil {
+		return FeedResultPage{}, err
+	}
+	hasMore := len(ids) > limit
+	if hasMore {
+		ids = ids[:limit]
+	}
+
+	var postsList []FeedPost
+	if len(ids) > 0 {
+		rows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: ids, ViewerID: toUUID(viewerID)})
+		if err != nil {
+			return FeedResultPage{}, err
+		}
+		all := map[string]*db.GetPostsByIDsRow{}
+		for i := range rows {
+			all[rows[i].ID] = &rows[i]
+		}
+		attachments, err := AttachmentsFor(ctx, s.q, ids)
+		if err != nil {
+			return FeedResultPage{}, err
+		}
+		polls, err := PollsFor(ctx, s.q, ids, viewerID)
+		if err != nil {
+			return FeedResultPage{}, err
+		}
+		authorIDs := make([]string, 0, len(all))
+		for _, r := range all {
+			authorIDs = append(authorIDs, r.AuthorID)
+		}
+		following, err := FollowingFor(ctx, s.q, viewerID, authorIDs)
+		if err != nil {
+			return FeedResultPage{}, err
+		}
+		for _, id := range ids {
+			if r, ok := all[id]; ok {
+				postsList = append(postsList, BuildFeedPost(r, all, attachments, polls, following))
+			}
+		}
+	}
+
+	page := FeedResultPage{Items: postsList, HasMore: hasMore}
+	if hasMore {
+		page.NextCursor = fmt.Sprintf("%d", offset+len(ids))
+	}
+	return page, nil
+}
+
+// FeedResultPage est une page de FeedPost (citations).
+type FeedResultPage struct {
+	Items      []FeedPost `json:"items"`
+	NextCursor string     `json:"nextCursor"`
+	HasMore    bool       `json:"hasMore"`
+}
+
+// ─────────────────────────── Block / Mute / Report ───────────────────────────
+
+// ToggleBlock bloque/débloque un utilisateur (BlockedUser : creator = la
+// cible, reader = l'auteur de l'action). Idempotent.
+func (s *Service) ToggleBlock(ctx context.Context, targetID, userID string) (bool, error) {
+	if targetID == userID {
+		return false, errors.New("impossible de se bloquer soi-même")
+	}
+	_, err := s.q.GetExistingBlock(ctx, db.GetExistingBlockParams{
+		CreatorId: toUUID(targetID), ReaderId: toUUID(userID),
+	})
+	if err == nil {
+		if err := s.q.DeleteBlock(ctx, db.DeleteBlockParams{
+			CreatorId: toUUID(targetID), ReaderId: toUUID(userID),
+		}); err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return false, err
+	}
+	if err := s.q.InsertBlock(ctx, db.InsertBlockParams{
+		CreatorId: toUUID(targetID), ReaderId: toUUID(userID),
+	}); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// ToggleMute masque/démasque un utilisateur (MutedUser : muter = l'auteur de
+// l'action, muted = la cible). Idempotent.
+func (s *Service) ToggleMute(ctx context.Context, targetID, userID string) (bool, error) {
+	if targetID == userID {
+		return false, errors.New("impossible de se masquer soi-même")
+	}
+	_, err := s.q.GetExistingMute(ctx, db.GetExistingMuteParams{
+		MuterId: toUUID(userID), MutedId: toUUID(targetID),
+	})
+	if err == nil {
+		if err := s.q.DeleteMute(ctx, db.DeleteMuteParams{
+			MuterId: toUUID(userID), MutedId: toUUID(targetID),
+		}); err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return false, err
+	}
+	if err := s.q.InsertMute(ctx, db.InsertMuteParams{
+		MuterId: toUUID(userID), MutedId: toUUID(targetID),
+	}); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// Report crée un signalement de modération (ModerationReport).
+func (s *Service) Report(ctx context.Context, userID, targetID, targetType, reason, details string) error {
+	if targetID == "" || targetType == "" || reason == "" {
+		return errors.New("targetId, targetType et reason requis")
+	}
+	detailsVal := pgtype.Text{}
+	if details != "" {
+		detailsVal = pgtype.Text{String: details, Valid: true}
+	}
+	_, err := s.q.CreateModerationReport(ctx, db.CreateModerationReportParams{
+		ReporterId: toUUID(userID),
+		TargetId:   targetID,
+		TargetType: targetType,
+		Reason:     reason,
+		Details:    detailsVal,
+	})
+	return err
 }
 
 // Delete supprime (soft delete) une pensée de l'auteur.

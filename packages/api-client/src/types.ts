@@ -43,6 +43,8 @@ export interface FeedAuthor {
   username: string | null;
   logoUrl: string | null;
   isCertified: boolean;
+  /** Le viewer suit-il la publication de l'auteur ? (état réel, GO 2026) */
+  isFollowing?: boolean;
 }
 
 /** Pièce jointe d'une pensée (shape Go `Attachment`). */
@@ -138,27 +140,35 @@ export interface FeedResult {
 
 /**
  * Shape `Thought` de l'API Go (GET /v1/posts/{id}, POST /v1/posts...).
- * ⚠️ Utilise `viewerLiked`/`viewerReposted` (≠ FeedPost.liked/reposted).
+ * ✅ AOÛT 2026 : unifiée — le Go renvoie désormais un `FeedPost` complet
+ *    (liked/reposted, `_count`, parent, repost, attachments, poll,
+ *    author.isFollowing) pour TOUS les endpoints. `Thought` est un alias
+ *    de `FeedPost` : plus de double shape à normaliser côté mobile.
  */
-export interface Thought {
+export type Thought = FeedPost;
+
+/** Utilisateur listé sur un post (likes / reposts). */
+export interface EngagementUser {
   id: string;
-  content: string;
-  authorId: string;
-  createdAt: string;
-  tags: string[];
-  imageUrl: string | null;
-  likeCount: number;
-  repostCount: number;
-  replyCount: number;
-  parentId: string | null;
-  rootId: string | null;
-  repostId: string | null;
-  replyRestriction: string;
-  isPinned: boolean;
-  isHiddenByAuthor: boolean;
-  author: FeedAuthor;
-  viewerLiked: boolean;
-  viewerReposted: boolean;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  isCertified: boolean;
+  followedAt: string;
+}
+
+/** Page d'engagement (likes / reposts) paginée. */
+export interface EngagementPage {
+  items: EngagementUser[];
+  nextCursor: string;
+  hasMore: boolean;
+}
+
+/** Page de citations d'un post (posts avec repostId + texte). */
+export interface QuotesPage {
+  items: FeedPost[];
+  nextCursor: string;
+  hasMore: boolean;
 }
 
 /** Fil de discussion : pensée cible + réponses (shape Go `ThreadPost`). */

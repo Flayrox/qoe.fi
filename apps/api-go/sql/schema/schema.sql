@@ -101,6 +101,16 @@ CREATE TABLE "BlockedUser" (
 );
 
 -- CreateTable
+CREATE TABLE "MutedUser" (
+    "id" TEXT NOT NULL,
+    "muterId" UUID NOT NULL,
+    "mutedId" UUID NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MutedUser_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "WalletTransaction" (
     "id" TEXT NOT NULL,
     "userId" UUID NOT NULL,
@@ -662,6 +672,9 @@ CREATE UNIQUE INDEX "MutedWord_userId_word_key" ON "MutedWord"("userId", "word")
 CREATE UNIQUE INDEX "BlockedUser_creatorId_readerId_key" ON "BlockedUser"("creatorId", "readerId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "MutedUser_muterId_mutedId_key" ON "MutedUser"("muterId", "mutedId");
+
+-- CreateIndex
 CREATE INDEX "WalletTransaction_userId_createdAt_idx" ON "WalletTransaction"("userId", "createdAt");
 
 -- CreateIndex
@@ -942,6 +955,12 @@ ALTER TABLE "BlockedUser" ADD CONSTRAINT "BlockedUser_creatorId_fkey" FOREIGN KE
 
 -- AddForeignKey
 ALTER TABLE "BlockedUser" ADD CONSTRAINT "BlockedUser_readerId_fkey" FOREIGN KEY ("readerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MutedUser" ADD CONSTRAINT "MutedUser_muterId_fkey" FOREIGN KEY ("muterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MutedUser" ADD CONSTRAINT "MutedUser_mutedId_fkey" FOREIGN KEY ("mutedId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "WalletTransaction" ADD CONSTRAINT "WalletTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

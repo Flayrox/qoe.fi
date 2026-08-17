@@ -60,9 +60,9 @@ func validateContentLen(content string) error {
 
 // CreateFull crée une pensée complète : validation, insert, pièces jointes,
 // sondage éventuel et invalidation du cache feed.
-func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFullInput) (Thought, error) {
+func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFullInput) (FeedPost, error) {
 	if err := validateContentLen(in.Content); err != nil {
-		return Thought{}, err
+		return FeedPost{}, err
 	}
 
 	tags := in.Tags
@@ -105,7 +105,7 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 		ReplyRestriction:  restriction,
 	})
 	if err != nil {
-		return Thought{}, err
+		return FeedPost{}, err
 	}
 
 	// Pièces jointes
@@ -124,7 +124,7 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 			Order:     int32(i),
 		})
 		if err != nil {
-			return Thought{}, err
+			return FeedPost{}, err
 		}
 	}
 
@@ -155,7 +155,7 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 
 	if in.ParentID != nil {
 		if err := s.q.IncrementReplyCount(ctx, *in.ParentID); err != nil {
-			return Thought{}, err
+			return FeedPost{}, err
 		}
 	}
 

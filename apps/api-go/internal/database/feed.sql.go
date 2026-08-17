@@ -386,6 +386,46 @@ func (q *Queries) GetFollowedPersonalPublicationOwnerIDs(ctx context.Context, re
 	return items, nil
 }
 
+const getFollowingStateByAuthorIDs = `-- name: GetFollowingStateByAuthorIDs :many
+SELECT u.id::text AS author_id,
+       (f.id IS NOT NULL)::boolean AS is_following
+FROM "User" u
+LEFT JOIN "Follows" f ON f."readerId" = $1
+  AND f."publicationId" = u."publicationId"
+WHERE u.id = ANY($2::uuid[])
+  AND u."publicationId" IS NOT NULL
+`
+
+type GetFollowingStateByAuthorIDsParams struct {
+	ViewerID pgtype.UUID   `json:"viewer_id"`
+	Ids      []pgtype.UUID `json:"ids"`
+}
+
+type GetFollowingStateByAuthorIDsRow struct {
+	AuthorID    string `json:"author_id"`
+	IsFollowing bool   `json:"is_following"`
+}
+
+func (q *Queries) GetFollowingStateByAuthorIDs(ctx context.Context, arg GetFollowingStateByAuthorIDsParams) ([]GetFollowingStateByAuthorIDsRow, error) {
+	rows, err := q.db.Query(ctx, getFollowingStateByAuthorIDs, arg.ViewerID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetFollowingStateByAuthorIDsRow{}
+	for rows.Next() {
+		var i GetFollowingStateByAuthorIDsRow
+		if err := rows.Scan(&i.AuthorID, &i.IsFollowing); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getPostThread = `-- name: GetPostThread :many
 SELECT p.id,
        p.content,

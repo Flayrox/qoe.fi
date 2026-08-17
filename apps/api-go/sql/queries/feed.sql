@@ -198,3 +198,12 @@ WHERE "parentId" = $1
   AND "deletedAt" IS NULL
   AND "isDraft" = false
 ORDER BY "createdAt" ASC;
+
+-- name: GetFollowingStateByAuthorIDs :many
+SELECT u.id::text AS author_id,
+       (f.id IS NOT NULL)::boolean AS is_following
+FROM "User" u
+LEFT JOIN "Follows" f ON f."readerId" = @viewer_id
+  AND f."publicationId" = u."publicationId"
+WHERE u.id = ANY(@ids::uuid[])
+  AND u."publicationId" IS NOT NULL;

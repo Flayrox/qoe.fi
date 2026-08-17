@@ -131,3 +131,72 @@ SET "isPinned" = false
 WHERE "authorId" = $1
   AND "isPinned" = true
   AND "deletedAt" IS NULL;
+
+-- name: ListLikesForPost :many
+SELECT u.id::text     AS user_id,
+       u.name         AS user_name,
+       u.username     AS user_username,
+       u."logoUrl"    AS user_logo,
+       u."isCertified" AS user_certified,
+       l."createdAt"  AS liked_at
+FROM "Like" l
+JOIN "User" u ON u.id = l."userId"
+WHERE l."postId" = $1
+ORDER BY l."createdAt" DESC
+LIMIT $2 OFFSET $3;
+
+-- name: ListRepostsForPost :many
+SELECT u.id::text     AS user_id,
+       u.name         AS user_name,
+       u.username     AS user_username,
+       u."logoUrl"    AS user_logo,
+       u."isCertified" AS user_certified,
+       r."createdAt"  AS reposted_at
+FROM "Post" r
+JOIN "User" u ON u.id = r."authorId"
+WHERE r."repostId" = $1
+  AND r."deletedAt" IS NULL
+  AND (r.content = '' OR r.content = ' ')
+ORDER BY r."createdAt" DESC
+LIMIT $2 OFFSET $3;
+
+-- name: ListQuotePostIDs :many
+SELECT r.id
+FROM "Post" r
+WHERE r."repostId" = $1
+  AND r."deletedAt" IS NULL
+  AND r."isDraft" = false
+  AND (r.content <> '' AND r.content <> ' ')
+ORDER BY r."createdAt" DESC
+LIMIT $2 OFFSET $3;
+
+-- name: GetExistingBlock :one
+SELECT 1 AS present
+FROM "BlockedUser"
+WHERE "creatorId" = $1 AND "readerId" = $2;
+
+-- name: InsertBlock :exec
+INSERT INTO "BlockedUser" (id, "creatorId", "readerId")
+VALUES (gen_random_uuid()::text, $1, $2);
+
+-- name: DeleteBlock :exec
+DELETE FROM "BlockedUser"
+WHERE "creatorId" = $1 AND "readerId" = $2;
+
+-- name: GetExistingMute :one
+SELECT 1 AS present
+FROM "MutedUser"
+WHERE "muterId" = $1 AND "mutedId" = $2;
+
+-- name: InsertMute :exec
+INSERT INTO "MutedUser" (id, "muterId", "mutedId")
+VALUES (gen_random_uuid()::text, $1, $2);
+
+-- name: DeleteMute :exec
+DELETE FROM "MutedUser"
+WHERE "muterId" = $1 AND "mutedId" = $2;
+
+-- name: CreateModerationReport :one
+INSERT INTO "ModerationReport" (id, "reporterId", "targetId", "targetType", "reason", "details", "createdAt", "updatedAt")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, now(), now())
+RETURNING id;

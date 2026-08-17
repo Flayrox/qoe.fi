@@ -142,7 +142,8 @@ Résout la publication par `slug` OU `subdomain`, puis renvoie les pensées
   "isHiddenByAuthor": false,
   "author": {
     "id": "uuid", "name": "…" | null, "username": "…" | null,
-    "logoUrl": "…" | null, "isCertified": false
+    "logoUrl": "…" | null, "isCertified": false,
+    "isFollowing": false        // ✅ AOÛT 2026 : état follow réel du viewer
   },
   "parent": FeedPost | null,
   "repost": FeedPost | null,
@@ -197,10 +198,48 @@ Résout la publication par `slug` OU `subdomain`, puis renvoie les pensées
   "poll": { "options": ["A", "B"], "durationHours": 24 } | null
 }
 ```
-**Réponse** : `201` + `Thought` (shape ci-dessous).
+**Réponse** : `201` + **`FeedPost` complet** (shape §2) — la shape `Thought`
+a été **unifiée** avec `FeedPost` en août 2026 (`liked`/`reposted` au lieu de
+`viewerLiked`/`viewerReposted`), avec `_count`, `parent`, `repost`,
+`attachments`, `poll` et `author.isFollowing`.
 
 ### GET `/v1/posts/{id}`
-**Auth** : protégée. **Réponse** : `Thought`.
+**Auth** : protégée. **Réponse** : `FeedPost` complet (même shape que le
+feed/thread, voir §2) — plus de double shape.
+
+### GET `/v1/posts/{id}/likes?cursor=&limit=`
+**Auth** : protégée. Liste paginée des utilisateurs qui ont liké (par date
+croissante). **Réponse** (non enveloppée) :
+```json
+{ "items": [ { "id": "uuid", "name": "…" | null, "username": "…" | null,
+               "logoUrl": "…" | null, "isCertified": false,
+               "followedAt": "RFC3339" } ],
+  "nextCursor": "50", "hasMore": false }
+```
+> Porté de Bluesky `PostLikedBy` — écran mobile `post/[id]/likes`.
+
+### GET `/v1/posts/{id}/reposts?cursor=&limit=`
+**Auth** : protégée. Liste paginée des utilisateurs qui ont reposté
+(reposts purs uniquement). Même shape que `/likes`.
+> Porté de Bluesky `PostRepostedBy` — écran mobile `post/[id]/reposts`.
+
+### GET `/v1/posts/{id}/quotes?cursor=&limit=`
+**Auth** : protégée. Citations d'un post (posts avec `repostId` + texte non
+vide), paginées, en **shape `FeedPost` complète**. **Réponse** :
+```json
+{ "items": [ FeedPost ], "nextCursor": "20", "hasMore": false }
+```
+> Porté de Bluesky `PostQuotes` — écran mobile `post/[id]/quotes`.
+
+### POST `/v1/users/{id}/block` / POST `/v1/users/{id}/mute`
+**Auth** : protégée. Bloque/masque (toggle idempotent) un utilisateur.
+**Réponse** : `{"blocked": true|false}` / `{"muted": true|false}`.
+> Tables `BlockedUser` / `MutedUser` (nouvelle table + migration août 2026).
+
+### POST `/v1/reports`
+**Auth** : protégée. **Body** :
+`{"targetId": "uuid", "targetType": "thought|article|user|comment", "reason": "…", "details": "…"}`.
+**Réponse** : `{"success": true}` (statut `pending` en attente de modération).
 
 ### POST `/v1/posts/{id}/like` (et alias `/v1/thoughts/{id}/like`)
 **Auth** : protégée. **Réponse** : `{"liked": true|false}`.
@@ -236,25 +275,13 @@ Un **quote** = un post avec `repostId` **ET** un `content` non vide
 `content` rempli — le client mobile les distingue du repost pur
 (`repost` + content vide) via `ThoughtCard` (`isQuotePost`).
 
-### Thought (shape)
-```json
-{
-  "id": "uuid", "content": "…", "authorId": "uuid",
-  "createdAt": "RFC3339", "tags": [],
-  "imageUrl": "https://…" | null,
-  "likeCount": 3, "repostCount": 1, "replyCount": 2,
-  "parentId": "uuid" | null, "rootId": "uuid" | null,
-  "repostId": "uuid" | null,
-  "replyRestriction": "everyone",
-  "isPinned": false, "isHiddenByAuthor": false,
-  "author": { "id": "uuid", "name": "…" | null, "username": "…" | null,
-              "logoUrl": "…" | null, "isCertified": false },
-  "viewerLiked": false,
-  "viewerReposted": false
-}
-```
-> ⚠️ **GAP** : `Thought` utilise `viewerLiked`/`viewerReposted` (≠ `FeedPost`
-> qui utilise `liked`/`reposted`). Le mobile doit normaliser les deux.
+### Thought (shape) — ⚠️ SUPPRIMÉE (unifiée avec FeedPost)
+> ✅ **AOÛT 2026** : la shape `Thought` a été **supprimée** du Go. Tous les
+> endpoints posts (`GET /v1/posts/{id}`, `POST /v1/posts`, `POST /v1/posts/{id}/reply`)
+> renvoient désormais un `FeedPost` complet (§2) avec `liked`/`reposted`,
+> `_count`, `parent`, `repost`, `attachments`, `poll` et `author.isFollowing`.
+> Côté client, `Thought` est un **alias de `FeedPost`** ; `normalize.ts` n'a
+> plus qu'un chemin de normalisation.
 
 ---
 
@@ -523,6 +550,8 @@ avec `author` dénormalisé. **Body POST** : `{"content": "…"}`.
 | 4 | ~~`client.ts` `toggleRepost`~~ | ~~Attend `{reposted, repostsCount}`~~ **✅ CORRIGÉ** : idem shadow store | — |
 | 5 | `client.ts` `getFeed` | Envoie `tab=` ignoré par Go | Retirer ou gérer côté Go |
 | 6 | ~~`client.ts` `toggleBookmark`~~ | ~~Envoie `targetType` ignoré (bookmark = article)~~ **✅ CORRIGÉ** : le mobile bookmark les **articles** (lecteur) ; la bibliothèque liste via `/v1/bookmarks` | — |
-| 7 | ~~`Thought` vs `FeedPost`~~ | ~~`viewerLiked` vs `liked`~~ **✅ CORRIGÉ** : `normalize.ts` unifie les deux shapes | — |
+| 7 | ~~`Thought` vs `FeedPost`~~ | ~~`viewerLiked` vs `liked`~~ **✅ CORRIGÉ (août 2026)** : la shape `Thought` a été **supprimée côté Go** — tous les endpoints renvoient un `FeedPost` complet ; `Thought` est un alias client ; `normalize.ts` n'a plus qu'un chemin | — |
+| 8 | ~~stats non cliquables~~ | ~~rangée « N reposts · N j'aime · N réponses » statique~~ **✅ CORRIGÉ (août 2026)** : `POST /v1/posts/{id}/likes|reposts|quotes` + écrans mobile `post/[id]/{kind}` (parité PostLikedBy/PostRepostedBy/PostQuotes) | — |
+| 9 | ~~menu mute/block/report~~ | ~~stubs « bientôt disponible »~~ **✅ CORRIGÉ (août 2026)** : `POST /v1/users/{id}/mute|block` + `POST /v1/reports` (tables `MutedUser`/`BlockedUser`/`ModerationReport`), branchés dans `post-menu.tsx` | — |
 
 > Ces gaps sont autant de tickets concrets pour le sprint mobile.

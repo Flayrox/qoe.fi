@@ -9,7 +9,7 @@
 // =====================================================================
 
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/thought/avatar';
@@ -40,11 +40,21 @@ export function ThreadAnchorCard({
     router.push({ pathname: '/user/[username]', params: { username } });
   };
 
-  const stats: Array<{ count: number; label: string }> = [
-    { count: display.repostCount, label: 'reposts' },
-    { count: display.likeCount, label: 'j’aime' },
-    { count: display.replyCount, label: 'réponses' },
+  // Stats cliquables (parité Bluesky PostLikedBy/PostRepostedBy/PostQuotes) :
+  // reposts et j'aime ouvrent leur liste, « réponses » reste statique (on est
+  // déjà dans le fil).
+  const tappable: Array<{ count: number; label: string; kind: 'likes' | 'reposts' }> = [
+    { count: display.repostCount, label: 'reposts', kind: 'reposts' as const },
+    { count: display.likeCount, label: 'j’aime', kind: 'likes' as const },
   ].filter((s) => s.count > 0);
+  const replyCount = display.replyCount;
+
+  const openEngagement = (kind: 'likes' | 'reposts') => {
+    router.push({
+      pathname: '/post/[id]/[kind]',
+      params: { id: display.id, kind },
+    });
+  };
 
   return (
     <View style={{ paddingHorizontal: OUTER_SPACE }}>
@@ -96,21 +106,31 @@ export function ThreadAnchorCard({
           {/* Corps en grand, sans troncature */}
           <PostContent post={display} quoted={resolveDisplay(post).quoted} big truncate={false} />
           {/* Stats */}
-          {stats.length > 0 ? (
+          {tappable.length > 0 || replyCount > 0 ? (
             <View
               style={[
                 styles.statsRow,
                 { borderTopColor: theme.border, borderBottomColor: theme.border },
               ]}
             >
-              {stats.map((s) => (
-                <ThemedText key={s.label} style={{ color: theme.textSecondary }}>
-                  <ThemedText style={[styles.statCount, { color: theme.text }]}>
-                    {formatCount(s.count)}
-                  </ThemedText>{' '}
-                  {s.label}
-                </ThemedText>
+              {tappable.map((s) => (
+                <Pressable key={s.label} onPress={() => openEngagement(s.kind)} hitSlop={4}>
+                  <ThemedText style={{ color: theme.textSecondary }}>
+                    <ThemedText style={[styles.statCount, { color: theme.text }]}>
+                      {formatCount(s.count)}
+                    </ThemedText>{' '}
+                    {s.label}
+                  </ThemedText>
+                </Pressable>
               ))}
+              {replyCount > 0 ? (
+                <ThemedText style={{ color: theme.textSecondary }}>
+                  <ThemedText style={[styles.statCount, { color: theme.text }]}>
+                    {formatCount(replyCount)}
+                  </ThemedText>{' '}
+                  réponses
+                </ThemedText>
+              ) : null}
             </View>
           ) : null}
           {/* Actions big */}
