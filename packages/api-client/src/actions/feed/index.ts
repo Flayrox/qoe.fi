@@ -19,7 +19,7 @@
 //    correspondent à ceux de `@qoe/api-client/types`.
 // =====================================================================
 
-import { follows, bookmarks, posts, articles, users, moderation, threadgates } from '@qoe/db';
+import { follows, posts, articles, users, moderation, threadgates } from '@qoe/db';
 import type { FeedSlice } from '@qoe/db/repositories/posts';
 import { prisma, type User } from '@qoe/db/client';
 import { sliceContentAtPaywall, type PaywallCutResult } from '@qoe/utils';
@@ -113,8 +113,11 @@ export const getFollowListAction = safeAction<
 );
 
 export const toggleBookmarkArticleHomeAction = safeAction<string, { bookmarked: boolean }>(
-  async (articleId, user) => {
-    return bookmarks.toggleBookmark(user.id, articleId);
+  async (articleId) => {
+    // ✅ Go-only : DB + invalidation cache
+    return goFetch<{ bookmarked: boolean }>(`/v1/posts/${articleId}/bookmark`, {
+      method: 'POST',
+    });
   }
 );
 
@@ -463,19 +466,25 @@ export const getUserDraftsAction = safeAction<void, { drafts: Draft[] }>(async (
   return { drafts };
 });
 
-export const pinPostAction = safeAction<string, { success: boolean }>(async (postId, user) => {
-  const success = await posts.setPinStatus(postId, user.id, true);
-  if (!success) throw new Error('UNAUTHORIZED');
+export const pinPostAction = safeAction<string, { success: boolean; pinned?: boolean }>(
+  async (postId) => {
+    // ✅ Go-only : DB + invalidation cache
+    const res = await goFetch<{ pinned: boolean }>(`/v1/posts/${postId}/pin`, {
+      method: 'POST',
+    });
+    return { success: true, pinned: res.pinned };
+  }
+);
 
-  return { success: true };
-});
-
-export const unpinPostAction = safeAction<string, { success: boolean }>(async (postId, user) => {
-  const success = await posts.setPinStatus(postId, user.id, false);
-  if (!success) throw new Error('UNAUTHORIZED');
-
-  return { success: true };
-});
+export const unpinPostAction = safeAction<string, { success: boolean; pinned?: boolean }>(
+  async (postId) => {
+    // ✅ Go-only : DB + invalidation cache
+    const res = await goFetch<{ pinned: boolean }>(`/v1/posts/${postId}/pin`, {
+      method: 'POST',
+    });
+    return { success: true, pinned: res.pinned };
+  }
+);
 
 // ─────────────────────────────────────────────────────────────────────
 // Unfurl de liens (aperçu de carte pour une URL collée dans le composeur)
