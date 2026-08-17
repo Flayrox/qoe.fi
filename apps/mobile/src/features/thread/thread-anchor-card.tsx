@@ -26,12 +26,10 @@ import { LINEAR_AVI_WIDTH, REPLY_LINE_WIDTH, OUTER_SPACE } from './thread-post';
 export function ThreadAnchorCard({
   post,
   showParentLine = false,
-  showChildLine = false,
   onReply,
 }: {
   post: NormalizedThought;
   showParentLine?: boolean;
-  showChildLine?: boolean;
   onReply?: (postId: string) => void;
 }) {
   const theme = useTheme();
@@ -71,14 +69,10 @@ export function ThreadAnchorCard({
             sizeNumber={LINEAR_AVI_WIDTH}
             showCertified={display.author.isCertified}
           />
-          {showChildLine ? (
-            <View style={[styles.childLine, { backgroundColor: theme.border }]} />
-          ) : null}
         </View>
 
         {/* Contenu agrandi */}
         <View style={styles.content}>
-          {' '}
           {/* Nom + handle empilés + bouton Suivre (parité Bluesky) */}
           <View style={styles.authorRow}>
             <View style={styles.authorBlock}>
@@ -156,12 +150,6 @@ const styles = StyleSheet.create({
   aviCol: {
     width: LINEAR_AVI_WIDTH,
     alignItems: 'center',
-  },
-  childLine: {
-    width: REPLY_LINE_WIDTH,
-    flex: 1,
-    marginTop: 4,
-    borderRadius: 1,
   },
   content: {
     flex: 1,
