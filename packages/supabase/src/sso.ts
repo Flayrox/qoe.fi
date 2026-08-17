@@ -1,3 +1,14 @@
+// =====================================================================
+// 🔐 @qoe/supabase — SSO stateless JWT helpers (Web Crypto)
+// =====================================================================
+// Signature / vérification de JWT HS256 sans dépendance externe, via Web
+// Crypto API (fonctionne côté navigateur ET côté serveur Node 20+).
+// Utilisé pour le flux SSO (sync de session entre apps) et les tokens
+// éphémères signés par le serveur.
+// ⚠️ Côté mobile, l'auth passe par @supabase/supabase-js (AsyncStorage) —
+//    ces helpers restent du côté web/SSR.
+// =====================================================================
+
 const encoder = new TextEncoder();
 
 function arrayBufferToBase64Url(buffer: ArrayBuffer | Uint8Array): string {
