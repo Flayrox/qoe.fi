@@ -143,21 +143,21 @@ export function ThreadScreen({ postId }: { postId: string }) {
               label={t('thread.show_more_parents', 'Afficher les pensées précédentes')}
               onPress={() => setShowAllAncestors(true)}
             />
-          ) : null}
-
-          {/* Ancêtres (ce qu'il y a au-dessus) — reliés vers le bas */}
+          ) : null}{' '}
+          {/* Ancêtres (ce qu'il y a au-dessus) — reliés vers le bas. Le
+              premier a une ligne parent uniquement si des ancêtres sont
+              repliés au-dessus (ReadMore). */}
           {visibleAncestors.map((ancestor, index) => (
             <ThreadPost
               key={ancestor.id}
               post={ancestor}
-              showParentLine={showAllAncestors || index > 0}
+              showParentLine={index > 0 || (hiddenAncestorCount > 0 && !showAllAncestors)}
               showChildLine
             />
           ))}
-
-          {/* Post focus, agrandi */}
-          <ThreadAnchorCard post={root} showParentLine={hasAncestors} showChildLine={hasReplies} />
-
+          {/* Post focus, agrandi. Pas de ligne descendante : ce sont les
+              réponses qui se rattachent vers le haut (parité Bluesky). */}
+          <ThreadAnchorCard post={root} showParentLine={hasAncestors} />
           {/* Réponses (arbre récursif) — reliées entre elles */}
           <ReplyTree
             parentId={root.id}
@@ -167,7 +167,6 @@ export function ThreadScreen({ postId }: { postId: string }) {
             expandedBranches={expandedBranches}
             onToggleBranch={toggleBranch}
           />
-
           {!hasReplies ? (
             <ThemedView type="backgroundElement" style={styles.empty}>
               <ThemedText type="small">
