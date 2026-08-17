@@ -9,7 +9,7 @@ import {
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -70,6 +70,11 @@ export function ProfileScreen({
     },
   });
 
+  // Synchronise l'état initial depuis la réponse du profil (isFollowing).
+  useEffect(() => {
+    if (profile) setFollowing(profile.isFollowing);
+  }, [profile]);
+
   // Pensées de l'utilisateur (infini).
   const {
     data,
@@ -128,7 +133,7 @@ export function ProfileScreen({
   }
 
   const handle = profile.subdomain || profile.slug;
-  const isFollowing = following ?? false;
+  const isFollowing = following ?? profile.isFollowing ?? false;
   const followersCount = profile._count?.followers ?? 0;
 
   return (

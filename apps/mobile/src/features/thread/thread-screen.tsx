@@ -181,6 +181,7 @@ export function ThreadScreen({ postId }: { postId: string }) {
         <ThreadReplyComposer
           postId={root.id}
           replyingTo={root.author.username || root.author.name}
+          parentContent={root.content}
         />
       </SafeAreaView>
     </ThemedView>

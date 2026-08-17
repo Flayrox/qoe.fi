@@ -204,6 +204,7 @@ export interface PublicProfileData {
   logoUrl: string | null;
   headerImageUrl: string | null;
   isCertified: boolean;
+  isFollowing: boolean;
   createdAt: string;
   type: 'PERSONAL' | 'MEDIA';
   _count: { followers: number; articles: number };

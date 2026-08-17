@@ -36,12 +36,14 @@ const MAX_LENGTH = 280;
 export function ComposeScreen({
   parentId,
   replyingTo,
+  parentContent,
   repostId,
   quotedAuthor,
   quotedText,
 }: {
   parentId?: string;
   replyingTo?: string; // handle de la pensée à laquelle on répond
+  parentContent?: string; // extrait de la pensée à laquelle on répond
   repostId?: string; // citation : id de la pensée référencée
   quotedAuthor?: string; // handle de l'auteur cité (aperçu)
   quotedText?: string; // extrait de la pensée citée (aperçu)
@@ -98,6 +100,11 @@ export function ComposeScreen({
                 {t('compose.replying_to', 'En réponse à')}{' '}
                 <ThemedText type="smallBold">@{replyingTo}</ThemedText>
               </ThemedText>
+              {parentContent ? (
+                <ThemedText type="small" numberOfLines={3} style={{ color: theme.textSecondary }}>
+                  {parentContent}
+                </ThemedText>
+              ) : null}
             </View>
           ) : null}
 
