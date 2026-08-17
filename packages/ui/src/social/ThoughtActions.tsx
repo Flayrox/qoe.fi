@@ -21,8 +21,8 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, MessageSquare, Repeat, Share2, Quote } from 'lucide-react';
 import { cn } from '@qoe/utils';
-import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { ShareMenu } from './ShareMenu';
 import { t } from '@lingui/core/macro';
 
 export interface ThoughtActionsPostData {
@@ -89,33 +89,6 @@ export function ThoughtActions({
     e.preventDefault();
     e.stopPropagation();
     if (onRepost) onRepost(e);
-  };
-
-  const handleShareClick = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onShare) {
-      onShare(e);
-      return;
-    }
-
-    const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/thought/${authorHandle}/${post.id}`;
-    try {
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-        await navigator.clipboard.writeText(shareUrl);
-        toast.success('Lien copié dans le presse-papier !');
-      } else {
-        const textarea = document.createElement('textarea');
-        textarea.value = shareUrl;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        toast.success('Lien copié dans le presse-papier !');
-      }
-    } catch {
-      toast.error('Impossible de copier le lien.');
-    }
   };
 
   const iconSizes = {
@@ -240,16 +213,24 @@ export function ThoughtActions({
         </PopoverContent>
       </Popover>
 
-      {/* 4. SHARE BUTTON */}
-      <button
-        type="button"
-        onClick={handleShareClick}
-        className="flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer outline-none group/share ml-auto sm:ml-0"
-        title="Partager"
-        aria-label="Partager"
-      >
-        <Share2 className={cn(iconClass, 'transition-transform group-hover/share:scale-110')} />
-      </button>
+      {/* 4. SHARE BUTTON & POPOVER */}
+      <ShareMenu
+        id={post.id}
+        authorHandle={authorHandle}
+        type="post"
+        onShare={onShare}
+        trigger={
+          <button
+            type="button"
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer outline-none group/share ml-auto sm:ml-0"
+            title="Partager"
+            aria-label="Partager"
+          >
+            <Share2 className={cn(iconClass, 'transition-transform group-hover/share:scale-110')} />
+          </button>
+        }
+      />
     </div>
   );
 }
