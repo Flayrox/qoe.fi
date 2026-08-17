@@ -129,8 +129,8 @@ func newRouter(d RouterDeps) *chi.Mux {
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	// Recherche publique (articles Meilisearch) — parité Hono /search/articles.
-	searchHandler := search.NewHandler()
+	// Recherche publique : articles (Meilisearch) + sémantique (pgvector/jina).
+	searchHandler := search.NewHandler(search.NewSemanticService(d.Pool))
 	searchHandler.RegisterPublic(r)
 
 	// Endpoints internes (émission d'événements → asynq), protégés par secret.

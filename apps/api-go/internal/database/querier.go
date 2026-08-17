@@ -78,6 +78,9 @@ type Querier interface {
 	ExistsUnreadRepostNotification(ctx context.Context, arg ExistsUnreadRepostNotificationParams) (int32, error)
 	FindFollowingFeed(ctx context.Context, arg FindFollowingFeedParams) ([]FindFollowingFeedRow, error)
 	FindPostsByAuthor(ctx context.Context, arg FindPostsByAuthorParams) ([]FindPostsByAuthorRow, error)
+	// Articles publiés classés par similarité cosinus avec un vecteur donné,
+	// en excluant l'article source. Requête ANN via l'index HNSW.
+	FindSimilarArticles(ctx context.Context, arg FindSimilarArticlesParams) ([]FindSimilarArticlesRow, error)
 	FindTrending(ctx context.Context, arg FindTrendingParams) ([]FindTrendingRow, error)
 	GetActiveSubscribersByPublication(ctx context.Context, arg GetActiveSubscribersByPublicationParams) ([]GetActiveSubscribersByPublicationRow, error)
 	GetActiveSubscriptionForReply(ctx context.Context, arg GetActiveSubscriptionForReplyParams) (int32, error)
@@ -88,6 +91,9 @@ type Querier interface {
 	GetArticleBySlug(ctx context.Context, arg GetArticleBySlugParams) (GetArticleBySlugRow, error)
 	GetArticleCommentAuthor(ctx context.Context, id string) (string, error)
 	GetArticleCommentsConfig(ctx context.Context, id string) (GetArticleCommentsConfigRow, error)
+	// Retourne le vecteur d'un article sous forme texte ('' si absent). Le scan
+	// d'un type vector NULL n'est pas géré par pgvector-go → on cast en texte.
+	GetArticleEmbeddingText(ctx context.Context, id string) (string, error)
 	GetArticleForSearch(ctx context.Context, id string) (GetArticleForSearchRow, error)
 	GetAttachmentsByIDs(ctx context.Context, dollar_1 []string) ([]GetAttachmentsByIDsRow, error)
 	GetAudienceSummary(ctx context.Context, publicationid string) (GetAudienceSummaryRow, error)
@@ -229,6 +235,8 @@ type Querier interface {
 	ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error)
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
 	PinPost(ctx context.Context, arg PinPostParams) (bool, error)
+	// Recherche sémantique plein corpus (ordre par similarité cosinus).
+	SearchSemanticArticles(ctx context.Context, arg SearchSemanticArticlesParams) ([]SearchSemanticArticlesRow, error)
 	SetApiApplication(ctx context.Context, arg SetApiApplicationParams) error
 	SetArticleStatus(ctx context.Context, arg SetArticleStatusParams) (string, error)
 	SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error
@@ -250,9 +258,13 @@ type Querier interface {
 	UpdateUserOnboardingText(ctx context.Context, arg UpdateUserOnboardingTextParams) error
 	UpdateWebhookActive(ctx context.Context, arg UpdateWebhookActiveParams) error
 	UpdateWebhookDelivery(ctx context.Context, arg UpdateWebhookDeliveryParams) error
+	// Écrit le vecteur d'un article (généré par le worker jina-embeddings-v3).
+	UpsertArticleEmbedding(ctx context.Context, arg UpsertArticleEmbeddingParams) error
 	UpsertMediaMember(ctx context.Context, arg UpsertMediaMemberParams) error
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) error
 	UpsertSubscriberPayment(ctx context.Context, arg UpsertSubscriberPaymentParams) (string, error)
+	// Écrit le vecteur d'un utilisateur/publication (profil).
+	UpsertUserEmbedding(ctx context.Context, arg UpsertUserEmbeddingParams) error
 }
 
 var _ Querier = (*Queries)(nil)

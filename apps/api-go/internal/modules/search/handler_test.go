@@ -89,3 +89,43 @@ func TestSearchArticlesMeiliError(t *testing.T) {
 		t.Fatalf("code = %d, attendu 500", w.Code)
 	}
 }
+
+// ─── Recherche sémantique (/search/semantic) ─────────────────────────
+
+func TestSearchSemanticEmptyQuery(t *testing.T) {
+	h := &Handler{semantic: nil}
+	r := chi.NewRouter()
+	h.RegisterPublic(r)
+	req := httptest.NewRequest(http.MethodGet, "/search/semantic?q=", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("code = %d, attendu 200", w.Code)
+	}
+	var out struct {
+		Items []any `json:"items"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatalf("json invalide: %v", err)
+	}
+	if out.Items == nil {
+		t.Fatal("items doit être [] et non null")
+	}
+}
+
+func TestSearchSemanticServiceUnavailable(t *testing.T) {
+	// Sans EMBEDDING_URL → 503 (le fallback lexical reste disponible).
+	t.Setenv("EMBEDDING_URL", "")
+	// Le handler réel (semantic non nil) avec un vrai service → erreur 503.
+	h := &Handler{semantic: &SemanticService{}}
+	r := chi.NewRouter()
+	h.RegisterPublic(r)
+	req := httptest.NewRequest(http.MethodGet, "/search/semantic?q=climat", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("code = %d, attendu 503", w.Code)
+	}
+}

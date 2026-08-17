@@ -48,7 +48,7 @@ CREATE TABLE "User" (
     "walletBalanceCents" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "embedding" vector(1536),
+    "embedding" vector(1024),
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -273,7 +273,7 @@ CREATE TABLE "Article" (
     "seoDescription" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "embedding" vector(1536),
+    "embedding" vector(1024),
 
     CONSTRAINT "Article_pkey" PRIMARY KEY ("id")
 );

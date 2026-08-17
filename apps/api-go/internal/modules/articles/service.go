@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pgvector/pgvector-go"
 	db "github.com/qoefi/api-go/internal/database"
 	"github.com/qoefi/api-go/internal/permissions"
 	"github.com/qoefi/api-go/internal/queue"
@@ -418,11 +419,13 @@ func (s *Service) queueSearchSync(articleID string, action string) {
 	_ = queue.PublishSearchSync(s.ac, queue.SearchSyncPayload{ArticleID: articleID, Action: action})
 }
 
-// emitPublished enqueue l'événement article.published dans asynq.
+// emitPublished enqueue l'événement article.published dans asynq, plus le
+// job d'embedding sémantique (jina-embeddings-v3) si le service est branché.
 func (s *Service) emitPublished(ctx context.Context, row db.GetArticleByIDRow) {
 	if s.ac == nil {
 		return
 	}
+	_ = queue.PublishArticleEmbedding(s.ac, queue.EmbeddingPayload{ArticleID: row.ID})
 	_ = queue.PublishArticlePublished(s.ac, queue.ArticlePublishedPayload{
 		EventID:       "article_published_" + row.ID,
 		PublicationID: row.PublicationId,
@@ -536,6 +539,76 @@ func (s *Service) Review(ctx context.Context, articleID, userID string, approve 
 		s.emitPublished(ctx, row)
 	}
 	return nil
+}
+
+// SimilarArticles retourne les articles publiés les plus proches sémantiquement
+// de l'article donné (cosine similarity via l'index HNSW pgvector).
+// S'il n'y a pas encore de vecteur, la liste est vide (le worker d'embedding
+// n'a pas encore indexé) plutôt qu'une erreur.
+func (s *Service) SimilarArticles(ctx context.Context, articleID string, limit int) ([]SimilarArticle, error) {
+	// Vérifie l'existence de l'article ET lit son vecteur (texte, NULL-safe).
+	embedText, err := s.q.GetArticleEmbeddingText(ctx, articleID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errNotFound
+		}
+		return nil, err
+	}
+	if embedText == "" {
+		// Pas encore indexé par le worker d'embedding → liste vide, pas d'erreur.
+		return []SimilarArticle{}, nil
+	}
+
+	var source pgvector.Vector
+	if err := source.Parse(embedText); err != nil {
+		return nil, fmt.Errorf("parse embedding %s: %w", articleID, err)
+	}
+
+	if limit <= 0 || limit > 20 {
+		limit = 6
+	}
+	rows, err := s.q.FindSimilarArticles(ctx, db.FindSimilarArticlesParams{
+		Column1: source, ID: articleID, Limit: int32(limit),
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]SimilarArticle, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, SimilarArticle{
+			ID:            r.ID,
+			Title:         r.Title,
+			Slug:          r.Slug,
+			IsPremium:     r.IsPremium,
+			ReadingTime:   int(r.ReadingTime),
+			CreatedAt:     r.CreatedAt.Time.Format(time.RFC3339),
+			PublicationID: r.PublicationId,
+			AuthorID:      uuidString(r.AuthorId),
+			AuthorName:    textPtr(r.AuthorName),
+			AuthorUsername: textPtr(r.AuthorUsername),
+			AuthorLogo:    textPtr(r.AuthorLogo),
+			Publication:   &r.PublicationName,
+			Score:         r.Score,
+		})
+	}
+	return out, nil
+}
+
+// SimilarArticle est un article recommandé sémantiquement (léger, pour cartes).
+type SimilarArticle struct {
+	ID             string  `json:"id"`
+	Title          string  `json:"title"`
+	Slug           string  `json:"slug"`
+	IsPremium      bool    `json:"isPremium"`
+	ReadingTime    int     `json:"readingTime"`
+	CreatedAt      string  `json:"createdAt"`
+	PublicationID  string  `json:"publicationId"`
+	AuthorID       string  `json:"authorId"`
+	AuthorName     *string `json:"authorName"`
+	AuthorUsername *string `json:"authorUsername"`
+	AuthorLogo     *string `json:"authorLogo"`
+	Publication    *string `json:"publicationName"`
+	Score          float64 `json:"score"`
 }
 
 // EditorCapabilities décrit les capacités d'édition dans le workspace actif.
