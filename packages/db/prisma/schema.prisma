@@ -83,6 +83,8 @@ model User {
   mutedWords         MutedWord[]
   blockedBy          BlockedUser[]      @relation("BlockedReader")
   blockedUsers       BlockedUser[]      @relation("CreatorBlocker")
+  mutedUsers         MutedUser[]        @relation("UserMuter")
+  mutedBy            MutedUser[]        @relation("UserMuted")
 
   sentLetters        Letter[]              @relation("LetterSender")
   receivedLetters    Letter[]              @relation("LetterRecipient")
@@ -168,6 +170,17 @@ model BlockedUser {
   createdAt DateTime @default(now())
 
   @@unique([creatorId, readerId])
+}
+
+model MutedUser {
+  id        String   @id @default(cuid())
+  muterId   String   @db.Uuid
+  muter     User     @relation("UserMuter", fields: [muterId], references: [id], onDelete: Cascade)
+  mutedId   String   @db.Uuid
+  muted     User     @relation("UserMuted", fields: [mutedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([muterId, mutedId])
 }
 
 model WalletTransaction {

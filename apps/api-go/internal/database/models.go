@@ -396,6 +396,13 @@ type ModerationReport struct {
 	UpdatedAt  pgtype.Timestamp `json:"updatedAt"`
 }
 
+type MutedUser struct {
+	ID        string           `json:"id"`
+	MuterId   pgtype.UUID      `json:"muterId"`
+	MutedId   pgtype.UUID      `json:"mutedId"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
 type MutedWord struct {
 	ID        string           `json:"id"`
 	Word      string           `json:"word"`

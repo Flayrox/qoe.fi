@@ -1,11 +1,10 @@
 // =====================================================================
 // 🧬 normalize.ts — Normalisation des pensées API vers une shape unique
 // =====================================================================
-// L'API Go renvoie deux shapes proches :
-//   - `FeedPost`  : `liked`/`reposted`, `_count`, `parent`/`repost` imbriqués
-//   - `Thought`   : `viewerLiked`/`viewerReposted`, pas de `_count`
-// Ce module les unifie en `NormalizedThought` consommé par les composants
-// mobile (ThoughtCard, ThreadScreen…). Voir docs/API_CONTRACT.md §8.
+// ✅ AOÛT 2026 : l'API Go renvoie UNE seule shape (`FeedPost`) sur tous les
+//    endpoints (feed, thread, posts) — `Thought` en est un alias. La
+//    normalisation ne gère plus que FeedPost (+ legacy ThoughtData web),
+//    le chemin `viewerLiked`/`viewerReposted` a disparu.
 // =====================================================================
 
 import type {
@@ -13,7 +12,6 @@ import type {
   FeedAuthor,
   FeedPoll,
   FeedPost,
-  Thought,
   ThoughtData,
 } from '@qoe/api-client/mobile';
 
@@ -23,6 +21,7 @@ export interface NormalizedAuthor {
   username: string | null;
   logoUrl: string | null;
   isCertified: boolean;
+  isFollowing: boolean;
 }
 
 export interface NormalizedThought {
@@ -56,6 +55,7 @@ function normAuthor(a?: FeedAuthor | ThoughtData['author'] | null): NormalizedAu
     username: a?.username ?? null,
     logoUrl: a?.logoUrl ?? null,
     isCertified: a?.isCertified ?? false,
+    isFollowing: (a as { isFollowing?: boolean } | null)?.isFollowing ?? false,
   };
 }
 
@@ -85,32 +85,6 @@ function normPost(p: FeedPost): NormalizedThought {
   };
 }
 
-function normThought(t: Thought): NormalizedThought {
-  return {
-    id: t.id,
-    content: t.content ?? '',
-    createdAt: t.createdAt,
-    author: normAuthor(t.author),
-    liked: !!t.viewerLiked,
-    reposted: !!t.viewerReposted,
-    likeCount: t.likeCount ?? 0,
-    repostCount: t.repostCount ?? 0,
-    replyCount: t.replyCount ?? 0,
-    imageUrl: t.imageUrl ?? null,
-    isPinned: t.isPinned ?? false,
-    isHiddenByAuthor: t.isHiddenByAuthor ?? false,
-    replyRestriction: t.replyRestriction ?? 'everyone',
-    parentId: t.parentId ?? null,
-    rootId: t.rootId ?? null,
-    repostId: t.repostId ?? null,
-    parent: null,
-    repost: null,
-    poll: null,
-    attachments: [],
-    tags: t.tags ?? [],
-  };
-}
-
 function normLegacy(t: ThoughtData): NormalizedThought {
   return {
     id: t.id,
@@ -137,11 +111,11 @@ function normLegacy(t: ThoughtData): NormalizedThought {
   };
 }
 
-export type AnyThought = FeedPost | Thought | ThoughtData | NormalizedThought;
+export type AnyThought = FeedPost | ThoughtData | NormalizedThought;
 
 function isNormalized(input: AnyThought): input is NormalizedThought {
   // Une pensée normalisée n'a PAS de `authorId` racine (l'auteur est dans
-  // `author`), contrairement aux shapes API (FeedPost/Thought/ThoughtData).
+  // `author`), contrairement aux shapes API (FeedPost/ThoughtData).
   return (
     !!input &&
     typeof input === 'object' &&
@@ -157,15 +131,11 @@ export function normalizeThought(input: AnyThought): NormalizedThought {
   if (isNormalized(input)) {
     return input;
   }
-  // Thought API (viewerLiked) → shape `Thought`.
-  if ('viewerLiked' in input) {
-    return normThought(input as Thought);
-  }
-  // FeedPost : présence de `_count` (compteurs imbriqués Prisma).
+  // FeedPost (shape unique depuis août 2026) : présence de `_count`.
   if ('_count' in input) {
     return normPost(input as unknown as FeedPost);
   }
-  // ThoughtData legacy (liked/isLiked).
+  // ThoughtData legacy (web, liked/isLiked).
   return normLegacy(input as ThoughtData);
 }
 

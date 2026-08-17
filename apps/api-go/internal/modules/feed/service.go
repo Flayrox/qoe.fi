@@ -260,7 +260,7 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 		more = false
 		for _, id := range append([]string{postID}, extras...) {
 			if r, ok := all[id]; ok {
-				if pid := parentIDOf(r); pid != nil && !want[*pid] {
+				if pid := posts.ParentIDOf(r); pid != nil && !want[*pid] {
 					want[*pid] = true
 					extras = append(extras, *pid)
 					more = true
@@ -316,41 +316,35 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 	}
 
 	allIDs := append([]string{postID}, extras...)
-	attachments, err := s.attachmentsFor(ctx, allIDs)
+	attachments, err := posts.AttachmentsFor(ctx, s.q, allIDs)
 	if err != nil {
 		return nil, err
 	}
-	polls, err := s.pollsFor(ctx, allIDs, viewerID)
+	polls, err := posts.PollsFor(ctx, s.q, allIDs, viewerID)
 	if err != nil {
 		return nil, err
 	}
 
-	target := buildFeedPostWithAncestors(all[postID], all, attachments, polls, map[string]bool{})
+	// État follow des auteurs (isFollowing).
+	authorIDs := make([]string, 0, len(all))
+	for _, r := range all {
+		authorIDs = append(authorIDs, r.AuthorID)
+	}
+	following, err := posts.FollowingFor(ctx, s.q, viewerID, authorIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	target := posts.BuildFeedPostWithAncestors(all[postID], all, attachments, polls, following, map[string]bool{})
 	thread := &ThreadPost{FeedPost: target}
 
 	// Réponses triées par date croissante.
 	for _, id := range replyIDs {
 		if r, ok := all[id]; ok {
-			thread.Replies = append(thread.Replies, buildFeedPost(r, all, attachments, polls))
+			thread.Replies = append(thread.Replies, posts.BuildFeedPost(r, all, attachments, polls, following))
 		}
 	}
 	return thread, nil
-}
-
-// buildFeedPostWithAncestors construit le FeedPost d'une pensée ET chaîne
-// récursivement ses ancêtres dans `Parent` (root → … → parent direct).
-func buildFeedPostWithAncestors(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, attachments map[string][]posts.Attachment, polls map[string]*posts.Poll, seen map[string]bool) posts.FeedPost {
-	fp := buildFeedPost(r, all, attachments, polls)
-	pid := parentIDOf(r)
-	if pid == nil || seen[r.ID] {
-		return fp
-	}
-	if parentRow, ok := all[*pid]; ok {
-		seen[r.ID] = true
-		pp := buildFeedPostWithAncestors(parentRow, all, attachments, polls, seen)
-		fp.Parent = &pp
-	}
-	return fp
 }
 
 // ArticleFeedResult est la réponse paginée du feed d'articles (mobile).
@@ -436,6 +430,14 @@ func feedArticleCat(r *db.ListRecentPublishedArticlesRow) *FeedArticleCat {
 
 // ErrNotFound est renvoyé quand un post n'existe pas.
 var ErrNotFound = errors.New("not found")
+
+func pgtypeTextPtr(t pgtype.Text) *string {
+	if !t.Valid {
+		return nil
+	}
+	v := t.String
+	return &v
+}
 
 func toUUID(id string) pgtype.UUID {
 	u := pgtype.UUID{}

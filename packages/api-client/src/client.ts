@@ -13,6 +13,7 @@ import type {
   ArticleData,
   ArticleFeedResult,
   BookmarkItem,
+  EngagementPage,
   FeedPoll,
   FeedResult,
   Highlight,
@@ -20,6 +21,7 @@ import type {
   MyProfileData,
   NotificationResult,
   PublicProfileData,
+  QuotesPage,
   Thought,
   ThreadData,
 } from './types';
@@ -213,6 +215,74 @@ export class QoeApiClient {
     return this.request<Thought>(`/v1/posts/${encodeURIComponent(postId)}/reply`, {
       method: 'POST',
       body: JSON.stringify({ content }),
+    });
+  }
+
+  /**
+   * GET /v1/posts/{id}/likes — liste paginée des utilisateurs qui ont liké.
+   */
+  public async getPostLikes(postId: string, params?: { cursor?: number; limit?: number }) {
+    const query = new URLSearchParams();
+    if (params?.cursor !== undefined) query.set('cursor', params.cursor.toString());
+    if (params?.limit) query.set('limit', params.limit.toString());
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<EngagementPage>(`/v1/posts/${encodeURIComponent(postId)}/likes${qs}`);
+  }
+
+  /**
+   * GET /v1/posts/{id}/reposts — liste paginée des utilisateurs qui ont
+   * reposté (reposts purs).
+   */
+  public async getPostReposts(postId: string, params?: { cursor?: number; limit?: number }) {
+    const query = new URLSearchParams();
+    if (params?.cursor !== undefined) query.set('cursor', params.cursor.toString());
+    if (params?.limit) query.set('limit', params.limit.toString());
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<EngagementPage>(`/v1/posts/${encodeURIComponent(postId)}/reposts${qs}`);
+  }
+
+  /**
+   * GET /v1/posts/{id}/quotes — citations d'un post (posts avec repostId +
+   * texte), paginées, en shape FeedPost complète.
+   */
+  public async getPostQuotes(postId: string, params?: { cursor?: number; limit?: number }) {
+    const query = new URLSearchParams();
+    if (params?.cursor !== undefined) query.set('cursor', params.cursor.toString());
+    if (params?.limit) query.set('limit', params.limit.toString());
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<QuotesPage>(`/v1/posts/${encodeURIComponent(postId)}/quotes${qs}`);
+  }
+
+  /**
+   * POST /v1/users/{id}/block — bloque/débloque un utilisateur.
+   */
+  public async toggleBlockUser(userId: string) {
+    return this.request<{ blocked: boolean }>(`/v1/users/${encodeURIComponent(userId)}/block`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * POST /v1/users/{id}/mute — masque/démasque un utilisateur.
+   */
+  public async toggleMuteUser(userId: string) {
+    return this.request<{ muted: boolean }>(`/v1/users/${encodeURIComponent(userId)}/mute`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * POST /v1/reports — signale un contenu (thought | article | user | comment).
+   */
+  public async createReport(data: {
+    targetId: string;
+    targetType: 'thought' | 'article' | 'user' | 'comment';
+    reason: string;
+    details?: string;
+  }) {
+    return this.request<{ success: boolean }>('/v1/reports', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   }
 

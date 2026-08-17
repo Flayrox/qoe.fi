@@ -95,6 +95,60 @@ export function PostMenuButton({ post }: { post: NormalizedThought }) {
     Toast.show(t('post.coming_soon', `${label} — bientôt disponible`));
   };
 
+  const onMute = async () => {
+    setOpen(false);
+    if (busy) return;
+    setBusy(true);
+    const res = await apiClient.toggleMuteUser(post.author.id);
+    setBusy(false);
+    if (res.ok) {
+      Toast.show(
+        res.data.muted
+          ? t('post.muted', `@${post.author.username || '…'} masqué`)
+          : t('post.unmuted', `@${post.author.username || '…'} démasqué`),
+        'success'
+      );
+    } else {
+      Toast.show(res.error, 'error');
+    }
+  };
+
+  const onBlock = async () => {
+    setOpen(false);
+    if (busy) return;
+    setBusy(true);
+    const res = await apiClient.toggleBlockUser(post.author.id);
+    setBusy(false);
+    if (res.ok) {
+      Toast.show(
+        res.data.blocked
+          ? t('post.blocked', `@${post.author.username || '…'} bloqué`)
+          : t('post.unblocked', `@${post.author.username || '…'} débloqué`),
+        'success'
+      );
+      await queryClient.invalidateQueries({ queryKey: feedKeys.all });
+    } else {
+      Toast.show(res.error, 'error');
+    }
+  };
+
+  const onReport = async () => {
+    setOpen(false);
+    if (busy) return;
+    setBusy(true);
+    const res = await apiClient.createReport({
+      targetId: post.id,
+      targetType: 'thought',
+      reason: 'other',
+    });
+    setBusy(false);
+    if (res.ok) {
+      Toast.show(t('post.reported', 'Signalement envoyé. Merci !'), 'success');
+    } else {
+      Toast.show(res.error, 'error');
+    }
+  };
+
   const groups: ActionSheetGroup[] = [];
 
   if (isOwn) {
@@ -157,21 +211,24 @@ export function PostMenuButton({ post }: { post: NormalizedThought }) {
           key: 'mute',
           label: t('post.mute_account', `Masquer @${post.author.username || '…'}`),
           icon: ICON.mute,
-          onPress: () => onStub('Masquer le compte'),
+          onPress: () => void onMute(),
+          disabled: busy,
         },
         {
           key: 'block',
           label: t('post.block', 'Bloquer le compte'),
           icon: ICON.personX,
           destructive: true,
-          onPress: () => onStub('Bloquer'),
+          onPress: () => void onBlock(),
+          disabled: busy,
         },
         {
           key: 'report',
           label: t('post.report', 'Signaler la pensée'),
           icon: ICON.warning,
           destructive: true,
-          onPress: () => onStub('Signaler'),
+          onPress: () => void onReport(),
+          disabled: busy,
         },
       ],
     });

@@ -45,6 +45,33 @@ func (q *Queries) CountPureReposts(ctx context.Context, arg CountPureRepostsPara
 	return count, err
 }
 
+const createModerationReport = `-- name: CreateModerationReport :one
+INSERT INTO "ModerationReport" (id, "reporterId", "targetId", "targetType", "reason", "details", "createdAt", "updatedAt")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, now(), now())
+RETURNING id
+`
+
+type CreateModerationReportParams struct {
+	ReporterId pgtype.UUID `json:"reporterId"`
+	TargetId   string      `json:"targetId"`
+	TargetType string      `json:"targetType"`
+	Reason     string      `json:"reason"`
+	Details    pgtype.Text `json:"details"`
+}
+
+func (q *Queries) CreateModerationReport(ctx context.Context, arg CreateModerationReportParams) (string, error) {
+	row := q.db.QueryRow(ctx, createModerationReport,
+		arg.ReporterId,
+		arg.TargetId,
+		arg.TargetType,
+		arg.Reason,
+		arg.Details,
+	)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const createThought = `-- name: CreateThought :one
 INSERT INTO "Post" (id, "content", "authorId", "updatedAt", tags, "imageUrl", visibility, "contentVisibility", "isDraft", "scheduledAt", "triggerWarning", "parentId", "rootId", "repostId", "replyRestriction", "isPinned", "likeCount", "repostCount", "replyCount")
 VALUES (gen_random_uuid()::text, $1, $2, now(), $3, $4, $5, $6, $7, $8, $9, NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), $13, false, 0, 0, 0)
@@ -147,6 +174,21 @@ func (q *Queries) DecrementRepostCount(ctx context.Context, id string) error {
 	return err
 }
 
+const deleteBlock = `-- name: DeleteBlock :exec
+DELETE FROM "BlockedUser"
+WHERE "creatorId" = $1 AND "readerId" = $2
+`
+
+type DeleteBlockParams struct {
+	CreatorId pgtype.UUID `json:"creatorId"`
+	ReaderId  pgtype.UUID `json:"readerId"`
+}
+
+func (q *Queries) DeleteBlock(ctx context.Context, arg DeleteBlockParams) error {
+	_, err := q.db.Exec(ctx, deleteBlock, arg.CreatorId, arg.ReaderId)
+	return err
+}
+
 const deleteLike = `-- name: DeleteLike :exec
 DELETE FROM "Like"
 WHERE "postId" = $1 AND "userId" = $2
@@ -159,6 +201,21 @@ type DeleteLikeParams struct {
 
 func (q *Queries) DeleteLike(ctx context.Context, arg DeleteLikeParams) error {
 	_, err := q.db.Exec(ctx, deleteLike, arg.PostId, arg.UserId)
+	return err
+}
+
+const deleteMute = `-- name: DeleteMute :exec
+DELETE FROM "MutedUser"
+WHERE "muterId" = $1 AND "mutedId" = $2
+`
+
+type DeleteMuteParams struct {
+	MuterId pgtype.UUID `json:"muterId"`
+	MutedId pgtype.UUID `json:"mutedId"`
+}
+
+func (q *Queries) DeleteMute(ctx context.Context, arg DeleteMuteParams) error {
+	_, err := q.db.Exec(ctx, deleteMute, arg.MuterId, arg.MutedId)
 	return err
 }
 
@@ -193,6 +250,24 @@ func (q *Queries) GetCanonicalThoughtID(ctx context.Context, id string) (string,
 	return id_2, err
 }
 
+const getExistingBlock = `-- name: GetExistingBlock :one
+SELECT 1 AS present
+FROM "BlockedUser"
+WHERE "creatorId" = $1 AND "readerId" = $2
+`
+
+type GetExistingBlockParams struct {
+	CreatorId pgtype.UUID `json:"creatorId"`
+	ReaderId  pgtype.UUID `json:"readerId"`
+}
+
+func (q *Queries) GetExistingBlock(ctx context.Context, arg GetExistingBlockParams) (int32, error) {
+	row := q.db.QueryRow(ctx, getExistingBlock, arg.CreatorId, arg.ReaderId)
+	var present int32
+	err := row.Scan(&present)
+	return present, err
+}
+
 const getExistingLike = `-- name: GetExistingLike :one
 SELECT 1 AS present
 FROM "Like"
@@ -206,6 +281,24 @@ type GetExistingLikeParams struct {
 
 func (q *Queries) GetExistingLike(ctx context.Context, arg GetExistingLikeParams) (int32, error) {
 	row := q.db.QueryRow(ctx, getExistingLike, arg.PostId, arg.UserId)
+	var present int32
+	err := row.Scan(&present)
+	return present, err
+}
+
+const getExistingMute = `-- name: GetExistingMute :one
+SELECT 1 AS present
+FROM "MutedUser"
+WHERE "muterId" = $1 AND "mutedId" = $2
+`
+
+type GetExistingMuteParams struct {
+	MuterId pgtype.UUID `json:"muterId"`
+	MutedId pgtype.UUID `json:"mutedId"`
+}
+
+func (q *Queries) GetExistingMute(ctx context.Context, arg GetExistingMuteParams) (int32, error) {
+	row := q.db.QueryRow(ctx, getExistingMute, arg.MuterId, arg.MutedId)
 	var present int32
 	err := row.Scan(&present)
 	return present, err
@@ -367,6 +460,21 @@ func (q *Queries) IncrementRepostCount(ctx context.Context, id string) error {
 	return err
 }
 
+const insertBlock = `-- name: InsertBlock :exec
+INSERT INTO "BlockedUser" (id, "creatorId", "readerId")
+VALUES (gen_random_uuid()::text, $1, $2)
+`
+
+type InsertBlockParams struct {
+	CreatorId pgtype.UUID `json:"creatorId"`
+	ReaderId  pgtype.UUID `json:"readerId"`
+}
+
+func (q *Queries) InsertBlock(ctx context.Context, arg InsertBlockParams) error {
+	_, err := q.db.Exec(ctx, insertBlock, arg.CreatorId, arg.ReaderId)
+	return err
+}
+
 const insertLike = `-- name: InsertLike :one
 INSERT INTO "Like" (id, "postId", "userId")
 VALUES (gen_random_uuid()::text, $1, $2)
@@ -385,6 +493,21 @@ func (q *Queries) InsertLike(ctx context.Context, arg InsertLikeParams) (string,
 	return id, err
 }
 
+const insertMute = `-- name: InsertMute :exec
+INSERT INTO "MutedUser" (id, "muterId", "mutedId")
+VALUES (gen_random_uuid()::text, $1, $2)
+`
+
+type InsertMuteParams struct {
+	MuterId pgtype.UUID `json:"muterId"`
+	MutedId pgtype.UUID `json:"mutedId"`
+}
+
+func (q *Queries) InsertMute(ctx context.Context, arg InsertMuteParams) error {
+	_, err := q.db.Exec(ctx, insertMute, arg.MuterId, arg.MutedId)
+	return err
+}
+
 const insertPureRepost = `-- name: InsertPureRepost :one
 INSERT INTO "Post" (id, "content", "authorId", "updatedAt", "repostId", "replyRestriction", "visibility", "contentVisibility", "isDraft", "likeCount", "repostCount", "replyCount")
 VALUES (gen_random_uuid()::text, '', $1, now(), $2, 'everyone', 'public', 'PUBLIC', false, 0, 0, 0)
@@ -401,6 +524,157 @@ func (q *Queries) InsertPureRepost(ctx context.Context, arg InsertPureRepostPara
 	var id string
 	err := row.Scan(&id)
 	return id, err
+}
+
+const listLikesForPost = `-- name: ListLikesForPost :many
+SELECT u.id::text     AS user_id,
+       u.name         AS user_name,
+       u.username     AS user_username,
+       u."logoUrl"    AS user_logo,
+       u."isCertified" AS user_certified,
+       l."createdAt"  AS liked_at
+FROM "Like" l
+JOIN "User" u ON u.id = l."userId"
+WHERE l."postId" = $1
+ORDER BY l."createdAt" DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListLikesForPostParams struct {
+	PostId string `json:"postId"`
+	Limit  int32  `json:"limit"`
+	Offset int32  `json:"offset"`
+}
+
+type ListLikesForPostRow struct {
+	UserID        string           `json:"user_id"`
+	UserName      pgtype.Text      `json:"user_name"`
+	UserUsername  pgtype.Text      `json:"user_username"`
+	UserLogo      pgtype.Text      `json:"user_logo"`
+	UserCertified bool             `json:"user_certified"`
+	LikedAt       pgtype.Timestamp `json:"liked_at"`
+}
+
+func (q *Queries) ListLikesForPost(ctx context.Context, arg ListLikesForPostParams) ([]ListLikesForPostRow, error) {
+	rows, err := q.db.Query(ctx, listLikesForPost, arg.PostId, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLikesForPostRow{}
+	for rows.Next() {
+		var i ListLikesForPostRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.UserName,
+			&i.UserUsername,
+			&i.UserLogo,
+			&i.UserCertified,
+			&i.LikedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listQuotePostIDs = `-- name: ListQuotePostIDs :many
+SELECT r.id
+FROM "Post" r
+WHERE r."repostId" = $1
+  AND r."deletedAt" IS NULL
+  AND r."isDraft" = false
+  AND (r.content <> '' AND r.content <> ' ')
+ORDER BY r."createdAt" DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListQuotePostIDsParams struct {
+	RepostId pgtype.Text `json:"repostId"`
+	Limit    int32       `json:"limit"`
+	Offset   int32       `json:"offset"`
+}
+
+func (q *Queries) ListQuotePostIDs(ctx context.Context, arg ListQuotePostIDsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listQuotePostIDs, arg.RepostId, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRepostsForPost = `-- name: ListRepostsForPost :many
+SELECT u.id::text     AS user_id,
+       u.name         AS user_name,
+       u.username     AS user_username,
+       u."logoUrl"    AS user_logo,
+       u."isCertified" AS user_certified,
+       r."createdAt"  AS reposted_at
+FROM "Post" r
+JOIN "User" u ON u.id = r."authorId"
+WHERE r."repostId" = $1
+  AND r."deletedAt" IS NULL
+  AND (r.content = '' OR r.content = ' ')
+ORDER BY r."createdAt" DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListRepostsForPostParams struct {
+	RepostId pgtype.Text `json:"repostId"`
+	Limit    int32       `json:"limit"`
+	Offset   int32       `json:"offset"`
+}
+
+type ListRepostsForPostRow struct {
+	UserID        string           `json:"user_id"`
+	UserName      pgtype.Text      `json:"user_name"`
+	UserUsername  pgtype.Text      `json:"user_username"`
+	UserLogo      pgtype.Text      `json:"user_logo"`
+	UserCertified bool             `json:"user_certified"`
+	RepostedAt    pgtype.Timestamp `json:"reposted_at"`
+}
+
+func (q *Queries) ListRepostsForPost(ctx context.Context, arg ListRepostsForPostParams) ([]ListRepostsForPostRow, error) {
+	rows, err := q.db.Query(ctx, listRepostsForPost, arg.RepostId, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRepostsForPostRow{}
+	for rows.Next() {
+		var i ListRepostsForPostRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.UserName,
+			&i.UserUsername,
+			&i.UserLogo,
+			&i.UserCertified,
+			&i.RepostedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const pinPost = `-- name: PinPost :one
