@@ -12,7 +12,7 @@
 | # | Domaine | État actuel | Action critique |
 |---|---|---|---|
 | 1 | Embedding IA | Colonnes `vector(1536)` vides, **aucun code** | Pipeline jina-embeddings-v3 (1024 dims) + HNSW + usages |
-| 2 | Collaboratif | `LocalCollaborationProvider` = **BroadcastChannel même navigateur** | Vrai serveur Yjs (Hocuspocus) ou Supabase Realtime |
+| 2 | Collaboratif | ✅ **FAIT** — serveur Hocuspocus (`apps/collab-server`), persistance Postgres, auth JWT Supabase, curseurs + awareness | Reste : RBAC publication dans `onLoadDocument`, nettoyage TTL |
 | 3 | Mails | Template + outbox TS **orphelins** (rien n'enqueue) | Câbler Go → NotificationDelivery → worker |
 | 4 | Web → API | Server actions = proxy fin via `goFetch` quand `QOE_API_GO_URL` | Terminer la bascule des actions restantes (articles legacy) |
 | 5 | Profil web | Page fonctionnelle mais datée, stats non cliquables partout | Refonte + onglets Followers/Abonnements (déjà ajoutés) |
@@ -66,47 +66,42 @@
 
 ## 2. ✍️ Temps réel collaboratif — TipTap Collaboration (Yjs)
 
-### Ce qui existe
-- **`apps/dashboard` package.json** : `@tiptap/extension-collaboration`,
-  `yjs` ✅ (déjà installés, versions compatibles TipTap v3)
-- **`apps/dashboard/src/features/editor/components/Editor.tsx`** : branche le
-  `Collaboration` extension **si** `collaborationRoomId` est passé et
-  `collaborationEnabled` — le câblage TipTap est prêt.
-- **`LocalCollaborationProvider.ts`** : provider Yjs via **BroadcastChannel**
-  — co-édition **même navigateur / même onglet uniquement** (« essai local »
-  affiché dans l'UI). C'est une maquette, pas du multi-utilisateur.
-- Autosave (`useAutoSaveArticle`, debounce 2,5 s) qui persiste le HTML final.
+### ✅ Implémenté (17 août 2026)
+- **`apps/collab-server`** (nouveau workspace `@qoe/collab-server`) : serveur
+  **Hocuspocus v2.15** auto-hébergé — WebSocket WSS, persistance Postgres
+  (table `collab_documents`, état Yjs binaire), auth JWT Supabase par
+  introspection `/auth/v1/user` (même source de vérité que l'API Go),
+  plafond de taille de document, fallback mémoire en dev.
+- **`Editor.tsx`** : `LocalCollaborationProvider` (BroadcastChannel) supprimé
+  → `HocuspocusProvider` réel + **curseurs** (`@tiptap/extension-collaboration-caret`,
+  couleur stable par utilisateur) + **compteur d'éditeurs en direct**
+  (awareness Yjs) + **seed du document** après le premier sync (l'état serveur
+  gagne, plus de race ni de doublons).
+- **Migration** `20260817110000_collab_documents` + modèle Prisma
+  `CollabDocument`.
+- **Tests** : 10 tests verts dont e2e réel (2 providers Yjs synchronisés,
+  persistance, nouvel arrivant, refus d'un token invalide).
+- Env : `NEXT_PUBLIC_COLLAB_URL=ws://localhost:1234`, `COLLAB_PORT`
+  (copiés par `scripts/copy-env.js`, ajoutés au `globalEnv` turbo).
 
-### Ce qui manque
-1. **Serveur de sync Yjs** (le vrai morceau). Deux voies :
-   - **A. Hocuspocus** (recommandé, écosystème TipTap officiel) : serveur
-     Node/WSS auto-hébergé, extension auth JWT Supabase, persistance
-     Postgres via `@hocuspocus/extension-database` ou SQLite/S3.
-   - **B. Supabase Realtime + `y-protocols` custom** : pas de serveur
-     supplémentaire mais réinvente le transport.
-   → **Recommandation : A**, dans `apps/collab` (nouveau workspace) ou comme
-   route Next.js custom server.
-2. **Persistance des documents Yjs** : stocker l'état Yjs (binaire) à côté du
-   HTML autosavé, pour rejouer l'historique et merger sans conflit.
-3. **Présence + curseurs** : `@tiptap/extension-collaboration-cursor` +
-   `@hocuspocus/provider` (awareness), afficher avatars/noms des éditeurs.
-4. **Auth** : extension Hocuspocus qui valide le JWT Supabase (même logique
-   que le middleware Go) et vérifie le RBAC de la publication
-   (owner/editor/writer) — réutiliser `EditorCapabilities` de l'API.
-5. **Conflits / dernier écrit gagne** : garder `updatedAt` côté article pour
-   détecter les écritures concurrentes (brouillon vs brouillon).
-6. **Indicateur d'état** : remplacer « Co-édition · essai local » par le vrai
-   compte de pairs (le composant affiche déjà `collaborationPeerCount`).
+### Ce qui reste (durcissement)
+1. **RBAC publication** dans `onLoadDocument` : vérifier que l'utilisateur est
+   owner/editor/writer de la publication de l'article (via Prisma) avant de
+   servir le document.
+2. **TTL / nettoyage** : purger `collab_documents` des brouillons non touchés
+   depuis N jours (cron Go existant ou worker).
+3. **Historique** : l'état canonique public reste le HTML autosavé ; Yjs peut
+   plus tard alimenter un historique de révisions (snapshots périodiques).
 
-### Architecture cible
+### Architecture en place
 ```
-Dashboard (TipTap + Collaboration ext)
-        │  WSS (wss://collab.qoe.fi)
+Dashboard (TipTap + Collaboration ext + Caret)
+        │  WSS (NEXT_PUBLIC_COLLAB_URL)
         ▼
-Hocuspocus server (Node, auth JWT, awareness)
+Hocuspocus server (apps/collab-server, auth JWT, awareness)
         │  persistance
         ▼
-Postgres (docs Yjs binaires)  +  autosave HTML (API Go existante)
+Postgres (collab_documents, état Yjs binaire) + autosave HTML (API Go)
 ```
 
 ---
@@ -205,8 +200,8 @@ Postgres (docs Yjs binaires)  +  autosave HTML (API Go existante)
 
 1. **Embedding** : chunking (table ArticleChunk) vs colonne unique ; inference
    locale via TEI ; dimension 1024 (migration).
-2. **Collab** : Hocuspocus (recommandé) vs Supabase Realtime ; persistance
-   Postgres vs S3.
+2. **Collab** : ✅ Hocuspocus retenu et implémenté (persistance Postgres).
+   Décisions restantes : RBAC dans onLoadDocument, TTL de nettoyage.
 3. **Mails** : réécrire l'envoi en Go (recommandé) vs worker TS + endpoint
    interne ; provider Resend vs SMTP (attend les clés).
 4. **Stripe** : webhook Go déjà en place (signature HMAC + asynq) ; attend les
@@ -222,8 +217,7 @@ Postgres (docs Yjs binaires)  +  autosave HTML (API Go existante)
    visible rapidement.
 2. **Pipeline embedding jina** — migration 1024 + TEI local + worker asynq →
    débloque recherche sémantique + similaires.
-3. **Hocuspocus** — serveur collab + auth + persistance → débloque la
-   co-édition réelle (l'UI TipTap est déjà prête).
+3. **Hocuspocus** — ✅ fait (apps/collab-server) ; reste le RBAC publication.
 4. **Mails + Stripe** — à la toute fin (attend les clés).
 5. **Basculer 100 % des server actions sur Go** — purge des branches
    `isGoEnabled()` legacy.
@@ -239,7 +233,8 @@ Postgres (docs Yjs binaires)  +  autosave HTML (API Go existante)
 | `apps/api-go/internal/workers/newsletter.go` | Fanout newsletter (logger seulement — envoi à brancher) |
 | `apps/api-go/internal/modules/articles/service.go` | Hook `article.published` (point d'accroche embedding) |
 | `apps/dashboard/src/features/editor/components/Editor.tsx` | Éditeur TipTap + branchement Collaboration (prêt) |
-| `apps/dashboard/src/features/editor/collaboration/LocalCollaborationProvider.ts` | Maquette BroadcastChannel à remplacer |
+| `apps/collab-server/` | Serveur Hocuspocus : persistance Postgres + auth JWT + factory testable |
+| `apps/dashboard/src/features/editor/components/Editor.tsx` | Éditeur TipTap + HocuspocusProvider + curseurs + seed post-sync |
 | `packages/workers/src/notification-email.ts` | Outbox email TS (à réécrire en Go ou brancher) |
 | `packages/api-client/src/actions/utils/go-client.ts` | Proxy fin web → Go (goFetch) |
 | `apps/feed/src/app/(reader)/[username]/components/ProfileView.tsx` | Profil web (refonte en cours) |

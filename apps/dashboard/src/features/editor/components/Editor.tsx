@@ -6,6 +6,8 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Image from '@tiptap/extension-image';
 import Collaboration from '@tiptap/extension-collaboration';
+import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
+import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
 import { PaywallDivider } from '../extensions/PaywallDivider';
 import { AnnotationMark } from '../extensions/AnnotationMark';
@@ -45,12 +47,12 @@ import {
 import { cn } from '@qoe/utils';
 import { compressImage } from '@/lib/image-compressor';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
+import { createClient as createSupabaseClient } from '@qoe/supabase';
 import { useAutoSaveArticle, type AutoSavePayload } from '@qoe/api-client';
 import type { EditorCapabilities } from '@qoe/api-client/actions/articles';
 import { ArticleInspectorModal } from '@/app/(creator)/analytics/components/ArticleInspectorModal';
 import { t } from '@lingui/core/macro';
 import { ArticleAttributionEditor, type ArticleAttributionDraft } from './ArticleAttributionEditor';
-import { LocalCollaborationProvider } from '../collaboration/LocalCollaborationProvider';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) return error.message;
@@ -60,6 +62,34 @@ function getErrorMessage(error: unknown, fallback: string): string {
   }
   return fallback;
 }
+
+/**
+ * 🎨 Couleur stable par utilisateur pour les curseurs de co-édition.
+ * Hash simple du userId → palette contrastée (même id = même couleur).
+ */
+const CURSOR_COLORS = [
+  '#ef4444',
+  '#f97316',
+  '#eab308',
+  '#22c55e',
+  '#14b8a6',
+  '#3b82f6',
+  '#8b5cf6',
+  '#ec4899',
+  '#06b6d4',
+  '#84cc16',
+];
+
+function colorForUserId(userId: string): string {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i += 1) {
+    hash = (hash * 31 + userId.charCodeAt(i)) >>> 0;
+  }
+  return CURSOR_COLORS[hash % CURSOR_COLORS.length];
+}
+
+/** URL WebSocket du serveur de collaboration (Hocuspocus). */
+const COLLAB_URL = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_COLLAB_URL : undefined;
 
 export interface EditorProps {
   initialTitle?: string;
@@ -152,29 +182,83 @@ export function Editor({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
+
+  // ─── Collaboration temps réel (Hocuspocus/Yjs) ────────────────────────
+  // Document Yjs partagé + provider WebSocket vers apps/collab-server.
   const collaborationDoc = useMemo(
     () =>
-      collaborationEnabled && collaborationRoomId && typeof window !== 'undefined'
+      collaborationEnabled && collaborationRoomId && COLLAB_URL && typeof window !== 'undefined'
         ? new Y.Doc()
         : null,
     [collaborationEnabled, collaborationRoomId]
   );
   const collaborationProvider = useMemo(
     () =>
-      collaborationDoc && collaborationRoomId
-        ? new LocalCollaborationProvider(collaborationDoc, `qoe-article-${collaborationRoomId}`)
+      collaborationDoc && collaborationRoomId && COLLAB_URL
+        ? new HocuspocusProvider({
+            url: COLLAB_URL,
+            name: `article:${collaborationRoomId}`,
+            document: collaborationDoc,
+            // JWT Supabase de la session courante — validé côté serveur par
+            // introspection `/auth/v1/user` (même source de vérité que l'API Go).
+            token: async () => {
+              const session = await createSupabaseClient().auth.getSession();
+              return session.data.session?.access_token ?? '';
+            },
+          })
         : null,
     [collaborationDoc, collaborationRoomId]
   );
-  const [collaborationPeerCount, setCollaborationPeerCount] = useState(0);
 
+  // Identité affichée sur les curseurs des co-éditeurs.
+  const [collabUser, setCollabUser] = useState<{ name: string; color: string } | null>(null);
   useEffect(() => {
-    if (!collaborationProvider) return;
-    const unsubscribe = collaborationProvider.onStatus((status, peerCount) => {
-      setCollaborationPeerCount(status === 'disconnected' ? 0 : peerCount);
-    });
+    let cancelled = false;
+    (async () => {
+      const session = await createSupabaseClient().auth.getSession();
+      const user = session.data.session?.user;
+      if (cancelled || !user) return;
+      const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+      const name =
+        (typeof meta.name === 'string' && meta.name) ||
+        (typeof meta.full_name === 'string' && meta.full_name) ||
+        user.email?.split('@')[0] ||
+        'Éditeur';
+      setCollabUser({ name, color: colorForUserId(user.id) });
+    })();
     return () => {
-      unsubscribe();
+      cancelled = true;
+    };
+  }, []);
+
+  // Compteur de co-éditeurs (awareness Yjs — hors soi-même).
+  const [collaborationPeerCount, setCollaborationPeerCount] = useState(0);
+  const [collaborationConnected, setCollaborationConnected] = useState(false);
+  useEffect(() => {
+    const provider = collaborationProvider;
+    if (!provider) return;
+
+    const handleAwareness = () => {
+      const states = provider.awareness?.getStates() ?? new Map();
+      let editors = 0;
+      states.forEach((state) => {
+        const s = state as { user?: unknown };
+        if (s && s.user) editors += 1;
+      });
+      // On retire soi-même pour n'afficher que les co-éditeurs.
+      setCollaborationPeerCount(Math.max(0, editors - 1));
+    };
+    const handleStatus = ({ status }: { status: 'connecting' | 'connected' | 'disconnected' }) => {
+      setCollaborationConnected(status === 'connected');
+      if (status !== 'connected') setCollaborationPeerCount(0);
+    };
+
+    provider.awareness?.on('change', handleAwareness);
+    provider.on('status', handleStatus);
+    handleAwareness();
+    return () => {
+      provider.awareness?.off('change', handleAwareness);
+      provider.off('status', handleStatus);
     };
   }, [collaborationProvider]);
 
@@ -192,7 +276,17 @@ export function Editor({
         },
       }),
       ...(collaborationDoc
-        ? [Collaboration.configure({ document: collaborationDoc, field: 'default' })]
+        ? [
+            Collaboration.configure({ document: collaborationDoc, field: 'default' }),
+            ...(collaborationProvider && collabUser
+              ? [
+                  CollaborationCaret.configure({
+                    provider: collaborationProvider,
+                    user: collabUser,
+                  }),
+                ]
+              : []),
+          ]
         : []),
     ],
     content: collaborationDoc ? '' : initialContent,
@@ -221,15 +315,31 @@ export function Editor({
     },
   });
 
+  // ─── Seed du document partagé ──────────────────────────────────────────
+  // Après le PREMIER sync avec le serveur : si le document Yjs est encore
+  // vide (personne n'a jamais édité cet article) et qu'un contenu initial
+  // existe, on l'insère AVEC propagation (`emitUpdate: true`) pour que le
+  // serveur le persiste et que les co-éditeurs le reçoivent.
+  // Si le serveur a déjà un état, il gagne : on ne seed pas.
   useEffect(() => {
-    if (!editor || !collaborationDoc || !initialContent) return;
-    const seedTimer = window.setTimeout(() => {
+    const provider = collaborationProvider;
+    if (!provider || !editor || !collaborationDoc || !initialContent) return;
+
+    // Le seed ne doit se produire qu'UNE fois, au tout premier sync.
+    let seeded = false;
+    const seedOnce = () => {
+      if (seeded) return;
+      seeded = true;
       if (collaborationDoc.getXmlFragment('default').length === 0) {
-        editor.commands.setContent(initialContent, { emitUpdate: false });
+        editor.commands.setContent(initialContent);
       }
-    }, 500);
-    return () => window.clearTimeout(seedTimer);
-  }, [editor, collaborationDoc, initialContent]);
+    };
+    provider.on('synced', seedOnce);
+    if (provider.isSynced) seedOnce();
+    return () => {
+      provider.off('synced', seedOnce);
+    };
+  }, [collaborationProvider, editor, collaborationDoc, initialContent]);
 
   const { scheduleAutoSave, status: autoSaveStatus } = useAutoSaveArticle({
     delay: 2500,
@@ -443,13 +553,20 @@ export function Editor({
               {initialTitle ? 'Édition' : 'Nouvel écrit'}
               {collaborationProvider && (
                 <span
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary"
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-medium',
+                    collaborationConnected
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-muted text-muted-foreground'
+                  )}
                   data-testid="collaboration-status"
                 >
                   <UsersRound className="h-3 w-3" />
-                  {collaborationPeerCount > 0
-                    ? `${collaborationPeerCount + 1} éditeurs`
-                    : 'Co-édition · essai local'}
+                  {collaborationConnected
+                    ? collaborationPeerCount > 0
+                      ? `${collaborationPeerCount + 1} éditeurs en direct`
+                      : 'Co-édition en direct'
+                    : 'Co-édition · reconnexion…'}
                 </span>
               )}
               {(isSaving || autoSaveStatus === 'saving') && (
