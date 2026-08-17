@@ -1,8 +1,10 @@
 import { createContext, useContext } from 'react';
+import type { SharedValue } from 'react-native-reanimated';
 
 export interface DrawerContextValue {
   openDrawer: () => void;
   closeDrawer: () => void;
+  progress?: SharedValue<number>;
 }
 
 export const DrawerContext = createContext<DrawerContextValue | null>(null);
