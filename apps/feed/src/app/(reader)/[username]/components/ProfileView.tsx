@@ -14,6 +14,8 @@ import {
   Image as ImageIcon,
   Users,
   UserCheck,
+  Pin,
+  Share2,
 } from 'lucide-react';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
@@ -160,6 +162,24 @@ export function ProfileView({
     }
   };
 
+  const handleShareProfile = async () => {
+    const url = window.location.href;
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({ title: user.name || '', url });
+        return;
+      } catch {
+        // L'utilisateur a annulé le partage natif → on tombe sur la copie.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Lien du profil copié.');
+    } catch {
+      toast.error('Impossible de copier le lien.');
+    }
+  };
+
   const handleDeletePost = async (postId: string): Promise<boolean> => {
     if (!isOwnProfile) return false;
 
@@ -187,6 +207,10 @@ export function ProfileView({
   const articlesList = user.articles || [];
   const repostsList = user.posts?.filter((p) => !!p.repostId && !!p.repost) || [];
   const mediaThoughts = user.posts?.filter((p) => !!p.imageUrl) || [];
+  const pinnedThoughts = rootThoughts.filter((p) => p.isPinned);
+  const regularThoughts = rootThoughts.filter((p) => !p.isPinned);
+  const siteUrl = user.customDomain || (user.subdomain ? `${user.subdomain}.qoe.fi` : null);
+  const profileHandle = user.username || user.subdomain || 'user';
 
   const formattedJoinedDate = new Date(user.createdAt).toLocaleDateString('fr-FR', {
     month: 'long',
@@ -266,6 +290,15 @@ export function ProfileView({
                   {isFollowing ? 'Abonné' : 'Suivre'}
                 </button>
               )}
+
+              {/* Partager le profil */}
+              <button
+                onClick={handleShareProfile}
+                title="Partager ce profil"
+                className="h-9 w-9 flex items-center justify-center border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </button>
             </div>
 
             {/* User Identity */}
@@ -304,21 +337,30 @@ export function ProfileView({
                 <Calendar className="w-3.5 h-3.5 text-muted-foreground/70" />
                 <span>A rejoint en {formattedJoinedDate}</span>
               </div>
-              {(user.customDomain || user.subdomain) && (
+              {siteUrl && (
                 <a
-                  href={`https://${user.customDomain || `${user.subdomain}.qoe.fi`}`}
+                  href={`https://${siteUrl}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1.5 text-brand hover:underline cursor-pointer"
                 >
                   <LinkIcon className="w-3.5 h-3.5" />
-                  <span>{user.customDomain || `${user.subdomain}.qoe.fi`}</span>
+                  <span>{siteUrl}</span>
                 </a>
               )}
             </div>
 
-            {/* Follow Stats — cliquables (parité Bluesky) */}
+            {/* Stats — cliquables (parité Bluesky : pensées · abonnements · abonnés) */}
             <div className="flex items-center gap-6 pt-4 text-xs">
+              <button
+                onClick={() => handleTabChange('thoughts')}
+                className="flex items-center gap-1.5 cursor-pointer hover:underline group"
+              >
+                <span className="font-bold text-foreground">{rootThoughts.length}</span>
+                <span className="text-muted-foreground font-medium group-hover:text-foreground transition-colors">
+                  pensées
+                </span>
+              </button>
               <button
                 onClick={() => handleTabChange('following')}
                 className="flex items-center gap-1.5 cursor-pointer hover:underline group"
@@ -403,18 +445,38 @@ export function ProfileView({
               {rootThoughts.length === 0 ? (
                 <EmptyTabMessage message="Aucune pensée originale publiée pour le moment." />
               ) : (
-                rootThoughts.map((post) => (
-                  <ThoughtCard
-                    key={post.id}
-                    post={post}
-                    currentUserId={currentUserId}
-                    onDeletePost={handleDeletePost}
-                    onOpenPost={(id, authorUsername) => {
-                      const handle = authorUsername || user.username || user.subdomain || user.id;
-                      window.location.href = routes.feed.thought(handle, id);
-                    }}
-                  />
-                ))
+                <>
+                  {/* Pensées épinglées en tête (parité Bluesky) */}
+                  {pinnedThoughts.map((post) => (
+                    <div key={post.id} className="relative">
+                      <div className="flex items-center gap-1.5 px-1 pt-2 pb-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                        <Pin className="w-3 h-3" />
+                        <span>Épinglé</span>
+                      </div>
+                      <ThoughtCard
+                        post={post}
+                        currentUserId={currentUserId}
+                        onDeletePost={handleDeletePost}
+                        onOpenPost={(id, authorUsername) => {
+                          const handle = authorUsername || profileHandle || user.id;
+                          window.location.href = routes.feed.thought(handle, id);
+                        }}
+                      />
+                    </div>
+                  ))}
+                  {regularThoughts.map((post) => (
+                    <ThoughtCard
+                      key={post.id}
+                      post={post}
+                      currentUserId={currentUserId}
+                      onDeletePost={handleDeletePost}
+                      onOpenPost={(id, authorUsername) => {
+                        const handle = authorUsername || profileHandle || user.id;
+                        window.location.href = routes.feed.thought(handle, id);
+                      }}
+                    />
+                  ))}
+                </>
               )}
             </div>
           )}
@@ -493,18 +555,34 @@ export function ProfileView({
               {mediaThoughts.length === 0 ? (
                 <EmptyTabMessage message="Aucun média partagé." />
               ) : (
-                mediaThoughts.map((post) => (
-                  <ThoughtCard
-                    key={post.id}
-                    post={post}
-                    currentUserId={currentUserId}
-                    onDeletePost={handleDeletePost}
-                    onOpenPost={(id, authorUsername) => {
-                      const handle = authorUsername || user.username || user.subdomain || user.id;
-                      window.location.href = routes.feed.thought(handle, id);
-                    }}
-                  />
-                ))
+                /* Grille d'images façon Bluesky (3 colonnes) */
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  {mediaThoughts.map((post) =>
+                    post.imageUrl ? (
+                      <button
+                        key={post.id}
+                        onClick={() =>
+                          (window.location.href = routes.feed.thought(
+                            post.author?.username ||
+                              post.author?.subdomain ||
+                              profileHandle ||
+                              user.id,
+                            post.id
+                          ))
+                        }
+                        className="relative aspect-square overflow-hidden rounded-xl bg-muted group cursor-pointer"
+                      >
+                        <Image
+                          src={post.imageUrl}
+                          alt=""
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-200"
+                          sizes="(max-width: 768px) 50vw, 33vw"
+                        />
+                      </button>
+                    ) : null
+                  )}
+                </div>
               )}
             </div>
           )}
