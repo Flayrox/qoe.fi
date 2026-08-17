@@ -38,6 +38,7 @@ func main() {
 	stripeWorker := workers.NewStripeWorker(pool, cache.Client(cfg.RedisURL))
 	searchWorker := workers.NewSearchWorker(pool)
 	searchWorker.Setup(ctx)
+	embeddingWorker := workers.NewEmbeddingWorker(pool)
 
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(queue.TaskArticlePublished, func(ctx context.Context, t *asynq.Task) error {
@@ -58,6 +59,7 @@ func main() {
 	mux.HandleFunc(queue.TaskPostLiked, newsletterWorker.HandlePostLiked)
 	mux.HandleFunc(queue.TaskStripeEvent, stripeWorker.HandleStripeEvent)
 	mux.HandleFunc(queue.TaskSearchSync, searchWorker.HandleSearchSync)
+	mux.HandleFunc(queue.TaskArticleEmbedding, embeddingWorker.HandleArticleEmbedding)
 
 	srv := queue.NewServer(cfg.RedisURL, 10)
 	if srv == nil {

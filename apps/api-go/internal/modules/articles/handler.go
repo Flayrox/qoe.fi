@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api-go/internal/middleware"
@@ -23,6 +24,7 @@ func NewHandler(svc *Service) *Handler {
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/articles/{slug}", h.getBySlug)
 	r.Get("/v1/articles/{id}/comments", h.listComments)
+	r.Get("/v1/articles/{id}/similar", h.similar)
 }
 
 // RegisterProtected enregistre les routes créateur (auth requise + scopes clé API).
@@ -314,6 +316,30 @@ func (h *Handler) capabilities(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, caps)
+}
+
+// GET /v1/articles/{id}/similar — recommandations sémantiques (pgvector).
+// Public, comme la lecture d'article. Vide tant que le worker d'embedding
+// n'a pas indexé (liste vide ≠ erreur).
+func (h *Handler) similar(w http.ResponseWriter, r *http.Request) {
+	articleID := chi.URLParam(r, "id")
+	limit := 6
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	items, err := h.svc.SimilarArticles(r.Context(), articleID, limit)
+	if err != nil {
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Article introuvable")
+			return
+		}
+		log.Printf("[articles] similar: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"items": items})
 }
 
 // GET /v1/articles/{id}/comments — liste publique des commentaires.

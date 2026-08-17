@@ -56,6 +56,9 @@ go build ./... && go vet ./...
 | POST | `/v1/posts/{id}/reply` | répondre (threadgate + notifications REPLY/MENTION) |
 | GET | `/v1/posts/{id}/thread` | fil de discussion (racine + réponses + parent/repost) |
 | GET | `/v1/articles/{slug}?publicationId=&viewerEmail=` | lecture publique + **troncature paywall** (auth optionnelle) |
+| GET | `/v1/articles/{id}/similar?limit=` | **recommandations sémantiques** (pgvector, jina-embeddings-v3) |
+| GET | `/search/articles?q=` | recherche lexicale Meilisearch (parité Hono) |
+| GET | `/search/semantic?q=&limit=` | **recherche sémantique** (pgvector, 503 si embedding non configuré) |
 | GET | `/v1/articles?publicationId=` | lister les articles d'une publication (RBAC créateur) |
 | POST | `/v1/articles` | créer un article (RBAC média/personnel) |
 | PATCH | `/v1/articles/{id}` | mettre à jour le contenu (RBAC) |
@@ -115,6 +118,12 @@ go build ./... && go vet ./...
 - [x] **Marquage lu (toutes) en Go** : `markReadIDs` normalise un tableau vide
       en `nil` (NULL SQL) pour que `POST /v1/notifications/read` marque tout —
       testé unitairement (`go test ./...` sans DB)
+- [x] **Pipeline embedding IA (pgvector + jina-embeddings-v3)** : colonnes
+      `vector(1024)` + index HNSW (migration), worker asynq `embedding.article`
+      (normalise HTML → plain, tronque au paywall **zéro-leak**, dimension
+      vérifiée, skip si `EMBEDDING_URL` absent), enqueue à la publication,
+      endpoint `GET /v1/articles/{id}/similar` + `GET /search/semantic`
+      — **testé** (upsert réel en base pgvector, tri par cosinus, 503 sans service)
 
 ## Workers (asynq)
 ```bash

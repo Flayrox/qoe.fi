@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pgvector/pgvector-go"
+	db "github.com/qoefi/api-go/internal/database"
 	"github.com/qoefi/api-go/internal/testutil"
 )
 
@@ -442,6 +444,71 @@ func TestService_Review_NonSubmittedError(t *testing.T) {
 	// On ne peut revoir qu'un article SUBMITTED.
 	if err := svc.Review(ctx, id, fx.EditorID, true); err == nil {
 		t.Fatal("Review(DRAFT) = nil, attendu erreur")
+	}
+}
+
+// ─── Articles similaires (pgvector) ───────────────────────────────────
+
+func TestService_SimilarArticles_NoEmbedding_Empty(t *testing.T) {
+	_ = seed(t)
+	svc := newService()
+	ctx := context.Background()
+
+	// Aucun article du seed n'a d'embedding → liste vide, pas d'erreur.
+	items, err := svc.SimilarArticles(ctx, "art_test_001", 6)
+	if err != nil {
+		t.Fatalf("SimilarArticles: %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("len = %d, attendu 0 (pas d'embedding)", len(items))
+	}
+}
+
+func TestService_SimilarArticles_RanksBySimilarity(t *testing.T) {
+	_ = seed(t)
+	svc := newService()
+	ctx := context.Background()
+
+	// Écrit des embeddings : art_test_000 et art_test_001 proches, art_test_002 loin.
+	// Vecteur unitaire proche (cos ~0.98) puis orthogonal (cos 0).
+	proche := make([]float32, 1024)
+	proche[0] = 1
+	lointain := make([]float32, 1024)
+	lointain[1] = 1
+
+	q := db.New(poolTest)
+	if err := q.UpsertArticleEmbedding(ctx, db.UpsertArticleEmbeddingParams{
+		ID: "art_test_000", Embedding: pgvector.NewVector(proche),
+	}); err != nil {
+		t.Fatalf("upsert 000: %v", err)
+	}
+	if err := q.UpsertArticleEmbedding(ctx, db.UpsertArticleEmbeddingParams{
+		ID: "art_test_001", Embedding: pgvector.NewVector(proche),
+	}); err != nil {
+		t.Fatalf("upsert 001: %v", err)
+	}
+	if err := q.UpsertArticleEmbedding(ctx, db.UpsertArticleEmbeddingParams{
+		ID: "art_test_002", Embedding: pgvector.NewVector(lointain),
+	}); err != nil {
+		t.Fatalf("upsert 002: %v", err)
+	}
+
+	// Depuis art_test_000 : 001 (proche) avant 002 (orthogonal).
+	items, err := svc.SimilarArticles(ctx, "art_test_000", 6)
+	if err != nil {
+		t.Fatalf("SimilarArticles: %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("len = %d, attendu 2 (001 et 002)", len(items))
+	}
+	if items[0].ID != "art_test_001" {
+		t.Fatalf("items[0] = %s, attendu art_test_001 (plus proche)", items[0].ID)
+	}
+	if items[0].Score < items[1].Score {
+		t.Fatalf("score décroissant attendu: %f < %f", items[0].Score, items[1].Score)
+	}
+	if items[0].Title == "" || items[0].AuthorName == nil {
+		t.Fatalf("article mal assemblé: %+v", items[0])
 	}
 }
 

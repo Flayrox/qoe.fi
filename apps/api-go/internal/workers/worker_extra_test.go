@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/hibiken/asynq"
@@ -325,5 +326,135 @@ func TestSearch_HandleSync_MeliError_Returned(t *testing.T) {
 	worker := newTestSearchWorker(t, mock)
 	if err := worker.HandleSearchSync(context.Background(), searchTask(t, "delete", "art_x")); err == nil {
 		t.Fatal("erreur Meili = nil, attendu erreur")
+	}
+}
+
+// ─── Embedding worker (jina-embeddings-v3) ───────────────────────────
+
+// mockEmbedder imite le service d'inférence (vecteur fixe 1024 dims).
+type mockEmbedder struct {
+	vec []float32
+	err error
+}
+
+func (m *mockEmbedder) Embed(_ context.Context, _ string) ([]float32, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.vec, nil
+}
+
+func vec1024() []float32 {
+	v := make([]float32, 1024)
+	for i := range v {
+		v[i] = 0.01 * float32(i%97)
+	}
+	return v
+}
+
+func TestEmbedding_Normalize_StripsHTMLAndPaywall(t *testing.T) {
+	got := normalizeForEmbedding("Titre", `<h1>Titre</h1><p>Intro <b>gratuite</b></p><div data-type="paywall-divider"></div><p>Contenu PAYANT SENSIBLE</p>`)
+	if !strings.Contains(got, "Intro gratuite") {
+		t.Fatalf("normalize: intro absente -> %q", got)
+	}
+	if strings.Contains(got, "PAYANT") {
+		t.Fatalf("normalize: contenu premium leaké -> %q", got)
+	}
+	if strings.Contains(got, "<p>") || strings.Contains(got, "<div>") {
+		t.Fatalf("normalize: HTML résiduel -> %q", got)
+	}
+	if strings.Contains(got, "  ") {
+		t.Fatalf("normalize: espaces multiples -> %q", got)
+	}
+}
+
+func TestEmbedding_Normalize_TruncatesLongText(t *testing.T) {
+	long := strings.Repeat("mot ", 20000) // ~100k chars
+	got := normalizeForEmbedding("T", long)
+	if len(got) > 32000 {
+		t.Fatalf("normalize: pas de troncature (%d chars)", len(got))
+	}
+}
+
+func TestEmbedding_HandleArticleEmbedding_UpsertsVector(t *testing.T) {
+	t.Setenv(envEmbeddingURL, "http://embed.test")
+	fx, err := testutil.SeedArticles(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	_ = fx
+
+	var articleID string
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT id FROM "Article" WHERE slug = 'premier-article'`,
+	).Scan(&articleID); err != nil {
+		t.Fatalf("article: %v", err)
+	}
+
+	worker := &EmbeddingWorker{
+		pool:     poolTest,
+		q:        db.New(poolTest),
+		embedder: &mockEmbedder{vec: vec1024()},
+	}
+	payload, _ := json.Marshal(map[string]any{"articleId": articleID})
+	if err := worker.HandleArticleEmbedding(context.Background(), asynq.NewTask("embedding.article", payload)); err != nil {
+		t.Fatalf("HandleArticleEmbedding: %v", err)
+	}
+
+	var has bool
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT ("embedding" IS NOT NULL) FROM "Article" WHERE id = $1`, articleID,
+	).Scan(&has); err != nil {
+		t.Fatalf("embedding read: %v", err)
+	}
+	if !has {
+		t.Fatal("embedding non persisté en base")
+	}
+}
+
+func TestEmbedding_HandleArticleEmbedding_WrongDimension_Errors(t *testing.T) {
+	t.Setenv(envEmbeddingURL, "http://embed.test")
+	fx, err := testutil.SeedArticles(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	var articleID string
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT id FROM "Article" WHERE slug = 'premier-article'`,
+	).Scan(&articleID); err != nil {
+		t.Fatalf("article: %v", err)
+	}
+	_ = fx
+
+	worker := &EmbeddingWorker{
+		pool:     poolTest,
+		q:        db.New(poolTest),
+		embedder: &mockEmbedder{vec: make([]float32, 512)}, // mauvaise dimension
+	}
+	payload, _ := json.Marshal(map[string]any{"articleId": articleID})
+	if err := worker.HandleArticleEmbedding(context.Background(), asynq.NewTask("embedding.article", payload)); err == nil {
+		t.Fatal("dimension 512 = nil, attendu erreur (colonne vector(1024))")
+	}
+}
+
+func TestEmbedding_HandleArticleEmbedding_NoEnv_Skips(t *testing.T) {
+	t.Setenv(envEmbeddingURL, "")
+	fx, err := testutil.SeedArticles(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	var articleID string
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT id FROM "Article" WHERE slug = 'premier-article'`,
+	).Scan(&articleID); err != nil {
+		t.Fatalf("article: %v", err)
+	}
+	_ = fx
+
+	worker := &EmbeddingWorker{pool: poolTest, q: db.New(poolTest)}
+	payload, _ := json.Marshal(map[string]any{"articleId": articleID})
+	if err := worker.HandleArticleEmbedding(context.Background(), asynq.NewTask("embedding.article", payload)); err != nil {
+		t.Fatalf("sans EMBEDDING_URL: %v (attendu skip nil)", err)
 	}
 }
