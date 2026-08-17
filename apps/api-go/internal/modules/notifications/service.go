@@ -124,7 +124,7 @@ func (s *Service) List(ctx context.Context, recipientID, filter string, limit, o
 		rows = rows[:limit]
 	}
 
-	var grouped []Notification
+	grouped := []Notification{}
 	for i := range rows {
 		item := notificationFromRow(&rows[i])
 		added := false

@@ -91,7 +91,7 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
   const remainingChildren = childList.length - INITIAL_VISIBLE_CHILDREN;
 
   return (
-    <div className="space-y-1 font-sans">
+    <div className="font-sans">
       <ThoughtCard
         post={{ ...reply, isHiddenByAuthor: isHidden }}
         variant="reply"
@@ -108,10 +108,11 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
         onHideReplyToggle={handleHideReplyToggle}
         onBlockUserToggle={handleBlockUserToggle}
         onDeletePost={async () => deleteThought(reply.id)}
+        className={hasChildren ? 'border-none pb-1' : ''}
       />
 
       {hasChildren && (
-        <div className="space-y-1">
+        <div>
           {visibleChildren.map((child) => (
             <ThoughtThreadItem key={child.id} reply={child} depth={depth + 1} />
           ))}

@@ -150,10 +150,12 @@ func newRouter(d RouterDeps) *chi.Mux {
 		articlesHandler.RegisterPublic(pub)
 	})
 
-	// Feed : lecture publique (pensées d'un profil par slug, auth optionnelle).
-	feedPublic := feed.NewHandler(feed.NewService(pool, rc))
+	// Feed & Posts : lecture publique (auth optionnelle : threads, trending, posts, profil, engagement).
+	feedHandler := feed.NewHandler(feed.NewService(pool, rc))
+	postsHandler := posts.NewHandler(posts.NewService(pool, rc))
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
-		feedPublic.RegisterPublic(pub)
+		feedHandler.RegisterPublic(pub)
+		postsHandler.RegisterPublic(pub)
 	})
 
 	// Highlights : surlignages publics d'un article (auth optionnelle).
@@ -172,11 +174,8 @@ func newRouter(d RouterDeps) *chi.Mux {
 		protected.Use(authmw.RateLimit(rc, time.Minute, 600, true))
 		protected.Use(auth.CombinedAuth(db.New(pool)))
 
-		postsHandler := posts.NewHandler(posts.NewService(pool, rc))
-		postsHandler.Register(protected)
-
-		feedHandler := feed.NewHandler(feed.NewService(pool, rc))
-		feedHandler.Register(protected)
+		postsHandler.RegisterProtected(protected)
+		feedHandler.RegisterProtected(protected)
 
 		articlesHandler.RegisterProtected(protected, authmw.RequireAPIScope)
 

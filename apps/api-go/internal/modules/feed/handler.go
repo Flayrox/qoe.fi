@@ -20,16 +20,23 @@ func NewHandler(svc *Service) *Handler {
 }
 
 func (h *Handler) Register(r chi.Router) {
+	h.RegisterProtected(r)
+	h.RegisterPublic(r)
+}
+
+// RegisterProtected enregistre les routes nécessitant une authentification :
+// le feed d'abonnements (following).
+func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Route("/v1/feed", func(r chi.Router) {
 		r.Get("/", h.following)
-		r.Get("/trending", h.trending)
 	})
-	r.Get("/v1/posts/{id}/thread", h.thread)
 }
 
 // RegisterPublic enregistre les routes de lecture publique (auth optionnelle) :
-// les pensées d'un profil, ses articles, et les articles du feed.
+// le feed tendance, le fil d'un post (thread), les pensées d'un profil, ses articles, et les articles du feed.
 func (h *Handler) RegisterPublic(r chi.Router) {
+	r.Get("/v1/feed/trending", h.trending)
+	r.Get("/v1/posts/{id}/thread", h.thread)
 	r.Get("/v1/users/{username}/posts", h.userPosts)
 	r.Get("/v1/users/{username}/articles", h.userArticles)
 	r.Get("/v1/feed/articles", h.articles)

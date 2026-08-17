@@ -517,8 +517,8 @@ func (h *Handler) userFollowing(w http.ResponseWriter, r *http.Request) {
 		items = append(items, followActor{
 			ID:            row.UserID,
 			PublicationID: &pubID,
-			Name:          textPtr(row.UserName),
-			Username:      textPtr(row.UserUsername),
+			Name:          stringPtr(row.UserName),
+			Username:      stringPtr(row.UserUsername),
 			LogoURL:       textPtr(row.UserLogo),
 			IsCertified:   row.UserCertified,
 			FollowedAt:    row.FollowedAt.Time.Format(time.RFC3339),
@@ -551,26 +551,32 @@ func parseFollowPage(r *http.Request) (limit, offset int) {
 func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	targetID := chi.URLParam(r, "id")
+	ctx := r.Context()
 
-	if userID == targetID {
+	// Résout targetID vers l'ID de publication si un slug/username est passé
+	pubID := targetID
+	if pub, err := h.q.GetPublicationBySlugOrSubdomain(ctx, targetID); err == nil {
+		pubID = pub.ID
+	}
+
+	if ownerID, err := h.q.GetPublicationOwner(ctx, pubID); err == nil && ownerID == userID {
 		response.BadRequest(w, "You cannot follow yourself")
 		return
 	}
 
-	ctx := r.Context()
-	params := db.GetExistingFollowParams{ReaderId: toUUID(userID), PublicationId: targetID}
+	params := db.GetExistingFollowParams{ReaderId: toUUID(userID), PublicationId: pubID}
 
 	_, err := h.q.GetExistingFollow(ctx, params)
 	if err == nil {
-		if err := h.q.DeleteFollow(ctx, db.DeleteFollowParams{ReaderId: toUUID(userID), PublicationId: targetID}); err != nil {
+		if err := h.q.DeleteFollow(ctx, db.DeleteFollowParams{ReaderId: toUUID(userID), PublicationId: pubID}); err != nil {
 			log.Printf("[creator] unfollow: %v", err)
 			response.Internal(w)
 			return
 		}
-		if err := deleteFollowNotification(ctx, h.q, targetID, userID); err != nil {
+		if err := deleteFollowNotification(ctx, h.q, pubID, userID); err != nil {
 			log.Printf("[creator] delete follow notification: %v", err)
 		}
-		count, err := h.q.CountFollowers(ctx, targetID)
+		count, err := h.q.CountFollowers(ctx, pubID)
 		if err != nil {
 			count = 0
 		}
@@ -583,15 +589,15 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.q.InsertFollow(ctx, db.InsertFollowParams{ReaderId: toUUID(userID), PublicationId: targetID}); err != nil {
+	if err := h.q.InsertFollow(ctx, db.InsertFollowParams{ReaderId: toUUID(userID), PublicationId: pubID}); err != nil {
 		log.Printf("[creator] follow: %v", err)
 		response.Internal(w)
 		return
 	}
-	if err := notifyFollow(ctx, h.q, targetID, userID); err != nil {
+	if err := notifyFollow(ctx, h.q, pubID, userID); err != nil {
 		log.Printf("[creator] follow notification: %v", err)
 	}
-	count, err := h.q.CountFollowers(ctx, targetID)
+	count, err := h.q.CountFollowers(ctx, pubID)
 	if err != nil {
 		count = 0
 	}
@@ -689,6 +695,13 @@ func textPtr(t pgtype.Text) *string {
 		return nil
 	}
 	return &t.String
+}
+
+func stringPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 func timestampPtr(t pgtype.Timestamp) *string {

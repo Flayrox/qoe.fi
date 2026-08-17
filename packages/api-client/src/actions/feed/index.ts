@@ -195,16 +195,130 @@ export const toggleLikePostAction = safeAction<string, { liked: boolean }>(async
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────
+// Helpers de normalisation et reconstruction d'arbre de discussion (Web)
+// ─────────────────────────────────────────────────────────────────────
+
+function mapFeedPostToThreadThought(
+  p: ApiFeedPost | null | undefined
+): Record<string, unknown> | null {
+  if (!p) return null;
+  const author = (p.author || {}) as ApiFeedPost['author'];
+  const likesCount =
+    typeof p.likesCount === 'number'
+      ? p.likesCount
+      : typeof p.likeCount === 'number'
+        ? p.likeCount
+        : (p._count?.likes ?? 0);
+  const repliesCount =
+    typeof p.repliesCount === 'number'
+      ? p.repliesCount
+      : typeof p.replyCount === 'number'
+        ? p.replyCount
+        : (p._count?.replies ?? 0);
+  const repostsCount =
+    typeof p.repostsCount === 'number'
+      ? p.repostsCount
+      : typeof p.repostCount === 'number'
+        ? p.repostCount
+        : (p._count?.reposts ?? 0);
+
+  return {
+    id: p.id,
+    content: p.content ?? '',
+    imageUrl: p.imageUrl ?? null,
+    createdAt: p.createdAt,
+    triggerWarning: p.triggerWarning ?? null,
+    isPinned: p.isPinned ?? false,
+    isDeleted: p.isDeleted ?? false,
+    isHiddenByAuthor: p.isHiddenByAuthor ?? false,
+    author: {
+      id: author?.id ?? p.authorId ?? '',
+      name: author?.name ?? null,
+      username: author?.username ?? null,
+      subdomain: author?.subdomain ?? null,
+      logoUrl: author?.logoUrl ?? null,
+      isCertified: author?.isCertified ?? false,
+    },
+    parentId: p.parentId ?? null,
+    rootId: p.rootId ?? null,
+    repostId: p.repostId ?? null,
+    parent: p.parent ? mapFeedPostToThreadThought(p.parent) : null,
+    repost: p.repost ? mapFeedPostToThreadThought(p.repost) : null,
+    likesCount,
+    repliesCount,
+    repostsCount,
+    liked: !!p.liked,
+    reposted: !!p.reposted,
+    likes: p.likes ?? (p.liked ? [{ userId: author?.id || '' }] : []),
+    _count: {
+      likes: likesCount,
+      replies: repliesCount,
+      reposts: repostsCount,
+    },
+    attachments: p.attachments ?? [],
+    poll: p.poll ?? null,
+    tags: p.tags ?? [],
+    replyRestriction: p.replyRestriction ?? 'everyone',
+    replies: [] as Record<string, unknown>[],
+  };
+}
+
+function buildThreadTree(
+  rootPostId: string,
+  flatReplies: ApiFeedPost[]
+): Record<string, unknown>[] {
+  const nodesMap = new Map<string, Record<string, unknown>>();
+  const directReplies: Record<string, unknown>[] = [];
+
+  for (const r of flatReplies) {
+    const node = mapFeedPostToThreadThought(r);
+    if (node) {
+      nodesMap.set(node.id as string, node);
+    }
+  }
+
+  for (const r of flatReplies) {
+    const node = nodesMap.get(r.id);
+    if (!node) continue;
+    const parentId = r.parentId;
+    if (!parentId || parentId === rootPostId) {
+      directReplies.push(node);
+    } else {
+      const parentNode = nodesMap.get(parentId);
+      if (parentNode && Array.isArray(parentNode.replies)) {
+        parentNode.replies.push(node);
+      } else {
+        directReplies.push(node);
+      }
+    }
+  }
+
+  return directReplies;
+}
+
+function mapGoThreadToWebThread(
+  rawThread: ApiFeedPost | null | undefined
+): Record<string, unknown> | null {
+  if (!rawThread) return null;
+  const root = mapFeedPostToThreadThought(rawThread);
+  if (!root) return null;
+  const flatReplies = Array.isArray(rawThread.replies) ? rawThread.replies : [];
+  root.replies = buildThreadTree(root.id as string, flatReplies);
+  return root;
+}
+
 export const replyToPostAction = safeAction<{ postId: string; content: string }, { reply: Reply }>(
   async (rawInput) => {
     const { postId, content } = replyToPostSchema.parse(rawInput);
 
     // ✅ Go-only : threadgate + notifications MENTION/REPLY + invalidation cache.
-    const reply = await goFetch<unknown>(`/v1/posts/${postId}/reply`, {
+    const replyRaw = await goFetch<unknown>(`/v1/posts/${postId}/reply`, {
       method: 'POST',
       body: { content },
     });
-    return { reply: reply as Reply };
+    const reply = mapFeedPostToThreadThought(replyRaw);
+    return { reply: reply as unknown as Reply };
   }
 );
 
@@ -212,7 +326,8 @@ export const getPostThreadAction = safeAction<string, { post: ThreadPost }>(
   async (postId) => {
     // ✅ Go-only : thread (racine + réponses + chaîne parent/repost).
     const res = await goFetch<{ post: unknown }>(`/v1/posts/${postId}/thread`);
-    return { post: res.post as ThreadPost };
+    const mapped = mapGoThreadToWebThread(res.post);
+    return { post: mapped as unknown as ThreadPost };
   },
   { requireAuth: false }
 );
@@ -841,11 +956,18 @@ export const resolveProfileAction = safeAction<string, ProfileResolvePayload>(
   async (username) => {
     const handle = decodeURIComponent(username).replace(/^@/, '');
 
-    const [profile, postsRes, articlesRes] = await Promise.all([
-      goFetch<PublicProfileData>(`/v1/users/${encodeURIComponent(handle)}`),
+    const [profileRaw, postsRes, articlesRes] = await Promise.all([
+      goFetch<{ data: PublicProfileData } | PublicProfileData>(
+        `/v1/users/${encodeURIComponent(handle)}`
+      ),
       goFetch<ApiFeedResult>(`/v1/users/${encodeURIComponent(handle)}/posts?limit=50`),
       goFetch<ApiArticleFeedResult>(`/v1/users/${encodeURIComponent(handle)}/articles?limit=30`),
     ]);
+
+    const profile: PublicProfileData =
+      profileRaw && typeof profileRaw === 'object' && 'data' in profileRaw && profileRaw.data
+        ? (profileRaw.data as PublicProfileData)
+        : (profileRaw as PublicProfileData);
 
     const profileUser = {
       id: profile.id,

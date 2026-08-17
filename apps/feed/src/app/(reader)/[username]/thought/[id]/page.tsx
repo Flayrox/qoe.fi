@@ -1,5 +1,5 @@
 import { createClient } from '@qoe/supabase/server';
-import { posts } from '@qoe/db';
+import { getPostThreadAction } from '@qoe/api-client/actions/feed';
 import { getRequestDbUser } from '@/lib/cached-queries';
 import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
@@ -19,15 +19,17 @@ export async function generateMetadata({ params }: ThoughtPageProps): Promise<Me
   const resolvedParams = await params;
   const postId = resolvedParams.id;
 
-  const post = await posts.findThreadById(postId);
+  const res = await getPostThreadAction(postId);
+  const post = res.ok ? res.data?.post : null;
   if (!post) {
     return {
       title: 'Pensée introuvable — qoe.fi',
     };
   }
 
-  // If this post is a pure repost pointer, use the original post for metadata
-  const targetPost = post.repost || post;
+  // If this post is a pure repost pointer (no commentary), use the original post for metadata
+  const isPureRepost = post.repost && (!post.content || !post.content.trim());
+  const targetPost = isPureRepost ? post.repost! : post;
   const authorName =
     targetPost.author.name || `@${targetPost.author.username || targetPost.author.id}`;
   const shortContent =
@@ -60,17 +62,19 @@ export default async function ThoughtPage({ params }: ThoughtPageProps) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [post, dbUser] = await Promise.all([
-    posts.findThreadById(postId, user?.id),
+  const [threadRes, dbUser] = await Promise.all([
+    getPostThreadAction(postId),
     user ? getRequestDbUser(user.id) : null,
   ]);
+
+  const post = threadRes.ok ? threadRes.data?.post : null;
 
   if (!post) {
     notFound();
   }
 
-  // 1. If this is a pure repost record, redirect to the original post's canonical URL
-  if (post.repost) {
+  // 1. If this is a pure repost record (no commentary), redirect to the original post's canonical URL
+  if (post.repost && (!post.content || !post.content.trim())) {
     const originalAuthorHandle = post.repost.author.username || post.repost.author.id;
     redirect(routes.feed.thought(originalAuthorHandle, post.repost.id));
   }

@@ -252,27 +252,40 @@ export function ThoughtCard({
         {/* COLUMN 1: Avatar & Thread Line Connectors */}
         <div
           className={cn(
-            'relative flex flex-col items-center shrink-0 w-10',
+            'relative flex flex-col items-center shrink-0 w-10 self-stretch',
             hasTopBanner && 'pt-5'
           )}
         >
-          {/* Top Line Connector */}
+          {/* Top Line Connector (starts at top edge of card and connects down to avatar) */}
           {isThreadChild && (
             <div
               className={cn(
-                'w-[2px] bg-border/60 shrink-0 mb-1 rounded-full',
-                hasTopBanner ? 'h-8 -mt-8' : 'h-3.5 -mt-3.5'
+                'absolute w-[2px] bg-border left-1/2 -translate-x-1/2',
+                isFocus ? '-top-5' : '-top-3.5 sm:-top-4'
               )}
+              style={{
+                bottom: hasTopBanner ? 'calc(100% - 20px)' : 'calc(100% - 2px)',
+              }}
             />
           )}
 
-          <ProfileHoverCard user={displayAuthor} onOpenProfile={onOpenProfile}>
-            <AuthorAvatar user={displayAuthor} size={isFocus ? 'lg' : 'md'} showBadge={false} />
-          </ProfileHoverCard>
+          <div className="relative z-10 shrink-0">
+            <ProfileHoverCard user={displayAuthor} onOpenProfile={onOpenProfile}>
+              <AuthorAvatar user={displayAuthor} size={isFocus ? 'lg' : 'md'} showBadge={false} />
+            </ProfileHoverCard>
+          </div>
 
-          {/* Bottom Line Connector */}
+          {/* Bottom Line Connector (starts at avatar bottom and runs to bottom edge of card) */}
           {(isParent || isThreadParent) && !isThreadLastChild && (
-            <div className="w-[2px] bg-border/60 flex-1 my-1 rounded-full min-h-[16px]" />
+            <div
+              className={cn(
+                'absolute w-[2px] bg-border left-1/2 -translate-x-1/2',
+                isParent || isThreadParent ? '-bottom-1' : '-bottom-3.5 sm:-bottom-4'
+              )}
+              style={{
+                top: isFocus ? (hasTopBanner ? 72 : 52) : hasTopBanner ? 64 : 44,
+              }}
+            />
           )}
         </div>
 
@@ -369,8 +382,13 @@ export function ThoughtCard({
           {isQuotePost && (
             <QuotedThoughtCard
               post={post.repost || null}
-              onOpenPost={(id) => {
-                if (onOpenPost) onOpenPost(id);
+              onOpenPost={(id, authorUsername) => {
+                const handle =
+                  authorUsername ||
+                  post.repost?.author?.username ||
+                  post.repost?.author?.subdomain ||
+                  'auteur';
+                if (onOpenPost) onOpenPost(id, handle);
               }}
             />
           )}

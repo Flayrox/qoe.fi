@@ -52,7 +52,12 @@ SELECT p.id,
        (SELECT COUNT(*)::int FROM "Follows" f WHERE f."publicationId" = p.id) AS followers_count,
        (SELECT COUNT(*)::int FROM "Article" a WHERE a."publicationId" = p.id AND a."published" = true) AS articles_count
 FROM "Publication" p
-WHERE p.slug = $1 OR p.subdomain = $1
+LEFT JOIN "User" u ON u."publicationId" = p.id
+WHERE LOWER(p.slug) = LOWER($1)
+   OR LOWER(COALESCE(p.subdomain, '')) = LOWER($1)
+   OR LOWER(COALESCE(u.username, '')) = LOWER($1)
+   OR LOWER(p.id) = LOWER($1)
+   OR LOWER(COALESCE(u.id::text, '')) = LOWER($1)
 LIMIT 1;
 
 -- name: GetUserByIDFull :one
@@ -122,21 +127,21 @@ LIMIT $2 OFFSET $3;
 
 -- name: ListFollowingByUser :many
 -- Abonnements d'un utilisateur (profil), résolus vers les propriétaires des
--- publications suivies (PERSONAL), paginés — avec état follow du viewer.
-SELECT owner.id::text         AS user_id,
-       owner.name             AS user_name,
-       owner.username         AS user_username,
-       owner."logoUrl"        AS user_logo,
-       owner."isCertified"   AS user_certified,
-       owner."publicationId"::text AS user_publication_id,
-       f."createdAt"         AS followed_at,
-       (vf.id IS NOT NULL)::boolean AS viewer_follows
+-- publications suivies (PERSONAL/MEDIA), paginés — avec état follow du viewer.
+SELECT COALESCE(owner.id::text, p.id)       AS user_id,
+       COALESCE(owner.name, p.name)         AS user_name,
+       COALESCE(owner.username, p.slug)     AS user_username,
+       COALESCE(owner."logoUrl", p."logoUrl") AS user_logo,
+       COALESCE(owner."isCertified", p."isCertified") AS user_certified,
+       p.id::text                           AS user_publication_id,
+       f."createdAt"                        AS followed_at,
+       (vf.id IS NOT NULL)::boolean         AS viewer_follows
 FROM "Follows" f
 JOIN "Publication" p ON p.id = f."publicationId"
-JOIN "User" owner ON owner."publicationId" = p.id
-LEFT JOIN "Follows" vf ON vf."readerId" = @viewer_id AND vf."publicationId" = owner."publicationId"
+LEFT JOIN "User" owner ON owner."publicationId" = p.id
+LEFT JOIN "Follows" vf ON vf."readerId" = @viewer_id AND vf."publicationId" = p.id
 WHERE f."readerId" = $1
-ORDER BY f."createdAt" DESC, owner.id DESC
+ORDER BY f."createdAt" DESC, f.id DESC
 LIMIT $2 OFFSET $3;
 
 -- name: GetExistingBookmark :one

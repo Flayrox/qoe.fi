@@ -25,7 +25,9 @@ export function NotificationList() {
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useNotificationsInfiniteQuery(filter);
-  const notifications = (data?.pages ?? []).flatMap((p) => p.notifications);
+  const notifications = (data?.pages ?? [])
+    .flatMap((p) => p?.notifications ?? [])
+    .filter((n): n is NonNullable<typeof n> => Boolean(n && n.id));
   const { data: unreadCount = 0 } = useUnreadNotificationCountQuery();
   const markAsReadMutation = useMarkNotificationsAsReadMutation();
   const autoMarkedRef = useRef(false);

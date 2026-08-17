@@ -25,9 +25,16 @@ export const getNotificationsAction = safeAction<
   const limit = rawInput?.limit || 30;
   const cursor = rawInput?.cursor;
 
-  return goFetch<{ notifications: notifications.GroupedNotification[]; nextCursor: string | null }>(
+  const res = await goFetch<{
+    notifications?: notifications.GroupedNotification[];
+    nextCursor?: string | null;
+  }>(
     `/v1/notifications?filter=${filter}&limit=${limit}&cursor=${encodeURIComponent(cursor ?? '')}`
   );
+  return {
+    notifications: (res?.notifications ?? []).filter(Boolean),
+    nextCursor: res?.nextCursor ?? null,
+  };
 });
 
 export const getUnreadNotificationCountAction = safeAction<void, { count: number }>(async () => {

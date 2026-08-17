@@ -15,6 +15,16 @@ const VALID_TABS = [
   'following',
 ];
 
+const STATIC_ASSET_REGEX = /\.(ico|png|jpg|jpeg|gif|svg|webp|js|css|json|xml|txt|map)$/i;
+const RESERVED_USERNAMES = new Set([
+  'favicon.ico',
+  'robots.txt',
+  'sitemap.xml',
+  'api',
+  '_next',
+  'manifest.json',
+]);
+
 export async function generateMetadata({
   params,
 }: {
@@ -23,10 +33,18 @@ export async function generateMetadata({
   const resolvedParams = await params;
   const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
 
+  if (STATIC_ASSET_REGEX.test(rawUsername) || RESERVED_USERNAMES.has(rawUsername)) {
+    return { title: 'Profil introuvable — qoe.fi' };
+  }
+
   try {
-    const profile = await goFetch<PublicProfileData>(
+    const profileRaw = await goFetch<{ data: PublicProfileData } | PublicProfileData>(
       `/v1/users/${encodeURIComponent(rawUsername)}`
     );
+    const profile =
+      profileRaw && typeof profileRaw === 'object' && 'data' in profileRaw && profileRaw.data
+        ? profileRaw.data
+        : (profileRaw as PublicProfileData);
     return {
       title: `${profile.name || `@${profile.slug}`} (@${profile.slug}) — qoe.fi`,
       description: profile.heroText || `Profil créateur de ${profile.name} sur qoe.fi.`,
@@ -47,7 +65,12 @@ export default async function UserProfileTabPage({
   params: Promise<{ username: string; tab: string }>;
 }) {
   const resolvedParams = await params;
+  const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
   const rawTab = resolvedParams.tab;
+
+  if (STATIC_ASSET_REGEX.test(rawUsername) || RESERVED_USERNAMES.has(rawUsername)) {
+    notFound();
+  }
 
   if (!VALID_TABS.includes(rawTab)) {
     notFound();
@@ -58,7 +81,7 @@ export default async function UserProfileTabPage({
     data: { user: currentUser },
   } = await supabase.auth.getUser();
 
-  const resolved = await resolveProfileAction(resolvedParams.username);
+  const resolved = await resolveProfileAction(rawUsername);
   if (!resolved.ok || !resolved.data) {
     notFound();
   }

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { cn } from '@qoe/utils';
+import { CertifiedBadge } from './CertifiedBadge';
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 
@@ -88,15 +89,9 @@ export function UserAvatar({
       </div>
 
       {showBadge && isCertified && (
-        <span
-          className={cn(
-            'absolute text-brand font-black drop-shadow-xs bg-card rounded-full p-0.2 leading-none flex items-center justify-center',
-            sizeStyle.badge
-          )}
-          title="Auteur certifié"
-        >
-          ✓
-        </span>
+        <div className="absolute -bottom-1 -right-1">
+          <CertifiedBadge size={14} />
+        </div>
       )}
     </div>
   );

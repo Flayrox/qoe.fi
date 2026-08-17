@@ -72,7 +72,7 @@ export const getArticlesAction = safeAction<
   const user = await authenticateUser();
   const publicationId = await getActivePublicationId(user.id);
   return goFetch<Prisma.ArticleGetPayload<{ include: { category: true } }>[]>(
-    `/v1/articles/?publicationId=${publicationId}`
+    `/v1/articles?publicationId=${publicationId}`
   );
 });
 

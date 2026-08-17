@@ -25,6 +25,7 @@ export interface ThoughtThreadRootProps {
   currentUserId: string | null;
   dbUser?: DbUser | null;
   initialPost?: OptimisticThought | null;
+  standalone?: boolean;
   onClose?: () => void;
   onOpenProfile?: (username: string) => void;
   onOpenArticle?: (article: { id: string; slug: string; title: string }) => void;
@@ -41,6 +42,7 @@ export function ThoughtThreadRoot({
   currentUserId,
   dbUser,
   initialPost = null,
+  standalone = false,
   onClose,
   onOpenProfile,
   onOpenArticle,
@@ -111,6 +113,12 @@ export function ThoughtThreadRoot({
         post?.author?.subdomain ||
         post?.author?.id ||
         'author';
+
+      if (standalone) {
+        window.location.href = routes.feed.thought(handle, targetPostId);
+        return;
+      }
+
       const newUrl = routes.feed.thought(handle, targetPostId);
       window.history.pushState({ postId: targetPostId }, '', newUrl);
 
@@ -131,7 +139,7 @@ export function ThoughtThreadRoot({
         setLoading(false);
       });
     },
-    [post, currentUserId]
+    [post, currentUserId, standalone]
   );
 
   // 0ms Optimistic Like Handler with Rollback

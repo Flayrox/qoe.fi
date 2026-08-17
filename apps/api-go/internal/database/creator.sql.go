@@ -178,7 +178,12 @@ SELECT p.id,
        (SELECT COUNT(*)::int FROM "Follows" f WHERE f."publicationId" = p.id) AS followers_count,
        (SELECT COUNT(*)::int FROM "Article" a WHERE a."publicationId" = p.id AND a."published" = true) AS articles_count
 FROM "Publication" p
-WHERE p.slug = $1 OR p.subdomain = $1
+LEFT JOIN "User" u ON u."publicationId" = p.id
+WHERE LOWER(p.slug) = LOWER($1)
+   OR LOWER(COALESCE(p.subdomain, '')) = LOWER($1)
+   OR LOWER(COALESCE(u.username, '')) = LOWER($1)
+   OR LOWER(p.id) = LOWER($1)
+   OR LOWER(COALESCE(u.id::text, '')) = LOWER($1)
 LIMIT 1
 `
 
@@ -198,8 +203,8 @@ type GetPublicationBySlugOrSubdomainRow struct {
 	ArticlesCount  int32            `json:"articles_count"`
 }
 
-func (q *Queries) GetPublicationBySlugOrSubdomain(ctx context.Context, slug string) (GetPublicationBySlugOrSubdomainRow, error) {
-	row := q.db.QueryRow(ctx, getPublicationBySlugOrSubdomain, slug)
+func (q *Queries) GetPublicationBySlugOrSubdomain(ctx context.Context, lower string) (GetPublicationBySlugOrSubdomainRow, error) {
+	row := q.db.QueryRow(ctx, getPublicationBySlugOrSubdomain, lower)
 	var i GetPublicationBySlugOrSubdomainRow
 	err := row.Scan(
 		&i.ID,
@@ -534,20 +539,20 @@ func (q *Queries) ListFollowersByPublication(ctx context.Context, arg ListFollow
 }
 
 const listFollowingByUser = `-- name: ListFollowingByUser :many
-SELECT owner.id::text         AS user_id,
-       owner.name             AS user_name,
-       owner.username         AS user_username,
-       owner."logoUrl"        AS user_logo,
-       owner."isCertified"   AS user_certified,
-       owner."publicationId"::text AS user_publication_id,
-       f."createdAt"         AS followed_at,
-       (vf.id IS NOT NULL)::boolean AS viewer_follows
+SELECT COALESCE(owner.id::text, p.id)       AS user_id,
+       COALESCE(owner.name, p.name)         AS user_name,
+       COALESCE(owner.username, p.slug)     AS user_username,
+       COALESCE(owner."logoUrl", p."logoUrl") AS user_logo,
+       COALESCE(owner."isCertified", p."isCertified") AS user_certified,
+       p.id::text                           AS user_publication_id,
+       f."createdAt"                        AS followed_at,
+       (vf.id IS NOT NULL)::boolean         AS viewer_follows
 FROM "Follows" f
 JOIN "Publication" p ON p.id = f."publicationId"
-JOIN "User" owner ON owner."publicationId" = p.id
-LEFT JOIN "Follows" vf ON vf."readerId" = $4 AND vf."publicationId" = owner."publicationId"
+LEFT JOIN "User" owner ON owner."publicationId" = p.id
+LEFT JOIN "Follows" vf ON vf."readerId" = $4 AND vf."publicationId" = p.id
 WHERE f."readerId" = $1
-ORDER BY f."createdAt" DESC, owner.id DESC
+ORDER BY f."createdAt" DESC, f.id DESC
 LIMIT $2 OFFSET $3
 `
 
@@ -560,8 +565,8 @@ type ListFollowingByUserParams struct {
 
 type ListFollowingByUserRow struct {
 	UserID            string           `json:"user_id"`
-	UserName          pgtype.Text      `json:"user_name"`
-	UserUsername      pgtype.Text      `json:"user_username"`
+	UserName          string           `json:"user_name"`
+	UserUsername      string           `json:"user_username"`
 	UserLogo          pgtype.Text      `json:"user_logo"`
 	UserCertified     bool             `json:"user_certified"`
 	UserPublicationID string           `json:"user_publication_id"`
@@ -570,7 +575,7 @@ type ListFollowingByUserRow struct {
 }
 
 // Abonnements d'un utilisateur (profil), résolus vers les propriétaires des
-// publications suivies (PERSONAL), paginés — avec état follow du viewer.
+// publications suivies (PERSONAL/MEDIA), paginés — avec état follow du viewer.
 func (q *Queries) ListFollowingByUser(ctx context.Context, arg ListFollowingByUserParams) ([]ListFollowingByUserRow, error) {
 	rows, err := q.db.Query(ctx, listFollowingByUser,
 		arg.ReaderId,
