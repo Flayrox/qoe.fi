@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
@@ -72,6 +73,10 @@ func main() {
 			log.Fatalf("worker asynq: %v", err)
 		}
 	}()
+
+	// Nettoyage TTL des documents de collaboration (Yjs) : purge des
+	// brouillons non touchés depuis 14 jours, toutes les 6 heures.
+	go workers.RunCollabCleanup(ctx, pool, 6*time.Hour, 14*24*time.Hour)
 
 	<-ctx.Done()
 	log.Println("arrêt des workers…")
