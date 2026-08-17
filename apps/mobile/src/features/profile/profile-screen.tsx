@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Avatar } from '@/components/thought/avatar';
@@ -222,15 +223,38 @@ export function ProfileScreen({
                   </ThemedText>
                 ) : null}
 
-                {/* Stats */}
+                {/* Stats — abonnés/abonnements cliquables (parité Bluesky) */}
                 <View style={styles.statsRow}>
-                  <View style={styles.stat}>
+                  <Pressable
+                    style={styles.stat}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/user/[username]/follow',
+                        params: { username: handle, tab: 'followers' },
+                      })
+                    }
+                  >
                     <ThemedText type="smallBold">{followersCount}</ThemedText>
                     <ThemedText type="small" style={{ color: theme.textSecondary }}>
                       {' '}
                       {t('profile.followers', 'abonnés')}
                     </ThemedText>
-                  </View>
+                  </Pressable>
+                  <Pressable
+                    style={styles.stat}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/user/[username]/follow',
+                        params: { username: handle, tab: 'following' },
+                      })
+                    }
+                  >
+                    <ThemedText type="smallBold">{profile._count?.following ?? 0}</ThemedText>
+                    <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                      {' '}
+                      {t('profile.following_tab', 'abonnements')}
+                    </ThemedText>
+                  </Pressable>
                   <View style={styles.stat}>
                     <ThemedText type="smallBold">{profile._count?.articles ?? 0}</ThemedText>
                     <ThemedText type="small" style={{ color: theme.textSecondary }}>

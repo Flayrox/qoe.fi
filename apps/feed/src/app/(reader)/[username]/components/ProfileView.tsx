@@ -12,11 +12,14 @@ import {
   MessageSquare,
   FileText,
   Image as ImageIcon,
+  Users,
+  UserCheck,
 } from 'lucide-react';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
 import { ArticleCard } from '@/app/(reader)/home/components/ArticleCard';
 import { EditProfileModal } from '@/components/profile/EditProfileModal';
+import { FollowList } from './FollowList';
 import { toggleFollowCreatorHomeAction as toggleFollowCreator } from '@qoe/api-client/actions/feed';
 import { useDeletePostMutation } from '@qoe/api-client';
 
@@ -85,7 +88,18 @@ interface ProfileViewProps {
   initialTab?: string;
 }
 
-type ProfileTab = 'thoughts' | 'with_replies' | 'articles' | 'reposts' | 'media';
+type ProfileTab =
+  'thoughts' | 'with_replies' | 'articles' | 'reposts' | 'media' | 'followers' | 'following';
+
+const PROFILE_TABS: ProfileTab[] = [
+  'thoughts',
+  'with_replies',
+  'articles',
+  'reposts',
+  'media',
+  'followers',
+  'following',
+];
 
 export function ProfileView({
   profileUser: initialProfileUser,
@@ -98,9 +112,7 @@ export function ProfileView({
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [followersCount, setFollowersCount] = useState(user._count?.followers || 0);
   const [activeTab, setActiveTab] = useState<ProfileTab>(
-    ['thoughts', 'with_replies', 'articles', 'reposts', 'media'].includes(initialTab)
-      ? (initialTab as ProfileTab)
-      : 'thoughts'
+    PROFILE_TABS.includes(initialTab as ProfileTab) ? (initialTab as ProfileTab) : 'thoughts'
   );
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const { mutateAsync: deletePost } = useDeletePostMutation();
@@ -117,7 +129,7 @@ export function ProfileView({
       const pathname = window.location.pathname;
       const parts = pathname.split('/').filter(Boolean);
       const lastPart = parts[parts.length - 1];
-      if (['with_replies', 'articles', 'reposts', 'media'].includes(lastPart)) {
+      if (PROFILE_TABS.includes(lastPart as ProfileTab)) {
         setActiveTab(lastPart as ProfileTab);
       } else {
         setActiveTab('thoughts');
@@ -305,18 +317,28 @@ export function ProfileView({
               )}
             </div>
 
-            {/* Follow Stats */}
+            {/* Follow Stats — cliquables (parité Bluesky) */}
             <div className="flex items-center gap-6 pt-4 text-xs">
-              <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => handleTabChange('following')}
+                className="flex items-center gap-1.5 cursor-pointer hover:underline group"
+              >
                 <span className="font-bold text-foreground">
                   {user._count?.following || user._count?.follows || 0}
                 </span>
-                <span className="text-muted-foreground font-medium">abonnements</span>
-              </div>
-              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground font-medium group-hover:text-foreground transition-colors">
+                  abonnements
+                </span>
+              </button>
+              <button
+                onClick={() => handleTabChange('followers')}
+                className="flex items-center gap-1.5 cursor-pointer hover:underline group"
+              >
                 <span className="font-bold text-foreground">{followersCount}</span>
-                <span className="text-muted-foreground font-medium">abonnés</span>
-              </div>
+                <span className="text-muted-foreground font-medium group-hover:text-foreground transition-colors">
+                  abonnés
+                </span>
+              </button>
             </div>
           </div>
 
@@ -356,6 +378,20 @@ export function ProfileView({
               icon={<ImageIcon className="w-3.5 h-3.5" />}
               label="Médias"
               count={mediaThoughts.length}
+            />
+            <TabButton
+              active={activeTab === 'followers'}
+              onClick={() => handleTabChange('followers')}
+              icon={<Users className="w-3.5 h-3.5" />}
+              label="Abonnés"
+              count={followersCount}
+            />
+            <TabButton
+              active={activeTab === 'following'}
+              onClick={() => handleTabChange('following')}
+              icon={<UserCheck className="w-3.5 h-3.5" />}
+              label="Abonnements"
+              count={user._count?.following || user._count?.follows || 0}
             />
           </div>
         </div>
@@ -471,6 +507,14 @@ export function ProfileView({
                 ))
               )}
             </div>
+          )}
+
+          {(activeTab === 'followers' || activeTab === 'following') && (
+            <FollowList
+              handle={user.username || user.subdomain || 'user'}
+              initialTab={activeTab}
+              currentUserId={currentUserId}
+            />
           )}
         </div>
       </div>

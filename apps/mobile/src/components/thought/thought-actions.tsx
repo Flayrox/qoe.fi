@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ShareMenuButton } from '@/components/thought/share-menu';
+import { ActionSheet, type ActionSheetGroup } from '@/components/ui/action-sheet';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
@@ -65,6 +66,7 @@ export function ThoughtActions({
   // Fusionne l'état serveur (post) avec l'état optimiste (shadow).
   const shadow = usePostShadow(post as ThoughtActionsPost & { id?: string });
   const [busy, setBusy] = useState<null | 'like' | 'repost'>(null);
+  const [repostMenu, setRepostMenu] = useState(false);
 
   const liked = !!shadow.liked;
   const reposted = !!shadow.reposted;
@@ -107,10 +109,43 @@ export function ThoughtActions({
     void runToggle('like', !liked, () => apiClient.toggleLike(post.id));
   };
 
+  // Tap → menu Repost/Quote (parité Bluesky RepostButton) ; long-press → citer.
   const handleRepost = () => {
     if (busy) return;
+    setRepostMenu(true);
+  };
+
+  const runRepost = () => {
+    setRepostMenu(false);
     void runToggle('repost', !reposted, () => apiClient.toggleRepost(post.id));
   };
+
+  const quoteFromMenu = () => {
+    setRepostMenu(false);
+    handleQuote();
+  };
+
+  const repostGroups: ActionSheetGroup[] = [
+    {
+      items: [
+        {
+          key: 'repost',
+          label: reposted
+            ? t('feed.remove_repost', 'Retirer le repost')
+            : t('feed.repost', 'Repartager'),
+          icon: ICONS.repost,
+          onPress: runRepost,
+          disabled: busy !== null,
+        },
+        {
+          key: 'quote',
+          label: t('feed.quote_post', 'Citer la pensée'),
+          icon: ICONS.quote,
+          onPress: quoteFromMenu,
+        },
+      ],
+    },
+  ];
 
   const handleReply = () => {
     if (onReply) {
@@ -166,9 +201,11 @@ export function ThoughtActions({
           ) : null}
         </Pressable>
 
-        {/* Repost */}
+        {/* Repost — tap : menu Repost/Quote ; long-press : citer (parité Bluesky) */}
         <Pressable
           onPress={handleRepost}
+          onLongPress={handleQuote}
+          delayLongPress={350}
           hitSlop={8}
           style={({ pressed }) => [styles.action, pressed && styles.pressed]}
           accessibilityLabel={t('feed.repost', 'Repartager')}
@@ -191,6 +228,13 @@ export function ThoughtActions({
             </ThemedText>
           ) : null}
         </Pressable>
+
+        <ActionSheet
+          visible={repostMenu}
+          title={t('feed.repost_menu', 'Repartager ou citer')}
+          groups={repostGroups}
+          onClose={() => setRepostMenu(false)}
+        />
 
         {/* Like */}
         <Pressable
@@ -219,22 +263,8 @@ export function ThoughtActions({
         </Pressable>
       </View>
 
-      {/* Actions secondaires (droite) — Quote + Share */}
+      {/* Actions secondaires (droite) — Share (Quote est dans le menu Repost, parité Bluesky) */}
       <View style={styles.secondary}>
-        <Pressable
-          onPress={handleQuote}
-          hitSlop={8}
-          style={({ pressed }) => [styles.action, pressed && styles.pressed]}
-          accessibilityLabel={t('feed.quote', 'Citer')}
-        >
-          <SymbolView
-            name={ICONS.quote}
-            size={iconSize}
-            tintColor={theme.textSecondary}
-            weight="regular"
-          />
-        </Pressable>
-
         <ShareMenuButton url={shareUrl} />
       </View>
     </View>

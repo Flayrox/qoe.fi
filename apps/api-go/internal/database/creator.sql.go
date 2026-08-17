@@ -462,6 +462,143 @@ func (q *Queries) ListCategoriesByPublication(ctx context.Context, publicationid
 	return items, nil
 }
 
+const listFollowersByPublication = `-- name: ListFollowersByPublication :many
+SELECT u.id::text       AS user_id,
+       u.name           AS user_name,
+       u.username       AS user_username,
+       u."logoUrl"      AS user_logo,
+       u."isCertified" AS user_certified,
+       f."createdAt"   AS followed_at,
+       (vf.id IS NOT NULL)::boolean AS viewer_follows
+FROM "Follows" f
+JOIN "User" u ON u.id = f."readerId"
+LEFT JOIN "Follows" vf ON vf."readerId" = $4 AND vf."publicationId" = u."publicationId"
+WHERE f."publicationId" = $1
+  AND u."publicationId" IS NOT NULL
+ORDER BY f."createdAt" DESC, u.id DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListFollowersByPublicationParams struct {
+	PublicationId string      `json:"publicationId"`
+	Limit         int32       `json:"limit"`
+	Offset        int32       `json:"offset"`
+	ViewerID      pgtype.UUID `json:"viewer_id"`
+}
+
+type ListFollowersByPublicationRow struct {
+	UserID        string           `json:"user_id"`
+	UserName      pgtype.Text      `json:"user_name"`
+	UserUsername  pgtype.Text      `json:"user_username"`
+	UserLogo      pgtype.Text      `json:"user_logo"`
+	UserCertified bool             `json:"user_certified"`
+	FollowedAt    pgtype.Timestamp `json:"followed_at"`
+	ViewerFollows bool             `json:"viewer_follows"`
+}
+
+// Abonnés d'une publication (profil), paginés — avec état follow du viewer.
+func (q *Queries) ListFollowersByPublication(ctx context.Context, arg ListFollowersByPublicationParams) ([]ListFollowersByPublicationRow, error) {
+	rows, err := q.db.Query(ctx, listFollowersByPublication,
+		arg.PublicationId,
+		arg.Limit,
+		arg.Offset,
+		arg.ViewerID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFollowersByPublicationRow{}
+	for rows.Next() {
+		var i ListFollowersByPublicationRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.UserName,
+			&i.UserUsername,
+			&i.UserLogo,
+			&i.UserCertified,
+			&i.FollowedAt,
+			&i.ViewerFollows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFollowingByUser = `-- name: ListFollowingByUser :many
+SELECT owner.id::text    AS user_id,
+       owner.name        AS user_name,
+       owner.username    AS user_username,
+       owner."logoUrl"   AS user_logo,
+       owner."isCertified" AS user_certified,
+       f."createdAt"    AS followed_at,
+       (vf.id IS NOT NULL)::boolean AS viewer_follows
+FROM "Follows" f
+JOIN "Publication" p ON p.id = f."publicationId"
+JOIN "User" owner ON owner."publicationId" = p.id
+LEFT JOIN "Follows" vf ON vf."readerId" = $4 AND vf."publicationId" = owner."publicationId"
+WHERE f."readerId" = $1
+ORDER BY f."createdAt" DESC, owner.id DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListFollowingByUserParams struct {
+	ReaderId pgtype.UUID `json:"readerId"`
+	Limit    int32       `json:"limit"`
+	Offset   int32       `json:"offset"`
+	ViewerID pgtype.UUID `json:"viewer_id"`
+}
+
+type ListFollowingByUserRow struct {
+	UserID        string           `json:"user_id"`
+	UserName      pgtype.Text      `json:"user_name"`
+	UserUsername  pgtype.Text      `json:"user_username"`
+	UserLogo      pgtype.Text      `json:"user_logo"`
+	UserCertified bool             `json:"user_certified"`
+	FollowedAt    pgtype.Timestamp `json:"followed_at"`
+	ViewerFollows bool             `json:"viewer_follows"`
+}
+
+// Abonnements d'un utilisateur (profil), résolus vers les propriétaires des
+// publications suivies (PERSONAL), paginés — avec état follow du viewer.
+func (q *Queries) ListFollowingByUser(ctx context.Context, arg ListFollowingByUserParams) ([]ListFollowingByUserRow, error) {
+	rows, err := q.db.Query(ctx, listFollowingByUser,
+		arg.ReaderId,
+		arg.Limit,
+		arg.Offset,
+		arg.ViewerID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFollowingByUserRow{}
+	for rows.Next() {
+		var i ListFollowingByUserRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.UserName,
+			&i.UserUsername,
+			&i.UserLogo,
+			&i.UserCertified,
+			&i.FollowedAt,
+			&i.ViewerFollows,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateApiKeyLastUsed = `-- name: UpdateApiKeyLastUsed :exec
 UPDATE "ApiKey"
 SET "lastUsedAt" = now()

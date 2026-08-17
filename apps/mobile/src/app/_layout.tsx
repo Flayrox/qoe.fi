@@ -41,6 +41,7 @@ function RootNavigator() {
       <Stack.Screen name="thought/[id]" options={{ headerShown: true, title: 'Pensée' }} />
       <Stack.Screen name="post/[id]/[kind]" options={{ headerShown: true }} />
       <Stack.Screen name="user/[username]" options={{ headerShown: true, title: 'Profil' }} />
+      <Stack.Screen name="user/[username]/follow" options={{ headerShown: true }} />
       <Stack.Screen name="article/[slug]" options={{ headerShown: true, title: 'Article' }} />
       <Stack.Screen name="library" options={{ headerShown: true, title: 'Bibliothèque' }} />
       <Stack.Screen name="notifications" options={{ headerShown: true, title: 'Notifications' }} />

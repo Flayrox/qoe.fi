@@ -171,6 +171,24 @@ export interface QuotesPage {
   hasMore: boolean;
 }
 
+/** Utilisateur listé dans les abonnés/abonnements d'un profil. */
+export interface FollowActor {
+  id: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  isCertified: boolean;
+  followedAt: string;
+  viewerFollows: boolean;
+}
+
+/** Page d'abonnés/abonnements paginée. */
+export interface FollowPage {
+  items: FollowActor[];
+  nextCursor: string;
+  hasMore: boolean;
+}
+
 /** Fil de discussion : pensée cible + réponses (shape Go `ThreadPost`). */
 export type ThreadData = FeedPost & { replies: FeedPost[] };
 
@@ -217,7 +235,7 @@ export interface PublicProfileData {
   isFollowing: boolean;
   createdAt: string;
   type: 'PERSONAL' | 'MEDIA';
-  _count: { followers: number; articles: number };
+  _count: { followers: number; following: number; articles: number };
 }
 
 // ─────────────────────────────────────────────────────────────────────
