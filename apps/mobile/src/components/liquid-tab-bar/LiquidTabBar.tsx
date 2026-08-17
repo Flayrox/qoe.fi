@@ -352,21 +352,13 @@ export function LiquidTabBar({
     };
   });
 
-  // Aura radiale colorée inspirée des tons de l'avatar quand la pilule est sur le profil (position 0)
-  const auraAnimatedStyle = useAnimatedStyle(() => {
-    let currentX = pillTranslateX.value;
-    if (drawerProgress && !isInteracting.value) {
-      const laggedProgress = interpolate(
-        drawerProgress.value,
-        [0, 0.22, 0.65, 0.92, 1],
-        [0, 0.04, 0.68, 0.98, 1],
-        Extrapolation.CLAMP
-      );
-      currentX = interpolate(laggedProgress, [0, 1], [pillTranslateX.value, 0]);
+  // Masque d'écrêtage de l'avatar flouté : ne s'affiche qu'à l'ouverture de la Sidebar
+  const avatarBackdropStyle = useAnimatedStyle(() => {
+    if (!drawerProgress || isInteracting.value) {
+      return { opacity: 0 };
     }
 
-    const unitDistance = tabWidth > 0 ? Math.abs(currentX) / tabWidth : 0;
-    const opacity = interpolate(unitDistance, [0, 0.35, 0.75], [1, 0.4, 0], Extrapolation.CLAMP);
+    const opacity = interpolate(drawerProgress.value, [0.3, 0.95], [0, 0.9], Extrapolation.CLAMP);
 
     return {
       opacity,
@@ -420,13 +412,22 @@ export function LiquidTabBar({
                     pillAnimatedStyle,
                   ]}
                 >
-                  {/* Aura radiale chaleureuse du centre vers les bords quand on est sur l'avatar */}
+                  {/* Masque d'écrêtage de l'avatar flouté (effet Apple Glass Album Art) */}
                   <Animated.View
-                    style={[styles.avatarAuraContainer, auraAnimatedStyle]}
+                    style={[styles.avatarBackdropMask, avatarBackdropStyle]}
                     pointerEvents="none"
                   >
-                    <View style={styles.avatarAuraCenterGlow} />
-                    <View style={styles.avatarAuraOuterRing} />
+                    {userAvatarProps?.logoUrl ? (
+                      <Image
+                        source={{ uri: userAvatarProps.logoUrl }}
+                        style={styles.avatarBlurredImage}
+                        blurRadius={24}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.avatarBlurredFallback} />
+                    )}
+                    <View style={styles.avatarBackdropTintOverlay} />
                   </Animated.View>
                 </Animated.View>
               )}
@@ -515,35 +516,38 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     overflow: 'hidden',
   },
-  avatarAuraContainer: {
+  avatarBackdropMask: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     borderRadius: 26,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarAuraCenterGlow: {
-    position: 'absolute',
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(238, 75, 43, 0.38)',
-    shadowColor: '#ee4b2b',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.95,
-    shadowRadius: 14,
+  avatarBlurredImage: {
+    width: '200%',
+    height: '200%',
+    transform: [{ scale: 1.5 }],
   },
-  avatarAuraOuterRing: {
+  avatarBlurredFallback: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 26,
-    backgroundColor: 'rgba(255, 99, 71, 0.12)',
+    backgroundColor: '#ee4b2b',
+    opacity: 0.55,
+  },
+  avatarBackdropTintOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.12)',
   },
   tabsRow: {
     flexDirection: 'row',
