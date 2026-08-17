@@ -22,11 +22,14 @@ import { t } from '@/lib/i18n';
 export function ThreadReplyComposer({
   postId,
   replyingTo,
+  parentContent,
 }: {
   /** Pensée à laquelle on répond (la cible du fil). */
   postId: string;
   /** Handle de l'auteur de la pensée ciblée. */
   replyingTo?: string | null;
+  /** Extrait du contenu de la pensée ciblée (aperçu dans le composer). */
+  parentContent?: string | null;
 }) {
   const theme = useTheme();
   const { data: me } = useMe();
@@ -35,7 +38,11 @@ export function ThreadReplyComposer({
     playHaptic('Light');
     router.push({
       pathname: '/compose',
-      params: { parentId: postId, replyingTo: replyingTo ?? '' },
+      params: {
+        parentId: postId,
+        replyingTo: replyingTo ?? '',
+        parentContent: (parentContent ?? '').slice(0, 140),
+      },
     });
   };
 

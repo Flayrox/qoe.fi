@@ -204,9 +204,12 @@ func newRouter(d RouterDeps) *chi.Mux {
 		creatorHandler.RegisterAPIKey(apiKey)
 	})
 
-	// Profils publics (résolution publication par slug/subdomain).
+	// Profils publics (résolution publication par slug/subdomain). Auth
+	// optionnelle : si le viewer est connecté, on renseigne `isFollowing`.
 	creatorPublic := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
-	creatorPublic.RegisterPublic(r)
+	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
+		creatorPublic.RegisterPublic(pub)
+	})
 
 	return r
 }

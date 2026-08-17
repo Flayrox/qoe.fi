@@ -16,6 +16,7 @@ import { Avatar } from '@/components/thought/avatar';
 import { resolveDisplay } from '@/components/thought/normalize';
 import { PostContent } from '@/components/thought/post-content';
 import { ThoughtActions } from '@/components/thought/thought-actions';
+import { ThreadFollowButton } from '@/features/thread/thread-follow-button';
 import { niceDate, formatCount } from '@/lib/format';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -77,25 +78,29 @@ export function ThreadAnchorCard({
 
         {/* Contenu agrandi */}
         <View style={styles.content}>
-          {/* Nom + handle empilés */}
-          <View style={styles.authorBlock}>
-            <ThemedText style={styles.displayName} numberOfLines={1} onPress={openProfile}>
-              {display.author.name || display.author.username || '?'}
-            </ThemedText>
-            {display.author.username ? (
-              <ThemedText
-                style={{ color: theme.textSecondary }}
-                numberOfLines={1}
-                onPress={openProfile}
-              >
-                @{display.author.username}
+          {' '}
+          {/* Nom + handle empilés + bouton Suivre (parité Bluesky) */}
+          <View style={styles.authorRow}>
+            <View style={styles.authorBlock}>
+              <ThemedText style={styles.displayName} numberOfLines={1} onPress={openProfile}>
+                {display.author.name || display.author.username || '?'}
               </ThemedText>
+              {display.author.username ? (
+                <ThemedText
+                  style={{ color: theme.textSecondary }}
+                  numberOfLines={1}
+                  onPress={openProfile}
+                >
+                  @{display.author.username}
+                </ThemedText>
+              ) : null}
+            </View>
+            {display.author.username ? (
+              <ThreadFollowButton authorId={display.author.id} username={display.author.username} />
             ) : null}
           </View>
-
           {/* Corps en grand, sans troncature */}
           <PostContent post={display} quoted={resolveDisplay(post).quoted} big truncate={false} />
-
           {/* Stats */}
           {stats.length > 0 ? (
             <View
@@ -114,12 +119,10 @@ export function ThreadAnchorCard({
               ))}
             </View>
           ) : null}
-
           {/* Actions big */}
           <View style={styles.controls}>
             <ThoughtActions post={display} size="lg" onReply={onReply} />
           </View>
-
           {/* Date absolue */}
           <View style={styles.footerMeta}>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
@@ -165,9 +168,16 @@ const styles = StyleSheet.create({
     minWidth: 0,
     paddingBottom: Spacing.three,
   },
-  authorBlock: {
-    gap: 1,
+  authorRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
     marginBottom: Spacing.two,
+  },
+  authorBlock: {
+    flex: 1,
+    gap: 1,
   },
   displayName: {
     fontSize: 18,

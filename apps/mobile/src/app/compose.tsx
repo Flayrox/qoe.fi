@@ -11,17 +11,20 @@ import { ComposeScreen } from '@/features/compose/compose-screen';
 // Sans paramètre → nouvelle pensée.
 // =====================================================================
 export default function ComposeRoute() {
-  const { parentId, replyingTo, repostId, quotedAuthor, quotedText } = useLocalSearchParams<{
-    parentId?: string;
-    replyingTo?: string;
-    repostId?: string;
-    quotedAuthor?: string;
-    quotedText?: string;
-  }>();
+  const { parentId, replyingTo, parentContent, repostId, quotedAuthor, quotedText } =
+    useLocalSearchParams<{
+      parentId?: string;
+      replyingTo?: string;
+      parentContent?: string;
+      repostId?: string;
+      quotedAuthor?: string;
+      quotedText?: string;
+    }>();
   return (
     <ComposeScreen
       parentId={parentId}
       replyingTo={replyingTo}
+      parentContent={parentContent}
       repostId={repostId}
       quotedAuthor={quotedAuthor}
       quotedText={quotedText}

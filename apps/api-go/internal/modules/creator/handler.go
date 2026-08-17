@@ -338,6 +338,8 @@ func (h *Handler) userMe(w http.ResponseWriter, r *http.Request) {
 }
 
 // userByUsername résout une publication par slug OU subdomain (parité Hono).
+// Si le viewer est connecté, `isFollowing` indique s'il suit déjà la
+// publication (lecture best-effort — échec → false).
 func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
 
@@ -352,6 +354,17 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isFollowing := false
+	if userID, ok := middleware.UserID(r.Context()); ok && userID != "" {
+		_, err := h.q.GetExistingFollow(r.Context(), db.GetExistingFollowParams{
+			ReaderId:      toUUID(userID),
+			PublicationId: row.ID,
+		})
+		if err == nil {
+			isFollowing = true
+		}
+	}
+
 	response.OK(w, map[string]any{"data": map[string]any{
 		"id":             row.ID,
 		"name":           row.Name,
@@ -362,6 +375,7 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		"logoUrl":        textPtr(row.LogoUrl),
 		"headerImageUrl": textPtr(row.HeaderImageUrl),
 		"isCertified":    row.IsCertified,
+		"isFollowing":    isFollowing,
 		"createdAt":      timestampPtr(row.CreatedAt),
 		"type":           string(row.Type),
 		"_count":         map[string]int32{"followers": row.FollowersCount, "articles": row.ArticlesCount},
