@@ -1,3 +1,11 @@
+// =====================================================================
+// ➕ useOptimisticFollow — Mutation optimiste « Suivre »
+// =====================================================================
+// Bascule `isFollowed`/`isFollowing` sur le profil du créateur dans le cache
+// (familles feed + users). Annule et snapshot les DEUX familles, rollback
+// complet en cas d'échec.
+// =====================================================================
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { feedKeys, userKeys } from '../query-keys';
 import { isUnauthorizedError, notifyUnauthorized } from '../utils/authError';

@@ -12,23 +12,31 @@ export interface FetchFeedParams {
   username?: string;
 }
 
-export type FeedFetcherFn = (params: FetchFeedParams) => Promise<ApiResponse<ThoughtData[]>>;
+export type FeedFetcherFn<T = ThoughtData> = (params: FetchFeedParams) => Promise<ApiResponse<T[]>>;
 
-export interface UseInfiniteFeedOptions {
+export interface UseInfiniteFeedOptions<T = ThoughtData> {
   type?: FeedType;
   username?: string;
   limit?: number;
-  fetcher: FeedFetcherFn;
+  fetcher: FeedFetcherFn<T>;
   enabled?: boolean;
   initialData?: {
-    pages: ApiResponse<ThoughtData[]>[];
+    pages: ApiResponse<T[]>[];
     pageParams: (string | null)[];
   };
-  filterFn?: (item: ThoughtData) => boolean; // Fonction de filtrage local (ex: mots masqués, créateurs bloqués)
+  filterFn?: (item: T) => boolean; // Fonction de filtrage local (ex: mots masqués, créateurs bloqués)
   minVisibleQuota?: number; // Nombre minimum de posts visibles garantis (Défaut: 30)
 }
 
-export function useInfiniteFeed({
+/**
+ * ⏳ useInfiniteFeed — Feed infini paginé (générique).
+ *
+ * Générique sur le type d'item (`T`) : `ThoughtData` (web) ou `FeedSlice`
+ * (mobile, API Go). La pagination suit le contrat `ApiResponse<T[]>.meta`
+ * ({ cursor, hasMore }). Boucle d'auto-pagination tant que le quota de
+ * confort (`minVisibleQuota`, défaut 30) n'est pas atteint.
+ */
+export function useInfiniteFeed<T = ThoughtData>({
   type = 'for-you',
   username,
   limit = 20,
@@ -37,7 +45,7 @@ export function useInfiniteFeed({
   initialData,
   filterFn,
   minVisibleQuota = 30,
-}: UseInfiniteFeedOptions) {
+}: UseInfiniteFeedOptions<T>) {
   const queryKey = username ? feedKeys.userPosts(username) : feedKeys.timeline(type);
 
   const queryResult = useInfiniteQuery({
@@ -59,7 +67,7 @@ export function useInfiniteFeed({
     gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
     enabled,
-    initialData: initialData as InfiniteData<ApiResponse<ThoughtData[]>, string | null>,
+    initialData: initialData as InfiniteData<ApiResponse<T[]>, string | null>,
   });
 
   const { data, hasNextPage, isFetching, fetchNextPage } = queryResult;

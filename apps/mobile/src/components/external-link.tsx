@@ -4,6 +4,11 @@ import { type ComponentProps } from 'react';
 
 type Props = Omit<ComponentProps<typeof Link>, 'href'> & { href: Href & string };
 
+// Lien externe : ouvre une URL dans le navigateur in-app (SFSafariViewController
+// sur iOS / Custom Tabs sur Android) au lieu de quitter l'app. Sur le web,
+// comportement standard (<a target="_blank">).
+// ⚠️ `WebBrowserPresentationStyle.AUTOMATIC` : le navigateur in-app choisit
+//    automatiquement la présentation (page pleine vs sheet) selon le contexte.
 export function ExternalLink({ href, ...rest }: Props) {
   return (
     <Link
@@ -12,9 +17,9 @@ export function ExternalLink({ href, ...rest }: Props) {
       href={href}
       onPress={async (event) => {
         if (process.env.EXPO_OS !== 'web') {
-          // Prevent the default behavior of linking to the default browser on native.
+          // Empêche l'ouverture du navigateur système par défaut (natif).
           event.preventDefault();
-          // Open the link in an in-app browser.
+          // Ouvre le lien dans un navigateur in-app.
           await openBrowserAsync(href, {
             presentationStyle: WebBrowserPresentationStyle.AUTOMATIC,
           });

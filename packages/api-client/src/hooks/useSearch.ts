@@ -1,3 +1,13 @@
+// =====================================================================
+// 🔎 useSearch — Hooks React Query pour la recherche
+// =====================================================================
+// - useSearchQuery : recherche multi-entités (cache 30s), désactivée tant
+//   que la requête est vide (`enabled`).
+// - useTrendingQuery : hashtags tendance (cache 5 min).
+// ⚠️ Côté mobile, la recherche passera par l'API Go
+//    (apps/api-go/internal/modules/search → Meilisearch).
+// =====================================================================
+
 import { useQuery } from '@tanstack/react-query';
 import { searchKeys } from '../query-keys';
 import { searchAllAction, getTrendingHashtagsAction } from '../actions/search';

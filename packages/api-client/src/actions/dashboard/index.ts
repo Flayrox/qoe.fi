@@ -1,5 +1,17 @@
 'use server';
 
+// =====================================================================
+// 🎛️ actions/dashboard — Server Actions des réglages créateur (dashboard)
+// =====================================================================
+// Profil de publication (hero, logo, thème, SEO…), sous-domaine, liens de
+// navigation / réseaux sociaux, onboarding, et gestion des clés API
+// (demande d'accès, génération `qoe_live_…` avec scopes à moindre
+// privilège, révocation).
+// 🔗 Proxy Go : la plupart des mutations sont déléguées au backend Go
+//    (apps/api-go/internal/modules/settings) quand QOE_API_GO_URL est défini.
+// ⚠️ Fichier serveur — non exposé au mobile.
+// =====================================================================
+
 import { prisma, type User, type Prisma } from '@qoe/db/client';
 import { publications } from '@qoe/db';
 import { revalidatePath } from 'next/cache';

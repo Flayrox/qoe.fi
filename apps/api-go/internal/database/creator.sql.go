@@ -325,6 +325,96 @@ func (q *Queries) InsertFollow(ctx context.Context, arg InsertFollowParams) erro
 	return err
 }
 
+const listBookmarksByReader = `-- name: ListBookmarksByReader :many
+SELECT b.id                 AS bookmark_id,
+       b."createdAt"        AS bookmarked_at,
+       a.id                 AS article_id,
+       a.title              AS article_title,
+       a.slug               AS article_slug,
+       a."readingTime"      AS article_reading_time,
+       a."isPremium"        AS article_is_premium,
+       a."createdAt"        AS article_created_at,
+       p.id                 AS publication_id,
+       p.name               AS publication_name,
+       p.slug               AS publication_slug,
+       p.subdomain          AS publication_subdomain,
+       u.id::text           AS author_id,
+       u.name               AS author_name,
+       u.username           AS author_username,
+       u."logoUrl"          AS author_logo
+FROM "Bookmark" b
+JOIN "Article" a ON a.id = b."articleId" AND a.published = true
+JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "User" u ON u.id = a."authorId"
+WHERE b."readerId" = $1
+ORDER BY b."createdAt" DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListBookmarksByReaderParams struct {
+	ReaderId pgtype.UUID `json:"readerId"`
+	Limit    int32       `json:"limit"`
+	Offset   int32       `json:"offset"`
+}
+
+type ListBookmarksByReaderRow struct {
+	BookmarkID           string           `json:"bookmark_id"`
+	BookmarkedAt         pgtype.Timestamp `json:"bookmarked_at"`
+	ArticleID            string           `json:"article_id"`
+	ArticleTitle         string           `json:"article_title"`
+	ArticleSlug          string           `json:"article_slug"`
+	ArticleReadingTime   int32            `json:"article_reading_time"`
+	ArticleIsPremium     bool             `json:"article_is_premium"`
+	ArticleCreatedAt     pgtype.Timestamp `json:"article_created_at"`
+	PublicationID        string           `json:"publication_id"`
+	PublicationName      string           `json:"publication_name"`
+	PublicationSlug      string           `json:"publication_slug"`
+	PublicationSubdomain pgtype.Text      `json:"publication_subdomain"`
+	AuthorID             string           `json:"author_id"`
+	AuthorName           pgtype.Text      `json:"author_name"`
+	AuthorUsername       pgtype.Text      `json:"author_username"`
+	AuthorLogo           pgtype.Text      `json:"author_logo"`
+}
+
+// Articles sauvegardés (bookmarks) d'un lecteur, avec titre/slug/publication
+// et la date de sauvegarde — pour la bibliothèque mobile.
+func (q *Queries) ListBookmarksByReader(ctx context.Context, arg ListBookmarksByReaderParams) ([]ListBookmarksByReaderRow, error) {
+	rows, err := q.db.Query(ctx, listBookmarksByReader, arg.ReaderId, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBookmarksByReaderRow{}
+	for rows.Next() {
+		var i ListBookmarksByReaderRow
+		if err := rows.Scan(
+			&i.BookmarkID,
+			&i.BookmarkedAt,
+			&i.ArticleID,
+			&i.ArticleTitle,
+			&i.ArticleSlug,
+			&i.ArticleReadingTime,
+			&i.ArticleIsPremium,
+			&i.ArticleCreatedAt,
+			&i.PublicationID,
+			&i.PublicationName,
+			&i.PublicationSlug,
+			&i.PublicationSubdomain,
+			&i.AuthorID,
+			&i.AuthorName,
+			&i.AuthorUsername,
+			&i.AuthorLogo,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCategoriesByPublication = `-- name: ListCategoriesByPublication :many
 SELECT c.id,
        c.name,

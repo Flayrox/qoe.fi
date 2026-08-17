@@ -1,3 +1,11 @@
+// =====================================================================
+// 🔖 useOptimisticBookmark — Mutation optimiste « Signet »
+// =====================================================================
+// Patron identique aux hooks like/repost, appliqué au marque-page
+// (bookmark) d'articles. Bascule `isBookmarked`/`bookmarked` dans le cache
+// feed avec snapshot + rollback + invalidation.
+// =====================================================================
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { feedKeys } from '../query-keys';
 import { isUnauthorizedError, notifyUnauthorized } from '../utils/authError';

@@ -34,10 +34,14 @@ func (h *Handler) Register(r chi.Router) {
 	r.Route("/v1/posts", func(r chi.Router) {
 		r.Post("/", h.create)
 		r.Get("/{id}", h.get)
+		r.Delete("/{id}", h.delete)
 		r.Post("/{id}/like", h.toggleLike)
 		r.Post("/{id}/repost", h.toggleRepost)
 		r.Post("/{id}/reply", h.reply)
 		r.Post("/{id}/bookmark", h.toggleBookmark)
+		r.Post("/{id}/pin", h.togglePin)
+		r.Post("/{id}/poll/vote", h.votePoll)
+		r.Post("/{id}/poll/unvote", h.unvotePoll)
 	})
 	// Aliases mobile (parité Hono apps/api) : /v1/thoughts → posts.
 	r.Route("/v1/thoughts", func(r chi.Router) {
@@ -134,6 +138,46 @@ func (h *Handler) reply(w http.ResponseWriter, r *http.Request) {
 	response.Created(w, post)
 }
 
+type votePollInput struct {
+	OptionID string `json:"optionId"`
+}
+
+// POST /v1/posts/{id}/poll/vote — vote sur un sondage (idempotent).
+func (h *Handler) votePoll(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+
+	var in votePollInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if in.OptionID == "" {
+		response.BadRequest(w, "optionId requis")
+		return
+	}
+
+	poll, err := h.svc.VotePoll(r.Context(), id, in.OptionID, userID)
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, poll)
+}
+
+// POST /v1/posts/{id}/poll/unvote — retire le vote.
+func (h *Handler) unvotePoll(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+
+	poll, err := h.svc.UnvotePoll(r.Context(), id, userID)
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, poll)
+}
+
 func (h *Handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
@@ -145,4 +189,33 @@ func (h *Handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]bool{"bookmarked": bookmarked})
+}
+
+// DELETE /v1/posts/{id} — suppression (soft) par l'auteur.
+func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+
+	if err := h.svc.Delete(r.Context(), id, userID); err != nil {
+		if errors.Is(err, errThoughtNotFound) {
+			response.NotFound(w, "Post introuvable")
+			return
+		}
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, map[string]bool{"deleted": true})
+}
+
+// POST /v1/posts/{id}/pin — épingle/désépingle sur le profil.
+func (h *Handler) togglePin(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+
+	pinned, err := h.svc.TogglePin(r.Context(), id, userID)
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, map[string]bool{"pinned": pinned})
 }

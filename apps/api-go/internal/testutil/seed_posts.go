@@ -28,7 +28,8 @@ func SeedPosts(ctx context.Context, pool *pgxpool.Pool) (*PostFixtures, error) {
 
 	if _, err := pool.Exec(ctx, `TRUNCATE TABLE
 		"Post", "Like", "Bookmark", "Notification", "Poll", "MediaAttachment",
-		"Article", "User", "Publication", "_CoAuthors"
+		"Article", "User", "Publication", "_CoAuthors",
+		"Highlight", "AnnotationComment", "AnnotationUpvote"
 		CASCADE`); err != nil {
 		return nil, fmt.Errorf("truncate: %w", err)
 	}
@@ -83,6 +84,14 @@ func SeedPosts(ctx context.Context, pool *pgxpool.Pool) (*PostFixtures, error) {
 		 RETURNING id`,
 	).Scan(&pubID); err != nil {
 		return nil, fmt.Errorf("publication: %w", err)
+	}
+	// Lie l'utilisateur à sa publication (User.publicationId) pour que le
+	// profil /v1/users/{username} et les bookmarks résolvent correctement.
+	if _, err := pool.Exec(ctx,
+		`UPDATE "User" SET "publicationId" = $1 WHERE id = $2`,
+		pubID, fx.AuthorID,
+	); err != nil {
+		return nil, fmt.Errorf("link user->publication: %w", err)
 	}
 	if err := pool.QueryRow(ctx,
 		`INSERT INTO "Article" (id, title, slug, content, published, visibility,

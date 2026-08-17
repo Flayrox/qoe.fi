@@ -1,5 +1,22 @@
 'use server';
 
+// =====================================================================
+// 📰 actions/articles — Server Actions du studio créateur (web uniquement)
+// =====================================================================
+// CRUD articles + catégories + commentaires, avec workflow média
+// (soumission/revue) et RBAC `@qoe/auth` (canMedia).
+// - Workspace actif résolu via le cookie `qoe_active_workspace`
+//   (getActivePublicationId) : personnel OU média.
+// - Attribution/co-auteurs : consentement géré en base (jamais fabriqué
+//   par le client), invitations + notifications de collaboration.
+// - Publication : fan-out newsletter + webhooks via emitArticlePublished
+//   (proxy Go → /internal/events/article-published, sinon eventBus BullMQ).
+// 🔗 Proxy Go : CRUD articles/catégories/commentaires délégués quand
+//    QOE_API_GO_URL est défini (apps/api-go/internal/modules/articles).
+// ⚠️ Fichier serveur : non exposé au mobile (le mobile lira les articles
+//    via l'API Go /v1/articles publiques).
+// =====================================================================
+
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { prisma, type Article, type Category, type Prisma } from '@qoe/db/client';

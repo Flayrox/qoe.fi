@@ -545,6 +545,119 @@ func (q *Queries) ListCreatorArticles(ctx context.Context, arg ListCreatorArticl
 	return items, nil
 }
 
+const listRecentPublishedArticles = `-- name: ListRecentPublishedArticles :many
+SELECT a.id,
+       a.title,
+       a.slug,
+       a.content,
+       a."isPremium",
+       a.visibility,
+       a."readingTime",
+       a."createdAt",
+       a."publicationId",
+       a."authorId",
+       u.id::text       AS author_id,
+       u.name           AS author_name,
+       u.username       AS author_username,
+       u."logoUrl"      AS author_logo,
+       u."isCertified"  AS author_certified,
+       p.name           AS publication_name,
+       p.slug           AS publication_slug,
+       p.subdomain      AS publication_subdomain,
+       p."logoUrl"      AS publication_logo,
+       p.type           AS publication_type,
+       c.id             AS category_id,
+       c.name           AS category_name,
+       c.slug           AS category_slug
+FROM "Article" a
+JOIN "User" u ON u.id = a."authorId"
+JOIN "Publication" p ON p.id = a."publicationId"
+LEFT JOIN "Category" c ON c.id = a."categoryId"
+WHERE a.published = true
+  AND u."isShadowbanned" = false
+  AND u."isSuspended" = false
+  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+ORDER BY a."createdAt" DESC, a.id DESC
+LIMIT $1 OFFSET $2
+`
+
+type ListRecentPublishedArticlesParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+type ListRecentPublishedArticlesRow struct {
+	ID                   string            `json:"id"`
+	Title                string            `json:"title"`
+	Slug                 string            `json:"slug"`
+	Content              string            `json:"content"`
+	IsPremium            bool              `json:"isPremium"`
+	Visibility           ContentVisibility `json:"visibility"`
+	ReadingTime          int32             `json:"readingTime"`
+	CreatedAt            pgtype.Timestamp  `json:"createdAt"`
+	PublicationId        string            `json:"publicationId"`
+	AuthorId             pgtype.UUID       `json:"authorId"`
+	AuthorID             string            `json:"author_id"`
+	AuthorName           pgtype.Text       `json:"author_name"`
+	AuthorUsername       pgtype.Text       `json:"author_username"`
+	AuthorLogo           pgtype.Text       `json:"author_logo"`
+	AuthorCertified      bool              `json:"author_certified"`
+	PublicationName      string            `json:"publication_name"`
+	PublicationSlug      string            `json:"publication_slug"`
+	PublicationSubdomain pgtype.Text       `json:"publication_subdomain"`
+	PublicationLogo      pgtype.Text       `json:"publication_logo"`
+	PublicationType      PublicationType   `json:"publication_type"`
+	CategoryID           pgtype.Text       `json:"category_id"`
+	CategoryName         pgtype.Text       `json:"category_name"`
+	CategorySlug         pgtype.Text       `json:"category_slug"`
+}
+
+// Articles publiés récents (feed mobile « écran principal »), avec auteur /
+// publication / catégorie dénormalisés. Public, trié par date décroissante.
+func (q *Queries) ListRecentPublishedArticles(ctx context.Context, arg ListRecentPublishedArticlesParams) ([]ListRecentPublishedArticlesRow, error) {
+	rows, err := q.db.Query(ctx, listRecentPublishedArticles, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRecentPublishedArticlesRow{}
+	for rows.Next() {
+		var i ListRecentPublishedArticlesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Slug,
+			&i.Content,
+			&i.IsPremium,
+			&i.Visibility,
+			&i.ReadingTime,
+			&i.CreatedAt,
+			&i.PublicationId,
+			&i.AuthorId,
+			&i.AuthorID,
+			&i.AuthorName,
+			&i.AuthorUsername,
+			&i.AuthorLogo,
+			&i.AuthorCertified,
+			&i.PublicationName,
+			&i.PublicationSlug,
+			&i.PublicationSubdomain,
+			&i.PublicationLogo,
+			&i.PublicationType,
+			&i.CategoryID,
+			&i.CategoryName,
+			&i.CategorySlug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setArticleStatus = `-- name: SetArticleStatus :one
 UPDATE "Article"
 SET status = $2, published = $3, "updatedAt" = now()

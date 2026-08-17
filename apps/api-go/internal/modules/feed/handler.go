@@ -27,6 +27,32 @@ func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/posts/{id}/thread", h.thread)
 }
 
+// RegisterPublic enregistre les routes de lecture publique (auth optionnelle) :
+// les pensées publiques d'un utilisateur (profil) + les articles du feed.
+func (h *Handler) RegisterPublic(r chi.Router) {
+	r.Get("/v1/users/{username}/posts", h.userPosts)
+	r.Get("/v1/feed/articles", h.articles)
+}
+
+// userPosts — pensées publiques d'un utilisateur, résolu par slug/subdomain.
+func (h *Handler) userPosts(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	username := chi.URLParam(r, "username")
+	limit, offset := parseLimitCursor(r)
+
+	items, err := h.svc.UserPosts(r.Context(), username, userID, limit, offset)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			response.NotFound(w, "Utilisateur introuvable")
+			return
+		}
+		log.Printf("[feed] userPosts: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, items)
+}
+
 func (h *Handler) thread(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
@@ -73,6 +99,19 @@ func (h *Handler) trending(w http.ResponseWriter, r *http.Request) {
 	items, err := h.svc.Trending(r.Context(), userID, limit, offset)
 	if err != nil {
 		log.Printf("[feed] trending: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, items)
+}
+
+// articles — articles publiés récents du feed mobile (GET /v1/feed/articles).
+func (h *Handler) articles(w http.ResponseWriter, r *http.Request) {
+	limit, offset := parseLimitCursor(r)
+
+	items, err := h.svc.RecentArticles(r.Context(), limit, offset)
+	if err != nil {
+		log.Printf("[feed] articles: %v", err)
 		response.Internal(w)
 		return
 	}

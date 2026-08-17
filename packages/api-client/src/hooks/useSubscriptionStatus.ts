@@ -1,3 +1,12 @@
+// =====================================================================
+// 💳 useSubscriptionStatus — Droits d'accès d'un lecteur sur un site créateur
+// =====================================================================
+// Vérifie si le lecteur courant est membre / abonné payant d'un créateur
+// (paywall). Appelle `/api/subscriptions/entitlement` (route Next locale) —
+// ⚠️ pour le mobile, il faudra un endpoint Go équivalent (ou réutiliser le
+//    contrat paywall de apps/api-go/internal/modules/articles).
+// =====================================================================
+
 import { useQuery } from '@tanstack/react-query';
 import { subscriptionKeys } from '../query-keys';
 

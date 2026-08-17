@@ -31,7 +31,9 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		Port:                  envOr("PORT", "8080"),
+		// Port dédié à l'API Go (API_PORT), indépendant du PORT des apps web.
+		// Évite la collision avec le Next.js web (3000) et avec « Soneph » (8080).
+		Port:                  envOr("API_PORT", "8090"),
 		DatabaseURL:           envOr("DATABASE_URL", ""),
 		SupabaseAuthURL:       envOr("SUPABASE_AUTH_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")),
 		JWTSecret:             envOr("SUPABASE_JWT_SECRET", envOr("SUPABASE_SECRET_KEY", "")),

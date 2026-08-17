@@ -1,5 +1,17 @@
 'use server';
 
+// =====================================================================
+// 🔎 actions/search — Server Actions de recherche (web uniquement)
+// =====================================================================
+// Recherche multi-entités (pensées, utilisateurs, articles) via le dépôt
+// `@qoe/db` (recherche SQL + Meilisearch selon l'entité).
+// - searchAllAction : recherche combinée, avec `scope: 'mine'` pour
+//   restreindre les articles à la publication active du créateur (Cmd+K).
+// - getTrendingHashtagsAction : hashtags tendance.
+// ⚠️ Fichier serveur : non exposé au mobile (qui passe par l'API Go, cf.
+//    apps/api-go/internal/modules/search).
+// =====================================================================
+
 import { search } from '@qoe/db';
 import { safeAction } from '../utils/safe-action';
 import { getActivePublicationId } from '../articles';

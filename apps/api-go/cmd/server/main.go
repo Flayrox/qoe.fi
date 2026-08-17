@@ -27,6 +27,7 @@ import (
 	"github.com/qoefi/api-go/internal/modules/creator"
 	"github.com/qoefi/api-go/internal/modules/events"
 	"github.com/qoefi/api-go/internal/modules/feed"
+	"github.com/qoefi/api-go/internal/modules/highlights"
 	"github.com/qoefi/api-go/internal/modules/notifications"
 	"github.com/qoefi/api-go/internal/modules/posts"
 	"github.com/qoefi/api-go/internal/modules/search"
@@ -149,6 +150,18 @@ func newRouter(d RouterDeps) *chi.Mux {
 		articlesHandler.RegisterPublic(pub)
 	})
 
+	// Feed : lecture publique (pensées d'un profil par slug, auth optionnelle).
+	feedPublic := feed.NewHandler(feed.NewService(pool, rc))
+	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
+		feedPublic.RegisterPublic(pub)
+	})
+
+	// Highlights : surlignages publics d'un article (auth optionnelle).
+	highlightsHandler := highlights.NewHandler(highlights.NewService(pool))
+	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
+		highlightsHandler.RegisterPublic(pub)
+	})
+
 	// Settings créateur : sous-domaine (public) + profil/onboarding/clés API (protégé).
 	settingsHandler := settings.NewHandler(settings.NewService(pool))
 	settingsHandler.RegisterPublic(r)
@@ -169,6 +182,8 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		notifHandler := notifications.NewHandler(notifications.NewService(pool))
 		notifHandler.Register(protected)
+
+		highlightsHandler.RegisterProtected(protected)
 
 		analyticsHandler := analytics.NewHandler(analytics.NewService(pool))
 		analyticsHandler.Register(protected)

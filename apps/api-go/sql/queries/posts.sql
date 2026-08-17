@@ -106,3 +106,28 @@ WHERE "authorId" = $1
   AND "repostId" = $2
   AND "deletedAt" IS NULL
   AND (content = '' OR content = ' ');
+
+-- name: SoftDeletePost :one
+UPDATE "Post"
+SET "deletedAt" = now()
+WHERE id = $1 AND "authorId" = $2 AND "deletedAt" IS NULL
+RETURNING id;
+
+-- name: PinPost :one
+UPDATE "Post"
+SET "isPinned" = true
+WHERE id = $1 AND "authorId" = $2 AND "deletedAt" IS NULL
+RETURNING "isPinned";
+
+-- name: UnpinPost :one
+UPDATE "Post"
+SET "isPinned" = false
+WHERE id = $1 AND "authorId" = $2
+RETURNING "isPinned";
+
+-- name: ClearPinnedPosts :exec
+UPDATE "Post"
+SET "isPinned" = false
+WHERE "authorId" = $1
+  AND "isPinned" = true
+  AND "deletedAt" IS NULL;

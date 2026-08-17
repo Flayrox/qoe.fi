@@ -1,5 +1,20 @@
 'use client';
 
+// =====================================================================
+// 🔔 useNotifications — Hooks React Query pour le centre de notifications
+// =====================================================================
+// Wraps les actions serveur de notifications (web). Expose :
+// - useNotificationsQuery / useNotificationsInfiniteQuery : liste (pagination
+//   par curseur, stale 30s).
+// - useUnreadNotificationCountQuery : compteur non-lus (poll 30s en secours
+//   si le Realtime Supabase est déconnecté).
+// - useMarkNotificationsAsReadMutation : marquage lu (invalide la famille).
+// - useNotificationPreferencesQuery / useUpdateNotificationPreferencesMutation :
+//   préférences par canal.
+// ⚠️ Côté mobile, les notifications viendront de l'API Go
+//    (apps/api-go/internal/modules/notifications).
+// =====================================================================
+
 import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationKeys } from '../query-keys';
 import type { NotificationFilter } from '../actions/notifications';

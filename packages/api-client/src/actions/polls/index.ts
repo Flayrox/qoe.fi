@@ -1,5 +1,12 @@
 'use server';
 
+// =====================================================================
+// 📊 actions/polls — Server Actions des sondages dans les pensées
+// =====================================================================
+// Lecture d'un sondage lié à une pensée + vote (idempotent, un vote par
+// utilisateur). ⚠️ Fichier serveur — pas encore d'endpoint Go mobile.
+// =====================================================================
+
 import { polls } from '@qoe/db';
 import { revalidatePath } from 'next/cache';
 import { safeAction } from '../utils/safe-action';

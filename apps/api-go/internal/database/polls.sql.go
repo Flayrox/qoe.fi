@@ -103,6 +103,19 @@ func (q *Queries) CountPollVotesByIDs(ctx context.Context, dollar_1 []string) ([
 	return items, nil
 }
 
+const countPollVotesByPollID = `-- name: CountPollVotesByPollID :one
+SELECT COUNT(*)::int AS count
+FROM "PollVote"
+WHERE "pollId" = $1
+`
+
+func (q *Queries) CountPollVotesByPollID(ctx context.Context, pollid string) (int32, error) {
+	row := q.db.QueryRow(ctx, countPollVotesByPollID, pollid)
+	var count int32
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createAttachment = `-- name: CreateAttachment :one
 INSERT INTO "MediaAttachment" (id, "thoughtId", type, url, "altText", width, height, "order")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7)
@@ -177,6 +190,21 @@ func (q *Queries) CreatePollOption(ctx context.Context, arg CreatePollOptionPara
 	return id, err
 }
 
+const deletePollVote = `-- name: DeletePollVote :exec
+DELETE FROM "PollVote"
+WHERE "pollId" = $1 AND "userId" = $2
+`
+
+type DeletePollVoteParams struct {
+	PollId string      `json:"pollId"`
+	UserId pgtype.UUID `json:"userId"`
+}
+
+func (q *Queries) DeletePollVote(ctx context.Context, arg DeletePollVoteParams) error {
+	_, err := q.db.Exec(ctx, deletePollVote, arg.PollId, arg.UserId)
+	return err
+}
+
 const getAttachmentsByIDs = `-- name: GetAttachmentsByIDs :many
 SELECT id, "thoughtId", type, url, "altText", width, height, "order"
 FROM "MediaAttachment"
@@ -242,6 +270,24 @@ func (q *Queries) GetPollByThoughtID(ctx context.Context, thoughtid string) (Get
 	row := q.db.QueryRow(ctx, getPollByThoughtID, thoughtid)
 	var i GetPollByThoughtIDRow
 	err := row.Scan(&i.ID, &i.ThoughtId, &i.ExpiresAt)
+	return i, err
+}
+
+const getPollOptionByID = `-- name: GetPollOptionByID :one
+SELECT id, "pollId", text, "order"
+FROM "PollOption"
+WHERE id = $1
+`
+
+func (q *Queries) GetPollOptionByID(ctx context.Context, id string) (PollOption, error) {
+	row := q.db.QueryRow(ctx, getPollOptionByID, id)
+	var i PollOption
+	err := row.Scan(
+		&i.ID,
+		&i.PollId,
+		&i.Text,
+		&i.Order,
+	)
 	return i, err
 }
 
@@ -359,6 +405,25 @@ func (q *Queries) GetUserPollVote(ctx context.Context, arg GetUserPollVoteParams
 	return optionId, err
 }
 
+const getUserVoteForPoll = `-- name: GetUserVoteForPoll :one
+SELECT v."optionId"
+FROM "PollVote" v
+WHERE v."pollId" = $1 AND v."userId" = $2
+LIMIT 1
+`
+
+type GetUserVoteForPollParams struct {
+	PollId string      `json:"pollId"`
+	UserId pgtype.UUID `json:"userId"`
+}
+
+func (q *Queries) GetUserVoteForPoll(ctx context.Context, arg GetUserVoteForPollParams) (string, error) {
+	row := q.db.QueryRow(ctx, getUserVoteForPoll, arg.PollId, arg.UserId)
+	var optionId string
+	err := row.Scan(&optionId)
+	return optionId, err
+}
+
 const getUserVotesByIDs = `-- name: GetUserVotesByIDs :many
 SELECT "pollId", "optionId"
 FROM "PollVote"
@@ -393,4 +458,25 @@ func (q *Queries) GetUserVotesByIDs(ctx context.Context, arg GetUserVotesByIDsPa
 		return nil, err
 	}
 	return items, nil
+}
+
+const insertPollVote = `-- name: InsertPollVote :one
+INSERT INTO "PollVote" (id, "pollId", "optionId", "userId")
+VALUES (gen_random_uuid()::text, $1, $2, $3)
+ON CONFLICT ("pollId", "userId") DO UPDATE SET "optionId" = EXCLUDED."optionId"
+RETURNING id
+`
+
+type InsertPollVoteParams struct {
+	PollId   string      `json:"pollId"`
+	OptionId string      `json:"optionId"`
+	UserId   pgtype.UUID `json:"userId"`
+}
+
+// Vote (idempotent : ON CONFLICT DO UPDATE pour changer d'option).
+func (q *Queries) InsertPollVote(ctx context.Context, arg InsertPollVoteParams) (string, error) {
+	row := q.db.QueryRow(ctx, insertPollVote, arg.PollId, arg.OptionId, arg.UserId)
+	var id string
+	err := row.Scan(&id)
+	return id, err
 }

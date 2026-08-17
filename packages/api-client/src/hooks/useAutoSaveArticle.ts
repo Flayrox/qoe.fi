@@ -1,3 +1,14 @@
+// =====================================================================
+// 💾 useAutoSaveArticle — Auto-save debouncé pour l'éditeur d'articles
+// =====================================================================
+// Machine à états simple (idle → unsaved → saving → saved / error) avec :
+// - debounce (défaut 2s) avant chaque sauvegarde ;
+// - sérialisation : si une sauvegarde est en cours, la suivante est
+//   « pending » et rejouée dès la fin (pas de chevauchement de requêtes) ;
+// - `saveNow` pour les sauvegardes explicites (bouton, raccourci).
+// ⚠️ Spécifique au dashboard web (éditeur Tiptap) — pas utilisé par le mobile.
+// =====================================================================
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 export type AutoSaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
