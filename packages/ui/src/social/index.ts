@@ -9,3 +9,4 @@ export * from './ProfileHoverCard';
 export * from './MediaLightbox';
 export * from './ConfirmDeleteModal';
 export * from './KnownLikers';
+export * from './ShareMenu';

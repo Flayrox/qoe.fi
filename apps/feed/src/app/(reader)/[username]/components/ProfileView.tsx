@@ -22,7 +22,14 @@ import { EditProfileModal } from '@/components/profile/EditProfileModal';
 import { FollowList } from './FollowList';
 import { toggleFollowCreatorHomeAction as toggleFollowCreator } from '@qoe/api-client/actions/feed';
 import { useDeletePostMutation } from '@qoe/api-client';
-import { CertifiedBadge, Dialog, DialogContent, DialogHeader, DialogTitle } from '@qoe/ui';
+import {
+  CertifiedBadge,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  ShareMenu,
+} from '@qoe/ui';
 
 import { routes } from '@qoe/config/routes';
 import { toast } from 'sonner';
@@ -158,24 +165,6 @@ export function ProfileView({
     }
   };
 
-  const handleShareProfile = async () => {
-    const url = window.location.href;
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({ title: user.name || '', url });
-        return;
-      } catch {
-        // L'utilisateur a annulé le partage natif → on tombe sur la copie.
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success('Lien du profil copié.');
-    } catch {
-      toast.error('Impossible de copier le lien.');
-    }
-  };
-
   const handleDeletePost = async (postId: string): Promise<boolean> => {
     if (!isOwnProfile) return false;
 
@@ -288,13 +277,20 @@ export function ProfileView({
               )}
 
               {/* Partager le profil */}
-              <button
-                onClick={handleShareProfile}
-                title="Partager ce profil"
-                className="h-9 w-9 flex items-center justify-center border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer"
-              >
-                <Share2 className="w-3.5 h-3.5" />
-              </button>
+              <ShareMenu
+                title={`Profil de ${user.name || user.username || 'Utilisateur'}`}
+                authorHandle={user.username || user.subdomain || user.id}
+                trigger={
+                  <button
+                    type="button"
+                    onClick={(e) => e.stopPropagation()}
+                    title="Partager ce profil"
+                    className="h-9 w-9 flex items-center justify-center border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                  </button>
+                }
+              />
             </div>
 
             {/* User Identity */}
