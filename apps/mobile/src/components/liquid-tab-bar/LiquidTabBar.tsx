@@ -335,7 +335,7 @@ export function LiquidTabBar({
   const pillAnimatedStyle = useAnimatedStyle(() => {
     let currentX = pillTranslateX.value;
     if (drawerProgress && !isInteracting.value) {
-      // Inertie physique avec retard d'entraînement (deadzone + accélération + freinage soyeux)
+      // Inertie physique avec retard d'entraînement
       const laggedProgress = interpolate(
         drawerProgress.value,
         [0, 0.22, 0.65, 0.92, 1],
@@ -349,6 +349,27 @@ export function LiquidTabBar({
     return {
       transform: [{ translateX: currentX }],
       backgroundColor: `rgba(255, 255, 255, ${pillOpacity.value})`,
+    };
+  });
+
+  // Aura radiale colorée inspirée des tons de l'avatar quand la pilule est sur le profil (position 0)
+  const auraAnimatedStyle = useAnimatedStyle(() => {
+    let currentX = pillTranslateX.value;
+    if (drawerProgress && !isInteracting.value) {
+      const laggedProgress = interpolate(
+        drawerProgress.value,
+        [0, 0.22, 0.65, 0.92, 1],
+        [0, 0.04, 0.68, 0.98, 1],
+        Extrapolation.CLAMP
+      );
+      currentX = interpolate(laggedProgress, [0, 1], [pillTranslateX.value, 0]);
+    }
+
+    const unitDistance = tabWidth > 0 ? Math.abs(currentX) / tabWidth : 0;
+    const opacity = interpolate(unitDistance, [0, 0.35, 0.75], [1, 0.4, 0], Extrapolation.CLAMP);
+
+    return {
+      opacity,
     };
   });
 
@@ -398,7 +419,16 @@ export function LiquidTabBar({
                     },
                     pillAnimatedStyle,
                   ]}
-                />
+                >
+                  {/* Aura radiale chaleureuse du centre vers les bords quand on est sur l'avatar */}
+                  <Animated.View
+                    style={[styles.avatarAuraContainer, auraAnimatedStyle]}
+                    pointerEvents="none"
+                  >
+                    <View style={styles.avatarAuraCenterGlow} />
+                    <View style={styles.avatarAuraOuterRing} />
+                  </Animated.View>
+                </Animated.View>
               )}
 
               <View style={styles.tabsRow}>
@@ -483,6 +513,37 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     zIndex: 1,
     borderWidth: 0,
+    overflow: 'hidden',
+  },
+  avatarAuraContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarAuraCenterGlow: {
+    position: 'absolute',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(238, 75, 43, 0.38)',
+    shadowColor: '#ee4b2b',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.95,
+    shadowRadius: 14,
+  },
+  avatarAuraOuterRing: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 99, 71, 0.12)',
   },
   tabsRow: {
     flexDirection: 'row',
