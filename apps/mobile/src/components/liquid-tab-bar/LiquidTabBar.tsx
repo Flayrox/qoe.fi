@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { Image, LayoutChangeEvent, StyleSheet, View } from 'react-native';
+import { Image, LayoutChangeEvent, StyleSheet, useColorScheme, View } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -190,6 +191,9 @@ export function LiquidTabBar({
   containerStyle,
   onProfilePress,
 }: LiquidTabBarProps) {
+  const scheme = useColorScheme();
+  const isDark = scheme === 'dark' || scheme === 'unspecified';
+
   const drawerContext = useContext(DrawerContext);
   const drawerProgress = drawerContext?.progress;
 
@@ -275,7 +279,6 @@ export function LiquidTabBar({
   const panGesture = Gesture.Pan()
     .minDistance(0)
     .onTouchesDown((event, manager) => {
-      // Si la sidebar est ouverte, désactiver les gestes sur la tabbar
       if (drawerProgress && drawerProgress.value > 0.05) {
         manager.fail();
       }
@@ -352,7 +355,6 @@ export function LiquidTabBar({
       );
       const targetRoute = state.routes[releaseIndex];
 
-      // Si on relâche sur le profil, on conserve la position de l'onglet actif où on était !
       if (targetRoute?.name === 'profile') {
         pillTranslateX.value = withSpring(state.index * tabWidth, SPRING_SETTLE);
       } else {
@@ -375,7 +377,6 @@ export function LiquidTabBar({
   const pillAnimatedStyle = useAnimatedStyle(() => {
     let currentX = pillTranslateX.value;
     if (drawerProgress && !isInteracting.value) {
-      // Inertie physique avec retard d'entraînement
       const laggedProgress = interpolate(
         drawerProgress.value,
         [0, 0.22, 0.65, 0.92, 1],
@@ -392,7 +393,6 @@ export function LiquidTabBar({
     };
   });
 
-  // Onde de propagation liquide : démarre de la PP (scale 0.1 -> 1.5) et diffuse vers l'extérieur
   const auraRippleStyle = useAnimatedStyle(() => {
     const scale = interpolate(auraWaveProgress.value, [0, 1], [0.2, 1.45], Extrapolation.CLAMP);
 
@@ -424,7 +424,32 @@ export function LiquidTabBar({
   }
 
   return (
-    <View style={[styles.wrapper, { bottom: bottomOffset }, containerStyle]}>
+    <View
+      style={[styles.wrapper, { bottom: bottomOffset }, containerStyle]}
+      pointerEvents="box-none"
+    >
+      {/* Fond de flou progressif Apple Music / iOS au bas de l'écran */}
+      <View style={styles.appleBottomBackdrop} pointerEvents="none">
+        <BlurView
+          intensity={isDark ? 25 : 30}
+          tint={isDark ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'}
+          style={StyleSheet.absoluteFill}
+        />
+        {/* Dégradé d'estompage progressif vers le haut */}
+        <View
+          style={[
+            styles.fadingGradientTop,
+            { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.25)' },
+          ]}
+        />
+        <View
+          style={[
+            styles.fadingGradientBottom,
+            { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.65)' : 'rgba(255, 255, 255, 0.65)' },
+          ]}
+        />
+      </View>
+
       <GestureDetector gesture={panGesture}>
         <Animated.View style={[styles.barWrapper, { maxWidth }, barContainerStyle]}>
           <AdaptiveGlassView
@@ -511,6 +536,31 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     alignItems: 'center',
+  },
+  appleBottomBackdrop: {
+    position: 'absolute',
+    bottom: -34, // S'étend jusqu'au bas physique de l'écran sous la safe area
+    left: -40,
+    right: -40,
+    height: 125,
+    overflow: 'hidden',
+    zIndex: -1,
+  },
+  fadingGradientTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '45%',
+    opacity: 0.4,
+  },
+  fadingGradientBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '55%',
+    opacity: 0.8,
   },
   barWrapper: {
     position: 'relative',
