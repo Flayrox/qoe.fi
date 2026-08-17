@@ -4,11 +4,14 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  Easing,
   Extrapolation,
   interpolate,
   runOnJS,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -208,6 +211,9 @@ export function LiquidTabBar({
   const pillTranslateX = useSharedValue(0);
   const pillOpacity = useSharedValue(0.14);
 
+  // Éclosion de l'aura (déclenchée après 300ms à 100% de déploiement)
+  const auraBloomProgress = useSharedValue(0);
+
   // Grossissement et déformation 100% solidaire de toute la NavBar et son contenu
   const barScale = useSharedValue(1);
   const barTranslateX = useSharedValue(0);
@@ -218,6 +224,28 @@ export function LiquidTabBar({
   const hasMoved = useSharedValue(false);
   const startX = useSharedValue(0);
   const activeHoverIndex = useSharedValue(state?.index ?? 1);
+
+  // Déclenchement de l'aura uniquement quand le drawer est à 100% avec 300ms de suspense
+  useAnimatedReaction(
+    () => drawerProgress?.value ?? 0,
+    (currentProgress, previousProgress) => {
+      if (currentProgress >= 0.98) {
+        if (!previousProgress || previousProgress < 0.98) {
+          auraBloomProgress.value = withDelay(
+            300,
+            withTiming(1, {
+              duration: 450,
+              easing: Easing.out(Easing.cubic),
+            })
+          );
+        }
+      } else {
+        if (auraBloomProgress.value > 0) {
+          auraBloomProgress.value = withTiming(0, { duration: 150 });
+        }
+      }
+    }
+  );
 
   const triggerHoverFeedback = () => {
     Haptics.selectionAsync();
@@ -352,16 +380,15 @@ export function LiquidTabBar({
     };
   });
 
-  // Masque d'écrêtage de l'avatar flouté : ne s'affiche qu'à l'ouverture de la Sidebar
-  const avatarBackdropStyle = useAnimatedStyle(() => {
-    if (!drawerProgress || isInteracting.value) {
-      return { opacity: 0 };
-    }
+  // Aura radiale chaleureuse qui éclot depuis la PP vers les bords après 300ms d'ouverture à 100%
+  const auraAnimatedStyle = useAnimatedStyle(() => {
+    const scale = interpolate(auraBloomProgress.value, [0, 1], [0.45, 1.15], Extrapolation.CLAMP);
 
-    const opacity = interpolate(drawerProgress.value, [0.3, 0.95], [0, 0.9], Extrapolation.CLAMP);
+    const opacity = interpolate(auraBloomProgress.value, [0, 1], [0, 0.52], Extrapolation.CLAMP);
 
     return {
       opacity,
+      transform: [{ scale }],
     };
   });
 
@@ -412,22 +439,24 @@ export function LiquidTabBar({
                     pillAnimatedStyle,
                   ]}
                 >
-                  {/* Masque d'écrêtage de l'avatar flouté (effet Apple Glass Album Art) */}
+                  {/* Aura radiale dense à ~50% autour de la PP qui éclot doucement et s'estompe aux bords */}
                   <Animated.View
-                    style={[styles.avatarBackdropMask, avatarBackdropStyle]}
+                    style={[styles.avatarAuraContainer, auraAnimatedStyle]}
                     pointerEvents="none"
                   >
+                    {/* Épicentre dense autour de la PP */}
+                    <View style={styles.avatarAuraCore} />
+                    {/* Halo de diffusion gaussienne */}
                     {userAvatarProps?.logoUrl ? (
                       <Image
                         source={{ uri: userAvatarProps.logoUrl }}
                         style={styles.avatarBlurredImage}
-                        blurRadius={24}
+                        blurRadius={20}
                         resizeMode="cover"
                       />
                     ) : (
                       <View style={styles.avatarBlurredFallback} />
                     )}
-                    <View style={styles.avatarBackdropTintOverlay} />
                   </Animated.View>
                 </Animated.View>
               )}
@@ -516,7 +545,7 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     overflow: 'hidden',
   },
-  avatarBackdropMask: {
+  avatarAuraContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -527,10 +556,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarAuraCore: {
+    position: 'absolute',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(238, 75, 43, 0.45)',
+    shadowColor: '#ee4b2b',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 18,
+    zIndex: 2,
+  },
   avatarBlurredImage: {
-    width: '200%',
-    height: '200%',
-    transform: [{ scale: 1.5 }],
+    width: '180%',
+    height: '180%',
+    transform: [{ scale: 1.3 }],
+    opacity: 0.65,
   },
   avatarBlurredFallback: {
     position: 'absolute',
@@ -539,15 +581,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: '#ee4b2b',
-    opacity: 0.55,
-  },
-  avatarBackdropTintOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.12)',
+    opacity: 0.45,
   },
   tabsRow: {
     flexDirection: 'row',
