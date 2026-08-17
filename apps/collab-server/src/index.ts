@@ -16,6 +16,7 @@
 import { loadConfig } from './config';
 import { PostgresDatabase, MemoryDatabase, type CollabDatabase } from './database';
 import { createSupabaseVerifier } from './auth';
+import { createPublicationAccessChecker } from './permissions';
 import { createCollabServer } from './server';
 
 const config = loadConfig();
@@ -29,10 +30,16 @@ const database: CollabDatabase = config.databaseUrl
 // ─── Auth (introspection Supabase) ───────────────────────────────────
 const verifier = createSupabaseVerifier(config.supabaseUrl);
 
+// ─── RBAC publication (qui peut éditer) ──────────────────────────────
+// Seulement quand la persistance Postgres est active (pas de mode mémoire).
+const canEditDocument =
+  database instanceof PostgresDatabase ? createPublicationAccessChecker(database.pool) : undefined;
+
 const server = createCollabServer({
   database,
   verifier,
   maxDocumentBytes: config.maxDocumentBytes,
+  canEditDocument,
 });
 
 server

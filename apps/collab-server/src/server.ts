@@ -10,6 +10,7 @@ import { Server as HocuspocusServer } from '@hocuspocus/server';
 import * as Y from 'yjs';
 import type { CollabDatabase } from './database';
 import type { TokenVerifier } from './auth';
+import type { DocumentAccessChecker } from './permissions';
 
 export interface CollabServerOptions {
   /** Persistance des documents Yjs. */
@@ -20,12 +21,18 @@ export interface CollabServerOptions {
   maxDocumentBytes: number;
   /** Nom de l'instance (visible dans les logs Hocuspocus). */
   name?: string;
+  /**
+   * RBAC publication : contrôle qui peut éditer un document (`article:{id}`).
+   * Absent en dev/tests → tout utilisateur authentifié peut éditer.
+   */
+  canEditDocument?: DocumentAccessChecker;
 }
 
 export type CollabServer = ReturnType<typeof HocuspocusServer.configure>;
 
 export function createCollabServer(options: CollabServerOptions): CollabServer {
   const { database, verifier, maxDocumentBytes, name = 'qoe-collab' } = options;
+  const canEditDocument = options.canEditDocument;
 
   return HocuspocusServer.configure({
     name,
@@ -37,14 +44,27 @@ export function createCollabServer(options: CollabServerOptions): CollabServer {
         console.warn(`[collab-server] Connexion refusée (token invalide) : ${documentName}`);
         throw new Error('Non authentifié : token Supabase invalide ou expiré.');
       }
-      return { name: user.name };
+      // userId est exposé dans le contexte des hooks suivants (onLoadDocument).
+      return { name: user.name, userId: user.id };
     },
 
     // Chargement du document avant la connexion : on applique l'état persisté
-    // au Y.Doc déjà créé par Hocuspocus. Sans état, on reste vide ; le premier
-    // éditeur "seede" avec le contenu de l'article (côté client, après le
-    // premier sync) puis Hocuspocus persiste via onStoreDocument.
-    async onLoadDocument({ documentName, document }) {
+    // au Y.Doc déjà créé par Hocuspocus, APRÈS avoir vérifié le droit d'éditer.
+    async onLoadDocument({ documentName, document, context }) {
+      if (canEditDocument) {
+        const userId = (context as { userId?: string } | undefined)?.userId;
+        if (!userId) {
+          throw new Error('Contexte utilisateur manquant.');
+        }
+        const allowed = await canEditDocument(userId, documentName);
+        if (!allowed) {
+          console.warn(
+            `[collab-server] Accès refusé (pas éditeur) : ${documentName} (user ${userId})`
+          );
+          throw new Error("Vous n'avez pas le droit d'éditer cet article.");
+        }
+      }
+
       const stored = await database.findDocument(documentName);
       if (stored && stored.byteLength > 0) {
         Y.applyUpdate(document, stored);
