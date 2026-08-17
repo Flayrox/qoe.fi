@@ -199,89 +199,98 @@ export const toggleLikePostAction = safeAction<string, { liked: boolean }>(async
 // Helpers de normalisation et reconstruction d'arbre de discussion (Web)
 // ─────────────────────────────────────────────────────────────────────
 
+type RawPostPayload = Record<string, unknown>;
+
 function mapFeedPostToThreadThought(
-  p: ApiFeedPost | null | undefined
+  p: RawPostPayload | null | undefined
 ): Record<string, unknown> | null {
   if (!p) return null;
-  const author = (p.author || {}) as ApiFeedPost['author'];
+  const author = (p.author || {}) as Record<string, unknown>;
+  const counts = (p._count || {}) as Record<string, unknown>;
   const likesCount =
     typeof p.likesCount === 'number'
       ? p.likesCount
       : typeof p.likeCount === 'number'
         ? p.likeCount
-        : (p._count?.likes ?? 0);
+        : typeof counts.likes === 'number'
+          ? counts.likes
+          : 0;
   const repliesCount =
     typeof p.repliesCount === 'number'
       ? p.repliesCount
       : typeof p.replyCount === 'number'
         ? p.replyCount
-        : (p._count?.replies ?? 0);
+        : typeof counts.replies === 'number'
+          ? counts.replies
+          : 0;
   const repostsCount =
     typeof p.repostsCount === 'number'
       ? p.repostsCount
       : typeof p.repostCount === 'number'
         ? p.repostCount
-        : (p._count?.reposts ?? 0);
+        : typeof counts.reposts === 'number'
+          ? counts.reposts
+          : 0;
 
   return {
-    id: p.id,
-    content: p.content ?? '',
-    imageUrl: p.imageUrl ?? null,
-    createdAt: p.createdAt,
-    triggerWarning: p.triggerWarning ?? null,
-    isPinned: p.isPinned ?? false,
-    isDeleted: p.isDeleted ?? false,
-    isHiddenByAuthor: p.isHiddenByAuthor ?? false,
+    id: p.id as string,
+    content: (p.content as string) ?? '',
+    imageUrl: (p.imageUrl as string | null) ?? null,
+    createdAt: p.createdAt as string,
+    triggerWarning: (p.triggerWarning as string | null) ?? null,
+    isPinned: Boolean(p.isPinned),
+    isDeleted: Boolean(p.isDeleted),
+    isHiddenByAuthor: Boolean(p.isHiddenByAuthor),
     author: {
-      id: author?.id ?? p.authorId ?? '',
-      name: author?.name ?? null,
-      username: author?.username ?? null,
-      subdomain: author?.subdomain ?? null,
-      logoUrl: author?.logoUrl ?? null,
-      isCertified: author?.isCertified ?? false,
+      id: (author.id as string) ?? (p.authorId as string) ?? '',
+      name: (author.name as string | null) ?? null,
+      username: (author.username as string | null) ?? null,
+      subdomain: (author.subdomain as string | null) ?? null,
+      logoUrl: (author.logoUrl as string | null) ?? null,
+      isCertified: Boolean(author.isCertified),
     },
-    parentId: p.parentId ?? null,
-    rootId: p.rootId ?? null,
-    repostId: p.repostId ?? null,
-    parent: p.parent ? mapFeedPostToThreadThought(p.parent) : null,
-    repost: p.repost ? mapFeedPostToThreadThought(p.repost) : null,
+    parentId: (p.parentId as string | null) ?? null,
+    rootId: (p.rootId as string | null) ?? null,
+    repostId: (p.repostId as string | null) ?? null,
+    parent: p.parent ? mapFeedPostToThreadThought(p.parent as RawPostPayload) : null,
+    repost: p.repost ? mapFeedPostToThreadThought(p.repost as RawPostPayload) : null,
     likesCount,
     repliesCount,
     repostsCount,
-    liked: !!p.liked,
-    reposted: !!p.reposted,
-    likes: p.likes ?? (p.liked ? [{ userId: author?.id || '' }] : []),
+    liked: Boolean(p.liked),
+    reposted: Boolean(p.reposted),
+    likes: (p.likes as unknown[]) ?? (p.liked ? [{ userId: (author.id as string) || '' }] : []),
     _count: {
       likes: likesCount,
       replies: repliesCount,
       reposts: repostsCount,
     },
-    attachments: p.attachments ?? [],
+    attachments: (p.attachments as unknown[]) ?? [],
     poll: p.poll ?? null,
-    tags: p.tags ?? [],
-    replyRestriction: p.replyRestriction ?? 'everyone',
+    tags: (p.tags as string[]) ?? [],
+    replyRestriction: (p.replyRestriction as string) ?? 'everyone',
     replies: [] as Record<string, unknown>[],
   };
 }
 
 function buildThreadTree(
   rootPostId: string,
-  flatReplies: ApiFeedPost[]
+  flatReplies: RawPostPayload[]
 ): Record<string, unknown>[] {
   const nodesMap = new Map<string, Record<string, unknown>>();
   const directReplies: Record<string, unknown>[] = [];
 
   for (const r of flatReplies) {
     const node = mapFeedPostToThreadThought(r);
-    if (node) {
-      nodesMap.set(node.id as string, node);
+    if (node && typeof node.id === 'string') {
+      nodesMap.set(node.id, node);
     }
   }
 
   for (const r of flatReplies) {
-    const node = nodesMap.get(r.id);
+    const node = nodesMap.get(r.id as string);
     if (!node) continue;
-    const parentId = r.parentId;
+    const parentId = r.parentId as string | undefined;
     if (!parentId || parentId === rootPostId) {
       directReplies.push(node);
     } else {
@@ -298,12 +307,14 @@ function buildThreadTree(
 }
 
 function mapGoThreadToWebThread(
-  rawThread: ApiFeedPost | null | undefined
+  rawThread: RawPostPayload | null | undefined
 ): Record<string, unknown> | null {
   if (!rawThread) return null;
   const root = mapFeedPostToThreadThought(rawThread);
   if (!root) return null;
-  const flatReplies = Array.isArray(rawThread.replies) ? rawThread.replies : [];
+  const flatReplies = Array.isArray(rawThread.replies)
+    ? (rawThread.replies as RawPostPayload[])
+    : [];
   root.replies = buildThreadTree(root.id as string, flatReplies);
   return root;
 }
@@ -313,7 +324,7 @@ export const replyToPostAction = safeAction<{ postId: string; content: string },
     const { postId, content } = replyToPostSchema.parse(rawInput);
 
     // ✅ Go-only : threadgate + notifications MENTION/REPLY + invalidation cache.
-    const replyRaw = await goFetch<unknown>(`/v1/posts/${postId}/reply`, {
+    const replyRaw = await goFetch<RawPostPayload>(`/v1/posts/${postId}/reply`, {
       method: 'POST',
       body: { content },
     });
@@ -325,7 +336,7 @@ export const replyToPostAction = safeAction<{ postId: string; content: string },
 export const getPostThreadAction = safeAction<string, { post: ThreadPost }>(
   async (postId) => {
     // ✅ Go-only : thread (racine + réponses + chaîne parent/repost).
-    const res = await goFetch<{ post: unknown }>(`/v1/posts/${postId}/thread`);
+    const res = await goFetch<{ post: RawPostPayload }>(`/v1/posts/${postId}/thread`);
     const mapped = mapGoThreadToWebThread(res.post);
     return { post: mapped as unknown as ThreadPost };
   },
