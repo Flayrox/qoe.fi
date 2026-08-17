@@ -209,6 +209,11 @@ type Querier interface {
 	// Liste des articles d'une publication au format contrat créateurs (Hono) :
 	// filtres `published` (défaut true) et `category` (slug), catégorie embarquée.
 	ListCreatorArticles(ctx context.Context, arg ListCreatorArticlesParams) ([]ListCreatorArticlesRow, error)
+	// Abonnés d'une publication (profil), paginés — avec état follow du viewer.
+	ListFollowersByPublication(ctx context.Context, arg ListFollowersByPublicationParams) ([]ListFollowersByPublicationRow, error)
+	// Abonnements d'un utilisateur (profil), résolus vers les propriétaires des
+	// publications suivies (PERSONAL), paginés — avec état follow du viewer.
+	ListFollowingByUser(ctx context.Context, arg ListFollowingByUserParams) ([]ListFollowingByUserRow, error)
 	// Surlignages d'un article : publics + les siens (privés) + état upvote du viewer.
 	ListHighlightsByArticle(ctx context.Context, arg ListHighlightsByArticleParams) ([]ListHighlightsByArticleRow, error)
 	ListLikesForPost(ctx context.Context, arg ListLikesForPostParams) ([]ListLikesForPostRow, error)

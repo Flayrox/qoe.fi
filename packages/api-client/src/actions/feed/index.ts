@@ -213,6 +213,60 @@ export const toggleFollowCreatorHomeAction = safeAction<string, { followed: bool
   }
 );
 
+// ─── Liste abonnés / abonnements (profil) ────────────────────────────
+
+/**
+ * 📄 Liste paginée des abonnés / abonnements d'un profil (web).
+ * Résout la publication par handle puis liste via le repo Prisma.
+ */
+export const getFollowListAction = safeAction<
+  { handle: string; tab: 'followers' | 'following'; cursor?: number; limit?: number },
+  { items: follows.FollowActorDTO[]; nextCursor: string | null; hasMore: boolean }
+>(async ({ handle, tab, cursor = 0, limit = 30 }, user) => {
+  const clean = decodeURIComponent(handle).replace(/^@/, '');
+  const publication = await prisma.publication.findFirst({
+    where: {
+      OR: [
+        { slug: { equals: clean, mode: 'insensitive' } },
+        { subdomain: { equals: clean, mode: 'insensitive' } },
+      ],
+    },
+    select: { id: true, user: { select: { id: true } } },
+  });
+  if (!publication) return { items: [], nextCursor: null, hasMore: false };
+
+  const viewerId = user?.id ?? null;
+  const fetchLimit = limit + 1;
+
+  if (tab === 'followers') {
+    const rows = await follows.listFollowers(publication.id, viewerId, {
+      limit: fetchLimit,
+      offset: cursor,
+    });
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    return {
+      items,
+      nextCursor: hasMore ? String(cursor + items.length) : null,
+      hasMore,
+    };
+  }
+
+  const ownerId = publication.user?.id ?? null;
+  if (!ownerId) return { items: [], nextCursor: null, hasMore: false };
+  const rows = await follows.listFollowing(ownerId, viewerId, {
+    limit: fetchLimit,
+    offset: cursor,
+  });
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  return {
+    items,
+    nextCursor: hasMore ? String(cursor + items.length) : null,
+    hasMore,
+  };
+});
+
 export const toggleBookmarkArticleHomeAction = safeAction<string, { bookmarked: boolean }>(
   async (articleId, user) => {
     return bookmarks.toggleBookmark(user.id, articleId);

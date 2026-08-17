@@ -119,6 +119,130 @@ export async function countFollowing(readerId: string): Promise<number> {
 }
 
 /**
+ * 🧑‍🤝‍🧑 Acteur d'une liste d'abonnés/abonnements (profil).
+ */
+export interface FollowActorDTO {
+  id: string;
+  publicationId: string | null;
+  name: string | null;
+  username: string | null;
+  subdomain: string | null;
+  logoUrl: string | null;
+  isCertified: boolean;
+  followedAt: string;
+  viewerFollows: boolean;
+}
+
+/**
+ * 📄 Liste les abonnés d'une publication (paginé).
+ */
+export async function listFollowers(
+  publicationId: string,
+  viewerId: string | null,
+  opts: { limit?: number; offset?: number } = {}
+): Promise<FollowActorDTO[]> {
+  const { limit = 50, offset = 0 } = opts;
+  const rows = await prisma.follows.findMany({
+    where: { publicationId },
+    orderBy: { createdAt: 'desc' },
+    skip: offset,
+    take: limit,
+    select: {
+      createdAt: true,
+      reader: {
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          publication: { select: { id: true, subdomain: true, logoUrl: true, isCertified: true } },
+        },
+      },
+    },
+  });
+
+  // Publications suivies par le viewer, pour calculer viewerFollows.
+  const viewerFollowsSet = new Set<string>();
+  if (viewerId) {
+    const vf = await prisma.follows.findMany({
+      where: { readerId: viewerId },
+      select: { publicationId: true },
+    });
+    vf.forEach((f) => viewerFollowsSet.add(f.publicationId));
+  }
+
+  return rows.map((row) => ({
+    id: row.reader.id,
+    publicationId: row.reader.publication?.id ?? null,
+    name: row.reader.name,
+    username: row.reader.username,
+    subdomain: row.reader.publication?.subdomain ?? null,
+    logoUrl: row.reader.publication?.logoUrl ?? null,
+    isCertified: row.reader.publication?.isCertified ?? false,
+    followedAt: row.createdAt.toISOString(),
+    viewerFollows: viewerId ? viewerFollowsSet.has(row.reader.publication?.id ?? '') : false,
+  }));
+}
+
+/**
+ * 📄 Liste les abonnements d'un utilisateur (propriétaire d'une publication).
+ * Résout vers les publications PERSONAL suivies (avec leur propriétaire).
+ */
+export async function listFollowing(
+  readerId: string,
+  viewerId: string | null,
+  opts: { limit?: number; offset?: number } = {}
+): Promise<FollowActorDTO[]> {
+  const { limit = 50, offset = 0 } = opts;
+  const rows = await prisma.follows.findMany({
+    where: { readerId },
+    orderBy: { createdAt: 'desc' },
+    skip: offset,
+    take: limit,
+    select: {
+      createdAt: true,
+      publication: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          subdomain: true,
+          logoUrl: true,
+          isCertified: true,
+          type: true,
+          user: { select: { id: true, name: true, username: true } },
+        },
+      },
+    },
+  });
+
+  const viewerFollowsSet = new Set<string>();
+  if (viewerId) {
+    const vf = await prisma.follows.findMany({
+      where: { readerId: viewerId },
+      select: { publicationId: true },
+    });
+    vf.forEach((f) => viewerFollowsSet.add(f.publicationId));
+  }
+
+  return rows
+    .filter((row) => row.publication.type === 'PERSONAL' && row.publication.user)
+    .map((row) => {
+      const pub = row.publication;
+      return {
+        id: pub.user!.id,
+        publicationId: pub.id,
+        name: pub.user!.name ?? pub.name,
+        username: pub.user!.username ?? pub.slug,
+        subdomain: pub.subdomain,
+        logoUrl: pub.logoUrl,
+        isCertified: pub.isCertified,
+        followedAt: row.createdAt.toISOString(),
+        viewerFollows: viewerId ? viewerFollowsSet.has(pub.id) : false,
+      };
+    });
+}
+
+/**
  * 📄 Retourne les IDs des publications suivies par un lecteur.
  */
 export async function getFollowedPublicationIds(readerId: string): Promise<string[]> {

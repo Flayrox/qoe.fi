@@ -51,6 +51,8 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Get("/v1/users/me", h.userMe)
 	r.Post("/v1/users/{id}/follow", h.followToggle)
+	r.Get("/v1/users/{username}/followers", h.userFollowers)
+	r.Get("/v1/users/{username}/following", h.userFollowing)
 	r.Get("/v1/categories", h.categories)
 	r.Post("/v1/categories", h.createCategory)
 	r.Patch("/v1/categories/{id}", h.updateCategory)
@@ -365,6 +367,14 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Nombre d'abonnements du propriétaire de la publication (CountFollowing).
+	var followingCount int32
+	if ownerID, err := h.q.GetPublicationOwner(r.Context(), row.ID); err == nil {
+		if n, err := h.q.CountFollowing(r.Context(), toUUID(ownerID)); err == nil {
+			followingCount = n
+		}
+	}
+
 	response.OK(w, map[string]any{"data": map[string]any{
 		"id":             row.ID,
 		"name":           row.Name,
@@ -378,8 +388,153 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		"isFollowing":    isFollowing,
 		"createdAt":      timestampPtr(row.CreatedAt),
 		"type":           string(row.Type),
-		"_count":         map[string]int32{"followers": row.FollowersCount, "articles": row.ArticlesCount},
+		"_count":         map[string]int32{"followers": row.FollowersCount, "following": followingCount, "articles": row.ArticlesCount},
 	}})
+}
+
+// followActor est un utilisateur listé dans followers/following.
+type followActor struct {
+	ID          string `json:"id"`
+	Name        *string `json:"name"`
+	Username    *string `json:"username"`
+	LogoURL     *string `json:"logoUrl"`
+	IsCertified bool   `json:"isCertified"`
+	FollowedAt  string `json:"followedAt"`
+	ViewerFollows bool `json:"viewerFollows"`
+}
+
+// followPage est une page d'abonnés/abonnements paginée.
+type followPage struct {
+	Items      []followActor `json:"items"`
+	NextCursor string        `json:"nextCursor"`
+	HasMore    bool          `json:"hasMore"`
+}
+
+// userFollowers — GET /v1/users/{username}/followers : abonnés d'une publication.
+func (h *Handler) userFollowers(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	username := chi.URLParam(r, "username")
+	limit, offset := parseFollowPage(r)
+
+	pub, err := h.q.GetPublicationBySlugOrSubdomain(r.Context(), username)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.NotFound(w, "User not found")
+			return
+		}
+		response.Internal(w)
+		return
+	}
+
+	rows, err := h.q.ListFollowersByPublication(r.Context(), db.ListFollowersByPublicationParams{
+		PublicationId: pub.ID,
+		ViewerID:      toUUID(userID),
+		Limit:         int32(limit + 1),
+		Offset:        int32(offset),
+	})
+	if err != nil {
+		log.Printf("[creator] followers: %v", err)
+		response.Internal(w)
+		return
+	}
+
+	hasMore := len(rows) > limit
+	if hasMore {
+		rows = rows[:limit]
+	}
+	items := make([]followActor, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, followActor{
+			ID:            row.UserID,
+			Name:          textPtr(row.UserName),
+			Username:      textPtr(row.UserUsername),
+			LogoURL:       textPtr(row.UserLogo),
+			IsCertified:   row.UserCertified,
+			FollowedAt:    row.FollowedAt.Time.Format(time.RFC3339),
+			ViewerFollows: row.ViewerFollows,
+		})
+	}
+
+	page := followPage{Items: items, HasMore: hasMore}
+	if hasMore {
+		page.NextCursor = fmt.Sprintf("%d", offset+len(rows))
+	}
+	response.OK(w, page)
+}
+
+// userFollowing — GET /v1/users/{username}/following : abonnements d'un user.
+func (h *Handler) userFollowing(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	username := chi.URLParam(r, "username")
+	limit, offset := parseFollowPage(r)
+
+	pub, err := h.q.GetPublicationBySlugOrSubdomain(r.Context(), username)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.NotFound(w, "User not found")
+			return
+		}
+		response.Internal(w)
+		return
+	}
+	ownerID, err := h.q.GetPublicationOwner(r.Context(), pub.ID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.NotFound(w, "User not found")
+			return
+		}
+		response.Internal(w)
+		return
+	}
+
+	rows, err := h.q.ListFollowingByUser(r.Context(), db.ListFollowingByUserParams{
+		ReaderId: toUUID(ownerID),
+		ViewerID: toUUID(userID),
+		Limit:    int32(limit + 1),
+		Offset:   int32(offset),
+	})
+	if err != nil {
+		log.Printf("[creator] following: %v", err)
+		response.Internal(w)
+		return
+	}
+
+	hasMore := len(rows) > limit
+	if hasMore {
+		rows = rows[:limit]
+	}
+	items := make([]followActor, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, followActor{
+			ID:            row.UserID,
+			Name:          textPtr(row.UserName),
+			Username:      textPtr(row.UserUsername),
+			LogoURL:       textPtr(row.UserLogo),
+			IsCertified:   row.UserCertified,
+			FollowedAt:    row.FollowedAt.Time.Format(time.RFC3339),
+			ViewerFollows: row.ViewerFollows,
+		})
+	}
+
+	page := followPage{Items: items, HasMore: hasMore}
+	if hasMore {
+		page.NextCursor = fmt.Sprintf("%d", offset+len(rows))
+	}
+	response.OK(w, page)
+}
+
+func parseFollowPage(r *http.Request) (limit, offset int) {
+	limit, _ = strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	if c := r.URL.Query().Get("cursor"); c != "" {
+		offset, _ = strconv.Atoi(c)
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return limit, offset
 }
 
 // followToggle suit/se désabonne d'une publication (parité Hono /v1/users/{id}/follow).

@@ -45,7 +45,15 @@ export default async function UserProfileTabPage({
   const resolvedParams = await params;
   const rawTab = resolvedParams.tab;
 
-  const validTabs = ['thoughts', 'with_replies', 'articles', 'reposts', 'media'];
+  const validTabs = [
+    'thoughts',
+    'with_replies',
+    'articles',
+    'reposts',
+    'media',
+    'followers',
+    'following',
+  ];
   if (!validTabs.includes(rawTab)) {
     notFound();
   }

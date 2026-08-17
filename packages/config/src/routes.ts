@@ -27,7 +27,8 @@ export const routes = {
     onboarding: () => '/onboarding',
     profile: (
       username: string,
-      tab?: 'thoughts' | 'with_replies' | 'articles' | 'reposts' | 'media'
+      tab?:
+        'thoughts' | 'with_replies' | 'articles' | 'reposts' | 'media' | 'followers' | 'following'
     ) => {
       const clean = encodeURIComponent(username.replace(/^@/, ''));
       if (!tab || tab === 'thoughts') return `/${clean}`;

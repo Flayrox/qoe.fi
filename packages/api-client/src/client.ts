@@ -16,6 +16,7 @@ import type {
   EngagementPage,
   FeedPoll,
   FeedResult,
+  FollowPage,
   Highlight,
   MyHighlight,
   MyProfileData,
@@ -425,6 +426,28 @@ export class QoeApiClient {
     return this.request<FeedResult>(
       `/v1/users/${encodeURIComponent(username)}/posts${queryString}`
     );
+  }
+
+  /**
+   * GET /v1/users/{username}/followers — abonnés d'un profil, paginés.
+   */
+  public async getUserFollowers(username: string, params?: { cursor?: number; limit?: number }) {
+    const query = new URLSearchParams();
+    if (params?.cursor !== undefined) query.set('cursor', params.cursor.toString());
+    if (params?.limit) query.set('limit', params.limit.toString());
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<FollowPage>(`/v1/users/${encodeURIComponent(username)}/followers${qs}`);
+  }
+
+  /**
+   * GET /v1/users/{username}/following — abonnements d'un profil, paginés.
+   */
+  public async getUserFollowing(username: string, params?: { cursor?: number; limit?: number }) {
+    const query = new URLSearchParams();
+    if (params?.cursor !== undefined) query.set('cursor', params.cursor.toString());
+    if (params?.limit) query.set('limit', params.limit.toString());
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<FollowPage>(`/v1/users/${encodeURIComponent(username)}/following${qs}`);
   }
 
   /**

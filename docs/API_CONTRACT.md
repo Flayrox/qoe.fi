@@ -332,6 +332,23 @@ Un **quote** = un post avec `repostId` **ET** un `content` non vide
 > ✅ Compatible avec `QoeApiClient.toggleFollowUser` (qui attend
 > `{following, followersCount}`).
 
+### GET `/v1/users/{username}/followers?cursor=&limit=`
+**Auth** : protégée. Liste paginée des **abonnés** d'une publication (résolue
+par slug/subdomain), avec état follow du viewer. **Réponse** (non enveloppée) :
+```json
+{ "items": [ { "id": "uuid", "name": "…" | null, "username": "…" | null,
+               "logoUrl": "…" | null, "isCertified": false,
+               "followedAt": "RFC3339", "viewerFollows": false } ],
+  "nextCursor": "50", "hasMore": false }
+```
+> ✅ AOÛT 2026 : porté des onglets Bluesky ProfileFollowers. Le profil public
+> renvoie aussi `_count.following` (nombre d'abonnements du propriétaire).
+
+### GET `/v1/users/{username}/following?cursor=&limit=`
+**Auth** : protégée. Liste paginée des **abonnements** d'un utilisateur
+(résolus vers les propriétaires des publications PERSONAL suivies). Même
+shape que `/followers`.
+
 ---
 
 ## 5. Articles & paywall
@@ -553,5 +570,6 @@ avec `author` dénormalisé. **Body POST** : `{"content": "…"}`.
 | 7 | ~~`Thought` vs `FeedPost`~~ | ~~`viewerLiked` vs `liked`~~ **✅ CORRIGÉ (août 2026)** : la shape `Thought` a été **supprimée côté Go** — tous les endpoints renvoient un `FeedPost` complet ; `Thought` est un alias client ; `normalize.ts` n'a plus qu'un chemin | — |
 | 8 | ~~stats non cliquables~~ | ~~rangée « N reposts · N j'aime · N réponses » statique~~ **✅ CORRIGÉ (août 2026)** : `POST /v1/posts/{id}/likes|reposts|quotes` + écrans mobile `post/[id]/{kind}` (parité PostLikedBy/PostRepostedBy/PostQuotes) | — |
 | 9 | ~~menu mute/block/report~~ | ~~stubs « bientôt disponible »~~ **✅ CORRIGÉ (août 2026)** : `POST /v1/users/{id}/mute|block` + `POST /v1/reports` (tables `MutedUser`/`BlockedUser`/`ModerationReport`), branchés dans `post-menu.tsx` | — |
+| 10 | ~~pas d'onglets followers/following~~ | **✅ CORRIGÉ (août 2026)** : `GET /v1/users/{username}/followers|following` + onglets dans le profil mobile (`user/[username]/follow`) et web (`FollowList` + tabs) | — |
 
 > Ces gaps sont autant de tickets concrets pour le sprint mobile.
