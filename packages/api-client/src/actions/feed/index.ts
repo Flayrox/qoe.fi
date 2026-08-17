@@ -810,6 +810,8 @@ export interface ProfilePostPayload {
   createdAt: string | Date;
   triggerWarning?: string | null;
   isPinned?: boolean;
+  isDeleted?: boolean;
+  isHiddenByAuthor?: boolean;
   author: {
     id: string;
     name: string | null;
@@ -825,7 +827,26 @@ export interface ProfilePostPayload {
   repliesCount?: number;
   repostsCount?: number;
   liked?: boolean;
+  reposted?: boolean;
   _count?: { likes?: number; replies?: number; reposts?: number };
+  attachments?: Array<{ id?: string; url: string; type?: string; altText?: string | null }> | null;
+  tags?: string[];
+  poll?: {
+    id: string;
+    thoughtId: string;
+    expiresAt: string | Date;
+    isExpired: boolean;
+    totalVotes: number;
+    userVotedOptionId: string | null;
+    options: Array<{
+      id: string;
+      text: string;
+      order: number;
+      voteCount: number;
+      percentage: number;
+    }>;
+  } | null;
+  replyRestriction?: string;
 }
 
 /** Profil résolu (contrat web de la page /[username]). */
@@ -886,36 +907,69 @@ export interface ProfileResolvePayload {
   publicationId: string;
 }
 
-function mapProfilePost(fp: ApiFeedPost): ProfilePostPayload {
-  const author = fp.author as ApiFeedPost['author'] | undefined;
+function mapProfilePost(fp: ApiFeedPost | RawPostPayload): ProfilePostPayload {
+  const raw = fp as RawPostPayload;
+  const author = (raw.author || {}) as Record<string, unknown>;
+  const counts = (raw._count || {}) as Record<string, unknown>;
+  const likesCount =
+    typeof raw.likesCount === 'number'
+      ? raw.likesCount
+      : typeof raw.likeCount === 'number'
+        ? raw.likeCount
+        : typeof counts.likes === 'number'
+          ? counts.likes
+          : 0;
+  const repliesCount =
+    typeof raw.repliesCount === 'number'
+      ? raw.repliesCount
+      : typeof raw.replyCount === 'number'
+        ? raw.replyCount
+        : typeof counts.replies === 'number'
+          ? counts.replies
+          : 0;
+  const repostsCount =
+    typeof raw.repostsCount === 'number'
+      ? raw.repostsCount
+      : typeof raw.repostCount === 'number'
+        ? raw.repostCount
+        : typeof counts.reposts === 'number'
+          ? counts.reposts
+          : 0;
+
   return {
-    id: fp.id,
-    content: fp.content ?? '',
-    imageUrl: fp.imageUrl ?? null,
-    createdAt: fp.createdAt,
-    isPinned: fp.isPinned ?? false,
+    id: raw.id as string,
+    content: (raw.content as string) ?? '',
+    imageUrl: (raw.imageUrl as string | null) ?? null,
+    createdAt: (raw.createdAt as string) || new Date().toISOString(),
+    triggerWarning: (raw.triggerWarning as string | null) ?? null,
+    isPinned: Boolean(raw.isPinned),
+    isDeleted: Boolean(raw.isDeleted),
+    isHiddenByAuthor: Boolean(raw.isHiddenByAuthor),
     author: {
-      id: author?.id ?? '',
-      name: author?.name ?? null,
-      username: author?.username ?? null,
-      logoUrl: author?.logoUrl ?? null,
-      isCertified: author?.isCertified ?? false,
+      id: (author.id as string) ?? (raw.authorId as string) ?? '',
+      name: (author.name as string | null) ?? null,
+      username: (author.username as string | null) ?? null,
+      logoUrl: (author.logoUrl as string | null) ?? null,
+      isCertified: Boolean(author.isCertified),
     },
-    parentId: fp.parentId ?? null,
-    repostId: fp.repostId ?? null,
-    parent: fp.parent ? mapProfilePost(fp.parent) : null,
-    repost: fp.repost ? mapProfilePost(fp.repost) : null,
-    likesCount: fp.likeCount ?? fp._count?.likes ?? 0,
-    repliesCount: fp.replyCount ?? fp._count?.replies ?? 0,
-    repostsCount: fp.repostCount ?? fp._count?.reposts ?? 0,
-    liked: !!fp.liked,
-    _count: fp._count
-      ? {
-          likes: fp._count.likes,
-          replies: fp._count.replies,
-          reposts: fp._count.reposts,
-        }
-      : undefined,
+    parentId: (raw.parentId as string | null) ?? null,
+    repostId: (raw.repostId as string | null) ?? null,
+    parent: raw.parent ? mapProfilePost(raw.parent as RawPostPayload) : null,
+    repost: raw.repost ? mapProfilePost(raw.repost as RawPostPayload) : null,
+    likesCount,
+    repliesCount,
+    repostsCount,
+    liked: Boolean(raw.liked),
+    reposted: Boolean(raw.reposted),
+    _count: {
+      likes: likesCount,
+      replies: repliesCount,
+      reposts: repostsCount,
+    },
+    attachments: (raw.attachments as ProfilePostPayload['attachments']) ?? null,
+    tags: (raw.tags as string[]) ?? [],
+    poll: (raw.poll as ProfilePostPayload['poll']) ?? null,
+    replyRestriction: (raw.replyRestriction as string) ?? 'everyone',
   };
 }
 
