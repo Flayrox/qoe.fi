@@ -29,6 +29,9 @@ export interface ThoughtData {
   likesCount?: number;
   repliesCount?: number;
   repostsCount?: number;
+  likeCount?: number;
+  replyCount?: number;
+  repostCount?: number;
   liked?: boolean;
   reposted?: boolean;
   _count?: {
@@ -36,6 +39,7 @@ export interface ThoughtData {
     replies?: number;
     reposts?: number;
   };
+  authorId?: string;
   parent?: {
     id: string;
     author: {
@@ -437,27 +441,35 @@ export function ThoughtCard({
           )}
           {/* Detailed stats & KnownLikers in Focus mode */}
           {isFocus &&
-            ((post.repostsCount ?? 0) > 0 ||
-              (post.likesCount ?? 0) > 0 ||
+            ((post.repostsCount ?? post.repostCount ?? post._count?.reposts ?? 0) > 0 ||
+              (post.likesCount ?? post.likeCount ?? post._count?.likes ?? 0) > 0 ||
               (knownLikers && knownLikers.length > 0)) && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5 px-1 border-b border-border/40 text-xs text-muted-foreground font-sans">
                 <div className="flex items-center gap-4">
-                  {(post.repostsCount ?? 0) > 0 && (
+                  {(post.repostsCount ?? post.repostCount ?? post._count?.reposts ?? 0) > 0 && (
                     <span>
-                      <strong className="font-semibold text-foreground">{post.repostsCount}</strong>{' '}
-                      repost{(post.repostsCount ?? 0) > 1 ? 's' : ''}
+                      <strong className="font-semibold text-foreground">
+                        {post.repostsCount ?? post.repostCount ?? post._count?.reposts ?? 0}
+                      </strong>{' '}
+                      repost
+                      {(post.repostsCount ?? post.repostCount ?? post._count?.reposts ?? 0) > 1
+                        ? 's'
+                        : ''}
                     </span>
                   )}
-                  {(post.likesCount ?? 0) > 0 && (
+                  {(post.likesCount ?? post.likeCount ?? post._count?.likes ?? 0) > 0 && (
                     <span>
-                      <strong className="font-semibold text-foreground">{post.likesCount}</strong>{' '}
+                      <strong className="font-semibold text-foreground">
+                        {post.likesCount ?? post.likeCount ?? post._count?.likes ?? 0}
+                      </strong>{' '}
                       j'aime
                     </span>
                   )}
                 </div>
 
                 {/* Dot Separator if there are both stats and known likers */}
-                {((post.repostsCount ?? 0) > 0 || (post.likesCount ?? 0) > 0) &&
+                {((post.repostsCount ?? post.repostCount ?? post._count?.reposts ?? 0) > 0 ||
+                  (post.likesCount ?? post.likeCount ?? post._count?.likes ?? 0) > 0) &&
                   knownLikers &&
                   knownLikers.length > 0 && (
                     <span className="text-muted-foreground/30 font-sans select-none shrink-0">
