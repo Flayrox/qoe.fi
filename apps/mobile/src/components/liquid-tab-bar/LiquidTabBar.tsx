@@ -211,8 +211,8 @@ export function LiquidTabBar({
   const pillTranslateX = useSharedValue(0);
   const pillOpacity = useSharedValue(0.14);
 
-  // Éclosion de l'aura (déclenchée après 300ms à 100% de déploiement)
-  const auraBloomProgress = useSharedValue(0);
+  // Onde de propagation liquide (déclenchée après 320ms à 100% de déploiement)
+  const auraWaveProgress = useSharedValue(0);
 
   // Grossissement et déformation 100% solidaire de toute la NavBar et son contenu
   const barScale = useSharedValue(1);
@@ -225,23 +225,23 @@ export function LiquidTabBar({
   const startX = useSharedValue(0);
   const activeHoverIndex = useSharedValue(state?.index ?? 1);
 
-  // Déclenchement de l'aura uniquement quand le drawer est à 100% avec 300ms de suspense
+  // Déclenchement de la vague de propagation liquide uniquement à 100% avec 320ms de suspense
   useAnimatedReaction(
     () => drawerProgress?.value ?? 0,
     (currentProgress, previousProgress) => {
       if (currentProgress >= 0.98) {
         if (!previousProgress || previousProgress < 0.98) {
-          auraBloomProgress.value = withDelay(
-            300,
+          auraWaveProgress.value = withDelay(
+            320,
             withTiming(1, {
-              duration: 450,
-              easing: Easing.out(Easing.cubic),
+              duration: 650,
+              easing: Easing.bezier(0.16, 1, 0.3, 1),
             })
           );
         }
       } else {
-        if (auraBloomProgress.value > 0) {
-          auraBloomProgress.value = withTiming(0, { duration: 150 });
+        if (auraWaveProgress.value > 0) {
+          auraWaveProgress.value = withTiming(0, { duration: 160 });
         }
       }
     }
@@ -274,7 +274,15 @@ export function LiquidTabBar({
 
   const panGesture = Gesture.Pan()
     .minDistance(0)
+    .onTouchesDown((event, manager) => {
+      // Si la sidebar est ouverte, désactiver les gestes sur la tabbar
+      if (drawerProgress && drawerProgress.value > 0.05) {
+        manager.fail();
+      }
+    })
     .onBegin((e) => {
+      if (drawerProgress && drawerProgress.value > 0.05) return;
+
       isInteracting.value = true;
       hasMoved.value = false;
       startX.value = e.x;
@@ -284,6 +292,8 @@ export function LiquidTabBar({
       pillOpacity.value = withTiming(0.22, { duration: 80 });
     })
     .onUpdate((e) => {
+      if (drawerProgress && drawerProgress.value > 0.05) return;
+
       const distance = Math.abs(e.x - startX.value);
       if (distance > DRAG_THRESHOLD) {
         hasMoved.value = true;
@@ -325,6 +335,8 @@ export function LiquidTabBar({
       }
     })
     .onFinalize((e) => {
+      if (drawerProgress && drawerProgress.value > 0.05) return;
+
       isInteracting.value = false;
 
       barScale.value = withSpring(1.0, SPRING_SETTLE);
@@ -380,11 +392,16 @@ export function LiquidTabBar({
     };
   });
 
-  // Aura radiale chaleureuse qui éclot depuis la PP vers les bords après 300ms d'ouverture à 100%
-  const auraAnimatedStyle = useAnimatedStyle(() => {
-    const scale = interpolate(auraBloomProgress.value, [0, 1], [0.45, 1.15], Extrapolation.CLAMP);
+  // Onde de propagation liquide : démarre de la PP (scale 0.1 -> 1.5) et diffuse vers l'extérieur
+  const auraRippleStyle = useAnimatedStyle(() => {
+    const scale = interpolate(auraWaveProgress.value, [0, 1], [0.2, 1.45], Extrapolation.CLAMP);
 
-    const opacity = interpolate(auraBloomProgress.value, [0, 1], [0, 0.52], Extrapolation.CLAMP);
+    const opacity = interpolate(
+      auraWaveProgress.value,
+      [0, 0.35, 1],
+      [0, 0.52, 0.5],
+      Extrapolation.CLAMP
+    );
 
     return {
       opacity,
@@ -439,23 +456,23 @@ export function LiquidTabBar({
                     pillAnimatedStyle,
                   ]}
                 >
-                  {/* Aura radiale dense à ~50% autour de la PP qui éclot doucement et s'estompe aux bords */}
+                  {/* Onde de propagation liquide rayonnante depuis la PP avec dissipation totale aux bords */}
                   <Animated.View
-                    style={[styles.avatarAuraContainer, auraAnimatedStyle]}
+                    style={[styles.avatarPropagationContainer, auraRippleStyle]}
                     pointerEvents="none"
                   >
-                    {/* Épicentre dense autour de la PP */}
-                    <View style={styles.avatarAuraCore} />
-                    {/* Halo de diffusion gaussienne */}
+                    {/* Épicentre dense à 50% sous la photo de profil */}
+                    <View style={styles.avatarCoreEpicenter} />
+                    {/* Halo de diffusion gaussienne qui s'éteint complètement aux bords */}
                     {userAvatarProps?.logoUrl ? (
                       <Image
                         source={{ uri: userAvatarProps.logoUrl }}
-                        style={styles.avatarBlurredImage}
-                        blurRadius={20}
+                        style={styles.avatarDiffusionImage}
+                        blurRadius={22}
                         resizeMode="cover"
                       />
                     ) : (
-                      <View style={styles.avatarBlurredFallback} />
+                      <View style={styles.avatarDiffusionFallback} />
                     )}
                   </Animated.View>
                 </Animated.View>
@@ -545,7 +562,7 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     overflow: 'hidden',
   },
-  avatarAuraContainer: {
+  avatarPropagationContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -556,32 +573,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarAuraCore: {
+  avatarCoreEpicenter: {
     position: 'absolute',
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(238, 75, 43, 0.45)',
+    backgroundColor: 'rgba(238, 75, 43, 0.50)',
     shadowColor: '#ee4b2b',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
     shadowRadius: 18,
     zIndex: 2,
   },
-  avatarBlurredImage: {
-    width: '180%',
-    height: '180%',
-    transform: [{ scale: 1.3 }],
+  avatarDiffusionImage: {
+    width: '160%',
+    height: '160%',
+    transform: [{ scale: 1.2 }],
     opacity: 0.65,
   },
-  avatarBlurredFallback: {
+  avatarDiffusionFallback: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: '#ee4b2b',
-    opacity: 0.45,
+    opacity: 0.5,
   },
   tabsRow: {
     flexDirection: 'row',

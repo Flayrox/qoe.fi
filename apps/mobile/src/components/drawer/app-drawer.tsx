@@ -122,7 +122,22 @@ export function AppDrawer({ children }: PropsWithChildren) {
         <Animated.View style={[styles.deckShadow, canvasStyle]}>
           <Animated.View style={[styles.deck, { backgroundColor: theme.background }]}>
             <GestureDetector gesture={panGesture}>
-              <View style={styles.deckSurface}>{children}</View>
+              <View style={styles.deckSurface}>
+                {children}
+
+                {/* Overlay qui bloque toute manipulation du feed et de la tabbar quand la sidebar est ouverte */}
+                <Animated.View
+                  style={[
+                    styles.deckBlockerOverlay,
+                    useAnimatedStyle(() => ({
+                      opacity: progress.value > 0.05 ? 1 : 0,
+                      pointerEvents: progress.value > 0.05 ? 'auto' : 'none',
+                    })),
+                  ]}
+                >
+                  <Pressable style={StyleSheet.absoluteFill} onPress={closeDrawer} />
+                </Animated.View>
+              </View>
             </GestureDetector>
           </Animated.View>
         </Animated.View>
@@ -134,6 +149,15 @@ export function AppDrawer({ children }: PropsWithChildren) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  deckBlockerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
+    backgroundColor: 'transparent',
   },
   sidecarContainer: {
     position: 'absolute',
