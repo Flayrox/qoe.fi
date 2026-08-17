@@ -4,12 +4,6 @@
 // Sur le web, `NativeTabs` (expo-router/unstable-native-tabs) n'existe pas :
 // on utilise l'API `expo-router/ui` (Tabs/TabList/TabTrigger/TabSlot) pour
 // dessiner une barre d'onglets custom en haut de l'écran.
-// - TabSlot : rend la route active (hauteur 100%).
-// - TabList : barre flottante en haut (position absolute, padding 16,
-//   centrée, maxWidth 800) contenant le brand « Expo Starter », les 2
-//   onglets (Feed / Explore) et un lien Docs.
-// ⚠️ Le brand « Expo Starter » est du template — à remplacer par « Qoe »
-//    lors de la vraie app.
 // =====================================================================
 
 import {
@@ -41,7 +35,16 @@ export default function AppTabs() {
             <TabButton>Feed</TabButton>
           </TabTrigger>
           <TabTrigger name="explore" href="/explore" asChild>
-            <TabButton>Explore</TabButton>
+            <TabButton>Explorer</TabButton>
+          </TabTrigger>
+          <TabTrigger name="search" href="/search" asChild>
+            <TabButton>Recherche</TabButton>
+          </TabTrigger>
+          <TabTrigger name="notifications" href="/notifications" asChild>
+            <TabButton>Notifications</TabButton>
+          </TabTrigger>
+          <TabTrigger name="messages" href="/messages" asChild>
+            <TabButton>Messages</TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>
@@ -50,9 +53,6 @@ export default function AppTabs() {
 }
 
 // Bouton d'onglet : pastille arrondie (radius 16, padding 4/16).
-// - Focusé : fond backgroundSelected + texte `text` (pleine opacité).
-// - Non focusé : fond backgroundElement + texte textSecondary.
-// - Pressé : opacité 0.7.
 export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
   return (
     <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
@@ -69,8 +69,6 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
 }
 
 // Barre d'onglets : conteneur absolu pleine largeur (padding 16, centré),
-// pastille intérieure (fond backgroundElement, radius 32, padding 8/32,
-// flexGrow 1, maxWidth 800) qui contient brand + onglets + lien Docs.
 export function CustomTabList(props: TabListProps) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
@@ -78,17 +76,17 @@ export function CustomTabList(props: TabListProps) {
   return (
     <View {...props} style={styles.tabListContainer}>
       <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        {/* Brand : texte bold small, poussé à gauche (marginRight auto). */}
+        {/* Brand */}
         <ThemedText type="smallBold" style={styles.brandText}>
-          Expo Starter
+          Qoe
         </ThemedText>
 
         {props.children}
 
-        {/* Lien Docs externe (navigateur in-app) + icône lien. */}
-        <ExternalLink href="https://docs.expo.dev" asChild>
+        {/* Lien Docs externe */}
+        <ExternalLink href="https://qoe.fi" asChild>
           <Pressable style={styles.externalPressable}>
-            <ThemedText type="link">Docs</ThemedText>
+            <ThemedText type="link">Web</ThemedText>
             <SymbolView
               tintColor={colors.text}
               name={{ ios: 'arrow.up.right.square', web: 'link' }}
@@ -112,7 +110,7 @@ const styles = StyleSheet.create({
   },
   innerContainer: {
     paddingVertical: Spacing.two, // 8
-    paddingHorizontal: Spacing.five, // 32
+    paddingHorizontal: Spacing.four, // 24
     borderRadius: Spacing.five, // 32 (pastille arrondie)
     flexDirection: 'row',
     alignItems: 'center',
@@ -122,13 +120,15 @@ const styles = StyleSheet.create({
   },
   brandText: {
     marginRight: 'auto', // pousse le reste à droite
+    fontSize: 16,
+    fontWeight: '800',
   },
   pressed: {
     opacity: 0.7,
   },
   tabButtonView: {
     paddingVertical: Spacing.one, // 4
-    paddingHorizontal: Spacing.three, // 16
+    paddingHorizontal: Spacing.two, // 8
     borderRadius: Spacing.three, // 16
   },
   externalPressable: {
@@ -136,6 +136,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: Spacing.one, // 4
-    marginLeft: Spacing.three, // 16
+    marginLeft: Spacing.two,
   },
 });
