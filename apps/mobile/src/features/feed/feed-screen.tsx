@@ -7,7 +7,7 @@ import {
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -36,25 +36,34 @@ import type { FeedArticle } from '@qoe/api-client/mobile';
 // pensées » (polling Go, insertion en tête de liste).
 // =====================================================================
 
-// Adapte le client universel au contrat du hook :
-// FeedResult → ApiResponse<FeedSlice[]>.
-const fetcher: FeedFetcherFn<FeedSlice> = async ({ cursor, limit }) => {
-  const res = await apiClient.getFeed({ cursor: cursor ?? undefined, limit });
-  if (!res.ok) {
-    throw new Error(res.error);
-  }
-  const response: ApiResponse<FeedSlice[]> = {
-    data: res.data.items,
-    meta: { cursor: res.data.nextCursor, hasMore: res.data.hasMore },
-  };
-  return response;
-};
-
 type FeedRow = { kind: 'thought'; slice: FeedSlice } | { kind: 'article'; article: FeedArticle };
+
+type FeedTab = 'for_you' | 'following';
 
 export function FeedScreen() {
   const theme = useTheme();
   const { openDrawer } = useDrawer();
+  const [tab, setTab] = useState<FeedTab>('for_you');
+
+  // Adapte le client universel au contrat du hook, selon l'onglet :
+  // « Pour vous » = tendances, « Abonnements » = publications suivies.
+  const fetcher: FeedFetcherFn<FeedSlice> = useCallback(
+    async ({ cursor, limit }) => {
+      const res =
+        tab === 'following'
+          ? await apiClient.getFeed({ cursor: cursor ?? undefined, limit })
+          : await apiClient.getTrendingFeed({ cursor: cursor ?? undefined, limit });
+      if (!res.ok) {
+        throw new Error(res.error);
+      }
+      const response: ApiResponse<FeedSlice[]> = {
+        data: res.data.items,
+        meta: { cursor: res.data.nextCursor, hasMore: res.data.hasMore },
+      };
+      return response;
+    },
+    [tab]
+  );
 
   // ── Pensées (infini) ─────────────────────────────────────────
   const {
@@ -66,9 +75,13 @@ export function FeedScreen() {
     isPending,
     isError,
     isRefetching,
-  } = useInfiniteFeed<FeedSlice>({ limit: 20, fetcher });
+  } = useInfiniteFeed<FeedSlice>({
+    type: tab === 'following' ? 'following' : 'for-you',
+    limit: 20,
+    fetcher,
+  });
 
-  // ── Articles récents (infini) ────────────────────────────────
+  // ── Articles récents (infini, onglet « Pour vous » uniquement) ─
   const articles = useInfiniteQuery({
     queryKey: ['feed', 'articles'],
     queryFn: async ({ pageParam }: { pageParam: number }) => {
@@ -78,6 +91,7 @@ export function FeedScreen() {
     },
     initialPageParam: 0 as number,
     getNextPageParam: (lastPage, allPages) => (lastPage.hasMore ? allPages.length * 20 : undefined),
+    enabled: tab === 'for_you',
   });
 
   const thoughts = useMemo(() => data?.pages.flatMap((page) => page?.data ?? []) ?? [], [data]);
@@ -190,7 +204,35 @@ export function FeedScreen() {
                   </ThemedText>
                 )}
               </Pressable>
-              <ThemedText style={styles.headerTitle}>{t('feed.title', 'Pour vous')}</ThemedText>
+              {/* Onglets Pour vous / Abonnements (parité web) */}
+              <View style={styles.tabsRow}>
+                <Pressable onPress={() => setTab('for_you')} style={styles.tab} hitSlop={8}>
+                  <ThemedText
+                    style={[
+                      styles.tabLabel,
+                      { color: tab === 'for_you' ? theme.text : theme.textSecondary },
+                    ]}
+                  >
+                    {t('feed.for_you', 'Pour vous')}
+                  </ThemedText>
+                  {tab === 'for_you' ? (
+                    <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />
+                  ) : null}
+                </Pressable>
+                <Pressable onPress={() => setTab('following')} style={styles.tab} hitSlop={8}>
+                  <ThemedText
+                    style={[
+                      styles.tabLabel,
+                      { color: tab === 'following' ? theme.text : theme.textSecondary },
+                    ]}
+                  >
+                    {t('feed.following_tab', 'Abonnements')}
+                  </ThemedText>
+                  {tab === 'following' ? (
+                    <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />
+                  ) : null}
+                </Pressable>
+              </View>
               <View style={styles.headerSpacer} />
 
               {/* Notifications */}
@@ -285,9 +327,25 @@ const styles = StyleSheet.create({
   headerSpacer: {
     flex: 1,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+  tabsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.four,
+  },
+  tab: {
+    alignItems: 'center',
+    paddingBottom: Spacing.one,
+  },
+  tabLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    width: 24,
+    height: 3,
+    borderRadius: 2,
   },
   composeButton: {
     width: 32,
