@@ -279,8 +279,9 @@ export function LiquidTabBar({
 
     const widths = [leftTabWidth, leftTabWidth, homeWidth, rightTabWidth];
     const offsets = [0, leftTabWidth, homeLeft, homeLeft + homeWidth];
+    const centers = offsets.map((off, idx) => off + widths[idx] / 2);
 
-    return { widths, offsets };
+    return { widths, offsets, centers };
   }, [screenWidth, tabCount]);
 
   // Initialisation immédiate des shared values avec les offsets calibrés (évite tout saut au 1er rendu)
@@ -290,6 +291,7 @@ export function LiquidTabBar({
   // Pilule active : matière douce et feutrée
   const pillTranslateX = useSharedValue(initialOffset);
   const pillWidth = useSharedValue(initialWidth);
+  const pillScale = useSharedValue(1);
   const pillOpacity = useSharedValue(isDark ? 0.14 : 0.09);
 
   // Onde de propagation liquide (déclenchée après 320ms à 100% de déploiement)
@@ -391,6 +393,7 @@ export function LiquidTabBar({
       activeHoverIndex.value = currentVisibleIndex;
 
       barScale.value = withSpring(1.03, SPRING_SETTLE);
+      pillScale.value = withSpring(1.02, SPRING_DRAG);
       pillOpacity.value = withTiming(isDark ? 0.22 : 0.16, { duration: 80 });
     })
     .onUpdate((e) => {
@@ -399,25 +402,65 @@ export function LiquidTabBar({
       const distance = Math.abs(e.x - startX.value);
       if (distance > DRAG_THRESHOLD) {
         hasMoved.value = true;
+        pillScale.value = withSpring(1.05, SPRING_DRAG);
       }
 
       if (hasMoved.value && tabCount > 0) {
         const relativeX = e.x - TRACK_PADDING;
-        const currentPillW =
-          pillWidth.value > 0 ? pillWidth.value : (tabMetrics.widths[currentVisibleIndex] ?? 70);
-        const targetCenter = relativeX - currentPillW / 2;
-        const maxBound = tabMetrics.offsets[tabCount - 1] ?? 0;
+        const centers = tabMetrics.centers ?? [];
+        const offsets = tabMetrics.offsets;
+        const widths = tabMetrics.widths;
 
-        if (targetCenter < 0) {
-          const overdrag = Math.abs(targetCenter);
+        const firstCenter = centers[0] ?? 0;
+        const lastCenter = centers[tabCount - 1] ?? offsets[tabCount - 1] ?? 0;
+
+        let idealPillX = 0;
+        let idealPillW = widths[0] ?? 70;
+        let hoveredIndex = 0;
+
+        if (relativeX <= firstCenter) {
+          idealPillX = (offsets[0] ?? 0) + (relativeX - firstCenter);
+          idealPillW = widths[0] ?? 70;
+          hoveredIndex = 0;
+        } else if (relativeX >= lastCenter) {
+          idealPillX = (offsets[tabCount - 1] ?? 0) + (relativeX - lastCenter);
+          idealPillW = widths[tabCount - 1] ?? 70;
+          hoveredIndex = tabCount - 1;
+        } else {
+          for (let i = 0; i < tabCount - 1; i++) {
+            const c0 = centers[i] ?? 0;
+            const c1 = centers[i + 1] ?? 0;
+            if (relativeX >= c0 && relativeX <= c1) {
+              const span = c1 - c0;
+              const p = span > 0 ? (relativeX - c0) / span : 0;
+              const off0 = offsets[i] ?? 0;
+              const off1 = offsets[i + 1] ?? 0;
+              const w0 = widths[i] ?? 70;
+              const w1 = widths[i + 1] ?? 70;
+
+              idealPillX = off0 + p * (off1 - off0);
+              idealPillW = w0 + p * (w1 - w0);
+              hoveredIndex = p < 0.5 ? i : i + 1;
+              break;
+            }
+          }
+        }
+
+        pillWidth.value = withSpring(idealPillW, SPRING_DRAG);
+
+        const minBound = offsets[0] ?? 0;
+        const maxBound = offsets[tabCount - 1] ?? 0;
+
+        if (idealPillX < minBound) {
+          const overdrag = Math.abs(idealPillX - minBound);
           const breach = computeBrakingBreach(overdrag);
           pillTranslateX.value = withSpring(-breach, SPRING_DRAG);
 
           barTranslateX.value = withSpring(-Math.pow(overdrag, 0.62) * 0.45, SPRING_DRAG);
           barScaleX.value = withSpring(1 + (overdrag / 360) * 0.04, SPRING_DRAG);
           composeTranslateX.value = withSpring(0, SPRING_DRAG);
-        } else if (targetCenter > maxBound) {
-          const overdrag = targetCenter - maxBound;
+        } else if (idealPillX > maxBound) {
+          const overdrag = idealPillX - maxBound;
           const breach = computeBrakingBreach(overdrag);
           pillTranslateX.value = withSpring(maxBound + breach, SPRING_DRAG);
 
@@ -438,25 +481,13 @@ export function LiquidTabBar({
             hasCollidedBar.value = false;
           }
         } else {
-          pillTranslateX.value = withSpring(targetCenter, SPRING_DRAG);
+          pillTranslateX.value = withSpring(idealPillX, SPRING_DRAG);
           barTranslateX.value = withSpring(0, SPRING_DRAG);
           barScaleX.value = withSpring(1, SPRING_DRAG);
           composeTranslateX.value = withSpring(0, SPRING_DRAG);
           hasCollidedBar.value = false;
         }
 
-        let hoveredIndex = 0;
-        for (let i = 0; i < tabMetrics.offsets.length; i++) {
-          const offset = tabMetrics.offsets[i];
-          const w = tabMetrics.widths[i];
-          if (
-            relativeX >= offset &&
-            (i === tabMetrics.offsets.length - 1 || relativeX < offset + w)
-          ) {
-            hoveredIndex = i;
-            break;
-          }
-        }
         if (hoveredIndex !== activeHoverIndex.value) {
           activeHoverIndex.value = hoveredIndex;
           runOnJS(triggerHoverFeedback)();
@@ -471,6 +502,7 @@ export function LiquidTabBar({
 
       barScale.value = withSpring(1.0, SPRING_SETTLE);
       barScaleX.value = withSpring(1.0, SPRING_SETTLE);
+      pillScale.value = withSpring(1.0, SPRING_SETTLE);
       barTranslateX.value = withSpring(0, SPRING_SETTLE);
       composeTranslateX.value = withSpring(0, SPRING_SETTLE);
 
@@ -603,7 +635,7 @@ export function LiquidTabBar({
       : `rgba(0, 0, 0, ${pillOpacity.value})`;
 
     return {
-      transform: [{ translateX: currentX }],
+      transform: [{ translateX: currentX }, { scale: pillScale.value }],
       width: pillWidth.value > 0 ? pillWidth.value : (tabMetrics.widths[currentVisibleIndex] ?? 70),
       backgroundColor: pillBgColor,
     };
@@ -771,11 +803,11 @@ export function LiquidTabBar({
                   isDark ? styles.blurContainerDark : styles.blurContainerLight,
                 ]}
                 variant={variant}
-                interactive={false}
-                intensity={30}
+                interactive={true}
+                intensity={35}
                 borderRadius={26.5}
                 refraction={true}
-                thickness={1.35}
+                thickness={1.4}
                 edgeReflectionStrength={1.0}
                 tilt={false}
                 tintColor={
