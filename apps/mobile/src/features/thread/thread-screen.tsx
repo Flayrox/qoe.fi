@@ -143,7 +143,7 @@ export function ThreadScreen({ postId }: { postId: string }) {
               label={t('thread.show_more_parents', 'Afficher les pensées précédentes')}
               onPress={() => setShowAllAncestors(true)}
             />
-          ) : null}{' '}
+          ) : null}
           {/* Ancêtres (ce qu'il y a au-dessus) — reliés vers le bas. Le
               premier a une ligne parent uniquement si des ancêtres sont
               repliés au-dessus (ReadMore). */}
