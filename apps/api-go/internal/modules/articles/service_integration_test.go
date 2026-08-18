@@ -471,9 +471,10 @@ func TestService_SimilarArticles_RanksBySimilarity(t *testing.T) {
 
 	// Écrit des embeddings : art_test_000 et art_test_001 proches, art_test_002 loin.
 	// Vecteur unitaire proche (cos ~0.98) puis orthogonal (cos 0).
-	proche := make([]float32, 1024)
+	// Dimension 512 (MRL jina-embeddings-v3) — alignée sur la colonne vector(512).
+	proche := make([]float32, 512)
 	proche[0] = 1
-	lointain := make([]float32, 1024)
+	lointain := make([]float32, 512)
 	lointain[1] = 1
 
 	q := db.New(poolTest)

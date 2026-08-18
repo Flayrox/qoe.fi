@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -331,7 +333,8 @@ func TestSearch_HandleSync_MeliError_Returned(t *testing.T) {
 
 // ─── Embedding worker (jina-embeddings-v3) ───────────────────────────
 
-// mockEmbedder imite le service d'inférence (vecteur fixe 1024 dims).
+// mockEmbedder imite le service d'inférence (vecteur 1024 dims, tronqué en
+// 512 par le worker via MRL).
 type mockEmbedder struct {
 	vec []float32
 	err error
@@ -430,11 +433,130 @@ func TestEmbedding_HandleArticleEmbedding_WrongDimension_Errors(t *testing.T) {
 	worker := &EmbeddingWorker{
 		pool:     poolTest,
 		q:        db.New(poolTest),
-		embedder: &mockEmbedder{vec: make([]float32, 512)}, // mauvaise dimension
+		embedder: &mockEmbedder{vec: make([]float32, 128)}, // trop court vs MRL 512
 	}
 	payload, _ := json.Marshal(map[string]any{"articleId": articleID})
 	if err := worker.HandleArticleEmbedding(context.Background(), asynq.NewTask("embedding.article", payload)); err == nil {
-		t.Fatal("dimension 512 = nil, attendu erreur (colonne vector(1024))")
+		t.Fatal("dimension 128 = nil, attendu erreur (MRL 512 attendu)")
+	}
+}
+
+// embedServer simule le service d'inférence (API OpenAI-compatible).
+func embedServer(t *testing.T, status int, dims int, capture *map[string]any) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("décodage requête: %v", err)
+		}
+		if capture != nil {
+			*capture = body
+		}
+		if status != http.StatusOK {
+			w.WriteHeader(status)
+			return
+		}
+		emb := make([]float32, dims)
+		for i := range emb {
+			emb[i] = float32(i) * 0.01
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": []map[string]any{{"embedding": emb}},
+		})
+	}))
+}
+
+func TestEmbedding_Client_SendsTaskAndModel(t *testing.T) {
+	var got map[string]any
+	srv := embedServer(t, http.StatusOK, 512, &got)
+	defer srv.Close()
+
+	c := &httpEmbedClient{base: srv.URL, model: "jina-embeddings-v3", task: "retrieval.passage", http: srv.Client()}
+	vec, err := c.Embed(context.Background(), "titre")
+	if err != nil {
+		t.Fatalf("Embed: %v", err)
+	}
+	if len(vec) != 512 {
+		t.Fatalf("len(vec) = %d, attendu 512", len(vec))
+	}
+	if got["model"] != "jina-embeddings-v3" || got["task"] != "retrieval.passage" || got["input"] != "titre" {
+		t.Fatalf("payload = %v", got)
+	}
+}
+
+func TestEmbedding_Client_OmitsTaskWhenEmpty(t *testing.T) {
+	var got map[string]any
+	srv := embedServer(t, http.StatusOK, 512, &got)
+	defer srv.Close()
+
+	c := &httpEmbedClient{base: srv.URL, model: "m", http: srv.Client()}
+	if _, err := c.Embed(context.Background(), "x"); err != nil {
+		t.Fatalf("Embed: %v", err)
+	}
+	if _, present := got["task"]; present {
+		t.Fatal("task ne doit pas être envoyé quand vide (llama.cpp)")
+	}
+}
+
+func TestEmbedding_Client_HTTPError(t *testing.T) {
+	srv := embedServer(t, http.StatusBadGateway, 512, nil)
+	defer srv.Close()
+
+	c := &httpEmbedClient{base: srv.URL, http: srv.Client()}
+	if _, err := c.Embed(context.Background(), "x"); err == nil {
+		t.Fatal("Embed doit échouer sur statut non-200")
+	}
+}
+
+func TestEmbedding_Client_EmptyResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer srv.Close()
+
+	c := &httpEmbedClient{base: srv.URL, http: srv.Client()}
+	if _, err := c.Embed(context.Background(), "x"); err == nil {
+		t.Fatal("Embed doit échouer sur réponse vide")
+	}
+}
+
+func TestNewEmbeddingWorker_Defaults(t *testing.T) {
+	t.Setenv(envEmbeddingURL, "http://infra:8081")
+	t.Setenv(envEmbeddingModel, "jina-embeddings-v3")
+	t.Setenv(envEmbeddingTask, "retrieval.passage")
+
+	w := NewEmbeddingWorker(nil) // pool nil : construction uniquement
+	if w == nil {
+		t.Fatal("NewEmbeddingWorker = nil")
+	}
+	ec, ok := w.embedder.(*httpEmbedClient)
+	if !ok {
+		t.Fatalf("embedder de type %T, attendu *httpEmbedClient", w.embedder)
+	}
+	if ec.base != "http://infra:8081" || ec.model != "jina-embeddings-v3" || ec.task != "retrieval.passage" {
+		t.Fatalf("client = %+v", ec)
+	}
+}
+
+func TestEmbeddingWorker_EmbeddingDims(t *testing.T) {
+	w := &EmbeddingWorker{}
+	t.Setenv(envEmbeddingDims, "")
+	if got := w.embeddingDims(); got != 512 {
+		t.Fatalf("défaut = %d, attendu 512", got)
+	}
+	t.Setenv(envEmbeddingDims, "1024")
+	if got := w.embeddingDims(); got != 1024 {
+		t.Fatalf("env = %d, attendu 1024", got)
+	}
+	t.Setenv(envEmbeddingDims, "16")
+	if got := w.embeddingDims(); got != 512 {
+		t.Fatalf("16 → %d, attendu 512 (borne)", got)
+	}
+	t.Setenv(envEmbeddingDims, "abc")
+	if got := w.embeddingDims(); got != 512 {
+		t.Fatalf("abc → %d, attendu 512 (non numérique)", got)
 	}
 }
 

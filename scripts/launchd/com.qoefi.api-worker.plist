@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.qoefi.api-worker</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/ephe/.qoefi/bin/qoe-worker</string>
+	</array>
+
+	<key>WorkingDirectory</key>
+	<string>/Users/ephe/Desktop/Qoe.fi/dev/prod/qoe.fi/apps/api-go</string>
+
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+
+	<key>StandardOutPath</key>
+	<string>/tmp/qoefi-api-worker.log</string>
+	<key>StandardErrorPath</key>
+	<string>/tmp/qoefi-api-worker.err.log</string>
+</dict>
+</plist>

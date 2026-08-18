@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.qoefi.embedding-server</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>/opt/homebrew/bin/llama-server</string>
+		<string>-m</string>
+		<string>/Users/ephe/.qoefi/models/jina-embeddings-v3-Q8_0.gguf</string>
+		<string>--embedding</string>
+		<string>--pooling</string>
+		<string>mean</string>
+		<string>--port</string>
+		<string>8081</string>
+		<string>--host</string>
+		<string>127.0.0.1</string>
+		<string>--ctx-size</string>
+		<string>8192</string>
+		<string>--alias</string>
+		<string>jina-embeddings-v3</string>
+	</array>
+
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+
+	<key>StandardOutPath</key>
+	<string>/tmp/qoefi-embedding-server.log</string>
+	<key>StandardErrorPath</key>
+	<string>/tmp/qoefi-embedding-server.err.log</string>
+</dict>
+</plist>

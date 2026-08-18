@@ -448,6 +448,20 @@ services:
         condition: service_healthy
 
   # ───────────────────────────────────────────────────────────────────
+  # 🧠 EMBEDDING — Inférence jina-embeddings-v3 auto-hébergée (LOCAL)
+  # ───────────────────────────────────────────────────────────────────
+  # ⚠️ PAS de service Docker ici : l'image TEI n'existe pas en arm64, et
+  #    ton Mac est un Apple Silicon. En dev local on utilise llama.cpp
+  #    natif (jina-embeddings-v3 Q8_0) servi par launchd sur :8081 :
+  #
+  #    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.qoefi.embedding-server.plist
+  #    (fichiers sources : scripts/launchd/ — modèle dans ~/.qoefi/models/)
+  #
+  #    Santé : curl http://127.0.0.1:8081/health  →  {"status":"ok"}
+  #    En PROD (VPS amd64), le service TEI est dans docker-compose.yml.
+  # ───────────────────────────────────────────────────────────────────
+
+  # ───────────────────────────────────────────────────────────────────
   # 📊 UMAMI ANALYTICS (Auto-hébergé local dev)
   # ───────────────────────────────────────────────────────────────────
   umami:
