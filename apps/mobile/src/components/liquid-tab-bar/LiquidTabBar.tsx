@@ -1,5 +1,13 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { Image, LayoutChangeEvent, StyleSheet, useColorScheme, View } from 'react-native';
+import {
+  Appearance,
+  Image,
+  LayoutChangeEvent,
+  Platform,
+  StyleSheet,
+  useColorScheme,
+  View,
+} from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
@@ -202,7 +210,7 @@ export function LiquidTabBar({
   onProfilePress,
 }: LiquidTabBarProps) {
   const scheme = useColorScheme();
-  const isDark = scheme === 'dark';
+  const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
 
   const defaultActiveTint = isDark ? '#FFFFFF' : '#111113';
   const defaultInactiveTint = isDark ? 'rgba(255, 255, 255, 0.72)' : 'rgba(0, 0, 0, 0.58)';
@@ -562,31 +570,33 @@ export function LiquidTabBar({
       style={[styles.wrapper, { bottom: bottomOffset }, containerStyle]}
       pointerEvents="box-none"
     >
-      {/* Véritable fond de flou progressif étagé Apple Music / iOS */}
-      <View style={styles.appleBottomBackdrop} pointerEvents="none">
-        {PROGRESSIVE_BLUR_STEPS.map((step, idx) => (
-          <BlurView
-            key={idx}
-            intensity={step.intensity}
-            tint={isDark ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'}
+      {/* Véritable fond de flou progressif étagé Apple Music / iOS (réservé à iOS pour éviter les artefacts rectangulaires sur Android) */}
+      {Platform.OS === 'ios' && (
+        <View style={styles.appleBottomBackdrop} pointerEvents="none">
+          {PROGRESSIVE_BLUR_STEPS.map((step, idx) => (
+            <BlurView
+              key={idx}
+              intensity={step.intensity}
+              tint={isDark ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'}
+              style={[
+                styles.blurSlice,
+                {
+                  height: step.height,
+                  opacity: step.opacity,
+                },
+              ]}
+            />
+          ))}
+          <View
             style={[
-              styles.blurSlice,
+              styles.fadingTintBackdrop,
               {
-                height: step.height,
-                opacity: step.opacity,
+                backgroundColor: isDark ? 'rgba(0, 0, 0, 0.45)' : 'rgba(255, 255, 255, 0.45)',
               },
             ]}
           />
-        ))}
-        <View
-          style={[
-            styles.fadingTintBackdrop,
-            {
-              backgroundColor: isDark ? 'rgba(0, 0, 0, 0.45)' : 'rgba(255, 255, 255, 0.45)',
-            },
-          ]}
-        />
-      </View>
+        </View>
+      )}
 
       {/* Row principale alignée : [ Barre 4 onglets ]  ( Bouton rond + ) */}
       <View style={styles.islandRow} pointerEvents="box-none">
