@@ -13,6 +13,7 @@ import * as Haptics from 'expo-haptics';
 
 import { ThemedText } from '@/components/themed-text';
 import { QoeLogo } from '@/components/header/QoeLogo';
+import { LiquidElasticButton } from '@/components/liquid-tab-bar/LiquidElasticButton';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/lib/i18n';
@@ -128,14 +129,6 @@ export function DynamicMorphingHeader({
     });
   };
 
-  const glassButtonStyle = [
-    styles.glassButton,
-    {
-      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
-      borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.08)',
-    },
-  ];
-
   return (
     <Animated.View
       style={[styles.headerContainer, headerContainerAnimatedStyle]}
@@ -205,41 +198,43 @@ export function DynamicMorphingHeader({
         </Animated.View>
       </View>
 
-      {/* ─── Côté Droit : Boutons d'action en Verre Liquide (Liquid Glass) ─── */}
+      {/* ─── Côté Droit : Boutons d'action en Verre Liquide Élastique (Liquid Glass 53px) ─── */}
       <View style={styles.actionsRow}>
         {/* Bouton Notifications / Likes 🔔 / ♡ */}
-        <Pressable
+        <LiquidElasticButton
+          size={53}
+          borderRadius={26.5}
           onPress={onPressNotifications}
-          style={({ pressed }) => [glassButtonStyle, pressed && styles.buttonPressed]}
           accessibilityLabel={t('nav.notifications', 'Notifications')}
-          hitSlop={4}
-        >
-          <SymbolView
-            name={{ ios: 'heart', android: 'favorite_border', web: 'favorite_border' }}
-            size={18}
-            tintColor={theme.text}
-            weight="semibold"
-          />
-        </Pressable>
+          icon={
+            <SymbolView
+              name={{ ios: 'heart', android: 'favorite_border', web: 'favorite_border' }}
+              size={22}
+              tintColor={theme.text}
+              weight="semibold"
+            />
+          }
+        />
 
         {/* Bouton Messages / Direct 💬 / ✈️ */}
-        <Pressable
+        <LiquidElasticButton
+          size={53}
+          borderRadius={26.5}
           onPress={onPressMessages}
-          style={({ pressed }) => [glassButtonStyle, pressed && styles.buttonPressed]}
           accessibilityLabel={t('nav.messages', 'Messages')}
-          hitSlop={4}
-        >
-          <SymbolView
-            name={{
-              ios: 'paperplane',
-              android: 'send',
-              web: 'send',
-            }}
-            size={17}
-            tintColor={theme.text}
-            weight="semibold"
-          />
-        </Pressable>
+          icon={
+            <SymbolView
+              name={{
+                ios: 'paperplane',
+                android: 'send',
+                web: 'send',
+              }}
+              size={21}
+              tintColor={theme.text}
+              weight="semibold"
+            />
+          }
+        />
       </View>
     </Animated.View>
   );
@@ -251,7 +246,7 @@ const styles = StyleSheet.create({
     top: 50,
     left: 0,
     right: 0,
-    height: 48,
+    height: 54,
     paddingHorizontal: Spacing.four,
     flexDirection: 'row',
     alignItems: 'center',
@@ -260,7 +255,7 @@ const styles = StyleSheet.create({
   },
   leftSection: {
     flex: 1,
-    height: 48,
+    height: 54,
     justifyContent: 'center',
     position: 'relative',
   },
@@ -308,18 +303,6 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
-  },
-  glassButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  buttonPressed: {
-    transform: [{ scale: 0.92 }],
-    opacity: 0.8,
+    gap: 10,
   },
 });
