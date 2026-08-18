@@ -187,16 +187,6 @@ function TabItem({
   );
 }
 
-// 6 tranches étagées de flou pour créer le véritable flou progressif exponentiel d'Apple
-const PROGRESSIVE_BLUR_STEPS = [
-  { bottom: 0, height: 135, intensity: 10, opacity: 0.3 },
-  { bottom: 0, height: 110, intensity: 22, opacity: 0.5 },
-  { bottom: 0, height: 88, intensity: 40, opacity: 0.7 },
-  { bottom: 0, height: 68, intensity: 62, opacity: 0.85 },
-  { bottom: 0, height: 48, intensity: 82, opacity: 0.95 },
-  { bottom: 0, height: 32, intensity: 98, opacity: 1 },
-];
-
 export function LiquidTabBar({
   state,
   navigation,
@@ -598,34 +588,6 @@ export function LiquidTabBar({
       style={[styles.wrapper, { bottom: bottomOffset }, containerStyle, scrollCollapseStyle]}
       pointerEvents="box-none"
     >
-      {/* Véritable fond de flou progressif étagé Apple Music / iOS (réservé à iOS pour éviter les artefacts rectangulaires sur Android) */}
-      {Platform.OS === 'ios' && (
-        <View style={styles.appleBottomBackdrop} pointerEvents="none">
-          {PROGRESSIVE_BLUR_STEPS.map((step, idx) => (
-            <BlurView
-              key={idx}
-              intensity={step.intensity}
-              tint={isDark ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'}
-              style={[
-                styles.blurSlice,
-                {
-                  height: step.height,
-                  opacity: step.opacity,
-                },
-              ]}
-            />
-          ))}
-          <View
-            style={[
-              styles.fadingTintBackdrop,
-              {
-                backgroundColor: isDark ? 'rgba(0, 0, 0, 0.45)' : 'rgba(255, 255, 255, 0.45)',
-              },
-            ]}
-          />
-        </View>
-      )}
-
       {/* Row principale alignée : [ Barre 4 onglets ]  ( Bouton rond + ) */}
       <View style={styles.islandRow} pointerEvents="box-none">
         {/* 1. Barre Principale Liquid Glass (4 onglets) */}
@@ -829,7 +791,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     zIndex: 2,
   },
-  seamlessCircleBorder: {
+  composeSeamlessBorder: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -839,27 +801,15 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     zIndex: 10,
   },
-  appleBottomBackdrop: {
+  seamlessCircleBorder: {
     position: 'absolute',
-    bottom: -34,
-    left: -40,
-    right: -40,
-    height: 135,
-    overflow: 'hidden',
-    zIndex: -1,
-  },
-  blurSlice: {
-    position: 'absolute',
-    bottom: 0,
+    top: 0,
     left: 0,
     right: 0,
-  },
-  fadingTintBackdrop: {
-    position: 'absolute',
     bottom: 0,
-    left: 0,
-    right: 0,
-    height: 90,
+    borderRadius: 26.5,
+    borderWidth: 0.5,
+    zIndex: 10,
   },
   blurContainer: {
     position: 'relative',
