@@ -611,11 +611,11 @@ export function LiquidTabBar({
               variant={variant}
               interactive={false}
               intensity={isDark ? 45 : 35}
-              borderRadius={999}
+              borderRadius={26.5}
               refraction={true}
-              thickness={1.2}
-              edgeReflectionStrength={0.85}
-              tilt={true}
+              thickness={1.0}
+              edgeReflectionStrength={0.4}
+              tilt={false}
               tintColor={
                 glassTintColor ?? (isDark ? 'rgba(20, 20, 26, 0.40)' : 'rgba(255, 255, 255, 0.40)')
               }
@@ -710,11 +710,11 @@ export function LiquidTabBar({
                 variant={variant}
                 interactive={false}
                 intensity={isDark ? 45 : 35}
-                borderRadius={999}
+                borderRadius={26.5}
                 refraction={true}
-                thickness={1.2}
-                edgeReflectionStrength={0.85}
-                tilt={true}
+                thickness={1.0}
+                edgeReflectionStrength={0.4}
+                tilt={false}
                 tintColor={
                   glassTintColor ??
                   (isDark ? 'rgba(20, 20, 26, 0.40)' : 'rgba(255, 255, 255, 0.40)')
@@ -835,7 +835,7 @@ const styles = StyleSheet.create({
   },
   blurContainer: {
     position: 'relative',
-    borderRadius: 999,
+    borderRadius: 26.5,
     overflow: 'hidden',
     backgroundColor: 'transparent',
     paddingHorizontal: TRACK_PADDING,
@@ -856,7 +856,7 @@ const styles = StyleSheet.create({
     left: 32,
     right: 32,
     height: 0.75,
-    borderRadius: 999,
+    borderRadius: 26.5,
     zIndex: 2,
   },
   seamlessOuterBorder: {
@@ -865,14 +865,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 999,
+    borderRadius: 26.5,
     borderWidth: 0.5,
     zIndex: 10,
   },
   trackContainer: {
     position: 'relative',
     width: '100%',
-    borderRadius: 999,
+    borderRadius: 26.5,
   },
   activePill: {
     position: 'absolute',
