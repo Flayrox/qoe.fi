@@ -11,6 +11,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ProgressiveBlurVignette } from '@/components/ui/progressive-blur-vignette';
 import { ArticleCard } from '@/components/article/article-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -162,6 +163,9 @@ export function FeedScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
+        {/* ─── Dégradé progressif de flou supérieur (Top Vignette) ─── */}
+        <ProgressiveBlurVignette position="top" height={90} />
+
         {/* ─── Liste FlashList fluide ─── */}
         <FlashList
           data={displayedRows}
@@ -189,6 +193,9 @@ export function FeedScreen() {
           }
           contentContainerStyle={styles.content}
         />
+
+        {/* ─── Dégradé progressif de flou inférieur (Bottom Vignette sous la TabBar) ─── */}
+        <ProgressiveBlurVignette position="bottom" height={130} />
 
         {/* Pill « X nouvelles pensées » (temps réel) */}
         {unreadCount > 0 ? (
@@ -231,63 +238,13 @@ const styles = StyleSheet.create({
     paddingBottom: 110,
     flexGrow: 1,
   },
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: HEADER_HEIGHT,
-    zIndex: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingHorizontal: Spacing.three,
-  },
-  menuButton: {
-    paddingVertical: Spacing.one,
-    paddingRight: Spacing.one,
-  },
-  menuGlyph: {
-    fontSize: 22,
-    lineHeight: 24,
-  },
-  headerSpacer: {
-    flex: 1,
-  },
-  tabsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.four,
-  },
-  tab: {
-    alignItems: 'center',
-    paddingBottom: Spacing.one,
-  },
-  tabLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  tabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    width: 24,
-    height: 3,
-    borderRadius: 2,
-  },
-  composeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   footer: {
     paddingVertical: Spacing.three,
   },
   // Pill temps réel — flottante en haut du feed.
   pillWrap: {
     position: 'absolute',
-    top: HEADER_HEIGHT + Spacing.two,
+    top: Spacing.three,
     left: 0,
     right: 0,
     alignItems: 'center',
