@@ -179,7 +179,7 @@ export function FeedScreen() {
         pour un flou gaussien progressif fluide sans aucune ligne de palier.
         ═════════════════════════════════════════════════════════════════════
       */}
-      <EdgeFadeView mode="blur" top={65} blurRadius={22} curve="gentle" style={styles.container}>
+      <EdgeFadeView mode="blur" top={55} blurRadius={14} curve="soft" style={styles.container}>
         {/* ─── Liste FlashList fluide plein écran (Edge-to-Edge) ─── */}
         <FlashList
           data={displayedRows}
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
   },
   content: {
-    paddingTop: 48,
+    paddingTop: 44,
     paddingBottom: 110,
     flexGrow: 1,
   },
