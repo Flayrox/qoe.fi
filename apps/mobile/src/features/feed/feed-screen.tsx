@@ -8,10 +8,17 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Appearance,
+  Pressable,
+  StyleSheet,
+  useColorScheme,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ProgressiveBlurVignette } from '@/components/ui/progressive-blur-vignette';
+import { EdgeFadeView } from 'react-native-edge-fade';
 import { ArticleCard } from '@/components/article/article-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -42,6 +49,8 @@ const HEADER_HEIGHT = 48;
 
 export function FeedScreen() {
   const theme = useTheme();
+  const scheme = useColorScheme();
+  const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
   const [tab, setTab] = useState<FeedTab>('for_you');
 
   // Adapte le client universel au contrat du hook, selon l'onglet :
@@ -164,45 +173,48 @@ export function FeedScreen() {
     <ThemedView style={styles.container}>
       {/* 
         ═════════════════════════════════════════════════════════════════════
-        ✨ ÉLÉMENT DESIGN À DOUBLE FONCTION : <ProgressiveBlurVignette />
+        ✨ NOUVEAU STANDARD : <EdgeFadeView mode="blur" /> (AGSL / Metal)
         ═════════════════════════════════════════════════════════════════════
-        1. Bouclier de Lisibilité (Status Bar / Dynamic Island Shield) :
-           Protège la lisibilité de l'heure, du réseau et de la batterie
-           sans avoir recours à une barre solide / opaque ou un header rigide.
-        2. Fondu Cinématique Infini (Edge-to-Edge Scroll Fade) :
-           Permet au feed de défiler en plein écran bord-à-bord (edge-to-edge),
-           en estompant soyeusement les pensées et médias lorsqu'ils remontent.
+        Exécute un shader par pixel natif (AGSL sur Android 13+, CALayer sur iOS)
+        pour un flou gaussien progressif fluide sans aucune ligne de palier.
         ═════════════════════════════════════════════════════════════════════
       */}
-      <ProgressiveBlurVignette height={95} />
-
-      {/* ─── Liste FlashList fluide plein écran (Edge-to-Edge) ─── */}
-      <FlashList
-        data={displayedRows}
-        keyExtractor={(row) => (row.kind === 'thought' ? row.slice.id : row.article.id)}
-        renderItem={({ item }) =>
-          item.kind === 'thought' ? (
-            <ThoughtFeedSlice slice={item.slice} />
-          ) : (
-            <ArticleCard article={item.article} />
-          )
-        }
-        ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
-        getItemType={(item) => item.kind}
-        onEndReached={onEndReached}
-        onEndReachedThreshold={0.4}
-        refreshing={isRefetching}
-        onRefresh={onRefresh}
-        ListEmptyComponent={<FeedEmptyState onExplore={() => router.push('/(tabs)/explore')} />}
-        ListFooterComponent={
-          hasNextPage ? (
-            <ActivityIndicator color={theme.text} style={styles.footer} />
-          ) : rows.length > 0 ? (
-            <FeedEndOfFeed />
-          ) : null
-        }
-        contentContainerStyle={styles.content}
-      />
+      <EdgeFadeView
+        mode="blur"
+        top={100}
+        blurRadius={28}
+        curve="smooth"
+        color={isDark ? 'rgba(10, 10, 12, 0.45)' : 'rgba(255, 255, 255, 0.45)'}
+        style={styles.container}
+      >
+        {/* ─── Liste FlashList fluide plein écran (Edge-to-Edge) ─── */}
+        <FlashList
+          data={displayedRows}
+          keyExtractor={(row) => (row.kind === 'thought' ? row.slice.id : row.article.id)}
+          renderItem={({ item }) =>
+            item.kind === 'thought' ? (
+              <ThoughtFeedSlice slice={item.slice} />
+            ) : (
+              <ArticleCard article={item.article} />
+            )
+          }
+          ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
+          getItemType={(item) => item.kind}
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.4}
+          refreshing={isRefetching}
+          onRefresh={onRefresh}
+          ListEmptyComponent={<FeedEmptyState onExplore={() => router.push('/(tabs)/explore')} />}
+          ListFooterComponent={
+            hasNextPage ? (
+              <ActivityIndicator color={theme.text} style={styles.footer} />
+            ) : rows.length > 0 ? (
+              <FeedEndOfFeed />
+            ) : null
+          }
+          contentContainerStyle={styles.content}
+        />
+      </EdgeFadeView>
 
       {/* Pill « X nouvelles pensées » (temps réel) */}
       {unreadCount > 0 ? (
