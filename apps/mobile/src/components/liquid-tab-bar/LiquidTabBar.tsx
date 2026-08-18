@@ -562,10 +562,6 @@ export function LiquidTabBar({
           }),
         },
       ],
-      opacity: withTiming(shouldCollapse ? 0.92 : 1, {
-        duration: 220,
-        easing: Easing.out(Easing.quad),
-      }),
     };
   });
 
