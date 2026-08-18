@@ -18,7 +18,8 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/lib/i18n';
 
-export function extractFirstUrl(text: string): string | null {
+export function extractFirstUrl(text?: string | null): string | null {
+  if (!text) return null;
   const m = text.match(/https?:\/\/[^\s]+/i);
   return m ? m[0] : null;
 }
