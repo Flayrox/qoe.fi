@@ -32,8 +32,13 @@ export default function AppTabs() {
       />
       <Tabs.Screen name="index" options={{ title: 'Feed' }} />
       <Tabs.Screen name="explore" options={{ title: 'Explorer' }} />
-      <Tabs.Screen name="notifications" options={{ title: 'Notifications' }} />
-      <Tabs.Screen name="messages" options={{ title: 'Messages' }} />
+      <Tabs.Screen name="notifications" options={{ title: 'Activité' }} />
+      <Tabs.Screen
+        name="messages"
+        options={{
+          href: null, // Masque la route d'onglet autonome (fusionné dans notifications/activité)
+        }}
+      />
     </Tabs>
   );
 }

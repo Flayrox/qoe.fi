@@ -1,8 +1,16 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { Image, LayoutChangeEvent, StyleSheet, useColorScheme, View } from 'react-native';
+import {
+  Image,
+  LayoutChangeEvent,
+  Pressable,
+  StyleSheet,
+  useColorScheme,
+  View,
+} from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
@@ -197,7 +205,6 @@ export function LiquidTabBar({
   inactiveTintColor,
   glassTintColor,
   bottomOffset = 24,
-  maxWidth = 392,
   containerStyle,
   onProfilePress,
 }: LiquidTabBarProps) {
@@ -222,8 +229,12 @@ export function LiquidTabBar({
     logoUrl: me?.logoUrl || (user?.user_metadata?.avatar_url as string | undefined),
   };
 
+  // Filtrer les routes pour ne garder que les 4 onglets principaux (profile, index, explore, notifications)
+  const visibleRoutes =
+    state?.routes?.filter((r) => r.name !== 'messages' && r.name !== 'search') || [];
+  const tabCount = visibleRoutes.length;
+
   const [trackWidth, setTrackWidth] = useState(0);
-  const tabCount = state?.routes?.length || 0;
   const tabWidth = trackWidth > 0 && tabCount > 0 ? trackWidth / tabCount : 0;
   const isInitialized = useRef(false);
 
@@ -234,12 +245,15 @@ export function LiquidTabBar({
   // Onde de propagation liquide (déclenchée après 320ms à 100% de déploiement)
   const auraWaveProgress = useSharedValue(0);
 
-  // Grossissement et déformation 100% solidaire de toute la NavBar et son contenu
+  // Grossissement et déformation 100% solidaire de la barre principale
   const barScale = useSharedValue(1);
   const barTranslateX = useSharedValue(0);
   const barScaleX = useSharedValue(1);
 
-  // Gestion des gestes
+  // Bouton circulaire séparé Compose (+)
+  const composeScale = useSharedValue(1);
+
+  // Gestion des gestes sur la barre
   const isInteracting = useSharedValue(false);
   const hasMoved = useSharedValue(false);
   const startX = useSharedValue(0);
@@ -271,25 +285,32 @@ export function LiquidTabBar({
   };
 
   const triggerNavigation = (targetIndex: number) => {
-    if (state && targetIndex >= 0 && targetIndex < tabCount) {
-      const route = state.routes[targetIndex];
+    if (visibleRoutes && targetIndex >= 0 && targetIndex < tabCount) {
+      const route = visibleRoutes[targetIndex];
       if (route.name === 'profile' && onProfilePress) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onProfilePress();
         return;
       }
-      if (targetIndex !== state.index) {
+      const actualIndex = state.routes.findIndex((r) => r.name === route.name);
+      if (actualIndex !== state.index) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         navigation.navigate(route.name);
       }
     }
   };
 
+  // Trouver l'index visible actuel
+  const currentVisibleIndex = Math.max(
+    0,
+    visibleRoutes.findIndex((r) => r.name === state?.routes?.[state.index]?.name)
+  );
+
   useEffect(() => {
     if (tabWidth > 0 && !isInteracting.value && state) {
-      pillTranslateX.value = withSpring(state.index * tabWidth, SPRING_SETTLE);
+      pillTranslateX.value = withSpring(currentVisibleIndex * tabWidth, SPRING_SETTLE);
     }
-  }, [state?.index, tabWidth]);
+  }, [currentVisibleIndex, tabWidth]);
 
   const panGesture = Gesture.Pan()
     .minDistance(0)
@@ -304,7 +325,7 @@ export function LiquidTabBar({
       isInteracting.value = true;
       hasMoved.value = false;
       startX.value = e.x;
-      activeHoverIndex.value = state?.index ?? 1;
+      activeHoverIndex.value = currentVisibleIndex;
 
       barScale.value = withSpring(1.04, SPRING_SETTLE);
       pillOpacity.value = withTiming(isDark ? 0.22 : 0.16, { duration: 80 });
@@ -368,10 +389,10 @@ export function LiquidTabBar({
         0,
         Math.min(Math.floor((relativeX / (trackWidth || 1)) * tabCount), tabCount - 1)
       );
-      const targetRoute = state.routes[releaseIndex];
+      const targetRoute = visibleRoutes[releaseIndex];
 
       if (targetRoute?.name === 'profile') {
-        pillTranslateX.value = withSpring(state.index * tabWidth, SPRING_SETTLE);
+        pillTranslateX.value = withSpring(currentVisibleIndex * tabWidth, SPRING_SETTLE);
       } else {
         pillTranslateX.value = withSpring(releaseIndex * tabWidth, SPRING_SETTLE);
       }
@@ -387,6 +408,10 @@ export function LiquidTabBar({
       { scale: barScale.value },
       { scaleX: barScaleX.value },
     ],
+  }));
+
+  const composeContainerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: composeScale.value }],
   }));
 
   const pillAnimatedStyle = useAnimatedStyle(() => {
@@ -433,9 +458,14 @@ export function LiquidTabBar({
     setTrackWidth(width);
 
     if (!isInitialized.current && width > 0 && state) {
-      pillTranslateX.value = state.index * (width / tabCount);
+      pillTranslateX.value = currentVisibleIndex * (width / tabCount);
       isInitialized.current = true;
     }
+  };
+
+  const handleComposePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/compose');
   };
 
   if (!state || !state.routes) {
@@ -447,7 +477,7 @@ export function LiquidTabBar({
       style={[styles.wrapper, { bottom: bottomOffset }, containerStyle]}
       pointerEvents="box-none"
     >
-      {/* Véritable fond de flou progressif étagé Apple Music / iOS (multi-stage progressive blur) */}
+      {/* Véritable fond de flou progressif étagé Apple Music / iOS */}
       <View style={styles.appleBottomBackdrop} pointerEvents="none">
         {PROGRESSIVE_BLUR_STEPS.map((step, idx) => (
           <BlurView
@@ -463,7 +493,6 @@ export function LiquidTabBar({
             ]}
           />
         ))}
-        {/* Voile de fondu progressif de couleur pour absorber le scroll du Feed */}
         <View
           style={[
             styles.fadingTintBackdrop,
@@ -474,102 +503,162 @@ export function LiquidTabBar({
         />
       </View>
 
-      <GestureDetector gesture={panGesture}>
-        <Animated.View style={[styles.barWrapper, { maxWidth }, barContainerStyle]}>
-          <AdaptiveGlassView
-            style={[
-              styles.blurContainer,
-              isDark ? styles.blurContainerDark : styles.blurContainerLight,
-            ]}
-            variant={variant}
-            interactive={false}
-            intensity={isDark ? 45 : 35}
-            borderRadius={999}
-            refraction={true}
-            thickness={1.2}
-            edgeReflectionStrength={0.85}
-            tilt={true}
-            tintColor={
-              glassTintColor ?? (isDark ? 'rgba(20, 20, 26, 0.40)' : 'rgba(255, 255, 255, 0.40)')
-            }
-            {...glassProps}
-          >
-            {/* Liseré supérieur doux et feutré */}
+      {/* Row principale alignée : [ Barre 4 onglets ]  ( Bouton rond + ) */}
+      <View style={styles.islandRow} pointerEvents="box-none">
+        {/* 1. Barre Principale Liquid Glass (4 onglets) */}
+        <GestureDetector gesture={panGesture}>
+          <Animated.View style={[styles.mainBarWrapper, barContainerStyle]}>
+            <AdaptiveGlassView
+              style={[
+                styles.blurContainer,
+                isDark ? styles.blurContainerDark : styles.blurContainerLight,
+              ]}
+              variant={variant}
+              interactive={false}
+              intensity={isDark ? 45 : 35}
+              borderRadius={999}
+              refraction={true}
+              thickness={1.2}
+              edgeReflectionStrength={0.85}
+              tilt={true}
+              tintColor={
+                glassTintColor ?? (isDark ? 'rgba(20, 20, 26, 0.40)' : 'rgba(255, 255, 255, 0.40)')
+              }
+              {...glassProps}
+            >
+              {/* Liseré supérieur doux */}
+              <View
+                style={[
+                  styles.softTopHighlight,
+                  {
+                    backgroundColor: isDark
+                      ? 'rgba(255, 255, 255, 0.15)'
+                      : 'rgba(255, 255, 255, 0.65)',
+                  },
+                ]}
+              />
+
+              <View style={styles.trackContainer} onLayout={onLayout}>
+                {tabWidth > 0 && (
+                  <Animated.View
+                    style={[
+                      styles.activePill,
+                      {
+                        width: tabWidth,
+                        top: PILL_VERTICAL_PADDING,
+                        bottom: PILL_VERTICAL_PADDING,
+                      },
+                      pillAnimatedStyle,
+                    ]}
+                  >
+                    {/* Onde de propagation liquide rayonnante depuis la PP */}
+                    <Animated.View
+                      style={[styles.avatarPropagationContainer, auraRippleStyle]}
+                      pointerEvents="none"
+                    >
+                      <View style={styles.avatarCoreEpicenter} />
+                      {userAvatarProps?.logoUrl ? (
+                        <Image
+                          source={{ uri: userAvatarProps.logoUrl }}
+                          style={styles.avatarDiffusionImage}
+                          blurRadius={22}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={styles.avatarDiffusionFallback} />
+                      )}
+                    </Animated.View>
+                  </Animated.View>
+                )}
+
+                <View style={styles.tabsRow}>
+                  {visibleRoutes.map((route: NavigationRoute, index: number) => {
+                    const isFocused = currentVisibleIndex === index;
+                    return (
+                      <TabItem
+                        key={route.key}
+                        name={route.name}
+                        isFocused={isFocused}
+                        iconConfig={iconsMap?.[route.name]}
+                        activeColor={resolvedActiveColor}
+                        inactiveColor={resolvedInactiveColor}
+                        userAvatarProps={userAvatarProps}
+                      />
+                    );
+                  })}
+                </View>
+              </View>
+            </AdaptiveGlassView>
+
+            {/* Bordure externe 360° discrète */}
             <View
               style={[
-                styles.softTopHighlight,
+                styles.seamlessOuterBorder,
                 {
-                  backgroundColor: isDark
-                    ? 'rgba(255, 255, 255, 0.15)'
-                    : 'rgba(255, 255, 255, 0.65)',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.11)' : 'rgba(0, 0, 0, 0.08)',
                 },
               ]}
+              pointerEvents="none"
             />
+          </Animated.View>
+        </GestureDetector>
 
-            <View style={styles.trackContainer} onLayout={onLayout}>
-              {tabWidth > 0 && (
-                <Animated.View
-                  style={[
-                    styles.activePill,
-                    {
-                      width: tabWidth,
-                      top: PILL_VERTICAL_PADDING,
-                      bottom: PILL_VERTICAL_PADDING,
-                    },
-                    pillAnimatedStyle,
-                  ]}
-                >
-                  {/* Onde de propagation liquide rayonnante depuis la PP avec dissipation totale aux bords */}
-                  <Animated.View
-                    style={[styles.avatarPropagationContainer, auraRippleStyle]}
-                    pointerEvents="none"
-                  >
-                    <View style={styles.avatarCoreEpicenter} />
-                    {userAvatarProps?.logoUrl ? (
-                      <Image
-                        source={{ uri: userAvatarProps.logoUrl }}
-                        style={styles.avatarDiffusionImage}
-                        blurRadius={22}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View style={styles.avatarDiffusionFallback} />
-                    )}
-                  </Animated.View>
-                </Animated.View>
-              )}
+        {/* 2. Bouton d'action circulaire séparé (+) Flottant à droite */}
+        <Animated.View style={[styles.composeButtonWrapper, composeContainerStyle]}>
+          <Pressable
+            onPress={handleComposePress}
+            onPressIn={() => {
+              composeScale.value = withSpring(0.92, SPRING_DRAG);
+            }}
+            onPressOut={() => {
+              composeScale.value = withSpring(1.0, SPRING_SETTLE);
+            }}
+            style={styles.composePressable}
+          >
+            <AdaptiveGlassView
+              style={[
+                styles.composeCircleGlass,
+                isDark ? styles.blurContainerDark : styles.blurContainerLight,
+              ]}
+              variant={variant}
+              interactive={false}
+              intensity={isDark ? 45 : 35}
+              borderRadius={999}
+              refraction={true}
+              thickness={1.2}
+              edgeReflectionStrength={0.85}
+              tilt={true}
+              tintColor={
+                glassTintColor ?? (isDark ? 'rgba(20, 20, 26, 0.40)' : 'rgba(255, 255, 255, 0.40)')
+              }
+              {...glassProps}
+            >
+              <View
+                style={[
+                  styles.softTopHighlightCircle,
+                  {
+                    backgroundColor: isDark
+                      ? 'rgba(255, 255, 255, 0.20)'
+                      : 'rgba(255, 255, 255, 0.75)',
+                  },
+                ]}
+              />
+              <Ionicons name="add" size={26} color={resolvedActiveColor} />
+            </AdaptiveGlassView>
 
-              <View style={styles.tabsRow}>
-                {state.routes.map((route: NavigationRoute, index: number) => {
-                  const isFocused = state.index === index;
-                  return (
-                    <TabItem
-                      key={route.key}
-                      name={route.name}
-                      isFocused={isFocused}
-                      iconConfig={iconsMap?.[route.name]}
-                      activeColor={resolvedActiveColor}
-                      inactiveColor={resolvedInactiveColor}
-                      userAvatarProps={userAvatarProps}
-                    />
-                  );
-                })}
-              </View>
-            </View>
-          </AdaptiveGlassView>
-
-          {/* Bordure externe 360° discrète et sobre */}
-          <View
-            style={[
-              styles.seamlessOuterBorder,
-              {
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.11)' : 'rgba(0, 0, 0, 0.08)',
-              },
-            ]}
-            pointerEvents="none"
-          />
+            {/* Bordure externe 360° du bouton rond */}
+            <View
+              style={[
+                styles.seamlessCircleBorder,
+                {
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.11)' : 'rgba(0, 0, 0, 0.08)',
+                },
+              ]}
+              pointerEvents="none"
+            />
+          </Pressable>
         </Animated.View>
-      </GestureDetector>
+      </View>
     </View>
   );
 }
@@ -577,9 +666,62 @@ export function LiquidTabBar({
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    left: 16,
-    right: 16,
+    left: 14,
+    right: 14,
     alignItems: 'center',
+  },
+  islandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    maxWidth: 420,
+    gap: 10,
+  },
+  mainBarWrapper: {
+    flex: 1,
+    position: 'relative',
+  },
+  composeButtonWrapper: {
+    position: 'relative',
+  },
+  composePressable: {
+    width: 53,
+    height: 53,
+    borderRadius: 26.5,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  composeCircleGlass: {
+    width: 53,
+    height: 53,
+    borderRadius: 26.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 12 },
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  softTopHighlightCircle: {
+    position: 'absolute',
+    top: 0,
+    left: 8,
+    right: 8,
+    height: 0.75,
+    borderRadius: 999,
+    zIndex: 2,
+  },
+  seamlessCircleBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 26.5,
+    borderWidth: 0.5,
+    zIndex: 10,
   },
   appleBottomBackdrop: {
     position: 'absolute',
@@ -602,10 +744,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 90,
-  },
-  barWrapper: {
-    position: 'relative',
-    width: '100%',
   },
   blurContainer: {
     position: 'relative',
