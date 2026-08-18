@@ -610,11 +610,11 @@ export function LiquidTabBar({
               ]}
               variant={variant}
               interactive={false}
-              intensity={isDark ? 45 : 35}
+              intensity={30}
               borderRadius={32}
               refraction={true}
-              thickness={1.0}
-              edgeReflectionStrength={0.4}
+              thickness={1.35}
+              edgeReflectionStrength={1.0}
               tilt={false}
               tintColor={
                 glassTintColor ?? (isDark ? 'rgba(20, 20, 26, 0.40)' : 'rgba(255, 255, 255, 0.40)')
@@ -709,11 +709,11 @@ export function LiquidTabBar({
                 ]}
                 variant={variant}
                 interactive={false}
-                intensity={isDark ? 45 : 35}
+                intensity={30}
                 borderRadius={26.5}
                 refraction={true}
-                thickness={1.0}
-                edgeReflectionStrength={0.4}
+                thickness={1.35}
+                edgeReflectionStrength={1.0}
                 tilt={false}
                 tintColor={
                   glassTintColor ??
