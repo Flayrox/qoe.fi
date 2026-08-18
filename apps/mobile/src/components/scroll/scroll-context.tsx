@@ -9,6 +9,8 @@ import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 interface ScrollContextType {
   scrollY: SharedValue<number>;
   isScrollingDown: SharedValue<boolean>;
+  isDragging: SharedValue<boolean>;
+  hasTriggeredCompact: SharedValue<boolean>;
   onScrollHandler: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   forceExpandTabBar: () => void;
 }
@@ -18,9 +20,15 @@ const ScrollContext = createContext<ScrollContextType | null>(null);
 export function ScrollProvider({ children }: { children: React.ReactNode }) {
   const scrollY = useSharedValue(0);
   const isScrollingDown = useSharedValue(false);
+  const isDragging = useSharedValue(false);
+  const hasTriggeredCompact = useSharedValue(false);
   const lastScrollY = useSharedValue(0);
 
   const onScrollHandler = useAnimatedScrollHandler({
+    onBeginDrag: () => {
+      'worklet';
+      isDragging.value = true;
+    },
     onScroll: (event) => {
       'worklet';
       const currentY = event.contentOffset.y;
@@ -30,19 +38,36 @@ export function ScrollProvider({ children }: { children: React.ReactNode }) {
 
       if (currentY <= 15) {
         isScrollingDown.value = false;
-      } else if (diff > 4) {
+        hasTriggeredCompact.value = false;
+      } else if (diff > 3) {
         isScrollingDown.value = true;
-      } else if (diff < -4) {
+        hasTriggeredCompact.value = true;
+      } else if (diff < -8) {
         isScrollingDown.value = false;
+        hasTriggeredCompact.value = false;
       }
 
       lastScrollY.value = currentY;
+    },
+    onEndDrag: () => {
+      'worklet';
+      isDragging.value = false;
+    },
+    onMomentumEnd: () => {
+      'worklet';
+      isDragging.value = false;
+      if (scrollY.value <= 15) {
+        isScrollingDown.value = false;
+        hasTriggeredCompact.value = false;
+      }
     },
   });
 
   const forceExpandTabBar = () => {
     'worklet';
     isScrollingDown.value = false;
+    hasTriggeredCompact.value = false;
+    isDragging.value = false;
   };
 
   return (
@@ -50,6 +75,8 @@ export function ScrollProvider({ children }: { children: React.ReactNode }) {
       value={{
         scrollY,
         isScrollingDown,
+        isDragging,
+        hasTriggeredCompact,
         onScrollHandler: onScrollHandler as any,
         forceExpandTabBar,
       }}
@@ -65,9 +92,13 @@ export function useScrollCoordination() {
     // Fallback gracieux si utilisé hors provider
     const dummyY = useSharedValue(0);
     const dummyDown = useSharedValue(false);
+    const dummyDrag = useSharedValue(false);
+    const dummyCompact = useSharedValue(false);
     return {
       scrollY: dummyY,
       isScrollingDown: dummyDown,
+      isDragging: dummyDrag,
+      hasTriggeredCompact: dummyCompact,
       onScrollHandler: () => {},
       forceExpandTabBar: () => {},
     };
