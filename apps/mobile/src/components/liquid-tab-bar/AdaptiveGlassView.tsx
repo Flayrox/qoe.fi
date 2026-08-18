@@ -22,11 +22,6 @@ export interface AdaptiveGlassViewProps extends LiquidGlassViewProps {
   forceBlurFallback?: boolean;
 }
 
-const isNativeModuleAvailable =
-  Platform.OS !== 'web' &&
-  (UIManager.hasViewManagerConfig('LiquidGlassmorphismView') ||
-    (UIManager as any).getViewManagerConfig?.('LiquidGlassmorphismView') != null);
-
 export const AdaptiveGlassView: React.FC<AdaptiveGlassViewProps> = ({
   children,
   style,
@@ -48,11 +43,10 @@ export const AdaptiveGlassView: React.FC<AdaptiveGlassViewProps> = ({
 
   // Teinte sombre à 40%
   const defaultTintColor = isDark ? 'rgba(20, 20, 26, 0.40)' : 'rgba(255, 255, 255, 0.30)';
-
   const activeTintColor = tintColor ?? defaultTintColor;
 
-  // Fallback sécurisé pour Web, Expo Go ou avant compilation du binaire
-  if (Platform.OS === 'web' || forceBlurFallback || !isNativeModuleAvailable) {
+  // Fallback uniquement pour Web ou si forcé
+  if (Platform.OS === 'web' || forceBlurFallback) {
     return (
       <BlurView
         intensity={intensity}
@@ -69,7 +63,7 @@ export const AdaptiveGlassView: React.FC<AdaptiveGlassViewProps> = ({
     );
   }
 
-  // Native Apple Liquid Glass (UIGlassEffect on iOS, AGSL on Android)
+  // Native Liquid Glass (UIGlassEffect sur iOS, AGSL Shader optique sur Android API 33+)
   return (
     <NativeLiquidGlassView
       variant={variant}
