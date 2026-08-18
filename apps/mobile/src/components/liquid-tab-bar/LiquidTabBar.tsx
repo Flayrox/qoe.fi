@@ -1,11 +1,11 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useMemo } from 'react';
 import {
   Appearance,
   Image,
-  LayoutChangeEvent,
   Platform,
   StyleSheet,
   useColorScheme,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -235,17 +235,61 @@ export function LiquidTabBar({
     logoUrl: me?.logoUrl || (user?.user_metadata?.avatar_url as string | undefined),
   };
 
-  // 4 onglets principaux (profile, index, explore, notifications)
+  const { width: screenWidth } = useWindowDimensions();
+
+  // 4 onglets principaux (profile, explore, index, notifications)
   const visibleRoutes =
     state?.routes?.filter((r) => r.name !== 'messages' && r.name !== 'search') || [];
   const tabCount = visibleRoutes.length;
 
-  const [trackWidth, setTrackWidth] = useState(0);
-  const tabWidth = trackWidth > 0 && tabCount > 0 ? trackWidth / tabCount : 0;
-  const isInitialized = useRef(false);
+  const currentVisibleIndex = Math.max(
+    0,
+    visibleRoutes.findIndex((r) => r.name === state?.routes?.[state.index]?.name)
+  );
+
+  // ── Géométrie ultra-précise pleine largeur avec Home (index 2) calé au centre avec correction optique ──
+  const tabMetrics = useMemo(() => {
+    // Largeur totale utilisable de la rangée (wrapper left: 14, right: 14)
+    // Row = [ mainBar (flex: 1) ] (gap: 10) ( composeBtn: 53 )
+    const rowWidth = screenWidth - 28;
+    const barWidth = rowWidth - 10 - 53;
+    const trackWidth = Math.max(0, barWidth - 2 * TRACK_PADDING);
+
+    if (tabCount !== 4 || trackWidth <= 0) {
+      const avg = trackWidth > 0 && tabCount > 0 ? trackWidth / tabCount : 70;
+      return {
+        widths: Array(tabCount || 4).fill(avg),
+        offsets: Array.from({ length: tabCount || 4 }, (_, i) => i * avg),
+      };
+    }
+
+    // Correction optique (-6px) pour compenser la perception visuelle de la capsule asymétrique
+    const OPTICAL_SHIFT = -6;
+    const screenCenterInTrack = screenWidth / 2 - 14 - TRACK_PADDING + OPTICAL_SHIFT;
+    const homeWidth = 70; // Largeur optimisée pour l'icône Home
+
+    // Position x du bord gauche de l'onglet Home (index 2) pour que son centre soit EXACTEMENT sur screenCenterInTrack
+    const homeLeft = screenCenterInTrack - homeWidth / 2;
+
+    // Distribution des 2 onglets de gauche (0: Profil, 1: Explore)
+    const leftTabWidth = homeLeft / 2;
+
+    // Distribution de l'onglet de droite (3: Notifications)
+    const rightTabWidth = trackWidth - (homeLeft + homeWidth);
+
+    const widths = [leftTabWidth, leftTabWidth, homeWidth, rightTabWidth];
+    const offsets = [0, leftTabWidth, homeLeft, homeLeft + homeWidth];
+
+    return { widths, offsets };
+  }, [screenWidth, tabCount]);
+
+  // Initialisation immédiate des shared values avec les offsets calibrés (évite tout saut au 1er rendu)
+  const initialOffset = tabMetrics.offsets[currentVisibleIndex] ?? 0;
+  const initialWidth = tabMetrics.widths[currentVisibleIndex] ?? 70;
 
   // Pilule active : matière douce et feutrée
-  const pillTranslateX = useSharedValue(0);
+  const pillTranslateX = useSharedValue(initialOffset);
+  const pillWidth = useSharedValue(initialWidth);
   const pillOpacity = useSharedValue(isDark ? 0.14 : 0.09);
 
   // Onde de propagation liquide (déclenchée après 320ms à 100% de déploiement)
@@ -319,16 +363,14 @@ export function LiquidTabBar({
     }
   };
 
-  const currentVisibleIndex = Math.max(
-    0,
-    visibleRoutes.findIndex((r) => r.name === state?.routes?.[state.index]?.name)
-  );
-
   useEffect(() => {
-    if (tabWidth > 0 && !isInteracting.value && state) {
-      pillTranslateX.value = withSpring(currentVisibleIndex * tabWidth, SPRING_SETTLE);
+    if (!isInteracting.value && state) {
+      const targetOffset = tabMetrics.offsets[currentVisibleIndex] ?? 0;
+      const targetWidth = tabMetrics.widths[currentVisibleIndex] ?? 70;
+      pillTranslateX.value = withSpring(targetOffset, SPRING_SETTLE);
+      pillWidth.value = withSpring(targetWidth, SPRING_SETTLE);
     }
-  }, [currentVisibleIndex, tabWidth]);
+  }, [currentVisibleIndex, tabMetrics]);
 
   // Geste Pan sur la barre principale avec détection de collision sur le bouton (+)
   const panGesture = Gesture.Pan()
@@ -361,8 +403,10 @@ export function LiquidTabBar({
 
       if (hasMoved.value && tabCount > 0) {
         const relativeX = e.x - TRACK_PADDING;
-        const targetCenter = relativeX - tabWidth / 2;
-        const maxBound = (tabCount - 1) * tabWidth;
+        const currentPillW =
+          pillWidth.value > 0 ? pillWidth.value : (tabMetrics.widths[currentVisibleIndex] ?? 70);
+        const targetCenter = relativeX - currentPillW / 2;
+        const maxBound = tabMetrics.offsets[tabCount - 1] ?? 0;
 
         if (targetCenter < 0) {
           const overdrag = Math.abs(targetCenter);
@@ -401,10 +445,18 @@ export function LiquidTabBar({
           hasCollidedBar.value = false;
         }
 
-        const hoveredIndex = Math.max(
-          0,
-          Math.min(Math.floor((relativeX / (trackWidth || 1)) * tabCount), tabCount - 1)
-        );
+        let hoveredIndex = 0;
+        for (let i = 0; i < tabMetrics.offsets.length; i++) {
+          const offset = tabMetrics.offsets[i];
+          const w = tabMetrics.widths[i];
+          if (
+            relativeX >= offset &&
+            (i === tabMetrics.offsets.length - 1 || relativeX < offset + w)
+          ) {
+            hoveredIndex = i;
+            break;
+          }
+        }
         if (hoveredIndex !== activeHoverIndex.value) {
           activeHoverIndex.value = hoveredIndex;
           runOnJS(triggerHoverFeedback)();
@@ -425,16 +477,32 @@ export function LiquidTabBar({
       pillOpacity.value = withTiming(isDark ? 0.14 : 0.09, { duration: 140 });
 
       const relativeX = e.x - TRACK_PADDING;
-      const releaseIndex = Math.max(
-        0,
-        Math.min(Math.floor((relativeX / (trackWidth || 1)) * tabCount), tabCount - 1)
-      );
+      let releaseIndex = 0;
+      for (let i = 0; i < tabMetrics.offsets.length; i++) {
+        const offset = tabMetrics.offsets[i];
+        const w = tabMetrics.widths[i];
+        if (
+          relativeX >= offset &&
+          (i === tabMetrics.offsets.length - 1 || relativeX < offset + w)
+        ) {
+          releaseIndex = i;
+          break;
+        }
+      }
+      releaseIndex = Math.max(0, Math.min(releaseIndex, tabCount - 1));
       const targetRoute = visibleRoutes[releaseIndex];
 
+      const targetOffset = tabMetrics.offsets[releaseIndex] ?? 0;
+      const targetWidth = tabMetrics.widths[releaseIndex] ?? 70;
+
       if (targetRoute?.name === 'profile') {
-        pillTranslateX.value = withSpring(currentVisibleIndex * tabWidth, SPRING_SETTLE);
+        const curOffset = tabMetrics.offsets[currentVisibleIndex] ?? 0;
+        const curWidth = tabMetrics.widths[currentVisibleIndex] ?? 70;
+        pillTranslateX.value = withSpring(curOffset, SPRING_SETTLE);
+        pillWidth.value = withSpring(curWidth, SPRING_SETTLE);
       } else {
-        pillTranslateX.value = withSpring(releaseIndex * tabWidth, SPRING_SETTLE);
+        pillTranslateX.value = withSpring(targetOffset, SPRING_SETTLE);
+        pillWidth.value = withSpring(targetWidth, SPRING_SETTLE);
       }
 
       runOnJS(triggerNavigation)(releaseIndex);
@@ -536,6 +604,7 @@ export function LiquidTabBar({
 
     return {
       transform: [{ translateX: currentX }],
+      width: pillWidth.value > 0 ? pillWidth.value : (tabMetrics.widths[currentVisibleIndex] ?? 70),
       backgroundColor: pillBgColor,
     };
   });
@@ -555,16 +624,6 @@ export function LiquidTabBar({
       transform: [{ scale }],
     };
   });
-
-  const onLayout = (event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout;
-    setTrackWidth(width);
-
-    if (!isInitialized.current && width > 0 && state) {
-      pillTranslateX.value = currentVisibleIndex * (width / tabCount);
-      isInitialized.current = true;
-    }
-  };
 
   if (!state || !state.routes) {
     return null;
@@ -603,9 +662,9 @@ export function LiquidTabBar({
         </View>
       )}
 
-      {/* Row principale alignée : [ Barre 4 onglets ]  ( Bouton rond + ) */}
+      {/* Row principale alignée : [ Barre 4 onglets ]  (gap 10px)  ( Bouton rond + 53px ) */}
       <View style={styles.islandRow} pointerEvents="box-none">
-        {/* 1. Barre Principale Liquid Glass (4 onglets) */}
+        {/* 1. Barre Principale Liquid Glass (4 onglets calibrés dynamiquement) */}
         <GestureDetector gesture={panGesture}>
           <Animated.View style={[styles.mainBarWrapper, barContainerStyle]}>
             <AdaptiveGlassView
@@ -638,52 +697,51 @@ export function LiquidTabBar({
                 ]}
               />
 
-              <View style={styles.trackContainer} onLayout={onLayout}>
-                {tabWidth > 0 && (
+              <View style={styles.trackContainer}>
+                <Animated.View
+                  style={[
+                    styles.activePill,
+                    {
+                      top: PILL_VERTICAL_PADDING,
+                      bottom: PILL_VERTICAL_PADDING,
+                    },
+                    pillAnimatedStyle,
+                  ]}
+                >
+                  {/* Onde de propagation liquide rayonnante depuis la PP */}
                   <Animated.View
-                    style={[
-                      styles.activePill,
-                      {
-                        width: tabWidth,
-                        top: PILL_VERTICAL_PADDING,
-                        bottom: PILL_VERTICAL_PADDING,
-                      },
-                      pillAnimatedStyle,
-                    ]}
+                    style={[styles.avatarPropagationContainer, auraRippleStyle]}
+                    pointerEvents="none"
                   >
-                    {/* Onde de propagation liquide rayonnante depuis la PP */}
-                    <Animated.View
-                      style={[styles.avatarPropagationContainer, auraRippleStyle]}
-                      pointerEvents="none"
-                    >
-                      <View style={styles.avatarCoreEpicenter} />
-                      {userAvatarProps?.logoUrl ? (
-                        <Image
-                          source={{ uri: userAvatarProps.logoUrl }}
-                          style={styles.avatarDiffusionImage}
-                          blurRadius={22}
-                          resizeMode="cover"
-                        />
-                      ) : (
-                        <View style={styles.avatarDiffusionFallback} />
-                      )}
-                    </Animated.View>
+                    <View style={styles.avatarCoreEpicenter} />
+                    {userAvatarProps?.logoUrl ? (
+                      <Image
+                        source={{ uri: userAvatarProps.logoUrl }}
+                        style={styles.avatarDiffusionImage}
+                        blurRadius={22}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.avatarDiffusionFallback} />
+                    )}
                   </Animated.View>
-                )}
+                </Animated.View>
 
                 <View style={styles.tabsRow}>
                   {visibleRoutes.map((route: NavigationRoute, index: number) => {
                     const isFocused = currentVisibleIndex === index;
+                    const cellWidth = tabMetrics.widths[index] ?? 70;
                     return (
-                      <TabItem
-                        key={route.key}
-                        name={route.name}
-                        isFocused={isFocused}
-                        iconConfig={iconsMap?.[route.name]}
-                        activeColor={resolvedActiveColor}
-                        inactiveColor={resolvedInactiveColor}
-                        userAvatarProps={userAvatarProps}
-                      />
+                      <View key={route.key} style={[styles.tabItemCell, { width: cellWidth }]}>
+                        <TabItem
+                          name={route.name}
+                          isFocused={isFocused}
+                          iconConfig={iconsMap?.[route.name]}
+                          activeColor={resolvedActiveColor}
+                          inactiveColor={resolvedInactiveColor}
+                          userAvatarProps={userAvatarProps}
+                        />
+                      </View>
                     );
                   })}
                 </View>
@@ -930,8 +988,12 @@ const styles = StyleSheet.create({
     width: '100%',
     zIndex: 3,
   },
+  tabItemCell: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tabItem: {
-    flex: 1,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 15.5,
