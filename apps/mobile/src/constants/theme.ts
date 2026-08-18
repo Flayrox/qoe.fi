@@ -17,9 +17,9 @@ import { nativeTokens, type NativeTokens } from '@qoe/theme/native';
 function toMobileTheme(t: NativeTokens) {
   return {
     text: t.foreground,
-    // Page (deck/feed) = `background` du web (#f5f5f7 clair) — les cartes
-    // blanches se détachent dessus, comme l'écran principal.
-    background: t.background,
+    // Page (deck/feed) = surface de carte (blanc pur #ffffff en clair, et #121215 en sombre),
+    // pour un fond parfaitement homogène avec les posts.
+    background: t.card,
     // Surface de carte (blanche) — pensées, articles, rangées de bibliothèque.
     card: t.card,
     backgroundElement: t.secondary,

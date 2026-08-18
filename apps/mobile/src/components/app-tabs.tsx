@@ -7,6 +7,7 @@ export default function AppTabs() {
 
   return (
     <Tabs
+      initialRouteName="index"
       tabBar={(props) => <LiquidTabBar {...props} onProfilePress={openDrawer} />}
       screenOptions={{
         headerShown: false,

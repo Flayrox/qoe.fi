@@ -73,6 +73,8 @@ export function FeedScreen() {
     [tab]
   );
 
+  const hasUserTouchedScroll = useRef(false);
+
   // ── Pensées (infini) ─────────────────────────────────────────
   const {
     data,
@@ -86,6 +88,7 @@ export function FeedScreen() {
   } = useInfiniteFeed<FeedSlice>({
     type: tab === 'following' ? 'following' : 'for-you',
     limit: 20,
+    minVisibleQuota: 20,
     fetcher,
   });
 
@@ -101,6 +104,8 @@ export function FeedScreen() {
     getNextPageParam: (lastPage, allPages) => (lastPage.hasMore ? allPages.length * 20 : undefined),
     enabled: tab === 'for_you',
   });
+
+  const isInitialLoading = isPending || (tab === 'for_you' && articles.isPending);
 
   const thoughts = useMemo(() => data?.pages.flatMap((page) => page?.data ?? []) ?? [], [data]);
   const articleItems = useMemo(
@@ -150,26 +155,23 @@ export function FeedScreen() {
   }, [rows, unread]);
 
   const handleSelectTab = useCallback((newTab: FeedTab) => {
+    hasUserTouchedScroll.current = false;
     setTab(newTab);
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
   }, []);
 
   useEffect(() => {
-    if (displayedRows.length > 0 && !hasInitialScrolled.current) {
-      hasInitialScrolled.current = true;
-      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    scrollY.value = 0;
+    isScrollingDown.value = false;
+  }, [scrollY, isScrollingDown]);
+
+  useEffect(() => {
+    if (!hasUserTouchedScroll.current && displayedRows.length > 0) {
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      });
     }
   }, [displayedRows.length]);
-
-  if (isPending) {
-    return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView edges={['top']} style={styles.safeArea}>
-          <PostFeedLoadingPlaceholder />
-        </SafeAreaView>
-      </ThemedView>
-    );
-  }
 
   if (isError && !data) {
     return (
@@ -213,13 +215,14 @@ export function FeedScreen() {
         curve={{ type: 'stops', values: [1, 0.7, 0.38, 0.14, 0.04, 0] }}
         style={styles.container}
       >
-        {/* ─── Liste FlashList fluide plein écran (Edge-to-Edge) ─── */}
+        {/* ─── Liste FlashList permanente plein écran (Edge-to-Edge) ─── */}
         <AnimatedFlashList
           ref={listRef as any}
-          data={displayedRows}
+          data={isInitialLoading ? [] : displayedRows}
           contentInsetAdjustmentBehavior="never"
           automaticallyAdjustContentInsets={false}
           automaticallyAdjustsScrollIndicatorInsets={false}
+          scrollsToTop={true}
           keyExtractor={(row) => (row.kind === 'thought' ? row.slice.id : row.article.id)}
           renderItem={({ item }) =>
             item.kind === 'thought' ? (
@@ -231,12 +234,21 @@ export function FeedScreen() {
           ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
           getItemType={(item) => item.kind}
           onScroll={onScrollHandler}
+          onScrollBeginDrag={() => {
+            hasUserTouchedScroll.current = true;
+          }}
           scrollEventThrottle={16}
           onEndReached={onEndReached}
           onEndReachedThreshold={0.4}
           refreshing={isRefetching}
           onRefresh={onRefresh}
-          ListEmptyComponent={<FeedEmptyState onExplore={() => router.push('/(tabs)/explore')} />}
+          ListEmptyComponent={
+            isInitialLoading ? (
+              <PostFeedLoadingPlaceholder count={6} />
+            ) : (
+              <FeedEmptyState onExplore={() => router.push('/(tabs)/explore')} />
+            )
+          }
           ListFooterComponent={
             hasNextPage ? (
               <ActivityIndicator color={theme.text} style={styles.footer} />
@@ -291,10 +303,10 @@ const styles = StyleSheet.create({
   footer: {
     paddingVertical: Spacing.three,
   },
-  // Pill temps réel — flottante sous la barre d'état.
+  // Pill temps réel — flottante sous le header sans jamais le masquer.
   pillWrap: {
     position: 'absolute',
-    top: 56,
+    top: 116,
     left: 0,
     right: 0,
     alignItems: 'center',

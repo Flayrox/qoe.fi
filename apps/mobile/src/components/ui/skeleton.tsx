@@ -7,7 +7,7 @@
 // profil. Utilisés comme état de chargement initial du feed.
 // =====================================================================
 
-import type { ReactNode } from 'react';
+import { useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -15,6 +15,13 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 
 import { useTheme } from '@/hooks/use-theme';
 
@@ -32,16 +39,35 @@ function Block({
   style?: StyleProp<ViewStyle>;
 }) {
   const theme = useTheme();
+  const pulse = useSharedValue(1);
+
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withTiming(0.45, {
+        duration: 850,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      true
+    );
+  }, [pulse]);
+
+  const animatedPulseStyle = useAnimatedStyle(() => {
+    return {
+      opacity: pulse.value * (blend ? 0.6 : 1),
+    };
+  });
+
   return (
-    <View
+    <Animated.View
       style={[
         {
           width,
           height,
           borderRadius: radius,
           backgroundColor: theme.backgroundSelected,
-          opacity: blend ? 0.6 : 1,
         },
+        animatedPulseStyle,
         style,
       ]}
     />
