@@ -5,10 +5,10 @@ import {
   type FeedSlice,
 } from '@qoe/api-client/mobile';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { FlashList, type FlashListProps } from '@shopify/flash-list';
+import { FlashList, type FlashListProps, type FlashListRef } from '@shopify/flash-list';
 import Animated from 'react-native-reanimated';
 import { router } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Appearance,
@@ -51,6 +51,8 @@ export function FeedScreen() {
   const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
   const [tab, setTab] = useState<FeedTab>('for_you');
   const { scrollY, isScrollingDown, onScrollHandler } = useScrollCoordination();
+  const listRef = useRef<FlashListRef<FeedRow>>(null);
+  const hasInitialScrolled = useRef(false);
 
   // Adapte le client universel au contrat du hook, selon l'onglet :
   const fetcher: FeedFetcherFn<FeedSlice> = useCallback(
@@ -147,6 +149,18 @@ export function FeedScreen() {
     return [...unreadRows, ...rows];
   }, [rows, unread]);
 
+  const handleSelectTab = useCallback((newTab: FeedTab) => {
+    setTab(newTab);
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, []);
+
+  useEffect(() => {
+    if (displayedRows.length > 0 && !hasInitialScrolled.current) {
+      hasInitialScrolled.current = true;
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }
+  }, [displayedRows.length]);
+
   if (isPending) {
     return (
       <ThemedView style={styles.container}>
@@ -177,7 +191,7 @@ export function FeedScreen() {
       */}
       <DynamicMorphingHeader
         activeTab={tab}
-        onSelectTab={setTab}
+        onSelectTab={handleSelectTab}
         scrollY={scrollY}
         isScrollingDown={isScrollingDown}
         onPressNotifications={() => router.push('/(tabs)/notifications')}
@@ -201,7 +215,11 @@ export function FeedScreen() {
       >
         {/* ─── Liste FlashList fluide plein écran (Edge-to-Edge) ─── */}
         <AnimatedFlashList
+          ref={listRef as any}
           data={displayedRows}
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustContentInsets={false}
+          automaticallyAdjustsScrollIndicatorInsets={false}
           keyExtractor={(row) => (row.kind === 'thought' ? row.slice.id : row.article.id)}
           renderItem={({ item }) =>
             item.kind === 'thought' ? (
