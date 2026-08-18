@@ -200,18 +200,23 @@ const PROGRESSIVE_BLUR_STEPS = [
 export function LiquidTabBar({
   state,
   navigation,
+  insets,
   variant = 'regular',
   iconsMap,
   glassProps,
   activeTintColor,
   inactiveTintColor,
   glassTintColor,
-  bottomOffset = 24,
+  bottomOffset: customBottomOffset,
   containerStyle,
   onProfilePress,
 }: LiquidTabBarProps) {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
+
+  const bottomOffset =
+    customBottomOffset ??
+    (Platform.OS === 'ios' ? (insets?.bottom && insets.bottom > 0 ? insets.bottom + 6 : 24) : 18);
 
   const defaultActiveTint = isDark ? '#FFFFFF' : '#111113';
   const defaultInactiveTint = isDark ? 'rgba(255, 255, 255, 0.72)' : 'rgba(0, 0, 0, 0.58)';
@@ -556,24 +561,18 @@ export function LiquidTabBar({
 
   const scrollCollapseStyle = useAnimatedStyle(() => {
     const isDragging = isInteracting.value;
-    const shouldCollapse = isScrollingDown.value && !isDragging && scrollY.value > 25;
+    const shouldCollapse = isScrollingDown.value && !isDragging && scrollY.value > 20;
 
     return {
       transform: [
         {
-          translateY: withSpring(shouldCollapse ? 36 : 0, {
-            damping: 22,
-            stiffness: 220,
-          }),
-        },
-        {
-          scale: withSpring(shouldCollapse ? 0.9 : 1, {
-            damping: 22,
-            stiffness: 220,
+          translateY: withSpring(shouldCollapse ? 110 : 0, {
+            damping: 24,
+            stiffness: 260,
           }),
         },
       ],
-      opacity: withTiming(shouldCollapse ? 0.72 : 1, { duration: 220 }),
+      opacity: withTiming(shouldCollapse ? 0 : 1, { duration: 200 }),
     };
   });
 

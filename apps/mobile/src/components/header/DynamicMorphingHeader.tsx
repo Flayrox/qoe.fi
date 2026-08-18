@@ -50,25 +50,42 @@ export function DynamicMorphingHeader({
     return () => clearTimeout(timer);
   }, []);
 
+  // ─── Style Animé pour l'Ensemble du Header (Slide Up / Down Instagram-Style) ───
+  const headerContainerAnimatedStyle = useAnimatedStyle(() => {
+    const isAtTop = scrollY.value <= 10;
+    const isVisible = isAtTop || !isScrollingDown.value;
+
+    return {
+      transform: [
+        {
+          translateY: withSpring(isVisible ? 0 : -70, {
+            damping: 24,
+            stiffness: 260,
+          }),
+        },
+      ],
+      opacity: withTiming(isVisible ? 1 : 0, { duration: 200 }),
+    };
+  });
+
   // ─── Style Animé pour le Logo « qoe.fi » ───
   const logoAnimatedStyle = useAnimatedStyle(() => {
-    // Si défilement > 20px ou auto-morphing expiré, le logo s'estompe vers 0
     const scrollProgress = interpolate(scrollY.value, [0, 35], [0, 1], 'clamp');
     const effectiveProgress = Math.max(scrollProgress, autoMorphProgress);
 
     return {
-      opacity: withTiming(1 - effectiveProgress, { duration: 350 }),
+      opacity: withTiming(1 - effectiveProgress, { duration: 300 }),
       transform: [
         {
           translateY: withSpring(1 - effectiveProgress ? 0 : -8, {
-            damping: 18,
-            stiffness: 200,
+            damping: 20,
+            stiffness: 220,
           }),
         },
         {
-          scale: withSpring(1 - effectiveProgress * 0.15, {
-            damping: 18,
-            stiffness: 200,
+          scale: withSpring(1 - effectiveProgress * 0.1, {
+            damping: 20,
+            stiffness: 220,
           }),
         },
       ],
@@ -82,51 +99,22 @@ export function DynamicMorphingHeader({
     const effectiveProgress = Math.max(scrollProgress, autoMorphProgress);
 
     return {
-      opacity: withTiming(effectiveProgress, { duration: 350 }),
+      opacity: withTiming(effectiveProgress, { duration: 300 }),
       transform: [
         {
           translateY: withSpring(effectiveProgress ? 0 : 8, {
-            damping: 18,
-            stiffness: 200,
+            damping: 20,
+            stiffness: 220,
           }),
         },
         {
-          scale: withSpring(0.9 + effectiveProgress * 0.1, {
-            damping: 18,
-            stiffness: 200,
+          scale: withSpring(0.92 + effectiveProgress * 0.08, {
+            damping: 20,
+            stiffness: 220,
           }),
         },
       ],
       pointerEvents: effectiveProgress <= 0.2 ? 'none' : 'auto',
-    };
-  });
-
-  // ─── Style Animé pour les Boutons d'Action (Droite) ───
-  // Visibles uniquement au tout sommet (scrollY <= 10) OU en scroll-up
-  const actionsAnimatedStyle = useAnimatedStyle(() => {
-    const isAtTop = scrollY.value <= 10;
-    const shouldShow = isAtTop || !isScrollingDown.value;
-
-    return {
-      opacity: withSpring(shouldShow ? 1 : 0, {
-        damping: 20,
-        stiffness: 220,
-      }),
-      transform: [
-        {
-          translateY: withSpring(shouldShow ? 0 : -14, {
-            damping: 20,
-            stiffness: 220,
-          }),
-        },
-        {
-          scale: withSpring(shouldShow ? 1 : 0.85, {
-            damping: 20,
-            stiffness: 220,
-          }),
-        },
-      ],
-      pointerEvents: shouldShow ? 'auto' : 'none',
     };
   });
 
@@ -148,8 +136,11 @@ export function DynamicMorphingHeader({
   ];
 
   return (
-    <View style={styles.headerContainer} pointerEvents="box-none">
-      {/* ─── Côté Gauche : Morphing Logo qoe.fi ↔ Onglets « Pour vous / Suivis » ─── */}
+    <Animated.View
+      style={[styles.headerContainer, headerContainerAnimatedStyle]}
+      pointerEvents="box-none"
+    >
+      {/* ─── Côté Gauche : Morphing Logo qoe.fi ↔ Onglets « Pour vous ⌵ / Suivis ⌵ » ─── */}
       <View style={styles.leftSection}>
         {/* Logo qoe.fi au repos */}
         <Animated.View style={[styles.absoluteLeft, logoAnimatedStyle]}>
@@ -158,25 +149,30 @@ export function DynamicMorphingHeader({
           </Pressable>
         </Animated.View>
 
-        {/* Sélecteur d'onglets « Pour vous / Suivis » */}
+        {/* Sélecteur d'onglets « Pour vous ⌵ / Suivis » (Parité Instagram) */}
         <Animated.View style={[styles.absoluteLeft, styles.tabsRow, tabsAnimatedStyle]}>
           <Pressable
             onPress={() => handleTabPress('for_you')}
             hitSlop={6}
             style={({ pressed }) => [styles.tabItem, pressed && styles.tabPressed]}
           >
-            <ThemedText
-              style={[
-                styles.tabText,
-                {
-                  color: activeTab === 'for_you' ? theme.text : theme.textSecondary,
-                  fontWeight: activeTab === 'for_you' ? '800' : '600',
-                  opacity: activeTab === 'for_you' ? 1 : 0.6,
-                },
-              ]}
-            >
-              {t('feed.tabs.for_you', 'Pour vous')}
-            </ThemedText>
+            <View style={styles.tabTextRow}>
+              <ThemedText
+                style={[
+                  styles.tabText,
+                  {
+                    color: activeTab === 'for_you' ? theme.text : theme.textSecondary,
+                    fontWeight: activeTab === 'for_you' ? '800' : '600',
+                    opacity: activeTab === 'for_you' ? 1 : 0.6,
+                  },
+                ]}
+              >
+                {t('feed.tabs.for_you', 'Pour vous')}
+              </ThemedText>
+              {activeTab === 'for_you' && (
+                <ThemedText style={[styles.chevron, { color: theme.text }]}>⌄</ThemedText>
+              )}
+            </View>
             {activeTab === 'for_you' && (
               <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />
             )}
@@ -187,18 +183,20 @@ export function DynamicMorphingHeader({
             hitSlop={6}
             style={({ pressed }) => [styles.tabItem, pressed && styles.tabPressed]}
           >
-            <ThemedText
-              style={[
-                styles.tabText,
-                {
-                  color: activeTab === 'following' ? theme.text : theme.textSecondary,
-                  fontWeight: activeTab === 'following' ? '800' : '600',
-                  opacity: activeTab === 'following' ? 1 : 0.6,
-                },
-              ]}
-            >
-              {t('feed.tabs.following', 'Suivis')}
-            </ThemedText>
+            <View style={styles.tabTextRow}>
+              <ThemedText
+                style={[
+                  styles.tabText,
+                  {
+                    color: activeTab === 'following' ? theme.text : theme.textSecondary,
+                    fontWeight: activeTab === 'following' ? '800' : '600',
+                    opacity: activeTab === 'following' ? 1 : 0.6,
+                  },
+                ]}
+              >
+                {t('feed.tabs.following', 'Suivis')}
+              </ThemedText>
+            </View>
             {activeTab === 'following' && (
               <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />
             )}
@@ -207,8 +205,8 @@ export function DynamicMorphingHeader({
       </View>
 
       {/* ─── Côté Droit : Boutons d'action en Verre Liquide (Liquid Glass) ─── */}
-      <Animated.View style={[styles.actionsRow, actionsAnimatedStyle]}>
-        {/* Bouton Notifications 🔔 */}
+      <View style={styles.actionsRow}>
+        {/* Bouton Notifications / Likes 🔔 / ♡ */}
         <Pressable
           onPress={onPressNotifications}
           style={({ pressed }) => [glassButtonStyle, pressed && styles.buttonPressed]}
@@ -223,7 +221,7 @@ export function DynamicMorphingHeader({
           />
         </Pressable>
 
-        {/* Bouton Messages / Direct 💬 */}
+        {/* Bouton Messages / Direct 💬 / ✈️ */}
         <Pressable
           onPress={onPressMessages}
           style={({ pressed }) => [glassButtonStyle, pressed && styles.buttonPressed]}
@@ -241,8 +239,8 @@ export function DynamicMorphingHeader({
             weight="semibold"
           />
         </Pressable>
-      </Animated.View>
-    </View>
+      </View>
+    </Animated.View>
   );
 }
 
@@ -281,9 +279,19 @@ const styles = StyleSheet.create({
     position: 'relative',
     paddingVertical: 6,
   },
+  tabTextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   tabText: {
     fontSize: 18,
     letterSpacing: -0.4,
+  },
+  chevron: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: -2,
   },
   tabIndicator: {
     position: 'absolute',
