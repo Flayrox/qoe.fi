@@ -31,6 +31,7 @@ import { useAuth } from '@/features/auth/auth-provider';
 import { useMe } from '@/hooks/use-me';
 import { AdaptiveGlassView } from './AdaptiveGlassView';
 import { LiquidTabBarProps, NavigationRoute, TabIconConfig } from './LiquidTabBar.types';
+import { useScrollCoordination } from '@/components/scroll/scroll-context';
 
 const SPRING_SETTLE = { damping: 22, stiffness: 240, mass: 0.5 };
 const SPRING_DRAG = { damping: 26, stiffness: 280, mass: 0.35 };
@@ -225,6 +226,8 @@ export function LiquidTabBar({
 
   const drawerContext = useContext(DrawerContext);
   const drawerProgress = drawerContext?.progress;
+  const { scrollY, isScrollingDown, isDragging, hasTriggeredCompact, forceExpandTabBar } =
+    useScrollCoordination();
 
   const { session } = useAuth();
   const { data: me } = useMe();
@@ -350,6 +353,7 @@ export function LiquidTabBar({
   };
 
   const triggerNavigation = (targetIndex: number) => {
+    forceExpandTabBar();
     if (visibleRoutes && targetIndex >= 0 && targetIndex < tabCount) {
       const route = visibleRoutes[targetIndex];
       if (route.name === 'profile' && onProfilePress) {
@@ -361,18 +365,26 @@ export function LiquidTabBar({
       if (actualIndex !== state.index) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         navigation.navigate(route.name);
+      } else {
+        // Clic sur l'onglet déjà actif : émission de tabPress pour scroll-to-top et refresh
+        navigation.emit?.({
+          type: 'tabPress',
+          target: route.key,
+          canPreventDefault: true,
+        });
       }
     }
   };
 
   useEffect(() => {
+    forceExpandTabBar();
     if (!isInteracting.value && state) {
       const targetOffset = tabMetrics.offsets[currentVisibleIndex] ?? 0;
       const targetWidth = tabMetrics.widths[currentVisibleIndex] ?? 70;
       pillTranslateX.value = withSpring(targetOffset, SPRING_SETTLE);
       pillWidth.value = withSpring(targetWidth, SPRING_SETTLE);
     }
-  }, [currentVisibleIndex, tabMetrics]);
+  }, [currentVisibleIndex, tabMetrics, forceExpandTabBar]);
 
   // Geste Pan sur la barre principale avec détection de collision sur le bouton (+)
   const panGesture = Gesture.Pan()
@@ -657,6 +669,34 @@ export function LiquidTabBar({
     };
   });
 
+  // Réduction d'échelle centrée et fluide au scroll-down (scale 0.90) sans altérer les shaders de verre
+  const islandScrollAnimatedStyle = useAnimatedStyle(() => {
+    // Si l'utilisateur est en train d'interagir directement avec la tab bar, on maintient l'échelle 1.0 normale
+    if (isInteracting.value || activeFocus.value > 0) {
+      return {
+        transform: [{ scale: withSpring(1.0, SPRING_SETTLE) }],
+      };
+    }
+
+    const isAtTop = scrollY.value <= 20;
+    // La barre reste compacte tant qu'on scrolle vers le bas OU tant que le doigt est maintenu posé sur l'écran après déclenchement
+    const shouldCompact =
+      !isAtTop && (isScrollingDown.value || (hasTriggeredCompact.value && isDragging.value));
+    const targetScale = shouldCompact ? 0.9 : 1.0;
+
+    return {
+      transform: [
+        {
+          scale: withSpring(targetScale, {
+            damping: 22,
+            stiffness: 240,
+            mass: 0.4,
+          }),
+        },
+      ],
+    };
+  });
+
   if (!state || !state.routes) {
     return null;
   }
@@ -695,7 +735,7 @@ export function LiquidTabBar({
       )}
 
       {/* Row principale alignée : [ Barre 4 onglets ]  (gap 10px)  ( Bouton rond + 53px ) */}
-      <View style={styles.islandRow} pointerEvents="box-none">
+      <Animated.View style={[styles.islandRow, islandScrollAnimatedStyle]} pointerEvents="box-none">
         {/* 1. Barre Principale Liquid Glass (4 onglets calibrés dynamiquement) */}
         <GestureDetector gesture={panGesture}>
           <Animated.View style={[styles.mainBarWrapper, barContainerStyle]}>
@@ -707,7 +747,7 @@ export function LiquidTabBar({
               variant={variant}
               interactive={false}
               intensity={30}
-              borderRadius={32}
+              borderRadius={36}
               refraction={true}
               thickness={1.35}
               edgeReflectionStrength={1.0}
@@ -842,7 +882,7 @@ export function LiquidTabBar({
             </View>
           </Animated.View>
         </GestureDetector>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -881,6 +921,7 @@ const styles = StyleSheet.create({
     width: 53,
     height: 53,
     borderRadius: 26.5,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -903,6 +944,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     borderRadius: 26.5,
+    borderCurve: 'continuous',
     borderWidth: 0.5,
     zIndex: 10,
   },
@@ -930,7 +972,8 @@ const styles = StyleSheet.create({
   },
   blurContainer: {
     position: 'relative',
-    borderRadius: 32,
+    borderRadius: 36,
+    borderCurve: 'continuous',
     overflow: 'hidden',
     backgroundColor: 'transparent',
     paddingHorizontal: TRACK_PADDING,
@@ -948,10 +991,11 @@ const styles = StyleSheet.create({
   softTopHighlight: {
     position: 'absolute',
     top: 0,
-    left: 32,
-    right: 32,
+    left: 36,
+    right: 36,
     height: 0.75,
-    borderRadius: 32,
+    borderRadius: 36,
+    borderCurve: 'continuous',
     zIndex: 2,
   },
   seamlessOuterBorder: {
@@ -960,19 +1004,22 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 32,
+    borderRadius: 36,
+    borderCurve: 'continuous',
     borderWidth: 0.5,
     zIndex: 10,
   },
   trackContainer: {
     position: 'relative',
     width: '100%',
-    borderRadius: 32,
+    borderRadius: 36,
+    borderCurve: 'continuous',
   },
   activePill: {
     position: 'absolute',
     left: 0,
-    borderRadius: 28,
+    borderRadius: 30,
+    borderCurve: 'continuous',
     zIndex: 1,
     borderWidth: 0,
     overflow: 'hidden',

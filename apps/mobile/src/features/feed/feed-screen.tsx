@@ -7,7 +7,8 @@ import {
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { FlashList, type FlashListProps, type FlashListRef } from '@shopify/flash-list';
 import Animated from 'react-native-reanimated';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -106,6 +107,33 @@ export function FeedScreen() {
   });
 
   const isInitialLoading = isPending || (tab === 'for_you' && articles.isPending);
+
+  // ── Scroll to Top & Refetch au tap sur l'onglet actif ─────────
+  const navigation = useNavigation();
+  const lastTabPressTime = useRef(0);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('tabPress' as any, () => {
+      const now = Date.now();
+      const isSpamOrDoubleTap = now - lastTabPressTime.current < 600;
+      lastTabPressTime.current = now;
+
+      // Si on est déjà tout en haut (scrollY <= 30) ou si on spam-clique :
+      if (scrollY.value <= 30 || isSpamOrDoubleTap) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        void refetch();
+        if (tab === 'for_you') {
+          void articles.refetch();
+        }
+      } else {
+        // Sinon : remonter tout en haut avec ressort fluide
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        listRef.current?.scrollToOffset({ offset: 0, animated: true });
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, refetch, articles, tab, scrollY]);
 
   const thoughts = useMemo(() => data?.pages.flatMap((page) => page?.data ?? []) ?? [], [data]);
   const articleItems = useMemo(
