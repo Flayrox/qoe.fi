@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Appearance, Platform, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 import Animated, {
+  Easing,
   interpolate,
   useAnimatedStyle,
-  withSpring,
+  useSharedValue,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
@@ -39,18 +40,20 @@ export function DynamicMorphingHeader({
   const scheme = useColorScheme();
   const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
 
-  // ⏳ Temporisation automatique : le logo qoe.fi s'affiche au début,
-  // puis après 2.5 secondes se transforme automatiquement en « Pour vous » !
-  const [autoMorphProgress, setAutoMorphProgress] = useState(0);
+  // ⏳ Temporisation automatique fluide sans rebond
+  const autoMorph = useSharedValue(0);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setAutoMorphProgress(1);
+      autoMorph.value = withTiming(1, {
+        duration: 350,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      });
     }, 2500);
     return () => clearTimeout(timer);
   }, []);
 
-  // ─── Style Animé pour l'Ensemble du Header (Slide Up / Down Instagram-Style) ───
+  // ─── Style Animé pour l'Ensemble du Header (Slide Up / Down fluide sans bounce) ───
   const headerContainerAnimatedStyle = useAnimatedStyle(() => {
     const isAtTop = scrollY.value <= 10;
     const isVisible = isAtTop || !isScrollingDown.value;
@@ -58,63 +61,54 @@ export function DynamicMorphingHeader({
     return {
       transform: [
         {
-          translateY: withSpring(isVisible ? 0 : -70, {
-            damping: 24,
-            stiffness: 260,
+          translateY: withTiming(isVisible ? 0 : -70, {
+            duration: 250,
+            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
           }),
         },
       ],
-      opacity: withTiming(isVisible ? 1 : 0, { duration: 200 }),
+      opacity: withTiming(isVisible ? 1 : 0, {
+        duration: 200,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      }),
     };
   });
 
-  // ─── Style Animé pour le Logo « qoe.fi » ───
+  // ─── Style Animé pour le Logo « qoe.fi » (Transition douce linéaire/cubique) ───
   const logoAnimatedStyle = useAnimatedStyle(() => {
     const scrollProgress = interpolate(scrollY.value, [0, 35], [0, 1], 'clamp');
-    const effectiveProgress = Math.max(scrollProgress, autoMorphProgress);
+    const effectiveProgress = Math.max(scrollProgress, autoMorph.value);
 
     return {
-      opacity: withTiming(1 - effectiveProgress, { duration: 300 }),
+      opacity: interpolate(effectiveProgress, [0, 0.7], [1, 0], 'clamp'),
       transform: [
         {
-          translateY: withSpring(1 - effectiveProgress ? 0 : -8, {
-            damping: 20,
-            stiffness: 220,
-          }),
+          translateY: interpolate(effectiveProgress, [0, 1], [0, -8], 'clamp'),
         },
         {
-          scale: withSpring(1 - effectiveProgress * 0.1, {
-            damping: 20,
-            stiffness: 220,
-          }),
+          scale: interpolate(effectiveProgress, [0, 1], [1, 0.9], 'clamp'),
         },
       ],
-      pointerEvents: effectiveProgress >= 0.8 ? 'none' : 'auto',
+      pointerEvents: effectiveProgress >= 0.7 ? 'none' : 'auto',
     };
   });
 
   // ─── Style Animé pour les Onglets « Pour vous / Suivis » ───
   const tabsAnimatedStyle = useAnimatedStyle(() => {
     const scrollProgress = interpolate(scrollY.value, [0, 35], [0, 1], 'clamp');
-    const effectiveProgress = Math.max(scrollProgress, autoMorphProgress);
+    const effectiveProgress = Math.max(scrollProgress, autoMorph.value);
 
     return {
-      opacity: withTiming(effectiveProgress, { duration: 300 }),
+      opacity: interpolate(effectiveProgress, [0.3, 1], [0, 1], 'clamp'),
       transform: [
         {
-          translateY: withSpring(effectiveProgress ? 0 : 8, {
-            damping: 20,
-            stiffness: 220,
-          }),
+          translateY: interpolate(effectiveProgress, [0, 1], [8, 0], 'clamp'),
         },
         {
-          scale: withSpring(0.92 + effectiveProgress * 0.08, {
-            damping: 20,
-            stiffness: 220,
-          }),
+          scale: interpolate(effectiveProgress, [0, 1], [0.92, 1], 'clamp'),
         },
       ],
-      pointerEvents: effectiveProgress <= 0.2 ? 'none' : 'auto',
+      pointerEvents: effectiveProgress <= 0.3 ? 'none' : 'auto',
     };
   });
 
@@ -125,6 +119,13 @@ export function DynamicMorphingHeader({
       }
       onSelectTab(tab);
     }
+  };
+
+  const handleLogoPress = () => {
+    autoMorph.value = withTiming(autoMorph.value >= 0.5 ? 0 : 1, {
+      duration: 300,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+    });
   };
 
   const glassButtonStyle = [
@@ -144,7 +145,7 @@ export function DynamicMorphingHeader({
       <View style={styles.leftSection}>
         {/* Logo qoe.fi au repos */}
         <Animated.View style={[styles.absoluteLeft, logoAnimatedStyle]}>
-          <Pressable onPress={() => setAutoMorphProgress((v) => (v === 1 ? 0 : 1))}>
+          <Pressable onPress={handleLogoPress}>
             <QoeLogo size={24} />
           </Pressable>
         </Animated.View>

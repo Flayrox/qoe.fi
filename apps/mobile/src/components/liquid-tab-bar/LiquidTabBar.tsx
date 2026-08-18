@@ -29,7 +29,6 @@ import { DrawerContext } from '@/components/drawer/drawer-context';
 import { Avatar } from '@/components/thought/avatar';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useMe } from '@/hooks/use-me';
-import { useScrollCoordination } from '@/components/scroll/scroll-context';
 import { AdaptiveGlassView } from './AdaptiveGlassView';
 import { LiquidTabBarProps, NavigationRoute, TabIconConfig } from './LiquidTabBar.types';
 
@@ -557,25 +556,6 @@ export function LiquidTabBar({
     };
   });
 
-  const { isScrollingDown, scrollY, forceExpandTabBar } = useScrollCoordination();
-
-  const scrollCollapseStyle = useAnimatedStyle(() => {
-    const isDragging = isInteracting.value;
-    const shouldCollapse = isScrollingDown.value && !isDragging && scrollY.value > 20;
-
-    return {
-      transform: [
-        {
-          translateY: withSpring(shouldCollapse ? 110 : 0, {
-            damping: 24,
-            stiffness: 260,
-          }),
-        },
-      ],
-      opacity: withTiming(shouldCollapse ? 0 : 1, { duration: 200 }),
-    };
-  });
-
   const onLayout = (event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;
     setTrackWidth(width);
@@ -591,8 +571,8 @@ export function LiquidTabBar({
   }
 
   return (
-    <Animated.View
-      style={[styles.wrapper, { bottom: bottomOffset }, containerStyle, scrollCollapseStyle]}
+    <View
+      style={[styles.wrapper, { bottom: bottomOffset }, containerStyle]}
       pointerEvents="box-none"
     >
       {/* Véritable fond de flou progressif étagé Apple Music / iOS (réservé à iOS pour éviter les artefacts rectangulaires sur Android) */}
@@ -773,7 +753,7 @@ export function LiquidTabBar({
           </Animated.View>
         </GestureDetector>
       </View>
-    </Animated.View>
+    </View>
   );
 }
 
