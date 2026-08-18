@@ -215,7 +215,7 @@ export function LiquidTabBar({
 
   const bottomOffset =
     customBottomOffset ??
-    (Platform.OS === 'ios' ? (insets?.bottom && insets.bottom > 0 ? insets.bottom + 6 : 24) : 18);
+    (Platform.OS === 'ios' ? (insets?.bottom && insets.bottom > 0 ? insets.bottom - 16 : 14) : 16);
 
   const defaultActiveTint = isDark ? '#FFFFFF' : '#111113';
   const defaultInactiveTint = isDark ? 'rgba(255, 255, 255, 0.72)' : 'rgba(0, 0, 0, 0.58)';
