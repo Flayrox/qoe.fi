@@ -47,11 +47,8 @@ export function ThoughtFeedSlice({ slice }: { slice: FeedSlice }) {
             <View style={[styles.dashed, { backgroundColor: theme.border }]} />
           </View>
           <ThemedText type="small" style={[styles.incompleteText, { color: theme.primary }]}>
-            {t('feed.show_thread', 'Afficher la suite du fil')} ({hiddenIntermediateCount || 1}{' '}
-            {hiddenIntermediateCount && hiddenIntermediateCount > 1
-              ? t('feed.messages', 'messages')
-              : t('feed.message', 'message')}{' '}
-            {t('feed.more', 'de plus')})
+            {t('feed.show_thread', 'Afficher la suite du fil')}{' '}
+            {`(${hiddenIntermediateCount || 1} ${(hiddenIntermediateCount ?? 1) > 1 ? t('feed.messages', 'messages') : t('feed.message', 'message')} ${t('feed.more', 'de plus')})`}
           </ThemedText>
         </Pressable>
       ) : null}
