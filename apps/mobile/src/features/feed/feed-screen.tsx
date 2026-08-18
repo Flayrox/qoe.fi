@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
   },
   content: {
-    paddingTop: 52,
+    paddingTop: 115,
     paddingBottom: 110,
     flexGrow: 1,
   },
