@@ -19,6 +19,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EdgeFadeView } from 'react-native-edge-fade';
+import { DynamicMorphingHeader } from '@/components/header/DynamicMorphingHeader';
+import { useScrollCoordination } from '@/components/scroll/scroll-context';
 import { ArticleCard } from '@/components/article/article-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -52,6 +54,7 @@ export function FeedScreen() {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
   const [tab, setTab] = useState<FeedTab>('for_you');
+  const { scrollY, isScrollingDown, onScrollHandler } = useScrollCoordination();
 
   // Adapte le client universel au contrat du hook, selon l'onglet :
   const fetcher: FeedFetcherFn<FeedSlice> = useCallback(
@@ -173,6 +176,20 @@ export function FeedScreen() {
     <ThemedView style={styles.container}>
       {/* 
         ═════════════════════════════════════════════════════════════════════
+        ✨ HEADER DYNAMIQUE MORPHING INSTAGRAM-STYLE (qoe.fi ↔ Pour vous)
+        ═════════════════════════════════════════════════════════════════════
+      */}
+      <DynamicMorphingHeader
+        activeTab={tab}
+        onSelectTab={setTab}
+        scrollY={scrollY}
+        isScrollingDown={isScrollingDown}
+        onPressNotifications={() => router.push('/(tabs)/notifications')}
+        onPressMessages={() => router.push('/(tabs)/notifications')}
+      />
+
+      {/* 
+        ═════════════════════════════════════════════════════════════════════
         ✨ NOUVEAU STANDARD : <EdgeFadeView mode="blur" /> (AGSL / Metal)
         ═════════════════════════════════════════════════════════════════════
         Exécute un shader par pixel natif (AGSL sur Android 13+, CALayer sur iOS)
@@ -199,6 +216,8 @@ export function FeedScreen() {
           }
           ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
           getItemType={(item) => item.kind}
+          onScroll={onScrollHandler}
+          scrollEventThrottle={16}
           onEndReached={onEndReached}
           onEndReachedThreshold={0.4}
           refreshing={isRefetching}
