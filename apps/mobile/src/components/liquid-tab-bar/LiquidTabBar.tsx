@@ -1,12 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import {
-  Image,
-  LayoutChangeEvent,
-  Pressable,
-  StyleSheet,
-  useColorScheme,
-  View,
-} from 'react-native';
+import { Image, LayoutChangeEvent, StyleSheet, useColorScheme, View } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
@@ -229,7 +222,7 @@ export function LiquidTabBar({
     logoUrl: me?.logoUrl || (user?.user_metadata?.avatar_url as string | undefined),
   };
 
-  // Filtrer les routes pour ne garder que les 4 onglets principaux (profile, index, explore, notifications)
+  // 4 onglets principaux (profile, index, explore, notifications)
   const visibleRoutes =
     state?.routes?.filter((r) => r.name !== 'messages' && r.name !== 'search') || [];
   const tabCount = visibleRoutes.length;
@@ -250,8 +243,12 @@ export function LiquidTabBar({
   const barTranslateX = useSharedValue(0);
   const barScaleX = useSharedValue(1);
 
-  // Bouton circulaire séparé Compose (+)
+  // Bouton circulaire séparé Compose (+) avec physique 360°
+  const composeTranslateX = useSharedValue(0);
+  const composeTranslateY = useSharedValue(0);
   const composeScale = useSharedValue(1);
+  const composeScaleX = useSharedValue(1);
+  const composeScaleY = useSharedValue(1);
 
   // Gestion des gestes sur la barre
   const isInteracting = useSharedValue(false);
@@ -300,7 +297,6 @@ export function LiquidTabBar({
     }
   };
 
-  // Trouver l'index visible actuel
   const currentVisibleIndex = Math.max(
     0,
     visibleRoutes.findIndex((r) => r.name === state?.routes?.[state.index]?.name)
@@ -402,6 +398,50 @@ export function LiquidTabBar({
       hasMoved.value = false;
     });
 
+  // Geste Pan 360° pour le bouton compose circulaire (+) façon Dynamic Island
+  const composePanGesture = Gesture.Pan()
+    .minDistance(0)
+    .onBegin(() => {
+      composeScale.value = withSpring(1.12, SPRING_SETTLE);
+      runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
+    })
+    .onUpdate((e) => {
+      // Résistance élastique progressive 360° (rubber-banding)
+      const distance = Math.sqrt(e.translationX * e.translationX + e.translationY * e.translationY);
+      const rubberBandFactor = 1 / (1 + distance / 35);
+
+      const dx = e.translationX * rubberBandFactor * 0.55;
+      const dy = e.translationY * rubberBandFactor * 0.55;
+
+      composeTranslateX.value = withSpring(dx, SPRING_DRAG);
+      composeTranslateY.value = withSpring(dy, SPRING_DRAG);
+
+      // Déformation d'élongation dans la direction du mouvement
+      const stretch = Math.min(0.18, distance / 220);
+      if (Math.abs(e.translationX) > Math.abs(e.translationY)) {
+        composeScaleX.value = withSpring(1.12 + stretch, SPRING_DRAG);
+        composeScaleY.value = withSpring(1.12 - stretch * 0.6, SPRING_DRAG);
+      } else {
+        composeScaleX.value = withSpring(1.12 - stretch * 0.6, SPRING_DRAG);
+        composeScaleY.value = withSpring(1.12 + stretch, SPRING_DRAG);
+      }
+    })
+    .onFinalize((e) => {
+      const distance = Math.sqrt(e.translationX * e.translationX + e.translationY * e.translationY);
+
+      composeTranslateX.value = withSpring(0, { damping: 18, stiffness: 260 });
+      composeTranslateY.value = withSpring(0, { damping: 18, stiffness: 260 });
+      composeScale.value = withSpring(1.0, { damping: 18, stiffness: 260 });
+      composeScaleX.value = withSpring(1.0, { damping: 18, stiffness: 260 });
+      composeScaleY.value = withSpring(1.0, { damping: 18, stiffness: 260 });
+
+      // Si le geste ne s'est pas trop éloigné (tap ou release dans la zone), ouvrir le compose
+      if (distance < 45) {
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+        runOnJS(router.push)('/compose');
+      }
+    });
+
   const barContainerStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: barTranslateX.value },
@@ -411,7 +451,13 @@ export function LiquidTabBar({
   }));
 
   const composeContainerStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: composeScale.value }],
+    transform: [
+      { translateX: composeTranslateX.value },
+      { translateY: composeTranslateY.value },
+      { scale: composeScale.value },
+      { scaleX: composeScaleX.value },
+      { scaleY: composeScaleY.value },
+    ],
   }));
 
   const pillAnimatedStyle = useAnimatedStyle(() => {
@@ -461,11 +507,6 @@ export function LiquidTabBar({
       pillTranslateX.value = currentVisibleIndex * (width / tabCount);
       isInitialized.current = true;
     }
-  };
-
-  const handleComposePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/compose');
   };
 
   if (!state || !state.routes) {
@@ -603,61 +644,55 @@ export function LiquidTabBar({
           </Animated.View>
         </GestureDetector>
 
-        {/* 2. Bouton d'action circulaire séparé (+) Flottant à droite */}
-        <Animated.View style={[styles.composeButtonWrapper, composeContainerStyle]}>
-          <Pressable
-            onPress={handleComposePress}
-            onPressIn={() => {
-              composeScale.value = withSpring(0.92, SPRING_DRAG);
-            }}
-            onPressOut={() => {
-              composeScale.value = withSpring(1.0, SPRING_SETTLE);
-            }}
-            style={styles.composePressable}
-          >
-            <AdaptiveGlassView
-              style={[
-                styles.composeCircleGlass,
-                isDark ? styles.blurContainerDark : styles.blurContainerLight,
-              ]}
-              variant={variant}
-              interactive={false}
-              intensity={isDark ? 45 : 35}
-              borderRadius={999}
-              refraction={true}
-              thickness={1.2}
-              edgeReflectionStrength={0.85}
-              tilt={true}
-              tintColor={
-                glassTintColor ?? (isDark ? 'rgba(20, 20, 26, 0.40)' : 'rgba(255, 255, 255, 0.40)')
-              }
-              {...glassProps}
-            >
+        {/* 2. Bouton d'action circulaire séparé (+) Flottant à droite avec physique 360° */}
+        <GestureDetector gesture={composePanGesture}>
+          <Animated.View style={[styles.composeButtonWrapper, composeContainerStyle]}>
+            <View style={styles.composePressable}>
+              <AdaptiveGlassView
+                style={[
+                  styles.composeCircleGlass,
+                  isDark ? styles.blurContainerDark : styles.blurContainerLight,
+                ]}
+                variant={variant}
+                interactive={false}
+                intensity={isDark ? 45 : 35}
+                borderRadius={999}
+                refraction={true}
+                thickness={1.2}
+                edgeReflectionStrength={0.85}
+                tilt={true}
+                tintColor={
+                  glassTintColor ??
+                  (isDark ? 'rgba(20, 20, 26, 0.40)' : 'rgba(255, 255, 255, 0.40)')
+                }
+                {...glassProps}
+              >
+                <View
+                  style={[
+                    styles.softTopHighlightCircle,
+                    {
+                      backgroundColor: isDark
+                        ? 'rgba(255, 255, 255, 0.20)'
+                        : 'rgba(255, 255, 255, 0.75)',
+                    },
+                  ]}
+                />
+                <Ionicons name="add" size={26} color={resolvedActiveColor} />
+              </AdaptiveGlassView>
+
+              {/* Bordure externe 360° du bouton rond */}
               <View
                 style={[
-                  styles.softTopHighlightCircle,
+                  styles.seamlessCircleBorder,
                   {
-                    backgroundColor: isDark
-                      ? 'rgba(255, 255, 255, 0.20)'
-                      : 'rgba(255, 255, 255, 0.75)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.11)' : 'rgba(0, 0, 0, 0.08)',
                   },
                 ]}
+                pointerEvents="none"
               />
-              <Ionicons name="add" size={26} color={resolvedActiveColor} />
-            </AdaptiveGlassView>
-
-            {/* Bordure externe 360° du bouton rond */}
-            <View
-              style={[
-                styles.seamlessCircleBorder,
-                {
-                  borderColor: isDark ? 'rgba(255, 255, 255, 0.11)' : 'rgba(0, 0, 0, 0.08)',
-                },
-              ]}
-              pointerEvents="none"
-            />
-          </Pressable>
-        </Animated.View>
+            </View>
+          </Animated.View>
+        </GestureDetector>
       </View>
     </View>
   );

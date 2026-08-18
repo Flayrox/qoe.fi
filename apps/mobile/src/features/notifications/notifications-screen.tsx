@@ -1,12 +1,10 @@
 // =====================================================================
-// 🔔 NotificationsScreen — Centre de notifications (port de
-//    .reference/bluesky/src/view/screens/Notifications.tsx)
-// =====================================================================
-// Liste paginée des notifications groupées + en-tête « Tout marquer lu ».
+// 🔔 NotificationsScreen — Centre d'Activité (Notifications 50% + Messages 50%)
 // =====================================================================
 
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { FlashList } from '@shopify/flash-list';
+import { SymbolView } from 'expo-symbols';
 import { useCallback, useMemo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -82,35 +80,91 @@ export function NotificationsScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safe}>
-        <View style={styles.header}>
-          <ThemedText style={styles.title}>{t('notif.title', 'Notifications')}</ThemedText>
-          <Pressable onPress={() => void markAllRead()} hitSlop={8}>
-            <ThemedText type="small" style={{ color: theme.primary }}>
-              {t('notif.mark_all', 'Tout marquer lu')}
-            </ThemedText>
-          </Pressable>
+        {/* ========================================================= */}
+        {/* SECTION 1 (50% HAUT) : NOTIFICATIONS                     */}
+        {/* ========================================================= */}
+        <View style={styles.halfSection}>
+          <View style={styles.header}>
+            <View style={styles.headerTitleRow}>
+              <ThemedText style={styles.title}>{t('notif.title', 'Notifications')}</ThemedText>
+            </View>
+            <Pressable onPress={() => void markAllRead()} hitSlop={8}>
+              <ThemedText type="small" style={{ color: theme.primary }}>
+                {t('notif.mark_all', 'Tout marquer lu')}
+              </ThemedText>
+            </Pressable>
+          </View>
+
+          <FlashList
+            data={items}
+            keyExtractor={(n) => n.id}
+            renderItem={({ item }) => <NotificationItem notification={item} />}
+            onEndReached={onEndReached}
+            onEndReachedThreshold={0.4}
+            refreshing={isRefetching}
+            onRefresh={() => void refetch()}
+            ListEmptyComponent={
+              <EmptyState
+                icon={{ ios: 'bell', android: 'notifications_none', web: 'notifications_none' }}
+                message={t('notif.empty', 'Aucune notification pour le moment.')}
+              />
+            }
+            ListFooterComponent={
+              hasNextPage ? <ActivityIndicator color={theme.text} style={styles.footer} /> : null
+            }
+            ItemSeparatorComponent={() => (
+              <View style={[styles.sep, { backgroundColor: theme.border }]} />
+            )}
+          />
         </View>
-        <FlashList
-          data={items}
-          keyExtractor={(n) => n.id}
-          renderItem={({ item }) => <NotificationItem notification={item} />}
-          onEndReached={onEndReached}
-          onEndReachedThreshold={0.4}
-          refreshing={isRefetching}
-          onRefresh={() => void refetch()}
-          ListEmptyComponent={
-            <EmptyState
-              icon={{ ios: 'bell', android: 'notifications_none', web: 'notifications_none' }}
-              message={t('notif.empty', 'Aucune notification pour le moment.')}
-            />
-          }
-          ListFooterComponent={
-            hasNextPage ? <ActivityIndicator color={theme.text} style={styles.footer} /> : null
-          }
-          ItemSeparatorComponent={() => (
-            <View style={[styles.sep, { backgroundColor: theme.border }]} />
-          )}
-        />
+
+        {/* SÉPARATEUR DE SECTION */}
+        <View style={[styles.sectionDivider, { backgroundColor: theme.border }]} />
+
+        {/* ========================================================= */}
+        {/* SECTION 2 (50% BAS) : MESSAGES DIRECTS (DMs)              */}
+        {/* ========================================================= */}
+        <View style={styles.halfSection}>
+          <View style={styles.header}>
+            <ThemedText style={styles.title}>{t('messages.title', 'Messages')}</ThemedText>
+          </View>
+
+          <View style={styles.messagesContent}>
+            <View style={[styles.messageIconCircle, { backgroundColor: theme.backgroundElement }]}>
+              <SymbolView
+                name={{
+                  ios: 'bubble.left.and.bubble.right.fill',
+                  android: 'chat',
+                  web: 'chat',
+                }}
+                size={34}
+                tintColor={theme.primary}
+              />
+            </View>
+
+            <ThemedText style={styles.messagesHeading}>
+              {t('messages.welcome_title', 'Discutez en direct sur Qoe')}
+            </ThemedText>
+
+            <ThemedText style={[styles.messagesDescription, { color: theme.textSecondary }]}>
+              {t(
+                'messages.welcome_desc',
+                'Échangez en privé avec vos auteurs et communautés. La messagerie chiffrée arrive très bientôt !'
+              )}
+            </ThemedText>
+
+            <View
+              style={[
+                styles.badge,
+                { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+              ]}
+            >
+              <ThemedText style={[styles.badgeText, { color: theme.textSecondary }]}>
+                🚀 {t('messages.in_progress_badge', 'Fonctionnalité en cours de déploiement')}
+              </ThemedText>
+            </View>
+          </View>
+        </View>
       </SafeAreaView>
     </ThemedView>
   );
@@ -125,6 +179,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: Spacing.four,
   },
+  halfSection: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -132,14 +189,62 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
   },
+  sectionDivider: {
+    height: 1,
+    width: '100%',
+    opacity: 0.6,
+  },
   footer: {
-    paddingVertical: Spacing.three,
+    paddingVertical: Spacing.two,
   },
   sep: {
     height: StyleSheet.hairlineWidth,
+  },
+  messagesContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.four,
+    paddingBottom: 40,
+    gap: Spacing.one,
+  },
+  messageIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.one,
+  },
+  messagesHeading: {
+    fontSize: 17,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  messagesDescription: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 290,
+  },
+  badge: {
+    marginTop: Spacing.two,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });
