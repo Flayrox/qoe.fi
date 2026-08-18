@@ -326,9 +326,6 @@ export function FeedScreen() {
             </View>
           </Pressable>
         ) : null}
-
-        {/* Bouton composer flottant (parité Bluesky « New Post ») */}
-        <FAB onPress={() => router.push('/compose')} label={t('compose.new', 'Nouvelle pensée')} />
       </SafeAreaView>
     </ThemedView>
   );
