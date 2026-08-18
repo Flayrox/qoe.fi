@@ -58,3 +58,14 @@ nodeLinker: hoisted
 #    modules (ex: @lingui/core singleton) partagent le même inode → une seule
 #    instance en mémoire, même via des chemins différents (root vs package).
 packageImportMethod: hardlink
+
+# 🎯 Overrides (pnpm 11 : ce champ se lit ici, plus dans package.json) :
+#    - react/react-dom épinglés à 19.2.3 : c'est la version exigée par Expo
+#      (bundledNativeModules) ; les apps web en 19.2.4 créaient DEUX instances
+#      React dans le graphe → tests cassés (Invalid hook call).
+#    - babel-plugin-macros : peer optional de @lingui/core/@lingui/react non
+#      auto-installé par pnpm, mais importé au runtime par @lingui/core/macro.
+overrides:
+  react: 19.2.3
+  react-dom: 19.2.3
+  babel-plugin-macros: 3.1.0

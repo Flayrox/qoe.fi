@@ -16,7 +16,7 @@ import { MemoryDatabase } from './database';
 import type { TokenVerifier } from './auth';
 
 const alwaysOk: TokenVerifier = {
-  verify: async (token: string) => ({ id: 'test-user', name: 'Testeur' }),
+  verify: async () => ({ id: 'test-user', name: 'Testeur' }),
 };
 
 // Port éphémère déterministe pour éviter les collisions avec d'autres tests.
