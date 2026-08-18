@@ -17,20 +17,37 @@ const API_PORT = 8090;
  *   (hostUri de Metro), pour fonctionner sur le réseau local.
  */
 function resolveApiHost(): string {
-  if (Platform.OS === 'web' || !isDevice) {
+  // 1. Web utilise localhost
+  if (Platform.OS === 'web') {
     return 'localhost';
   }
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    return hostUri.split(':')[0];
+
+  // 2. Appareil physique : réutilise l'IP du Mac sur le réseau local fournie par Metro
+  if (isDevice) {
+    const hostUri = Constants.expoConfig?.hostUri;
+    if (hostUri) {
+      return hostUri.split(':')[0];
+    }
   }
+
+  // 3. Émulateur Android virtuel : utilise 10.0.2.2 pour atteindre la machine hôte
+  if (Platform.OS === 'android') {
+    return '10.0.2.2';
+  }
+
+  // 4. Simulateur iOS par défaut
   return 'localhost';
 }
 
 export function getApiBaseUrl(): string {
   const configured = process.env.EXPO_PUBLIC_API_URL;
   if (configured) {
-    return configured.replace(/\/$/, '');
+    const trimmed = configured.replace(/\/$/, '');
+    // Sur l'émulateur Android, si l'URL locale contient localhost ou 127.0.0.1, on la remplace intelligemment par 10.0.2.2
+    if (Platform.OS === 'android' && !isDevice) {
+      return trimmed.replace('localhost', '10.0.2.2').replace('127.0.0.1', '10.0.2.2');
+    }
+    return trimmed;
   }
   return `http://${resolveApiHost()}:${API_PORT}`;
 }
