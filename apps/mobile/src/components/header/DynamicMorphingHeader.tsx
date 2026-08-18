@@ -1,10 +1,21 @@
-import React, { useEffect } from 'react';
-import { Appearance, Platform, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  Appearance,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  useColorScheme,
+  View,
+} from 'react-native';
 import Animated, {
   Easing,
+  FadeIn,
+  FadeOut,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
@@ -14,6 +25,7 @@ import * as Haptics from 'expo-haptics';
 import { ThemedText } from '@/components/themed-text';
 import { QoeLogo } from '@/components/header/QoeLogo';
 import { LiquidElasticButton } from '@/components/liquid-tab-bar/LiquidElasticButton';
+import { AdaptiveGlassView } from '@/components/liquid-tab-bar/AdaptiveGlassView';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/lib/i18n';
@@ -41,6 +53,8 @@ export function DynamicMorphingHeader({
   const scheme = useColorScheme();
   const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
 
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
   // ⏳ Temporisation automatique fluide sans rebond
   const autoMorph = useSharedValue(0);
 
@@ -52,7 +66,7 @@ export function DynamicMorphingHeader({
       });
     }, 2500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [autoMorph]);
 
   // ─── Style Animé pour l'Ensemble du Header (Slide Up / Down fluide sans bounce) ───
   const headerContainerAnimatedStyle = useAnimatedStyle(() => {
@@ -94,7 +108,7 @@ export function DynamicMorphingHeader({
     };
   });
 
-  // ─── Style Animé pour les Onglets « Pour vous / Suivis » ───
+  // ─── Style Animé pour le Sélecteur « Pour vous ⌵ » ───
   const tabsAnimatedStyle = useAnimatedStyle(() => {
     const scrollProgress = interpolate(scrollY.value, [0, 35], [0, 1], 'clamp');
     const effectiveProgress = Math.max(scrollProgress, autoMorph.value);
@@ -113,11 +127,15 @@ export function DynamicMorphingHeader({
     };
   });
 
-  const handleTabPress = (tab: FeedTab) => {
+  const toggleDropdown = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsDropdownOpen((prev) => !prev);
+  };
+
+  const handleSelectFeedOption = (tab: FeedTab) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsDropdownOpen(false);
     if (tab !== activeTab) {
-      if (Platform.OS === 'ios') {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
       onSelectTab(tab);
     }
   };
@@ -129,114 +147,172 @@ export function DynamicMorphingHeader({
     });
   };
 
+  const currentTabLabel =
+    activeTab === 'for_you'
+      ? t('feed.tabs.for_you', 'Pour vous')
+      : t('feed.tabs.following', 'Suivis');
+
   return (
-    <Animated.View
-      style={[styles.headerContainer, headerContainerAnimatedStyle]}
-      pointerEvents="box-none"
-    >
-      {/* ─── Côté Gauche : Morphing Logo qoe.fi ↔ Onglets « Pour vous ⌵ / Suivis ⌵ » ─── */}
-      <View style={styles.leftSection}>
-        {/* Logo qoe.fi au repos */}
-        <Animated.View style={[styles.absoluteLeft, logoAnimatedStyle]}>
-          <Pressable onPress={handleLogoPress}>
-            <QoeLogo size={24} />
-          </Pressable>
-        </Animated.View>
+    <>
+      <Animated.View
+        style={[styles.headerContainer, headerContainerAnimatedStyle]}
+        pointerEvents="box-none"
+      >
+        {/* ─── Spacer Gauche (53px) pour équilibrer parfaitement le bouton Messages à droite ─── */}
+        <View style={styles.sideSpacer} />
 
-        {/* Sélecteur d'onglets « Pour vous ⌵ / Suivis » (Parité Instagram) */}
-        <Animated.View style={[styles.absoluteLeft, styles.tabsRow, tabsAnimatedStyle]}>
-          <Pressable
-            onPress={() => handleTabPress('for_you')}
-            hitSlop={6}
-            style={({ pressed }) => [styles.tabItem, pressed && styles.tabPressed]}
+        {/* ─── Section Centrale : Morphing Logo qoe.fi ↔ Sélecteur « Pour vous ⌵ » ─── */}
+        <View style={styles.centerSection}>
+          {/* Logo qoe.fi centré au repos */}
+          <Animated.View style={[styles.absoluteCenter, logoAnimatedStyle]}>
+            <Pressable onPress={handleLogoPress} hitSlop={10}>
+              <QoeLogo height={28} color={isDark ? '#FFFFFF' : '#000000'} />
+            </Pressable>
+          </Animated.View>
+
+          {/* Sélecteur Déroulant centré « Pour vous ⌵ » ou « Suivis ⌵ » */}
+          <Animated.View style={[styles.absoluteCenter, tabsAnimatedStyle]}>
+            <Pressable
+              onPress={toggleDropdown}
+              hitSlop={10}
+              style={({ pressed }) => [styles.dropdownTrigger, pressed && styles.tabPressed]}
+            >
+              <View style={styles.tabTextRow}>
+                <ThemedText style={[styles.tabText, { color: theme.text }]}>
+                  {currentTabLabel}
+                </ThemedText>
+                <SymbolView
+                  name={{ ios: 'chevron.down', android: 'expand_more', web: 'expand_more' }}
+                  size={12}
+                  tintColor={theme.text}
+                  weight="bold"
+                  style={[styles.chevronIcon, isDropdownOpen && styles.chevronIconOpen]}
+                />
+              </View>
+            </Pressable>
+          </Animated.View>
+        </View>
+
+        {/* ─── Côté Droit : Bouton unique Messages / Direct (Liquid Glass 53px) ─── */}
+        <View style={styles.actionsRow}>
+          <LiquidElasticButton
+            size={53}
+            borderRadius={26.5}
+            onPress={onPressMessages}
+            accessibilityLabel={t('nav.messages', 'Messages')}
+            icon={
+              <SymbolView
+                name={{
+                  ios: 'paperplane',
+                  android: 'send',
+                  web: 'send',
+                }}
+                size={21}
+                tintColor={theme.text}
+                weight="semibold"
+              />
+            }
+          />
+        </View>
+      </Animated.View>
+
+      {/* ─── Menu Déroulant Flottant Liquid Glass (Pop-over) ─── */}
+      <Modal
+        visible={isDropdownOpen}
+        transparent
+        animationType="none"
+        onRequestClose={() => setIsDropdownOpen(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setIsDropdownOpen(false)}>
+          <Animated.View
+            entering={FadeIn.duration(180)}
+            exiting={FadeOut.duration(140)}
+            style={styles.dropdownModalAnchor}
           >
-            <View style={styles.tabTextRow}>
-              <ThemedText
-                style={[
-                  styles.tabText,
-                  {
-                    color: activeTab === 'for_you' ? theme.text : theme.textSecondary,
-                    fontWeight: activeTab === 'for_you' ? '800' : '600',
-                    opacity: activeTab === 'for_you' ? 1 : 0.6,
-                  },
+            <AdaptiveGlassView
+              intensity={65}
+              borderRadius={22}
+              thickness={1.3}
+              tintColor={isDark ? 'rgba(24, 24, 30, 0.75)' : 'rgba(255, 255, 255, 0.75)'}
+              style={[
+                styles.dropdownCard,
+                {
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+                },
+              ]}
+            >
+              {/* Option 1: Pour vous */}
+              <Pressable
+                onPress={() => handleSelectFeedOption('for_you')}
+                style={({ pressed }) => [
+                  styles.dropdownOption,
+                  pressed && (isDark ? styles.optionPressedDark : styles.optionPressedLight),
                 ]}
               >
-                {t('feed.tabs.for_you', 'Pour vous')}
-              </ThemedText>
-              {activeTab === 'for_you' && (
-                <ThemedText style={[styles.chevron, { color: theme.text }]}>⌄</ThemedText>
-              )}
-            </View>
-            {activeTab === 'for_you' && (
-              <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />
-            )}
-          </Pressable>
+                <ThemedText
+                  style={[
+                    styles.optionLabel,
+                    {
+                      color: theme.text,
+                      fontWeight: activeTab === 'for_you' ? '800' : '500',
+                    },
+                  ]}
+                >
+                  {t('feed.tabs.for_you', 'Pour vous')}
+                </ThemedText>
+                {activeTab === 'for_you' && (
+                  <SymbolView
+                    name={{ ios: 'checkmark', android: 'check', web: 'check' }}
+                    size={16}
+                    tintColor={theme.primary}
+                    weight="bold"
+                  />
+                )}
+              </Pressable>
 
-          <Pressable
-            onPress={() => handleTabPress('following')}
-            hitSlop={6}
-            style={({ pressed }) => [styles.tabItem, pressed && styles.tabPressed]}
-          >
-            <View style={styles.tabTextRow}>
-              <ThemedText
+              {/* Ligne séparatrice feutrée */}
+              <View
                 style={[
-                  styles.tabText,
+                  styles.optionDivider,
                   {
-                    color: activeTab === 'following' ? theme.text : theme.textSecondary,
-                    fontWeight: activeTab === 'following' ? '800' : '600',
-                    opacity: activeTab === 'following' ? 1 : 0.6,
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
                   },
                 ]}
+              />
+
+              {/* Option 2: Suivis */}
+              <Pressable
+                onPress={() => handleSelectFeedOption('following')}
+                style={({ pressed }) => [
+                  styles.dropdownOption,
+                  pressed && (isDark ? styles.optionPressedDark : styles.optionPressedLight),
+                ]}
               >
-                {t('feed.tabs.following', 'Suivis')}
-              </ThemedText>
-            </View>
-            {activeTab === 'following' && (
-              <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />
-            )}
-          </Pressable>
-        </Animated.View>
-      </View>
-
-      {/* ─── Côté Droit : Boutons d'action en Verre Liquide Élastique (Liquid Glass 53px) ─── */}
-      <View style={styles.actionsRow}>
-        {/* Bouton Notifications / Likes 🔔 / ♡ */}
-        <LiquidElasticButton
-          size={53}
-          borderRadius={26.5}
-          onPress={onPressNotifications}
-          accessibilityLabel={t('nav.notifications', 'Notifications')}
-          icon={
-            <SymbolView
-              name={{ ios: 'heart', android: 'favorite_border', web: 'favorite_border' }}
-              size={22}
-              tintColor={theme.text}
-              weight="semibold"
-            />
-          }
-        />
-
-        {/* Bouton Messages / Direct 💬 / ✈️ */}
-        <LiquidElasticButton
-          size={53}
-          borderRadius={26.5}
-          onPress={onPressMessages}
-          accessibilityLabel={t('nav.messages', 'Messages')}
-          icon={
-            <SymbolView
-              name={{
-                ios: 'paperplane',
-                android: 'send',
-                web: 'send',
-              }}
-              size={21}
-              tintColor={theme.text}
-              weight="semibold"
-            />
-          }
-        />
-      </View>
-    </Animated.View>
+                <ThemedText
+                  style={[
+                    styles.optionLabel,
+                    {
+                      color: theme.text,
+                      fontWeight: activeTab === 'following' ? '800' : '500',
+                    },
+                  ]}
+                >
+                  {t('feed.tabs.following', 'Suivis')}
+                </ThemedText>
+                {activeTab === 'following' && (
+                  <SymbolView
+                    name={{ ios: 'checkmark', android: 'check', web: 'check' }}
+                    size={16}
+                    tintColor={theme.primary}
+                    weight="bold"
+                  />
+                )}
+              </Pressable>
+            </AdaptiveGlassView>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
 
@@ -253,56 +329,95 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     zIndex: 100,
   },
-  leftSection: {
+  sideSpacer: {
+    width: 53,
+    height: 53,
+  },
+  centerSection: {
     flex: 1,
     height: 54,
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  absoluteLeft: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-  },
-  tabsRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.four,
-  },
-  tabItem: {
+    justifyContent: 'center',
     position: 'relative',
+  },
+  absoluteCenter: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropdownTrigger: {
+    paddingHorizontal: 12,
     paddingVertical: 6,
+    borderRadius: 999,
   },
   tabTextRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
   },
   tabText: {
     fontSize: 18,
     letterSpacing: -0.4,
+    fontWeight: '800',
   },
-  chevron: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: -2,
+  chevronIcon: {
+    marginTop: 1,
   },
-  tabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 2.5,
-    borderRadius: 2,
+  chevronIconOpen: {
+    transform: [{ rotate: '180deg' }],
   },
   tabPressed: {
     opacity: 0.7,
   },
   actionsRow: {
+    width: 53,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Modal & Dropdown Popover
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  dropdownModalAnchor: {
+    position: 'absolute',
+    top: 108,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  dropdownCard: {
+    width: 210,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  dropdownOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+  },
+  optionLabel: {
+    fontSize: 15,
+    letterSpacing: -0.3,
+  },
+  optionDivider: {
+    height: 1,
+    marginHorizontal: 10,
+    marginVertical: 2,
+  },
+  optionPressedLight: {
+    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+  },
+  optionPressedDark: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
 });
