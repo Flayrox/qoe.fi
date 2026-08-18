@@ -24,8 +24,8 @@ import { useMe } from '@/hooks/use-me';
 import { AdaptiveGlassView } from './AdaptiveGlassView';
 import { LiquidTabBarProps, NavigationRoute, TabIconConfig } from './LiquidTabBar.types';
 
-const SPRING_SETTLE = { damping: 20, stiffness: 220, mass: 0.5 };
-const SPRING_DRAG = { damping: 24, stiffness: 280, mass: 0.35 };
+const SPRING_SETTLE = { damping: 22, stiffness: 240, mass: 0.5 };
+const SPRING_DRAG = { damping: 26, stiffness: 280, mass: 0.35 };
 
 const DRAG_THRESHOLD = 5;
 const TRACK_PADDING = 6;
@@ -238,23 +238,32 @@ export function LiquidTabBar({
   // Onde de propagation liquide (déclenchée après 320ms à 100% de déploiement)
   const auraWaveProgress = useSharedValue(0);
 
-  // Grossissement et déformation 100% solidaire de la barre principale
+  // Focus actif pour la superposition dynamique (0: neutre, 1: barre active, 2: compose actif)
+  const activeFocus = useSharedValue(0);
+
+  // Physique de la barre principale
   const barScale = useSharedValue(1);
   const barTranslateX = useSharedValue(0);
   const barScaleX = useSharedValue(1);
 
-  // Bouton circulaire séparé Compose (+) avec physique 360°
+  // Physique du bouton circulaire Compose (+)
   const composeTranslateX = useSharedValue(0);
   const composeTranslateY = useSharedValue(0);
   const composeScale = useSharedValue(1);
-  const composeScaleX = useSharedValue(1);
-  const composeScaleY = useSharedValue(1);
+
+  // Flags de collision pour les haptiques de choc
+  const hasCollidedBar = useSharedValue(false);
+  const hasCollidedCompose = useSharedValue(false);
 
   // Gestion des gestes sur la barre
   const isInteracting = useSharedValue(false);
   const hasMoved = useSharedValue(false);
   const startX = useSharedValue(0);
   const activeHoverIndex = useSharedValue(state?.index ?? 1);
+
+  const triggerCollisionHaptic = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
+  };
 
   useAnimatedReaction(
     () => drawerProgress?.value ?? 0,
@@ -308,6 +317,7 @@ export function LiquidTabBar({
     }
   }, [currentVisibleIndex, tabWidth]);
 
+  // Geste Pan sur la barre principale avec détection de collision sur le bouton (+)
   const panGesture = Gesture.Pan()
     .minDistance(0)
     .onTouchesDown((event, manager) => {
@@ -318,12 +328,14 @@ export function LiquidTabBar({
     .onBegin((e) => {
       if (drawerProgress && drawerProgress.value > 0.05) return;
 
+      activeFocus.value = 1; // La barre passe au-dessus
       isInteracting.value = true;
       hasMoved.value = false;
+      hasCollidedBar.value = false;
       startX.value = e.x;
       activeHoverIndex.value = currentVisibleIndex;
 
-      barScale.value = withSpring(1.04, SPRING_SETTLE);
+      barScale.value = withSpring(1.03, SPRING_SETTLE);
       pillOpacity.value = withTiming(isDark ? 0.22 : 0.16, { duration: 80 });
     })
     .onUpdate((e) => {
@@ -345,18 +357,35 @@ export function LiquidTabBar({
           pillTranslateX.value = withSpring(-breach, SPRING_DRAG);
 
           barTranslateX.value = withSpring(-Math.pow(overdrag, 0.62) * 0.45, SPRING_DRAG);
-          barScaleX.value = withSpring(1 + (overdrag / 360) * 0.06, SPRING_DRAG);
+          barScaleX.value = withSpring(1 + (overdrag / 360) * 0.04, SPRING_DRAG);
+          composeTranslateX.value = withSpring(0, SPRING_DRAG);
         } else if (targetCenter > maxBound) {
           const overdrag = targetCenter - maxBound;
           const breach = computeBrakingBreach(overdrag);
           pillTranslateX.value = withSpring(maxBound + breach, SPRING_DRAG);
 
-          barTranslateX.value = withSpring(Math.pow(overdrag, 0.62) * 0.45, SPRING_DRAG);
-          barScaleX.value = withSpring(1 + (overdrag / 360) * 0.06, SPRING_DRAG);
+          const barPush = Math.pow(overdrag, 0.62) * 0.45;
+          barTranslateX.value = withSpring(barPush, SPRING_DRAG);
+          barScaleX.value = withSpring(1 + (overdrag / 360) * 0.04, SPRING_DRAG);
+
+          // Collision contre le bouton compose si la barre pousse vers la droite
+          if (barPush > 6) {
+            const pushCompose = (barPush - 6) * 0.65;
+            composeTranslateX.value = withSpring(pushCompose, SPRING_DRAG);
+            if (!hasCollidedBar.value) {
+              hasCollidedBar.value = true;
+              runOnJS(triggerCollisionHaptic)();
+            }
+          } else {
+            composeTranslateX.value = withSpring(0, SPRING_DRAG);
+            hasCollidedBar.value = false;
+          }
         } else {
           pillTranslateX.value = withSpring(targetCenter, SPRING_DRAG);
           barTranslateX.value = withSpring(0, SPRING_DRAG);
           barScaleX.value = withSpring(1, SPRING_DRAG);
+          composeTranslateX.value = withSpring(0, SPRING_DRAG);
+          hasCollidedBar.value = false;
         }
 
         const hoveredIndex = Math.max(
@@ -372,11 +401,13 @@ export function LiquidTabBar({
     .onFinalize((e) => {
       if (drawerProgress && drawerProgress.value > 0.05) return;
 
+      activeFocus.value = 0;
       isInteracting.value = false;
 
       barScale.value = withSpring(1.0, SPRING_SETTLE);
       barScaleX.value = withSpring(1.0, SPRING_SETTLE);
       barTranslateX.value = withSpring(0, SPRING_SETTLE);
+      composeTranslateX.value = withSpring(0, SPRING_SETTLE);
 
       pillOpacity.value = withTiming(isDark ? 0.14 : 0.09, { duration: 140 });
 
@@ -398,67 +429,80 @@ export function LiquidTabBar({
       hasMoved.value = false;
     });
 
-  // Geste Pan 360° pour le bouton compose circulaire (+) façon Dynamic Island
+  // Geste Pan sur le bouton compose (+) avec collision physique sur la barre
   const composePanGesture = Gesture.Pan()
     .minDistance(0)
     .onBegin(() => {
-      composeScale.value = withSpring(1.12, SPRING_SETTLE);
+      activeFocus.value = 2; // Le bouton compose passe au-dessus
+      hasCollidedCompose.value = false;
+      composeScale.value = withSpring(1.06, SPRING_SETTLE);
       runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
     })
     .onUpdate((e) => {
-      // Résistance élastique progressive 360° (rubber-banding)
       const distance = Math.sqrt(e.translationX * e.translationX + e.translationY * e.translationY);
-      const rubberBandFactor = 1 / (1 + distance / 35);
+      const rubberBandFactor = 1 / (1 + distance / 40);
 
-      const dx = e.translationX * rubberBandFactor * 0.55;
-      const dy = e.translationY * rubberBandFactor * 0.55;
+      const dx = e.translationX * rubberBandFactor * 0.65;
+      const dy = e.translationY * rubberBandFactor * 0.65;
 
       composeTranslateX.value = withSpring(dx, SPRING_DRAG);
       composeTranslateY.value = withSpring(dy, SPRING_DRAG);
 
-      // Déformation d'élongation dans la direction du mouvement
-      const stretch = Math.min(0.18, distance / 220);
-      if (Math.abs(e.translationX) > Math.abs(e.translationY)) {
-        composeScaleX.value = withSpring(1.12 + stretch, SPRING_DRAG);
-        composeScaleY.value = withSpring(1.12 - stretch * 0.6, SPRING_DRAG);
+      // Collision physique contre la barre principale (vers la gauche)
+      // L'écartement initial est de 10px : dès que dx < -8, le bouton cogne et pousse la barre
+      if (dx < -8) {
+        const penetration = Math.abs(dx) - 8;
+        barTranslateX.value = withSpring(-penetration * 0.45, SPRING_DRAG);
+        if (!hasCollidedCompose.value) {
+          hasCollidedCompose.value = true;
+          runOnJS(triggerCollisionHaptic)();
+        }
       } else {
-        composeScaleX.value = withSpring(1.12 - stretch * 0.6, SPRING_DRAG);
-        composeScaleY.value = withSpring(1.12 + stretch, SPRING_DRAG);
+        barTranslateX.value = withSpring(0, SPRING_DRAG);
+        hasCollidedCompose.value = false;
       }
     })
     .onFinalize((e) => {
       const distance = Math.sqrt(e.translationX * e.translationX + e.translationY * e.translationY);
 
-      composeTranslateX.value = withSpring(0, { damping: 18, stiffness: 260 });
-      composeTranslateY.value = withSpring(0, { damping: 18, stiffness: 260 });
-      composeScale.value = withSpring(1.0, { damping: 18, stiffness: 260 });
-      composeScaleX.value = withSpring(1.0, { damping: 18, stiffness: 260 });
-      composeScaleY.value = withSpring(1.0, { damping: 18, stiffness: 260 });
+      activeFocus.value = 0;
+      composeTranslateX.value = withSpring(0, { damping: 20, stiffness: 260 });
+      composeTranslateY.value = withSpring(0, { damping: 20, stiffness: 260 });
+      composeScale.value = withSpring(1.0, { damping: 20, stiffness: 260 });
+      barTranslateX.value = withSpring(0, { damping: 20, stiffness: 260 });
 
-      // Si le geste ne s'est pas trop éloigné (tap ou release dans la zone), ouvrir le compose
-      if (distance < 45) {
+      // Si tap ou relâchement dans la zone, ouvrir le compose
+      if (distance < 38) {
         runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
         runOnJS(router.push)('/compose');
       }
     });
 
-  const barContainerStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: barTranslateX.value },
-      { scale: barScale.value },
-      { scaleX: barScaleX.value },
-    ],
-  }));
+  const barContainerStyle = useAnimatedStyle(() => {
+    const isAbove = activeFocus.value === 1;
+    return {
+      zIndex: isAbove ? 30 : 10,
+      elevation: isAbove ? 16 : 8,
+      transform: [
+        { translateX: barTranslateX.value },
+        { scale: barScale.value },
+        { scaleX: barScaleX.value },
+      ],
+    };
+  });
 
-  const composeContainerStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: composeTranslateX.value },
-      { translateY: composeTranslateY.value },
-      { scale: composeScale.value },
-      { scaleX: composeScaleX.value },
-      { scaleY: composeScaleY.value },
-    ],
-  }));
+  const composeContainerStyle = useAnimatedStyle(() => {
+    const isAbove = activeFocus.value === 2;
+    return {
+      zIndex: isAbove ? 30 : 10,
+      elevation: isAbove ? 16 : 8,
+      transform: [
+        { translateX: composeTranslateX.value },
+        { translateY: composeTranslateY.value },
+        { scale: composeScale.value },
+      ],
+    };
+  });
 
   const pillAnimatedStyle = useAnimatedStyle(() => {
     let currentX = pillTranslateX.value;
@@ -644,7 +688,7 @@ export function LiquidTabBar({
           </Animated.View>
         </GestureDetector>
 
-        {/* 2. Bouton d'action circulaire séparé (+) Flottant à droite avec physique 360° */}
+        {/* 2. Bouton d'action circulaire séparé (+) Flottant à droite avec physique de choc & superposition */}
         <GestureDetector gesture={composePanGesture}>
           <Animated.View style={[styles.composeButtonWrapper, composeContainerStyle]}>
             <View style={styles.composePressable}>
@@ -737,7 +781,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowOffset: { width: 0, height: 12 },
     shadowRadius: 20,
-    elevation: 8,
   },
   softTopHighlightCircle: {
     position: 'absolute',
@@ -788,7 +831,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: TRACK_PADDING,
     shadowOffset: { width: 0, height: 12 },
     shadowRadius: 20,
-    elevation: 8,
   },
   blurContainerDark: {
     shadowColor: '#000000',
