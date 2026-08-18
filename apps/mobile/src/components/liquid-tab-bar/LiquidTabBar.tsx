@@ -611,7 +611,7 @@ export function LiquidTabBar({
               variant={variant}
               interactive={false}
               intensity={isDark ? 45 : 35}
-              borderRadius={26.5}
+              borderRadius={32}
               refraction={true}
               thickness={1.0}
               edgeReflectionStrength={0.4}
@@ -835,7 +835,7 @@ const styles = StyleSheet.create({
   },
   blurContainer: {
     position: 'relative',
-    borderRadius: 26.5,
+    borderRadius: 32,
     overflow: 'hidden',
     backgroundColor: 'transparent',
     paddingHorizontal: TRACK_PADDING,
@@ -856,7 +856,7 @@ const styles = StyleSheet.create({
     left: 32,
     right: 32,
     height: 0.75,
-    borderRadius: 26.5,
+    borderRadius: 32,
     zIndex: 2,
   },
   seamlessOuterBorder: {
@@ -865,19 +865,19 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 26.5,
+    borderRadius: 32,
     borderWidth: 0.5,
     zIndex: 10,
   },
   trackContainer: {
     position: 'relative',
     width: '100%',
-    borderRadius: 26.5,
+    borderRadius: 32,
   },
   activePill: {
     position: 'absolute',
     left: 0,
-    borderRadius: 26,
+    borderRadius: 28,
     zIndex: 1,
     borderWidth: 0,
     overflow: 'hidden',
@@ -888,7 +888,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 26,
+    borderRadius: 28,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
