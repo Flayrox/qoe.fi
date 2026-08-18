@@ -439,6 +439,12 @@ services:
       UMAMI_USERNAME: ${UMAMI_USERNAME:-}
       UMAMI_PASSWORD: ${UMAMI_PASSWORD:-}
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
+      # 🧠 Inférence embeddings auto-hébergée (service « embedding » ci-dessous).
+      EMBEDDING_URL: ${EMBEDDING_URL:-http://embedding:80}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-jina-embeddings-v3}
+      # Tâches typées jina-embeddings-v3 (TEI) — vide = champ omis (llama.cpp).
+      EMBEDDING_INDEX_TASK: ${EMBEDDING_INDEX_TASK:-retrieval.passage}
+      EMBEDDING_QUERY_TASK: ${EMBEDDING_QUERY_TASK:-retrieval.query}
 
     extra_hosts:
       - 'host.docker.internal:host-gateway'
@@ -480,6 +486,10 @@ services:
 
     environment:
       REDIS_URL: redis://redis:6379
+      # 🧠 Inférence embeddings auto-hébergée (même config que l'API).
+      EMBEDDING_URL: ${EMBEDDING_URL:-http://embedding:80}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-jina-embeddings-v3}
+      EMBEDDING_INDEX_TASK: ${EMBEDDING_INDEX_TASK:-retrieval.passage}
 
     extra_hosts:
       - 'host.docker.internal:host-gateway'
@@ -497,6 +507,50 @@ services:
         limits:
           memory: 128M
           cpus: '0.5'
+
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  # ───────────────────────────────────────────────────────────────────
+  # 🧠 EMBEDDING (TEI) — Inférence jina-embeddings-v3 auto-hébergée
+  # ───────────────────────────────────────────────────────────────────
+  # 📖 text-embeddings-inference (Hugging Face) sert jina-embeddings-v3
+  #    avec une API OpenAI-compatible (`/v1/embeddings`, 1024 dims).
+  #    Consommé par l'API Go (`/search/semantic`) et le worker asynq.
+  #    ⚠️ Il faut un HF_TOKEN (huggingface.co/settings/tokens) : HF exige
+  #    désormais une auth pour télécharger les modèles. Le modèle (~2.3 Go)
+  #    est téléchargé au 1er démarrage puis mis en cache dans `embedding_cache`.
+  #    ⚠️ Licence : jina-embeddings-v3 est CC BY-NC 4.0 (usage non commercial
+  #    uniquement) — à valider pour la prod.
+  # ───────────────────────────────────────────────────────────────────
+  embedding:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    container_name: qoefi-embedding
+    restart: unless-stopped
+
+    expose:
+      - '80'
+
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      HF_HUB_DISABLE_TELEMETRY: '1'
+
+    command: --model-id jinaai/jina-embeddings-v3 --port 80 --max-concurrent-requests 4
+
+    volumes:
+      - embedding_cache:/data
+
+    networks:
+      - qoefi-private
+
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
 
     logging:
       driver: json-file
@@ -708,3 +762,5 @@ volumes:
     name: qoefi-meilisearch-data
   umami_db_data:
     name: qoefi-umami-db-data
+  embedding_cache:
+    name: qoefi-embedding-cache

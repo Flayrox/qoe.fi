@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -45,29 +46,48 @@ func NewSemanticService(pool *pgxpool.Pool) *SemanticService {
 		embedder: &httpEmbedClient{
 			base:  envOr("EMBEDDING_URL", "http://localhost:8081"),
 			model: envOr("EMBEDDING_MODEL", "jina-embeddings-v3"),
-			http:  &http.Client{Timeout: 60 * time.Second},
+			// Tâche typée jina pour les requêtes (retrieval.query). Vide =
+			// champ omis (llama.cpp crashe sur ce champ ; TEI s'en passe).
+			task: os.Getenv("EMBEDDING_QUERY_TASK"),
+			http: &http.Client{Timeout: 60 * time.Second},
 		},
 	}
+}
+
+// embeddingDims retourne la dimension cible (MRL) : EMBEDDING_DIMS, défaut 512.
+// Doit correspondre à la colonne vector(512) en base.
+func embeddingDims() int {
+	d, _ := strconv.Atoi(os.Getenv("EMBEDDING_DIMS"))
+	if d < 64 || d > 4096 {
+		d = 512
+	}
+	return d
 }
 
 // httpEmbedClient appelle le service d'inférence (API OpenAI-compatible).
 type httpEmbedClient struct {
 	base  string
 	model string
-	http  *http.Client
+	// task est la tâche jina-embeddings-v3 (retrieval.query etc.). Vide =
+	// champ omis (compatibilité llama.cpp / services sans tâches typées).
+	task string
+	http *http.Client
 }
 
 func (c *httpEmbedClient) Embed(ctx context.Context, text string) ([]float32, error) {
-	payload, _ := json.Marshal(map[string]any{
+	payload := map[string]any{
 		"model": c.model,
 		"input": text,
+	}
+	if c.task != "" {
 		// Tâche de récupération (recherche), pas d'indexation.
-		"task": "retrieval.query",
-	})
+		payload["task"] = c.task
+	}
+	body, _ := json.Marshal(payload)
 	req, err := http.NewRequestWithContext(
 		ctx, http.MethodPost,
 		strings.TrimSuffix(c.base, "/")+"/v1/embeddings",
-		bytes.NewReader(payload),
+		bytes.NewReader(body),
 	)
 	if err != nil {
 		return nil, err
@@ -129,9 +149,12 @@ func (s *SemanticService) Search(ctx context.Context, query string, limit int) (
 	if err != nil {
 		return nil, err
 	}
-	if len(vec) != 1024 {
-		return nil, fmt.Errorf("dimension %d != 1024", len(vec))
+	// MRL : tronque à la dimension stockée (512) et refuse un vecteur trop court.
+	dims := embeddingDims()
+	if len(vec) < dims {
+		return nil, fmt.Errorf("dimension %d < %d", len(vec), dims)
 	}
+	vec = vec[:dims]
 
 	rows, err := s.q.SearchSemanticArticles(ctx, db.SearchSemanticArticlesParams{
 		Column1: pgvector.NewVector(vec),

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,6 +33,13 @@ import (
 const (
 	envEmbeddingURL   = "EMBEDDING_URL"
 	envEmbeddingModel = "EMBEDDING_MODEL"
+	// Tâche typée jina-embeddings-v3 (ex: "retrieval.passage" pour indexer).
+	// VIDE = champ omis : requis pour llama.cpp (crash sur ce champ), et
+	// compatible TEI qui retombe sur la tâche par défaut du modèle.
+	envEmbeddingTask = "EMBEDDING_INDEX_TASK"
+	// MRL (Matryoshka) : jina-embeddings-v3 peut être tronqué à 512 dims
+	// avec une perte de qualité négligeable — la colonne est vector(512).
+	envEmbeddingDims = "EMBEDDING_DIMS"
 )
 
 var (
@@ -48,6 +56,15 @@ type EmbeddingWorker struct {
 	embedder embedClient
 }
 
+// embeddingDims retourne la dimension cible (MRL) : EMBEDDING_DIMS, défaut 512.
+func (s *EmbeddingWorker) embeddingDims() int {
+	d, _ := strconv.Atoi(os.Getenv(envEmbeddingDims))
+	if d < 64 || d > 4096 {
+		d = 512
+	}
+	return d
+}
+
 type embedClient interface {
 	Embed(ctx context.Context, text string) ([]float32, error)
 }
@@ -59,6 +76,7 @@ func NewEmbeddingWorker(pool *pgxpool.Pool) *EmbeddingWorker {
 		embedder: &httpEmbedClient{
 			base:  envOr(envEmbeddingURL, "http://localhost:8081"),
 			model: envOr(envEmbeddingModel, "jina-embeddings-v3"),
+			task:  os.Getenv(envEmbeddingTask),
 			http:  &http.Client{Timeout: 60 * time.Second},
 		},
 	}
@@ -68,20 +86,26 @@ func NewEmbeddingWorker(pool *pgxpool.Pool) *EmbeddingWorker {
 type httpEmbedClient struct {
 	base  string
 	model string
-	http  *http.Client
+	// task est la tâche jina-embeddings-v3 (retrieval.passage etc.). Vide =
+	// champ omis (compatibilité llama.cpp / services sans tâches typées).
+	task string
+	http *http.Client
 }
 
 func (c *httpEmbedClient) Embed(ctx context.Context, text string) ([]float32, error) {
-	payload, _ := json.Marshal(map[string]any{
+	payload := map[string]any{
 		"model": c.model,
 		"input": text,
+	}
+	if c.task != "" {
 		// jina-embeddings-v3 : tâches typées (retrieval.passage pour indexer).
-		"task": "retrieval.passage",
-	})
+		payload["task"] = c.task
+	}
+	body, _ := json.Marshal(payload)
 	req, err := http.NewRequestWithContext(
 		ctx, http.MethodPost,
 		strings.TrimSuffix(c.base, "/")+"/v1/embeddings",
-		bytes.NewReader(payload),
+		bytes.NewReader(body),
 	)
 	if err != nil {
 		return nil, err
@@ -142,11 +166,13 @@ func (s *EmbeddingWorker) HandleArticleEmbedding(ctx context.Context, t *asynq.T
 		return fmt.Errorf("embed %s: %w", p.ArticleID, err)
 	}
 
-	// Vérifie la dimension attendue (jina = 1024) — évite d'écrire un
-	// vecteur mal dimensionné dans une colonne vector(1024).
-	if len(vector) != 1024 {
-		return fmt.Errorf("embed %s: dimension %d != 1024 (modèle inattendu)", p.ArticleID, len(vector))
+	// MRL : tronque le vecteur à la dimension stockée (512) et refuse un
+	// vecteur trop court — évite d'écrire un vecteur mal dimensionné.
+	dims := s.embeddingDims()
+	if len(vector) < dims {
+		return fmt.Errorf("embed %s: dimension %d < %d (modèle inattendu)", p.ArticleID, len(vector), dims)
 	}
+	vector = vector[:dims]
 
 	if err := s.q.UpsertArticleEmbedding(ctx, db.UpsertArticleEmbeddingParams{
 		ID:        p.ArticleID,

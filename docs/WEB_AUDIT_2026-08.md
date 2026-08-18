@@ -11,7 +11,7 @@
 
 | # | Domaine | État actuel | Action critique |
 |---|---|---|---|
-| 1 | Embedding IA | ✅ **FAIT** — migration 1024 + HNSW, worker asynq (TEI/jina), `/articles/{id}/similar` + `/search/semantic`, **« À lire aussi » web + mobile** | Reste : déployer le service d'inférence (TEI) pour peupler les vecteurs |
+| 1 | Embedding IA | ✅ **FAIT & ACTIF** — migration 1024 + HNSW appliquée sur Supabase, worker asynq, service d'inférence auto-hébergé **en local** (llama.cpp/jina Q8_0 via launchd), 9/9 articles indexés, `/articles/{id}/similar` + `/search/semantic` testés avec vraies reco | Reste : déployer TEI sur le VPS (HF_TOKEN requis) pour la prod |
 | 2 | Collaboratif | ✅ **FAIT** — serveur Hocuspocus (`apps/collab-server`), persistance Postgres, auth JWT Supabase, **RBAC publication**, curseurs + awareness, **TTL 14 jours** | — |
 | 3 | Mails | Template + outbox TS **orphelins** (rien n'enqueue) | Câbler Go → NotificationDelivery → worker (attend les clés) |
 | 4 | Web → API | Server actions = proxy fin via `goFetch` quand `QOE_API_GO_URL` | Terminer la bascule des actions restantes (articles legacy) |
@@ -20,6 +20,29 @@
 ---
 
 ## 1. 🧠 Embedding IA / pgvector — jina-embeddings-v3 (auto-hébergé)
+
+### ✅ DÉBLOQUÉ (18 août 2026) — service d'inférence local actif
+
+- **Migrations appliquées sur Supabase** : `20260817000000_add_muted_user`,
+  `20260817100000_resize_embedding_jina_1024` (vector 1024 + HNSW),
+  `20260817110000_collab_documents` (la colonne était restée en `vector(1536)`
+  → erreur `expected 1536 dimensions, not 1024` au premier backfill).
+- **Service d'inférence LOCAL (Mac arm64)** : llama.cpp natif
+  (`scripts/launchd/com.qoefi.embedding-server.plist`) sert le GGUF
+  `jina-embeddings-v3-Q8_0` (600 Mo, converti depuis ModelScope — HF bloque
+  les accès anonymes) sur `127.0.0.1:8081`, API OpenAI-compatible, `--pooling mean`.
+  ⚠️ llama.cpp **crashe** si le payload contient le champ `task` → il est
+  désormais optionnel (`EMBEDDING_INDEX_TASK` / `EMBEDDING_QUERY_TASK`, vide = omis).
+- **Worker asynq** (`apps/api-go/cmd/worker`) lancé via launchd
+  (`com.qoefi.api-worker.plist`) + **outil de backfill** `apps/api-go/cmd/backfill`
+  (enqueue `embedding.article` pour les articles publiés sans vecteur ; `-force` = ré-embed).
+- **MRL 512** (18 août) : migration `20260818000000_shrink_embedding_mrl_512` —
+  colonnes `vector(512)` (jina tronqué, perte négligeable, moitié moins de
+  stockage, HNSW 2× plus rapide). Dimension pilotée par `EMBEDDING_DIMS`
+  (défaut 512, troncature appliquée worker + recherche sémantique).
+- **Résultat** : 9/9 articles publiés indexés (512 dims), `/v1/articles/{id}/similar`
+  et `/search/semantic` retournent de vraies recommandations sémantiques.
+- Stubs `apps/{dashboard,feed}/src/lib/ai.ts` passés de 1536 → 1024.
 
 ### ✅ Implémenté (17 août 2026)
 - **Migration** `20260817100000_resize_embedding_jina_1024` : colonnes
@@ -36,20 +59,22 @@
 - Tests Go verts (upsert, dimension, tri, empty).
 
 ### Ce qui reste
-1. **Déployer le service d'inférence** (TEI / jina-embeddings-v3) en local
-   puis sur le VPS, et pointer `EMBEDDING_BASE_URL` — c'est le seul blocage
-   pour peupler les vecteurs et activer réellement la recherche sémantique.
+1. **Déployer TEI sur le VPS** (amd64 natif) : le service `embedding` est dans
+   `docker-compose.yml` (image TEI cpu-1.5, `EMBEDDING_URL=http://embedding:80`,
+   tâches jina `retrieval.passage`/`retrieval.query`). Il faut un
+   **HF_TOKEN** (HF exige l'auth pour télécharger les modèles) — le modèle est
+   mis en cache dans le volume `embedding_cache`.
 2. **`embedding.profile`** : tâche asynq pour les profils créateurs
    (bio → vecteur User) à la mise à jour du profil.
 3. **Recommandations du feed** : top-K par similarité vs l'historique de
    lecture du viewer (API dédiée).
 4. **Recherche sémantique dans l'UI** : brancher `/search/semantic` dans la
-   recherche web/mobile une fois le service d'inférence actif (le Meilisearch
-   lexical reste la recherche par défaut).
+   recherche web/mobile (le Meilisearch lexical reste la recherche par défaut).
 
 ### Décisions à trancher
-- Fournisseur du modèle : HF `jinaai/jina-embeddings-v3` quantisé (FP16) sur
-  le VPS ? GPU requis ou CPU suffisant pour la latence visée ?
+- **Licence ⚠️** : `jina-embeddings-v3` est **CC BY-NC 4.0** (usage non
+  commercial uniquement) — à valider pour la prod commerciale ; alternatives
+  permissives : `bge-m3` (MIT), `jina-embeddings-v2-base-en` (Apache 2.0).
 - Chunking : par paragraphe (`Article.content` est du HTML TipTap) ? taille ?
 - Batching : 1 article = N chunks → table `ArticleChunk(embedding)` plutôt
   qu'une colonne unique sur `Article` ? (recommandé pour la granularité)
@@ -213,10 +238,13 @@ Postgres (collab_documents, état Yjs binaire) + autosave HTML (API Go)
    publication, followers/following publics, `publicationId` FollowActor).
 
 🔜 **RESTE** :
-5. Déployer TEI (inférence jina) → peupler les vecteurs → recherche sémantique UI.
+5. Déployer TEI sur le VPS (HF_TOKEN) → recherche sémantique dans l'UI.
 6. Mails + Stripe — à la toute fin (attend les clés).
 7. Basculer les 3 actions Prisma restantes (createThoughtThread, getUserDrafts,
    searchArticleContributors) sur des routes Go dédiées.
+
+✅ **DÉBLOQUÉ le 18 août** : inférence locale (llama.cpp via launchd) + worker +
+   backfill + migrations Supabase 1024/collab appliquées + 9/9 articles indexés.
 
 ---
 

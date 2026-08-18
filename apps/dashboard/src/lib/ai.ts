@@ -8,11 +8,11 @@
 //   - updateUserEmbedding(userId: string, vector: number[]): Promise<void>
 // =====================================================================
 
-const EMBEDDING_DIM = 1536; // taille OpenAI text-embedding-ada-002
+const EMBEDDING_DIM = 1024; // jina-embeddings-v3 (auto-hébergé, TEI/llama.cpp)
 
 /**
  * Génère un embedding mock (stub) à partir d'un texte + intérêts.
- * Retourne un vecteur de 1536 dimensions normalisé.
+ * Retourne un vecteur de 1024 dimensions normalisé.
  */
 export async function generateMockEmbedding(
   text: string,
