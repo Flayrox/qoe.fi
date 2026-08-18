@@ -163,8 +163,8 @@ export function FeedScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
-        {/* ─── Dégradé progressif de flou supérieur (Top Vignette) ─── */}
-        <ProgressiveBlurVignette position="top" height={90} />
+        {/* ─── Dégradé progressif supérieur (Top Vignette) ─── */}
+        <ProgressiveBlurVignette height={90} />
 
         {/* ─── Liste FlashList fluide ─── */}
         <FlashList
@@ -193,9 +193,6 @@ export function FeedScreen() {
           }
           contentContainerStyle={styles.content}
         />
-
-        {/* ─── Dégradé progressif de flou inférieur (Bottom Vignette sous la TabBar) ─── */}
-        <ProgressiveBlurVignette position="bottom" height={130} />
 
         {/* Pill « X nouvelles pensées » (temps réel) */}
         {unreadCount > 0 ? (
