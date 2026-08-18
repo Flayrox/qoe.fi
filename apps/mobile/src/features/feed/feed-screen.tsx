@@ -8,27 +8,12 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from 'react-native';
-import Animated, {
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ArticleCard } from '@/components/article/article-card';
-import { useDrawer } from '@/components/drawer/drawer-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FAB } from '@/components/ui/fab';
 import { PostFeedLoadingPlaceholder } from '@/components/ui/skeleton';
 import { ThoughtFeedSlice } from '@/components/thought/thought-feed-slice';
 import { FeedEmptyState, FeedEndOfFeed, FeedErrorState } from '@/features/feed/feed-states';
@@ -56,36 +41,7 @@ const HEADER_HEIGHT = 48;
 
 export function FeedScreen() {
   const theme = useTheme();
-  const { openDrawer } = useDrawer();
   const [tab, setTab] = useState<FeedTab>('for_you');
-
-  // Animation de rétractation du header au scroll
-  const headerTranslateY = useSharedValue(0);
-  const prevScrollY = useSharedValue(0);
-
-  const onScroll = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const currentY = e.nativeEvent.contentOffset.y;
-      const diff = currentY - prevScrollY.value;
-
-      if (currentY <= 5) {
-        headerTranslateY.value = withTiming(0, { duration: 150 });
-      } else if (diff > 6 && currentY > 40) {
-        // Défilement vers le bas -> masque/réduit le header
-        headerTranslateY.value = withTiming(-HEADER_HEIGHT, { duration: 180 });
-      } else if (diff < -6) {
-        // Défilement vers le haut -> réaffiche immédiatement le header
-        headerTranslateY.value = withTiming(0, { duration: 150 });
-      }
-      prevScrollY.value = currentY;
-    },
-    [headerTranslateY, prevScrollY]
-  );
-
-  const headerAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: headerTranslateY.value }],
-    opacity: interpolate(headerTranslateY.value, [-HEADER_HEIGHT, 0], [0, 1]),
-  }));
 
   // Adapte le client universel au contrat du hook, selon l'onglet :
   const fetcher: FeedFetcherFn<FeedSlice> = useCallback(
@@ -206,80 +162,7 @@ export function FeedScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
-        {/* ─── Header Collapsing animé au scroll ─── */}
-        <Animated.View
-          style={[styles.header, { backgroundColor: theme.background }, headerAnimatedStyle]}
-        >
-          <Pressable
-            onPress={openDrawer}
-            style={({ pressed }) => [
-              styles.menuButton,
-              pressed && {
-                backgroundColor: theme.primary,
-                borderRadius: Spacing.two,
-              },
-            ]}
-            accessibilityLabel={t('sidebar.open', 'Ouvrir le menu')}
-          >
-            {({ pressed }) => (
-              <ThemedText style={[styles.menuGlyph, { color: pressed ? '#ffffff' : theme.text }]}>
-                ☰
-              </ThemedText>
-            )}
-          </Pressable>
-
-          {/* Onglets Pour vous / Abonnements */}
-          <View style={styles.tabsRow}>
-            <Pressable onPress={() => setTab('for_you')} style={styles.tab} hitSlop={8}>
-              <ThemedText
-                style={[
-                  styles.tabLabel,
-                  { color: tab === 'for_you' ? theme.text : theme.textSecondary },
-                ]}
-              >
-                {t('feed.for_you', 'Pour vous')}
-              </ThemedText>
-              {tab === 'for_you' ? (
-                <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />
-              ) : null}
-            </Pressable>
-            <Pressable onPress={() => setTab('following')} style={styles.tab} hitSlop={8}>
-              <ThemedText
-                style={[
-                  styles.tabLabel,
-                  { color: tab === 'following' ? theme.text : theme.textSecondary },
-                ]}
-              >
-                {t('feed.following_tab', 'Abonnements')}
-              </ThemedText>
-              {tab === 'following' ? (
-                <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />
-              ) : null}
-            </Pressable>
-          </View>
-          <View style={styles.headerSpacer} />
-
-          {/* Raccourci vers les notifications */}
-          <Pressable
-            onPress={() => router.push('/notifications')}
-            style={({ pressed }) => [
-              styles.composeButton,
-              pressed && { backgroundColor: theme.primary, borderRadius: 999 },
-            ]}
-            accessibilityLabel={t('notif.title', 'Notifications')}
-          >
-            {({ pressed }) => (
-              <ThemedText
-                type="smallBold"
-                style={{ color: pressed ? '#ffffff' : theme.textSecondary }}
-              >
-                🔔
-              </ThemedText>
-            )}
-          </Pressable>
-        </Animated.View>
-
-        {/* ─── Liste FlashList avec écouteur de scroll ─── */}
+        {/* ─── Liste FlashList fluide ─── */}
         <FlashList
           data={displayedRows}
           keyExtractor={(row) => (row.kind === 'thought' ? row.slice.id : row.article.id)}
@@ -292,8 +175,6 @@ export function FeedScreen() {
           }
           ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
           getItemType={(item) => item.kind}
-          onScroll={onScroll}
-          scrollEventThrottle={16}
           onEndReached={onEndReached}
           onEndReachedThreshold={0.4}
           refreshing={isRefetching}
@@ -346,8 +227,8 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
   },
   content: {
-    paddingTop: HEADER_HEIGHT + Spacing.one,
-    paddingBottom: Spacing.four,
+    paddingTop: Spacing.two,
+    paddingBottom: 110,
     flexGrow: 1,
   },
   header: {
