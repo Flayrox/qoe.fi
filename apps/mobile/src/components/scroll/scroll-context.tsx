@@ -22,6 +22,7 @@ export function ScrollProvider({ children }: { children: React.ReactNode }) {
 
   const onScrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
+      'worklet';
       const currentY = event.contentOffset.y;
       const diff = currentY - lastScrollY.value;
 

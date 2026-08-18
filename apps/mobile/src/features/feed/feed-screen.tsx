@@ -5,7 +5,8 @@ import {
   type FeedSlice,
 } from '@qoe/api-client/mobile';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, type FlashListProps } from '@shopify/flash-list';
+import Animated from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -34,16 +35,11 @@ import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
 import type { FeedArticle } from '@qoe/api-client/mobile';
 
-// =====================================================================
-// 🍞 FeedScreen — Le feed principal (onglet « Feed »)
-// =====================================================================
-// Consomme `/v1/feed` (pensées → FeedSlice) ET `/v1/feed/articles`
-// (articles récents → FeedArticle), puis **intercale** les deux par date.
-// Infini (FlashList) + pull-to-refresh + pill temps réel « X nouvelles pensées »
-// + Header rétractable fluide au scroll (Collapsing Header).
-// =====================================================================
-
 type FeedRow = { kind: 'thought'; slice: FeedSlice } | { kind: 'article'; article: FeedArticle };
+
+const AnimatedFlashList = Animated.createAnimatedComponent(
+  FlashList as unknown as React.ComponentType<FlashListProps<FeedRow>>
+);
 
 type FeedTab = 'for_you' | 'following';
 
@@ -204,7 +200,7 @@ export function FeedScreen() {
         style={styles.container}
       >
         {/* ─── Liste FlashList fluide plein écran (Edge-to-Edge) ─── */}
-        <FlashList
+        <AnimatedFlashList
           data={displayedRows}
           keyExtractor={(row) => (row.kind === 'thought' ? row.slice.id : row.article.id)}
           renderItem={({ item }) =>
