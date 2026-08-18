@@ -162,56 +162,65 @@ export function FeedScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView edges={['top']} style={styles.safeArea}>
-        {/* ─── Dégradé progressif supérieur (Top Vignette) ─── */}
-        <ProgressiveBlurVignette height={90} />
+      {/* 
+        ═════════════════════════════════════════════════════════════════════
+        ✨ ÉLÉMENT DESIGN À DOUBLE FONCTION : <ProgressiveBlurVignette />
+        ═════════════════════════════════════════════════════════════════════
+        1. Bouclier de Lisibilité (Status Bar / Dynamic Island Shield) :
+           Protège la lisibilité de l'heure, du réseau et de la batterie
+           sans avoir recours à une barre solide / opaque ou un header rigide.
+        2. Fondu Cinématique Infini (Edge-to-Edge Scroll Fade) :
+           Permet au feed de défiler en plein écran bord-à-bord (edge-to-edge),
+           en estompant soyeusement les pensées et médias lorsqu'ils remontent.
+        ═════════════════════════════════════════════════════════════════════
+      */}
+      <ProgressiveBlurVignette height={95} />
 
-        {/* ─── Liste FlashList fluide ─── */}
-        <FlashList
-          data={displayedRows}
-          keyExtractor={(row) => (row.kind === 'thought' ? row.slice.id : row.article.id)}
-          renderItem={({ item }) =>
-            item.kind === 'thought' ? (
-              <ThoughtFeedSlice slice={item.slice} />
-            ) : (
-              <ArticleCard article={item.article} />
-            )
-          }
-          ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
-          getItemType={(item) => item.kind}
-          onEndReached={onEndReached}
-          onEndReachedThreshold={0.4}
-          refreshing={isRefetching}
-          onRefresh={onRefresh}
-          ListEmptyComponent={<FeedEmptyState onExplore={() => router.push('/(tabs)/explore')} />}
-          ListFooterComponent={
-            hasNextPage ? (
-              <ActivityIndicator color={theme.text} style={styles.footer} />
-            ) : rows.length > 0 ? (
-              <FeedEndOfFeed />
-            ) : null
-          }
-          contentContainerStyle={styles.content}
-        />
+      {/* ─── Liste FlashList fluide plein écran (Edge-to-Edge) ─── */}
+      <FlashList
+        data={displayedRows}
+        keyExtractor={(row) => (row.kind === 'thought' ? row.slice.id : row.article.id)}
+        renderItem={({ item }) =>
+          item.kind === 'thought' ? (
+            <ThoughtFeedSlice slice={item.slice} />
+          ) : (
+            <ArticleCard article={item.article} />
+          )
+        }
+        ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
+        getItemType={(item) => item.kind}
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.4}
+        refreshing={isRefetching}
+        onRefresh={onRefresh}
+        ListEmptyComponent={<FeedEmptyState onExplore={() => router.push('/(tabs)/explore')} />}
+        ListFooterComponent={
+          hasNextPage ? (
+            <ActivityIndicator color={theme.text} style={styles.footer} />
+          ) : rows.length > 0 ? (
+            <FeedEndOfFeed />
+          ) : null
+        }
+        contentContainerStyle={styles.content}
+      />
 
-        {/* Pill « X nouvelles pensées » (temps réel) */}
-        {unreadCount > 0 ? (
-          <Pressable
-            onPress={flushNew}
-            style={({ pressed }) => [styles.pillWrap, pressed && styles.pillPressed]}
-            accessibilityLabel={t('feed.new_thoughts', 'Nouvelles pensées')}
-          >
-            <View style={[styles.pill, { backgroundColor: theme.primary }]}>
-              <ThemedText type="smallBold" style={styles.pillText}>
-                ↑ {unreadCount}{' '}
-                {unreadCount === 1
-                  ? t('feed.new_thought', 'nouvelle pensée')
-                  : t('feed.new_thoughts', 'nouvelles pensées')}
-              </ThemedText>
-            </View>
-          </Pressable>
-        ) : null}
-      </SafeAreaView>
+      {/* Pill « X nouvelles pensées » (temps réel) */}
+      {unreadCount > 0 ? (
+        <Pressable
+          onPress={flushNew}
+          style={({ pressed }) => [styles.pillWrap, pressed && styles.pillPressed]}
+          accessibilityLabel={t('feed.new_thoughts', 'Nouvelles pensées')}
+        >
+          <View style={[styles.pill, { backgroundColor: theme.primary }]}>
+            <ThemedText type="smallBold" style={styles.pillText}>
+              ↑ {unreadCount}{' '}
+              {unreadCount === 1
+                ? t('feed.new_thought', 'nouvelle pensée')
+                : t('feed.new_thoughts', 'nouvelles pensées')}
+            </ThemedText>
+          </View>
+        </Pressable>
+      ) : null}
     </ThemedView>
   );
 }
@@ -231,17 +240,17 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
   },
   content: {
-    paddingTop: Spacing.two,
+    paddingTop: 54,
     paddingBottom: 110,
     flexGrow: 1,
   },
   footer: {
     paddingVertical: Spacing.three,
   },
-  // Pill temps réel — flottante en haut du feed.
+  // Pill temps réel — flottante sous la barre d'état.
   pillWrap: {
     position: 'absolute',
-    top: Spacing.three,
+    top: 56,
     left: 0,
     right: 0,
     alignItems: 'center',
