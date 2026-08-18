@@ -566,13 +566,25 @@ export function LiquidTabBar({
     return {
       transform: [
         {
-          translateY: withSpring(shouldCollapse ? 110 : 0, {
-            damping: 24,
-            stiffness: 260,
+          translateY: withSpring(shouldCollapse ? 12 : 0, {
+            damping: 22,
+            stiffness: 240,
+          }),
+        },
+        {
+          scaleX: withSpring(shouldCollapse ? 0.94 : 1, {
+            damping: 22,
+            stiffness: 240,
+          }),
+        },
+        {
+          scaleY: withSpring(shouldCollapse ? 0.86 : 1, {
+            damping: 22,
+            stiffness: 240,
           }),
         },
       ],
-      opacity: withTiming(shouldCollapse ? 0 : 1, { duration: 200 }),
+      opacity: withTiming(shouldCollapse ? 0.92 : 1, { duration: 200 }),
     };
   });
 
