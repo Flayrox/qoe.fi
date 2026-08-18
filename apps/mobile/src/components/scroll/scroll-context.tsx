@@ -87,13 +87,17 @@ export function ScrollProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useScrollCoordination() {
+  // ⚠️ Rules of Hooks : tous les hooks DOIVENT être appelés avant tout
+  // retour conditionnel (l'ordre d'appel doit être identique à chaque
+  // rendu). Les shared values de secours sont donc créées inconditionnel-
+  // lement, et le fallback ne fait que les renvoyer.
   const ctx = useContext(ScrollContext);
+  const dummyY = useSharedValue(0);
+  const dummyDown = useSharedValue(false);
+  const dummyDrag = useSharedValue(false);
+  const dummyCompact = useSharedValue(false);
   if (!ctx) {
-    // Fallback gracieux si utilisé hors provider
-    const dummyY = useSharedValue(0);
-    const dummyDown = useSharedValue(false);
-    const dummyDrag = useSharedValue(false);
-    const dummyCompact = useSharedValue(false);
+    // Fallback gracieux si utilisé hors provider.
     return {
       scrollY: dummyY,
       isScrollingDown: dummyDown,

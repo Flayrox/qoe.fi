@@ -19,6 +19,7 @@ interface FakeSupabaseClient {
   channels: FakeRealtimeChannel[];
   auth: { getUser: Mock };
   channel: Mock;
+  getChannels: Mock;
   removeAllChannels: Mock;
   removeChannel: Mock;
 }
@@ -66,6 +67,7 @@ function buildFakeClient(): FakeSupabaseClient {
       channels.push(created);
       return created;
     }),
+    getChannels: vi.fn(() => channels),
     removeAllChannels: vi.fn(),
     removeChannel: vi.fn(),
   };
@@ -101,7 +103,7 @@ describe('useRealtimeNotificationSync', () => {
     // Une seule souscription partagée pour tous les montages.
     expect(fakeClient.auth.getUser).toHaveBeenCalledTimes(1);
     expect(fakeClient.channel).toHaveBeenCalledTimes(1);
-    expect(fakeClient.channel).toHaveBeenCalledWith('public:Notification');
+    expect(fakeClient.channel).toHaveBeenCalledWith('user-notifications:user-42');
 
     const channel = fakeClient.channels[0];
     expect(channel.on).toHaveBeenCalledTimes(1);

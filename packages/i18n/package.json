@@ -20,7 +20,8 @@
   "dependencies": {
     "@lingui/core": "6.6.0",
     "@lingui/react": "6.6.0",
-    "@qoe/db": "workspace:*"
+    "@qoe/db": "workspace:*",
+    "babel-plugin-macros": "3.1.0"
   },
   "peerDependencies": {
     "react": "^19"
