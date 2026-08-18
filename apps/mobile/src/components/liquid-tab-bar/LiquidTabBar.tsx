@@ -291,6 +291,11 @@ export function LiquidTabBar({
   const initialOffset = tabMetrics.offsets[currentVisibleIndex] ?? 0;
   const initialWidth = tabMetrics.widths[currentVisibleIndex] ?? 70;
 
+  // Lueur liquide traînante avec retard de suivi sous le doigt
+  const glowX = useSharedValue(initialOffset + initialWidth / 2);
+  const glowOpacity = useSharedValue(0);
+  const glowScale = useSharedValue(0.85);
+
   // Pilule active : matière douce et feutrée
   const pillTranslateX = useSharedValue(initialOffset);
   const pillWidth = useSharedValue(initialWidth);
@@ -404,12 +409,24 @@ export function LiquidTabBar({
       startX.value = e.x;
       activeHoverIndex.value = currentVisibleIndex;
 
+      // Déclenchement de la lueur liquide sous le point de contact
+      glowX.value = e.x;
+      glowOpacity.value = withTiming(isDark ? 0.35 : 0.45, { duration: 120 });
+      glowScale.value = withSpring(1.0, SPRING_SETTLE);
+
       barScale.value = withSpring(1.03, SPRING_SETTLE);
       pillScale.value = withSpring(1.02, SPRING_DRAG);
       pillOpacity.value = withTiming(isDark ? 0.22 : 0.16, { duration: 80 });
     })
     .onUpdate((e) => {
       if (drawerProgress && drawerProgress.value > 0.05) return;
+
+      // Suivi de la lueur avec retard et inertie liquide fluide
+      glowX.value = withSpring(e.x, {
+        damping: 18,
+        stiffness: 110,
+        mass: 0.85,
+      });
 
       const distance = Math.abs(e.x - startX.value);
       if (distance > DRAG_THRESHOLD) {
@@ -550,6 +567,10 @@ export function LiquidTabBar({
       }
 
       runOnJS(triggerNavigation)(releaseIndex);
+
+      // Extinction douce de la lueur liquide
+      glowOpacity.value = withTiming(0, { duration: 380, easing: Easing.out(Easing.quad) });
+      glowScale.value = withTiming(0.85, { duration: 380 });
 
       hasMoved.value = false;
     });
@@ -697,6 +718,14 @@ export function LiquidTabBar({
     };
   });
 
+  // Lueur liquide traînante avec retard de suivi sous le doigt
+  const trailingGlowAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: glowOpacity.value,
+      transform: [{ translateX: glowX.value - 45 }, { scale: glowScale.value }],
+    };
+  });
+
   if (!state || !state.routes) {
     return null;
   }
@@ -770,6 +799,20 @@ export function LiquidTabBar({
               />
 
               <View style={styles.trackContainer}>
+                {/* Lueur liquide traînante qui suit le doigt avec retard fluide */}
+                <Animated.View
+                  style={[
+                    styles.trailingGlowLight,
+                    {
+                      backgroundColor: isDark
+                        ? 'rgba(255, 255, 255, 0.24)'
+                        : 'rgba(255, 255, 255, 0.65)',
+                    },
+                    trailingGlowAnimatedStyle,
+                  ]}
+                  pointerEvents="none"
+                />
+
                 <Animated.View
                   style={[
                     styles.activePill,
@@ -1014,6 +1057,19 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 36,
     borderCurve: 'continuous',
+  },
+  trailingGlowLight: {
+    position: 'absolute',
+    top: 2,
+    bottom: 2,
+    width: 90,
+    borderRadius: 45,
+    borderCurve: 'continuous',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 18,
+    zIndex: 0,
   },
   activePill: {
     position: 'absolute',
