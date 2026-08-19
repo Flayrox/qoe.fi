@@ -1,30 +1,32 @@
 # =====================================================================
 # 🐳 docker-compose.yml — qoe.fi monorepo (PRODUCTION)
 # =====================================================================
-# 📖 15 services :
+# 📖 14 services :
 #   1. caddy      : reverse proxy + TLS (seul service exposé au public)
 #   2. web        : Next.js tenants (wildcard *.qoe.fi)
 #   3. landing    : Next.js marketing (start.qoe.fi)
 #   4. feed       : Next.js reader (qoe.fi)
-#   5. dashboard  : Next.js créateurs (dashboard.qoe.fi)
+#   5. studio     : Next.js créateurs (studio.qoe.fi) — apps/dashboard
 #   6. admin      : Next.js plateforme (admin.qoe.fi)
 #   7. api        : backend-of-record Go (api.qoe.fi) — apps/api-go
-#   8. worker-go  : worker asynq Go (webhooks, newsletter, embeddings)
-#   9. worker-node: workers BullMQ Node (emails, AI, billing)
-#   10. embedding : llama.cpp — jina-embeddings-v3 (inférence locale)
-#   11. redis     : cache + queue
-#   12. meilisearch: full-text search (réseau interne uniquement)
-#   13. umami     : analytics self-hosted
-#   14. umami-db  : PostgreSQL d'umami
-#   15. migrate   : one-shot Prisma migrate (s'exécute puis s'arrête)
+#   8. worker-go  : worker asynq Go (webhooks, newsletter, embeddings, collab)
+#   9. embedding  : llama.cpp — jina-embeddings-v3 (inférence locale)
+#   10. redis     : cache + queue (asynq)
+#   11. meilisearch: full-text search (réseau interne uniquement)
+#   12. umami     : analytics self-hosted
+#   13. umami-db  : PostgreSQL d'umami
+#   14. migrate   : one-shot Prisma migrate (s'exécute puis s'arrête)
+#
+# ⚠️ worker-node (BullMQ Node) a été SUPPRIMÉ : vestige de l'ancienne stack.
+#    Plus rien n'enqueue vers BullMQ — tout passe par asynq (worker-go).
 #
 # 🔒 Segmentation réseau par rôle :
 #   qoefi-public  : caddy + frontends (web/landing/feed/dashboard/admin/umami)
 #                   + supabase-kong/supabase-studio (voir l'override Supabase
 #                   créé par bootstrap.sh → docker-compose.override.yml).
 #                   Caddy n'a PAS accès au réseau supabase (donc pas à la DB).
-#   qoefi-private : tout le reste (api, workers, redis, meili, embedding).
-#   supabase_default : UNIQUEMENT api, worker-go, worker-node et migrate
+#   qoefi-private : tout le reste (api, worker-go, redis, meili, embedding).
+#   supabase_default : UNIQUEMENT api, worker-go et migrate
 #                      (accès à la DB Supabase). Pas les frontends, pas caddy.
 #
 # 📖 Convention de nommage : kebab-case, préfixe qoefi-, nom de service = nom
@@ -64,7 +66,7 @@ services:
         condition: service_started
       feed:
         condition: service_started
-      dashboard:
+      studio:
         condition: service_started
       admin:
         condition: service_started
@@ -263,15 +265,15 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # 🎨 DASHBOARD : Next.js creator (dashboard.qoe.fi)
+  # 🎨 STUDIO : Next.js creator (studio.qoe.fi) — apps/dashboard
   # ───────────────────────────────────────────────────────────────────
-  dashboard:
+  studio:
     build:
       context: .
       dockerfile: Dockerfile
       target: dashboard
-    image: qoefi-dashboard:latest
-    container_name: qoefi-dashboard
+    image: qoefi-studio:latest
+    container_name: qoefi-studio
     restart: unless-stopped
 
     expose:
@@ -369,55 +371,6 @@ services:
           cpus: '0.5'
         reservations:
           memory: 128M
-
-    logging:
-      driver: json-file
-      options:
-        max-size: '10m'
-        max-file: '3'
-
-  # ───────────────────────────────────────────────────────────────────
-  # ⚙️ WORKER-NODE : BullMQ background jobs (emails, AI, billing)
-  # ───────────────────────────────────────────────────────────────────
-  worker-node:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: workers
-    image: qoefi-worker-node:latest
-    container_name: qoefi-worker-node
-    restart: unless-stopped
-
-    env_file:
-      - .env.docker
-
-    environment:
-      NODE_ENV: production
-      REDIS_URL: redis://redis:6379
-      SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      # Resend (emails)
-      RESEND_API_KEY: ${RESEND_API_KEY}
-      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@qoe.fi}
-
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
-
-    networks:
-      - qoefi-private
-      - supabase_default # 🔒 DB via Prisma uniquement
-
-    depends_on:
-      redis:
-        condition: service_started
-
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
 
     logging:
       driver: json-file

@@ -1,6 +1,6 @@
 # `apps/dashboard` (Creator Studio)
 
-**Role:** The dedicated SaaS interface for platform creators (`dashboard.qoe.fi`). Includes rich editing, Stripe billing management, and analytics insights.
+**Role:** The dedicated SaaS interface for platform creators (`studio.qoe.fi`). Includes rich editing, Stripe billing management, and analytics insights.
 
 ## Core Mechanisms
 

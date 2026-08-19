@@ -12,10 +12,10 @@
 | Élément | Valeur actuelle |
 |---|---|
 | Serveur | Hetzner — IP `178.104.197.3`, 4 cœurs / 8 Go RAM, swap 4 G |
-| Stack qoe.fi | Docker Compose, 15 services (`/var/www/qoe.fi`) |
+| Stack qoe.fi | Docker Compose, 14 services (`/var/www/qoe.fi`) — `worker-node` (BullMQ) supprimé, tout passe par asynq (`worker-go`) |
 | Supabase | Self-hébergé dans `/var/www/supabase/docker` (Postgres 17.6 + pgvector 0.8.2, GoTrue v2.189.0, Kong, Storage, Studio, Realtime) |
 | Embeddings | llama.cpp + `jina-embeddings-v3-Q8_0.gguf` (600 Mo) dans `/var/www/qoe.fi/models/` |
-| Certs TLS | Certbot : `qoe.fi` + `*.qoe.fi` (wildcard, challenge DNS-01 **manuel**) — **valide jusqu'au 07/10** |
+| Certs TLS | Certbot : `qoe.fi` + `*.qoe.fi` (wildcard, challenge DNS-01 **manuel**) — **valide jusqu'au 07/10**. ⚠️ `base.admin.qoe.fi` (3 niveaux) n'est PAS couvert par `*.qoe.fi` → cert DÉDIÉ à générer avant la migration (Phase 0) |
 | DNS | Nameservers **Hetzner** (`hydrogen/oxygen/helium.ns.hetzner.com`) |
 | Email actuel | **Hostinger** (MX `mx1/mx2.hostinger.com`, SPF `include:_spf.mail.hostinger.com`) ← source probable des soucis de réputation |
 | Autres projets sur le VPS | lassez (processus hôte, ports 4000-4002), radar (pm2), coolify, portainer |
@@ -26,7 +26,8 @@
 |---|---|---|
 | A | qoe.fi | 178.104.197.3 |
 | A | www.qoe.fi | 178.104.197.3 |
-| A | start / api / dashboard / admin / umami / cdn / admin-studio / auth .qoe.fi | 178.104.197.3 |
+| A | start / api / studio / admin / umami / cdn / auth .qoe.fi | 178.104.197.3 |
+| A | base.admin.qoe.fi (Supabase Studio — nouveau nom) | 178.104.197.3 |
 | MX | qoe.fi | `5 mx1.hostinger.com.` / `10 mx2.hostinger.com.` |
 | TXT | qoe.fi | `v=spf1 include:_spf.mail.hostinger.com ~all` |
 | TXT | qoe.fi | `google-site-verification=5G2LP8qdCURCY_GzijCkVe7CaXxsEDGr73pl_II-0fM` |
@@ -46,8 +47,9 @@
 
 ### Décisions v2 — organisation Docker (à appliquer au nouveau serveur)
 
-- **Noms** : `qoefi-api` (ex `qoefi-api-go`), `qoefi-worker-go` (ex `qoefi-api-go-worker`), `qoefi-worker-node` (ex `qoefi-workers`). Kebab-case partout (convention DNS/hostname, pas de `_`). `QOE_API_GO_URL` reste le nom de l'env var (dossier `apps/api-go` inchangé) — seule la **valeur** devient `http://api:8080`.
-- **Segmentation réseau par rôle** (voir docker-compose.yml) : `qoefi-public` = caddy + frontends + kong/studio ; `qoefi-private` = api/workers/redis/meili/embedding ; `supabase_default` = **uniquement** api, worker-go, worker-node, migrate. Les frontends et caddy n'ont plus accès à la DB.
+- **Noms** : `qoefi-api` (ex `qoefi-api-go`), `qoefi-worker-go` (ex `qoefi-api-go-worker`), `qoefi-studio` (ex `qoefi-dashboard`). **`qoefi-worker-node` SUPPRIMÉ** : vestige BullMQ, plus rien n'enqueue vers lui (0 job traité en 24 h, queues vides) — tout passe par asynq. Kebab-case partout (convention DNS/hostname, pas de `_`). `QOE_API_GO_URL` reste le nom de l'env var (dossier `apps/api-go` inchangé) — seule la **valeur** devient `http://api:8080`.
+- **Sous-domaines v2** : `dashboard.qoe.fi` → **`studio.qoe.fi`** ; `admin-studio.qoe.fi` → **`base.admin.qoe.fi`** (cert dédié requis, wildcard ne couvre pas les 3 niveaux). Mettre à jour dans `.env.docker` : `NEXT_PUBLIC_DASHBOARD_URL=https://studio.qoe.fi`.
+- **Segmentation réseau par rôle** (voir docker-compose.yml) : `qoefi-public` = caddy + frontends + kong/studio ; `qoefi-private` = api/worker-go/redis/meili/embedding ; `supabase_default` = **uniquement** api, worker-go, migrate. Les frontends et caddy n'ont plus accès à la DB.
 - **Override Supabase** : `docker-compose.override.yml` dans `/var/www/supabase/docker` (créé par bootstrap.sh) attache kong/studio à `qoefi-public` (Caddy les joint sans toucher au réseau supabase). ⚠️ Ne pas renommer `realtime-dev.supabase-realtime` (realtime dérive son tenant id de son nom de conteneur — officiel Supabase).
 - **Meilisearch** : plus de port public 7700 (interne uniquement, joint par l'API Go).
 
@@ -91,7 +93,7 @@
 | `NEXT_PUBLIC_LANDING_URL` | `https://start.qoe.fi` |
 | `NEXT_PUBLIC_API_URL` | `https://api.qoe.fi` |
 | `NEXT_PUBLIC_ADMIN_URL` | `https://admin.qoe.fi` |
-| `NEXT_PUBLIC_DASHBOARD_URL` | `https://dashboard.qoe.fi` |
+| `NEXT_PUBLIC_DASHBOARD_URL` | `https://studio.qoe.fi` (renommé v2 — à mettre à jour dans le `.env.docker` cible, puis REBUILD) |
 | `NEXT_PUBLIC_UMAMI_SCRIPT_URL` | `https://umami.qoe.fi/script.js` |
 | `DATABASE_URL` / `DIRECT_URL` | `postgresql://postgres:<PW>@supabase-db:5432/postgres` (réseau `supabase_default`) |
 | `REDIS_URL` | `redis://redis:6379` |
@@ -125,6 +127,10 @@
 - [ ] Commander le nouveau VPS (Netcup), générer la clé SSH, tester l'accès
 - [ ] **Baisser les TTL DNS à 300 s** sur tous les records (48 h avant, pour une propagation rapide)
 - [ ] Sauvegarder sur l'ancien VPS : `.env.docker`, supabase `.env`, `/etc/letsencrypt/`, dumps DB, `models/` (GGUF), `/var/www/qoe.fi.old-*` (rollback), `/var/www/lassez-docker` (tar czf `lassez-docker.tar.gz`)
+- [ ] **Générer le cert DÉDIÉ de Supabase Studio sur l'ancien VPS** (une seule fois, challenge DNS-01 manuel — il sera inclus dans la sauvegarde `letsencrypt/`) :
+  ```bash
+  certbot certonly -d base.admin.qoe.fi   # ajouter le TXT demandé, puis vérifier /etc/letsencrypt/live/base.admin.qoe.fi
+  ```
 - [ ] Tout déposer dans `/root/migration/` du nouveau VPS (attendu par bootstrap.sh)
 - [ ] Préparer le `.env.docker` cible (groupe A copié + groupe B récupéré + groupe C reconstruit)
 - [ ] Vérifier les version pins Supabase de l'ancien VPS (images docker) pour réinstaller **les mêmes versions**
@@ -204,10 +210,11 @@ curl -sL -o models/jina-embeddings-v3-Q8_0.gguf \
   "https://huggingface.co/second-state/jina-embeddings-v3-GGUF/resolve/main/jina-embeddings-v3-Q8_0.gguf"
 # vérifier : 600995424 octets (le bootstrap vérifie aussi le SHA-256)
 
-# 📛 Noms v2 : services `api`, `worker-go`, `worker-node` (ex api-go, api-go-worker, workers)
+# 📛 Noms v2 : services `api`, `worker-go`, `studio` (ex api-go, api-go-worker, dashboard)
 #    docker compose ps doit lister : qoefi-caddy, qoefi-web, qoefi-landing, qoefi-feed,
-#    qoefi-dashboard, qoefi-admin, qoefi-api, qoefi-worker-go, qoefi-worker-node,
+#    qoefi-studio, qoefi-admin, qoefi-api, qoefi-worker-go,
 #    qoefi-embedding, qoefi-redis, qoefi-meilisearch, qoefi-umami, qoefi-umami-db, qoefi-migrate
+#    (worker-node BullMQ supprimé — plus rien n'enqueue vers BullMQ)
 
 # TLS : basculer le Caddyfile sur DNS-01 netcup (supprime certbot)
 #   tls { dns netcup <token> } — sinon copier /etc/letsencrypt de l'ancien VPS en attendant
@@ -233,6 +240,8 @@ docker compose ps
 curl -s https://api.qoe.fi/health                          # {"status":"ok"}
 curl -s -o /dev/null -w '%{http_code}\n' https://qoe.fi    # 200/307
 curl -s -o /dev/null -w '%{http_code}\n' https://start.qoe.fi
+curl -s -o /dev/null -w '%{http_code}\n' https://studio.qoe.fi
+curl -sk -o /dev/null -w '%{http_code}\n' https://base.admin.qoe.fi  # via Tailscale (sinon 403 attendu)
 # Recherche sémantique (llama.cpp + pgvector) :
 curl -s "https://api.qoe.fi/search/semantic?q=identit%C3%A9+num%C3%A9rique"
 # Recherche lexicale (meilisearch) :
