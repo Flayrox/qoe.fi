@@ -658,6 +658,12 @@ type User struct {
 	ApiAccessStatus        string           `json:"apiAccessStatus"`
 	ApiApplicationReason   pgtype.Text      `json:"apiApplicationReason"`
 	WalletBalanceCents     int32            `json:"walletBalanceCents"`
+	Gender                 pgtype.Text      `json:"gender"`
+	AgeRange               pgtype.Text      `json:"ageRange"`
+	CountryCode            pgtype.Text      `json:"countryCode"`
+	LanguageCode           pgtype.Text      `json:"languageCode"`
+	DemographicsUpdatedAt  pgtype.Timestamp `json:"demographicsUpdatedAt"`
+	Pronouns               pgtype.Text      `json:"pronouns"`
 	CreatedAt              pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp `json:"updatedAt"`
 	Embedding              pgvector.Vector  `json:"embedding"`

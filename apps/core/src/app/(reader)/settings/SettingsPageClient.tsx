@@ -60,6 +60,7 @@ export default function AccountSettingsPage({
     username: initialData?.user.username || '',
     onboardingText: initialData?.user.onboardingText || '',
     logoUrl: initialData?.user.logoUrl || '',
+    pronouns: initialData?.user.pronouns || '',
   }));
   const [deletionConfirmation, setDeletionConfirmation] = useState('');
 
@@ -303,6 +304,12 @@ export default function AccountSettingsPage({
                 prefix="@"
                 value={profile.username}
                 onChange={(value) => setProfile({ ...profile, username: value })}
+              />
+              <LabeledInput
+                label="Pronoms"
+                value={profile.pronouns}
+                onChange={(value) => setProfile({ ...profile, pronouns: value })}
+                placeholder="ex: iel, il/lui, elle, they/them"
               />
             </div>
             <LabeledInput

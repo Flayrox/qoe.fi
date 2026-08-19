@@ -76,6 +76,7 @@ interface ProfileUser {
   heroText: string | null;
   headerImageUrl?: string | null;
   onboardingText?: string | null;
+  pronouns?: string | null;
   isCertified?: boolean;
   createdAt: string | Date;
   posts?: ProfilePost[];
@@ -304,6 +305,9 @@ export function ProfileView({
               <p className="text-xs text-muted-foreground font-medium">
                 @{user.username || user.subdomain}
               </p>
+              {user.pronouns && (
+                <p className="text-[11px] text-muted-foreground/80 italic">{user.pronouns}</p>
+              )}
             </div>
 
             {/* Bio */}

@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@qoe/supabase/server';
 
 function sanitizeNextPath(target: string | null): string {
-  if (!target) return '/home';
-  // Interdire les URLs absolues, les schémas, les double-slashes et les antislashs (Open Redirect OWASP A01:2021)
+  if (!target) return '/';
   const trimmed = target.trim();
   if (
     trimmed.startsWith('/') &&
@@ -13,7 +12,7 @@ function sanitizeNextPath(target: string | null): string {
   ) {
     return trimmed;
   }
-  return '/home';
+  return '/';
 }
 
 export async function GET(request: Request) {
@@ -29,13 +28,13 @@ export async function GET(request: Request) {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
+        // Garantit la ligne User (créée côté tenant si nécessaire). La session
+        // est ensuite partagée avec les autres apps via le cookie de domaine .qoe.fi.
         const { syncUserFromAuth } = await import('@qoe/db/sync-user');
-        const result = await syncUserFromAuth(user);
-        if (result.needsOnboarding) {
-          next = '/onboarding';
-        }
+        await syncUserFromAuth(user);
       }
 
+      // Redirige vers l'article d'origine (next = chemin local, jamais d'URL externe).
       const forwardedHost = request.headers.get('x-forwarded-host');
       const isLocalEnv = process.env.NODE_ENV === 'development';
       if (isLocalEnv) {
@@ -48,5 +47,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth-code-error`);
+  return NextResponse.redirect(`${origin}/?error=auth-code-error`);
 }

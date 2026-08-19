@@ -31,12 +31,15 @@ export default async function AnalyticsPage() {
       totalBookmarks: 0,
       totalHighlights: 0,
       totalInteractions: 0,
+      avgCompletionRate: null,
+      topCategories: [],
       topArticles: [],
     },
     audience: {
       creator: { declared: 0, gender: [], ageRange: [], countries: [], languages: [] },
       platform: { declared: 0, gender: [], ageRange: [], countries: [], languages: [] },
     },
+    umamiAdvanced: { returning: null, hours: [] },
   };
 
   return <AnalyticsDashboardClient initialData={initialData} />;

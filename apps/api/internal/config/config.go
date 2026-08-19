@@ -27,6 +27,8 @@ type Config struct {
 	UmamiPass string
 	// DefaultUmamiWebsiteID utilisé en fallback quand la publication n'en a pas.
 	DefaultUmamiWebsiteID string
+	// UmamiDatabaseURL = DSN read-only vers la DB Postgres d'Umami (récurrents, heatmap).
+	UmamiDatabaseURL string
 }
 
 func Load() *Config {
@@ -45,6 +47,9 @@ func Load() *Config {
 		UmamiUser:             envOr("UMAMI_USERNAME", ""),
 		UmamiPass:             envOr("UMAMI_PASSWORD", ""),
 		DefaultUmamiWebsiteID: envOr("NEXT_PUBLIC_UMAMI_WEBSITE_ID", ""),
+		// Connexion read-only à la DB Postgres d'Umami (visiteurs récurrents,
+		// heatmap horaire — métriques absentes de l'API REST).
+		UmamiDatabaseURL: envOr("UMAMI_DATABASE_URL", ""),
 	}
 }
 

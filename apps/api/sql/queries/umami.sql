@@ -19,3 +19,8 @@ UPDATE "Publication"
 SET "umamiWebsiteId" = $2,
     "updatedAt"      = now()
 WHERE id = $1;
+
+-- name: GetPublicationUmamiWebsiteId :one
+SELECT "umamiWebsiteId"
+FROM "Publication"
+WHERE id = $1;

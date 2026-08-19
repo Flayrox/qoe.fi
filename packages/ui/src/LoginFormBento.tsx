@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle } from 'lucide-react';
 import { createClient } from '@qoe/supabase/client';
@@ -18,6 +18,29 @@ export interface LoginFormBentoProps {
   className?: string;
 }
 
+// ── Démographie signup (optionnelle, jamais obligatoire) ────────────────
+// Les valeurs correspondent aux enums Prisma (Gender / AgeRange).
+const GENDER_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'FEMALE', label: 'Femme' },
+  { value: 'MALE', label: 'Homme' },
+  { value: 'NON_BINARY', label: 'Non-binaire' },
+  { value: 'OTHER', label: 'Autre' },
+  { value: 'PREFER_NOT_TO_SAY', label: 'Préfère ne pas dire' },
+];
+
+const AGE_RANGE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'UNDER_18', label: 'Moins de 18 ans' },
+  { value: 'AGE_18_24', label: '18-24 ans' },
+  { value: 'AGE_25_34', label: '25-34 ans' },
+  { value: 'AGE_35_44', label: '35-44 ans' },
+  { value: 'AGE_45_54', label: '45-54 ans' },
+  { value: 'AGE_55_64', label: '55-64 ans' },
+  { value: 'AGE_65_PLUS', label: '65 ans et +' },
+  { value: 'PREFER_NOT_TO_SAY', label: 'Préfère ne pas dire' },
+];
+
+const PRONOUN_SUGGESTIONS = ['iel', 'il/lui', 'elle', 'they/them', 'on'];
+
 export function LoginFormBento({
   initialMode = 'login',
   actionContext,
@@ -27,13 +50,17 @@ export function LoginFormBento({
   const [authMode, setAuthMode] = useState<'magic-link' | 'password' | 'signup'>(
     initialMode === 'signup' ? 'signup' : 'magic-link'
   );
-  const [signupStep, setSignupStep] = useState<1 | 2>(1);
+  const [signupStep, setSignupStep] = useState<1 | 2 | 3>(1);
   const [direction, setDirection] = useState<number>(1);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
+  const [gender, setGender] = useState<string | null>(null);
+  const [ageRange, setAgeRange] = useState<string | null>(null);
+  const [pronouns, setPronouns] = useState('');
+  const skipDemographicsRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -44,6 +71,7 @@ export function LoginFormBento({
     setSignupStep(1);
     setLocalError(null);
     setMagicLinkSent(false);
+    skipDemographicsRef.current = false;
   }, [initialMode]);
 
   const getContextSubtitle = () => {
@@ -57,7 +85,9 @@ export function LoginFormBento({
     if (actionContext === 'delete')
       return 'Connectez-vous pour gérer et supprimer vos propres publications';
     if (authMode === 'signup') {
-      return signupStep === 1 ? 'Rejoignez le réseau souverain' : 'Sécurisez vos identifiants';
+      if (signupStep === 1) return 'Rejoignez le réseau souverain';
+      if (signupStep === 2) return 'Sécurisez vos identifiants';
+      return 'Dites-nous qui vous êtes — optionnel, ça reste entre nous';
     }
     return 'Accédez à votre espace souverain';
   };
@@ -140,7 +170,13 @@ export function LoginFormBento({
           email,
           password,
           options: {
-            data: { name, username },
+            data: {
+              name,
+              username,
+              gender: !skipDemographicsRef.current ? gender || undefined : undefined,
+              ageRange: !skipDemographicsRef.current ? ageRange || undefined : undefined,
+              pronouns: !skipDemographicsRef.current ? pronouns.trim() || undefined : undefined,
+            },
           },
         });
         if (error) throw error;
@@ -161,7 +197,7 @@ export function LoginFormBento({
     }
   };
 
-  const goToSignupStep = (step: 1 | 2) => {
+  const goToSignupStep = (step: 1 | 2 | 3) => {
     setDirection(step > signupStep ? 1 : -1);
     setSignupStep(step);
     setLocalError(null);
@@ -177,6 +213,19 @@ export function LoginFormBento({
       return;
     }
     goToSignupStep(2);
+  };
+
+  const handleNextStep2 = () => {
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setLocalError('Veuillez renseigner une adresse email valide.');
+      return;
+    }
+    if (password.length < 8) {
+      setLocalError('Votre mot de passe doit contenir au moins 8 caractères.');
+      return;
+    }
+    skipDemographicsRef.current = false;
+    goToSignupStep(3);
   };
 
   const slideVariants = {
@@ -242,6 +291,19 @@ export function LoginFormBento({
                         : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'
                     )}
                     aria-label="Étape 2"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (email.trim() && password.length >= 8) goToSignupStep(3);
+                    }}
+                    className={cn(
+                      'h-2 rounded-full transition-all cursor-pointer',
+                      signupStep === 3
+                        ? 'w-6 bg-primary'
+                        : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'
+                    )}
+                    aria-label="Étape 3"
                   />
                 </div>
               )}
@@ -481,7 +543,7 @@ export function LoginFormBento({
                             <span>→</span>
                           </Button>
                         </div>
-                      ) : (
+                      ) : signupStep === 2 ? (
                         <div className="space-y-3">
                           <div className="space-y-1">
                             <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
@@ -525,6 +587,116 @@ export function LoginFormBento({
                             >
                               ← Retour
                             </button>
+                            <Button
+                              type="button"
+                              onClick={handleNextStep2}
+                              className="flex-1 h-10 font-sans font-bold rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-all text-xs cursor-pointer shadow-md shadow-primary/20"
+                            >
+                              Continuer →
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div>
+                            <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+                              Qu'est-ce qui vous décrit le mieux ?
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {GENDER_OPTIONS.map((opt) => {
+                                const selected = gender === opt.value;
+                                return (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => setGender(selected ? null : opt.value)}
+                                    className={cn(
+                                      'px-3 py-1.5 rounded-full border text-[11px] font-semibold transition-all cursor-pointer',
+                                      selected
+                                        ? 'bg-primary/10 border-primary text-primary'
+                                        : 'bg-muted/30 border-border text-muted-foreground hover:text-card-foreground'
+                                    )}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+                              Votre tranche d'âge
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {AGE_RANGE_OPTIONS.map((opt) => {
+                                const selected = ageRange === opt.value;
+                                return (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => setAgeRange(selected ? null : opt.value)}
+                                    className={cn(
+                                      'px-3 py-1.5 rounded-full border text-[11px] font-semibold transition-all cursor-pointer',
+                                      selected
+                                        ? 'bg-primary/10 border-primary text-primary'
+                                        : 'bg-muted/30 border-border text-muted-foreground hover:text-card-foreground'
+                                    )}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
+                              Vos pronoms (optionnel)
+                            </label>
+                            <input
+                              name="pronouns"
+                              type="text"
+                              value={pronouns}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                setPronouns(e.target.value)
+                              }
+                              placeholder="ex: iel, il/lui, elle, they/them"
+                              className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                            />
+                            <div className="flex flex-wrap gap-1 pt-1.5">
+                              {PRONOUN_SUGGESTIONS.map((p) => (
+                                <button
+                                  key={p}
+                                  type="button"
+                                  onClick={() => setPronouns(p)}
+                                  className="px-2 py-0.5 rounded-md bg-muted/40 border border-border/60 text-[10px] text-muted-foreground hover:text-card-foreground transition-colors cursor-pointer"
+                                >
+                                  {p}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => goToSignupStep(2)}
+                              className="px-4 h-10 rounded-xl border border-border text-muted-foreground hover:text-card-foreground text-xs font-semibold cursor-pointer transition-colors"
+                            >
+                              ← Retour
+                            </button>
+                            <Button
+                              type="submit"
+                              onClick={() => {
+                                skipDemographicsRef.current = true;
+                              }}
+                              disabled={loading}
+                              variant="outline"
+                              className="h-10 px-4 font-sans font-bold rounded-xl border-border text-muted-foreground hover:text-card-foreground text-xs cursor-pointer transition-colors"
+                            >
+                              Passer
+                            </Button>
                             <Button
                               type="submit"
                               disabled={loading}

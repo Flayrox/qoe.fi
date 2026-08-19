@@ -300,6 +300,17 @@ func (q *Queries) GetUserByIDFull(ctx context.Context, id string) (GetUserByIDFu
 	return i, err
 }
 
+const getUserPronouns = `-- name: GetUserPronouns :one
+SELECT "pronouns" FROM "User" WHERE id = $1
+`
+
+func (q *Queries) GetUserPronouns(ctx context.Context, id string) (pgtype.Text, error) {
+	row := q.db.QueryRow(ctx, getUserPronouns, id)
+	var pronouns pgtype.Text
+	err := row.Scan(&pronouns)
+	return pronouns, err
+}
+
 const insertBookmark = `-- name: InsertBookmark :exec
 INSERT INTO "Bookmark" (id, "readerId", "articleId")
 VALUES (gen_random_uuid()::text, $1, $2)

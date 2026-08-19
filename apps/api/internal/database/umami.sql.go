@@ -11,6 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getPublicationUmamiWebsiteId = `-- name: GetPublicationUmamiWebsiteId :one
+SELECT "umamiWebsiteId"
+FROM "Publication"
+WHERE id = $1
+`
+
+func (q *Queries) GetPublicationUmamiWebsiteId(ctx context.Context, id string) (pgtype.Text, error) {
+	row := q.db.QueryRow(ctx, getPublicationUmamiWebsiteId, id)
+	var umamiWebsiteId pgtype.Text
+	err := row.Scan(&umamiWebsiteId)
+	return umamiWebsiteId, err
+}
+
 const listPublicationsWithoutUmami = `-- name: ListPublicationsWithoutUmami :many
 
 SELECT p.id,

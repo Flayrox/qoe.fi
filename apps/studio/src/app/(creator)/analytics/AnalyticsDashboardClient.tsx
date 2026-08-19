@@ -9,6 +9,7 @@ import { ReferrersBlock } from './components/ReferrersBlock';
 import { DevicesAndGeoBlock } from './components/DevicesAndGeoBlock';
 import { ProductMetricsBlock } from './components/ProductMetricsBlock';
 import { AudienceInsightsBlock } from './components/AudienceInsightsBlock';
+import { ReturningAndHeatmapBlock } from './components/ReturningAndHeatmapBlock';
 import { ArticleInspectorModal } from './components/ArticleInspectorModal';
 
 interface AnalyticsDashboardClientProps {
@@ -214,6 +215,9 @@ export function AnalyticsDashboardClient({ initialData }: AnalyticsDashboardClie
 
       {/* ─── Audience Demographics (creator + platform) ──────────── */}
       <AudienceInsightsBlock insights={data.audience} />
+
+      {/* ─── Nouveaux vs Récurrents + Heatmap heures ─────────────── */}
+      <ReturningAndHeatmapBlock insights={data.umamiAdvanced} />
 
       {/* ─── Timeseries Area Chart ───────────────────────────────── */}
       <TimeseriesChart data={data.timeseries} period={selectedPeriod} />

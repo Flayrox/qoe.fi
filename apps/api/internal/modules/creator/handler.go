@@ -373,13 +373,17 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Nombre d'abonnements du propriétaire de la publication (CountFollowing)
-	// + id du User propriétaire (isOwnProfile côté client).
+	// + id du User propriétaire (isOwnProfile côté client) + pronoms (profil inclusif).
 	var followingCount int32
 	var ownerUserID string
+	var pronouns *string
 	if ownerID, err := h.q.GetPublicationOwner(r.Context(), row.ID); err == nil {
 		ownerUserID = ownerID
 		if n, err := h.q.CountFollowing(r.Context(), toUUID(ownerID)); err == nil {
 			followingCount = n
+		}
+		if p, err := h.q.GetUserPronouns(r.Context(), ownerID); err == nil && p.Valid {
+			pronouns = &p.String
 		}
 	}
 
@@ -395,6 +399,7 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		"headerImageUrl": textPtr(row.HeaderImageUrl),
 		"isCertified":    row.IsCertified,
 		"isFollowing":    isFollowing,
+		"pronouns":       pronouns,
 		"createdAt":      timestampPtr(row.CreatedAt),
 		"type":           string(row.Type),
 		"_count":         map[string]int32{"followers": row.FollowersCount, "following": followingCount, "articles": row.ArticlesCount},

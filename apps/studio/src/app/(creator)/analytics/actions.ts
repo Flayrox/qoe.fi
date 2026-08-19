@@ -13,6 +13,7 @@ import {
   UmamiPageMetric,
   UmamiTimeseriesPoint,
 } from '@qoe/analytics/server';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 
 export type TimePeriod = '24h' | '7d' | '30d' | '90d';
 
@@ -30,6 +31,7 @@ export interface AnalyticsResponseData {
   articleTitlesMap: Record<string, string>;
   productMetrics: ProductMetrics;
   audience: AudienceInsights;
+  umamiAdvanced: UmamiAdvancedInsights;
 }
 
 export interface ArticleDetailData {
@@ -48,6 +50,8 @@ export interface ProductMetrics {
   totalBookmarks: number;
   totalHighlights: number;
   totalInteractions: number;
+  avgCompletionRate: number | null;
+  topCategories: { name: string; count: number }[];
   topArticles: {
     slug: string;
     title: string;
@@ -79,6 +83,23 @@ export interface AudienceDemographics {
 export interface AudienceInsights {
   creator: AudienceDemographics;
   platform: AudienceDemographics;
+}
+
+// ── Insights Umami avancés (DB Umami via l'API Go) ─────────────────────
+export interface ReturningVisitors {
+  total: number;
+  newVisitors: number;
+  returningVisitors: number;
+}
+
+export interface HourVisit {
+  hour: number;
+  visits: number;
+}
+
+export interface UmamiAdvancedInsights {
+  returning: ReturningVisitors | null;
+  hours: HourVisit[];
 }
 
 const GENDER_LABELS: Record<string, string> = {
@@ -202,6 +223,8 @@ export async function getCreatorAnalyticsData(
             slug: true,
             title: true,
             createdAt: true,
+            completionRate: true,
+            category: { select: { name: true } },
             _count: { select: { bookmarks: true, comments: true, highlights: true } },
             highlights: {
               select: {
@@ -246,12 +269,33 @@ export async function getCreatorAnalyticsData(
       articleTitlesMap[`/${article.slug}`] = article.title;
     });
 
+    // Top catégories (nombre d'articles publiés par catégorie) + complétion moyenne.
+    const categoryCounts = new Map<string, number>();
+    const completionRates: number[] = [];
+    creator.articles.forEach((a) => {
+      if (a.category?.name) {
+        categoryCounts.set(a.category.name, (categoryCounts.get(a.category.name) ?? 0) + 1);
+      }
+      completionRates.push(a.completionRate);
+    });
+    const topCategories = [...categoryCounts.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+    const avgCompletionRate =
+      completionRates.length > 0
+        ? Math.round((completionRates.reduce((s, v) => s + v, 0) / completionRates.length) * 100) /
+          100
+        : null;
+
     const productMetrics: ProductMetrics = {
       subscriberCount: creator._count.subscribers,
       subscriberDelta7d: creator.subscribers.length,
       totalBookmarks: topArticles.reduce((s, a) => s + a.bookmarks, 0),
       totalHighlights: topArticles.reduce((s, a) => s + a.highlights, 0),
       totalInteractions: topArticles.reduce((s, a) => s + a.interactions, 0),
+      avgCompletionRate,
+      topCategories,
       topArticles,
     };
 
@@ -276,6 +320,7 @@ export async function getCreatorAnalyticsData(
           articleTitlesMap,
           productMetrics,
           audience,
+          umamiAdvanced: { returning: null, hours: [] },
         },
       };
     }
@@ -306,6 +351,14 @@ export async function getCreatorAnalyticsData(
         fetchUmamiMetrics(targetWebsiteId, startAt, now, 'country', 5),
       ]);
 
+    // Insights avancés (DB Umami via l'API Go) : visiteurs récurrents vs
+    // nouveaux + heatmap horaire. Best-effort : silencieux si indisponible.
+    const umamiAdvanced: UmamiAdvancedInsights = await fetchUmamiAdvancedInsights(
+      creator.id,
+      startAt,
+      now
+    );
+
     return {
       data: {
         configured: true,
@@ -321,6 +374,7 @@ export async function getCreatorAnalyticsData(
         articleTitlesMap,
         productMetrics,
         audience,
+        umamiAdvanced,
       },
     };
   } catch (err: unknown) {
@@ -335,6 +389,23 @@ export async function getCreatorAnalyticsData(
 /**
  * 📊 Inspecter les métriques détaillées d'un article en particulier (Modal Inspection)
  */
+async function fetchUmamiAdvancedInsights(
+  publicationId: string,
+  startAt: number,
+  endAt: number
+): Promise<UmamiAdvancedInsights> {
+  try {
+    const params = `publicationId=${encodeURIComponent(publicationId)}&startAt=${startAt}&endAt=${endAt}`;
+    const [returning, hours] = await Promise.all([
+      goFetch<ReturningVisitors>(`/v1/analytics/umami/returning?${params}`).catch(() => null),
+      goFetch<HourVisit[]>(`/v1/analytics/umami/hours?${params}`).catch(() => []),
+    ]);
+    return { returning, hours };
+  } catch {
+    return { returning: null, hours: [] };
+  }
+}
+
 export async function getArticleAnalyticsDetail(
   urlPath: string,
   period: TimePeriod = '30d'

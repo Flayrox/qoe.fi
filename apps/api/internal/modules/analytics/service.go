@@ -4,6 +4,7 @@ package analytics
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -44,10 +45,20 @@ type AudienceSummary struct {
 type Service struct {
 	pool *pgxpool.Pool
 	q    *db.Queries
+
+	// umami est un pool en lecture seule vers la DB Postgres d'Umami
+	// (vide si UMAMI_DATABASE_URL n'est pas configurée).
+	umami *pgxpool.Pool
 }
 
-func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool, q: db.New(pool)}
+func NewService(pool *pgxpool.Pool, umamiDSN string) *Service {
+	var umamiPool *pgxpool.Pool
+	if p, err := connectUmamiPool(umamiDSN); err != nil {
+		log.Printf("[analytics] umami pool ignoré: %v", err)
+	} else {
+		umamiPool = p
+	}
+	return &Service{pool: pool, q: db.New(pool), umami: umamiPool}
 }
 
 // canAccess vérifie que l'utilisateur est owner/editor de la publication.
@@ -154,6 +165,21 @@ func (s *Service) TopContent(ctx context.Context, userID, publicationID string, 
 		items = items[:limit]
 	}
 	return items, nil
+}
+
+// publicationWebsiteID vérifie l'accès et résout l'umamiWebsiteId de la publication.
+func (s *Service) publicationWebsiteID(ctx context.Context, userID, publicationID string) (string, error) {
+	if !s.canAccess(ctx, userID, publicationID) {
+		return "", errForbidden
+	}
+	id, err := s.q.GetPublicationUmamiWebsiteId(ctx, publicationID)
+	if err != nil {
+		return "", err
+	}
+	if !id.Valid || id.String == "" {
+		return "", errors.New("aucun website Umami provisionné pour cette publication")
+	}
+	return id.String, nil
 }
 
 // Audience retourne la répartition des abonnés.
