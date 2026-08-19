@@ -3,10 +3,10 @@
 # =====================================================================
 # 📖 14 services (nom de service = sous-domaine quand il existe) :
 #   1. caddy      : reverse proxy + TLS (seul service exposé au public)
-#   2. tenants    : Next.js blogs créateurs (wildcard *.qoe.fi) — apps/web
-#   3. start      : Next.js marketing (start.qoe.fi) — apps/landing
-#   4. console    : Next.js reader + auth (qoe.fi) — apps/feed
-#   5. studio     : Next.js créateurs (studio.qoe.fi) — apps/dashboard
+#   2. tenants    : Next.js blogs créateurs (wildcard *.qoe.fi) — apps/tenants
+#   3. hi         : Next.js marketing (hi.qoe.fi) — apps/hi
+#   4. core       : Next.js reader + auth (qoe.fi) — apps/core
+#   5. studio     : Next.js créateurs (studio.qoe.fi) — apps/studio
 #   6. admin      : Next.js plateforme (admin.qoe.fi)
 #   7. api        : backend-of-record Go (api.qoe.fi) — apps/api-go
 #   8. worker      : worker asynq Go (webhooks, newsletter, embeddings, collab)
@@ -64,13 +64,13 @@ services:
     depends_on:
       tenants:
         condition: service_started
-      console:
+      core:
         condition: service_started
       studio:
         condition: service_started
       admin:
         condition: service_started
-      start:
+      hi:
         condition: service_started
 
     # 🔒 Réseau PUBLIC uniquement : atteint les frontends (qoefi-public)
@@ -93,13 +93,13 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # 🌐 TENANTS : Next.js blogs créateurs (wildcard *.qoe.fi) — apps/web
+  # 🌐 TENANTS : Next.js blogs créateurs (wildcard *.qoe.fi) — apps/tenants
   # ───────────────────────────────────────────────────────────────────
   tenants:
     build:
       context: .
       dockerfile: Dockerfile
-      target: web
+      target: tenants
     image: qoefi-tenants:latest
     container_name: qoefi-tenants
     restart: unless-stopped
@@ -118,7 +118,7 @@ services:
       # URLs publiques (utilisées pour les redirects, emails, etc.)
       NEXT_PUBLIC_APP_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_CONSOLE_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
-      NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_LANDING_URL: https://hi.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
       # Backend-of-record Go (réseau privé Docker, jamais public).
       QOE_API_GO_URL: http://api:8080
@@ -152,15 +152,15 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # 📣 START : Next.js marketing (start.qoe.fi) — apps/landing
+  # 📣 HI : Next.js marketing (hi.qoe.fi) — apps/hi
   # ───────────────────────────────────────────────────────────────────
-  start:
+  hi:
     build:
       context: .
       dockerfile: Dockerfile
-      target: landing
-    image: qoefi-start:latest
-    container_name: qoefi-start
+      target: hi
+    image: qoefi-hi:latest
+    container_name: qoefi-hi
     restart: unless-stopped
 
     expose:
@@ -175,7 +175,7 @@ services:
       HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_APP_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_CONSOLE_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
-      NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_LANDING_URL: https://hi.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
       # Backend-of-record Go (réseau privé Docker, jamais public).
       QOE_API_GO_URL: http://api:8080
@@ -208,15 +208,15 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # 📰 CONSOLE : Next.js public reader + auth (qoe.fi / www.qoe.fi) — apps/feed
+  # 📰 CORE : Next.js public reader + auth (qoe.fi / www.qoe.fi) — apps/core
   # ───────────────────────────────────────────────────────────────────
-  console:
+  core:
     build:
       context: .
       dockerfile: Dockerfile
-      target: feed
-    image: qoefi-console:latest
-    container_name: qoefi-console
+      target: core
+    image: qoefi-core:latest
+    container_name: qoefi-core
     restart: unless-stopped
 
     expose:
@@ -231,7 +231,7 @@ services:
       HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_APP_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_CONSOLE_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
-      NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_LANDING_URL: https://hi.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
       # Backend-of-record Go (réseau privé Docker, jamais public).
       QOE_API_GO_URL: http://api:8080
@@ -265,13 +265,13 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # 🎨 STUDIO : Next.js creator (studio.qoe.fi) — apps/dashboard
+  # 🎨 STUDIO : Next.js creator (studio.qoe.fi) — apps/studio
   # ───────────────────────────────────────────────────────────────────
   studio:
     build:
       context: .
       dockerfile: Dockerfile
-      target: dashboard
+      target: studio
     image: qoefi-studio:latest
     container_name: qoefi-studio
     restart: unless-stopped
@@ -288,7 +288,7 @@ services:
       HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_APP_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_CONSOLE_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
-      NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_LANDING_URL: https://hi.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
       # Backend-of-record Go (réseau privé Docker, jamais public).
       QOE_API_GO_URL: http://api:8080
@@ -345,7 +345,7 @@ services:
       HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_APP_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_CONSOLE_URL: https://${PRIMARY_DOMAIN:-qoe.fi}
-      NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
+      NEXT_PUBLIC_LANDING_URL: https://hi.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
       # Backend-of-record Go (réseau privé Docker, jamais public).
       QOE_API_GO_URL: http://api:8080

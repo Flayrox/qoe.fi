@@ -1,7 +1,7 @@
 # =====================================================================
 # 🐳 docker-compose.dev.yml — qoe.fi monorepo (DÉVELOPPEMENT)
 # =====================================================================
-# 📖 HMR activé sur tenants + console (bind mount du code source).
+# 📖 HMR activé sur tenants + core (bind mount du code source).
 #    Tu modifies un fichier dans VSCode → le container le voit
 #    immédiatement, Next.js recompile.
 #
@@ -11,8 +11,8 @@
 #    docker compose -f docker-compose.dev.yml up
 #
 # 🌐 Accès :
-#    Start (start.qoe.fi)      : http://localhost:3001
-#    Console (qoe.fi)          : http://localhost:3010
+#    Hi (hi.qoe.fi)            : http://localhost:3001
+#    Core (qoe.fi)             : http://localhost:3010
 #    API (api.qoe.fi)          : http://localhost:3002
 #    Prisma Studio             : http://localhost:5555
 #    PostgreSQL                : localhost:5433 (via pgAdmin/DBeaver)
@@ -170,11 +170,11 @@ services:
 
     # Bind mount du code source (pas besoin de rebuild pour migrate)
     volumes:
-      - ./apps/landing:/app/apps/landing
-      - ./apps/feed:/app/apps/feed
-      - ./apps/dashboard:/app/apps/dashboard
+      - ./apps/hi:/app/apps/hi
+      - ./apps/core:/app/apps/core
+      - ./apps/studio:/app/apps/studio
       - ./apps/admin:/app/apps/admin
-      - ./apps/web:/app/apps/web
+      - ./apps/tenants:/app/apps/tenants
       - ./packages:/app/packages
       - ./prisma.config.ts:/app/prisma.config.ts
       - ./package.json:/app/package.json
@@ -223,18 +223,18 @@ services:
 
     # 🎯 BIND MOUNT : ton code source est monté en temps réel
     volumes:
-      - ./apps/web:/app/apps/web
+      - ./apps/tenants:/app/apps/tenants
       - ./packages:/app/packages
       - ./package.json:/app/package.json
       - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
       - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
       - ./.npmrc:/app/.npmrc
       # Exclut node_modules du container (utilise celui du container)
-      - /app/apps/web/node_modules
-      - /app/apps/web/.next
+      - /app/apps/tenants/node_modules
+      - /app/apps/tenants/.next
       - /app/packages/*/node_modules
 
-    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@11.21.0 --activate && pnpm install --frozen-lockfile --filter @qoe/web... && cd apps/web && pnpm dev"
+    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@11.21.0 --activate && pnpm install --frozen-lockfile --filter @qoe/tenants... && cd apps/tenants && pnpm dev"
 
     depends_on:
       db:
@@ -243,11 +243,11 @@ services:
         condition: service_completed_successfully
 
   # ───────────────────────────────────────────────────────────────────
-  # 📣 START : Next.js marketing (HMR)
+  # 📣 HI : Next.js marketing (HMR)
   # ───────────────────────────────────────────────────────────────────
-  start:
+  hi:
     image: node:22-alpine
-    container_name: qoefi-dev-start
+    container_name: qoefi-dev-hi
     restart: unless-stopped
 
     working_dir: /app
@@ -268,17 +268,17 @@ services:
       REDIS_URL: redis://redis:6379
 
     volumes:
-      - ./apps/landing:/app/apps/landing
+      - ./apps/hi:/app/apps/hi
       - ./packages:/app/packages
       - ./package.json:/app/package.json
       - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
       - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
       - ./.npmrc:/app/.npmrc
-      - /app/apps/landing/node_modules
-      - /app/apps/landing/.next
+      - /app/apps/hi/node_modules
+      - /app/apps/hi/.next
       - /app/packages/*/node_modules
 
-    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@11.21.0 --activate && pnpm install --frozen-lockfile --filter @qoe/landing... && cd apps/landing && pnpm dev"
+    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@11.21.0 --activate && pnpm install --frozen-lockfile --filter @qoe/hi... && cd apps/hi && pnpm dev"
 
     depends_on:
       db:
@@ -287,11 +287,11 @@ services:
         condition: service_completed_successfully
 
   # ───────────────────────────────────────────────────────────────────
-  # 📰 CONSOLE : Next.js reader (HMR)
+  # 📰 CORE : Next.js reader (HMR)
   # ───────────────────────────────────────────────────────────────────
-  console:
+  core:
     image: node:22-alpine
-    container_name: qoefi-dev-console
+    container_name: qoefi-dev-core
     restart: unless-stopped
 
     working_dir: /app
@@ -312,17 +312,17 @@ services:
       REDIS_URL: redis://redis:6379
 
     volumes:
-      - ./apps/feed:/app/apps/feed
+      - ./apps/core:/app/apps/core
       - ./packages:/app/packages
       - ./package.json:/app/package.json
       - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
       - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
       - ./.npmrc:/app/.npmrc
-      - /app/apps/feed/node_modules
-      - /app/apps/feed/.next
+      - /app/apps/core/node_modules
+      - /app/apps/core/.next
       - /app/packages/*/node_modules
 
-    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@11.21.0 --activate && pnpm install --frozen-lockfile --filter @qoe/feed... && cd apps/feed && pnpm dev"
+    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@11.21.0 --activate && pnpm install --frozen-lockfile --filter @qoe/core... && cd apps/core && pnpm dev"
 
     depends_on:
       db:
@@ -337,6 +337,7 @@ services:
     image: node:22-alpine
     container_name: qoefi-dev-studio
     restart: unless-stopped
+
 
     working_dir: /app
     ports:
@@ -356,17 +357,17 @@ services:
       REDIS_URL: redis://redis:6379
 
     volumes:
-      - ./apps/dashboard:/app/apps/dashboard
+      - ./apps/studio:/app/apps/studio
       - ./packages:/app/packages
       - ./package.json:/app/package.json
       - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
       - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
       - ./.npmrc:/app/.npmrc
-      - /app/apps/dashboard/node_modules
-      - /app/apps/dashboard/.next
+      - /app/apps/studio/node_modules
+      - /app/apps/studio/.next
       - /app/packages/*/node_modules
 
-    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@11.21.0 --activate && pnpm install --frozen-lockfile --filter @qoe/dashboard... && cd apps/dashboard && pnpm dev"
+    command: sh -c "cd /app && corepack enable && corepack prepare pnpm@11.21.0 --activate && pnpm install --frozen-lockfile --filter @qoe/studio... && cd apps/studio && pnpm dev"
 
     depends_on:
       db:

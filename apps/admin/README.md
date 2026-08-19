@@ -4,7 +4,7 @@
 
 ## Core Mechanisms
 
-- **System Config:** Modifies generic data that powers `apps/landing`.
+- **System Config:** Modifies generic data that powers `apps/hi`.
 - **Translations:** Interfaces with `@qoe/i18n` to correct copy globally.
 
 ## File Exhaustive Listing

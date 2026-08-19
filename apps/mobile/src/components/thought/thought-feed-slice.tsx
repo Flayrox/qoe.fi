@@ -10,7 +10,7 @@ import type { FeedSlice } from '@qoe/api-client/mobile';
 
 // =====================================================================
 // 🧵 ThoughtFeedSlice — Rendu d'un élément du feed (port de
-//    apps/feed/.../ThoughtFeedSlice.tsx)
+//    apps/core/.../ThoughtFeedSlice.tsx)
 // =====================================================================
 // 4 cas :
 //   1. Post isolé (pas de parent/root) → ThoughtCard simple.

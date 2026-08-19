@@ -31,15 +31,15 @@ qoe.fi is structured as a modern Monorepo utilizing **Turborepo** and **pnpm wor
 
 The front-facing and API surface areas of the platform.
 
-1. **`apps/landing` (`start.qoe.fi`)**
+1. **`apps/hi` (`hi.qoe.fi`)**
    The public showcase portal. Contains legal pages (GDPR, CGU) and the CMS presentation layer. Requires no authentication.
-2. **`apps/feed` (`qoe.fi`)**
+2. **`apps/core` (`qoe.fi`)**
    The central reader feed, bookmarks library, and the global SSO login gateway. Implements real-time feed buffering (`useRealtimeFeedBuffer`) and virtualized infinite scrolling.
-3. **`apps/dashboard` (`dashboard.qoe.fi`)**
+3. **`apps/studio` (`studio.qoe.fi`)**
    The creator studio. Contains the advanced Tiptap WYSIWYG editor (with Paywall Dividers and Annotation Marks) and Stripe billing integrations.
 4. **`apps/admin` (`admin.qoe.fi`)**
    The super-admin cockpit for platform moderation, statistics, and global system configuration.
-5. **`apps/web` (`*.qoe.fi` / Custom Domains)**
+5. **`apps/tenants` (`*.qoe.fi` / Custom Domains)**
    The highly optimized, multi-tenant rendering engine for creator blogs. Includes dynamic routing via Caddy, Paywall cutting, and virtualized text annotation UI.
 6. **`apps/api-go` (`api.qoe.fi`)**
    Backend Go unique de la plateforme (feed, posts, articles, notifications, analytics, webhooks, recherche Meilisearch). C'est le *backend-of-record* : les server actions y proxisent via `QOE_API_GO_URL`.
@@ -54,7 +54,6 @@ The Single Source of Truth for logic, data, and configuration.
 - **`@qoe/supabase`**: Isomorphic Supabase client initialization handling complex Cookie behaviors for SSR, Middlewares, and client-side components.
 - **`@qoe/api-client`**: TanStack Query data layer encapsulating hooks, optimistic UI mutations (Like, Bookmark, Repost), and Server Action typings.
 - **`@qoe/billing`**: Stripe Webhook handlers, subscription plans, and the server-side Paywall AST Truncation engine.
-- **`@qoe/workers`**: Strongly typed async event bus (BullMQ) for Meilisearch sync, Stripe Webhooks, and fan-out newsletters (le backend Go utilise asynq via `apps/api-go/cmd/worker`).
 - **`@qoe/ui`**: Shared UI components and Shadcn UI library implementations (Command Menus, Modals).
 - **`@qoe/theme`**: Centralized design tokens and CSS variable registries to enforce UI consistency across all apps.
 - **`@qoe/analytics`**, **`@qoe/i18n`**, **`@qoe/utils`**, **`@qoe/tsconfig`**: Utilities for tracking, translation, formatting, and strict TS configurations.
@@ -100,10 +99,10 @@ caddy start --config Caddyfile.dev
 pnpm dev
 
 # Or run a single app (+ its API when needed) for much faster cold start:
-pnpm dev:feed        # feed + api (ports 3010 + 3002)
-pnpm dev:web         # web + api
-pnpm dev:dashboard   # dashboard + api
-pnpm dev:landing     # landing only
+pnpm dev:core        # core + api (ports 3010 + 3002)
+pnpm dev:tenants     # tenants + api
+pnpm dev:studio      # studio + api
+pnpm dev:hi          # hi only
 pnpm dev:admin       # admin only
 pnpm dev:api         # api only
 ```

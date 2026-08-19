@@ -2,21 +2,20 @@
 # 🐳 Dockerfile multi-target — qoe.fi monorepo
 # =====================================================================
 # 📖 Un SEUL Dockerfile qui build les cibles Next.js (l'API Go et le
-#    worker asynq ont leur propre Dockerfile dans apps/api-go). Les targets
-#    suivent les DOSSIERS (apps/web, apps/landing…) ; les images suivent les
-#    services compose (qoefi-tenants, qoefi-start, qoefi-console…) :
-#    - web      : apps/web (Next.js tenants, wildcard *.qoe.fi)
-#    - landing  : apps/landing (Next.js marketing, start.qoe.fi)
-#    - feed     : apps/feed (Next.js reader, qoe.fi)
-#    - dashboard: apps/dashboard (Next.js studio, studio.qoe.fi)
+#    worker asynq ont leur propre Dockerfile dans apps/api-go). Targets,
+#    dossiers, packages et services sont alignés :
+#    - tenants  : apps/tenants (Next.js blogs, wildcard *.qoe.fi)
+#    - hi       : apps/hi (Next.js marketing, hi.qoe.fi)
+#    - core     : apps/core (Next.js reader + auth, qoe.fi)
+#    - studio   : apps/studio (Next.js créateurs, studio.qoe.fi)
 #    - admin    : apps/admin (Next.js admin, admin.qoe.fi)
 #    - migrate  : one-shot Prisma migrate deploy
 #
 # 🎯 Usage (tag image = nom de service compose) :
-#    docker build --target web -t qoefi-tenants .
-#    docker build --target landing -t qoefi-start .
-#    docker build --target feed -t qoefi-console .
-#    docker build --target dashboard -t qoefi-studio .
+#    docker build --target tenants -t qoefi-tenants .
+#    docker build --target hi -t qoefi-hi .
+#    docker build --target core -t qoefi-core .
+#    docker build --target studio -t qoefi-studio .
 #    docker build --target admin -t qoefi-admin .
 #
 # 📖 Stratégie : stages de base communs + stages spécifiques
@@ -49,10 +48,10 @@ RUN pnpm --filter @qoe/db run prisma:generate
 # Assure que les variables d'environnement de build Next.js (comme les URL Supabase) sont disponibles pour la compilation dans chaque application du monorepo
 RUN if [ -f .env.docker ]; then \
       cp .env.docker .env && \
-      cp .env.docker apps/web/.env && \
-      cp .env.docker apps/landing/.env && \
-      cp .env.docker apps/feed/.env && \
-      cp .env.docker apps/dashboard/.env && \
+      cp .env.docker apps/tenants/.env && \
+      cp .env.docker apps/hi/.env && \
+      cp .env.docker apps/core/.env && \
+      cp .env.docker apps/studio/.env && \
       cp .env.docker apps/admin/.env; \
     fi
 
@@ -69,9 +68,9 @@ RUN --mount=type=cache,target=/app/.turbo NODE_OPTIONS="--max-old-space-size=204
 # ═════════════════════════════════════════════════════════════════════
 
 # ─────────────────────────────────────────────────────────────────────
-# 🌐 TARGET : WEB (Next.js public — start.qoe.fi + tenants)
+# 🌐 TARGET : TENANTS (Next.js blogs — wildcard *.qoe.fi)
 # ─────────────────────────────────────────────────────────────────────
-FROM node:22-alpine AS web
+FROM node:22-alpine AS tenants
 RUN apk add --no-cache libc6-compat openssl wget
 WORKDIR /app
 ENV NODE_ENV=production
@@ -83,9 +82,9 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # Copie le build standalone (auto-suffisant : deps minimales)
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/tenants/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/tenants/.next/static ./apps/tenants/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/tenants/public ./apps/tenants/public
 
 USER nextjs
 EXPOSE 3000
@@ -93,12 +92,12 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health.svg || exit 1
 
-CMD ["node", "apps/web/server.js"]
+CMD ["node", "apps/tenants/server.js"]
 
 # ─────────────────────────────────────────────────────────────────────
-# 📣 TARGET : LANDING (Next.js — start.qoe.fi)
+# 📣 TARGET : HI (Next.js marketing — hi.qoe.fi)
 # ─────────────────────────────────────────────────────────────────────
-FROM node:22-alpine AS landing
+FROM node:22-alpine AS hi
 RUN apk add --no-cache libc6-compat openssl wget
 WORKDIR /app
 ENV NODE_ENV=production
@@ -108,9 +107,9 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-COPY --from=builder --chown=nextjs:nodejs /app/apps/landing/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/landing/.next/static ./apps/landing/.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/apps/landing/public ./apps/landing/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/hi/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/hi/.next/static ./apps/hi/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/hi/public ./apps/hi/public
 
 USER nextjs
 EXPOSE 3000
@@ -118,12 +117,12 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health.svg || exit 1
 
-CMD ["node", "apps/landing/server.js"]
+CMD ["node", "apps/hi/server.js"]
 
 # ─────────────────────────────────────────────────────────────────────
-# 📰 TARGET : FEED (Next.js — qoe.fi)
+# 📰 TARGET : CORE (Next.js reader + auth — qoe.fi)
 # ─────────────────────────────────────────────────────────────────────
-FROM node:22-alpine AS feed
+FROM node:22-alpine AS core
 RUN apk add --no-cache libc6-compat openssl wget
 WORKDIR /app
 ENV NODE_ENV=production
@@ -133,9 +132,9 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-COPY --from=builder --chown=nextjs:nodejs /app/apps/feed/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/feed/.next/static ./apps/feed/.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/apps/feed/public ./apps/feed/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/core/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/core/.next/static ./apps/core/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/core/public ./apps/core/public
 
 USER nextjs
 EXPOSE 3000
@@ -143,12 +142,12 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health.svg || exit 1
 
-CMD ["node", "apps/feed/server.js"]
+CMD ["node", "apps/core/server.js"]
 
 # ─────────────────────────────────────────────────────────────────────
-# 🎨 TARGET : DASHBOARD (Next.js — dashboard.qoe.fi)
+# 🎨 TARGET : STUDIO (Next.js — studio.qoe.fi)
 # ─────────────────────────────────────────────────────────────────────
-FROM node:22-alpine AS dashboard
+FROM node:22-alpine AS studio
 RUN apk add --no-cache libc6-compat openssl wget
 WORKDIR /app
 ENV NODE_ENV=production
@@ -158,9 +157,9 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-COPY --from=builder --chown=nextjs:nodejs /app/apps/dashboard/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/dashboard/.next/static ./apps/dashboard/.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/apps/dashboard/public ./apps/dashboard/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/studio/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/studio/.next/static ./apps/studio/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/studio/public ./apps/studio/public
 
 USER nextjs
 EXPOSE 3000
@@ -168,7 +167,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health.svg || exit 1
 
-CMD ["node", "apps/dashboard/server.js"]
+CMD ["node", "apps/studio/server.js"]
 
 # ─────────────────────────────────────────────────────────────────────
 # 🛡️ TARGET : ADMIN (Next.js — admin.qoe.fi)

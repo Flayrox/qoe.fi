@@ -47,10 +47,10 @@ describe('Empirical Challenge: Subpath Export & TS Contracts Verification', () =
 
   it('3. TS paths mapping in consuming apps matches subpath export', () => {
     const webTsConfig = JSON.parse(
-      fs.readFileSync(path.join(rootDir, 'apps/web/tsconfig.json'), 'utf-8')
+      fs.readFileSync(path.join(rootDir, 'apps/tenants/tsconfig.json'), 'utf-8')
     );
     const feedTsConfig = JSON.parse(
-      fs.readFileSync(path.join(rootDir, 'apps/feed/tsconfig.json'), 'utf-8')
+      fs.readFileSync(path.join(rootDir, 'apps/core/tsconfig.json'), 'utf-8')
     );
 
     expect(webTsConfig.compilerOptions.paths['@qoe/ui/*']).toEqual(['../../packages/ui/src/*']);

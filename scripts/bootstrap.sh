@@ -323,7 +323,7 @@ step_up() {
   ( cd "$APP_DIR" && docker compose up -d ) || { fail "docker compose up"; return 1; }
   echo "  → Attente du démarrage…"
   sleep 15
-  ( cd "$APP_DIR" && docker compose ps --format '{{.Name}}: {{.Status}}' | grep -E 'qoefi-(caddy|console|start|studio|admin|tenants|api|worker|embedding)' ) || true
+  ( cd "$APP_DIR" && docker compose ps --format '{{.Name}}: {{.Status}}' | grep -E 'qoefi-(caddy|core|hi|studio|admin|tenants|api|worker|embedding)' ) || true
 }
 
 # ── Étape 8 : vérifications de bout en bout ──────────────────────────────────
@@ -333,8 +333,8 @@ step_up() {
 # SANS --resolve pour confirmer la propagation.
 step_verify() {
   step 8 "Vérifications de bout en bout (via le serveur local, avant bascule DNS)"
-  resolve="--resolve api.qoe.fi:443:127.0.0.1 --resolve qoe.fi:443:127.0.0.1 --resolve start.qoe.fi:443:127.0.0.1 --resolve studio.qoe.fi:443:127.0.0.1"
-  for url in "https://api.qoe.fi/health" "https://qoe.fi" "https://start.qoe.fi" "https://studio.qoe.fi"; do
+  resolve="--resolve api.qoe.fi:443:127.0.0.1 --resolve qoe.fi:443:127.0.0.1 --resolve hi.qoe.fi:443:127.0.0.1 --resolve studio.qoe.fi:443:127.0.0.1"
+  for url in "https://api.qoe.fi/health" "https://qoe.fi" "https://hi.qoe.fi" "https://studio.qoe.fi"; do
     code=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 15 $resolve "$url")
     if [ "$code" = "200" ] || [ "$code" = "307" ]; then ok "$url → $code"; else warn "$url → $code"; fi
   done

@@ -9,7 +9,7 @@
 import { getMonorepoUrl } from './constants';
 
 export const routes = {
-  /** 📖 Reader Feed App (`apps/feed`) */
+  /** 📖 Reader Core App (`apps/core`) */
   feed: {
     home: () => '/home',
     login: (options?: { signup?: boolean; redirect?: string }) => {
@@ -44,7 +44,7 @@ export const routes = {
     starterPack: (id: string) => `/starter-packs/${encodeURIComponent(id)}`,
   },
 
-  /** 🎨 Creator Studio Dashboard App (`apps/dashboard`) */
+  /** 🎨 Creator Studio App (`apps/studio`) */
   dashboard: {
     home: () => '/',
     articles: {
@@ -74,7 +74,7 @@ export const routes = {
     api: () => '/admin/api',
   },
 
-  /** 🌐 Marketing Landing App (`apps/landing`) */
+  /** 🌐 Page d'exposition Hi (`apps/hi`) */
   landing: {
     home: () => '/',
     start: () => '/start',
@@ -83,7 +83,7 @@ export const routes = {
     terms: () => '/terms',
   },
 
-  /** 🌐 Multi-Tenant Creator Sites (`apps/web`) */
+  /** 🌐 Multi-Tenant Creator Sites (`apps/tenants`) */
   tenant: {
     home: (subdomain: string, host?: string) => `${getMonorepoUrl('tenant', host, subdomain)}/`,
     article: (subdomain: string, slug: string, host?: string) =>
