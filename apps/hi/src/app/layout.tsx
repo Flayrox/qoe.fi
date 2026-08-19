@@ -9,6 +9,7 @@ import { getStaticTranslations, getLanguage, initI18n } from '@qoe/i18n/server';
 import { GrowthBookProvider } from '@qoe/flags';
 import { getGrowthBookPayload } from '@qoe/flags/server';
 import { cn } from '@qoe/utils';
+import { AnalyticsScript } from '@qoe/analytics/client';
 import { DevtoolsPanel, ThemeProvider, ThemeSeedScript } from '@qoe/ui';
 import {
   getDevtoolsData,
@@ -90,6 +91,8 @@ export default async function RootLayout({
             </I18nClientProvider>
           </GrowthBookProvider>
         </ThemeProvider>
+
+        <AnalyticsScript />
       </body>
     </html>
   );
