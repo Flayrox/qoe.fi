@@ -22,6 +22,45 @@ export interface UmamiTimeseriesPoint {
 
 const isDev = process.env.NODE_ENV === 'development';
 
+// ── Auth self-hosted (Umami v2+) ────────────────────────────────────────────
+// Umami Cloud utilise une API key statique (UMAMI_API_KEY) ; le self-hosted
+// s'authentifie par login (UMAMI_USERNAME / UMAMI_PASSWORD) → token Bearer
+// caché ~4h (même stratégie que le client Go apps/api/internal/umami).
+let cachedToken: string | null = null;
+let cachedAt = 0;
+
+async function getUmamiToken(): Promise<string | null> {
+  const apiKey = process.env.UMAMI_API_KEY;
+  if (apiKey) return apiKey;
+
+  const user = process.env.UMAMI_USERNAME;
+  const pass = process.env.UMAMI_PASSWORD;
+  if (!user || !pass) return null;
+
+  if (cachedToken && Date.now() - cachedAt < 4 * 60 * 60 * 1000) {
+    return cachedToken;
+  }
+  try {
+    const apiUrl = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
+    const res = await fetch(`${apiUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user, password: pass }),
+    });
+    if (!res.ok) {
+      console.error(`Umami login failed (${res.status})`);
+      return null;
+    }
+    const data = (await res.json()) as { token?: string };
+    cachedToken = data.token ?? null;
+    cachedAt = Date.now();
+    return cachedToken;
+  } catch (error) {
+    console.error('Failed to authenticate to Umami:', error);
+    return null;
+  }
+}
+
 /**
  * 📊 Track un event depuis le serveur (s'écrit dans les logs).
  */
@@ -45,9 +84,9 @@ export async function fetchUmamiWebsiteStats(
   endAt: number
 ): Promise<UmamiStats | null> {
   const apiUrl = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
-  const apiKey = process.env.UMAMI_API_KEY;
+  const token = await getUmamiToken();
 
-  if (!websiteId || !apiKey) {
+  if (!websiteId || !token) {
     if (isDev) {
       return {
         pageviews: 1420,
@@ -71,7 +110,7 @@ export async function fetchUmamiWebsiteStats(
       `${apiUrl}/websites/${websiteId}/stats?startAt=${startAt}&endAt=${endAt}`,
       {
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${token}`,
         },
       }
     );
@@ -103,9 +142,9 @@ export async function fetchUmamiPageviewsSeries(
   url?: string
 ): Promise<UmamiTimeseriesPoint[]> {
   const apiUrl = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
-  const apiKey = process.env.UMAMI_API_KEY;
+  const token = await getUmamiToken();
 
-  if (!websiteId || !apiKey) {
+  if (!websiteId || !token) {
     if (isDev) {
       const daysCount = unit === 'hour' ? 24 : 14;
       return Array.from({ length: daysCount }).map((_, i) => ({
@@ -126,7 +165,7 @@ export async function fetchUmamiPageviewsSeries(
 
     const res = await fetch(endpoint, {
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${token}`,
       },
     });
 
@@ -191,9 +230,9 @@ export async function fetchUmamiMetrics(
   url?: string
 ): Promise<UmamiPageMetric[]> {
   const apiUrl = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
-  const apiKey = process.env.UMAMI_API_KEY;
+  const token = await getUmamiToken();
 
-  if (!websiteId || !apiKey) {
+  if (!websiteId || !token) {
     if (isDev) {
       return getDevMockMetrics(type);
     }
@@ -208,7 +247,7 @@ export async function fetchUmamiMetrics(
 
     const res = await fetch(endpoint, {
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${token}`,
       },
     });
 
