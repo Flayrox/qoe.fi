@@ -445,6 +445,9 @@ services:
       # Tâches typées jina-embeddings-v3 (TEI) — vide = champ omis (llama.cpp).
       EMBEDDING_INDEX_TASK: ${EMBEDDING_INDEX_TASK:-retrieval.passage}
       EMBEDDING_QUERY_TASK: ${EMBEDDING_QUERY_TASK:-retrieval.query}
+      # Meilisearch (réseau Docker) — full-text search.
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-qoe_master_key_123}
 
     extra_hosts:
       - 'host.docker.internal:host-gateway'
@@ -490,6 +493,9 @@ services:
       EMBEDDING_URL: ${EMBEDDING_URL:-http://embedding:80}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-jina-embeddings-v3}
       EMBEDDING_INDEX_TASK: ${EMBEDDING_INDEX_TASK:-retrieval.passage}
+      # Meilisearch (réseau Docker) — full-text search.
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-qoe_master_key_123}
 
     extra_hosts:
       - 'host.docker.internal:host-gateway'
