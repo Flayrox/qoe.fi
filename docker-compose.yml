@@ -533,7 +533,7 @@ services:
   #    uniquement) — à valider pour la prod.
   # ───────────────────────────────────────────────────────────────────
   embedding:
-    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
     container_name: qoefi-embedding
     restart: unless-stopped
 
