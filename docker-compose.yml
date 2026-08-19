@@ -522,33 +522,36 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # 🧠 EMBEDDING (TEI) — Inférence jina-embeddings-v3 auto-hébergée
+  # 🧠 EMBEDDING (llama.cpp) — Inférence jina-embeddings-v3 auto-hébergée
   # ───────────────────────────────────────────────────────────────────
-  # 📖 text-embeddings-inference (Hugging Face) sert jina-embeddings-v3
-  #    avec une API OpenAI-compatible (`/v1/embeddings`, 1024 dims).
-  #    Consommé par l'API Go (`/search/semantic`) et le worker asynq.
-  #    ⚠️ Il faut un HF_TOKEN (huggingface.co/settings/tokens) : HF exige
-  #    désormais une auth pour télécharger les modèles. Le modèle (~2.3 Go)
-  #    est téléchargé au 1er démarrage puis mis en cache dans `embedding_cache`.
-  #    ⚠️ Licence : jina-embeddings-v3 est CC BY-NC 4.0 (usage non commercial
-  #    uniquement) — à valider pour la prod.
+  # 📖 llama.cpp sert jina-embeddings-v3 (GGUF Q8_0) avec une API
+  #    OpenAI-compatible (`/v1/embeddings`, 1024 dims, MRL tronqué à 512
+  #    côté client Go). Consommé par l'API Go (`/search/semantic`) et le
+  #    worker asynq.
+  #    ⚠️ Le GGUF (~600 Mo) doit être placé dans `./models/` sur le host
+  #    (téléchargé depuis HF : jina-embeddings-v3-Q8_0.gguf).
+  #    ⚠️ Licence : jina-embeddings-v3 est CC BY-NC 4.0 (usage non
+  #    commercial uniquement) — à valider pour la prod.
   # ───────────────────────────────────────────────────────────────────
   embedding:
-    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    image: ghcr.io/ggml-org/llama.cpp:server
     container_name: qoefi-embedding
     restart: unless-stopped
 
     expose:
       - '80'
 
-    environment:
-      HF_TOKEN: ${HF_TOKEN:-}
-      HF_HUB_DISABLE_TELEMETRY: '1'
-
-    command: --model-id jinaai/jina-embeddings-v3 --port 80 --max-concurrent-requests 4
+    command: >
+      -m /models/jina-embeddings-v3-Q8_0.gguf
+      --embedding
+      --pooling mean
+      --port 80
+      --host 0.0.0.0
+      --ctx-size 8192
+      --alias jina-embeddings-v3
 
     volumes:
-      - embedding_cache:/data
+      - ./models:/models:ro
 
     networks:
       - qoefi-private
@@ -556,7 +559,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 4G
+          memory: 2G
           cpus: '2.0'
 
     logging:
@@ -769,5 +772,3 @@ volumes:
     name: qoefi-meilisearch-data
   umami_db_data:
     name: qoefi-umami-db-data
-  embedding_cache:
-    name: qoefi-embedding-cache

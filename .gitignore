@@ -114,3 +114,6 @@ blob-report/
 
 # ─── Secrets de déploiement (NE PAS committer) ─────────────
 .env.docker
+
+# ─── Modèles d'inférence locaux (GGUF) ────────────────────
+/models/
