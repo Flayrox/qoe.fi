@@ -556,6 +556,14 @@ services:
     networks:
       - qoefi-private
 
+    healthcheck:
+      # L'image embarque un healthcheck sur :8080 ; notre serveur écoute :80.
+      test: ['CMD', 'curl', '-f', 'http://localhost:80/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
     deploy:
       resources:
         limits:
