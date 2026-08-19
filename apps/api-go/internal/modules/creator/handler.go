@@ -36,9 +36,11 @@ func NewHandler(pool *pgxpool.Pool, umamiCli *umami.Client, defaultWebsiteID str
 }
 
 // RegisterAPIKey — routes créateur authentifiées par clé API (qoe_live_…).
-// Scopes (moindre privilège) : catégories = READ, analytics = ANALYTICS.
+// ⚠️ /v1/categories N'EST PAS déclaré ici : il est enregistré une seule fois
+// dans RegisterProtected (CombinedAuth accepte JWT ET clés API) pour éviter
+// le double enregistrement du même chemin (le groupe clé API masquerait la
+// route JWT → 401 sur le dashboard).
 func (h *Handler) RegisterAPIKey(r chi.Router) {
-	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/categories", h.categories)
 	r.With(middleware.RequireAPIScope(middleware.ScopeAnalytics)).Get("/v1/analytics/stats", h.analyticsStats)
 }
 
@@ -50,14 +52,16 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/users/{username}/following", h.userFollowing)
 }
 
-// RegisterProtected — routes créateur authentifiées JWT (ou clé API via CombinedAuth).
-func (h *Handler) RegisterProtected(r chi.Router) {
+// RegisterProtected — routes créateur authentifiées JWT (ou clé API via
+// CombinedAuth). requireScope applique le moindre privilège aux clés API
+// (les requêtes JWT passent : couvertes par le RBAC publication).
+func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func(http.Handler) http.Handler) {
 	r.Get("/v1/users/me", h.userMe)
 	r.Post("/v1/users/{id}/follow", h.followToggle)
-	r.Get("/v1/categories", h.categories)
-	r.Post("/v1/categories", h.createCategory)
-	r.Patch("/v1/categories/{id}", h.updateCategory)
-	r.Delete("/v1/categories/{id}", h.deleteCategory)
+	r.With(requireScope(middleware.ScopeRead)).Get("/v1/categories", h.categories)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/categories", h.createCategory)
+	r.With(requireScope(middleware.ScopeWrite)).Patch("/v1/categories/{id}", h.updateCategory)
+	r.With(requireScope(middleware.ScopeWrite)).Delete("/v1/categories/{id}", h.deleteCategory)
 }
 
 // category est la forme API d'une catégorie (parité Hono).
