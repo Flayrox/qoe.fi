@@ -226,6 +226,12 @@ type Querier interface {
 	ListMediaMembers(ctx context.Context, mediaid string) ([]ListMediaMembersRow, error)
 	// Tous les surlignages d'un lecteur (bibliothèque), avec l'article associé.
 	ListMyHighlights(ctx context.Context, arg ListMyHighlightsParams) ([]ListMyHighlightsRow, error)
+	// Provisionnement automatique des websites Umami par publication.
+	// Chaque publication (blog créateur) a son propre website Umami pour que
+	// le créateur voie SES stats (visites, sources, pages, temps passé) sans
+	// aucun lien manuel — le worker `provisioner` crée le website et stocke
+	// l'id dans Publication."umamiWebsiteId".
+	ListPublicationsWithoutUmami(ctx context.Context, limit int32) ([]ListPublicationsWithoutUmamiRow, error)
 	// Articles publiés d'une publication (profil), résolue par slug OU subdomain
 	// (insensible à la casse). Même shape que ListRecentPublishedArticles.
 	ListPublishedArticlesByPublication(ctx context.Context, arg ListPublishedArticlesByPublicationParams) ([]ListPublishedArticlesByPublicationRow, error)
@@ -242,6 +248,7 @@ type Querier interface {
 	SearchSemanticArticles(ctx context.Context, arg SearchSemanticArticlesParams) ([]SearchSemanticArticlesRow, error)
 	SetApiApplication(ctx context.Context, arg SetApiApplicationParams) error
 	SetArticleStatus(ctx context.Context, arg SetArticleStatusParams) (string, error)
+	SetPublicationUmamiWebsite(ctx context.Context, arg SetPublicationUmamiWebsiteParams) error
 	SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error
 	SoftDeletePost(ctx context.Context, arg SoftDeletePostParams) (string, error)
 	// Ajoute un upvote (idempotent). ⚠️ Le retrait et le comptage sont gérés

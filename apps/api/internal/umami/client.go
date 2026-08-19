@@ -80,6 +80,48 @@ func (c *Client) TopPages(ctx context.Context, websiteID string, startAt, endAt 
 	return out, nil
 }
 
+// Website est le retour de création d'un website Umami (id à stocker).
+type Website struct {
+	ID string `json:"id"`
+}
+
+// CreateWebsite crée un website Umami pour une publication (provisionnement
+// automatique par le worker). domain = sous-domaine du blog (ex: monmedia.qoe.fi).
+func (c *Client) CreateWebsite(ctx context.Context, name, domain string) (string, error) {
+	token, err := c.bearerToken(ctx)
+	if err != nil {
+		return "", err
+	}
+	if token == "" {
+		return "", fmt.Errorf("umami: aucune authentification configurée")
+	}
+
+	body, _ := json.Marshal(map[string]string{"name": name, "domain": domain})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.apiURL+"/websites", bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpCli.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return "", fmt.Errorf("umami create website status %d", resp.StatusCode)
+	}
+	var out Website
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return "", err
+	}
+	if out.ID == "" {
+		return "", fmt.Errorf("umami create website: id vide")
+	}
+	return out.ID, nil
+}
+
 // bearerToken retourne le token à utiliser : API key (cloud) si présente,
 // sinon login self-hosted (cache 4h).
 func (c *Client) bearerToken(ctx context.Context) (string, error) {

@@ -7,6 +7,7 @@ import { TimeseriesChart } from './components/TimeseriesChart';
 import { TopPagesBlock } from './components/TopPagesBlock';
 import { ReferrersBlock } from './components/ReferrersBlock';
 import { DevicesAndGeoBlock } from './components/DevicesAndGeoBlock';
+import { ProductMetricsBlock } from './components/ProductMetricsBlock';
 import { ArticleInspectorModal } from './components/ArticleInspectorModal';
 
 interface AnalyticsDashboardClientProps {
@@ -206,6 +207,9 @@ export function AnalyticsDashboardClient({ initialData }: AnalyticsDashboardClie
           <p className="text-xs text-muted-foreground mt-2">Durée moyenne par session</p>
         </div>
       </div>
+
+      {/* ─── Product Metrics: Subscribers & Top Articles ────────── */}
+      <ProductMetricsBlock metrics={data.productMetrics} />
 
       {/* ─── Timeseries Area Chart ───────────────────────────────── */}
       <TimeseriesChart data={data.timeseries} period={selectedPeriod} />

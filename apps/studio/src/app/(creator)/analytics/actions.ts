@@ -28,6 +28,7 @@ export interface AnalyticsResponseData {
   browsers: UmamiPageMetric[];
   countries: UmamiPageMetric[];
   articleTitlesMap: Record<string, string>;
+  productMetrics: ProductMetrics;
 }
 
 export interface ArticleDetailData {
@@ -36,6 +37,23 @@ export interface ArticleDetailData {
   timeseries: UmamiTimeseriesPoint[];
   referrers: UmamiPageMetric[];
   totalViews: number;
+}
+
+// Métriques produit (issues de la DB qoe.fi, pas d'Umami) : ce que Umami
+// ne peut pas mesurer (abonnés, engagement, contenu).
+export interface ProductMetrics {
+  subscriberCount: number;
+  subscriberDelta7d: number;
+  totalBookmarks: number;
+  totalHighlights: number;
+  topArticles: {
+    slug: string;
+    title: string;
+    bookmarks: number;
+    comments: number;
+    highlights: number;
+    publishedAt: Date | null;
+  }[];
 }
 
 export async function getCreatorAnalyticsData(
@@ -53,15 +71,23 @@ export async function getCreatorAnalyticsData(
     }
 
     const workspace = await getActiveWorkspace(user.id);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const creator = await prisma.publication.findUnique({
       where: { id: workspace.publicationId },
       select: {
         id: true,
         umamiWebsiteId: true,
+        _count: { select: { subscribers: true } },
+        subscribers: {
+          where: { createdAt: { gte: sevenDaysAgo } },
+          select: { id: true },
+        },
         articles: {
           select: {
             slug: true,
             title: true,
+            createdAt: true,
+            _count: { select: { bookmarks: true, comments: true, highlights: true } },
           },
         },
       },
@@ -72,10 +98,32 @@ export async function getCreatorAnalyticsData(
     }
 
     const articleTitlesMap: Record<string, string> = {};
+    const topArticles = creator.articles
+      .map((a) => ({
+        slug: a.slug,
+        title: a.title,
+        bookmarks: a._count.bookmarks,
+        comments: a._count.comments,
+        highlights: a._count.highlights,
+        publishedAt: a.createdAt,
+      }))
+      .sort(
+        (a, b) =>
+          b.bookmarks + b.comments + b.highlights - (a.bookmarks + a.comments + a.highlights)
+      )
+      .slice(0, 5);
     creator.articles.forEach((article) => {
       articleTitlesMap[`/articles/${article.slug}`] = article.title;
       articleTitlesMap[`/${article.slug}`] = article.title;
     });
+
+    const productMetrics: ProductMetrics = {
+      subscriberCount: creator._count.subscribers,
+      subscriberDelta7d: creator.subscribers.length,
+      totalBookmarks: topArticles.reduce((s, a) => s + a.bookmarks, 0),
+      totalHighlights: topArticles.reduce((s, a) => s + a.highlights, 0),
+      topArticles,
+    };
 
     const targetWebsiteId =
       creator.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '';
@@ -94,6 +142,7 @@ export async function getCreatorAnalyticsData(
           browsers: [],
           countries: [],
           articleTitlesMap,
+          productMetrics,
         },
       };
     }
@@ -137,6 +186,7 @@ export async function getCreatorAnalyticsData(
         browsers,
         countries,
         articleTitlesMap,
+        productMetrics,
       },
     };
   } catch (err: unknown) {
