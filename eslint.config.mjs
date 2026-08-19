@@ -32,15 +32,13 @@ const eslintConfig = defineConfig([
   ...nextVitals.map((cfg) => scopeNextConfig(cfg, nextApps)).filter(Boolean),
   ...nextTs.map((cfg) => scopeNextConfig(cfg, nextApps)).filter(Boolean),
 
-  // ---- Plain TypeScript (packages, workers, e2e) ----
+  // ---- Plain TypeScript (packages, e2e) ----
   // Scoped to non-Next directories: the Next apps get their own stricter
   // ruleset from eslint-config-next above.
   {
     files: [
       'packages/**/*.ts',
       'packages/**/*.tsx',
-      'workers/**/*.ts',
-      'workers/**/*.tsx',
       'e2e/**/*.ts',
       'e2e/**/*.tsx',
       'apps/api/**/*.ts',
@@ -53,7 +51,6 @@ const eslintConfig = defineConfig([
   {
     files: [
       'packages/**/*.{ts,tsx}',
-      'workers/**/*.{ts,tsx}',
       'e2e/**/*.{ts,tsx}',
       'apps/api/**/*.{ts,tsx}',
       'apps/collab-server/**/*.{ts,tsx}',
@@ -64,7 +61,6 @@ const eslintConfig = defineConfig([
   {
     files: [
       'packages/**/*.{ts,tsx}',
-      'workers/**/*.{ts,tsx}',
       'e2e/**/*.{ts,tsx}',
       'apps/api/**/*.{ts,tsx}',
       'apps/collab-server/**/*.{ts,tsx}',

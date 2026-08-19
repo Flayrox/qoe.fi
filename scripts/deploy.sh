@@ -82,7 +82,9 @@ log "Étape 4/6 : Redémarrage des services (rolling restart)..."
 docker compose up migrate || error "Migrations ont échoué"
 
 # Redémarre les services un par un (zero-downtime approximatif)
-for service in caddy web console api workers redis; do
+# ℹ️ api + worker partagent la même image Go (apps/api-go/Dockerfile) ;
+#    migrate est one-shot (déjà lancé au-dessus).
+for service in caddy web landing feed studio admin api worker redis; do
   log "   ↪ Redémarrage de $service..."
   docker compose up -d --no-deps "$service" || error "Redémarrage de $service a échoué"
   sleep 5
@@ -94,25 +96,16 @@ success "Services redémarrés"
 log "Étape 5/6 : Vérification de la santé des services..."
 sleep 15  # Laisse le temps aux services de booter
 
-# Liste des endpoints à tester
-declare -a ENDPOINTS=(
-  "http://localhost:3000/|web"
-  "http://localhost:3000/dashboard|console"
-  "http://localhost:3000/admin|admin"
-  "http://localhost:3001/|web-public"
-  "http://localhost:3001/health|api"
-)
+# Les conteneurs n'exposent pas de port public (Caddy seul) : on vérifie
+# que chaque service est Up (et healthy quand un healthcheck est défini).
+# L'API Go expose /health : on le teste via le réseau Docker.
+if docker compose exec -T api wget -qO- http://localhost:8080/health >/dev/null 2>&1; then
+  success "   api OK (/health)"
+else
+  warn "   api n'a pas répondu sur /health"
+fi
 
-for entry in "${ENDPOINTS[@]}"; do
-  IFS='|' read -r url name <<< "$entry"
-  if curl -sf -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null | grep -qE "^(200|301|302)$"; then
-    success "   $name OK ($url)"
-  else
-    warn "   $name n'a pas répondu ($url)"
-  fi
-done
-
-# Status général
+# Status général (exige Up ; healthy si défini)
 log "Status des containers :"
 docker compose ps
 

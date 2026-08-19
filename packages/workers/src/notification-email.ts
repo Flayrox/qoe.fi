@@ -1,5 +1,5 @@
 // =====================================================================
-// 📧 @qoe/workers — Notification email outbox (BullMQ worker)
+// 📧 @qoe/email — Notification email outbox
 // =====================================================================
 // Traitement des livraisons d'emails de notification en file (`outbox`) :
 // - renderNotificationEmail : template pur (facile à snapshot-tester).
