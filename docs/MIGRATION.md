@@ -40,9 +40,16 @@
 - [ ] **TLS** : remplacer certbot (renouvellement manuel pénible) par **Caddy DNS-01 netcup** → wildcard automatique, zéro action manuelle. (Plugins vérifiés : `caddy-dns/netcup` ✅, `caddy-dns/hetzner` ✅)
 - [ ] **Serveur mail** : Mailcow ou équivalent sur le nouveau VPS + DKIM/SPF/DMARC + **reverse DNS (PTR) chez Netcup** (essentiel pour la réputation)
 - [ ] **Provider email des apps** : le code a déjà l'abstraction (`EMAIL_PROVIDER` + registry Resend/Postmark/SES/SMTP dans `packages/workers/src/email-provider.ts`) → brancher le SMTP auto-hébergé (Resend en fallback)
-- [ ] **lassez.fr** : projet séparé (processus hôte 4000-4002) — migrer ou pas ? Si non : commenter ses routes dans le Caddyfile
-- [ ] **radar** (pm2) : migrer ou pas ? Projet séparé
+- [x] **lassez.fr / radar** : DÉCIDÉ — on le garde (média de l'utilisateur, sa propre DB Supabase cloud). Migration à l'identique (network_mode host, ports 4000-4002 joints par Caddy via `host.docker.internal`). À terme il sera absorbé par qoe.fi comme plateforme propriétaire — ne pas investir dans sa restructuration.
+- [x] **Coolify** : DÉCIDÉ — à la poubelle (proxy mort, hébergeait seulement le bot Discord, lui aussi supprimé). Remplacé par **Portainer** (déjà installé, plus léger) pour l'admin visuel Docker.
 - [ ] **Rollback** : garder le VPS Hetzner actif ~7 jours après la bascule (repointer le DNS = rollback instantané)
+
+### Décisions v2 — organisation Docker (à appliquer au nouveau serveur)
+
+- **Noms** : `qoefi-api` (ex `qoefi-api-go`), `qoefi-worker-go` (ex `qoefi-api-go-worker`), `qoefi-worker-node` (ex `qoefi-workers`). Kebab-case partout (convention DNS/hostname, pas de `_`). `QOE_API_GO_URL` reste le nom de l'env var (dossier `apps/api-go` inchangé) — seule la **valeur** devient `http://api:8080`.
+- **Segmentation réseau par rôle** (voir docker-compose.yml) : `qoefi-public` = caddy + frontends + kong/studio ; `qoefi-private` = api/workers/redis/meili/embedding ; `supabase_default` = **uniquement** api, worker-go, worker-node, migrate. Les frontends et caddy n'ont plus accès à la DB.
+- **Override Supabase** : `docker-compose.override.yml` dans `/var/www/supabase/docker` (créé par bootstrap.sh) attache kong/studio à `qoefi-public` (Caddy les joint sans toucher au réseau supabase). ⚠️ Ne pas renommer `realtime-dev.supabase-realtime` (realtime dérive son tenant id de son nom de conteneur — officiel Supabase).
+- **Meilisearch** : plus de port public 7700 (interne uniquement, joint par l'API Go).
 
 ---
 
@@ -89,7 +96,7 @@
 | `DATABASE_URL` / `DIRECT_URL` | `postgresql://postgres:<PW>@supabase-db:5432/postgres` (réseau `supabase_default`) |
 | `REDIS_URL` | `redis://redis:6379` |
 | `EMBEDDING_URL` | `http://embedding:80` |
-| `QOE_API_GO_URL` | `http://api-go:8080` |
+| `QOE_API_GO_URL` | `http://api:8080` (service compose `api` → `qoefi-api`) |
 | `EMBEDDING_MODEL` / `_INDEX_TASK` / `_QUERY_TASK` / `_DIMS` | `jina-embeddings-v3` / `retrieval.passage` / `retrieval.query` / `512` |
 | `DEFAULT_LANGUAGE` | `fr` |
 | DNS | voir §0 (A records → nouvelle IP, MX/SPF/DKIM/DMARC → nouveau serveur mail) |
@@ -109,11 +116,16 @@
 
 ## 3. ✅ Checklist jour J (dans l'ordre)
 
+> 🤖 **Tout ce qui suit (Phases 1-4 + vérifs) est automatisé par `scripts/bootstrap.sh`**
+> (idempotent, skippable par étape). Cette checklist reste la référence pour
+> comprendre l'ordre, préparer les sauvegardes et gérer la bascule DNS.
+
 ### Phase 0 — Préparation (J-2)
 
 - [ ] Commander le nouveau VPS (Netcup), générer la clé SSH, tester l'accès
 - [ ] **Baisser les TTL DNS à 300 s** sur tous les records (48 h avant, pour une propagation rapide)
-- [ ] Sauvegarder sur l'ancien VPS : `.env.docker`, supabase `.env`, `/etc/letsencrypt/`, dumps DB, `models/` (GGUF), `/var/www/qoe.fi.old-*` (rollback)
+- [ ] Sauvegarder sur l'ancien VPS : `.env.docker`, supabase `.env`, `/etc/letsencrypt/`, dumps DB, `models/` (GGUF), `/var/www/qoe.fi.old-*` (rollback), `/var/www/lassez-docker` (tar czf `lassez-docker.tar.gz`)
+- [ ] Tout déposer dans `/root/migration/` du nouveau VPS (attendu par bootstrap.sh)
 - [ ] Préparer le `.env.docker` cible (groupe A copié + groupe B récupéré + groupe C reconstruit)
 - [ ] Vérifier les version pins Supabase de l'ancien VPS (images docker) pour réinstaller **les mêmes versions**
 
@@ -144,6 +156,8 @@ git clone https://github.com/supabase/supabase.git /opt/supabase  # ou copier /v
 cd /opt/supabase/docker && cp .env.example .env
 # → y coller les secrets du GROUPE A (POSTGRES_PASSWORD, ANON_KEY, SERVICE_ROLE_KEY, JWT_SECRET, etc.)
 # → SITE_URL=https://qoe.fi, ADDITIONAL_REDIRECT_URLS, SMTP_* (nouveau serveur mail)
+# → déposer docker-compose.override.yml (kong/studio → qoefi-public, voir Décisions v2)
+#   — généré automatiquement par scripts/bootstrap.sh —
 docker compose up -d
 # Vérifier : docker compose ps, Kong sur :8000, Studio sur :3000
 ```
@@ -171,6 +185,10 @@ cat /tmp/storage_dump.sql | docker exec -i supabase-db psql -U postgres -d postg
 # Réappliquer les policies RLS :
 cat scripts/rls-interactions.sql | docker exec -i supabase-db psql -U postgres -d postgres
 # Vérifier les comptages : articles, users, posts, storage
+
+# ── 3d. Projet annexe : lassez/radar (sa propre DB Supabase cloud) ──
+tar xzf /root/migration/lassez-docker.tar.gz -C /var/www/
+cd /var/www/lassez-docker && docker compose up -d   # network_mode host (ports 4000-4002)
 ```
 
 ### Phase 4 — Déploiement qoe.fi
@@ -184,7 +202,12 @@ ln -s .env.docker .env   # ← le compose lit .env par défaut (leçon apprise !
 mkdir -p models
 curl -sL -o models/jina-embeddings-v3-Q8_0.gguf \
   "https://huggingface.co/second-state/jina-embeddings-v3-GGUF/resolve/main/jina-embeddings-v3-Q8_0.gguf"
-# vérifier : 600995424 octets
+# vérifier : 600995424 octets (le bootstrap vérifie aussi le SHA-256)
+
+# 📛 Noms v2 : services `api`, `worker-go`, `worker-node` (ex api-go, api-go-worker, workers)
+#    docker compose ps doit lister : qoefi-caddy, qoefi-web, qoefi-landing, qoefi-feed,
+#    qoefi-dashboard, qoefi-admin, qoefi-api, qoefi-worker-go, qoefi-worker-node,
+#    qoefi-embedding, qoefi-redis, qoefi-meilisearch, qoefi-umami, qoefi-umami-db, qoefi-migrate
 
 # TLS : basculer le Caddyfile sur DNS-01 netcup (supprime certbot)
 #   tls { dns netcup <token> } — sinon copier /etc/letsencrypt de l'ancien VPS en attendant

@@ -1,18 +1,35 @@
 # =====================================================================
 # 🐳 docker-compose.yml — qoe.fi monorepo (PRODUCTION)
 # =====================================================================
-# 📖 8 services :
-#   1. caddy     : reverse proxy + TLS auto
-#   2. web       : Next.js public (start.qoe.fi + tenants)
-#   3. console   : Next.js auth (qoe.fi, dashboard, admin)
-#   4. api       : Hono backend (api.qoe.fi)
-#   5. workers   : BullMQ jobs (emails, AI, billing)
-#   6. db        : PostgreSQL + pgvector
-#   7. redis     : Cache + queue
-#   8. migrate   : Job one-shot Prisma migrate (s'exécute puis s'arrête)
+# 📖 15 services :
+#   1. caddy      : reverse proxy + TLS (seul service exposé au public)
+#   2. web        : Next.js tenants (wildcard *.qoe.fi)
+#   3. landing    : Next.js marketing (start.qoe.fi)
+#   4. feed       : Next.js reader (qoe.fi)
+#   5. dashboard  : Next.js créateurs (dashboard.qoe.fi)
+#   6. admin      : Next.js plateforme (admin.qoe.fi)
+#   7. api        : backend-of-record Go (api.qoe.fi) — apps/api-go
+#   8. worker-go  : worker asynq Go (webhooks, newsletter, embeddings)
+#   9. worker-node: workers BullMQ Node (emails, AI, billing)
+#   10. embedding : llama.cpp — jina-embeddings-v3 (inférence locale)
+#   11. redis     : cache + queue
+#   12. meilisearch: full-text search (réseau interne uniquement)
+#   13. umami     : analytics self-hosted
+#   14. umami-db  : PostgreSQL d'umami
+#   15. migrate   : one-shot Prisma migrate (s'exécute puis s'arrête)
 #
-# 🔒 Sécurité : db, redis, migrate sur réseau PRIVÉ uniquement
-#                caddy, web, console, api, workers sur réseau PUBLIC + PRIVÉ
+# 🔒 Segmentation réseau par rôle :
+#   qoefi-public  : caddy + frontends (web/landing/feed/dashboard/admin/umami)
+#                   + supabase-kong/supabase-studio (voir l'override Supabase
+#                   créé par bootstrap.sh → docker-compose.override.yml).
+#                   Caddy n'a PAS accès au réseau supabase (donc pas à la DB).
+#   qoefi-private : tout le reste (api, workers, redis, meili, embedding).
+#   supabase_default : UNIQUEMENT api, worker-go, worker-node et migrate
+#                      (accès à la DB Supabase). Pas les frontends, pas caddy.
+#
+# 📖 Convention de nommage : kebab-case, préfixe qoefi-, nom de service = nom
+#    de conteneur. Le DNS interne Docker utilise le NOM DE SERVICE (pas le
+#    container_name) — les deux restent donc synchronisés.
 # =====================================================================
 
 name: qoefi
@@ -54,9 +71,11 @@ services:
       landing:
         condition: service_started
 
+    # 🔒 Réseau PUBLIC uniquement : atteint les frontends (qoefi-public)
+    #    et kong/studio (via le réseau qoefi-public partagé par l'override
+    #    Supabase). Jamais le réseau supabase_default → pas d'accès à la DB.
     networks:
       - qoefi-public
-      - supabase_default
 
     # Resource limits
     deploy:
@@ -72,7 +91,7 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # 🌐 WEB : Next.js public
+  # 🌐 WEB : Next.js tenants (wildcard *.qoe.fi)
   # ───────────────────────────────────────────────────────────────────
   web:
     build:
@@ -100,7 +119,7 @@ services:
       NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
       # Backend-of-record Go (réseau privé Docker, jamais public).
-      QOE_API_GO_URL: http://api-go:8080
+      QOE_API_GO_URL: http://api:8080
       # Supabase (lu côté serveur via l'app)
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
@@ -111,7 +130,6 @@ services:
     networks:
       - qoefi-public
       - qoefi-private
-      - supabase_default
 
     depends_on:
       migrate:
@@ -158,7 +176,7 @@ services:
       NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
       # Backend-of-record Go (réseau privé Docker, jamais public).
-      QOE_API_GO_URL: http://api-go:8080
+      QOE_API_GO_URL: http://api:8080
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
@@ -168,7 +186,6 @@ services:
     networks:
       - qoefi-public
       - qoefi-private
-      - supabase_default
 
     depends_on:
       migrate:
@@ -215,7 +232,7 @@ services:
       NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
       # Backend-of-record Go (réseau privé Docker, jamais public).
-      QOE_API_GO_URL: http://api-go:8080
+      QOE_API_GO_URL: http://api:8080
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
@@ -226,7 +243,6 @@ services:
     networks:
       - qoefi-public
       - qoefi-private
-      - supabase_default
 
     depends_on:
       migrate:
@@ -273,7 +289,7 @@ services:
       NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
       # Backend-of-record Go (réseau privé Docker, jamais public).
-      QOE_API_GO_URL: http://api-go:8080
+      QOE_API_GO_URL: http://api:8080
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
@@ -284,7 +300,6 @@ services:
     networks:
       - qoefi-public
       - qoefi-private
-      - supabase_default
 
     depends_on:
       migrate:
@@ -331,7 +346,7 @@ services:
       NEXT_PUBLIC_LANDING_URL: https://start.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
       # Backend-of-record Go (réseau privé Docker, jamais public).
-      QOE_API_GO_URL: http://api-go:8080
+      QOE_API_GO_URL: http://api:8080
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
@@ -342,7 +357,6 @@ services:
     networks:
       - qoefi-public
       - qoefi-private
-      - supabase_default
 
     depends_on:
       migrate:
@@ -363,15 +377,15 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # ⚙️ WORKERS : BullMQ background jobs
+  # ⚙️ WORKER-NODE : BullMQ background jobs (emails, AI, billing)
   # ───────────────────────────────────────────────────────────────────
-  workers:
+  worker-node:
     build:
       context: .
       dockerfile: Dockerfile
       target: workers
-    image: qoefi-workers:latest
-    container_name: qoefi-workers
+    image: qoefi-worker-node:latest
+    container_name: qoefi-worker-node
     restart: unless-stopped
 
     env_file:
@@ -393,7 +407,7 @@ services:
 
     networks:
       - qoefi-private
-      - supabase_default # ⚠️ Pas besoin d'être public
+      - supabase_default # 🔒 DB via Prisma uniquement
 
     depends_on:
       redis:
@@ -412,14 +426,14 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # ⚡ API GO (backend-of-record) : serveur REST
+  # ⚡ API (backend-of-record Go) : serveur REST — apps/api-go
   # ───────────────────────────────────────────────────────────────────
-  api-go:
+  api:
     build:
       context: ./apps/api-go
       dockerfile: Dockerfile
-    image: qoefi-api-go:latest
-    container_name: qoefi-api-go
+    image: qoefi-api:latest
+    container_name: qoefi-api
     restart: unless-stopped
 
     expose:
@@ -474,14 +488,14 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # ⚙️ WORKER GO (asynq) : webhooks + newsletter
+  # ⚙️ WORKER-GO (asynq) : webhooks + newsletter + embeddings
   # ───────────────────────────────────────────────────────────────────
-  api-go-worker:
+  worker-go:
     build:
       context: ./apps/api-go
       dockerfile: Dockerfile
-    image: qoefi-api-go-worker:latest
-    container_name: qoefi-api-go-worker
+    image: qoefi-worker-go:latest
+    container_name: qoefi-worker-go
     restart: unless-stopped
     entrypoint: ['/usr/local/bin/qoe-worker']
 
@@ -577,52 +591,6 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # 🐘 POSTGRES : DB principale (RÉSEAU PRIVÉ UNIQUEMENT)
-  # ───────────────────────────────────────────────────────────────────
-  # db:
-  #   image: pgvector/pgvector:pg16
-  #   container_name: qoefi-db
-  #   restart: unless-stopped
-  #
-  #   # ⚠️ PAS de port public : uniquement réseau Docker interne
-  #   expose:
-  #     - "5432"
-  #
-  #   environment:
-  #     POSTGRES_USER: ${POSTGRES_USER:-qoe}
-  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-qoe}
-  #     POSTGRES_DB: ${POSTGRES_DB:-qoe}
-  #     # Encoding
-  #     POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
-  #     # Performance
-  #     POSTGRES_SHARED_BUFFERS: 256MB
-  #     POSTGRES_EFFECTIVE_CACHE_SIZE: 1GB
-  #     POSTGRES_WORK_MEM: 16MB
-  #     POSTGRES_MAINTENANCE_WORK_MEM: 128MB
-  #
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #     - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-  #     # Backup local (volume séparé, monté depuis un cron)
-  #     - postgres_backups:/backups
-  #
-  #   networks:
-  #     - qoefi-private  # 🔒 PRIVÉ
-  #
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qoe} -d ${POSTGRES_DB:-qoe}"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #     start_period: 10s
-  #
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 1024M
-  #         cpus: "2.0"
-
-  # ───────────────────────────────────────────────────────────────────
   # 🔄 REDIS : cache + queue (RÉSEAU PRIVÉ)
   # ───────────────────────────────────────────────────────────────────
   redis:
@@ -646,7 +614,6 @@ services:
 
     networks:
       - qoefi-private
-      - supabase_default
 
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
@@ -661,14 +628,14 @@ services:
           cpus: '0.5'
 
   # ───────────────────────────────────────────────────────────────────
-  # 🔍 MEILISEARCH : Moteur de recherche (RÉSEAU PRIVÉ)
+  # 🔍 MEILISEARCH : Moteur de recherche (RÉSEAU PRIVÉ, aucun port public)
   # ───────────────────────────────────────────────────────────────────
   meilisearch:
     image: getmeili/meilisearch:v1.12
     container_name: qoefi-meilisearch
     restart: unless-stopped
-    ports:
-      - '7700:7700'
+    expose:
+      - '7700'
     environment:
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-qoe_master_key_123}
       - MEILI_NO_ANALYTICS=true
@@ -676,7 +643,6 @@ services:
       - meilisearch_data:/meili_data
     networks:
       - qoefi-private
-      - supabase_default
 
   # ───────────────────────────────────────────────────────────────────
   # 📊 UMAMI : Analytics self-hosted (cookie-less, gratuit)
@@ -741,15 +707,16 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
+    # 🔒 Réseau DB uniquement — rien d'autre à joindre
     networks:
-      - qoefi-private
       - supabase_default
 
 # =====================================================================
 # 🌐 RÉSEAUX
 # =====================================================================
-# qoefi-public  : caddy ↔ web/console/api (HTTP interne)
-# qoefi-private : web/console/api/workers ↔ db/redis (accès données)
+# qoefi-public   : caddy + frontends + kong/studio (exposé via Caddy)
+# qoefi-private  : api/workers/redis/meili/embedding (interne)
+# supabase_default : externe (créé par le stack Supabase) — DB uniquement
 # =====================================================================
 networks:
   qoefi-public:
@@ -766,10 +733,6 @@ networks:
 # 📦 VOLUMES
 # =====================================================================
 volumes:
-  postgres_data:
-    name: qoefi-postgres-data
-  postgres_backups:
-    name: qoefi-postgres-backups
   redis_data:
     name: qoefi-redis-data
   caddy_data:

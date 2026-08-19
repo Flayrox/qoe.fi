@@ -16,7 +16,8 @@
 #   ├── auth_dump.sql               ← pg_dump --schema=auth --data-only
 #   ├── storage_dump.sql            ← pg_dump --schema=storage --data-only
 #   ├── letsencrypt/                ← /etc/letsencrypt (certs, optionnel)
-#   └── jina-embeddings-v3-Q8_0.gguf← modèle (optionnel, sinon téléchargé + vérifié)
+#   ├── jina-embeddings-v3-Q8_0.gguf← modèle (optionnel, sinon téléchargé + vérifié)
+#   └── lassez-docker.tar.gz        ← /var/www/lassez-docker (projet radar, optionnel)
 #
 # ── USAGE ────────────────────────────────────────────────────────────────────
 #   bash scripts/bootstrap.sh                # tout
@@ -130,6 +131,33 @@ step_supabase() {
     return 0
   fi
 
+  # 🔒 Override de segmentation : expose kong + studio sur qoefi-public pour
+  #    que Caddy (qoefi-caddy) puisse les atteindre SANS accéder au réseau
+  #    supabase_default (donc sans accès à la DB). Le réseau qoefi-public est
+  #    créé à l'étape 2. Idempotent : le fichier est réécrit tel quel.
+  cat > "$compose_dir/docker-compose.override.yml" <<'YAML'
+# Généré par bootstrap.sh — segmentation réseau v2.
+# Caddy n'a PAS accès au réseau supabase_default : seuls kong et studio sont
+# exposés à Caddy via le réseau partagé qoefi-public.
+# ⚠️ NE PAS renommer realtime-dev.supabase-realtime : realtime dérive son
+#    tenant id de son propre nom de conteneur (comportement Supabase officiel).
+services:
+  kong:
+    networks:
+      default:
+        aliases:
+          - api-gw   # préserve l'alias interne (requis par le stack Supabase)
+      qoefi-public: {}
+  studio:
+    networks:
+      - default
+      - qoefi-public
+networks:
+  qoefi-public:
+    external: true
+YAML
+  ok "Override Supabase en place (kong/studio → qoefi-public)"
+
   if ! docker ps --format '{{.Names}}' | grep -q '^supabase-db$'; then
     echo "  → Démarrage du stack Supabase…"
     ( cd "$compose_dir" && docker compose up -d ) || { fail "Démarrage Supabase"; return 1; }
@@ -211,6 +239,17 @@ step_qoefi() {
 # ── Étape 5 : migration des données ──────────────────────────────────────────
 step_data() {
   step 5 "Migration des données (dumps de l'ancien VPS)"
+
+  # Projet annexe : lassez/radar (média) — SA PROPRE DB Supabase cloud.
+  # On le ramène tel quel (network_mode host, ports 4000-4002 joints par
+  # Caddy via host.docker.internal). Il sera absorbé par qoe.fi plus tard.
+  if [ -f "$BACKUP_DIR/lassez-docker.tar.gz" ]; then
+    echo "  → Restauration de lassez-docker (radar)…"
+    mkdir -p /var/www/lassez-docker
+    tar xzf "$BACKUP_DIR/lassez-docker.tar.gz" -C /var/www/lassez-docker || { warn "Extraction lassez-docker.tar.gz échouée"; }
+    ( cd /var/www/lassez-docker && docker compose up -d ) >/dev/null 2>&1 && ok "lassez-docker démarré" || warn "lassez-docker : up échoué (à vérifier après le bootstrap)"
+  fi
+
   [ -f "$BACKUP_DIR/public_dump.sql" ] || { warn "Pas de public_dump.sql — étape ignorée."; return 0; }
 
   local psql="docker exec -i supabase-db psql -U postgres -d postgres -v ON_ERROR_STOP=0"
@@ -274,7 +313,7 @@ step_up() {
   ( cd "$APP_DIR" && docker compose up -d ) || { fail "docker compose up"; return 1; }
   echo "  → Attente du démarrage…"
   sleep 15
-  ( cd "$APP_DIR" && docker compose ps --format '{{.Name}}: {{.Status}}' | grep -E 'qoefi-(caddy|web|feed|dashboard|admin|landing|api-go|embedding)' ) || true
+  ( cd "$APP_DIR" && docker compose ps --format '{{.Name}}: {{.Status}}' | grep -E 'qoefi-(caddy|web|feed|dashboard|admin|landing|api|worker-node|worker-go|embedding)' ) || true
 }
 
 # ── Étape 8 : vérifications de bout en bout ──────────────────────────────────

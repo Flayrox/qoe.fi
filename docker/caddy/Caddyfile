@@ -167,7 +167,7 @@ api.qoe.fi {
         Access-Control-Allow-Origin "*"
     }
 
-    reverse_proxy api-go:8080 {
+    reverse_proxy api:8080 {
         transport http {
             dial_timeout 60s
             response_header_timeout 60s
