@@ -51,9 +51,12 @@ Supabase).
 5. Copier **Client ID** et **Client secret**
 
 ### 2. Brancher sur Supabase
-1. Supabase Studio → **Authentication → Providers → Google** → Enable
-2. Coller **Client ID** et **Client Secret**
-3. Save
+- **Prod (VPS)** : Supabase Studio (`base.admin.qoe.fi`) → **Authentication →
+  Providers → Google** → Enable, coller Client ID + Secret.
+- **Local** : la page Providers du Studio local est bugguée (voir
+  `docs/LOCAL_SUPABASE.md`) → passer par `supabase/config.toml`
+  `[auth.external.google]` + secrets dans `supabase/.env`, puis
+  `supabase stop && supabase start`.
 
 > Google demande aussi l'écran de consentement (OAuth consent screen) et, pour
 > un usage public, la vérification de l'app. En interne/test : "External" +
@@ -84,10 +87,12 @@ Supabase Studio peut le générer si tu lui fournis les 4 champs (certaines
 versions) ; sinon le générer avec un script (openssl + les claims).
 
 ### 3. Brancher sur Supabase
-1. Supabase Studio → **Authentication → Providers → Apple** → Enable
-2. Renseigner : **Services ID**, **Team ID**, **Key ID**, **Client Secret (JWT)**
-3. **Authorized redirect** : `https://auth.qoe.fi/auth/v1/callback` (prod) /
-   `http://localhost:54321/auth/v1/callback` (local)
+- **Prod (VPS)** : Supabase Studio (`base.admin.qoe.fi`) → **Authentication →
+  Providers → Apple** → Enable : Services ID, Team ID, Key ID, Client Secret (JWT).
+- **Local** : Apple exige HTTPS → non testable en local ; configurer uniquement
+  sur le VPS. (Pour mémoire, le chemin local serait `supabase/config.toml`
+  `[auth.external.apple]`, mais inutilisable sans domaine HTTPS.)
+- **Authorized redirect** : `https://auth.qoe.fi/auth/v1/callback` (prod).
 
 ---
 

@@ -18,6 +18,10 @@
       "types": "./src/sync-user.ts",
       "default": "./src/sync-user.ts"
     },
+    "./onboarding": {
+      "types": "./src/onboarding.ts",
+      "default": "./src/onboarding.ts"
+    },
     "./types": {
       "types": "./src/types.ts",
       "default": "./src/types.ts"

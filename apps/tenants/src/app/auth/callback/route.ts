@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@qoe/supabase/server';
-import { getMainAppUrl } from '@qoe/config';
 
 function sanitizeNextPath(target: string | null): string {
   if (!target) return '/';
@@ -29,19 +28,15 @@ export async function GET(request: Request) {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        // Garantit la ligne User et détermine si l'onboarding est requis.
+        // Garantit la ligne User (création/propagation). L'onboarding éventuel
+        // est affiché EN POPUP par le layout tenant — on ne saute jamais
+        // l'onboarding, mais on ne redirige plus vers core : on reste sur
+        // l'article d'origine.
         const { syncUserFromAuth } = await import('@qoe/db/sync-user');
-        const result = await syncUserFromAuth(user);
-
-        // Nouveau compte (ou compte jamais onboardé) : direction l'onboarding
-        // de l'app principale — on ne le saute JAMAIS, même pour Google/Apple.
-        if (result.needsOnboarding) {
-          const host = request.headers.get('host') || '';
-          return NextResponse.redirect(`${getMainAppUrl(host)}/onboarding`);
-        }
+        await syncUserFromAuth(user);
       }
 
-      // Compte existant onboardé : retour sur l'article d'origine.
+      // Retour sur l'article (ou l'accueil) du tenant d'origine.
       const forwardedHost = request.headers.get('x-forwarded-host');
       const isLocalEnv = process.env.NODE_ENV === 'development';
       const base = isLocalEnv ? origin : forwardedHost ? `https://${forwardedHost}` : origin;

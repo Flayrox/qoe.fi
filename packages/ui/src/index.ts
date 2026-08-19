@@ -24,6 +24,12 @@ export { GuestFloatingBar, type AuthActionContext } from './GuestFloatingBar';
 export { LoginModal } from './LoginModal';
 export { LoginFormBento, type LoginFormBentoProps } from './LoginFormBento';
 export {
+  OnboardingFlow,
+  type OnboardingFlowProps,
+  type OnboardingSubmitData,
+} from './onboarding/OnboardingFlow';
+export { OnboardingModal, type OnboardingModalProps } from './onboarding/OnboardingModal';
+export {
   AuthModalProvider,
   useAuthModal,
   useRequireAuth,
