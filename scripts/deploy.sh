@@ -84,7 +84,7 @@ docker compose up migrate || error "Migrations ont échoué"
 # Redémarre les services un par un (zero-downtime approximatif)
 # ℹ️ api + worker partagent la même image Go (apps/api-go/Dockerfile) ;
 #    migrate est one-shot (déjà lancé au-dessus).
-for service in caddy web landing feed studio admin api worker redis; do
+for service in caddy console start studio admin tenants api worker redis; do
   log "   ↪ Redémarrage de $service..."
   docker compose up -d --no-deps "$service" || error "Redémarrage de $service a échoué"
   sleep 5

@@ -1,11 +1,11 @@
 # =====================================================================
 # 🐳 docker-compose.yml — qoe.fi monorepo (PRODUCTION)
 # =====================================================================
-# 📖 14 services :
+# 📖 14 services (nom de service = sous-domaine quand il existe) :
 #   1. caddy      : reverse proxy + TLS (seul service exposé au public)
-#   2. web        : Next.js tenants (wildcard *.qoe.fi)
-#   3. landing    : Next.js marketing (start.qoe.fi)
-#   4. feed       : Next.js reader (qoe.fi)
+#   2. tenants    : Next.js blogs créateurs (wildcard *.qoe.fi) — apps/web
+#   3. start      : Next.js marketing (start.qoe.fi) — apps/landing
+#   4. console    : Next.js reader + auth (qoe.fi) — apps/feed
 #   5. studio     : Next.js créateurs (studio.qoe.fi) — apps/dashboard
 #   6. admin      : Next.js plateforme (admin.qoe.fi)
 #   7. api        : backend-of-record Go (api.qoe.fi) — apps/api-go
@@ -62,15 +62,15 @@ services:
 
     # Caddy a besoin de connaître les autres services
     depends_on:
-      web:
+      tenants:
         condition: service_started
-      feed:
+      console:
         condition: service_started
       studio:
         condition: service_started
       admin:
         condition: service_started
-      landing:
+      start:
         condition: service_started
 
     # 🔒 Réseau PUBLIC uniquement : atteint les frontends (qoefi-public)
@@ -93,15 +93,15 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # 🌐 WEB : Next.js tenants (wildcard *.qoe.fi)
+  # 🌐 TENANTS : Next.js blogs créateurs (wildcard *.qoe.fi) — apps/web
   # ───────────────────────────────────────────────────────────────────
-  web:
+  tenants:
     build:
       context: .
       dockerfile: Dockerfile
       target: web
-    image: qoefi-web:latest
-    container_name: qoefi-web
+    image: qoefi-tenants:latest
+    container_name: qoefi-tenants
     restart: unless-stopped
 
     # PAS de port public : seul Caddy y accède
@@ -152,15 +152,15 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # 📣 LANDING : Next.js marketing (start.qoe.fi)
+  # 📣 START : Next.js marketing (start.qoe.fi) — apps/landing
   # ───────────────────────────────────────────────────────────────────
-  landing:
+  start:
     build:
       context: .
       dockerfile: Dockerfile
       target: landing
-    image: qoefi-landing:latest
-    container_name: qoefi-landing
+    image: qoefi-start:latest
+    container_name: qoefi-start
     restart: unless-stopped
 
     expose:
@@ -208,15 +208,15 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # 📰 FEED : Next.js public reader (qoe.fi / www.qoe.fi)
+  # 📰 CONSOLE : Next.js public reader + auth (qoe.fi / www.qoe.fi) — apps/feed
   # ───────────────────────────────────────────────────────────────────
-  feed:
+  console:
     build:
       context: .
       dockerfile: Dockerfile
       target: feed
-    image: qoefi-feed:latest
-    container_name: qoefi-feed
+    image: qoefi-console:latest
+    container_name: qoefi-console
     restart: unless-stopped
 
     expose:

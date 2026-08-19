@@ -2,7 +2,9 @@
 # 🐳 Dockerfile multi-target — qoe.fi monorepo
 # =====================================================================
 # 📖 Un SEUL Dockerfile qui build les cibles Next.js (l'API Go et le
-#    worker asynq ont leur propre Dockerfile dans apps/api-go) :
+#    worker asynq ont leur propre Dockerfile dans apps/api-go). Les targets
+#    suivent les DOSSIERS (apps/web, apps/landing…) ; les images suivent les
+#    services compose (qoefi-tenants, qoefi-start, qoefi-console…) :
 #    - web      : apps/web (Next.js tenants, wildcard *.qoe.fi)
 #    - landing  : apps/landing (Next.js marketing, start.qoe.fi)
 #    - feed     : apps/feed (Next.js reader, qoe.fi)
@@ -10,10 +12,10 @@
 #    - admin    : apps/admin (Next.js admin, admin.qoe.fi)
 #    - migrate  : one-shot Prisma migrate deploy
 #
-# 🎯 Usage :
-#    docker build --target web -t qoefi-web .
-#    docker build --target landing -t qoefi-landing .
-#    docker build --target feed -t qoefi-feed .
+# 🎯 Usage (tag image = nom de service compose) :
+#    docker build --target web -t qoefi-tenants .
+#    docker build --target landing -t qoefi-start .
+#    docker build --target feed -t qoefi-console .
 #    docker build --target dashboard -t qoefi-studio .
 #    docker build --target admin -t qoefi-admin .
 #
