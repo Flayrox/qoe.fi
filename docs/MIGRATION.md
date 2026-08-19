@@ -12,7 +12,7 @@
 | Élément | Valeur actuelle |
 |---|---|
 | Serveur | Hetzner — IP `178.104.197.3`, 4 cœurs / 8 Go RAM, swap 4 G |
-| Stack qoe.fi | Docker Compose, 14 services (`/var/www/qoe.fi`) — `worker-node` (BullMQ) supprimé, tout passe par asynq (`worker-go`) |
+| Stack qoe.fi | Docker Compose, 14 services (`/var/www/qoe.fi`) — `worker-node` (BullMQ) supprimé, tout passe par asynq (`worker`) |
 | Supabase | Self-hébergé dans `/var/www/supabase/docker` (Postgres 17.6 + pgvector 0.8.2, GoTrue v2.189.0, Kong, Storage, Studio, Realtime) |
 | Embeddings | llama.cpp + `jina-embeddings-v3-Q8_0.gguf` (600 Mo) dans `/var/www/qoe.fi/models/` |
 | Certs TLS | Certbot : `qoe.fi` + `*.qoe.fi` (wildcard, challenge DNS-01 **manuel**) — **valide jusqu'au 07/10**. ⚠️ `base.admin.qoe.fi` (3 niveaux) n'est PAS couvert par `*.qoe.fi` → cert DÉDIÉ à générer avant la migration (Phase 0) |
@@ -47,9 +47,9 @@
 
 ### Décisions v2 — organisation Docker (à appliquer au nouveau serveur)
 
-- **Noms** : `qoefi-api` (ex `qoefi-api-go`), `qoefi-worker-go` (ex `qoefi-api-go-worker`), `qoefi-studio` (ex `qoefi-dashboard`). **`qoefi-worker-node` SUPPRIMÉ** : vestige BullMQ, plus rien n'enqueue vers lui (0 job traité en 24 h, queues vides) — tout passe par asynq. Kebab-case partout (convention DNS/hostname, pas de `_`). `QOE_API_GO_URL` reste le nom de l'env var (dossier `apps/api-go` inchangé) — seule la **valeur** devient `http://api:8080`.
+- **Noms** : `qoefi-api` (ex `qoefi-api-go`), `qoefi-worker` (ex `qoefi-api-go-worker`), `qoefi-studio` (ex `qoefi-dashboard`). **`qoefi-worker-node` SUPPRIMÉ** : vestige BullMQ, plus rien n'enqueue vers lui (0 job traité en 24 h, queues vides) — tout passe par asynq. Kebab-case partout (convention DNS/hostname, pas de `_`). `QOE_API_GO_URL` reste le nom de l'env var (dossier `apps/api-go` inchangé) — seule la **valeur** devient `http://api:8080`.
 - **Sous-domaines v2** : `dashboard.qoe.fi` → **`studio.qoe.fi`** ; `admin-studio.qoe.fi` → **`base.admin.qoe.fi`** (cert dédié requis, wildcard ne couvre pas les 3 niveaux). Mettre à jour dans `.env.docker` : `NEXT_PUBLIC_DASHBOARD_URL=https://studio.qoe.fi`.
-- **Segmentation réseau par rôle** (voir docker-compose.yml) : `qoefi-public` = caddy + frontends + kong/studio ; `qoefi-private` = api/worker-go/redis/meili/embedding ; `supabase_default` = **uniquement** api, worker-go, migrate. Les frontends et caddy n'ont plus accès à la DB.
+- **Segmentation réseau par rôle** (voir docker-compose.yml) : `qoefi-public` = caddy + frontends + kong/studio ; `qoefi-private` = api/worker/redis/meili/embedding ; `supabase_default` = **uniquement** api, worker, migrate. Les frontends et caddy n'ont plus accès à la DB.
 - **Override Supabase** : `docker-compose.override.yml` dans `/var/www/supabase/docker` (créé par bootstrap.sh) attache kong/studio à `qoefi-public` (Caddy les joint sans toucher au réseau supabase). ⚠️ Ne pas renommer `realtime-dev.supabase-realtime` (realtime dérive son tenant id de son nom de conteneur — officiel Supabase).
 - **Meilisearch** : plus de port public 7700 (interne uniquement, joint par l'API Go).
 
@@ -210,9 +210,9 @@ curl -sL -o models/jina-embeddings-v3-Q8_0.gguf \
   "https://huggingface.co/second-state/jina-embeddings-v3-GGUF/resolve/main/jina-embeddings-v3-Q8_0.gguf"
 # vérifier : 600995424 octets (le bootstrap vérifie aussi le SHA-256)
 
-# 📛 Noms v2 : services `api`, `worker-go`, `studio` (ex api-go, api-go-worker, dashboard)
+# 📛 Noms v2 : services `api`, `worker`, `studio` (ex api-go, api-go-worker, dashboard)
 #    docker compose ps doit lister : qoefi-caddy, qoefi-web, qoefi-landing, qoefi-feed,
-#    qoefi-studio, qoefi-admin, qoefi-api, qoefi-worker-go,
+#    qoefi-studio, qoefi-admin, qoefi-api, qoefi-worker,
 #    qoefi-embedding, qoefi-redis, qoefi-meilisearch, qoefi-umami, qoefi-umami-db, qoefi-migrate
 #    (worker-node BullMQ supprimé — plus rien n'enqueue vers BullMQ)
 

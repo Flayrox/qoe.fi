@@ -5,7 +5,7 @@
 >
 > **Date** : 15 août 2026 (commit « sunset api-legacy »).
 >
-> - `api.qoe.fi` → Go (`api-go:8080`) — seul point d'entrée API.
+> - `api.qoe.fi` → Go (`api:8080`, service compose `qoefi-api`) — seul point d'entrée API.
 > - `api-legacy.qoe.fi` → **supprimé** (bloc Caddy retiré).
 > - `apps/api` → **supprimé** du dépôt.
 > - Le client universel (`@qoe/api-client` `QoeApiClient`, mobile) pointe vers le

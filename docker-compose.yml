@@ -9,7 +9,7 @@
 #   5. studio     : Next.js créateurs (studio.qoe.fi) — apps/dashboard
 #   6. admin      : Next.js plateforme (admin.qoe.fi)
 #   7. api        : backend-of-record Go (api.qoe.fi) — apps/api-go
-#   8. worker-go  : worker asynq Go (webhooks, newsletter, embeddings, collab)
+#   8. worker      : worker asynq Go (webhooks, newsletter, embeddings, collab)
 #   9. embedding  : llama.cpp — jina-embeddings-v3 (inférence locale)
 #   10. redis     : cache + queue (asynq)
 #   11. meilisearch: full-text search (réseau interne uniquement)
@@ -18,15 +18,15 @@
 #   14. migrate   : one-shot Prisma migrate (s'exécute puis s'arrête)
 #
 # ⚠️ worker-node (BullMQ Node) a été SUPPRIMÉ : vestige de l'ancienne stack.
-#    Plus rien n'enqueue vers BullMQ — tout passe par asynq (worker-go).
+#    Plus rien n'enqueue vers BullMQ — tout passe par asynq (worker).
 #
 # 🔒 Segmentation réseau par rôle :
 #   qoefi-public  : caddy + frontends (web/landing/feed/dashboard/admin/umami)
 #                   + supabase-kong/supabase-studio (voir l'override Supabase
 #                   créé par bootstrap.sh → docker-compose.override.yml).
 #                   Caddy n'a PAS accès au réseau supabase (donc pas à la DB).
-#   qoefi-private : tout le reste (api, worker-go, redis, meili, embedding).
-#   supabase_default : UNIQUEMENT api, worker-go et migrate
+#   qoefi-private : tout le reste (api, worker, redis, meili, embedding).
+#   supabase_default : UNIQUEMENT api, worker et migrate
 #                      (accès à la DB Supabase). Pas les frontends, pas caddy.
 #
 # 📖 Convention de nommage : kebab-case, préfixe qoefi-, nom de service = nom
@@ -441,14 +441,14 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # ⚙️ WORKER-GO (asynq) : webhooks + newsletter + embeddings
+  # ⚙️ WORKER (asynq) : webhooks + newsletter + embeddings + collab
   # ───────────────────────────────────────────────────────────────────
-  worker-go:
+  worker:
     build:
       context: ./apps/api-go
       dockerfile: Dockerfile
-    image: qoefi-worker-go:latest
-    container_name: qoefi-worker-go
+    image: qoefi-worker:latest
+    container_name: qoefi-worker
     restart: unless-stopped
     entrypoint: ['/usr/local/bin/qoe-worker']
 
@@ -668,7 +668,7 @@ services:
 # 🌐 RÉSEAUX
 # =====================================================================
 # qoefi-public   : caddy + frontends + kong/studio (exposé via Caddy)
-# qoefi-private  : api/workers/redis/meili/embedding (interne)
+# qoefi-private  : api/worker/redis/meili/embedding (interne)
 # supabase_default : externe (créé par le stack Supabase) — DB uniquement
 # =====================================================================
 networks:

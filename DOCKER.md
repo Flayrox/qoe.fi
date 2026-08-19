@@ -49,9 +49,8 @@
 | `admin.qoe.fi`          | admin           | Panneau de contrôle super-administrateur                       |
 | `start.qoe.fi`          | landing         | Vitrine commerciale de l'application                           |
 | `*.qoe.fi` (wildcard)   | web             | Blogs publics des créateurs (multi-tenancy)                    |
-| `api.qoe.fi`            | api-go          | Backend Go de référence (backend-of-record)                   |
-| `api-legacy.qoe.fi`      | api             | API Hono créateurs/médias (transition)                         |
-| `admin-supabase.qoe.fi` | Supabase Kong   | API Rest Supabase Auto-hébergée (avec proxy cache NVMe)        |
+| `api.qoe.fi`            | api             | Backend Go de référence (backend-of-record)                   |
+| `auth.qoe.fi`           | Supabase Kong   | API Rest Supabase auto-hébergée                                |
 | `base.admin.qoe.fi`     | Supabase Studio | Interface GUI de la base de données (sécurisée par Basic Auth + Tailscale) ⚠️ cert dédié (3 niveaux, non couvert par `*.qoe.fi`) |
 | `cdn.qoe.fi`            | Nginx Host      | CDN d'images & Stockage public (sécurisé avec cache local)     |
 
@@ -157,14 +156,15 @@ pnpm docker:dev:studio      # Prisma Studio (http://localhost:5555)
 ### Build manuel
 
 ```bash
-# Build toutes les cibles du Dockerfile multi-target
+# Build toutes les cibles du Dockerfile multi-target (Next.js)
 docker build --target web -t qoefi-web:latest .
 docker build --target landing -t qoefi-landing:latest .
 docker build --target feed -t qoefi-feed:latest .
-docker build --target dashboard -t qoefi-dashboard:latest .
+docker build --target dashboard -t qoefi-studio:latest .
 docker build --target admin -t qoefi-admin:latest .
-docker build --target api -t qoefi-api:latest .
-docker build --target workers -t qoefi-workers:latest .
+# L'API Go + le worker asynq ont leur propre Dockerfile (apps/api-go) :
+docker build -t qoefi-api:latest apps/api-go
+# → le worker utilise la même image avec l'entrypoint qoe-worker
 
 # Build + lance tout en arrière-plan
 pnpm docker:prod
@@ -182,10 +182,10 @@ pnpm docker:prod:build
 pnpm docker:prod:web
 pnpm docker:prod:landing
 pnpm docker:prod:feed
-pnpm docker:prod:dashboard
+pnpm docker:prod:studio
 pnpm docker:prod:admin
 pnpm docker:prod:api
-pnpm docker:prod:workers
+pnpm docker:prod:worker
 
 # Lance en arrière-plan
 pnpm docker:prod:up
@@ -199,11 +199,11 @@ pnpm docker:prod:logs                        # Tous les logs
 pnpm docker:prod:logs:web                    # Logs web uniquement
 pnpm docker:prod:logs:landing                # Logs landing
 pnpm docker:prod:logs:feed                   # Logs feed
-pnpm docker:prod:logs:dashboard              # Logs dashboard
+pnpm docker:prod:logs:studio                 # Logs studio
 pnpm docker:prod:logs:admin                  # Logs admin
 pnpm docker:prod:logs:api                    # Logs api
 pnpm docker:prod:logs:caddy                  # Logs caddy (SSL)
-pnpm docker:prod:logs:workers                # Logs workers
+pnpm docker:prod:logs:worker                 # Logs worker
 pnpm docker:prod:shell                       # Shell dans un container
 pnpm docker:prod:db                          # psql prod
 ```
