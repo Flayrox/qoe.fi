@@ -2,7 +2,7 @@
 #
 # Ce fichier est la SOURCE DE VÉRITÉ du contrat de l'API créateurs (voir
 # VISION_CREATORS_API.md). Il décrit la cible : parité avec l'ancienne API Hono, alignée
-# sur le backend Go (apps/api-go) + extensions plateforme.
+# sur le backend Go (apps/api) + extensions plateforme.
 #
 # - Auth : clé API `qoe_live_*` (médias/créateurs, délivrée après revue) ;
 #          OAuth 2.0 (apps tierces — à construire) ; JWT Supabase (app mobile).
@@ -12,7 +12,7 @@
 #
 # Reference de l'implémentation actuelle :
 #   Hono : ancien contrat apps/api (désormais supprimé — backend Go unique)
-#   Go   : apps/api-go/internal/modules/articles/
+#   Go   : apps/api/internal/modules/articles/
 openapi: 3.1.0
 info:
   title: qoe.fi — API Créateurs & Médias

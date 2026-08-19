@@ -5,7 +5,7 @@
 //   que la requête est vide (`enabled`).
 // - useTrendingQuery : hashtags tendance (cache 5 min).
 // ⚠️ Côté mobile, la recherche passera par l'API Go
-//    (apps/api-go/internal/modules/search → Meilisearch).
+//    (apps/api/internal/modules/search → Meilisearch).
 // =====================================================================
 
 import { useQuery } from '@tanstack/react-query';

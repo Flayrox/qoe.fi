@@ -141,7 +141,7 @@ export function getMonorepoUrl(
   const dashboardPort = isCaddy ? '' : ':3020';
   const adminPort = isCaddy ? '' : ':3030';
   const landingPort = isCaddy ? '' : ':3040';
-  // Backend Go (apps/api-go) — api.qoe.fi en prod, :8080 en dev direct.
+  // Backend Go (apps/api) — api.qoe.fi en prod, :8080 en dev direct.
   const apiPort = isCaddy ? '' : ':8080';
   const tenantPort = isCaddy ? '' : ':3001';
 

@@ -7,8 +7,8 @@
 // navigation / réseaux sociaux, onboarding, et gestion des clés API
 // (demande d'accès, génération `qoe_live_…` avec scopes à moindre
 // privilège, révocation).
-// ✅ AOÛT 2026 : 100 % délégué au backend Go (apps/api-go/internal/
-//    modules/settings). QOE_API_GO_URL requis (backend-of-record).
+// ✅ AOÛT 2026 : 100 % délégué au backend Go (apps/api/internal/
+//    modules/settings). QOE_API_URL requis (backend-of-record).
 // ⚠️ Fichier serveur — non exposé au mobile.
 // =====================================================================
 

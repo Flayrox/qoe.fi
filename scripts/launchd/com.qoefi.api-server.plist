@@ -11,7 +11,7 @@
 	</array>
 
 	<key>WorkingDirectory</key>
-	<string>/Users/ephe/Desktop/Qoe.fi/dev/prod/qoe.fi/apps/api-go</string>
+	<string>/Users/ephe/Desktop/Qoe.fi/dev/prod/qoe.fi/apps/api</string>
 
 	<key>RunAtLoad</key>
 	<true/>

@@ -9,7 +9,7 @@ Bienvenue dans le guide de démarrage rapide de `qoe.fi`. Ce document t'explique
 Plutôt que de faire tourner toute l'application (y compris Node.js et Next.js) dans Docker, nous utilisons le mode hybride :
 
 1. **Docker** gère uniquement les bases de données et services de fond : **PostgreSQL (avec pgvector)** et **Redis**.
-2. **Ton système hôte (Mac ou Windows)** exécute directement les serveurs de développement Node.js (Next.js pour le front ; l'API de référence est Go — `apps/api-go`).
+2. **Ton système hôte (Mac ou Windows)** exécute directement les serveurs de développement Node.js (Next.js pour le front ; l'API de référence est Go — `apps/api`).
 
 ### 🍏 Pourquoi c'est parfait pour macOS ?
 
@@ -119,7 +119,7 @@ C'est tout ! **Turborepo** va lancer en parallèle :
 - 🎨 **Dashboard** (`dashboard.qoe.fi` local) sur : http://localhost:3020
 - 🛡️ **Admin** (`admin.qoe.fi` local) sur : http://localhost:3030
 - 🌐 **Web** (`*.qoe.fi` local) sur : http://localhost:3001
-- 🔌 **API Hono (legacy, transition)** sur : http://localhost:3002 — backend de référence : `apps/api-go` (Go, `go run ./cmd/server`)
+- 🔌 **API Hono (legacy, transition)** sur : http://localhost:3002 — backend de référence : `apps/api` (Go, `go run ./cmd/server`)
 
 
 > 💡 **Astuce performance** : pour travailler sur UNE app sans chauffer ton CPU,

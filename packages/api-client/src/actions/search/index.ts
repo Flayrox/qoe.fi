@@ -9,7 +9,7 @@
 //   restreindre les articles à la publication active du créateur (Cmd+K).
 // - getTrendingHashtagsAction : hashtags tendance.
 // ⚠️ Fichier serveur : non exposé au mobile (qui passe par l'API Go, cf.
-//    apps/api-go/internal/modules/search).
+//    apps/api/internal/modules/search).
 // =====================================================================
 
 import { search } from '@qoe/db';

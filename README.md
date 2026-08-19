@@ -14,7 +14,7 @@ qoe.fi is structured as a modern Monorepo utilizing **Turborepo** and **pnpm wor
 
 | Domain               | Technology                                            |
 | -------------------- | ----------------------------------------------------- |
-| **Frameworks**       | Next.js 16 (App Router), Go (`apps/api-go`)          |
+| **Frameworks**       | Next.js 16 (App Router), Go (`apps/api`)          |
 | **Package Manager**  | pnpm 11.21 (Workspaces) + Turborepo 2.9               |
 | **Database Layer**   | PostgreSQL 16 + pgvector, Prisma ORM, Redis (BullMQ TS + asynq Go) |
 | **Infrastructure**   | Docker, Docker Compose, Caddy 2 (Reverse Proxy / TLS) |
@@ -41,8 +41,8 @@ The front-facing and API surface areas of the platform.
    The super-admin cockpit for platform moderation, statistics, and global system configuration.
 5. **`apps/tenants` (`*.qoe.fi` / Custom Domains)**
    The highly optimized, multi-tenant rendering engine for creator blogs. Includes dynamic routing via Caddy, Paywall cutting, and virtualized text annotation UI.
-6. **`apps/api-go` (`api.qoe.fi`)**
-   Backend Go unique de la plateforme (feed, posts, articles, notifications, analytics, webhooks, recherche Meilisearch). C'est le *backend-of-record* : les server actions y proxisent via `QOE_API_GO_URL`.
+6. **`apps/api` (`api.qoe.fi`)**
+   Backend Go unique de la plateforme (feed, posts, articles, notifications, analytics, webhooks, recherche Meilisearch). C'est le *backend-of-record* : les server actions y proxisent via `QOE_API_URL`.
 
 ### Core Packages (`packages/*`)
 

@@ -5,8 +5,8 @@
 // =====================================================================
 // Liste groupée paginée (par curseur), compteur non-lus, marquage lu,
 // préférences par canal (email/push).
-// ✅ AOÛT 2026 : 100 % délégué au backend Go (apps/api-go/internal/
-//    modules/notifications) — plus de fallback Prisma. QOE_API_GO_URL
+// ✅ AOÛT 2026 : 100 % délégué au backend Go (apps/api/internal/
+//    modules/notifications) — plus de fallback Prisma. QOE_API_URL
 //    est requis (backend-of-record).
 // ⚠️ Fichier serveur : non exposé au mobile (API Go /v1/notifications).
 // =====================================================================

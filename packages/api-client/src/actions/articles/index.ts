@@ -11,7 +11,7 @@
 //   par le client), invitations + notifications de collaboration.
 // - Publication : fan-out newsletter + webhooks entièrement gérés par le Go.
 // 🔗 Go-only : CRUD articles/catégories/commentaires délégués à
-//    l'API Go (apps/api-go/internal/modules/articles).
+//    l'API Go (apps/api/internal/modules/articles).
 // ⚠️ Fichier serveur : non exposé au mobile (le mobile lira les articles
 //    via l'API Go /v1/articles publiques).
 // =====================================================================

@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import { goFetch, isGoEnabled } from '@qoe/api-client/actions/utils/go-client';
 
-// Aligné sur ValidWebhookEvents (apps/api-go/internal/modules/webhooks/service.go).
+// Aligné sur ValidWebhookEvents (apps/api/internal/modules/webhooks/service.go).
 // `article.scheduled` existe côté Go mais n'est encore émis par aucun flux.
 const WEBHOOK_EVENTS = [
   'article.published',

@@ -3,7 +3,7 @@
 // =====================================================================
 // 📖 Compatible avec le Web, Node.js et React Native / Mobile (Expo).
 // ⚠️ Utilisé principalement par le mobile (apps/mobile) pour appeler
-//    directement l'API Go (apps/api-go). L'enveloppe `{data: …}` du Go est
+//    directement l'API Go (apps/api). L'enveloppe `{data: …}` du Go est
 //    dépliée automatiquement : on lit toujours `res.data.<champ>`.
 //    Les shapes exactes sont documentées dans docs/API_CONTRACT.md.
 // =====================================================================

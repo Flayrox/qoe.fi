@@ -10,7 +10,7 @@
 //   périodiquement par le scheduler).
 // ⚠️ Côté mobile : les notifications push / emails sont hors scope client ;
 //    le mobile lit les notifications via l'API Go
-//    (apps/api-go/internal/modules/notifications).
+//    (apps/api/internal/modules/notifications).
 // =====================================================================
 
 import { prisma } from '@qoe/db/client';

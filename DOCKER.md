@@ -161,8 +161,8 @@ docker build --target hi -t qoefi-hi:latest .
 docker build --target core -t qoefi-core:latest .
 docker build --target studio -t qoefi-studio:latest .
 docker build --target admin -t qoefi-admin:latest .
-# L'API Go + le worker asynq ont leur propre Dockerfile (apps/api-go) :
-docker build -t qoefi-api:latest apps/api-go
+# L'API Go + le worker asynq ont leur propre Dockerfile (apps/api) :
+docker build -t qoefi-api:latest apps/api
 # → le worker utilise la même image avec l'entrypoint qoe-worker
 
 # Build + lance tout en arrière-plan

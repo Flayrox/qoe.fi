@@ -82,7 +82,7 @@ log "Étape 4/6 : Redémarrage des services (rolling restart)..."
 docker compose up migrate || error "Migrations ont échoué"
 
 # Redémarre les services un par un (zero-downtime approximatif)
-# ℹ️ api + worker partagent la même image Go (apps/api-go/Dockerfile) ;
+# ℹ️ api + worker partagent la même image Go (apps/api/Dockerfile) ;
 #    migrate est one-shot (déjà lancé au-dessus).
 for service in caddy console start studio admin tenants api worker redis; do
   log "   ↪ Redémarrage de $service..."

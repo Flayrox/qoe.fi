@@ -14,7 +14,7 @@ User Request -> Caddy Reverse Proxy
 ├── dashboard.qoe.fi (Studio) -> `apps/dashboard`
 ├── admin.qoe.fi (Admin)      -> `apps/admin`
 ├── start.qoe.fi (Landing)    -> `apps/landing`
-├── api.qoe.fi (Go backend)   -> `apps/api-go`
+├── api.qoe.fi (Go backend)   -> `apps/api`
 └── *.qoe.fi / Custom Domains -> `apps/web` (Tenant Engine)
 ```
 

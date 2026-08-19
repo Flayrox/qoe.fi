@@ -2,7 +2,7 @@
 # 🐳 Dockerfile multi-target — qoe.fi monorepo
 # =====================================================================
 # 📖 Un SEUL Dockerfile qui build les cibles Next.js (l'API Go et le
-#    worker asynq ont leur propre Dockerfile dans apps/api-go). Targets,
+#    worker asynq ont leur propre Dockerfile dans apps/api). Targets,
 #    dossiers, packages et services sont alignés :
 #    - tenants  : apps/tenants (Next.js blogs, wildcard *.qoe.fi)
 #    - hi       : apps/hi (Next.js marketing, hi.qoe.fi)

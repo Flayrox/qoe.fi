@@ -8,7 +8,7 @@ import { getApiBaseUrl } from '@/lib/api';
 
 /**
  * Carte de démonstration : prouve que l'app mobile atteint l'API Go
- * (apps/api-go). On sonde `/healthz` (public) plutôt que le feed, qui
+ * (apps/api). On sonde `/healthz` (public) plutôt que le feed, qui
  * exige un JWT — la carte reflète la connectivité, pas l'auth.
  */
 export function ApiStatus() {

@@ -54,7 +54,7 @@ qoe.fi/                              # 18 workspaces
 │   ├── dashboard/                   # Next.js 16 — dashboard.qoe.fi (studio créateur)
 │   ├── admin/                       # Next.js 16 — admin.qoe.fi (superadmin, modération, config CMS)
 │   ├── web/                         # Next.js 16 — *.qoe.fi & domaines customs (blogs créateurs)
-│   ├── api-go/                     # Backend Go de référence (backend-of-record)
+│   ├── api/                        # Backend Go de référence (backend-of-record)
 │   └── api/                         # Hono legacy (transition, API créateurs/médias)
 ├── packages/                        # 11 packages partagés
 │   ├── db/                          # 🐘 Prisma (SOURCE UNIQUE: prisma/)
@@ -84,7 +84,7 @@ qoe.fi/                              # 18 workspaces
 | `admin.qoe.fi`     | admin     | Superadmin et modération                 |
 | `start.qoe.fi`     | landing   | Site vitrine, mentions légales et CMS    |
 | `*.qoe.fi`         | web       | Blogs créateurs (wildcard, multi-tenant) |
-| `api.qoe.fi`       | api-go    | Backend Go (backend-of-record)           |
+| `api.qoe.fi`       | api       | Backend Go (backend-of-record)           |
 | `api-legacy.qoe.fi` | api       | API Hono créateurs/médias (transition)   |
 
 ---
@@ -294,7 +294,7 @@ pnpm docker:deploy
 ### 🟢 Workers actifs
 
 - `workers/` (TS, BullMQ) : emails, AI, billing, newsletters — actif
-- `apps/api-go/cmd/worker` (Go, asynq) : dispatch webhooks, newsletter fanout, sync Meilisearch
+- `apps/api/cmd/worker` (Go, asynq) : dispatch webhooks, newsletter fanout, sync Meilisearch
 
 ### 🟡 Stubs à remplacer
 

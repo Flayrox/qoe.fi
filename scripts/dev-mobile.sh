@@ -21,7 +21,7 @@ BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-API_DIR="$ROOT_DIR/apps/api-go"
+API_DIR="$ROOT_DIR/apps/api"
 MOBILE_DIR="$ROOT_DIR/apps/mobile"
 
 # Configuration des variables d'environnement utiles

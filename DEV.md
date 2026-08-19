@@ -34,7 +34,7 @@ _(Caddy tourne en tâche de fond et libère ton terminal)._
 
 ### 3. Lancer les serveurs de dev (Natif)
 
-Démarre toutes les applications Next.js en parallèle (backend de référence Go — `apps/api-go`) :
+Démarre toutes les applications Next.js en parallèle (backend de référence Go — `apps/api`) :
 
 ```bash
 pnpm dev
@@ -83,7 +83,7 @@ Une fois tout démarré, accède directement à tes applications via les domaine
 - **Dashboard Créateur** : [http://dashboard.localhost](http://dashboard.localhost) _(ou `localhost:3020`)_
 - **Administration Générale** : [http://admin.localhost](http://admin.localhost) _(ou `localhost:3030`)_
 - **Landing Vitrine** : [http://start.localhost](http://start.localhost) _(ou `localhost:3040`)_
-- **API (Go)** : [http://api.localhost](http://api.localhost) _(ou `localhost:8080/health`)_ — `cd apps/api-go && go run ./cmd/server` (port 8080, activé via `QOE_API_GO_URL`)
+- **API (Go)** : [http://api.localhost](http://api.localhost) _(ou `localhost:8080/health`)_ — `cd apps/api && go run ./cmd/server` (port 8080, activé via `QOE_API_URL`)
 - **Blogs Créateurs** : `http://*.localhost:3001` _(wildcard multi-tenant, ex: `http://demo.localhost:3001`)_
 - **Prisma Studio (GUI)** : [http://localhost:5555](http://localhost:5555)
 - **GrowthBook (flags UI)** : [http://localhost:3100](http://localhost:3100)
@@ -117,7 +117,7 @@ apps/mobile/src/
   IP locale (via `hostUri` Metro) sur appareil physique.
 - Data fetching : **@tanstack/react-query** (même version que les apps web).
 - La carte « API qoe.fi » de l'écran d'accueil affiche l'état de la connexion :
-  lance l'API Go (`cd apps/api-go && go run ./cmd/server`) pour la voir
+  lance l'API Go (`cd apps/api && go run ./cmd/server`) pour la voir
   passer à « connectée ».
 
 ### i18n (Lingui)
@@ -154,11 +154,11 @@ apps/mobile/src/
   l'app résout `localhost` (simulateur) ou l'IP Metro (appareil physique).
 
 > ✅ **Backend unique Go** : le sunset de l'API Hono (`apps/api`) est acté et
-> fusionné — **Go (`apps/api-go`) est le seul backend** (`api.qoe.fi`),
+> fusionné — **Go (`apps/api`) est le seul backend** (`api.qoe.fi`),
 > contrat parallèle (`/v1/feed`, `/v1/thoughts` en alias, users, bookmarks…)
 > avec **19 tests Go** (Testcontainers Postgres réel, handlers HTTP, workers,
 > gate de couverture CI) sur `main`. Dev : Go = `:8080`
-> (`cd apps/api-go && go run ./cmd/server`). Le mobile vise l'API publique
+> (`cd apps/api && go run ./cmd/server`). Le mobile vise l'API publique
 > via `EXPO_PUBLIC_API_URL` → en dev : `http://localhost:8080` ; en prod :
 > `https://api.qoe.fi`.
 
