@@ -26,9 +26,9 @@
 | Service           | Port externe | Réseau  | Build stage / Image    | Description                                                |
 | ----------------- | ------------ | ------- | ---------------------- | ---------------------------------------------------------- |
 | **caddy**         | 80, 443      | public  | runtime                | Reverse proxy + TLS auto (Let's Encrypt)                   |
-| **web**           | 4001→3000    | public  | `web`                  | Next.js public (blogs créateurs / tenants)                 |
-| **landing**       | 4040→3040    | public  | `landing`              | Next.js marketing (`start.qoe.fi`)                         |
-| **feed**          | 4000→3010    | public  | `feed`                 | Next.js reader (`qoe.fi` + auth central)                   |
+| **tenants**       | 4001→3000    | public  | `web`                  | Next.js public (blogs créateurs / tenants)                 |
+| **start**         | 4040→3040    | public  | `landing`              | Next.js marketing (`start.qoe.fi`)                         |
+| **console**       | 4000→3010    | public  | `feed`                 | Next.js reader (`qoe.fi` + auth central)                   |
 | **studio**        | 4020→3020    | public  | `dashboard`            | Next.js creator (`studio.qoe.fi`)                          |
 | **admin**         | 4030→3030    | public  | `admin`                | Next.js superadmin (`admin.qoe.fi`)                        |
 | **api**           | 4002→3002    | public  | `api`                  | Hono legacy (transition, `api-legacy.qoe.fi`)              |
@@ -43,12 +43,12 @@
 
 | Subdomain               | Service interne | Description                                                    |
 | ----------------------- | --------------- | -------------------------------------------------------------- |
-| `qoe.fi`                | feed            | Flux lecteur & authentification centrale                       |
-| `www.qoe.fi`            | feed            | Redirection vers domaine racine                                |
+| `qoe.fi`                | console         | Flux lecteur & authentification centrale                       |
+| `www.qoe.fi`            | console         | Redirection vers domaine racine                                |
 | `studio.qoe.fi`         | studio          | Dashboard créateur / studio d'édition                          |
 | `admin.qoe.fi`          | admin           | Panneau de contrôle super-administrateur                       |
-| `start.qoe.fi`          | landing         | Vitrine commerciale de l'application                           |
-| `*.qoe.fi` (wildcard)   | web             | Blogs publics des créateurs (multi-tenancy)                    |
+| `start.qoe.fi`          | start           | Vitrine commerciale de l'application                           |
+| `*.qoe.fi` (wildcard)   | tenants         | Blogs publics des créateurs (multi-tenancy)                    |
 | `api.qoe.fi`            | api             | Backend Go de référence (backend-of-record)                   |
 | `auth.qoe.fi`           | Supabase Kong   | API Rest Supabase auto-hébergée                                |
 | `base.admin.qoe.fi`     | Supabase Studio | Interface GUI de la base de données (sécurisée par Basic Auth + Tailscale) ⚠️ cert dédié (3 niveaux, non couvert par `*.qoe.fi`) |
@@ -90,8 +90,8 @@ docker compose -f docker-compose.dev.yml up
 
 | URL                                       | Service                     | Port local (Docker)  | Port local (npm dev) |
 | ----------------------------------------- | --------------------------- | -------------------- | -------------------- |
-| `http://qoe.fi:4000`                      | feed (flux lecteur + auth)  | 4000 (interne: 3010) | 3010                 |
-| `http://start.qoe.fi:4040`                | landing (site vitrine)      | 4040 (interne: 3040) | 3040                 |
+| `http://qoe.fi:4000`                      | console (flux lecteur + auth) | 4000 (interne: 3010) | 3010                |
+| `http://start.qoe.fi:4040`                | start (site vitrine)        | 4040 (interne: 3040) | 3040                 |
 | `http://studio.qoe.fi:4020`               | studio (dashboard créateur) | 4020 (interne: 3020) | 3020                 |
 | `http://admin.qoe.fi:4030`                | admin (panel superadmin)    | 4030 (interne: 3030) | 3030                 |
 | `http://localhost:4001` (ou `*.qoe.fi`)   | web (blogs créateurs)       | 4001 (interne: 3000) | 3001                 |
@@ -141,25 +141,24 @@ pnpm docker:dev:logs     # Tous les logs
 ### Par service
 
 ```bash
-pnpm docker:dev:web         # Logs web
-pnpm docker:dev:landing     # Logs landing
-pnpm docker:dev:feed        # Logs feed
-pnpm docker:dev:dashboard   # Logs dashboard
+pnpm docker:dev:tenants     # Logs tenants
+pnpm docker:dev:start       # Logs start
+pnpm docker:dev:console     # Logs console
+pnpm docker:dev:studio      # Logs studio
 pnpm docker:dev:admin       # Logs admin
-pnpm docker:dev:api         # Logs api
-pnpm docker:dev:shell       # Shell dans le container feed
+pnpm docker:dev:shell       # Shell dans le container console
 pnpm docker:dev:db          # psql dans db
 pnpm docker:dev:redis       # redis-cli
-pnpm docker:dev:studio      # Prisma Studio (http://localhost:5555)
+pnpm docker:dev:prisma      # Prisma Studio (http://localhost:5555)
 ```
 
 ### Build manuel
 
 ```bash
 # Build toutes les cibles du Dockerfile multi-target (Next.js)
-docker build --target web -t qoefi-web:latest .
-docker build --target landing -t qoefi-landing:latest .
-docker build --target feed -t qoefi-feed:latest .
+docker build --target web -t qoefi-tenants:latest .
+docker build --target landing -t qoefi-start:latest .
+docker build --target feed -t qoefi-console:latest .
 docker build --target dashboard -t qoefi-studio:latest .
 docker build --target admin -t qoefi-admin:latest .
 # L'API Go + le worker asynq ont leur propre Dockerfile (apps/api-go) :
@@ -179,9 +178,9 @@ pnpm docker:prod
 pnpm docker:prod:build
 
 # OU par service
-pnpm docker:prod:web
-pnpm docker:prod:landing
-pnpm docker:prod:feed
+pnpm docker:prod:tenants
+pnpm docker:prod:start
+pnpm docker:prod:console
 pnpm docker:prod:studio
 pnpm docker:prod:admin
 pnpm docker:prod:api

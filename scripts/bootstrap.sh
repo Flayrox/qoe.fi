@@ -323,7 +323,7 @@ step_up() {
   ( cd "$APP_DIR" && docker compose up -d ) || { fail "docker compose up"; return 1; }
   echo "  → Attente du démarrage…"
   sleep 15
-  ( cd "$APP_DIR" && docker compose ps --format '{{.Name}}: {{.Status}}' | grep -E 'qoefi-(caddy|web|feed|studio|admin|landing|api|worker|embedding)' ) || true
+  ( cd "$APP_DIR" && docker compose ps --format '{{.Name}}: {{.Status}}' | grep -E 'qoefi-(caddy|console|start|studio|admin|tenants|api|worker|embedding)' ) || true
 }
 
 # ── Étape 8 : vérifications de bout en bout ──────────────────────────────────

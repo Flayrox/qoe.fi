@@ -1,7 +1,7 @@
 # =====================================================================
 # 🐳 docker-compose.dev.yml — qoe.fi monorepo (DÉVELOPPEMENT)
 # =====================================================================
-# 📖 HMR activé sur web + console (bind mount du code source).
+# 📖 HMR activé sur tenants + console (bind mount du code source).
 #    Tu modifies un fichier dans VSCode → le container le voit
 #    immédiatement, Next.js recompile.
 #
@@ -11,7 +11,7 @@
 #    docker compose -f docker-compose.dev.yml up
 #
 # 🌐 Accès :
-#    Web (start.qoe.fi)        : http://localhost:3001
+#    Start (start.qoe.fi)      : http://localhost:3001
 #    Console (qoe.fi)          : http://localhost:3010
 #    API (api.qoe.fi)          : http://localhost:3002
 #    Prisma Studio             : http://localhost:5555
@@ -194,13 +194,13 @@ services:
         condition: service_healthy
 
   # ───────────────────────────────────────────────────────────────────
-  # 🌐 WEB : Next.js public (HMR)
+  # 🌐 TENANTS : Next.js public (HMR)
   # ───────────────────────────────────────────────────────────────────
-  web:
+  tenants:
     # En dev, on n'utilise pas le multi-stage Dockerfile
     # On utilise un node:20 simple + bind mount pour HMR
     image: node:22-alpine
-    container_name: qoefi-dev-web
+    container_name: qoefi-dev-tenants
     restart: unless-stopped
 
     working_dir: /app
@@ -243,11 +243,11 @@ services:
         condition: service_completed_successfully
 
   # ───────────────────────────────────────────────────────────────────
-  # 📣 LANDING : Next.js marketing (HMR)
+  # 📣 START : Next.js marketing (HMR)
   # ───────────────────────────────────────────────────────────────────
-  landing:
+  start:
     image: node:22-alpine
-    container_name: qoefi-dev-landing
+    container_name: qoefi-dev-start
     restart: unless-stopped
 
     working_dir: /app
@@ -287,11 +287,11 @@ services:
         condition: service_completed_successfully
 
   # ───────────────────────────────────────────────────────────────────
-  # 📰 FEED : Next.js reader (HMR)
+  # 📰 CONSOLE : Next.js reader (HMR)
   # ───────────────────────────────────────────────────────────────────
-  feed:
+  console:
     image: node:22-alpine
-    container_name: qoefi-dev-feed
+    container_name: qoefi-dev-console
     restart: unless-stopped
 
     working_dir: /app
@@ -331,11 +331,11 @@ services:
         condition: service_completed_successfully
 
   # ───────────────────────────────────────────────────────────────────
-  # 🎨 DASHBOARD : Next.js creator (HMR)
+  # 🎨 STUDIO : Next.js creator (HMR)
   # ───────────────────────────────────────────────────────────────────
-  dashboard:
+  studio:
     image: node:22-alpine
-    container_name: qoefi-dev-dashboard
+    container_name: qoefi-dev-studio
     restart: unless-stopped
 
     working_dir: /app
