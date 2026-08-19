@@ -114,12 +114,12 @@ Pour les blogs créateurs sur Windows, utilise `*.lvh.me` plutôt que `*.qoe.tes
 
 C'est tout ! **Turborepo** va lancer en parallèle :
 
-- ⚛️ **Landing** (`start.qoe.fi` local) sur : http://localhost:3040
-- 📰 **Feed** (`qoe.fi` local) sur : http://localhost:3010
-- 🎨 **Dashboard** (`dashboard.qoe.fi` local) sur : http://localhost:3020
+- ⚛️ **Hi** (`hi.qoe.fi` local) sur : http://localhost:3040
+- 📰 **Core** (`qoe.fi` local) sur : http://localhost:3010
+- 🎨 **Studio** (`studio.qoe.fi` local) sur : http://localhost:3020
 - 🛡️ **Admin** (`admin.qoe.fi` local) sur : http://localhost:3030
-- 🌐 **Web** (`*.qoe.fi` local) sur : http://localhost:3001
-- 🔌 **API Hono (legacy, transition)** sur : http://localhost:3002 — backend de référence : `apps/api` (Go, `go run ./cmd/server`)
+- 🌐 **Tenants** (`*.qoe.fi` local) sur : http://localhost:3001
+- 🔌 **API Go** (`api.qoe.fi` local) sur : http://localhost:8080 — backend-of-record (`cd apps/api && go run ./cmd/server`)
 
 
 > 💡 **Astuce performance** : pour travailler sur UNE app sans chauffer ton CPU,
@@ -171,7 +171,7 @@ Ne t'inquiète pas pour le déploiement sur ton VPS Linux, **c'est en fait beauc
 
 1. **Docker natif sous Linux** : Contrairement à Windows ou macOS, Docker s'exécute nativement sous Linux. Il n'y a pas de couche de virtualisation (comme WSL2 ou hyperviseur macOS). C'est extrêmement rapide, stable et léger.
 2. **Pas de montage de fichiers locaux (bind mounts)** : En production, Docker n'a pas besoin de surveiller tes fichiers locaux pour le Hot-Reload. Le fichier `Dockerfile` de production compile tes applications une bonne fois pour toutes sous forme d'images autonomes (standalone).
-3. **Caddy s'occupe de TOUT pour le SSL** : Ton reverse proxy de production, **Caddy**, gère automatiquement la création, le renouvellement et l'attribution des certificats SSL (HTTPS) gratuits via Let's Encrypt pour ton domaine (`qoe.fi`) et tous tes sous-domaines (`*.qoe.fi`, `dashboard.qoe.fi`). Tu n'as aucune configuration complexe à faire.
+3. **Caddy s'occupe de TOUT pour le SSL** : Ton reverse proxy de production, **Caddy**, gère automatiquement la création, le renouvellement et l'attribution des certificats SSL (HTTPS) gratuits via Let's Encrypt pour ton domaine (`qoe.fi`) et tous tes sous-domaines (`*.qoe.fi`, `studio.qoe.fi`). Tu n'as aucune configuration complexe à faire.
 
 Pour déployer sur ton VPS, il te suffira de :
 

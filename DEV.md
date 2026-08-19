@@ -96,7 +96,7 @@ App Expo **SDK 57** (`apps/mobile`) : expo-router + **Expo UI** (@expo/ui —
 composants natifs SwiftUI / Jetpack Compose, stable et inclus dans Expo Go).
 Intégrée au monorepo (pnpm + turbo), Metro est auto-configuré pour le monorepo.
 
-### Structure (calquée sur `apps/feed`)
+### Structure (calquée sur `apps/core`)
 
 ```
 apps/mobile/src/

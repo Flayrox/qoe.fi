@@ -126,13 +126,15 @@ pnpm docker:dev:studio   # Lance Prisma Studio via Docker
 
 ```
 qoe.fi/                              # 21 workspaces résolus
-├── apps/                            # 6 services / applications indépendantes
-│   ├── landing/                     # Next.js 16 — start.qoe.fi (vitrine, textes légaux, CMS)
-│   ├── feed/                        # Next.js 16 — qoe.fi (flux lecteurs & SSO centralisé)
-│   ├── dashboard/                   # Next.js 16 — dashboard.qoe.fi (studio créateur & TipTap)
+├── apps/                            # 8 services / applications indépendantes
+│   ├── hi/                          # Next.js 16 — hi.qoe.fi (vitrine, textes légaux, CMS)
+│   ├── core/                        # Next.js 16 — qoe.fi (flux lecteurs & SSO centralisé)
+│   ├── studio/                      # Next.js 16 — studio.qoe.fi (studio créateur & TipTap)
 │   ├── admin/                       # Next.js 16 — admin.qoe.fi (superadmin & CMS config)
-│   ├── web/                         # Next.js 16 — *.qoe.fi & domaines customs (blogs créateurs)
-│   └── api/                        # Backend Go unique (backend-of-record)
+│   ├── tenants/                     # Next.js 16 — *.qoe.fi & domaines customs (blogs créateurs)
+│   ├── api/                         # Go (chi + sqlc + asynq) — api.qoe.fi (backend-of-record)
+│   ├── mobile/                      # Expo SDK 57 — reader mobile
+│   └── collab-server/               # Hocuspocus/Yjs — co-édition TipTap
 ├── packages/                        # 14 packages partagés
 │   ├── db/                          # 🐘 Prisma Singleton (Source unique de vérité DB)
 │   ├── auth/                        # 🔐 Rôles, permissions et helpers session
@@ -148,8 +150,7 @@ qoe.fi/                              # 21 workspaces résolus
 │   ├── flags/                       # 🚩 Feature flags GrowthBook (client + serveur)
 │   ├── utils/                       # 🔧 Fonctions utilitaires communes
 │   └── tsconfig/                    # 📐 Configurations TypeScript partagées
-├── workers/                         # BullMQ (queues de tâches asynchrones — actif)
-├── docker/                          # Configuration Caddy (Reverse Proxy), Postgres et Redis
+├── docker/                          # Configuration Caddy (Reverse Proxy), compose prod + dev
 └── prisma.config.ts                 # Redirige le CLI Prisma racine vers le package db
 ```
 
@@ -157,12 +158,12 @@ qoe.fi/                              # 21 workspaces résolus
 
 | Sous-domaine          | Application Next.js | Rôle                                                         |
 | --------------------- | ------------------- | ------------------------------------------------------------ |
-| `qoe.fi`              | `apps/feed`         | Portail d'accueil, flux de lecture et connexion unique (SSO) |
-| `dashboard.qoe.fi`    | `apps/dashboard`    | Studio d'écriture et de publication des créateurs            |
+| `qoe.fi`              | `apps/core`         | Portail d'accueil, flux de lecture et connexion unique (SSO) |
+| `studio.qoe.fi`       | `apps/studio`       | Studio d'écriture et de publication des créateurs            |
 | `admin.qoe.fi`        | `apps/admin`        | Panel de modération de la plateforme et édition du CMS       |
-| `start.qoe.fi`        | `apps/landing`      | Vitrine commerciale, mentions légales et CGU de la marque    |
-| `*.qoe.fi` (wildcard) | `apps/web`          | Moteur multi-tenant servant les blogs publics des créateurs  |
-| `api.qoe.fi`          | `apps/api`       | Backend Go unique (feed, posts, articles, webhooks, analytics) |
+| `hi.qoe.fi`           | `apps/hi`           | Vitrine commerciale, mentions légales et CGU de la marque    |
+| `*.qoe.fi` (wildcard) | `apps/tenants`      | Moteur multi-tenant servant les blogs publics des créateurs  |
+| `api.qoe.fi`          | `apps/api`          | Backend Go unique (feed, posts, articles, webhooks, analytics) |
 
 ---
 
@@ -198,7 +199,7 @@ import { TenantHeader, SubscribeForm } from '@qoe/ui';
 ## 🔌 Authentification Unique (SSO Subdomains)
 
 Toutes les applications partagent la session grâce au package `@qoe/supabase`.
-Les cookies d'authentification sont configurés sur le domaine parent `.qoe.fi`, ce qui garantit qu'une authentification réussie sur `qoe.fi/login` ouvre automatiquement la session sur `dashboard.qoe.fi`, `admin.qoe.fi` et sur les blogs `*.qoe.fi`.
+Les cookies d'authentification sont configurés sur le domaine parent `.qoe.fi`, ce qui garantit qu'une authentification réussie sur `qoe.fi/login` ouvre automatiquement la session sur `studio.qoe.fi`, `admin.qoe.fi` et sur les blogs `*.qoe.fi`.
 
 ---
 

@@ -10,16 +10,16 @@ The platform is designed around a **Distributed Monolithic architecture** powere
 
 ```text
 User Request -> Caddy Reverse Proxy
-├── qoe.fi (Reader Auth/Feed) -> `apps/feed`
-├── dashboard.qoe.fi (Studio) -> `apps/dashboard`
-├── admin.qoe.fi (Admin)      -> `apps/admin`
-├── start.qoe.fi (Landing)    -> `apps/landing`
-├── api.qoe.fi (Go backend)   -> `apps/api`
-└── *.qoe.fi / Custom Domains -> `apps/web` (Tenant Engine)
+├── qoe.fi (Reader Auth/Feed) -> `apps/core`
+├── studio.qoe.fi (Studio)   -> `apps/studio`
+├── admin.qoe.fi (Admin)     -> `apps/admin`
+├── hi.qoe.fi (Vitrine)      -> `apps/hi`
+├── api.qoe.fi (Go backend)  -> `apps/api`
+└── *.qoe.fi / Custom Domains -> `apps/tenants` (Tenant Engine)
 ```
 
 - **Caddy Proxying:** Caddy dynamically routes traffic based on host headers.
-- **Tenant Engine (`apps/web`):** The Next.js middleware inside `apps/web` parses the domain, resolving the creator's tenant and rendering their specific publications, applying proper theme tokens (`@qoe/theme`).
+- **Tenant Engine (`apps/tenants`):** The Next.js middleware inside `apps/tenants` parses the domain, resolving the creator's tenant and rendering their specific publications, applying proper theme tokens (`@qoe/theme`).
 
 ---
 
@@ -48,12 +48,12 @@ User Request -> Caddy Reverse Proxy
 - **Why this matters:** The system does not hide content using CSS (`display: none;`). It intercepts the Tiptap HTML string and splits it at the `<div data-type="paywall-divider">` marker. If the marker is missing, it falls back to paragraph limits or strict character limits (400 chars).
 - **Scalability Win:** Ensures 0 bytes of premium content leak over the network, completely mitigating DOM inspection bypasses.
 
-### Asynchronous Workers (BullMQ TS + asynq Go)
+### Asynchronous Workers (asynq Go, queue unique)
 
-- **Event Bus (`packages/workers/src/events/eventBus.ts`):**
-  - Strictly typed via Zod schemas.
-  - Offloads heavy mutations: e.g., `processMeilisearchSyncJob` handles document upserts to Meilisearch independently of the main API response cycle.
-  - Mitigates latency in Next.js Server Actions.
+- **Queue asynq** (`apps/api/internal/queue` + `apps/api/internal/workers/`) :
+  - Types typés (`TaskSearchSync`, `TaskArticlePublished`, `TaskStripeEvent`, …).
+  - Offloads heavy mutations: e.g., `TaskSearchSync` handles document upserts to Meilisearch independently of the main API response cycle, `TaskArticlePublished` déclenche webhooks + newsletter + embeddings.
+  - Mitigates latency in Next.js Server Actions (émission via `/internal/events/article-published`).
 
 ### Optimistic UI
 
@@ -72,10 +72,10 @@ User Request -> Caddy Reverse Proxy
 
 ### Known Edge Cases & Failure Modes
 
-1. **Redis Outage / BullMQ Failure:**
+1. **Redis Outage / asynq Failure:**
    - **Scenario:** The Redis instance goes down.
    - **Impact:** Worker jobs (Meilisearch syncing, Stripe webhooks, Newsletter fan-out) will queue locally or drop.
-   - **Mitigation:** The primary database (PostgreSQL) handles the source of truth. BullMQ jobs are configured with exponential backoffs (`type: "exponential", delay: 1000`) and will re-attempt once Redis is healthy.
+   - **Mitigation:** The primary database (PostgreSQL) handles the source of truth. Les jobs asynq retentent automatiquement (retries configurés par tâche) une fois Redis revenu.
 
 2. **Next.js Server Action Timeout:**
    - **Scenario:** A slow query causes a Server Action to exceed its function timeout (e.g., Vercel 10s limit).
