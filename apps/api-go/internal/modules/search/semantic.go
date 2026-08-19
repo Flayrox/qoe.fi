@@ -31,12 +31,18 @@ func uuidString(u pgtype.UUID) string {
 // articles publiés sont classés par similarité cosinus (index HNSW).
 type SemanticService struct {
 	pool     *pgxpool.Pool
-	q        *db.Queries
+	q        semanticQuerier
 	embedder embedClient
 }
 
 type embedClient interface {
 	Embed(ctx context.Context, text string) ([]float32, error)
+}
+
+// semanticQuerier est la surface de requêtes utilisée par SemanticService
+// (mockable en test — *db.Queries l'implémente en prod).
+type semanticQuerier interface {
+	SearchSemanticArticles(ctx context.Context, params db.SearchSemanticArticlesParams) ([]db.SearchSemanticArticlesRow, error)
 }
 
 func NewSemanticService(pool *pgxpool.Pool) *SemanticService {

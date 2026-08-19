@@ -9,9 +9,8 @@
 #    - Une modif dans un package rebuild automatiquement
 #
 # 📖 Structure :
-#    apps/*    → Les applications déployables (Next.js, Hono, workers)
+#    apps/*    → Les applications déployables (Next.js, Go)
 #    packages/* → Les bibliothèques partagées
-#    workers/*  → Les workers asynchrones (optionnel v1)
 # =====================================================================
 
 packages:
@@ -20,9 +19,6 @@ packages:
 
   # 📚 Bibliothèques partagées
   - 'packages/*'
-
-  # ⚙️ Workers asynchrones (BullMQ, jobs, etc.)
-  - 'workers'
 
   # ❌ Exclusions explicites (ne PAS traiter comme workspace)
   - '!**/node_modules'
