@@ -6,11 +6,10 @@ import { useRouter } from 'next/navigation';
 import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@qoe/utils';
-import { BentoPlateau, BentoItem } from '@qoe/ui/ui/BentoPlateau';
-import { Logo } from '@qoe/ui/ui/Logo';
-import { Button } from '@qoe/ui/ui/button';
-import { Input } from '@qoe/ui/ui/input';
-import { completeOnboarding } from './actions';
+import { BentoPlateau, BentoItem } from '../ui/BentoPlateau';
+import { Logo } from '../ui/Logo';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import {
   Check,
   X,
@@ -22,7 +21,17 @@ import {
   EyeOff,
 } from 'lucide-react';
 
-interface OnboardingFlowProps {
+export interface OnboardingSubmitData {
+  interests: string[];
+  onboardingText?: string;
+  mutedWords: string[];
+  creatorsToFollow: string[];
+  gender?: string;
+  ageRange?: string;
+  pronouns?: string;
+}
+
+export interface OnboardingFlowProps {
   categories: Array<{ id: string; name: string; slug: string }>;
   suggestedCreators: Array<{
     id: string;
@@ -32,10 +41,16 @@ interface OnboardingFlowProps {
     logoUrl: string | null;
     heroText: string | null;
   }>;
-  userId: string;
+  onSubmit: (data: OnboardingSubmitData) => Promise<unknown>;
+  onDone?: () => void;
 }
 
-export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlowProps) {
+export function OnboardingFlow({
+  categories,
+  suggestedCreators,
+  onSubmit,
+  onDone,
+}: OnboardingFlowProps) {
   const router = useRouter();
   const [step, setStep] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -121,7 +136,7 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
     try {
       setLoading(true);
       setError(null);
-      await completeOnboarding({
+      await onSubmit({
         interests: selectedInterests,
         onboardingText: bio,
         mutedWords,
@@ -133,8 +148,12 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
       if (typeof window !== 'undefined') {
         localStorage.removeItem('qoe_onboarding_step');
       }
-      router.push('/');
-      router.refresh();
+      if (onDone) {
+        onDone();
+      } else {
+        router.push('/');
+        router.refresh();
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to save preferences';
       setError(message);

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { LoginFormBento } from './LoginFormBento';
@@ -26,6 +27,16 @@ export function LoginModal({
   initialMode = 'login',
   actionContext,
 }: LoginModalProps) {
+  const router = useRouter();
+
+  // Après une connexion/inscription réussie, on re-synchronise les composants
+  // serveur : ça permet au layout tenant d'ouvrir l'onboarding en popup (et aux
+  // autres apps de re-sync l'auth) sans rechargement complet.
+  const handleSuccess = () => {
+    onClose();
+    router.refresh();
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -60,7 +71,7 @@ export function LoginModal({
             <LoginFormBento
               initialMode={initialMode}
               actionContext={actionContext}
-              onSuccess={onClose}
+              onSuccess={handleSuccess}
             />
           </motion.div>
         </div>

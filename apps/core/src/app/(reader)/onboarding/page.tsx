@@ -1,7 +1,9 @@
 import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
 import { prisma } from '@qoe/db/client';
-import { OnboardingFlow } from './OnboardingFlow';
+import { getOnboardingData } from '@qoe/db/onboarding';
+import { OnboardingFlow } from '@qoe/ui';
+import { completeOnboarding } from './actions';
 
 export default async function OnboardingPage() {
   const supabase = await createClient();
@@ -23,94 +25,15 @@ export default async function OnboardingPage() {
     redirect('/');
   }
 
-  // Get interest categories from SystemConfig (modifiable from admin config menu)
-  let uniqueCategories = [];
-  const configInterests = await prisma.systemConfig.findUnique({
-    where: { key: 'ONBOARDING_INTERESTS' },
-  });
-
-  if (configInterests) {
-    const list = configInterests.value
-      .split(',')
-      .map((i: string) => i.trim())
-      .filter(Boolean);
-    uniqueCategories = list.map((name: string) => ({
-      id: name,
-      name,
-      slug: name.toLowerCase().replace(/[^a-z0-9_-]/g, ''),
-    }));
-  } else {
-    // Default list
-    const defaultList = [
-      'Politique',
-      'International',
-      'Technologie',
-      'Économie',
-      'Philosophie',
-      'Sciences',
-      'Art & Design',
-    ];
-    try {
-      await prisma.systemConfig.create({
-        data: {
-          key: 'ONBOARDING_INTERESTS',
-          value: defaultList.join(', '),
-          description:
-            "Liste des centres d'intérêt proposés lors de l'onboarding (séparés par des virgules).",
-        },
-      });
-    } catch {
-      // Ignore if concurrent creation happens
-    }
-    uniqueCategories = defaultList.map((name) => ({
-      id: name,
-      name,
-      slug: name.toLowerCase().replace(/[^a-z0-9_-]/g, ''),
-    }));
-  }
-
-  // Get some certified publications to suggest
-  const suggestedCreators = await prisma.publication.findMany({
-    where: {
-      type: 'PERSONAL',
-      isCertified: true,
-      user: { is: { role: 'creator' } },
-    },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      subdomain: true,
-      logoUrl: true,
-      heroText: true,
-    },
-    take: 5,
-  });
-
-  // Fallback if no certified creators exist yet (for dev)
-  const creators =
-    suggestedCreators.length > 0
-      ? suggestedCreators
-      : await prisma.publication.findMany({
-          where: { type: 'PERSONAL', user: { is: { role: 'creator' } } },
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            subdomain: true,
-            logoUrl: true,
-            heroText: true,
-          },
-          take: 5,
-        });
+  const { categories, suggestedCreators } = await getOnboardingData();
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-[90%] xl:max-w-6xl mx-auto animate-in fade-in zoom-in duration-500">
         <OnboardingFlow
-          categories={uniqueCategories}
-          suggestedCreators={creators}
-          userId={user.id}
+          categories={categories}
+          suggestedCreators={suggestedCreators}
+          onSubmit={completeOnboarding}
         />
       </div>
     </main>

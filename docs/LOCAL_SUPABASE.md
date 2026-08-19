@@ -57,6 +57,48 @@ docker exec -i supabase_db_qoe.fi psql -U postgres -d postgres -f - < scripts/rl
 - Signup local : `curl -X POST http://127.0.0.1:54321/auth/v1/signup -H "apikey: <anon>" -H "Content-Type: application/json" -d '{"email":"...","password":"..."}'`
 - Compte de test créé : `test-local@qoe.fi` / `testtest123` (supprimable via Studio → Authentication → Users).
 
+## 🔐 Activer Google / Apple en local (config.toml, pas le Studio)
+
+⚠️ **Bug amont connu (CLI 2.115.0)** : la page **Authentication → Providers**
+du Studio local charge indéfiniment. Cause : le Studio (`2026.08.17`) appelle
+`GET /admin/config` et `GET /admin/providers` sur GoTrue (`v2.195.0`), routes
+qui n'existent plus (GoTrue n'expose plus que `/admin/users`, `/admin/sso/…`,
+`/admin/oauth2/…`). Rien à corriger côté repo — c'est un mismatch d'images du CLI.
+
+**Chemin officiel self-hosté (fonctionne, et c'est aussi celui du VPS)** :
+configurer les providers dans `supabase/config.toml`, pas dans le Studio.
+
+```toml
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+
+[auth.external.apple]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_APPLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_APPLE_SECRET)"
+```
+
+Les secrets vivent dans `supabase/.env` (gitignoré, créé par `supabase init`), ex :
+
+```bash
+SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID=...
+SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET=...
+SUPABASE_AUTH_EXTERNAL_APPLE_CLIENT_ID=...
+SUPABASE_AUTH_EXTERNAL_APPLE_SECRET=...
+```
+
+Puis `supabase stop && supabase start` (les sections `[auth.external.*]` sont
+passées à GoTrue en `GOTRUE_EXTERNAL_*`). Vérifier :
+
+```bash
+docker inspect supabase_auth_qoe.fi --format '{{range .Config.Env}}{{println .}}{{end}}' \
+  | grep GOTRUE_EXTERNAL_GOOGLE
+```
+
+Redirect URI autorisée chez Google (local) : `http://localhost:54321/auth/v1/callback`.
+
 ## 🔁 Différence prod / local (assumée)
 
 | | Local | Prod (VPS) |
