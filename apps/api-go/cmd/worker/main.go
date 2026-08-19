@@ -66,6 +66,7 @@ func main() {
 	if srv == nil {
 		log.Fatal("URL Redis invalide pour asynq")
 	}
+	asynqClient := queue.NewClient(cfg.RedisURL)
 
 	go func() {
 		log.Println("worker asynq démarré")
@@ -77,6 +78,11 @@ func main() {
 	// Nettoyage TTL des documents de collaboration (Yjs) : purge des
 	// brouillons non touchés depuis 14 jours, toutes les 6 heures.
 	go workers.RunCollabCleanup(ctx, pool, 6*time.Hour, 14*24*time.Hour)
+
+	// Publication automatique des articles programmés (SCHEDULED → PUBLISHED) :
+	// bascule + fanout asynq (webhooks, newsletter, embedding, search), toutes
+	// les minutes (rattrape au démarrage les articles passés pendant une coupure).
+	go workers.RunScheduledPublisher(ctx, pool, asynqClient, time.Minute)
 
 	<-ctx.Done()
 	log.Println("arrêt des workers…")

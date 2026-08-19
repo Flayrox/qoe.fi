@@ -112,9 +112,9 @@ go build ./... && go vet ./...
       câblés côté TS (goFetch) — **testé bout en bout** (receiver HTTP reçoit
       le POST signé, delivery SUCCESS)
 - [x] **getPostThread endpoint** (`GET /v1/posts/{id}/thread`) + proxy TS
-- [x] **Docker multi-stage** (`apps/api-go/Dockerfile`) : service `api-go` +
-      `api-go-worker` dans `docker-compose.yml` (réseau privé), reverse-proxy
-      Caddy `api.qoe.fi → api-go:8080`
+- [x] **Docker multi-stage** (`apps/api-go/Dockerfile`) : services `api` +
+      `worker` dans `docker-compose.yml` (réseaux privé + supabase_default),
+      reverse-proxy Caddy `api.qoe.fi → api:8080`
 - [x] **Marquage lu (toutes) en Go** : `markReadIDs` normalise un tableau vide
       en `nil` (NULL SQL) pour que `POST /v1/notifications/read` marque tout —
       testé unitairement (`go test ./...` sans DB)
