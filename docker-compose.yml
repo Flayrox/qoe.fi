@@ -430,6 +430,7 @@ services:
 
     environment:
       PORT: 8080
+      API_PORT: 8080
       REDIS_URL: redis://redis:6379
       QOE_INTERNAL_SECRET: ${QOE_INTERNAL_SECRET:-}
       # Umami self-hosted (réseau Docker). L'API REST v2 est sous /api (vs /v1 cloud).
