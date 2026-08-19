@@ -158,10 +158,13 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 
 	// Publication résolue depuis la clé API (contexte) ou le query param
-	// `publicationId` (JWT / backward-compat).
+	// `publicationId` (JWT / backward-compat). La présence d'une publication
+	// en contexte est le marqueur du mode clé API (CombinedAuth l'injecte).
 	publicationID := ""
+	apiKeyMode := false
 	if pid, ok := middleware.PublicationID(r.Context()); ok {
 		publicationID = pid
+		apiKeyMode = true
 	}
 	if publicationID == "" {
 		publicationID = r.URL.Query().Get("publicationId")
@@ -171,19 +174,34 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	page, limit := ParsePageLimit(r.URL.Query().Get("page"), r.URL.Query().Get("limit"))
-	category := r.URL.Query().Get("category")
-	published := true
-	if v := r.URL.Query().Get("published"); v != "" {
-		published = v == "true"
+	// Mode clé API : contrat créateurs paginé `{data, pagination}` (consommateurs
+	// médias/créateurs publics, contenu tronqué, publié uniquement par défaut).
+	if apiKeyMode {
+		page, limit := ParsePageLimit(r.URL.Query().Get("page"), r.URL.Query().Get("limit"))
+		category := r.URL.Query().Get("category")
+		published := true
+		if v := r.URL.Query().Get("published"); v != "" {
+			published = v == "true"
+		}
+
+		resp, err := h.svc.ListCreatorArticles(r.Context(), userID, publicationID, page, limit, category, published)
+		if err != nil {
+			response.Forbidden(w, err.Error())
+			return
+		}
+		response.OK(w, resp)
+		return
 	}
 
-	resp, err := h.svc.ListCreatorArticles(r.Context(), userID, publicationID, page, limit, category, published)
+	// Mode dashboard (session JWT) : liste complète des articles — brouillons
+	// inclus, plus récents d'abord — en tableau brut. Parité avec le type
+	// Prisma attendu par les server actions du studio (@qoe/api-client).
+	articles, err := h.svc.List(r.Context(), userID, publicationID, 100, 0)
 	if err != nil {
 		response.Forbidden(w, err.Error())
 		return
 	}
-	response.OK(w, resp)
+	response.OK(w, articles)
 }
 
 type updateInput struct {

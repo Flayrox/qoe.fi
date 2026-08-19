@@ -155,14 +155,21 @@ func TestRouter_FullCreatorFlow(t *testing.T) {
 		t.Fatalf("body = %s", w.Body.String())
 	}
 
-	// 2) Liste créateur avec JWT (contrat {data, pagination}).
-	w2, body2 := doReq(t, r, "GET", "/v1/articles?publicationId="+fx.PublicationID, token, nil)
+	// 2) Liste créateur avec JWT : tableau brut d'articles complets (dashboard),
+	// brouillons inclus — parité avec les server actions du studio.
+	w2, _ := doReq(t, r, "GET", "/v1/articles?publicationId="+fx.PublicationID, token, nil)
 	if w2.Code != http.StatusOK {
 		t.Fatalf("liste = %d, body = %s", w2.Code, w2.Body.String())
 	}
-	data, _ := body2["data"].([]any)
-	if len(data) != 3 {
-		t.Fatalf("len(data) = %d, attendu 3 publiés", len(data))
+	var list2 []map[string]any
+	if err := json.Unmarshal(w2.Body.Bytes(), &list2); err != nil {
+		t.Fatalf("liste JWT : JSON invalide (%v), body = %s", err, w2.Body.String())
+	}
+	if len(list2) != 4 {
+		t.Fatalf("len = %d, attendu 4 (3 publiés + 1 brouillon)", len(list2))
+	}
+	if _, ok := list2[0]["published"]; !ok {
+		t.Fatalf("items sans champ published: %s", w2.Body.String())
 	}
 
 	// 3) Création d'un article via le routeur complet.

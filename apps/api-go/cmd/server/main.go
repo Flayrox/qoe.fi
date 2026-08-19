@@ -188,7 +188,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 		analyticsHandler.Register(protected)
 
 		creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
-		creatorHandler.RegisterProtected(protected)
+		creatorHandler.RegisterProtected(protected, authmw.RequireAPIScope)
 
 		settingsHandler.RegisterProtected(protected)
 
