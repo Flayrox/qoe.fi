@@ -22,6 +22,10 @@
       "types": "./src/events.ts",
       "default": "./src/events.ts"
     },
+    "./referrers": {
+      "types": "./src/referrers.ts",
+      "default": "./src/referrers.ts"
+    },
     "./queries": {
       "types": "./src/queries/creator-analytics.ts",
       "default": "./src/queries/creator-analytics.ts"
@@ -29,7 +33,8 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@qoe/db": "workspace:*"

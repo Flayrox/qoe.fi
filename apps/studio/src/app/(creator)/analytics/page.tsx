@@ -30,7 +30,12 @@ export default async function AnalyticsPage() {
       subscriberDelta7d: 0,
       totalBookmarks: 0,
       totalHighlights: 0,
+      totalInteractions: 0,
       topArticles: [],
+    },
+    audience: {
+      creator: { declared: 0, gender: [], ageRange: [], countries: [], languages: [] },
+      platform: { declared: 0, gender: [], ageRange: [], countries: [], languages: [] },
     },
   };
 

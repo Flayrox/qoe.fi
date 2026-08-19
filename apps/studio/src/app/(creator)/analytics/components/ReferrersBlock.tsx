@@ -3,29 +3,10 @@
 import React from 'react';
 import { Globe, Search, Share2 } from 'lucide-react';
 import { UmamiPageMetric } from '@qoe/analytics/server';
+import { getReferrerLabel } from '@qoe/analytics/referrers';
 
 interface ReferrersBlockProps {
   referrers: UmamiPageMetric[];
-}
-
-function getReferrerLabel(rawReferrer: string): { name: string; category: string } {
-  if (!rawReferrer || rawReferrer === '' || rawReferrer === 'direct') {
-    return { name: 'Accès direct / Marque-page', category: 'Direct' };
-  }
-  const lower = rawReferrer.toLowerCase();
-  if (lower.includes('google')) return { name: 'Google Search', category: 'Recherche' };
-  if (lower.includes('twitter') || lower.includes('t.co') || lower.includes('x.com'))
-    return { name: 'X / Twitter', category: 'Réseaux Sociaux' };
-  if (lower.includes('substack')) return { name: 'Substack Network', category: 'Newsletter' };
-  if (lower.includes('threads')) return { name: 'Threads', category: 'Réseaux Sociaux' };
-  if (lower.includes('linkedin')) return { name: 'LinkedIn', category: 'Réseaux Sociaux' };
-  if (lower.includes('facebook') || lower.includes('fb'))
-    return { name: 'Facebook', category: 'Réseaux Sociaux' };
-
-  return {
-    name: rawReferrer.replace(/^https?:\/\//, '').replace(/\/$/, ''),
-    category: 'Web Referrer',
-  };
 }
 
 export function ReferrersBlock({ referrers }: ReferrersBlockProps) {
