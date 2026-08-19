@@ -209,6 +209,16 @@ step_qoefi() {
   if [ -d "$BACKUP_DIR/letsencrypt/live/qoe.fi" ] && [ ! -d /etc/letsencrypt/live/qoe.fi ]; then
     cp -r "$BACKUP_DIR/letsencrypt" /etc/letsencrypt && ok "Certs TLS restaurés"
   fi
+  # ⚠️ base.admin.qoe.fi (Supabase Studio) est un sous-domaine 3 niveaux :
+  #    le wildcard *.qoe.fi ne le couvre PAS. Il faut un cert DÉDIÉ,
+  #    généré avant la migration (voir docs/MIGRATION.md §Certs) pour
+  #    qu'il soit inclus dans la sauvegarde letsencrypt/.
+  if [ ! -d /etc/letsencrypt/live/base.admin.qoe.fi ]; then
+    warn "Cert dédié base.admin.qoe.fi ABSENT — le bloc Supabase Studio échouera."
+    warn "Génère-le AVANT la migration : certbot certonly -d base.admin.qoe.fi (challenge DNS)."
+  else
+    ok "Cert dédié base.admin.qoe.fi présent"
+  fi
 
   # Modèle d'embedding
   mkdir -p "$APP_DIR/models"
@@ -313,7 +323,7 @@ step_up() {
   ( cd "$APP_DIR" && docker compose up -d ) || { fail "docker compose up"; return 1; }
   echo "  → Attente du démarrage…"
   sleep 15
-  ( cd "$APP_DIR" && docker compose ps --format '{{.Name}}: {{.Status}}' | grep -E 'qoefi-(caddy|web|feed|dashboard|admin|landing|api|worker-node|worker-go|embedding)' ) || true
+  ( cd "$APP_DIR" && docker compose ps --format '{{.Name}}: {{.Status}}' | grep -E 'qoefi-(caddy|web|feed|studio|admin|landing|api|worker-go|embedding)' ) || true
 }
 
 # ── Étape 8 : vérifications de bout en bout ──────────────────────────────────
@@ -323,8 +333,8 @@ step_up() {
 # SANS --resolve pour confirmer la propagation.
 step_verify() {
   step 8 "Vérifications de bout en bout (via le serveur local, avant bascule DNS)"
-  resolve="--resolve api.qoe.fi:443:127.0.0.1 --resolve qoe.fi:443:127.0.0.1 --resolve start.qoe.fi:443:127.0.0.1"
-  for url in "https://api.qoe.fi/health" "https://qoe.fi" "https://start.qoe.fi"; do
+  resolve="--resolve api.qoe.fi:443:127.0.0.1 --resolve qoe.fi:443:127.0.0.1 --resolve start.qoe.fi:443:127.0.0.1 --resolve studio.qoe.fi:443:127.0.0.1"
+  for url in "https://api.qoe.fi/health" "https://qoe.fi" "https://start.qoe.fi" "https://studio.qoe.fi"; do
     code=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 15 $resolve "$url")
     if [ "$code" = "200" ] || [ "$code" = "307" ]; then ok "$url → $code"; else warn "$url → $code"; fi
   done

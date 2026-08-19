@@ -12,6 +12,17 @@
 #   web      console      api     web (sub)  web (custom)
 #  :3000      :3000       :3001     :3000      :3000
 #
+# 📖 Sous-domaines (v2) :
+#   qoe.fi / www          → feed       (reader + auth)
+#   start.qoe.fi          → landing    (marketing)
+#   api.qoe.fi            → api        (backend Go)
+#   studio.qoe.fi         → studio     (dashboard créateur)
+#   admin.qoe.fi          → admin      (admin plateforme)
+#   auth.qoe.fi / cdn.qoe.fi → supabase-kong
+#   base.admin.qoe.fi     → supabase-studio (⚠️ cert DÉDIÉ, le wildcard
+#                            *.qoe.fi ne couvre pas les sous-domaines 3 niveaux)
+#   umami.qoe.fi          → umami
+#
 # 📖 Wildcard *.qoe.fi nécessite un cert wildcard
 #    (DNS-01 challenge). Let's Encrypt le fait gratuitement.
 #    ⚠️ Si tu utilises Cloudflare, active le proxy (le cert est auto).
@@ -26,6 +37,13 @@
 
 (qoe_cert) {
     tls /etc/letsencrypt/live/qoe.fi/fullchain.pem /etc/letsencrypt/live/qoe.fi/privkey.pem
+}
+
+# Cert DÉDIÉ pour base.admin.qoe.fi (3 niveaux — non couvert par *.qoe.fi).
+# À générer AVANT la migration (certbot -d base.admin.qoe.fi, challenge DNS)
+# pour qu'il soit inclus dans la sauvegarde letsencrypt/ (voir MIGRATION.md).
+(base_admin_cert) {
+    tls /etc/letsencrypt/live/base.admin.qoe.fi/fullchain.pem /etc/letsencrypt/live/base.admin.qoe.fi/privkey.pem
 }
 
 (lassez_cert) {
@@ -78,9 +96,9 @@ qoe.fi, www.qoe.fi {
 
 
 # ─────────────────────────────────────────────────────────────────────
-# 🟠 DASHBOARD CRÉATEUR : dashboard.qoe.fi
+# 🎨 STUDIO CRÉATEUR : studio.qoe.fi
 # ─────────────────────────────────────────────────────────────────────
-dashboard.qoe.fi {
+studio.qoe.fi {
     import qoe_cert
     encode zstd gzip
 
@@ -90,7 +108,7 @@ dashboard.qoe.fi {
         X-Content-Type-Options "nosniff"
     }
 
-    reverse_proxy dashboard:3000 {
+    reverse_proxy studio:3000 {
         transport http {
             dial_timeout 30s
         }
@@ -185,8 +203,8 @@ api.qoe.fi {
 # ─────────────────────────────────────────────────────────────────────
 # Tous les sous-domaines créateurs (ex: jean.qoe.fi) vont vers web.
 # ⚠️ Cette règle wildcard doit impérativement être après les routes spécifiques
-#    (dashboard.qoe.fi, admin.qoe.fi, start.qoe.fi, api.qoe.fi) pour que Caddy
-#    aiguille correctement vers les conteneurs spécifiques en priorité.
+#    (studio.qoe.fi, admin.qoe.fi, start.qoe.fi, api.qoe.fi, base.admin.qoe.fi) pour
+#    que Caddy aiguille correctement vers les conteneurs spécifiques en priorité.
 *.qoe.fi {
     import qoe_cert
     encode zstd gzip
@@ -223,7 +241,7 @@ api.qoe.fi {
 #    ⚠️ Nécessite que le DNS pointe vers le VPS.
 :80 {
     # Catch-all pour custom domains (tout ce qui n'est pas qoe.fi)
-    @custom not host qoe.fi www.qoe.fi start.qoe.fi api.qoe.fi umami.qoe.fi admin-studio.qoe.fi dashboard.qoe.fi admin.qoe.fi
+    @custom not host qoe.fi www.qoe.fi start.qoe.fi api.qoe.fi umami.qoe.fi base.admin.qoe.fi studio.qoe.fi admin.qoe.fi
     handle @custom {
         reverse_proxy web:3000 {
             header_up Host {host}
@@ -235,9 +253,11 @@ api.qoe.fi {
 # ─────────────────────────────────────────────────────────────────────
 # 📋 NOTES IMPORTANTES
 # ─────────────────────────────────────────────────────────────────────
-# 1. Le wildcard *.qoe.fi inclut dashboard, admin, start, api ET les tenants.
+# 1. Le wildcard *.qoe.fi inclut studio, admin, start, api ET les tenants.
 #    C'est intentionnel : si un sous-domaine n'a pas de route spécifique,
 #    il est traité comme un tenant (géré par la web app).
+#    ⚠️ base.admin.qoe.fi (3 niveaux) n'est PAS couvert par *.qoe.fi —
+#    il a son bloc dédié + son cert dédié (base_admin_cert).
 #
 # 2. Let's Encrypt + wildcard nécessite un challenge DNS-01.
 #    Caddy le fait automatiquement si tu utilises un provider DNS supporté
@@ -320,10 +340,13 @@ cdn.qoe.fi {
 }
 
 # ───────────────────────────────────────────────────────────────────
-# 💻 SUPABASE STUDIO (Dashboard) via Tailscale + Basic Auth
+# 💻 SUPABASE STUDIO (Base de données) via Tailscale + Basic Auth
 # ───────────────────────────────────────────────────────────────────
-admin-studio.qoe.fi {
-    import qoe_cert
+# ⚠️ Sous-domaine 3 niveaux → cert DÉDIÉ requis (le wildcard *.qoe.fi
+#    ne couvre pas base.admin.qoe.fi). Voir (base_admin_cert) en haut
+#    et la section Certs de docs/MIGRATION.md.
+base.admin.qoe.fi {
+    import base_admin_cert
     encode zstd gzip
     
     @tailscale remote_ip 100.64.0.0/10 127.0.0.0/8 172.16.0.0/12

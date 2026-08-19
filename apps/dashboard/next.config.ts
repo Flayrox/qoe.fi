@@ -3,7 +3,7 @@ import { linguiMacroSwcPlugin } from '@lingui/swc-plugin/options';
 import { withSentryConfig } from '@sentry/nextjs';
 
 /**
- * ⚙️ apps/dashboard — Config Next.js pour le dashboard créateur (dashboard.qoe.fi)
+ * ⚙️ apps/dashboard — Config Next.js pour le dashboard créateur (studio.qoe.fi)
  */
 const nextConfig: NextConfig = {
   output: 'standalone',

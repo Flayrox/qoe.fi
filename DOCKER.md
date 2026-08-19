@@ -29,7 +29,7 @@
 | **web**           | 4001→3000    | public  | `web`                  | Next.js public (blogs créateurs / tenants)                 |
 | **landing**       | 4040→3040    | public  | `landing`              | Next.js marketing (`start.qoe.fi`)                         |
 | **feed**          | 4000→3010    | public  | `feed`                 | Next.js reader (`qoe.fi` + auth central)                   |
-| **dashboard**     | 4020→3020    | public  | `dashboard`            | Next.js creator (`dashboard.qoe.fi`)                       |
+| **studio**        | 4020→3020    | public  | `dashboard`            | Next.js creator (`studio.qoe.fi`)                          |
 | **admin**         | 4030→3030    | public  | `admin`                | Next.js superadmin (`admin.qoe.fi`)                        |
 | **api**           | 4002→3002    | public  | `api`                  | Hono legacy (transition, `api-legacy.qoe.fi`)              |
 | **workers**       | -            | private | `workers`              | BullMQ jobs (emails, AI, billing)                          |
@@ -45,14 +45,14 @@
 | ----------------------- | --------------- | -------------------------------------------------------------- |
 | `qoe.fi`                | feed            | Flux lecteur & authentification centrale                       |
 | `www.qoe.fi`            | feed            | Redirection vers domaine racine                                |
-| `dashboard.qoe.fi`      | dashboard       | Dashboard créateur / studio d'édition                          |
+| `studio.qoe.fi`         | studio          | Dashboard créateur / studio d'édition                          |
 | `admin.qoe.fi`          | admin           | Panneau de contrôle super-administrateur                       |
 | `start.qoe.fi`          | landing         | Vitrine commerciale de l'application                           |
 | `*.qoe.fi` (wildcard)   | web             | Blogs publics des créateurs (multi-tenancy)                    |
 | `api.qoe.fi`            | api-go          | Backend Go de référence (backend-of-record)                   |
 | `api-legacy.qoe.fi`      | api             | API Hono créateurs/médias (transition)                         |
 | `admin-supabase.qoe.fi` | Supabase Kong   | API Rest Supabase Auto-hébergée (avec proxy cache NVMe)        |
-| `admin-studio.qoe.fi`   | Supabase Studio | Interface GUI de la base de données (sécurisée par Basic Auth) |
+| `base.admin.qoe.fi`     | Supabase Studio | Interface GUI de la base de données (sécurisée par Basic Auth + Tailscale) ⚠️ cert dédié (3 niveaux, non couvert par `*.qoe.fi`) |
 | `cdn.qoe.fi`            | Nginx Host      | CDN d'images & Stockage public (sécurisé avec cache local)     |
 
 ### Réseaux
@@ -93,7 +93,7 @@ docker compose -f docker-compose.dev.yml up
 | ----------------------------------------- | --------------------------- | -------------------- | -------------------- |
 | `http://qoe.fi:4000`                      | feed (flux lecteur + auth)  | 4000 (interne: 3010) | 3010                 |
 | `http://start.qoe.fi:4040`                | landing (site vitrine)      | 4040 (interne: 3040) | 3040                 |
-| `http://dashboard.qoe.fi:4020`            | dashboard (studio créateur) | 4020 (interne: 3020) | 3020                 |
+| `http://studio.qoe.fi:4020`               | studio (dashboard créateur) | 4020 (interne: 3020) | 3020                 |
 | `http://admin.qoe.fi:4030`                | admin (panel superadmin)    | 4030 (interne: 3030) | 3030                 |
 | `http://localhost:4001` (ou `*.qoe.fi`)   | web (blogs créateurs)       | 4001 (interne: 3000) | 3001                 |
 | `http://localhost:4002/health`            | api (Hono legacy, transition) | 4002 (interne: 3002) | 3002                 |
@@ -105,7 +105,7 @@ docker compose -f docker-compose.dev.yml up
 > Pour utiliser les vrais subdomains en local, ajoute dans `/etc/hosts` :
 >
 > ```
-> 127.0.0.1 qoe.fi dashboard.qoe.fi admin.qoe.fi start.qoe.fi api.qoe.fi
+> 127.0.0.1 qoe.fi studio.qoe.fi admin.qoe.fi start.qoe.fi api.qoe.fi
 > ```
 
 ---

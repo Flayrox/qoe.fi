@@ -5,7 +5,8 @@
 export const RESERVED_SUBDOMAINS = [
   'admin',
   'api',
-  'dashboard',
+  'dashboard', // legacy (pré-renommage) — réservé pour les anciens liens
+  'studio',
   'feed',
   'landing',
   'start',
@@ -26,8 +27,10 @@ export const SYSTEM_DOMAINS = [
   'start.qoe.fi',
   'api.qoe.fi',
   'umami.qoe.fi',
-  'dashboard.qoe.fi',
+  'studio.qoe.fi',
+  'dashboard.qoe.fi', // legacy — conservé pour les anciens liens
   'admin.qoe.fi',
+  'base.admin.qoe.fi', // Supabase Studio (cert dédié, jamais un tenant)
 ] as const;
 
 export interface TenantInfo {

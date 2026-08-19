@@ -1,5 +1,5 @@
 // =====================================================================
-// 🔄 apps/dashboard/middleware.ts — Auth & Protection pour dashboard.qoe.fi
+// 🔄 apps/dashboard/middleware.ts — Auth & Protection pour studio.qoe.fi
 // =====================================================================
 
 import { NextResponse, type NextRequest } from 'next/server';
