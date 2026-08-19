@@ -26,10 +26,10 @@
 | Service           | Port externe | Réseau  | Build stage / Image    | Description                                                |
 | ----------------- | ------------ | ------- | ---------------------- | ---------------------------------------------------------- |
 | **caddy**         | 80, 443      | public  | runtime                | Reverse proxy + TLS auto (Let's Encrypt)                   |
-| **tenants**       | 4001→3000    | public  | `web`                  | Next.js public (blogs créateurs / tenants)                 |
-| **start**         | 4040→3040    | public  | `landing`              | Next.js marketing (`start.qoe.fi`)                         |
-| **console**       | 4000→3010    | public  | `feed`                 | Next.js reader (`qoe.fi` + auth central)                   |
-| **studio**        | 4020→3020    | public  | `dashboard`            | Next.js creator (`studio.qoe.fi`)                          |
+| **tenants**       | 4001→3000    | public  | `tenants`              | Next.js public (blogs créateurs / tenants)                 |
+| **hi**            | 4040→3040    | public  | `hi`                   | Next.js page d'exposition (`hi.qoe.fi`)                    |
+| **core**          | 4000→3010    | public  | `core`                 | Next.js reader (`qoe.fi` + auth central)                   |
+| **studio**        | 4020→3020    | public  | `studio`               | Next.js creator (`studio.qoe.fi`)                          |
 | **admin**         | 4030→3030    | public  | `admin`                | Next.js superadmin (`admin.qoe.fi`)                        |
 | **api**           | 4002→3002    | public  | `api`                  | Hono legacy (transition, `api-legacy.qoe.fi`)              |
 | **workers**       | -            | private | `workers`              | BullMQ jobs (emails, AI, billing)                          |
@@ -43,11 +43,11 @@
 
 | Subdomain               | Service interne | Description                                                    |
 | ----------------------- | --------------- | -------------------------------------------------------------- |
-| `qoe.fi`                | console         | Flux lecteur & authentification centrale                       |
-| `www.qoe.fi`            | console         | Redirection vers domaine racine                                |
-| `studio.qoe.fi`         | studio          | Dashboard créateur / studio d'édition                          |
+| `qoe.fi`                | core            | Flux lecteur & authentification centrale                       |
+| `www.qoe.fi`            | core            | Redirection vers domaine racine                                |
+| `studio.qoe.fi`         | studio          | Studio d'édition / dashboard créateur                          |
 | `admin.qoe.fi`          | admin           | Panneau de contrôle super-administrateur                       |
-| `start.qoe.fi`          | start           | Vitrine commerciale de l'application                           |
+| `hi.qoe.fi`             | hi              | Page d'exposition / vitrine de la plateforme                   |
 | `*.qoe.fi` (wildcard)   | tenants         | Blogs publics des créateurs (multi-tenancy)                    |
 | `api.qoe.fi`            | api             | Backend Go de référence (backend-of-record)                   |
 | `auth.qoe.fi`           | Supabase Kong   | API Rest Supabase auto-hébergée                                |
@@ -56,7 +56,7 @@
 
 ### Réseaux
 
-- **`qoefi-public`** : caddy, web, landing, feed, dashboard, admin, api, workers
+- **`qoefi-public`** : caddy, hi, core, studio, admin, api, tenants
 - **`qoefi-private`** : redis, migrate, workers (accès DB via loopback `host.docker.internal:5433`)
 
 ---
@@ -90,11 +90,11 @@ docker compose -f docker-compose.dev.yml up
 
 | URL                                       | Service                     | Port local (Docker)  | Port local (npm dev) |
 | ----------------------------------------- | --------------------------- | -------------------- | -------------------- |
-| `http://qoe.fi:4000`                      | console (flux lecteur + auth) | 4000 (interne: 3010) | 3010                |
-| `http://start.qoe.fi:4040`                | start (site vitrine)        | 4040 (interne: 3040) | 3040                 |
-| `http://studio.qoe.fi:4020`               | studio (dashboard créateur) | 4020 (interne: 3020) | 3020                 |
-| `http://admin.qoe.fi:4030`                | admin (panel superadmin)    | 4030 (interne: 3030) | 3030                 |
-| `http://localhost:4001` (ou `*.qoe.fi`)   | web (blogs créateurs)       | 4001 (interne: 3000) | 3001                 |
+| `http://qoe.fi:4000`                      | core (flux lecteur + auth) | 4000 (interne: 3010) | 3010                |
+| `http://hi.qoe.fi:4040`                   | hi (page d'exposition)     | 4040 (interne: 3040) | 3040                 |
+| `http://studio.qoe.fi:4020`               | studio (studio créateur)   | 4020 (interne: 3020) | 3020                 |
+| `http://admin.qoe.fi:4030`                | admin (panel superadmin)   | 4030 (interne: 3030) | 3030                 |
+| `http://localhost:4001` (ou `*.qoe.fi`)   | tenants (blogs créateurs)  | 4001 (interne: 3000) | 3001                 |
 | `http://localhost:4002/health`            | api (Hono legacy, transition) | 4002 (interne: 3002) | 3002                 |
 | `psql -h localhost -p 5433 -U qoe -d qoe` | db (Postgres direct)        | 5433 (interne: 5432) | 5433                 |
 | `redis-cli -h localhost -p 6379`          | redis (Redis cache direct)  | 6379                 | 6379                 |
@@ -104,7 +104,7 @@ docker compose -f docker-compose.dev.yml up
 > Pour utiliser les vrais subdomains en local, ajoute dans `/etc/hosts` :
 >
 > ```
-> 127.0.0.1 qoe.fi studio.qoe.fi admin.qoe.fi start.qoe.fi api.qoe.fi
+> 127.0.0.1 qoe.fi studio.qoe.fi admin.qoe.fi hi.qoe.fi api.qoe.fi
 > ```
 
 ---
@@ -142,8 +142,8 @@ pnpm docker:dev:logs     # Tous les logs
 
 ```bash
 pnpm docker:dev:tenants     # Logs tenants
-pnpm docker:dev:start       # Logs start
-pnpm docker:dev:console     # Logs console
+pnpm docker:dev:hi          # Logs hi
+pnpm docker:dev:core        # Logs core
 pnpm docker:dev:studio      # Logs studio
 pnpm docker:dev:admin       # Logs admin
 pnpm docker:dev:shell       # Shell dans le container console
@@ -156,10 +156,10 @@ pnpm docker:dev:prisma      # Prisma Studio (http://localhost:5555)
 
 ```bash
 # Build toutes les cibles du Dockerfile multi-target (Next.js)
-docker build --target web -t qoefi-tenants:latest .
-docker build --target landing -t qoefi-start:latest .
-docker build --target feed -t qoefi-console:latest .
-docker build --target dashboard -t qoefi-studio:latest .
+docker build --target tenants -t qoefi-tenants:latest .
+docker build --target hi -t qoefi-hi:latest .
+docker build --target core -t qoefi-core:latest .
+docker build --target studio -t qoefi-studio:latest .
 docker build --target admin -t qoefi-admin:latest .
 # L'API Go + le worker asynq ont leur propre Dockerfile (apps/api-go) :
 docker build -t qoefi-api:latest apps/api-go
@@ -179,8 +179,8 @@ pnpm docker:prod:build
 
 # OU par service
 pnpm docker:prod:tenants
-pnpm docker:prod:start
-pnpm docker:prod:console
+pnpm docker:prod:hi
+pnpm docker:prod:core
 pnpm docker:prod:studio
 pnpm docker:prod:admin
 pnpm docker:prod:api
@@ -195,9 +195,9 @@ pnpm docker:prod:up
 ```bash
 pnpm docker:prod:ps                          # État des containers
 pnpm docker:prod:logs                        # Tous les logs
-pnpm docker:prod:logs:web                    # Logs web uniquement
-pnpm docker:prod:logs:landing                # Logs landing
-pnpm docker:prod:logs:feed                   # Logs feed
+pnpm docker:prod:logs:tenants               # Logs tenants
+pnpm docker:prod:logs:hi                     # Logs hi
+pnpm docker:prod:logs:core                   # Logs core
 pnpm docker:prod:logs:studio                 # Logs studio
 pnpm docker:prod:logs:admin                  # Logs admin
 pnpm docker:prod:logs:api                    # Logs api
@@ -304,7 +304,7 @@ Chez ton registrar (Cloudflare, OVH, etc.) :
 ```bash
 # Vérifier la propagation
 nslookup qoe.fi 8.8.8.8
-nslookup start.qoe.fi 8.8.8.8
+nslookup hi.qoe.fi 8.8.8.8
 
 # Si pas résolu : attendre 30 min, vérifier la config DNS
 ```
@@ -359,7 +359,7 @@ pnpm docker:prod:rebuild   # Rebuild + restart
 lsof -i :3000           # Mac/Linux
 powershell -Command "Get-NetTCPConnection -LocalPort 3000"  # Windows
 
-# Tue-le OU change le port dans les packages d'apps (ex: apps/feed/package.json)
+# Tue-le OU change le port dans les packages d'apps (ex: apps/core/package.json)
 # "dev": "next dev -p 3010"
 ```
 

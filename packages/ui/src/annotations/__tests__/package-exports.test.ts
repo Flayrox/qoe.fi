@@ -26,7 +26,10 @@ describe('Tier 1: Package Subpath Exports & Contract Verification', () => {
 
   it('should verify annotation engine source file structure', () => {
     const annotationsDir = path.join(rootDir, 'packages/ui/src/annotations');
-    const webAnnotationsDir = path.join(rootDir, 'apps/web/src/app/tenant/[domain]/article/[slug]');
+    const webAnnotationsDir = path.join(
+      rootDir,
+      'apps/tenants/src/app/tenant/[domain]/article/[slug]'
+    );
 
     // Verify either decoupled @qoe/ui/annotations or tenant component source exists
     const hasDecoupled = fs.existsSync(annotationsDir);

@@ -118,8 +118,8 @@ echo
 success "🎉 Déploiement terminé !"
 echo
 echo -e "${BLUE}📋 URLs de ton app :${NC}"
-echo -e "  ${GREEN}https://qoe.fi${NC}         → Home/feed"
-echo -e "  ${GREEN}https://start.qoe.fi${NC}    → Landing"
+echo -e "  ${GREEN}https://qoe.fi${NC}         → Reader (core)"
+echo -e "  ${GREEN}https://hi.qoe.fi${NC}       → Page d'exposition (hi)"
 echo -e "  ${GREEN}https://studio.qoe.fi${NC} → Studio créateur"
 echo -e "  ${GREEN}https://admin.qoe.fi${NC}    → Admin"
 echo -e "  ${GREEN}https://api.qoe.fi/health${NC} → API"

@@ -22,7 +22,7 @@ export default defineConfig({
   // Démarre le serveur automatiquement (local ou CI), sans dépendre d'un
   // serveur déjà lancé. Réutilise un serveur existant si le port répond.
   webServer: {
-    command: 'pnpm --filter @qoe/feed dev',
+    command: 'pnpm --filter @qoe/core dev',
     port: PORT,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

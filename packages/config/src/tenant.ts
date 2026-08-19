@@ -6,10 +6,13 @@ export const RESERVED_SUBDOMAINS = [
   'admin',
   'api',
   'dashboard', // legacy (pré-renommage) — réservé pour les anciens liens
+  'feed', // legacy
+  'landing', // legacy
+  'start', // legacy
+  'hi',
+  'core',
+  'tenants',
   'studio',
-  'feed',
-  'landing',
-  'start',
   'www',
   'app',
   'auth',
@@ -24,7 +27,7 @@ export const SYSTEM_DOMAINS = [
   'lvh.me',
   'qoe.fi',
   'www.qoe.fi',
-  'start.qoe.fi',
+  'hi.qoe.fi',
   'api.qoe.fi',
   'umami.qoe.fi',
   'studio.qoe.fi',

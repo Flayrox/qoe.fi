@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint';
 // The Next.js ruleset (eslint-config-next) is only valid for Next.js apps.
 // Packages are plain TypeScript and must not load the Next config (it emits
 // a "Pages directory cannot be found" warning outside of a Next app).
-const nextApps = ['apps/admin', 'apps/dashboard', 'apps/feed', 'apps/landing', 'apps/web'];
+const nextApps = ['apps/admin', 'apps/studio', 'apps/core', 'apps/hi', 'apps/tenants'];
 
 // Scope a Next config object to the Next app directories, keeping its
 // original `files` semantics intact. Configs that only carry `ignores`
@@ -105,7 +105,7 @@ const eslintConfig = defineConfig([
                 if (matches && matches.length > 0) {
                   context.report({
                     node,
-                    message: `Anti-pattern: Raw Tailwind color class(es) found: "${matches.join(', ')}". Use semantic tokens from @qoe/theme instead (e.g., text-foreground, bg-muted, border-border). See apps/dashboard/STYLE.md.`,
+                    message: `Anti-pattern: Raw Tailwind color class(es) found: "${matches.join(', ')}". Use semantic tokens from @qoe/theme instead (e.g., text-foreground, bg-muted, border-border). See apps/studio/STYLE.md.`,
                   });
                 }
               }
@@ -144,7 +144,7 @@ const eslintConfig = defineConfig([
 
   // ---- Ignored paths (kept in sync with .prettierignore) ----
   globalIgnores([
-    // Build outputs (at any nesting level, e.g. apps/feed/.next)
+    // Build outputs (at any nesting level, e.g. apps/core/.next)
     '**/.next/**',
     '**/out/**',
     '**/build/**',

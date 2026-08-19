@@ -38,7 +38,7 @@ Sans `DATABASE_URL`, le serveur démarre avec une persistance **mémoire**
 ## Intégration dashboard
 
 Le client (`@hocuspocus/provider`) est branché dans
-`apps/dashboard/src/features/editor/components/Editor.tsx` :
+`apps/studio/src/features/editor/components/Editor.tsx` :
 
 - URL du serveur : `NEXT_PUBLIC_COLLAB_URL` (ex: `ws://localhost:1234`)
 - Token : session Supabase du navigateur

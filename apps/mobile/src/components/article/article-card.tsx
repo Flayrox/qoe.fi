@@ -12,7 +12,7 @@ import type { FeedArticle } from '@qoe/api-client/mobile';
 
 // =====================================================================
 // 🗞️ ArticleCard — Carte d'article du feed mobile (port de
-//    apps/feed/.../ArticleCard.tsx — l'« écran principal » web)
+//    apps/core/.../ArticleCard.tsx — l'« écran principal » web)
 // =====================================================================
 // Même design que le web : image de couverture (logo de la publication en
 // fallback), barre auteur (avatar + nom + date) superposée, titre, extrait,

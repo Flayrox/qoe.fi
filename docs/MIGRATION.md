@@ -26,7 +26,7 @@
 |---|---|---|
 | A | qoe.fi | 178.104.197.3 |
 | A | www.qoe.fi | 178.104.197.3 |
-| A | start / api / studio / admin / umami / cdn / auth .qoe.fi | 178.104.197.3 |
+| A | hi / api / studio / admin / umami / cdn / auth .qoe.fi | 178.104.197.3 |
 | A | base.admin.qoe.fi (Supabase Studio — nouveau nom) | 178.104.197.3 |
 | MX | qoe.fi | `5 mx1.hostinger.com.` / `10 mx2.hostinger.com.` |
 | TXT | qoe.fi | `v=spf1 include:_spf.mail.hostinger.com ~all` |
@@ -47,7 +47,7 @@
 
 ### Décisions v2 — organisation Docker (à appliquer au nouveau serveur)
 
-- **Noms** : `qoefi-api` (ex `qoefi-api-go`), `qoefi-worker` (ex `qoefi-api-go-worker`), `qoefi-studio` (ex `qoefi-dashboard`), `qoefi-tenants` (ex `qoefi-web`), `qoefi-console` (ex `qoefi-feed`), `qoefi-start` (ex `qoefi-landing`). **`qoefi-worker-node` SUPPRIMÉ** : vestige BullMQ, plus rien n'enqueue vers lui (0 job traité en 24 h, queues vides) — tout passe par asynq. Kebab-case partout (convention DNS/hostname, pas de `_`). Convention : **nom de service = sous-domaine** quand il existe (start/studio/admin/api) ; `console`/`tenants` n'ont pas de sous-domaine propre (qoe.fi racine et wildcard). `QOE_API_GO_URL` reste le nom de l'env var (dossier `apps/api-go` inchangé) — seule la **valeur** devient `http://api:8080`.
+- **Noms (v3, finaux)** : `qoefi-api` (ex `qoefi-api-go`), `qoefi-worker` (ex `qoefi-api-go-worker`), `qoefi-studio` (ex `qoefi-dashboard`), `qoefi-tenants` (ex `qoefi-web`), `qoefi-core` (ex `qoefi-console`/`qoefi-feed`), `qoefi-hi` (ex `qoefi-start`/`qoefi-landing`). **`qoefi-worker-node` SUPPRIMÉ** : vestige BullMQ, plus rien n'enqueue vers lui (0 job traité en 24 h, queues vides) — tout passe par asynq. Kebab-case partout (convention DNS/hostname, pas de `_`). Convention : **nom de service = sous-domaine** quand il existe (hi/studio/admin/api) ; `core`/`tenants` n'ont pas de sous-domaine propre (qoe.fi racine et wildcard). **Packages et dossiers alignés** : `@qoe/core` (apps/core), `@qoe/hi` (apps/hi), `@qoe/studio` (apps/studio), `@qoe/tenants` (apps/tenants). `QOE_API_GO_URL` reste le nom de l'env var (dossier `apps/api-go` inchangé) — seule la **valeur** devient `http://api:8080`.
 - **Sous-domaines v2** : `dashboard.qoe.fi` → **`studio.qoe.fi`** ; `admin-studio.qoe.fi` → **`base.admin.qoe.fi`** (cert dédié requis, wildcard ne couvre pas les 3 niveaux). Mettre à jour dans `.env.docker` : `NEXT_PUBLIC_DASHBOARD_URL=https://studio.qoe.fi`.
 - **Segmentation réseau par rôle** (voir docker-compose.yml) : `qoefi-public` = caddy + frontends + kong/studio ; `qoefi-private` = api/worker/redis/meili/embedding ; `supabase_default` = **uniquement** api, worker, migrate. Les frontends et caddy n'ont plus accès à la DB.
 - **Override Supabase** : `docker-compose.override.yml` dans `/var/www/supabase/docker` (créé par bootstrap.sh) attache kong/studio à `qoefi-public` (Caddy les joint sans toucher au réseau supabase). ⚠️ Ne pas renommer `realtime-dev.supabase-realtime` (realtime dérive son tenant id de son nom de conteneur — officiel Supabase).
@@ -90,7 +90,7 @@
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://auth.qoe.fi` |
 | `NEXT_PUBLIC_APP_URL` / `CONSOLE_URL` | `https://qoe.fi` |
-| `NEXT_PUBLIC_LANDING_URL` | `https://start.qoe.fi` |
+| `NEXT_PUBLIC_LANDING_URL` | `https://hi.qoe.fi` |
 | `NEXT_PUBLIC_API_URL` | `https://api.qoe.fi` |
 | `NEXT_PUBLIC_ADMIN_URL` | `https://admin.qoe.fi` |
 | `NEXT_PUBLIC_DASHBOARD_URL` | `https://studio.qoe.fi` (renommé v2 — à mettre à jour dans le `.env.docker` cible, puis REBUILD) |
@@ -210,9 +210,9 @@ curl -sL -o models/jina-embeddings-v3-Q8_0.gguf \
   "https://huggingface.co/second-state/jina-embeddings-v3-GGUF/resolve/main/jina-embeddings-v3-Q8_0.gguf"
 # vérifier : 600995424 octets (le bootstrap vérifie aussi le SHA-256)
 
-# 📛 Noms v2 : services `api`, `worker`, `studio`, `tenants`, `console`, `start`
-#    (ex api-go, api-go-worker, dashboard, web, feed, landing)
-#    docker compose ps doit lister : qoefi-caddy, qoefi-console, qoefi-start, qoefi-studio,
+# 📛 Noms v3 : services `api`, `worker`, `studio`, `tenants`, `core`, `hi`
+#    (ex api-go, api-go-worker, dashboard, web, feed, landing → console/start)
+#    docker compose ps doit lister : qoefi-caddy, qoefi-core, qoefi-hi, qoefi-studio,
 #    qoefi-admin, qoefi-tenants, qoefi-api, qoefi-worker,
 #    qoefi-embedding, qoefi-redis, qoefi-meilisearch, qoefi-umami, qoefi-umami-db, qoefi-migrate
 #    (worker-node BullMQ supprimé — plus rien n'enqueue vers BullMQ)
@@ -240,7 +240,7 @@ docker compose ps
 ```bash
 curl -s https://api.qoe.fi/health                          # {"status":"ok"}
 curl -s -o /dev/null -w '%{http_code}\n' https://qoe.fi    # 200/307
-curl -s -o /dev/null -w '%{http_code}\n' https://start.qoe.fi
+curl -s -o /dev/null -w '%{http_code}\n' https://hi.qoe.fi
 curl -s -o /dev/null -w '%{http_code}\n' https://studio.qoe.fi
 curl -sk -o /dev/null -w '%{http_code}\n' https://base.admin.qoe.fi  # via Tailscale (sinon 403 attendu)
 # Recherche sémantique (llama.cpp + pgvector) :
