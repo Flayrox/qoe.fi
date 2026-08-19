@@ -183,3 +183,6 @@ JOIN "User" u ON u.id = a."authorId"
 WHERE b."readerId" = $1
 ORDER BY b."createdAt" DESC
 LIMIT $2 OFFSET $3;
+
+-- name: GetUserPronouns :one
+SELECT "pronouns" FROM "User" WHERE id = $1;

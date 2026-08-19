@@ -29,39 +29,10 @@ export async function GET(request: Request) {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        const { prisma } = await import('@qoe/db/client');
-        let dbUser = await prisma.user.findUnique({
-          where: { id: user.id },
-        });
-
-        if (!dbUser) {
-          const emailPrefix = user.email ? user.email.split('@')[0] : 'user';
-          let baseUsername = emailPrefix.toLowerCase().replace(/[^a-z0-9_-]/g, '');
-          if (!baseUsername) baseUsername = 'user';
-
-          let finalUsername = baseUsername;
-          const existingUsername = await prisma.user.findUnique({
-            where: { username: finalUsername },
-          });
-          if (existingUsername) {
-            finalUsername = `${baseUsername}_${crypto.randomUUID().replace(/-/g, '').substring(0, 6)}`;
-          }
-
-          dbUser = await prisma.user.create({
-            data: {
-              id: user.id,
-              email: user.email!,
-              name: user.user_metadata?.name || user.user_metadata?.full_name || emailPrefix,
-              username: finalUsername,
-              role: 'user',
-              hasCompletedOnboarding: false,
-            },
-          });
+        const { syncUserFromAuth } = await import('@qoe/db/sync-user');
+        const result = await syncUserFromAuth(user);
+        if (result.needsOnboarding) {
           next = '/onboarding';
-        } else {
-          if (dbUser.role === 'user' && !dbUser.hasCompletedOnboarding) {
-            next = '/onboarding';
-          }
         }
       }
 

@@ -66,6 +66,7 @@ func main() {
 		UmamiUser:        cfg.UmamiUser,
 		UmamiPass:        cfg.UmamiPass,
 		DefaultUmamiSite: cfg.DefaultUmamiWebsiteID,
+		UmamiDatabaseURL: cfg.UmamiDatabaseURL,
 	})
 
 	srv := &http.Server{
@@ -102,6 +103,7 @@ type RouterDeps struct {
 	UmamiUser        string
 	UmamiPass        string
 	DefaultUmamiSite string
+	UmamiDatabaseURL string
 }
 
 // newRouter assemble l'API complète (routes publiques + créateur + workers
@@ -184,7 +186,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		highlightsHandler.RegisterProtected(protected)
 
-		analyticsHandler := analytics.NewHandler(analytics.NewService(pool))
+		analyticsHandler := analytics.NewHandler(analytics.NewService(pool, d.UmamiDatabaseURL))
 		analyticsHandler.Register(protected)
 
 		creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)

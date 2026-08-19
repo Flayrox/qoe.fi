@@ -60,6 +60,11 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
   // Step 4: Creators to follow
   const [followedCreators, setFollowedCreators] = useState<string[]>([]);
 
+  // Step 5: Demographics (optionnel)
+  const [gender, setGender] = useState<string | null>(null);
+  const [ageRange, setAgeRange] = useState<string | null>(null);
+  const [pronouns, setPronouns] = useState('');
+
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('qoe_onboarding_step', String(step));
@@ -100,6 +105,13 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
     setStep((prev) => prev + 1);
   };
 
+  const handleSkipDemographics = () => {
+    setGender(null);
+    setAgeRange(null);
+    setPronouns('');
+    handleSubmit();
+  };
+
   const handleBack = () => {
     setError(null);
     setStep((prev) => prev - 1);
@@ -114,6 +126,9 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
         onboardingText: bio,
         mutedWords,
         creatorsToFollow: followedCreators,
+        gender: gender || undefined,
+        ageRange: ageRange || undefined,
+        pronouns: pronouns.trim() || undefined,
       });
       if (typeof window !== 'undefined') {
         localStorage.removeItem('qoe_onboarding_step');
@@ -132,32 +147,39 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
     switch (step) {
       case 1:
         return {
-          label: t`Étape` + ' 1 / 4',
+          label: t`Étape` + ' 1 / 5',
           title: t`Votre Sanctuaire commence ici.`,
           desc: t`Sélectionnez les matières et idées qui éveillent votre réflexion. Pas d'algorithmes publicitaires ou compulsifs, juste les thématiques que vous décidez d'explorer.`,
           footer: t`QOE.FI — ZÉRO ATTENTION COMMERCIALE`,
         };
       case 2:
         return {
-          label: t`Étape` + ' 2 / 4',
+          label: t`Étape` + ' 2 / 5',
           title: t`Profil & Alignement Thématique`,
           desc: t`Décrivez vos sujets d'intérêt et votre vision pour personnaliser les suggestions de publications et les recommandations de créateurs.`,
           footer: t`QOE.FI — ALIGNEMENT THÉMATIQUE SUR MESURE`,
         };
       case 3:
         return {
-          label: t`Étape` + ' 3 / 4',
+          label: t`Étape` + ' 3 / 5',
           title: t`Le Bouclier de l'Attention`,
           desc: t`Le bruit informationnel est le premier obstacle au temps long. En filtrant les concepts toxiques, vous reprenez le contrôle absolu de votre fil de lecture.`,
           footer: t`FILTRAGE SOUVERAIN AU NIVEAU DE L'ÉLECTRON`,
         };
       case 4:
-      default:
         return {
-          label: t`Étape` + ' 4 / 4',
+          label: t`Étape` + ' 4 / 5',
           title: t`Souveraineté des Médias`,
           desc: t`Sur qoe.fi, les auteurs écrivent en toute indépendance, sans dépendre de régies publicitaires capitalistes ou d'intermédiaires. Suivez-les pour enrichir votre univers.`,
           footer: t`MODÈLE D'ABONNEMENT COMPATIBLE RGPD`,
+        };
+      case 5:
+      default:
+        return {
+          label: t`Étape` + ' 5 / 5',
+          title: t`Une communauté, toutes les identités.`,
+          desc: t`Dites-nous qui vous êtes — pour mieux calibrer vos recommandations et bâtir une communauté inclusive. Totalement optionnel, vous restez maître de ces informations.`,
+          footer: t`DONNÉES VOLONTAIRES, JAMAIS OBLIGATOIRES`,
         };
     }
   };
@@ -183,6 +205,7 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
                     {step === 2 && t`Détaillez vos lectures idéales.`}
                     {step === 3 && t`Préservez votre attention.`}
                     {step === 4 && t`Choisissez vos alliés.`}
+                    {step === 5 && t`Qu'est-ce qui vous décrit le mieux ?`}
                   </h2>
                   <p className="text-muted-foreground text-xs">
                     {step === 1 &&
@@ -192,6 +215,8 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
                     {step === 3 && t`Bannissez les mots ou sujets qui polluent votre réflexion.`}
                     {step === 4 &&
                       t`Voici quelques créateurs certifiés qui correspondent à vos affinités.`}
+                    {step === 5 &&
+                      t`Optionnel — ça nous aide à bâtir une communauté inclusive et à calibrer vos suggestions.`}
                   </p>
                 </div>
               </div>
@@ -386,6 +411,98 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
                       })}
                     </motion.div>
                   )}
+
+                  {step === 5 && (
+                    <motion.div
+                      key="step5"
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-4"
+                    >
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+                          {t`Qu'est-ce qui vous décrit le mieux ?`}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { value: 'FEMALE', label: t`Femme` },
+                            { value: 'MALE', label: t`Homme` },
+                            { value: 'NON_BINARY', label: t`Non-binaire` },
+                            { value: 'OTHER', label: t`Autre` },
+                            { value: 'PREFER_NOT_TO_SAY', label: t`Préfère ne pas dire` },
+                          ].map((opt) => {
+                            const selected = gender === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setGender(selected ? null : opt.value)}
+                                className={cn(
+                                  'px-3.5 py-2 rounded-full border text-xs font-semibold transition-all cursor-pointer',
+                                  selected
+                                    ? 'bg-[#EE4B2B]/10 border-[#EE4B2B] text-[#EE4B2B]'
+                                    : 'bg-muted/50 border-border text-muted-foreground hover:text-foreground'
+                                )}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+                          {t`Votre tranche d'âge`}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { value: 'UNDER_18', label: t`Moins de 18 ans` },
+                            { value: 'AGE_18_24', label: '18-24 ans' },
+                            { value: 'AGE_25_34', label: '25-34 ans' },
+                            { value: 'AGE_35_44', label: '35-44 ans' },
+                            { value: 'AGE_45_54', label: '45-54 ans' },
+                            { value: 'AGE_55_64', label: '55-64 ans' },
+                            { value: 'AGE_65_PLUS', label: t`65 ans et +` },
+                            { value: 'PREFER_NOT_TO_SAY', label: t`Préfère ne pas dire` },
+                          ].map((opt) => {
+                            const selected = ageRange === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setAgeRange(selected ? null : opt.value)}
+                                className={cn(
+                                  'px-3.5 py-2 rounded-full border text-xs font-semibold transition-all cursor-pointer',
+                                  selected
+                                    ? 'bg-[#EE4B2B]/10 border-[#EE4B2B] text-[#EE4B2B]'
+                                    : 'bg-muted/50 border-border text-muted-foreground hover:text-foreground'
+                                )}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground block mb-0.5">
+                          {t`Vos pronoms (optionnel)`}
+                        </label>
+                        <Input
+                          value={pronouns}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setPronouns(e.target.value)
+                          }
+                          placeholder="ex: iel, il/lui, elle, they/them"
+                          className="h-10 rounded-xl bg-muted/50 border-border"
+                        />
+                      </div>
+                    </motion.div>
+                  )}
                 </AnimatePresence>
               </div>
             </div>
@@ -405,7 +522,7 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
                 <div />
               )}
 
-              {step < 4 ? (
+              {step < 5 ? (
                 <Button
                   onClick={handleNext}
                   className="rounded-xl px-5 py-2 bg-[#EE4B2B] hover:bg-[#d63d20] text-white font-semibold text-xs transition-colors"
@@ -413,18 +530,28 @@ export function OnboardingFlow({ categories, suggestedCreators }: OnboardingFlow
                   {t`Continuer`}
                 </Button>
               ) : (
-                <Button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="rounded-xl px-5 py-2 bg-[#EE4B2B] hover:bg-[#d63d20] text-white font-semibold text-xs transition-colors flex items-center gap-1.5"
-                >
-                  {loading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-3.5 h-3.5" />
-                  )}
-                  {t`Entrer dans le sanctuaire`}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={handleSkipDemographics}
+                    disabled={loading}
+                    variant="outline"
+                    className="rounded-xl px-4 py-2 text-xs font-semibold"
+                  >
+                    {t`Passer cette étape`}
+                  </Button>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={loading}
+                    className="rounded-xl px-5 py-2 bg-[#EE4B2B] hover:bg-[#d63d20] text-white font-semibold text-xs transition-colors flex items-center gap-1.5"
+                  >
+                    {loading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5" />
+                    )}
+                    {t`Entrer dans le sanctuaire`}
+                  </Button>
+                </div>
               )}
             </div>
           </div>

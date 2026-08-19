@@ -1055,6 +1055,7 @@ export const resolveProfileAction = safeAction<string, ProfileResolvePayload>(
       heroText: profile.heroText,
       headerImageUrl: profile.headerImageUrl,
       onboardingText: null,
+      pronouns: profile.pronouns ?? null,
       isCertified: profile.isCertified,
       createdAt: profile.createdAt,
       posts: postsRes.items.map(mapProfileSlice),

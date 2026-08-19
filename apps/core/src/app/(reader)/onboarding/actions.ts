@@ -4,11 +4,26 @@ import { prisma } from '@qoe/db/client';
 import { createClient } from '@qoe/supabase/server';
 import { generateMockEmbedding, updateUserEmbedding } from '../../../lib/ai';
 
+const GENDERS = ['FEMALE', 'MALE', 'NON_BINARY', 'OTHER', 'PREFER_NOT_TO_SAY'] as const;
+const AGE_RANGES = [
+  'UNDER_18',
+  'AGE_18_24',
+  'AGE_25_34',
+  'AGE_35_44',
+  'AGE_45_54',
+  'AGE_55_64',
+  'AGE_65_PLUS',
+  'PREFER_NOT_TO_SAY',
+] as const;
+
 export async function completeOnboarding(data: {
   interests: string[];
   onboardingText?: string;
   mutedWords: string[];
   creatorsToFollow: string[];
+  gender?: string;
+  ageRange?: string;
+  pronouns?: string;
 }) {
   const supabase = await createClient();
   const {
@@ -18,12 +33,28 @@ export async function completeOnboarding(data: {
   if (!user) throw new Error('Unauthorized');
 
   try {
+    const gender = GENDERS.includes(data.gender as (typeof GENDERS)[number])
+      ? (data.gender as (typeof GENDERS)[number])
+      : undefined;
+    const ageRange = AGE_RANGES.includes(data.ageRange as (typeof AGE_RANGES)[number])
+      ? (data.ageRange as (typeof AGE_RANGES)[number])
+      : undefined;
+    const pronouns = data.pronouns?.trim().slice(0, 50) || undefined;
+
     // Update onboarding completion and save biography if provided
     await prisma.user.update({
       where: { id: user.id },
       data: {
         hasCompletedOnboarding: true,
         ...(data.onboardingText ? { onboardingText: data.onboardingText } : {}),
+        ...(gender || ageRange || pronouns
+          ? {
+              gender,
+              ageRange,
+              pronouns,
+              demographicsUpdatedAt: new Date(),
+            }
+          : {}),
       },
     });
 

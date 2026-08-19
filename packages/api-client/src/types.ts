@@ -237,6 +237,7 @@ export interface PublicProfileData {
   headerImageUrl: string | null;
   isCertified: boolean;
   isFollowing: boolean;
+  pronouns?: string | null;
   createdAt: string;
   type: 'PERSONAL' | 'MEDIA';
   _count: { followers: number; following: number; articles: number };

@@ -10,4 +10,5 @@ ALTER TABLE "User"
   ADD COLUMN "ageRange" "AgeRange",
   ADD COLUMN "countryCode" TEXT,
   ADD COLUMN "languageCode" TEXT,
-  ADD COLUMN "demographicsUpdatedAt" TIMESTAMP(3);
+  ADD COLUMN "demographicsUpdatedAt" TIMESTAMP(3),
+  ADD COLUMN "pronouns" TEXT;

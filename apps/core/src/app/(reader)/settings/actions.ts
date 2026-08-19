@@ -42,6 +42,7 @@ export async function getAccountSettingsAction() {
       username: user.username,
       logoUrl: user.logoUrl,
       onboardingText: user.onboardingText,
+      pronouns: user.pronouns,
       role: user.role,
       createdAt: user.createdAt.toISOString(),
     },
@@ -62,12 +63,14 @@ export async function updateAccountProfileAction(input: {
   username: string;
   onboardingText: string;
   logoUrl: string;
+  pronouns: string;
 }) {
   const { user } = await getAccountUser();
   const name = input.name.trim().slice(0, 120);
   const username = input.username.trim().toLowerCase().replace(/^@/, '');
   const onboardingText = input.onboardingText.trim().slice(0, 500);
   const logoUrl = input.logoUrl.trim().slice(0, 2000);
+  const pronouns = input.pronouns.trim().slice(0, 50) || null;
 
   if (username && !/^[a-z0-9_]{3,30}$/.test(username)) {
     throw new Error(
@@ -90,6 +93,7 @@ export async function updateAccountProfileAction(input: {
       username: username || null,
       onboardingText: onboardingText || null,
       logoUrl: logoUrl || null,
+      pronouns,
     },
   });
 

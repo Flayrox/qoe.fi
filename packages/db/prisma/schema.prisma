@@ -94,6 +94,7 @@ model User {
   countryCode          String? // ISO 3166-1 alpha-2 (ex: "FR")
   languageCode         String? // ISO 639-1 (ex: "fr")
   demographicsUpdatedAt DateTime?
+  pronouns             String? // ex: "iel", "il/lui", "elle" — communauté inclusive
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
