@@ -103,6 +103,14 @@
 | `DEFAULT_LANGUAGE` | `fr` |
 | DNS | voir §0 (A records → nouvelle IP, MX/SPF/DKIM/DMARC → nouveau serveur mail) |
 
+> ⚠️ **Renommage v3 — env var API** : `QOE_API_GO_URL` a été renommée en
+> **`QOE_API_URL`** (dossier `apps/api-go` → `apps/api`, module
+> `github.com/qoefi/api`). Les `.env.docker` existants (ancien VPS + local)
+> utilisent encore l'ancien nom : les mettre à jour **avant** le `docker compose up`
+> du nouveau serveur, sinon `goFetch` ne voit pas l'URL et les server actions
+> retombent sur le fallback Prisma (silencieux, mauvais comportement). Vérif :
+> `grep -r QOE_API_GO_URL .env.docker` ne doit rien retourner.
+
 ### Groupe D — NOUVEAUX (serveur mail)
 
 | Secret | Note |

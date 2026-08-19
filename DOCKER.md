@@ -32,7 +32,6 @@
 | **studio**        | 4020→3020    | public  | `studio`               | Next.js creator (`studio.qoe.fi`)                          |
 | **admin**         | 4030→3030    | public  | `admin`                | Next.js superadmin (`admin.qoe.fi`)                        |
 | **api**           | 4002→3002    | public  | `api`                  | Hono legacy (transition, `api-legacy.qoe.fi`)              |
-| **workers**       | -            | private | `workers`              | BullMQ jobs (emails, AI, billing)                          |
 | **migrate**       | -            | private | runtime                | One-shot Prisma migrate (s'exécute puis s'arrête)          |
 | **redis**         | 6379         | private | redis:7-alpine         | Cache + queue                                              |
 | **db (Supabase)** | 5433→5432    | private | `supabase/postgres:17` | Postgres 17 + pgvector (hébergé dans `/var/www/supabase/`) |
@@ -436,7 +435,7 @@ docker stats
 
 ### Pourquoi Redis en plus de Postgres ?
 
-- **BullMQ** : queue de jobs (emails, AI, billing)
+- **Queue asynq** : jobs du worker Go (webhooks, newsletter, sync Meilisearch, embeddings, publish)
 - **Cache** : next.js cache, sessions
 - **Rate limiting** : protection API
 - **Realtime** : pub/sub pour features futures

@@ -6,7 +6,7 @@
 > ce fichier décrit l'état **actuel** du monorepo et sert de base au
 > développement de l'**application mobile** (`apps/mobile`).
 >
-> Dernière mise à jour : août 2026.
+> Dernière mise à jour : août 2026 (noms v3 : core/hi/studio/tenants/api).
 >
 > 📌 **Compléments pour le mobile** :
 > - [`docs/MOBILE_SPEC.md`](./MOBILE_SPEC.md) — spec pixel-perfect de l'app
@@ -18,7 +18,7 @@
 
 ## 1. Vue d'ensemble du monorepo
 
-**Monorepo Turborepo + pnpm workspaces** — 6 apps + 1 app mobile + ~15 packages partagés + 2 workers (TS BullMQ + Go asynq).
+**Monorepo Turborepo + pnpm workspaces** — 8 apps (dont mobile + collab-server) + ~15 packages partagés + **1 worker Go (asynq)**.
 
 ### État actuel vs docs historiques
 
@@ -28,7 +28,7 @@
 | Server actions | Appellent Prisma directement | **Proxy fin vers Go** quand `QOE_API_URL` est défini (`goFetch`). |
 | App mobile | "React Native ou Expo (roadmap)" | **`apps/mobile` existe** (Expo SDK 57, expo-router, Expo UI). |
 | Feature flags | GrowthBook dans `@qoe/config/features` | Package dédié **`@qoe/flags`** (registre typé + dégradation). |
-| Recherche | — | **Meilisearch** (module Go `search` + worker `TaskSearchSync`). |
+| Recherche | — | **Meilisearch** (module Go `search` + worker `TaskSearchSync`) + **sémantique** (embeddings jina → pgvector). |
 | Notifications | — | Worker Go asynq `TaskPostLiked`, `TaskArticlePublished`… |
 
 ### Arborescence
@@ -36,30 +36,30 @@
 ```
 qoe.fi/
 ├── apps/
-│   ├── landing/      # Next.js 16 — start.qoe.fi (vitrine, mentions, CMS SystemConfig)
-│   ├── feed/         # Next.js 16 — qoe.fi (feed lecteur + auth centralisée) ← MODÈLE DU MOBILE
-│   ├── dashboard/    # Next.js 16 — dashboard.qoe.fi (studio créateur, éditeur Tiptap, billing)
-│   ├── admin/        # Next.js 16 — admin.qoe.fi (superadmin, modération, CMS)
-│   ├── web/          # Next.js 16 — *.qoe.fi & domaines customs (blogs multi-tenant)
-│   ├── api/          # Go — api.qoe.fi (backend-of-record, 19.5k lignes)
-│   └── mobile/       # Expo SDK 57 — apps/mobile (React Native, expo-router)
+│   ├── hi/           # Next.js — hi.qoe.fi (vitrine, mentions, pages légales)
+│   ├── core/         # Next.js — qoe.fi (reader, feed, auth centralisée) ← MODÈLE DU MOBILE
+│   ├── studio/       # Next.js — studio.qoe.fi (studio créateur, éditeur Tiptap, billing)
+│   ├── admin/        # Next.js — admin.qoe.fi (superadmin, modération, CMS)
+│   ├── tenants/      # Next.js — *.qoe.fi & domaines customs (blogs multi-tenant)
+│   ├── api/          # Go (chi + sqlc + asynq) — api.qoe.fi (backend-of-record)
+│   ├── mobile/       # Expo SDK 57 — apps/mobile (React Native, expo-router)
+│   └── collab-server/# Hocuspocus/Yjs — co-édition TipTap temps réel
 ├── packages/         # Bibliothèques partagées (source de vérité)
 │   ├── api-client/   # Couche data : client HTTP universel + server actions + hooks React Query
 │   ├── auth/         # RBAC (permissions.ts, can(user, action)), mailer sécurité
 │   ├── billing/      # Stripe + paywall (truncation AST côté serveur)
 │   ├── config/       # ENV Zod, constantes, routes, tenant, features
 │   ├── db/           # Prisma (schema unique) + repositories typés
-│   ├── flags/        # Feature flags GrowthBook (registre typé)
+│   ├── email/        # Outbox email + providers (Resend/Postmark/SES/SMTP) — dossier packages/workers
+│   ├── flags/        # Feature flags (registre typé)
 │   ├── i18n/         # Lingui (core + catalogs RN-safe)
 │   ├── observability/# Logger + cache Redis (withCache)
 │   ├── supabase/     # Clients SSR (server/middleware/browser) + SSO + broadcast
 │   ├── theme/        # Design tokens + native.ts (tokens RN)
 │   ├── ui/           # Composants partagés (ThoughtCard, SocialIcon, modals…)
 │   ├── utils/        # cn, format, slugify, ActionResult, paywall helpers
-│   ├── workers/      # Event bus BullMQ + jobs (emails, search, stripe)
 │   └── …             # analytics, tsconfig
-├── workers/          # Worker TS BullMQ (distinct du package @qoe/workers)
-├── docker/           # Caddy, Postgres, Redis, GrowthBook
+├── docker/           # Caddy, compose prod + dev
 └── messages/         # Catalogues i18n (fr/en)
 ```
 
@@ -115,19 +115,22 @@ Navigateur (web) / Mobile
   READ/WRITE/ANALYTICS) acceptées en alternative au JWT sur les routes
   créateur (`CombinedAuth`, `APIKeyAuth`).
 
-### 2.3 Événements async — BullMQ (TS) vs asynq (Go)
+### 2.3 Événements async — asynq (Go), queue unique
 
-- **Web (TS)** : `@qoe/workers` (event bus BullMQ) — `eventBus.publishArticlePublished`.
-- **Go** : `apps/api/internal/queue` (asynq) — workers dans
+- **Une seule queue** : `apps/api/internal/queue` (asynq) — workers dans
   `apps/api/internal/workers/` :
-  - `TaskArticlePublished/Updated/Deleted` → webhooks + newsletter
+  - `TaskArticlePublished/Updated/Deleted` → webhooks + newsletter + embedding + Meilisearch
   - `TaskSubscriberCreated` → webhooks
   - `TaskPostLiked` → newsletter (likes)
   - `TaskStripeEvent` → billing
   - `TaskSearchSync` → Meilisearch
-- Quand Go est actif, les server actions **enqueue directement dans asynq**
-  via l'endpoint interne `/internal/events/article-published`
-  (secret `x-qoe-internal-secret`).
+  - `RunScheduledPublisher` → passe les articles SCHEDULED à PUBLISHED (toutes les minutes)
+  - `CollabCleanup` → nettoyage des documents Yjs
+- L'API Go enqueue via asynq (`apps/api/internal/queue/client.go`) ; les
+  server actions Next émettent via l'endpoint interne
+  `/internal/events/article-published` (secret `x-qoe-internal-secret`).
+- **BullMQ supprimé** (`workers/` racine et `@qoe/workers` n'existent plus) :
+  tout passe par asynq, lié au backend-of-record Go.
 
 ### 2.4 Cache
 
@@ -202,7 +205,7 @@ Chaque module suit : `handler.go` (routes/HTTP) → `service.go` (logique) →
 **Stack** : Expo SDK 57, expo-router, Expo UI (`@expo/ui` — composants natifs
 SwiftUI/Jetpack Compose), FlashList, TanStack Query, Reanimated, Lingui.
 
-### Structure (calquée sur `apps/feed`)
+### Structure (calquée sur `apps/core`)
 
 ```
 apps/mobile/src/
@@ -315,7 +318,6 @@ apps/mobile/src/
 - `flags.ts` : registre typé (`FLAGS` + `defaultFor`).
 - `server.ts` : `isFlagOn`, `createFlagsContext` (dégradation gracieuse).
 - Provider React hydraté depuis le payload SSR (pas de flicker).
-- **Infra** : GrowthBook self-hosté (UI :3100, SDK :3200, MongoDB).
 
 ### `@qoe/observability`
 - Logger + `withCache` / `cacheInvalidateNamespace` (Redis).
@@ -332,11 +334,11 @@ apps/mobile/src/
 
 | App | Domaine | Particularités |
 |---|---|---|
-| **feed** | Lecteur + auth | Feature-Sliced (`src/features/`), feed temps réel (`useRealtimeFeedBuffer` + Supabase Realtime), virtualisation, composer, profils. **Modèle du mobile.** |
-| **dashboard** | Studio créateur | Éditeur Tiptap (paywall dividers, annotations), workflow média (soumission/revue, RBAC), billing Stripe, auto-save. |
+| **core** | Lecteur + auth | Feature-Sliced (`src/features/`), feed temps réel (`useRealtimeFeedBuffer` + Supabase Realtime), virtualisation, composer, profils. **Modèle du mobile.** |
+| **studio** | Studio créateur | Éditeur Tiptap (paywall dividers, annotations, collaboration Hocuspocus), workflow média (soumission/revue, RBAC), billing Stripe, auto-save. |
 | **admin** | Superadmin | Modération, config CMS, stats, API access. |
-| **web** | Blogs multi-tenant | Middleware résout le domaine → tenant, thème dynamique, paywall, annotations. |
-| **landing** | Vitrine | CMS SystemConfig, pages légales. |
+| **tenants** | Blogs multi-tenant | Middleware résout le domaine → tenant, thème dynamique, paywall, annotations. |
+| **hi** | Vitrine | CMS SystemConfig, pages légales, liens institutionnels. |
 
 **Règle d'or** : les apps n'importent **jamais** directement entre elles —
 tout passe par `packages/*`. (`transpilePackages: ["@qoe/*"]` dans chaque
@@ -348,8 +350,7 @@ tout passe par `packages/*`. (`transpilePackages: ["@qoe/*"]` dans chaque
 
 | Worker | Techno | Rôle |
 |---|---|---|
-| `workers/` (racine) | TS + BullMQ | Emails, AI, billing, newsletters (legacy/TS) |
-| `apps/api/cmd/worker` | Go + asynq | Webhooks, newsletter fanout, sync Meilisearch, Stripe, notifications |
+| `apps/api/cmd/worker` | Go + asynq | **Queue unique** : webhooks, newsletter fanout, sync Meilisearch, embeddings jina, Stripe, notifications, scheduler de publication, nettoyage collab |
 
 ---
 

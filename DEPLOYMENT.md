@@ -97,8 +97,8 @@ pnpm docker:dev
 
 # Vérifie que :
 # - http://localhost:4000 répond (qoe.fi local via Docker dev)
-# - http://localhost:4040 répond (start.qoe.fi local via Docker dev)
-# - http://localhost:4002/health retourne OK
+# - http://localhost:4040 répond (hi.qoe.fi local via Docker dev)
+# - http://localhost:8080/health retourne OK
 ```
 
 ---
@@ -364,7 +364,7 @@ curl -I https://api.qoe.fi/health
 # → 200 OK, {"status":"ok"}
 
 # 2. Landing accessible
-curl -I https://start.qoe.fi
+curl -I https://hi.qoe.fi
 # → 200 OK
 
 # 3. Home (redirige selon auth)
@@ -376,7 +376,7 @@ openssl s_client -connect qoe.fi:443 -servername qoe.fi < /dev/null 2>/dev/null 
 # → "CN = qoe.fi" + issuer Let's Encrypt
 
 # 5. Certificat wildcard
-openssl s_client -connect start.qoe.fi:443 -servername start.qoe.fi < /dev/null 2>/dev/null | openssl x509 -noout -subject
+openssl s_client -connect hi.qoe.fi:443 -servername hi.qoe.fi < /dev/null 2>/dev/null | openssl x509 -noout -subject
 # → CN = *.qoe.fi (ou qoe.fi, selon config Caddy)
 ```
 
@@ -392,13 +392,14 @@ pnpm docker:prod:logs
 
 # Logs d'un service spécifique
 pnpm docker:prod:logs:caddy       # Caddy (SSL)
-pnpm docker:prod:logs:web         # Web (blogs créateurs)
-pnpm docker:prod:logs:landing     # Landing (vitrine)
-pnpm docker:prod:logs:feed        # Feed (flux lecteur + auth)
-pnpm docker:prod:logs:dashboard   # Dashboard (studio créateur)
-pnpm docker:prod:logs:admin       # Admin (cockpit superadmin)
-pnpm docker:prod:logs             # logs de tous les services (dont api-go)
-pnpm docker:prod:logs:workers     # Workers TS (BullMQ) + Go (asynq)
+pnpm docker:prod:logs:tenants    # Tenants (blogs créateurs)
+pnpm docker:prod:logs:hi         # Hi (vitrine)
+pnpm docker:prod:logs:core       # Core (flux lecteur + auth)
+pnpm docker:prod:logs:studio     # Studio (studio créateur)
+pnpm docker:prod:logs:admin      # Admin (cockpit superadmin)
+pnpm docker:prod:logs            # logs de tous les services
+pnpm docker:prod:logs:api         # API Go
+pnpm docker:prod:logs:worker      # Worker asynq
 ```
 
 ### État
@@ -563,7 +564,7 @@ docker stats
 - [ ] `pnpm docker:prod:ps` montre tous les services healthy
 - [ ] `https://api.qoe.fi/health` retourne 200
 - [ ] `https://qoe.fi` charge (HTTP 200)
-- [ ] `https://start.qoe.fi` charge
+- [ ] `https://hi.qoe.fi` charge
 - [ ] Certificat SSL wildcard valide (Let's Encrypt)
 - [ ] Backup Postgres configuré (cron)
 - [ ] Stripe webhook configuré
