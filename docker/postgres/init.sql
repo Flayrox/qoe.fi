@@ -22,6 +22,14 @@
 --          donc ce n'est pas nécessaire de le refaire ici.
 
 -- ---------------------------------------------------------------------
+-- 📊 Base dédiée à Umami (analytics)
+-- ---------------------------------------------------------------------
+-- Umami a besoin de sa PROPRE base : sa migration Prisma refuse une base
+-- non vide (P3005), il ne doit pas partager la base de l'application.
+SELECT 'CREATE DATABASE umami'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'umami')\gexec
+
+-- ---------------------------------------------------------------------
 -- ⚙️ Configuration des performances (optionnel)
 -- ---------------------------------------------------------------------
 -- Tu peux ajuster ces valeurs selon la RAM de ton VPS.

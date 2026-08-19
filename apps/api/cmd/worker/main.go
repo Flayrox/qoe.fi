@@ -16,6 +16,7 @@ import (
 	"github.com/qoefi/api/internal/config"
 	"github.com/qoefi/api/internal/dbpool"
 	"github.com/qoefi/api/internal/queue"
+	"github.com/qoefi/api/internal/umami"
 	"github.com/qoefi/api/internal/workers"
 )
 
@@ -83,6 +84,11 @@ func main() {
 	// bascule + fanout asynq (webhooks, newsletter, embedding, search), toutes
 	// les minutes (rattrape au démarrage les articles passés pendant une coupure).
 	go workers.RunScheduledPublisher(ctx, pool, asynqClient, time.Minute)
+
+	// Provisionnement automatique des websites Umami : chaque publication sans
+	// "umamiWebsiteId" reçoit son website (créé via l'API Umami) → le créateur
+	// voit ses stats dans le studio sans aucun lien manuel. Toutes les 5 min.
+	go workers.RunUmamiProvisioner(ctx, pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey, cfg.UmamiUser, cfg.UmamiPass), 5*time.Minute)
 
 	<-ctx.Done()
 	log.Println("arrêt des workers…")

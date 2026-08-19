@@ -25,6 +25,13 @@ export default async function AnalyticsPage() {
     browsers: [],
     countries: [],
     articleTitlesMap: {},
+    productMetrics: {
+      subscriberCount: 0,
+      subscriberDelta7d: 0,
+      totalBookmarks: 0,
+      totalHighlights: 0,
+      topArticles: [],
+    },
   };
 
   return <AnalyticsDashboardClient initialData={initialData} />;
