@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@qoe/supabase/server';
+import { getMainAppUrl } from '@qoe/config';
 
 function sanitizeNextPath(target: string | null): string {
   if (!target) return '/';
@@ -18,7 +19,7 @@ function sanitizeNextPath(target: string | null): string {
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  let next = sanitizeNextPath(searchParams.get('next'));
+  const next = sanitizeNextPath(searchParams.get('next'));
 
   if (code) {
     const supabase = await createClient();
@@ -28,22 +29,23 @@ export async function GET(request: Request) {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        // Garantit la ligne User (créée côté tenant si nécessaire). La session
-        // est ensuite partagée avec les autres apps via le cookie de domaine .qoe.fi.
+        // Garantit la ligne User et détermine si l'onboarding est requis.
         const { syncUserFromAuth } = await import('@qoe/db/sync-user');
-        await syncUserFromAuth(user);
+        const result = await syncUserFromAuth(user);
+
+        // Nouveau compte (ou compte jamais onboardé) : direction l'onboarding
+        // de l'app principale — on ne le saute JAMAIS, même pour Google/Apple.
+        if (result.needsOnboarding) {
+          const host = request.headers.get('host') || '';
+          return NextResponse.redirect(`${getMainAppUrl(host)}/onboarding`);
+        }
       }
 
-      // Redirige vers l'article d'origine (next = chemin local, jamais d'URL externe).
+      // Compte existant onboardé : retour sur l'article d'origine.
       const forwardedHost = request.headers.get('x-forwarded-host');
       const isLocalEnv = process.env.NODE_ENV === 'development';
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`);
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`);
-      } else {
-        return NextResponse.redirect(`${origin}${next}`);
-      }
+      const base = isLocalEnv ? origin : forwardedHost ? `https://${forwardedHost}` : origin;
+      return NextResponse.redirect(`${base}${next}`);
     }
   }
 
