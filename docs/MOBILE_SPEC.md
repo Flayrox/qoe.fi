@@ -526,5 +526,5 @@ pnpm mobile:lint        # expo lint
 pnpm mobile:ios         # simulateur iOS (Metro :8081)
 pnpm mobile:web         # test UI web le plus rapide
 # API requise :
-cd apps/api-go && go run ./cmd/server   # :8080
+cd apps/api && go run ./cmd/server   # :8080
 ```

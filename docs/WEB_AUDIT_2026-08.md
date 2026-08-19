@@ -3,7 +3,7 @@
 > Audit écrit après exploration ligne par ligne du monorepo. Objectif : lister
 > **exactement** ce qui existe, ce qui manque, et les décisions à trancher pour
 > finaliser le web (apps/feed, apps/dashboard, apps/web, apps/landing) en
-> s'appuyant sur le backend Go (`apps/api-go`) devenu *backend-of-record*.
+> s'appuyant sur le backend Go (`apps/api`) devenu *backend-of-record*.
 
 ---
 
@@ -14,7 +14,7 @@
 | 1 | Embedding IA | ✅ **FAIT & ACTIF** — migration 1024 + HNSW appliquée sur Supabase, worker asynq, service d'inférence auto-hébergé **en local** (llama.cpp/jina Q8_0 via launchd), 9/9 articles indexés, `/articles/{id}/similar` + `/search/semantic` testés avec vraies reco | Reste : déployer TEI sur le VPS (HF_TOKEN requis) pour la prod |
 | 2 | Collaboratif | ✅ **FAIT** — serveur Hocuspocus (`apps/collab-server`), persistance Postgres, auth JWT Supabase, **RBAC publication**, curseurs + awareness, **TTL 14 jours** | — |
 | 3 | Mails | Template + outbox TS **orphelins** (rien n'enqueue) | Câbler Go → NotificationDelivery → worker (attend les clés) |
-| 4 | Web → API | Server actions = proxy fin via `goFetch` quand `QOE_API_GO_URL` | Terminer la bascule des actions restantes (articles legacy) |
+| 4 | Web → API | Server actions = proxy fin via `goFetch` quand `QOE_API_URL` | Terminer la bascule des actions restantes (articles legacy) |
 | 5 | Profil web | ✅ **AMÉLIORÉ** — épinglés en tête, grille médias, partage, stats cliquables, onglets Followers/Abonnements | Reste : shape unifié Go côté web (chantier) |
 
 ---
@@ -33,8 +33,8 @@
   les accès anonymes) sur `127.0.0.1:8081`, API OpenAI-compatible, `--pooling mean`.
   ⚠️ llama.cpp **crashe** si le payload contient le champ `task` → il est
   désormais optionnel (`EMBEDDING_INDEX_TASK` / `EMBEDDING_QUERY_TASK`, vide = omis).
-- **Worker asynq** (`apps/api-go/cmd/worker`) lancé via launchd
-  (`com.qoefi.api-worker.plist`) + **outil de backfill** `apps/api-go/cmd/backfill`
+- **Worker asynq** (`apps/api/cmd/worker`) lancé via launchd
+  (`com.qoefi.api-worker.plist`) + **outil de backfill** `apps/api/cmd/backfill`
   (enqueue `embedding.article` pour les articles publiés sans vecteur ; `-force` = ré-embed).
 - **MRL 512** (18 août) : migration `20260818000000_shrink_embedding_mrl_512` —
   colonnes `vector(512)` (jina tronqué, perte négligeable, moitié moins de
@@ -168,7 +168,7 @@ Postgres (collab_documents, état Yjs binaire) + autosave HTML (API Go)
 
 ### État final de la migration
 - **Toutes les branches `isGoEnabled()` sont supprimées** : le web ne parle
-  plus qu'à l'API Go (`QOE_API_GO_URL`), qui est le backend-of-record.
+  plus qu'à l'API Go (`QOE_API_URL`), qui est le backend-of-record.
 - Fichiers purgés : `actions/feed` (like/reply/thread/repost/delete-post,
   follow, follow-list, profil), `actions/articles` (CRUD, revue, catégories,
   commentaires, similaires), `actions/dashboard` (profile, subdomain,
@@ -187,7 +187,7 @@ Postgres (collab_documents, état Yjs binaire) + autosave HTML (API Go)
 - `createThoughtThreadAction` (création multi-posts en une transaction),
   `getUserDraftsAction` (brouillons), `searchArticleContributorsAction`
   (sélecteur de contributeurs). Pas encore de route Go équivalente.
-- En dev, `QOE_API_GO_URL=http://localhost:8090` est défini dans le `.env`
+- En dev, `QOE_API_URL=http://localhost:8090` est défini dans le `.env`
   racine (copié par `scripts/copy-env.js`).
 
 ---
@@ -252,14 +252,14 @@ Postgres (collab_documents, état Yjs binaire) + autosave HTML (API Go)
 
 | Fichier | Rôle |
 |---|---|
-| `apps/api-go/README.md` | État de l'art du backend Go (source de vérité) |
-| `apps/api-go/internal/workers/search.go` | Worker asynq → Meilisearch (lexical) |
-| `apps/api-go/internal/workers/embedding.go` | Worker asynq → embeddings jina (sémantique, pgvector) |
+| `apps/api/README.md` | État de l'art du backend Go (source de vérité) |
+| `apps/api/internal/workers/search.go` | Worker asynq → Meilisearch (lexical) |
+| `apps/api/internal/workers/embedding.go` | Worker asynq → embeddings jina (sémantique, pgvector) |
 | `apps/collab-server/src/permissions.ts` | RBAC publication (qui peut co-éditer) |
 | `apps/feed/src/components/social/SimilarArticlesSection.tsx` | « À lire aussi » web (pgvector) |
 | `apps/mobile/src/components/article/similar-articles.tsx` | « À lire aussi » mobile (pgvector) |
-| `apps/api-go/internal/workers/newsletter.go` | Fanout newsletter (logger seulement — envoi à brancher) |
-| `apps/api-go/internal/modules/articles/service.go` | Hook `article.published` (point d'accroche embedding) |
+| `apps/api/internal/workers/newsletter.go` | Fanout newsletter (logger seulement — envoi à brancher) |
+| `apps/api/internal/modules/articles/service.go` | Hook `article.published` (point d'accroche embedding) |
 | `apps/dashboard/src/features/editor/components/Editor.tsx` | Éditeur TipTap + HocuspocusProvider + curseurs + seed post-sync |
 | `apps/collab-server/` | Serveur Hocuspocus : persistance Postgres + auth JWT + RBAC + factory testable |
 | `packages/workers/src/notification-email.ts` | Outbox email TS (à réécrire en Go ou brancher) |

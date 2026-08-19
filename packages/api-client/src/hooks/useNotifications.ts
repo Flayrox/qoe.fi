@@ -12,7 +12,7 @@
 // - useNotificationPreferencesQuery / useUpdateNotificationPreferencesMutation :
 //   préférences par canal.
 // ⚠️ Côté mobile, les notifications viendront de l'API Go
-//    (apps/api-go/internal/modules/notifications).
+//    (apps/api/internal/modules/notifications).
 // =====================================================================
 
 import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';

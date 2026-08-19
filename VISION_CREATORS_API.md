@@ -95,7 +95,7 @@ contrat-first (§5).
 
 ## 4. Contrat cible — écarts Go vs Hono (à aligner)
 
-Source : `apps/api/src/app.ts` (Hono) + `apps/api-go/internal/modules/articles/`.
+Source : `apps/api/src/app.ts` (Hono, supprimé) + `apps/api/internal/modules/articles/`.
 
 | Écart               | Hono (actuel)                                   | Go (actuel)                                                                   | Action                                                    | Statut |
 | ------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------- | ------ |

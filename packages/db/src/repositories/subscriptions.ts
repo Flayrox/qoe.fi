@@ -7,8 +7,8 @@
 //   aussi le wallet du propriétaire de la publication à chaque paiement.
 // - getCreatorTiers : offres d'abonnement d'un créateur.
 // ⚠️ Côté mobile, l'équivalent est servie par l'API Go
-//    (apps/api-go/internal/modules/billing) et le paywall article
-//    (apps/api-go/internal/modules/articles/paywall.go).
+//    (apps/api/internal/modules/billing) et le paywall article
+//    (apps/api/internal/modules/articles/paywall.go).
 // =====================================================================
 
 import { prisma } from '../client';

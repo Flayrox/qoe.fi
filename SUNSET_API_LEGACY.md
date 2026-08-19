@@ -1,7 +1,7 @@
 # 🧭 Sunset de `apps/api` (api-legacy.qoe.fi) — TERMINÉ ✅
 
 > **Statut : sunset complet.** Le backend Hono (`apps/api`) a été supprimé du
-> monorepo. Le backend Go (`apps/api-go`) est l'unique backend de la plateforme.
+> monorepo. Le backend Go (`apps/api`) est l'unique backend de la plateforme.
 >
 > **Date** : 15 août 2026 (commit « sunset api-legacy »).
 >
@@ -15,7 +15,7 @@
 
 ## Ce qui a été fait (récapitulatif de la migration)
 
-| Endpoint Hono (`apps/api`)                          | Équivalent Go final (`apps/api-go`)                                | Statut  |
+| Endpoint Hono (`apps/api`, supprimé)                | Équivalent Go final (`apps/api`)                                  | Statut  |
 | --------------------------------------------------- | ------------------------------------------------------------------ | ------- |
 | `GET /health`                                       | `GET /health` + `/healthz`                                         | ✅ Go   |
 | `POST /webhooks/stripe`                             | `POST /v1/webhooks/stripe` (asynq, signature HMAC vérifiée)        | ✅ Go   |

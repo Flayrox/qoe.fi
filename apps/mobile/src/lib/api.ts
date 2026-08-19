@@ -6,7 +6,7 @@ import { Platform } from 'react-native';
 
 import { getAccessToken } from '@/lib/session';
 
-// Port de l'API Go locale (cf. apps/api-go : API_PORT=8090, backend unique).
+// Port de l'API Go locale (cf. apps/api : API_PORT=8090, backend unique).
 const API_PORT = 8090;
 
 /**

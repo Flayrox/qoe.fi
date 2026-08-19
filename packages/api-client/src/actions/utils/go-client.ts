@@ -1,9 +1,9 @@
 /**
- * 🔗 Go API Client — Proxy fin vers le backend Go (apps/api-go).
+ * 🔗 Go API Client — Proxy fin vers le backend Go (apps/api).
  * =====================================================================
  * Les server actions Next.js deviennent des proxies fins : elles gardent
  * leur contrat TS (ActionResult<T>, auth cookie) mais délèguent la logique
- * au backend Go via HTTP. Activé uniquement si QOE_API_GO_URL est défini.
+ * au backend Go via HTTP. Activé uniquement si QOE_API_URL est défini.
  *
  * ⚠️ Module serveur (importé uniquement par des server actions) — il n'est
  * PAS déclaré 'use server' car il exporte des constantes.
@@ -12,7 +12,7 @@
 
 import { createClient } from '@qoe/supabase/server';
 
-export const GO_API_URL: string | null = process.env.QOE_API_GO_URL ?? null;
+export const GO_API_URL: string | null = process.env.QOE_API_URL ?? null;
 
 export function isGoEnabled(): boolean {
   return Boolean(GO_API_URL);
@@ -35,7 +35,7 @@ export async function goFetch<T = Record<string, unknown>>(
   init?: { method?: string; body?: unknown }
 ): Promise<T> {
   if (!GO_API_URL) {
-    throw new Error('QOE_API_GO_URL non configuré');
+    throw new Error('QOE_API_URL non configuré');
   }
 
   const token = await getAccessToken();

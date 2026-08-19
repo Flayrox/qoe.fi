@@ -7,8 +7,8 @@
 // (threads, likes, reposts, bookmarks, rapports), profils publics, drafts,
 // épinglage, unfurl de liens, réglages de modération.
 //
-// 🔗 GO-ONLY : l'API Go est la source de vérité (QOE_API_GO_URL défini),
-//    plusieurs actions délèguent la logique au backend Go (apps/api-go)
+// 🔗 GO-ONLY : l'API Go est la source de vérité (QOE_API_URL défini),
+//    plusieurs actions délèguent la logique au backend Go (apps/api)
 //    via `goFetch()` — le contrat TS (ActionResult<T>) reste identique,
 //    seules l'implémentation et l'authentification changent (JWT en header).
 //    Sans Go, elles retombent sur les dépôts Prisma de `@qoe/db`.
@@ -1024,7 +1024,7 @@ function mapProfileArticle(
 /**
  * 👤 Profil public complet (profil + pensées + articles), depuis l'API Go.
  * Remplace la lecture Prisma directe de getProfileData.ts (web).
- * ⚠️ Go-only — l'API Go EST la source (QOE_API_GO_URL).
+ * ⚠️ Go-only — l'API Go EST la source (QOE_API_URL).
  */
 export const resolveProfileAction = safeAction<string, ProfileResolvePayload>(
   async (username) => {

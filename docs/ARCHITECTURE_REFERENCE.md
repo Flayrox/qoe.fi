@@ -24,8 +24,8 @@
 
 | Sujet | Anciennes docs | **Réalité actuelle** |
 |---|---|---|
-| Backend | `apps/api` (Hono, legacy) | **`apps/api-go`** (Go, backend-of-record unique). `apps/api` supprimé. |
-| Server actions | Appellent Prisma directement | **Proxy fin vers Go** quand `QOE_API_GO_URL` est défini (`goFetch`). |
+| Backend | `apps/api` (Hono, legacy — supprimé) | **`apps/api`** (Go, backend-of-record unique). |
+| Server actions | Appellent Prisma directement | **Proxy fin vers Go** quand `QOE_API_URL` est défini (`goFetch`). |
 | App mobile | "React Native ou Expo (roadmap)" | **`apps/mobile` existe** (Expo SDK 57, expo-router, Expo UI). |
 | Feature flags | GrowthBook dans `@qoe/config/features` | Package dédié **`@qoe/flags`** (registre typé + dégradation). |
 | Recherche | — | **Meilisearch** (module Go `search` + worker `TaskSearchSync`). |
@@ -41,7 +41,7 @@ qoe.fi/
 │   ├── dashboard/    # Next.js 16 — dashboard.qoe.fi (studio créateur, éditeur Tiptap, billing)
 │   ├── admin/        # Next.js 16 — admin.qoe.fi (superadmin, modération, CMS)
 │   ├── web/          # Next.js 16 — *.qoe.fi & domaines customs (blogs multi-tenant)
-│   ├── api-go/       # Go — api.qoe.fi (backend-of-record, 19.5k lignes)
+│   ├── api/          # Go — api.qoe.fi (backend-of-record, 19.5k lignes)
 │   └── mobile/       # Expo SDK 57 — apps/mobile (React Native, expo-router)
 ├── packages/         # Bibliothèques partagées (source de vérité)
 │   ├── api-client/   # Couche data : client HTTP universel + server actions + hooks React Query
@@ -77,12 +77,12 @@ Navigateur (web) / Mobile
 │ Server Action Next.js        │  (packages/api-client/src/actions/*)
 │  = proxy fin                 │
 └──────────────┬──────────────┘
-               │ QOE_API_GO_URL défini ?  (goFetch, JWT Supabase en Bearer)
+               │ QOE_API_URL défini ?  (goFetch, JWT Supabase en Bearer)
         ┌──────┴───────┐
         │ OUI          │ NON
         ▼              ▼
 ┌───────────────┐  ┌──────────────────┐
-│ apps/api-go   │  │ @qoe/db (Prisma) │
+│ apps/api   │  │ @qoe/db (Prisma) │
 │ (Go, chi/v5)  │  │ repositories     │
 └──────┬────────┘  └──────────────────┘
        │
@@ -109,7 +109,7 @@ Navigateur (web) / Mobile
 | **Mobile** | `@supabase/supabase-js` | **AsyncStorage** | `apps/mobile/src/lib/supabase.ts` |
 
 - Le backend Go valide les JWT via **JWKS Supabase** (RS256 + ES256 P-256,
-  cf. `apps/api-go/internal/middleware/auth.go` + `ecdsa.go` + `rsa.go`),
+  cf. `apps/api/internal/middleware/auth.go` + `ecdsa.go` + `rsa.go`),
   avec fallback HS256 `sb_secret_…`.
 - **Clés API créateur** `qoe_live_…` (hash SHA-256 en base, scopes
   READ/WRITE/ANALYTICS) acceptées en alternative au JWT sur les routes
@@ -118,8 +118,8 @@ Navigateur (web) / Mobile
 ### 2.3 Événements async — BullMQ (TS) vs asynq (Go)
 
 - **Web (TS)** : `@qoe/workers` (event bus BullMQ) — `eventBus.publishArticlePublished`.
-- **Go** : `apps/api-go/internal/queue` (asynq) — workers dans
-  `apps/api-go/internal/workers/` :
+- **Go** : `apps/api/internal/queue` (asynq) — workers dans
+  `apps/api/internal/workers/` :
   - `TaskArticlePublished/Updated/Deleted` → webhooks + newsletter
   - `TaskSubscriberCreated` → webhooks
   - `TaskPostLiked` → newsletter (likes)
@@ -141,7 +141,7 @@ Navigateur (web) / Mobile
 
 ## 3. L'API Go — le contrat consommé par le mobile
 
-**Entrée** : `apps/api-go/cmd/server/main.go` → `newRouter(RouterDeps)` (testable).
+**Entrée** : `apps/api/cmd/server/main.go` → `newRouter(RouterDeps)` (testable).
 
 ### Middlewares (ordre)
 
@@ -265,7 +265,7 @@ apps/mobile/src/
 - `src/client.ts` : singleton Prisma. `src/index.ts` : re-exports.
 - **Relation** : consommé par les server actions (`@qoe/api-client/actions/*`)
   et les workers TS. Le backend Go a son **propre** mapping SQL (sqlc,
-  `apps/api-go/sql/`) — attention à la double source pour les requêtes Go.
+  `apps/api/sql/`) — attention à la double source pour les requêtes Go.
 
 ### `@qoe/api-client` — La couche data (web + mobile)
 - **`client.ts`** : `QoeApiClient` universel (fetch + Bearer token) — le
@@ -349,7 +349,7 @@ tout passe par `packages/*`. (`transpilePackages: ["@qoe/*"]` dans chaque
 | Worker | Techno | Rôle |
 |---|---|---|
 | `workers/` (racine) | TS + BullMQ | Emails, AI, billing, newsletters (legacy/TS) |
-| `apps/api-go/cmd/worker` | Go + asynq | Webhooks, newsletter fanout, sync Meilisearch, Stripe, notifications |
+| `apps/api/cmd/worker` | Go + asynq | Webhooks, newsletter fanout, sync Meilisearch, Stripe, notifications |
 
 ---
 
@@ -361,12 +361,12 @@ tout passe par `packages/*`. (`transpilePackages: ["@qoe/*"]` dans chaque
    `packages/api-client`. Imports directs entre apps interdits.
 3. **Paywall** : la troncature du contenu premium se fait **côté serveur**
    (`packages/billing/src/paywall/ast-truncation.ts` côté TS,
-   `apps/api-go/internal/modules/articles/paywall.go` côté Go). Jamais de
+   `apps/api/internal/modules/articles/paywall.go` côté Go). Jamais de
    `display:none`.
 4. **Optimistic UI** : snapshot + rollback obligatoires.
 5. **Mobile** : le mobile consomme l'API Go via `@qoe/api-client/mobile` —
    ne jamais importer de server action (`'use server'` / Prisma) dans l'app.
-6. **Go** : quand `QOE_API_GO_URL` est défini, les server actions doivent
+6. **Go** : quand `QOE_API_URL` est défini, les server actions doivent
    proxiser via `goFetch` (ne pas dupliquer la logique Prisma).
 
 ---
@@ -378,7 +378,7 @@ tout passe par `packages/*`. (`transpilePackages: ["@qoe/*"]` dans chaque
 docker compose -f docker-compose.dev.yml up -d db redis
 
 # 2. API Go (backend-of-record) — le mobile en dépend
-cd apps/api-go && go run ./cmd/server   # → :8080 (ou PORT=8080)
+cd apps/api && go run ./cmd/server   # → :8080 (ou PORT=8080)
 
 # 3. Mobile sur simulateur iOS (recommandé sur Mac)
 pnpm mobile:ios                          # Metro sur :8081

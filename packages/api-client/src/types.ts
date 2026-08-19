@@ -33,7 +33,7 @@ export type ApiResponse<T> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────
-// Feed (shapes exactes de l'API Go — apps/api-go/internal/modules)
+// Feed (shapes exactes de l'API Go — apps/api/internal/modules)
 // ─────────────────────────────────────────────────────────────────────
 
 /** Auteur dénormalisé d'une pensée (shape Go `Author`). */

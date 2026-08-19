@@ -1,7 +1,7 @@
 # 📡 Contrat API Go — Référence complète pour l'app mobile
 
-> **Source de vérité** : `apps/api-go/cmd/server/main.go` (routage) +
-> `apps/api-go/internal/modules/*` (handlers/services/DTOs).
+> **Source de vérité** : `apps/api/cmd/server/main.go` (routage) +
+> `apps/api/internal/modules/*` (handlers/services/DTOs).
 > Ce document est le contrat **exact** (shapes JSON, auth, pagination) que
 > l'app mobile (`apps/mobile`) consomme via `QoeApiClient`
 > (`packages/api-client/src/client.ts`).
@@ -15,7 +15,7 @@
 ### Auth
 - **JWT Supabase** : header `Authorization: Bearer <token>` (RS256/ES256 via
   JWKS, fallback HS256 `sb_secret_…`). Résolu dans
-  `apps/api-go/internal/middleware/auth.go`.
+  `apps/api/internal/middleware/auth.go`.
 - **Clés API créateur** : `Authorization: Bearer qoe_live_…` (scopes
   READ / WRITE / ANALYTICS, moindre privilège).
 - **Routes publiques** : `OptionalAuth` (paywall) — pas de token requis.
@@ -100,7 +100,7 @@ Résout la publication par `slug` OU `subdomain`, puis renvoie les pensées
 ```json
 { "items": [ FeedSlice ], "nextCursor": "20", "hasMore": true }
 ```
-> Implémenté dans `apps/api-go/internal/modules/feed` (sqlc
+> Implémenté dans `apps/api/internal/modules/feed` (sqlc
 > `FindPostsByAuthor` + `Service.UserPosts` + `Handler.userPosts`, route
 > montée dans `main.go` sous `OptionalAuth`).
 
@@ -266,7 +266,7 @@ serveur). **Réponse** : `201` + `Thought`.
 nouveaux scores — `userVotedOptionId` mis à jour.
 > Idempotent : voter sur une autre option **remplace** le vote (ON CONFLICT
 > DO UPDATE) ; re-voter sur la même → utilisez `/unvote` pour retirer.
-> Implémenté dans `apps/api-go/internal/modules/posts` (sqlc `polls.sql`
+> Implémenté dans `apps/api/internal/modules/posts` (sqlc `polls.sql`
 > + `Service.VotePoll/UnvotePoll/formatPoll` + `Handler.votePoll/unvotePoll`).
 
 ### Citations (repost avec commentaire)
@@ -493,7 +493,7 @@ par offset (défaut 20, max 100). **Réponse** (non enveloppée) :
   }
 ]
 ```
-> Implémenté dans `apps/api-go/internal/modules/highlights` (sqlc
+> Implémenté dans `apps/api/internal/modules/highlights` (sqlc
 > `ListBookmarksByReader` + `Service.Bookmarks` + `Handler.bookmarks`).
 
 ### GET `/v1/me/highlights?offset=&limit=`

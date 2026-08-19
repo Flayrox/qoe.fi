@@ -1,6 +1,6 @@
 # 🧪 Stratégie de test de la plateforme — « Top du top »
 
-> **Contexte** : le backend est désormais **unique** (Go, `apps/api-go`) — l'API
+> **Contexte** : le backend est désormais **unique** (Go, `apps/api`) — l'API
 > Hono (`apps/api`) a été supprimée. On peut enfin bâtir un filet de tests
 > **exhaustif et durable** sans dupliquer l'effort sur deux backends.
 >
@@ -90,7 +90,7 @@ signée HMAC vers l'endpoint, avec retries et log de livraison.
 - **Jobs Go** : `go test -race ./...` + `go vet` + `go test -cover` avec le
   seuil de couverture des modules critiques (pilier 1).
 - **Job TS** : typecheck + lint + vitest (déjà en place).
-- **Job e2e** : Playwright sur compose de test (Postgres + Redis + api-go),
+- **Job e2e** : Playwright sur compose de test (Postgres + Redis + api),
   exécuté en parallèle, artefact de traces en cas d'échec.
 - **Vitrine** : badge de couverture + rapport d'échec lisible.
 
@@ -99,7 +99,7 @@ signée HMAC vers l'endpoint, avec retries et log de livraison.
 ## 📦 Organisation du code de test (Go)
 
 ```
-apps/api-go/
+apps/api/
 ├── internal/modules/articles/
 │   ├── contract_test.go        # golden (déjà en place)
 │   └── integration_test.go     # Testcontainers (nouveau)

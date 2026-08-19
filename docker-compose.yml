@@ -8,7 +8,7 @@
 #   4. core       : Next.js reader + auth (qoe.fi) — apps/core
 #   5. studio     : Next.js créateurs (studio.qoe.fi) — apps/studio
 #   6. admin      : Next.js plateforme (admin.qoe.fi)
-#   7. api        : backend-of-record Go (api.qoe.fi) — apps/api-go
+#   7. api        : backend-of-record Go (api.qoe.fi) — apps/api
 #   8. worker      : worker asynq Go (webhooks, newsletter, embeddings, collab)
 #   9. embedding  : llama.cpp — jina-embeddings-v3 (inférence locale)
 #   10. redis     : cache + queue (asynq)
@@ -121,7 +121,7 @@ services:
       NEXT_PUBLIC_LANDING_URL: https://hi.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
       # Backend-of-record Go (réseau privé Docker, jamais public).
-      QOE_API_GO_URL: http://api:8080
+      QOE_API_URL: http://api:8080
       # Supabase (lu côté serveur via l'app)
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
@@ -178,7 +178,7 @@ services:
       NEXT_PUBLIC_LANDING_URL: https://hi.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
       # Backend-of-record Go (réseau privé Docker, jamais public).
-      QOE_API_GO_URL: http://api:8080
+      QOE_API_URL: http://api:8080
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
@@ -234,7 +234,7 @@ services:
       NEXT_PUBLIC_LANDING_URL: https://hi.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
       # Backend-of-record Go (réseau privé Docker, jamais public).
-      QOE_API_GO_URL: http://api:8080
+      QOE_API_URL: http://api:8080
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
@@ -291,7 +291,7 @@ services:
       NEXT_PUBLIC_LANDING_URL: https://hi.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
       # Backend-of-record Go (réseau privé Docker, jamais public).
-      QOE_API_GO_URL: http://api:8080
+      QOE_API_URL: http://api:8080
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
@@ -348,7 +348,7 @@ services:
       NEXT_PUBLIC_LANDING_URL: https://hi.${PRIMARY_DOMAIN:-qoe.fi}
       NEXT_PUBLIC_API_URL: https://api.${PRIMARY_DOMAIN:-qoe.fi}
       # Backend-of-record Go (réseau privé Docker, jamais public).
-      QOE_API_GO_URL: http://api:8080
+      QOE_API_URL: http://api:8080
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
@@ -379,11 +379,11 @@ services:
         max-file: '3'
 
   # ───────────────────────────────────────────────────────────────────
-  # ⚡ API (backend-of-record Go) : serveur REST — apps/api-go
+  # ⚡ API (backend-of-record Go) : serveur REST — apps/api
   # ───────────────────────────────────────────────────────────────────
   api:
     build:
-      context: ./apps/api-go
+      context: ./apps/api
       dockerfile: Dockerfile
     image: qoefi-api:latest
     container_name: qoefi-api
@@ -445,7 +445,7 @@ services:
   # ───────────────────────────────────────────────────────────────────
   worker:
     build:
-      context: ./apps/api-go
+      context: ./apps/api
       dockerfile: Dockerfile
     image: qoefi-worker:latest
     container_name: qoefi-worker

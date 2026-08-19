@@ -58,8 +58,8 @@ jobs:
       - name: Build Production Packages & Applications
         run: pnpm build
 
-  api-go:
-    name: Go Backend (apps/api-go)
+  api:
+    name: Go Backend (apps/api)
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -70,14 +70,14 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: apps/api-go/go.mod
-          cache-dependency-path: apps/api-go/go.sum
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
 
       # Testcontainers (tests d'intégration DB) a besoin du daemon Docker :
       # disponible nativement sur les runners ubuntu. On force l'isolation
       # réseau pour éviter les conflits de réseau Docker entre jobs.
       - name: Vet, Build & Test Go Backend
-        working-directory: apps/api-go
+        working-directory: apps/api
         run: |
           go vet ./...
           go build ./...
@@ -90,7 +90,7 @@ jobs:
       # couverture due à une refactorisation DOIT s'accompagner de nouveaux
       # tests, pas d'un seuil abaissé.
       - name: Coverage Gate (modules critiques)
-        working-directory: apps/api-go
+        working-directory: apps/api
         run: |
           set -e
           check() {
