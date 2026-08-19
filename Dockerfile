@@ -18,12 +18,12 @@
 
 # 🥉 STAGE BASE : node + corepack pnpm
 # ─────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 RUN apk add --no-cache libc6-compat openssl git
 WORKDIR /app
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+RUN corepack enable && corepack prepare pnpm@11.21.0 --activate
 
 # 🥈 STAGE BUILDER : installation et build unifiés avec cache pnpm & turbo
 # ─────────────────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ RUN --mount=type=cache,target=/app/.turbo NODE_OPTIONS="--max-old-space-size=204
 # ─────────────────────────────────────────────────────────────────────
 # 🌐 TARGET : WEB (Next.js public — start.qoe.fi + tenants)
 # ─────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS web
+FROM node:22-alpine AS web
 RUN apk add --no-cache libc6-compat openssl wget
 WORKDIR /app
 ENV NODE_ENV=production
@@ -92,7 +92,7 @@ CMD ["node", "apps/web/server.js"]
 # ─────────────────────────────────────────────────────────────────────
 # 📣 TARGET : LANDING (Next.js — start.qoe.fi)
 # ─────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS landing
+FROM node:22-alpine AS landing
 RUN apk add --no-cache libc6-compat openssl wget
 WORKDIR /app
 ENV NODE_ENV=production
@@ -117,7 +117,7 @@ CMD ["node", "apps/landing/server.js"]
 # ─────────────────────────────────────────────────────────────────────
 # 📰 TARGET : FEED (Next.js — qoe.fi)
 # ─────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS feed
+FROM node:22-alpine AS feed
 RUN apk add --no-cache libc6-compat openssl wget
 WORKDIR /app
 ENV NODE_ENV=production
@@ -142,7 +142,7 @@ CMD ["node", "apps/feed/server.js"]
 # ─────────────────────────────────────────────────────────────────────
 # 🎨 TARGET : DASHBOARD (Next.js — dashboard.qoe.fi)
 # ─────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS dashboard
+FROM node:22-alpine AS dashboard
 RUN apk add --no-cache libc6-compat openssl wget
 WORKDIR /app
 ENV NODE_ENV=production
@@ -167,7 +167,7 @@ CMD ["node", "apps/dashboard/server.js"]
 # ─────────────────────────────────────────────────────────────────────
 # 🛡️ TARGET : ADMIN (Next.js — admin.qoe.fi)
 # ─────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS admin
+FROM node:22-alpine AS admin
 RUN apk add --no-cache libc6-compat openssl wget
 WORKDIR /app
 ENV NODE_ENV=production
@@ -193,7 +193,7 @@ CMD ["node", "apps/admin/server.js"]
 # ─────────────────────────────────────────────────────────────────────
 # ⚙️ TARGET : WORKERS (BullMQ — jobs async)
 # ─────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS workers
+FROM node:22-alpine AS workers
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 ENV NODE_ENV=production
@@ -212,7 +212,7 @@ CMD ["node", "dist/index.js"]
 # ─────────────────────────────────────────────────────────────────────
 # 🔄 TARGET : MIGRATE (Prisma migrate deploy — one-shot)
 # ─────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS migrate
+FROM node:22-alpine AS migrate
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 ENV NODE_ENV=production
