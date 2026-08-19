@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Users, Bookmark, Highlighter, MessageSquare, Trophy } from 'lucide-react';
+import { Users, Bookmark, Highlighter, MessageSquare, Trophy, Repeat } from 'lucide-react';
 import { ProductMetrics } from '../actions';
 
 interface ProductMetricsBlockProps {
@@ -9,8 +9,14 @@ interface ProductMetricsBlockProps {
 }
 
 export function ProductMetricsBlock({ metrics }: ProductMetricsBlockProps) {
-  const { subscriberCount, subscriberDelta7d, totalBookmarks, totalHighlights, topArticles } =
-    metrics;
+  const {
+    subscriberCount,
+    subscriberDelta7d,
+    totalBookmarks,
+    totalHighlights,
+    totalInteractions,
+    topArticles,
+  } = metrics;
   const hasArticles = topArticles.length > 0;
 
   return (
@@ -70,6 +76,27 @@ export function ProductMetricsBlock({ metrics }: ProductMetricsBlockProps) {
             Marque-pages et surlignages sur vos 5 meilleurs articles
           </p>
         </div>
+
+        {/* Interactions totales */}
+        <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
+              Interactions totales
+            </span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
+              <Repeat className="h-4 w-4 stroke-[1.5]" />
+            </div>
+          </div>
+          <div className="flex items-baseline justify-between">
+            <span className="text-3xl font-bold tracking-tight text-foreground">
+              {totalInteractions.toLocaleString()}
+            </span>
+            <span className="text-xs text-muted-foreground font-medium">sur vos 5 meilleurs</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Bookmarks + commentaires + surlignages + annotations
+          </p>
+        </div>
       </div>
 
       {/* ─── Top Articles by Engagement ───────────────────────────── */}
@@ -103,7 +130,7 @@ export function ProductMetricsBlock({ metrics }: ProductMetricsBlockProps) {
         ) : (
           <div className="divide-y divide-border/30">
             {topArticles.map((article, index) => {
-              const total = article.bookmarks + article.comments + article.highlights;
+              const total = article.interactions;
               return (
                 <div
                   key={article.slug}
@@ -127,15 +154,24 @@ export function ProductMetricsBlock({ metrics }: ProductMetricsBlockProps) {
                     </span>
                   </div>
                   <div className="flex items-center gap-4 shrink-0">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <div
+                      className="flex items-center gap-1 text-xs text-muted-foreground"
+                      title="Marque-pages"
+                    >
                       <Bookmark className="h-3.5 w-3.5 stroke-[1.5]" />
                       {article.bookmarks}
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <div
+                      className="flex items-center gap-1 text-xs text-muted-foreground"
+                      title={`${article.highlightsPublic} publics · ${article.highlightsPrivate} privés`}
+                    >
                       <Highlighter className="h-3.5 w-3.5 stroke-[1.5]" />
                       {article.highlights}
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <div
+                      className="flex items-center gap-1 text-xs text-muted-foreground"
+                      title="Commentaires"
+                    >
                       <MessageSquare className="h-3.5 w-3.5 stroke-[1.5]" />
                       {article.comments}
                     </div>

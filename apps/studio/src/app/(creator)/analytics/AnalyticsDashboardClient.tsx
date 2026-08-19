@@ -8,6 +8,7 @@ import { TopPagesBlock } from './components/TopPagesBlock';
 import { ReferrersBlock } from './components/ReferrersBlock';
 import { DevicesAndGeoBlock } from './components/DevicesAndGeoBlock';
 import { ProductMetricsBlock } from './components/ProductMetricsBlock';
+import { AudienceInsightsBlock } from './components/AudienceInsightsBlock';
 import { ArticleInspectorModal } from './components/ArticleInspectorModal';
 
 interface AnalyticsDashboardClientProps {
@@ -210,6 +211,9 @@ export function AnalyticsDashboardClient({ initialData }: AnalyticsDashboardClie
 
       {/* ─── Product Metrics: Subscribers & Top Articles ────────── */}
       <ProductMetricsBlock metrics={data.productMetrics} />
+
+      {/* ─── Audience Demographics (creator + platform) ──────────── */}
+      <AudienceInsightsBlock insights={data.audience} />
 
       {/* ─── Timeseries Area Chart ───────────────────────────────── */}
       <TimeseriesChart data={data.timeseries} period={selectedPeriod} />

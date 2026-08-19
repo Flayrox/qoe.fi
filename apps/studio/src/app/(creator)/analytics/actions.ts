@@ -29,6 +29,7 @@ export interface AnalyticsResponseData {
   countries: UmamiPageMetric[];
   articleTitlesMap: Record<string, string>;
   productMetrics: ProductMetrics;
+  audience: AudienceInsights;
 }
 
 export interface ArticleDetailData {
@@ -46,14 +47,128 @@ export interface ProductMetrics {
   subscriberDelta7d: number;
   totalBookmarks: number;
   totalHighlights: number;
+  totalInteractions: number;
   topArticles: {
     slug: string;
     title: string;
     bookmarks: number;
     comments: number;
     highlights: number;
+    highlightsPublic: number;
+    highlightsPrivate: number;
+    annotations: number;
+    interactions: number;
     publishedAt: Date | null;
   }[];
+}
+
+// ── Démographie d'audience (agrégée depuis le profil User, jamais individuelle) ──
+export interface DemographicBucket {
+  value: string;
+  count: number;
+}
+
+export interface AudienceDemographics {
+  declared: number; // nb d'utilisateurs ayant renseigné au moins un champ
+  gender: DemographicBucket[];
+  ageRange: DemographicBucket[];
+  countries: DemographicBucket[];
+  languages: DemographicBucket[];
+}
+
+export interface AudienceInsights {
+  creator: AudienceDemographics;
+  platform: AudienceDemographics;
+}
+
+const GENDER_LABELS: Record<string, string> = {
+  FEMALE: 'Femme',
+  MALE: 'Homme',
+  NON_BINARY: 'Non-binaire',
+  OTHER: 'Autre',
+  PREFER_NOT_TO_SAY: 'Préfère ne pas dire',
+};
+
+const AGE_RANGE_LABELS: Record<string, string> = {
+  UNDER_18: 'Moins de 18 ans',
+  AGE_18_24: '18-24 ans',
+  AGE_25_34: '25-34 ans',
+  AGE_35_44: '35-44 ans',
+  AGE_45_54: '45-54 ans',
+  AGE_55_64: '55-64 ans',
+  AGE_65_PLUS: '65 ans et +',
+  PREFER_NOT_TO_SAY: 'Préfère ne pas dire',
+};
+
+export function labelDemographic(key: 'gender' | 'ageRange', value: string): string {
+  if (key === 'gender') return GENDER_LABELS[value] ?? value;
+  return AGE_RANGE_LABELS[value] ?? value;
+}
+
+async function aggregateDemographics(userIds?: string[]): Promise<AudienceDemographics> {
+  const where = userIds ? { id: { in: userIds } } : {};
+
+  const [gender, ageRange, countries, languages] = await Promise.all([
+    prisma.user.groupBy({
+      by: ['gender'],
+      where: { ...where, gender: { not: null } },
+      _count: { _all: true },
+    }),
+    prisma.user.groupBy({
+      by: ['ageRange'],
+      where: { ...where, ageRange: { not: null } },
+      _count: { _all: true },
+    }),
+    prisma.user.groupBy({
+      by: ['countryCode'],
+      where: { ...where, countryCode: { not: null } },
+      _count: { _all: true },
+    }),
+    prisma.user.groupBy({
+      by: ['languageCode'],
+      where: { ...where, languageCode: { not: null } },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const toBuckets = (
+    rows: Array<Record<string, unknown> & { _count: { _all: number } }>,
+    key: string
+  ): DemographicBucket[] =>
+    rows
+      .map((row) => ({ value: String(row[key] ?? ''), count: row._count._all }))
+      .filter((b) => b.value !== '')
+      .sort((a, b) => b.count - a.count);
+
+  const declared = Math.max(gender.length, ageRange.length, countries.length, languages.length);
+
+  return {
+    declared,
+    gender: toBuckets(gender, 'gender'),
+    ageRange: toBuckets(ageRange, 'ageRange'),
+    countries: toBuckets(countries, 'countryCode'),
+    languages: toBuckets(languages, 'languageCode'),
+  };
+}
+
+async function getAudienceInsights(publicationId: string): Promise<AudienceInsights> {
+  const [followers, platform] = await Promise.all([
+    prisma.follows.findMany({
+      where: { publicationId },
+      select: { readerId: true },
+    }),
+    aggregateDemographics(),
+  ]);
+
+  const readerIds = [...new Set(followers.map((f) => f.readerId))];
+  const creator =
+    readerIds.length > 0 ? await aggregateDemographics(readerIds) : emptyDemographics();
+
+  return { creator, platform };
+}
+
+function emptyDemographics(): AudienceDemographics {
+  return { declared: 0, gender: [], ageRange: [], countries: [], languages: [] };
 }
 
 export async function getCreatorAnalyticsData(
@@ -88,6 +203,12 @@ export async function getCreatorAnalyticsData(
             title: true,
             createdAt: true,
             _count: { select: { bookmarks: true, comments: true, highlights: true } },
+            highlights: {
+              select: {
+                isPublic: true,
+                _count: { select: { comments: true } },
+              },
+            },
           },
         },
       },
@@ -99,18 +220,26 @@ export async function getCreatorAnalyticsData(
 
     const articleTitlesMap: Record<string, string> = {};
     const topArticles = creator.articles
-      .map((a) => ({
-        slug: a.slug,
-        title: a.title,
-        bookmarks: a._count.bookmarks,
-        comments: a._count.comments,
-        highlights: a._count.highlights,
-        publishedAt: a.createdAt,
-      }))
-      .sort(
-        (a, b) =>
-          b.bookmarks + b.comments + b.highlights - (a.bookmarks + a.comments + a.highlights)
-      )
+      .map((a) => {
+        const highlightsPublic = a.highlights.filter((h) => h.isPublic).length;
+        const highlightsPrivate = a.highlights.length - highlightsPublic;
+        const annotations = a.highlights.reduce((s, h) => s + h._count.comments, 0);
+        const interactions =
+          a._count.bookmarks + a._count.comments + a._count.highlights + annotations;
+        return {
+          slug: a.slug,
+          title: a.title,
+          bookmarks: a._count.bookmarks,
+          comments: a._count.comments,
+          highlights: a._count.highlights,
+          highlightsPublic,
+          highlightsPrivate,
+          annotations,
+          interactions,
+          publishedAt: a.createdAt,
+        };
+      })
+      .sort((a, b) => b.interactions - a.interactions)
       .slice(0, 5);
     creator.articles.forEach((article) => {
       articleTitlesMap[`/articles/${article.slug}`] = article.title;
@@ -122,8 +251,11 @@ export async function getCreatorAnalyticsData(
       subscriberDelta7d: creator.subscribers.length,
       totalBookmarks: topArticles.reduce((s, a) => s + a.bookmarks, 0),
       totalHighlights: topArticles.reduce((s, a) => s + a.highlights, 0),
+      totalInteractions: topArticles.reduce((s, a) => s + a.interactions, 0),
       topArticles,
     };
+
+    const audience = await getAudienceInsights(creator.id);
 
     const targetWebsiteId =
       creator.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '';
@@ -143,6 +275,7 @@ export async function getCreatorAnalyticsData(
           countries: [],
           articleTitlesMap,
           productMetrics,
+          audience,
         },
       };
     }
@@ -187,6 +320,7 @@ export async function getCreatorAnalyticsData(
         countries,
         articleTitlesMap,
         productMetrics,
+        audience,
       },
     };
   } catch (err: unknown) {

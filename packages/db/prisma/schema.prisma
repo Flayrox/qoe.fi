@@ -30,6 +30,26 @@ enum PublicationType {
   MEDIA // Organisation / journal / collectif (1:1 avec Media)
 }
 
+// ── Démographie (collecte optionnelle, consentement explicite à l'onboarding) ──
+enum Gender {
+  FEMALE
+  MALE
+  NON_BINARY
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum AgeRange {
+  UNDER_18
+  AGE_18_24
+  AGE_25_34
+  AGE_35_44
+  AGE_45_54
+  AGE_55_64
+  AGE_65_PLUS
+  PREFER_NOT_TO_SAY
+}
+
 model SystemConfig {
   key         String   @id
   value       String // JSON stringified or plain text
@@ -67,6 +87,13 @@ model User {
 
   // Wallet personnel (crédits internes)
   walletBalanceCents Int @default(0) // Internal credits wallet in cents
+
+  // ── Démographie (optionnel, explicite à l'onboarding — jamais obligatoire) ──
+  gender               Gender?
+  ageRange             AgeRange?
+  countryCode          String? // ISO 3166-1 alpha-2 (ex: "FR")
+  languageCode         String? // ISO 639-1 (ex: "fr")
+  demographicsUpdatedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
