@@ -10,7 +10,14 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -135,7 +142,11 @@ export function ThreadScreen({ postId }: { postId: string }) {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView edges={['top']} style={styles.flex}>
-        <ScrollView style={styles.flex} contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Repli « ReadMore » : chaîne d'ancêtres longue */}
           {hiddenAncestorCount > 0 && !showAllAncestors ? (
             <ReadMoreRow
@@ -176,7 +187,7 @@ export function ThreadScreen({ postId }: { postId: string }) {
           ) : null}
         </ScrollView>
 
-        {/* Barre de réponse (ouvre le composer plein écran) */}
+        {/* Barre de réponse morphique */}
         <ThreadReplyComposer
           postId={root.id}
           replyingTo={root.author.username || root.author.name}
