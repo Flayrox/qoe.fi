@@ -60,6 +60,7 @@
     "prisma:seed": "prisma db seed",
     "seed:large": "tsx prisma/seed-large.ts",
     "embed": "tsx prisma/embed-all.ts",
+    "embed:users": "tsx prisma/embed-users.ts",
     "prebuild": "prisma generate",
     "pretypecheck": "prisma generate"
   },

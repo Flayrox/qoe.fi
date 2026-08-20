@@ -36,6 +36,7 @@ import {
   SubscriptionStatus,
 } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
+import { embedAllUsers } from './embed-users';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -59,6 +60,39 @@ function uuid(): string {
 
 function sha256(input: string): string {
   return createHash('sha256').update(input).digest('hex');
+}
+
+// UUID v5 déterministe (email → id stable entre deux reseeds). Nécessaire pour
+// que les comptes Supabase Auth créés par le seed restent alignés sur les users
+// publics (auth.users.id = "User".id) même après un migrate reset + reseed.
+const UUID_NS = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'; // namespace DNS (fixe)
+function uuidV5(name: string): string {
+  const h = createHash('sha1')
+    .update(UUID_NS.replace(/-/g, ''), 'hex')
+    .update(Buffer.from(name, 'utf8'))
+    .digest();
+  h[6] = (h[6] & 0x0f) | 0x50; // version 5
+  h[8] = (h[8] & 0x3f) | 0x80; // variant RFC 4122
+  const hex = h.subarray(0, 16).toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+async function mapConcurrent<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, idx: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = [];
+  let currentIdx = 0;
+  async function worker() {
+    while (currentIdx < items.length) {
+      const idx = currentIdx++;
+      results[idx] = await fn(items[idx], idx);
+    }
+  }
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
 }
 
 function randomItem<T>(arr: T[]): T {
@@ -722,7 +756,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 0. CHARGEMENT DES ARTICLES JSON EXTERNES
   // -------------------------------------------------------------------
-  console.log('📂 [0/23] Analyse du dossier des articles générés (.exemple-json)...');
+  console.log('📂 [0/25] Analyse du dossier des articles générés (.exemple-json)...');
   const externalArticles = loadExternalArticles();
   console.log(
     `  ✓ ${externalArticles.length} articles riches découverts dans les fichiers JSON.\n`
@@ -731,7 +765,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 1. NETTOYAGE PRÉALABLE SÉCURISÉ
   // -------------------------------------------------------------------
-  console.log('🧹 [1/23] Nettoyage préalable des tables locales...');
+  console.log('🧹 [1/25] Nettoyage préalable des tables locales...');
   try {
     // Tables secondaires générées par le seed (enfants d'abord, cascade-safe)
     await prisma.notificationDelivery.deleteMany({}).catch(() => {});
@@ -795,7 +829,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 2. 500 UTILISATEURS (UUID v4) + Auteurs spécifiques des JSON
   // -------------------------------------------------------------------
-  console.log('👥 [2/23] Création de 500 utilisateurs (UUIDs v4)...');
+  console.log('👥 [2/25] Création de 500 utilisateurs (UUIDs v4)...');
   const usedUsernames = new Set<string>();
   const usersToInsert: any[] = [];
   const authorNameToUserMap = new Map<string, any>();
@@ -823,9 +857,9 @@ async function main() {
   ) as string[];
 
   for (const authorName of externalAuthorNames) {
-    const id = uuid();
     const handle = slugify(authorName);
     usedUsernames.add(handle);
+    const id = uuidV5(`${handle}@qoe.fi`);
 
     const userObj = {
       id,
@@ -850,7 +884,6 @@ async function main() {
 
   // 2. Compléter jusqu'à 500 utilisateurs
   while (usersToInsert.length < 500) {
-    const id = uuid();
     const fn = randomItem(FIRST_NAMES);
     const ln = randomItem(LAST_NAMES);
     const fullName = `${fn} ${ln}`;
@@ -863,6 +896,7 @@ async function main() {
     }
     usedUsernames.add(handle);
 
+    const id = uuidV5(`${handle}@qoe.fi`);
     const i = usersToInsert.length;
     let role = 'user';
     if (i < 80) role = 'creator';
@@ -901,7 +935,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 3. PUBLICATIONS (MÉDIAS + PERSONNELLES)
   // -------------------------------------------------------------------
-  console.log('\n📰 [3/23] Création des Publications (Médias + Personnelles)...');
+  console.log('\n📰 [3/25] Création des Publications (Médias + Personnelles)...');
   const pubsToInsert: any[] = [];
   const mediaConfigs: { pubId: string; meta: (typeof BIOS_MEDIAS)[0] }[] = [];
   const userPubConfigs: { userId: string; pubId: string }[] = [];
@@ -971,7 +1005,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 4. MÉDIAS & ÉQUIPES DE RÉDACTION (Media, MediaMember, MediaAuditLog)
   // -------------------------------------------------------------------
-  console.log('\n🏢 [4/23] Structuration des Rédactions & Équipes Média...');
+  console.log('\n🏢 [4/25] Structuration des Rédactions & Équipes Média...');
   const mediasToInsert: any[] = [];
   const mediaMembersToInsert: any[] = [];
   const mediaLogsToInsert: any[] = [];
@@ -1062,7 +1096,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 5. CATÉGORIES & TIERS D'ABONNEMENT (Category & Tier)
   // -------------------------------------------------------------------
-  console.log('\n🏷️  [5/23] Création des catégories et des tiers tarifaires...');
+  console.log('\n🏷️  [5/25] Création des catégories et des tiers tarifaires...');
   const categoriesToInsert: any[] = [];
   const createdCategories: { id: string; publicationId: string; name: string }[] = [];
   const tiersToInsert: any[] = [];
@@ -1113,7 +1147,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 6. ARTICLES COMPLETS & ATTRIBUTIONS (Articles JSON + Templates)
   // -------------------------------------------------------------------
-  console.log('\n📚 [6/23] Ingestion et composition des articles complets...');
+  console.log('\n📚 [6/25] Ingestion et composition des articles complets...');
   const articlesToInsert: any[] = [];
   const attributionsToInsert: any[] = [];
   const articleKeyExcerpts: { articleId: string; excerpt: string; authorId: string }[] = [];
@@ -1264,7 +1298,7 @@ async function main() {
   // 7. 1 300+ PENSÉES (Thought / Post)
   // -------------------------------------------------------------------
   console.log(
-    '\n💬 [7/23] Génération de 1 300+ Pensées (Racines, Réponses L1 & L2, Quotes, Reposts)...'
+    '\n💬 [7/25] Génération de 1 300+ Pensées (Racines, Réponses L1 & L2, Quotes, Reposts)...'
   );
   const thoughtsToInsert: any[] = [];
   const rootThoughts: any[] = [];
@@ -1408,7 +1442,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 8. 450+ COMMENTAIRES D'ARTICLES (ArticleComment & Replies)
   // -------------------------------------------------------------------
-  console.log('\n✍️  [8/23] Rédaction de 450+ Commentaires sous les articles...');
+  console.log('\n✍️  [8/25] Rédaction de 450+ Commentaires sous les articles...');
   const articleCommentsToInsert: any[] = [];
   const rootComments: any[] = [];
 
@@ -1452,7 +1486,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 9. 3 600+ RELATIONS SOCIALES FOLLOWS (Reader -> Publication)
   // -------------------------------------------------------------------
-  console.log('\n🤝 [9/23] Génération du graphe social (3 600+ Follows)...');
+  console.log('\n🤝 [9/25] Génération du graphe social (3 600+ Follows)...');
   const followsToInsert: any[] = [];
   const followsSet = new Set<string>();
 
@@ -1477,7 +1511,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 10. 6 000+ LIKES SUR LES PENSÉES (Like -> Post)
   // -------------------------------------------------------------------
-  console.log('\n❤️  [10/23] Distribution de 6 000+ Likes sur les Pensées...');
+  console.log('\n❤️  [10/25] Distribution de 6 000+ Likes sur les Pensées...');
   const likesToInsert: any[] = [];
   const likeSet = new Set<string>();
   const postLikeCounters = new Map<string, number>();
@@ -1504,7 +1538,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 11. 850+ SURLIGNAGES (Highlights, AnnotationComments, Upvotes)
   // -------------------------------------------------------------------
-  console.log('\n🖍️  [11/23] Création de 850+ Surlignages et notes en marge...');
+  console.log('\n🖍️  [11/25] Création de 850+ Surlignages et notes en marge...');
   const highlightsToInsert: any[] = [];
   const annotationCommentsToInsert: any[] = [];
   const annotationUpvotesToInsert: any[] = [];
@@ -1566,7 +1600,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 12. 550+ SIGNETS ALÉATOIRES (Bookmarks)
   // -------------------------------------------------------------------
-  console.log('\n🔖 [12/23] Sauvegarde aléatoire de 550+ Signets de lecture...');
+  console.log('\n🔖 [12/25] Sauvegarde aléatoire de 550+ Signets de lecture...');
   const bookmarksToInsert: any[] = [];
   const bookmarkSet = new Set<string>();
 
@@ -1591,7 +1625,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 13. 450+ ABONNÉS & 160+ LETTRES (Subscribers & Letters)
   // -------------------------------------------------------------------
-  console.log('\n💳 [13/23] Enregistrement de 450+ Abonnés & 160+ Lettres...');
+  console.log('\n💳 [13/25] Enregistrement de 450+ Abonnés & 160+ Lettres...');
   const subscribersToInsert: any[] = [];
   const subSet = new Set<string>();
 
@@ -1645,7 +1679,7 @@ async function main() {
   // 14. MÉDIAS UPLOADÉS & PIÈCES JOINTES (MediaAsset + MediaAttachment)
   // -------------------------------------------------------------------
   console.log(
-    '\n📎 [14/23] Génération des médias uploadés (MediaAsset) & pièces jointes (MediaAttachment)...'
+    '\n📎 [14/25] Génération des médias uploadés (MediaAsset) & pièces jointes (MediaAttachment)...'
   );
   const mediaAssetsToInsert: any[] = [];
   const mediaAttachmentsToInsert: any[] = [];
@@ -1846,7 +1880,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 15. WEBHOOKS & LIVRAISONS (Webhook + WebhookDelivery)
   // -------------------------------------------------------------------
-  console.log('\n🕸️  [15/23] Génération des Webhooks sortants & livraisons...');
+  console.log('\n🕸️  [15/25] Génération des Webhooks sortants & livraisons...');
   const webhooksToInsert: any[] = [];
   const deliveriesToInsert: any[] = [];
   const WEBHOOK_EVENTS = [
@@ -1899,7 +1933,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 16. CLÉS API (ApiKey) — un jeu par rédaction
   // -------------------------------------------------------------------
-  console.log('\n🔑 [16/23] Génération des clés API (ApiKey)...');
+  console.log('\n🔑 [16/25] Génération des clés API (ApiKey)...');
   const apiKeysToInsert: any[] = [];
   createdMedias.forEach((m, mIdx) => {
     const owner = creators[mIdx % creators.length];
@@ -1922,7 +1956,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 17. NOTIFICATIONS & LIVRAISONS (Notification + NotificationDelivery)
   // -------------------------------------------------------------------
-  console.log('\n🔔 [17/23] Génération des notifications & livraisons...');
+  console.log('\n🔔 [17/25] Génération des notifications & livraisons...');
   const notificationsToInsert: any[] = [];
   const notificationDeliveriesToInsert: any[] = [];
   const notifTypes = [
@@ -1988,7 +2022,7 @@ async function main() {
   // 18. RÉGLAGES UTILISATEURS (UserSettings + NotificationPreference)
   // -------------------------------------------------------------------
   console.log(
-    '\n⚙️  [18/23] Génération des réglages utilisateurs & préférences de notification...'
+    '\n⚙️  [18/25] Génération des réglages utilisateurs & préférences de notification...'
   );
   const settingsToInsert: any[] = [];
   const notifPrefsToInsert: any[] = [];
@@ -2037,7 +2071,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 19. STARTER PACKS (StarterPack + StarterPackItem)
   // -------------------------------------------------------------------
-  console.log('\n🚀 [19/23] Génération des Starter Packs...');
+  console.log('\n🚀 [19/25] Génération des Starter Packs...');
   const starterPacksToInsert: any[] = [];
   const starterPackItemsToInsert: any[] = [];
   createdMedias.forEach((m) => {
@@ -2066,7 +2100,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 20. SONDAGES (Poll + PollOption + PollVote)
   // -------------------------------------------------------------------
-  console.log('\n🗳️  [20/23] Génération des sondages (Polls)...');
+  console.log('\n🗳️  [20/25] Génération des sondages (Polls)...');
   const pollsToInsert: any[] = [];
   const pollOptionsToInsert: any[] = [];
   const pollVotesToInsert: any[] = [];
@@ -2130,7 +2164,7 @@ async function main() {
   //    (SocialLink + WalletTransaction + MutedWord/BlockedUser/MutedUser)
   // -------------------------------------------------------------------
   console.log(
-    '\n🌐 [21/23] Génération des liens sociaux, transactions wallet & modération sociale...'
+    '\n🌐 [21/25] Génération des liens sociaux, transactions wallet & modération sociale...'
   );
   const socialLinksToInsert: any[] = [];
   createdMedias.forEach((m) => {
@@ -2219,7 +2253,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 22. APPLICATIONS OAuth DE DÉMO (OAuthClient + OAuthConsent)
   // -------------------------------------------------------------------
-  console.log('\n🔐 [22/23] Génération des applications OAuth de démo...');
+  console.log('\n🔐 [22/25] Génération des applications OAuth de démo...');
   const oauthClientsToInsert: any[] = [];
   const oauthConsentsToInsert: any[] = [];
   const oauthDemoApps: any[] = [
@@ -2298,7 +2332,7 @@ async function main() {
   //    (Trend + PartnerPromo + SystemConfig + Recommendation + NavigationItem + ModerationReport + CollaborationRequest)
   // -------------------------------------------------------------------
   console.log(
-    '\n📈 [23/23] Génération tendances, promos partenaires, config système, recommandations & signalements...'
+    '\n📈 [23/25] Génération tendances, promos partenaires, config système, recommandations & signalements...'
   );
   const trendsToInsert: any[] = [];
   const TREND_TAGS = [
@@ -2483,6 +2517,79 @@ async function main() {
     });
   }
   await batchInsert('Collaboration Requests', prisma.collaborationRequest, collabRequestsToInsert);
+
+  // -------------------------------------------------------------------
+  // 24. COMPTES SUPABASE AUTH (login local password123)
+  // -------------------------------------------------------------------
+  console.log('\n🔐 [24/25] Création des comptes Supabase Auth (password123)...');
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!serviceKey || !supabaseUrl) {
+    console.warn(
+      '  ⚠️ SUPABASE_SERVICE_ROLE_KEY / NEXT_PUBLIC_SUPABASE_URL absents — comptes Auth non créés.'
+    );
+  } else {
+    const adminUrl = `${supabaseUrl.replace(/\/+$/, '')}/auth/v1/admin/users`;
+    let authCreated = 0;
+    let authSkipped = 0;
+    let authFailed = 0;
+    await mapConcurrent(usersToInsert, 8, async (u) => {
+      try {
+        const res = await fetch(adminUrl, {
+          method: 'POST',
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: u.id,
+            email: u.email,
+            password: 'password123',
+            email_confirm: true,
+            user_metadata: { name: u.name, username: u.username },
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
+        if (res.ok) {
+          authCreated++;
+        } else {
+          const body = await res.json().catch(() => ({}));
+          const msg = body?.msg || body?.message || '';
+          if (res.status === 422 || /already exists|already registered/i.test(msg)) {
+            authSkipped++;
+          } else {
+            authFailed++;
+            console.warn(`  ⚠️ Auth ${u.email}: ${res.status} ${msg}`);
+          }
+        }
+      } catch (err) {
+        authFailed++;
+        console.warn(`  ⚠️ Auth ${u.email}:`, (err as Error).message);
+      }
+    });
+    console.log(
+      `  ├─ ✓ ${authCreated} comptes créés, ${authSkipped} déjà existants, ${authFailed} échecs.`
+    );
+  }
+
+  // -------------------------------------------------------------------
+  // 25. EMBEDDINGS PROFILS (jina-embeddings-v3, 512d — si le service répond)
+  // -------------------------------------------------------------------
+  console.log('\n🧠 [25/25] Génération des embeddings de profils (jina-embeddings-v3)...');
+  const embedBase = (process.env.EMBEDDING_URL || 'http://127.0.0.1:8081').replace(/\/+$/, '');
+  const embedderUp = await fetch(`${embedBase}/v1/models`, {
+    signal: AbortSignal.timeout(3000),
+  })
+    .then((r) => r.ok)
+    .catch(() => false);
+  if (!embedderUp) {
+    console.warn(
+      `  ⚠️ Serveur d'embedding injoignable (${embedBase}) — embeddings non générés. Relancez \`pnpm embed:users\` une fois le service démarré.`
+    );
+  } else {
+    await embedAllUsers(prisma);
+  }
 
   // -------------------------------------------------------------------
   // RÉSUMÉ FINAL
