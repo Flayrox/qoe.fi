@@ -1717,13 +1717,41 @@ export async function addMockFundsAction({
 /**
  * 🔄 Réinitialise l'état d'onboarding de tous les utilisateurs (ou d'un seul) pour faciliter les tests.
  */
-export async function resetOnboardingAction() {
+export async function resetOnboardingAction(targetEmailOrId?: string) {
   try {
-    await prisma.user.updateMany({
-      data: {
-        hasCompletedOnboarding: false,
-      },
-    });
+    if (targetEmailOrId) {
+      await prisma.user.updateMany({
+        where: {
+          OR: [{ id: targetEmailOrId }, { email: targetEmailOrId.toLowerCase().trim() }],
+        },
+        data: {
+          hasCompletedOnboarding: false,
+        },
+      });
+    } else {
+      // Si pas d'identifiant spécifié, tenter sur l'utilisateur connecté, ou tous
+      try {
+        const supabase = await createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { hasCompletedOnboarding: false },
+          });
+          return { success: true };
+        }
+      } catch {
+        // En cas de fallback
+      }
+
+      await prisma.user.updateMany({
+        data: {
+          hasCompletedOnboarding: false,
+        },
+      });
+    }
     return { success: true };
   } catch (error) {
     console.error('Error in resetOnboardingAction:', error);

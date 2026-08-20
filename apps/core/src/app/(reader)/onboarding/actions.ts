@@ -5,6 +5,7 @@ import { completeOnboardingInDb } from '@qoe/db/onboarding';
 
 export async function completeOnboarding(data: {
   interests: string[];
+  subtopics?: string[];
   onboardingText?: string;
   mutedWords: string[];
   creatorsToFollow: string[];

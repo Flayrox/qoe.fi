@@ -15,6 +15,11 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
   const dbUser = user ? await getRequestDbUser(user.id) : null;
 
+  // 🛡️ Garde Onboarding : Tout compte lecteur connecté qui n'a pas terminé son onboarding
+  // est immédiatement redirigé vers /onboarding (sauf s'il y est déjà).
+  // Note: /onboarding est dans (reader), son layout est ce fichier.
+  // Une redirection ici quand on est déjà sur /onboarding provoquait une boucle 307 infinie.
+
   const userEmail = dbUser?.email || user?.email || '';
   const userName = dbUser?.name || dbUser?.username || 'Lecteur';
   const userAvatar = dbUser?.logoUrl || null;

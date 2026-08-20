@@ -16,7 +16,11 @@ import {
   useAuthModal,
   MediaLightbox,
   HotkeyHelpModal,
+  OnboardingModal,
   type AuthActionContext,
+  type OnboardingCategory,
+  type OnboardingCreator,
+  type OnboardingSubmitData,
 } from '@qoe/ui';
 import { ArticleCard } from './components/ArticleCard';
 import { ThoughtFeedSlice } from './components/ThoughtFeedSlice';
@@ -173,6 +177,9 @@ interface FeedDashboardProps {
   recommendedArticles: Article[];
   trends: Trend[];
   promos: PartnerPromo[];
+  needsOnboarding?: boolean;
+  onboardingCategories?: OnboardingCategory[];
+  onboardingSuggestedCreators?: OnboardingCreator[];
 }
 
 export function FeedDashboard({
@@ -184,8 +191,12 @@ export function FeedDashboard({
   followedCreators: initialFollowedCreators,
   followedAuthorIds,
   mutedWords = [],
+  needsOnboarding = false,
+  onboardingCategories = [],
+  onboardingSuggestedCreators = [],
 }: FeedDashboardProps) {
   const [activeFeed, setActiveFeed] = useState<string>('recommandation');
+  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(needsOnboarding);
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [activeArticle, setActiveArticle] = useState<Article | null>(null);
   const [isComposerModalOpen, setIsComposerModalOpen] = useState(false);
@@ -839,6 +850,19 @@ export function FeedDashboard({
         onClose={() => setIsLightboxOpen(false)}
       />
       <HotkeyHelpModal isOpen={isHotkeyModalOpen} onClose={() => setIsHotkeyModalOpen(false)} />
+      {needsOnboarding && (
+        <OnboardingModal
+          open={isOnboardingModalOpen}
+          onOpenChange={setIsOnboardingModalOpen}
+          dismissible={false}
+          categories={onboardingCategories}
+          suggestedCreators={onboardingSuggestedCreators}
+          onSubmit={async (data: OnboardingSubmitData) => {
+            const { completeOnboarding } = await import('@/app/(reader)/onboarding/actions');
+            return completeOnboarding(data);
+          }}
+        />
+      )}
       {!dbUser && (
         <GuestFloatingBar
           onOpenAuth={(opts) =>

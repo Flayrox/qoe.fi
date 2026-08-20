@@ -223,11 +223,11 @@ export default async function ReaderHomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Étape 1 : Récupérer les détails de dbUser et les publications suivies en parallèle
-  const [dbUser, followedPublications] = user
-    ? await Promise.all([
-        getRequestDbUser(user.id),
-        prisma.follows.findMany({
+  // Étape 1 : Récupérer les détails de dbUser, publications suivies et données d'onboarding en parallèle
+  const [dbUser, followedPublications, onboardingData] = await Promise.all([
+    user ? getRequestDbUser(user.id) : null,
+    user
+      ? prisma.follows.findMany({
           where: { readerId: user.id },
           include: {
             publication: {
@@ -235,9 +235,14 @@ export default async function ReaderHomePage() {
             },
           },
           orderBy: { createdAt: 'desc' },
-        }),
-      ])
-    : [null, []];
+        })
+      : [],
+    (await import('@qoe/db/onboarding')).getOnboardingData(),
+  ]);
+
+  const needsOnboarding = Boolean(
+    dbUser && dbUser.role === 'user' && !dbUser.hasCompletedOnboarding
+  );
 
   const publicationIds = followedPublications.map((f) => f.publicationId);
 
@@ -841,6 +846,9 @@ export default async function ReaderHomePage() {
       imageUrl: p.imageUrl,
       isActive: p.isActive,
     })),
+    needsOnboarding,
+    onboardingCategories: onboardingData.categories,
+    onboardingSuggestedCreators: onboardingData.suggestedCreators,
   };
 
   return <FeedDashboard {...feedProps} />;

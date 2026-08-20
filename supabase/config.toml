@@ -156,11 +156,21 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://127.0.0.1:3000"
+site_url = "http://lvh.me:3010"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+additional_redirect_urls = [
+  "http://localhost:*",
+  "http://127.0.0.1:*",
+  "http://lvh.me:*",
+  "http://*.lvh.me:*",
+  "http://lvh.me:3010/**",
+  "http://*.lvh.me:3001/**",
+  "http://*.lvh.me:3020/**",
+  "https://qoe.fi/**",
+  "https://*.qoe.fi/**"
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -320,14 +330,14 @@ max_frequency = "5s"
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin_oidc`, `notion`, `twitch`,
 # `twitter`, `x`, `slack`, `spotify`, `workos`, `zoom`.
 [auth.external.google]
-enabled = false
+enabled = true
 client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
 # DO NOT commit your OAuth provider secret to git. Use environment variable substitution instead:
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 # Overrides the default auth callback URL derived from auth.external_url.
 redirect_uri = ""
 # If enabled, the nonce check will be skipped. Required for local sign in with Google auth.
-skip_nonce_check = false
+skip_nonce_check = true
 # If enabled, it will allow the user to successfully authenticate when the provider does not return an email address.
 email_optional = false
 
