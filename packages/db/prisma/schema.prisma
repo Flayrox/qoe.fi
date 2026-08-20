@@ -120,6 +120,10 @@ model User {
   posts              Thought[]
   likes              Like[]
   apiKeys            ApiKey[]
+  oauthClients           OAuthClient[]
+  oauthAuthorizationCodes OAuthAuthorizationCode[]
+  oauthTokens            OAuthToken[]
+  oauthConsents          OAuthConsent[]
   translationLogs    TranslationAuditLog[]
   articleComments    ArticleComment[]      @relation("CommentAuthor")
   annotationComments AnnotationComment[]
@@ -1088,3 +1092,100 @@ model MediaAsset {
   @@index([ownerId])
   @@index([attachedToId])
 }
+
+// =====================================================================
+// 🔐 OAuth 2.1 / OpenID Connect — fournisseur d'identité qoe.fi
+// =====================================================================
+enum OAuthClientType {
+  CONFIDENTIAL
+  PUBLIC
+}
+
+enum OAuthClientStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVOKED
+}
+
+model OAuthClient {
+  id               String            @id @default(cuid())
+  clientId         String            @unique // identifiant public unique (qoe_oauth_…)
+  clientSecretHash String?           // SHA-256 hex du client_secret ; null = client public
+  name             String
+  description      String?           @db.Text
+  logoUrl          String?
+  homepageUrl      String?
+  redirectUris     String[]          // allowlist exact-match
+  scopes           String[]          @default(["openid", "profile", "email"])
+  clientType       OAuthClientType   @default(CONFIDENTIAL)
+  status           OAuthClientStatus @default(PENDING)
+  publicationId    String?           // réservé aux futurs scopes "ressource"
+  ownerUserId      String            @db.Uuid
+  owner            User              @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  codes    OAuthAuthorizationCode[]
+  tokens   OAuthToken[]
+  consents OAuthConsent[]
+
+  @@index([ownerUserId])
+  @@index([status])
+}
+
+model OAuthAuthorizationCode {
+  id                  String       @id @default(cuid())
+  codeHash            String       @unique // SHA-256 hex du code, jamais en clair
+  clientId            String
+  client              OAuthClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId              String       @db.Uuid
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  redirectUri         String       @db.Text
+  scopes              String[]
+  codeChallenge       String?      // PKCE
+  codeChallengeMethod String?      // "S256" | "plain"
+  nonce               String?      // OIDC anti-replay (lié à l'id_token)
+  expiresAt           DateTime
+  usedAt              DateTime?
+  createdAt           DateTime     @default(now())
+
+  @@index([clientId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model OAuthToken {
+  id                    String    @id @default(cuid())
+  clientId              String
+  client                OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId                String    @db.Uuid
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessTokenHash       String    @unique
+  refreshTokenHash      String?   @unique
+  scopes                String[]
+  accessTokenExpiresAt  DateTime
+  refreshTokenExpiresAt DateTime?
+  revokedAt             DateTime?
+  lastUsedAt            DateTime?
+  createdAt             DateTime  @default(now())
+
+  @@index([clientId, userId])
+  @@index([refreshTokenHash])
+  @@index([accessTokenExpiresAt])
+}
+
+model OAuthConsent {
+  id        String       @id @default(cuid())
+  clientId  String
+  client    OAuthClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId    String       @db.Uuid
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scopes    String[]
+  grantedAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([clientId, userId])
+  @@index([userId])
+}
+

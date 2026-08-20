@@ -29,6 +29,15 @@ type Config struct {
 	DefaultUmamiWebsiteID string
 	// UmamiDatabaseURL = DSN read-only vers la DB Postgres d'Umami (récurrents, heatmap).
 	UmamiDatabaseURL string
+	// OAuthIssuer est l'origine canonique de l'AS (ex: https://qoe.fi). Sert au
+	// document de discovery et au claim `iss` des id_token.
+	OAuthIssuer string
+	// OAuthAuthorizeURL est la page de consentement Next.js (browser-facing).
+	OAuthAuthorizeURL string
+	// OAuthSigningKey est la clé privée ES256 (PEM PKCS8/SEC1) signant les
+	// id_token. Vide en dev → clé éphémère générée au démarrage (⚠️ ne pas
+	// utiliser en production multi-instances).
+	OAuthSigningKey string
 }
 
 func Load() *Config {
@@ -50,6 +59,10 @@ func Load() *Config {
 		// Connexion read-only à la DB Postgres d'Umami (visiteurs récurrents,
 		// heatmap horaire — métriques absentes de l'API REST).
 		UmamiDatabaseURL: envOr("UMAMI_DATABASE_URL", ""),
+		// OAuth 2.1 / OIDC — fournisseur d'identité qoe.fi.
+		OAuthIssuer:       envOr("OAUTH_ISSUER", "http://localhost:8090"),
+		OAuthAuthorizeURL: envOr("OAUTH_AUTHORIZE_URL", "http://localhost:3010/oauth/authorize"),
+		OAuthSigningKey:   envOr("OAUTH_SIGNING_KEY", ""),
 	}
 }
 

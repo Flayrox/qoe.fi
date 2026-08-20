@@ -17,12 +17,15 @@ type Querier interface {
 	CheckSubdomainExists(ctx context.Context, subdomain pgtype.Text) (bool, error)
 	ClearPinnedPosts(ctx context.Context, authorid string) error
 	CompleteOnboardingUser(ctx context.Context, arg CompleteOnboardingUserParams) error
+	ConsumeOAuthAuthorizationCode(ctx context.Context, id string) error
+	CountActiveOAuthTokens(ctx context.Context, userid string) (int64, error)
 	CountArticlesByPublication(ctx context.Context, publicationid string) (int32, error)
 	// Compte des articles d'une publication (mêmes filtres que ListCreatorArticles).
 	CountCreatorArticles(ctx context.Context, arg CountCreatorArticlesParams) (int64, error)
 	CountFollowers(ctx context.Context, publicationid string) (int32, error)
 	CountFollowing(ctx context.Context, readerid pgtype.UUID) (int32, error)
 	CountHighlightUpvotes(ctx context.Context, highlightid string) (int32, error)
+	CountOAuthClientsByOwner(ctx context.Context, owneruserid string) (int64, error)
 	CountOptionVotes(ctx context.Context, optionid string) (int32, error)
 	CountOptionVotesByIDs(ctx context.Context, dollar_1 []string) ([]CountOptionVotesByIDsRow, error)
 	CountPollVotes(ctx context.Context, pollid string) (int32, error)
@@ -56,6 +59,7 @@ type Querier interface {
 	DeleteBlock(ctx context.Context, arg DeleteBlockParams) error
 	DeleteBookmark(ctx context.Context, arg DeleteBookmarkParams) error
 	DeleteCategory(ctx context.Context, id string) error
+	DeleteExpiredOAuthArtifacts(ctx context.Context) error
 	DeleteFollow(ctx context.Context, arg DeleteFollowParams) error
 	DeleteFollowNotification(ctx context.Context, arg DeleteFollowNotificationParams) error
 	DeleteHighlight(ctx context.Context, arg DeleteHighlightParams) error
@@ -65,9 +69,11 @@ type Querier interface {
 	DeleteMediaMember(ctx context.Context, arg DeleteMediaMemberParams) error
 	DeleteMute(ctx context.Context, arg DeleteMuteParams) error
 	DeleteNavigationItems(ctx context.Context, publicationid string) error
+	DeleteOAuthClient(ctx context.Context, arg DeleteOAuthClientParams) error
 	DeletePollVote(ctx context.Context, arg DeletePollVoteParams) error
 	DeletePureReposts(ctx context.Context, arg DeletePureRepostsParams) error
 	DeleteRepostNotification(ctx context.Context, arg DeleteRepostNotificationParams) error
+	DeleteRevokedOAuthTokens(ctx context.Context) error
 	DeleteSocialLinks(ctx context.Context, publicationid string) error
 	DeleteWebhook(ctx context.Context, id string) error
 	ExistsUnreadCommentNotification(ctx context.Context, arg ExistsUnreadCommentNotificationParams) (int32, error)
@@ -132,6 +138,14 @@ type Querier interface {
 	GetNotificationPreferences(ctx context.Context, userid pgtype.UUID) (GetNotificationPreferencesRow, error)
 	// Centre de notifications : liste groupée, non-lus, lecture, préférences.
 	GetNotifications(ctx context.Context, arg GetNotificationsParams) ([]GetNotificationsRow, error)
+	GetOAuthAuthorizationCodeByHash(ctx context.Context, codehash string) (OAuthAuthorizationCode, error)
+	// OAuth 2.1 / OIDC — clients, codes, tokens, consentement, quotas.
+	GetOAuthClientByClientId(ctx context.Context, clientid string) (GetOAuthClientByClientIdRow, error)
+	GetOAuthClientByID(ctx context.Context, id string) (GetOAuthClientByIDRow, error)
+	GetOAuthConsent(ctx context.Context, arg GetOAuthConsentParams) (OAuthConsent, error)
+	GetOAuthTokenByAccessHash(ctx context.Context, accesstokenhash string) (GetOAuthTokenByAccessHashRow, error)
+	GetOAuthTokenByRefreshHash(ctx context.Context, refreshtokenhash pgtype.Text) (GetOAuthTokenByRefreshHashRow, error)
+	GetOAuthUserClaims(ctx context.Context, id string) (GetOAuthUserClaimsRow, error)
 	GetPersonalOwnerForCredit(ctx context.Context, publicationid pgtype.Text) (GetPersonalOwnerForCreditRow, error)
 	GetPersonalPublicationByUserID(ctx context.Context, id string) (pgtype.Text, error)
 	GetPersonalPublicationForUser(ctx context.Context, id string) (GetPersonalPublicationForUserRow, error)
@@ -198,6 +212,9 @@ type Querier interface {
 	InsertMentionNotification(ctx context.Context, arg InsertMentionNotificationParams) error
 	InsertMute(ctx context.Context, arg InsertMuteParams) error
 	InsertNavigationItem(ctx context.Context, arg InsertNavigationItemParams) error
+	InsertOAuthAuthorizationCode(ctx context.Context, arg InsertOAuthAuthorizationCodeParams) error
+	InsertOAuthClient(ctx context.Context, arg InsertOAuthClientParams) error
+	InsertOAuthToken(ctx context.Context, arg InsertOAuthTokenParams) error
 	// Vote (idempotent : ON CONFLICT DO UPDATE pour changer d'option).
 	InsertPollVote(ctx context.Context, arg InsertPollVoteParams) (string, error)
 	InsertPureRepost(ctx context.Context, arg InsertPureRepostParams) (string, error)
@@ -228,6 +245,8 @@ type Querier interface {
 	ListMediaMembers(ctx context.Context, mediaid string) ([]ListMediaMembersRow, error)
 	// Tous les surlignages d'un lecteur (bibliothèque), avec l'article associé.
 	ListMyHighlights(ctx context.Context, arg ListMyHighlightsParams) ([]ListMyHighlightsRow, error)
+	ListOAuthClientsByOwner(ctx context.Context, owneruserid string) ([]ListOAuthClientsByOwnerRow, error)
+	ListOAuthConfig(ctx context.Context) ([]ListOAuthConfigRow, error)
 	// Provisionnement automatique des websites Umami par publication.
 	// Chaque publication (blog créateur) a son propre website Umami pour que
 	// le créateur voie SES stats (visites, sources, pages, temps passé) sans
@@ -246,6 +265,9 @@ type Querier interface {
 	ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error)
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
 	PinPost(ctx context.Context, arg PinPostParams) (bool, error)
+	RevokeOAuthTokenByAccessHash(ctx context.Context, accesstokenhash string) error
+	RevokeOAuthTokenByRefreshHash(ctx context.Context, refreshtokenhash pgtype.Text) error
+	RevokeOAuthTokensByUserClient(ctx context.Context, arg RevokeOAuthTokensByUserClientParams) error
 	// Recherche sémantique plein corpus (ordre par similarité cosinus).
 	SearchSemanticArticles(ctx context.Context, arg SearchSemanticArticlesParams) ([]SearchSemanticArticlesRow, error)
 	SetApiApplication(ctx context.Context, arg SetApiApplicationParams) error
@@ -265,6 +287,9 @@ type Querier interface {
 	UpdateMediaInviteStatus(ctx context.Context, arg UpdateMediaInviteStatusParams) error
 	UpdateMediaMemberPermissions(ctx context.Context, arg UpdateMediaMemberPermissionsParams) error
 	UpdateMediaMemberRole(ctx context.Context, arg UpdateMediaMemberRoleParams) error
+	UpdateOAuthClientSecret(ctx context.Context, arg UpdateOAuthClientSecretParams) error
+	UpdateOAuthClientStatus(ctx context.Context, arg UpdateOAuthClientStatusParams) error
+	UpdateOAuthTokenLastUsed(ctx context.Context, id string) error
 	UpdatePersonalPublication(ctx context.Context, arg UpdatePersonalPublicationParams) error
 	UpdatePublicationSubdomain(ctx context.Context, arg UpdatePublicationSubdomainParams) error
 	UpdateUserOnboardingText(ctx context.Context, arg UpdateUserOnboardingTextParams) error
@@ -274,6 +299,7 @@ type Querier interface {
 	UpsertArticleEmbedding(ctx context.Context, arg UpsertArticleEmbeddingParams) error
 	UpsertMediaMember(ctx context.Context, arg UpsertMediaMemberParams) error
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) error
+	UpsertOAuthConsent(ctx context.Context, arg UpsertOAuthConsentParams) error
 	UpsertSubscriberPayment(ctx context.Context, arg UpsertSubscriberPaymentParams) (string, error)
 	// Écrit le vecteur d'un utilisateur/publication (profil).
 	UpsertUserEmbedding(ctx context.Context, arg UpsertUserEmbeddingParams) error

@@ -37,7 +37,6 @@ export function DeveloperNav({ activeTab }: DeveloperNavProps) {
       label: 'Applications OAuth',
       href: '/developer/oauth',
       icon: Shield,
-      badge: 'Bientôt',
     },
   ];
 
@@ -65,11 +64,6 @@ export function DeveloperNav({ activeTab }: DeveloperNavProps) {
               )}
             />
             <span>{tab.label}</span>
-            {tab.badge && (
-              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 scale-90">
-                {tab.badge}
-              </span>
-            )}
           </Link>
         );
       })}

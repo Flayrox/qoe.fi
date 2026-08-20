@@ -117,6 +117,26 @@ func TestRouter_Healthz(t *testing.T) {
 	}
 }
 
+func TestRouter_OAuthDiscovery(t *testing.T) {
+	r := testRouter(t)
+
+	w, body := doReq(t, r, "GET", "/.well-known/openid-configuration", "", nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("discovery = %d, body = %s", w.Code, w.Body.String())
+	}
+	if body["response_types_supported"] == nil {
+		t.Fatalf("discovery body = %s", w.Body.String())
+	}
+
+	w2, body2 := doReq(t, r, "GET", "/.well-known/jwks.json", "", nil)
+	if w2.Code != http.StatusOK {
+		t.Fatalf("jwks = %d, body = %s", w2.Code, w2.Body.String())
+	}
+	if body2["keys"] == nil {
+		t.Fatalf("jwks body = %s", w2.Body.String())
+	}
+}
+
 func TestRouter_SearchPublic(t *testing.T) {
 	r := testRouter(t)
 

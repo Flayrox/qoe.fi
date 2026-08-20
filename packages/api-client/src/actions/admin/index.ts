@@ -127,6 +127,20 @@ export const toggleUserShadowbanAction = safeAction<
   return { success: true };
 });
 
+/** 🔐 Approuve / rejette / révoque une application OAuth (console superadmin). */
+export const updateOAuthClientStatusAction = safeAction<
+  { clientId: string; status: 'APPROVED' | 'REJECTED' | 'REVOKED' | 'PENDING' },
+  { success: boolean }
+>(async ({ clientId, status }) => {
+  await verifySuperadmin();
+  await prisma.oAuthClient.update({
+    where: { id: clientId },
+    data: { status },
+  });
+  revalidatePath('/admin/oauth');
+  return { success: true };
+});
+
 export const updateCreatorApiAccessAction = safeAction<
   { userId: string; status: 'approved' | 'rejected' | 'revoked' | 'none' },
   { success: boolean }
