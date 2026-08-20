@@ -188,7 +188,15 @@ export function LoginFormBento({
         if (error) throw error;
       }
 
-      if (onSuccess) onSuccess();
+      if (authMode === 'signup') {
+        window.location.href = '/onboarding';
+      } else if (onSuccess) {
+        onSuccess();
+      } else {
+        const urlParams = new URLSearchParams(window.location.search);
+        const next = urlParams.get('redirect') || urlParams.get('next') || '/home';
+        window.location.href = next;
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur d'authentification.";
       setLocalError(message);

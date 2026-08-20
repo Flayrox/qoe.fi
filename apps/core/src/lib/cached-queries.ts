@@ -14,6 +14,7 @@ export const getRequestDbUser = cache(async (id: string) => {
       username: true,
       walletBalanceCents: true,
       onboardingText: true,
+      hasCompletedOnboarding: true,
     },
   });
 
@@ -36,6 +37,7 @@ export const getRequestDbUser = cache(async (id: string) => {
             username: true,
             walletBalanceCents: true,
             onboardingText: true,
+            hasCompletedOnboarding: true,
           },
         });
         if (matchByEmail) {

@@ -57,15 +57,22 @@ export default async function RootLayout({
 }>) {
   const locale = await initI18n();
   const staticTranslations = await getStaticTranslations();
-  const staticData = await staticTranslations.loadTranslations();
-  const currentUser = await getCurrentUser().catch(() => null);
+  const staticData = await staticTranslations.loadTranslations().catch(() => ({}));
+
+  // Timeout de sécurité (800ms) pour éviter tout blocage du SSR si la session/DB tarde à répondre
+  const userPromise = getCurrentUser().catch(() => null);
+  const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 800));
+  const currentUser = await Promise.race([userPromise, timeoutPromise]);
+
   const accountSettings = currentUser
-    ? await prisma.userSettings.findUnique({
-        where: { userId: currentUser.id },
-        select: { fontScale: true, reduceMotion: true, highContrast: true },
-      })
+    ? await prisma.userSettings
+        .findUnique({
+          where: { userId: currentUser.id },
+          select: { fontScale: true, reduceMotion: true, highContrast: true },
+        })
+        .catch(() => null)
     : null;
-  const flagsPayload = await getGrowthBookPayload();
+  const flagsPayload = await getGrowthBookPayload().catch(() => ({}));
 
   const devtoolsActions = {
     getDevtoolsData,

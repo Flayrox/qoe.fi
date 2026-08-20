@@ -86,7 +86,9 @@ export interface DevtoolsActions {
   generateMockFeedPostsAction: () => Promise<{ success: boolean; error?: string }>;
   resetDatabaseAction: () => Promise<{ success: boolean; error?: string }>;
   seedFullDatabaseAction?: () => Promise<{ success: boolean; error?: string }>;
-  resetOnboardingAction?: () => Promise<{ success: boolean; error?: string }>;
+  resetOnboardingAction?: (
+    targetEmailOrId?: string
+  ) => Promise<{ success: boolean; error?: string }>;
 
   simulateSubscriberAction: (data: {
     email: string;
@@ -281,10 +283,14 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
     startTransition(async () => {
       const res = await resetOnboardingAction();
       if (res.success) {
-        triggerAlert('success', 'Onboarding réinitialisé');
+        triggerAlert('success', '✨ Onboarding réinitialisé ! Rechargement...');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('qoe_onboarding_step');
+        }
         await refreshData();
+        window.location.reload();
       } else {
-        triggerAlert('error', res.error || 'Échec');
+        triggerAlert('error', res.error || 'Échec de la réinitialisation');
       }
     });
   };
@@ -866,6 +872,28 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
                               title="Copier email"
                             >
                               {isCopied ? <Check size={11} /> : <Copy size={11} />}
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (!resetOnboardingAction) return;
+                                startTransition(async () => {
+                                  const res = await resetOnboardingAction(user.id);
+                                  if (res.success) {
+                                    triggerAlert(
+                                      'success',
+                                      `✨ Onboarding réinitialisé pour ${user.name || user.username} !`
+                                    );
+                                    await handleImpersonateLogin(user.email);
+                                  } else {
+                                    triggerAlert('error', res.error || 'Échec');
+                                  }
+                                });
+                              }}
+                              disabled={isPending}
+                              className="apple-btn-secondary"
+                              title="Relancer le flow Onboarding pour ce compte"
+                            >
+                              Onboarding
                             </button>
                             <button
                               onClick={() => handleImpersonateLogin(user.email)}

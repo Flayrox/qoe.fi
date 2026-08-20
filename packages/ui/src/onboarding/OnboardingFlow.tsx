@@ -1,28 +1,59 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@qoe/utils';
-import { BentoPlateau, BentoItem } from '../ui/BentoPlateau';
 import { Logo } from '../ui/Logo';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import {
   Check,
-  X,
   ShieldAlert,
   Loader2,
   Sparkles,
   UserPlus,
   UserCheck,
   EyeOff,
+  ChevronRight,
+  TrendingUp,
+  Cpu,
+  Globe2,
+  Palette,
+  Compass,
+  Zap,
 } from 'lucide-react';
+
+export interface OnboardingSubtopic {
+  id: string;
+  name: string;
+  slug: string;
+  tags?: string[];
+}
+
+export interface OnboardingCategory {
+  id: string;
+  name: string;
+  slug: string;
+  icon?: string;
+  subtopics: OnboardingSubtopic[];
+}
+
+export interface OnboardingCreator {
+  id: string;
+  name: string | null;
+  slug?: string | null;
+  subdomain?: string | null;
+  logoUrl: string | null;
+  heroText: string | null;
+  isCertified?: boolean;
+}
 
 export interface OnboardingSubmitData {
   interests: string[];
+  subtopics?: string[];
   onboardingText?: string;
   mutedWords: string[];
   creatorsToFollow: string[];
@@ -32,18 +63,59 @@ export interface OnboardingSubmitData {
 }
 
 export interface OnboardingFlowProps {
-  categories: Array<{ id: string; name: string; slug: string }>;
-  suggestedCreators: Array<{
-    id: string;
-    name: string | null;
-    slug?: string | null;
-    subdomain?: string | null;
-    logoUrl: string | null;
-    heroText: string | null;
-  }>;
+  categories: OnboardingCategory[];
+  suggestedCreators: OnboardingCreator[];
   onSubmit: (data: OnboardingSubmitData) => Promise<unknown>;
   onDone?: () => void;
 }
+
+const getGenderOptions = () => [
+  { value: 'FEMALE', label: t`Femme` },
+  { value: 'MALE', label: t`Homme` },
+  { value: 'NON_BINARY', label: t`Non-binaire` },
+  { value: 'OTHER', label: t`Autre` },
+  { value: 'PREFER_NOT_TO_SAY', label: t`Préfère ne pas dire` },
+];
+
+const getAgeRangeOptions = () => [
+  { value: 'UNDER_18', label: t`Moins de 18 ans` },
+  { value: 'AGE_18_24', label: '18-24 ans' },
+  { value: 'AGE_25_34', label: '25-34 ans' },
+  { value: 'AGE_35_44', label: '35-44 ans' },
+  { value: 'AGE_45_54', label: '45-54 ans' },
+  { value: 'AGE_55_64', label: '55-64 ans' },
+  { value: 'AGE_65_PLUS', label: t`65 ans et +` },
+  { value: 'PREFER_NOT_TO_SAY', label: t`Préfère ne pas dire` },
+];
+
+const POPULAR_MUTED_SUGGESTIONS = [
+  'crypto',
+  'nft',
+  'publicité',
+  'buzz',
+  'clash',
+  'faits divers',
+  'politique partisane',
+  'putaclic',
+];
+
+const getCategoryIcon = (iconName?: string) => {
+  switch (iconName) {
+    case 'Cpu':
+      return <Cpu className="w-4 h-4 text-primary" />;
+    case 'TrendingUp':
+      return <TrendingUp className="w-4 h-4 text-primary" />;
+    case 'Globe2':
+      return <Globe2 className="w-4 h-4 text-primary" />;
+    case 'Palette':
+      return <Palette className="w-4 h-4 text-primary" />;
+    case 'Compass':
+      return <Compass className="w-4 h-4 text-primary" />;
+    case 'Sparkles':
+    default:
+      return <Sparkles className="w-4 h-4 text-primary" />;
+  }
+};
 
 export function OnboardingFlow({
   categories,
@@ -52,84 +124,93 @@ export function OnboardingFlow({
   onDone,
 }: OnboardingFlowProps) {
   const router = useRouter();
-  const [step, setStep] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('qoe_onboarding_step');
-      return saved ? parseInt(saved, 10) || 1 : 1;
-    }
-    return 1;
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Step 1: Interests
-  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-
-  // Step 2: Biography / DNA
+  // Gamification state
+  const [selectedMacroTopics, setSelectedMacroTopics] = useState<string[]>([]);
+  const [selectedSubtopics, setSelectedSubtopics] = useState<string[]>([]);
   const [bio, setBio] = useState('');
-
-  // Step 3: Muted Words
   const [mutedWords, setMutedWords] = useState<string[]>([]);
   const [mutedInput, setMutedInput] = useState('');
-
-  // Step 4: Creators to follow
   const [followedCreators, setFollowedCreators] = useState<string[]>([]);
-
-  // Step 5: Demographics (optionnel)
   const [gender, setGender] = useState<string | null>(null);
   const [ageRange, setAgeRange] = useState<string | null>(null);
   const [pronouns, setPronouns] = useState('');
 
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('qoe_onboarding_step', String(step));
-    }
-  }, [step]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleToggleInterest = (id: string) => {
-    setSelectedInterests((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+  // 🎯 Endowed Progress Effect : Démarre à 25%, augmente dynamiquement avec chaque micro-action
+  const progressPercent = useMemo(() => {
+    let base = 25; // Never start at 0%
+    if (step === 1) {
+      base += Math.min(selectedMacroTopics.length * 5 + selectedSubtopics.length * 3, 25);
+    } else if (step === 2) {
+      base = 50 + (bio.length > 10 ? 10 : 0) + Math.min(followedCreators.length * 5, 15);
+    } else if (step === 3) {
+      base = 75 + Math.min(mutedWords.length * 5, 15);
+    } else if (step === 4) {
+      base = 95;
+    }
+    return Math.min(base, 100);
+  }, [step, selectedMacroTopics, selectedSubtopics, bio, followedCreators, mutedWords]);
+
+  // Toggle macro-topic
+  const handleToggleMacro = (cat: OnboardingCategory) => {
+    if (selectedMacroTopics.includes(cat.id)) {
+      setSelectedMacroTopics((prev) => prev.filter((id) => id !== cat.id));
+      // Nettoie aussi les sous-thèmes associés
+      const subtopicIds = cat.subtopics.map((s) => s.id);
+      setSelectedSubtopics((prev) => prev.filter((id) => !subtopicIds.includes(id)));
+    } else {
+      setSelectedMacroTopics((prev) => [...prev, cat.id]);
+    }
+  };
+
+  // Toggle subtopic
+  const handleToggleSubtopic = (subId: string) => {
+    setSelectedSubtopics((prev) =>
+      prev.includes(subId) ? prev.filter((id) => id !== subId) : [...prev, subId]
     );
   };
 
-  const handleAddMutedWord = (e: React.FormEvent) => {
+  // Toggle quick muted words
+  const handleToggleMutedWord = (word: string) => {
+    const clean = word.toLowerCase().trim();
+    if (mutedWords.includes(clean)) {
+      setMutedWords((prev) => prev.filter((w) => w !== clean));
+    } else {
+      setMutedWords((prev) => [...prev, clean]);
+    }
+  };
+
+  const handleAddCustomMutedWord = (e: React.FormEvent) => {
     e.preventDefault();
-    const word = mutedInput.trim().toLowerCase();
-    if (word && !mutedWords.includes(word)) {
-      setMutedWords((prev) => [...prev, word]);
+    const clean = mutedInput.toLowerCase().trim();
+    if (clean && !mutedWords.includes(clean)) {
+      setMutedWords((prev) => [...prev, clean]);
       setMutedInput('');
     }
   };
 
-  const handleRemoveMutedWord = (word: string) => {
-    setMutedWords((prev) => prev.filter((w) => w !== word));
-  };
-
-  const handleToggleCreator = (id: string) => {
+  const handleToggleCreator = (creatorId: string) => {
     setFollowedCreators((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
+      prev.includes(creatorId) ? prev.filter((id) => id !== creatorId) : [...prev, creatorId]
     );
   };
 
   const handleNext = () => {
-    if (step === 1 && selectedInterests.length < 3) {
-      setError(t`Veuillez sélectionner au moins 3 centres d'intérêt.`);
+    if (step === 1 && selectedMacroTopics.length < 2) {
+      setError(t`Sélectionnez au moins 2 univers pour débuter.`);
       return;
     }
     setError(null);
-    setStep((prev) => prev + 1);
-  };
-
-  const handleSkipDemographics = () => {
-    setGender(null);
-    setAgeRange(null);
-    setPronouns('');
-    handleSubmit();
+    setStep((prev) => (prev + 1) as 1 | 2 | 3 | 4);
   };
 
   const handleBack = () => {
     setError(null);
-    setStep((prev) => prev - 1);
+    setStep((prev) => (prev - 1) as 1 | 2 | 3 | 4);
   };
 
   const handleSubmit = async () => {
@@ -137,7 +218,8 @@ export function OnboardingFlow({
       setLoading(true);
       setError(null);
       await onSubmit({
-        interests: selectedInterests,
+        interests: selectedMacroTopics,
+        subtopics: selectedSubtopics,
         onboardingText: bio,
         mutedWords,
         creatorsToFollow: followedCreators,
@@ -145,395 +227,396 @@ export function OnboardingFlow({
         ageRange: ageRange || undefined,
         pronouns: pronouns.trim() || undefined,
       });
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('qoe_onboarding_step');
-      }
+
       if (onDone) {
         onDone();
       } else {
-        router.push('/');
+        router.push('/home');
         router.refresh();
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to save preferences';
+      const message = err instanceof Error ? err.message : 'Erreur lors de la configuration.';
       setError(message);
       setLoading(false);
     }
   };
 
-  // Right-side context information dependent on current step
-  const getContextData = () => {
-    switch (step) {
-      case 1:
-        return {
-          label: t`Étape` + ' 1 / 5',
-          title: t`Votre Sanctuaire commence ici.`,
-          desc: t`Sélectionnez les matières et idées qui éveillent votre réflexion. Pas d'algorithmes publicitaires ou compulsifs, juste les thématiques que vous décidez d'explorer.`,
-          footer: t`QOE.FI — ZÉRO ATTENTION COMMERCIALE`,
-        };
-      case 2:
-        return {
-          label: t`Étape` + ' 2 / 5',
-          title: t`Profil & Alignement Thématique`,
-          desc: t`Décrivez vos sujets d'intérêt et votre vision pour personnaliser les suggestions de publications et les recommandations de créateurs.`,
-          footer: t`QOE.FI — ALIGNEMENT THÉMATIQUE SUR MESURE`,
-        };
-      case 3:
-        return {
-          label: t`Étape` + ' 3 / 5',
-          title: t`Le Bouclier de l'Attention`,
-          desc: t`Le bruit informationnel est le premier obstacle au temps long. En filtrant les concepts toxiques, vous reprenez le contrôle absolu de votre fil de lecture.`,
-          footer: t`FILTRAGE SOUVERAIN AU NIVEAU DE L'ÉLECTRON`,
-        };
-      case 4:
-        return {
-          label: t`Étape` + ' 4 / 5',
-          title: t`Souveraineté des Médias`,
-          desc: t`Sur qoe.fi, les auteurs écrivent en toute indépendance, sans dépendre de régies publicitaires capitalistes ou d'intermédiaires. Suivez-les pour enrichir votre univers.`,
-          footer: t`MODÈLE D'ABONNEMENT COMPATIBLE RGPD`,
-        };
-      case 5:
-      default:
-        return {
-          label: t`Étape` + ' 5 / 5',
-          title: t`Une communauté, toutes les identités.`,
-          desc: t`Dites-nous qui vous êtes — pour mieux calibrer vos recommandations et bâtir une communauté inclusive. Totalement optionnel, vous restez maître de ces informations.`,
-          footer: t`DONNÉES VOLONTAIRES, JAMAIS OBLIGATOIRES`,
-        };
-    }
-  };
-
-  const context = getContextData();
-
   return (
-    <div className="w-full">
-      <BentoPlateau className="md:h-[640px]">
-        {/* Active Side (Left) */}
-        <BentoItem
-          active={true}
-          flexBasisActive="58%"
-          innerClassName="bg-card text-card-foreground"
-        >
-          <div className="w-full h-full flex flex-col justify-between p-8 md:p-12 relative overflow-y-auto">
-            {/* Top Row: Title / Error Display */}
+    <div className="w-full rounded-[36px] bg-[#EE4B2B] p-2 md:p-3 shadow-2xl border-0">
+      <div className="w-full flex flex-col md:flex-row min-h-[640px] md:h-[640px] gap-2 md:gap-3">
+        {/* Left Side: Interactive Area */}
+        <div className="flex-1 md:basis-[60%] bg-card text-card-foreground rounded-[26px] overflow-hidden shadow-lg border border-border/40 flex flex-col">
+          <div className="w-full h-full flex flex-col justify-between p-6 md:p-10 relative overflow-y-auto">
+            {/* Header & Gamified Progress */}
             <div>
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight mb-1">
-                    {step === 1 && t`Qu'est-ce qui vous élève ?`}
-                    {step === 2 && t`Détaillez vos lectures idéales.`}
-                    {step === 3 && t`Préservez votre attention.`}
-                    {step === 4 && t`Choisissez vos alliés.`}
-                    {step === 5 && t`Qu'est-ce qui vous décrit le mieux ?`}
-                  </h2>
-                  <p className="text-muted-foreground text-xs">
-                    {step === 1 &&
-                      t`Sélectionnez au moins 3 centres d'intérêt pour calibrer votre sanctuaire.`}
-                    {step === 2 &&
-                      t`Décrivez vos sujets favoris pour calibrer vos recommandations par IA.`}
-                    {step === 3 && t`Bannissez les mots ou sujets qui polluent votre réflexion.`}
-                    {step === 4 &&
-                      t`Voici quelques créateurs certifiés qui correspondent à vos affinités.`}
-                    {step === 5 &&
-                      t`Optionnel — ça nous aide à bâtir une communauté inclusive et à calibrer vos suggestions.`}
-                  </p>
+              {/* Progress Bar with Endowed Progress */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between text-xs font-semibold mb-2">
+                  <span className="flex items-center gap-1.5 text-foreground font-sans text-[11px] font-semibold uppercase tracking-wider">
+                    <Zap className="w-3.5 h-3.5 text-[#EE4B2B] fill-[#EE4B2B]" />
+                    {t`Sanctuaire configuré à ${progressPercent}%`}
+                  </span>
+                  <span className="text-muted-foreground font-sans text-[11px] font-medium">
+                    {t`Étape ${step}/4`}
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full bg-primary rounded-full"
+                    initial={{ width: '25%' }}
+                    animate={{ width: `${progressPercent}%` }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                  />
                 </div>
               </div>
 
+              {/* Step Titles */}
+              <div className="mb-5">
+                <h2 className="text-2xl font-bold tracking-tight text-foreground mb-1">
+                  {step === 1 && t`Choisissez vos univers de prédilection`}
+                  {step === 2 && t`Votre intention & vos créateurs alliés`}
+                  {step === 3 && t`Préservez votre attention (Filtre Zen)`}
+                  {step === 4 && t`Personnalisation finale (Optionnel)`}
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {step === 1 &&
+                    t`Cliquez sur un univers pour débloquer des sujets d'exploration plus pointus.`}
+                  {step === 2 &&
+                    t`Décrivez votre quête de lecture et découvrez des créateurs recommandés pour vous.`}
+                  {step === 3 &&
+                    t`Écartez en 1 clic les thèmes qui polluent votre réflexion. Zéro bruit.`}
+                  {step === 4 &&
+                    t`Aidez-nous à calibrer une expérience inclusive, ou terminez directement.`}
+                </p>
+              </div>
+
               {error && (
-                <div className="p-3 mb-6 bg-destructive/10 border border-destructive/30 text-destructive text-xs font-mono rounded-lg flex items-start gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
-                  <div className="flex-1">{error}</div>
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-3 mb-4 bg-destructive/10 border border-destructive/30 text-destructive text-xs rounded-xl flex items-center gap-2"
+                >
+                  <ShieldAlert className="w-4 h-4 shrink-0" />
+                  <span>{error}</span>
+                </motion.div>
+              )}
+
+              {/* STEP 1: Macro topics + Inline Cascading Subtopics */}
+              {step === 1 && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {categories.map((cat) => {
+                      const isSelected = selectedMacroTopics.includes(cat.id);
+                      return (
+                        <motion.div
+                          key={cat.id}
+                          layout
+                          transition={{ duration: 0.3, ease: 'easeOut' }}
+                          className={cn(
+                            'rounded-2xl border transition-all duration-200 overflow-hidden flex flex-col',
+                            isSelected
+                              ? 'bg-[#EE4B2B]/5 border-[#EE4B2B]/80 shadow-xs'
+                              : 'bg-muted/40 border-border/60 hover:bg-muted/70'
+                          )}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleToggleMacro(cat)}
+                            className="p-3.5 text-left flex items-center justify-between w-full cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              {getCategoryIcon(cat.icon)}
+                              <span
+                                className={cn(
+                                  'text-xs font-sans',
+                                  isSelected
+                                    ? 'font-semibold text-foreground'
+                                    : 'text-muted-foreground'
+                                )}
+                              >
+                                {cat.name}
+                              </span>
+                            </div>
+                            <div
+                              className={cn(
+                                'w-4 h-4 rounded-full flex items-center justify-center transition-colors shrink-0',
+                                isSelected
+                                  ? 'bg-[#EE4B2B] text-white'
+                                  : 'border border-border bg-card'
+                              )}
+                            >
+                              {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                            </div>
+                          </button>
+
+                          {/* Subtopics directly expanding within the parent category card */}
+                          <AnimatePresence>
+                            {isSelected && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.25, ease: 'easeOut' }}
+                                className="px-3 pb-3 pt-1 border-t border-[#EE4B2B]/15 bg-background/50"
+                              >
+                                <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-2 flex items-center gap-1">
+                                  <Sparkles className="w-3 h-3 text-[#EE4B2B]" />
+                                  {t`Sujets d'exploration`}
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {cat.subtopics.map((sub) => {
+                                    const isSubSelected = selectedSubtopics.includes(sub.id);
+                                    return (
+                                      <button
+                                        key={sub.id}
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleToggleSubtopic(sub.id);
+                                        }}
+                                        className={cn(
+                                          'px-2.5 py-1 rounded-full text-[11px] font-sans transition-all flex items-center gap-1 border cursor-pointer',
+                                          isSubSelected
+                                            ? 'bg-foreground text-background border-foreground font-medium shadow-xs'
+                                            : 'bg-card text-muted-foreground border-border/80 hover:text-foreground hover:border-foreground/40'
+                                        )}
+                                      >
+                                        <span>{sub.name}</span>
+                                        {isSubSelected && (
+                                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
-              {/* Step Forms */}
-              <div className="my-2">
-                <AnimatePresence mode="wait">
-                  {step === 1 && (
-                    <motion.div
-                      key="step1"
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -10 }}
-                      transition={{ duration: 0.3 }}
-                      className="grid grid-cols-2 sm:grid-cols-3 gap-2"
-                    >
-                      {categories.map((cat) => {
-                        const selected = selectedInterests.includes(cat.id);
-                        return (
-                          <button
-                            key={cat.id}
-                            type="button"
-                            onClick={() => handleToggleInterest(cat.id)}
-                            className={cn(
-                              'flex items-center justify-between p-3 rounded-xl border text-xs font-medium transition-all text-left group',
-                              selected
-                                ? 'bg-[#EE4B2B]/5 border-[#EE4B2B] text-[#EE4B2B] shadow-sm'
-                                : 'bg-muted/50 hover:bg-muted/80 border-border text-muted-foreground hover:text-foreground'
-                            )}
-                          >
-                            <span className="truncate">{cat.name}</span>
-                            <div
-                              className={cn(
-                                'w-4 h-4 rounded-full border flex items-center justify-center transition-colors shrink-0 ml-1.5',
-                                selected
-                                  ? 'bg-[#EE4B2B] border-[#EE4B2B] text-white'
-                                  : 'border-border bg-card group-hover:border-border'
-                              )}
-                            >
-                              {selected && <Check className="w-2.5 h-2.5" />}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </motion.div>
-                  )}
+              {/* STEP 2: Intention & Adaptive Creators */}
+              {step === 2 && (
+                <div className="space-y-5">
+                  <div>
+                    <label className="text-[11px] font-sans uppercase tracking-wider text-muted-foreground block mb-2 font-semibold">
+                      {t`Quels types d'analyses recherchez-vous ?`}
+                    </label>
+                    <textarea
+                      value={bio}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                        setBio(e.target.value)
+                      }
+                      placeholder="ex: Je souhaite suivre l'indépendance technologique européenne, les essais philosophiques sur l'attention et des enquêtes économiques..."
+                      rows={3}
+                      className="w-full rounded-2xl bg-muted/40 border border-border text-xs resize-none p-3.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#EE4B2B]"
+                    />
+                  </div>
 
-                  {step === 2 && (
-                    <motion.div
-                      key="step2"
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -10 }}
-                      transition={{ duration: 0.3 }}
-                      className="space-y-3"
-                    >
-                      <div className="relative">
-                        <textarea
-                          value={bio}
-                          onChange={(e) => setBio(e.target.value.slice(0, 1000))}
-                          placeholder={t`J'aime lire des articles sur l'émancipation économique, la sociologie...`}
-                          rows={6}
-                          className="w-full rounded-xl bg-muted/50 border border-border p-4 text-sm focus:outline-none focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] resize-none"
-                        />
-                        <div className="absolute bottom-3 right-3 text-[10px] text-muted-foreground font-mono">
-                          {t`${bio.length} / 1000 caractères`}
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
+                  <div>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <span className="text-[11px] font-sans uppercase tracking-wider text-muted-foreground font-semibold">
+                        {t`Créateurs suggérés d'après vos choix`}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-sans font-medium">
+                        {followedCreators.length} suivi(s)
+                      </span>
+                    </div>
 
-                  {step === 3 && (
-                    <motion.div
-                      key="step3"
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -10 }}
-                      transition={{ duration: 0.3 }}
-                      className="space-y-4"
-                    >
-                      <form onSubmit={handleAddMutedWord} className="flex gap-2">
-                        <Input
-                          value={mutedInput}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                            setMutedInput(e.target.value)
-                          }
-                          placeholder={t`Ex: Buzz, Polémique...`}
-                          className="h-10 rounded-xl bg-muted/50 border-border flex-1"
-                        />
-                        <Button
-                          type="submit"
-                          className="h-10 px-4 rounded-xl bg-foreground hover:bg-foreground/90 text-background font-medium text-xs"
-                        >
-                          {t`+ Ajouter`}
-                        </Button>
-                      </form>
-
-                      <div className="flex flex-wrap gap-1.5 max-h-[160px] overflow-y-auto p-1 border border-border rounded-lg bg-muted/30">
-                        {mutedWords.length === 0 ? (
-                          <div className="w-full text-center py-6 text-xs text-muted-foreground font-mono flex items-center justify-center gap-1.5">
-                            <EyeOff className="w-3.5 h-3.5" />
-                            {t`Aucun mot exclu pour le moment.`}
-                          </div>
-                        ) : (
-                          mutedWords.map((word) => (
-                            <span
-                              key={word}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-muted/60 text-foreground text-xs font-medium"
-                            >
-                              <span>{word}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveMutedWord(word)}
-                                className="w-3.5 h-3.5 rounded-full hover:bg-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                              >
-                                <X className="w-2.5 h-2.5" />
-                              </button>
-                            </span>
-                          ))
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {step === 4 && (
-                    <motion.div
-                      key="step4"
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -10 }}
-                      transition={{ duration: 0.3 }}
-                      className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[260px] overflow-y-auto pr-1"
-                    >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[190px] overflow-y-auto p-1">
                       {suggestedCreators.map((creator) => {
-                        const followed = followedCreators.includes(creator.id);
+                        const isFollowed = followedCreators.includes(creator.id);
                         return (
                           <div
                             key={creator.id}
                             className={cn(
-                              'p-3 rounded-xl border flex items-center gap-3 transition-colors',
-                              followed ? 'bg-muted/50 border-border' : 'bg-muted/20 border-border'
+                              'p-3 rounded-2xl border flex items-center justify-between gap-3 transition-all',
+                              isFollowed
+                                ? 'bg-primary/5 border-primary/40'
+                                : 'bg-muted/30 border-border/60'
                             )}
                           >
-                            <div className="w-10 h-10 rounded-lg bg-muted border border-border flex items-center justify-center overflow-hidden shrink-0">
-                              {creator.logoUrl ? (
-                                <Image
-                                  src={creator.logoUrl}
-                                  alt=""
-                                  width={40}
-                                  height={40}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <span className="font-bold text-sm text-muted-foreground">
-                                  {(creator.name || creator.id).slice(0, 2).toUpperCase()}
-                                </span>
-                              )}
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-8 h-8 rounded-full overflow-hidden bg-muted relative shrink-0 border border-border/80">
+                                {creator.logoUrl ? (
+                                  <Image
+                                    src={creator.logoUrl}
+                                    alt={creator.name || 'Creator'}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center font-bold text-xs font-sans">
+                                    {creator.name?.charAt(0) || 'C'}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold text-foreground truncate">
+                                  {creator.name}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground truncate">
+                                  {creator.heroText || `@${creator.slug}`}
+                                </p>
+                              </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-bold text-xs text-foreground truncate">
-                                {creator.name || t`Auteur`}
-                              </h4>
-                              <p className="text-[10px] text-muted-foreground font-mono truncate">
-                                @{creator.slug || creator.subdomain || 'creator'}
-                              </p>
-                            </div>
-                            <button
+
+                            <Button
                               type="button"
+                              size="sm"
+                              variant={isFollowed ? 'secondary' : 'default'}
                               onClick={() => handleToggleCreator(creator.id)}
                               className={cn(
-                                'p-2 rounded-lg border flex items-center justify-center transition-colors shrink-0',
-                                followed
-                                  ? 'bg-success/10 border-success/20 text-success hover:bg-success/20'
-                                  : 'bg-card hover:bg-muted border-border text-muted-foreground'
+                                'h-7 px-2.5 rounded-xl text-[11px] shrink-0 font-medium',
+                                isFollowed
+                                  ? 'bg-muted text-foreground'
+                                  : 'bg-[#EE4B2B] hover:bg-[#d63d20] text-white'
                               )}
                             >
-                              {followed ? (
-                                <UserCheck className="w-3.5 h-3.5" />
+                              {isFollowed ? (
+                                <UserCheck className="w-3 h-3 text-primary" />
                               ) : (
-                                <UserPlus className="w-3.5 h-3.5" />
+                                <UserPlus className="w-3 h-3" />
                               )}
-                            </button>
+                            </Button>
                           </div>
                         );
                       })}
-                    </motion.div>
-                  )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
-                  {step === 5 && (
-                    <motion.div
-                      key="step5"
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -10 }}
-                      transition={{ duration: 0.3 }}
-                      className="space-y-4"
-                    >
-                      <div>
-                        <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-                          {t`Qu'est-ce qui vous décrit le mieux ?`}
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {[
-                            { value: 'FEMALE', label: t`Femme` },
-                            { value: 'MALE', label: t`Homme` },
-                            { value: 'NON_BINARY', label: t`Non-binaire` },
-                            { value: 'OTHER', label: t`Autre` },
-                            { value: 'PREFER_NOT_TO_SAY', label: t`Préfère ne pas dire` },
-                          ].map((opt) => {
-                            const selected = gender === opt.value;
-                            return (
-                              <button
-                                key={opt.value}
-                                type="button"
-                                onClick={() => setGender(selected ? null : opt.value)}
-                                className={cn(
-                                  'px-3.5 py-2 rounded-full border text-xs font-semibold transition-all cursor-pointer',
-                                  selected
-                                    ? 'bg-[#EE4B2B]/10 border-[#EE4B2B] text-[#EE4B2B]'
-                                    : 'bg-muted/50 border-border text-muted-foreground hover:text-foreground'
-                                )}
-                              >
-                                {opt.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+              {/* STEP 3: Filtre Zen (Muted words) */}
+              {step === 3 && (
+                <div className="space-y-5">
+                  <div>
+                    <span className="text-[11px] font-sans uppercase tracking-wider text-muted-foreground block mb-2 font-semibold">
+                      {t`Suggestions de filtres anti-bruit`}
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {POPULAR_MUTED_SUGGESTIONS.map((suggestion) => {
+                        const isMuted = mutedWords.includes(suggestion);
+                        return (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            onClick={() => handleToggleMutedWord(suggestion)}
+                            className={cn(
+                              'px-3 py-1.5 rounded-full text-xs border transition-all flex items-center gap-1.5',
+                              isMuted
+                                ? 'bg-destructive/15 border-destructive text-destructive font-medium'
+                                : 'bg-muted/40 border-border/60 text-muted-foreground hover:text-foreground'
+                            )}
+                          >
+                            <EyeOff className="w-3 h-3" />
+                            <span>{suggestion}</span>
+                            {isMuted && <Check className="w-3 h-3 stroke-[3]" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                      <div>
-                        <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-                          {t`Votre tranche d'âge`}
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {[
-                            { value: 'UNDER_18', label: t`Moins de 18 ans` },
-                            { value: 'AGE_18_24', label: '18-24 ans' },
-                            { value: 'AGE_25_34', label: '25-34 ans' },
-                            { value: 'AGE_35_44', label: '35-44 ans' },
-                            { value: 'AGE_45_54', label: '45-54 ans' },
-                            { value: 'AGE_55_64', label: '55-64 ans' },
-                            { value: 'AGE_65_PLUS', label: t`65 ans et +` },
-                            { value: 'PREFER_NOT_TO_SAY', label: t`Préfère ne pas dire` },
-                          ].map((opt) => {
-                            const selected = ageRange === opt.value;
-                            return (
-                              <button
-                                key={opt.value}
-                                type="button"
-                                onClick={() => setAgeRange(selected ? null : opt.value)}
-                                className={cn(
-                                  'px-3.5 py-2 rounded-full border text-xs font-semibold transition-all cursor-pointer',
-                                  selected
-                                    ? 'bg-[#EE4B2B]/10 border-[#EE4B2B] text-[#EE4B2B]'
-                                    : 'bg-muted/50 border-border text-muted-foreground hover:text-foreground'
-                                )}
-                              >
-                                {opt.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                  <div>
+                    <span className="text-[11px] font-sans uppercase tracking-wider text-muted-foreground block mb-2 font-semibold">
+                      {t`Ajouter vos propres mots ou sujets masqués`}
+                    </span>
+                    <form onSubmit={handleAddCustomMutedWord} className="flex gap-2">
+                      <Input
+                        value={mutedInput}
+                        onChange={(e) => setMutedInput(e.target.value)}
+                        placeholder="ex: télé-réalité, spoils, etc."
+                        className="rounded-xl bg-muted/40 border-border text-xs h-10"
+                      />
+                      <Button
+                        type="submit"
+                        variant="secondary"
+                        className="rounded-xl text-xs px-4 h-10 shrink-0 font-sans"
+                      >
+                        {t`Ajouter`}
+                      </Button>
+                    </form>
+                  </div>
+                </div>
+              )}
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground block mb-0.5">
-                          {t`Vos pronoms (optionnel)`}
-                        </label>
-                        <Input
-                          value={pronouns}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                            setPronouns(e.target.value)
-                          }
-                          placeholder="ex: iel, il/lui, elle, they/them"
-                          className="h-10 rounded-xl bg-muted/50 border-border"
-                        />
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              {/* STEP 4: Demographics / Identity (Optional) */}
+              {step === 4 && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-sans uppercase tracking-wider font-bold text-muted-foreground block mb-1.5">
+                      {t`Tranche d'âge`}
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                      {getAgeRangeOptions().map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setAgeRange(opt.value)}
+                          className={cn(
+                            'p-2 rounded-xl text-xs border transition-all truncate text-center',
+                            ageRange === opt.value
+                              ? 'bg-foreground text-background border-foreground font-medium'
+                              : 'bg-muted/40 border-border/60 text-muted-foreground hover:text-foreground'
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-sans uppercase tracking-wider font-bold text-muted-foreground block mb-1.5">
+                      {t`Genre`}
+                    </label>
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                      {getGenderOptions().map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setGender(opt.value)}
+                          className={cn(
+                            'p-2 rounded-xl text-xs border transition-all truncate text-center',
+                            gender === opt.value
+                              ? 'bg-foreground text-background border-foreground font-medium'
+                              : 'bg-muted/40 border-border/60 text-muted-foreground hover:text-foreground'
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-sans uppercase tracking-wider font-bold text-muted-foreground block mb-1">
+                      {t`Vos pronoms`}
+                    </label>
+                    <Input
+                      value={pronouns}
+                      onChange={(e) => setPronouns(e.target.value)}
+                      placeholder="ex: iel, il/lui, elle, they/them"
+                      className="rounded-xl bg-muted/40 border-border text-xs h-9"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Bottom Actions Row */}
-            <div className="flex items-center justify-between border-t border-border pt-6 mt-6">
+            <div className="flex items-center justify-between border-t border-border pt-4 mt-4">
               {step > 1 ? (
                 <Button
                   onClick={handleBack}
-                  variant="outline"
+                  variant="ghost"
                   disabled={loading}
-                  className="rounded-xl px-4 py-2 text-xs font-semibold"
+                  className="rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground"
                 >
                   {t`Retour`}
                 </Button>
@@ -541,80 +624,75 @@ export function OnboardingFlow({
                 <div />
               )}
 
-              {step < 5 ? (
+              {step < 4 ? (
                 <Button
                   onClick={handleNext}
-                  className="rounded-xl px-5 py-2 bg-[#EE4B2B] hover:bg-[#d63d20] text-white font-semibold text-xs transition-colors"
+                  className="rounded-xl px-5 bg-[#EE4B2B] hover:bg-[#d63d20] text-white font-semibold text-xs transition-all shadow-sm flex items-center gap-1"
                 >
-                  {t`Continuer`}
+                  <span>{t`Continuer`}</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </Button>
               ) : (
                 <div className="flex items-center gap-2">
                   <Button
-                    onClick={handleSkipDemographics}
-                    disabled={loading}
-                    variant="outline"
-                    className="rounded-xl px-4 py-2 text-xs font-semibold"
-                  >
-                    {t`Passer cette étape`}
-                  </Button>
-                  <Button
                     onClick={handleSubmit}
                     disabled={loading}
-                    className="rounded-xl px-5 py-2 bg-[#EE4B2B] hover:bg-[#d63d20] text-white font-semibold text-xs transition-colors flex items-center gap-1.5"
+                    className="rounded-xl px-6 bg-[#EE4B2B] hover:bg-[#d63d20] text-white font-semibold text-xs transition-all shadow-md flex items-center gap-1.5"
                   >
                     {loading ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : (
                       <Sparkles className="w-3.5 h-3.5" />
                     )}
-                    {t`Entrer dans le sanctuaire`}
+                    {t`Accéder à mon Sanctuaire`}
                   </Button>
                 </div>
               )}
             </div>
           </div>
-        </BentoItem>
+        </div>
 
-        {/* Branding/Context Side (Right) */}
-        <BentoItem
-          active={false}
-          flexBasisInactive="42%"
-          inactiveContent={
-            <div className="w-full h-full flex flex-col items-start justify-between">
-              <Logo className="h-8 w-auto opacity-90" fillColor="#FFFFFF" />
+        {/* Right Side: Editorial Branding & Values */}
+        <div className="hidden md:flex flex-1 md:basis-[40%] bg-[#EE4B2B] text-white p-8 rounded-[26px] flex-col justify-between overflow-hidden">
+          <Logo className="h-8 w-auto opacity-95" fillColor="#FFFFFF" />
 
-              <div className="mt-auto relative w-full min-h-[140px] text-white">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={step}
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                    transition={{ duration: 0.5, ease: 'easeOut' }}
-                    className="absolute inset-0 flex flex-col justify-end pb-2"
-                  >
-                    <p className="text-white/50 text-[10px] uppercase tracking-[0.2em] mb-2">
-                      {context.label}
-                    </p>
-                    <h3 className="text-white text-2xl font-bold tracking-tight leading-tight mb-3 whitespace-pre-line">
-                      {context.title}
-                    </h3>
-                    <p className="text-white/80 text-xs max-w-sm leading-relaxed mb-4">
-                      {context.desc}
-                    </p>
-                    <p className="text-white/40 text-[9px] uppercase tracking-wider font-mono whitespace-pre-line leading-normal">
-                      {context.footer}
-                    </p>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-            </div>
-          }
-        >
-          <div />
-        </BentoItem>
-      </BentoPlateau>
+          <div className="mt-auto relative w-full text-white">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.3 }}
+                className="flex flex-col justify-end"
+              >
+                <p className="text-white/60 text-[10px] uppercase tracking-[0.2em] font-sans font-semibold mb-2">
+                  {step === 1 && t`SANCTUAIRE DE LECTURE`}
+                  {step === 2 && t`INTELLIGENCE ALGORITHMIQUE SOUVERAINE`}
+                  {step === 3 && t`DÉSINTOXICATION NUMÉRIQUE`}
+                  {step === 4 && t`COMMUNAUTÉ OUVERTE`}
+                </p>
+                <h3 className="text-white text-2xl font-bold tracking-tight leading-tight mb-3">
+                  {step === 1 && t`Le temps long, réinventé.`}
+                  {step === 2 && t`Des écrits qui résonnent.`}
+                  {step === 3 && t`Reprenez le contrôle.`}
+                  {step === 4 && t`Bienvenue chez vous.`}
+                </h3>
+                <p className="text-white/80 text-xs leading-relaxed">
+                  {step === 1 &&
+                    t`Votre sélection calibre l'embedding sémantique de votre sanctuaire sans publicité ni profilage commercial.`}
+                  {step === 2 &&
+                    t`Chaque publication suivie finance directement son auteur dans un écosystème respectueux de la vie privée.`}
+                  {step === 3 &&
+                    t`Bannissez les distractions. Lisez avec calme, concentration et profondeur.`}
+                  {step === 4 &&
+                    t`Votre profil est désormais prêt pour explorer les meilleures publications d'Europe.`}
+                </p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

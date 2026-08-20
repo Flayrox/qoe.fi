@@ -22,20 +22,19 @@ const AGE_RANGES = [
   'PREFER_NOT_TO_SAY',
 ] as const;
 
-const DEFAULT_INTERESTS = [
-  'Politique',
-  'International',
-  'Technologie',
-  'Économie',
-  'Philosophie',
-  'Sciences',
-  'Art & Design',
-];
+export interface OnboardingSubtopic {
+  id: string;
+  name: string;
+  slug: string;
+  tags?: string[];
+}
 
 export interface OnboardingCategory {
   id: string;
   name: string;
   slug: string;
+  icon?: string;
+  subtopics: OnboardingSubtopic[];
 }
 
 export interface OnboardingCreator {
@@ -45,6 +44,8 @@ export interface OnboardingCreator {
   subdomain?: string | null;
   logoUrl: string | null;
   heroText: string | null;
+  isCertified?: boolean;
+  categorySlugs?: string[];
 }
 
 export interface OnboardingData {
@@ -54,6 +55,7 @@ export interface OnboardingData {
 
 export interface CompleteOnboardingInput {
   interests: string[];
+  subtopics?: string[];
   onboardingText?: string;
   mutedWords: string[];
   creatorsToFollow: string[];
@@ -62,46 +64,207 @@ export interface CompleteOnboardingInput {
   pronouns?: string;
 }
 
+export const RICH_DEFAULT_TOPICS: OnboardingCategory[] = [
+  {
+    id: 'tech',
+    name: 'Tech & IA',
+    slug: 'tech',
+    icon: 'Cpu',
+    subtopics: [
+      {
+        id: 'llm',
+        name: 'Grands Modèles & IA Locale',
+        slug: 'llm',
+        tags: ['ia', 'llm', 'open-source'],
+      },
+      {
+        id: 'opensource',
+        name: 'Open Source & Souveraineté',
+        slug: 'opensource',
+        tags: ['linux', 'privacy', 'dev'],
+      },
+      {
+        id: 'cyber',
+        name: 'Cybersécurité & Chiffrement',
+        slug: 'cyber',
+        tags: ['security', 'crypto', 'privacy'],
+      },
+      {
+        id: 'web3',
+        name: 'Protocoles Décentralisés',
+        slug: 'web3',
+        tags: ['p2p', 'fediverse', 'nostr'],
+      },
+      {
+        id: 'hardware',
+        name: 'Hardware & Semi-conducteurs',
+        slug: 'hardware',
+        tags: ['chips', 'robotique'],
+      },
+    ],
+  },
+  {
+    id: 'economy',
+    name: 'Économie & Finance',
+    slug: 'economy',
+    icon: 'TrendingUp',
+    subtopics: [
+      {
+        id: 'macro',
+        name: 'Macroéconomie & Monnaie',
+        slug: 'macro',
+        tags: ['macro', 'banques', 'inflation'],
+      },
+      {
+        id: 'creatorecon',
+        name: 'Creator Economy & Monétisation',
+        slug: 'creatorecon',
+        tags: ['business', 'media', 'saas'],
+      },
+      {
+        id: 'invest',
+        name: 'Investissement Responsable',
+        slug: 'invest',
+        tags: ['bourse', 'esg', 'capital'],
+      },
+      {
+        id: 'startups',
+        name: 'Entrepreneuriat Européen',
+        slug: 'startups',
+        tags: ['startups', 'tech', 'bootstrapping'],
+      },
+    ],
+  },
+  {
+    id: 'society',
+    name: 'Société & Géopolitique',
+    slug: 'society',
+    icon: 'Globe2',
+    subtopics: [
+      {
+        id: 'geopol',
+        name: 'Géopolitique & Europe',
+        slug: 'geopol',
+        tags: ['europe', 'diplomatie', 'defense'],
+      },
+      {
+        id: 'democracy',
+        name: 'Démocratie & Médias Libres',
+        slug: 'democracy',
+        tags: ['presse', 'liberte', 'politique'],
+      },
+      {
+        id: 'climate',
+        name: 'Climat & Transition Énergétique',
+        slug: 'climate',
+        tags: ['energie', 'ecologie', 'climat'],
+      },
+      {
+        id: 'urban',
+        name: 'Urbanisme & Futur du Travail',
+        slug: 'urban',
+        tags: ['remote', 'villes', 'sociologie'],
+      },
+    ],
+  },
+  {
+    id: 'culture',
+    name: 'Culture & Création',
+    slug: 'culture',
+    icon: 'Palette',
+    subtopics: [
+      {
+        id: 'cinema',
+        name: 'Cinéma & Narration',
+        slug: 'cinema',
+        tags: ['cinema', 'critique', 'series'],
+      },
+      {
+        id: 'design',
+        name: 'Design Graphique & Typographie',
+        slug: 'design',
+        tags: ['design', 'ui', 'typographie'],
+      },
+      {
+        id: 'music',
+        name: 'Musique & Sound Design',
+        slug: 'music',
+        tags: ['musique', 'production', 'audio'],
+      },
+      {
+        id: 'literature',
+        name: 'Littérature & Essais',
+        slug: 'literature',
+        tags: ['livres', 'essais', 'poesie'],
+      },
+    ],
+  },
+  {
+    id: 'mind',
+    name: 'Philosophie & Esprit',
+    slug: 'mind',
+    icon: 'Compass',
+    subtopics: [
+      {
+        id: 'stoic',
+        name: 'Stoïcisme & Philosophie Pratique',
+        slug: 'stoic',
+        tags: ['stoicisme', 'sagesse', 'ethique'],
+      },
+      {
+        id: 'cognition',
+        name: 'Attention & Déconnexion',
+        slug: 'cognition',
+        tags: ['focus', 'digital-detox', 'temps-long'],
+      },
+      {
+        id: 'epistemology',
+        name: 'Épistémologie & Esprit Critique',
+        slug: 'epistemology',
+        tags: ['science', 'verite', 'reflexion'],
+      },
+      {
+        id: 'ethics',
+        name: 'Éthique des Technologies',
+        slug: 'ethics',
+        tags: ['ia-ethique', 'transhumanisme'],
+      },
+    ],
+  },
+  {
+    id: 'science',
+    name: 'Sciences & Espace',
+    slug: 'science',
+    icon: 'Sparkles',
+    subtopics: [
+      {
+        id: 'space',
+        name: 'Astronomie & Espace',
+        slug: 'space',
+        tags: ['astronomie', 'spatial', 'physique'],
+      },
+      {
+        id: 'bio',
+        name: 'Biologie & Longévité',
+        slug: 'bio',
+        tags: ['sante', 'longevite', 'genetique'],
+      },
+      {
+        id: 'quantum',
+        name: 'Physique Quantique',
+        slug: 'quantum',
+        tags: ['physique', 'informatique-quantique'],
+      },
+    ],
+  },
+];
+
 /**
  * Récupère les centres d'intérêt (SystemConfig, modifiable depuis l'admin)
  * et les créateurs certifiés à suggérer lors de l'onboarding.
  */
 export async function getOnboardingData(): Promise<OnboardingData> {
-  let categories: OnboardingCategory[] = [];
-  const configInterests = await prisma.systemConfig.findUnique({
-    where: { key: 'ONBOARDING_INTERESTS' },
-  });
-
-  if (configInterests) {
-    const list = configInterests.value
-      .split(',')
-      .map((i: string) => i.trim())
-      .filter(Boolean);
-    categories = list.map((name: string) => ({
-      id: name,
-      name,
-      slug: name.toLowerCase().replace(/[^a-z0-9_-]/g, ''),
-    }));
-  } else {
-    // Liste par défaut, persistée au premier passage (idempotent).
-    try {
-      await prisma.systemConfig.create({
-        data: {
-          key: 'ONBOARDING_INTERESTS',
-          value: DEFAULT_INTERESTS.join(', '),
-          description:
-            "Liste des centres d'intérêt proposés lors de l'onboarding (séparés par des virgules).",
-        },
-      });
-    } catch {
-      // Ignore si une création concurrente a déjà eu lieu.
-    }
-    categories = DEFAULT_INTERESTS.map((name) => ({
-      id: name,
-      name,
-      slug: name.toLowerCase().replace(/[^a-z0-9_-]/g, ''),
-    }));
-  }
+  const categories = RICH_DEFAULT_TOPICS;
 
   // Créateurs certifiés en priorité, sinon n'importe quel créateur (dev).
   const select = {
@@ -111,6 +274,7 @@ export async function getOnboardingData(): Promise<OnboardingData> {
     subdomain: true,
     logoUrl: true,
     heroText: true,
+    isCertified: true,
   } as const;
 
   const certified = await prisma.publication.findMany({
@@ -120,7 +284,7 @@ export async function getOnboardingData(): Promise<OnboardingData> {
       user: { is: { role: 'creator' } },
     },
     select,
-    take: 5,
+    take: 8,
   });
 
   const suggestedCreators: OnboardingCreator[] =
@@ -129,7 +293,7 @@ export async function getOnboardingData(): Promise<OnboardingData> {
       : await prisma.publication.findMany({
           where: { type: 'PERSONAL', user: { is: { role: 'creator' } } },
           select,
-          take: 5,
+          take: 8,
         });
 
   return { categories, suggestedCreators };
@@ -195,8 +359,10 @@ export async function completeOnboardingInDb(
       },
     });
 
-    // Embedding sémantique (pgvector) pour le feed / recommandations.
-    const embeddingVector = generateMockEmbedding(data.onboardingText || '', data.interests);
+    // Embedding sémantique (pgvector) pour le feed / recommandations :
+    // On combine les macro-thèmes, les sous-thèmes précis et le texte d'intention de lecture.
+    const allTopicSignals = [...data.interests, ...(data.subtopics || [])];
+    const embeddingVector = generateMockEmbedding(data.onboardingText || '', allTopicSignals);
     await updateUserEmbedding(userId, embeddingVector);
 
     // 1. Mots masqués.

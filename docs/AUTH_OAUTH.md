@@ -58,9 +58,37 @@ Supabase).
   `[auth.external.google]` + secrets dans `supabase/.env`, puis
   `supabase stop && supabase start`.
 
-> Google demande aussi l'écran de consentement (OAuth consent screen) et, pour
-> un usage public, la vérification de l'app. En interne/test : "External" +
-> ajouter tes emails en "test users" suffit.
+### 3. Utilisateurs de test (Tant que l'app n'est pas publiée)
+Tant que l'écran de consentement Google n'est pas vérifié/publié publiquement par Google :
+1. Aller sur [Google Cloud Console → Écran de consentement OAuth](https://console.cloud.google.com/apis/credentials/consent).
+2. Section **Utilisateurs test** → Cliquer sur **+ Add Users** (Ajouter des utilisateurs).
+3. Ajouter vos adresses Gmail de test. Les comptes non listés recevront une erreur `403: access_denied`.
+
+---
+
+## 📱 Mobile (iOS & Android) : Clients OAuth dédiés
+
+Google exige des identifiants distincts par type de plateforme cliente.
+
+### 🍏 Client OAuth iOS
+1. Google Cloud Console → **Credentials → Create credentials → OAuth client ID**.
+2. Type d'application : **iOS**.
+3. **Bundle ID** : identique à celui de `apps/mobile/app.json` (ex: `fi.qoe.mobile`).
+4. Google génère un `Client ID iOS` et un `iOS URL scheme` (ex: `com.googleusercontent.apps.781479687823-...`).
+5. Ajouter le scheme d'URL dans la config Expo (`app.json` ou plugins natifs) pour le retour dans l'app.
+
+### 🤖 Client OAuth Android
+1. Google Cloud Console → **Credentials → Create credentials → OAuth client ID**.
+2. Type d'application : **Android**.
+3. **Package name** : identique à `apps/mobile/app.json` (ex: `fi.qoe.mobile`).
+4. **Empreinte de certificat SHA-1** :
+   - En dev local : extraite via `./gradlew signingReport` ou `keytool -list -v -keystore ~/.android/debug.keystore`.
+   - En build cloud EAS : extraite via la commande `eas credentials`.
+5. Google lie l'empreinte au package name et autorise les tokens ID Google directement depuis l'appareil Android.
+
+### 💡 Intégration côté code mobile (Expo / React Native)
+- **Flux WebBrowser (`expo-web-browser`)** : Supabase ouvre le navigateur in-app vers `<SUPABASE_URL>/auth/v1/authorize?provider=google`. Utilise directement le **Client Web** configuré sur Supabase.
+- **Flux Natif (`@react-native-google-signin`)** : L'app récupère un `idToken` directement depuis le SDK Google natif grâce aux clients iOS/Android, puis l'envoie à Supabase via `supabase.auth.signInWithIdToken({ provider: 'google', token: idToken })`.
 
 ---
 
@@ -111,9 +139,12 @@ versions) ; sinon le générer avec un script (openssl + les claims).
 
 ## ✅ Checklist de mise en service
 
-- [ ] Credentials Google créés (Client ID + Secret) + redirect URI ajoutée
+- [x] Credentials Google Web créés (Client ID + Secret) + redirect URI ajoutée
+- [x] Provider Google activé dans Supabase local (`supabase/.env` + `config.toml`)
+- [ ] Comptes testeurs ajoutés dans l'Écran de consentement Google OAuth
 - [ ] Credentials Apple créés (Services ID, Team ID, Key ID, .p8 → secret JWT)
-- [ ] Providers activés dans Supabase (local **et** prod)
+- [ ] Provider Apple activé dans Supabase prod
 - [ ] Tester : signup Google sur core → doit arriver sur `/onboarding`
 - [ ] Tester : signup Google depuis un article tenant → onboarding, pas l'article
 - [ ] Tester : compte existant Google → retour sur l'article (pas d'onboarding)
+
