@@ -55,7 +55,13 @@ export async function goFetch<T = Record<string, unknown>>(
 
   const body = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok) {
-    throw new Error(body.error || `Go API ${res.status}`);
+    // On attache le statut HTTP pour que les appelants distinguent un 404
+    // attendu (ressource inexistante) d'une vraie erreur serveur.
+    const err = new Error(body.error || `Go API ${res.status}`) as Error & {
+      status?: number;
+    };
+    err.status = res.status;
+    throw err;
   }
   return body;
 }
