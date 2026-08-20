@@ -68,3 +68,9 @@ export * from './ui/hover-card';
 export { ThemeToggle } from './ui/ThemeToggle';
 export { HotkeyHelpModal, type HotkeyHelpModalProps } from './shortcuts/HotkeyHelpModal';
 export * from './annotations';
+
+// 🛡️ Composants de Résilience Zéro-Crash & Médias Défensifs
+export { SafeAvatar, type SafeAvatarProps } from './SafeAvatar';
+export { SafeImage, type SafeImageProps } from './SafeImage';
+export { WidgetErrorBoundary, type WidgetErrorBoundaryProps } from './WidgetErrorBoundary';
+export { ClientDate, type ClientDateProps } from './ClientDate';

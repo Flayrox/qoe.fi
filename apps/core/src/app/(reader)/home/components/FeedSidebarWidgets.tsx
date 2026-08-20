@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
 import {
   TrendingUp,
   UserCheck,
@@ -15,6 +14,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
+import { SafeAvatar } from '@qoe/ui';
 import { t } from '@lingui/core/macro';
 import { routes } from '@qoe/config/routes';
 
@@ -140,19 +140,13 @@ export function FeedSidebarWidgets({
                       whileTap={{ scale: 0.98 }}
                       className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1 outline-none text-left"
                     >
-                      <div className="w-9 h-9 rounded-lg overflow-hidden border border-border/60 shrink-0 bg-muted flex items-center justify-center font-bold text-xs text-primary">
-                        {creator.logoUrl ? (
-                          <Image
-                            src={creator.logoUrl}
-                            width={36}
-                            height={36}
-                            className="w-full h-full object-cover"
-                            alt=""
-                          />
-                        ) : (
-                          creator.name?.charAt(0)
-                        )}
-                      </div>
+                      <SafeAvatar
+                        src={creator.logoUrl}
+                        name={creator.name}
+                        username={creator.username}
+                        size={36}
+                        className="rounded-lg border border-border/60"
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs font-semibold text-foreground truncate hover:text-primary transition-colors">

@@ -17,6 +17,7 @@ import {
   MediaLightbox,
   HotkeyHelpModal,
   OnboardingModal,
+  WidgetErrorBoundary,
   type AuthActionContext,
   type OnboardingCategory,
   type OnboardingCreator,
@@ -827,24 +828,26 @@ export function FeedDashboard({
           </div>
 
           {/* Right Sidebar Widgets Column */}
-          <FeedSidebarWidgets
-            suggestedCreators={suggestedCreators}
-            semanticTrends={semanticTrends}
-            onFollowToggle={(c) => {
-              handleFollowToggle(c as unknown as Creator);
-            }}
-            onOpenProfile={(username) => {
-              window.location.href = routes.feed.profile(username);
-            }}
-            onSelectTopic={(topicName) => {
-              setSelectedTag(topicName);
-            }}
-            userStats={{
-              articlesRead: initialBookmarksCount || 12,
-              highlights: initialHighlightsCount || 8,
-              following: initialFollowsCount || 14,
-            }}
-          />
+          <WidgetErrorBoundary>
+            <FeedSidebarWidgets
+              suggestedCreators={suggestedCreators}
+              semanticTrends={semanticTrends}
+              onFollowToggle={(c) => {
+                handleFollowToggle(c as unknown as Creator);
+              }}
+              onOpenProfile={(username) => {
+                window.location.href = routes.feed.profile(username);
+              }}
+              onSelectTopic={(topicName) => {
+                setSelectedTag(topicName);
+              }}
+              userStats={{
+                articlesRead: initialBookmarksCount || 12,
+                highlights: initialHighlightsCount || 8,
+                following: initialFollowsCount || 14,
+              }}
+            />
+          </WidgetErrorBoundary>
         </div>
       </motion.main>
 
