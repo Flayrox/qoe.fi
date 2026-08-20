@@ -25,10 +25,16 @@ export function safeAction<TInput, TOutput>(
       const result = await actionFn(input, user!);
       return actionOk(result);
     } catch (e) {
-      console.error('[SafeAction Error]:', e);
+      // Un 404 de l'API Go est un cas attendu (profil/article/… inexistant) :
+      // l'appelant décide via `error.code === 'NOT_FOUND'` (ex. notFound()),
+      // inutile de polluer la console avec un faux positif forwardé au client.
+      const status = (e as { status?: number })?.status;
+      if (status !== 404) {
+        console.error('[SafeAction Error]:', e);
+      }
       return actionErr(
         e instanceof Error ? e.message : 'Une erreur interne est survenue.',
-        (e as { code?: string })?.code || 'INTERNAL_ERROR'
+        status === 404 ? 'NOT_FOUND' : (e as { code?: string })?.code || 'INTERNAL_ERROR'
       );
     }
   };
