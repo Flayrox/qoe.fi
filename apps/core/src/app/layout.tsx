@@ -97,11 +97,13 @@ export default async function RootLayout({
       data-qoe-high-contrast={accountSettings?.highContrast ? 'true' : 'false'}
       suppressHydrationWarning
     >
+      <head>
+        <ThemeSeedScript />
+      </head>
       <body
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
         style={{ fontSize: `${accountSettings?.fontScale ?? 100}%` }}
       >
-        <ThemeSeedScript />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <GrowthBookProvider payload={flagsPayload}>
             <I18nClientProvider language={locale} staticData={staticData}>

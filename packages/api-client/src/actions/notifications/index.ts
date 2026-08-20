@@ -25,20 +25,31 @@ export const getNotificationsAction = safeAction<
   const limit = rawInput?.limit || 30;
   const cursor = rawInput?.cursor;
 
-  const res = await goFetch<{
-    notifications?: notifications.GroupedNotification[];
-    nextCursor?: string | null;
-  }>(
-    `/v1/notifications?filter=${filter}&limit=${limit}&cursor=${encodeURIComponent(cursor ?? '')}`
-  );
-  return {
-    notifications: (res?.notifications ?? []).filter(Boolean),
-    nextCursor: res?.nextCursor ?? null,
-  };
+  try {
+    const res = await goFetch<{
+      notifications?: notifications.GroupedNotification[];
+      nextCursor?: string | null;
+    }>(
+      `/v1/notifications?filter=${filter}&limit=${limit}&cursor=${encodeURIComponent(cursor ?? '')}`
+    );
+    return {
+      notifications: (res?.notifications ?? []).filter(Boolean),
+      nextCursor: res?.nextCursor ?? null,
+    };
+  } catch {
+    return {
+      notifications: [],
+      nextCursor: null,
+    };
+  }
 });
 
 export const getUnreadNotificationCountAction = safeAction<void, { count: number }>(async () => {
-  return goFetch<{ count: number }>('/v1/notifications/unread-count');
+  try {
+    return await goFetch<{ count: number }>('/v1/notifications/unread-count');
+  } catch {
+    return { count: 0 };
+  }
 });
 
 export const markNotificationsAsReadAction = safeAction<
