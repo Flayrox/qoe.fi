@@ -36,15 +36,19 @@ export function getCookieDomain(hostname?: string) {
     return '.qoe.test';
   }
 
-  // In development, return '.lvh.me' for any subdomain or root domain of lvh.me,
-  // as well as bare 'localhost' or '127.0.0.1' so cookies are shared across all app ports.
+  // In development, return '.lvh.me' for any subdomain or root domain of lvh.me.
+  // NOTE: bare 'localhost'/'127.0.0.1' deliberately returns undefined (host-only
+  // cookie) — the preview webview cannot resolve lvh.me, and cookies ignore the
+  // port so apps on localhost:3010/3020 still share the session.
+  if (activeHost.endsWith('lvh.me')) {
+    return '.lvh.me';
+  }
   if (
     activeHost === 'localhost' ||
     activeHost === '127.0.0.1' ||
-    activeHost.endsWith('.localhost') ||
-    activeHost.endsWith('lvh.me')
+    activeHost.endsWith('.localhost')
   ) {
-    return '.lvh.me';
+    return undefined;
   }
 
   // For production domains
