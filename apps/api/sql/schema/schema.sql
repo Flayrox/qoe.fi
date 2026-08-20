@@ -14,7 +14,25 @@ CREATE TYPE "SubscriptionStatus" AS ENUM ('ACTIVE', 'PAST_DUE', 'CANCELED', 'UNP
 CREATE TYPE "PublicationType" AS ENUM ('PERSONAL', 'MEDIA');
 
 -- CreateEnum
-CREATE TYPE "NotificationType" AS ENUM ('LIKE', 'REPOST', 'REPLY', 'COMMENT', 'MENTION', 'FOLLOW', 'MEDIA_INVITE', 'MEDIA_MEMBER_JOINED', 'MEDIA_ARTICLE_PUBLISHED', 'MEDIA_ARTICLE_SUBMITTED');
+CREATE TYPE "Gender" AS ENUM ('FEMALE', 'MALE', 'NON_BINARY', 'OTHER', 'PREFER_NOT_TO_SAY');
+
+-- CreateEnum
+CREATE TYPE "AgeRange" AS ENUM ('UNDER_18', 'AGE_18_24', 'AGE_25_34', 'AGE_35_44', 'AGE_45_54', 'AGE_55_64', 'AGE_65_PLUS', 'PREFER_NOT_TO_SAY');
+
+-- CreateEnum
+CREATE TYPE "NotificationType" AS ENUM ('LIKE', 'REPOST', 'REPLY', 'COMMENT', 'MENTION', 'FOLLOW', 'MEDIA_INVITE', 'MEDIA_MEMBER_JOINED', 'MEDIA_ARTICLE_PUBLISHED', 'MEDIA_ARTICLE_SUBMITTED', 'ARTICLE_CONTRIBUTOR_INVITED', 'ARTICLE_CONTRIBUTOR_ACCEPTED', 'ARTICLE_CONTRIBUTOR_DECLINED', 'ARTICLE_CONTRIBUTOR_REMOVED');
+
+-- CreateEnum
+CREATE TYPE "MediaAssetStatus" AS ENUM ('DRAFT_ORPHAN', 'ATTACHED', 'SOFT_DELETED', 'PURGED');
+
+-- CreateEnum
+CREATE TYPE "MediaAssetTargetType" AS ENUM ('ARTICLE_COVER', 'ARTICLE_BODY', 'THOUGHT_ATTACHMENT', 'USER_AVATAR', 'USER_BANNER', 'PUBLICATION_LOGO', 'PUBLICATION_BANNER', 'SHARED');
+
+-- CreateEnum
+CREATE TYPE "OAuthClientType" AS ENUM ('CONFIDENTIAL', 'PUBLIC');
+
+-- CreateEnum
+CREATE TYPE "OAuthClientStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'REVOKED');
 
 -- CreateTable
 CREATE TABLE "SystemConfig" (
@@ -46,8 +64,8 @@ CREATE TABLE "User" (
     "apiAccessStatus" TEXT NOT NULL DEFAULT 'none',
     "apiApplicationReason" TEXT,
     "walletBalanceCents" INTEGER NOT NULL DEFAULT 0,
-    "gender" TEXT,
-    "ageRange" TEXT,
+    "gender" "Gender",
+    "ageRange" "AgeRange",
     "countryCode" TEXT,
     "languageCode" TEXT,
     "demographicsUpdatedAt" TIMESTAMP(3),
@@ -260,6 +278,7 @@ CREATE TABLE "Article" (
     "title" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "content" TEXT NOT NULL,
+    "imageUrl" TEXT,
     "published" BOOLEAN NOT NULL DEFAULT false,
     "isPremium" BOOLEAN NOT NULL DEFAULT false,
     "visibility" "ContentVisibility" NOT NULL DEFAULT 'PUBLIC',
@@ -282,6 +301,31 @@ CREATE TABLE "Article" (
     "embedding" vector(512),
 
     CONSTRAINT "Article_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "collab_documents" (
+    "document_name" TEXT NOT NULL,
+    "state" BYTEA NOT NULL,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "collab_documents_pkey" PRIMARY KEY ("document_name")
+);
+
+-- CreateTable
+CREATE TABLE "ArticleAttribution" (
+    "id" TEXT NOT NULL,
+    "articleId" TEXT NOT NULL,
+    "userId" UUID NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'CO_AUTHOR',
+    "order" INTEGER NOT NULL DEFAULT 0,
+    "isVisible" BOOLEAN NOT NULL DEFAULT true,
+    "consentStatus" TEXT NOT NULL DEFAULT 'ACCEPTED',
+    "consentUpdatedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ArticleAttribution_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -376,7 +420,10 @@ CREATE TABLE "CollaborationRequest" (
     "inviterId" UUID NOT NULL,
     "inviteeId" UUID NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "requestedRole" TEXT NOT NULL DEFAULT 'CO_AUTHOR',
+    "requestedOrder" INTEGER NOT NULL DEFAULT 1,
     "showOnPublicProfile" BOOLEAN NOT NULL DEFAULT true,
+    "acceptedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -408,6 +455,9 @@ CREATE TABLE "Post" (
     "parentId" TEXT,
     "rootId" TEXT,
     "repostId" TEXT,
+    "quotedArticleId" TEXT,
+    "quotedExcerpt" TEXT,
+    "embedding" vector(512),
 
     CONSTRAINT "Post_pkey" PRIMARY KEY ("id")
 );
@@ -454,7 +504,7 @@ CREATE TABLE "ApiKey" (
     "name" TEXT NOT NULL,
     "keyPrefix" TEXT NOT NULL,
     "keyHash" TEXT NOT NULL,
-    "scopes" TEXT[] NOT NULL DEFAULT ARRAY['READ','WRITE','ANALYTICS']::TEXT[],
+    "scopes" TEXT[] DEFAULT ARRAY['READ', 'WRITE', 'ANALYTICS']::TEXT[],
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lastUsedAt" TIMESTAMP(3),
     "userId" UUID NOT NULL,
@@ -535,6 +585,57 @@ CREATE TABLE "Notification" (
 );
 
 -- CreateTable
+CREATE TABLE "UserSettings" (
+    "id" TEXT NOT NULL,
+    "userId" UUID NOT NULL,
+    "profileVisibility" TEXT NOT NULL DEFAULT 'PUBLIC',
+    "allowMentions" BOOLEAN NOT NULL DEFAULT true,
+    "allowCollaborationInvites" BOOLEAN NOT NULL DEFAULT true,
+    "showSensitiveContent" BOOLEAN NOT NULL DEFAULT true,
+    "autoplayMedia" BOOLEAN NOT NULL DEFAULT true,
+    "reduceMotion" BOOLEAN NOT NULL DEFAULT false,
+    "highContrast" BOOLEAN NOT NULL DEFAULT false,
+    "fontScale" INTEGER NOT NULL DEFAULT 100,
+    "defaultFeed" TEXT NOT NULL DEFAULT 'FOLLOWING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "UserSettings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AccountDeletionRequest" (
+    "id" TEXT NOT NULL,
+    "userId" UUID NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "reason" TEXT,
+    "requestedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "processedAt" TIMESTAMP(3),
+
+    CONSTRAINT "AccountDeletionRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "NotificationDelivery" (
+    "id" TEXT NOT NULL,
+    "notificationId" TEXT NOT NULL,
+    "channel" TEXT NOT NULL DEFAULT 'EMAIL',
+    "status" TEXT NOT NULL DEFAULT 'QUEUED',
+    "recipient" TEXT NOT NULL,
+    "provider" TEXT,
+    "providerId" TEXT,
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "availableAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "sentAt" TIMESTAMP(3),
+    "lastError" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "dedupeKey" TEXT NOT NULL,
+
+    CONSTRAINT "NotificationDelivery_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "NotificationPreference" (
     "id" TEXT NOT NULL,
     "userId" UUID NOT NULL,
@@ -552,6 +653,8 @@ CREATE TABLE "NotificationPreference" (
     "pushComments" BOOLEAN NOT NULL DEFAULT true,
     "emailMedia" BOOLEAN NOT NULL DEFAULT true,
     "pushMedia" BOOLEAN NOT NULL DEFAULT true,
+    "emailCollaborations" BOOLEAN NOT NULL DEFAULT true,
+    "pushCollaborations" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -640,6 +743,102 @@ CREATE TABLE "ModerationReport" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "ModerationReport_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MediaAsset" (
+    "id" TEXT NOT NULL,
+    "sha256" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "storagePath" TEXT NOT NULL,
+    "bucket" TEXT NOT NULL DEFAULT 'articles-media',
+    "mimeType" TEXT NOT NULL,
+    "width" INTEGER,
+    "height" INTEGER,
+    "sizeBytes" INTEGER NOT NULL,
+    "blurhash" TEXT,
+    "isNsfw" BOOLEAN NOT NULL DEFAULT false,
+    "isSensitive" BOOLEAN NOT NULL DEFAULT false,
+    "safetyScores" JSONB,
+    "moderatedAt" TIMESTAMP(3),
+    "status" "MediaAssetStatus" NOT NULL DEFAULT 'DRAFT_ORPHAN',
+    "targetType" "MediaAssetTargetType" NOT NULL DEFAULT 'SHARED',
+    "ownerId" TEXT NOT NULL,
+    "attachedToId" TEXT,
+    "purgeDueAt" TIMESTAMP(3),
+    "deletedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MediaAsset_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OAuthClient" (
+    "id" TEXT NOT NULL,
+    "clientId" TEXT NOT NULL,
+    "clientSecretHash" TEXT,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "logoUrl" TEXT,
+    "homepageUrl" TEXT,
+    "redirectUris" TEXT[],
+    "scopes" TEXT[] DEFAULT ARRAY['openid', 'profile', 'email']::TEXT[],
+    "clientType" "OAuthClientType" NOT NULL DEFAULT 'CONFIDENTIAL',
+    "status" "OAuthClientStatus" NOT NULL DEFAULT 'PENDING',
+    "publicationId" TEXT,
+    "ownerUserId" UUID NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "OAuthClient_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OAuthAuthorizationCode" (
+    "id" TEXT NOT NULL,
+    "codeHash" TEXT NOT NULL,
+    "clientId" TEXT NOT NULL,
+    "userId" UUID NOT NULL,
+    "redirectUri" TEXT NOT NULL,
+    "scopes" TEXT[],
+    "codeChallenge" TEXT,
+    "codeChallengeMethod" TEXT,
+    "nonce" TEXT,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "usedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "OAuthAuthorizationCode_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OAuthToken" (
+    "id" TEXT NOT NULL,
+    "clientId" TEXT NOT NULL,
+    "userId" UUID NOT NULL,
+    "accessTokenHash" TEXT NOT NULL,
+    "refreshTokenHash" TEXT,
+    "scopes" TEXT[],
+    "accessTokenExpiresAt" TIMESTAMP(3) NOT NULL,
+    "refreshTokenExpiresAt" TIMESTAMP(3),
+    "revokedAt" TIMESTAMP(3),
+    "lastUsedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "OAuthToken_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OAuthConsent" (
+    "id" TEXT NOT NULL,
+    "clientId" TEXT NOT NULL,
+    "userId" UUID NOT NULL,
+    "scopes" TEXT[],
+    "grantedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "OAuthConsent_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -777,6 +976,21 @@ CREATE INDEX "Article_status_scheduledAt_idx" ON "Article"("status", "scheduledA
 CREATE UNIQUE INDEX "Article_publicationId_slug_key" ON "Article"("publicationId", "slug");
 
 -- CreateIndex
+CREATE INDEX "collab_documents_updated_at_idx" ON "collab_documents"("updated_at");
+
+-- CreateIndex
+CREATE INDEX "ArticleAttribution_articleId_order_idx" ON "ArticleAttribution"("articleId", "order");
+
+-- CreateIndex
+CREATE INDEX "ArticleAttribution_articleId_consentStatus_isVisible_idx" ON "ArticleAttribution"("articleId", "consentStatus", "isVisible");
+
+-- CreateIndex
+CREATE INDEX "ArticleAttribution_userId_idx" ON "ArticleAttribution"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ArticleAttribution_articleId_userId_key" ON "ArticleAttribution"("articleId", "userId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Publication_slug_key" ON "Publication"("slug");
 
 -- CreateIndex
@@ -843,6 +1057,9 @@ CREATE INDEX "Post_rootId_idx" ON "Post"("rootId");
 CREATE INDEX "Post_repostId_idx" ON "Post"("repostId");
 
 -- CreateIndex
+CREATE INDEX "Post_quotedArticleId_idx" ON "Post"("quotedArticleId");
+
+-- CreateIndex
 CREATE INDEX "Post_deletedAt_isDraft_idx" ON "Post"("deletedAt", "isDraft");
 
 -- CreateIndex
@@ -897,6 +1114,27 @@ CREATE INDEX "Notification_senderId_idx" ON "Notification"("senderId");
 CREATE INDEX "Notification_publicationId_idx" ON "Notification"("publicationId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "UserSettings_userId_key" ON "UserSettings"("userId");
+
+-- CreateIndex
+CREATE INDEX "AccountDeletionRequest_userId_status_idx" ON "AccountDeletionRequest"("userId", "status");
+
+-- CreateIndex
+CREATE INDEX "AccountDeletionRequest_status_requestedAt_idx" ON "AccountDeletionRequest"("status", "requestedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "NotificationDelivery_dedupeKey_key" ON "NotificationDelivery"("dedupeKey");
+
+-- CreateIndex
+CREATE INDEX "NotificationDelivery_status_availableAt_idx" ON "NotificationDelivery"("status", "availableAt");
+
+-- CreateIndex
+CREATE INDEX "NotificationDelivery_notificationId_idx" ON "NotificationDelivery"("notificationId");
+
+-- CreateIndex
+CREATE INDEX "NotificationDelivery_recipient_channel_status_idx" ON "NotificationDelivery"("recipient", "channel", "status");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "NotificationPreference_userId_key" ON "NotificationPreference"("userId");
 
 -- CreateIndex
@@ -937,6 +1175,60 @@ CREATE INDEX "ModerationReport_reporterId_idx" ON "ModerationReport"("reporterId
 
 -- CreateIndex
 CREATE INDEX "ModerationReport_status_idx" ON "ModerationReport"("status");
+
+-- CreateIndex
+CREATE INDEX "MediaAsset_sha256_idx" ON "MediaAsset"("sha256");
+
+-- CreateIndex
+CREATE INDEX "MediaAsset_status_purgeDueAt_idx" ON "MediaAsset"("status", "purgeDueAt");
+
+-- CreateIndex
+CREATE INDEX "MediaAsset_ownerId_idx" ON "MediaAsset"("ownerId");
+
+-- CreateIndex
+CREATE INDEX "MediaAsset_attachedToId_idx" ON "MediaAsset"("attachedToId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OAuthClient_clientId_key" ON "OAuthClient"("clientId");
+
+-- CreateIndex
+CREATE INDEX "OAuthClient_ownerUserId_idx" ON "OAuthClient"("ownerUserId");
+
+-- CreateIndex
+CREATE INDEX "OAuthClient_status_idx" ON "OAuthClient"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OAuthAuthorizationCode_codeHash_key" ON "OAuthAuthorizationCode"("codeHash");
+
+-- CreateIndex
+CREATE INDEX "OAuthAuthorizationCode_clientId_idx" ON "OAuthAuthorizationCode"("clientId");
+
+-- CreateIndex
+CREATE INDEX "OAuthAuthorizationCode_userId_idx" ON "OAuthAuthorizationCode"("userId");
+
+-- CreateIndex
+CREATE INDEX "OAuthAuthorizationCode_expiresAt_idx" ON "OAuthAuthorizationCode"("expiresAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OAuthToken_accessTokenHash_key" ON "OAuthToken"("accessTokenHash");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OAuthToken_refreshTokenHash_key" ON "OAuthToken"("refreshTokenHash");
+
+-- CreateIndex
+CREATE INDEX "OAuthToken_clientId_userId_idx" ON "OAuthToken"("clientId", "userId");
+
+-- CreateIndex
+CREATE INDEX "OAuthToken_refreshTokenHash_idx" ON "OAuthToken"("refreshTokenHash");
+
+-- CreateIndex
+CREATE INDEX "OAuthToken_accessTokenExpiresAt_idx" ON "OAuthToken"("accessTokenExpiresAt");
+
+-- CreateIndex
+CREATE INDEX "OAuthConsent_userId_idx" ON "OAuthConsent"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OAuthConsent_clientId_userId_key" ON "OAuthConsent"("clientId", "userId");
 
 -- CreateIndex
 CREATE INDEX "_CoAuthors_B_index" ON "_CoAuthors"("B");
@@ -1047,6 +1339,12 @@ ALTER TABLE "Article" ADD CONSTRAINT "Article_categoryId_fkey" FOREIGN KEY ("cat
 ALTER TABLE "Article" ADD CONSTRAINT "Article_tierId_fkey" FOREIGN KEY ("tierId") REFERENCES "Tier"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "ArticleAttribution" ADD CONSTRAINT "ArticleAttribution_articleId_fkey" FOREIGN KEY ("articleId") REFERENCES "Article"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ArticleAttribution" ADD CONSTRAINT "ArticleAttribution_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Media" ADD CONSTRAINT "Media_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1090,6 +1388,9 @@ ALTER TABLE "Post" ADD CONSTRAINT "Post_rootId_fkey" FOREIGN KEY ("rootId") REFE
 
 -- AddForeignKey
 ALTER TABLE "Post" ADD CONSTRAINT "Post_repostId_fkey" FOREIGN KEY ("repostId") REFERENCES "Post"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Post" ADD CONSTRAINT "Post_quotedArticleId_fkey" FOREIGN KEY ("quotedArticleId") REFERENCES "Article"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Like" ADD CONSTRAINT "Like_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1137,6 +1438,15 @@ ALTER TABLE "Notification" ADD CONSTRAINT "Notification_commentId_fkey" FOREIGN 
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "UserSettings" ADD CONSTRAINT "UserSettings_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AccountDeletionRequest" ADD CONSTRAINT "AccountDeletionRequest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "NotificationDelivery" ADD CONSTRAINT "NotificationDelivery_notificationId_fkey" FOREIGN KEY ("notificationId") REFERENCES "Notification"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "NotificationPreference" ADD CONSTRAINT "NotificationPreference_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1170,23 +1480,29 @@ ALTER TABLE "PollVote" ADD CONSTRAINT "PollVote_userId_fkey" FOREIGN KEY ("userI
 ALTER TABLE "ModerationReport" ADD CONSTRAINT "ModerationReport_reporterId_fkey" FOREIGN KEY ("reporterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "OAuthClient" ADD CONSTRAINT "OAuthClient_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OAuthAuthorizationCode" ADD CONSTRAINT "OAuthAuthorizationCode_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "OAuthClient"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OAuthAuthorizationCode" ADD CONSTRAINT "OAuthAuthorizationCode_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OAuthToken" ADD CONSTRAINT "OAuthToken_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "OAuthClient"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OAuthToken" ADD CONSTRAINT "OAuthToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OAuthConsent" ADD CONSTRAINT "OAuthConsent_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "OAuthClient"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OAuthConsent" ADD CONSTRAINT "OAuthConsent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "_CoAuthors" ADD CONSTRAINT "_CoAuthors_A_fkey" FOREIGN KEY ("A") REFERENCES "Article"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_CoAuthors" ADD CONSTRAINT "_CoAuthors_B_fkey" FOREIGN KEY ("B") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-
--- =====================================================================
--- 🧵 collab_documents — documents Yjs de collaboration (Hocuspocus)
--- =====================================================================
--- État binaire (update Yjs) d'un document de co-édition d'article.
--- Écrit par apps/collab-server (CREATE TABLE IF NOT EXISTS idempotent).
--- =====================================================================
-CREATE TABLE "collab_documents" (
-    "document_name" TEXT NOT NULL,
-    "state" BYTEA NOT NULL,
-    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "collab_documents_pkey" PRIMARY KEY ("document_name")
-);
-
-CREATE INDEX "collab_documents_updated_at_idx" ON "collab_documents" ("updated_at");

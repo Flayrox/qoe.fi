@@ -29,6 +29,7 @@ import (
 	"github.com/qoefi/api/internal/modules/feed"
 	"github.com/qoefi/api/internal/modules/highlights"
 	"github.com/qoefi/api/internal/modules/notifications"
+	"github.com/qoefi/api/internal/modules/oauth"
 	"github.com/qoefi/api/internal/modules/posts"
 	"github.com/qoefi/api/internal/modules/search"
 	"github.com/qoefi/api/internal/modules/settings"
@@ -53,6 +54,11 @@ func main() {
 	}
 	defer pool.Close()
 
+	// Fournisseur d'identité OAuth 2.1 / OIDC (qoe.fi) — service partagé entre
+	// le routeur et la boucle de purge périodique des artefacts.
+	oauthService := oauth.NewService(pool, cfg.OAuthIssuer, cfg.OAuthAuthorizeURL, cfg.OAuthSigningKey)
+	go oauth.Cleanup(ctx, oauthService, time.Hour)
+
 	r := newRouter(RouterDeps{
 		Pool:             pool,
 		Redis:            cache.Client(cfg.RedisURL),
@@ -67,6 +73,7 @@ func main() {
 		UmamiPass:        cfg.UmamiPass,
 		DefaultUmamiSite: cfg.DefaultUmamiWebsiteID,
 		UmamiDatabaseURL: cfg.UmamiDatabaseURL,
+		OAuth:            oauthService,
 	})
 
 	srv := &http.Server{
@@ -104,6 +111,8 @@ type RouterDeps struct {
 	UmamiPass        string
 	DefaultUmamiSite string
 	UmamiDatabaseURL string
+	// OAuth est le service du fournisseur d'identité OAuth 2.1 / OIDC.
+	OAuth *oauth.Service
 }
 
 // newRouter assemble l'API complète (routes publiques + créateur + workers
@@ -170,6 +179,19 @@ func newRouter(d RouterDeps) *chi.Mux {
 	settingsHandler := settings.NewHandler(settings.NewService(pool))
 	settingsHandler.RegisterPublic(r)
 
+	// Fournisseur d'identité OAuth 2.1 / OIDC (qoe.fi) : discovery, JWKS,
+	// token, introspection, révocation et userinfo sont publics ; le token
+	// endpoint reçoit un rate-limit dédié (anti-brute-force) en plus du global.
+	// Fallback de test : si aucun service n'est injecté (ex. smoke test), on
+	// monte un service éphémère pour que les routes restent enregistrables.
+	oauthService := d.OAuth
+	if oauthService == nil {
+		oauthService = oauth.NewService(pool, "", "", "")
+	}
+	oauthHandler := oauth.NewHandler(oauthService)
+	oauthHandler.RegisterPublic(r)
+	r.With(authmw.RateLimit(rc, time.Minute, 30, false)).Post("/v1/oauth/token", oauthHandler.Token())
+
 	// Toute l'API créateur exige un Bearer token valide (JWT OU clé API qoe_live_).
 	r.Group(func(protected chi.Router) {
 		// 600 req/min par utilisateur (usage créateur légitime, généreux).
@@ -196,6 +218,8 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		webhooksHandler := webhooks.NewHandler(webhooks.NewService(pool))
 		webhooksHandler.RegisterProtected(protected, authmw.RequireAPIScope)
+
+		oauthHandler.RegisterProtected(protected)
 	})
 
 	// API créateur par clé API (qoe_live_…) : catégories + analytics/stats (proxy Umami).

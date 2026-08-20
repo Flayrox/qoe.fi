@@ -12,6 +12,54 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
+type AgeRange string
+
+const (
+	AgeRangeUNDER18        AgeRange = "UNDER_18"
+	AgeRangeAGE1824        AgeRange = "AGE_18_24"
+	AgeRangeAGE2534        AgeRange = "AGE_25_34"
+	AgeRangeAGE3544        AgeRange = "AGE_35_44"
+	AgeRangeAGE4554        AgeRange = "AGE_45_54"
+	AgeRangeAGE5564        AgeRange = "AGE_55_64"
+	AgeRangeAGE65PLUS      AgeRange = "AGE_65_PLUS"
+	AgeRangePREFERNOTTOSAY AgeRange = "PREFER_NOT_TO_SAY"
+)
+
+func (e *AgeRange) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AgeRange(s)
+	case string:
+		*e = AgeRange(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AgeRange: %T", src)
+	}
+	return nil
+}
+
+type NullAgeRange struct {
+	AgeRange AgeRange `json:"AgeRange"`
+	Valid    bool     `json:"valid"` // Valid is true if AgeRange is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAgeRange) Scan(value interface{}) error {
+	if value == nil {
+		ns.AgeRange, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AgeRange.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAgeRange) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AgeRange), nil
+}
+
 type ContentVisibility string
 
 const (
@@ -56,19 +104,160 @@ func (ns NullContentVisibility) Value() (driver.Value, error) {
 	return string(ns.ContentVisibility), nil
 }
 
+type Gender string
+
+const (
+	GenderFEMALE         Gender = "FEMALE"
+	GenderMALE           Gender = "MALE"
+	GenderNONBINARY      Gender = "NON_BINARY"
+	GenderOTHER          Gender = "OTHER"
+	GenderPREFERNOTTOSAY Gender = "PREFER_NOT_TO_SAY"
+)
+
+func (e *Gender) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Gender(s)
+	case string:
+		*e = Gender(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Gender: %T", src)
+	}
+	return nil
+}
+
+type NullGender struct {
+	Gender Gender `json:"Gender"`
+	Valid  bool   `json:"valid"` // Valid is true if Gender is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullGender) Scan(value interface{}) error {
+	if value == nil {
+		ns.Gender, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Gender.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullGender) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Gender), nil
+}
+
+type MediaAssetStatus string
+
+const (
+	MediaAssetStatusDRAFTORPHAN MediaAssetStatus = "DRAFT_ORPHAN"
+	MediaAssetStatusATTACHED    MediaAssetStatus = "ATTACHED"
+	MediaAssetStatusSOFTDELETED MediaAssetStatus = "SOFT_DELETED"
+	MediaAssetStatusPURGED      MediaAssetStatus = "PURGED"
+)
+
+func (e *MediaAssetStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = MediaAssetStatus(s)
+	case string:
+		*e = MediaAssetStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for MediaAssetStatus: %T", src)
+	}
+	return nil
+}
+
+type NullMediaAssetStatus struct {
+	MediaAssetStatus MediaAssetStatus `json:"MediaAssetStatus"`
+	Valid            bool             `json:"valid"` // Valid is true if MediaAssetStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMediaAssetStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.MediaAssetStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.MediaAssetStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMediaAssetStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.MediaAssetStatus), nil
+}
+
+type MediaAssetTargetType string
+
+const (
+	MediaAssetTargetTypeARTICLECOVER      MediaAssetTargetType = "ARTICLE_COVER"
+	MediaAssetTargetTypeARTICLEBODY       MediaAssetTargetType = "ARTICLE_BODY"
+	MediaAssetTargetTypeTHOUGHTATTACHMENT MediaAssetTargetType = "THOUGHT_ATTACHMENT"
+	MediaAssetTargetTypeUSERAVATAR        MediaAssetTargetType = "USER_AVATAR"
+	MediaAssetTargetTypeUSERBANNER        MediaAssetTargetType = "USER_BANNER"
+	MediaAssetTargetTypePUBLICATIONLOGO   MediaAssetTargetType = "PUBLICATION_LOGO"
+	MediaAssetTargetTypePUBLICATIONBANNER MediaAssetTargetType = "PUBLICATION_BANNER"
+	MediaAssetTargetTypeSHARED            MediaAssetTargetType = "SHARED"
+)
+
+func (e *MediaAssetTargetType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = MediaAssetTargetType(s)
+	case string:
+		*e = MediaAssetTargetType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for MediaAssetTargetType: %T", src)
+	}
+	return nil
+}
+
+type NullMediaAssetTargetType struct {
+	MediaAssetTargetType MediaAssetTargetType `json:"MediaAssetTargetType"`
+	Valid                bool                 `json:"valid"` // Valid is true if MediaAssetTargetType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMediaAssetTargetType) Scan(value interface{}) error {
+	if value == nil {
+		ns.MediaAssetTargetType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.MediaAssetTargetType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMediaAssetTargetType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.MediaAssetTargetType), nil
+}
+
 type NotificationType string
 
 const (
-	NotificationTypeLIKE                  NotificationType = "LIKE"
-	NotificationTypeREPOST                NotificationType = "REPOST"
-	NotificationTypeREPLY                 NotificationType = "REPLY"
-	NotificationTypeCOMMENT               NotificationType = "COMMENT"
-	NotificationTypeMENTION               NotificationType = "MENTION"
-	NotificationTypeFOLLOW                NotificationType = "FOLLOW"
-	NotificationTypeMEDIAINVITE           NotificationType = "MEDIA_INVITE"
-	NotificationTypeMEDIAMEMBERJOINED     NotificationType = "MEDIA_MEMBER_JOINED"
-	NotificationTypeMEDIAARTICLEPUBLISHED NotificationType = "MEDIA_ARTICLE_PUBLISHED"
-	NotificationTypeMEDIAARTICLESUBMITTED NotificationType = "MEDIA_ARTICLE_SUBMITTED"
+	NotificationTypeLIKE                       NotificationType = "LIKE"
+	NotificationTypeREPOST                     NotificationType = "REPOST"
+	NotificationTypeREPLY                      NotificationType = "REPLY"
+	NotificationTypeCOMMENT                    NotificationType = "COMMENT"
+	NotificationTypeMENTION                    NotificationType = "MENTION"
+	NotificationTypeFOLLOW                     NotificationType = "FOLLOW"
+	NotificationTypeMEDIAINVITE                NotificationType = "MEDIA_INVITE"
+	NotificationTypeMEDIAMEMBERJOINED          NotificationType = "MEDIA_MEMBER_JOINED"
+	NotificationTypeMEDIAARTICLEPUBLISHED      NotificationType = "MEDIA_ARTICLE_PUBLISHED"
+	NotificationTypeMEDIAARTICLESUBMITTED      NotificationType = "MEDIA_ARTICLE_SUBMITTED"
+	NotificationTypeARTICLECONTRIBUTORINVITED  NotificationType = "ARTICLE_CONTRIBUTOR_INVITED"
+	NotificationTypeARTICLECONTRIBUTORACCEPTED NotificationType = "ARTICLE_CONTRIBUTOR_ACCEPTED"
+	NotificationTypeARTICLECONTRIBUTORDECLINED NotificationType = "ARTICLE_CONTRIBUTOR_DECLINED"
+	NotificationTypeARTICLECONTRIBUTORREMOVED  NotificationType = "ARTICLE_CONTRIBUTOR_REMOVED"
 )
 
 func (e *NotificationType) Scan(src interface{}) error {
@@ -104,6 +293,92 @@ func (ns NullNotificationType) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.NotificationType), nil
+}
+
+type OAuthClientStatus string
+
+const (
+	OAuthClientStatusPENDING  OAuthClientStatus = "PENDING"
+	OAuthClientStatusAPPROVED OAuthClientStatus = "APPROVED"
+	OAuthClientStatusREJECTED OAuthClientStatus = "REJECTED"
+	OAuthClientStatusREVOKED  OAuthClientStatus = "REVOKED"
+)
+
+func (e *OAuthClientStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = OAuthClientStatus(s)
+	case string:
+		*e = OAuthClientStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for OAuthClientStatus: %T", src)
+	}
+	return nil
+}
+
+type NullOAuthClientStatus struct {
+	OAuthClientStatus OAuthClientStatus `json:"OAuthClientStatus"`
+	Valid             bool              `json:"valid"` // Valid is true if OAuthClientStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullOAuthClientStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.OAuthClientStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.OAuthClientStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullOAuthClientStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.OAuthClientStatus), nil
+}
+
+type OAuthClientType string
+
+const (
+	OAuthClientTypeCONFIDENTIAL OAuthClientType = "CONFIDENTIAL"
+	OAuthClientTypePUBLIC       OAuthClientType = "PUBLIC"
+)
+
+func (e *OAuthClientType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = OAuthClientType(s)
+	case string:
+		*e = OAuthClientType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for OAuthClientType: %T", src)
+	}
+	return nil
+}
+
+type NullOAuthClientType struct {
+	OAuthClientType OAuthClientType `json:"OAuthClientType"`
+	Valid           bool            `json:"valid"` // Valid is true if OAuthClientType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullOAuthClientType) Scan(value interface{}) error {
+	if value == nil {
+		ns.OAuthClientType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.OAuthClientType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullOAuthClientType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.OAuthClientType), nil
 }
 
 type PublicationType string
@@ -193,6 +468,15 @@ func (ns NullSubscriptionStatus) Value() (driver.Value, error) {
 	return string(ns.SubscriptionStatus), nil
 }
 
+type AccountDeletionRequest struct {
+	ID          string           `json:"id"`
+	UserId      pgtype.UUID      `json:"userId"`
+	Status      string           `json:"status"`
+	Reason      pgtype.Text      `json:"reason"`
+	RequestedAt pgtype.Timestamp `json:"requestedAt"`
+	ProcessedAt pgtype.Timestamp `json:"processedAt"`
+}
+
 type AnnotationComment struct {
 	ID          string           `json:"id"`
 	Content     string           `json:"content"`
@@ -224,6 +508,7 @@ type Article struct {
 	Title                  string            `json:"title"`
 	Slug                   string            `json:"slug"`
 	Content                string            `json:"content"`
+	ImageUrl               pgtype.Text       `json:"imageUrl"`
 	Published              bool              `json:"published"`
 	IsPremium              bool              `json:"isPremium"`
 	Visibility             ContentVisibility `json:"visibility"`
@@ -244,6 +529,19 @@ type Article struct {
 	CreatedAt              pgtype.Timestamp  `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp  `json:"updatedAt"`
 	Embedding              pgvector.Vector   `json:"embedding"`
+}
+
+type ArticleAttribution struct {
+	ID               string           `json:"id"`
+	ArticleId        string           `json:"articleId"`
+	UserId           pgtype.UUID      `json:"userId"`
+	Role             string           `json:"role"`
+	Order            int32            `json:"order"`
+	IsVisible        bool             `json:"isVisible"`
+	ConsentStatus    string           `json:"consentStatus"`
+	ConsentUpdatedAt pgtype.Timestamp `json:"consentUpdatedAt"`
+	CreatedAt        pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
 }
 
 type ArticleComment struct {
@@ -285,9 +583,9 @@ type CoAuthor struct {
 }
 
 type CollabDocument struct {
-	DocumentName string             `json:"document_name"`
-	State        []byte             `json:"state"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	DocumentName string           `json:"document_name"`
+	State        []byte           `json:"state"`
+	UpdatedAt    pgtype.Timestamp `json:"updated_at"`
 }
 
 type CollaborationRequest struct {
@@ -296,7 +594,10 @@ type CollaborationRequest struct {
 	InviterId           pgtype.UUID      `json:"inviterId"`
 	InviteeId           pgtype.UUID      `json:"inviteeId"`
 	Status              string           `json:"status"`
+	RequestedRole       string           `json:"requestedRole"`
+	RequestedOrder      int32            `json:"requestedOrder"`
 	ShowOnPublicProfile bool             `json:"showOnPublicProfile"`
+	AcceptedAt          pgtype.Timestamp `json:"acceptedAt"`
 	CreatedAt           pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt           pgtype.Timestamp `json:"updatedAt"`
 }
@@ -335,6 +636,31 @@ type Like struct {
 	PostId    string           `json:"postId"`
 	UserId    pgtype.UUID      `json:"userId"`
 	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
+type MediaAsset struct {
+	ID           string               `json:"id"`
+	Sha256       string               `json:"sha256"`
+	Url          string               `json:"url"`
+	StoragePath  string               `json:"storagePath"`
+	Bucket       string               `json:"bucket"`
+	MimeType     string               `json:"mimeType"`
+	Width        pgtype.Int4          `json:"width"`
+	Height       pgtype.Int4          `json:"height"`
+	SizeBytes    int32                `json:"sizeBytes"`
+	Blurhash     pgtype.Text          `json:"blurhash"`
+	IsNsfw       bool                 `json:"isNsfw"`
+	IsSensitive  bool                 `json:"isSensitive"`
+	SafetyScores []byte               `json:"safetyScores"`
+	ModeratedAt  pgtype.Timestamp     `json:"moderatedAt"`
+	Status       MediaAssetStatus     `json:"status"`
+	TargetType   MediaAssetTargetType `json:"targetType"`
+	OwnerId      string               `json:"ownerId"`
+	AttachedToId pgtype.Text          `json:"attachedToId"`
+	PurgeDueAt   pgtype.Timestamp     `json:"purgeDueAt"`
+	DeletedAt    pgtype.Timestamp     `json:"deletedAt"`
+	CreatedAt    pgtype.Timestamp     `json:"createdAt"`
+	UpdatedAt    pgtype.Timestamp     `json:"updatedAt"`
 }
 
 type MediaAttachment struct {
@@ -439,25 +765,100 @@ type Notification struct {
 	CreatedAt     pgtype.Timestamp `json:"createdAt"`
 }
 
+type NotificationDelivery struct {
+	ID             string           `json:"id"`
+	NotificationId string           `json:"notificationId"`
+	Channel        string           `json:"channel"`
+	Status         string           `json:"status"`
+	Recipient      string           `json:"recipient"`
+	Provider       pgtype.Text      `json:"provider"`
+	ProviderId     pgtype.Text      `json:"providerId"`
+	Attempts       int32            `json:"attempts"`
+	AvailableAt    pgtype.Timestamp `json:"availableAt"`
+	SentAt         pgtype.Timestamp `json:"sentAt"`
+	LastError      pgtype.Text      `json:"lastError"`
+	CreatedAt      pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt      pgtype.Timestamp `json:"updatedAt"`
+	DedupeKey      string           `json:"dedupeKey"`
+}
+
 type NotificationPreference struct {
-	ID            string           `json:"id"`
-	UserId        pgtype.UUID      `json:"userId"`
-	EmailLikes    bool             `json:"emailLikes"`
-	PushLikes     bool             `json:"pushLikes"`
-	EmailReplies  bool             `json:"emailReplies"`
-	PushReplies   bool             `json:"pushReplies"`
-	EmailMentions bool             `json:"emailMentions"`
-	PushMentions  bool             `json:"pushMentions"`
-	EmailFollows  bool             `json:"emailFollows"`
-	PushFollows   bool             `json:"pushFollows"`
-	EmailReposts  bool             `json:"emailReposts"`
-	PushReposts   bool             `json:"pushReposts"`
-	EmailComments bool             `json:"emailComments"`
-	PushComments  bool             `json:"pushComments"`
-	EmailMedia    bool             `json:"emailMedia"`
-	PushMedia     bool             `json:"pushMedia"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+	ID                  string           `json:"id"`
+	UserId              pgtype.UUID      `json:"userId"`
+	EmailLikes          bool             `json:"emailLikes"`
+	PushLikes           bool             `json:"pushLikes"`
+	EmailReplies        bool             `json:"emailReplies"`
+	PushReplies         bool             `json:"pushReplies"`
+	EmailMentions       bool             `json:"emailMentions"`
+	PushMentions        bool             `json:"pushMentions"`
+	EmailFollows        bool             `json:"emailFollows"`
+	PushFollows         bool             `json:"pushFollows"`
+	EmailReposts        bool             `json:"emailReposts"`
+	PushReposts         bool             `json:"pushReposts"`
+	EmailComments       bool             `json:"emailComments"`
+	PushComments        bool             `json:"pushComments"`
+	EmailMedia          bool             `json:"emailMedia"`
+	PushMedia           bool             `json:"pushMedia"`
+	EmailCollaborations bool             `json:"emailCollaborations"`
+	PushCollaborations  bool             `json:"pushCollaborations"`
+	CreatedAt           pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt           pgtype.Timestamp `json:"updatedAt"`
+}
+
+type OAuthAuthorizationCode struct {
+	ID                  string           `json:"id"`
+	CodeHash            string           `json:"codeHash"`
+	ClientId            string           `json:"clientId"`
+	UserId              string           `json:"userId"`
+	RedirectUri         string           `json:"redirectUri"`
+	Scopes              []string         `json:"scopes"`
+	CodeChallenge       pgtype.Text      `json:"codeChallenge"`
+	CodeChallengeMethod pgtype.Text      `json:"codeChallengeMethod"`
+	Nonce               pgtype.Text      `json:"nonce"`
+	ExpiresAt           pgtype.Timestamp `json:"expiresAt"`
+	UsedAt              pgtype.Timestamp `json:"usedAt"`
+	CreatedAt           pgtype.Timestamp `json:"createdAt"`
+}
+
+type OAuthClient struct {
+	ID               string            `json:"id"`
+	ClientId         string            `json:"clientId"`
+	ClientSecretHash pgtype.Text       `json:"clientSecretHash"`
+	Name             string            `json:"name"`
+	Description      pgtype.Text       `json:"description"`
+	LogoUrl          pgtype.Text       `json:"logoUrl"`
+	HomepageUrl      pgtype.Text       `json:"homepageUrl"`
+	RedirectUris     []string          `json:"redirectUris"`
+	Scopes           []string          `json:"scopes"`
+	ClientType       OAuthClientType   `json:"clientType"`
+	Status           OAuthClientStatus `json:"status"`
+	PublicationId    pgtype.Text       `json:"publicationId"`
+	OwnerUserId      string            `json:"ownerUserId"`
+	CreatedAt        pgtype.Timestamp  `json:"createdAt"`
+	UpdatedAt        pgtype.Timestamp  `json:"updatedAt"`
+}
+
+type OAuthConsent struct {
+	ID        string           `json:"id"`
+	ClientId  string           `json:"clientId"`
+	UserId    string           `json:"userId"`
+	Scopes    []string         `json:"scopes"`
+	GrantedAt pgtype.Timestamp `json:"grantedAt"`
+	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
+}
+
+type OAuthToken struct {
+	ID                    string           `json:"id"`
+	ClientId              string           `json:"clientId"`
+	UserId                string           `json:"userId"`
+	AccessTokenHash       string           `json:"accessTokenHash"`
+	RefreshTokenHash      pgtype.Text      `json:"refreshTokenHash"`
+	Scopes                []string         `json:"scopes"`
+	AccessTokenExpiresAt  pgtype.Timestamp `json:"accessTokenExpiresAt"`
+	RefreshTokenExpiresAt pgtype.Timestamp `json:"refreshTokenExpiresAt"`
+	RevokedAt             pgtype.Timestamp `json:"revokedAt"`
+	LastUsedAt            pgtype.Timestamp `json:"lastUsedAt"`
+	CreatedAt             pgtype.Timestamp `json:"createdAt"`
 }
 
 type PartnerPromo struct {
@@ -518,6 +919,9 @@ type Post struct {
 	ParentId          pgtype.Text       `json:"parentId"`
 	RootId            pgtype.Text       `json:"rootId"`
 	RepostId          pgtype.Text       `json:"repostId"`
+	QuotedArticleId   pgtype.Text       `json:"quotedArticleId"`
+	QuotedExcerpt     pgtype.Text       `json:"quotedExcerpt"`
+	Embedding         pgvector.Vector   `json:"embedding"`
 }
 
 type Publication struct {
@@ -658,8 +1062,8 @@ type User struct {
 	ApiAccessStatus        string           `json:"apiAccessStatus"`
 	ApiApplicationReason   pgtype.Text      `json:"apiApplicationReason"`
 	WalletBalanceCents     int32            `json:"walletBalanceCents"`
-	Gender                 pgtype.Text      `json:"gender"`
-	AgeRange               pgtype.Text      `json:"ageRange"`
+	Gender                 NullGender       `json:"gender"`
+	AgeRange               NullAgeRange     `json:"ageRange"`
 	CountryCode            pgtype.Text      `json:"countryCode"`
 	LanguageCode           pgtype.Text      `json:"languageCode"`
 	DemographicsUpdatedAt  pgtype.Timestamp `json:"demographicsUpdatedAt"`
@@ -667,6 +1071,22 @@ type User struct {
 	CreatedAt              pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp `json:"updatedAt"`
 	Embedding              pgvector.Vector  `json:"embedding"`
+}
+
+type UserSetting struct {
+	ID                        string           `json:"id"`
+	UserId                    pgtype.UUID      `json:"userId"`
+	ProfileVisibility         string           `json:"profileVisibility"`
+	AllowMentions             bool             `json:"allowMentions"`
+	AllowCollaborationInvites bool             `json:"allowCollaborationInvites"`
+	ShowSensitiveContent      bool             `json:"showSensitiveContent"`
+	AutoplayMedia             bool             `json:"autoplayMedia"`
+	ReduceMotion              bool             `json:"reduceMotion"`
+	HighContrast              bool             `json:"highContrast"`
+	FontScale                 int32            `json:"fontScale"`
+	DefaultFeed               string           `json:"defaultFeed"`
+	CreatedAt                 pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt                 pgtype.Timestamp `json:"updatedAt"`
 }
 
 type WalletTransaction struct {
