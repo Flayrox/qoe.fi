@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -16,7 +15,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
-import { Logo, ThemeToggle } from '@qoe/ui';
+import { Logo, ThemeToggle, SafeAvatar } from '@qoe/ui';
 import { useUnreadNotificationCount } from '@qoe/ui/notifications';
 import { routes } from '@qoe/config/routes';
 import { URLS } from '@qoe/config';
@@ -169,19 +168,12 @@ export function ReaderNavOverlay({
             aria-label={t`Menu profil`}
             aria-expanded={isProfileOpen}
           >
-            <span className="w-7 h-7 rounded-lg bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden border border-primary/20">
-              {userAvatar ? (
-                <Image
-                  src={userAvatar}
-                  alt={userName}
-                  width={28}
-                  height={28}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                userName.slice(0, 2).toUpperCase()
-              )}
-            </span>
+            <SafeAvatar
+              src={userAvatar}
+              name={userName}
+              size={28}
+              className="rounded-lg border border-primary/20"
+            />
           </button>
 
           {/* Contextual Popover */}

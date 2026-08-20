@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import {
   ArrowUpRight,
   BookMarked,
@@ -17,6 +16,8 @@ import { routes } from '@qoe/config';
 import type { FeedArticleDTO } from '@qoe/db/types';
 import { useRequireAuth } from './auth/AuthModalContext';
 import { CertifiedBadge } from './ui/CertifiedBadge';
+import { SafeAvatar } from './SafeAvatar';
+import { SafeImage } from './SafeImage';
 import { t } from '@lingui/core/macro';
 
 export type { FeedArticleDTO as Article };
@@ -35,24 +36,14 @@ interface ArticleCardProps {
 
 function ProfileMark({ author, size = 40 }: { author: FeedArticleDTO['author']; size?: number }) {
   const isMedia = author.type === 'MEDIA';
-  const fallback = (author.name || 'QO').slice(0, 2).toUpperCase();
-
   return (
-    <div
-      className={cn(
-        'relative shrink-0 overflow-hidden border border-black/10 bg-muted',
-        isMedia ? 'rounded-[12px]' : 'rounded-full'
-      )}
-      style={{ width: size, height: size }}
-    >
-      {author.logoUrl ? (
-        <Image src={author.logoUrl} alt="" fill className="object-cover" />
-      ) : (
-        <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-primary">
-          {fallback}
-        </span>
-      )}
-    </div>
+    <SafeAvatar
+      src={author.logoUrl}
+      name={author.name}
+      username={author.username}
+      size={size}
+      className={cn(isMedia ? 'rounded-[12px]' : 'rounded-full', 'border border-border/60')}
+    />
   );
 }
 
@@ -70,24 +61,20 @@ type SharedContributor = {
 function SharedContributorLine({ people }: { people: SharedContributor[] }) {
   if (people.length === 0) return null;
   return (
-    <span className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-[11px] text-black/60 dark:text-white/60">
+    <span className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-[11px] text-muted-foreground">
       <span className="flex shrink-0 items-center -space-x-1">
         {people.slice(0, 3).map((person) => (
-          <span
+          <SafeAvatar
             key={person.id}
+            src={person.logoUrl}
+            name={person.name}
+            username={person.username}
+            size={16}
             className={cn(
-              'relative h-4 w-4 overflow-hidden border border-white/80 bg-muted dark:border-black/60',
+              'border border-border/80',
               person.isMedia ? 'rounded-[4px]' : 'rounded-full'
             )}
-          >
-            {person.logoUrl ? (
-              <Image src={person.logoUrl} alt="" fill className="object-cover" sizes="16px" />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center text-[6px] font-semibold text-primary">
-                {(person.name || 'A').slice(0, 1).toUpperCase()}
-              </span>
-            )}
-          </span>
+          />
         ))}
       </span>
       <span className="truncate">
@@ -147,7 +134,7 @@ export function ArticleCard({
   const isMedia = article.author.type === 'MEDIA';
   const useAuthorAsPrimary = isMedia && Boolean(journalist?.id && isFollowedAuthor);
   const primaryPerson = useAuthorAsPrimary ? journalist : null;
-  const primaryName = primaryPerson?.name || article.author.name || t`Auteur`;
+  const primaryName = primaryPerson?.name || article.author?.name || 'Auteur';
   const primaryHandle = primaryPerson?.username || primaryPerson?.id?.slice(0, 8) || authorHandle;
   const primaryAuthor = primaryPerson
     ? {
@@ -242,9 +229,9 @@ export function ArticleCard({
         )}
       >
         {coverImage ? (
-          <Image
+          <SafeImage
             src={coverImage}
-            alt=""
+            alt={article.title || ''}
             fill
             className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.025]"
             sizes="(max-width: 768px) 100vw, 720px"

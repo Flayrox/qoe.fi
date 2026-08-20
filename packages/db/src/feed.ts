@@ -121,11 +121,11 @@ interface RawThoughtFeedRow {
   item_type: 'THOUGHT';
   content: string;
   imageUrl: string | null;
-  tags: string[];
   createdAt: Date;
-  like_count: number;
-  repost_count: number;
-  reply_count: number;
+  likeCount: number;
+  replyCount: number;
+  repostCount: number;
+  quotedExcerpt: string | null;
   sim_score: number;
   freshness_score: number;
   author_id: string;
@@ -133,9 +133,9 @@ interface RawThoughtFeedRow {
   author_username: string | null;
   author_logo: string | null;
   author_certified: boolean;
-  quoted_article_id: string | null;
-  quoted_article_title: string | null;
-  quoted_article_slug: string | null;
+  quoted_art_id: string | null;
+  quoted_art_title: string | null;
+  quoted_art_slug: string | null;
 }
 
 interface RawCreatorRow {
@@ -535,7 +535,7 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
         circadian.targetReadingMinutes,
         circadian.sigmaMinutes
       );
-      const engScore = Math.min(1.0, ((a.likeCount || 0) * 2 + (a.commentCount || 0) * 3) / 50.0);
+      const engScore = 0.5;
       const simScore = a.sim_score || 0.5;
       const freshness = a.freshness_score || 0.5;
       const completionBonus = 0.7 + 0.3 * (a.completionRate || 0.8);
@@ -559,20 +559,21 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
         circadianFitScore: circadianFit,
         author: {
           id: a.author_id,
-          name: a.author_name,
-          username: a.author_username,
+          name: a.author_name || 'Auteur',
+          username: a.author_username || 'auteur',
           logoUrl: a.author_logo,
           isCertified: a.author_certified,
         },
-        publication: a.pub_id
-          ? {
-              id: a.pub_id,
-              name: a.pub_name,
-              slug: a.pub_slug,
-              subdomain: a.pub_subdomain,
-              logoUrl: a.pub_logo,
-            }
-          : null,
+        publication:
+          a.pub_id && a.pub_name && a.pub_slug
+            ? {
+                id: a.pub_id,
+                name: a.pub_name,
+                slug: a.pub_slug,
+                subdomain: a.pub_subdomain,
+                logoUrl: a.pub_logo,
+              }
+            : null,
         quotedArticle: null,
         createdAt: new Date(a.createdAt),
       };
@@ -605,20 +606,21 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
         circadianFitScore: morningBonus,
         author: {
           id: t.author_id,
-          name: t.author_name,
-          username: t.author_username,
+          name: t.author_name || 'Auteur',
+          username: t.author_username || 'auteur',
           logoUrl: t.author_logo,
           isCertified: t.author_certified,
         },
         publication: null,
-        quotedArticle: t.quoted_art_id
-          ? {
-              id: t.quoted_art_id,
-              title: t.quoted_art_title,
-              slug: t.quoted_art_slug,
-              excerpt: t.quotedExcerpt,
-            }
-          : null,
+        quotedArticle:
+          t.quoted_art_id && t.quoted_art_title && t.quoted_art_slug
+            ? {
+                id: t.quoted_art_id,
+                title: t.quoted_art_title,
+                slug: t.quoted_art_slug,
+                excerpt: t.quotedExcerpt,
+              }
+            : null,
         createdAt: new Date(t.createdAt),
       };
     })
