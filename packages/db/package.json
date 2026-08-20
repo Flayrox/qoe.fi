@@ -42,6 +42,10 @@
       "types": "./src/repositories/subscriptions.ts",
       "default": "./src/repositories/subscriptions.ts"
     },
+    "./repositories/media": {
+      "types": "./src/repositories/media.ts",
+      "default": "./src/repositories/media.ts"
+    },
     "./devtools": {
       "types": "./src/devtools.ts",
       "default": "./src/devtools.ts"

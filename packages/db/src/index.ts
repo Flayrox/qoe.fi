@@ -21,4 +21,5 @@ export * as starterPacks from './repositories/starterPacks';
 export * as polls from './repositories/polls';
 export * as threadgates from './repositories/threadgates';
 export * as moderation from './repositories/moderation';
+export * as media from './repositories/media';
 export * as feed from './feed';

@@ -1,63 +1,79 @@
 // =====================================================================
-// 📤 API Upload — apps/tenants/src/app/api/articles/upload/route.ts
+// 📤 API Upload Sécurisée — apps/tenants/src/app/api/articles/upload/route.ts
 // =====================================================================
-// 📖 Upload d'images vers Supabase Storage (bucket "articles-media").
+// 1. Validation binaire des Magic Bytes
+// 2. Modération multimodale OpenAI (Zéro-NSFW sur les publications tenants)
+// 3. Protection Anti-Bomb / Stripping EXIF / Transcodage WebP
+// 4. Dédoublonnage CAS par hachage SHA-256
+// 5. Enregistrement sous MediaAsset (DRAFT_ORPHAN, TTL: 3 jours)
 // =====================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@qoe/supabase/server';
-import { uploadImage, IMAGE_FOLDERS, type ImageFolder } from '@qoe/supabase/storage';
+import { uploadAndProcessMedia, IMAGE_FOLDERS, type ImageFolder } from '@qoe/supabase/media-engine';
 import { getCurrentUser } from '@qoe/auth/current-user';
-import { LIMITS } from '@qoe/config';
+import { registerMediaAsset } from '@qoe/db/repositories/media';
 
-const MAX_SIZE_BYTES = LIMITS.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
 const ALLOWED_FOLDERS = new Set(Object.values(IMAGE_FOLDERS));
 
 export async function POST(request: NextRequest) {
   try {
-    // 🔐 Vérifie l'auth
     const user = await getCurrentUser();
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const supabase = await createClient();
 
-    // 📥 Parse le multipart
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
-    const folder = (formData.get('folder') as ImageFolder | null) || IMAGE_FOLDERS.articles;
+    const folder = ((formData.get('folder') as ImageFolder | null) ||
+      IMAGE_FOLDERS.articles) as ImageFolder;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-    }
-
-    // ✅ Validation type
-    if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ error: 'File must be an image' }, { status: 400 });
-    }
-
-    // ✅ Validation taille
-    if (file.size > MAX_SIZE_BYTES) {
-      return NextResponse.json(
-        { error: `File size exceeds ${LIMITS.MAX_UPLOAD_SIZE_MB}MB limit` },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Aucun fichier fourni' }, { status: 400 });
     }
 
     if (!ALLOWED_FOLDERS.has(folder)) {
-      return NextResponse.json({ error: 'Invalid folder' }, { status: 400 });
+      return NextResponse.json({ error: 'Dossier de destination invalide' }, { status: 400 });
     }
 
-    // 📤 Upload vers Supabase Storage via le helper partagé
-    const url = await uploadImage(supabase, file, {
+    const arrayBuffer = await file.arrayBuffer();
+    const fileBuffer = Buffer.from(arrayBuffer);
+
+    // 🚀 Pipeline unifiée de Sécurité, Modération & Transcodage Sharp
+    const result = await uploadAndProcessMedia(supabase, fileBuffer, file.type, {
       folder,
       ownerId: user.id,
     });
 
-    return NextResponse.json({ url }, { status: 200 });
-  } catch (error) {
-    console.error('Upload API Route Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    // 📝 Enregistrement dans le registre de cycle de vie MediaAsset (TTL 3j orphan)
+    await registerMediaAsset({
+      sha256: result.sha256,
+      url: result.url,
+      storagePath: result.storagePath,
+      mimeType: result.mimeType,
+      width: result.width,
+      height: result.height,
+      sizeBytes: result.sizeBytes,
+      blurhash: result.blurhash,
+      ownerId: user.id,
+      targetType: 'ARTICLE_BODY',
+    });
+
+    return NextResponse.json(
+      {
+        url: result.url,
+        blurhash: result.blurhash,
+        width: result.width,
+        height: result.height,
+        sha256: result.sha256,
+      },
+      { status: 200 }
+    );
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Erreur interne lors de l'upload";
+    console.error('❌ Erreur Upload Tenants:', message);
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

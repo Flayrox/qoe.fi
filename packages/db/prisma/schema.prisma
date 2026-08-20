@@ -1035,3 +1035,56 @@ model ModerationReport {
   @@index([reporterId])
   @@index([status])
 }
+
+enum MediaAssetStatus {
+  DRAFT_ORPHAN // Uploadé dans TipTap / composer mais pas encore attaché à un contenu sauvegardé (TTL: 3j)
+  ATTACHED // Lié à un article, une pensée ou un profil sauvegardé (Actif)
+  SOFT_DELETED // Contenu parent supprimé ou image remplacée (Rétention de sécurité : 14j)
+  PURGED // Blob physique détruit définitivement du stockage
+}
+
+enum MediaAssetTargetType {
+  ARTICLE_COVER
+  ARTICLE_BODY
+  THOUGHT_ATTACHMENT
+  USER_AVATAR
+  USER_BANNER
+  PUBLICATION_LOGO
+  PUBLICATION_BANNER
+  SHARED
+}
+
+model MediaAsset {
+  id           String               @id @default(cuid())
+  sha256       String               // Hash SHA-256 du contenu pour dédoublonnage CAS
+  url          String               @db.Text
+  storagePath  String               @db.Text
+  bucket       String               @default("articles-media")
+  mimeType     String               // "image/webp", "image/avif", "image/png", etc.
+  width        Int?
+  height       Int?
+  sizeBytes    Int                  // Poids du fichier physique
+  blurhash     String?              @db.Text // BlurHash pour aperçu instantané à 0ms
+  
+  // Sécurité & Modération
+  isNsfw       Boolean              @default(false)
+  isSensitive  Boolean              @default(false)
+  safetyScores Json?                // Scores de modération (sexual, violence, hate, etc.)
+  moderatedAt  DateTime?
+  
+  // Cycle de vie & Rétention FinOps
+  status       MediaAssetStatus     @default(DRAFT_ORPHAN)
+  targetType   MediaAssetTargetType @default(SHARED)
+  ownerId      String?              // userId ou publicationId
+  attachedToId String?              // id de l'article ou de la pensée
+  
+  purgeDueAt   DateTime?            // Date programmée de purge physique par le cron
+  deletedAt    DateTime?            // Date de mise en corbeille
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([sha256])
+  @@index([status, purgeDueAt])
+  @@index([ownerId])
+  @@index([attachedToId])
+}
