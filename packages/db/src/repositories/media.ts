@@ -23,7 +23,8 @@ export interface RegisterMediaInput {
   height?: number;
   sizeBytes: number;
   blurhash?: string;
-  ownerId?: string | null;
+  // Un media a toujours un propriétaire (userId ou publicationId) — NOT NULL en base.
+  ownerId: string;
   targetType?: MediaAssetTargetType;
   isNsfw?: boolean;
   isSensitive?: boolean;

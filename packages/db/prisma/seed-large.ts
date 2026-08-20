@@ -5,7 +5,7 @@
 // - Ingestion automatique de tous les articles JSON dans `.exemple-json/`
 // - 500 Utilisateurs réalistes (UUIDs Supabase, avatars, pays, pronoms)
 // - 15 Médias / Rédactions (avec Publication MEDIA + MediaMember roles)
-// - 80 Publications personnelles de créateurs
+// - Publications personnelles : UNE par utilisateur (500) — parité prod
 // - 200+ Articles complets en HTML riche (citations, listes, paywalls)
 // - 1 300+ Pensées (racines, réponses L1, sous-réponses L2, reposts, quotes)
 // - 450+ Commentaires sous les articles (avec fils hiérarchiques)
@@ -15,6 +15,10 @@
 // - 550+ Signets (Bookmarks) distribués
 // - 450+ Abonnés & Tiers payants (Subscribers)
 // - 160+ Lettres de lecteurs aux auteurs
+// - Médias uploadés avec propriétaire obligatoire (MediaAsset) + pièces jointes
+// - Webhooks sortants & livraisons, clés API, notifications & préférences
+// - Réglages utilisateurs, starter packs, sondages, liens sociaux, wallet
+// - Apps OAuth de démo, tendances, promos, config système, recommandations
 // =====================================================================
 
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
@@ -22,11 +26,16 @@ import {
   ContentVisibility,
   Gender,
   AgeRange,
+  MediaAssetStatus,
+  MediaAssetTargetType,
+  NotificationType,
+  OAuthClientStatus,
+  OAuthClientType,
   PrismaClient,
   PublicationType,
   SubscriptionStatus,
 } from '@prisma/client';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,6 +55,10 @@ function cuid(): string {
 
 function uuid(): string {
   return randomUUID();
+}
+
+function sha256(input: string): string {
+  return createHash('sha256').update(input).digest('hex');
 }
 
 function randomItem<T>(arr: T[]): T {
@@ -709,7 +722,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 0. CHARGEMENT DES ARTICLES JSON EXTERNES
   // -------------------------------------------------------------------
-  console.log('📂 [0/13] Analyse du dossier des articles générés (.exemple-json)...');
+  console.log('📂 [0/23] Analyse du dossier des articles générés (.exemple-json)...');
   const externalArticles = loadExternalArticles();
   console.log(
     `  ✓ ${externalArticles.length} articles riches découverts dans les fichiers JSON.\n`
@@ -718,8 +731,42 @@ async function main() {
   // -------------------------------------------------------------------
   // 1. NETTOYAGE PRÉALABLE SÉCURISÉ
   // -------------------------------------------------------------------
-  console.log('🧹 [1/13] Nettoyage préalable des tables locales...');
+  console.log('🧹 [1/23] Nettoyage préalable des tables locales...');
   try {
+    // Tables secondaires générées par le seed (enfants d'abord, cascade-safe)
+    await prisma.notificationDelivery.deleteMany({}).catch(() => {});
+    await prisma.notification.deleteMany({}).catch(() => {});
+    await prisma.pollVote.deleteMany({}).catch(() => {});
+    await prisma.pollOption.deleteMany({}).catch(() => {});
+    await prisma.poll.deleteMany({}).catch(() => {});
+    await prisma.mediaAttachment.deleteMany({}).catch(() => {});
+    await prisma.mediaAsset.deleteMany({}).catch(() => {});
+    await prisma.webhookDelivery.deleteMany({}).catch(() => {});
+    await prisma.webhook.deleteMany({}).catch(() => {});
+    await prisma.apiKey.deleteMany({}).catch(() => {});
+    await prisma.userSettings.deleteMany({}).catch(() => {});
+    await prisma.notificationPreference.deleteMany({}).catch(() => {});
+    await prisma.starterPackItem.deleteMany({}).catch(() => {});
+    await prisma.starterPack.deleteMany({}).catch(() => {});
+    await prisma.socialLink.deleteMany({}).catch(() => {});
+    await prisma.walletTransaction.deleteMany({}).catch(() => {});
+    await prisma.oAuthConsent.deleteMany({}).catch(() => {});
+    await prisma.oAuthToken.deleteMany({}).catch(() => {});
+    await prisma.oAuthAuthorizationCode.deleteMany({}).catch(() => {});
+    await prisma.oAuthClient.deleteMany({}).catch(() => {});
+    await prisma.trend.deleteMany({}).catch(() => {});
+    await prisma.partnerPromo.deleteMany({}).catch(() => {});
+    await prisma.systemConfig.deleteMany({}).catch(() => {});
+    await prisma.recommendation.deleteMany({}).catch(() => {});
+    await prisma.collaborationRequest.deleteMany({}).catch(() => {});
+    await prisma.mediaInvite.deleteMany({}).catch(() => {});
+    await prisma.moderationReport.deleteMany({}).catch(() => {});
+    await prisma.mutedWord.deleteMany({}).catch(() => {});
+    await prisma.blockedUser.deleteMany({}).catch(() => {});
+    await prisma.mutedUser.deleteMany({}).catch(() => {});
+    await prisma.navigationItem.deleteMany({}).catch(() => {});
+    await prisma.translationAuditLog.deleteMany({}).catch(() => {});
+    await prisma.accountDeletionRequest.deleteMany({}).catch(() => {});
     await prisma.annotationUpvote.deleteMany({}).catch(() => {});
     await prisma.annotationComment.deleteMany({}).catch(() => {});
     await prisma.highlight.deleteMany({}).catch(() => {});
@@ -748,7 +795,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 2. 500 UTILISATEURS (UUID v4) + Auteurs spécifiques des JSON
   // -------------------------------------------------------------------
-  console.log('👥 [2/13] Création de 500 utilisateurs (UUIDs v4)...');
+  console.log('👥 [2/23] Création de 500 utilisateurs (UUIDs v4)...');
   const usedUsernames = new Set<string>();
   const usersToInsert: any[] = [];
   const authorNameToUserMap = new Map<string, any>();
@@ -854,7 +901,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 3. PUBLICATIONS (MÉDIAS + PERSONNELLES)
   // -------------------------------------------------------------------
-  console.log('\n📰 [3/13] Création des Publications (Médias + Personnelles)...');
+  console.log('\n📰 [3/23] Création des Publications (Médias + Personnelles)...');
   const pubsToInsert: any[] = [];
   const mediaConfigs: { pubId: string; meta: (typeof BIOS_MEDIAS)[0] }[] = [];
   const userPubConfigs: { userId: string; pubId: string }[] = [];
@@ -882,8 +929,12 @@ async function main() {
     slugToPubMap.set(m.slug, pubId);
   });
 
-  // Publications personnelles des créateurs
-  creators.forEach((c, idx) => {
+  // Publications personnelles — UNE pour chaque utilisateur (parité prod :
+  // chaque compte signé reçoit sa publication PERSONAL à l'inscription).
+  // Sans elle, les pensées d'un user sont publiées mais son profil /username
+  // est irrésolvable (404) car GetPublicationBySlugOrSubdomain part de la
+  // table Publication.
+  allUsers.forEach((c, idx) => {
     const pubId = cuid();
     const bioText = BIOS_CREATORS[idx % BIOS_CREATORS.length];
     const pSlug = `carnets-${c.username}`;
@@ -920,7 +971,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 4. MÉDIAS & ÉQUIPES DE RÉDACTION (Media, MediaMember, MediaAuditLog)
   // -------------------------------------------------------------------
-  console.log('\n🏢 [4/13] Structuration des Rédactions & Équipes Média...');
+  console.log('\n🏢 [4/23] Structuration des Rédactions & Équipes Média...');
   const mediasToInsert: any[] = [];
   const mediaMembersToInsert: any[] = [];
   const mediaLogsToInsert: any[] = [];
@@ -1011,7 +1062,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 5. CATÉGORIES & TIERS D'ABONNEMENT (Category & Tier)
   // -------------------------------------------------------------------
-  console.log('\n🏷️  [5/13] Création des catégories et des tiers tarifaires...');
+  console.log('\n🏷️  [5/23] Création des catégories et des tiers tarifaires...');
   const categoriesToInsert: any[] = [];
   const createdCategories: { id: string; publicationId: string; name: string }[] = [];
   const tiersToInsert: any[] = [];
@@ -1062,7 +1113,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 6. ARTICLES COMPLETS & ATTRIBUTIONS (Articles JSON + Templates)
   // -------------------------------------------------------------------
-  console.log('\n📚 [6/13] Ingestion et composition des articles complets...');
+  console.log('\n📚 [6/23] Ingestion et composition des articles complets...');
   const articlesToInsert: any[] = [];
   const attributionsToInsert: any[] = [];
   const articleKeyExcerpts: { articleId: string; excerpt: string; authorId: string }[] = [];
@@ -1213,7 +1264,7 @@ async function main() {
   // 7. 1 300+ PENSÉES (Thought / Post)
   // -------------------------------------------------------------------
   console.log(
-    '\n💬 [7/13] Génération de 1 300+ Pensées (Racines, Réponses L1 & L2, Quotes, Reposts)...'
+    '\n💬 [7/23] Génération de 1 300+ Pensées (Racines, Réponses L1 & L2, Quotes, Reposts)...'
   );
   const thoughtsToInsert: any[] = [];
   const rootThoughts: any[] = [];
@@ -1357,7 +1408,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 8. 450+ COMMENTAIRES D'ARTICLES (ArticleComment & Replies)
   // -------------------------------------------------------------------
-  console.log('\n✍️  [8/13] Rédaction de 450+ Commentaires sous les articles...');
+  console.log('\n✍️  [8/23] Rédaction de 450+ Commentaires sous les articles...');
   const articleCommentsToInsert: any[] = [];
   const rootComments: any[] = [];
 
@@ -1401,7 +1452,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 9. 3 600+ RELATIONS SOCIALES FOLLOWS (Reader -> Publication)
   // -------------------------------------------------------------------
-  console.log('\n🤝 [9/13] Génération du graphe social (3 600+ Follows)...');
+  console.log('\n🤝 [9/23] Génération du graphe social (3 600+ Follows)...');
   const followsToInsert: any[] = [];
   const followsSet = new Set<string>();
 
@@ -1426,7 +1477,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 10. 6 000+ LIKES SUR LES PENSÉES (Like -> Post)
   // -------------------------------------------------------------------
-  console.log('\n❤️  [10/13] Distribution de 6 000+ Likes sur les Pensées...');
+  console.log('\n❤️  [10/23] Distribution de 6 000+ Likes sur les Pensées...');
   const likesToInsert: any[] = [];
   const likeSet = new Set<string>();
   const postLikeCounters = new Map<string, number>();
@@ -1453,7 +1504,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 11. 850+ SURLIGNAGES (Highlights, AnnotationComments, Upvotes)
   // -------------------------------------------------------------------
-  console.log('\n🖍️  [11/13] Création de 850+ Surlignages et notes en marge...');
+  console.log('\n🖍️  [11/23] Création de 850+ Surlignages et notes en marge...');
   const highlightsToInsert: any[] = [];
   const annotationCommentsToInsert: any[] = [];
   const annotationUpvotesToInsert: any[] = [];
@@ -1515,7 +1566,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 12. 550+ SIGNETS ALÉATOIRES (Bookmarks)
   // -------------------------------------------------------------------
-  console.log('\n🔖 [12/13] Sauvegarde aléatoire de 550+ Signets de lecture...');
+  console.log('\n🔖 [12/23] Sauvegarde aléatoire de 550+ Signets de lecture...');
   const bookmarksToInsert: any[] = [];
   const bookmarkSet = new Set<string>();
 
@@ -1540,7 +1591,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 13. 450+ ABONNÉS & 160+ LETTRES (Subscribers & Letters)
   // -------------------------------------------------------------------
-  console.log('\n💳 [13/13] Enregistrement de 450+ Abonnés & 160+ Lettres...');
+  console.log('\n💳 [13/23] Enregistrement de 450+ Abonnés & 160+ Lettres...');
   const subscribersToInsert: any[] = [];
   const subSet = new Set<string>();
 
@@ -1591,6 +1642,849 @@ async function main() {
   await batchInsert('Letters', prisma.letter, lettersToInsert);
 
   // -------------------------------------------------------------------
+  // 14. MÉDIAS UPLOADÉS & PIÈCES JOINTES (MediaAsset + MediaAttachment)
+  // -------------------------------------------------------------------
+  console.log(
+    '\n📎 [14/23] Génération des médias uploadés (MediaAsset) & pièces jointes (MediaAttachment)...'
+  );
+  const mediaAssetsToInsert: any[] = [];
+  const mediaAttachmentsToInsert: any[] = [];
+
+  // A. Marque des rédactions : logo + bannière + couvertures d'articles attachées
+  createdMedias.forEach((m, mIdx) => {
+    const owner = creators[mIdx % creators.length];
+    const mediaArticles = articlesToInsert.filter((a) => a.publicationId === m.pubId);
+    const coverArts = mediaArticles.slice(0, Math.min(3, mediaArticles.length));
+
+    mediaAssetsToInsert.push(
+      {
+        id: cuid(),
+        sha256: sha256(`${m.id}-logo-${mIdx}`),
+        url: `https://images.unsplash.com/photo-${1500000000000 + ((mIdx * 1357911) % 90000000)}?auto=format&fit=crop&w=512&q=80`,
+        storagePath: `media/${m.pubId}/logo.webp`,
+        bucket: 'media-branding',
+        mimeType: 'image/webp',
+        width: 512,
+        height: 512,
+        sizeBytes: randomInt(18000, 48000),
+        blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+        isNsfw: false,
+        isSensitive: false,
+        status: MediaAssetStatus.ATTACHED,
+        targetType: MediaAssetTargetType.PUBLICATION_LOGO,
+        ownerId: owner.id,
+        attachedToId: null,
+        createdAt: randomDate(150, 280),
+        updatedAt: new Date(),
+      },
+      {
+        id: cuid(),
+        sha256: sha256(`${m.id}-banner-${mIdx}`),
+        url: `https://images.unsplash.com/photo-${1510000000000 + ((mIdx * 2468024) % 90000000)}?auto=format&fit=crop&w=1600&h=400&q=80`,
+        storagePath: `media/${m.pubId}/banner.webp`,
+        bucket: 'media-branding',
+        mimeType: 'image/webp',
+        width: 1600,
+        height: 400,
+        sizeBytes: randomInt(40000, 90000),
+        blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+        isNsfw: false,
+        isSensitive: false,
+        status: MediaAssetStatus.ATTACHED,
+        targetType: MediaAssetTargetType.PUBLICATION_BANNER,
+        ownerId: owner.id,
+        attachedToId: null,
+        createdAt: randomDate(150, 280),
+        updatedAt: new Date(),
+      }
+    );
+
+    coverArts.forEach((art) => {
+      mediaAssetsToInsert.push({
+        id: cuid(),
+        sha256: sha256(`${art.id}-cover`),
+        url: art.imageUrl,
+        storagePath: `media/${m.pubId}/articles/${art.id}/cover.webp`,
+        bucket: 'articles-media',
+        mimeType: 'image/webp',
+        width: 1200,
+        height: 630,
+        sizeBytes: randomInt(60000, 140000),
+        blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+        isNsfw: false,
+        isSensitive: false,
+        status: MediaAssetStatus.ATTACHED,
+        targetType: MediaAssetTargetType.ARTICLE_COVER,
+        ownerId: owner.id,
+        attachedToId: art.id,
+        createdAt: art.createdAt,
+        updatedAt: new Date(),
+      });
+    });
+  });
+
+  // B. Avatars & bannières d'utilisateurs (upload personnel)
+  for (let i = 0; i < 140; i++) {
+    const user = allUsers[i % allUsers.length];
+    mediaAssetsToInsert.push({
+      id: cuid(),
+      sha256: sha256(`${user.id}-avatar-${i}`),
+      url: user.logoUrl,
+      storagePath: `users/${user.id}/avatar.webp`,
+      bucket: 'user-media',
+      mimeType: 'image/webp',
+      width: 256,
+      height: 256,
+      sizeBytes: randomInt(12000, 32000),
+      blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+      isNsfw: false,
+      isSensitive: false,
+      status: MediaAssetStatus.ATTACHED,
+      targetType: MediaAssetTargetType.USER_AVATAR,
+      ownerId: user.id,
+      attachedToId: null,
+      createdAt: user.createdAt,
+      updatedAt: new Date(),
+    });
+    if (i % 3 === 0) {
+      mediaAssetsToInsert.push({
+        id: cuid(),
+        sha256: sha256(`${user.id}-banner-${i}`),
+        url: `https://images.unsplash.com/photo-${1500000000000 + ((i * 975310) % 90000000)}?auto=format&fit=crop&w=1600&h=400&q=80`,
+        storagePath: `users/${user.id}/banner.webp`,
+        bucket: 'user-media',
+        mimeType: 'image/webp',
+        width: 1600,
+        height: 400,
+        sizeBytes: randomInt(35000, 80000),
+        blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+        isNsfw: false,
+        isSensitive: false,
+        status: MediaAssetStatus.ATTACHED,
+        targetType: MediaAssetTargetType.USER_BANNER,
+        ownerId: user.id,
+        attachedToId: null,
+        createdAt: user.createdAt,
+        updatedAt: new Date(),
+      });
+    }
+  }
+
+  // C. Pièces jointes aux pensées (MediaAttachment) + assets THOUGHT_ATTACHMENT
+  for (let i = 0; i < 260 && i < thoughtsToInsert.length; i++) {
+    const thought = thoughtsToInsert[i];
+    const nb = randomInt(1, 2);
+    for (let j = 0; j < nb; j++) {
+      const attId = cuid();
+      const isVideo = j === 0 && Math.random() < 0.12;
+      const url = isVideo
+        ? `https://storage.qoe.fi/thoughts/${thought.id}/clip-${j}.mp4`
+        : `https://images.unsplash.com/photo-${1500000000000 + ((i * 864209) % 90000000)}?auto=format&fit=crop&w=1080&q=80`;
+      mediaAttachmentsToInsert.push({
+        id: attId,
+        thoughtId: thought.id,
+        type: isVideo ? 'VIDEO' : 'IMAGE',
+        url,
+        altText: `Visuel joint à la pensée de ${thought.authorId.slice(0, 8)}`,
+        width: isVideo ? 1920 : 1080,
+        height: isVideo ? 1080 : 1080,
+        order: j,
+        createdAt: thought.createdAt,
+      });
+      mediaAssetsToInsert.push({
+        id: cuid(),
+        sha256: sha256(`${attId}-media`),
+        url,
+        storagePath: `thoughts/${thought.id}/attachment-${j}.webp`,
+        bucket: 'articles-media',
+        mimeType: isVideo ? 'video/mp4' : 'image/webp',
+        width: isVideo ? 1920 : 1080,
+        height: isVideo ? 1080 : 1080,
+        sizeBytes: randomInt(40000, 160000),
+        blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+        isNsfw: Math.random() < 0.02,
+        isSensitive: Math.random() < 0.02,
+        status: MediaAssetStatus.ATTACHED,
+        targetType: MediaAssetTargetType.THOUGHT_ATTACHMENT,
+        ownerId: thought.authorId,
+        attachedToId: thought.id,
+        createdAt: thought.createdAt,
+        updatedAt: new Date(),
+      });
+    }
+  }
+
+  // D. Quelques assets orphelins (DRAFT_ORPHAN) pour tester le TTL de purge
+  for (let i = 0; i < 40; i++) {
+    const user = randomItem(allUsers);
+    mediaAssetsToInsert.push({
+      id: cuid(),
+      sha256: sha256(`orphan-${i}`),
+      url: `https://images.unsplash.com/photo-${1500000000000 + ((i * 357159) % 90000000)}?auto=format&fit=crop&w=1080&q=80`,
+      storagePath: `tmp/orphans/${cuid()}.webp`,
+      bucket: 'articles-media',
+      mimeType: 'image/webp',
+      width: 1080,
+      height: randomInt(600, 1200),
+      sizeBytes: randomInt(30000, 120000),
+      blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
+      isNsfw: false,
+      isSensitive: false,
+      status: MediaAssetStatus.DRAFT_ORPHAN,
+      targetType: MediaAssetTargetType.SHARED,
+      ownerId: user.id,
+      attachedToId: null,
+      purgeDueAt: new Date(Date.now() + randomInt(1, 3) * 24 * 3600 * 1000),
+      createdAt: randomDate(0, 2),
+      updatedAt: new Date(),
+    });
+  }
+
+  await batchInsert('MediaAssets', prisma.mediaAsset, mediaAssetsToInsert);
+  await batchInsert('MediaAttachments', prisma.mediaAttachment, mediaAttachmentsToInsert);
+
+  // -------------------------------------------------------------------
+  // 15. WEBHOOKS & LIVRAISONS (Webhook + WebhookDelivery)
+  // -------------------------------------------------------------------
+  console.log('\n🕸️  [15/23] Génération des Webhooks sortants & livraisons...');
+  const webhooksToInsert: any[] = [];
+  const deliveriesToInsert: any[] = [];
+  const WEBHOOK_EVENTS = [
+    'article.published',
+    'subscriber.created',
+    'subscriber.updated',
+    'media.member_added',
+    'media.member_removed',
+  ];
+
+  createdMedias.forEach((m, mIdx) => {
+    const events = randomItems(WEBHOOK_EVENTS, randomInt(2, 4));
+    const webhookId = cuid();
+    webhooksToInsert.push({
+      id: webhookId,
+      publicationId: m.pubId,
+      name: mIdx % 2 === 0 ? 'Événements Rédactions' : 'Sync Contenu',
+      url: `https://hooks.qoe-partners.dev/${slugify(m.name)}`,
+      secret: sha256(`${m.id}-secret-${mIdx}`).slice(0, 32),
+      events,
+      active: mIdx % 5 !== 4,
+      createdAt: randomDate(60, 200),
+      updatedAt: new Date(),
+    });
+
+    for (let d = 0; d < randomInt(2, 5); d++) {
+      const status = d === 0 ? 'SUCCESS' : randomItem(['SUCCESS', 'SUCCESS', 'FAILED', 'PENDING']);
+      deliveriesToInsert.push({
+        id: cuid(),
+        webhookId,
+        event: randomItem(events),
+        payload: {
+          event: randomItem(events),
+          publicationId: m.pubId,
+          timestamp: new Date().toISOString(),
+        },
+        status,
+        httpStatus: status === 'SUCCESS' ? 200 : status === 'FAILED' ? 500 : null,
+        responseBody:
+          status === 'SUCCESS' ? '{"ok":true}' : status === 'FAILED' ? '{"error":"timeout"}' : null,
+        attempts: status === 'PENDING' ? 0 : randomInt(1, 3),
+        createdAt: randomDate(0, 30),
+      });
+    }
+  });
+
+  await batchInsert('Webhooks', prisma.webhook, webhooksToInsert);
+  await batchInsert('Webhook Deliveries', prisma.webhookDelivery, deliveriesToInsert);
+
+  // -------------------------------------------------------------------
+  // 16. CLÉS API (ApiKey) — un jeu par rédaction
+  // -------------------------------------------------------------------
+  console.log('\n🔑 [16/23] Génération des clés API (ApiKey)...');
+  const apiKeysToInsert: any[] = [];
+  createdMedias.forEach((m, mIdx) => {
+    const owner = creators[mIdx % creators.length];
+    for (let k = 0; k < 2; k++) {
+      const rawKey = `qoe_live_${Buffer.from(randomUUID()).toString('base64url').slice(0, 24)}`;
+      apiKeysToInsert.push({
+        id: cuid(),
+        name: k === 0 ? 'Production — CMS' : 'Analytics',
+        keyPrefix: rawKey.slice(0, 12),
+        keyHash: sha256(rawKey),
+        scopes: k === 0 ? ['READ', 'WRITE'] : ['READ', 'ANALYTICS'],
+        userId: owner.id,
+        lastUsedAt: Math.random() < 0.7 ? randomDate(0, 14) : null,
+        createdAt: randomDate(30, 120),
+      });
+    }
+  });
+  await batchInsert('API Keys', prisma.apiKey, apiKeysToInsert);
+
+  // -------------------------------------------------------------------
+  // 17. NOTIFICATIONS & LIVRAISONS (Notification + NotificationDelivery)
+  // -------------------------------------------------------------------
+  console.log('\n🔔 [17/23] Génération des notifications & livraisons...');
+  const notificationsToInsert: any[] = [];
+  const notificationDeliveriesToInsert: any[] = [];
+  const notifTypes = [
+    NotificationType.LIKE,
+    NotificationType.REPLY,
+    NotificationType.FOLLOW,
+    NotificationType.REPOST,
+    NotificationType.MENTION,
+    NotificationType.COMMENT,
+  ];
+
+  for (let i = 0; i < 620; i++) {
+    const recipient = randomItem(allUsers);
+    const sender = randomItem(allUsers);
+    if (sender.id === recipient.id) continue;
+    const type = randomItem(notifTypes);
+    const thought = Math.random() < 0.6 ? randomItem(rootThoughts) : null;
+    const article = Math.random() < 0.3 ? randomItem(articlesToInsert) : null;
+
+    notificationsToInsert.push({
+      id: cuid(),
+      recipientId: recipient.id,
+      senderId: sender.id,
+      type,
+      thoughtId: thought ? thought.id : null,
+      articleId: article ? article.id : null,
+      commentId: null,
+      publicationId: null,
+      isRead: Math.random() < 0.45,
+      createdAt: randomDate(0, 30),
+    });
+  }
+
+  for (const notif of notificationsToInsert) {
+    if (Math.random() >= 0.7) continue;
+    const channel = randomItem(['EMAIL', 'PUSH']);
+    notificationDeliveriesToInsert.push({
+      id: cuid(),
+      notificationId: notif.id,
+      channel,
+      status: notif.isRead ? 'SENT' : randomItem(['QUEUED', 'SENT', 'SENT', 'FAILED']),
+      recipient: `${notif.recipientId}@qoe.fi`,
+      provider: channel === 'EMAIL' ? 'resend' : 'fcm',
+      attempts: randomInt(0, 2),
+      availableAt: notif.createdAt,
+      sentAt:
+        Math.random() < 0.8 ? new Date(notif.createdAt.getTime() + randomInt(1, 120) * 1000) : null,
+      lastError: null,
+      createdAt: notif.createdAt,
+      updatedAt: new Date(),
+      dedupeKey: `${notif.id}-${channel}`,
+    });
+  }
+
+  await batchInsert('Notifications', prisma.notification, notificationsToInsert);
+  await batchInsert(
+    'Notification Deliveries',
+    prisma.notificationDelivery,
+    notificationDeliveriesToInsert
+  );
+
+  // -------------------------------------------------------------------
+  // 18. RÉGLAGES UTILISATEURS (UserSettings + NotificationPreference)
+  // -------------------------------------------------------------------
+  console.log(
+    '\n⚙️  [18/23] Génération des réglages utilisateurs & préférences de notification...'
+  );
+  const settingsToInsert: any[] = [];
+  const notifPrefsToInsert: any[] = [];
+  allUsers.forEach((u, i) => {
+    settingsToInsert.push({
+      id: cuid(),
+      userId: u.id,
+      profileVisibility: i % 11 === 0 ? 'FOLLOWERS' : i % 17 === 0 ? 'PRIVATE' : 'PUBLIC',
+      allowMentions: i % 13 !== 0,
+      allowCollaborationInvites: i % 19 !== 0,
+      showSensitiveContent: i % 7 === 0,
+      autoplayMedia: i % 9 !== 0,
+      reduceMotion: i % 15 === 0,
+      highContrast: i % 23 === 0,
+      fontScale: randomInt(90, 120),
+      defaultFeed: i % 5 === 0 ? 'DISCOVER' : 'FOLLOWING',
+      createdAt: u.createdAt,
+      updatedAt: new Date(),
+    });
+    notifPrefsToInsert.push({
+      id: cuid(),
+      userId: u.id,
+      emailLikes: i % 12 !== 0,
+      pushLikes: i % 10 !== 0,
+      emailReplies: i % 8 !== 0,
+      pushReplies: true,
+      emailMentions: true,
+      pushMentions: true,
+      emailFollows: i % 9 !== 0,
+      pushFollows: i % 14 !== 0,
+      emailReposts: i % 11 !== 0,
+      pushReposts: true,
+      emailComments: i % 13 !== 0,
+      pushComments: true,
+      emailMedia: i % 16 !== 0,
+      pushMedia: true,
+      emailCollaborations: i % 7 !== 0,
+      pushCollaborations: i % 18 !== 0,
+      createdAt: u.createdAt,
+      updatedAt: new Date(),
+    });
+  });
+  await batchInsert('User Settings', prisma.userSettings, settingsToInsert);
+  await batchInsert('Notification Preferences', prisma.notificationPreference, notifPrefsToInsert);
+
+  // -------------------------------------------------------------------
+  // 19. STARTER PACKS (StarterPack + StarterPackItem)
+  // -------------------------------------------------------------------
+  console.log('\n🚀 [19/23] Génération des Starter Packs...');
+  const starterPacksToInsert: any[] = [];
+  const starterPackItemsToInsert: any[] = [];
+  createdMedias.forEach((m) => {
+    const packId = cuid();
+    starterPacksToInsert.push({
+      id: packId,
+      title: `${m.name} — La sélection d'auteurs à suivre`,
+      description: 'Notre équipe recommande ces créateurs indépendants pour enrichir votre veille.',
+      icon: randomItem(['🚀', '🌟', '📚', '🧭', '🎯']),
+      publicationId: m.pubId,
+      createdAt: randomDate(40, 150),
+      updatedAt: new Date(),
+    });
+    randomItems(creators, randomInt(6, 10)).forEach((c) => {
+      starterPackItemsToInsert.push({
+        id: cuid(),
+        starterPackId: packId,
+        userId: c.id,
+        createdAt: randomDate(40, 150),
+      });
+    });
+  });
+  await batchInsert('Starter Packs', prisma.starterPack, starterPacksToInsert);
+  await batchInsert('Starter Pack Items', prisma.starterPackItem, starterPackItemsToInsert);
+
+  // -------------------------------------------------------------------
+  // 20. SONDAGES (Poll + PollOption + PollVote)
+  // -------------------------------------------------------------------
+  console.log('\n🗳️  [20/23] Génération des sondages (Polls)...');
+  const pollsToInsert: any[] = [];
+  const pollOptionsToInsert: any[] = [];
+  const pollVotesToInsert: any[] = [];
+  const POLL_TEMPLATES: [string, string[]][] = [
+    [
+      'Préférez-vous une lecture lente et approfondie, ou des formats courts ?',
+      ['Lecture lente', 'Formats courts', 'Les deux'],
+    ],
+    [
+      'Quel sujet faut-il traiter en priorité ?',
+      ['Souveraineté numérique', 'Éducation', 'Économie', 'Culture'],
+    ],
+    [
+      'Plutôt livre papier ou livre numérique ?',
+      ['Papier', 'Numérique', 'Audiobook', 'Peu importe'],
+    ],
+    [
+      'Faut-il réguler davantage les plateformes centralisées ?',
+      ['Oui, fermement', 'Oui, avec prudence', 'Non', 'Sans avis'],
+    ],
+  ];
+  for (let i = 0; i < 36 && i < rootThoughts.length; i++) {
+    const thought = rootThoughts[i];
+    const [question, options] = POLL_TEMPLATES[i % POLL_TEMPLATES.length];
+    const pollId = cuid();
+    pollsToInsert.push({
+      id: pollId,
+      thoughtId: thought.id,
+      expiresAt: new Date(Date.now() + randomInt(2, 14) * 24 * 3600 * 1000),
+      createdAt: thought.createdAt,
+    });
+    const optionIds = options.map((text, oIdx) => {
+      const optId = cuid();
+      pollOptionsToInsert.push({ id: optId, pollId, text, order: oIdx });
+      return optId;
+    });
+    const daysSinceThought = Math.max(
+      1,
+      Math.round((Date.now() - thought.createdAt.getTime()) / 86400000)
+    );
+    const usedVoters = new Set<string>();
+    for (let v = 0; v < randomInt(18, 90); v++) {
+      const voter = randomItem(allUsers);
+      if (usedVoters.has(voter.id)) continue;
+      usedVoters.add(voter.id);
+      pollVotesToInsert.push({
+        id: cuid(),
+        pollId,
+        optionId: randomItem(optionIds),
+        userId: voter.id,
+        createdAt: randomDate(0, daysSinceThought),
+      });
+    }
+  }
+  await batchInsert('Polls', prisma.poll, pollsToInsert);
+  await batchInsert('Poll Options', prisma.pollOption, pollOptionsToInsert);
+  await batchInsert('Poll Votes', prisma.pollVote, pollVotesToInsert);
+
+  // -------------------------------------------------------------------
+  // 21. LIENS SOCIAUX, TRANSACTIONS & MODÉRATION SOCIALE
+  //    (SocialLink + WalletTransaction + MutedWord/BlockedUser/MutedUser)
+  // -------------------------------------------------------------------
+  console.log(
+    '\n🌐 [21/23] Génération des liens sociaux, transactions wallet & modération sociale...'
+  );
+  const socialLinksToInsert: any[] = [];
+  createdMedias.forEach((m) => {
+    const slug = slugify(m.name);
+    [
+      ['twitter', `https://x.com/${slug}`],
+      ['mastodon', `https://mastodon.social/@${slug}`],
+      ['website', `https://${slug}.qoe.fi`],
+    ].forEach(([platform, url], sIdx) => {
+      socialLinksToInsert.push({ id: cuid(), platform, url, order: sIdx, publicationId: m.pubId });
+    });
+  });
+  userPubConfigs.forEach(({ pubId }, i) => {
+    if (i % 4 !== 0) return;
+    const username = allUsers[i].username ?? 'createur';
+    [
+      ['twitter', `https://x.com/${username}`],
+      ['linkedin', `https://www.linkedin.com/in/${username}`],
+    ].forEach(([platform, url], sIdx) => {
+      socialLinksToInsert.push({ id: cuid(), platform, url, order: sIdx, publicationId: pubId });
+    });
+  });
+  await batchInsert('Social Links', prisma.socialLink, socialLinksToInsert);
+
+  const walletTxToInsert: any[] = [];
+  for (let i = 0; i < 320; i++) {
+    const user = randomItem(allUsers);
+    const type = randomItem(['DEPOSIT', 'DEPOSIT', 'SUBSCRIPTION_PAYMENT', 'REFUND']);
+    walletTxToInsert.push({
+      id: cuid(),
+      userId: user.id,
+      amountCents:
+        type === 'DEPOSIT'
+          ? randomInt(500, 5000)
+          : type === 'SUBSCRIPTION_PAYMENT'
+            ? -randomInt(500, 900)
+            : randomInt(100, 500),
+      type,
+      createdAt: randomDate(1, 120),
+    });
+  }
+  await batchInsert('Wallet Transactions', prisma.walletTransaction, walletTxToInsert);
+
+  const mutedWordsToInsert: any[] = [];
+  const blockedUsersToInsert: any[] = [];
+  const mutedUsersToInsert: any[] = [];
+  const mutedWordSet = new Set<string>();
+  const mutedUserSet = new Set<string>();
+  for (let i = 0; i < 120; i++) {
+    const user = randomItem(allUsers);
+    const word = randomItem(['crypto', 'NFT', 'spam', 'pub', 'clickbait', 'fakenews']);
+    const key = `${user.id}_${word}`;
+    if (mutedWordSet.has(key)) continue;
+    mutedWordSet.add(key);
+    mutedWordsToInsert.push({ id: cuid(), word, userId: user.id, createdAt: randomDate(5, 90) });
+  }
+  const blockSet = new Set<string>();
+  for (let i = 0; i < 60; i++) {
+    const creator = randomItem(creators);
+    const reader = randomItem(allUsers);
+    if (creator.id === reader.id) continue;
+    const key = `${creator.id}_${reader.id}`;
+    if (blockSet.has(key)) continue;
+    blockSet.add(key);
+    blockedUsersToInsert.push({
+      id: cuid(),
+      creatorId: creator.id,
+      readerId: reader.id,
+      createdAt: randomDate(5, 90),
+    });
+    const mKey = `${reader.id}_${creator.id}`;
+    if (Math.random() < 0.5 && !mutedUserSet.has(mKey)) {
+      mutedUserSet.add(mKey);
+      mutedUsersToInsert.push({
+        id: cuid(),
+        muterId: reader.id,
+        mutedId: creator.id,
+        createdAt: randomDate(5, 90),
+      });
+    }
+  }
+  await batchInsert('Muted Words', prisma.mutedWord, mutedWordsToInsert);
+  await batchInsert('Blocked Users', prisma.blockedUser, blockedUsersToInsert);
+  await batchInsert('Muted Users', prisma.mutedUser, mutedUsersToInsert);
+
+  // -------------------------------------------------------------------
+  // 22. APPLICATIONS OAuth DE DÉMO (OAuthClient + OAuthConsent)
+  // -------------------------------------------------------------------
+  console.log('\n🔐 [22/23] Génération des applications OAuth de démo...');
+  const oauthClientsToInsert: any[] = [];
+  const oauthConsentsToInsert: any[] = [];
+  const oauthDemoApps: any[] = [
+    {
+      clientId: 'qoe_oauth_demo_reader',
+      name: 'Reader Démo',
+      description: 'Application de lecture tierce utilisant OAuth 2.1 / OIDC.',
+      logoUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=reader-demo',
+      homepageUrl: 'http://localhost:3000',
+      redirectUris: ['http://localhost:3000/callback'],
+      scopes: ['openid', 'profile', 'email'],
+      clientType: OAuthClientType.CONFIDENTIAL,
+      status: OAuthClientStatus.APPROVED,
+    },
+    {
+      clientId: 'qoe_oauth_pkce_mobile',
+      name: 'App Mobile PKCE',
+      description: 'Client public mobile avec PKCE (S256).',
+      logoUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=mobile-demo',
+      homepageUrl: 'https://qoe.fi',
+      redirectUris: ['qoeapp://oauth/callback'],
+      scopes: ['openid', 'profile'],
+      clientType: OAuthClientType.PUBLIC,
+      status: OAuthClientStatus.APPROVED,
+    },
+    {
+      clientId: 'qoe_oauth_pending_analytics',
+      name: 'Analytics Tierce',
+      description: "App en attente de modération par l'équipe.",
+      logoUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=analytics',
+      homepageUrl: 'https://analytics.qoe.fi',
+      redirectUris: ['https://analytics.qoe.fi/oauth/callback'],
+      scopes: ['openid', 'email'],
+      clientType: OAuthClientType.CONFIDENTIAL,
+      status: OAuthClientStatus.PENDING,
+    },
+  ];
+  oauthDemoApps.forEach((app, aIdx) => {
+    const owner = creators[aIdx % creators.length];
+    oauthClientsToInsert.push({
+      id: cuid(),
+      ...app,
+      clientSecretHash:
+        app.clientType === OAuthClientType.CONFIDENTIAL
+          ? sha256(`demo-secret-${app.clientId}`)
+          : null,
+      ownerUserId: owner.id,
+      createdAt: randomDate(20, 90),
+      updatedAt: new Date(),
+    });
+  });
+  const approvedClients = oauthClientsToInsert.filter(
+    (c) => c.status === OAuthClientStatus.APPROVED
+  );
+  const consentSet = new Set<string>();
+  for (let i = 0; i < 90 && approvedClients.length > 0; i++) {
+    const client = randomItem(approvedClients);
+    const user = randomItem(allUsers);
+    const key = `${client.id}_${user.id}`;
+    if (consentSet.has(key)) continue;
+    consentSet.add(key);
+    oauthConsentsToInsert.push({
+      id: cuid(),
+      clientId: client.id,
+      userId: user.id,
+      scopes: client.scopes,
+      grantedAt: randomDate(10, 60),
+      updatedAt: new Date(),
+    });
+  }
+  await batchInsert('OAuth Clients', prisma.oAuthClient, oauthClientsToInsert);
+  await batchInsert('OAuth Consents', prisma.oAuthConsent, oauthConsentsToInsert);
+
+  // -------------------------------------------------------------------
+  // 23. TENDANCES, PROMOS, CONFIG, RECOS & SIGNALEMENTS
+  //    (Trend + PartnerPromo + SystemConfig + Recommendation + NavigationItem + ModerationReport + CollaborationRequest)
+  // -------------------------------------------------------------------
+  console.log(
+    '\n📈 [23/23] Génération tendances, promos partenaires, config système, recommandations & signalements...'
+  );
+  const trendsToInsert: any[] = [];
+  const TREND_TAGS = [
+    '#SouveraineteNumerique',
+    '#TechnoCritique',
+    '#WebLibre',
+    '#Education',
+    '#OpenSource',
+    '#Philosophie',
+    '#Litterature',
+    '#DataPrivacy',
+    '#MediaIndependants',
+    '#NumeriqueResponsable',
+  ];
+  TREND_TAGS.forEach((tag) => {
+    trendsToInsert.push({
+      id: cuid(),
+      hashtag: tag,
+      count: randomInt(400, 12000),
+      createdAt: randomDate(1, 30),
+      updatedAt: new Date(),
+    });
+  });
+  await batchInsert('Trends', prisma.trend, trendsToInsert);
+
+  const partnerPromosToInsert: any[] = [
+    {
+      id: cuid(),
+      title: 'Soutenez la presse indépendante',
+      description:
+        'Découvrez les médias membres de notre réseau et abonnez-vous à tarif préférentiel.',
+      ctaText: 'Découvrir',
+      ctaUrl: 'https://qoe.fi/medias',
+      imageUrl: `https://images.unsplash.com/photo-${1500000000000 + ((Math.random() * 90000000) | 0)}?auto=format&fit=crop&w=800&q=80`,
+      isActive: true,
+      createdAt: randomDate(10, 60),
+      updatedAt: new Date(),
+    },
+    {
+      id: cuid(),
+      title: 'Lire sans algorithme',
+      description: 'Reprenez la main sur votre fil : suivez les créateurs qui comptent vraiment.',
+      ctaText: 'Commencer',
+      ctaUrl: 'https://qoe.fi',
+      imageUrl: `https://images.unsplash.com/photo-${1500000000000 + ((Math.random() * 90000000) | 0)}?auto=format&fit=crop&w=800&q=80`,
+      isActive: true,
+      createdAt: randomDate(10, 60),
+      updatedAt: new Date(),
+    },
+    {
+      id: cuid(),
+      title: 'Offre étudiant',
+      description: '-50% sur les abonnements premium pour les étudiants vérifiés.',
+      ctaText: 'Vérifier',
+      ctaUrl: 'https://qoe.fi/etudiants',
+      imageUrl: null,
+      isActive: false,
+      createdAt: randomDate(10, 60),
+      updatedAt: new Date(),
+    },
+  ];
+  await batchInsert('Partner Promos', prisma.partnerPromo, partnerPromosToInsert);
+
+  const systemConfigsToInsert: any[] = [
+    {
+      key: 'platform.maintenance_mode',
+      value: 'false',
+      description: 'Bascule de maintenance globale de la plateforme.',
+      updatedAt: new Date(),
+    },
+    {
+      key: 'platform.announcement',
+      value: "Bienvenue sur qoe.fi — l'écosystème des médias indépendants.",
+      description: "Message d'annonce affiché sur l'accueil.",
+      updatedAt: new Date(),
+    },
+    {
+      key: 'billing.default_currency',
+      value: 'EUR',
+      description: 'Devise par défaut des abonnements.',
+      updatedAt: new Date(),
+    },
+    {
+      key: 'moderation.auto_flag_threshold',
+      value: '0.85',
+      description: 'Seuil de score de modération automatique.',
+      updatedAt: new Date(),
+    },
+    {
+      key: 'media.asset_orphan_ttl_days',
+      value: '3',
+      description: 'TTL des MediaAsset DRAFT_ORPHAN avant purge.',
+      updatedAt: new Date(),
+    },
+  ];
+  await batchInsert('System Config', prisma.systemConfig, systemConfigsToInsert);
+
+  const recommendationsToInsert: any[] = [];
+  const recSet = new Set<string>();
+  createdMedias.forEach((m) => {
+    for (let r = 0; r < randomInt(2, 5); r++) {
+      const rec = randomItem(userPubConfigs);
+      const key = `${m.pubId}_${rec.pubId}`;
+      if (recSet.has(key)) continue;
+      recSet.add(key);
+      recommendationsToInsert.push({
+        id: cuid(),
+        recommenderId: m.pubId,
+        recommendedId: rec.pubId,
+        description: `${m.name} recommande chaudement ce créateur indépendant.`,
+        createdAt: randomDate(5, 60),
+      });
+    }
+  });
+  await batchInsert('Recommendations', prisma.recommendation, recommendationsToInsert);
+
+  const navItemsToInsert: any[] = [];
+  createdMedias.forEach((m) => {
+    const labels = ['Accueil', 'À la une', 'Podcast', 'À propos', 'Contact'];
+    labels.forEach((label, lIdx) => {
+      navItemsToInsert.push({
+        id: cuid(),
+        label,
+        url: lIdx === 0 ? null : `/${slugify(label)}`,
+        order: lIdx,
+        isExternal: false,
+        publicationId: m.pubId,
+        parentId: null,
+      });
+    });
+  });
+  await batchInsert('Navigation Items', prisma.navigationItem, navItemsToInsert);
+
+  const moderationReportsToInsert: any[] = [];
+  for (let i = 0; i < 25; i++) {
+    const reporter = randomItem(allUsers);
+    const target = randomItem([...rootThoughts, ...articlesToInsert]);
+    const isThought = 'likeCount' in target;
+    moderationReportsToInsert.push({
+      id: cuid(),
+      reporterId: reporter.id,
+      targetId: target.id,
+      targetType: isThought ? 'thought' : 'article',
+      reason: randomItem([
+        'Spam',
+        'Contenu haineux',
+        'Désinformation',
+        'Harcèlement',
+        'Contenu violent',
+      ]),
+      details:
+        'Signalement généré automatiquement lors du seed pour tester le workflow de modération.',
+      status: randomItem(['pending', 'pending', 'reviewed', 'dismissed']),
+      createdAt: randomDate(1, 60),
+      updatedAt: new Date(),
+    });
+  }
+  await batchInsert('Moderation Reports', prisma.moderationReport, moderationReportsToInsert);
+
+  const collabRequestsToInsert: any[] = [];
+  const collabSet = new Set<string>();
+  for (let i = 0; i < 30; i++) {
+    const article = randomItem(articlesToInsert);
+    const inviter = creators[i % creators.length];
+    const invitee = randomItem(creators);
+    if (inviter.id === invitee.id || invitee.id === article.authorId) continue;
+    const key = `${article.id}_${invitee.id}`;
+    if (collabSet.has(key)) continue;
+    collabSet.add(key);
+    collabRequestsToInsert.push({
+      id: cuid(),
+      articleId: article.id,
+      inviterId: inviter.id,
+      inviteeId: invitee.id,
+      status: randomItem(['PENDING', 'PENDING', 'ACCEPTED', 'DECLINED']),
+      requestedRole: 'CO_AUTHOR',
+      requestedOrder: randomInt(1, 3),
+      showOnPublicProfile: true,
+      acceptedAt: Math.random() < 0.3 ? randomDate(1, 30) : null,
+      createdAt: randomDate(5, 90),
+      updatedAt: new Date(),
+    });
+  }
+  await batchInsert('Collaboration Requests', prisma.collaborationRequest, collabRequestsToInsert);
+
+  // -------------------------------------------------------------------
   // RÉSUMÉ FINAL
   // -------------------------------------------------------------------
   const totalSec = ((Date.now() - startAll) / 1000).toFixed(2);
@@ -1611,6 +2505,18 @@ async function main() {
     'Signets (Bookmarks)': bookmarksToInsert.length,
     'Abonnés (Subscribers)': subscribersToInsert.length,
     'Lettres aux Auteurs': lettersToInsert.length,
+    'Médias Uploadés (MediaAsset)': mediaAssetsToInsert.length,
+    'Pièces Jointes (MediaAttachment)': mediaAttachmentsToInsert.length,
+    'Webhooks & Livraisons': webhooksToInsert.length + deliveriesToInsert.length,
+    'Clés API (ApiKey)': apiKeysToInsert.length,
+    'Notifications & Livraisons':
+      notificationsToInsert.length + notificationDeliveriesToInsert.length,
+    'Réglages Utilisateurs (UserSettings)': settingsToInsert.length,
+    'Starter Packs & Items': starterPacksToInsert.length + starterPackItemsToInsert.length,
+    'Sondages (Poll/Options/Votes)':
+      pollsToInsert.length + pollOptionsToInsert.length + pollVotesToInsert.length,
+    'Apps OAuth Démo': oauthClientsToInsert.length,
+    'Transactions Wallet': walletTxToInsert.length,
   });
   console.log(`⏱️  Temps total d'exécution : ${totalSec}s\n`);
 }
