@@ -1,55 +1,84 @@
+// =====================================================================
+// 📤 API Upload Sécurisée — apps/core/src/app/api/upload/route.ts
+// =====================================================================
+// 1. Validation binaire des Magic Bytes
+// 2. Modération multimodale OpenAI (Zéro-NSFW sur les pensées et profils)
+// 3. Protection Anti-Bomb / Stripping EXIF / Transcodage WebP
+// 4. Dédoublonnage CAS par hachage SHA-256
+// 5. Enregistrement sous MediaAsset (DRAFT_ORPHAN, TTL: 3 jours)
+// =====================================================================
+
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@qoe/supabase/server';
-import { uploadImage, IMAGE_FOLDERS, type ImageFolder } from '@qoe/supabase/storage';
+import { uploadAndProcessMedia, IMAGE_FOLDERS, type ImageFolder } from '@qoe/supabase/media-engine';
+import { registerMediaAsset } from '@qoe/db/repositories/media';
 
-const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_FOLDERS = new Set(Object.values(IMAGE_FOLDERS));
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
 
-    // Check if the user is authenticated
+    // 🔐 Authentification
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
-    const folder = (formData.get('folder') as ImageFolder | null) || IMAGE_FOLDERS.articles;
+    const folder = ((formData.get('folder') as ImageFolder | null) ||
+      IMAGE_FOLDERS.thoughts) as ImageFolder;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-    }
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ error: 'File must be an image' }, { status: 400 });
-    }
-
-    // Validate file size
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: 'File size exceeds 10MB limit' }, { status: 400 });
+      return NextResponse.json({ error: 'Aucun fichier fourni' }, { status: 400 });
     }
 
     if (!ALLOWED_FOLDERS.has(folder)) {
-      return NextResponse.json({ error: 'Invalid folder' }, { status: 400 });
+      return NextResponse.json({ error: 'Dossier de destination invalide' }, { status: 400 });
     }
 
-    // Upload to Supabase Storage via the shared helper
-    const url = await uploadImage(supabase, file, {
+    // Extraction du buffer binaire pour inspection approfondie
+    const arrayBuffer = await file.arrayBuffer();
+    const fileBuffer = Buffer.from(arrayBuffer);
+
+    // 🚀 Pipeline de Sécurité, Modération NSFW & Transcodage Sharp
+    const result = await uploadAndProcessMedia(supabase, fileBuffer, file.type, {
       folder,
       ownerId: user.id,
     });
 
-    return NextResponse.json({ url }, { status: 200 });
-  } catch (error) {
-    console.error('Upload API Route Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    // 📝 Enregistrement dans le registre de cycle de vie MediaAsset (TTL 3j orphan)
+    await registerMediaAsset({
+      sha256: result.sha256,
+      url: result.url,
+      storagePath: result.storagePath,
+      mimeType: result.mimeType,
+      width: result.width,
+      height: result.height,
+      sizeBytes: result.sizeBytes,
+      blurhash: result.blurhash,
+      ownerId: user.id,
+      targetType: folder === IMAGE_FOLDERS.avatars ? 'USER_AVATAR' : 'THOUGHT_ATTACHMENT',
+    });
+
+    return NextResponse.json(
+      {
+        url: result.url,
+        blurhash: result.blurhash,
+        width: result.width,
+        height: result.height,
+        sha256: result.sha256,
+      },
+      { status: 200 }
+    );
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Erreur interne lors de l'upload";
+    console.error('❌ Erreur Upload Core:', message);
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

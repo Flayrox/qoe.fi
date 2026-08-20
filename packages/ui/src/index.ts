@@ -74,3 +74,15 @@ export { SafeAvatar, type SafeAvatarProps } from './SafeAvatar';
 export { SafeImage, type SafeImageProps } from './SafeImage';
 export { WidgetErrorBoundary, type WidgetErrorBoundaryProps } from './WidgetErrorBoundary';
 export { ClientDate, type ClientDateProps } from './ClientDate';
+export {
+  ZoomableLightbox,
+  LightboxProvider,
+  useZoomableLightbox,
+  type LightboxImageItem,
+  type ZoomableLightboxProps,
+} from './social/ZoomableLightbox';
+export {
+  MediaLightbox,
+  type MediaLightboxProps,
+  type MediaLightboxImage,
+} from './social/MediaLightbox';

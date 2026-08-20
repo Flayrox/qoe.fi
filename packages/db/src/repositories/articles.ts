@@ -9,6 +9,11 @@
 import { prisma } from '../client';
 import type { Article } from '@prisma/client';
 import { syncOfficialAnnotationsFromHtml } from './highlights';
+import {
+  reconcileMediaAttachments,
+  markMediaAsSoftDeleted,
+  extractImageUrlsFromHtml,
+} from './media';
 
 const publicationSelect = {
   id: true,
@@ -150,9 +155,29 @@ export async function create(data: {
     },
   });
 
+  // 🔗 Réconcilier les images dans le contenu HTML de l'article (DRAFT_ORPHAN -> ATTACHED)
+  const htmlImageUrls = extractImageUrlsFromHtml(data.content);
+  if (htmlImageUrls.length > 0) {
+    void reconcileMediaAttachments(htmlImageUrls, article.id, 'ARTICLE_BODY').catch(() => {});
+  }
+
   if (data.content && data.content.includes('data-annotation-note')) {
     await syncOfficialAnnotationsFromHtml(article.id, data.authorId, data.content);
   }
+
+  return article;
+}
+
+/**
+ * 🗑️ Supprime un article et met ses médias rattachés en corbeille (période de grâce 14j).
+ */
+export async function deleteArticleById(id: string) {
+  const article = await prisma.article.delete({
+    where: { id },
+  });
+
+  // 🗑️ Met en corbeille les médias attachés avec période de grâce de 14 jours
+  void markMediaAsSoftDeleted(id, 14).catch(() => {});
 
   return article;
 }

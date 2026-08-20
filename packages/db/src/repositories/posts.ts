@@ -7,6 +7,7 @@ import type { Thought, Prisma } from '@prisma/client';
 import { POST_VISIBILITY } from '@qoe/config';
 import { getFollowedUserIds } from './follows';
 import { getOrCreatePersonalPublication } from './publications';
+import { reconcileMediaAttachments, markMediaAsSoftDeleted } from './media';
 
 const quotedArticleInclude = {
   include: {
@@ -645,6 +646,22 @@ export async function createThought(data: {
       },
     },
   });
+
+  // 🔗 Réconcilier les images rattachées à la pensée (DRAFT_ORPHAN -> ATTACHED)
+  if (!data.isDraft) {
+    const urlsToReconcile: string[] = [];
+    if (data.imageUrl) urlsToReconcile.push(data.imageUrl);
+    if (data.attachments && Array.isArray(data.attachments)) {
+      for (const att of data.attachments) {
+        if (att && att.url) urlsToReconcile.push(att.url);
+      }
+    }
+    if (urlsToReconcile.length > 0) {
+      void reconcileMediaAttachments(urlsToReconcile, newPost.id, 'THOUGHT_ATTACHMENT').catch(
+        () => {}
+      );
+    }
+  }
 
   if (data.tags && data.tags.length > 0) {
     recordHashtags(data.tags).catch((err) =>
@@ -1426,6 +1443,10 @@ export async function deletePost(postId: string, authorId: string): Promise<bool
     where: { id: postId },
     data: { deletedAt: new Date() },
   });
+
+  // 🗑️ Met en corbeille les médias attachés avec période de grâce de 14 jours
+  void markMediaAsSoftDeleted(postId, 14).catch(() => {});
+
   void cacheInvalidateNamespace('feed:trending:').catch(() => {});
   void cacheInvalidateNamespace(`feed:following:${authorId}:`).catch(() => {});
   return true;
