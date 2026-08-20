@@ -1,12 +1,7 @@
 import { createClient } from '@qoe/supabase/server';
 import { prisma } from '@qoe/db/client';
 import type { Prisma } from '@qoe/db/types';
-import {
-  getRequestDbUser,
-  getCachedTrends,
-  getCachedPromos,
-  getCachedFeaturedArticle,
-} from '@/lib/cached-queries';
+import { getRequestDbUser, getCachedPromos, getCachedFeaturedArticle } from '@/lib/cached-queries';
 import {
   buildFeedSlices,
   formatPollData,
@@ -14,6 +9,7 @@ import {
   type FormattedPoll,
   type FeedSlice,
 } from '@qoe/db/repositories/posts';
+import { getSuggestedCreatorsByVector, getSemanticTrendingTopics } from '@qoe/db/feed';
 import { FeedDashboard } from './FeedDashboard';
 
 interface FeedPostRecord {
@@ -711,18 +707,9 @@ export default async function ReaderHomePage() {
     ? prisma.highlight.count({ where: { readerId: user.id } })
     : Promise.resolve(0);
 
-  const suggestedCreatorsPromise = prisma.publication.findMany({
-    where: {
-      type: 'PERSONAL',
-      isCertified: true,
-      ...(user
-        ? {
-            id: publicationIds.length > 0 ? { notIn: publicationIds } : { not: user.id },
-          }
-        : {}),
-    },
-    select: publicationProfileSelect,
-    take: 3,
+  const suggestedCreatorsPromise = getSuggestedCreatorsByVector({
+    userId: user?.id,
+    limit: 4,
   });
 
   // Récupérer les mots masqués en parallèle
@@ -733,8 +720,8 @@ export default async function ReaderHomePage() {
       })
     : Promise.resolve([]);
 
-  // Promesses pour les Widgets (mises en cache au niveau du module)
-  const trendsPromise = getCachedTrends();
+  // Promesses pour les Widgets (Tendances sémantiques IA + Promos + Article vedette)
+  const trendsPromise = getSemanticTrendingTopics({ limit: 5 });
   const promosPromise = getCachedPromos();
   const featuredArticlePromise = getCachedFeaturedArticle();
 
@@ -828,7 +815,8 @@ export default async function ReaderHomePage() {
     discoverArticles,
     bookmarks: bookmarks.map((b) => mapArticleToFeedItem(b.article)),
     followedCreators: followedPublications.map((f) => mapPublicationToAuthor(f.publication)),
-    suggestedCreators: suggestedCreators.map((s) => mapPublicationToAuthor(s)),
+    suggestedCreators,
+    semanticTrends: trends,
     initialFollowsCount: followsCount,
     followedAuthorIds: followedUserIds,
     initialBookmarksCount: bookmarksCount,
@@ -836,7 +824,7 @@ export default async function ReaderHomePage() {
     mutedWords: mutedWordsList,
     featuredArticle: widgetFeaturedArticle,
     recommendedArticles: widgetRecArticles,
-    trends: trends.map((t) => ({ id: t.id, hashtag: t.hashtag, count: t.count })),
+    trends: trends.map((t) => ({ id: t.id, hashtag: t.topicName, count: t.count })),
     promos: promos.map((p) => ({
       id: p.id,
       title: p.title,

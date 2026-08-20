@@ -4,31 +4,46 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import {
-  Compass,
   TrendingUp,
   UserCheck,
   UserPlus,
   BookOpen,
   Highlighter,
   Users,
+  Sparkles,
+  Flame,
+  ArrowUpRight,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
-
 import { routes } from '@qoe/config/routes';
 
-interface SuggestedCreator {
+export interface SuggestedCreator {
   id: string;
   name: string | null;
   username: string | null;
-  subdomain: string | null;
+  subdomain?: string | null;
+  customDomain?: string | null;
   logoUrl: string | null;
+  heroText?: string | null;
+  affinityScore?: number;
+  recentArticleTitle?: string | null;
+}
+
+export interface SemanticTrendingTopic {
+  id: string;
+  topicName: string;
+  description?: string;
+  count: number;
+  growthRate: string;
 }
 
 interface FeedSidebarWidgetsProps {
   suggestedCreators: SuggestedCreator[];
+  semanticTrends?: SemanticTrendingTopic[];
   onFollowToggle: (creator: SuggestedCreator) => void;
   onOpenProfile?: (username: string) => void;
+  onSelectTopic?: (topicName: string) => void;
   userStats?: {
     articlesRead: number;
     highlights: number;
@@ -42,8 +57,10 @@ const springs = {
 
 export function FeedSidebarWidgets({
   suggestedCreators,
+  semanticTrends,
   onFollowToggle,
   onOpenProfile,
+  onSelectTopic,
   userStats,
 }: FeedSidebarWidgetsProps) {
   const [followedLocally, setFollowedLocally] = useState<Set<string>>(new Set());
@@ -86,106 +103,162 @@ export function FeedSidebarWidgets({
         </div>
       )}
 
-      {/* ── Widget 2 : Créateurs suggérés ── */}
+      {/* ── Widget 2 : Créateurs suggérés par Affinité IA ── */}
       {suggestedCreators.length > 0 && (
         <div className="bg-card border border-border/60 rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <Compass className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
-              {t`À Découvrir`}
+              <Sparkles className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
+              {t`Plumes Recommandées`}
             </span>
-            <button
-              type="button"
-              className="text-[10px] font-semibold text-muted-foreground hover:text-primary transition-colors cursor-pointer outline-none"
-            >
-              {t`Voir +`}
-            </button>
+            <span className="text-[10px] text-muted-foreground font-medium">
+              {t`Selon vos lectures`}
+            </span>
           </div>
 
-          <div className="space-y-3.5">
-            {suggestedCreators.slice(0, 3).map((creator) => {
+          <div className="space-y-4">
+            {suggestedCreators.slice(0, 4).map((creator) => {
               const isFollowedLocally = followedLocally.has(creator.id);
               const isJustFollowed = justFollowed === creator.id;
 
               return (
-                <div key={creator.id} className="flex items-center justify-between gap-3 group/sug">
-                  <motion.button
-                    type="button"
-                    onClick={() => {
-                      const username = creator.username || creator.subdomain || '';
-                      if (onOpenProfile) {
-                        onOpenProfile(username);
-                      } else {
-                        window.location.href = routes.feed.profile(username);
-                      }
-                    }}
-                    whileTap={{ scale: 0.98 }}
-                    className="flex items-center gap-2.5 min-w-0 hover:opacity-85 transition-opacity cursor-pointer flex-1 outline-none text-left"
-                  >
-                    <div className="w-8 h-8 rounded-lg overflow-hidden border border-border/60 shrink-0 transition-transform duration-200 group-hover/sug:scale-105 bg-muted flex items-center justify-center font-bold text-xs text-primary">
-                      {creator.logoUrl ? (
-                        <Image
-                          src={creator.logoUrl}
-                          width={32}
-                          height={32}
-                          className="w-full h-full object-cover"
-                          alt=""
-                        />
-                      ) : (
-                        creator.name?.charAt(0)
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <span className="text-xs font-semibold text-foreground block leading-tight truncate group-hover/sug:text-primary transition-colors">
-                        {creator.name}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground block truncate mt-0.5 font-mono">
-                        @{creator.username || creator.subdomain}
-                      </span>
-                    </div>
-                  </motion.button>
+                <div
+                  key={creator.id}
+                  className="flex flex-col gap-2 p-2.5 rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors border border-border/30"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <motion.button
+                      type="button"
+                      onClick={() => {
+                        const username = creator.username || creator.subdomain || '';
+                        if (onOpenProfile) {
+                          onOpenProfile(username);
+                        } else {
+                          window.location.href = routes.feed.profile(username);
+                        }
+                      }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1 outline-none text-left"
+                    >
+                      <div className="w-9 h-9 rounded-lg overflow-hidden border border-border/60 shrink-0 bg-muted flex items-center justify-center font-bold text-xs text-primary">
+                        {creator.logoUrl ? (
+                          <Image
+                            src={creator.logoUrl}
+                            width={36}
+                            height={36}
+                            className="w-full h-full object-cover"
+                            alt=""
+                          />
+                        ) : (
+                          creator.name?.charAt(0)
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold text-foreground truncate hover:text-primary transition-colors">
+                            {creator.name}
+                          </span>
+                          {typeof creator.affinityScore === 'number' &&
+                            creator.affinityScore > 0 && (
+                              <span className="text-[9px] font-semibold text-primary px-1.5 py-0.5 rounded-full bg-primary/10 shrink-0">
+                                {creator.affinityScore}%
+                              </span>
+                            )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground block truncate font-mono">
+                          @{creator.username || creator.subdomain}
+                        </span>
+                      </div>
+                    </motion.button>
 
-                  <motion.button
-                    type="button"
-                    whileTap={{ scale: 0.98 }}
-                    transition={springs.follow}
-                    onClick={() => handleFollow(creator)}
-                    className={cn(
-                      'shrink-0 flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer outline-none',
-                      isFollowedLocally
-                        ? 'bg-muted text-muted-foreground'
-                        : 'bg-primary text-primary-foreground hover:opacity-90'
-                    )}
-                  >
-                    <AnimatePresence mode="wait">
-                      {isJustFollowed ? (
-                        <motion.span
-                          key="check"
-                          initial={{ scale: 0.6, opacity: 0 }}
-                          animate={{ scale: [1.3, 1], opacity: 1 }}
-                          exit={{ scale: 0.6, opacity: 0 }}
-                          transition={springs.follow}
-                          className="flex items-center gap-1"
-                        >
-                          <UserCheck className="w-3.5 h-3.5" />
-                          {t`Abonné !`}
-                        </motion.span>
-                      ) : isFollowedLocally ? (
-                        <motion.span key="followed" className="flex items-center gap-1">
-                          <UserCheck className="w-3.5 h-3.5" />
-                          {t`Abonné`}
-                        </motion.span>
-                      ) : (
-                        <motion.span key="follow" className="flex items-center gap-1">
-                          <UserPlus className="w-3.5 h-3.5" />
-                          {t`Suivre`}
-                        </motion.span>
+                    <motion.button
+                      type="button"
+                      whileTap={{ scale: 0.98 }}
+                      transition={springs.follow}
+                      onClick={() => handleFollow(creator)}
+                      className={cn(
+                        'shrink-0 flex items-center gap-1 text-[10px] font-medium px-2.5 py-1.5 rounded-md transition-colors cursor-pointer outline-none',
+                        isFollowedLocally
+                          ? 'bg-muted text-muted-foreground'
+                          : 'bg-primary text-primary-foreground hover:opacity-90'
                       )}
-                    </AnimatePresence>
-                  </motion.button>
+                    >
+                      <AnimatePresence mode="wait">
+                        {isJustFollowed ? (
+                          <motion.span
+                            key="check"
+                            initial={{ scale: 0.6, opacity: 0 }}
+                            animate={{ scale: [1.3, 1], opacity: 1 }}
+                            exit={{ scale: 0.6, opacity: 0 }}
+                            transition={springs.follow}
+                            className="flex items-center gap-1"
+                          >
+                            <UserCheck className="w-3 h-3" />
+                            {t`Abonné !`}
+                          </motion.span>
+                        ) : isFollowedLocally ? (
+                          <motion.span key="followed" className="flex items-center gap-1">
+                            <UserCheck className="w-3 h-3" />
+                            {t`Abonné`}
+                          </motion.span>
+                        ) : (
+                          <motion.span key="follow" className="flex items-center gap-1">
+                            <UserPlus className="w-3 h-3" />
+                            {t`Suivre`}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </motion.button>
+                  </div>
+
+                  {creator.recentArticleTitle && (
+                    <p className="text-[11px] text-muted-foreground line-clamp-1 italic pl-1 border-l-2 border-primary/40">
+                      "{creator.recentArticleTitle}"
+                    </p>
+                  )}
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Widget 3 : Sujets Chauds & Discussions Sémantiques (Sans Hashtags) ── */}
+      {semanticTrends && semanticTrends.length > 0 && (
+        <div className="bg-card border border-border/60 rounded-xl p-5 shadow-xs space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <Flame className="w-3.5 h-3.5 text-warning" strokeWidth={2.5} />
+              {t`Sujets Émergents`}
+            </span>
+            <span className="text-[10px] text-muted-foreground font-medium">
+              {t`Cette semaine`}
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {semanticTrends.map((topic) => (
+              <div
+                key={topic.id}
+                onClick={() => onSelectTopic?.(topic.topicName)}
+                className="group flex items-center justify-between p-2 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer border border-transparent hover:border-border/30"
+              >
+                <div className="min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors block truncate">
+                    {topic.topicName}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground block truncate">
+                    {topic.description || `${topic.count} réflexions & essais`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[9px] font-medium text-success bg-success/10 px-1.5 py-0.5 rounded">
+                    {topic.growthRate}
+                  </span>
+                  <ArrowUpRight className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

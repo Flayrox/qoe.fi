@@ -6,10 +6,9 @@
 // =====================================================================
 
 import * as WebBrowser from 'expo-web-browser';
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Pressable, Share } from 'react-native';
-
-import { SymbolView } from 'expo-symbols';
 
 import { ActionSheet } from '@/components/ui/action-sheet';
 import { Toast } from '@/components/ui/toast';
@@ -50,12 +49,7 @@ export function ShareMenuButton({ url }: { url: string }) {
         hitSlop={8}
         accessibilityLabel={t('share.share', 'Partager')}
       >
-        <SymbolView
-          name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }}
-          size={18}
-          tintColor={theme.textSecondary}
-          weight="regular"
-        />
+        <Ionicons name="share-outline" size={18} color={theme.textSecondary} />
       </Pressable>
       <ActionSheet
         visible={open}

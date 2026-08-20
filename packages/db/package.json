@@ -54,6 +54,8 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "prisma:generate": "prisma generate",
     "prisma:seed": "prisma db seed",
+    "seed:large": "tsx prisma/seed-large.ts",
+    "embed": "tsx prisma/embed-all.ts",
     "prebuild": "prisma generate",
     "pretypecheck": "prisma generate"
   },

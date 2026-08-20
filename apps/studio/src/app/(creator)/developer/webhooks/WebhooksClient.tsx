@@ -12,9 +12,8 @@ import {
   XCircle,
   Clock,
   Copy,
-  Eye,
-  History,
-  RotateCcw,
+  Webhook as WebhookIcon,
+  Send,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { toast } from 'sonner';
@@ -30,6 +29,7 @@ import {
   type WebhookEvent,
   type WebhookDeliveryLog,
 } from './actions';
+import { DeveloperNav } from '@/features/developer/components/developer-nav';
 
 const EVENT_LABELS: Record<string, string> = {
   'article.published': 'Article publié',
@@ -42,8 +42,8 @@ function QuietDot({ active }: { active?: boolean }) {
   return (
     <span
       className={cn(
-        'inline-block h-1.5 w-1.5 rounded-full',
-        active ? 'bg-success' : 'bg-muted-foreground/30'
+        'inline-block h-2 w-2 rounded-full transition-colors',
+        active ? 'bg-success shadow-xs' : 'bg-muted-foreground/30'
       )}
     />
   );
@@ -112,6 +112,7 @@ export function WebhooksClient({
     setBusyId(null);
     if (res.success) {
       setWebhooks((prev) => prev.filter((w) => w.id !== id));
+      toast.success('Webhook supprimé.');
     } else {
       toast.error(res.error || 'Erreur');
     }
@@ -122,7 +123,7 @@ export function WebhooksClient({
     const res = await testWebhookAction(id);
     setBusyId(null);
     if (res.success) {
-      toast.success(`Test envoyé — HTTP ${res.status}`);
+      toast.success(`Événement de test envoyé — HTTP ${res.status}`);
     } else {
       toast.error(res.error || 'Test échoué');
     }
@@ -154,106 +155,138 @@ export function WebhooksClient({
   };
 
   return (
-    <div className="mx-auto max-w-4xl px-4 md:px-6 py-8 text-foreground font-sans">
-      <div className="flex items-end justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Webhooks</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Recevez les événements de « {workspaceName} » en temps réel sur vos endpoints (signature
-            HMAC-SHA256).
-          </p>
+    <div className="w-full space-y-8 font-sans pb-16 text-foreground">
+      {/* Header section */}
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary mb-1.5">
+              <WebhookIcon className="w-3.5 h-3.5" />
+              Événements & Intégrations Sortantes
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              Webhooks Temps Réel
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+              Recevez les événements de « {workspaceName} » directement sur vos serveurs avec une
+              signature cryptographique HMAC SHA-256.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setShowCreate((s) => !s)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 active:scale-[0.99] transition-all cursor-pointer shadow-xs self-start md:self-auto"
+          >
+            <Plus className="w-3.5 h-3.5" strokeWidth={2} />
+            Nouveau Webhook
+          </button>
         </div>
-        <button
-          onClick={() => setShowCreate((s) => !s)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] transition-all cursor-pointer"
-        >
-          <Plus className="w-4 h-4" strokeWidth={1.5} />
-          Nouveau webhook
-        </button>
+
+        {/* Sub-Navigation */}
+        <DeveloperNav activeTab="webhooks" />
       </div>
 
       {/* Create form */}
       {showCreate && (
-        <div className="mb-8 bg-card border border-border/40 rounded-2xl p-6 space-y-5">
-          <div className="grid md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                Nom
+        <div className="bg-card border border-border/80 rounded-2xl p-6 md:p-8 space-y-5 shadow-xs">
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-foreground">Configurer un nouveau webhook</h3>
+            <p className="text-xs text-muted-foreground">
+              Entrez l'URL HTTPS publique de votre serveur qui traitera les requêtes POST.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-foreground">
+                Nom de l'intégration
               </label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Sync vers mon CMS"
-                className="w-full bg-transparent border-b border-border/40 text-sm py-2.5 placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
+                placeholder="Ex: Sync vers mon CRM, Discord Notifier..."
+                className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
-                Endpoint URL
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-foreground">
+                Endpoint URL (HTTPS)
               </label>
               <input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://monapp.com/webhooks/qoe"
-                className="w-full bg-transparent border-b border-border/40 text-sm py-2.5 font-mono placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
+                placeholder="https://api.monsite.com/webhooks/qoe"
+                className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-2">
-              Événements
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold text-foreground">
+              Événements souscrits
             </label>
             <div className="flex flex-wrap gap-2">
-              {events.map((ev) => (
-                <button
-                  key={ev}
-                  type="button"
-                  onClick={() =>
-                    setSelectedEvents((prev) =>
-                      prev.includes(ev as WebhookEvent)
-                        ? prev.filter((e) => e !== ev)
-                        : [...prev, ev as WebhookEvent]
-                    )
-                  }
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer',
-                    selectedEvents.includes(ev as WebhookEvent)
-                      ? 'bg-primary/10 border-primary/30 text-primary'
-                      : 'border-border/40 text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {EVENT_LABELS[ev] || ev}
-                </button>
-              ))}
+              {events.map((ev) => {
+                const isSelected = selectedEvents.includes(ev as WebhookEvent);
+                return (
+                  <button
+                    key={ev}
+                    type="button"
+                    onClick={() =>
+                      setSelectedEvents((prev) =>
+                        prev.includes(ev as WebhookEvent)
+                          ? prev.filter((e) => e !== ev)
+                          : [...prev, ev as WebhookEvent]
+                      )
+                    }
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-150 cursor-pointer flex items-center gap-1.5',
+                      isSelected
+                        ? 'bg-primary/10 border-primary/30 text-primary'
+                        : 'bg-muted/30 border-border text-muted-foreground hover:border-muted-foreground/40'
+                    )}
+                  >
+                    <span>{isSelected ? '✓' : '+'}</span>
+                    <span>{EVENT_LABELS[ev] || ev}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between pt-2 border-t border-border/60">
+            <button
+              onClick={() => setShowCreate(false)}
+              className="text-xs text-muted-foreground hover:text-foreground font-medium px-3 py-2"
+            >
+              Annuler
+            </button>
             <button
               onClick={handleCreate}
-              disabled={creating}
-              className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60"
+              disabled={creating || !name.trim() || !url.trim()}
+              className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 active:scale-[0.99] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60 shadow-xs"
             >
               {creating ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <Zap className="w-4 h-4" strokeWidth={1.5} />
+                <Zap className="w-3.5 h-3.5" strokeWidth={2} />
               )}
-              Créer
+              Enregistrer le Webhook
             </button>
           </div>
 
           {revealedSecret && (
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-highlight/10 border border-highlight/20 text-xs">
-              <span className="text-highlight font-bold shrink-0">Secret (à copier) :</span>
-              <code className="font-mono text-foreground truncate flex-1">{revealedSecret}</code>
+            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-highlight/10 border border-highlight/20 text-xs">
+              <span className="text-highlight font-bold shrink-0">Secret HMAC :</span>
+              <code className="font-mono text-foreground truncate flex-1 text-[11px]">
+                {revealedSecret}
+              </code>
               <button
                 onClick={() => copySecret(revealedSecret)}
-                className="shrink-0 p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors cursor-pointer"
-                title="Copier"
+                className="shrink-0 p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                title="Copier le secret"
               >
-                <Copy className="w-3.5 h-3.5" strokeWidth={1.5} />
+                <Copy className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
@@ -262,179 +295,173 @@ export function WebhooksClient({
 
       {/* List */}
       {webhooks.length === 0 && !showCreate ? (
-        <div className="py-20 text-center">
-          <div className="size-14 rounded-xl bg-card border border-border/40 text-primary flex items-center justify-center mx-auto mb-5">
+        <div className="py-20 text-center bg-card border border-border/80 rounded-2xl p-8 shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-muted/40 text-primary flex items-center justify-center mx-auto mb-4 border border-border/60">
             <Globe className="w-6 h-6" strokeWidth={1.5} />
           </div>
-          <h3 className="text-xl font-bold tracking-tight">Aucun webhook</h3>
-          <p className="text-sm text-muted-foreground mt-1 mb-6 max-w-sm mx-auto">
-            Créez un endpoint pour synchroniser vos publications et abonnés avec vos outils.
+          <h3 className="text-lg font-bold text-foreground">Aucun webhook configuré</h3>
+          <p className="text-xs text-muted-foreground mt-1 mb-6 max-w-sm mx-auto leading-relaxed">
+            Créez un endpoint HTTPS pour synchroniser automatiquement vos articles et abonnés avec
+            vos applications.
           </p>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-xs"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Créer mon premier webhook
+          </button>
         </div>
       ) : (
-        <div className="divide-y divide-border/30 border-t border-b border-border/30">
+        <div className="bg-card border border-border/80 rounded-2xl shadow-xs overflow-hidden divide-y divide-border/60">
+          <div className="px-6 py-4 border-b border-border/80 flex items-center justify-between">
+            <h3 className="text-base font-bold text-foreground">Endpoints Enregistrés</h3>
+            <span className="text-xs font-semibold bg-muted/60 border border-border/80 px-2.5 py-1 rounded-full text-foreground">
+              {webhooks.length} webhook{webhooks.length > 1 ? 's' : ''}
+            </span>
+          </div>
+
           {webhooks.map((webhook) => (
-            <div key={webhook.id} className="py-4 flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <QuietDot active={webhook.active} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{webhook.name}</p>
-                  <p className="text-xs text-muted-foreground font-mono truncate">{webhook.url}</p>
+            <div
+              key={webhook.id}
+              className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/10 transition-colors"
+            >
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="pt-1">
+                  <QuietDot active={webhook.active} />
                 </div>
-                <div className="flex flex-wrap gap-1 justify-end max-w-xs">
-                  {webhook.events.map((ev) => (
+                <div className="min-w-0 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-foreground truncate">{webhook.name}</p>
                     <span
-                      key={ev}
-                      className="px-2 py-0.5 rounded-md bg-muted/50 text-[10px] text-muted-foreground border border-border/20"
+                      className={cn(
+                        'text-[10px] font-semibold px-2 py-0.5 rounded-full border',
+                        webhook.active
+                          ? 'bg-success/10 text-success border-success/20'
+                          : 'bg-muted text-muted-foreground border-border'
+                      )}
                     >
-                      {EVENT_LABELS[ev] || ev}
+                      {webhook.active ? 'Actif' : 'En pause'}
                     </span>
-                  ))}
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => openDeliveries(webhook)}
-                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-primary hover:bg-muted/50 transition-colors cursor-pointer"
-                    title="Voir les logs de livraison"
-                  >
-                    Logs
-                  </button>
-                  <button
-                    onClick={() => handleToggle(webhook.id)}
-                    disabled={busyId === webhook.id}
-                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer disabled:opacity-50"
-                  >
-                    {webhook.active ? 'Actif' : 'En pause'}
-                  </button>
-                  <button
-                    onClick={() => handleTest(webhook.id)}
-                    disabled={busyId === webhook.id}
-                    className="p-1.5 text-muted-foreground hover:text-primary rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                    title="Envoyer un test"
-                  >
-                    {busyId === webhook.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.5} />
-                    ) : (
-                      <Zap className="w-4 h-4" strokeWidth={1.5} />
-                    )}
-                  </button>
-                  <button
-                    onClick={() => handleDelete(webhook.id, webhook.name)}
-                    disabled={busyId === webhook.id}
-                    className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                    title="Supprimer"
-                  >
-                    <Trash2 className="w-4 h-4" strokeWidth={1.5} />
-                  </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-mono truncate">{webhook.url}</p>
+
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {webhook.events.map((ev) => (
+                      <span
+                        key={ev}
+                        className="px-2 py-0.5 rounded-md bg-muted/60 text-[10px] font-medium text-muted-foreground border border-border/40"
+                      >
+                        {EVENT_LABELS[ev] || ev}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Recent deliveries */}
-              {webhook.deliveries.length > 0 && (
-                <div className="flex flex-wrap gap-x-4 gap-y-1 pl-4">
-                  {webhook.deliveries.map((d) => (
-                    <span
-                      key={d.id}
-                      className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
-                    >
-                      {d.status === 'SUCCESS' ? (
-                        <CheckCircle2 className="w-3 h-3 text-success" strokeWidth={1.5} />
-                      ) : d.status === 'FAILED' ? (
-                        <XCircle className="w-3 h-3 text-destructive" strokeWidth={1.5} />
-                      ) : (
-                        <Clock className="w-3 h-3" strokeWidth={1.5} />
-                      )}
-                      {EVENT_LABELS[d.event] || d.event}
-                      {d.httpStatus ? ` · HTTP ${d.httpStatus}` : ''} ·{' '}
-                      {new Date(d.createdAt).toLocaleString('fr-FR')}
-                    </span>
-                  ))}
-                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Eye className="w-3 h-3" strokeWidth={1.5} />
-                    {webhook.deliveries.length} livraison(s) récente(s)
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                <button
+                  onClick={() => openDeliveries(webhook)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground bg-muted/40 hover:bg-muted border border-border/60 transition-colors cursor-pointer"
+                  title="Historique des envois"
+                >
+                  Historique
+                </button>
+                <button
+                  onClick={() => handleTest(webhook.id)}
+                  disabled={busyId === webhook.id}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground bg-muted/40 hover:bg-muted border border-border/60 transition-colors cursor-pointer flex items-center gap-1"
+                  title="Envoyer un ping de test"
+                >
+                  {busyId === webhook.id ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Send className="w-3 h-3 text-primary" />
+                  )}
+                  Tester
+                </button>
+                <button
+                  onClick={() => handleToggle(webhook.id)}
+                  disabled={busyId === webhook.id}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/60 border border-border/40 transition-colors cursor-pointer"
+                >
+                  {webhook.active ? 'Pause' : 'Activer'}
+                </button>
+                <button
+                  onClick={() => handleDelete(webhook.id, webhook.name)}
+                  disabled={busyId === webhook.id}
+                  className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+                  title="Supprimer ce webhook"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* 🔍 Vue détaillée des livraisons */}
-      <Dialog
-        open={detailWebhook !== null}
-        onOpenChange={(open) => {
-          if (!open) setDetailWebhook(null);
-        }}
-      >
-        <DialogContent className="max-w-2xl p-6 rounded-2xl bg-card border border-border/40 shadow-2xl font-sans max-h-[85vh] flex flex-col">
-          <DialogHeader className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <History className="w-4 h-4 text-primary" strokeWidth={1.5} />
-              <DialogTitle className="text-base font-bold text-foreground">
-                Logs de livraison
-              </DialogTitle>
-            </div>
-            <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-              {detailWebhook?.name} · {detailWebhook?.url}
+      {/* Deliveries Dialog */}
+      <Dialog open={!!detailWebhook} onOpenChange={(open) => !open && setDetailWebhook(null)}>
+        <DialogContent className="max-w-2xl bg-card text-foreground border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">
+              Historique de livraison — {detailWebhook?.name}
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-xs font-mono truncate">
+              {detailWebhook?.url}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto mt-4 space-y-2 pr-1">
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
             {loadingDeliveries ? (
-              <div className="flex items-center justify-center py-12 text-muted-foreground">
-                <Loader2 className="w-5 h-5 animate-spin text-primary mr-2" />
-                <span className="text-sm">Chargement des livraisons…</span>
+              <div className="py-12 flex justify-center text-muted-foreground">
+                <Loader2 className="w-6 h-6 animate-spin" />
               </div>
-            ) : !deliveries || deliveries.length === 0 ? (
-              <div className="py-12 text-center text-sm text-muted-foreground">
-                Aucune livraison pour le moment.
+            ) : deliveries && deliveries.length > 0 ? (
+              <div className="space-y-2.5">
+                {deliveries.map((d) => (
+                  <div
+                    key={d.id}
+                    className="p-3.5 rounded-xl border border-border/80 bg-muted/30 text-xs space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {deliveryStatusIcon(d.status)}
+                        <span className="font-semibold text-foreground">{d.event}</span>
+                        {d.httpStatus && (
+                          <span
+                            className={cn(
+                              'px-1.5 py-0.5 rounded text-[10px] font-mono font-bold',
+                              d.httpStatus >= 200 && d.httpStatus < 300
+                                ? 'bg-success/10 text-success'
+                                : 'bg-destructive/10 text-destructive'
+                            )}
+                          >
+                            HTTP {d.httpStatus}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-muted-foreground">
+                        {new Date(d.createdAt).toLocaleDateString('fr-FR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                        })}
+                      </span>
+                    </div>
+                    {d.responseBody && (
+                      <p className="text-[11px] text-muted-foreground font-mono break-all line-clamp-2">
+                        {d.responseBody}
+                      </p>
+                    )}
+                  </div>
+                ))}
               </div>
             ) : (
-              deliveries.map((d) => (
-                <div
-                  key={d.id}
-                  className="rounded-xl border border-border/30 bg-background/50 p-3.5"
-                >
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {deliveryStatusIcon(d.status)}
-                    <span className="text-xs font-semibold">
-                      {EVENT_LABELS[d.event] || d.event}
-                    </span>
-                    <span
-                      className={cn(
-                        'px-1.5 py-0.5 rounded-md text-[10px] font-bold',
-                        d.status === 'SUCCESS'
-                          ? 'bg-success/10 text-success'
-                          : d.status === 'FAILED'
-                            ? 'bg-destructive/10 text-destructive'
-                            : 'bg-muted text-muted-foreground'
-                      )}
-                    >
-                      {d.status}
-                    </span>
-                    {d.httpStatus ? (
-                      <span className="text-[11px] text-muted-foreground font-mono">
-                        HTTP {d.httpStatus}
-                      </span>
-                    ) : null}
-                    {typeof d.attempts === 'number' && d.attempts > 1 ? (
-                      <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <RotateCcw className="w-3 h-3" strokeWidth={1.5} />
-                        {d.attempts} tentatives
-                      </span>
-                    ) : null}
-                    <span className="ml-auto text-[11px] text-muted-foreground">
-                      {new Date(d.createdAt).toLocaleString('fr-FR')}
-                    </span>
-                  </div>
-                  {d.responseBody ? (
-                    <pre className="mt-2 p-2.5 rounded-lg bg-muted/40 text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
-                      {d.responseBody}
-                    </pre>
-                  ) : null}
-                </div>
-              ))
+              <p className="text-xs text-muted-foreground py-8 text-center">
+                Aucune livraison enregistrée pour ce webhook.
+              </p>
             )}
           </div>
         </DialogContent>

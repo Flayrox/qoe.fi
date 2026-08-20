@@ -1,29 +1,31 @@
 // =====================================================================
 // 🧵 ThreadScreen — Fil complet d'une pensée (GET /v1/posts/{id}/thread)
 // =====================================================================
-// Port fidèle de .reference/bluesky/src/screens/PostThread : liste plate
-// avec profondeur — ancêtres (parents) au-dessus, post focus en « agrandi »
-// (ThreadAnchorCard), réponses en dessous — reliés par des lignes verticales
-// 2px (parent line / child line). Chaînes longues repliées (ReadMore) et
-// barre de réponse « Écrire votre réponse » en bas (ThreadReplyComposer).
+// Header flottant Liquid Glass avec bouton retour + options ⋯,
+// disparition complète au scroll, surface surélevée avec coins arrondis
+// subtils (22px), flou progressif zénithal et fond 100% blanc pur.
 // =====================================================================
 
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { Appearance, Platform, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import Animated, {
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { EdgeFadeView } from 'react-native-edge-fade';
 
+import { LiquidElasticButton } from '@/components/liquid-tab-bar/LiquidElasticButton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { PostFeedLoadingPlaceholder } from '@/components/ui/skeleton';
 import { ErrorMessage } from '@/components/ui/error-message';
+import { PostMenuButton } from '@/components/thought/post-menu';
 import { normalizeThought, type NormalizedThought } from '@/components/thought/normalize';
 import { ThreadAnchorCard } from '@/features/thread/thread-anchor-card';
 import { ThreadPost, OUTER_SPACE } from '@/features/thread/thread-post';
@@ -41,6 +43,29 @@ const MAX_VISIBLE_REPLIES = 3;
 
 export function ThreadScreen({ postId }: { postId: string }) {
   const theme = useTheme();
+  const scheme = useColorScheme();
+  const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
+  const scrollY = useSharedValue(0);
+
+  const onScrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+
+  // Animation de disparition complète du header flottant au scroll
+  const headerContainerAnimatedStyle = useAnimatedStyle(() => {
+    const progress = interpolate(scrollY.value, [0, 45], [0, 1], 'clamp');
+    return {
+      opacity: interpolate(progress, [0, 0.75], [1, 0], 'clamp'),
+      transform: [
+        {
+          translateY: interpolate(progress, [0, 1], [0, -14], 'clamp'),
+        },
+      ],
+      pointerEvents: progress >= 0.75 ? 'none' : 'auto',
+    };
+  });
 
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: feedKeys.thread(postId),
@@ -60,7 +85,7 @@ export function ThreadScreen({ postId }: { postId: string }) {
     [data]
   );
 
-  // Chaîne d'ancêtres (root → … → parent direct), façon Bluesky parents.
+  // Chaîne d'ancêtres (root → … → parent direct)
   const ancestors = useMemo(() => {
     const chain: NormalizedThought[] = [];
     let current = root?.parent ?? null;
@@ -71,14 +96,13 @@ export function ThreadScreen({ postId }: { postId: string }) {
     return chain;
   }, [root]);
 
-  // Repli de la chaîne d'ancêtres : on garde les 2 plus proches du post focus.
+  // Repli de la chaîne d'ancêtres
   const hiddenAncestorCount = Math.max(0, ancestors.length - MAX_VISIBLE_ANCESTORS);
   const visibleAncestors = showAllAncestors
     ? ancestors
     : ancestors.slice(Math.max(0, ancestors.length - MAX_VISIBLE_ANCESTORS));
 
-  // Arbre des réponses : parentId → enfants, pour le rendu récursif imbriqué
-  // (les réponses du Go sont désormais RÉCURSIVES et plates, avec parentId).
+  // Arbre des réponses
   const replyTree = useMemo(() => {
     const childrenOf = new Map<string, NormalizedThought[]>();
     for (const r of replies) {
@@ -87,7 +111,6 @@ export function ThreadScreen({ postId }: { postId: string }) {
       list.push(r);
       childrenOf.set(key, list);
     }
-    // Tri chronologique ascendant dans chaque branche.
     for (const list of childrenOf.values()) {
       list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     }
@@ -113,8 +136,6 @@ export function ThreadScreen({ postId }: { postId: string }) {
     );
   }
 
-  // Erreur plein écran uniquement sans donnée en cache (le refetch échoué
-  // ne doit pas faire disparaître un fil déjà affiché).
   if (isError && !data) {
     return (
       <SafeAreaView style={styles.center}>
@@ -139,62 +160,129 @@ export function ThreadScreen({ postId }: { postId: string }) {
   const hasAncestors = ancestors.length > 0;
   const hasReplies = replies.length > 0;
 
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView edges={['top']} style={styles.flex}>
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Repli « ReadMore » : chaîne d'ancêtres longue */}
-          {hiddenAncestorCount > 0 && !showAllAncestors ? (
-            <ReadMoreRow
-              count={hiddenAncestorCount}
-              label={t('thread.show_more_parents', 'Afficher les pensées précédentes')}
-              onPress={() => setShowAllAncestors(true)}
-            />
-          ) : null}
-          {/* Ancêtres (ce qu'il y a au-dessus) — reliés vers le bas. Le
-              premier a une ligne parent uniquement si des ancêtres sont
-              repliés au-dessus (ReadMore). */}
-          {visibleAncestors.map((ancestor, index) => (
-            <ThreadPost
-              key={ancestor.id}
-              post={ancestor}
-              showParentLine={index > 0 || (hiddenAncestorCount > 0 && !showAllAncestors)}
-              showChildLine
-            />
-          ))}
-          {/* Post focus, agrandi. Pas de ligne descendante : ce sont les
-              réponses qui se rattachent vers le haut (parité Bluesky). */}
-          <ThreadAnchorCard post={root} showParentLine={hasAncestors} />
-          {/* Réponses (arbre récursif) — reliées entre elles */}
-          <ReplyTree
-            parentId={root.id}
-            childrenOf={replyTree}
-            depth={0}
-            isRootBranch
-            expandedBranches={expandedBranches}
-            onToggleBranch={toggleBranch}
-          />
-          {!hasReplies ? (
-            <ThemedView type="backgroundElement" style={styles.empty}>
-              <ThemedText type="small">
-                {t('thread.no_replies', 'Aucune réponse pour le moment. Soyez le premier !')}
-              </ThemedText>
-            </ThemedView>
-          ) : null}
-        </ScrollView>
+  const bgPure = isDark ? '#000000' : '#FFFFFF';
 
-        {/* Barre de réponse morphique */}
-        <ThreadReplyComposer
-          postId={root.id}
-          replyingTo={root.author.username || root.author.name}
-          parentContent={root.content}
-        />
-      </SafeAreaView>
-    </ThemedView>
+  return (
+    <View style={[styles.container, { backgroundColor: bgPure }]}>
+      {/* ─── Header Flottant Moderne : Bouton Retour + Titre + Bouton ⋯ Liquid Glass ─── */}
+      <Animated.View
+        style={[styles.headerContainer, headerContainerAnimatedStyle]}
+        pointerEvents="box-none"
+      >
+        {/* Bouton Retour Liquid Glass (gauche) */}
+        <View style={styles.headerSideButton}>
+          <LiquidElasticButton
+            size={42}
+            borderRadius={21}
+            onPress={() => router.back()}
+            accessibilityLabel={t('common.back', 'Retour')}
+            icon={<Ionicons name="arrow-back" size={22} color={theme.text} />}
+          />
+        </View>
+
+        {/* Titre centré « Pensée » */}
+        <View style={styles.headerCenterSection} pointerEvents="box-none">
+          <ThemedText style={[styles.headerTitle, { color: theme.text }]}>
+            {t('thread.title', 'Pensée')}
+          </ThemedText>
+        </View>
+
+        {/* Bouton Options ⋯ Liquid Glass (droite) */}
+        <View style={styles.headerSideButton}>
+          <PostMenuButton
+            post={root}
+            customButton={({ onPress }) => (
+              <LiquidElasticButton
+                size={42}
+                borderRadius={21}
+                onPress={onPress}
+                accessibilityLabel={t('post.more', 'Plus d’options')}
+                icon={<Ionicons name="ellipsis-horizontal" size={20} color={theme.text} />}
+              />
+            )}
+          />
+        </View>
+      </Animated.View>
+
+      {/* ─── Flou progressif zénithal (EdgeFadeView - Metal / AGSL) ─── */}
+      <EdgeFadeView
+        mode="blur"
+        top={98}
+        blurRadius={18}
+        curve={{ type: 'stops', values: [1, 0.7, 0.38, 0.14, 0.04, 0] }}
+        style={[styles.flex, { backgroundColor: bgPure }]}
+      >
+        <Animated.ScrollView
+          style={[styles.flex, { backgroundColor: bgPure }]}
+          contentContainerStyle={[styles.scrollContent, { backgroundColor: bgPure }]}
+          onScroll={onScrollHandler}
+          scrollEventThrottle={16}
+          keyboardShouldPersistTaps="handled"
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustContentInsets={false}
+        >
+          {/* ─── Surface de la pensée principale (Fond + Coins bas arrondis 22px + Ombre) ─── */}
+          <View
+            style={[
+              styles.mainPostSurface,
+              {
+                backgroundColor: bgPure,
+                borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(0, 0, 0, 0.06)',
+              },
+            ]}
+          >
+            {/* Repli « ReadMore » : chaîne d'ancêtres longue */}
+            {hiddenAncestorCount > 0 && !showAllAncestors ? (
+              <ReadMoreRow
+                count={hiddenAncestorCount}
+                label={t('thread.show_more_parents', 'Afficher les pensées précédentes')}
+                onPress={() => setShowAllAncestors(true)}
+              />
+            ) : null}
+
+            {/* Ancêtres */}
+            {visibleAncestors.map((ancestor, index) => (
+              <ThreadPost
+                key={ancestor.id}
+                post={ancestor}
+                showParentLine={index > 0 || (hiddenAncestorCount > 0 && !showAllAncestors)}
+                showChildLine
+              />
+            ))}
+
+            {/* Post focus, agrandi */}
+            <ThreadAnchorCard post={root} showParentLine={hasAncestors} />
+          </View>
+
+          {/* ─── Section Réponses (en dessous de la carte flottante) ─── */}
+          <View style={[styles.repliesSection, { backgroundColor: bgPure }]}>
+            <ReplyTree
+              parentId={root.id}
+              childrenOf={replyTree}
+              depth={0}
+              isRootBranch
+              expandedBranches={expandedBranches}
+              onToggleBranch={toggleBranch}
+            />
+
+            {!hasReplies ? (
+              <View style={styles.emptyContainer}>
+                <ThemedText style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+                  {t('thread.no_replies', 'Aucune réponse pour le moment. Soyez le premier !')}
+                </ThemedText>
+              </View>
+            ) : null}
+          </View>
+        </Animated.ScrollView>
+      </EdgeFadeView>
+
+      {/* Barre de réponse morphique */}
+      <ThreadReplyComposer
+        postId={root.id}
+        replyingTo={root.author.username || root.author.name}
+        parentContent={root.content}
+      />
+    </View>
   );
 }
 
@@ -297,8 +385,57 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  headerContainer: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 48 : 20,
+    left: 0,
+    right: 0,
+    height: 48,
+    paddingHorizontal: Spacing.three,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 100,
+  },
+  headerSideButton: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenterSection: {
+    flex: 1,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
   scrollContent: {
     paddingBottom: Spacing.four,
+  },
+  mainPostSurface: {
+    marginTop: -500,
+    paddingTop: (Platform.OS === 'ios' ? 106 : 82) + 500,
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
+    paddingBottom: 17,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    overflow: 'visible',
+    zIndex: 2,
+  },
+  repliesSection: {
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.four,
+    zIndex: 1,
   },
   center: {
     flex: 1,
@@ -306,11 +443,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: Spacing.four,
   },
-  empty: {
-    margin: Spacing.three,
-    padding: Spacing.four,
-    borderRadius: Spacing.three,
+  emptyContainer: {
+    paddingVertical: Spacing.four,
+    paddingHorizontal: OUTER_SPACE,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    opacity: 0.8,
   },
   readMore: {
     flexDirection: 'row',

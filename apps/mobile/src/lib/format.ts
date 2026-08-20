@@ -70,6 +70,20 @@ export function niceDateShort(iso: string): string {
 }
 
 /**
+ * Format Twitter / X pour le détail d'un post : « 18:19 · 18/08/2026 ».
+ */
+export function formatPostDetailDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${hours}:${minutes} · ${day}/${month}/${year}`;
+}
+
+/**
  * Temps relatif « à la Bluesky » : < 1m → « Maintenant », < 1h → « 5m »,
  * < 1j → « 2h », sinon date courte. `now` injectable pour les tests.
  */

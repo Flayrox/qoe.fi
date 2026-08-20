@@ -38,17 +38,7 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
   // Onboarding en popup : si l'utilisateur est connecté mais n'a pas terminé
   // l'onboarding, on l'affiche sur n'importe quelle page tenant (pas de redirect
   // vers core). Non fermable tant qu'il n'est pas terminé.
-  let onboardingProps: {
-    categories: { id: string; name: string; slug: string }[];
-    suggestedCreators: {
-      id: string;
-      name: string | null;
-      slug?: string | null;
-      subdomain?: string | null;
-      logoUrl: string | null;
-      heroText: string | null;
-    }[];
-  } | null = null;
+  let onboardingProps: Awaited<ReturnType<typeof getOnboardingData>> | null = null;
 
   const supabase = await createClient();
   const {

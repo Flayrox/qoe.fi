@@ -38,7 +38,7 @@ function RootNavigator() {
       }}
     >
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="thought/[id]" options={{ headerShown: true, title: 'Pensée' }} />
+      <Stack.Screen name="thought/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="post/[id]/[kind]" options={{ headerShown: true }} />
       <Stack.Screen name="user/[username]" options={{ headerShown: true, title: 'Profil' }} />
       <Stack.Screen name="user/[username]/follow" options={{ headerShown: true }} />

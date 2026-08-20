@@ -9,11 +9,10 @@
 
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
+import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-
-import { SymbolView } from 'expo-symbols';
 
 import { ActionSheet, type ActionSheetGroup } from '@/components/ui/action-sheet';
 import { Toast } from '@/components/ui/toast';
@@ -38,7 +37,13 @@ const ICON = {
   sad: { ios: 'face.dashed', android: 'sentiment_dissatisfied', web: 'sentiment_dissatisfied' },
 } as const;
 
-export function PostMenuButton({ post }: { post: NormalizedThought }) {
+export function PostMenuButton({
+  post,
+  customButton,
+}: {
+  post: NormalizedThought;
+  customButton?: (props: { onPress: () => void }) => React.ReactNode;
+}) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -254,19 +259,18 @@ export function PostMenuButton({ post }: { post: NormalizedThought }) {
 
   return (
     <>
-      <Pressable
-        onPress={() => setOpen(true)}
-        hitSlop={8}
-        style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
-        accessibilityLabel={t('post.more', 'Plus d’options')}
-      >
-        <SymbolView
-          name={{ ios: 'ellipsis', android: 'more_horiz', web: 'more_horiz' }}
-          size={18}
-          tintColor={theme.textSecondary}
-          weight="regular"
-        />
-      </Pressable>
+      {customButton ? (
+        customButton({ onPress: () => setOpen(true) })
+      ) : (
+        <Pressable
+          onPress={() => setOpen(true)}
+          hitSlop={8}
+          style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
+          accessibilityLabel={t('post.more', 'Plus d’options')}
+        >
+          <Ionicons name="ellipsis-horizontal" size={18} color={theme.textSecondary} />
+        </Pressable>
+      )}
       <ActionSheet visible={open} groups={groups} onClose={() => setOpen(false)} />
     </>
   );

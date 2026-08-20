@@ -84,7 +84,9 @@
     "prisma:generate": "cd packages/db && pnpm prisma generate",
     "prisma:studio": "cd packages/db && pnpm prisma studio",
     "prisma:format": "cd packages/db && pnpm prisma format",
-    "prisma:seed": "cd packages/db && pnpm prisma db seed"
+    "prisma:seed": "cd packages/db && pnpm prisma db seed",
+    "db:seed:large": "pnpm --filter @qoe/db seed:large",
+    "db:embed": "pnpm --filter @qoe/db embed"
   },
   "devDependencies": {
     "@lingui/cli": "^6.6.0",

@@ -680,6 +680,9 @@ model Thought {
   quotedArticle   Article? @relation("ThoughtArticleQuotes", fields: [quotedArticleId], references: [id], onDelete: SetNull)
   quotedExcerpt   String?  @db.Text
 
+  // AI Recs — MRL jina-embeddings-v3 tronqué à 512 dims
+  embedding Unsupported("vector(512)")?
+
   likes         Like[]
 
   notifications Notification[]
