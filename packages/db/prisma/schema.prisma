@@ -1079,7 +1079,9 @@ model MediaAsset {
   // Cycle de vie & Rétention FinOps
   status       MediaAssetStatus     @default(DRAFT_ORPHAN)
   targetType   MediaAssetTargetType @default(SHARED)
-  ownerId      String?              // userId ou publicationId
+  // Un media a TOUJOURS un propriétaire : userId (upload par un membre) ou
+  // publicationId (logo/bannière d'un média). Rendu obligatoire en base.
+  ownerId      String
   attachedToId String?              // id de l'article ou de la pensée
   
   purgeDueAt   DateTime?            // Date programmée de purge physique par le cron
