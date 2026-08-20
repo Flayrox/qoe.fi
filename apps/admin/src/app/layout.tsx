@@ -78,10 +78,12 @@ export default async function RootLayout({
       className={cn('scroll-smooth', 'font-sans', geist.variable)}
       suppressHydrationWarning
     >
+      <head>
+        <ThemeSeedScript />
+      </head>
       <body
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
       >
-        <ThemeSeedScript />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <GrowthBookProvider payload={flagsPayload}>
             <I18nClientProvider language={locale} staticData={staticData}>

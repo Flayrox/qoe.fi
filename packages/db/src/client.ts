@@ -9,9 +9,10 @@
 //    import { prisma } from '@qoe/db/client';
 // =====================================================================
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
-export * from '@prisma/client';
+export type * from '@prisma/client';
+export { PrismaClient, Prisma };
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
