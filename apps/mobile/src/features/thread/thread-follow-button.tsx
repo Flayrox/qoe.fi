@@ -13,6 +13,7 @@ import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useAuth } from '@/features/auth/auth-provider';
 import { useMe } from '@/hooks/use-me';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
@@ -31,6 +32,9 @@ export function ThreadFollowButton({
   const theme = useTheme();
   const queryClient = useQueryClient();
   const { data: me } = useMe();
+  const { session } = useAuth();
+  const user = session?.user;
+
   const [busy, setBusy] = useState(false);
   const [followingOverride, setFollowingOverride] = useState<boolean | null>(null);
 
@@ -44,8 +48,16 @@ export function ThreadFollowButton({
     enabled: !!username,
   });
 
-  // C'est mon propre post → pas de bouton Suivre.
-  if (me && authorId && me.id === authorId) return null;
+  // Détection si c'est mon propre compte (par ID ou par username)
+  const isOwn =
+    (me?.id && authorId && me.id === authorId) ||
+    (user?.id && authorId && user.id === authorId) ||
+    (me?.username && username && me.username.toLowerCase() === username.toLowerCase()) ||
+    (user?.user_metadata?.username &&
+      username &&
+      (user.user_metadata.username as string).toLowerCase() === username.toLowerCase());
+
+  if (isOwn) return null;
   if (!username || !profile) return null;
 
   const isFollowing = followingOverride ?? profile.isFollowing ?? false;
@@ -98,10 +110,10 @@ export function ThreadFollowButton({
 const styles = StyleSheet.create({
   button: {
     borderRadius: 999,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 96,
+    minWidth: 80,
   },
 });

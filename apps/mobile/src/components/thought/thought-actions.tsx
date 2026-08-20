@@ -1,14 +1,16 @@
 import { router } from 'expo-router';
-import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ShareMenuButton } from '@/components/thought/share-menu';
 import { ActionSheet, type ActionSheetGroup } from '@/components/ui/action-sheet';
-import { Spacing } from '@/constants/theme';
+import { Toast } from '@/components/ui/toast';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
+import { formatCount } from '@/lib/format';
+import { playHaptic } from '@/lib/haptics';
 import { t } from '@/lib/i18n';
 import {
   updatePostShadow,
@@ -18,40 +20,23 @@ import {
 } from '@qoe/api-client/mobile';
 
 // =====================================================================
-// ⚡ ThoughtActions — Barre d'actions d'une pensée (mobile)
+// ⚡ ThoughtActions — Barre d'actions Twitter / X (5 icônes vectorielles)
 // =====================================================================
-// Like / Reply / Repost / Share, avec optimistic UI via le shadow store
-// (@qoe/api-client/mobile) : on bascule l'état immédiatement, on appelle
-// l'API, et on rollback si l'appel échoue (ou on confirme l'état serveur).
-// ⚠️ L'API Go ne renvoie pas les compteurs sur toggleLike/Repost — les
-//    compteurs sont dérivés du delta serveur/shadow (cf. shadow.ts).
+// Reply, Repost, Like, Bookmark, Share avec icônes vectorielles ultra-nettes.
 // =====================================================================
 
 export interface ThoughtActionsPost {
   id: string;
   liked?: boolean;
   reposted?: boolean;
+  bookmarked?: boolean;
   likeCount?: number;
   repostCount?: number;
   replyCount?: number;
+  bookmarkCount?: number;
   author?: { id: string; username?: string | null; subdomain?: string | null } | null;
   content?: string;
 }
-
-type IconName = SymbolViewProps['name'];
-
-const ICONS: Record<
-  'like' | 'likeOn' | 'reply' | 'repost' | 'repostOn' | 'quote' | 'share',
-  IconName
-> = {
-  like: { ios: 'heart', android: 'favorite', web: 'favorite' },
-  likeOn: { ios: 'heart.fill', android: 'favorite', web: 'favorite' },
-  reply: { ios: 'bubble.right', android: 'chat_bubble_outline', web: 'chat_bubble_outline' },
-  repost: { ios: 'arrow.2.squarepath', android: 'repeat', web: 'repeat' },
-  repostOn: { ios: 'arrow.2.squarepath', android: 'repeat', web: 'repeat' },
-  quote: { ios: 'text.quote', android: 'format_quote', web: 'format_quote' },
-  share: { ios: 'square.and.arrow.up', android: 'share', web: 'share' },
-};
 
 export function ThoughtActions({
   post,
@@ -63,42 +48,59 @@ export function ThoughtActions({
   onReply?: (postId: string) => void;
 }) {
   const theme = useTheme();
-  // Fusionne l'état serveur (post) avec l'état optimiste (shadow).
   const shadow = usePostShadow(post as ThoughtActionsPost & { id?: string });
-  const [busy, setBusy] = useState<null | 'like' | 'repost'>(null);
+  const [busy, setBusy] = useState<null | 'like' | 'repost' | 'bookmark'>(null);
   const [repostMenu, setRepostMenu] = useState(false);
 
   const liked = !!shadow.liked;
   const reposted = !!shadow.reposted;
+  const bookmarked = !!(shadow as any).bookmarked;
+
   const likeCount = shadow.likeCount ?? 0;
   const repostCount = shadow.repostCount ?? 0;
   const replyCount = shadow.replyCount ?? 0;
+  const bookmarkCount = (shadow as any).bookmarkCount ?? 0;
 
-  const iconSize = size === 'lg' ? 22 : size === 'sm' ? 18 : 20;
-  const labelSize = size === 'sm' ? 12 : 13;
+  const iconSize = size === 'lg' ? 20 : size === 'sm' ? 16 : 18;
+  const labelSize = size === 'lg' ? 13 : 12;
 
   async function runToggle(
-    kind: 'like' | 'repost',
+    kind: 'like' | 'repost' | 'bookmark',
     next: boolean,
-    api: () => Promise<ApiResult<{ liked?: boolean; reposted?: boolean }>>
+    api: () => Promise<ApiResult<any>>
   ) {
-    // Optimistic : applique le shadow immédiatement.
-    const patch: PostShadow = kind === 'like' ? { liked: next } : { reposted: next };
+    const patch: PostShadow =
+      kind === 'like'
+        ? { liked: next }
+        : kind === 'repost'
+          ? { reposted: next }
+          : { bookmarked: next };
+
     updatePostShadow(post.id, patch);
     setBusy(kind);
+    playHaptic('Light');
+
     try {
       const res = await api();
       if (res.ok) {
-        // Confirme l'état serveur (peut différer du shadow en cas de course).
         const confirmed: PostShadow =
-          kind === 'like' ? { liked: !!res.data.liked } : { reposted: !!res.data.reposted };
+          kind === 'like'
+            ? { liked: !!res.data?.liked }
+            : kind === 'repost'
+              ? { reposted: !!res.data?.reposted }
+              : { bookmarked: !!res.data?.bookmarked };
         updatePostShadow(post.id, confirmed);
       } else {
-        // Rollback.
-        updatePostShadow(post.id, kind === 'like' ? { liked: liked } : { reposted: reposted });
+        updatePostShadow(
+          post.id,
+          kind === 'like' ? { liked } : kind === 'repost' ? { reposted } : { bookmarked }
+        );
       }
     } catch {
-      updatePostShadow(post.id, kind === 'like' ? { liked: liked } : { reposted: reposted });
+      updatePostShadow(
+        post.id,
+        kind === 'like' ? { liked } : kind === 'repost' ? { reposted } : { bookmarked }
+      );
     } finally {
       setBusy(null);
     }
@@ -109,7 +111,6 @@ export function ThoughtActions({
     void runToggle('like', !liked, () => apiClient.toggleLike(post.id));
   };
 
-  // Tap → menu Repost/Quote (parité Bluesky RepostButton) ; long-press → citer.
   const handleRepost = () => {
     if (busy) return;
     setRepostMenu(true);
@@ -120,32 +121,21 @@ export function ThoughtActions({
     void runToggle('repost', !reposted, () => apiClient.toggleRepost(post.id));
   };
 
-  const quoteFromMenu = () => {
-    setRepostMenu(false);
-    handleQuote();
+  const handleBookmark = () => {
+    if (busy) return;
+    void runToggle('bookmark', !bookmarked, async () => {
+      const res = await apiClient.toggleBookmark(post.id, 'thought');
+      if (res.ok) {
+        Toast.show(
+          !bookmarked
+            ? t('post.bookmarked', 'Ajouté à vos signets')
+            : t('post.unbookmarked', 'Retiré de vos signets'),
+          'success'
+        );
+      }
+      return res;
+    });
   };
-
-  const repostGroups: ActionSheetGroup[] = [
-    {
-      items: [
-        {
-          key: 'repost',
-          label: reposted
-            ? t('feed.remove_repost', 'Retirer le repost')
-            : t('feed.repost', 'Repartager'),
-          icon: ICONS.repost,
-          onPress: runRepost,
-          disabled: busy !== null,
-        },
-        {
-          key: 'quote',
-          label: t('feed.quote_post', 'Citer la pensée'),
-          icon: ICONS.quote,
-          onPress: quoteFromMenu,
-        },
-      ],
-    },
-  ];
 
   const handleReply = () => {
     if (onReply) {
@@ -160,7 +150,7 @@ export function ThoughtActions({
   };
 
   const handleQuote = () => {
-    // Citer : ouvre le composer avec repostId (la pensée est référencée).
+    setRepostMenu(false);
     const handle = post.author?.username || post.author?.subdomain || undefined;
     router.push({
       pathname: '/compose',
@@ -172,99 +162,136 @@ export function ThoughtActions({
     });
   };
 
+  const repostGroups: ActionSheetGroup[] = [
+    {
+      items: [
+        {
+          key: 'repost',
+          label: reposted
+            ? t('feed.remove_repost', 'Retirer le repost')
+            : t('feed.repost', 'Repartager'),
+          icon: { ios: 'arrow.2.squarepath', android: 'repeat', web: 'repeat' },
+          onPress: runRepost,
+          disabled: busy !== null,
+        },
+        {
+          key: 'quote',
+          label: t('feed.quote_post', 'Citer la pensée'),
+          icon: { ios: 'text.quote', android: 'format_quote', web: 'format_quote' },
+          onPress: handleQuote,
+        },
+      ],
+    },
+  ];
+
   const shareUrl = `https://qoe.fi/thought/${post.author?.username || post.author?.subdomain || post.author?.id || 'author'}/${post.id}`;
 
   return (
     <View style={styles.row}>
-      {/* Actions primaires (gauche) — parité Bluesky : Reply, Repost, Like */}
-      <View style={styles.primary}>
-        {/* Reply */}
-        <Pressable
-          onPress={handleReply}
-          hitSlop={8}
-          style={({ pressed }) => [styles.action, pressed && styles.pressed]}
-          accessibilityLabel={t('feed.reply', 'Répondre')}
-        >
-          <SymbolView
-            name={ICONS.reply}
-            size={iconSize}
-            tintColor={theme.textSecondary}
-            weight="regular"
-          />
-          {replyCount > 0 ? (
-            <ThemedText
-              type="small"
-              style={[styles.count, { color: theme.textSecondary, fontSize: labelSize }]}
-            >
-              {replyCount}
-            </ThemedText>
-          ) : null}
-        </Pressable>
+      {/* 1. Reply (Bulle Twitter) */}
+      <Pressable
+        onPress={handleReply}
+        hitSlop={8}
+        style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+        accessibilityLabel={t('feed.reply', 'Répondre')}
+      >
+        <Ionicons name="chatbubble-outline" size={iconSize} color={theme.textSecondary} />
+        {replyCount > 0 ? (
+          <ThemedText
+            type="small"
+            style={[styles.count, { color: theme.textSecondary, fontSize: labelSize }]}
+          >
+            {formatCount(replyCount)}
+          </ThemedText>
+        ) : null}
+      </Pressable>
 
-        {/* Repost — tap : menu Repost/Quote ; long-press : citer (parité Bluesky) */}
-        <Pressable
-          onPress={handleRepost}
-          onLongPress={handleQuote}
-          delayLongPress={350}
-          hitSlop={8}
-          style={({ pressed }) => [styles.action, pressed && styles.pressed]}
-          accessibilityLabel={t('feed.repost', 'Repartager')}
-        >
-          <SymbolView
-            name={reposted ? ICONS.repostOn : ICONS.repost}
-            size={iconSize}
-            tintColor={reposted ? theme.success : theme.textSecondary}
-            weight={reposted ? 'bold' : 'regular'}
-          />
-          {repostCount > 0 ? (
-            <ThemedText
-              type="small"
-              style={[
-                styles.count,
-                { color: reposted ? theme.success : theme.textSecondary, fontSize: labelSize },
-              ]}
-            >
-              {repostCount}
-            </ThemedText>
-          ) : null}
-        </Pressable>
-
-        <ActionSheet
-          visible={repostMenu}
-          title={t('feed.repost_menu', 'Repartager ou citer')}
-          groups={repostGroups}
-          onClose={() => setRepostMenu(false)}
+      {/* 2. Repost (Flèches cycle Twitter) */}
+      <Pressable
+        onPress={handleRepost}
+        onLongPress={handleQuote}
+        delayLongPress={350}
+        hitSlop={8}
+        style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+        accessibilityLabel={t('feed.repost', 'Repartager')}
+      >
+        <Ionicons
+          name="repeat"
+          size={iconSize + 2}
+          color={reposted ? '#00BA7C' : theme.textSecondary}
         />
+        {repostCount > 0 ? (
+          <ThemedText
+            type="small"
+            style={[
+              styles.count,
+              { color: reposted ? '#00BA7C' : theme.textSecondary, fontSize: labelSize },
+            ]}
+          >
+            {formatCount(repostCount)}
+          </ThemedText>
+        ) : null}
+      </Pressable>
 
-        {/* Like */}
-        <Pressable
-          onPress={handleLike}
-          hitSlop={8}
-          style={({ pressed }) => [styles.action, pressed && styles.pressed]}
-          accessibilityLabel={t('feed.like', 'J’aime')}
-        >
-          <SymbolView
-            name={liked ? ICONS.likeOn : ICONS.like}
-            size={iconSize}
-            tintColor={liked ? theme.primary : theme.textSecondary}
-            weight="regular"
-          />
-          {likeCount > 0 ? (
-            <ThemedText
-              type="small"
-              style={[
-                styles.count,
-                { color: liked ? theme.primary : theme.textSecondary, fontSize: labelSize },
-              ]}
-            >
-              {likeCount}
-            </ThemedText>
-          ) : null}
-        </Pressable>
-      </View>
+      <ActionSheet
+        visible={repostMenu}
+        title={t('feed.repost_menu', 'Repartager ou citer')}
+        groups={repostGroups}
+        onClose={() => setRepostMenu(false)}
+      />
 
-      {/* Actions secondaires (droite) — Share (Quote est dans le menu Repost, parité Bluesky) */}
-      <View style={styles.secondary}>
+      {/* 3. Like (Cœur Twitter) */}
+      <Pressable
+        onPress={handleLike}
+        hitSlop={8}
+        style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+        accessibilityLabel={t('feed.like', 'J’aime')}
+      >
+        <Ionicons
+          name={liked ? 'heart' : 'heart-outline'}
+          size={iconSize + 1}
+          color={liked ? '#F91880' : theme.textSecondary}
+        />
+        {likeCount > 0 ? (
+          <ThemedText
+            type="small"
+            style={[
+              styles.count,
+              { color: liked ? '#F91880' : theme.textSecondary, fontSize: labelSize },
+            ]}
+          >
+            {formatCount(likeCount)}
+          </ThemedText>
+        ) : null}
+      </Pressable>
+
+      {/* 4. Bookmark (Signet Twitter) */}
+      <Pressable
+        onPress={handleBookmark}
+        hitSlop={8}
+        style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+        accessibilityLabel={t('post.bookmark', 'Enregistrer')}
+      >
+        <Ionicons
+          name={bookmarked ? 'bookmark' : 'bookmark-outline'}
+          size={iconSize}
+          color={bookmarked ? '#1D9BF0' : theme.textSecondary}
+        />
+        {bookmarkCount > 0 ? (
+          <ThemedText
+            type="small"
+            style={[
+              styles.count,
+              { color: bookmarked ? '#1D9BF0' : theme.textSecondary, fontSize: labelSize },
+            ]}
+          >
+            {formatCount(bookmarkCount)}
+          </ThemedText>
+        ) : null}
+      </Pressable>
+
+      {/* 5. Share (Partage Twitter) */}
+      <View style={styles.action}>
         <ShareMenuButton url={shareUrl} />
       </View>
     </View>
@@ -276,27 +303,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: Spacing.two,
-  },
-  primary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.four,
-  },
-  secondary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.four,
+    width: '100%',
+    paddingHorizontal: 14,
+    paddingVertical: 2,
   },
   action: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.one,
+    justifyContent: 'center',
+    gap: 5,
+    minHeight: 32,
+    paddingHorizontal: 4,
   },
   pressed: {
-    opacity: 0.5,
+    opacity: 0.6,
   },
   count: {
+    fontWeight: '500',
     lineHeight: 18,
   },
 });

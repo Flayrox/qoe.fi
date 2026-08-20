@@ -27,6 +27,9 @@ export {
   OnboardingFlow,
   type OnboardingFlowProps,
   type OnboardingSubmitData,
+  type OnboardingCategory,
+  type OnboardingCreator,
+  type OnboardingSubtopic,
 } from './onboarding/OnboardingFlow';
 export { OnboardingModal, type OnboardingModalProps } from './onboarding/OnboardingModal';
 export {

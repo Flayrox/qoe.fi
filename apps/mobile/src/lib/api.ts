@@ -4,7 +4,8 @@ import Constants from 'expo-constants';
 import { isDevice } from 'expo-device';
 import { Platform } from 'react-native';
 
-import { getAccessToken } from '@/lib/session';
+import { getAccessToken, setAccessToken } from '@/lib/session';
+import { supabase } from '@/lib/supabase';
 
 // Port de l'API Go locale (cf. apps/api : API_PORT=8090, backend unique).
 const API_PORT = 8090;
@@ -54,6 +55,19 @@ export function getApiBaseUrl(): string {
 
 export const apiClient = new QoeApiClient({
   baseUrl: getApiBaseUrl(),
-  // Token de session courant (mis à jour par AuthProvider via lib/session).
-  getAuthToken: () => getAccessToken(),
+  // Token de session courant avec rafraîchissement transparent via Supabase
+  getAuthToken: async () => {
+    const current = getAccessToken();
+    if (current) return current;
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.access_token) {
+        setAccessToken(data.session.access_token);
+        return data.session.access_token;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  },
 });

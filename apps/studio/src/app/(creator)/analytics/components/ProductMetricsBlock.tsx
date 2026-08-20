@@ -106,11 +106,11 @@ export function ProductMetricsBlock({ metrics }: ProductMetricsBlockProps) {
             Bookmarks + commentaires + surlignages + annotations
           </p>
         </div>
-        {/* Complétion de lecture moyenne */}
+        {/* Complétion de lecture moyenne & Qualité de Lecture */}
         <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-              Complétion de lecture
+              Complétion de lecture certifiée
             </span>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
               <BookOpen className="h-4 w-4 stroke-[1.5]" />
@@ -120,12 +120,93 @@ export function ProductMetricsBlock({ metrics }: ProductMetricsBlockProps) {
             <span className="text-3xl font-bold tracking-tight text-foreground">
               {avgCompletionRate === null ? '—' : `${Math.round(avgCompletionRate * 100)}%`}
             </span>
-            <span className="text-xs text-muted-foreground font-medium">moyenne</span>
+            <span className="text-xs text-muted-foreground font-medium">score moyen</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Part moyenne d'un article lue par vos lecteurs
-          </p>
+
+          {/* Jauge Qualité de Lecture : Vraies Lectures vs Survols */}
+          {metrics.readingQuality && (
+            <div className="mt-4 pt-3 border-t border-border/30 space-y-2">
+              <div className="flex justify-between text-[11px]">
+                <span className="text-success font-medium">
+                  Lectures complètes ({metrics.readingQuality.deepReadsRate}%)
+                </span>
+                <span className="text-warning font-medium">
+                  Survols ({metrics.readingQuality.skimsRate}%)
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-muted/60 flex overflow-hidden">
+                <div
+                  className="h-full bg-success"
+                  style={{ width: `${metrics.readingQuality.deepReadsRate}%` }}
+                />
+                <div
+                  className="h-full bg-warning"
+                  style={{ width: `${metrics.readingQuality.skimsRate}%` }}
+                />
+                <div
+                  className="h-full bg-muted-foreground/30"
+                  style={{ width: `${metrics.readingQuality.bouncesRate}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Basé sur le temps de lecture effectif (&ge; 35% de la durée estimée)
+              </p>
+            </div>
+          )}
         </div>
+        {/* Répartition des Sources de Flux */}
+        {metrics.trafficSources && (
+          <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
+                Provenance du flux
+              </span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
+                <Repeat className="h-4 w-4 stroke-[1.5]" />
+              </div>
+            </div>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">⚡ Feed d'accueil IA</span>
+                <span className="font-semibold text-foreground">
+                  {metrics.trafficSources.feed}%
+                </span>
+              </div>
+              <div className="w-full h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                <div
+                  className="h-full bg-primary"
+                  style={{ width: `${metrics.trafficSources.feed}%` }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs pt-1">
+                <span className="text-muted-foreground">🌐 Sous-domaine direct</span>
+                <span className="font-semibold text-foreground">
+                  {metrics.trafficSources.subdomain}%
+                </span>
+              </div>
+              <div className="w-full h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                <div
+                  className="h-full bg-accent"
+                  style={{ width: `${metrics.trafficSources.subdomain}%` }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs pt-1">
+                <span className="text-muted-foreground">👤 Profil public (@)</span>
+                <span className="font-semibold text-foreground">
+                  {metrics.trafficSources.publicProfile}%
+                </span>
+              </div>
+              <div className="w-full h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                <div
+                  className="h-full bg-secondary"
+                  style={{ width: `${metrics.trafficSources.publicProfile}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ─── Top Articles by Engagement ───────────────────────────── */}

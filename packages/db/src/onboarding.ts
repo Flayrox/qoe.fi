@@ -9,6 +9,7 @@
 // =====================================================================
 
 import { prisma } from './client';
+import http from 'node:http';
 
 const GENDERS = ['FEMALE', 'MALE', 'NON_BINARY', 'OTHER', 'PREFER_NOT_TO_SAY'] as const;
 const AGE_RANGES = [
@@ -300,12 +301,12 @@ export async function getOnboardingData(): Promise<OnboardingData> {
 }
 
 // ---------------------------------------------------------------------
-// Embedding (stub déterministe — jina-embeddings-v3 MRL 512 dims, auto-hébergé)
+// Embedding Sémantique Utilisateur (jina-embeddings-v3 MRL 512 dims)
 // ---------------------------------------------------------------------
 
 const EMBEDDING_DIM = 512;
 
-function generateMockEmbedding(text: string, interests: string[] = []): number[] {
+function generateFallbackMockEmbedding(text: string, interests: string[] = []): number[] {
   const seedSource = `${text}|${interests.sort().join(',')}`;
   let hash = 0;
   for (let i = 0; i < seedSource.length; i++) {
@@ -317,12 +318,80 @@ function generateMockEmbedding(text: string, interests: string[] = []): number[]
   });
 }
 
-async function updateUserEmbedding(userId: string, vector: number[]): Promise<void> {
-  // Stub : l'inférence jina-embeddings-v3 auto-hébergée arrive en phase dédiée.
-  // Phase future : prisma.$executeRaw`UPDATE "User" SET embedding = ${vector}::vector WHERE id = ${userId}`
-  void userId;
-  void vector;
-  return Promise.resolve();
+async function fetchJinaEmbedding(text: string): Promise<number[]> {
+  const embeddingUrl = process.env.EMBEDDING_URL || 'http://127.0.0.1:8081/v1/embeddings';
+  const data = JSON.stringify({
+    model: 'jina-embeddings-v3',
+    input: text.slice(0, 4000),
+  });
+
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      embeddingUrl,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(data),
+        },
+        timeout: 5000,
+      },
+      (res) => {
+        let body = '';
+        res.on('data', (chunk) => (body += chunk));
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(body);
+            if (json.data && json.data[0] && json.data[0].embedding) {
+              resolve(json.data[0].embedding.slice(0, 512));
+            } else {
+              reject(new Error(`Invalid response format from embedding server: ${body}`));
+            }
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }
+    );
+
+    req.on('error', reject);
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Embedding request timed out'));
+    });
+    req.write(data);
+    req.end();
+  });
+}
+
+async function computeAndSaveUserEmbedding(
+  userId: string,
+  onboardingText: string,
+  topics: string[]
+): Promise<void> {
+  const prompt = `Intérêts: ${topics.join(', ')} | Intention: ${onboardingText || 'Lecture attentive et pensée critique'}`;
+  let vector: number[];
+
+  try {
+    vector = await fetchJinaEmbedding(prompt);
+  } catch (err) {
+    console.warn(
+      '⚠️ [Onboarding] Inférence Jina indisponible, utilisation du fallback déterministe:',
+      err
+    );
+    vector = generateFallbackMockEmbedding(onboardingText, topics);
+  }
+
+  try {
+    const vectorStr = `[${vector.join(',')}]`;
+    await prisma.$executeRawUnsafe(
+      `UPDATE "User" SET "embedding" = $1::vector WHERE id = $2`,
+      vectorStr,
+      userId
+    );
+  } catch (dbErr) {
+    console.error('❌ [Onboarding] Erreur écriture vecteur pgvector:', dbErr);
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -362,8 +431,7 @@ export async function completeOnboardingInDb(
     // Embedding sémantique (pgvector) pour le feed / recommandations :
     // On combine les macro-thèmes, les sous-thèmes précis et le texte d'intention de lecture.
     const allTopicSignals = [...data.interests, ...(data.subtopics || [])];
-    const embeddingVector = generateMockEmbedding(data.onboardingText || '', allTopicSignals);
-    await updateUserEmbedding(userId, embeddingVector);
+    await computeAndSaveUserEmbedding(userId, data.onboardingText || '', allTopicSignals);
 
     // 1. Mots masqués.
     if (data.mutedWords.length > 0) {

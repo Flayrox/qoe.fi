@@ -32,6 +32,17 @@ export default async function AnalyticsPage() {
       totalHighlights: 0,
       totalInteractions: 0,
       avgCompletionRate: null,
+      readingQuality: {
+        deepReadsRate: 0,
+        skimsRate: 0,
+        bouncesRate: 0,
+      },
+      trafficSources: {
+        feed: 0,
+        subdomain: 0,
+        publicProfile: 0,
+        direct: 0,
+      },
       topCategories: [],
       topArticles: [],
     },

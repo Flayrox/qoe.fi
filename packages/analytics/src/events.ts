@@ -20,9 +20,13 @@ export const EVENTS = {
   ONBOARDING_STEP_COMPLETED: 'onboarding_step_completed',
   ONBOARDING_COMPLETED: 'onboarding_completed',
 
-  // Articles
+  // Articles & Reading Quality
   ARTICLE_PUBLISHED: 'article_published',
   ARTICLE_VIEWED: 'article_viewed',
+  ARTICLE_READING_SESSION: 'article_reading_session',
+  ARTICLE_READ_MILESTONE: 'article_read_milestone',
+  ARTICLE_SKIMMED: 'article_skimmed',
+  ARTICLE_COMPLETED: 'article_completed',
   ARTICLE_BOOKMARKED: 'article_bookmarked',
   ARTICLE_HIGHLIGHTED: 'article_highlighted',
 

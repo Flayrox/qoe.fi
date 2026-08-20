@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { TenantHeader, SubscribeForm } from '@qoe/ui';
 import { type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
 import { TenantArticleHighlighter } from './TenantArticleHighlighter';
+import { TenantArticleReadingTracker } from './TenantArticleReadingTracker';
 import { type CommentItem } from './ArticleCommentsSection';
 import { PaywallCut } from './PaywallCut';
 import { ReaderActions } from './ReaderActions';
@@ -293,6 +294,12 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
       />
 
       {/* Article Main Container */}
+      <TenantArticleReadingTracker
+        articleId={article.id}
+        slug={article.slug}
+        readingTimeMinutes={readingTimeMinutes}
+        initialSource="subdomain"
+      />
       <main className="container mx-auto px-4 lg:px-8 pt-12 pb-24 max-w-3xl">
         {/* Category & Metadata Header */}
         <header className="mb-10 space-y-4">

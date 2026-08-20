@@ -17,6 +17,7 @@ import {
   deleteHighlightAction,
 } from '@qoe/api-client';
 import { SimilarArticlesSection } from './SimilarArticlesSection';
+import { useArticleReadingTracker } from '@qoe/analytics';
 
 export interface ArticleAnnotatorViewProps {
   article: {
@@ -58,6 +59,13 @@ interface AuthUser {
 export function ArticleAnnotatorView({ article }: ArticleAnnotatorViewProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [highlightsList, setHighlightsList] = useState<AnnotationItem[]>([]);
+
+  // 📊 High-precision reading tracker (Dwell time actif + Scroll depth + Détection Survol)
+  useArticleReadingTracker({
+    articleId: article.id,
+    slug: article.slug,
+    readingTimeMinutes: article.readingTime || 5,
+  });
 
   // Fetch current user auth state
   useEffect(() => {

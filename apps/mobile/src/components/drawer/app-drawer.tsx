@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type PropsWithChildren } from 'react';
+import { useCallback, useEffect, useMemo, type PropsWithChildren } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -11,7 +11,7 @@ import Animated, {
 import { Sidebar } from '@/features/sidebar/sidebar';
 import { useTheme } from '@/hooks/use-theme';
 
-import { DrawerContext } from './drawer-context';
+import { DrawerContext, drawerController } from './drawer-context';
 
 // Drawer deck (façon X) : la sidebar vit en arrière-plan (zIndex 1) et
 // c'est l'écran principal qui se décale pour la révéler. Pas d'échelle ni
@@ -56,6 +56,11 @@ export function AppDrawer({ children }: PropsWithChildren) {
     // eslint-disable-next-line react-hooks/immutability -- mutation de shared value reanimated
     progress.value = withTiming(0, TIMING_CONFIG);
   }, [progress]);
+
+  useEffect(() => {
+    drawerController.openDrawer = openDrawer;
+    drawerController.closeDrawer = closeDrawer;
+  }, [openDrawer, closeDrawer]);
 
   const value = useMemo(
     () => ({ openDrawer, closeDrawer, progress }),

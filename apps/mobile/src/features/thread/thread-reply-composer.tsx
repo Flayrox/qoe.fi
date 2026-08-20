@@ -25,6 +25,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { AdaptiveGlassView } from '@/components/liquid-tab-bar/AdaptiveGlassView';
 import { Avatar } from '@/components/thought/avatar';
+import { useDrawer } from '@/components/drawer/drawer-context';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useMe } from '@/hooks/use-me';
@@ -53,6 +54,7 @@ export function ThreadReplyComposer({
   const isDark = scheme === 'dark';
   const queryClient = useQueryClient();
   const inputRef = useRef<TextInput>(null);
+  const { openDrawer } = useDrawer();
 
   const { session } = useAuth();
   const { data: me } = useMe();
@@ -213,7 +215,8 @@ export function ThreadReplyComposer({
                 avatarScale.value = withSpring(1.0, SPRING_PHYSICS);
               }}
               onPress={() => {
-                inputRef.current?.focus();
+                playHaptic('Light');
+                openDrawer();
               }}
             >
               {/* Fond Verre Liquide */}

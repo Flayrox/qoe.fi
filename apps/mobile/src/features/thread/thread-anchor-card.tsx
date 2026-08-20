@@ -1,14 +1,14 @@
 // =====================================================================
-// 🎯 ThreadAnchorCard — Le post focus d'un fil, en « agrandi » (port
-//    fidèle de .reference/bluesky/src/screens/PostThread/components/
-//    ThreadItemAnchor.tsx)
+// 🎯 ThreadAnchorCard — Le post focus d'un fil (Proportions Twitter / X)
 // =====================================================================
-// Avatar 42 + nom/handle empilés + bouton suivre, texte en grand
-// (PostContent big, sans troncature), rangée de stats (reposts · j'aime ·
-// réponses), actions « big », puis date absolue + qui peut répondre.
+// Header auteur (Avatar 44px + Nom raffiné semi-bold/Handle + Suivre),
+// Traduction orange/vermillon aérée, Corps de texte 18px, Date Twitter,
+// et barre d'actions 5 icônes.
 // =====================================================================
 
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -17,11 +17,14 @@ import { resolveDisplay } from '@/components/thought/normalize';
 import { PostContent } from '@/components/thought/post-content';
 import { ThoughtActions } from '@/components/thought/thought-actions';
 import { ThreadFollowButton } from '@/features/thread/thread-follow-button';
-import { niceDate, formatCount } from '@/lib/format';
+import { formatPostDetailDate } from '@/lib/format';
 import { Spacing } from '@/constants/theme';
+import { useAuth } from '@/features/auth/auth-provider';
+import { useMe } from '@/hooks/use-me';
 import { useTheme } from '@/hooks/use-theme';
+import { t } from '@/lib/i18n';
 import type { NormalizedThought } from '@/components/thought/normalize';
-import { LINEAR_AVI_WIDTH, REPLY_LINE_WIDTH, OUTER_SPACE } from './thread-post';
+import { OUTER_SPACE, REPLY_LINE_WIDTH, LINEAR_AVI_WIDTH } from './thread-post';
 
 export function ThreadAnchorCard({
   post,
@@ -34,31 +37,35 @@ export function ThreadAnchorCard({
 }) {
   const theme = useTheme();
   const { display } = resolveDisplay(post);
+  const { data: me } = useMe();
+  const { session } = useAuth();
+  const user = session?.user;
 
   const openProfile = () => {
     const username = display.author.username || display.author.id;
     router.push({ pathname: '/user/[username]', params: { username } });
   };
 
-  // Stats cliquables (parité Bluesky PostLikedBy/PostRepostedBy/PostQuotes) :
-  // reposts et j'aime ouvrent leur liste, « réponses » reste statique (on est
-  // déjà dans le fil).
-  const tappable: Array<{ count: number; label: string; kind: 'likes' | 'reposts' }> = [
-    { count: display.repostCount, label: 'reposts', kind: 'reposts' as const },
-    { count: display.likeCount, label: 'j’aime', kind: 'likes' as const },
-  ].filter((s) => s.count > 0);
-  const replyCount = display.replyCount;
+  const isOwn =
+    (me?.id && display.author.id && me.id === display.author.id) ||
+    (user?.id && display.author.id && user.id === display.author.id) ||
+    (me?.username &&
+      display.author.username &&
+      me.username.toLowerCase() === display.author.username.toLowerCase()) ||
+    (user?.user_metadata?.username &&
+      display.author.username &&
+      (user.user_metadata.username as string).toLowerCase() ===
+        display.author.username.toLowerCase());
 
-  const openEngagement = (kind: 'likes' | 'reposts') => {
-    router.push({
-      pathname: '/post/[id]/[kind]',
-      params: { id: display.id, kind },
-    });
+  const onTranslate = () => {
+    void WebBrowser.openBrowserAsync(
+      `https://translate.google.com/?sl=auto&tl=fr&text=${encodeURIComponent(display.content.slice(0, 900))}`
+    );
   };
 
   return (
-    <View style={{ paddingHorizontal: OUTER_SPACE }}>
-      {/* Ligne de parent (si le post a des ancêtres au-dessus) */}
+    <View style={styles.container}>
+      {/* Ligne de parent (si ancêtres au-dessus) */}
       {showParentLine ? (
         <View style={styles.parentLineRow}>
           <View style={{ width: LINEAR_AVI_WIDTH }}>
@@ -67,93 +74,79 @@ export function ThreadAnchorCard({
         </View>
       ) : null}
 
-      <View style={styles.bodyRow}>
-        {/* Avatar + ligne d'enfant */}
-        <View style={styles.aviCol}>
+      {/* ─── 1. En-tête Auteur : Avatar 44px + Nom fin semi-bold / Handle + Suivre ─── */}
+      <View style={styles.headerRow}>
+        <Pressable onPress={openProfile} style={styles.authorTouchArea}>
           <Avatar
             user={{
               name: display.author.name,
               username: display.author.username,
               logoUrl: display.author.logoUrl,
             }}
-            sizeNumber={LINEAR_AVI_WIDTH}
+            sizeNumber={44}
             showCertified={display.author.isCertified}
           />
-        </View>
-
-        {/* Contenu agrandi */}
-        <View style={styles.content}>
-          {/* Nom + handle empilés + bouton Suivre (parité Bluesky) */}
-          <View style={styles.authorRow}>
-            <View style={styles.authorBlock}>
-              <ThemedText style={styles.displayName} numberOfLines={1} onPress={openProfile}>
-                {display.author.name || display.author.username || '?'}
-              </ThemedText>
-              {display.author.username ? (
-                <ThemedText
-                  style={{ color: theme.textSecondary }}
-                  numberOfLines={1}
-                  onPress={openProfile}
-                >
-                  @{display.author.username}
-                </ThemedText>
-              ) : null}
-            </View>
+          <View style={styles.authorBlock}>
+            <ThemedText style={styles.displayName} numberOfLines={1}>
+              {display.author.name || display.author.username || '?'}
+            </ThemedText>
             {display.author.username ? (
-              <ThreadFollowButton authorId={display.author.id} username={display.author.username} />
+              <ThemedText style={[styles.handle, { color: theme.textSecondary }]} numberOfLines={1}>
+                @{display.author.username}
+              </ThemedText>
             ) : null}
           </View>
-          {/* Corps en grand, sans troncature */}
-          <PostContent post={display} quoted={resolveDisplay(post).quoted} big truncate={false} />
-          {/* Stats */}
-          {tappable.length > 0 || replyCount > 0 ? (
-            <View
-              style={[
-                styles.statsRow,
-                { borderTopColor: theme.border, borderBottomColor: theme.border },
-              ]}
-            >
-              {tappable.map((s) => (
-                <Pressable key={s.label} onPress={() => openEngagement(s.kind)} hitSlop={4}>
-                  <ThemedText style={{ color: theme.textSecondary }}>
-                    <ThemedText style={[styles.statCount, { color: theme.text }]}>
-                      {formatCount(s.count)}
-                    </ThemedText>{' '}
-                    {s.label}
-                  </ThemedText>
-                </Pressable>
-              ))}
-              {replyCount > 0 ? (
-                <ThemedText style={{ color: theme.textSecondary }}>
-                  <ThemedText style={[styles.statCount, { color: theme.text }]}>
-                    {formatCount(replyCount)}
-                  </ThemedText>{' '}
-                  réponses
-                </ThemedText>
-              ) : null}
-            </View>
-          ) : null}
-          {/* Actions big */}
-          <View style={styles.controls}>
-            <ThoughtActions post={display} size="lg" onReply={onReply} />
+        </Pressable>
+
+        {/* Côté droit : Bouton Suivre si autre utilisateur */}
+        {!isOwn && display.author.username ? (
+          <View style={styles.headerRight}>
+            <ThreadFollowButton authorId={display.author.id} username={display.author.username} />
           </View>
-          {/* Date absolue */}
-          <View style={styles.footerMeta}>
-            <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              {niceDate(display.createdAt)}
-            </ThemedText>
-          </View>
-        </View>
+        ) : null}
+      </View>
+
+      {/* ─── 2. Traduire la pensée (Orange / Vermillon aéré) ─── */}
+      <Pressable onPress={onTranslate} style={styles.translateRow} hitSlop={6}>
+        <Ionicons name="globe-outline" size={13} color="#EE4B2B" />
+        <ThemedText style={styles.translateText}>
+          {t('post.show_translation', 'Traduire la pensée')}
+        </ThemedText>
+      </Pressable>
+
+      {/* ─── 3. Corps du texte en pleine largeur (18px) ─── */}
+      <View style={styles.bodyContent}>
+        <PostContent post={display} quoted={resolveDisplay(post).quoted} big truncate={false} />
+      </View>
+
+      {/* ─── 4. Date & Heure format Twitter : 18:19 · 18/08/2026 ─── */}
+      <View style={styles.dateRow}>
+        <ThemedText style={[styles.dateText, { color: theme.textSecondary }]}>
+          {formatPostDetailDate(display.createdAt)}
+        </ThemedText>
+      </View>
+
+      {/* ─── 5. Ligne de séparation supérieure ─── */}
+      <View style={[styles.hairline, { backgroundColor: theme.border }]} />
+
+      {/* ─── 6. Barre d'actions Twitter (5 icônes spacieuses) ─── */}
+      <View style={styles.controlsRow}>
+        <ThoughtActions post={display} size="lg" onReply={onReply} />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    paddingHorizontal: OUTER_SPACE,
+    paddingTop: 4,
+  },
   parentLineRow: {
     flexDirection: 'row',
     height: 12,
-    marginTop: 4,
+    marginTop: 2,
+    marginBottom: 4,
   },
   parentLine: {
     width: REPLY_LINE_WIDTH,
@@ -162,53 +155,66 @@ const styles = StyleSheet.create({
     marginRight: 'auto',
     borderRadius: 1,
   },
-  bodyRow: {
+  headerRow: {
     flexDirection: 'row',
-    gap: Spacing.two,
-    paddingTop: Spacing.three,
-  },
-  aviCol: {
-    width: LINEAR_AVI_WIDTH,
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  content: {
+  authorTouchArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
     flex: 1,
     minWidth: 0,
-    paddingBottom: Spacing.three,
-  },
-  authorRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-    marginBottom: Spacing.two,
   },
   authorBlock: {
     flex: 1,
-    gap: 1,
+    minWidth: 0,
+    justifyContent: 'center',
   },
   displayName: {
-    fontSize: 18,
-    fontWeight: '700',
-    lineHeight: 22,
+    fontSize: 16.5,
+    fontWeight: '600',
+    letterSpacing: -0.3,
   },
-  statsRow: {
+  handle: {
+    fontSize: 14.5,
+    marginTop: 1,
+  },
+  headerRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  translateRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.three,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    marginTop: Spacing.three,
-    paddingVertical: Spacing.two,
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    marginBottom: 6,
   },
-  statCount: {
-    fontWeight: '700',
+  translateText: {
+    color: '#EE4B2B',
+    fontSize: 13,
+    fontWeight: '500',
   },
-  controls: {
-    marginTop: Spacing.one,
+  bodyContent: {
+    marginTop: 2,
+    marginBottom: 10,
   },
-  footerMeta: {
-    gap: Spacing.one,
-    marginTop: Spacing.two,
+  dateRow: {
+    marginTop: 2,
+    marginBottom: 12,
+  },
+  dateText: {
+    fontSize: 14,
+  },
+  controlsRow: {
+    paddingTop: 8,
+    paddingBottom: 2,
+  },
+  hairline: {
+    height: StyleSheet.hairlineWidth,
+    width: '100%',
   },
 });
