@@ -760,7 +760,25 @@ export async function getSuggestedCreatorsByVector(params: {
       limit
     );
   } else {
-    // Mode Cold-Start : meilleurs créateurs par régularité et abonnés
+    // Mode Cold-Start : les sélections de la plateforme (table Recommendation)
+    // passent en tête, complétées par les créateurs les plus populaires
+    // (abonnés + certification).
+    const platformPicks = await prisma.recommendation.findMany({
+      select: { recommendedId: true },
+    });
+    const pickPubIds = [...new Set(platformPicks.map((r) => r.recommendedId))];
+    const pickUsers = pickPubIds.length
+      ? await prisma.user.findMany({
+          where: { publicationId: { in: pickPubIds } },
+          select: { id: true },
+        })
+      : [];
+    const pickUserIds = pickUsers.map((u) => u.id);
+    const picksOrder =
+      pickUserIds.length > 0
+        ? `(CASE WHEN id::text IN (${pickUserIds.map((id) => `'${id}'`).join(',')}) THEN 1 ELSE 0 END) DESC, `
+        : '';
+
     rawCreators = await prisma.$queryRawUnsafe(
       `
       WITH AuthorStats AS (
@@ -773,7 +791,7 @@ export async function getSuggestedCreatorsByVector(params: {
           u."isCertified",
           p.subdomain,
           p."customDomain",
-          0.7::float8 AS sim_score,
+          0.0::float8 AS sim_score,
           a.title AS recent_title,
           COUNT(DISTINCT s.id)::int AS subs_count,
           ROW_NUMBER() OVER(PARTITION BY u.id ORDER BY a."createdAt" DESC) as rn
@@ -788,7 +806,7 @@ export async function getSuggestedCreatorsByVector(params: {
       SELECT *
       FROM AuthorStats
       WHERE rn = 1
-      ORDER BY (subs_count * 2 + (CASE WHEN "isCertified" THEN 5 ELSE 0 END)) DESC
+      ORDER BY ${picksOrder}(subs_count * 2 + (CASE WHEN "isCertified" THEN 5 ELSE 0 END)) DESC
       LIMIT $1;
       `,
       limit
@@ -804,7 +822,7 @@ export async function getSuggestedCreatorsByVector(params: {
     logoUrl: c.logoUrl,
     heroText: c.heroText,
     isCertified: !!c.isCertified,
-    affinityScore: Math.round((c.sim_score || 0.7) * 100),
+    affinityScore: Math.round((c.sim_score ?? 0.7) * 100),
     recentArticleTitle: c.recent_title,
     subscribersCount: c.subs_count || 0,
   }));

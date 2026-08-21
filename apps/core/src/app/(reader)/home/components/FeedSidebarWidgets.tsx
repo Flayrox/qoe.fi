@@ -112,7 +112,7 @@ export function FeedSidebarWidgets({
               {t`Plumes Recommandées`}
             </span>
             <span className="text-[10px] text-muted-foreground font-medium">
-              {t`Selon vos lectures`}
+              {userStats ? t`Selon vos lectures` : t`Sélections de la plateforme`}
             </span>
           </div>
 

@@ -841,11 +841,15 @@ export function FeedDashboard({
               onSelectTopic={(topicName) => {
                 setSelectedTag(topicName);
               }}
-              userStats={{
-                articlesRead: initialBookmarksCount || 12,
-                highlights: initialHighlightsCount || 8,
-                following: initialFollowsCount || 14,
-              }}
+              userStats={
+                dbUser
+                  ? {
+                      articlesRead: initialBookmarksCount,
+                      highlights: initialHighlightsCount,
+                      following: initialFollowsCount,
+                    }
+                  : undefined
+              }
             />
           </WidgetErrorBoundary>
         </div>
