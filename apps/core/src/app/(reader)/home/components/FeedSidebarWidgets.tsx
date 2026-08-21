@@ -85,7 +85,7 @@ export function FeedSidebarWidgets({
   };
 
   return (
-    <aside className="lg:col-span-4 lg:sticky lg:top-24 space-y-6 select-none">
+    <aside className="lg:col-span-4 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overscroll-contain scrollbar-thin space-y-6 select-none pr-1">
       {/* ── Widget 1 : Votre Activité ── */}
       {userStats && (
         <div className="bg-card border border-border/60 rounded-xl p-5 shadow-xs space-y-5">
