@@ -3,7 +3,14 @@
 > Document de référence à relire **pendant** la migration. Ne contient **aucun secret** :
 > chaque secret est référencé par son **origine** (où le trouver) et son **action** (copier / régénérer / récupérer).
 >
-> Statut : planifié — nouveau serveur + serveur mail auto-hébergé (réputation IP).
+> **Statut : ✅ EXÉCUTÉE le 21/08/2026** — migration faite vers le VPS Netcup
+> (`159.195.110.239`, Debian 13, 4 cœurs / 8 Go). Le guide opérationnel à jour est
+> [DEPLOYMENT.md](../DEPLOYMENT.md) ; `scripts/bootstrap.sh` automatise tout.
+>
+> Cette checklist reste utile pour comprendre l'ordre et pour une éventuelle
+> ré-installation. ⚠️ Le plan ci-dessous reflète l'état **avant** exécution ; les
+> écarts constatés (versions, pièges) sont signalés inline ou dans
+> [DEPLOYMENT.md §Troubleshooting](../DEPLOYMENT.md).
 
 ---
 
@@ -37,7 +44,8 @@
 ## 1. Décisions à prendre AVANT le jour J
 
 - [ ] **Fournisseur** : Netcup (IP à bonne réputation mail) — taille / RAM à choisir (8 Go min recommandé)
-- [ ] **DNS** : rester chez Hetzner OU passer chez Netcup — recommandé : **Netcup** (tout centralisé : serveur + DNS + mail)
+- [x] **DNS** : DÉCIDÉ le 21/08 — **transfert immédiat chez Netcup** (tout centraliser : serveur + DNS + mail, zéro friction). Zone à recréer à l'identique : records A, MX Hostinger, SPF, TXT google-site-verification (voir §0). Propagation 24-48 h → les 2 zones coexistent le temps de la bascule (le site continue de marcher via Hetzner).
+- [ ] **TLS wildcard** : passer au challenge **DNS-01 Netcup** (`certbot-dns-netcup` ou plugin Caddy `caddy-dns/netcup`) une fois la zone chez Netcup → wildcard `*.qoe.fi` automatique, fini les certs manuels
 - [ ] **TLS** : remplacer certbot (renouvellement manuel pénible) par **Caddy DNS-01 netcup** → wildcard automatique, zéro action manuelle. (Plugins vérifiés : `caddy-dns/netcup` ✅, `caddy-dns/hetzner` ✅)
 - [ ] **Serveur mail** : Mailcow ou équivalent sur le nouveau VPS + DKIM/SPF/DMARC + **reverse DNS (PTR) chez Netcup** (essentiel pour la réputation)
 - [ ] **Provider email des apps** : le code a déjà l'abstraction (`EMAIL_PROVIDER` + registry Resend/Postmark/SES/SMTP dans `packages/workers/src/email-provider.ts`) → brancher le SMTP auto-hébergé (Resend en fallback)
@@ -285,11 +293,28 @@ curl -s "https://api.qoe.fi/search/articles?q=test"
 | coolify-proxy occupait 80/443 | arrêté (rien ne passait par lui) |
 | Certs wildcard certbot = renouvellement manuel TXT | **→ Caddy DNS-01 (Netcup/Hetzner)** |
 
+### Leçons du déploiement réel (21/08/2026 — à ne pas refaire non plus)
+
+| Piège rencontré | Solution |
+|---|---|
+| **Frontends sans accès DB** : la home crash (`Can't reach database server at supabase-db:5432`) car les 5 apps Next.js (Prisma direct) n'étaient pas sur `supabase_default` | ajouter `supabase_default` aux 5 frontends dans docker-compose.yml (le commentaire « pas les frontends » était FAUX) |
+| **Kong en boucle** : `keyauth_credentials declared twice` car `SUPABASE_PUBLISHABLE_KEY`/`SECRET_KEY` = ANON/SERVICE_ROLE (doublons) | les laisser **vides** (mode legacy HS256, ce que l'app utilise) |
+| **Realtime en boucle** : `REALTIME_DB_ENC_KEY` doit faire 16 chars (AES-128) | `REALTIME_DB_ENC_KEY=supabaserealtime` |
+| **Tag Supabase `v1.27.12` inexistant** (écrit en dur dans bootstrap.sh) | utiliser la dernière release réelle : `v1.26.08` |
+| **pgvector dans `extensions`, Prisma cherche dans `public`** → migration P3018 `type "vector" does not exist` | `ALTER EXTENSION vector SET SCHEMA public;` + `prisma migrate resolve --rolled-back` (la migration était transactionnelle) |
+| **API Go refuse `?schema=public`** (pgx l'envoie en startup parameter) | `API_DATABASE_URL` sans le paramètre, lue en priorité |
+| **Caddy 502 api/auth** : services pas sur `qoefi-public` | api + kong/studio sur `qoefi-public` (override Supabase `COMPOSE_FILE=docker-compose.yml:docker-compose.override.yml`) |
+| **Build studio** : « Server Actions must be async » (Turbopack) | extraire le helper sync de `actions.ts` ('use server') |
+| **sharp côté client** : le barrel `@qoe/supabase` re-exportait `media-engine` | le retirer du barrel (sous-chemin serveur direct) |
+| **embed-all.ts URL en dur** (`127.0.0.1:8081`) → ECONNREFUSED en prod | `EMBEDDING_URL` configurable + URL complète `…/v1/embeddings` |
+| **Build tué par la déconnexion SSH** | `nohup docker compose build > log 2>&1 < /dev/null &` |
+| **Certs auto-signés bloquent certbot** (`live directory exists`) + cert émis sous `-0001` | supprimer `live/<domaine>`, relancer, re-créer des symlinks par fichier vers `archive/<domaine>-0001/` |
+
 ---
 
 ## 6. À faire après la migration (améliorations prévues)
 
 - [ ] Provider email SMTP dans le code (`EMAIL_PROVIDER`), Resend en fallback
-- [ ] Script de bootstrap automatisé (`scripts/bootstrap.sh`) rendant cette checklist inutile
+- [x] Script de bootstrap automatisé (`scripts/bootstrap.sh`) — **créé et utilisé lors de la migration** (idempotent, skippable par `SKIP_*`). La checklist reste la référence pour comprendre l'ordre
 - [ ] Mettre à jour `.env.docker.example` (il diverge du réel : manquent `SSO_JWT_SECRET`, `MEILI_MASTER_KEY`, `HF_TOKEN`, `EMBEDDING_*`, `REDIS_URL`, `SUPABASE_JWT_SECRET`, `NEXT_PUBLIC_TOLGEE_*` ; contient `SENTRY_DSN`, `GROWTHBOOK_*` inutilisés)
 - [ ] Supprimer les backups `qoe.fi.old-*` + images dangling (libère ~6-10 Go)
