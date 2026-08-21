@@ -9,7 +9,11 @@ import {
   type FormattedPoll,
   type FeedSlice,
 } from '@qoe/db/repositories/posts';
-import { getSuggestedCreatorsByVector, getSemanticTrendingTopics } from '@qoe/db/feed';
+import {
+  getPersonalizedFeed,
+  getSuggestedCreatorsByVector,
+  getSemanticTrendingTopics,
+} from '@qoe/db/feed';
 import { FeedDashboard } from './FeedDashboard';
 
 interface FeedPostRecord {
@@ -82,6 +86,43 @@ const publicationProfileSelect = {
   heroText: true,
   isCertified: true,
 } as const;
+
+const articleFeedInclude = {
+  publication: { select: publicationProfileSelect },
+  author: {
+    select: {
+      id: true,
+      name: true,
+      username: true,
+      logoUrl: true,
+      isCertified: true,
+    },
+  },
+  coAuthors: {
+    select: {
+      id: true,
+      name: true,
+      username: true,
+      logoUrl: true,
+      isCertified: true,
+    },
+  },
+  attributions: {
+    orderBy: { order: 'asc' as const },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          logoUrl: true,
+          isCertified: true,
+        },
+      },
+    },
+  },
+  category: { select: { name: true } },
+} satisfies Prisma.ArticleInclude;
 
 type ArticleWithDetails = Prisma.ArticleGetPayload<{
   include: {
@@ -510,42 +551,7 @@ export default async function ReaderHomePage() {
       published: true,
       author: { is: { isShadowbanned: false, isSuspended: false } },
     },
-    include: {
-      publication: { select: publicationProfileSelect },
-      author: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          logoUrl: true,
-          isCertified: true,
-        },
-      },
-      coAuthors: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          logoUrl: true,
-          isCertified: true,
-        },
-      },
-      attributions: {
-        orderBy: { order: 'asc' as const },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              logoUrl: true,
-              isCertified: true,
-            },
-          },
-        },
-      },
-      category: { select: { name: true } },
-    },
+    include: articleFeedInclude,
     orderBy: [{ isEditorPick: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
     take: 20,
   });
@@ -707,6 +713,11 @@ export default async function ReaderHomePage() {
     ? prisma.highlight.count({ where: { readerId: user.id } })
     : Promise.resolve(0);
 
+  // Moteur vectoriel Two-Tower pour l'onglet « Pour vous » (pgvector + circadien + MMR)
+  const personalizedFeedPromise = user
+    ? getPersonalizedFeed({ userId: user.id, limit: 40 })
+    : Promise.resolve(null);
+
   const suggestedCreatorsPromise = getSuggestedCreatorsByVector({
     userId: user?.id,
     limit: 4,
@@ -736,6 +747,7 @@ export default async function ReaderHomePage() {
     bookmarks,
     highlightsCount,
     suggestedCreators,
+    personalizedFeed,
     mutedWords,
     trends,
     promos,
@@ -750,6 +762,7 @@ export default async function ReaderHomePage() {
     bookmarksPromise,
     highlightsCountPromise,
     suggestedCreatorsPromise,
+    personalizedFeedPromise,
     mutedWordsPromise,
     trendsPromise,
     promosPromise,
@@ -784,10 +797,55 @@ export default async function ReaderHomePage() {
     ...followingSlices.map(mapSliceToFeedItem),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const recommendationArticles = [
-    ...dbRecArticles.map(mapArticleToFeedItem),
-    ...recSlices.map(mapSliceToFeedItem),
-  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  // Flux « Pour vous » : moteur vectoriel Two-Tower (pgvector + circadien + MMR)
+  // quand l'utilisateur est connecté, avec repli sur le flux daté classique.
+  type FeedItem = ReturnType<typeof mapArticleToFeedItem> | ReturnType<typeof mapSliceToFeedItem>;
+  let recommendationArticles: FeedItem[] = [];
+
+  if (personalizedFeed && personalizedFeed.items.length > 0) {
+    const articleIds = personalizedFeed.items
+      .filter((i) => i.itemType === 'ARTICLE')
+      .map((i) => i.id);
+    const thoughtIds = personalizedFeed.items
+      .filter((i) => i.itemType === 'THOUGHT')
+      .map((i) => i.id);
+
+    const [vectorArticles, vectorPosts] = await Promise.all([
+      articleIds.length > 0
+        ? prisma.article.findMany({
+            where: { id: { in: articleIds } },
+            include: articleFeedInclude,
+          })
+        : Promise.resolve([]),
+      thoughtIds.length > 0
+        ? prisma.thought.findMany({
+            where: { id: { in: thoughtIds } },
+            include: postIncludeSelect,
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const vectorSlices = await buildFeedSlices(vectorPosts, user?.id);
+    const articleById = new Map(vectorArticles.map((a) => [a.id, a]));
+    const sliceById = new Map(vectorSlices.map((s) => [s.id, s]));
+
+    for (const item of personalizedFeed.items) {
+      if (item.itemType === 'ARTICLE') {
+        const art = articleById.get(item.id);
+        if (art) recommendationArticles.push(mapArticleToFeedItem(art));
+      } else {
+        const slice = sliceById.get(item.id);
+        if (slice) recommendationArticles.push(mapSliceToFeedItem(slice));
+      }
+    }
+  }
+
+  if (recommendationArticles.length === 0) {
+    recommendationArticles = [
+      ...dbRecArticles.map(mapArticleToFeedItem),
+      ...recSlices.map(mapSliceToFeedItem),
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
 
   const discoverArticles = [
     ...dbDiscoverArticles.map(mapArticleToFeedItem),
