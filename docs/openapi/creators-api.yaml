@@ -251,6 +251,12 @@ paths:
       tags: [categories]
       operationId: listCategories
       summary: Liste les catégories de la publication avec le comptage d'articles publiés
+      parameters:
+        - name: publicationId
+          in: query
+          description: Publication (résolu depuis clé API si absent)
+          schema:
+            type: string
       responses:
         '200':
           description: Catégories
@@ -266,6 +272,300 @@ paths:
                       $ref: '#/components/schemas/Category'
         '401':
           $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [categories]
+      operationId: createCategory
+      summary: Crée une catégorie (slug auto si vide)
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [publicationId, name]
+              properties:
+                publicationId: { type: string }
+                name: { type: string }
+                slug: { type: string, description: auto-slugify si vide }
+                description: { type: string, nullable: true }
+      responses:
+        '201':
+          description: Catégorie créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /v1/categories/{id}:
+    patch:
+      tags: [categories]
+      operationId: updateCategory
+      summary: Met à jour une catégorie
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                publicationId: { type: string }
+                name: { type: string }
+                slug: { type: string }
+                description: { type: string, nullable: true }
+      responses:
+        '200':
+          description: Catégorie mise à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    delete:
+      tags: [categories]
+      operationId: deleteCategory
+      summary: Supprime une catégorie
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Supprimé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/articles/by-id/{id}:
+    get:
+      tags: [articles]
+      operationId: getArticleById
+      summary: Lecture éditeur par ID (contenu complet, RBAC)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Article complet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Article'
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/articles/capabilities:
+    get:
+      tags: [articles]
+      operationId: getCapabilities
+      summary: Capacités d'édition (isMedia, canPublish, canSubmit, canReview)
+      parameters:
+        - name: publicationId
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isMedia: { type: boolean }
+                  canPublish: { type: boolean }
+                  canSubmit: { type: boolean }
+                  canReview: { type: boolean }
+                  role: { type: string, nullable: true }
+                  workspaceName: { type: string }
+  /v1/articles/{id}/review:
+    post:
+      tags: [articles]
+      operationId: reviewArticle
+      summary: Approuve/rejette une soumission (media:review)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approve: { type: boolean }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Article'
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /v1/articles/{id}/similar:
+    get:
+      tags: [articles]
+      operationId: similarArticles
+      summary: Recommandations sémantiques pgvector
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 6 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        title: { type: string }
+                        slug: { type: string }
+                        score: { type: number }
+  /v1/articles/{id}/comments:
+    get:
+      tags: [articles]
+      operationId: listComments
+      summary: Commentaires d'article (public)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: object }
+    post:
+      tags: [articles]
+      operationId: createComment
+      summary: Créer commentaire (auth requise)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+                parentId: { type: string, nullable: true }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { type: object }
+  /v1/articles/comments/{commentId}:
+    delete:
+      tags: [articles]
+      operationId: deleteComment
+      summary: Supprimer son commentaire (auteur uniquement)
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+  /v1/analytics/financial:
+    get:
+      tags: [analytics]
+      operationId: getFinancial
+      summary: MRR/ARR/volume + conversion (RBAC owner/editor)
+      parameters:
+        - name: publicationId
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mrrCents: { type: integer }
+                  arrCents: { type: integer }
+                  grossVolumeCents: { type: integer }
+                  activeSubscribersCount: { type: integer }
+                  freeSubscribersCount: { type: integer }
+                  conversionRatePercent: { type: number }
+  /v1/analytics/audience:
+    get:
+      tags: [analytics]
+      operationId: getAudience
+      summary: Répartition abonnés (total/actifs/premium)
+      parameters:
+        - name: publicationId
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: { type: integer }
+                  active: { type: integer }
+                  premium: { type: integer }
+  /v1/analytics/top-content:
+    get:
+      tags: [analytics]
+      operationId: getTopContent
+      summary: Top contenus (articles + pensées)
+      parameters:
+        - name: publicationId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 5, maximum: 50 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: object }
   /v1/analytics/stats:
     get:
       tags: [analytics]
@@ -393,9 +693,71 @@ paths:
           required: true
           schema:
             type: string
+        - name: publicationId
+          in: query
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: Abonnement supprimé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+  /v1/webhooks/{id}/toggle:
+    post:
+      tags: [webhooks]
+      operationId: toggleWebhook
+      summary: Active/désactive un webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: publicationId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  active: { type: boolean }
+  /v1/webhooks/{id}/test:
+    post:
+      tags: [webhooks]
+      operationId: testWebhook
+      summary: Envoie un webhook test (HMAC X-Qoe-Signature)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: publicationId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  status: { type: integer }
+                  response: { type: string }
   /v1/webhooks/{id}/deliveries:
     get:
       tags: [webhooks]
@@ -407,6 +769,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: publicationId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50, maximum: 200 }
       responses:
         '200':
           description: Livraisons
@@ -420,6 +789,48 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/WebhookDelivery'
+  /v1/settings/subdomain/check:
+    get:
+      tags: [webhooks]
+      summary: Check subdomain (public)
+      parameters:
+        - name: subdomain
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available: { type: boolean }
+                  reason: { type: string }
+  /v1/settings/api-keys:
+    post:
+      tags: [webhooks]
+      operationId: generateApiKey
+      summary: Génère une clé API (scopes optionnels, approved uniquement)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                scopes:
+                  type: array
+                  items: { type: string, enum: [READ, WRITE, ANALYTICS] }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apiKey: { type: string, example: qoe_live_abc123 }
+        '403': { $ref: '#/components/responses/Forbidden' }
 components:
   securitySchemes:
     apiKeyAuth:

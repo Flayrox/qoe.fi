@@ -1,0 +1,2502 @@
+# 📱 qoe.fi — API App (mobile + web) — OpenAPI 3.1
+# Source de vérité: apps/api/cmd/server/main.go + apps/api/internal/modules/*/handler.go
+# Généré 2026-08-21 — vérifié contre le code Go.
+openapi: 3.1.0
+info:
+  title: qoe.fi — API App
+  version: 1.0.0
+  description: >-
+    API consommée par l'app mobile (apps/mobile) et le web via
+    QoeApiClient (packages/api-client/src/client.ts). Auth JWT Supabase
+    (OptionalAuth vs CombinedAuth), rate-limit 120/min public + 600/min
+    user, pagination cursor/offset vs page (créateurs). Voir
+    docs/API_COMPLETE.md pour les exemples détaillés.
+  contact:
+    name: qoe.fi
+    url: https://qoe.fi
+servers:
+  - url: https://api.qoe.fi
+    description: Production
+  - url: http://localhost:8080
+    description: Développement
+tags:
+  - name: health
+  - name: feed
+  - name: posts
+  - name: users
+  - name: articles-public
+  - name: highlights
+  - name: bookmarks
+  - name: notifications
+  - name: search
+  - name: settings
+  - name: billing
+  - name: internal
+  - name: oauth
+security:
+  - jwtAuth: []
+paths:
+  /healthz:
+    get:
+      tags: [health]
+      summary: Healthcheck
+      security: []
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+  /health:
+    get:
+      tags: [health]
+      summary: Healthcheck alias
+      security: []
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+  /v1/feed/:
+    get:
+      tags: [feed]
+      summary: Feed abonnements (following) — protégé
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit20'
+      responses:
+        '200':
+          description: FeedSlice paginé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedResult'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /v1/feed/trending:
+    get:
+      tags: [feed]
+      summary: Feed trending 7j — public (OptionalAuth)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit20'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedResult'
+  /v1/feed/articles:
+    get:
+      tags: [feed]
+      summary: Articles récents (feed mobile) — public
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit20'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleFeedResult'
+  /v1/posts/{id}/thread:
+    get:
+      tags: [feed]
+      summary: Fil complet d'un post (ancêtres + replies)
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  post:
+                    allOf:
+                      - $ref: '#/components/schemas/FeedPost'
+                      - type: object
+                        properties:
+                          replies:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/FeedPost'
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/users/{username}/posts:
+    get:
+      tags: [feed]
+      summary: Pensées d'un profil (public, slug/subdomain)
+      security: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit20'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedResult'
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/users/{username}/articles:
+    get:
+      tags: [feed]
+      summary: Articles d'un profil (public)
+      security: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit20'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleFeedResult'
+  /v1/posts:
+    post:
+      tags: [posts]
+      summary: Créer une pensée (ou citation si repostId)
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateThoughtInput'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedPost'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /v1/thoughts:
+    post:
+      tags: [posts]
+      summary: Alias /v1/posts
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateThoughtInput'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedPost'
+  /v1/posts/{id}:
+    get:
+      tags: [posts]
+      summary: Lire une pensée
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedPost'
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [posts]
+      summary: Supprimer sa pensée (soft)
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                    example: true
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/posts/{id}/like:
+    post:
+      tags: [posts]
+      summary: Toggle like
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  liked:
+                    type: boolean
+  /v1/thoughts/{id}/like:
+    post:
+      tags: [posts]
+      summary: Alias like
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  liked:
+                    type: boolean
+  /v1/posts/{id}/repost:
+    post:
+      tags: [posts]
+      summary: Toggle repost pur
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reposted:
+                    type: boolean
+  /v1/thoughts/{id}/repost:
+    post:
+      tags: [posts]
+      summary: Alias repost
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reposted:
+                    type: boolean
+  /v1/posts/{id}/reply:
+    post:
+      tags: [posts]
+      summary: Répondre (threadgate vérifié)
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedPost'
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /v1/posts/{id}/bookmark:
+    post:
+      tags: [posts]
+      summary: Toggle bookmark article (targetType ignoré côté Go)
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                targetType:
+                  type: string
+                  enum: [thought, article]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bookmarked:
+                    type: boolean
+  /v1/thoughts/{id}/bookmark:
+    post:
+      tags: [posts]
+      summary: Alias bookmark
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bookmarked:
+                    type: boolean
+  /v1/posts/{id}/pin:
+    post:
+      tags: [posts]
+      summary: Toggle pin profil
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pinned:
+                    type: boolean
+  /v1/posts/{id}/poll/vote:
+    post:
+      tags: [posts]
+      summary: Voter sondage
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [optionId]
+              properties:
+                optionId:
+                  type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Poll'
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /v1/posts/{id}/poll/unvote:
+    post:
+      tags: [posts]
+      summary: Retirer vote
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Poll'
+  /v1/posts/{id}/likes:
+    get:
+      tags: [posts]
+      summary: Users ayant liké (paginé)
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit50'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngagementPage'
+  /v1/posts/{id}/reposts:
+    get:
+      tags: [posts]
+      summary: Users ayant reposté
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit50'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngagementPage'
+  /v1/posts/{id}/quotes:
+    get:
+      tags: [posts]
+      summary: Citations (repostId + texte, FeedPost)
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit50'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotesPage'
+  /v1/users/{id}/block:
+    post:
+      tags: [users]
+      summary: Toggle block
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, description: userId cible }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  blocked:
+                    type: boolean
+  /v1/users/{id}/mute:
+    post:
+      tags: [users]
+      summary: Toggle mute
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  muted:
+                    type: boolean
+  /v1/reports:
+    post:
+      tags: [posts]
+      summary: Signaler un contenu
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetId, targetType, reason]
+              properties:
+                targetId: { type: string }
+                targetType: { type: string, enum: [thought, article, user, comment] }
+                reason: { type: string }
+                details: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+  /v1/users/me:
+    get:
+      tags: [users]
+      summary: Profil courant (enveloppé data)
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MyProfile'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /v1/users/{username}:
+    get:
+      tags: [users]
+      summary: Profil public (slug/subdomain -> publication)
+      security: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PublicProfile'
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/users/{id}/follow:
+    post:
+      tags: [users]
+      summary: Toggle follow (id = publicationId ou slug)
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      following:
+                        type: boolean
+                      followersCount:
+                        type: integer
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /v1/users/{username}/followers:
+    get:
+      tags: [users]
+      summary: Abonnés d'une publication
+      security: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit50'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FollowPage'
+  /v1/users/{username}/following:
+    get:
+      tags: [users]
+      summary: Abonnements d'un user (via owner de la publication)
+      security: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit50'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FollowPage'
+  /v1/articles/{slug}:
+    get:
+      tags: [articles-public]
+      summary: Lecture publique article (paywall) — double mode clé API vs viewer
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+        - name: publicationId
+          in: query
+          required: false
+          description: requis en mode public (sans clé API)
+          schema: { type: string }
+        - name: viewerEmail
+          in: query
+          required: false
+          schema: { type: string, format: email }
+      responses:
+        '200':
+          description: Article complet (tronqué si paywall) ou CreatorItem si clé API
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ArticlePublic'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CreatorItem'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/articles/{id}/similar:
+    get:
+      tags: [articles-public]
+      summary: Recommandations sémantiques pgvector
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 6 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SimilarArticle'
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/articles/{id}/comments:
+    get:
+      tags: [articles-public]
+      summary: Commentaires d'article
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+    post:
+      tags: [articles-public]
+      summary: Créer commentaire
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+                parentId: { type: string, nullable: true }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /v1/articles/comments/{commentId}:
+    delete:
+      tags: [articles-public]
+      summary: Supprimer son commentaire (auteur uniquement)
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+  /v1/articles/{id}/highlights:
+    get:
+      tags: [highlights]
+      summary: Surlignages d'un article (publics + siens)
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Highlight'
+    post:
+      tags: [highlights]
+      summary: Créer surlignage
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string }
+                note: { type: string, nullable: true }
+                isPublic: { type: boolean }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Highlight'
+  /v1/highlights/{id}:
+    delete:
+      tags: [highlights]
+      summary: Supprimer son surlignage
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+  /v1/highlights/{id}/upvote:
+    post:
+      tags: [highlights]
+      summary: Toggle upvote
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  upvoted: { type: boolean }
+                  upvotesCount: { type: integer }
+  /v1/highlights/{id}/comments:
+    get:
+      tags: [highlights]
+      summary: Commentaires d'annotation
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AnnotationComment'
+    post:
+      tags: [highlights]
+      summary: Créer commentaire d'annotation
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnotationComment'
+  /v1/highlights/comments/{commentId}:
+    delete:
+      tags: [highlights]
+      summary: Supprimer son commentaire d'annotation
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+  /v1/bookmarks:
+    get:
+      tags: [bookmarks]
+      summary: Bibliothèque bookmarks paginés (offset)
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookmarkItem'
+  /v1/me/highlights:
+    get:
+      tags: [bookmarks]
+      summary: Mes highlights paginés (offset)
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MyHighlight'
+  /v1/me/highlights/count:
+    get:
+      tags: [bookmarks]
+      summary: Nombre de mes highlights
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+  /v1/notifications:
+    get:
+      tags: [notifications]
+      summary: Liste groupée 48h
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: filter
+          in: query
+          schema: { type: string, enum: [all, mentions, replies, likes], default: all }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 30, maximum: 100 }
+        - name: cursor
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationResult'
+  /v1/notifications/unread-count:
+    get:
+      tags: [notifications]
+      summary: Compteur non-lu
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+  /v1/notifications/read:
+    post:
+      tags: [notifications]
+      summary: Marquer lu (vide = tout)
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notificationIds:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+  /v1/notifications/preferences:
+    get:
+      tags: [notifications]
+      summary: Préférences
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  preferences:
+                    $ref: '#/components/schemas/NotificationPreferences'
+    patch:
+      tags: [notifications]
+      summary: Merge partiel préférences
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { type: boolean }
+              example:
+                pushLikes: false
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  preferences:
+                    $ref: '#/components/schemas/NotificationPreferences'
+  /v1/notifications/media-invite:
+    post:
+      tags: [notifications]
+      summary: Notif invitation média
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipientId, publicationId]
+              properties:
+                recipientId: { type: string }
+                publicationId: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+  /v1/notifications/media-member-joined:
+    post:
+      tags: [notifications]
+      summary: Notif membre rejoint
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipientId, publicationId]
+              properties:
+                recipientId: { type: string }
+                publicationId: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+  /search/articles:
+    get:
+      tags: [search]
+      summary: Recherche lexicale Meilisearch
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hits:
+                    type: array
+                    items: { type: object }
+                  estimatedTotalHits:
+                    type: integer
+  /search/semantic:
+    get:
+      tags: [search]
+      summary: Recherche sémantique pgvector
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 10 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { type: object }
+        '503':
+          description: embedding non configuré
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/analytics/financial:
+    get:
+      tags: [settings]
+      summary: Financial (MRR/ARR) — RBAC owner/editor
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: publicationId
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialMetrics'
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /v1/analytics/audience:
+    get:
+      tags: [settings]
+      summary: Audience
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: publicationId
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: { type: integer }
+                  active: { type: integer }
+                  premium: { type: integer }
+  /v1/analytics/top-content:
+    get:
+      tags: [settings]
+      summary: Top contenus
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: publicationId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 5, maximum: 50 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string }
+                    title: { type: string }
+                    type: { type: string, enum: [article, thought] }
+                    publishedAt: { type: string, format: date-time }
+                    viewsCount: { type: integer }
+                    likesCount: { type: integer }
+                    repostsCount: { type: integer }
+  /v1/settings/subdomain/check:
+    get:
+      tags: [settings]
+      summary: Check subdomain dispo (public)
+      security: []
+      parameters:
+        - name: subdomain
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available: { type: boolean }
+                  reason: { type: string }
+  /v1/settings/profile:
+    patch:
+      tags: [settings]
+      summary: Update profil publication (partiel)
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [publicationId]
+              properties:
+                publicationId: { type: string }
+              additionalProperties: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /v1/settings/subdomain:
+    post:
+      tags: [settings]
+      summary: Change subdomain
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [publicationId, subdomain]
+              properties:
+                publicationId: { type: string }
+                subdomain: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  subdomain: { type: string }
+  /v1/settings/navigation:
+    put:
+      tags: [settings]
+      summary: Save navigation
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [publicationId, links]
+              properties:
+                publicationId: { type: string }
+                links:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      label: { type: string }
+                      url: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+  /v1/settings/social:
+    put:
+      tags: [settings]
+      summary: Save social links
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [publicationId, links]
+              properties:
+                publicationId: { type: string }
+                links:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      platform: { type: string }
+                      url: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+  /v1/settings/api-application:
+    post:
+      tags: [settings]
+      summary: Demande accès API
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 10 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+  /v1/settings/api-keys:
+    post:
+      tags: [settings]
+      summary: Génère clé API (approved uniquement)
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                scopes:
+                  type: array
+                  items: { type: string, enum: [READ, WRITE, ANALYTICS] }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apiKey: { type: string, example: qoe_live_abc123 }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /v1/settings/api-keys/{id}:
+    delete:
+      tags: [settings]
+      summary: Révoque clé API
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+  /v1/settings/onboarding:
+    post:
+      tags: [settings]
+      summary: Finalise onboarding
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                heroText: { type: string }
+                subdomain: { type: string }
+                layoutStyle: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+  /v1/webhooks/stripe:
+    post:
+      tags: [billing]
+      summary: Webhook Stripe (HMAC)
+      security: []
+      parameters:
+        - name: Stripe-Signature
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: string }
+                type: { type: string }
+                data: { type: object }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received: { type: boolean, example: true }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /v1/webhooks/supabase:
+    post:
+      tags: [billing]
+      summary: Stub Supabase
+      security: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received: { type: boolean, example: true }
+  /internal/events/article-published:
+    post:
+      tags: [internal]
+      summary: Enqueue article published (asynq)
+      security:
+        - internalSecret: []
+      parameters:
+        - name: x-qoe-internal-secret
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [articleId, publicationId]
+              properties:
+                articleId: { type: string }
+                publicationId: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  queued: { type: boolean, example: true }
+  /internal/events/subscriber-created:
+    post:
+      tags: [internal]
+      summary: Enqueue subscriber created
+      security:
+        - internalSecret: []
+      parameters:
+        - name: x-qoe-internal-secret
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, publicationId]
+              properties:
+                email: { type: string, format: email }
+                publicationId: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  queued: { type: boolean, example: true }
+  /.well-known/openid-configuration:
+    get:
+      tags: [oauth]
+      summary: Discovery OIDC
+      security: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+  /.well-known/jwks.json:
+    get:
+      tags: [oauth]
+      summary: JWKS ES256
+      security: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items: { type: object }
+  /v1/oauth/token:
+    post:
+      tags: [oauth]
+      summary: Token (authorization_code + refresh_token) — 30/min IP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                grant_type: { type: string, enum: [authorization_code, refresh_token] }
+                code: { type: string }
+                redirect_uri: { type: string }
+                code_verifier: { type: string }
+                refresh_token: { type: string }
+                client_id: { type: string }
+                client_secret: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: { type: string }
+                  id_token: { type: string }
+                  refresh_token: { type: string }
+                  expires_in: { type: integer }
+                  token_type: { type: string, example: Bearer }
+  /v1/oauth/introspect:
+    post:
+      tags: [oauth]
+      summary: Introspection RFC7662
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                token: { type: string }
+                client_id: { type: string }
+                client_secret: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+  /v1/oauth/revoke:
+    post:
+      tags: [oauth]
+      summary: Revocation RFC7009
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                token: { type: string }
+                token_type_hint: { type: string }
+      responses:
+        '200': { description: ok }
+  /v1/oauth/userinfo:
+    get:
+      tags: [oauth]
+      summary: UserInfo OIDC
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [oauth]
+      summary: UserInfo POST
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                access_token: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+  /v1/oauth/authorize:
+    get:
+      tags: [oauth]
+      summary: Begin authorize (JWT Supabase)
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: response_type
+          in: query
+          schema: { type: string }
+        - name: client_id
+          in: query
+          schema: { type: string }
+        - name: redirect_uri
+          in: query
+          schema: { type: string }
+        - name: scope
+          in: query
+          schema: { type: string }
+        - name: state
+          in: query
+          schema: { type: string }
+        - name: nonce
+          in: query
+          schema: { type: string }
+        - name: code_challenge
+          in: query
+          schema: { type: string }
+        - name: code_challenge_method
+          in: query
+          schema: { type: string, enum: [S256, plain] }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+    post:
+      tags: [oauth]
+      summary: Decide authorize approve/deny
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                response_type: { type: string }
+                client_id: { type: string }
+                redirect_uri: { type: string }
+                scope: { type: string }
+                state: { type: string }
+                nonce: { type: string }
+                code_challenge: { type: string }
+                code_challenge_method: { type: string }
+                decision: { type: string, enum: [approve, deny] }
+                remember: { type: boolean }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  redirect_uri:
+                    type: string
+  /v1/oauth/clients:
+    get:
+      tags: [oauth]
+      summary: List mes clients OAuth
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clients:
+                    type: array
+                    items: { type: object }
+    post:
+      tags: [oauth]
+      summary: Créer client OAuth
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                redirectUris:
+                  type: array
+                  items: { type: string }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  client_id: { type: string }
+                  client_secret: { type: string }
+  /v1/oauth/clients/{id}/rotate-secret:
+    post:
+      tags: [oauth]
+      summary: Rotate secret
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clientSecret: { type: string }
+  /v1/oauth/clients/{id}:
+    delete:
+      tags: [oauth]
+      summary: Révoque client
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+components:
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Supabase (RS256/ES256 JWKS ou HS256 sb_secret)
+    apiKeyAuth:
+      type: http
+      scheme: bearer
+      description: Clé API qoe_live_* (scopes READ/WRITE/ANALYTICS)
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: OAuth access_token
+    internalSecret:
+      type: apiKey
+      in: header
+      name: x-qoe-internal-secret
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string, default: '0' }
+      description: Offset int en string
+    Limit20:
+      name: limit
+      in: query
+      schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+    Limit50:
+      name: limit
+      in: query
+      schema: { type: integer, default: 50, minimum: 1, maximum: 100 }
+  responses:
+    BadRequest:
+      description: Requête invalide
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Non authentifié
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Permission insuffisante
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Introuvable
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    FeedAuthor:
+      type: object
+      required: [id, isCertified]
+      properties:
+        id: { type: string }
+        name: { type: string, nullable: true }
+        username: { type: string, nullable: true }
+        logoUrl: { type: string, nullable: true }
+        isCertified: { type: boolean }
+        isFollowing: { type: boolean }
+    FeedAttachment:
+      type: object
+      properties:
+        id: { type: string }
+        thoughtId: { type: string }
+        type: { type: string }
+        url: { type: string }
+        altText: { type: string, nullable: true }
+        width: { type: integer, nullable: true }
+        height: { type: integer, nullable: true }
+        order: { type: integer }
+    FeedPollOption:
+      type: object
+      properties:
+        id: { type: string }
+        text: { type: string }
+        order: { type: integer }
+        voteCount: { type: integer }
+        percentage: { type: number }
+    Poll:
+      type: object
+      properties:
+        id: { type: string }
+        thoughtId: { type: string }
+        expiresAt: { type: string, format: date-time }
+        isExpired: { type: boolean }
+        totalVotes: { type: integer }
+        userVotedOptionId: { type: string, nullable: true }
+        options:
+          type: array
+          items: { $ref: '#/components/schemas/FeedPollOption' }
+    FeedPost:
+      type: object
+      required: [id, content, authorId, createdAt]
+      properties:
+        id: { type: string }
+        content: { type: string }
+        authorId: { type: string }
+        createdAt: { type: string, format: date-time }
+        tags: { type: array, items: { type: string } }
+        imageUrl: { type: string, nullable: true }
+        likeCount: { type: integer }
+        repostCount: { type: integer }
+        replyCount: { type: integer }
+        parentId: { type: string, nullable: true }
+        rootId: { type: string, nullable: true }
+        repostId: { type: string, nullable: true }
+        replyRestriction: { type: string, enum: [everyone, subscribers, following, mentioned] }
+        isPinned: { type: boolean }
+        isHiddenByAuthor: { type: boolean }
+        author: { $ref: '#/components/schemas/FeedAuthor' }
+        parent:
+          oneOf:
+            - $ref: '#/components/schemas/FeedPost'
+            - type: 'null'
+        repost:
+          oneOf:
+            - $ref: '#/components/schemas/FeedPost'
+            - type: 'null'
+        attachments:
+          type: array
+          items: { $ref: '#/components/schemas/FeedAttachment' }
+        poll:
+          oneOf:
+            - $ref: '#/components/schemas/Poll'
+            - type: 'null'
+        likes:
+          type: array
+          items:
+            type: object
+            properties:
+              userId: { type: string }
+        reposts:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              userId: { type: string }
+        _count:
+          type: object
+          properties:
+            likes: { type: integer }
+            replies: { type: integer }
+            reposts: { type: integer }
+        liked: { type: boolean }
+        reposted: { type: boolean }
+    FeedSlice:
+      type: object
+      required: [id, targetPost]
+      properties:
+        id: { type: string }
+        rootPost:
+          oneOf:
+            - $ref: '#/components/schemas/FeedPost'
+            - type: 'null'
+        parentPost:
+          oneOf:
+            - $ref: '#/components/schemas/FeedPost'
+            - type: 'null'
+        targetPost: { $ref: '#/components/schemas/FeedPost' }
+        isIncompleteThread: { type: boolean }
+        hiddenIntermediateCount: { type: integer }
+    FeedResult:
+      type: object
+      required: [items, nextCursor, hasMore]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/FeedSlice' }
+        nextCursor: { type: string, nullable: true }
+        hasMore: { type: boolean }
+    ArticleFeedResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/FeedArticle' }
+        nextCursor: { type: string, nullable: true }
+        hasMore: { type: boolean }
+    FeedArticle:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        slug: { type: string }
+        content: { type: string }
+        isPremium: { type: boolean }
+        visibility: { type: string }
+        readingTime: { type: integer }
+        createdAt: { type: string, format: date-time }
+        publicationId: { type: string }
+        author:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string, nullable: true }
+            username: { type: string, nullable: true }
+            logoUrl: { type: string, nullable: true }
+            isCertified: { type: boolean }
+        publication:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string }
+            slug: { type: string }
+            subdomain: { type: string, nullable: true }
+            logoUrl: { type: string, nullable: true }
+            type: { type: string }
+        category:
+          oneOf:
+            - type: object
+              properties:
+                id: { type: string }
+                name: { type: string }
+                slug: { type: string }
+            - type: 'null'
+    CreateThoughtInput:
+      type: object
+      properties:
+        content: { type: string }
+        tags: { type: array, items: { type: string } }
+        imageUrl: { type: string, nullable: true }
+        parentId: { type: string, nullable: true }
+        repostId: { type: string, nullable: true }
+        replyRestriction: { type: string }
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              url: { type: string }
+              type: { type: string }
+              altText: { type: string, nullable: true }
+              width: { type: integer, nullable: true }
+              height: { type: integer, nullable: true }
+        poll:
+          type: object
+          properties:
+            options:
+              type: array
+              items: { type: string }
+            durationHours: { type: integer }
+    EngagementPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string, nullable: true }
+              username: { type: string, nullable: true }
+              logoUrl: { type: string, nullable: true }
+              isCertified: { type: boolean }
+              followedAt: { type: string, format: date-time }
+        nextCursor: { type: string }
+        hasMore: { type: boolean }
+    QuotesPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/FeedPost' }
+        nextCursor: { type: string }
+        hasMore: { type: boolean }
+    FollowPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              publicationId: { type: string, nullable: true }
+              name: { type: string, nullable: true }
+              username: { type: string, nullable: true }
+              logoUrl: { type: string, nullable: true }
+              isCertified: { type: boolean }
+              followedAt: { type: string, format: date-time }
+              viewerFollows: { type: boolean }
+        nextCursor: { type: string }
+        hasMore: { type: boolean }
+    MyProfile:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string }
+        username: { type: string, nullable: true }
+        name: { type: string, nullable: true }
+        role: { type: string }
+        isCertified: { type: boolean }
+        isShadowbanned: { type: boolean }
+        isSuspended: { type: boolean }
+        suspendReason: { type: string, nullable: true }
+        forceStandardTheme: { type: boolean }
+        onboardingText: { type: string, nullable: true }
+        logoUrl: { type: string, nullable: true }
+        publicationId: { type: string, nullable: true }
+        advancedSettingsMode: { type: boolean }
+        hasCompletedOnboarding: { type: boolean }
+        apiAccessStatus: { type: string }
+        apiApplicationReason: { type: string, nullable: true }
+        walletBalanceCents: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        stats:
+          type: object
+          properties:
+            followingCount: { type: integer }
+            followersCount: { type: integer }
+    PublicProfile:
+      type: object
+      properties:
+        id: { type: string }
+        ownerUserId: { type: string, nullable: true }
+        name: { type: string, nullable: true }
+        slug: { type: string }
+        subdomain: { type: string, nullable: true }
+        customDomain: { type: string, nullable: true }
+        heroText: { type: string, nullable: true }
+        logoUrl: { type: string, nullable: true }
+        headerImageUrl: { type: string, nullable: true }
+        isCertified: { type: boolean }
+        isFollowing: { type: boolean }
+        pronouns: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        type: { type: string, enum: [PERSONAL, MEDIA] }
+        _count:
+          type: object
+          properties:
+            followers: { type: integer }
+            following: { type: integer }
+            articles: { type: integer }
+    ArticlePublic:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        slug: { type: string }
+        content: { type: string }
+        isTruncated: { type: boolean }
+        accessGranted: { type: boolean }
+        visibility: { type: string }
+        readingTime: { type: integer }
+        isPremium: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        paywallMeta: { type: object, nullable: true }
+        category:
+          oneOf:
+            - type: object
+              properties:
+                id: { type: string }
+                name: { type: string }
+                slug: { type: string }
+            - type: 'null'
+        author:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string, nullable: true }
+            username: { type: string, nullable: true }
+            logoUrl: { type: string, nullable: true }
+        publication:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string }
+            slug: { type: string }
+            subdomain: { type: string, nullable: true }
+    CreatorItem:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        slug: { type: string }
+        contentHtml: { type: string }
+        isTruncated: { type: boolean }
+        visibility: { type: string }
+        readingTime: { type: integer }
+        isPremium: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        category:
+          oneOf:
+            - type: object
+              properties:
+                id: { type: string }
+                name: { type: string }
+                slug: { type: string }
+                description: { type: string, nullable: true }
+            - type: 'null'
+        paywallMeta: { type: object, nullable: true }
+    SimilarArticle:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        slug: { type: string }
+        isPremium: { type: boolean }
+        readingTime: { type: integer }
+        createdAt: { type: string, format: date-time }
+        publicationId: { type: string }
+        authorId: { type: string }
+        authorName: { type: string, nullable: true }
+        authorUsername: { type: string, nullable: true }
+        authorLogo: { type: string, nullable: true }
+        publicationName: { type: string, nullable: true }
+        score: { type: number }
+    Highlight:
+      type: object
+      properties:
+        id: { type: string }
+        text: { type: string }
+        note: { type: string, nullable: true }
+        isPublic: { type: boolean }
+        isOfficial: { type: boolean }
+        upvotesCount: { type: integer }
+        readerId: { type: string }
+        articleId: { type: string }
+        createdAt: { type: string, format: date-time }
+        reader:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string, nullable: true }
+            username: { type: string, nullable: true }
+            logoUrl: { type: string, nullable: true }
+        viewerUpvoted: { type: boolean }
+        commentsCount: { type: integer }
+    AnnotationComment:
+      type: object
+      properties:
+        id: { type: string }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+        highlightId: { type: string }
+        author:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string, nullable: true }
+            username: { type: string, nullable: true }
+            logoUrl: { type: string, nullable: true }
+    BookmarkItem:
+      type: object
+      properties:
+        bookmarkId: { type: string }
+        bookmarkedAt: { type: string, format: date-time }
+        articleId: { type: string }
+        articleTitle: { type: string }
+        articleSlug: { type: string }
+        readingTime: { type: integer }
+        isPremium: { type: boolean }
+        articleCreatedAt: { type: string, format: date-time }
+        publicationId: { type: string }
+        publicationName: { type: string }
+        publicationSlug: { type: string }
+        subdomain: { type: string, nullable: true }
+        author:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string, nullable: true }
+            username: { type: string, nullable: true }
+            logoUrl: { type: string, nullable: true }
+    MyHighlight:
+      type: object
+      properties:
+        id: { type: string }
+        text: { type: string }
+        note: { type: string, nullable: true }
+        isPublic: { type: boolean }
+        isOfficial: { type: boolean }
+        upvotesCount: { type: integer }
+        readerId: { type: string }
+        articleId: { type: string }
+        createdAt: { type: string, format: date-time }
+        articleTitle: { type: string }
+        articleSlug: { type: string }
+        publicationId: { type: string }
+        publicationName: { type: string }
+        publicationSlug: { type: string }
+    Comment:
+      type: object
+      properties:
+        id: { type: string }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+        author:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string, nullable: true }
+            username: { type: string, nullable: true }
+            logoUrl: { type: string, nullable: true }
+    NotificationResult:
+      type: object
+      properties:
+        notifications:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              type: { type: string }
+              isRead: { type: boolean }
+              createdAt: { type: string, format: date-time }
+              thoughtId: { type: string, nullable: true }
+              articleId: { type: string, nullable: true }
+              thought: { type: object, nullable: true }
+              article: { type: object, nullable: true }
+              publication: { type: object, nullable: true }
+              senders:
+                type: array
+                items: { type: object }
+              totalCount: { type: integer }
+        nextCursor: { type: string }
+    NotificationPreferences:
+      type: object
+      properties:
+        emailLikes: { type: boolean }
+        pushLikes: { type: boolean }
+        emailReplies: { type: boolean }
+        pushReplies: { type: boolean }
+        emailComments: { type: boolean }
+        pushComments: { type: boolean }
+        emailMentions: { type: boolean }
+        pushMentions: { type: boolean }
+        emailFollows: { type: boolean }
+        pushFollows: { type: boolean }
+        emailReposts: { type: boolean }
+        pushReposts: { type: boolean }
+        emailMedia: { type: boolean }
+        pushMedia: { type: boolean }
+    FinancialMetrics:
+      type: object
+      properties:
+        mrrCents: { type: integer }
+        arrCents: { type: integer }
+        grossVolumeCents: { type: integer }
+        activeSubscribersCount: { type: integer }
+        freeSubscribersCount: { type: integer }
+        conversionRatePercent: { type: number }
