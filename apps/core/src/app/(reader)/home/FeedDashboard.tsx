@@ -170,6 +170,7 @@ interface FeedDashboardProps {
   } | null;
   followingArticles: FeedItem[];
   recommendationArticles: FeedItem[];
+  feedHasMore?: boolean;
   discoverArticles: FeedItem[];
   bookmarks: Article[];
   followedCreators: Creator[];
@@ -193,6 +194,7 @@ export function FeedDashboard({
   dbUser,
   followingArticles,
   recommendationArticles,
+  feedHasMore = false,
   discoverArticles,
   bookmarks: initialBookmarks,
   followedCreators: initialFollowedCreators,
@@ -263,6 +265,37 @@ export function FeedDashboard({
   const [localPosts, setLocalPosts] = useState<FeedItem[]>([]);
   const [interactions, setInteractions] = useState<Record<string, { bookmarked?: boolean }>>({});
 
+  // Pagination infinie du « Pour vous » (moteur vectoriel, pages via /api/feed/personalized)
+  const [feedItems, setFeedItems] = useState<FeedItem[]>(recommendationArticles);
+  const [feedHasMoreState, setFeedHasMoreState] = useState(feedHasMore);
+  const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
+  const feedNextOffsetRef = React.useRef(recommendationArticles.length);
+
+  const fetchNextFeedPage = React.useCallback(async () => {
+    if (isFetchingNextPage || !feedHasMoreState) return;
+    setIsFetchingNextPage(true);
+    try {
+      const res = await fetch(
+        `/api/feed/personalized?limit=20&offset=${feedNextOffsetRef.current}`
+      );
+      if (!res.ok) throw new Error('FEED_FAILED');
+      const data = (await res.json()) as {
+        items: FeedItem[];
+        hasMore: boolean;
+        nextOffset: number;
+      };
+      const seen = new Set(feedItems.map((i) => i.id));
+      const fresh = data.items.filter((i) => !seen.has(i.id));
+      setFeedItems((prev) => [...prev, ...fresh]);
+      feedNextOffsetRef.current = data.nextOffset;
+      setFeedHasMoreState(data.hasMore);
+    } catch (err) {
+      console.error('[feed] pagination « Pour vous »', err);
+    } finally {
+      setIsFetchingNextPage(false);
+    }
+  }, [isFetchingNextPage, feedHasMoreState, feedItems]);
+
   const isCreatorFollowed = (creatorId: string) => followedCreators.some((f) => f.id === creatorId);
   const isArticleBookmarked = (articleId: string) => {
     const inter = interactions[articleId];
@@ -273,7 +306,7 @@ export function FeedDashboard({
   const currentFeedArticles = useMemo(() => {
     let list: FeedItem[] = [];
     if (activeFeed === 'recommandation') {
-      list = [...localPosts, ...recommendationArticles];
+      list = [...localPosts, ...feedItems];
     } else if (activeFeed === 'abonnement') {
       list = [
         ...localPosts.filter((p) => isCreatorFollowed(p.author?.id || '')),
@@ -316,7 +349,7 @@ export function FeedDashboard({
   }, [
     activeFeed,
     localPosts,
-    recommendationArticles,
+    feedItems,
     followingArticles,
     discoverArticles,
     bookmarks,
@@ -743,6 +776,11 @@ export function FeedDashboard({
                           <RealtimeFeedPill unreadCount={unreadCount} onFlush={flushBuffer} />
                           <VirtualizedFeedList
                             items={currentFeedArticles}
+                            fetchNextPage={
+                              activeFeed === 'recommandation' ? fetchNextFeedPage : undefined
+                            }
+                            hasNextPage={activeFeed === 'recommandation' ? feedHasMoreState : false}
+                            isFetchingNextPage={isFetchingNextPage}
                             keyExtractor={(article) => article.id}
                             estimateSize={180}
                             renderItem={(article, idx) => {
