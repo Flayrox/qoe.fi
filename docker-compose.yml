@@ -101,6 +101,12 @@ services:
       dockerfile: Dockerfile
       target: tenants
     image: qoefi-tenants:latest
+    # Les frontends Next.js font du Prisma direct vers supabase-db : ils
+    # doivent être sur supabase_default (comme api/worker/migrate).
+    networks:
+      - qoefi-public
+      - qoefi-private
+      - supabase_default
     container_name: qoefi-tenants
     restart: unless-stopped
 
@@ -128,10 +134,6 @@ services:
 
     extra_hosts:
       - 'host.docker.internal:host-gateway'
-
-    networks:
-      - qoefi-public
-      - qoefi-private
 
     depends_on:
       migrate:
@@ -185,9 +187,11 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
+    # Frontend Next.js : Prisma direct vers supabase-db → supabase_default requis.
     networks:
       - qoefi-public
       - qoefi-private
+      - supabase_default
 
     depends_on:
       migrate:
@@ -242,9 +246,11 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
+    # Frontend Next.js : Prisma direct vers supabase-db → supabase_default requis.
     networks:
       - qoefi-public
       - qoefi-private
+      - supabase_default
 
     depends_on:
       migrate:
@@ -299,9 +305,11 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
+    # Frontend Next.js : Prisma direct vers supabase-db → supabase_default requis.
     networks:
       - qoefi-public
       - qoefi-private
+      - supabase_default
 
     depends_on:
       migrate:
@@ -356,9 +364,11 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
+    # Frontend Next.js : Prisma direct vers supabase-db → supabase_default requis.
     networks:
       - qoefi-public
       - qoefi-private
+      - supabase_default
 
     depends_on:
       migrate:
