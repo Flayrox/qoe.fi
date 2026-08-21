@@ -45,7 +45,9 @@ func Load() *Config {
 		// Port dédié à l'API Go (API_PORT), indépendant du PORT des apps web.
 		// Évite la collision avec le Next.js web (3000) et avec « Soneph » (8080).
 		Port:                  envOr("API_PORT", "8090"),
-		DatabaseURL:           envOr("DATABASE_URL", ""),
+		// API_DATABASE_URL : DSN sans paramètres réservés à Prisma (ex: ?schema=public)
+		// que pgx enverrait comme startup parameters (refusés par Postgres).
+		DatabaseURL:           envOr("API_DATABASE_URL", envOr("DATABASE_URL", "")),
 		SupabaseAuthURL:       envOr("SUPABASE_AUTH_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")),
 		JWTSecret:             envOr("SUPABASE_JWT_SECRET", envOr("SUPABASE_SECRET_KEY", "")),
 		RedisURL:              envOr("REDIS_URL", "redis://localhost:6379"),

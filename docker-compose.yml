@@ -420,7 +420,10 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
+    # api doit être joignable par Caddy (qoefi-public) ET avoir accès à la DB
+    # (supabase_default) et au réseau interne (qoefi-private).
     networks:
+      - qoefi-public
       - qoefi-private
       - supabase_default
 

@@ -32,7 +32,7 @@ async function singleEmbedAttempt(text: string): Promise<number[]> {
     });
 
     const req = http.request(
-      'http://127.0.0.1:8081/v1/embeddings',
+      process.env.EMBEDDING_URL || 'http://127.0.0.1:8081/v1/embeddings',
       {
         method: 'POST',
         headers: {
