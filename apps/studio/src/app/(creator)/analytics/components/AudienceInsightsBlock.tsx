@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { Users, Globe, BarChart3, Info } from 'lucide-react';
-import { AudienceInsights, DemographicBucket, labelDemographic } from '../actions';
+import { AudienceInsights, DemographicBucket } from '../actions';
+import { labelDemographic } from '../demographic-labels';
 
 interface AudienceInsightsBlockProps {
   insights: AudienceInsights;
