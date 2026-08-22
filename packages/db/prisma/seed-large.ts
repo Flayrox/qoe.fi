@@ -37,6 +37,7 @@ import {
 } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 import { embedAllUsers } from './embed-users';
+import { createSeedImages, type SeedImages } from './lib/seed-images';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -246,6 +247,65 @@ function loadExternalArticles(): ExternalArticle[] {
   }
 
   return articles;
+}
+
+// ─── Corpus LLM (généré par scripts/generate-llm-corpus.mjs) ───
+interface CorpusArticle extends ExternalArticle {
+  key?: string;
+  channel?: string; // 'media:<slug>' | 'personal'
+  coAuthors?: string[];
+}
+interface CorpusThought {
+  key: string;
+  content: string;
+  tags: string[];
+}
+interface CorpusReply {
+  key: string;
+  parentKey: string;
+  level: 1 | 2;
+  content: string;
+}
+interface CorpusComment {
+  key: string;
+  articleKey: string;
+  replyToKey: string | null;
+  content: string;
+}
+interface CorpusQuote {
+  articleKey: string;
+  excerpt: string;
+  commentary: string;
+}
+
+function loadJsonlDir(name: string): any[] {
+  const f = path.join(__dirname, 'fixtures', 'corpus', name);
+  if (!fs.existsSync(f)) return [];
+  return fs
+    .readFileSync(f, 'utf-8')
+    .split('\n')
+    .filter(Boolean)
+    .map((l) => {
+      try {
+        return JSON.parse(l);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+}
+
+function loadCorpus() {
+  const dir = path.join(__dirname, 'fixtures', 'corpus');
+  if (!fs.existsSync(dir)) return null;
+  return {
+    articles: loadJsonlDir('articles.jsonl') as CorpusArticle[],
+    thoughts: loadJsonlDir('thoughts.jsonl') as CorpusThought[],
+    replies: loadJsonlDir('replies.jsonl') as CorpusReply[],
+    comments: loadJsonlDir('comments.jsonl') as CorpusComment[],
+    quotes: loadJsonlDir('quotes.jsonl') as CorpusQuote[],
+    highlightNotes: loadJsonlDir('highlight-notes.jsonl') as { quote: string; note: string }[],
+  };
 }
 
 // ─── Dictionnaires Éditoriaux ───
@@ -754,13 +814,22 @@ async function main() {
   const startAll = Date.now();
 
   // -------------------------------------------------------------------
-  // 0. CHARGEMENT DES ARTICLES JSON EXTERNES
+  // 0. CHARGEMENT DU CORPUS LLM (+ fallback articles JSON externes)
   // -------------------------------------------------------------------
-  console.log('📂 [0/25] Analyse du dossier des articles générés (.exemple-json)...');
-  const externalArticles = loadExternalArticles();
-  console.log(
-    `  ✓ ${externalArticles.length} articles riches découverts dans les fichiers JSON.\n`
-  );
+  const corpus = loadCorpus();
+  let externalArticles: ExternalArticle[] = [];
+  if (corpus && corpus.articles.length > 0) {
+    externalArticles = corpus.articles;
+    console.log(
+      `📂 [0/25] Corpus LLM chargé : ${corpus.articles.length} articles, ${corpus.thoughts.length} pensées, ${corpus.replies.length} réponses, ${corpus.comments.length} commentaires.`
+    );
+  } else {
+    console.log('📂 [0/25] Analyse du dossier des articles générés (.exemple-json)...');
+    externalArticles = loadExternalArticles();
+    console.log(
+      `  ✓ ${externalArticles.length} articles riches découverts dans les fichiers JSON.\n`
+    );
+  }
 
   // -------------------------------------------------------------------
   // 1. NETTOYAGE PRÉALABLE SÉCURISÉ
@@ -827,6 +896,26 @@ async function main() {
   }
 
   // -------------------------------------------------------------------
+  // 1bis. IMAGES LOCALES (upload des fixtures vers le storage Supabase)
+  // -------------------------------------------------------------------
+  // Zéro image externe : avatars/logos/bannières SVG + photos covers sont
+  // uploadés (upsert) dans les buckets du storage local, puis toutes les
+  // URLs de la base pointent vers ce storage.
+  console.log('🖼️  [1bis/25] Upload des images du seed vers le storage Supabase...');
+  let img: SeedImages;
+  try {
+    img = await createSeedImages();
+  } catch (err) {
+    throw new Error(
+      `[seed-images] Storage Supabase injoignable (${process.env.NEXT_PUBLIC_SUPABASE_URL}). ` +
+        'Démarre le stack local (supabase start) et vérifie NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY.'
+    );
+  }
+  console.log(
+    `  ✓ ${24 + 12 + 8 + 30} fichiers uploadés (upsert) dans user-media / media-branding / articles-media.\n`
+  );
+
+  // -------------------------------------------------------------------
   // 2. 500 UTILISATEURS (UUID v4) + Auteurs spécifiques des JSON
   // -------------------------------------------------------------------
   console.log('👥 [2/25] Création de 500 utilisateurs (UUIDs v4)...');
@@ -853,10 +942,17 @@ async function main() {
 
   // 1. Ajouter d'abord les auteurs identifiés dans les JSON
   const externalAuthorNames = Array.from(
-    new Set(externalArticles.map((a) => a.authorName).filter(Boolean))
+    new Set(
+      externalArticles
+        .flatMap((a) => {
+          const corpusA = a as CorpusArticle;
+          return [a.authorName, ...(corpusA.coAuthors ?? [])];
+        })
+        .filter(Boolean)
+    )
   ) as string[];
 
-  for (const authorName of externalAuthorNames) {
+  for (const [aIdx, authorName] of externalAuthorNames.entries()) {
     const handle = slugify(authorName);
     usedUsernames.add(handle);
     const id = uuidV5(`${handle}@qoe.fi`);
@@ -868,7 +964,7 @@ async function main() {
       name: authorName,
       role: 'creator',
       isCertified: true,
-      logoUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${handle}`,
+      logoUrl: img.avatar(aIdx).url,
       gender: Gender.PREFER_NOT_TO_SAY,
       ageRange: AgeRange.AGE_35_44,
       countryCode: 'FR',
@@ -902,10 +998,7 @@ async function main() {
     if (i < 80) role = 'creator';
     else if (i < 95) role = 'superadmin';
 
-    const logoUrl =
-      i % 2 === 0
-        ? `https://images.unsplash.com/photo-${1500000000000 + ((i * 1234567) % 90000000)}?auto=format&fit=crop&w=256&h=256&q=80`
-        : `https://api.dicebear.com/7.x/bottts/svg?seed=${handle}`;
+    const logoUrl = img.avatar(i).url;
 
     usersToInsert.push({
       id,
@@ -942,7 +1035,7 @@ async function main() {
   const slugToPubMap = new Map<string, string>();
 
   // 23 Médias
-  BIOS_MEDIAS.forEach((m) => {
+  BIOS_MEDIAS.forEach((m, mIdx) => {
     const pubId = cuid();
     pubsToInsert.push({
       id: pubId,
@@ -950,7 +1043,7 @@ async function main() {
       name: m.name,
       slug: m.slug,
       bio: m.bio,
-      logoUrl: `https://api.dicebear.com/7.x/shapes/svg?seed=${m.slug}&backgroundColor=0f172a`,
+      logoUrl: img.logo(mIdx).url,
       isCertified: true,
       subdomain: m.slug,
       accentColor: m.color,
@@ -1153,7 +1246,9 @@ async function main() {
   const articleKeyExcerpts: { articleId: string; excerpt: string; authorId: string }[] = [];
   const usedSlugs = new Set<string>();
 
-  // A. Ingestion des articles issus des fichiers JSON d'AI Studio
+  // A. Ingestion des articles issus du corpus LLM (ou des JSON externes)
+  const userIdToPersonalPub = new Map(userPubConfigs.map((u) => [u.userId, u.pubId]));
+  const corpusKeyToArticle = new Map<string, { articleId: string; authorId: string }>();
   for (const ext of externalArticles) {
     const articleId = cuid();
     const baseSlug = ext.slug ? slugify(ext.slug) : slugify(ext.title);
@@ -1163,16 +1258,30 @@ async function main() {
     }
     usedSlugs.add(finalSlug);
 
-    // Résoudre la publication
-    let pubId = ext.publicationSlug ? slugToPubMap.get(ext.publicationSlug) : null;
-    if (!pubId) {
-      pubId = randomItem(createdMedias).pubId;
-    }
-
-    // Résoudre l'auteur
+    // Résoudre l'auteur (créé à l'étape 2 si nom inconnu)
     let author = ext.authorName ? authorNameToUserMap.get(ext.authorName) : null;
     if (!author) {
       author = randomItem(creators);
+    }
+
+    // Résoudre la publication :
+    //  - channel "media:<slug>" → rédaction média correspondante
+    //  - channel "personal" → blog personnel de l'auteur
+    const corpusA = ext as CorpusArticle;
+    let pubId: string | null = null;
+    if (corpusA.channel?.startsWith('media:')) {
+      pubId = slugToPubMap.get(corpusA.channel.slice(6)) ?? null;
+    } else if (corpusA.channel === 'personal') {
+      pubId = userIdToPersonalPub.get(author.id) ?? null;
+    }
+    if (!pubId) {
+      pubId =
+        (ext.publicationSlug ? slugToPubMap.get(ext.publicationSlug) : null) ??
+        userIdToPersonalPub.get(author.id) ??
+        randomItem(createdMedias).pubId;
+    }
+    if (corpusA.key) {
+      corpusKeyToArticle.set(corpusA.key, { articleId, authorId: author.id });
     }
 
     // Date de publication réaliste
@@ -1204,7 +1313,7 @@ async function main() {
           'Analyse structurelle',
           'Propositions d’action',
         ]),
-      imageUrl: `https://images.unsplash.com/photo-${1510000000000 + ((articlesToInsert.length * 456789) % 80000000)}?auto=format&fit=crop&w=1200&q=80`,
+      imageUrl: img.cover(articlesToInsert.length).url,
       published: true,
       isPremium: isPrem,
       visibility,
@@ -1234,6 +1343,25 @@ async function main() {
       createdAt: pubDate,
       updatedAt: pubDate,
     });
+
+    // Co-auteurs / contributeurs (corpus LLM : ~30% des articles)
+    const coAuthors = (ext as CorpusArticle).coAuthors ?? [];
+    const roles = ['CO_AUTHOR', 'EDITOR', 'CONTRIBUTOR'];
+    coAuthors.forEach((name, cIdx) => {
+      const coUser = authorNameToUserMap.get(name);
+      if (!coUser || coUser.id === author.id) return;
+      attributionsToInsert.push({
+        id: cuid(),
+        articleId,
+        userId: coUser.id,
+        role: roles[cIdx % roles.length],
+        order: cIdx + 1,
+        isVisible: true,
+        consentStatus: 'ACCEPTED',
+        createdAt: pubDate,
+        updatedAt: pubDate,
+      });
+    });
   }
 
   // B. Compléter avec les articles procéduraux pour atteindre 200 articles si besoin
@@ -1261,7 +1389,7 @@ async function main() {
       title,
       slug,
       content: html,
-      imageUrl: `https://images.unsplash.com/photo-${1490000000000 + ((idx * 789012) % 80000000)}?auto=format&fit=crop&w=1200&q=80`,
+      imageUrl: img.cover(idx).url,
       published: true,
       isPremium: isPrem,
       visibility: isPrem ? ContentVisibility.PAID_SUBSCRIBERS : ContentVisibility.PUBLIC,
@@ -1304,8 +1432,39 @@ async function main() {
   const rootThoughts: any[] = [];
   const l1Replies: any[] = [];
 
-  // A. 600 Pensées racines
-  for (let i = 0; i < 600; i++) {
+  // A. Pensées racines — corpus LLM en priorité, templates en complément
+  const corpusKeyToThought = new Map<string, any>();
+  if (corpus && corpus.thoughts.length > 0) {
+    console.log(`  💭 Corpus : ${corpus.thoughts.length} pensées rédigées par LLM`);
+    corpus.thoughts.forEach((ct, i) => {
+      const id = cuid();
+      const author = i % 10 < 7 ? randomItem(creators) : randomItem(readers);
+      const t = {
+        id,
+        authorId: author.id,
+        content: ct.content,
+        tags: ct.tags?.length ? ct.tags : ['pensee'],
+        visibility: 'public',
+        contentVisibility: ContentVisibility.PUBLIC,
+        isDraft: false,
+        isPinned: i < 15,
+        likeCount: 0,
+        replyCount: 0,
+        repostCount: 0,
+        parentId: null,
+        rootId: null,
+        repostId: null,
+        quotedArticleId: null,
+        quotedExcerpt: null,
+        createdAt: randomDate(2, 90),
+        updatedAt: new Date(),
+      };
+      thoughtsToInsert.push(t);
+      rootThoughts.push(t);
+      if (ct.key) corpusKeyToThought.set(ct.key, t);
+    });
+  }
+  for (let i = rootThoughts.length; i < 600; i++) {
     const id = cuid();
     const author = i < 350 ? randomItem(creators) : randomItem(readers);
     const content =
@@ -1337,9 +1496,43 @@ async function main() {
     rootThoughts.push(t);
   }
 
-  // B. 450 Réponses directes (Level 1)
+  // B. Réponses directes (Level 1) — corpus LLM en priorité
   const rootReplyCounts = new Map<string, number>();
-  for (let i = 0; i < 450; i++) {
+  const corpusRepliesL1 = corpus?.replies.filter((r) => r.level === 1) ?? [];
+  if (corpusRepliesL1.length > 0) {
+    console.log(`  ↩️  Corpus : ${corpusRepliesL1.length} réponses L1 contextuelles`);
+    for (const cr of corpusRepliesL1) {
+      const root = corpusKeyToThought.get(cr.parentKey);
+      if (!root) continue;
+      const id = cuid();
+      const author = randomItem(allUsers);
+      const t = {
+        id,
+        authorId: author.id,
+        content: cr.content,
+        tags: [],
+        visibility: 'public',
+        contentVisibility: ContentVisibility.PUBLIC,
+        isDraft: false,
+        isPinned: false,
+        likeCount: 0,
+        replyCount: 0,
+        repostCount: 0,
+        parentId: root.id,
+        rootId: root.id,
+        repostId: null,
+        quotedArticleId: null,
+        quotedExcerpt: null,
+        createdAt: new Date(root.createdAt.getTime() + randomInt(60000, 86400000)),
+        updatedAt: new Date(),
+      };
+      thoughtsToInsert.push(t);
+      l1Replies.push(t);
+      corpusKeyToThought.set(cr.key, t);
+      rootReplyCounts.set(root.id, (rootReplyCounts.get(root.id) || 0) + 1);
+    }
+  }
+  for (let i = l1Replies.length; i < 450; i++) {
     const id = cuid();
     const root = randomItem(rootThoughts);
     const author = randomItem(allUsers);
@@ -1370,8 +1563,43 @@ async function main() {
     rootReplyCounts.set(root.id, (rootReplyCounts.get(root.id) || 0) + 1);
   }
 
-  // C. 150 Sous-réponses imbriquées (Level 2)
-  for (let i = 0; i < 150; i++) {
+  // C. Sous-réponses imbriquées (Level 2) — corpus LLM en priorité
+  const corpusRepliesL2 = corpus?.replies.filter((r) => r.level === 2) ?? [];
+  let l2Added = 0;
+  if (corpusRepliesL2.length > 0) {
+    console.log(`  ↩️↩️ Corpus : ${corpusRepliesL2.length} sous-réponses L2`);
+    for (const cr of corpusRepliesL2) {
+      const parentReply = corpusKeyToThought.get(cr.parentKey);
+      if (!parentReply || !l1Replies.includes(parentReply)) continue;
+      const id = cuid();
+      const author = randomItem(allUsers);
+      const t = {
+        id,
+        authorId: author.id,
+        content: cr.content,
+        tags: [],
+        visibility: 'public',
+        contentVisibility: ContentVisibility.PUBLIC,
+        isDraft: false,
+        isPinned: false,
+        likeCount: 0,
+        replyCount: 0,
+        repostCount: 0,
+        parentId: parentReply.id,
+        rootId: parentReply.rootId,
+        repostId: null,
+        quotedArticleId: null,
+        quotedExcerpt: null,
+        createdAt: new Date(parentReply.createdAt.getTime() + randomInt(30000, 43200000)),
+        updatedAt: new Date(),
+      };
+      thoughtsToInsert.push(t);
+      l2Added++;
+      rootReplyCounts.set(parentReply.rootId, (rootReplyCounts.get(parentReply.rootId) || 0) + 1);
+      rootReplyCounts.set(parentReply.id, (rootReplyCounts.get(parentReply.id) || 0) + 1);
+    }
+  }
+  for (let i = l2Added; i < 150; i++) {
     const id = cuid();
     const parentReply = randomItem(l1Replies);
     const author = randomItem(allUsers);
@@ -1403,8 +1631,40 @@ async function main() {
     rootReplyCounts.set(parentReply.id, (rootReplyCounts.get(parentReply.id) || 0) + 1);
   }
 
-  // D. 100 Citations d'articles (Quotes)
-  for (let i = 0; i < 100; i++) {
+  // D. Citations d'articles (Quotes) — commentaires LLM en priorité
+  const corpusQuotes = corpus?.quotes ?? [];
+  if (corpusQuotes.length > 0) {
+    console.log(
+      `  ❝ Corpus : ${corpusQuotes.length} citations partagées avec commentaire personnel`
+    );
+    for (const cq of corpusQuotes) {
+      const target = corpusKeyToArticle.get(cq.articleKey);
+      if (!target) continue;
+      const id = cuid();
+      const author = randomItem(allUsers);
+      thoughtsToInsert.push({
+        id,
+        authorId: author.id,
+        content: cq.commentary,
+        tags: ['lecture', 'citation'],
+        visibility: 'public',
+        contentVisibility: ContentVisibility.PUBLIC,
+        isDraft: false,
+        isPinned: false,
+        likeCount: 0,
+        replyCount: 0,
+        repostCount: 0,
+        parentId: null,
+        rootId: null,
+        repostId: null,
+        quotedArticleId: target.articleId,
+        quotedExcerpt: cq.excerpt,
+        createdAt: randomDate(1, 60),
+        updatedAt: new Date(),
+      });
+    }
+  }
+  for (let i = corpusQuotes.length; i < 100; i++) {
     const id = cuid();
     const artExcerpt = randomItem(articleKeyExcerpts);
     const author = randomItem(allUsers);
@@ -1432,9 +1692,48 @@ async function main() {
     });
   }
 
-  // Synchronisation des replyCount
+  // E. Reposts : pensées repartagées (repostId → thought source)
+  const REPOST_COMMENTS = [
+    'À lire absolument.',
+    'Exactement ça.',
+    'Je repartage, trop important.',
+    'Ceci. Mille fois ceci.',
+    'Ça mérite d’être vu par plus de monde.',
+    'Très juste.',
+  ];
+  const repostCountMap = new Map<string, number>();
+  for (let i = 0; i < 180; i++) {
+    const source = randomItem(rootThoughts);
+    if (!source) continue;
+    const author = randomItem(allUsers);
+    if (author.id === source.authorId) continue;
+    thoughtsToInsert.push({
+      id: cuid(),
+      authorId: author.id,
+      content: Math.random() < 0.5 ? randomItem(REPOST_COMMENTS) : '',
+      tags: [],
+      visibility: 'public',
+      contentVisibility: ContentVisibility.PUBLIC,
+      isDraft: false,
+      isPinned: false,
+      likeCount: 0,
+      replyCount: 0,
+      repostCount: 0,
+      parentId: null,
+      rootId: null,
+      repostId: source.id,
+      quotedArticleId: null,
+      quotedExcerpt: null,
+      createdAt: new Date(source.createdAt.getTime() + randomInt(3600000, 7 * 86400000)),
+      updatedAt: new Date(),
+    });
+    repostCountMap.set(source.id, (repostCountMap.get(source.id) || 0) + 1);
+  }
+
+  // Synchronisation des compteurs reply & repost
   thoughtsToInsert.forEach((t) => {
     t.replyCount = rootReplyCounts.get(t.id) || 0;
+    t.repostCount = repostCountMap.get(t.id) || 0;
   });
 
   await batchInsert('Thoughts / Posts', prisma.thought, thoughtsToInsert);
@@ -1446,8 +1745,53 @@ async function main() {
   const articleCommentsToInsert: any[] = [];
   const rootComments: any[] = [];
 
-  // 350 Commentaires racine
-  for (let i = 0; i < 350; i++) {
+  // Commentaires racine — corpus LLM en priorité
+  const corpusKeyToComment = new Map<string, any>();
+  if (corpus && corpus.comments.length > 0) {
+    const corpusRootComments = corpus.comments.filter((c) => !c.replyToKey);
+    console.log(`  💬 Corpus : ${corpus.comments.length} commentaires contextuels`);
+    for (const cc of corpusRootComments) {
+      const target = corpusKeyToArticle.get(cc.articleKey);
+      if (!target) continue;
+      const art = articlesToInsert.find((a) => a.id === target.articleId);
+      const id = cuid();
+      const c = {
+        id,
+        articleId: target.articleId,
+        authorId: randomItem(allUsers).id,
+        content: cc.content,
+        parentId: null,
+        createdAt: art
+          ? new Date(art.createdAt.getTime() + randomInt(60000, 172800000))
+          : randomDate(1, 60),
+        updatedAt: new Date(),
+      };
+      articleCommentsToInsert.push(c);
+      rootComments.push(c);
+      corpusKeyToComment.set(cc.key, c);
+    }
+    // Réponses aux commentaires (fils)
+    for (const cc of corpus.comments.filter((c) => c.replyToKey)) {
+      const parent = corpusKeyToComment.get(cc.replyToKey);
+      const target = corpusKeyToArticle.get(cc.articleKey);
+      if (!parent || !target) continue;
+      const id = cuid();
+      const c = {
+        id,
+        articleId: parent.articleId,
+        authorId: randomItem(allUsers).id,
+        content: cc.content,
+        parentId: parent.id,
+        createdAt: new Date(parent.createdAt.getTime() + randomInt(60000, 86400000)),
+        updatedAt: new Date(),
+      };
+      articleCommentsToInsert.push(c);
+      corpusKeyToComment.set(cc.key, c);
+    }
+  }
+
+  // 350 Commentaires racine (complément templates)
+  for (let i = rootComments.length; i < 350; i++) {
     const id = cuid();
     const art = randomItem(articlesToInsert);
     const author = randomItem(allUsers);
@@ -1489,6 +1833,25 @@ async function main() {
   console.log('\n🤝 [9/25] Génération du graphe social (3 600+ Follows)...');
   const followsToInsert: any[] = [];
   const followsSet = new Set<string>();
+
+  // Couverture universelle : chaque utilisateur suit au moins 3 publications
+  // (mélange médias + carnets personnels), et chaque publication a des abonnés.
+  for (const u of allUsers) {
+    let followed = 0;
+    while (followed < 3) {
+      const pub = pubsToInsert[randomInt(0, pubsToInsert.length - 1)];
+      const key = `${u.id}_${pub.id}`;
+      if (followsSet.has(key)) continue;
+      followsSet.add(key);
+      followsToInsert.push({
+        id: cuid(),
+        readerId: u.id,
+        publicationId: pub.id,
+        createdAt: randomDate(10, 300),
+      });
+      followed++;
+    }
+  }
 
   while (followsToInsert.length < 3600) {
     const reader = randomItem(allUsers);
@@ -1543,6 +1906,23 @@ async function main() {
   const annotationCommentsToInsert: any[] = [];
   const annotationUpvotesToInsert: any[] = [];
 
+  // Notes de marge contextuelles du corpus LLM (cycle) + templates en secours
+  const corpusNotes = corpus?.highlightNotes ?? [];
+  let corpusNoteCursor = 0;
+  const nextCorpusNote = (): string | null => {
+    if (corpusNotes.length === 0) return null;
+    const n = corpusNotes[corpusNoteCursor % corpusNotes.length].note;
+    corpusNoteCursor++;
+    return n;
+  };
+  const ANNOTATION_COMMENTS_POOL = [
+    'Excellente remarque en marge, je partage cette mise en perspective.',
+    'Ça rejoint exactement ce que je pensais en lisant le passage.',
+    'Merci pour cette note, elle éclaire le texte autrement.',
+    'Je nuancerais un point, mais l’idée centrale est juste.',
+    'Cette mise en perspective mériterait presque son propre article.',
+  ];
+
   for (let i = 0; i < 850; i++) {
     const artExcerpt = randomItem(articleKeyExcerpts);
     const reader = randomItem(allUsers);
@@ -1550,12 +1930,15 @@ async function main() {
 
     let note: string | null = null;
     if (isPublic && Math.random() < 0.7) {
-      note = randomItem([
-        'Formulation d’une grande clarté. Cela rejoint directement la thèse de Hartmut Rosa sur l’aliénation.',
-        'Passage central : la souveraineté ne se délègue pas, elle s’exerce par l’attention.',
-        'À mettre en regard avec les travaux sur les biens communs d’Elinor Ostrom.',
-        'Un argument imparable contre les partisans du solutionnisme technologique.',
-      ]);
+      note = nextCorpusNote();
+      if (!note && Math.random() < 0.35) {
+        note = randomItem([
+          'Formulation d’une grande clarté. Cela rejoint directement la thèse de Hartmut Rosa sur l’aliénation.',
+          'Passage central : la souveraineté ne se délègue pas, elle s’exerce par l’attention.',
+          'À mettre en regard avec les travaux sur les biens communs d’Elinor Ostrom.',
+          'Un argument imparable contre les partisans du solutionnisme technologique.',
+        ]);
+      }
     }
 
     const hlId = cuid();
@@ -1577,7 +1960,7 @@ async function main() {
           id: cuid(),
           highlightId: hlId,
           authorId: randomItem(allUsers).id,
-          content: 'Excellente remarque en marge, je partage cette mise en perspective.',
+          content: randomItem(ANNOTATION_COMMENTS_POOL),
           createdAt: randomDate(1, 30),
         });
       }
@@ -1629,6 +2012,60 @@ async function main() {
   const subscribersToInsert: any[] = [];
   const subSet = new Set<string>();
 
+  // Couverture universelle : chaque utilisateur est abonné à au moins 2
+  // publications ET chaque publication a au moins 2 abonnés.
+  for (const u of allUsers) {
+    let subs = 0;
+    while (subs < 2) {
+      const pub = pubsToInsert[randomInt(0, pubsToInsert.length - 1)];
+      const key = `${u.email}_${pub.id}`;
+      if (subSet.has(key)) continue;
+      subSet.add(key);
+      const pubTiers = createdTiers.filter((t) => t.publicationId === pub.id);
+      const chosenTier = pubTiers.length > 0 && Math.random() < 0.4 ? pubTiers[0].id : null;
+      subscribersToInsert.push({
+        id: cuid(),
+        email: u.email,
+        publicationId: pub.id,
+        userId: u.id,
+        tierId: chosenTier,
+        status: SubscriptionStatus.ACTIVE,
+        isActive: true,
+        isPremium: Boolean(chosenTier),
+        createdAt: randomDate(5, 150),
+        updatedAt: new Date(),
+      });
+      subs++;
+    }
+  }
+  // Chaque publication doit avoir ≥ 2 abonnés
+  for (const pub of pubsToInsert) {
+    let count = subscribersToInsert.filter((s) => s.publicationId === pub.id).length;
+    let guard = 0;
+    while (count < 2 && guard < 20) {
+      guard++;
+      const reader = randomItem(readers);
+      const key = `${reader.email}_${pub.id}`;
+      if (subSet.has(key)) continue;
+      subSet.add(key);
+      const pubTiers = createdTiers.filter((t) => t.publicationId === pub.id);
+      const chosenTier = pubTiers.length > 0 && Math.random() < 0.4 ? pubTiers[0].id : null;
+      subscribersToInsert.push({
+        id: cuid(),
+        email: reader.email,
+        publicationId: pub.id,
+        userId: reader.id,
+        tierId: chosenTier,
+        status: SubscriptionStatus.ACTIVE,
+        isActive: true,
+        isPremium: Boolean(chosenTier),
+        createdAt: randomDate(5, 150),
+        updatedAt: new Date(),
+      });
+      count++;
+    }
+  }
+
   while (subscribersToInsert.length < 450) {
     const reader = randomItem(readers);
     const pub = randomItem(pubsToInsert);
@@ -1657,16 +2094,21 @@ async function main() {
   await batchInsert('Subscribers', prisma.subscriber, subscribersToInsert);
 
   const lettersToInsert: any[] = [];
+  const excerptByArticle = new Map(articleKeyExcerpts.map((e) => [e.articleId, e.excerpt]));
   for (let i = 0; i < 165; i++) {
     const art = randomItem(articlesToInsert);
     const sender = randomItem(readers);
     if (sender.id !== art.authorId) {
+      const excerpt = excerptByArticle.get(art.id);
+      const angle = excerpt
+        ? `Ce passage en particulier m'a marqué :\n\n« ${excerpt} »\n\nJe l'ai surligné et relu plusieurs fois.`
+        : `J'ai particulièrement apprécié la façon dont vous reliez le concret et les idées.`;
       lettersToInsert.push({
         id: cuid(),
         senderId: sender.id,
         recipientId: art.authorId,
         articleId: art.id,
-        content: `Cher auteur,\n\nVotre récent article "${art.title}" a suscité chez moi une vive réflexion. J'ai particulièrement apprécié la façon dont vous liez l'infrastructure matérielle à la souveraineté intellectuelle.\n\nBien à vous,\n${sender.name}`,
+        content: `Cher auteur,\n\nVotre article "${art.title}" a suscité chez moi une vive réflexion.\n\n${angle}\n\nMerci pour ce texte, et hâte de lire la suite.\n\nBien à vous,\n${sender.name}`,
         isPublic: Math.random() < 0.25,
         createdAt: randomDate(1, 45),
       });
@@ -1690,17 +2132,19 @@ async function main() {
     const mediaArticles = articlesToInsert.filter((a) => a.publicationId === m.pubId);
     const coverArts = mediaArticles.slice(0, Math.min(3, mediaArticles.length));
 
+    const logoImg = img.logo(mIdx);
+    const bannerImg = img.mediaBanner(mIdx);
     mediaAssetsToInsert.push(
       {
         id: cuid(),
         sha256: sha256(`${m.id}-logo-${mIdx}`),
-        url: `https://images.unsplash.com/photo-${1500000000000 + ((mIdx * 1357911) % 90000000)}?auto=format&fit=crop&w=512&q=80`,
-        storagePath: `media/${m.pubId}/logo.webp`,
+        url: logoImg.url,
+        storagePath: `media/${m.pubId}/logo.svg`,
         bucket: 'media-branding',
-        mimeType: 'image/webp',
-        width: 512,
-        height: 512,
-        sizeBytes: randomInt(18000, 48000),
+        mimeType: logoImg.mimeType,
+        width: logoImg.width,
+        height: logoImg.height,
+        sizeBytes: logoImg.sizeBytes,
         blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
         isNsfw: false,
         isSensitive: false,
@@ -1714,13 +2158,13 @@ async function main() {
       {
         id: cuid(),
         sha256: sha256(`${m.id}-banner-${mIdx}`),
-        url: `https://images.unsplash.com/photo-${1510000000000 + ((mIdx * 2468024) % 90000000)}?auto=format&fit=crop&w=1600&h=400&q=80`,
-        storagePath: `media/${m.pubId}/banner.webp`,
+        url: bannerImg.url,
+        storagePath: `media/${m.pubId}/banner.svg`,
         bucket: 'media-branding',
-        mimeType: 'image/webp',
-        width: 1600,
-        height: 400,
-        sizeBytes: randomInt(40000, 90000),
+        mimeType: bannerImg.mimeType,
+        width: bannerImg.width,
+        height: bannerImg.height,
+        sizeBytes: bannerImg.sizeBytes,
         blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
         isNsfw: false,
         isSensitive: false,
@@ -1733,17 +2177,18 @@ async function main() {
       }
     );
 
-    coverArts.forEach((art) => {
+    coverArts.forEach((art, cIdx) => {
+      const coverImg = img.cover(mIdx * 3 + cIdx);
       mediaAssetsToInsert.push({
         id: cuid(),
         sha256: sha256(`${art.id}-cover`),
         url: art.imageUrl,
-        storagePath: `media/${m.pubId}/articles/${art.id}/cover.webp`,
+        storagePath: `media/${m.pubId}/articles/${art.id}/cover.jpg`,
         bucket: 'articles-media',
-        mimeType: 'image/webp',
-        width: 1200,
-        height: 630,
-        sizeBytes: randomInt(60000, 140000),
+        mimeType: coverImg.mimeType,
+        width: coverImg.width,
+        height: coverImg.height,
+        sizeBytes: coverImg.sizeBytes,
         blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
         isNsfw: false,
         isSensitive: false,
@@ -1760,16 +2205,17 @@ async function main() {
   // B. Avatars & bannières d'utilisateurs (upload personnel)
   for (let i = 0; i < 140; i++) {
     const user = allUsers[i % allUsers.length];
+    const avatarImg = img.avatar(i);
     mediaAssetsToInsert.push({
       id: cuid(),
       sha256: sha256(`${user.id}-avatar-${i}`),
       url: user.logoUrl,
-      storagePath: `users/${user.id}/avatar.webp`,
+      storagePath: `users/${user.id}/avatar.svg`,
       bucket: 'user-media',
-      mimeType: 'image/webp',
-      width: 256,
-      height: 256,
-      sizeBytes: randomInt(12000, 32000),
+      mimeType: avatarImg.mimeType,
+      width: avatarImg.width,
+      height: avatarImg.height,
+      sizeBytes: avatarImg.sizeBytes,
       blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
       isNsfw: false,
       isSensitive: false,
@@ -1781,16 +2227,17 @@ async function main() {
       updatedAt: new Date(),
     });
     if (i % 3 === 0) {
+      const bannerImg = img.banner(i);
       mediaAssetsToInsert.push({
         id: cuid(),
         sha256: sha256(`${user.id}-banner-${i}`),
-        url: `https://images.unsplash.com/photo-${1500000000000 + ((i * 975310) % 90000000)}?auto=format&fit=crop&w=1600&h=400&q=80`,
-        storagePath: `users/${user.id}/banner.webp`,
+        url: bannerImg.url,
+        storagePath: `users/${user.id}/banner.svg`,
         bucket: 'user-media',
-        mimeType: 'image/webp',
-        width: 1600,
-        height: 400,
-        sizeBytes: randomInt(35000, 80000),
+        mimeType: bannerImg.mimeType,
+        width: bannerImg.width,
+        height: bannerImg.height,
+        sizeBytes: bannerImg.sizeBytes,
         blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
         isNsfw: false,
         isSensitive: false,
@@ -1810,18 +2257,16 @@ async function main() {
     const nb = randomInt(1, 2);
     for (let j = 0; j < nb; j++) {
       const attId = cuid();
-      const isVideo = j === 0 && Math.random() < 0.12;
-      const url = isVideo
-        ? `https://storage.qoe.fi/thoughts/${thought.id}/clip-${j}.mp4`
-        : `https://images.unsplash.com/photo-${1500000000000 + ((i * 864209) % 90000000)}?auto=format&fit=crop&w=1080&q=80`;
+      const attImg = img.cover(thoughtsToInsert.length + i * 2 + j);
+      const url = attImg.url;
       mediaAttachmentsToInsert.push({
         id: attId,
         thoughtId: thought.id,
-        type: isVideo ? 'VIDEO' : 'IMAGE',
+        type: 'IMAGE',
         url,
         altText: `Visuel joint à la pensée de ${thought.authorId.slice(0, 8)}`,
-        width: isVideo ? 1920 : 1080,
-        height: isVideo ? 1080 : 1080,
+        width: attImg.width,
+        height: attImg.height,
         order: j,
         createdAt: thought.createdAt,
       });
@@ -1829,12 +2274,12 @@ async function main() {
         id: cuid(),
         sha256: sha256(`${attId}-media`),
         url,
-        storagePath: `thoughts/${thought.id}/attachment-${j}.webp`,
+        storagePath: `thoughts/${thought.id}/attachment-${j}.jpg`,
         bucket: 'articles-media',
-        mimeType: isVideo ? 'video/mp4' : 'image/webp',
-        width: isVideo ? 1920 : 1080,
-        height: isVideo ? 1080 : 1080,
-        sizeBytes: randomInt(40000, 160000),
+        mimeType: attImg.mimeType,
+        width: attImg.width,
+        height: attImg.height,
+        sizeBytes: attImg.sizeBytes,
         blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
         isNsfw: Math.random() < 0.02,
         isSensitive: Math.random() < 0.02,
@@ -1851,16 +2296,17 @@ async function main() {
   // D. Quelques assets orphelins (DRAFT_ORPHAN) pour tester le TTL de purge
   for (let i = 0; i < 40; i++) {
     const user = randomItem(allUsers);
+    const orphanImg = img.cover(500 + i);
     mediaAssetsToInsert.push({
       id: cuid(),
       sha256: sha256(`orphan-${i}`),
-      url: `https://images.unsplash.com/photo-${1500000000000 + ((i * 357159) % 90000000)}?auto=format&fit=crop&w=1080&q=80`,
-      storagePath: `tmp/orphans/${cuid()}.webp`,
+      url: orphanImg.url,
+      storagePath: `tmp/orphans/${cuid()}.jpg`,
       bucket: 'articles-media',
-      mimeType: 'image/webp',
-      width: 1080,
-      height: randomInt(600, 1200),
-      sizeBytes: randomInt(30000, 120000),
+      mimeType: orphanImg.mimeType,
+      width: orphanImg.width,
+      height: orphanImg.height,
+      sizeBytes: orphanImg.sizeBytes,
       blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4',
       isNsfw: false,
       isSensitive: false,
@@ -2261,7 +2707,7 @@ async function main() {
       clientId: 'qoe_oauth_demo_reader',
       name: 'Reader Démo',
       description: 'Application de lecture tierce utilisant OAuth 2.1 / OIDC.',
-      logoUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=reader-demo',
+      logoUrl: img.logo(0).url,
       homepageUrl: 'http://localhost:3000',
       redirectUris: ['http://localhost:3000/callback'],
       scopes: ['openid', 'profile', 'email'],
@@ -2272,7 +2718,7 @@ async function main() {
       clientId: 'qoe_oauth_pkce_mobile',
       name: 'App Mobile PKCE',
       description: 'Client public mobile avec PKCE (S256).',
-      logoUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=mobile-demo',
+      logoUrl: img.logo(1).url,
       homepageUrl: 'https://qoe.fi',
       redirectUris: ['qoeapp://oauth/callback'],
       scopes: ['openid', 'profile'],
@@ -2283,7 +2729,7 @@ async function main() {
       clientId: 'qoe_oauth_pending_analytics',
       name: 'Analytics Tierce',
       description: "App en attente de modération par l'équipe.",
-      logoUrl: 'https://api.dicebear.com/7.x/shapes/svg?seed=analytics',
+      logoUrl: img.logo(2).url,
       homepageUrl: 'https://analytics.qoe.fi',
       redirectUris: ['https://analytics.qoe.fi/oauth/callback'],
       scopes: ['openid', 'email'],
@@ -2366,7 +2812,7 @@ async function main() {
         'Découvrez les médias membres de notre réseau et abonnez-vous à tarif préférentiel.',
       ctaText: 'Découvrir',
       ctaUrl: 'https://qoe.fi/medias',
-      imageUrl: `https://images.unsplash.com/photo-${1500000000000 + ((Math.random() * 90000000) | 0)}?auto=format&fit=crop&w=800&q=80`,
+      imageUrl: img.cover(100).url,
       isActive: true,
       createdAt: randomDate(10, 60),
       updatedAt: new Date(),
@@ -2377,7 +2823,7 @@ async function main() {
       description: 'Reprenez la main sur votre fil : suivez les créateurs qui comptent vraiment.',
       ctaText: 'Commencer',
       ctaUrl: 'https://qoe.fi',
-      imageUrl: `https://images.unsplash.com/photo-${1500000000000 + ((Math.random() * 90000000) | 0)}?auto=format&fit=crop&w=800&q=80`,
+      imageUrl: img.cover(101).url,
       isActive: true,
       createdAt: randomDate(10, 60),
       updatedAt: new Date(),
