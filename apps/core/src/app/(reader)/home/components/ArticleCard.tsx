@@ -8,6 +8,7 @@ import {
   Bookmark,
   Clock,
   Crown,
+  EyeOff,
   UserCheck,
   UserPlus,
 } from 'lucide-react';
@@ -72,6 +73,7 @@ export interface ArticleCardProps {
   handleBookmarkToggle: (article: Article) => void;
   featured?: boolean;
   discovery?: boolean;
+  onHideArticle?: (article: Article) => void;
   onOpenArticle?: (article: Article) => void;
   onOpenProfile?: (username: string) => void;
   onOpenPost?: (postId: string, authorUsername?: string) => void;
@@ -155,6 +157,7 @@ export function ArticleCard({
   handleBookmarkToggle,
   featured = false,
   discovery = false,
+  onHideArticle,
   onOpenArticle,
   onOpenProfile,
   onOpenPost,
@@ -341,14 +344,32 @@ export function ArticleCard({
             </div>
           </div>
           {dbUser && dbUser.id !== article.author.id && (
-            <button
-              type="button"
-              onClick={toggleFollow}
-              className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium tracking-[0.02em]"
-            >
-              {followed ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-              <span>{followed ? t`Abonné` : t`Suivre`}</span>
-            </button>
+            <div className="flex shrink-0 items-center gap-2.5">
+              <button
+                type="button"
+                onClick={toggleFollow}
+                className="flex items-center gap-1.5 text-[11px] font-medium tracking-[0.02em]"
+              >
+                {followed ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                <span>{followed ? t`Abonné` : t`Suivre`}</span>
+              </button>
+              {onHideArticle && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (window.confirm(t`Voir moins de contenu comme ça ?`)) {
+                      onHideArticle(article);
+                    }
+                  }}
+                  className="text-black/45 transition-colors hover:text-black dark:text-white/45 dark:hover:text-white"
+                  title={t`Voir moins de contenu comme ça`}
+                >
+                  <EyeOff className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

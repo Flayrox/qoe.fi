@@ -32,6 +32,7 @@ export interface ThoughtFeedSliceProps {
   onRepostToggle?: (postId: string) => void;
   onPinToggle?: (e: React.MouseEvent) => void;
   onDeletePost?: (postId: string) => Promise<boolean> | void;
+  onHidePost?: (postId: string) => void;
 }
 
 export function ThoughtFeedSlice({
@@ -45,6 +46,7 @@ export function ThoughtFeedSlice({
   onRepostToggle,
   onPinToggle,
   onDeletePost,
+  onHidePost,
 }: ThoughtFeedSliceProps) {
   const { rootPost, parentPost, targetPost, isIncompleteThread, hiddenIntermediateCount } = slice;
 
@@ -72,6 +74,7 @@ export function ThoughtFeedSlice({
         onRepostToggle={onRepostToggle}
         onPinToggle={onPinToggle}
         onDeletePost={onDeletePost}
+        onHidePost={onHidePost}
       />
     );
   }
@@ -94,6 +97,7 @@ export function ThoughtFeedSlice({
           onRepostToggle={onRepostToggle}
           onPinToggle={onPinToggle}
           onDeletePost={onDeletePost}
+          onHidePost={onHidePost}
           className="border-none"
         />
       )}
@@ -133,6 +137,7 @@ export function ThoughtFeedSlice({
           onRepostToggle={onRepostToggle}
           onPinToggle={onPinToggle}
           onDeletePost={onDeletePost}
+          onHidePost={onHidePost}
           className="border-none"
         />
       )}
@@ -152,6 +157,7 @@ export function ThoughtFeedSlice({
         onRepostToggle={onRepostToggle}
         onPinToggle={onPinToggle}
         onDeletePost={onDeletePost}
+        onHidePost={onHidePost}
         className="border-none"
       />
     </div>

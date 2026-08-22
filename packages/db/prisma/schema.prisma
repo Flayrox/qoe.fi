@@ -107,6 +107,8 @@ model User {
   following          Follows[]          @relation("ReaderFollowing")
   bookmarks          Bookmark[]
   readingSessions    ReadingSession[]
+  contentFeedback    ContentFeedback[]
+  feedImpressions    FeedImpression[]
   highlights         Highlight[]
   annotationUpvotes  AnnotationUpvote[]
   mutedWords         MutedWord[]
@@ -304,6 +306,51 @@ model ReadingSession {
   @@index([userId, articleId])
 }
 
+// =====================================================================
+// 🚫 Feedback négatif explicite — « Voir moins de contenu comme ça »
+// =====================================================================
+// Un row = l'utilisateur ne veut plus voir CE contenu dans son feed.
+// Exclu du SQL du feed (NOT EXISTS) + éloignement vectoriel EMA négatif.
+// Cible : article OU pensée (un seul des deux rempli).
+// =====================================================================
+model ContentFeedback {
+  id        String   @id @default(cuid())
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  articleId String?
+  article   Article? @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  thoughtId String?
+  thought   Thought? @relation(fields: [thoughtId], references: [id], onDelete: Cascade)
+  type      String   @default("SHOW_LESS")
+  createdAt DateTime @default(now())
+
+  @@unique([userId, articleId, thoughtId, type])
+  @@index([userId, type])
+  @@index([articleId])
+  @@index([thoughtId])
+}
+
+// =====================================================================
+// 👁️ Impressions du feed — article/pensée montré (IntersectionObserver)
+// =====================================================================
+// Permet de mesurer le CTR du moteur de reco (impressions vs ReadingSession)
+// et l'efficacité du badge Découverte. Purge 30j côté API.
+// =====================================================================
+model FeedImpression {
+  id          String   @id @default(cuid())
+  userId      String?  @db.Uuid
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  itemType    String   // ARTICLE | THOUGHT
+  itemId      String
+  position    Int      @default(0)
+  isDiscovery Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([itemType, itemId])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
 model Highlight {
   id           String  @id @default(cuid())
   text         String  @db.Text
@@ -464,6 +511,7 @@ model Article {
 
   bookmarks             Bookmark[]
   readingSessions       ReadingSession[]
+  contentFeedback       ContentFeedback[]
   highlights            Highlight[]
   letters               Letter[]
   comments              ArticleComment[]
@@ -713,6 +761,7 @@ model Thought {
   embedding Unsupported("vector(512)")?
 
   likes         Like[]
+  contentFeedback ContentFeedback[]
 
   notifications Notification[]
   attachments   MediaAttachment[]

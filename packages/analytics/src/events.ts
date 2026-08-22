@@ -30,6 +30,10 @@ export const EVENTS = {
   ARTICLE_BOOKMARKED: 'article_bookmarked',
   ARTICLE_HIGHLIGHTED: 'article_highlighted',
 
+  // Feed engine (impressions + feedback négatif)
+  FEED_IMPRESSION: 'feed_impression',
+  FEED_SHOW_LESS: 'feed_show_less',
+
   // Posts
   POST_CREATED: 'post_created',
   POST_LIKED: 'post_liked',
