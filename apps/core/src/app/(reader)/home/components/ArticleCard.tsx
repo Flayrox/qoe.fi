@@ -9,6 +9,7 @@ import {
   Clock,
   Crown,
   EyeOff,
+  MoreHorizontal,
   UserCheck,
   UserPlus,
 } from 'lucide-react';
@@ -16,6 +17,7 @@ import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { routes } from '@qoe/config/routes';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@qoe/ui/ui/hover-card';
+import { Popover, PopoverContent, PopoverTrigger } from '@qoe/ui/ui/popover';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
 import { ThoughtCard, type ThoughtData } from '@/components/social/ThoughtCard';
@@ -354,20 +356,40 @@ export function ArticleCard({
                 <span>{followed ? t`Abonné` : t`Suivre`}</span>
               </button>
               {onHideArticle && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (window.confirm(t`Voir moins de contenu comme ça ?`)) {
-                      onHideArticle(article);
-                    }
-                  }}
-                  className="text-black/45 transition-colors hover:text-black dark:text-white/45 dark:hover:text-white"
-                  title={t`Voir moins de contenu comme ça`}
-                >
-                  <EyeOff className="h-4 w-4" />
-                </button>
+                <Popover>
+                  <PopoverTrigger
+                    type="button"
+                    className="text-black/45 transition-colors hover:text-black dark:text-white/45 dark:hover:text-white"
+                    title={t`Plus d'options`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                  >
+                    <MoreHorizontal className="h-5 w-5" />
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="end"
+                    sideOffset={8}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-56 rounded-xl border-border/40 bg-card p-1.5 shadow-xl"
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (window.confirm(t`Voir moins de contenu comme ça ?`)) {
+                          onHideArticle(article);
+                        }
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground cursor-pointer"
+                    >
+                      <EyeOff className="h-3.5 w-3.5" />
+                      <span>{t`Voir moins de contenu comme ça`}</span>
+                    </button>
+                  </PopoverContent>
+                </Popover>
               )}
             </div>
           )}
