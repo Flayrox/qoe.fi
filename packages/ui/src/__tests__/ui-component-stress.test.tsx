@@ -50,11 +50,7 @@ describe('🛡️ UI Zero-Crash Resilience Test Suite', () => {
 
     it('bascule sur le monogramme sans lever d’erreur lors d’un crash réseau d’image (onError)', () => {
       const { container } = render(
-        <SafeAvatar
-          src="https://api.dicebear.com/7.x/bottts/svg?seed=celeste-roche"
-          name="Céleste Roche"
-          size={32}
-        />
+        <SafeAvatar src="/avatars/inexistant-crash-test.svg" name="Céleste Roche" size={32} />
       );
 
       const img = container.querySelector('img');
@@ -178,7 +174,7 @@ describe('🛡️ UI Zero-Crash Resilience Test Suite', () => {
         id: 'auth-1',
         name: 'Auteur Invité',
         username: 'invite',
-        logoUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=test-author',
+        logoUrl: '/avatars/avatar-1.svg',
         isCertified: true,
         type: 'PERSONAL',
         subdomain: null,

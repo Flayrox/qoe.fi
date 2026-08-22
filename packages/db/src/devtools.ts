@@ -17,6 +17,39 @@ export interface DevtoolsUser {
   layoutStyle: string | null;
   createdAt: string;
 }
+
+// =====================================================================
+// 🖼️ Images locales — pointent vers les buckets du storage Supabase
+// =====================================================================
+// Les fichiers correspondants sont uploadés par le seed principal
+// (packages/db/prisma/seed-large.ts → prisma/fixtures/). Aucune image
+// externe (Unsplash/DiceBear) n'est utilisée par les devtools.
+function seedImageUrl(bucket: string, objectPath: string): string {
+  const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321').replace(
+    /\/$/,
+    ''
+  );
+  return `${base}/storage/v1/object/public/${bucket}/${objectPath}`;
+}
+const AVATAR_COUNT = 24;
+const BANNER_COUNT = 8;
+const COVER_COUNT = 30;
+const localAvatar = (n: number) =>
+  seedImageUrl(
+    'user-media',
+    `seed/avatars/avatar-${(((n % AVATAR_COUNT) + AVATAR_COUNT) % AVATAR_COUNT) + 1}.svg`
+  );
+const localBanner = (n: number) =>
+  seedImageUrl(
+    'user-media',
+    `seed/banners/banner-${(((n % BANNER_COUNT) + BANNER_COUNT) % BANNER_COUNT) + 1}.svg`
+  );
+const localCover = (n: number) =>
+  seedImageUrl(
+    'articles-media',
+    `seed/covers/cover-${(((n % COVER_COUNT) + COVER_COUNT) % COVER_COUNT) + 1}.jpg`
+  );
+
 export interface DevtoolsStats {
   users: number;
   articles: number;
@@ -608,10 +641,8 @@ export async function seedFullDatabaseAction() {
       username: 'victorhugo',
       role: 'creator',
       subdomain: 'victor',
-      logoUrl:
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
-      headerImageUrl:
-        'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&auto=format&fit=crop&q=80',
+      logoUrl: localAvatar(0),
+      headerImageUrl: localBanner(0),
       isCertified: true,
       accentColor: '#c5a880',
       heroText: 'Écrire pour éclairer les esprits et défendre la liberté humaine.',
@@ -625,10 +656,8 @@ export async function seedFullDatabaseAction() {
       username: 'simone',
       role: 'creator',
       subdomain: 'simone',
-      logoUrl:
-        'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&auto=format&fit=crop&q=80',
-      headerImageUrl:
-        'https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=1200&auto=format&fit=crop&q=80',
+      logoUrl: localAvatar(1),
+      headerImageUrl: localBanner(1),
       isCertified: true,
       accentColor: '#e07a5f',
       heroText: "On ne naît pas libre, on le devient par l'émancipation intellectuelle.",
@@ -642,10 +671,8 @@ export async function seedFullDatabaseAction() {
       username: 'marcus',
       role: 'creator',
       subdomain: 'stoic',
-      logoUrl:
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
-      headerImageUrl:
-        'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1200&auto=format&fit=crop&q=80',
+      logoUrl: localAvatar(2),
+      headerImageUrl: localBanner(2),
       isCertified: true,
       accentColor: '#3d5a80',
       heroText: "Carnets de méditations quotidiennes et maîtrise de l'attention.",
@@ -659,10 +686,8 @@ export async function seedFullDatabaseAction() {
       username: 'camus',
       role: 'creator',
       subdomain: 'camus',
-      logoUrl:
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80',
-      headerImageUrl:
-        'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200&auto=format&fit=crop&q=80',
+      logoUrl: localAvatar(3),
+      headerImageUrl: localBanner(3),
       isCertified: true,
       accentColor: '#2b2d42',
       heroText: "La révolte est la seule manière d'habiter le monde avec dignité.",
@@ -676,10 +701,8 @@ export async function seedFullDatabaseAction() {
       username: 'ada',
       role: 'creator',
       subdomain: 'ada',
-      logoUrl:
-        'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80',
-      headerImageUrl:
-        'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200&auto=format&fit=crop&q=80',
+      logoUrl: localAvatar(4),
+      headerImageUrl: localBanner(4),
       isCertified: true,
       accentColor: '#9b5de5',
       heroText: 'Poésie analytique, algorithmes et souveraineté du code.',
@@ -693,10 +716,8 @@ export async function seedFullDatabaseAction() {
       username: 'fanon',
       role: 'creator',
       subdomain: 'fanon',
-      logoUrl:
-        'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&auto=format&fit=crop&q=80',
-      headerImageUrl:
-        'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&auto=format&fit=crop&q=80',
+      logoUrl: localAvatar(5),
+      headerImageUrl: localBanner(5),
       isCertified: true,
       accentColor: '#00bbf9',
       heroText: 'Décoloniser nos esprits et nos imaginaires technologiques.',
@@ -710,10 +731,8 @@ export async function seedFullDatabaseAction() {
       username: 'arendt',
       role: 'creator',
       subdomain: 'arendt',
-      logoUrl:
-        'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&auto=format&fit=crop&q=80',
-      headerImageUrl:
-        'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=1200&auto=format&fit=crop&q=80',
+      logoUrl: localAvatar(6),
+      headerImageUrl: localBanner(6),
       isCertified: true,
       accentColor: '#f15bb5',
       heroText: "Condition de l'homme moderne et défense de l'espace public libre.",
@@ -727,10 +746,8 @@ export async function seedFullDatabaseAction() {
       username: 'spinoza',
       role: 'creator',
       subdomain: 'spinoza',
-      logoUrl:
-        'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=400&auto=format&fit=crop&q=80',
-      headerImageUrl:
-        'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1200&auto=format&fit=crop&q=80',
+      logoUrl: localAvatar(7),
+      headerImageUrl: localBanner(7),
       isCertified: true,
       accentColor: '#00f5d4',
       heroText: 'Éthique, joie de comprendre et souveraineté de la raison.',
@@ -747,8 +764,7 @@ export async function seedFullDatabaseAction() {
         email: 'lucile@qoe.fi',
         username: 'lucile',
         role: 'user',
-        logoUrl:
-          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&auto=format&fit=crop&q=80',
+        logoUrl: localAvatar(9 + 0),
         walletBalanceCents: 15000,
       }),
       createFullUser({
@@ -756,8 +772,7 @@ export async function seedFullDatabaseAction() {
         email: 'alex@qoe.fi',
         username: 'alex',
         role: 'user',
-        logoUrl:
-          'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&auto=format&fit=crop&q=80',
+        logoUrl: localAvatar(9 + 1),
         walletBalanceCents: 8000,
       }),
       createFullUser({
@@ -765,8 +780,7 @@ export async function seedFullDatabaseAction() {
         email: 'elena@qoe.fi',
         username: 'elena',
         role: 'user',
-        logoUrl:
-          'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&auto=format&fit=crop&q=80',
+        logoUrl: localAvatar(9 + 2),
         walletBalanceCents: 20000,
       }),
       createFullUser({
@@ -774,8 +788,7 @@ export async function seedFullDatabaseAction() {
         email: 'thomas@qoe.fi',
         username: 'thomas',
         role: 'user',
-        logoUrl:
-          'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=400&auto=format&fit=crop&q=80',
+        logoUrl: localAvatar(9 + 3),
         walletBalanceCents: 5000,
       }),
       createFullUser({
@@ -783,8 +796,7 @@ export async function seedFullDatabaseAction() {
         email: 'clara@qoe.fi',
         username: 'clara',
         role: 'user',
-        logoUrl:
-          'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80',
+        logoUrl: localAvatar(9 + 4),
         walletBalanceCents: 12000,
       }),
       createFullUser({
@@ -792,8 +804,7 @@ export async function seedFullDatabaseAction() {
         email: 'julien@qoe.fi',
         username: 'julien',
         role: 'user',
-        logoUrl:
-          'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=400&auto=format&fit=crop&q=80',
+        logoUrl: localAvatar(9 + 5),
         walletBalanceCents: 3000,
       }),
       createFullUser({
@@ -801,8 +812,7 @@ export async function seedFullDatabaseAction() {
         email: 'maya@qoe.fi',
         username: 'maya',
         role: 'user',
-        logoUrl:
-          'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&auto=format&fit=crop&q=80',
+        logoUrl: localAvatar(9 + 6),
         walletBalanceCents: 18000,
       }),
       createFullUser({
@@ -810,8 +820,7 @@ export async function seedFullDatabaseAction() {
         email: 'gabriel@qoe.fi',
         username: 'gabriel',
         role: 'user',
-        logoUrl:
-          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
+        logoUrl: localAvatar(9 + 7),
         walletBalanceCents: 9000,
       }),
       createFullUser({
@@ -819,8 +828,7 @@ export async function seedFullDatabaseAction() {
         email: 'sophia@qoe.fi',
         username: 'sophia',
         role: 'user',
-        logoUrl:
-          'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&auto=format&fit=crop&q=80',
+        logoUrl: localAvatar(9 + 8),
         walletBalanceCents: 25000,
       }),
       createFullUser({
@@ -828,8 +836,7 @@ export async function seedFullDatabaseAction() {
         email: 'arthur@qoe.fi',
         username: 'arthur',
         role: 'user',
-        logoUrl:
-          'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80',
+        logoUrl: localAvatar(9 + 9),
         walletBalanceCents: 10000,
       }),
     ]);
@@ -841,8 +848,7 @@ export async function seedFullDatabaseAction() {
       username: 'admin',
       role: 'superadmin',
       isCertified: true,
-      logoUrl:
-        'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80',
+      logoUrl: localAvatar(19),
     });
 
     // 5. Graphe d'abonnements (Follows) : TOUS les comptes (créateurs, lecteurs, admin) suivent les créateurs
@@ -1218,10 +1224,7 @@ export async function seedFullDatabaseAction() {
           tags,
           visibility: 'public',
           isDraft: false,
-          imageUrl:
-            i % 5 === 0
-              ? 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80'
-              : null,
+          imageUrl: i % 5 === 0 ? localCover(i) : null,
           createdAt: postDate,
           updatedAt: postDate,
         },

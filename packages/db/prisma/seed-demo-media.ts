@@ -17,6 +17,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'crypto';
+import { seededPublicUrl } from './lib/seed-images';
 
 const prisma = new PrismaClient();
 
@@ -50,7 +51,8 @@ async function main() {
       slug: MEDIA_SLUG,
       subdomain: MEDIA_SLUG,
       bio: 'Un média de démonstration pour tester le rendu des articles média sur le feed.',
-      logoUrl: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=200&q=80',
+      // Logo local uploadé par le seed principal (seed-large → bucket media-branding)
+      logoUrl: seededPublicUrl('media-branding', 'seed/logos/logo-4.svg'),
       heroText: 'Le journal pilote de qoe.fi — écrit par des humains, lu sans bruit.',
       accentColor: '#EE4B2B',
       isCertified: true, // → visible aussi dans l'onglet « Découvrir »
