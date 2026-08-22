@@ -446,7 +446,8 @@ export const mapSliceToFeedItem = (slice: FeedSlice, currentUserId?: string) => 
 };
 
 export type FeedItem =
-  ReturnType<typeof mapArticleToFeedItem> | ReturnType<typeof mapSliceToFeedItem>;
+  | (ReturnType<typeof mapArticleToFeedItem> & { isDiscovery?: boolean })
+  | ReturnType<typeof mapSliceToFeedItem>;
 
 export interface VectorFeedPageResult {
   items: FeedItem[];
@@ -460,18 +461,43 @@ export interface VectorFeedPageResult {
  * est null), puis on charge les enregistrements complets et on les
  * sérialise dans l'ordre du moteur.
  */
+// ── Cache mémoire TTL 60s (Phase 4) ─────────────────────────────────────────
+// Le moteur (pgvector + CF + engagement + exploration) coûte ~60-100ms/user.
+// Cache de la partie moteur uniquement ; la réhydratation Prisma reste fraîche.
+// Map insertion-order = LRU simplifié ; 0 dépendance externe.
+const FEED_CACHE_TTL_MS = 60_000;
+const FEED_CACHE_MAX_ENTRIES = 500;
+type EnginePage = Awaited<ReturnType<typeof getPersonalizedFeed>>;
+const feedEngineCache = new Map<string, { expires: number; data: Promise<EnginePage> }>();
+
+function getCachedEnginePage(
+  userId: string | null,
+  limit: number,
+  offset: number
+): Promise<EnginePage> {
+  const key = `${userId ?? 'anon'}:${limit}:${offset}`;
+  const hit = feedEngineCache.get(key);
+  if (hit && hit.expires > Date.now()) return hit.data;
+
+  const promise = getPersonalizedFeed({ userId, limit: limit + 1, offset });
+  feedEngineCache.set(key, { expires: Date.now() + FEED_CACHE_TTL_MS, data: promise });
+
+  // Éviction LRU simple : on supprime l'entrée la plus ancienne si trop plein
+  if (feedEngineCache.size > FEED_CACHE_MAX_ENTRIES) {
+    const oldest = feedEngineCache.keys().next().value;
+    if (oldest !== undefined) feedEngineCache.delete(oldest);
+  }
+  return promise;
+}
+
 export async function buildVectorFeedPage(params: {
   userId?: string | null;
   limit?: number;
   offset?: number;
 }): Promise<VectorFeedPageResult> {
   const { userId = null, limit = 20, offset = 0 } = params;
-  // +1 pour détecter hasMore de façon fiable.
-  const { items: engineItems } = await getPersonalizedFeed({
-    userId,
-    limit: limit + 1,
-    offset,
-  });
+  // +1 pour détecter hasMore de façon fiable. Moteur caché 60s (Phase 4).
+  const { items: engineItems } = await getCachedEnginePage(userId, limit, offset);
 
   const hasMore = engineItems.length > limit;
   const pageItems = engineItems.slice(0, limit);
@@ -504,7 +530,12 @@ export async function buildVectorFeedPage(params: {
   for (const item of pageItems) {
     if (item.itemType === 'ARTICLE') {
       const art = articleById.get(item.id);
-      if (art) items.push(mapArticleToFeedItem(art));
+      if (art)
+        items.push({
+          ...mapArticleToFeedItem(art),
+          // 🌍 transport du flag exploration (badge « Découverte » côté UI)
+          ...(item.isDiscovery ? { isDiscovery: true } : {}),
+        });
     } else {
       const slice = sliceById.get(item.id);
       if (slice) items.push(mapSliceToFeedItem(slice, userId ?? undefined));
