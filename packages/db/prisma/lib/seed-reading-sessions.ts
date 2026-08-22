@@ -88,9 +88,9 @@ export async function seedReadingSessions() {
     createdAt: Date;
   }> = [];
 
-  // 1. Garantir chaque article a ≥5 lectures (pour stats plein par auteur)
+  // 1. Garantir chaque article a ≥8 lectures (densifié, top du top)
   for (const art of articles) {
-    const needed = randomInt(5, 10);
+    const needed = randomInt(8, 14);
     for (let i = 0; i < needed; i++) {
       const user = users[randomInt(0, users.length - 1)];
       const rt = articleMap.get(art.id) || 5;
@@ -135,12 +135,12 @@ export async function seedReadingSessions() {
     }
   }
 
-  // 2. Assurer chaque user a 3-8 lectures (historique perso)
+  // 2. Assurer chaque user a 8-15 lectures (densifié, top du top)
   const perUserCounts = new Map<string, number>();
   for (const s of sessions) perUserCounts.set(s.userId, (perUserCounts.get(s.userId) || 0) + 1);
   for (const u of users) {
     const have = perUserCounts.get(u.id) || 0;
-    const need = Math.max(0, randomInt(3, 8) - have);
+    const need = Math.max(0, randomInt(8, 15) - have);
     for (let i = 0; i < need; i++) {
       const art = articles[randomInt(0, articles.length - 1)];
       const rt = articleMap.get(art.id) || 5;
