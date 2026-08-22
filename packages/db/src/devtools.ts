@@ -4,6 +4,12 @@ import 'dotenv/config';
 import { prisma } from './client';
 import { createServiceClient, createClient } from '@qoe/supabase/server';
 import crypto from 'crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execAsync = promisify(exec);
 
 export interface DevtoolsUser {
   id: string;
@@ -1763,6 +1769,67 @@ export async function resetOnboardingAction(targetEmailOrId?: string) {
       error:
         (error instanceof Error ? error.message : 'Unknown error') || 'Failed to reset onboarding',
     };
+  }
+}
+
+/**
+ * 💾 Restaure la DB top du top depuis backups/top-db-20260822.sql.gz + umami
+ * Utilisable en 1 clic depuis le DevTools (perso seul, pas de purge storage).
+ */
+export async function restoreTopDbAction(): Promise<{
+  success: boolean;
+  error?: string;
+  details?: string;
+}> {
+  try {
+    const candidates = [
+      path.resolve(process.cwd(), 'backups/top-db-20260822.sql.gz'),
+      path.resolve(process.cwd(), '../backups/top-db-20260822.sql.gz'),
+      path.resolve(process.cwd(), '../../backups/top-db-20260822.sql.gz'),
+      '/Users/ephe/Desktop/Qoe.fi/dev/prod/qoe.fi/backups/top-db-20260822.sql.gz',
+    ];
+    const mainBackup = candidates.find((p) => fs.existsSync(p));
+    if (!mainBackup) {
+      return {
+        success: false,
+        error: 'Backup main DB introuvable (backups/top-db-20260822.sql.gz)',
+      };
+    }
+
+    const umamiCandidates = [
+      path.resolve(process.cwd(), 'backups/umami-20260822.sql.gz'),
+      path.resolve(process.cwd(), '../backups/umami-20260822.sql.gz'),
+      path.resolve(process.cwd(), '../../backups/umami-20260822.sql.gz'),
+      '/Users/ephe/Desktop/Qoe.fi/dev/prod/qoe.fi/backups/umami-20260822.sql.gz',
+    ];
+    const umamiBackup = umamiCandidates.find((p) => fs.existsSync(p));
+
+    const dbUrl = process.env.DATABASE_URL || process.env.DIRECT_URL;
+    if (!dbUrl) return { success: false, error: 'DATABASE_URL manquant' };
+
+    // Restore main DB
+    await execAsync(`gunzip -c "${mainBackup}" | psql "${dbUrl.replace(/"/g, '\\"')}"`, {
+      maxBuffer: 100 * 1024 * 1024,
+    });
+
+    // Restore Umami si disponible
+    if (umamiBackup && process.env.UMAMI_DATABASE_URL) {
+      try {
+        await execAsync(
+          `gunzip -c "${umamiBackup}" | psql "${process.env.UMAMI_DATABASE_URL.replace(/"/g, '\\"')}"`,
+          {
+            maxBuffer: 50 * 1024 * 1024,
+          }
+        );
+      } catch (e) {
+        console.warn('[restoreTopDb] Umami restore warn', e);
+      }
+    }
+
+    return { success: true, details: `Restauré depuis ${path.basename(mainBackup)}` };
+  } catch (e) {
+    console.error('restoreTopDbAction failed', e);
+    return { success: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
 
