@@ -60,6 +60,7 @@
     "prisma:seed": "prisma db seed",
     "seed:large": "tsx prisma/seed-large.ts",
     "seed:umami": "tsx prisma/lib/seed-umami.ts",
+    "seed:readings": "tsx prisma/lib/seed-reading-sessions.ts",
     "embed": "tsx prisma/embed-all.ts",
     "embed:users": "tsx prisma/embed-users.ts",
     "prebuild": "prisma generate",

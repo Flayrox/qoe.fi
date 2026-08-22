@@ -3069,6 +3069,17 @@ async function main() {
   }
 
   // -------------------------------------------------------------------
+  // 27. HISTORIQUE LECTURE 14J (ReadingSession, perso seul, sources)
+  // -------------------------------------------------------------------
+  console.log('\n📖 [27/27] Seed historique lectures 14j (feed/subdomain/direct)...');
+  try {
+    const { seedReadingSessions } = await import('./lib/seed-reading-sessions.ts');
+    await seedReadingSessions();
+  } catch (e) {
+    console.warn('  ⚠️ Seed ReadingSessions échoué :', (e as Error).message);
+  }
+
+  // -------------------------------------------------------------------
   // RÉSUMÉ FINAL
   // -------------------------------------------------------------------
   const totalSec = ((Date.now() - startAll) / 1000).toFixed(2);
