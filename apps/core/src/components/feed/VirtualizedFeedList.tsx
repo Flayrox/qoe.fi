@@ -37,21 +37,20 @@ export function VirtualizedFeedList<T>({
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
+  const lastVirtualIndex = virtualItems[virtualItems.length - 1]?.index ?? -1;
 
   // Trigger fetchNextPage when scrolling near the last item
   useEffect(() => {
-    const lastVirtualItem = virtualItems[virtualItems.length - 1];
-    if (!lastVirtualItem) return;
-
+    if (lastVirtualIndex < 0) return;
     if (
-      lastVirtualItem.index >= items.length - 1 &&
+      lastVirtualIndex >= items.length - 1 &&
       hasNextPage &&
       !isFetchingNextPage &&
       fetchNextPage
     ) {
       fetchNextPage();
     }
-  }, [virtualItems, items.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [lastVirtualIndex, items.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <div

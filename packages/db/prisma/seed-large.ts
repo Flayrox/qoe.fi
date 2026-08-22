@@ -38,6 +38,7 @@ import {
 import { createHash, randomUUID } from 'node:crypto';
 import { embedAllUsers } from './embed-users';
 import { createSeedImages, type SeedImages } from './lib/seed-images';
+import { seedUmami } from './lib/seed-umami';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -136,6 +137,20 @@ function slugify(text: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)+/g, '');
+}
+
+function estimateReadingTime(html: string): number {
+  const text = html.replace(/<[^>]*>/g, ' ');
+  const words = text.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / 200));
+}
+
+function randomCompletionRate(readingTime: number): number {
+  // Plus l'article est long, plus la complétion baisse légèrement + variance
+  const base = 0.88 - Math.min(0.25, (readingTime - 5) * 0.015);
+  const jitter = (Math.random() - 0.5) * 0.18;
+  const v = base + jitter;
+  return Math.round(Math.min(0.96, Math.max(0.32, v)) * 100) / 100;
 }
 
 async function batchInsert<T>(
@@ -1298,6 +1313,16 @@ async function main() {
       ext.keyQuote ||
       `« ${ext.title} » constitue un tournant décisif dans notre compréhension des enjeux contemporains.`;
 
+    const contentHtmlFinal =
+      ext.contentHtml ||
+      buildArticleHtml(ext.title, keyQuote, [
+        'Perspective historique',
+        'Analyse structurelle',
+        'Propositions d’action',
+      ]);
+    const readingTimeComputed = estimateReadingTime(contentHtmlFinal);
+    const completionRateComputed = randomCompletionRate(readingTimeComputed);
+
     articlesToInsert.push({
       id: articleId,
       publicationId: pubId,
@@ -1306,19 +1331,13 @@ async function main() {
       tierId: isPrem && pubTiers[0] ? pubTiers[0].id : null,
       title: ext.title,
       slug: finalSlug,
-      content:
-        ext.contentHtml ||
-        buildArticleHtml(ext.title, keyQuote, [
-          'Perspective historique',
-          'Analyse structurelle',
-          'Propositions d’action',
-        ]),
+      content: contentHtmlFinal,
       imageUrl: img.cover(articlesToInsert.length).url,
       published: true,
       isPremium: isPrem,
       visibility,
-      readingTime: ext.readingTime || randomInt(6, 12),
-      completionRate: 0.84,
+      readingTime: readingTimeComputed,
+      completionRate: completionRateComputed,
       semanticTags: ext.theme
         ? [slugify(ext.theme), 'essai', 'lecture']
         : ['philosophie', 'souverainete'],
@@ -1379,6 +1398,8 @@ async function main() {
     const isPrem = idx % 4 === 0;
 
     const html = buildArticleHtml(title, tpl.quote, tpl.points);
+    const rt = estimateReadingTime(html);
+    const cr = randomCompletionRate(rt);
 
     articlesToInsert.push({
       id: articleId,
@@ -1393,8 +1414,8 @@ async function main() {
       published: true,
       isPremium: isPrem,
       visibility: isPrem ? ContentVisibility.PAID_SUBSCRIBERS : ContentVisibility.PUBLIC,
-      readingTime: randomInt(5, 14),
-      completionRate: 0.78,
+      readingTime: rt,
+      completionRate: cr,
       semanticTags: tpl.tags,
       isEditorPick: idx < 10,
       allowPublicAnnotations: true,
@@ -3031,10 +3052,20 @@ async function main() {
     .catch(() => false);
   if (!embedderUp) {
     console.warn(
-      `  ⚠️ Serveur d'embedding injoignable (${embedBase}) — embeddings non générés. Relancez \`pnpm embed:users\` une fois le service démarré.`
+      `  ⚠️ Serveur d'embedding injoignable (${embedBase}) — embeddings non générés. Relancez \`pnpm embed:users && pnpm embed\` une fois le service démarré.`
     );
   } else {
     await embedAllUsers(prisma);
+  }
+
+  // -------------------------------------------------------------------
+  // 26. UMAMI ANALYTICS (30j réalistes, si UMAMI_DATABASE_URL configuré)
+  // -------------------------------------------------------------------
+  console.log('\n📊 [26/26] Seed Umami analytics (30j réalistes)...');
+  try {
+    await seedUmami(prisma);
+  } catch (e) {
+    console.warn('  ⚠️ Seed Umami échoué :', (e as Error).message);
   }
 
   // -------------------------------------------------------------------
