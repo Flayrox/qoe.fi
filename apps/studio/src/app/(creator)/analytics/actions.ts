@@ -240,7 +240,7 @@ export async function getCreatorAnalyticsData(
         return {
           slug: a.slug,
           title: a.title,
-          completionRate: a.completionRate || 0.8,
+          completionRate: typeof a.completionRate === 'number' ? a.completionRate : 0,
           bookmarks: a._count.bookmarks,
           comments: a._count.comments,
           highlights: a._count.highlights,
@@ -258,14 +258,16 @@ export async function getCreatorAnalyticsData(
       articleTitlesMap[`/${article.slug}`] = article.title;
     });
 
-    // Top catégories + complétion moyenne & qualité de lecture
+    // Top catégories + complétion moyenne & qualité de lecture — réaliste (pas de 0.8 / 72 magiques)
     const categoryCounts = new Map<string, number>();
     const completionRates: number[] = [];
     creator.articles.forEach((a) => {
       if (a.category?.name) {
         categoryCounts.set(a.category.name, (categoryCounts.get(a.category.name) ?? 0) + 1);
       }
-      completionRates.push(a.completionRate || 0.8);
+      if (typeof a.completionRate === 'number') {
+        completionRates.push(a.completionRate);
+      }
     });
     const topCategories = [...categoryCounts.entries()]
       .map(([name, count]) => ({ name, count }))
@@ -275,17 +277,23 @@ export async function getCreatorAnalyticsData(
       completionRates.length > 0
         ? Math.round((completionRates.reduce((s, v) => s + v, 0) / completionRates.length) * 100) /
           100
-        : 0.82;
+        : 0;
 
-    // Calcul de la qualité de lecture
-    const deepReadsRate = Math.round(
-      (completionRates.filter((r) => r >= 0.75).length / Math.max(1, completionRates.length)) * 100
-    );
-    const skimsRate = Math.round(
-      (completionRates.filter((r) => r < 0.5).length / Math.max(1, completionRates.length)) * 100
-    );
-    const bouncesRate = Math.max(0, 100 - deepReadsRate - skimsRate);
+    // Qualité de lecture dérivée des completionRates réels (0 si pas de données)
+    const deepReadsRate =
+      completionRates.length > 0
+        ? Math.round(
+            (completionRates.filter((r) => r >= 0.75).length / completionRates.length) * 100
+          )
+        : 0;
+    const skimsRate =
+      completionRates.length > 0
+        ? Math.round((completionRates.filter((r) => r < 0.5).length / completionRates.length) * 100)
+        : 0;
+    const bouncesRate =
+      completionRates.length > 0 ? Math.max(0, 100 - deepReadsRate - skimsRate) : 0;
 
+    // trafficSources sera dérivé des referrers Umami après fetch (sinon 0 par défaut)
     const productMetrics: ProductMetrics = {
       subscriberCount: creator._count.subscribers,
       subscriberDelta7d: creator.subscribers.length,
@@ -294,15 +302,15 @@ export async function getCreatorAnalyticsData(
       totalInteractions: topArticles.reduce((s, a) => s + a.interactions, 0),
       avgCompletionRate,
       readingQuality: {
-        deepReadsRate: deepReadsRate || 72,
-        skimsRate: skimsRate || 18,
-        bouncesRate: bouncesRate || 10,
+        deepReadsRate,
+        skimsRate,
+        bouncesRate,
       },
       trafficSources: {
-        feed: 45,
-        subdomain: 35,
-        publicProfile: 12,
-        direct: 8,
+        feed: 0,
+        subdomain: 0,
+        publicProfile: 0,
+        direct: 0,
       },
       topCategories,
       topArticles,
@@ -359,6 +367,46 @@ export async function getCreatorAnalyticsData(
         fetchUmamiMetrics(targetWebsiteId, startAt, now, 'browser', 5),
         fetchUmamiMetrics(targetWebsiteId, startAt, now, 'country', 5),
       ]);
+
+    // Dérive trafficSources réels depuis referrers Umami (remplace 45/35/12/8 dur)
+    if (referrers.length > 0) {
+      const totalRef = referrers.reduce((s, r) => s + r.y, 0) || 1;
+      const directRef = referrers.find((r) => r.x === '' || r.x.toLowerCase() === 'direct')?.y || 0;
+      const external = referrers
+        .filter((r) => ['google', 'x.com', 'substack.com'].some((k) => r.x.includes(k)))
+        .reduce((s, r) => s + r.y, 0);
+      const internal = referrers.filter((r) => r.x.includes('qoe.fi')).reduce((s, r) => s + r.y, 0);
+      const remaining = totalRef - directRef - external - internal;
+      productMetrics.trafficSources = {
+        feed: Math.round((external / totalRef) * 100) || 0,
+        subdomain: Math.round((internal / totalRef) * 100) || 0,
+        publicProfile: Math.max(0, Math.round((remaining / totalRef) * 100) || 0),
+        direct: Math.round((directRef / totalRef) * 100) || 0,
+      };
+      const sum =
+        productMetrics.trafficSources.feed +
+        productMetrics.trafficSources.subdomain +
+        productMetrics.trafficSources.publicProfile +
+        productMetrics.trafficSources.direct;
+      if (sum !== 100 && sum > 0) {
+        productMetrics.trafficSources.direct += 100 - sum;
+      }
+    } else if (topPages.length > 0) {
+      // Fallback via topPages url_path (si referrers vide mais pages existent)
+      const total = topPages.reduce((s, r) => s + r.y, 0) || 1;
+      const articlesViews = topPages
+        .filter((p) => p.x.startsWith('/articles/'))
+        .reduce((s, r) => s + r.y, 0);
+      const profilesViews = topPages
+        .filter((p) => p.x.startsWith('/@'))
+        .reduce((s, r) => s + r.y, 0);
+      productMetrics.trafficSources = {
+        feed: Math.round((articlesViews / total) * 70) || 0,
+        subdomain: Math.round((profilesViews / total) * 50) || 0,
+        publicProfile: Math.round((profilesViews / total) * 30) || 0,
+        direct: Math.round(((total - articlesViews - profilesViews) / total) * 100) || 0,
+      };
+    }
 
     // Insights avancés (DB Umami via l'API Go) : visiteurs récurrents vs
     // nouveaux + heatmap horaire. Best-effort : silencieux si indisponible.

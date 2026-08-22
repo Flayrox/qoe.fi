@@ -188,6 +188,7 @@ interface FeedDashboardProps {
   needsOnboarding?: boolean;
   onboardingCategories?: OnboardingCategory[];
   onboardingSuggestedCreators?: OnboardingCreator[];
+  activityData?: number[];
 }
 
 export function FeedDashboard({
@@ -208,6 +209,7 @@ export function FeedDashboard({
   initialFollowsCount,
   initialBookmarksCount,
   initialHighlightsCount,
+  activityData,
 }: FeedDashboardProps) {
   const [activeFeed, setActiveFeed] = useState<string>('recommandation');
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(needsOnboarding);
@@ -270,9 +272,18 @@ export function FeedDashboard({
   const [feedHasMoreState, setFeedHasMoreState] = useState(feedHasMore);
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const feedNextOffsetRef = React.useRef(recommendationArticles.length);
+  const isFetchingRef = React.useRef(false);
+  const hasMoreRef = React.useRef(feedHasMore);
+  React.useEffect(() => {
+    hasMoreRef.current = feedHasMoreState;
+  }, [feedHasMoreState]);
+  React.useEffect(() => {
+    isFetchingRef.current = isFetchingNextPage;
+  }, [isFetchingNextPage]);
 
   const fetchNextFeedPage = React.useCallback(async () => {
-    if (isFetchingNextPage || !feedHasMoreState) return;
+    if (isFetchingRef.current || !hasMoreRef.current) return;
+    isFetchingRef.current = true;
     setIsFetchingNextPage(true);
     try {
       const res = await fetch(
@@ -284,17 +295,21 @@ export function FeedDashboard({
         hasMore: boolean;
         nextOffset: number;
       };
-      const seen = new Set(feedItems.map((i) => i.id));
-      const fresh = data.items.filter((i) => !seen.has(i.id));
-      setFeedItems((prev) => [...prev, ...fresh]);
+      setFeedItems((prev) => {
+        const seen = new Set(prev.map((i) => i.id));
+        const fresh = data.items.filter((i) => !seen.has(i.id));
+        return fresh.length ? [...prev, ...fresh] : prev;
+      });
       feedNextOffsetRef.current = data.nextOffset;
+      hasMoreRef.current = data.hasMore;
       setFeedHasMoreState(data.hasMore);
     } catch (err) {
       console.error('[feed] pagination « Pour vous »', err);
     } finally {
+      isFetchingRef.current = false;
       setIsFetchingNextPage(false);
     }
-  }, [isFetchingNextPage, feedHasMoreState, feedItems]);
+  }, []);
 
   const isCreatorFollowed = (creatorId: string) => followedCreators.some((f) => f.id === creatorId);
   const isArticleBookmarked = (articleId: string) => {
@@ -888,6 +903,7 @@ export function FeedDashboard({
                     }
                   : undefined
               }
+              activityData={activityData}
             />
           </WidgetErrorBoundary>
         </div>

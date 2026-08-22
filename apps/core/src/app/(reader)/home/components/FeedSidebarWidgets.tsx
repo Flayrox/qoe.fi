@@ -49,6 +49,7 @@ interface FeedSidebarWidgetsProps {
     highlights: number;
     following: number;
   };
+  activityData?: number[];
 }
 
 const springs = {
@@ -62,6 +63,7 @@ export function FeedSidebarWidgets({
   onOpenProfile,
   onSelectTopic,
   userStats,
+  activityData,
 }: FeedSidebarWidgetsProps) {
   const [followedLocally, setFollowedLocally] = useState<Set<string>>(new Set());
   const [justFollowed, setJustFollowed] = useState<string | null>(null);
@@ -94,12 +96,12 @@ export function FeedSidebarWidgets({
             {t`Votre semaine`}
           </span>
           <div className="grid grid-cols-3 gap-2">
-            <StatCell icon={BookOpen} value={userStats.articlesRead} label={t`Lus`} />
+            <StatCell icon={BookOpen} value={userStats.articlesRead} label={t`Enregistrés`} />
             <StatCell icon={Highlighter} value={userStats.highlights} label={t`Surlignages`} />
             <StatCell icon={Users} value={userStats.following} label={t`Abonnements`} />
           </div>
 
-          <ActivitySparkline />
+          <ActivitySparkline data={activityData} />
         </div>
       )}
 
@@ -260,23 +262,23 @@ export function FeedSidebarWidgets({
   );
 }
 
-function ActivitySparkline() {
+function ActivitySparkline({ data }: { data?: number[] }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const data = [1, 3, 2, 5, 2, 4, 3];
+  const sparkData = data && data.length === 7 ? data : [0, 0, 0, 0, 0, 0, 0];
   const days = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-  const maxVal = Math.max(...data);
+  const maxVal = Math.max(...sparkData, 1);
 
   return (
     <div className="pt-3.5 border-t border-border/50 flex flex-col gap-2">
       <div className="flex items-center justify-between text-[10px] font-medium text-muted-foreground">
         <span>{t`Activité de lecture`}</span>
         <span className="text-primary font-semibold">
-          {hoveredIndex !== null ? t`${data[hoveredIndex]} écrits` : t`7 derniers jours`}
+          {hoveredIndex !== null ? t`${sparkData[hoveredIndex]} actions` : t`7 derniers jours`}
         </span>
       </div>
 
       <div className="h-9 flex items-end justify-between gap-1.5 pt-1">
-        {data.map((val, idx) => {
+        {sparkData.map((val, idx) => {
           const heightPercent = maxVal > 0 ? (val / maxVal) * 100 : 0;
           const isHovered = hoveredIndex === idx;
 

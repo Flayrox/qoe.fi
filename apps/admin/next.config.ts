@@ -37,8 +37,15 @@ const nextConfig: NextConfig = {
     '@qoe/observability',
   ],
   images: {
+    dangerouslyAllowLocalIP: true, // 🧪 Allow 127.0.0.1:54321 (Supabase local) — SSRF guard Next 16
     remotePatterns: [
+      // 🧪 Local Supabase Storage (DB de test)
+      { protocol: 'http', hostname: '127.0.0.1' },
+      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'http', hostname: 'host.docker.internal' },
+      // 🚀 Prod
       { protocol: 'https', hostname: '**.supabase.co' },
+      { protocol: 'https', hostname: 'auth.qoe.fi' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       { protocol: 'https', hostname: 'cdn.qoe.fi' },
     ],

@@ -59,6 +59,7 @@
     "prisma:generate": "prisma generate",
     "prisma:seed": "prisma db seed",
     "seed:large": "tsx prisma/seed-large.ts",
+    "seed:umami": "tsx prisma/lib/seed-umami.ts",
     "embed": "tsx prisma/embed-all.ts",
     "embed:users": "tsx prisma/embed-users.ts",
     "prebuild": "prisma generate",
@@ -70,12 +71,15 @@
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "@qoe/observability": "workspace:^",
-    "@qoe/supabase": "workspace:*"
+    "@qoe/supabase": "workspace:*",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "@qoe/config": "workspace:*",
     "@qoe/tsconfig": "workspace:*",
     "@testcontainers/postgresql": "^12.1.0",
+    "@types/pg": "^8.23.1",
+    "bcryptjs": "^3.0.3",
     "prisma": "^6.19.3",
     "testcontainers": "^12.1.0",
     "tsx": "^4.19.0",

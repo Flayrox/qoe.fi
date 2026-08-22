@@ -109,13 +109,20 @@ async function main() {
   const startAll = Date.now();
 
   // -------------------------------------------------------------------
-  // 1. INDEXATION DES ARTICLES
+  // 1. INDEXATION DES ARTICLES (seulement manquants)
   // -------------------------------------------------------------------
-  console.log('📚 [1/2] Indexation vectorielle des articles publiés...');
-  const articles = await prisma.article.findMany({
-    where: { published: true },
-    select: { id: true, title: true, content: true, semanticTags: true },
-  });
+  console.log('📚 [1/2] Indexation vectorielle des articles publiés manquants...');
+  const missingArticleIds: { id: string }[] = await prisma.$queryRawUnsafe(
+    `SELECT id FROM "Article" WHERE "embedding" IS NULL AND published = true`
+  );
+  const articleIds = missingArticleIds.map((r) => r.id);
+  console.log(`  ↳ ${articleIds.length} articles sans vecteur à traiter`);
+  const articles = articleIds.length
+    ? await prisma.article.findMany({
+        where: { id: { in: articleIds } },
+        select: { id: true, title: true, content: true, semanticTags: true },
+      })
+    : [];
 
   let articleSuccess = 0;
   await mapConcurrent(articles, 3, async (art, idx) => {
@@ -141,28 +148,33 @@ async function main() {
   });
 
   // -------------------------------------------------------------------
-  // 2. INDEXATION DES PENSÉES & CITATIONS RACINES
+  // 2. INDEXATION DES PENSÉES & CITATIONS (TOUTES — réponses L1/L2 incluses, seules manquantes)
   // -------------------------------------------------------------------
-  console.log('\n💬 [2/2] Indexation vectorielle des pensées racines et citations...');
-  const thoughts = await prisma.thought.findMany({
-    where: {
-      parentId: null,
-      repostId: null,
-      deletedAt: null,
-      isDraft: false,
-    },
-    select: {
-      id: true,
-      content: true,
-      tags: true,
-      quotedArticleId: true,
-      quotedExcerpt: true,
-      author: { select: { name: true, username: true } },
-      quotedArticle: {
-        select: { title: true, semanticTags: true, author: { select: { name: true } } },
-      },
-    },
-  });
+  console.log(
+    '\n💬 [2/2] Indexation vectorielle des pensées manquantes (toutes, hors reposts vides)...'
+  );
+  const missingThoughtIds: { id: string }[] = await prisma.$queryRawUnsafe(
+    `SELECT id FROM "Post" WHERE "embedding" IS NULL AND "deletedAt" IS NULL AND "isDraft" = false`
+  );
+  const thoughtIds = missingThoughtIds.map((r) => r.id);
+  console.log(`  ↳ ${thoughtIds.length} pensées sans vecteur à traiter (sur total)`);
+  const thoughts = thoughtIds.length
+    ? await prisma.thought.findMany({
+        where: { id: { in: thoughtIds } },
+        select: {
+          id: true,
+          content: true,
+          tags: true,
+          quotedArticleId: true,
+          quotedExcerpt: true,
+          repostId: true,
+          author: { select: { name: true, username: true } },
+          quotedArticle: {
+            select: { title: true, semanticTags: true, author: { select: { name: true } } },
+          },
+        },
+      })
+    : [];
 
   let thoughtSuccess = 0;
   await mapConcurrent(thoughts, 3, async (thought, idx) => {
@@ -172,6 +184,14 @@ async function main() {
       const artTitle = thought.quotedArticle?.title || '';
       const artAuthor = thought.quotedArticle?.author?.name || '';
       prompt = `Réflexion: ${thought.content} | Extrait cité: "${thought.quotedExcerpt}" | Article: ${artTitle} | Auteur de l'article: ${artAuthor}`;
+    } else if (!thought.content || thought.content.trim() === '') {
+      if (thought.repostId) {
+        prompt = `Repost | Auteur: ${thought.author.name} | Tags: ${(thought.tags || []).join(', ')}`;
+      } else {
+        // Skip empty content without context (should be rare)
+        console.warn(`  ⚠️ Skip pensée ${thought.id}: contenu vide sans citation/repost`);
+        return;
+      }
     } else {
       const tagsStr = (thought.tags || []).join(', ');
       prompt = `Pensée: ${thought.content} | Tags: ${tagsStr} | Auteur: ${thought.author.name}`;

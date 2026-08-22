@@ -29,9 +29,13 @@ export function NotificationList() {
     .flatMap((p) => p?.notifications ?? [])
     .filter((n): n is NonNullable<typeof n> => Boolean(n && n.id));
   const { data: unreadCount = 0 } = useUnreadNotificationCountQuery();
-  const markAsReadMutation = useMarkNotificationsAsReadMutation();
+  const { mutate: markAsRead, isPending: isMarkingRead } = useMarkNotificationsAsReadMutation();
   const autoMarkedRef = useRef(false);
   const unreadCountRef = useRef(0);
+  const markAsReadRef = useRef(markAsRead);
+  useEffect(() => {
+    markAsReadRef.current = markAsRead;
+  }, [markAsRead]);
 
   // 🔔 Dès l'ouverture du panneau, tout marquer comme lu (une seule fois par
   // visite) pour que le badge de la sidebar disparaisse — les notifications
@@ -39,8 +43,8 @@ export function NotificationList() {
   useEffect(() => {
     if (autoMarkedRef.current || unreadCount <= 0) return;
     autoMarkedRef.current = true;
-    markAsReadMutation.mutate(undefined);
-  }, [unreadCount, markAsReadMutation]);
+    markAsRead(undefined);
+  }, [unreadCount, markAsRead]);
 
   useEffect(() => {
     unreadCountRef.current = unreadCount;
@@ -52,21 +56,21 @@ export function NotificationList() {
   useEffect(() => {
     return () => {
       if (unreadCountRef.current > 0) {
-        markAsReadMutation.mutate(undefined);
+        markAsReadRef.current(undefined);
       }
     };
-  }, [markAsReadMutation]);
+  }, []);
 
   // 📡 Realtime : reçoit les INSERT/UPDATE de Notification en direct
   // (badge non-lu + liste) — canal filtré par recipientId.
   useRealtimeNotificationSync();
 
   const handleMarkAllRead = () => {
-    markAsReadMutation.mutate(undefined);
+    markAsRead(undefined);
   };
 
   const handleMarkOneRead = (ids: string[]) => {
-    markAsReadMutation.mutate(ids);
+    markAsRead(ids);
   };
 
   return (
@@ -92,7 +96,7 @@ export function NotificationList() {
 
         <button
           onClick={handleMarkAllRead}
-          disabled={markAsReadMutation.isPending}
+          disabled={isMarkingRead}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors shrink-0 cursor-pointer"
           title="Tout marquer comme lu"
         >

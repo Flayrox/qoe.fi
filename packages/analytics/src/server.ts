@@ -20,8 +20,6 @@ export interface UmamiTimeseriesPoint {
   y: number; // Pageviews count
 }
 
-const isDev = process.env.NODE_ENV === 'development';
-
 // ── Auth self-hosted (Umami v2+) ────────────────────────────────────────────
 // Umami Cloud utilise une API key statique (UMAMI_API_KEY) ; le self-hosted
 // s'authentifie par login (UMAMI_USERNAME / UMAMI_PASSWORD) → token Bearer
@@ -87,15 +85,6 @@ export async function fetchUmamiWebsiteStats(
   const token = await getUmamiToken();
 
   if (!websiteId || !token) {
-    if (isDev) {
-      return {
-        pageviews: 1420,
-        visitors: 890,
-        visits: 1100,
-        bounces: 340,
-        totaltime: 198000,
-      };
-    }
     return {
       pageviews: 0,
       visitors: 0,
@@ -116,17 +105,12 @@ export async function fetchUmamiWebsiteStats(
     );
 
     if (!res.ok) {
-      if (isDev) {
-        return { pageviews: 1420, visitors: 890, visits: 1100, bounces: 340, totaltime: 198000 };
-      }
+      console.warn(`Umami stats ${res.status} for ${websiteId}`);
       return null;
     }
     return (await res.json()) as UmamiStats;
   } catch (error) {
     console.error('Failed to fetch Umami website stats:', error);
-    if (isDev) {
-      return { pageviews: 1420, visitors: 890, visits: 1100, bounces: 340, totaltime: 198000 };
-    }
     return null;
   }
 }
@@ -145,15 +129,6 @@ export async function fetchUmamiPageviewsSeries(
   const token = await getUmamiToken();
 
   if (!websiteId || !token) {
-    if (isDev) {
-      const daysCount = unit === 'hour' ? 24 : 14;
-      return Array.from({ length: daysCount }).map((_, i) => ({
-        x: new Date(
-          Date.now() - (daysCount - 1 - i) * (unit === 'hour' ? 3600000 : 86400000)
-        ).toISOString(),
-        y: Math.floor(Math.random() * 85) + 15,
-      }));
-    }
     return [];
   }
 
@@ -170,12 +145,7 @@ export async function fetchUmamiPageviewsSeries(
     });
 
     if (!res.ok) {
-      if (isDev) {
-        return Array.from({ length: 14 }).map((_, i) => ({
-          x: new Date(Date.now() - (13 - i) * 86400000).toISOString(),
-          y: Math.floor(Math.random() * 85) + 15,
-        }));
-      }
+      console.warn(`Umami pageviews ${res.status} for ${websiteId}`);
       return [];
     }
     const data = (await res.json()) as { pageviews?: unknown[] } | unknown[];
@@ -183,12 +153,6 @@ export async function fetchUmamiPageviewsSeries(
     return (rows || []) as UmamiTimeseriesPoint[];
   } catch (error) {
     console.error('Failed to fetch Umami pageviews series:', error);
-    if (isDev) {
-      return Array.from({ length: 14 }).map((_, i) => ({
-        x: new Date(Date.now() - (13 - i) * 86400000).toISOString(),
-        y: Math.floor(Math.random() * 85) + 15,
-      }));
-    }
     return [];
   }
 }
@@ -233,9 +197,6 @@ export async function fetchUmamiMetrics(
   const token = await getUmamiToken();
 
   if (!websiteId || !token) {
-    if (isDev) {
-      return getDevMockMetrics(type);
-    }
     return [];
   }
 
@@ -252,55 +213,12 @@ export async function fetchUmamiMetrics(
     });
 
     if (!res.ok) {
-      if (isDev) return getDevMockMetrics(type);
+      console.warn(`Umami metrics ${type} ${res.status} for ${websiteId}`);
       return [];
     }
     return (await res.json()) as UmamiPageMetric[];
   } catch (error) {
     console.error(`Failed to fetch Umami metrics for type ${type}:`, error);
-    if (isDev) return getDevMockMetrics(type);
     return [];
   }
-}
-
-function getDevMockMetrics(type: string): UmamiPageMetric[] {
-  if (type === 'url') {
-    return [
-      { x: '/articles/pourquoi-le-climat-change-vite', y: 480 },
-      { x: '/articles/guide-souverainete-numerique', y: 320 },
-      { x: '/articles/l-art-du-minimalisme', y: 210 },
-      { x: '/articles/mon-premier-post', y: 150 },
-    ];
-  }
-  if (type === 'referrer') {
-    return [
-      { x: 'google', y: 520 },
-      { x: 'https://x.com', y: 310 },
-      { x: 'https://substack.com', y: 180 },
-      { x: 'direct', y: 140 },
-    ];
-  }
-  if (type === 'device') {
-    return [
-      { x: 'desktop', y: 680 },
-      { x: 'mobile', y: 410 },
-      { x: 'tablet', y: 60 },
-    ];
-  }
-  if (type === 'browser') {
-    return [
-      { x: 'Chrome', y: 540 },
-      { x: 'Safari', y: 390 },
-      { x: 'Firefox', y: 120 },
-    ];
-  }
-  if (type === 'country') {
-    return [
-      { x: 'FR', y: 720 },
-      { x: 'US', y: 210 },
-      { x: 'BE', y: 110 },
-      { x: 'CA', y: 80 },
-    ];
-  }
-  return [];
 }

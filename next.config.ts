@@ -13,11 +13,19 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   output: 'standalone',
 
-  // 🔧 Optimisations additionnelles pour les images Docker
-  // (reactStrictMode, eslint, etc. restent à true par défaut)
-
-  // 🖼️ Pour les images du domaine Supabase Storage en production
-  // On pourra ajouter `images.remotePatterns` ici si besoin
+  images: {
+    dangerouslyAllowLocalIP: true, // 🧪 Allow 127.0.0.1:54321 — SSRF guard Next 16
+    remotePatterns: [
+      // 🧪 Local Supabase Storage (DB de test)
+      { protocol: 'http', hostname: '127.0.0.1' },
+      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'http', hostname: 'host.docker.internal' },
+      // 🚀 Prod
+      { protocol: 'https', hostname: '**.supabase.co' },
+      { protocol: 'https', hostname: 'auth.qoe.fi' },
+      { protocol: 'https', hostname: 'cdn.qoe.fi' },
+    ],
+  },
 };
 
 export default nextConfig;

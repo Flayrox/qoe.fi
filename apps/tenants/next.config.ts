@@ -40,10 +40,17 @@ const nextConfig: NextConfig = {
   ],
   images: {
     dangerouslyAllowSVG: true,
+    dangerouslyAllowLocalIP: true, // 🧪 Allow 127.0.0.1:54321 (Supabase local) — SSRF guard Next 16
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
+      // 🧪 Local Supabase Storage (DB de test)
+      { protocol: 'http', hostname: '127.0.0.1' },
+      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'http', hostname: 'host.docker.internal' },
+      // 🚀 Prod + externes
       { protocol: 'https', hostname: '**.supabase.co' },
+      { protocol: 'https', hostname: 'auth.qoe.fi' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
       { protocol: 'https', hostname: 'res.cloudinary.com' },
