@@ -34,6 +34,50 @@ export interface ReadingTrackerState {
   source: ReadingSource;
 }
 
+/**
+ * 🧭 Résout la provenance fine : hostname du tenant + username du profil référent.
+ * - hostname: "victor.qoe.fi" si lu depuis le tenant d'un créateur (sinon null)
+ * - referrerUsername: "simone" si ?ref=profile:simone ou /@simone (profil public)
+ */
+export function resolveReadingProvenance(): {
+  hostname: string | null;
+  referrerUsername: string | null;
+} {
+  if (typeof window === 'undefined') return { hostname: null, referrerUsername: null };
+
+  const params = new URLSearchParams(window.location.search);
+  const refParam = params.get('ref') || params.get('source') || '';
+
+  let referrerUsername: string | null = null;
+  // Formats acceptés : ?ref=profile:simone, ?ref=simone, ?source=@simone
+  if (refParam.startsWith('profile:') || refParam.startsWith('@')) {
+    referrerUsername = refParam.replace(/^(profile:|@)/, '') || null;
+  } else if (!['feed', 'profile', 'author', 'direct'].includes(refParam) && refParam.length > 0) {
+    referrerUsername = refParam;
+  }
+  // Profil public /username dans l'URL
+  const profileMatch = window.location.pathname.match(/^\/@([a-z0-9-]+)/i);
+  if (!referrerUsername && profileMatch) {
+    referrerUsername = profileMatch[1];
+  }
+
+  const hostname = window.location.hostname;
+  const isTenant =
+    (hostname.endsWith('.qoe.fi') &&
+      !hostname.startsWith('core.') &&
+      !hostname.startsWith('www.') &&
+      !hostname.startsWith('dashboard.') &&
+      !hostname.startsWith('admin.')) ||
+    // Dev local : lvh.me / qoe.test avec sous-domaine
+    ((hostname.endsWith('.lvh.me') || hostname.endsWith('.qoe.test')) &&
+      !hostname.startsWith('www.'));
+
+  return {
+    hostname: isTenant ? hostname : null,
+    referrerUsername,
+  };
+}
+
 export function useArticleReadingTracker({
   articleId,
   slug,
@@ -49,6 +93,10 @@ export function useArticleReadingTracker({
 
   // Détection de la source d'entrée
   const sourceRef = useRef<ReadingSource>(initialSource || 'direct');
+  const provenanceRef = useRef<{ hostname: string | null; referrerUsername: string | null }>({
+    hostname: null,
+    referrerUsername: null,
+  });
   const dwellSecondsRef = useRef(0);
   const maxScrollRef = useRef(0);
   const milestonesRef = useRef<Set<number>>(new Set());
@@ -56,9 +104,11 @@ export function useArticleReadingTracker({
   const isTabActiveRef = useRef<boolean>(true);
   const isCompleteTriggeredRef = useRef<boolean>(false);
 
-  // 1. Résolution de la source au montage
+  // 1. Résolution de la source + provenance fine au montage
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    provenanceRef.current = resolveReadingProvenance();
 
     if (initialSource) {
       sourceRef.current = initialSource;
@@ -240,6 +290,8 @@ export function useArticleReadingTracker({
         scrollDepth: finalScroll,
         dwellSeconds: finalDwell,
         readingTimeMinutes,
+        hostname: provenanceRef.current.hostname || undefined,
+        referrerUsername: provenanceRef.current.referrerUsername || undefined,
       });
 
       if (finalStatus === 'SKIM') {
@@ -261,6 +313,8 @@ export function useArticleReadingTracker({
         scrollDepth: finalScroll,
         dwellSeconds: finalDwell,
         readingTimeMinutes,
+        hostname: provenanceRef.current.hostname,
+        referrerUsername: provenanceRef.current.referrerUsername,
       });
 
       if (navigator.sendBeacon) {

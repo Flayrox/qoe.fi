@@ -32,6 +32,18 @@ export interface AnalyticsResponseData {
   productMetrics: ProductMetrics;
   audience: AudienceInsights;
   umamiAdvanced: UmamiAdvancedInsights;
+  provenance: ProvenanceBreakdown;
+}
+
+// 🧭 Provenance fine — d'où viennent les vues (le plus poussé)
+export interface ProvenanceBucket {
+  key: string; // "feed" | "victor.qoe.fi" | "@simone" | ...
+  count: number;
+}
+export interface ProvenanceBreakdown {
+  bySource: ProvenanceBucket[]; // feed | subdomain | public_profile | direct
+  byHostname: ProvenanceBucket[]; // victor.qoe.fi, simone.qoe.fi...
+  byReferrer: ProvenanceBucket[]; // @simone, @victor (profil référent)
 }
 
 export interface ArticleDetailData {
@@ -196,6 +208,77 @@ export async function getCreatorAnalyticsData(
 
     const workspace = await getActiveWorkspace(user.id);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    // 🎯 Vues PLEIN par attribution : articles de la publication + articles co-signés
+    // (ArticleAttribution ACCEPTED) — chaque co-auteur reçoit 100% des stats de l'article.
+    const attributedArticles = await prisma.article.findMany({
+      where: {
+        published: true,
+        OR: [
+          { publicationId: workspace.publicationId },
+          {
+            attributions: {
+              some: { userId: user.id, consentStatus: 'ACCEPTED', isVisible: true },
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        createdAt: true,
+        completionRate: true,
+        category: { select: { name: true } },
+        _count: { select: { bookmarks: true, comments: true, highlights: true } },
+        highlights: {
+          select: {
+            isPublic: true,
+            _count: { select: { comments: true } },
+          },
+        },
+      },
+    });
+
+    const attributedSlugs = attributedArticles.map((a) => `/articles/${a.slug}`);
+    const attributedSlugSet = new Set(attributedSlugs);
+
+    // Provenance fine (le plus poussé) : breakdown par source + hostname/referrer
+    const [bySource, byHostname, byReferrer] = await Promise.all([
+      prisma.readingSession.groupBy({
+        by: ['source'],
+        where: {
+          articleId: { in: attributedArticles.map((a) => a.id) },
+          createdAt: { gte: sevenDaysAgo },
+        },
+        _count: { _all: true },
+      }),
+      prisma.readingSession.groupBy({
+        by: ['hostname'],
+        where: {
+          articleId: { in: attributedArticles.map((a) => a.id) },
+          hostname: { not: null },
+          createdAt: { gte: sevenDaysAgo },
+        },
+        _count: { _all: true },
+      }),
+      prisma.readingSession.groupBy({
+        by: ['referrerUsername'],
+        where: {
+          articleId: { in: attributedArticles.map((a) => a.id) },
+          referrerUsername: { not: null },
+          createdAt: { gte: sevenDaysAgo },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const provenance = {
+      bySource: bySource.map((s) => ({ key: s.source, count: s._count._all })),
+      byHostname: byHostname.map((s) => ({ key: s.hostname || 'inconnu', count: s._count._all })),
+      byReferrer: byReferrer.map((s) => ({ key: `@${s.referrerUsername}`, count: s._count._all })),
+    };
+
     const creator = await prisma.publication.findUnique({
       where: { id: workspace.publicationId },
       select: {
@@ -208,6 +291,7 @@ export async function getCreatorAnalyticsData(
         },
         articles: {
           select: {
+            id: true,
             slug: true,
             title: true,
             createdAt: true,
@@ -229,8 +313,20 @@ export async function getCreatorAnalyticsData(
       return { error: 'Publication introuvable' };
     }
 
+    // Union publication + attributions pour les métriques produit
+    const ownedSlugs = new Set(creator.articles.map((a) => a.slug));
+    const mergedArticlesMap = new Map<string, (typeof attributedArticles)[number]>();
+    for (const art of attributedArticles) mergedArticlesMap.set(art.id, art);
+    for (const art of creator.articles) {
+      if (!mergedArticlesMap.has(art.id)) {
+        // creator.articles n'a pas les mêmes champs exacts — on mappe manuellement
+        mergedArticlesMap.set(art.id, art as unknown as (typeof attributedArticles)[number]);
+      }
+    }
+    const allCreatorArticles = Array.from(mergedArticlesMap.values());
+
     const articleTitlesMap: Record<string, string> = {};
-    const topArticles = creator.articles
+    const topArticles = allCreatorArticles
       .map((a) => {
         const highlightsPublic = a.highlights.filter((h) => h.isPublic).length;
         const highlightsPrivate = a.highlights.length - highlightsPublic;
@@ -253,7 +349,7 @@ export async function getCreatorAnalyticsData(
       })
       .sort((a, b) => b.interactions - a.interactions)
       .slice(0, 5);
-    creator.articles.forEach((article) => {
+    allCreatorArticles.forEach((article) => {
       articleTitlesMap[`/articles/${article.slug}`] = article.title;
       articleTitlesMap[`/${article.slug}`] = article.title;
     });
@@ -261,7 +357,7 @@ export async function getCreatorAnalyticsData(
     // Top catégories + complétion moyenne & qualité de lecture — réaliste (pas de 0.8 / 72 magiques)
     const categoryCounts = new Map<string, number>();
     const completionRates: number[] = [];
-    creator.articles.forEach((a) => {
+    allCreatorArticles.forEach((a) => {
       if (a.category?.name) {
         categoryCounts.set(a.category.name, (categoryCounts.get(a.category.name) ?? 0) + 1);
       }
@@ -338,6 +434,7 @@ export async function getCreatorAnalyticsData(
           productMetrics,
           audience,
           umamiAdvanced: { returning: null, hours: [] },
+          provenance,
         },
       };
     }
@@ -357,55 +454,63 @@ export async function getCreatorAnalyticsData(
       unit = 'day';
     }
 
-    const [stats, timeseries, topPages, referrers, devices, browsers, countries] =
-      await Promise.all([
-        fetchUmamiWebsiteStats(targetWebsiteId, startAt, now),
-        fetchUmamiPageviewsSeries(targetWebsiteId, startAt, now, unit),
-        fetchUmamiTopPages(targetWebsiteId, startAt, now, 10),
-        fetchUmamiReferrers(targetWebsiteId, startAt, now, 10),
-        fetchUmamiMetrics(targetWebsiteId, startAt, now, 'device', 5),
-        fetchUmamiMetrics(targetWebsiteId, startAt, now, 'browser', 5),
-        fetchUmamiMetrics(targetWebsiteId, startAt, now, 'country', 5),
-      ]);
+    // 🎯 Vues PLEIN : agrégation par article attribué (pas global).
+    // Pour chaque slug attribué, on somme les pageviews Umami filtrés par &url=
+    // → un co-auteur reçoit 100% des vues de l'article co-signé.
+    const perArticleViews = await Promise.all(
+      attributedSlugs.slice(0, 50).map(async (url) => {
+        const series = await fetchUmamiPageviewsSeries(targetWebsiteId, startAt, now, unit, url);
+        const total = series.reduce((s, p) => s + (p.y || 0), 0);
+        return { url, total };
+      })
+    );
+    const creatorTotalViews = perArticleViews.reduce((s, a) => s + a.total, 0);
 
-    // Dérive trafficSources réels depuis referrers Umami (remplace 45/35/12/8 dur)
-    if (referrers.length > 0) {
-      const totalRef = referrers.reduce((s, r) => s + r.y, 0) || 1;
-      const directRef = referrers.find((r) => r.x === '' || r.x.toLowerCase() === 'direct')?.y || 0;
-      const external = referrers
-        .filter((r) => ['google', 'x.com', 'substack.com'].some((k) => r.x.includes(k)))
-        .reduce((s, r) => s + r.y, 0);
-      const internal = referrers.filter((r) => r.x.includes('qoe.fi')).reduce((s, r) => s + r.y, 0);
-      const remaining = totalRef - directRef - external - internal;
+    // stats "plein" pour ce créateur : pageviews = somme de SES articles attribués
+    // (visiteurs/visites restent des estimations globales, pageviews = attribution exacte)
+    const globalStats = await fetchUmamiWebsiteStats(targetWebsiteId, startAt, now);
+    const creatorStats: UmamiStats | null = globalStats
+      ? {
+          ...globalStats,
+          pageviews: creatorTotalViews,
+        }
+      : null;
+
+    // topPages filtré sur les slugs attribués seulement (plus le top global)
+    const attributedTopPages: UmamiPageMetric[] = perArticleViews
+      .filter((a) => a.total > 0)
+      .map((a) => ({ x: a.url, y: a.total }))
+      .sort((x, y) => y.y - x.y)
+      .slice(0, 10);
+    void attributedSlugSet;
+
+    const [timeseries, referrers, devices, browsers, countries] = await Promise.all([
+      fetchUmamiPageviewsSeries(targetWebsiteId, startAt, now, unit),
+      fetchUmamiReferrers(targetWebsiteId, startAt, now, 10),
+      fetchUmamiMetrics(targetWebsiteId, startAt, now, 'device', 5),
+      fetchUmamiMetrics(targetWebsiteId, startAt, now, 'browser', 5),
+      fetchUmamiMetrics(targetWebsiteId, startAt, now, 'country', 5),
+    ]);
+    const topPages = attributedTopPages;
+
+    // Dérive trafficSources réels depuis la PROVENANCE DB (ReadingSession) — plus précis qu'Umami
+    const totalProv = provenance.bySource.reduce((s, p) => s + p.count, 0);
+    if (totalProv > 0) {
+      const pct = (n: number) => Math.round((n / totalProv) * 100);
       productMetrics.trafficSources = {
-        feed: Math.round((external / totalRef) * 100) || 0,
-        subdomain: Math.round((internal / totalRef) * 100) || 0,
-        publicProfile: Math.max(0, Math.round((remaining / totalRef) * 100) || 0),
-        direct: Math.round((directRef / totalRef) * 100) || 0,
+        feed: pct(provenance.bySource.find((p) => p.key === 'feed')?.count || 0),
+        subdomain: pct(provenance.bySource.find((p) => p.key === 'subdomain')?.count || 0),
+        publicProfile: pct(provenance.bySource.find((p) => p.key === 'public_profile')?.count || 0),
+        direct: pct(provenance.bySource.find((p) => p.key === 'direct')?.count || 0),
       };
       const sum =
         productMetrics.trafficSources.feed +
         productMetrics.trafficSources.subdomain +
         productMetrics.trafficSources.publicProfile +
         productMetrics.trafficSources.direct;
-      if (sum !== 100 && sum > 0) {
+      if (sum !== 100 && sum > 0 && totalProv >= 5) {
         productMetrics.trafficSources.direct += 100 - sum;
       }
-    } else if (topPages.length > 0) {
-      // Fallback via topPages url_path (si referrers vide mais pages existent)
-      const total = topPages.reduce((s, r) => s + r.y, 0) || 1;
-      const articlesViews = topPages
-        .filter((p) => p.x.startsWith('/articles/'))
-        .reduce((s, r) => s + r.y, 0);
-      const profilesViews = topPages
-        .filter((p) => p.x.startsWith('/@'))
-        .reduce((s, r) => s + r.y, 0);
-      productMetrics.trafficSources = {
-        feed: Math.round((articlesViews / total) * 70) || 0,
-        subdomain: Math.round((profilesViews / total) * 50) || 0,
-        publicProfile: Math.round((profilesViews / total) * 30) || 0,
-        direct: Math.round(((total - articlesViews - profilesViews) / total) * 100) || 0,
-      };
     }
 
     // Insights avancés (DB Umami via l'API Go) : visiteurs récurrents vs
@@ -421,7 +526,7 @@ export async function getCreatorAnalyticsData(
         configured: true,
         websiteId: targetWebsiteId,
         period,
-        stats,
+        stats: creatorStats,
         timeseries,
         topPages,
         referrers,
@@ -432,6 +537,7 @@ export async function getCreatorAnalyticsData(
         productMetrics,
         audience,
         umamiAdvanced,
+        provenance,
       },
     };
   } catch (err: unknown) {
