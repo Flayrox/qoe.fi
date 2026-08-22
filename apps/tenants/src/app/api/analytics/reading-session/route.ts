@@ -6,7 +6,16 @@ import { createClient } from '@qoe/supabase/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { articleId, status, scrollDepth, source, dwellSeconds, readingTimeMinutes } = body;
+    const {
+      articleId,
+      status,
+      scrollDepth,
+      source,
+      dwellSeconds,
+      readingTimeMinutes,
+      hostname,
+      referrerUsername,
+    } = body;
 
     if (!articleId) {
       return NextResponse.json({ error: 'articleId required' }, { status: 400 });
@@ -16,6 +25,14 @@ export async function POST(req: NextRequest) {
     const validSources = ['feed', 'subdomain', 'public_profile', 'direct'] as const;
     const safeStatus = validStatuses.includes(status) ? status : 'READ_PARTIAL';
     const safeSource = validSources.includes(source) ? source : 'subdomain';
+    // Fallback serveur : hostname de la requête (tenant) si absent du payload
+    const requestHost = (req.headers.get('host') || '').split(':')[0] || null;
+    const safeHostname =
+      typeof hostname === 'string' && hostname.length > 0 ? hostname.slice(0, 200) : requestHost;
+    const safeReferrerUsername =
+      typeof referrerUsername === 'string' && referrerUsername.length > 0
+        ? referrerUsername.slice(0, 100)
+        : null;
     const safeScroll =
       typeof scrollDepth === 'number' ? Math.max(0, Math.min(100, scrollDepth)) : 0;
     const safeDwell = typeof dwellSeconds === 'number' ? Math.max(0, dwellSeconds) : 0;
@@ -68,6 +85,8 @@ export async function POST(req: NextRequest) {
             scrollDepth: safeScroll,
             dwellSeconds: safeDwell,
             readingTimeMinutes: safeReadingTime,
+            hostname: safeHostname,
+            referrerUsername: safeReferrerUsername,
           },
         });
         const cutoff = new Date(Date.now() - 14 * 24 * 3600 * 1000);

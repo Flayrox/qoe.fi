@@ -8,6 +8,7 @@ import { TopPagesBlock } from './components/TopPagesBlock';
 import { ReferrersBlock } from './components/ReferrersBlock';
 import { DevicesAndGeoBlock } from './components/DevicesAndGeoBlock';
 import { ProductMetricsBlock } from './components/ProductMetricsBlock';
+import { ProvenanceBlock } from './components/ProvenanceBlock';
 import { AudienceInsightsBlock } from './components/AudienceInsightsBlock';
 import { ReturningAndHeatmapBlock } from './components/ReturningAndHeatmapBlock';
 import { ArticleInspectorModal } from './components/ArticleInspectorModal';
@@ -212,6 +213,9 @@ export function AnalyticsDashboardClient({ initialData }: AnalyticsDashboardClie
 
       {/* ─── Product Metrics: Subscribers & Top Articles ────────── */}
       <ProductMetricsBlock metrics={data.productMetrics} />
+
+      {/* ─── Provenance fine : d'où viennent les vues (le plus poussé) ── */}
+      <ProvenanceBlock provenance={data.provenance} />
 
       {/* ─── Audience Demographics (creator + platform) ──────────── */}
       <AudienceInsightsBlock insights={data.audience} />

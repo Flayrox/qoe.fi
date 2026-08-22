@@ -51,6 +51,7 @@ export default async function AnalyticsPage() {
       platform: { declared: 0, gender: [], ageRange: [], countries: [], languages: [] },
     },
     umamiAdvanced: { returning: null, hours: [] },
+    provenance: { bySource: [], byHostname: [], byReferrer: [] },
   };
 
   return <AnalyticsDashboardClient initialData={initialData} />;

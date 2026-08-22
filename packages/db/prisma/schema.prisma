@@ -292,11 +292,15 @@ model ReadingSession {
   scrollDepth        Int      @default(0)
   dwellSeconds       Int      @default(0)
   readingTimeMinutes Int      @default(5)
+  // Provenance fine (le plus poussé) :
+  hostname           String?  // ex: "victor.qoe.fi" si lu depuis le tenant d'un créateur, null sinon
+  referrerUsername   String?  // ex: "simone" si arrivé via le profil public de simone (@simone)
   createdAt          DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([articleId, createdAt])
   @@index([articleId, source])
+  @@index([articleId, hostname])
   @@index([userId, articleId])
 }
 
