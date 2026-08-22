@@ -10,9 +10,15 @@ export interface ArticleReaderDrawerProps {
   isOpen: boolean;
   article: ArticleAnnotatorViewProps['article'] | null;
   onClose: () => void;
+  initialSource?: 'feed' | 'subdomain' | 'public_profile' | 'direct';
 }
 
-export function ArticleReaderDrawer({ isOpen, article, onClose }: ArticleReaderDrawerProps) {
+export function ArticleReaderDrawer({
+  isOpen,
+  article,
+  onClose,
+  initialSource,
+}: ArticleReaderDrawerProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = React.useState(0);
 
@@ -129,7 +135,11 @@ export function ArticleReaderDrawer({ isOpen, article, onClose }: ArticleReaderD
               className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-6 scroll-smooth"
             >
               <div className="max-w-6xl mx-auto">
-                <ArticleAnnotatorView article={article} onClose={onClose} />
+                <ArticleAnnotatorView
+                  article={article}
+                  onClose={onClose}
+                  initialSource={initialSource}
+                />
               </div>
             </div>
           </motion.div>

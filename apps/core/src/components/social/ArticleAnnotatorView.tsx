@@ -44,6 +44,7 @@ export interface ArticleAnnotatorViewProps {
     isLoading?: boolean;
   };
   onClose?: () => void;
+  initialSource?: 'feed' | 'subdomain' | 'public_profile' | 'direct';
 }
 
 interface AuthUser {
@@ -56,7 +57,7 @@ interface AuthUser {
   };
 }
 
-export function ArticleAnnotatorView({ article }: ArticleAnnotatorViewProps) {
+export function ArticleAnnotatorView({ article, initialSource }: ArticleAnnotatorViewProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [highlightsList, setHighlightsList] = useState<AnnotationItem[]>([]);
 
@@ -65,6 +66,7 @@ export function ArticleAnnotatorView({ article }: ArticleAnnotatorViewProps) {
     articleId: article.id,
     slug: article.slug,
     readingTimeMinutes: article.readingTime || 5,
+    initialSource,
   });
 
   // Fetch current user auth state

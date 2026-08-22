@@ -16,12 +16,14 @@
 
 import { prisma } from './client';
 
-export type InteractionType = 'HIGHLIGHT' | 'BOOKMARK' | 'LIKE' | 'READ_COMPLETE' | 'CLICK';
+export type InteractionType =
+  'HIGHLIGHT' | 'BOOKMARK' | 'LIKE' | 'READ_COMPLETE' | 'READ_PARTIAL' | 'CLICK';
 
 const EMA_WEIGHTS: Record<InteractionType, number> = {
   HIGHLIGHT: 0.15,
   BOOKMARK: 0.15,
   READ_COMPLETE: 0.1,
+  READ_PARTIAL: 0.06,
   LIKE: 0.08,
   CLICK: 0.03,
 };
