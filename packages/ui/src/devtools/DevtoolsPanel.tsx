@@ -86,6 +86,7 @@ export interface DevtoolsActions {
   generateMockFeedPostsAction: () => Promise<{ success: boolean; error?: string }>;
   resetDatabaseAction: () => Promise<{ success: boolean; error?: string }>;
   seedFullDatabaseAction?: () => Promise<{ success: boolean; error?: string }>;
+  restoreTopDbAction?: () => Promise<{ success: boolean; error?: string; details?: string }>;
   resetOnboardingAction?: (
     targetEmailOrId?: string
   ) => Promise<{ success: boolean; error?: string }>;
@@ -120,6 +121,7 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
     generateMockFeedPostsAction,
     resetDatabaseAction,
     seedFullDatabaseAction,
+    restoreTopDbAction,
     resetOnboardingAction,
     simulateSubscriberAction,
     addMockFundsAction,
@@ -324,6 +326,29 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
         await refreshData();
       } else {
         triggerAlert('error', res.error || 'Échec');
+      }
+    });
+  };
+
+  const handleRestoreTopDb = () => {
+    if (
+      !window.confirm(
+        'Restaurer la DB top du top (500 users, 200 articles, 1480 posts, 5723 lectures, 10.5k Umami) depuis backups/top-db-20260822.sql.gz ? La DB actuelle sera écrasée.'
+      )
+    )
+      return;
+    startTransition(async () => {
+      if (!restoreTopDbAction) {
+        triggerAlert('error', 'restoreTopDbAction non branché');
+        return;
+      }
+      const res = await restoreTopDbAction();
+      if (res.success) {
+        triggerAlert('success', `✅ Top DB restaurée ${res.details || ''}`);
+        await refreshData();
+        setTimeout(() => window.location.reload(), 1200);
+      } else {
+        triggerAlert('error', res.error || 'Échec restore');
       }
     });
   };
@@ -646,6 +671,14 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
                 <div>
                   <div className="apple-subheading">Actions Rapides</div>
                   <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      onClick={handleRestoreTopDb}
+                      disabled={isPending}
+                      className="apple-btn-primary col-span-2"
+                      title="Restaure 500 users, 200 articles, 1480 posts, 5723 lectures, 10.5k Umami depuis backups/"
+                    >
+                      💾 Restaurer Top DB (1 clic)
+                    </button>
                     <button
                       onClick={handleSeedCompletePack}
                       disabled={isPending}
