@@ -35,6 +35,7 @@ export interface ThoughtHeaderProps {
   onHideReplyToggle?: (e: React.MouseEvent) => void;
   onBlockUserToggle?: (e: React.MouseEvent) => void;
   onDeleteClick?: (e: React.MouseEvent) => void;
+  onShowLessClick?: (e: React.MouseEvent) => void; // 🚫 « Voir moins de contenu comme ça »
   className?: string;
 }
 
@@ -57,6 +58,7 @@ export function ThoughtHeader({
   onHideReplyToggle,
   onBlockUserToggle,
   onDeleteClick,
+  onShowLessClick,
   className,
 }: ThoughtHeaderProps) {
   const [showPopover, setShowPopover] = React.useState<boolean>(false);
@@ -227,6 +229,20 @@ export function ThoughtHeader({
                 <span>
                   {isBlocked ? 'Débloquer' : 'Bloquer'} @{authorHandle}
                 </span>
+              </button>
+            )}
+
+            {currentUserId !== author.id && onShowLessClick && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  setShowPopover(false);
+                  onShowLessClick(e);
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted/40 transition-colors flex items-center gap-2 cursor-pointer font-medium"
+              >
+                <EyeOff className="w-3.5 h-3.5" />
+                <span>Voir moins de contenu comme ça</span>
               </button>
             )}
 

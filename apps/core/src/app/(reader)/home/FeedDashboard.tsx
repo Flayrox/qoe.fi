@@ -23,6 +23,7 @@ import {
   type OnboardingCreator,
   type OnboardingSubmitData,
 } from '@qoe/ui';
+import { useFeedImpressionTracker } from '@qoe/analytics';
 import { ArticleCard } from './components/ArticleCard';
 import { ThoughtFeedSlice } from './components/ThoughtFeedSlice';
 import { VirtualizedFeedList } from '@/components/feed/VirtualizedFeedList';
@@ -452,6 +453,21 @@ export function FeedDashboard({
     return true;
   };
 
+  // 🚫 « Voir moins de contenu comme ça » — feedback négatif explicite.
+  // Retire la carte localement ; l'exclusion SQL + le push vectoriel sont
+  // faits par /api/feed/show-less (appelé dans les composants cartes).
+  const handleHideArticle = (article: Article) => {
+    setLocalPosts((prev) => prev.filter((p) => p.id !== article.id));
+    setFeedItems((prev) => prev.filter((p) => p.id !== article.id));
+    trackEvent('feed_show_less', { articleId: article.id });
+    toast.success(t`Tu verras moins de contenu comme ça.`);
+  };
+
+  const handleHidePost = (postId: string) => {
+    setLocalPosts((prev) => prev.filter((p) => p.id !== postId));
+    setFeedItems((prev) => prev.filter((p) => p.id !== postId));
+  };
+
   const [savedScrollPosition, setSavedScrollPosition] = useState<number>(0);
 
   const handleOpenPost = (postId: string, authorUsername?: string) => {
@@ -679,6 +695,18 @@ export function FeedDashboard({
     '#creators',
   ];
 
+  // 👁️ Wrapper impression : fire-once par item (IntersectionObserver, batché)
+  const ImpressionWrapper: React.FC<{
+    children: React.ReactNode;
+    itemType: 'ARTICLE' | 'THOUGHT';
+    itemId: string;
+    position: number;
+    isDiscovery?: boolean;
+  }> = ({ children, itemType, itemId, position, isDiscovery }) => {
+    const ref = useFeedImpressionTracker({ itemType, itemId, position, isDiscovery });
+    return <div ref={ref}>{children}</div>;
+  };
+
   return (
     <ReaderPageLayout giantTitle={t`Lire`} hideHeader={!!activePostId || !!activeArticle}>
       {/* ── SLIDING FEED SHEET ── */}
@@ -837,45 +865,66 @@ export function FeedDashboard({
                                     };
 
                                 return (
-                                  <ThoughtFeedSlice
+                                  <ImpressionWrapper
                                     key={article.id}
-                                    slice={sliceData as unknown as FeedSlice}
-                                    currentUserId={dbUser?.id || null}
-                                    onOpenPost={handleOpenPost}
-                                    onOpenArticle={handleOpenArticle}
-                                    onOpenProfile={(username) => {
-                                      window.location.href = routes.feed.profile(username);
-                                    }}
-                                    onDeletePost={handleDeletePost}
-                                  />
+                                    itemType="THOUGHT"
+                                    itemId={article.id}
+                                    position={idx}
+                                  >
+                                    <ThoughtFeedSlice
+                                      slice={sliceData as unknown as FeedSlice}
+                                      currentUserId={dbUser?.id || null}
+                                      onOpenPost={handleOpenPost}
+                                      onOpenArticle={handleOpenArticle}
+                                      onOpenProfile={(username) => {
+                                        window.location.href = routes.feed.profile(username);
+                                      }}
+                                      onDeletePost={handleDeletePost}
+                                      onHidePost={dbUser ? handleHidePost : undefined}
+                                    />
+                                  </ImpressionWrapper>
                                 );
                               }
 
                               return (
-                                <ArticleCard
+                                <ImpressionWrapper
                                   key={article.id}
-                                  article={
-                                    article as unknown as React.ComponentProps<
-                                      typeof ArticleCard
-                                    >['article']
-                                  }
-                                  idx={idx}
-                                  dbUser={dbUser}
-                                  isBookmarked={isBookmarked}
-                                  isFollowed={isFollowed}
-                                  isFollowedAuthor={isFollowedAuthor}
-                                  handleFollowToggle={handleFollowToggle}
-                                  handleBookmarkToggle={handleBookmarkToggle}
-                                  featured={idx === 0 && activeFeed === 'recommandation'}
-                                  discovery={
+                                  itemType="ARTICLE"
+                                  itemId={article.id}
+                                  position={idx}
+                                  isDiscovery={
                                     (article as { isDiscovery?: boolean }).isDiscovery === true
                                   }
-                                  onOpenArticle={handleOpenArticle}
-                                  onOpenPost={handleOpenPost}
-                                  onOpenProfile={(username) => {
-                                    window.location.href = routes.feed.profile(username);
-                                  }}
-                                />
+                                >
+                                  <ArticleCard
+                                    article={
+                                      article as unknown as React.ComponentProps<
+                                        typeof ArticleCard
+                                      >['article']
+                                    }
+                                    idx={idx}
+                                    dbUser={dbUser}
+                                    isBookmarked={isBookmarked}
+                                    isFollowed={isFollowed}
+                                    isFollowedAuthor={isFollowedAuthor}
+                                    handleFollowToggle={handleFollowToggle}
+                                    handleBookmarkToggle={handleBookmarkToggle}
+                                    featured={idx === 0 && activeFeed === 'recommandation'}
+                                    discovery={
+                                      (article as { isDiscovery?: boolean }).isDiscovery === true
+                                    }
+                                    onHideArticle={
+                                      dbUser
+                                        ? (art) => handleHideArticle(art as Article)
+                                        : undefined
+                                    }
+                                    onOpenArticle={handleOpenArticle}
+                                    onOpenPost={handleOpenPost}
+                                    onOpenProfile={(username) => {
+                                      window.location.href = routes.feed.profile(username);
+                                    }}
+                                  />
+                                </ImpressionWrapper>
                               );
                             }}
                           />

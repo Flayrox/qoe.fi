@@ -128,6 +128,7 @@ export interface ThoughtCardProps {
   onReportClick?: (e: React.MouseEvent) => void;
   onHideReplyToggle?: (e: React.MouseEvent) => void;
   onBlockUserToggle?: (e: React.MouseEvent) => void;
+  onShowLessClick?: (e: React.MouseEvent) => void;
   onDeleteClick?: (e: React.MouseEvent) => void;
   className?: string;
 }
@@ -166,6 +167,7 @@ export function ThoughtCard({
   onReportClick,
   onHideReplyToggle,
   onBlockUserToggle,
+  onShowLessClick,
   onDeleteClick,
   className,
 }: ThoughtCardProps) {
@@ -363,6 +365,7 @@ export function ThoughtCard({
             onReportClick={handleReportAction}
             onHideReplyToggle={onHideReplyToggle}
             onBlockUserToggle={onBlockUserToggle}
+            onShowLessClick={onShowLessClick}
             onDeleteClick={onDeleteClick}
           />
 

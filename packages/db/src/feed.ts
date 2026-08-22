@@ -284,6 +284,45 @@ export async function updateUserVectorOnInteraction(
   }
 }
 
+/**
+ * 🚫 Feedback négatif vectoriel : éloigne le profil de l'utilisateur du thème
+ * du contenu rejeté (« Voir moins de contenu comme ça »).
+ *
+ * updated = current + strength × (current − target) — repousse dans la direction
+ * opposée au contenu, puis renormalise (inspiré negative_feedback_v2 chez X).
+ * No-op silencieux si l'utilisateur n'a pas encore de vecteur.
+ */
+export async function applyNegativeVectorFeedback(
+  userId: string,
+  targetEmbedding: number[],
+  strength = 0.12
+): Promise<void> {
+  try {
+    const rows: { embedding_text: string }[] = await prisma.$queryRawUnsafe(
+      `SELECT COALESCE("embedding"::text, '') AS embedding_text FROM "User" WHERE id::text = $1`,
+      userId
+    );
+    if (!rows[0] || !rows[0].embedding_text) return;
+
+    const currentStr = rows[0].embedding_text.replace(/[\[\]]/g, '');
+    const currentVec = currentStr.split(',').map((v) => parseFloat(v));
+    if (currentVec.length !== targetEmbedding.length) return;
+
+    // Repousse : on ajoute un multiple de (current − target)
+    const pushed = currentVec.map((cVal, i) => cVal + strength * (cVal - targetEmbedding[i]));
+    const pushedNorm = normalizeVector(pushed);
+    const pushedStr = `[${pushedNorm.join(',')}]`;
+
+    await prisma.$executeRawUnsafe(
+      `UPDATE "User" SET "embedding" = $1::vector WHERE id::text = $2`,
+      pushedStr,
+      userId
+    );
+  } catch (err) {
+    console.warn('[Feed NEG] applyNegativeVectorFeedback failed:', err);
+  }
+}
+
 interface RawArticleFeedRow {
   id: string;
   item_type: 'ARTICLE';
@@ -577,6 +616,10 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
           SELECT 1 FROM "BlockedUser" bu
           WHERE bu."readerId"::text = $4 AND bu."creatorId"::text = a."authorId"::text
         )
+        AND NOT EXISTS (
+          SELECT 1 FROM "ContentFeedback" cf
+          WHERE cf."userId"::text = $4 AND cf."articleId" = a.id AND cf.type = 'SHOW_LESS'
+        )
       ORDER BY (
         0.50 * (1 - (a."embedding" <=> $1::vector)) + 
         0.25 * EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt")) / 172800) +
@@ -672,6 +715,10 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
         AND NOT EXISTS (
           SELECT 1 FROM "BlockedUser" bu
           WHERE bu."readerId"::text = $4 AND bu."creatorId"::text = t."authorId"::text
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM "ContentFeedback" cf
+          WHERE cf."userId"::text = $4 AND cf."thoughtId" = t.id AND cf.type = 'SHOW_LESS'
         )
       ORDER BY (
         0.50 * (1 - (t."embedding" <=> $1::vector)) + 

@@ -27,6 +27,7 @@ export interface FeedThoughtCardProps extends Omit<
   onLikeToggle?: (postId: string) => void;
   onRepostToggle?: (postId: string) => void;
   onDeletePost?: (postId: string) => Promise<boolean> | void;
+  onHidePost?: (postId: string) => void;
 }
 
 export function ThoughtCard({
@@ -39,6 +40,7 @@ export function ThoughtCard({
   onLikeToggle,
   onRepostToggle,
   onDeletePost,
+  onHidePost,
   className,
   ...restProps
 }: FeedThoughtCardProps) {
@@ -119,6 +121,26 @@ export function ThoughtCard({
     setConfirmDeletePostId(shadowedPost.id);
   };
 
+  const handleShowLessClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const res = await fetch('/api/feed/show-less', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thoughtId: shadowedPost.id }),
+      });
+      if (res.ok) {
+        toast.success('Tu verras moins de contenu comme ça.');
+        onHidePost?.(shadowedPost.id);
+      } else {
+        toast.error('Erreur lors de la sauvegarde de ta préférence.');
+      }
+    } catch {
+      toast.error('Erreur réseau.');
+    }
+  };
+
   const pollSlot = shadowedPost.poll ? <PollCard poll={shadowedPost.poll} /> : null;
   const threadgateBadge =
     shadowedPost.replyRestriction && shadowedPost.replyRestriction !== 'everyone' ? (
@@ -142,6 +164,7 @@ export function ThoughtCard({
       onPinToggle={handlePinToggle}
       onReportClick={() => setShowReportModal(true)}
       onDeleteClick={onDeletePost ? handleDeleteClick : undefined}
+      onShowLessClick={onHidePost ? handleShowLessClick : undefined}
       onLikeToggleOverride={handleLikeToggleOverride}
       onRepostToggleOverride={handleRepostToggleOverride}
       className={className}
