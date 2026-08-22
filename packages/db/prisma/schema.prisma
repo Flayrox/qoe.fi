@@ -106,6 +106,7 @@ model User {
   userSubscriptions  Subscriber[]       @relation("UserSubscriptions")
   following          Follows[]          @relation("ReaderFollowing")
   bookmarks          Bookmark[]
+  readingSessions    ReadingSession[]
   highlights         Highlight[]
   annotationUpvotes  AnnotationUpvote[]
   mutedWords         MutedWord[]
@@ -280,6 +281,25 @@ model Bookmark {
   @@index([articleId])
 }
 
+model ReadingSession {
+  id                 String   @id @default(cuid())
+  articleId          String
+  article            Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  userId             String?  @db.Uuid
+  user               User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  source             String   // feed | subdomain | public_profile | direct
+  status             String   // BOUNCE | SKIM | READ_PARTIAL | READ_COMPLETE
+  scrollDepth        Int      @default(0)
+  dwellSeconds       Int      @default(0)
+  readingTimeMinutes Int      @default(5)
+  createdAt          DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([articleId, createdAt])
+  @@index([articleId, source])
+  @@index([userId, articleId])
+}
+
 model Highlight {
   id           String  @id @default(cuid())
   text         String  @db.Text
@@ -439,6 +459,7 @@ model Article {
   updatedAt DateTime @updatedAt
 
   bookmarks             Bookmark[]
+  readingSessions       ReadingSession[]
   highlights            Highlight[]
   letters               Letter[]
   comments              ArticleComment[]

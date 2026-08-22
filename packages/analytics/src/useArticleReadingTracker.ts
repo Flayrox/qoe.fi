@@ -102,7 +102,7 @@ export function useArticleReadingTracker({
 
     const handleUserActivity = () => {
       lastActiveTimestampRef.current = Date.now();
-      if (!isReading && isTabActiveRef.current) {
+      if (isTabActiveRef.current) {
         setIsReading(true);
       }
     };
@@ -166,7 +166,7 @@ export function useArticleReadingTracker({
       window.removeEventListener('touchstart', handleUserActivity);
       window.removeEventListener('keydown', handleUserActivity);
     };
-  }, [articleId, slug, readingTimeMinutes, isReading]);
+  }, [articleId, slug, readingTimeMinutes]);
 
   // 3. Tracking du Scroll Depth (%) et des Milestones
   useEffect(() => {

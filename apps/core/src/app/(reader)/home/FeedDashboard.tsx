@@ -215,6 +215,9 @@ export function FeedDashboard({
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(needsOnboarding);
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [activeArticle, setActiveArticle] = useState<Article | null>(null);
+  const [activeArticleSource, setActiveArticleSource] = useState<
+    'feed' | 'subdomain' | 'public_profile' | 'direct' | undefined
+  >(undefined);
   const [isComposerModalOpen, setIsComposerModalOpen] = useState(false);
   const [isHotkeyModalOpen, setIsHotkeyModalOpen] = useState(false);
   const [lightboxImages] = useState<{ url: string; alt?: string | null }[]>([]);
@@ -484,6 +487,7 @@ export function FeedDashboard({
     const slug = articleInput?.slug || articleInput?.id;
     if (!slug) return;
 
+    setActiveArticleSource('feed');
     window.history.pushState({ articleSlug: slug, scroll }, '', routes.feed.article(slug));
 
     if (articleInput && articleInput.content && articleInput.title && articleInput.author) {
@@ -532,6 +536,7 @@ export function FeedDashboard({
 
   const handleCloseArticle = () => {
     setActiveArticle(null);
+    setActiveArticleSource(undefined);
     if (window.location.pathname.includes('/article/')) {
       window.history.pushState(null, '', routes.feed.home());
     }
@@ -913,6 +918,7 @@ export function FeedDashboard({
         isOpen={!!activeArticle}
         article={activeArticle}
         onClose={handleCloseArticle}
+        initialSource={activeArticleSource}
       />
 
       <ComposerModal

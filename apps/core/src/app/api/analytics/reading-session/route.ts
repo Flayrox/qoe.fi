@@ -6,11 +6,21 @@ import { createClient } from '@qoe/supabase/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { articleId, status, scrollDepth } = body;
+    const { articleId, status, scrollDepth, source, dwellSeconds, readingTimeMinutes } = body;
 
     if (!articleId) {
       return NextResponse.json({ error: 'articleId required' }, { status: 400 });
     }
+
+    const validStatuses = ['BOUNCE', 'SKIM', 'READ_PARTIAL', 'READ_COMPLETE'] as const;
+    const validSources = ['feed', 'subdomain', 'public_profile', 'direct'] as const;
+    const safeStatus = validStatuses.includes(status) ? status : 'READ_PARTIAL';
+    const safeSource = validSources.includes(source) ? source : 'direct';
+    const safeScroll =
+      typeof scrollDepth === 'number' ? Math.max(0, Math.min(100, scrollDepth)) : 0;
+    const safeDwell = typeof dwellSeconds === 'number' ? Math.max(0, dwellSeconds) : 0;
+    const safeReadingTime =
+      typeof readingTimeMinutes === 'number' ? Math.max(1, readingTimeMinutes) : 5;
 
     // Récupérer l'utilisateur courant s'il est connecté
     let currentUserId: string | null = null;
@@ -37,12 +47,12 @@ export async function POST(req: NextRequest) {
 
     // 1. Mise à jour de la complétion moyenne de l'article dans Postgres
     let sessionRate = 0.5;
-    if (status === 'READ_COMPLETE') sessionRate = 1.0;
-    else if (status === 'SKIM') sessionRate = 0.2;
-    else if (status === 'READ_PARTIAL') sessionRate = Math.min(0.8, (scrollDepth || 50) / 100);
-    else if (status === 'BOUNCE') sessionRate = 0.05;
+    if (safeStatus === 'READ_COMPLETE') sessionRate = 1.0;
+    else if (safeStatus === 'SKIM') sessionRate = 0.2;
+    else if (safeStatus === 'READ_PARTIAL') sessionRate = Math.min(0.8, safeScroll / 100);
+    else if (safeStatus === 'BOUNCE') sessionRate = 0.05;
 
-    const currentRate = article.completionRate || 0.8;
+    const currentRate = typeof article.completionRate === 'number' ? article.completionRate : 0.5;
     const updatedCompletionRate = Math.round((currentRate * 0.9 + sessionRate * 0.1) * 100) / 100;
 
     await prisma.article.update({
@@ -50,9 +60,33 @@ export async function POST(req: NextRequest) {
       data: { completionRate: updatedCompletionRate },
     });
 
+    // 1bis. Historique perso 14j — perso seul (userId) avec source/dwell
+    if (currentUserId) {
+      try {
+        await prisma.readingSession.create({
+          data: {
+            articleId,
+            userId: currentUserId,
+            source: safeSource,
+            status: safeStatus,
+            scrollDepth: safeScroll,
+            dwellSeconds: safeDwell,
+            readingTimeMinutes: safeReadingTime,
+          },
+        });
+        // TTL 14j : purge les entrées plus anciennes (perso seul, pas global)
+        const cutoff = new Date(Date.now() - 14 * 24 * 3600 * 1000);
+        await prisma.readingSession.deleteMany({
+          where: { userId: currentUserId, createdAt: { lt: cutoff } },
+        });
+      } catch (e) {
+        console.warn('[readingSession] create failed', e);
+      }
+    }
+
     // 2. Si l'utilisateur est connecté et a lu l'article de façon approfondie,
     // déclencher l'ajustement dynamique de son vecteur d'intérêt (EMA) !
-    if (currentUserId && (status === 'READ_COMPLETE' || status === 'READ_PARTIAL')) {
+    if (currentUserId && (safeStatus === 'READ_COMPLETE' || safeStatus === 'READ_PARTIAL')) {
       const rows: { embedding_text: string }[] = await prisma.$queryRawUnsafe(
         `SELECT COALESCE("embedding"::text, '') AS embedding_text FROM "Article" WHERE id = $1`,
         articleId
@@ -62,11 +96,8 @@ export async function POST(req: NextRequest) {
         const str = rows[0].embedding_text.replace(/[\[\]]/g, '');
         const artVec = str.split(',').map((v) => parseFloat(v));
         if (artVec.length === 512) {
-          await updateUserVectorOnInteraction(
-            currentUserId,
-            artVec,
-            status === 'READ_COMPLETE' ? 'READ_COMPLETE' : 'CLICK'
-          );
+          const interactionType = safeStatus === 'READ_COMPLETE' ? 'READ_COMPLETE' : 'READ_PARTIAL';
+          await updateUserVectorOnInteraction(currentUserId, artVec, interactionType);
         }
       }
     }
