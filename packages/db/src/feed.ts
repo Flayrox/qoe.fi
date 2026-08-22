@@ -105,6 +105,113 @@ export async function getCoReadCandidates(userId: string): Promise<Map<string, n
   }
 }
 
+// ── Engagement réel par article (Phase 2 — Heavy Ranker heuristique) ─────────
+// Calibré sur les principes publics X/Twitter (weighted scorer) & LinkedIn MOO :
+// - L'attention (dwell/lecture complète) est un signal fort, le like faible
+//   ("good_click" ≈ 11× fav ; dwell est un signal nommé à part entière)
+// - Les signaux négatifs comptent plus que les positifs
+//   (negative_feedback_v2 = -74 vs fav +0.5) → bounce rate pénalise fort
+// - La rareté compte : bookmark/highlight > read > skim (LinkedIn: actions
+//   rares ne doivent pas être écrasées par les actions fréquentes)
+const ENG_READ_WEIGHT = 0.5; // qualité moyenne des lectures (attention réelle)
+const ENG_SOCIAL_WEIGHT = 0.3; // preuve sociale rare (bookmarks + highlights)
+const ENG_CONFIDENCE_WEIGHT = 0.2; // volume de sessions (confiance statistique)
+const ENG_MIN_SESSIONS = 5; // en dessous → pas de pénalité négative (pas assez de données)
+const ENG_NEGATIVE_THRESHOLD = 0.25; // readQuality < 0.25 avec ≥5 sessions = clickbait
+const ENG_NEGATIVE_PENALTY = 0.85; // ×0.85 sur le score final (inspiré OON_WEIGHT_FACTOR)
+
+interface ArticleEngagementRow {
+  articleId: string;
+  sessions: number;
+  bounces: number;
+  read_quality: number | null;
+  bookmarks: number;
+  highlights: number;
+}
+
+/**
+ * 📊 Engagement RÉEL par article : attention (dwell via statuts), preuve sociale
+ * rare (bookmarks/highlights) et confiance statistique. Remplace l'ancien
+ * engScore=0.5 constant.
+ *
+ * Retourne { scores: Map<articleId, 0..1>, penalties: Set<articleId> } où
+ * penalties = articles clickbait (readQuality basse avec assez de sessions).
+ * Map vide si erreur → fallback engScore=0.5 (comportement historique).
+ */
+export async function getArticleEngagementScores(articleIds: string[]): Promise<{
+  scores: Map<string, number>;
+  penalties: Set<string>;
+}> {
+  const emptyScores = new Map<string, number>();
+  const emptyPenalties = new Set<string>();
+  if (!articleIds.length) return { scores: emptyScores, penalties: emptyPenalties };
+  try {
+    const rows: ArticleEngagementRow[] = await prisma.$queryRawUnsafe(
+      `
+      SELECT
+        a.id as "articleId",
+        COUNT(rs.id)::int as sessions,
+        COUNT(rs.id) FILTER (WHERE rs.status = 'BOUNCE')::int as bounces,
+        AVG(CASE rs.status
+              WHEN 'READ_COMPLETE' THEN 1.0
+              WHEN 'READ_PARTIAL'  THEN 0.6
+              WHEN 'SKIM'          THEN 0.3
+              WHEN 'BOUNCE'        THEN 0.05
+              ELSE NULL
+            END) as read_quality,
+        (SELECT COUNT(*) FROM "Bookmark" b WHERE b."articleId" = a.id)::int as bookmarks,
+        (SELECT COUNT(*) FROM "Highlight" h WHERE h."articleId" = a.id)::int as highlights
+      FROM "Article" a
+      LEFT JOIN "ReadingSession" rs ON rs."articleId" = a.id
+      WHERE a.id = ANY($1::text[])
+      GROUP BY a.id
+      `,
+      articleIds
+    );
+
+    const scores = new Map<string, number>();
+    const penalties = new Set<string>();
+
+    for (const row of rows) {
+      const sessions = Number(row.sessions || 0);
+      if (sessions === 0) continue; // pas de données → fallback 0.5 côté caller
+
+      // 1. Qualité d'attention moyenne (0..1) — le signal dominant
+      const readQuality = Number(row.read_quality ?? 0);
+
+      // 2. Preuve sociale rare — bookmark/highlight valent plus qu'un read
+      //    normalisation log-ish : saturer vers 12 interactions cumulées
+      const socialRaw = Number(row.bookmarks || 0) + Number(row.highlights || 0) * 1.5;
+      const socialProof = Math.min(1, socialRaw / 12);
+
+      // 3. Confiance statistique — un article à 1 session n'est pas fiable
+      const confidence = Math.min(1, sessions / 10);
+
+      let engScore =
+        ENG_READ_WEIGHT * readQuality +
+        ENG_SOCIAL_WEIGHT * socialProof +
+        ENG_CONFIDENCE_WEIGHT * confidence;
+
+      // 4. Signal négatif : clickbait confirmé (beaucoup de monde arrive,
+      //    presque personne ne lit vraiment) — inspiré negative_feedback_v2=-74
+      const bounceRate = sessions > 0 ? Number(row.bounces || 0) / sessions : 0;
+      if (
+        sessions >= ENG_MIN_SESSIONS &&
+        (readQuality < ENG_NEGATIVE_THRESHOLD || bounceRate > 0.5)
+      ) {
+        engScore *= ENG_NEGATIVE_PENALTY;
+        penalties.add(row.articleId);
+      }
+
+      scores.set(row.articleId, Math.max(0, Math.min(1, engScore)));
+    }
+    return { scores, penalties };
+  } catch (err) {
+    console.warn('[Feed ENG] getArticleEngagementScores failed (fallback 0.5):', err);
+    return { scores: emptyScores, penalties: emptyPenalties };
+  }
+}
+
 function normalizeVector(v: number[]): number[] {
   const norm = Math.sqrt(v.reduce((sum, val) => sum + val * val, 0));
   if (norm === 0) return v;
@@ -608,6 +715,10 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
     return !mutedWords.some((w) => lower.includes(w));
   };
 
+  // 📊 Engagement réel par article (attention + preuve sociale + confiance)
+  // Fetch une fois pour l'over-fetch, fallback 0.5 si pas de données.
+  const engagement = await getArticleEngagementScores(articlesRaw.map((a) => a.id));
+
   // Reranking Circadien des Articles avec Anti-Clickbait + Collaborative Filtering
   const scoredArticles: PersonalizedFeedItem[] = articlesRaw
     .filter((a) => filterMuted(a.title) && filterMuted(a.content))
@@ -618,7 +729,7 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
         circadian.targetReadingMinutes,
         circadian.sigmaMinutes
       );
-      const engScore = 0.5;
+      const engScore = engagement.scores.get(a.id) ?? 0.5;
       const simScore = a.sim_score || 0.5;
       const freshness = a.freshness_score || 0.5;
       const completionBonus = 0.7 + 0.3 * (a.completionRate || 0.8);
@@ -628,13 +739,18 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
       //         circadien 15%, CF 15% — réversible via ces constantes.
       const cfScore = cfCandidates.get(a.id) ?? 0;
 
-      const totalScore =
+      let totalScore =
         (0.35 * simScore +
           0.2 * freshness +
           0.15 * engScore +
           0.15 * circadianFit +
           0.15 * cfScore) *
         completionBonus;
+
+      // 🚫 Anti-clickbait : article confirmé bounce-massif → pénalité multiplicative
+      if (engagement.penalties.has(a.id)) {
+        totalScore *= ENG_NEGATIVE_PENALTY;
+      }
 
       return {
         id: a.id,
