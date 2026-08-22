@@ -71,6 +71,7 @@ export interface ArticleCardProps {
   handleFollowToggle: (author: Author) => void;
   handleBookmarkToggle: (article: Article) => void;
   featured?: boolean;
+  discovery?: boolean;
   onOpenArticle?: (article: Article) => void;
   onOpenProfile?: (username: string) => void;
   onOpenPost?: (postId: string, authorUsername?: string) => void;
@@ -153,6 +154,7 @@ export function ArticleCard({
   handleFollowToggle,
   handleBookmarkToggle,
   featured = false,
+  discovery = false,
   onOpenArticle,
   onOpenProfile,
   onOpenPost,
@@ -299,6 +301,14 @@ export function ArticleCard({
 
         <div className="absolute inset-x-3 top-3 flex items-center justify-between gap-3 rounded-[14px] bg-white/90 px-2.5 py-2 text-black shadow-none backdrop-blur-md dark:bg-black/75 dark:text-white">
           <div className="flex min-w-0 items-center gap-2.5">
+            {discovery && (
+              <span
+                className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary"
+                title={t`Sélection hors de ta bulle, choisie pour élargir tes horizons`}
+              >
+                ✦ {t`Découverte`}
+              </span>
+            )}
             <BrandAvatar author={primaryAuthor} size={40} />
             <div className="min-w-0 leading-tight">
               <HoverCard>

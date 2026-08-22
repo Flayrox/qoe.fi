@@ -867,6 +867,9 @@ export function FeedDashboard({
                                   handleFollowToggle={handleFollowToggle}
                                   handleBookmarkToggle={handleBookmarkToggle}
                                   featured={idx === 0 && activeFeed === 'recommandation'}
+                                  discovery={
+                                    (article as { isDiscovery?: boolean }).isDiscovery === true
+                                  }
                                   onOpenArticle={handleOpenArticle}
                                   onOpenPost={handleOpenPost}
                                   onOpenProfile={(username) => {

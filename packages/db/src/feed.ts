@@ -120,6 +120,14 @@ const ENG_MIN_SESSIONS = 5; // en dessous → pas de pénalité négative (pas a
 const ENG_NEGATIVE_THRESHOLD = 0.25; // readQuality < 0.25 avec ≥5 sessions = clickbait
 const ENG_NEGATIVE_PENALTY = 0.85; // ×0.85 sur le score final (inspiré OON_WEIGHT_FACTOR)
 
+// ── Exploration ε-greedy (Phase 3) ──────────────────────────────────────────
+// ~12% du feed = contenu de qualité hors bulle (Twitter: 10-15% recommandé).
+// Positions fixes déterministes (4e et 9e item) pour une UX stable.
+const EXPLORATION_RATIO_DEFAULT = 0.12;
+const EXPLORATION_MIN_QUALITY = 0.8; // completionRate min des candidats découverte
+const EXPLORATION_POSITIONS = [3, 8]; // index d'insertion dans la page
+const EXPLORATION_CONFIG_KEY = 'feed.exploration_ratio';
+
 interface ArticleEngagementRow {
   articleId: string;
   sessions: number;
@@ -452,6 +460,7 @@ export interface PersonalizedFeedItem {
   imageUrl?: string | null;
   readingTime?: number;
   isPremium?: boolean;
+  isDiscovery?: boolean; // 🌍 injection exploration hors-bulle (ε-greedy)
   score: number;
   similarityScore: number;
   engagementScore: number;
@@ -564,6 +573,10 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
         AND a."embedding" IS NOT NULL
         AND u."isShadowbanned" = false
         AND u."isSuspended" = false
+        AND NOT EXISTS (
+          SELECT 1 FROM "BlockedUser" bu
+          WHERE bu."readerId"::text = $4 AND bu."creatorId"::text = a."authorId"::text
+        )
       ORDER BY (
         0.50 * (1 - (a."embedding" <=> $1::vector)) + 
         0.25 * EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt")) / 172800) +
@@ -573,7 +586,8 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
       `,
       userVectorStr,
       targetArticleCount * 3, // Over-fetch pour le reranking circadien & MMR
-      offset
+      offset,
+      userId
     );
   } else {
     articlesRaw = await prisma.$queryRawUnsafe(
@@ -651,9 +665,14 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
         AND t."repostId" IS NULL
         AND t."deletedAt" IS NULL
         AND t."isDraft" = false
+        AND t."isHiddenByAuthor" = false
         AND t."embedding" IS NOT NULL
         AND u."isShadowbanned" = false
         AND u."isSuspended" = false
+        AND NOT EXISTS (
+          SELECT 1 FROM "BlockedUser" bu
+          WHERE bu."readerId"::text = $4 AND bu."creatorId"::text = t."authorId"::text
+        )
       ORDER BY (
         0.50 * (1 - (t."embedding" <=> $1::vector)) + 
         0.25 * EXP(-EXTRACT(EPOCH FROM (NOW() - t."createdAt")) / 86400) +
@@ -663,7 +682,8 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
       `,
       userVectorStr,
       targetThoughtCount * 3,
-      offset
+      offset,
+      userId
     );
   } else {
     thoughtsRaw = await prisma.$queryRawUnsafe(
@@ -695,6 +715,7 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
         AND t."repostId" IS NULL
         AND t."deletedAt" IS NULL
         AND t."isDraft" = false
+        AND t."isHiddenByAuthor" = false
         AND u."isShadowbanned" = false
         AND u."isSuspended" = false
       ORDER BY (
@@ -876,8 +897,110 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
     }
   }
 
+  // 🌍 Exploration ε-greedy : injecter ~12% de contenu de qualité HORS bulle
+  // (Twitter: 10-15% recommandé). Positions fixes déterministes → UX stable.
+  let finalItems = interleaved.slice(0, limit);
+  if (userId) {
+    try {
+      // Ratio overridable via SystemConfig (feed.exploration_ratio, 0..0.5)
+      let ratio = EXPLORATION_RATIO_DEFAULT;
+      const cfg = await prisma.systemConfig
+        .findUnique({ where: { key: EXPLORATION_CONFIG_KEY }, select: { value: true } })
+        .catch(() => null);
+      if (cfg) {
+        const v = parseFloat(cfg.value);
+        if (!isNaN(v) && v >= 0 && v <= 0.5) ratio = v;
+      }
+
+      const slots = Math.round(limit * ratio);
+      if (slots > 0) {
+        const followedPubs = await prisma.follows.findMany({
+          where: { readerId: userId },
+          select: { publicationId: true },
+        });
+        const followedIds = followedPubs.map((f) => f.publicationId);
+
+        // Seulement si l'utilisateur a une bulle à casser
+        if (followedIds.length > 0) {
+          const existingIds = finalItems.map((i) => i.id);
+          const discoveryArticles = await prisma.article.findMany({
+            where: {
+              published: true,
+              completionRate: { gte: EXPLORATION_MIN_QUALITY },
+              publicationId: { notIn: followedIds },
+              id: { notIn: existingIds },
+              authorId: { not: userId }, // jamais ses propres articles
+            },
+            select: {
+              id: true,
+              title: true,
+              content: true,
+              slug: true,
+              imageUrl: true,
+              readingTime: true,
+              isPremium: true,
+              createdAt: true,
+              author: {
+                select: { id: true, name: true, username: true, logoUrl: true, isCertified: true },
+              },
+              publication: {
+                select: { id: true, name: true, slug: true, subdomain: true, logoUrl: true },
+              },
+            },
+            orderBy: [{ createdAt: 'desc' }],
+            take: slots,
+          });
+
+          for (let k = 0; k < discoveryArticles.length; k++) {
+            const a = discoveryArticles[k];
+            const discoveryItem: PersonalizedFeedItem = {
+              id: a.id,
+              itemType: 'ARTICLE',
+              title: a.title,
+              content: a.content,
+              slug: a.slug,
+              imageUrl: a.imageUrl,
+              readingTime: a.readingTime,
+              isPremium: a.isPremium,
+              isDiscovery: true,
+              score: 0, // exploratoire : non scoré par le ranker
+              similarityScore: 0,
+              engagementScore: 0,
+              freshnessScore: 1,
+              circadianFitScore: 0,
+              author: {
+                id: a.author.id,
+                name: a.author.name || 'Auteur',
+                username: a.author.username || 'auteur',
+                logoUrl: a.author.logoUrl,
+                isCertified: a.author.isCertified ?? false,
+              },
+              publication: a.publication
+                ? {
+                    id: a.publication.id,
+                    name: a.publication.name,
+                    slug: a.publication.slug,
+                    subdomain: a.publication.subdomain,
+                    logoUrl: a.publication.logoUrl,
+                  }
+                : null,
+              quotedArticle: null,
+              createdAt: new Date(a.createdAt),
+            };
+            // Insertion aux positions fixes (3 = 4e item, 8 = 9e item)
+            const pos = Math.min(EXPLORATION_POSITIONS[k] ?? finalItems.length, finalItems.length);
+            finalItems.splice(pos, 0, discoveryItem);
+          }
+          finalItems = finalItems.slice(0, limit); // les items les moins bien scorés tombent
+        }
+      }
+    } catch (err) {
+      console.warn('[Feed EXPLORATION] injection failed (feed inchangé):', err);
+    }
+  }
+
   return {
-    items: interleaved.slice(0, limit),
+    items: finalItems,
     circadianProfile: circadian,
   };
 }
