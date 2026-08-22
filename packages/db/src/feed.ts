@@ -866,20 +866,54 @@ export async function getSemanticTrendingTopics(
     take: limit,
   });
 
-  const sampleGrowths = [
-    '+32% cette semaine',
-    "+18% d'échanges",
-    '+45% de lectures',
-    "+27% d'activité",
-    "+14% d'intérêt",
-  ];
+  if (categories.length === 0) return [];
 
-  return categories.map((cat, idx) => ({
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 3600 * 1000);
+
+  // Calcul réel : croissance 7j vs 7j précédents par catégorie (indispensable pour prod-like)
+  const growthByCat = await Promise.all(
+    categories.map(async (cat) => {
+      const [curr7, prev7] = await Promise.all([
+        prisma.article.count({
+          where: {
+            categoryId: cat.id,
+            published: true,
+            createdAt: { gte: sevenDaysAgo },
+          },
+        }),
+        prisma.article.count({
+          where: {
+            categoryId: cat.id,
+            published: true,
+            createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
+          },
+        }),
+      ]);
+
+      let growthRate: string;
+      if (prev7 === 0) {
+        growthRate = curr7 > 0 ? `+${Math.min(99, curr7 * 18)}% nouveaux` : '+0% cette semaine';
+      } else {
+        const pct = Math.round(((curr7 - prev7) / prev7) * 100);
+        const sign = pct >= 0 ? '+' : '';
+        // Format proche de l'ancien pour UI : +X% cette semaine / d'échanges
+        const suffix = pct >= 20 ? ' cette semaine' : pct >= 0 ? " d'échanges" : " d'activité";
+        growthRate = `${sign}${pct}%${suffix}`;
+      }
+      return { id: cat.id, curr7, prev7, growthRate };
+    })
+  );
+
+  const growthMap = new Map(growthByCat.map((g) => [g.id, g.growthRate]));
+
+  return categories.map((cat) => ({
     id: cat.id,
     topicName: cat.name,
     description: cat.description || `Discussions et essais de fond sur ${cat.name.toLowerCase()}`,
-    count: cat._count.articles * 4 + 12, // Volume d'échanges estimé
-    growthRate: sampleGrowths[idx % sampleGrowths.length],
+    count: cat._count.articles, // volume réel (plus de *4+12)
+    growthRate: growthMap.get(cat.id) || '+0% cette semaine',
   }));
 }
 

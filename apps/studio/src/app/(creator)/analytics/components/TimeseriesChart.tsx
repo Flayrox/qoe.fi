@@ -15,13 +15,13 @@ export function TimeseriesChart({ data, period }: TimeseriesChartProps) {
     index: number;
   } | null>(null);
 
-  // Generate fallback points if empty
+  // Aucun fallback aléatoire — affiche 0 si pas de données (prod-like)
   const points =
     data && data.length > 0
       ? data
       : Array.from({ length: 14 }).map((_, i) => ({
           x: new Date(Date.now() - (13 - i) * 24 * 60 * 60 * 1000).toISOString(),
-          y: Math.floor(Math.random() * 25) + 5,
+          y: 0,
         }));
 
   const maxY = Math.max(...points.map((p) => p.y || 0), 10);
