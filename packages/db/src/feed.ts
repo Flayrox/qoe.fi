@@ -28,6 +28,83 @@ const EMA_WEIGHTS: Record<InteractionType, number> = {
   CLICK: 0.03,
 };
 
+// ── Collaborative Filtering (Phase 1) ───────────────────────────────────────
+// Poids de qualité d'une lecture : une lecture complète "prouve" l'intérêt,
+// un bounce est du bruit. Utilisés pour l'affinité voisin ET le score candidat.
+const CF_STATUS_WEIGHTS = `
+  CASE status
+    WHEN 'READ_COMPLETE' THEN 1.0
+    WHEN 'READ_PARTIAL'  THEN 0.6
+    WHEN 'SKIM'          THEN 0.3
+    ELSE 0.1
+  END`;
+
+const CF_MIN_MY_READS = 3; // en dessous → cold-start, pas de CF (bruit statistique)
+const CF_TOP_NEIGHBORS = 10;
+
+/**
+ * 👥 Collaborative Filtering par co-lecture (Item-CF via voisins).
+ * "Les users qui ont lu les mêmes articles que moi (avec la même intensité)
+ *  ont aussi lu X" — sans jamais lire le texte (complète l'embedding).
+ *
+ * Retourne Map<articleId, cfScore 0..1> des articles NON encore lus par userId.
+ * Map vide si pas assez d'historique ou erreur (cold-start préservé, jamais crash).
+ */
+export async function getCoReadCandidates(userId: string): Promise<Map<string, number>> {
+  const empty = new Map<string, number>();
+  if (!userId) return empty;
+  try {
+    const rows: { articleId: string; cf_score: number }[] = await prisma.$queryRawUnsafe(
+      `
+      WITH my_reads AS (
+        SELECT "articleId", ${CF_STATUS_WEIGHTS} as w
+        FROM "ReadingSession"
+        WHERE "userId"::text = $1
+      ),
+      neighbor_affinity AS (
+        SELECT r2."userId" as neighbor_id,
+               SUM(my.w * ${CF_STATUS_WEIGHTS}) as affinity
+        FROM my_reads my
+        JOIN "ReadingSession" r2
+          ON r2."articleId" = my."articleId" AND r2."userId"::text != $1
+        GROUP BY r2."userId"
+        ORDER BY affinity DESC
+        LIMIT ${CF_TOP_NEIGHBORS}
+      ),
+      cf_candidates AS (
+        SELECT rs."articleId",
+               SUM(na.affinity * ${CF_STATUS_WEIGHTS}) as cf_score
+        FROM "ReadingSession" rs
+        JOIN neighbor_affinity na ON na.neighbor_id = rs."userId"
+        WHERE rs."articleId" NOT IN (SELECT "articleId" FROM my_reads)
+          AND rs.status != 'BOUNCE'
+        GROUP BY rs."articleId"
+      )
+      SELECT "articleId", cf_score FROM cf_candidates
+      `,
+      userId
+    );
+
+    // Garde-fou cold-start : moins de 3 lectures personnelles → pas de CF
+    const [{ count: myCount }] = (await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*)::int as count FROM "ReadingSession" WHERE "userId"::text = $1`,
+      userId
+    )) as { count: number }[];
+    if (myCount < CF_MIN_MY_READS) return empty;
+
+    // Normalisation 0..1 (le max devient la référence de "fort signal CF")
+    const max = Math.max(...rows.map((r) => Number(r.cf_score)), 1);
+    const map = new Map<string, number>();
+    for (const r of rows) {
+      map.set(r.articleId, Number(r.cf_score) / max);
+    }
+    return map;
+  } catch (err) {
+    console.warn('[Feed CF] getCoReadCandidates failed (fallback no-CF):', err);
+    return empty;
+  }
+}
+
 function normalizeVector(v: number[]): number[] {
   const norm = Math.sqrt(v.reduce((sum, val) => sum + val * val, 0));
   if (norm === 0) return v;
@@ -320,6 +397,7 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
 
   let userVectorStr: string | null = null;
   const mutedWords: string[] = [];
+  let cfCandidates: Map<string, number> = new Map();
 
   if (userId) {
     const rows: { embedding_text: string }[] = await prisma.$queryRawUnsafe(
@@ -330,11 +408,14 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
       userVectorStr = rows[0].embedding_text;
     }
 
-    const muted = await prisma.mutedWord.findMany({
-      where: { userId },
-      select: { word: true },
-    });
-    mutedWords.push(...muted.map((m) => m.word.toLowerCase()));
+    // 👥 Collaborative Filtering (co-lecture) — en parallèle des muted words
+    const [, cfMap] = await Promise.all([
+      prisma.mutedWord
+        .findMany({ where: { userId }, select: { word: true } })
+        .then((muted) => mutedWords.push(...muted.map((m) => m.word.toLowerCase()))),
+      getCoReadCandidates(userId),
+    ]);
+    cfCandidates = cfMap;
   }
 
   const targetArticleCount = Math.ceil(limit * effectiveArticleRatio);
@@ -527,7 +608,7 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
     return !mutedWords.some((w) => lower.includes(w));
   };
 
-  // Reranking Circadien des Articles avec Anti-Clickbait
+  // Reranking Circadien des Articles avec Anti-Clickbait + Collaborative Filtering
   const scoredArticles: PersonalizedFeedItem[] = articlesRaw
     .filter((a) => filterMuted(a.title) && filterMuted(a.content))
     .map((a) => {
@@ -542,8 +623,18 @@ export async function getPersonalizedFeed(options: GetPersonalizedFeedOptions = 
       const freshness = a.freshness_score || 0.5;
       const completionBonus = 0.7 + 0.3 * (a.completionRate || 0.8);
 
+      // 👥 CF co-lecture : les voisins similaires ont lu/aimé cet article
+      // Poids : sim 35% (embedding reste dominant), fresh 20%, eng 15%,
+      //         circadien 15%, CF 15% — réversible via ces constantes.
+      const cfScore = cfCandidates.get(a.id) ?? 0;
+
       const totalScore =
-        (0.4 * simScore + 0.2 * freshness + 0.2 * engScore + 0.2 * circadianFit) * completionBonus;
+        (0.35 * simScore +
+          0.2 * freshness +
+          0.15 * engScore +
+          0.15 * circadianFit +
+          0.15 * cfScore) *
+        completionBonus;
 
       return {
         id: a.id,
