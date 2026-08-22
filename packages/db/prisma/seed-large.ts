@@ -1874,9 +1874,21 @@ async function main() {
     }
   }
 
+  // Loi puissance : 20% pubs (médias certifiés) captent 60% des follows restants
+  const pubsByPopularity = [...pubsToInsert].sort((a, b) => {
+    const aScore = (a.isCertified ? 10 : 0) + (a.type === 'MEDIA' ? 5 : 0);
+    const bScore = (b.isCertified ? 10 : 0) + (b.type === 'MEDIA' ? 5 : 0);
+    return bScore - aScore;
+  });
+  const pickPowerLawPub = () => {
+    const r = Math.pow(Math.random(), 1.8); // Zipf-like, biais fort vers tête
+    const idx = Math.min(pubsByPopularity.length - 1, Math.floor(r * pubsByPopularity.length));
+    return pubsByPopularity[idx];
+  };
+
   while (followsToInsert.length < 3600) {
     const reader = randomItem(allUsers);
-    const pub = randomItem(pubsToInsert);
+    const pub = pickPowerLawPub();
     const key = `${reader.id}_${pub.id}`;
 
     if (!followsSet.has(key)) {
@@ -1895,14 +1907,27 @@ async function main() {
   // -------------------------------------------------------------------
   // 10. 6 000+ LIKES SUR LES PENSÉES (Like -> Post)
   // -------------------------------------------------------------------
-  console.log('\n❤️  [10/25] Distribution de 6 000+ Likes sur les Pensées...');
+  console.log('\n❤️  [10/25] Distribution de 6 000+ Likes sur les Pensées (loi puissance)...');
   const likesToInsert: any[] = [];
   const likeSet = new Set<string>();
   const postLikeCounters = new Map<string, number>();
 
+  // Loi puissance : posts épinglés + auteurs certifiés captent 60% des likes
+  const creatorIds = new Set(creators.map((c) => c.id));
+  const postsByPopularity = [...thoughtsToInsert].sort((a, b) => {
+    const aScore = (a.isPinned ? 10 : 0) + (creatorIds.has(a.authorId) ? 5 : 0);
+    const bScore = (b.isPinned ? 10 : 0) + (creatorIds.has(b.authorId) ? 5 : 0);
+    return bScore - aScore;
+  });
+  const pickPowerLawPost = () => {
+    const r = Math.pow(Math.random(), 1.6);
+    const idx = Math.min(postsByPopularity.length - 1, Math.floor(r * postsByPopularity.length));
+    return postsByPopularity[idx];
+  };
+
   while (likesToInsert.length < 6000) {
     const user = randomItem(allUsers);
-    const post = randomItem(thoughtsToInsert);
+    const post = pickPowerLawPost();
     const key = `${user.id}_${post.id}`;
 
     if (!likeSet.has(key)) {

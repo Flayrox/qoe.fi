@@ -179,10 +179,10 @@ export async function seedUmami(prismaApp: PrismaClient) {
 
       const isWeekend = day.getDay() === 0 || day.getDay() === 6;
       const recencyBoost = dayOffset < 7 ? 1.15 : 1.0; // +15% dernière semaine
-      const baseSessions = randomInt(40, 70);
+      const baseSessions = randomInt(60, 90); // densifié top du top (was 40-70)
       const weekendFactor = isWeekend ? 0.8 : 1.0;
       const sessionsToday = Math.max(
-        15,
+        20,
         Math.round(baseSessions * weekendFactor * recencyBoost * (0.9 + rand() * 0.2))
       );
 
@@ -206,8 +206,8 @@ export async function seedUmami(prismaApp: PrismaClient) {
           created_at: sessionCreatedAt,
         });
 
-        // 1-6 pageviews par session, corrélés horairement (+ quelques secondes/minutes)
-        const pageviews = randomInt(1, 6);
+        // 2-7 pageviews par session, corrélés horairement (+ quelques secondes/minutes) — densifié
+        const pageviews = randomInt(2, 7);
         // Biais : sessions direct ont moins de pages, google a plus
         let referral = pickWeighted(referrers);
         for (let p = 0; p < pageviews; p++) {
