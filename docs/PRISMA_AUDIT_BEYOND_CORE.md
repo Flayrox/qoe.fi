@@ -12,7 +12,7 @@
 
 | Surface | Réfs `prisma.` | Déjà Go ? | Verdict |
 |---|---|---|---|
-| `apps/core` chemin nominal | 0 direct, **3 indirects** (via `packages/db`) | ✅ sauf 3 points | **P0 — 3 résidus corrigés ci-dessous** |
+| `apps/core` chemin nominal | 0 direct, **0 indirect** | ✅ **100 % Go** (P0 livré `def99ca`/`d8839a9`) | — |
 | `packages/api-client/src/actions` | 18 | ~80 % (7 dossiers sur 12 sans prisma) | **P1 — auth/tenant/dashboard/feed/articles/admin** |
 | `apps/studio/src` | 158 | 5 fichiers seulement ont `goFetch` | **P2 — gros chantier créateur** |
 | `apps/admin/src` | 36 | ~0 | **P3 — console superadmin** |
@@ -166,10 +166,10 @@ Repositories par taille d'usage (ordres de grandeur) :
 
 | # | Surface | Effort | Dépend de |
 |---|---|---|---|
-| **P0-1** | Home : suggested creators + semantic trends + onboarding data → Go (étendre `/v1/home/feed` ou nouveaux endpoints) + bascule `home/page.tsx` | M | — |
-| **P0-2** | `article/[slug]` → `GET /v1/articles/{slug}` (endpoint existe) | S | mapping DTO |
-| **P1-1** | `auth/getCurrentUserAction` → `/v1/me` | S | — |
-| **P1-2** | `feed/updateProfileAction` → `/v1/me/profile` ; `articles` search → `/v1/users/search` | S | — |
+| ~~P0-1~~ | ~~Home : suggested creators + semantic trends + onboarding data → Go~~ ✅ `GET /v1/home/onboarding` + `/v1/home/suggested-creators` + `/v1/home/semantic-trends` (`def99ca`) | M | — |
+| ~~P0-2~~ | ~~`article/[slug]` → `GET /v1/articles/{slug}`~~ ✅ mode slug seul ajouté (`def99ca`), page basculée (`d8839a9`) | S | mapping DTO |
+| ~~P1-1~~ | ~~`auth/getCurrentUserAction` → `/v1/me`~~ ✅ (`d8839a9`) | S | — |
+| ~~P1-2~~ | ~~`feed/updateProfileAction` → `/v1/me/profile`~~ ✅ (`d8839a9`) ; `articles` search → `/v1/users/search` reste à faire | S | — |
 | **P1-3** | `tenant` : `POST /v1/publications/{id}/subscribe` + statut membre dans `/v1/me` | M | — |
 | **P2-1** | Studio analytics → module Go existant | M | — |
 | **P2-2** | Studio webhooks/oauth → Go existant | S | — |
