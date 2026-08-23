@@ -189,7 +189,8 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        u."logoUrl"    AS author_logo,
        p.name         AS publication_name,
        p.slug         AS publication_slug,
-       p.subdomain    AS publication_subdomain
+       p.subdomain    AS publication_subdomain,
+       p."customDomain" AS publication_custom_domain
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
 JOIN "Publication" p ON p.id = a."publicationId"
@@ -202,33 +203,34 @@ type GetArticleBySlugParams struct {
 }
 
 type GetArticleBySlugRow struct {
-	ID                     string            `json:"id"`
-	Title                  string            `json:"title"`
-	Slug                   string            `json:"slug"`
-	Content                string            `json:"content"`
-	Published              bool              `json:"published"`
-	IsPremium              bool              `json:"isPremium"`
-	Visibility             ContentVisibility `json:"visibility"`
-	ReadingTime            int32             `json:"readingTime"`
-	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
-	AllowComments          bool              `json:"allowComments"`
-	ScheduledAt            pgtype.Timestamp  `json:"scheduledAt"`
-	Status                 string            `json:"status"`
-	PublicationId          string            `json:"publicationId"`
-	AuthorId               pgtype.UUID       `json:"authorId"`
-	CategoryId             pgtype.Text       `json:"categoryId"`
-	TierId                 pgtype.Text       `json:"tierId"`
-	SeoTitle               pgtype.Text       `json:"seoTitle"`
-	SeoDescription         pgtype.Text       `json:"seoDescription"`
-	CreatedAt              pgtype.Timestamp  `json:"createdAt"`
-	UpdatedAt              pgtype.Timestamp  `json:"updatedAt"`
-	AuthorID               string            `json:"author_id"`
-	AuthorName             pgtype.Text       `json:"author_name"`
-	AuthorUsername         pgtype.Text       `json:"author_username"`
-	AuthorLogo             pgtype.Text       `json:"author_logo"`
-	PublicationName        string            `json:"publication_name"`
-	PublicationSlug        string            `json:"publication_slug"`
-	PublicationSubdomain   pgtype.Text       `json:"publication_subdomain"`
+	ID                      string            `json:"id"`
+	Title                   string            `json:"title"`
+	Slug                    string            `json:"slug"`
+	Content                 string            `json:"content"`
+	Published               bool              `json:"published"`
+	IsPremium               bool              `json:"isPremium"`
+	Visibility              ContentVisibility `json:"visibility"`
+	ReadingTime             int32             `json:"readingTime"`
+	AllowPublicAnnotations  bool              `json:"allowPublicAnnotations"`
+	AllowComments           bool              `json:"allowComments"`
+	ScheduledAt             pgtype.Timestamp  `json:"scheduledAt"`
+	Status                  string            `json:"status"`
+	PublicationId           string            `json:"publicationId"`
+	AuthorId                pgtype.UUID       `json:"authorId"`
+	CategoryId              pgtype.Text       `json:"categoryId"`
+	TierId                  pgtype.Text       `json:"tierId"`
+	SeoTitle                pgtype.Text       `json:"seoTitle"`
+	SeoDescription          pgtype.Text       `json:"seoDescription"`
+	CreatedAt               pgtype.Timestamp  `json:"createdAt"`
+	UpdatedAt               pgtype.Timestamp  `json:"updatedAt"`
+	AuthorID                string            `json:"author_id"`
+	AuthorName              pgtype.Text       `json:"author_name"`
+	AuthorUsername          pgtype.Text       `json:"author_username"`
+	AuthorLogo              pgtype.Text       `json:"author_logo"`
+	PublicationName         string            `json:"publication_name"`
+	PublicationSlug         string            `json:"publication_slug"`
+	PublicationSubdomain    pgtype.Text       `json:"publication_subdomain"`
+	PublicationCustomDomain pgtype.Text       `json:"publication_custom_domain"`
 }
 
 func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugParams) (GetArticleBySlugRow, error) {
@@ -262,6 +264,97 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugPara
 		&i.PublicationName,
 		&i.PublicationSlug,
 		&i.PublicationSubdomain,
+		&i.PublicationCustomDomain,
+	)
+	return i, err
+}
+
+const getArticleBySlugAny = `-- name: GetArticleBySlugAny :one
+SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
+       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."scheduledAt",
+       a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
+       a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
+       u.id::text     AS author_id,
+       u.name         AS author_name,
+       u.username     AS author_username,
+       u."logoUrl"    AS author_logo,
+       p.name         AS publication_name,
+       p.slug         AS publication_slug,
+       p.subdomain    AS publication_subdomain,
+       p."customDomain" AS publication_custom_domain
+FROM "Article" a
+JOIN "User" u ON u.id = a."authorId"
+JOIN "Publication" p ON p.id = a."publicationId"
+WHERE a.slug = $1 AND a.published = true
+ORDER BY a."createdAt" DESC, a.id DESC
+LIMIT 1
+`
+
+type GetArticleBySlugAnyRow struct {
+	ID                      string            `json:"id"`
+	Title                   string            `json:"title"`
+	Slug                    string            `json:"slug"`
+	Content                 string            `json:"content"`
+	Published               bool              `json:"published"`
+	IsPremium               bool              `json:"isPremium"`
+	Visibility              ContentVisibility `json:"visibility"`
+	ReadingTime             int32             `json:"readingTime"`
+	AllowPublicAnnotations  bool              `json:"allowPublicAnnotations"`
+	AllowComments           bool              `json:"allowComments"`
+	ScheduledAt             pgtype.Timestamp  `json:"scheduledAt"`
+	Status                  string            `json:"status"`
+	PublicationId           string            `json:"publicationId"`
+	AuthorId                pgtype.UUID       `json:"authorId"`
+	CategoryId              pgtype.Text       `json:"categoryId"`
+	TierId                  pgtype.Text       `json:"tierId"`
+	SeoTitle                pgtype.Text       `json:"seoTitle"`
+	SeoDescription          pgtype.Text       `json:"seoDescription"`
+	CreatedAt               pgtype.Timestamp  `json:"createdAt"`
+	UpdatedAt               pgtype.Timestamp  `json:"updatedAt"`
+	AuthorID                string            `json:"author_id"`
+	AuthorName              pgtype.Text       `json:"author_name"`
+	AuthorUsername          pgtype.Text       `json:"author_username"`
+	AuthorLogo              pgtype.Text       `json:"author_logo"`
+	PublicationName         string            `json:"publication_name"`
+	PublicationSlug         string            `json:"publication_slug"`
+	PublicationSubdomain    pgtype.Text       `json:"publication_subdomain"`
+	PublicationCustomDomain pgtype.Text       `json:"publication_custom_domain"`
+}
+
+// Lecture publique par slug SEUL (premier article publié) — parité avec
+// findFirstBySlug Prisma de la page autonome /article/[slug] du reader core.
+func (q *Queries) GetArticleBySlugAny(ctx context.Context, slug string) (GetArticleBySlugAnyRow, error) {
+	row := q.db.QueryRow(ctx, getArticleBySlugAny, slug)
+	var i GetArticleBySlugAnyRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Slug,
+		&i.Content,
+		&i.Published,
+		&i.IsPremium,
+		&i.Visibility,
+		&i.ReadingTime,
+		&i.AllowPublicAnnotations,
+		&i.AllowComments,
+		&i.ScheduledAt,
+		&i.Status,
+		&i.PublicationId,
+		&i.AuthorId,
+		&i.CategoryId,
+		&i.TierId,
+		&i.SeoTitle,
+		&i.SeoDescription,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.AuthorID,
+		&i.AuthorName,
+		&i.AuthorUsername,
+		&i.AuthorLogo,
+		&i.PublicationName,
+		&i.PublicationSlug,
+		&i.PublicationSubdomain,
+		&i.PublicationCustomDomain,
 	)
 	return i, err
 }

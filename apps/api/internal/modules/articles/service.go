@@ -86,10 +86,11 @@ type AuthorInfo struct {
 
 // PublicationInfo est la publication dénormalisée.
 type PublicationInfo struct {
-	ID        string  `json:"id"`
-	Name      string  `json:"name"`
-	Slug      string  `json:"slug"`
-	Subdomain *string `json:"subdomain"`
+	ID           string  `json:"id"`
+	Name         string  `json:"name"`
+	Slug         string  `json:"slug"`
+	Subdomain    *string `json:"subdomain"`
+	CustomDomain *string `json:"customDomain"`
 }
 
 // CreateArticleInput est l'entrée de création d'un article.
@@ -182,6 +183,33 @@ func (mc memberContext) can(perm string) bool {
 		return true
 	}
 	return permissions.CanMedia(mc.member, perm)
+}
+
+// GetBySlugAny lit le premier article publié par slug seul (sans publicationId)
+// avec le contenu COMPLET — parité avec findFirstBySlug Prisma de la page
+// autonome /article/[slug] du reader core (le paywall est géré côté tenant/mobile).
+func (s *Service) GetBySlugAny(ctx context.Context, slug string) (ArticleResponse, error) {
+	row, err := s.q.GetArticleBySlugAny(ctx, slug)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ArticleResponse{}, errNotFound
+		}
+		return ArticleResponse{}, err
+	}
+	// GetArticleBySlugAnyRow a le même shape que GetArticleBySlugRow mais c'est
+	// un type distinct → conversion explicite vers le mapping existant.
+	return ArticleResponse{
+		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: row.Content,
+		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
+		ReadingTime: int(row.ReadingTime), Status: row.Status, PublicationID: row.PublicationId,
+		AuthorID: row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
+		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
+		CreatedAt: row.CreatedAt.Time.Format(time.RFC3339),
+		UpdatedAt: row.UpdatedAt.Time.Format(time.RFC3339),
+		AccessGranted: true,
+		Author:      AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
+		Publication: &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), CustomDomain: textPtr(row.PublicationCustomDomain)},
+	}, nil
 }
 
 // GetBySlug lit un article publié et applique la troncature paywall.
@@ -918,7 +946,7 @@ func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) Articl
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
 		IsTruncated: cut.IsTruncated, AccessGranted: cut.AccessGranted, PaywallMeta: cut.PaywallMeta,
 		Author:      AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
-		Publication: &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain)},
+		Publication: &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), CustomDomain: textPtr(row.PublicationCustomDomain)},
 	}
 }
 
