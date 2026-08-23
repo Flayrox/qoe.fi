@@ -1544,3 +1544,61 @@ ALTER TABLE "_CoAuthors" ADD CONSTRAINT "_CoAuthors_A_fkey" FOREIGN KEY ("A") RE
 -- AddForeignKey
 ALTER TABLE "_CoAuthors" ADD CONSTRAINT "_CoAuthors_B_fkey" FOREIGN KEY ("B") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- CreateTable
+CREATE TABLE "FeedImpression" (
+    "id" TEXT NOT NULL,
+    "userId" UUID,
+    "itemType" TEXT NOT NULL,
+    "itemId" TEXT NOT NULL,
+    "position" INTEGER NOT NULL DEFAULT 0,
+    "isDiscovery" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "FeedImpression_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "FeedImpression_itemType_itemId_idx" ON "FeedImpression"("itemType", "itemId");
+
+-- CreateIndex
+CREATE INDEX "FeedImpression_userId_createdAt_idx" ON "FeedImpression"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "FeedImpression_createdAt_idx" ON "FeedImpression"("createdAt");
+
+-- AddForeignKey
+ALTER TABLE "FeedImpression" ADD CONSTRAINT "FeedImpression_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- CreateTable
+CREATE TABLE "ContentFeedback" (
+    "id" TEXT NOT NULL,
+    "userId" UUID NOT NULL,
+    "articleId" TEXT,
+    "thoughtId" TEXT,
+    "type" TEXT NOT NULL DEFAULT 'SHOW_LESS',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ContentFeedback_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "ContentFeedback_userId_type_idx" ON "ContentFeedback"("userId", "type");
+
+-- CreateIndex
+CREATE INDEX "ContentFeedback_articleId_idx" ON "ContentFeedback"("articleId");
+
+-- CreateIndex
+CREATE INDEX "ContentFeedback_thoughtId_idx" ON "ContentFeedback"("thoughtId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ContentFeedback_userId_articleId_thoughtId_type_key" ON "ContentFeedback"("userId", "articleId", "thoughtId", "type");
+
+-- AddForeignKey
+ALTER TABLE "ContentFeedback" ADD CONSTRAINT "ContentFeedback_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ContentFeedback" ADD CONSTRAINT "ContentFeedback_articleId_fkey" FOREIGN KEY ("articleId") REFERENCES "Article"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ContentFeedback" ADD CONSTRAINT "ContentFeedback_thoughtId_fkey" FOREIGN KEY ("thoughtId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
