@@ -65,13 +65,27 @@ export default async function RootLayout({
   const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 800));
   const currentUser = await Promise.race([userPromise, timeoutPromise]);
 
+  // Préférences lecteur : Go en primaire (GET /v1/settings/preferences) —
+  // fallback Prisma en dev. Utilisé pour le thème d'accessibilité (SSR).
   const accountSettings = currentUser
-    ? await prisma.userSettings
-        .findUnique({
-          where: { userId: currentUser.id },
-          select: { fontScale: true, reduceMotion: true, highContrast: true },
-        })
-        .catch(() => null)
+    ? await (async () => {
+        try {
+          const { goFetch } = await import('@qoe/api-client/actions/utils/go-client');
+          const prefs = await goFetch<{
+            fontScale: number;
+            reduceMotion: boolean;
+            highContrast: boolean;
+          }>('/v1/settings/preferences');
+          return prefs;
+        } catch {
+          return prisma.userSettings
+            .findUnique({
+              where: { userId: currentUser.id },
+              select: { fontScale: true, reduceMotion: true, highContrast: true },
+            })
+            .catch(() => null);
+        }
+      })()
     : null;
   const flagsPayload = await getGrowthBookPayload().catch(() => ({}));
 

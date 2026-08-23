@@ -432,6 +432,8 @@ type UserSettings struct {
 	HighContrast              bool   `json:"highContrast"`
 	FontScale                 int32  `json:"fontScale"`
 	DefaultFeed               string `json:"defaultFeed"`
+	CreatedAt                 string `json:"createdAt"`
+	UpdatedAt                 string `json:"updatedAt"`
 }
 
 const (
@@ -442,10 +444,17 @@ const (
 
 func scanUserSettings(row pgx.Row) (UserSettings, error) {
 	var s UserSettings
+	var createdAt, updatedAt pgtype.Timestamp
 	err := row.Scan(&s.ID, &s.UserID, &s.ProfileVisibility, &s.AllowMentions,
 		&s.AllowCollaborationInvites, &s.ShowSensitiveContent, &s.AutoplayMedia,
-		&s.ReduceMotion, &s.HighContrast, &s.FontScale, &s.DefaultFeed)
-	return s, err
+		&s.ReduceMotion, &s.HighContrast, &s.FontScale, &s.DefaultFeed,
+		&createdAt, &updatedAt)
+	if err != nil {
+		return s, err
+	}
+	s.CreatedAt = createdAt.Time.Format(time.RFC3339)
+	s.UpdatedAt = updatedAt.Time.Format(time.RFC3339)
+	return s, nil
 }
 
 // GetUserSettings lit les préférences du lecteur, en créant la ligne par
@@ -454,7 +463,7 @@ func (s *Service) GetUserSettings(ctx context.Context, userID string) (UserSetti
 	row := s.pool.QueryRow(ctx, `
 		SELECT id, "userId", "profileVisibility", "allowMentions", "allowCollaborationInvites",
 		       "showSensitiveContent", "autoplayMedia", "reduceMotion", "highContrast",
-		       "fontScale", "defaultFeed"
+		       "fontScale", "defaultFeed", "createdAt", "updatedAt"
 		FROM "UserSettings" WHERE "userId" = $1`, toUUID(userID))
 	settings, err := scanUserSettings(row)
 	if err == nil {
