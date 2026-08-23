@@ -99,8 +99,8 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
         initialSeoTitle={article.seoTitle || ''}
         initialSeoDescription={article.seoDescription || ''}
         initialAttributions={[
-          ...(article.attributions.length > 0
-            ? article.attributions.map((entry) => ({
+          ...((article.attributions?.length ?? 0) > 0
+            ? (article.attributions ?? []).map((entry) => ({
                 userId: entry.user.id,
                 name: entry.user.name,
                 username: entry.user.username,
@@ -123,10 +123,12 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
                   isVisible: true,
                 },
               ]),
-          ...article.coAuthors
+          ...(article.coAuthors ?? [])
             .filter(
               (coAuthor) =>
-                !article.attributions.some((attribution) => attribution.user.id === coAuthor.id)
+                !(article.attributions ?? []).some(
+                  (attribution) => attribution.user.id === coAuthor.id
+                )
             )
             .map((coAuthor, index) => ({
               userId: coAuthor.id,
@@ -135,7 +137,7 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
               logoUrl: coAuthor.logoUrl,
               isCertified: coAuthor.isCertified,
               role: 'CO_AUTHOR',
-              order: article.attributions.length + index,
+              order: (article.attributions?.length ?? 0) + index,
               isVisible: true,
               consentStatus: 'ACCEPTED',
             })),

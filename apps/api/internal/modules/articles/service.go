@@ -28,29 +28,41 @@ var (
 
 // ArticleResponse est la forme API d'un article (contenu éventuellement tronqué).
 type ArticleResponse struct {
-	ID             string           `json:"id"`
-	Title          string           `json:"title"`
-	Slug           string           `json:"slug"`
-	Content        string           `json:"content"`
-	Published      bool             `json:"published"`
-	IsPremium      bool             `json:"isPremium"`
-	Visibility     string           `json:"visibility"`
-	ReadingTime    int              `json:"readingTime"`
-	Status         string           `json:"status"`
-	PublicationID  string           `json:"publicationId"`
-	AuthorID       string           `json:"authorId"`
-	CategoryID     *string          `json:"categoryId"`
-	TierID         *string          `json:"tierId"`
-	SeoTitle       *string          `json:"seoTitle"`
-	SeoDescription *string          `json:"seoDescription"`
-	CreatedAt      string           `json:"createdAt"`
-	UpdatedAt      string           `json:"updatedAt"`
-	IsTruncated    bool             `json:"isTruncated"`
-	AccessGranted  bool             `json:"accessGranted"`
-	PaywallMeta    *PaywallMeta     `json:"paywallMeta"`
-	Author         AuthorInfo       `json:"author"`
-	Publication    *PublicationInfo `json:"publication"`
-	Category       *CategoryInfo    `json:"category"`
+	ID             string            `json:"id"`
+	Title          string            `json:"title"`
+	Slug           string            `json:"slug"`
+	Content        string            `json:"content"`
+	Published      bool              `json:"published"`
+	IsPremium      bool              `json:"isPremium"`
+	Visibility     string            `json:"visibility"`
+	ReadingTime    int               `json:"readingTime"`
+	Status         string            `json:"status"`
+	PublicationID  string            `json:"publicationId"`
+	AuthorID       string            `json:"authorId"`
+	CategoryID     *string           `json:"categoryId"`
+	TierID         *string           `json:"tierId"`
+	SeoTitle       *string           `json:"seoTitle"`
+	SeoDescription *string           `json:"seoDescription"`
+	ImageUrl       *string           `json:"imageUrl"`
+	CreatedAt      string            `json:"createdAt"`
+	UpdatedAt      string            `json:"updatedAt"`
+	IsTruncated    bool              `json:"isTruncated"`
+	AccessGranted  bool              `json:"accessGranted"`
+	PaywallMeta    *PaywallMeta      `json:"paywallMeta"`
+	Author         AuthorInfo        `json:"author"`
+	Publication    *PublicationInfo  `json:"publication"`
+	Category       *CategoryInfo     `json:"category"`
+	CoAuthors      []AuthorInfo      `json:"coAuthors"`
+	Attributions   []AttributionInfo `json:"attributions"`
+}
+
+// AttributionInfo est une attribution d'article pour l'éditeur (co-auteur).
+type AttributionInfo struct {
+	User          AuthorInfo `json:"user"`
+	Role          string     `json:"role"`
+	Order         int        `json:"order"`
+	IsVisible     bool       `json:"isVisible"`
+	ConsentStatus string     `json:"consentStatus"`
 }
 
 // CategoryInfo est la catégorie dénormalisée d'un article.
@@ -62,10 +74,11 @@ type CategoryInfo struct {
 
 // AuthorInfo est l'auteur dénormalisé.
 type AuthorInfo struct {
-	ID       string  `json:"id"`
-	Name     *string `json:"name"`
-	Username *string `json:"username"`
-	LogoURL  *string `json:"logoUrl"`
+	ID         string  `json:"id"`
+	Name       *string `json:"name"`
+	Username   *string `json:"username"`
+	LogoURL    *string `json:"logoUrl"`
+	IsCertified bool   `json:"isCertified"`
 }
 
 // PublicationInfo est la publication dénormalisée.
@@ -503,7 +516,125 @@ func (s *Service) GetByID(ctx context.Context, articleID, userID string) (Articl
 			return ArticleResponse{}, errForbidden
 		}
 	}
-	return s.articleResponseFromIDRow(row), nil
+	resp := s.articleResponseFromIDRow(row)
+	// Enrichit pour l'éditeur : imageUrl, isCertified, attributions, coAuthors (toujours tableaux, jamais null)
+	if img := s.fetchArticleImageUrl(ctx, articleID); img != nil {
+		resp.ImageUrl = img
+	}
+	if cert := s.fetchUserIsCertified(ctx, row.AuthorID); cert != nil {
+		resp.Author.IsCertified = *cert
+	}
+	resp.Attributions = s.fetchAttributions(ctx, articleID)
+	resp.CoAuthors = s.fetchCoAuthors(ctx, articleID)
+	if resp.Attributions == nil {
+		resp.Attributions = []AttributionInfo{}
+	}
+	if resp.CoAuthors == nil {
+		resp.CoAuthors = []AuthorInfo{}
+	}
+	// Catégorie embarquée si présente
+	if row.CategoryId.Valid {
+		if cat := s.fetchCategory(ctx, row.CategoryId.String); cat != nil {
+			resp.Category = cat
+		}
+	}
+	return resp, nil
+}
+
+func (s *Service) fetchArticleImageUrl(ctx context.Context, articleID string) *string {
+	if s.pool == nil {
+		return nil
+	}
+	var v pgtype.Text
+	if err := s.pool.QueryRow(ctx, `SELECT "imageUrl" FROM "Article" WHERE id=$1`, articleID).Scan(&v); err != nil || !v.Valid {
+		return nil
+	}
+	return &v.String
+}
+
+func (s *Service) fetchUserIsCertified(ctx context.Context, userID string) *bool {
+	if s.pool == nil {
+		return nil
+	}
+	var v bool
+	if err := s.pool.QueryRow(ctx, `SELECT "isCertified" FROM "User" WHERE id=$1`, userID).Scan(&v); err != nil {
+		return nil
+	}
+	return &v
+}
+
+func (s *Service) fetchCategory(ctx context.Context, categoryID string) *CategoryInfo {
+	if s.pool == nil {
+		return nil
+	}
+	var id, name, slug string
+	if err := s.pool.QueryRow(ctx, `SELECT id, name, slug FROM "Category" WHERE id=$1`, categoryID).Scan(&id, &name, &slug); err != nil {
+		return nil
+	}
+	return &CategoryInfo{ID: id, Name: name, Slug: slug}
+}
+
+func (s *Service) fetchAttributions(ctx context.Context, articleID string) []AttributionInfo {
+	if s.pool == nil {
+		return []AttributionInfo{}
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT aa.role, aa."order", aa."isVisible", aa."consentStatus",
+		       u.id::text, u.name, u.username, u."logoUrl", u."isCertified"
+		FROM "ArticleAttribution" aa
+		JOIN "User" u ON u.id = aa."userId"
+		WHERE aa."articleId"=$1
+		ORDER BY aa."order" ASC`, articleID)
+	if err != nil {
+		return []AttributionInfo{}
+	}
+	defer rows.Close()
+	out := []AttributionInfo{}
+	for rows.Next() {
+		var role string
+		var order int32
+		var isVisible bool
+		var consentStatus string
+		var uid string
+		var name, username, logoUrl pgtype.Text
+		var isCertified bool
+		if err := rows.Scan(&role, &order, &isVisible, &consentStatus, &uid, &name, &username, &logoUrl, &isCertified); err != nil {
+			continue
+		}
+		out = append(out, AttributionInfo{
+			User: AuthorInfo{
+				ID: uid, Name: textPtr(name), Username: textPtr(username), LogoURL: textPtr(logoUrl), IsCertified: isCertified,
+			},
+			Role: role, Order: int(order), IsVisible: isVisible, ConsentStatus: consentStatus,
+		})
+	}
+	return out
+}
+
+func (s *Service) fetchCoAuthors(ctx context.Context, articleID string) []AuthorInfo {
+	if s.pool == nil {
+		return []AuthorInfo{}
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT u.id::text, u.name, u.username, u."logoUrl", u."isCertified"
+		FROM "_CoAuthors" ca
+		JOIN "User" u ON u.id = ca."B"
+		WHERE ca."A"=$1`, articleID)
+	if err != nil {
+		return []AuthorInfo{}
+	}
+	defer rows.Close()
+	out := []AuthorInfo{}
+	for rows.Next() {
+		var uid string
+		var name, username, logoUrl pgtype.Text
+		var isCertified bool
+		if err := rows.Scan(&uid, &name, &username, &logoUrl, &isCertified); err != nil {
+			continue
+		}
+		out = append(out, AuthorInfo{ID: uid, Name: textPtr(name), Username: textPtr(username), LogoURL: textPtr(logoUrl), IsCertified: isCertified})
+	}
+	return out
 }
 
 // Review approuve ou rejette un article soumis (RBAC media:review).
@@ -659,6 +790,8 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 		AccessGranted: true,
 		Author:        AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
 		Publication:   &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain)},
+		CoAuthors:     []AuthorInfo{},
+		Attributions:  []AttributionInfo{},
 	}
 }
 
