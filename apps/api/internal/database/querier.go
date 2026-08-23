@@ -124,6 +124,10 @@ type Querier interface {
 	GetFollowPrefs(ctx context.Context, userid pgtype.UUID) (GetFollowPrefsRow, error)
 	GetFollowedPersonalPublicationOwnerIDs(ctx context.Context, readerid pgtype.UUID) ([]string, error)
 	GetFollowingStateByAuthorIDs(ctx context.Context, arg GetFollowingStateByAuthorIDsParams) ([]GetFollowingStateByAuthorIDsRow, error)
+	CountUserReadingSessions(ctx context.Context, userid pgtype.UUID) (int32, error)
+	FindPersonalizedPosts(ctx context.Context, arg FindPersonalizedPostsParams) ([]FindPersonalizedPostsRow, error)
+	GetMutedWords(ctx context.Context, userid pgtype.UUID) ([]string, error)
+	GetUserEmbeddingText(ctx context.Context, id string) (string, error)
 	GetFreeSubscriberCount(ctx context.Context, publicationid string) (int32, error)
 	// Highlights & annotations : surlignage de passages d'articles, notes,
 	// visibilité publique, upvotes et commentaires d'annotation.

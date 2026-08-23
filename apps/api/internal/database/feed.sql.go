@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/pgvector/pgvector-go"
 )
 
 const findFollowingFeed = `-- name: FindFollowingFeed :many
@@ -721,6 +722,116 @@ func (q *Queries) GetReplyIDsForThought(ctx context.Context, parentid pgtype.Tex
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserEmbeddingText = `-- name: GetUserEmbeddingText :one
+SELECT COALESCE("embedding"::text, '')::text AS embedding_text FROM "User" WHERE id = $1
+`
+
+func (q *Queries) GetUserEmbeddingText(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, getUserEmbeddingText, id)
+	var embedding_text string
+	err := row.Scan(&embedding_text)
+	return embedding_text, err
+}
+
+const getMutedWords = `-- name: GetMutedWords :many
+SELECT word FROM "MutedWord" WHERE "userId" = $1
+`
+
+func (q *Queries) GetMutedWords(ctx context.Context, userid pgtype.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, getMutedWords, userid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var word string
+		if err := rows.Scan(&word); err != nil {
+			return nil, err
+		}
+		items = append(items, word)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const countUserReadingSessions = `-- name: CountUserReadingSessions :one
+SELECT COUNT(*)::int AS count FROM "ReadingSession" WHERE "userId" = $1
+`
+
+func (q *Queries) CountUserReadingSessions(ctx context.Context, userid pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countUserReadingSessions, userid)
+	var count int32
+	err := row.Scan(&count)
+	return count, err
+}
+
+const findPersonalizedPosts = `-- name: FindPersonalizedPosts :many
+SELECT p.id,
+       p.content,
+       p."authorId",
+       p."createdAt",
+       p."likeCount",
+       p."repostCount",
+       p."replyCount",
+       p."quotedArticleId",
+       (1 - (p."embedding" <=> $1::vector))::float8 AS sim_score,
+       EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400)::float8 AS freshness_score
+FROM "Post" p
+JOIN "User" u ON u.id = p."authorId"
+WHERE p."parentId" IS NULL
+  AND p."repostId" IS NULL
+  AND p."deletedAt" IS NULL
+  AND p."isDraft" = false
+  AND p."isHiddenByAuthor" = false
+  AND p."embedding" IS NOT NULL
+  AND u."isShadowbanned" = false
+  AND u."isSuspended" = false
+ORDER BY p."embedding" <=> $1::vector
+LIMIT $2 OFFSET $3
+`
+
+type FindPersonalizedPostsParams struct {
+	Embedding pgvector.Vector `json:"embedding"`
+	Limit     int32           `json:"limit"`
+	Offset    int32           `json:"offset"`
+}
+
+type FindPersonalizedPostsRow struct {
+	ID               string           `json:"id"`
+	Content          string           `json:"content"`
+	AuthorId         string           `json:"authorId"`
+	CreatedAt        pgtype.Timestamp `json:"createdAt"`
+	LikeCount        int32            `json:"likeCount"`
+	RepostCount      int32            `json:"repostCount"`
+	ReplyCount       int32            `json:"replyCount"`
+	QuotedArticleId  pgtype.Text      `json:"quotedArticleId"`
+	SimScore         float64          `json:"sim_score"`
+	FreshnessScore   float64          `json:"freshness_score"`
+}
+
+func (q *Queries) FindPersonalizedPosts(ctx context.Context, arg FindPersonalizedPostsParams) ([]FindPersonalizedPostsRow, error) {
+	rows, err := q.db.Query(ctx, findPersonalizedPosts, arg.Embedding, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FindPersonalizedPostsRow{}
+	for rows.Next() {
+		var i FindPersonalizedPostsRow
+		if err := rows.Scan(&i.ID, &i.Content, &i.AuthorId, &i.CreatedAt, &i.LikeCount, &i.RepostCount, &i.ReplyCount, &i.QuotedArticleId, &i.SimScore, &i.FreshnessScore); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
