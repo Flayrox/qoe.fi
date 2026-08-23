@@ -322,4 +322,79 @@ func TestConnectedCaptureFlow(t *testing.T) {
 	}
 }
 
+// TestReadingHistory vérifie GET /v1/me/reading-history : dédup par article
+// (garde la session la plus récente), tri décroissant et filtre « jours ».
+func TestReadingHistory(t *testing.T) {
+	ctx := context.Background()
+	userID, articleID, _, pubID, err := seedTracking(ctx, poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	svc := newTestService()
+
+	// Deuxième article (même publication) + un troisième pour le filtre « jours ».
+	article2 := "track_article2"
+	article3 := "track_article3"
+	for _, id := range []string{article2, article3} {
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime",
+			                        "completionRate", status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+			 VALUES ($1, 'Article '||$1, $1, '<p>Contenu</p>', true, 'PUBLIC', 4,
+			          0.5, 'PUBLISHED', $2, $3, now(), now(), `+vec512+`)`,
+			id, pubID, userID); err != nil {
+			t.Fatalf("insert article %s: %v", id, err)
+		}
+	}
+
+	// Sessions : article (SKIM puis READ_COMPLETE), article2 (une session), article3 (il y a 20 jours).
+	if _, err := svc.TrackReadingSession(ctx, userID, articleID, "feed", "SKIM", 40, 8, 5, strPtr("qoe.fi"), nil); err != nil {
+		t.Fatalf("TrackReadingSession(SKIM): %v", err)
+	}
+	if _, err := svc.TrackReadingSession(ctx, userID, articleID, "feed", "READ_COMPLETE", 100, 42, 8, strPtr("qoe.fi"), nil); err != nil {
+		t.Fatalf("TrackReadingSession(READ_COMPLETE): %v", err)
+	}
+	if _, err := svc.TrackReadingSession(ctx, userID, article2, "direct", "READ_PARTIAL", 60, 20, 5, nil, nil); err != nil {
+		t.Fatalf("TrackReadingSession(article2): %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "ReadingSession" (id, "userId", "articleId", source, status, "scrollDepth", "dwellSeconds", "createdAt")
+		 VALUES ('rs_old', $1::uuid, $2, 'direct', 'READ_PARTIAL', 10, 5, now() - interval '20 days')`,
+		userID, article3); err != nil {
+		t.Fatalf("insert vieille session: %v", err)
+	}
+
+	// 14 jours → seuls article + article2 (l'ancienne session est exclue).
+	items, err := svc.ReadingHistory(ctx, userID, 14)
+	if err != nil {
+		t.Fatalf("ReadingHistory(14): %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("ReadingHistory(14) = %d items, attendu 2", len(items))
+	}
+	// Tri décroissant : article2 (session la plus récente) en premier.
+	if items[0].Article.ID != article2 || items[0].Status != "READ_PARTIAL" {
+		t.Fatalf("premier item = %s (%s), attendu article2 READ_PARTIAL", items[0].Article.ID, items[0].Status)
+	}
+	// Dédup : l'article garde sa session READ_COMPLETE la plus récente (pas le SKIM).
+	second := items[1]
+	if second.Article.ID != articleID || second.Status != "READ_COMPLETE" || second.ScrollDepth != 100 || second.DwellSeconds != 42 {
+		t.Fatalf("second item = %s (%s), attendu article READ_COMPLETE 100/42", second.Article.ID, second.Status)
+	}
+	if second.Article.Publication == nil || second.Article.Publication.Name != "Publication Track" {
+		t.Fatalf("publication manquante ou erronée: %+v", second.Article.Publication)
+	}
+	if !second.CreatedAt.Valid {
+		t.Fatalf("createdAt non renseigné")
+	}
+
+	// 30 jours → l'article3 (session vieille de 20 jours) apparaît en plus.
+	items30, err := svc.ReadingHistory(ctx, userID, 30)
+	if err != nil {
+		t.Fatalf("ReadingHistory(30): %v", err)
+	}
+	if len(items30) != 3 {
+		t.Fatalf("ReadingHistory(30) = %d items, attendu 3", len(items30))
+	}
+}
+
 func strPtr(s string) *string { return &s }

@@ -1,8 +1,29 @@
 import { createClient } from '@qoe/supabase/server';
 import { prisma } from '@qoe/db/client';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import { BookOpen, Clock, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { routes } from '@qoe/config/routes';
+
+// ── Contrat de l'historique de lecture (GET /v1/me/reading-history) ─────────
+interface HistoryArticle {
+  id: string;
+  title: string;
+  slug: string;
+  imageUrl: string | null;
+  readingTime: number;
+  createdAt: string;
+  publication?: { name: string; slug?: string | null; subdomain?: string | null } | null;
+}
+interface HistorySession {
+  id: string;
+  source: string;
+  status: string;
+  scrollDepth: number;
+  dwellSeconds: number;
+  createdAt: string;
+  article: HistoryArticle;
+}
 
 export default async function ReadingHistoryPage() {
   const supabase = await createClient();
@@ -17,33 +38,65 @@ export default async function ReadingHistoryPage() {
     );
   }
 
-  const since = new Date(Date.now() - 14 * 24 * 3600 * 1000);
-  const sessions = await prisma.readingSession.findMany({
-    where: { userId: user.id, createdAt: { gte: since } },
-    include: {
-      article: {
-        select: {
-          id: true,
-          title: true,
-          slug: true,
-          imageUrl: true,
-          readingTime: true,
-          createdAt: true,
-          publication: { select: { name: true } },
+  const DAYS = 14;
+  let unique: HistorySession[];
+  try {
+    const res = await goFetch<{ sessions: HistorySession[] }>(
+      `/v1/me/reading-history?days=${DAYS}`
+    );
+    // Dédup par articleId, garde le plus récent (déjà fait côté Go — filet ici).
+    const seen = new Set<string>();
+    unique = res.sessions.filter((s) => {
+      if (seen.has(s.article.id)) return false;
+      seen.add(s.article.id);
+      return true;
+    });
+  } catch {
+    // Fallback Prisma (dev sans QOE_API_URL).
+    const since = new Date(Date.now() - DAYS * 24 * 3600 * 1000);
+    const sessions = await prisma.readingSession.findMany({
+      where: { userId: user.id, createdAt: { gte: since } },
+      include: {
+        article: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            imageUrl: true,
+            readingTime: true,
+            createdAt: true,
+            publication: { select: { name: true } },
+          },
         },
       },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 100,
-  });
-
-  // Dédup par articleId, garde le plus récent (historique perso seul)
-  const seen = new Set<string>();
-  const unique = sessions.filter((s) => {
-    if (seen.has(s.articleId)) return false;
-    seen.add(s.articleId);
-    return true;
-  });
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    const seen = new Set<string>();
+    unique = sessions
+      .map((s): HistorySession => ({
+        id: s.id,
+        source: s.source,
+        status: s.status,
+        scrollDepth: s.scrollDepth,
+        dwellSeconds: s.dwellSeconds,
+        createdAt: s.createdAt.toISOString(),
+        article: {
+          id: s.article.id,
+          title: s.article.title,
+          slug: s.article.slug,
+          imageUrl: s.article.imageUrl,
+          readingTime: s.article.readingTime,
+          createdAt: s.article.createdAt.toISOString(),
+          publication: s.article.publication ? { name: s.article.publication.name } : null,
+        },
+      }))
+      .filter((s) => {
+        if (seen.has(s.article.id)) return false;
+        seen.add(s.article.id);
+        return true;
+      });
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">

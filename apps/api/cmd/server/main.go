@@ -28,11 +28,11 @@ import (
 	"github.com/qoefi/api/internal/modules/events"
 	"github.com/qoefi/api/internal/modules/feed"
 	"github.com/qoefi/api/internal/modules/highlights"
+	"github.com/qoefi/api/internal/modules/home"
 	"github.com/qoefi/api/internal/modules/notifications"
 	"github.com/qoefi/api/internal/modules/oauth"
 	"github.com/qoefi/api/internal/modules/posts"
 	"github.com/qoefi/api/internal/modules/search"
-	"github.com/qoefi/api/internal/modules/home"
 	"github.com/qoefi/api/internal/modules/settings"
 	"github.com/qoefi/api/internal/modules/tracking"
 	"github.com/qoefi/api/internal/modules/users"
@@ -200,6 +200,10 @@ func newRouter(d RouterDeps) *chi.Mux {
 	oauthHandler.RegisterPublic(r)
 	r.With(authmw.RateLimit(rc, time.Minute, 30, false)).Post("/v1/oauth/token", oauthHandler.Token())
 
+	// Tracking de lecture : service partagé entre le groupe anonyme (lectures/
+	// impressions captées même sans session) et le groupe protégé (historique).
+	trackingHandler := tracking.NewHandler(tracking.NewService(pool))
+
 	// Toute l'API créateur exige un Bearer token valide (JWT OU clé API qoe_live_).
 	r.Group(func(protected chi.Router) {
 		// 600 req/min par utilisateur (usage créateur légitime, généreux).
@@ -233,6 +237,8 @@ func newRouter(d RouterDeps) *chi.Mux {
 		usersHandler := users.NewHandler(users.NewService(pool))
 		usersHandler.Register(protected)
 
+		trackingHandler.RegisterReader(protected)
+
 		oauthHandler.RegisterProtected(protected)
 	})
 
@@ -241,7 +247,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// visiteurs anonymes (userID vide, completionRate quand même mis à jour),
 	// comme le faisait l'ancien chemin Prisma. show-less reste refusé si non
 	// authentifié (401 côté handler).
-	trackingHandler := tracking.NewHandler(tracking.NewService(pool))
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
 		trackingHandler.RegisterProtected(pub)
 	})

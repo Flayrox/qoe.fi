@@ -3,6 +3,7 @@ package tracking
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/middleware"
@@ -21,6 +22,31 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Post("/v1/tracking/reading-session", h.track)
 	r.Post("/v1/tracking/feed-impression", h.feedImpression)
 	r.Post("/v1/feed/show-less", h.showLess)
+}
+
+// RegisterReader ajoute les routes du parcours lecteur connecté (auth requise).
+func (h *Handler) RegisterReader(r chi.Router) {
+	r.Get("/v1/me/reading-history", h.readingHistory)
+}
+
+func (h *Handler) readingHistory(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	days := 14
+	if v := r.URL.Query().Get("days"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			days = n
+		}
+	}
+	sessions, err := h.svc.ReadingHistory(r.Context(), userID, days)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "historique de lecture indisponible")
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"sessions": sessions, "count": len(sessions)})
 }
 
 type trackRequest struct {
