@@ -259,3 +259,80 @@ func pgTextPtr(s string) pgtype.Text {
 	}
 	return pgtype.Text{String: s, Valid: true}
 }
+
+// ReadingHistoryItem is one deduplicated reading session with its article.
+type ReadingHistoryItem struct {
+	ID           string                `json:"id"`
+	Source       string                `json:"source"`
+	Status       string                `json:"status"`
+	ScrollDepth  int32                 `json:"scrollDepth"`
+	DwellSeconds int32                 `json:"dwellSeconds"`
+	CreatedAt    pgtype.Timestamp      `json:"createdAt"`
+	Article      ReadingHistoryArticle `json:"article"`
+}
+
+type ReadingHistoryArticle struct {
+	ID          string                     `json:"id"`
+	Title       string                     `json:"title"`
+	Slug        string                     `json:"slug"`
+	ImageURL    pgtype.Text                `json:"imageUrl"`
+	ReadingTime int32                      `json:"readingTime"`
+	CreatedAt   pgtype.Timestamp           `json:"createdAt"`
+	Publication *ReadingHistoryPublication `json:"publication"`
+}
+
+type ReadingHistoryPublication struct {
+	Name      string      `json:"name"`
+	Slug      string      `json:"slug"`
+	Subdomain pgtype.Text `json:"subdomain"`
+}
+
+// ReadingHistory mirrors the Prisma query of apps/core/src/app/(reader)/history/page.tsx:
+// sessions des N derniers jours, dédupliquées par article (la plus récente), triées par date.
+func (s *Service) ReadingHistory(ctx context.Context, userID string, days int) ([]ReadingHistoryItem, error) {
+	if days < 1 {
+		days = 14
+	}
+	if days > 30 {
+		days = 30
+	}
+	since := time.Now().AddDate(0, 0, -days)
+	rows, err := s.pool.Query(ctx, `
+		SELECT t.id, t.source, t.status, t."scrollDepth", t."dwellSeconds", t."createdAt",
+		       a.id, a.title, a.slug, a."imageUrl", a."readingTime", a."createdAt",
+		       p.name, p.slug, p.subdomain
+		FROM (
+			SELECT DISTINCT ON (rs."articleId") rs.id, rs.source, rs.status, rs."scrollDepth", rs."dwellSeconds", rs."createdAt", rs."articleId"
+			FROM "ReadingSession" rs
+			WHERE rs."userId" = $1 AND rs."createdAt" >= $2
+			ORDER BY rs."articleId", rs."createdAt" DESC
+		) t
+		JOIN "Article" a ON a.id = t."articleId"
+		LEFT JOIN "Publication" p ON p.id = a."publicationId"
+		ORDER BY t."createdAt" DESC
+		LIMIT 100
+	`, toUUID(userID), since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []ReadingHistoryItem{}
+	for rows.Next() {
+		var it ReadingHistoryItem
+		var pubName, pubSlug pgtype.Text
+		var pubSubdomain pgtype.Text
+		if err := rows.Scan(
+			&it.ID, &it.Source, &it.Status, &it.ScrollDepth, &it.DwellSeconds, &it.CreatedAt,
+			&it.Article.ID, &it.Article.Title, &it.Article.Slug, &it.Article.ImageURL, &it.Article.ReadingTime, &it.Article.CreatedAt,
+			&pubName, &pubSlug, &pubSubdomain,
+		); err != nil {
+			return nil, err
+		}
+		if pubName.Valid {
+			it.Article.Publication = &ReadingHistoryPublication{Name: pubName.String, Slug: pubSlug.String, Subdomain: pubSubdomain}
+		}
+		items = append(items, it)
+	}
+	return items, rows.Err()
+}
