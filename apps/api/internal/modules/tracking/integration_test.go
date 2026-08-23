@@ -271,4 +271,55 @@ func TestTrackShowLess(t *testing.T) {
 	}
 }
 
+// TestConnectedCaptureFlow simule le parcours d'un lecteur CONNECTÉ complet et
+// vérifie que les données arrivent réellement en base : ReadingSession (statuts
+// SKIM puis READ_COMPLETE), FeedImpression et ContentFeedback (show-less).
+func TestConnectedCaptureFlow(t *testing.T) {
+	ctx := context.Background()
+	userID, articleID, postID, _, err := seedTracking(ctx, poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	svc := newTestService()
+
+	// 1. Impressions (batch) → FeedImpression en base.
+	if _, err := svc.TrackFeedImpression(ctx, userID, []FeedImpressionItem{
+		{ItemType: "ARTICLE", ItemID: articleID, Position: 0},
+		{ItemType: "THOUGHT", ItemID: postID, Position: 1, IsDiscovery: true},
+	}); err != nil {
+		t.Fatalf("TrackFeedImpression: %v", err)
+	}
+	nImp, _ := countRows(ctx, poolTest, `SELECT COUNT(*) FROM "FeedImpression" WHERE "userId"=$1::uuid`, userID)
+	if nImp != 2 {
+		t.Fatalf("FeedImpression = %d, attendu 2", nImp)
+	}
+	var disc bool
+	if err := poolTest.QueryRow(ctx, `SELECT "isDiscovery" FROM "FeedImpression" WHERE "itemId"=$1 AND "userId"=$2::uuid`, postID, userID).Scan(&disc); err != nil || !disc {
+		t.Fatalf("isDiscovery de l'impression pensée = %v (err=%v), attendu true", disc, err)
+	}
+
+	// 2. Sessions de lecture : SKIM puis READ_COMPLETE → ReadingSession en base.
+	if _, err := svc.TrackReadingSession(ctx, userID, articleID, "feed", "SKIM", 85, 9, 5, strPtr("qoe.fi"), nil); err != nil {
+		t.Fatalf("TrackReadingSession(SKIM): %v", err)
+	}
+	if _, err := svc.TrackReadingSession(ctx, userID, articleID, "feed", "READ_COMPLETE", 100, 42, 8, strPtr("qoe.fi"), nil); err != nil {
+		t.Fatalf("TrackReadingSession(READ_COMPLETE): %v", err)
+	}
+	for _, st := range []string{"SKIM", "READ_COMPLETE"} {
+		n, _ := countRows(ctx, poolTest, `SELECT COUNT(*) FROM "ReadingSession" WHERE "userId"=$1::uuid AND status=$2`, userID, st)
+		if n != 1 {
+			t.Fatalf("ReadingSession status=%s = %d, attendu 1", st, n)
+		}
+	}
+
+	// 3. « Voir moins » (pensée) → ContentFeedback en base.
+	if _, _, err := svc.TrackShowLess(ctx, userID, "", postID); err != nil {
+		t.Fatalf("TrackShowLess: %v", err)
+	}
+	nCf, _ := countRows(ctx, poolTest, `SELECT COUNT(*) FROM "ContentFeedback" WHERE "userId"=$1::uuid AND "thoughtId"=$2 AND type='SHOW_LESS'`, userID, postID)
+	if nCf != 1 {
+		t.Fatalf("ContentFeedback = %d, attendu 1", nCf)
+	}
+}
+
 func strPtr(s string) *string { return &s }
