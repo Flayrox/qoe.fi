@@ -235,4 +235,16 @@ test.describe('Capture du feed (connecté)', () => {
     });
     await expect(page.getByText('Aucune lecture ces 14 derniers jours.')).toHaveCount(0);
   });
+
+  test('la page Réglages charge ses préférences via les endpoints Go', async ({ page }) => {
+    await applySessionCookie(page.context());
+
+    // La page /settings appelle getAccountSettingsAction → 4 endpoints Go
+    // (/v1/me, /v1/settings/preferences, /v1/notifications/preferences,
+    // /v1/me/account-deletion-request). Si l'un échoue, elle redirige vers
+    // /login — l'assertion ci-dessous prouve que le bundle Go répond.
+    await page.goto('/settings', { waitUntil: 'networkidle' });
+    await expect(page.getByText('Profil public').first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('Apparence & lecture').first()).toBeVisible({ timeout: 10_000 });
+  });
 });
