@@ -8,15 +8,21 @@
 // accepté par le backend Go (signature HS256/JWKS) et dbUser est résolu
 // côté app → le menu « Voir moins » des pensées est câblé.
 //
-// Vérifie que « Voir moins de contenu comme ça » part réellement au
-// navigateur (POST /api/feed/show-less → Go) et écrit bien une ligne
-// ContentFeedback en base (assertion directe en SQL via pg).
+// Vérifie deux parcours connectés de bout en bout (navigateur → Next →
+// Go → DB) :
+//   1. « Voir moins de contenu comme ça » (menu trois points d'une pensée)
+//      part réellement au navigateur (POST /api/feed/show-less → Go, 200)
+//      et écrit bien une ligne ContentFeedback en base (assertion pg).
+//   2. Une lecture réelle au navigateur (page article) est captée
+//      (POST /api/analytics/reading-session → Go, 200, ligne ReadingSession
+//      en base) et la page « Historique » la rend via
+//      GET /v1/me/reading-history (Go).
 //
 // Prérequis : Supabase local (:54321) + qoe-server Go (QOE_API_URL) +
 // base seedée — comme public-feed-capture.spec.ts.
 // =====================================================================
 
-import { test, expect } from '@playwright/test';
+import { test, expect, type BrowserContext } from '@playwright/test';
 import { Client } from 'pg';
 import fs from 'fs';
 import path from 'path';
@@ -44,9 +50,30 @@ const EMAIL = `e2e.connected.${Date.now()}@qoe.fi`;
 const PASSWORD = 'e2e-pass-123!';
 
 test.describe('Capture du feed (connecté)', () => {
+  // Mode serial : tout le describe tourne sur UN seul worker, beforeAll une
+  // seule fois — évite la collision de username entre deux workers parallèles.
+  test.describe.configure({ mode: 'serial' });
+
   let userId = '';
   let sessionCookieValue = '';
   let db: Client | null = null;
+
+  // Pose la session réelle (purge d'abord tout cookie sb-* existant — y
+  // compris le mock d'auth.setup.ts, dont le token serait rejeté par le Go).
+  async function applySessionCookie(context: BrowserContext): Promise<void> {
+    await context.clearCookies();
+    await context.addCookies([
+      {
+        name: COOKIE_NAME,
+        value: sessionCookieValue,
+        domain: 'localhost',
+        path: '/',
+        httpOnly: true,
+        secure: false,
+        sameSite: 'Lax',
+      },
+    ]);
+  }
 
   test.beforeAll(async () => {
     expect(SUPABASE_URL, 'NEXT_PUBLIC_SUPABASE_URL requis').toBeTruthy();
@@ -120,22 +147,7 @@ test.describe('Capture du feed (connecté)', () => {
       if (res.url().includes('/api/feed/show-less')) showLessResponses.push(res.status());
     });
 
-    // Session réelle (on purge d'abord tout cookie sb-* existant — y compris
-    // le mock d'auth.setup.ts, dont le token serait rejeté par le Go).
-    const context = page.context();
-    await context.clearCookies();
-    await context.addCookies([
-      {
-        name: COOKIE_NAME,
-        value: sessionCookieValue,
-        domain: 'localhost',
-        path: '/',
-        httpOnly: true,
-        secure: false,
-        sameSite: 'Lax',
-      },
-    ]);
-
+    await applySessionCookie(page.context());
     await page.goto('/', { waitUntil: 'networkidle' });
 
     // 1. Le feed a rendu des cartes.
@@ -171,5 +183,56 @@ test.describe('Capture du feed (connecté)', () => {
         { timeout: 20_000 }
       )
       .toBeGreaterThan(0);
+  });
+
+  test('la page Historique rend les lectures captées par le navigateur via l’endpoint Go', async ({
+    page,
+  }) => {
+    await applySessionCookie(page.context());
+
+    // Un article public seedé, pour une lecture déterministe (le feed est
+    // stochastique — on ne dépend pas de sa composition).
+    const { rows } = await db!.query<{ slug: string }>(
+      `SELECT slug FROM "Article"
+       WHERE status = 'PUBLISHED' AND published = true AND visibility = 'PUBLIC'
+       ORDER BY "createdAt" DESC LIMIT 1`
+    );
+    const slug = rows[0]?.slug;
+    expect(slug, 'un article public seedé est requis').toBeTruthy();
+
+    // 1. Lecteur neuf → historique vide (état initial).
+    await page.goto('/history', { waitUntil: 'networkidle' });
+    await expect(page.getByText('Aucune lecture ces 14 derniers jours.')).toBeVisible({
+      timeout: 30_000,
+    });
+
+    // 2. Lire un article au navigateur (page autonome) → la session de
+    //    lecture part au démontage (sendBeacon → Go, 200) et écrit en base.
+    await page.goto(`/article/${slug}`, { waitUntil: 'networkidle' });
+    await expect(page.locator('#article-content')).toBeVisible({ timeout: 20_000 });
+
+    // Quitter la page article → unmount → sendBeacon de la session de lecture.
+    await page.goto('/history', { waitUntil: 'networkidle' });
+    await expect
+      .poll(
+        async () => {
+          const { rows: r } = await db!.query<{ n: number }>(
+            `SELECT COUNT(*)::int AS n FROM "ReadingSession" WHERE "userId" = $1`,
+            [userId]
+          );
+          return r[0].n;
+        },
+        { timeout: 30_000 }
+      )
+      .toBeGreaterThan(0);
+
+    // 3. La page Historique (GET /v1/me/reading-history, Go) rend la lecture :
+    //    on recharge pour reprendre l'état après l'écriture, l'état vide a
+    //    disparu et le lien de l'article lu est présent.
+    await page.reload({ waitUntil: 'networkidle' });
+    await expect(page.locator(`a[href*="/article/${slug}"]`).first()).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByText('Aucune lecture ces 14 derniers jours.')).toHaveCount(0);
   });
 });
