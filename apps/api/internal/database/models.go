@@ -602,6 +602,25 @@ type CollaborationRequest struct {
 	UpdatedAt           pgtype.Timestamp `json:"updatedAt"`
 }
 
+type ContentFeedback struct {
+	ID        string           `json:"id"`
+	UserId    pgtype.UUID      `json:"userId"`
+	ArticleId pgtype.Text      `json:"articleId"`
+	ThoughtId pgtype.Text      `json:"thoughtId"`
+	Type      string           `json:"type"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
+type FeedImpression struct {
+	ID          string           `json:"id"`
+	UserId      pgtype.UUID      `json:"userId"`
+	ItemType    string           `json:"itemType"`
+	ItemId      string           `json:"itemId"`
+	Position    int32            `json:"position"`
+	IsDiscovery bool             `json:"isDiscovery"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+}
+
 type Follow struct {
 	ID            string           `json:"id"`
 	ReaderId      pgtype.UUID      `json:"readerId"`
