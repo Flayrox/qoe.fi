@@ -32,6 +32,7 @@ import (
 	"github.com/qoefi/api/internal/modules/oauth"
 	"github.com/qoefi/api/internal/modules/posts"
 	"github.com/qoefi/api/internal/modules/search"
+	"github.com/qoefi/api/internal/modules/home"
 	"github.com/qoefi/api/internal/modules/settings"
 	"github.com/qoefi/api/internal/modules/users"
 	"github.com/qoefi/api/internal/modules/webhooks"
@@ -176,6 +177,10 @@ func newRouter(d RouterDeps) *chi.Mux {
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
 		highlightsHandler.RegisterPublic(pub)
 	})
+
+	// Home widgets publics (systemConfig, trends, promos) — Go-only, cache 1h côté Next.
+	homeHandler := home.NewHandler(home.NewService(pool))
+	homeHandler.RegisterPublic(r)
 
 	// Settings créateur : sous-domaine (public) + profil/onboarding/clés API (protégé).
 	settingsHandler := settings.NewHandler(settings.NewService(pool))

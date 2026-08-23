@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
 import { prisma } from '@qoe/db/client';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 
 export const getRequestDbUser = cache(async (id: string) => {
   let dbUser = await prisma.user.findUnique({
@@ -58,8 +59,12 @@ export const getRequestDbUser = cache(async (id: string) => {
 
 export const getCachedSystemConfig = unstable_cache(
   async () => {
-    const configs = await prisma.systemConfig.findMany();
-    return Object.fromEntries(configs.map((c) => [c.key, c.value]));
+    try {
+      return await goFetch<Record<string, string>>('/v1/home/config');
+    } catch {
+      const configs = await prisma.systemConfig.findMany();
+      return Object.fromEntries(configs.map((c) => [c.key, c.value]));
+    }
   },
   ['system-config'],
   {
@@ -136,22 +141,44 @@ export const getCachedStandardArticles = unstable_cache(
 );
 
 export const getCachedTrends = unstable_cache(
-  async () =>
-    prisma.trend.findMany({
-      orderBy: { count: 'desc' },
-      take: 5,
-    }),
+  async () => {
+    try {
+      return await goFetch<Array<{ id: string; hashtag: string; count: number }>>(
+        '/v1/home/trends?limit=5'
+      );
+    } catch {
+      return prisma.trend.findMany({
+        orderBy: { count: 'desc' },
+        take: 5,
+      });
+    }
+  },
   ['home-widget-trends'],
   { revalidate: 120 }
 );
 
 export const getCachedPromos = unstable_cache(
-  async () =>
-    prisma.partnerPromo.findMany({
-      where: { isActive: true },
-      orderBy: { createdAt: 'desc' },
-      take: 3,
-    }),
+  async () => {
+    try {
+      return await goFetch<
+        Array<{
+          id: string;
+          title: string;
+          description: string;
+          ctaText: string | null;
+          ctaUrl: string | null;
+          imageUrl: string | null;
+          isActive: boolean;
+        }>
+      >('/v1/home/promos?limit=3');
+    } catch {
+      return prisma.partnerPromo.findMany({
+        where: { isActive: true },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+      });
+    }
+  },
   ['home-widget-promos'],
   { revalidate: 300 }
 );
