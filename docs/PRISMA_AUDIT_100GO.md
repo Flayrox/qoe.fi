@@ -1,71 +1,123 @@
 # Audit Prisma restant — parcours lecteur (apps/core) → 100% Go
 
-*Date : 2026-08-23 — état après `fc3f772` (moteur + réhydratation Go du feed « Pour vous »).*
+*Date : 2026-08-23 — état après `e78c901` (bundle home Go + historique de lecture Go + e2e connecté).*
 
 ## Résumé
 
-Le parcours lecteur est déjà **très majoritairement Go** : la capture (reading-session,
-feed-impression, show-less), les widgets home (systemConfig/trends/promos), le moteur du
-feed « Pour vous » et sa réhydratation sont Go-only. Il reste **11 fichiers** dans
-`apps/core/src` qui touchent encore `prisma.` (~49 occurrences), concentrés sur **deux
-surfaces** : la page d'accueil lecteur (`home/page.tsx`, 13) et les actions de réglages
-(`settings/actions.ts`, 16). Le reste est du « plomberie » de pages (bibliothèque,
-historique, surlignages, onboarding, billing, login) dont **les endpoints Go existent déjà**
-pour la plupart.
+Le parcours lecteur est **quasi intégralement Go** sur son chemin nominal : capture
+(reading-session, feed-impression, show-less), widgets home (config/trends/promos),
+**moteur + réhydratation du feed « Pour vous »**, **bundle complet de la page d'accueil**
+(`GET /v1/home/feed` : Suivis, Explorer, Recommandé, bookmarks, compteurs, activité,
+mots masqués, à la une) et **historique de lecture** (`GET /v1/me/reading-history`).
 
-## Cartographie par fichier
+Il reste **10 fichiers** dans `apps/core/src` qui touchent encore `prisma.` (~33
+occurrences **hors fallbacks dev**), concentrés sur **deux surfaces** :
+`settings/actions.ts` (16) et `cached-queries.ts` (8). Le reste est de la plomberie de
+pages (bibliothèque, surlignages, onboarding, billing, login, layout) dont **la plupart
+des endpoints Go existent déjà**.
 
-| Fichier (apps/core/src) | Occurrences | Modèles Prisma | Endpoint Go existant | Priorité |
-|---|---|---|---|---|
-| `app/(reader)/home/page.tsx` | 13 | follows, publication, article, thought, bookmark, highlight, mutedWord | `/v1/feed` (following), `/v1/feed/trending`, `/v1/feed/personalized`+`/v1/feed/hydrate`, `/v1/bookmarks`, `/v1/me/highlights(+count)` | **P0** |
-| `app/(reader)/settings/actions.ts` | 16 | user, userSettings, notificationPreference, accountDeletionRequest, article, thought, bookmark, highlight, follows | module `settings` Go (`/v1/settings/*`), mais pas toutes ces actions | **P1** |
-| `lib/cached-queries.ts` | 8 | user, systemConfig, article, trend, partnerPromo | `/v1/home/config`, `/v1/home/trends`, `/v1/home/promos` (fallback prisma dev) | **P1** |
-| `app/(reader)/history/page.tsx` + `api/reading-history/route.ts` | 2 | readingSession | analytics Go (créateur) ; pas d'endpoint « mon historique » lecteur | P2 |
-| `app/(reader)/library/page.tsx` | 1 | bookmark | `GET /v1/bookmarks` | P2 |
-| `app/(reader)/highlights/page.tsx` | 1 | highlight | `GET /v1/me/highlights` | P2 |
-| `app/(reader)/onboarding/page.tsx` | 1 | user | users/settings Go | P2 |
-| `app/(reader)/billing/page.tsx` | 2 | subscriber, user | module billing Go | P2 |
-| `app/layout.tsx` | 1 | userSettings | `/v1/settings/*` | P2 |
-| `app/login/actions.ts` | 3 | user, follows, mutedWord | auth + settings/posts Go | P2 |
+> ⚠️ Les 13 occurrences de `home/page.tsx` et l'occurrence de `history/page.tsx` sont
+> uniquement dans les **fallbacks Prisma de dev** (chemin nominal 100 % Go) — elles sont
+> volontairement conservées pour que l'app fonctionne sans `QOE_API_URL`.
 
-## Détail P0 — `home/page.tsx` (le vrai chantier restant du lecteur)
+## ✅ Ce qui est fait (chantiers récents)
 
-La page d'accueil lecteur construit ses onglets (Suivis, Pour vous, Explorer) via Prisma :
+| Commit | Chantier |
+|---|---|
+| `b325cd0` | `GET /v1/home/feed` (bundle home) + `home/page.tsx` 100 % Go (fallback Prisma dev) — **P0 éliminé** |
+| `e64f2c3` | `GET /v1/me/reading-history` (dédup par article) + `history/page.tsx` + `reading-history/route.ts` |
+| `e78c901` | e2e connecté : show-less écrit en base (vrai user Supabase) + Historique rendu via le Go |
 
-1. `follows.findMany` → publications suivies du lecteur (déjà lisibles via `/v1/feed`).
-2. `publication.findMany` → profils suivis pour la sidebar.
-3. `article.findMany` ×3 → articles « suivis », « recommandés », « découverte ».
-4. `thought.findMany` ×3 → pensées correspondantes.
-5. `bookmark.findMany` ×2 + `highlight.count/findMany` → compteurs de la bibliothèque.
-6. `mutedWord.findMany` → mots masqués (le moteur Go les lit déjà en base ; ici usage UI).
+## Cartographie par fichier (état actuel)
 
-**Recommandation** : basculer les onglets sur les endpoints Go existants
-(`/v1/feed` pour Suivis, moteur+hydrate pour Pour vous, `/v1/bookmarks` +
-`/v1/me/highlights/count` pour les compteurs). Le module home Go peut exposer un
-`GET /v1/home/feed?tab=following|discover` pour regrouper (publications suivies +
-articles/pensées) en une requête. Effort : moyen (1–2 jours), risque UI faible car les
-shapes (FeedSlice, HydrateArticle) sont déjà consommés ailleurs.
+| Fichier (apps/core/src) | Occ. | Modèles Prisma | Endpoint Go existant | Écart | Priorité |
+|---|---|---|---|---|---|
+| `app/(reader)/settings/actions.ts` | 16 | user, userSettings, notificationPreference, accountDeletionRequest, article, thought, bookmark, highlight, follows | `PATCH /v1/settings/profile`, `GET/PATCH /v1/notifications/preferences`, `POST /v1/settings/onboarding` | prefs lecteur (`userSettings`), suppression de compte, profil lecteur (`dbUser`) | **P1** |
+| `lib/cached-queries.ts` | 8 | user, systemConfig, article, trend, partnerPromo | `GET /v1/home/config`, `GET /v1/home/trends`, `GET /v1/home/promos` | `dbUser` (profil lecteur) sans endpoint Go public | **P1** |
+| `app/login/actions.ts` | 3 | user, follows, mutedWord | `GET /v1/users/me` (créateur, API scope) | profil lecteur + compteurs | P2 |
+| `app/(reader)/billing/page.tsx` | 2 | subscriber, user | — (module billing = webhooks seuls) | **aucun endpoint lecteur** | P3 |
+| `app/layout.tsx` | 1 | userSettings | — | prefs lecteur (même gap que settings) | P1 |
+| `app/(reader)/onboarding/page.tsx` | 1 | user | `POST /v1/settings/onboarding` | profil lecteur | P2 |
+| `app/(reader)/library/page.tsx` | 1 | bookmark | `GET /v1/bookmarks` | — (brancher) | P2 |
+| `app/(reader)/highlights/page.tsx` | 1 | highlight | `GET /v1/me/highlights` (+ `/count`) | — (brancher) | P2 |
+| `app/(reader)/home/page.tsx` | 13 | (fallback dev) | `GET /v1/home/feed` | — | dev only |
+| `app/(reader)/history/page.tsx` | 1 | (fallback dev) | `GET /v1/me/reading-history` | — | dev only |
 
-## Détail P1 — `settings/actions.ts`
+## Plan d'implémentation priorisé
 
-Server actions de réglages du lecteur : profil (`user`), préférences (`userSettings`),
-notifications (`notificationPreference`), suppression de compte
-(`accountDeletionRequest`) + quelques reads (article/thought/bookmark/highlight/follows).
-Le module Go `settings` couvre déjà `/v1/settings/*` (sous-domaine, profil créateur) ;
-reste à exposer les endpoints lecteur (prefs + notifications + suppression de compte).
-Effort : moyen.
+### P1 — `settings/actions.ts` + `layout.tsx` (le vrai chantier restant)
 
-## Détail P1 — `cached-queries.ts`
+Server actions de réglages du lecteur + lecture des prefs dans le layout. Mapping :
 
-`dbUser` (findUnique + upsert d'email), article « à la une », et fallbacks dev pour
-systemConfig/trends/promos (déjà Go, fallback prisma si QOE_API_URL absent). Effort :
-faible ; ne garder le fallback prisma qu'en dev.
+1. **Profil** (`user.update`/reads) → `PATCH /v1/settings/profile` (existe).
+2. **Notifications** (`notificationPreference`) → `GET/PATCH /v1/notifications/preferences` (existe).
+3. **Onboarding** → `POST /v1/settings/onboarding` (existe).
+4. **Reads annexes** (article/thought/bookmark/highlight/follows pour les compteurs de la
+   page réglages) → endpoints existants (`/v1/bookmarks`, `/v1/me/highlights/count`,
+   `/v1/feed` pour les suivis).
+5. **À créer côté Go** (gaps réels) :
+   - `GET/PATCH /v1/settings/preferences` → `userSettings` du lecteur (thème, affichage,
+     langue…) — module `settings` Go.
+   - `POST /v1/me/account-deletion-request` → `accountDeletionRequest` (requête de
+     suppression, audit trail) — module `settings` ou `users` Go.
+   - `GET /v1/me` → profil lecteur complet (id, email, username, name, role, prefs,
+     compteurs follows/muted) pour remplacer `getRequestDbUser` (Prisma) — module
+     `users` Go (le `/v1/users/me` actuel est créateur + API scope).
+
+**Effort** : moyen (0,5–1 j Go + 0,5 j front). **Risque** : faible si on garde le pattern
+« Go en primaire, fallback Prisma dev » éprouvé sur home/history.
+
+### P1 — `cached-queries.ts`
+
+1. `dbUser` → `GET /v1/me` (nouveau, cf. ci-dessus) — plus d'upsert d'email côté
+   `getRequestDbUser` (le signup Supabase/GoTrue est la source de vérité).
+2. `systemConfig` → `GET /v1/home/config` (existe, public).
+3. `article` « à la une » → déjà dans `/v1/home/feed` (`featuredArticle`) — retirer le
+   `findFirst` séparé.
+4. `trend` → `GET /v1/home/trends` (existe). `partnerPromo` → `GET /v1/home/promos`
+   (existe). **Ne garder le fallback Prisma qu'en dev** (déjà le cas).
+
+**Effort** : faible (0,5 j).
+
+### P2 — pages secondaires (brancher le front sur des endpoints existants)
+
+| Page | Endpoint Go | Note |
+|---|---|---|
+| `library/page.tsx` | `GET /v1/bookmarks` | mapping → shape carte existante |
+| `highlights/page.tsx` | `GET /v1/me/highlights` (+ `/count`) | idem |
+| `onboarding/page.tsx` | `POST /v1/settings/onboarding` + `GET /v1/me` | la page écrit le profil + complète l'onboarding |
+| `login/actions.ts` | `GET /v1/me` (+ compteurs follows/muted via `/v1/me`) | les 3 prisma tombent avec l'endpoint profil |
+
+**Effort** : faible par page (0,25–0,5 j chacune).
+
+### P3 — `billing/page.tsx` (vrai gap : aucun endpoint Go lecteur)
+
+Le module billing Go ne gère que les webhooks Stripe/Supabase. La page lecteur lit
+`subscriber` (abonnement courant) + `user` (wallet). Deux options :
+- **Court terme** : garder Prisma sur cette page (isolée, peu critique).
+- **Moyen terme** : ajouter `GET /v1/me/billing` (subscription + wallet + historique de
+  facturation) dans le module billing Go.
+
+**Effort** : moyen (0,5–1 j Go + 0,5 j front). **Non bloquant** pour le 100 % Go lecteur.
+
+## Guide de vérification (pattern à répliquer)
+
+1. **Go d'abord, fallback dev ensuite** : `goFetch<T>` en primaire, `try/catch` → fallback
+   Prisma si `QOE_API_URL` absent (pattern `home/page.tsx`).
+2. **Test d'intégration Go** sur chaque nouvel endpoint (testcontainers, comme
+   `TestHomeFeed` / `TestReadingHistory` / `TestHydrate`).
+3. **Vérif navigateur** : étendre `public-feed-capture.spec.ts` (anonyme) et
+   `connected-feed-capture.spec.ts` (connecté, vrai user Supabase seedé).
+4. **Vérif live** : rebuild + relance du `qoe-server` (launchd `com.qoefi.api-server`),
+   curl sur la route, puis rendu dans l'app.
 
 ## Conclusion
 
-- **~90 % du parcours lecteur est déjà Go** (lecture, impressions, show-less, widgets
-  home, moteur + réhydratation du feed « Pour vous »).
-- **Le gros morceau restant est `home/page.tsx`** (onglets Suivis/Explorer + compteurs),
-  suivi de `settings/actions.ts`.
-- Beaucoup de pages secondaires (bibliothèque, surlignages, historique, onboarding,
-  billing) ont déjà leur endpoint Go ; il ne reste qu'à **brancher le frontend dessus**.
+- **Le chemin nominal du lecteur est déjà 100 % Go** (moteur, réhydratation, home,
+  historique, capture). Les 14 occurrences home/history restantes sont des fallbacks dev.
+- **Reste réel à porter : `settings/actions.ts` (16) + `cached-queries.ts` (8)** — il faut
+  créer 3 endpoints Go (`GET /v1/me`, `GET/PATCH /v1/settings/preferences`,
+  `POST /v1/me/account-deletion-request`) puis brancher le front ; le reste (library,
+  highlights, onboarding, login) se branche sur des endpoints **déjà existants**.
+- **`billing/page.tsx` est le seul vrai gap d'endpoint** (aucun Go lecteur) — à traiter
+  en P3 ou à laisser en Prisma.
