@@ -2,9 +2,11 @@ package users
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 )
@@ -21,6 +23,65 @@ func (h *Handler) Register(r chi.Router) {
 	r.Route("/v1/users", func(r chi.Router) {
 		r.Get("/search", h.search)
 	})
+	// Profil lecteur (auth requise) — GET /v1/me, PATCH /v1/me/profile.
+	r.Get("/v1/me", h.me)
+	r.Patch("/v1/me/profile", h.updateProfile)
+}
+
+// GET /v1/me — profil lecteur complet (remplace getRequestDbUser Prisma).
+func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	profile, err := h.svc.Profile(r.Context(), userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.NotFound(w, "Utilisateur introuvable")
+			return
+		}
+		response.Internal(w)
+		return
+	}
+	response.OK(w, profile)
+}
+
+type profilePatch struct {
+	Name           *string `json:"name"`
+	Username       *string `json:"username"`
+	OnboardingText *string `json:"onboardingText"`
+	LogoURL        *string `json:"logoUrl"`
+	Pronouns       *string `json:"pronouns"`
+}
+
+// PATCH /v1/me/profile — mise à jour du profil lecteur (profil réglages).
+func (h *Handler) updateProfile(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	var patch profilePatch
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	profile, err := h.svc.UpdateProfile(r.Context(), userID,
+		deref(patch.Name), deref(patch.Username), deref(patch.OnboardingText),
+		deref(patch.LogoURL), deref(patch.Pronouns))
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	response.OK(w, profile)
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 func (h *Handler) search(w http.ResponseWriter, r *http.Request) {

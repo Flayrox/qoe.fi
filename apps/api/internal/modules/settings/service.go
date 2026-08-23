@@ -12,7 +12,9 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
@@ -413,4 +415,183 @@ func textFromAny(v any) (pgtype.Text, error) {
 		return pgtype.Text{}, errors.New("champ texte invalide")
 	}
 	return textFromString(s), nil
+}
+
+// ── Préférences lecteur (userSettings) + demande de suppression ───────────
+
+// UserSettings est la ligne userSettings du lecteur (GET/PATCH /v1/settings/preferences).
+type UserSettings struct {
+	ID                        string `json:"id"`
+	UserID                    string `json:"userId"`
+	ProfileVisibility         string `json:"profileVisibility"`
+	AllowMentions             bool   `json:"allowMentions"`
+	AllowCollaborationInvites bool   `json:"allowCollaborationInvites"`
+	ShowSensitiveContent      bool   `json:"showSensitiveContent"`
+	AutoplayMedia             bool   `json:"autoplayMedia"`
+	ReduceMotion              bool   `json:"reduceMotion"`
+	HighContrast              bool   `json:"highContrast"`
+	FontScale                 int32  `json:"fontScale"`
+	DefaultFeed               string `json:"defaultFeed"`
+}
+
+const (
+	defaultUserSettingsProfileVisibility = "PUBLIC"
+	defaultUserSettingsFontScale         = 100
+	defaultUserSettingsDefaultFeed       = "FOLLOWING"
+)
+
+func scanUserSettings(row pgx.Row) (UserSettings, error) {
+	var s UserSettings
+	err := row.Scan(&s.ID, &s.UserID, &s.ProfileVisibility, &s.AllowMentions,
+		&s.AllowCollaborationInvites, &s.ShowSensitiveContent, &s.AutoplayMedia,
+		&s.ReduceMotion, &s.HighContrast, &s.FontScale, &s.DefaultFeed)
+	return s, err
+}
+
+// GetUserSettings lit les préférences du lecteur, en créant la ligne par
+// défaut si absente (équivalent de l'upsert Prisma de getAccountSettingsAction).
+func (s *Service) GetUserSettings(ctx context.Context, userID string) (UserSettings, error) {
+	row := s.pool.QueryRow(ctx, `
+		SELECT id, "userId", "profileVisibility", "allowMentions", "allowCollaborationInvites",
+		       "showSensitiveContent", "autoplayMedia", "reduceMotion", "highContrast",
+		       "fontScale", "defaultFeed"
+		FROM "UserSettings" WHERE "userId" = $1`, toUUID(userID))
+	settings, err := scanUserSettings(row)
+	if err == nil {
+		return settings, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return UserSettings{}, err
+	}
+	if _, err := s.pool.Exec(ctx, `
+		INSERT INTO "UserSettings" (id, "userId", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, now(), now())`, toUUID(userID)); err != nil {
+		return UserSettings{}, err
+	}
+	return s.GetUserSettings(ctx, userID)
+}
+
+// UpdateUserSettings applique un patch validé sur les préférences du lecteur.
+// Seules les clés connues et validées sont écrites (miroir de
+// updateAccountSettingsAction).
+func (s *Service) UpdateUserSettings(ctx context.Context, userID string, patch map[string]any) (UserSettings, error) {
+	allowed := map[string]func(any) bool{
+		"profileVisibility": func(v any) bool {
+			str, ok := v.(string)
+			return ok && (str == "PUBLIC" || str == "FOLLOWERS" || str == "PRIVATE")
+		},
+		"allowMentions":             func(v any) bool { _, ok := v.(bool); return ok },
+		"allowCollaborationInvites": func(v any) bool { _, ok := v.(bool); return ok },
+		"showSensitiveContent":      func(v any) bool { _, ok := v.(bool); return ok },
+		"autoplayMedia":             func(v any) bool { _, ok := v.(bool); return ok },
+		"reduceMotion":              func(v any) bool { _, ok := v.(bool); return ok },
+		"highContrast":              func(v any) bool { _, ok := v.(bool); return ok },
+		"fontScale": func(v any) bool {
+			var n float64
+			switch t := v.(type) {
+			case float64:
+				n = t
+			case float32:
+				n = float64(t)
+			case int:
+				n = float64(t)
+			case int32:
+				n = float64(t)
+			default:
+				return false
+			}
+			return n == 90 || n == 100 || n == 110 || n == 125
+		},
+		"defaultFeed": func(v any) bool {
+			str, ok := v.(string)
+			return ok && (str == "FOLLOWING" || str == "DISCOVER")
+		},
+	}
+	cols := []string{"profileVisibility", "allowMentions", "allowCollaborationInvites",
+		"showSensitiveContent", "autoplayMedia", "reduceMotion", "highContrast",
+		"fontScale", "defaultFeed"}
+	set := make([]string, 0, len(cols))
+	args := make([]any, 0, len(cols)+1)
+	for _, c := range cols {
+		v, ok := patch[c]
+		if !ok {
+			continue
+		}
+		validator := allowed[c]
+		if !validator(v) {
+			return UserSettings{}, fmt.Errorf("valeur invalide pour %s", c)
+		}
+		args = append(args, v)
+		set = append(set, fmt.Sprintf(`"%s" = $%d`, c, len(args)))
+	}
+	args = append(args, toUUID(userID))
+	if len(set) == 0 {
+		return s.GetUserSettings(ctx, userID)
+	}
+	// Ligne par défaut si absente (upsert).
+	_, _ = s.GetUserSettings(ctx, userID)
+	query := `UPDATE "UserSettings" SET ` + strings.Join(set, ", ") + `, "updatedAt" = now() WHERE "userId" = $` + fmt.Sprint(len(args))
+	if _, err := s.pool.Exec(ctx, query, args...); err != nil {
+		return UserSettings{}, err
+	}
+	return s.GetUserSettings(ctx, userID)
+}
+
+// DeletionRequest est la demande de suppression de compte (lecteur).
+type DeletionRequest struct {
+	ID          string `json:"id"`
+	Status      string `json:"status"`
+	RequestedAt string `json:"requestedAt"`
+}
+
+// GetDeletionRequest retourne la dernière demande du lecteur (nil si aucune).
+func (s *Service) GetDeletionRequest(ctx context.Context, userID string) (*DeletionRequest, error) {
+	var d DeletionRequest
+	var requestedAt pgtype.Timestamp
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, status, "requestedAt"
+		FROM "AccountDeletionRequest" WHERE "userId" = $1
+		ORDER BY "requestedAt" DESC LIMIT 1`, toUUID(userID)).
+		Scan(&d.ID, &d.Status, &requestedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	d.RequestedAt = requestedAt.Time.Format(time.RFC3339)
+	return &d, nil
+}
+
+// CreateDeletionRequest crée une demande si aucune PENDING/PROCESSING
+// n'existe déjà (idempotent, miroir de requestAccountDeletionAction).
+func (s *Service) CreateDeletionRequest(ctx context.Context, userID, reason string) (*DeletionRequest, error) {
+	var id string
+	var status string
+	var requestedAt pgtype.Timestamp
+	err := s.pool.QueryRow(ctx, `
+		INSERT INTO "AccountDeletionRequest" (id, "userId", status, reason)
+		SELECT gen_random_uuid()::text, $1, 'PENDING', $2
+		WHERE NOT EXISTS (
+			SELECT 1 FROM "AccountDeletionRequest"
+			WHERE "userId" = $1 AND status IN ('PENDING', 'PROCESSING')
+		)
+		RETURNING id, status, "requestedAt"`, toUUID(userID), reason).
+		Scan(&id, &status, &requestedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return s.GetDeletionRequest(ctx, userID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &DeletionRequest{ID: id, Status: status, RequestedAt: requestedAt.Time.Format(time.RFC3339)}, nil
+}
+
+// CancelDeletionRequest annule les demandes PENDING du lecteur.
+func (s *Service) CancelDeletionRequest(ctx context.Context, userID string) error {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE "AccountDeletionRequest"
+		SET status = 'CANCELED', "processedAt" = now()
+		WHERE "userId" = $1 AND status = 'PENDING'`, toUUID(userID))
+	return err
 }

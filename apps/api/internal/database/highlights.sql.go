@@ -310,7 +310,9 @@ SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."upvotesCount",
        a.slug       AS article_slug,
        p.id         AS publication_id,
        p.name       AS publication_name,
-       p.slug       AS publication_slug
+       p.slug       AS publication_slug,
+       p.subdomain  AS publication_subdomain,
+       p."customDomain" AS publication_custom_domain
 FROM "Highlight" h
 JOIN "Article" a ON a.id = h."articleId"
 JOIN "Publication" p ON p.id = a."publicationId"
@@ -326,20 +328,22 @@ type ListMyHighlightsParams struct {
 }
 
 type ListMyHighlightsRow struct {
-	ID              string           `json:"id"`
-	Text            string           `json:"text"`
-	Note            pgtype.Text      `json:"note"`
-	IsPublic        bool             `json:"isPublic"`
-	IsOfficial      bool             `json:"isOfficial"`
-	UpvotesCount    int32            `json:"upvotesCount"`
-	ReaderId        pgtype.UUID      `json:"readerId"`
-	ArticleId       string           `json:"articleId"`
-	CreatedAt       pgtype.Timestamp `json:"createdAt"`
-	ArticleTitle    string           `json:"article_title"`
-	ArticleSlug     string           `json:"article_slug"`
-	PublicationID   string           `json:"publication_id"`
-	PublicationName string           `json:"publication_name"`
-	PublicationSlug string           `json:"publication_slug"`
+	ID                      string           `json:"id"`
+	Text                    string           `json:"text"`
+	Note                    pgtype.Text      `json:"note"`
+	IsPublic                bool             `json:"isPublic"`
+	IsOfficial              bool             `json:"isOfficial"`
+	UpvotesCount            int32            `json:"upvotesCount"`
+	ReaderId                pgtype.UUID      `json:"readerId"`
+	ArticleId               string           `json:"articleId"`
+	CreatedAt               pgtype.Timestamp `json:"createdAt"`
+	ArticleTitle            string           `json:"article_title"`
+	ArticleSlug             string           `json:"article_slug"`
+	PublicationID           string           `json:"publication_id"`
+	PublicationName         string           `json:"publication_name"`
+	PublicationSlug         string           `json:"publication_slug"`
+	PublicationSubdomain    pgtype.Text      `json:"publication_subdomain"`
+	PublicationCustomDomain pgtype.Text      `json:"publication_custom_domain"`
 }
 
 // Tous les surlignages d'un lecteur (bibliothèque), avec l'article associé.
@@ -367,6 +371,8 @@ func (q *Queries) ListMyHighlights(ctx context.Context, arg ListMyHighlightsPara
 			&i.PublicationID,
 			&i.PublicationName,
 			&i.PublicationSlug,
+			&i.PublicationSubdomain,
+			&i.PublicationCustomDomain,
 		); err != nil {
 			return nil, err
 		}

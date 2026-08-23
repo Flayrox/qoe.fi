@@ -29,6 +29,8 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Route("/v1/settings", func(r chi.Router) {
 		r.Patch("/profile", h.updateProfile)
+		r.Get("/preferences", h.getPreferences)
+		r.Patch("/preferences", h.updatePreferences)
 		r.Post("/subdomain", h.updateSubdomain)
 		r.Put("/navigation", h.saveNavigation)
 		r.Put("/social", h.saveSocial)
@@ -37,6 +39,89 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 		r.Delete("/api-keys/{id}", h.revokeApiKey)
 		r.Post("/onboarding", h.completeOnboarding)
 	})
+	// Demande de suppression de compte (lecteur).
+	r.Get("/v1/me/account-deletion-request", h.getDeletionRequest)
+	r.Post("/v1/me/account-deletion-request", h.requestDeletion)
+	r.Delete("/v1/me/account-deletion-request", h.cancelDeletion)
+}
+
+// GET /v1/settings/preferences — préférences lecteur (userSettings).
+func (h *Handler) getPreferences(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	settings, err := h.svc.GetUserSettings(r.Context(), userID)
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, settings)
+}
+
+// PATCH /v1/settings/preferences — mise à jour partielle (clés validées).
+func (h *Handler) updatePreferences(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	var patch map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	settings, err := h.svc.UpdateUserSettings(r.Context(), userID, patch)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	response.OK(w, settings)
+}
+
+// GET /v1/me/account-deletion-request — dernière demande (nil si aucune).
+func (h *Handler) getDeletionRequest(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	req, err := h.svc.GetDeletionRequest(r.Context(), userID)
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, req)
+}
+
+// POST /v1/me/account-deletion-request — crée la demande (idempotent).
+func (h *Handler) requestDeletion(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	req, err := h.svc.CreateDeletionRequest(r.Context(), userID, "User requested account deletion from settings")
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, req)
+}
+
+// DELETE /v1/me/account-deletion-request — annule les demandes PENDING.
+func (h *Handler) cancelDeletion(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	if err := h.svc.CancelDeletionRequest(r.Context(), userID); err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
 }
 
 // GET /v1/settings/subdomain/check?subdomain= — validation + disponibilité (public).
