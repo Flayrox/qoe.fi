@@ -25,11 +25,20 @@ test.describe('Capture du feed (public)', () => {
     const readingRequests: string[] = [];
     const impressionStatuses: number[] = [];
     const readingStatuses: number[] = [];
+    const readingStatusesSent: string[] = [];
 
     page.on('request', (req) => {
       const url = req.url();
       if (url.includes('/api/analytics/feed-impression')) impressionRequests.push(url);
-      if (url.includes('/api/analytics/reading-session')) readingRequests.push(url);
+      if (url.includes('/api/analytics/reading-session')) {
+        readingRequests.push(url);
+        try {
+          const body = req.postDataJSON() as { status?: string };
+          if (body?.status) readingStatusesSent.push(body.status);
+        } catch {
+          // sendBeacon : postDataJSON peut échouer sur certains formats
+        }
+      }
     });
     page.on('response', (res) => {
       const url = res.url();
@@ -61,6 +70,12 @@ test.describe('Capture du feed (public)', () => {
     await expect.poll(() => readingStatuses.length, { timeout: 30_000 }).toBeGreaterThan(0);
     for (const status of readingStatuses) {
       expect(status).toBe(200);
+    }
+    // La session porte un statut valide (BOUNCE/SKIM/READ_PARTIAL/READ_COMPLETE).
+    const valid = new Set(['BOUNCE', 'SKIM', 'READ_PARTIAL', 'READ_COMPLETE']);
+    expect(readingStatusesSent.length).toBeGreaterThan(0);
+    for (const s of readingStatusesSent) {
+      expect(valid.has(s)).toBe(true);
     }
   });
 });
