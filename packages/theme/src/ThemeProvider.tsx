@@ -12,26 +12,33 @@ import { ThemeProvider as NextThemesProvider, useTheme } from 'next-themes';
 import { readThemeCookie, writeThemeCookie, THEME_COOKIE_POLL_MS } from './cookie';
 
 // Silence le faux positif React 19 sur les <script> en dev
-// (next-themes en injecte un pour éviter le FOUC). Le warning est émis par
-// react-dom pendant l'hydratation ET pendant le rendu SSR (puis forwardé au
-// client par React Flight) : on filtre donc dans les deux contextes, en
-// inspectant tous les arguments (pas seulement le premier).
-const SCRIPT_TAG_WARNING = 'Encountered a script tag while rendering React component';
+// (next-themes en injecte un pour éviter le FOUC, + ThemeSeedScript en
+// beforeInteractive). Le warning est émis par react-dom pendant l'hydratation
+// ET pendant le rendu SSR (puis forwardé au client par React Flight) — on
+// filtre donc error ET warn, sur tous les args (React utilise %s).
+const SCRIPT_TAG_WARNING = 'Encountered a script tag';
 if (process.env.NODE_ENV === 'development') {
-  const orig = console.error;
-  console.error = (...args: unknown[]) => {
-    const message = args
-      .map((a) => {
-        if (typeof a === 'string') return a;
-        if (a instanceof Error) return a.message;
-        return '';
-      })
-      .join(' ');
-    if (message.includes(SCRIPT_TAG_WARNING)) {
-      return;
-    }
-    orig.apply(console, args);
+  const patch = (method: 'error' | 'warn') => {
+    const orig = console[method].bind(console);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (console as any)[method] = (...args: unknown[]) => {
+      const text = args
+        .map((a) => {
+          if (typeof a === 'string') return a;
+          if (a instanceof Error) return a.message;
+          try {
+            return String(a ?? '');
+          } catch {
+            return '';
+          }
+        })
+        .join(' ');
+      if (text.includes(SCRIPT_TAG_WARNING)) return;
+      orig(...(args as never[]));
+    };
   };
+  patch('error');
+  patch('warn');
 }
 
 const VALID_THEMES = new Set(['light', 'dark']);

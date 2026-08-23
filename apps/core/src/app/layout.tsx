@@ -105,6 +105,7 @@ export default async function RootLayout({
       <body
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
         style={{ fontSize: `${accountSettings?.fontScale ?? 100}%` }}
+        suppressHydrationWarning
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <GrowthBookProvider payload={flagsPayload}>
