@@ -1,8 +1,7 @@
 import { createClient } from '@qoe/supabase/server';
 import { prisma } from '@qoe/db/client';
+import type { FeedSlice } from '@qoe/db/repositories/posts';
 import { getRequestDbUser, getCachedPromos } from '@/lib/cached-queries';
-import { buildFeedSlices, type FeedSlice } from '@qoe/db/repositories/posts';
-import { getSuggestedCreatorsByVector, getSemanticTrendingTopics } from '@qoe/db/feed';
 import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import {
   articleFeedInclude,
@@ -24,6 +23,48 @@ interface HomeFeedGroup {
   articles: HydrateArticle[];
   thoughts: FeedSlice[];
 }
+// Widgets Go de la home (GET /v1/home/*) — remplace getOnboardingData,
+// getSuggestedCreatorsByVector et getSemanticTrendingTopics (packages/db).
+interface OnboardingCreatorDTO {
+  id: string;
+  name: string | null;
+  slug?: string | null;
+  subdomain?: string | null;
+  logoUrl: string | null;
+  heroText: string | null;
+  isCertified: boolean;
+}
+interface OnboardingDataDTO {
+  categories: {
+    id: string;
+    name: string;
+    slug: string;
+    icon: string;
+    subtopics: { id: string; name: string; slug: string; tags?: string[] }[];
+  }[];
+  suggestedCreators: OnboardingCreatorDTO[];
+}
+interface SuggestedCreatorDTO {
+  id: string;
+  name: string;
+  username: string;
+  subdomain?: string | null;
+  customDomain?: string | null;
+  logoUrl: string | null;
+  heroText?: string | null;
+  isCertified: boolean;
+  affinityScore: number;
+  recentArticleTitle?: string | null;
+  subscribersCount: number;
+}
+interface SemanticTrendingTopicDTO {
+  id: string;
+  topicName: string;
+  description: string;
+  count: number;
+  growthRate: string;
+}
+
 interface HomeFeedResult {
   followedCreators: HydratePublication[];
   followedUserIds: string[];
@@ -104,7 +145,7 @@ export default async function ReaderHomePage() {
   // Étape 1 : dbUser + onboarding + données partagées (non couvertes par /v1/home/feed).
   const [dbUser, onboardingData] = await Promise.all([
     user ? getRequestDbUser(user.id) : null,
-    (await import('@qoe/db/onboarding')).getOnboardingData(),
+    fetchOnboardingData(),
   ]);
 
   const needsOnboarding = Boolean(
@@ -129,8 +170,8 @@ export default async function ReaderHomePage() {
 
   const [vectorFeedPage, suggestedCreators, trends, promos] = await Promise.all([
     vectorFeedPagePromise,
-    getSuggestedCreatorsByVector({ userId: user?.id, limit: 4 }),
-    getSemanticTrendingTopics({ limit: 5 }),
+    fetchSuggestedCreators(user?.id),
+    fetchSemanticTrends(),
     getCachedPromos(),
   ]);
 
@@ -175,6 +216,77 @@ export default async function ReaderHomePage() {
   };
 
   return <FeedDashboard {...feedProps} />;
+}
+
+// ── Widgets : Go primaire, fallback Prisma (dev sans QOE_API_URL) ─────────────
+async function fetchOnboardingData(): Promise<OnboardingDataDTO> {
+  try {
+    return await goFetch<OnboardingDataDTO>('/v1/home/onboarding');
+  } catch {
+    const { getOnboardingData } = await import('@qoe/db/onboarding');
+    const data = await getOnboardingData();
+    return {
+      categories: data.categories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        icon: c.icon ?? '',
+        subtopics: (c.subtopics ?? []).map((st) => ({
+          id: st.id,
+          name: st.name,
+          slug: st.slug,
+          tags: st.tags,
+        })),
+      })),
+      suggestedCreators: data.suggestedCreators.map((c) => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug ?? null,
+        subdomain: c.subdomain ?? null,
+        logoUrl: c.logoUrl,
+        heroText: c.heroText,
+        isCertified: c.isCertified ?? false,
+      })),
+    };
+  }
+}
+
+async function fetchSuggestedCreators(userId?: string): Promise<SuggestedCreatorDTO[]> {
+  try {
+    return await goFetch<SuggestedCreatorDTO[]>(`/v1/home/suggested-creators?limit=4`);
+  } catch {
+    const { getSuggestedCreatorsByVector } = await import('@qoe/db/feed');
+    const creators = await getSuggestedCreatorsByVector({ userId, limit: 4 });
+    return creators.map((c) => ({
+      id: c.id,
+      name: c.name,
+      username: c.username,
+      subdomain: c.subdomain ?? null,
+      customDomain: c.customDomain ?? null,
+      logoUrl: c.logoUrl,
+      heroText: c.heroText ?? null,
+      isCertified: c.isCertified,
+      affinityScore: c.affinityScore,
+      recentArticleTitle: c.recentArticleTitle ?? null,
+      subscribersCount: c.subscribersCount ?? 0,
+    }));
+  }
+}
+
+async function fetchSemanticTrends(): Promise<SemanticTrendingTopicDTO[]> {
+  try {
+    return await goFetch<SemanticTrendingTopicDTO[]>('/v1/home/semantic-trends?limit=5');
+  } catch {
+    const { getSemanticTrendingTopics } = await import('@qoe/db/feed');
+    const topics = await getSemanticTrendingTopics({ limit: 5 });
+    return topics.map((t) => ({
+      id: t.id,
+      topicName: t.topicName,
+      description: t.description,
+      count: t.count,
+      growthRate: t.growthRate,
+    }));
+  }
 }
 
 // ── Fallback Prisma (dev sans QOE_API_URL) : reproduit l'ancien comportement ──
@@ -387,6 +499,7 @@ async function buildHomeFromPrisma(userId: string | null): Promise<HomeData> {
     activityDataPromise,
   ]);
 
+  const { buildFeedSlices } = await import('@qoe/db/repositories/posts');
   const [followingSlices, recSlices, discoverSlices] = await Promise.all([
     buildFeedSlices(dbFollowingPosts, user ?? undefined),
     buildFeedSlices(dbRecPosts, user ?? undefined),

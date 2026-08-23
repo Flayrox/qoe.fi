@@ -17,6 +17,21 @@
 
 import { createClient } from '@qoe/supabase/server';
 import { prisma } from '@qoe/db/client';
+import { goFetch } from '../utils/go-client';
+
+// Contrat GET /v1/me (module users Go) — profil lecteur complet.
+export interface MeProfileDTO {
+  id: string;
+  email: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  role: string;
+  hasCompletedOnboarding: boolean;
+  followsCount: number;
+  mutedWordsCount: number;
+  createdAt: string;
+}
 
 export async function getCurrentUserAction() {
   const supabase = await createClient();
@@ -26,26 +41,40 @@ export async function getCurrentUserAction() {
 
   if (!user) return null;
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-      logoUrl: true,
-      hasCompletedOnboarding: true,
-      publication: {
-        select: {
-          subdomain: true,
-          customDomain: true,
-          slug: true,
+  // Go en primaire (GET /v1/me) — fallback Prisma en dev (QOE_API_URL absent).
+  try {
+    const profile = await goFetch<MeProfileDTO>('/v1/me');
+    return {
+      id: profile.id,
+      email: profile.email,
+      name: profile.name,
+      role: profile.role,
+      logoUrl: profile.logoUrl,
+      hasCompletedOnboarding: profile.hasCompletedOnboarding,
+      publication: null,
+    };
+  } catch {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        logoUrl: true,
+        hasCompletedOnboarding: true,
+        publication: {
+          select: {
+            subdomain: true,
+            customDomain: true,
+            slug: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  return dbUser;
+    return dbUser;
+  }
 }
 
 export async function logoutAction() {
