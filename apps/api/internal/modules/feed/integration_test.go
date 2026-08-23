@@ -3,6 +3,7 @@ package feed
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -329,6 +330,130 @@ func TestHydrate(t *testing.T) {
 	}
 	if !seenArt || !seenThought {
 		t.Fatalf("le seed doit contenir articles (%v) et pensées (%v)", seenArt, seenThought)
+	}
+}
+
+// seedHomeFeed crée un environnement home : 2 publications certifiées (chacune
+// avec 1 article + 1 pensée d'un créateur certifié), le lecteur suit pubA.
+func seedHomeFeed(ctx context.Context, pool *pgxpool.Pool) (readerID, pubAID, pubBID string, err error) {
+	if _, err = pool.Exec(ctx, `TRUNCATE TABLE
+		"Follows", "Bookmark", "Highlight", "MutedWord", "Post", "Article", "User", "Publication", "_CoAuthors" CASCADE`); err != nil {
+		return "", "", "", err
+	}
+	readerID = "00000000-0000-0000-0000-000000000020"
+	pubAID = "home_pub_a"
+	pubBID = "home_pub_b"
+
+	if _, err = pool.Exec(ctx,
+		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+		 VALUES ($1, 'reader@h.dev', 'readerh', 'Lecteur', 'user', now(), now())`, readerID); err != nil {
+		return "", "", "", err
+	}
+
+	for _, pub := range []struct{ id, name, slug string }{
+		{pubAID, "Pub A", "pub-a"},
+		{pubBID, "Pub B", "pub-b"},
+	} {
+		if _, err = pool.Exec(ctx,
+			`INSERT INTO "Publication" (id, type, name, slug, "isCertified", "createdAt", "updatedAt")
+			 VALUES ($1, 'PERSONAL', $2, $3, true, now(), now())`, pub.id, pub.name, pub.slug); err != nil {
+			return "", "", "", err
+		}
+	}
+
+	for i, pub := range []string{pubAID, pubBID} {
+		authorID := fmt.Sprintf("00000000-0000-0000-0000-00000000002%d", i+1)
+		if _, err = pool.Exec(ctx,
+			`INSERT INTO "User" (id, email, username, name, role, "isCertified", "publicationId", "createdAt", "updatedAt")
+			 VALUES ($1, $2||'@h.dev', $2, $2, 'creator', true, $3, now(), now())`, authorID, "auth"+string(rune('a'+i)), pub); err != nil {
+			return "", "", "", err
+		}
+		if _, err = pool.Exec(ctx,
+			`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+			 VALUES ($1, $2, $2, '<p>Corps</p>', true, 'PUBLIC', 6, 'PUBLISHED', $3, $4, now(), now())`,
+			"home_art_"+pub, "Article "+pub, pub, authorID); err != nil {
+			return "", "", "", err
+		}
+		if _, err = pool.Exec(ctx,
+			`INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt", tags,
+			                     visibility, "contentVisibility", "isDraft", "replyRestriction",
+			                     "likeCount", "repostCount", "replyCount")
+			 VALUES (gen_random_uuid()::text, 'Pensée home '||$2, $1, now(), now(), ARRAY[]::text[],
+			         'public', 'PUBLIC', false, 'everyone', 0, 0, 0)`, authorID, pub); err != nil {
+			return "", "", "", err
+		}
+	}
+
+	// Le lecteur suit la publication A.
+	if _, err = pool.Exec(ctx,
+		`INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
+		 VALUES (gen_random_uuid()::text, $1, $2, now())`, readerID, pubAID); err != nil {
+		return "", "", "", err
+	}
+	return readerID, pubAID, pubBID, nil
+}
+
+// TestHomeFeed vérifie le bundle de la home : Suivis = pub suivie, Explorer =
+// pubs certifiées non suivies, créateurs suivis, compteurs et mots masqués.
+func TestHomeFeed(t *testing.T) {
+	ctx := context.Background()
+	readerID, pubAID, pubBID, err := seedHomeFeed(ctx, poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	svc := newTestService()
+	res, err := svc.HomeFeed(ctx, readerID)
+	if err != nil {
+		t.Fatalf("HomeFeed: %v", err)
+	}
+
+	// Créateurs suivis : la publication A, avec son propriétaire créateur.
+	if len(res.FollowedCreators) != 1 || res.FollowedCreators[0].ID != pubAID {
+		t.Fatalf("FollowedCreators = %+v, attendu [%s]", res.FollowedCreators, pubAID)
+	}
+	if len(res.FollowedUserIDs) != 1 {
+		t.Fatalf("FollowedUserIDs = %v, attendu 1 propriétaire PERSONAL", res.FollowedUserIDs)
+	}
+
+	// Suivis : l'article et la pensée de la publication A.
+	if len(res.Following.Articles) != 1 || res.Following.Articles[0].ID != "home_art_"+pubAID {
+		t.Fatalf("Following.Articles = %+v, attendu article de %s", res.Following.Articles, pubAID)
+	}
+	if len(res.Following.Thoughts) != 1 {
+		t.Fatalf("Following.Thoughts = %d, attendu 1 pensée de %s", len(res.Following.Thoughts), pubAID)
+	}
+
+	// Explorer : uniquement la publication B (certifiée, non suivie).
+	if len(res.Discover.Articles) != 1 || res.Discover.Articles[0].ID != "home_art_"+pubBID {
+		t.Fatalf("Discover.Articles = %+v, attendu article de %s", res.Discover.Articles, pubBID)
+	}
+
+	// Recommandé : les deux articles.
+	if len(res.Recommended.Articles) != 2 {
+		t.Fatalf("Recommended.Articles = %d, attendu 2", len(res.Recommended.Articles))
+	}
+
+	// Compteurs + mots masqués.
+	if res.HighlightsCount != 0 || len(res.Bookmarks) != 0 {
+		t.Fatalf("bookmarks/highlights attendus vides, got %d/%d", len(res.Bookmarks), res.HighlightsCount)
+	}
+	if len(res.ActivityData) != 7 {
+		t.Fatalf("ActivityData = %d cases, attendu 7", len(res.ActivityData))
+	}
+	if res.FeaturedArticle == nil {
+		t.Fatal("FeaturedArticle nil, attendu un article")
+	}
+
+	// Anonyme : pas de Suivis ni de bibliothèque, mais Explorer rempli.
+	anon, err := svc.HomeFeed(ctx, "")
+	if err != nil {
+		t.Fatalf("HomeFeed(anon): %v", err)
+	}
+	if len(anon.FollowedCreators) != 0 || len(anon.Bookmarks) != 0 {
+		t.Fatalf("anonyme ne doit pas avoir de suivis/bookmarks")
+	}
+	if len(anon.Discover.Articles) != 2 {
+		t.Fatalf("anonyme Discover.Articles = %d, attendu 2", len(anon.Discover.Articles))
 	}
 }
 

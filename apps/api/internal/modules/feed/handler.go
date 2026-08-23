@@ -40,10 +40,25 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/feed/trending", h.trending)
 	r.Get("/v1/feed/personalized", h.personalized)
 	r.Post("/v1/feed/hydrate", h.hydrate)
+	r.Get("/v1/home/feed", h.homeFeed)
 	r.Get("/v1/posts/{id}/thread", h.thread)
 	r.Get("/v1/users/{username}/posts", h.userPosts)
 	r.Get("/v1/users/{username}/articles", h.userArticles)
 	r.Get("/v1/feed/articles", h.articles)
+}
+
+// homeFeed — bundle de la home lecteur (GET /v1/home/feed, auth optionnelle) :
+// créateurs suivis, onglets Suivis/Explorer/Recommandé, bookmarks, compteurs,
+// activité 7 jours, mots masqués, article à la une. Remplace home/page.tsx prisma.
+func (h *Handler) homeFeed(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	result, err := h.svc.HomeFeed(r.Context(), userID)
+	if err != nil {
+		log.Printf("[feed] homeFeed: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, result)
 }
 
 // hydrate — réhydratation du feed « Pour vous » (POST /v1/feed/hydrate).
