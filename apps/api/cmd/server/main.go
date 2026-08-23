@@ -233,10 +233,17 @@ func newRouter(d RouterDeps) *chi.Mux {
 		usersHandler := users.NewHandler(users.NewService(pool))
 		usersHandler.Register(protected)
 
-		trackingHandler := tracking.NewHandler(tracking.NewService(pool))
-		trackingHandler.RegisterProtected(protected)
-
 		oauthHandler.RegisterProtected(protected)
+	})
+
+	// Tracking de lecture (reading-session, feed-impression, show-less) :
+	// AUTH OPTIONNELLE — le service enregistre les lectures/impressions des
+	// visiteurs anonymes (userID vide, completionRate quand même mis à jour),
+	// comme le faisait l'ancien chemin Prisma. show-less reste refusé si non
+	// authentifié (401 côté handler).
+	trackingHandler := tracking.NewHandler(tracking.NewService(pool))
+	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
+		trackingHandler.RegisterProtected(pub)
 	})
 
 	// API créateur par clé API (qoe_live_…) : catégories + analytics/stats (proxy Umami).
