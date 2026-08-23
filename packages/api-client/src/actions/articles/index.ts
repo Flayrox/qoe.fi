@@ -183,7 +183,7 @@ export const saveArticleAction = safeAction<
     });
   }
   const publicationId = await getActivePublicationId(user.id);
-  return goFetch<Article>(`/v1/articles/`, {
+  return goFetch<Article>(`/v1/articles`, {
     method: 'POST',
     body: {
       publicationId,

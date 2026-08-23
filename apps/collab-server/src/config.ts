@@ -24,6 +24,8 @@ export interface CollabConfig {
   databaseUrl: string;
   /** URL de l'instance Supabase (introspection JWT). */
   supabaseUrl: string;
+  /** Clé anon Supabase pour l'introspection (apikey header). */
+  supabaseAnonKey: string;
   /** Taille maximale d'un document (octets) — garde-fou anti-abuse. */
   maxDocumentBytes: number;
 }
@@ -33,6 +35,10 @@ export function loadConfig(): CollabConfig {
     port: Number(env('COLLAB_PORT', '1234')),
     databaseUrl: env('DATABASE_URL'),
     supabaseUrl: env('SUPABASE_URL', env('NEXT_PUBLIC_SUPABASE_URL')),
+    supabaseAnonKey: env(
+      'SUPABASE_ANON_KEY',
+      env('NEXT_PUBLIC_SUPABASE_ANON_KEY', env('SUPABASE_SERVICE_ROLE_KEY'))
+    ),
     maxDocumentBytes: Number(env('COLLAB_MAX_DOCUMENT_BYTES', String(8 * 1024 * 1024))),
   };
 }

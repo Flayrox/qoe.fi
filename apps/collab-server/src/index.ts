@@ -28,7 +28,7 @@ const database: CollabDatabase = config.databaseUrl
   : new MemoryDatabase();
 
 // ─── Auth (introspection Supabase) ───────────────────────────────────
-const verifier = createSupabaseVerifier(config.supabaseUrl);
+const verifier = createSupabaseVerifier(config.supabaseUrl, config.supabaseAnonKey);
 
 // ─── RBAC publication (qui peut éditer) ──────────────────────────────
 // Seulement quand la persistance Postgres est active (pas de mode mémoire).
