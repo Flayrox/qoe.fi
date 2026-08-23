@@ -27,16 +27,25 @@ export interface TokenVerifier {
  */
 export function createSupabaseVerifier(
   supabaseUrl: string,
+  supabaseAnonKeyOrFetch: string | typeof fetch = '',
   fetchImpl: typeof fetch = fetch
 ): TokenVerifier {
+  // Compat : ancien appel createSupabaseVerifier(url, fetchMock) → 2e arg est fetch
+  let supabaseAnonKey = '';
+  let fetchFn = fetchImpl;
+  if (typeof supabaseAnonKeyOrFetch === 'function') {
+    fetchFn = supabaseAnonKeyOrFetch as typeof fetch;
+  } else {
+    supabaseAnonKey = supabaseAnonKeyOrFetch as string;
+  }
   return {
     async verify(token: string): Promise<CollabUser | null> {
       if (!token || !supabaseUrl) return null;
 
-      const response = await fetchImpl(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
+      const response = await fetchFn(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
         headers: {
           Authorization: `Bearer ${token}`,
-          apikey: token,
+          apikey: supabaseAnonKey || token,
         },
       });
 
