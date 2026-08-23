@@ -1,6 +1,6 @@
 # Audit Prisma restant — parcours lecteur (apps/core) → 100% Go
 
-*Date : 2026-08-23 — état après `e78c901` (bundle home Go + historique de lecture Go + e2e connecté).*
+*Date : 2026-08-23 — état après `55b2100` (profil lecteur, préférences, suppression de compte + pages secondaires en Go).*
 
 ## Résumé
 
@@ -10,11 +10,15 @@ Le parcours lecteur est **quasi intégralement Go** sur son chemin nominal : cap
 (`GET /v1/home/feed` : Suivis, Explorer, Recommandé, bookmarks, compteurs, activité,
 mots masqués, à la une) et **historique de lecture** (`GET /v1/me/reading-history`).
 
-Il reste **10 fichiers** dans `apps/core/src` qui touchent encore `prisma.` (~33
-occurrences **hors fallbacks dev**), concentrés sur **deux surfaces** :
-`settings/actions.ts` (16) et `cached-queries.ts` (8). Le reste est de la plomberie de
-pages (bibliothèque, surlignages, onboarding, billing, login, layout) dont **la plupart
-des endpoints Go existent déjà**.
+Les **P1 sont éliminés** : profil lecteur (`GET /v1/me`, `PATCH /v1/me/profile`),
+préférences (`GET/PATCH /v1/settings/preferences`), demande de suppression
+(`GET/POST/DELETE /v1/me/account-deletion-request`) et les pages bibliothèque,
+surlignages, onboarding et login sont branchées sur le Go. Il reste **2 fichiers** avec
+du prisma hors fallback dev : `settings/actions.ts` (uniquement `exportAccountDataAction`,
+conservé volontairement) et `billing/page.tsx` (P3, aucun endpoint Go lecteur). Tous les
+autres `prisma.` (home, history, library, highlights, onboarding, login, layout,
+cached-queries, settings) sont dans des **fallbacks Prisma dev** — le chemin nominal est
+100 % Go.
 
 > ⚠️ Les 13 occurrences de `home/page.tsx` et l'occurrence de `history/page.tsx` sont
 > uniquement dans les **fallbacks Prisma de dev** (chemin nominal 100 % Go) — elles sont
@@ -27,6 +31,9 @@ des endpoints Go existent déjà**.
 | `b325cd0` | `GET /v1/home/feed` (bundle home) + `home/page.tsx` 100 % Go (fallback Prisma dev) — **P0 éliminé** |
 | `e64f2c3` | `GET /v1/me/reading-history` (dédup par article) + `history/page.tsx` + `reading-history/route.ts` |
 | `e78c901` | e2e connecté : show-less écrit en base (vrai user Supabase) + Historique rendu via le Go |
+| `ff94b5e` | `GET /v1/me` + `PATCH /v1/me/profile`, `GET/PATCH /v1/settings/preferences`, `GET/POST/DELETE /v1/me/account-deletion-request` + bookmarks/highlights enrichis |
+| `5959234` | `cached-queries` (dbUser → `/v1/me`) + `settings/actions.ts` + `layout.tsx` branchés Go (fallback Prisma dev) |
+| `55b2100` | library, highlights, onboarding, login → endpoints Go + e2e « page Réglages » au navigateur |
 
 ## Cartographie par fichier (état actuel)
 
@@ -45,7 +52,7 @@ des endpoints Go existent déjà**.
 
 ## Plan d'implémentation priorisé
 
-### P1 — `settings/actions.ts` + `layout.tsx` (le vrai chantier restant)
+### P1 — `settings/actions.ts` + `layout.tsx` ✅ (fait en `5959234`)
 
 Server actions de réglages du lecteur + lecture des prefs dans le layout. Mapping :
 
@@ -67,7 +74,7 @@ Server actions de réglages du lecteur + lecture des prefs dans le layout. Mappi
 **Effort** : moyen (0,5–1 j Go + 0,5 j front). **Risque** : faible si on garde le pattern
 « Go en primaire, fallback Prisma dev » éprouvé sur home/history.
 
-### P1 — `cached-queries.ts`
+### P1 — `cached-queries.ts` ✅ (fait en `5959234`)
 
 1. `dbUser` → `GET /v1/me` (nouveau, cf. ci-dessus) — plus d'upsert d'email côté
    `getRequestDbUser` (le signup Supabase/GoTrue est la source de vérité).
@@ -115,9 +122,11 @@ Le module billing Go ne gère que les webhooks Stripe/Supabase. La page lecteur 
 
 - **Le chemin nominal du lecteur est déjà 100 % Go** (moteur, réhydratation, home,
   historique, capture). Les 14 occurrences home/history restantes sont des fallbacks dev.
-- **Reste réel à porter : `settings/actions.ts` (16) + `cached-queries.ts` (8)** — il faut
-  créer 3 endpoints Go (`GET /v1/me`, `GET/PATCH /v1/settings/preferences`,
-  `POST /v1/me/account-deletion-request`) puis brancher le front ; le reste (library,
-  highlights, onboarding, login) se branche sur des endpoints **déjà existants**.
-- **`billing/page.tsx` est le seul vrai gap d'endpoint** (aucun Go lecteur) — à traiter
-  en P3 ou à laisser en Prisma.
+- **Les P1 sont livrés** (`ff94b5e`, `5959234`, `55b2100`) : endpoints Go
+  (`GET /v1/me`, `PATCH /v1/me/profile`, `GET/PATCH /v1/settings/preferences`,
+  `GET/POST/DELETE /v1/me/account-deletion-request`) et branchement de
+  cached-queries, settings, layout, library, highlights, onboarding, login.
+- **`billing/page.tsx` est le seul vrai gap d'endpoint** (aucun Go lecteur) — P3,
+  à laisser en Prisma ou à couvrir par un `GET /v1/me/billing`.
+- **`exportAccountDataAction`** reste volontairement sur Prisma (action rare, volume
+  complet) — à déporter si un endpoint `GET /v1/me/export` est demandé.
