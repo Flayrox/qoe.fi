@@ -214,21 +214,37 @@ export const searchArticleContributorsAction = safeAction<
   const normalizedQuery = query.trim();
   if (normalizedQuery.length < 2) return [];
 
-  return prisma.user.findMany({
-    where: {
-      id: { notIn: excludeIds },
-      isSuspended: false,
-      isShadowbanned: false,
-      OR: [
-        { name: { contains: normalizedQuery, mode: 'insensitive' } },
-        { username: { contains: normalizedQuery, mode: 'insensitive' } },
-        { email: { contains: normalizedQuery, mode: 'insensitive' } },
-      ],
-    },
-    select: { id: true, name: true, username: true, logoUrl: true, isCertified: true },
-    orderBy: { name: 'asc' },
-    take: 8,
-  });
+  // Go-only : recherche insensible via ILIKE, déléguée à Go (plus de Prisma)
+  try {
+    const qs = new URLSearchParams({ q: normalizedQuery });
+    if (excludeIds.length > 0) qs.set('excludeIds', excludeIds.join(','));
+    return await goFetch<
+      Array<{
+        id: string;
+        name: string | null;
+        username: string | null;
+        logoUrl: string | null;
+        isCertified: boolean;
+      }>
+    >(`/v1/users/search?${qs.toString()}`);
+  } catch {
+    // Fallback dev si Go indisponible
+    return prisma.user.findMany({
+      where: {
+        id: { notIn: excludeIds },
+        isSuspended: false,
+        isShadowbanned: false,
+        OR: [
+          { name: { contains: normalizedQuery, mode: 'insensitive' } },
+          { username: { contains: normalizedQuery, mode: 'insensitive' } },
+          { email: { contains: normalizedQuery, mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true, name: true, username: true, logoUrl: true, isCertified: true },
+      orderBy: { name: 'asc' },
+      take: 8,
+    });
+  }
 });
 
 export const deleteArticleAction = safeAction<string, { success: boolean }>(async (id) => {

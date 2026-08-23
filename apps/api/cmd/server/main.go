@@ -33,7 +33,9 @@ import (
 	"github.com/qoefi/api/internal/modules/posts"
 	"github.com/qoefi/api/internal/modules/search"
 	"github.com/qoefi/api/internal/modules/settings"
+	"github.com/qoefi/api/internal/modules/users"
 	"github.com/qoefi/api/internal/modules/webhooks"
+	"github.com/qoefi/api/internal/modules/workspaces"
 	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/umami"
 )
@@ -218,6 +220,12 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		webhooksHandler := webhooks.NewHandler(webhooks.NewService(pool))
 		webhooksHandler.RegisterProtected(protected, authmw.RequireAPIScope)
+
+		workspacesHandler := workspaces.NewHandler(workspaces.NewService(pool))
+		workspacesHandler.Register(protected)
+
+		usersHandler := users.NewHandler(users.NewService(pool))
+		usersHandler.Register(protected)
 
 		oauthHandler.RegisterProtected(protected)
 	})
