@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -204,17 +205,30 @@ func (s *Service) TrackShowLess(ctx context.Context, userID, articleID, thoughtI
 	if userID == "" {
 		return "", false, nil
 	}
-	// Upsert ContentFeedback
+	// Upsert ContentFeedback — idempotent même quand articleId/thoughtId est NULL.
+	// NB: ON CONFLICT sur (userId, articleId, thoughtId, type) ne déduplique PAS en
+	// Postgres dès qu'une des colonnes est NULL (les NULL sont distincts). On passe
+	// donc par un INSERT ... WHERE NOT EXISTS avec COALESCE pour garantir qu'un
+	// « Voir moins » répété ne crée pas de doublon.
 	var feedbackID string
 	err := s.pool.QueryRow(ctx, `
 		INSERT INTO "ContentFeedback" (id, "userId", "articleId", "thoughtId", type, "createdAt")
-		VALUES (gen_random_uuid()::text, $1, $2, $3, 'SHOW_LESS', now())
-		ON CONFLICT ("userId", "articleId", "thoughtId", type) DO NOTHING
+		SELECT gen_random_uuid()::text, $1, $2, $3, 'SHOW_LESS', now()
+		WHERE NOT EXISTS (
+			SELECT 1 FROM "ContentFeedback"
+			WHERE "userId" = $1
+			  AND COALESCE("articleId",'') = COALESCE($2,'')
+			  AND COALESCE("thoughtId",'') = COALESCE($3,'')
+			  AND type = 'SHOW_LESS'
+		)
 		RETURNING id
 	`, toUUID(userID), pgTextPtr(articleID), pgTextPtr(thoughtID)).Scan(&feedbackID)
+	if err == pgx.ErrNoRows {
+		// Déjà signalé « Voir moins » → récupérer l'id existant.
+		err = s.pool.QueryRow(ctx, `SELECT id FROM "ContentFeedback" WHERE "userId"=$1 AND COALESCE("articleId",'')=COALESCE($2,'') AND COALESCE("thoughtId",'')=COALESCE($3,'') AND type='SHOW_LESS'`, toUUID(userID), pgTextPtr(articleID), pgTextPtr(thoughtID)).Scan(&feedbackID)
+	}
 	if err != nil {
-		// Try to fetch existing
-		_ = s.pool.QueryRow(ctx, `SELECT id FROM "ContentFeedback" WHERE "userId"=$1 AND COALESCE("articleId",'')=COALESCE($2,'') AND COALESCE("thoughtId",'')=COALESCE($3,'') AND type='SHOW_LESS'`, toUUID(userID), pgTextPtr(articleID), pgTextPtr(thoughtID)).Scan(&feedbackID)
+		return "", false, err
 	}
 	// Vector feedback
 	vectorAdjusted := false
