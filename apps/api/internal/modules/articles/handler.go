@@ -38,7 +38,9 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 // (Vérifié par TestRoutePriority_* : statique > param dans l'arbre.)
 func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func(http.Handler) http.Handler) {
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles", h.list)
+	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/", h.list)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles", h.create)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/", h.create)
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/by-id/{id}", h.getByID)
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/capabilities", h.capabilities)
 	r.With(requireScope(middleware.ScopeWrite)).Patch("/v1/articles/{id}", h.update)
@@ -196,7 +198,11 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	// Mode dashboard (session JWT) : liste complète des articles — brouillons
 	// inclus, plus récents d'abord — en tableau brut. Parité avec le type
 	// Prisma attendu par les server actions du studio (@qoe/api-client).
-	articles, err := h.svc.List(r.Context(), userID, publicationID, 100, 0)
+	period := r.URL.Query().Get("period")
+	if period == "" {
+		period = "30d"
+	}
+	articles, err := h.svc.List(r.Context(), userID, publicationID, 100, 0, period)
 	if err != nil {
 		response.Forbidden(w, err.Error())
 		return

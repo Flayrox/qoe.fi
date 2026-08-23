@@ -54,6 +54,9 @@ type ArticleResponse struct {
 	Category       *CategoryInfo     `json:"category"`
 	CoAuthors      []AuthorInfo      `json:"coAuthors"`
 	Attributions   []AttributionInfo `json:"attributions"`
+	Views          int               `json:"views"`
+	ViewsUnique    int               `json:"viewsUnique"`
+	CommentsCount  int               `json:"commentsCount"`
 }
 
 // AttributionInfo est une attribution d'article pour l'éditeur (co-auteur).
@@ -291,7 +294,8 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 }
 
 // List liste les articles d'une publication (RBAC créateur requis, avec catégorie).
-func (s *Service) List(ctx context.Context, userID, publicationID string, limit, offset int) ([]ArticleResponse, error) {
+// period: "7d" | "30d" | "90d" | "all" (défaut 30d) — filtre ReadingSession pour Vues.
+func (s *Service) List(ctx context.Context, userID, publicationID string, limit, offset int, period string) ([]ArticleResponse, error) {
 	if _, err := s.resolveMember(ctx, userID, publicationID); err != nil {
 		return nil, err
 	}
@@ -311,11 +315,34 @@ func (s *Service) List(ctx context.Context, userID, publicationID string, limit,
 			CreatedAt:     r.CreatedAt.Time.Format(time.RFC3339),
 			UpdatedAt:     r.UpdatedAt.Time.Format(time.RFC3339),
 			AccessGranted: true,
+			CoAuthors:     []AuthorInfo{},
+			Attributions:  []AttributionInfo{},
 		}
 		if r.CategoryName.Valid {
 			item.Category = &CategoryInfo{ID: r.CategoryID.String, Name: r.CategoryName.String, Slug: r.CategorySlug.String}
 		}
 		out = append(out, item)
+	}
+	// Enrichit Vues / Vues uniques / Comments par lot (une seule requête par type)
+	if s.pool != nil && len(out) > 0 {
+		ids := make([]string, len(out))
+		for i, a := range out {
+			ids[i] = a.ID
+		}
+		cutoff := periodCutoff(period)
+		views, uniques := s.fetchViewsBatch(ctx, ids, cutoff)
+		comments := s.fetchCommentsBatch(ctx, ids)
+		for i := range out {
+			if v, ok := views[out[i].ID]; ok {
+				out[i].Views = v
+			}
+			if u, ok := uniques[out[i].ID]; ok {
+				out[i].ViewsUnique = u
+			}
+			if c, ok := comments[out[i].ID]; ok {
+				out[i].CommentsCount = c
+			}
+		}
 	}
 	return out, nil
 }
@@ -635,6 +662,91 @@ func (s *Service) fetchCoAuthors(ctx context.Context, articleID string) []Author
 		out = append(out, AuthorInfo{ID: uid, Name: textPtr(name), Username: textPtr(username), LogoURL: textPtr(logoUrl), IsCertified: isCertified})
 	}
 	return out
+}
+
+func periodCutoff(period string) *time.Time {
+	var d time.Duration
+	switch period {
+	case "7d":
+		d = 7 * 24 * time.Hour
+	case "30d":
+		d = 30 * 24 * time.Hour
+	case "90d":
+		d = 90 * 24 * time.Hour
+	case "all":
+		return nil
+	default:
+		d = 30 * 24 * time.Hour
+	}
+	t := time.Now().Add(-d)
+	return &t
+}
+
+func (s *Service) fetchViewsBatch(ctx context.Context, ids []string, cutoff *time.Time) (map[string]int, map[string]int) {
+	views := map[string]int{}
+	uniques := map[string]int{}
+	if s.pool == nil || len(ids) == 0 {
+		return views, uniques
+	}
+	// Views totaux
+	q := `SELECT "articleId", COUNT(*)::int FROM "ReadingSession" WHERE "articleId" = ANY($1)`
+	args := []interface{}{ids}
+	if cutoff != nil {
+		q += ` AND "createdAt" >= $2`
+		args = append(args, *cutoff)
+	}
+	q += ` GROUP BY "articleId"`
+	rows, err := s.pool.Query(ctx, q, args...)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var id string
+			var c int
+			if err := rows.Scan(&id, &c); err == nil {
+				views[id] = c
+			}
+		}
+	}
+	// Uniques (distinct userId non null)
+	q2 := `SELECT "articleId", COUNT(DISTINCT "userId")::int FROM "ReadingSession" WHERE "articleId" = ANY($1) AND "userId" IS NOT NULL`
+	args2 := []interface{}{ids}
+	if cutoff != nil {
+		q2 += ` AND "createdAt" >= $2`
+		args2 = append(args2, *cutoff)
+	}
+	q2 += ` GROUP BY "articleId"`
+	rows2, err := s.pool.Query(ctx, q2, args2...)
+	if err == nil {
+		defer rows2.Close()
+		for rows2.Next() {
+			var id string
+			var c int
+			if err := rows2.Scan(&id, &c); err == nil {
+				uniques[id] = c
+			}
+		}
+	}
+	return views, uniques
+}
+
+func (s *Service) fetchCommentsBatch(ctx context.Context, ids []string) map[string]int {
+	m := map[string]int{}
+	if s.pool == nil || len(ids) == 0 {
+		return m
+	}
+	rows, err := s.pool.Query(ctx, `SELECT "articleId", COUNT(*)::int FROM "ArticleComment" WHERE "articleId" = ANY($1) GROUP BY "articleId"`, ids)
+	if err != nil {
+		return m
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var c int
+		if err := rows.Scan(&id, &c); err == nil {
+			m[id] = c
+		}
+	}
+	return m
 }
 
 // Review approuve ou rejette un article soumis (RBAC media:review).

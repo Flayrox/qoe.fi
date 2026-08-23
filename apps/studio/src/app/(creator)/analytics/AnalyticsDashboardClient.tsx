@@ -70,12 +70,13 @@ export function AnalyticsDashboardClient({ initialData }: AnalyticsDashboardClie
 
         {/* Apple Segmented Control */}
         <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/40 border border-border/30 backdrop-blur-md self-start sm:self-auto">
-          {(['24h', '7d', '30d', '90d'] as TimePeriod[]).map((period) => {
+          {(['24h', '7d', '30d', '90d', 'all'] as TimePeriod[]).map((period) => {
             const labels: Record<TimePeriod, string> = {
               '24h': '24h',
               '7d': '7 jours',
               '30d': '30 jours',
               '90d': '90 jours',
+              all: 'Tout',
             };
 
             const isActive = selectedPeriod === period;

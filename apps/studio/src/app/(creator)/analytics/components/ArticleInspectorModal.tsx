@@ -18,13 +18,19 @@ interface ArticleInspectorModalProps {
 export function ArticleInspectorModal({
   urlPath,
   articleId,
-  period = '30d',
+  period: initialPeriod = '30d',
   onClose,
   onEdit,
 }: ArticleInspectorModalProps) {
+  const [period, setPeriod] = useState<TimePeriod>(initialPeriod);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<ArticleDetailData | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync si la liste change de période (30j → 7j etc.)
+  useEffect(() => {
+    setPeriod(initialPeriod);
+  }, [initialPeriod]);
 
   useEffect(() => {
     if (!urlPath) return;
@@ -114,10 +120,13 @@ export function ArticleInspectorModal({
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl border border-border/30 bg-muted/20">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Vues sur l'écrit
+                  Vues sur l'écrit ({period})
                 </span>
                 <p className="text-2xl font-bold text-foreground mt-1">
                   {detail.totalViews.toLocaleString()}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Toutes les lectures (feed, direct, tenant) sur cet articleId — plein par co-auteur
                 </p>
               </div>
 
@@ -126,14 +135,29 @@ export function ArticleInspectorModal({
                   Chemin d'accès
                 </span>
                 <p className="text-xs font-mono text-foreground mt-2 truncate">{detail.url}</p>
+                <select
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value as TimePeriod)}
+                  className="mt-3 w-full bg-background border border-border/30 rounded-lg px-2 py-1.5 text-xs text-muted-foreground"
+                >
+                  <option value="7d">7 derniers jours</option>
+                  <option value="30d">30 derniers jours</option>
+                  <option value="90d">90 derniers jours</option>
+                  <option value="24h">24 heures</option>
+                  <option value="all">Tout l'historique</option>
+                </select>
               </div>
             </div>
 
             {/* Dedicated Article Timeseries */}
             <TimeseriesChart data={detail.timeseries} period={period} />
 
-            {/* Dedicated Article Referrers */}
+            {/* Dedicated Article Referrers — toutes les provenances envoyées */}
             <ReferrersBlock referrers={detail.referrers} />
+            <p className="text-[11px] text-muted-foreground text-center">
+              Données complètes envoyées : vues, uniques, timeseries, provenances (hostname /
+              referrer), chemin canonique.
+            </p>
           </div>
         ) : null}
       </div>
