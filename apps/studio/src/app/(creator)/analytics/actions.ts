@@ -454,38 +454,51 @@ export async function getCreatorAnalyticsData(
       unit = 'day';
     }
 
-    // 🎯 Vues PLEIN : agrégation par article attribué (pas global).
-    // Pour chaque slug attribué, on somme les pageviews Umami filtrés par &url=
-    // → un co-auteur reçoit 100% des vues de l'article co-signé.
-    const perArticleViews = await Promise.all(
-      attributedSlugs.slice(0, 50).map(async (url) => {
-        const series = await fetchUmamiPageviewsSeries(targetWebsiteId, startAt, now, unit, url);
-        const total = series.reduce((s, p) => s + (p.y || 0), 0);
-        return { url, total };
-      })
-    );
-    const creatorTotalViews = perArticleViews.reduce((s, a) => s + a.total, 0);
+    // 🎯 Vues PLEIN : agrégation par articleId (canonique, pas slug) via ReadingSession
+    // → un co-auteur reçoit 100% des vues de l'article co-signé, et /maison/slug ne fragmente pas
+    const attributedArticleIds = attributedArticles.map((a) => a.id);
+    const perArticleDb = await prisma.readingSession.groupBy({
+      by: ['articleId'],
+      where: { articleId: { in: attributedArticleIds }, createdAt: { gte: new Date(startAt) } },
+      _count: { _all: true },
+    });
+    const perArticleViewsMap = new Map(perArticleDb.map((r) => [r.articleId, r._count._all]));
+    const creatorTotalViews = perArticleViewsMap.size
+      ? Array.from(perArticleViewsMap.values()).reduce((s, v) => s + v, 0)
+      : 0;
 
-    // stats "plein" pour ce créateur : pageviews = somme de SES articles attribués
-    // (visiteurs/visites restent des estimations globales, pageviews = attribution exacte)
+    // Pour compat Umami, garde aussi le global pour visiteurs/visites, mais pageviews = DB plein
     const globalStats = await fetchUmamiWebsiteStats(targetWebsiteId, startAt, now);
     const creatorStats: UmamiStats | null = globalStats
-      ? {
-          ...globalStats,
-          pageviews: creatorTotalViews,
-        }
-      : null;
+      ? { ...globalStats, pageviews: creatorTotalViews }
+      : { pageviews: creatorTotalViews, visitors: 0, visits: 0, bounces: 0, totaltime: 0 };
 
-    // topPages filtré sur les slugs attribués seulement (plus le top global)
-    const attributedTopPages: UmamiPageMetric[] = perArticleViews
-      .filter((a) => a.total > 0)
-      .map((a) => ({ x: a.url, y: a.total }))
-      .sort((x, y) => y.y - x.y)
+    // topPages plein : par articleId, trié par vues DB, map vers /articles/slug pour UI
+    const slugById = new Map(attributedArticles.map((a) => [a.id, `/articles/${a.slug}`]));
+    const attributedTopPages: UmamiPageMetric[] = Array.from(perArticleViewsMap.entries())
+      .map(([articleId, y]) => ({ x: slugById.get(articleId) || articleId, y }))
+      .sort((a, b) => b.y - a.y)
       .slice(0, 10);
     void attributedSlugSet;
 
-    const [timeseries, referrers, devices, browsers, countries] = await Promise.all([
-      fetchUmamiPageviewsSeries(targetWebsiteId, startAt, now, unit),
+    // Timeseries plein : lectures par jour pour SES articles (ReadingSession, pas Umami global)
+    const rawSeries = await prisma.$queryRawUnsafe<Array<{ day: string; cnt: number }>>(
+      `SELECT to_char(date_trunc('day', "createdAt"), 'YYYY-MM-DD') as day, COUNT(*)::int as cnt
+       FROM "ReadingSession"
+       WHERE "articleId" = ANY($1::text[]) AND "createdAt" >= to_timestamp($2/1000.0)
+       GROUP BY date_trunc('day', "createdAt")
+       ORDER BY day`,
+      attributedArticleIds,
+      startAt
+    );
+    const seriesByDay = new Map(rawSeries.map((r) => [r.day, r.cnt]));
+    const timeseries: UmamiTimeseriesPoint[] = [];
+    for (let d = new Date(startAt); d.getTime() <= now; d.setDate(d.getDate() + 1)) {
+      const key = d.toISOString().slice(0, 10);
+      timeseries.push({ x: new Date(d).toISOString(), y: seriesByDay.get(key) || 0 });
+    }
+    // Referrers/devices restent Umami global (device/browser/country non stockés en DB)
+    const [referrers, devices, browsers, countries] = await Promise.all([
       fetchUmamiReferrers(targetWebsiteId, startAt, now, 10),
       fetchUmamiMetrics(targetWebsiteId, startAt, now, 'device', 5),
       fetchUmamiMetrics(targetWebsiteId, startAt, now, 'browser', 5),
@@ -601,12 +614,14 @@ export async function getArticleAnalyticsDetail(
 
     if (!creator) return { error: 'Publication introuvable' };
 
-    const targetWebsiteId =
-      creator.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '';
-    const matchedArticle = creator.articles.find(
-      (a) => `/articles/${a.slug}` === urlPath || `/${a.slug}` === urlPath
-    );
-    const title = matchedArticle ? matchedArticle.title : urlPath;
+    // Résout l'article par slug (global) — articleId canonique, pas url_path
+    const slug = urlPath.replace(/^\/articles\//, '').replace(/^\//, '');
+    const matchedArticle = await prisma.article.findFirst({
+      where: { slug },
+      select: { id: true, title: true },
+    });
+    const title =
+      matchedArticle?.title || creator.articles.find((a) => a.slug === slug)?.title || urlPath;
 
     const now = Date.now();
     let startAt = now - 30 * 24 * 60 * 60 * 1000;
@@ -621,12 +636,47 @@ export async function getArticleAnalyticsDetail(
       startAt = now - 90 * 24 * 60 * 60 * 1000;
     }
 
-    const [timeseries, referrers] = await Promise.all([
-      fetchUmamiPageviewsSeries(targetWebsiteId, startAt, now, unit, urlPath),
-      fetchUmamiReferrers(targetWebsiteId, startAt, now, 10, urlPath),
-    ]);
+    if (!matchedArticle) {
+      return {
+        data: {
+          url: urlPath,
+          title,
+          timeseries: [],
+          referrers: [],
+          totalViews: 0,
+        },
+      };
+    }
 
-    const totalViews = timeseries.reduce((acc, point) => acc + (point.y || 0), 0);
+    // VUES SUR L'ÉCRIT + Évolution : lectures réelles sur CET articleId (plein, peu importe le tenant/category)
+    const rawSeries = await prisma.$queryRawUnsafe<Array<{ day: string; cnt: number }>>(
+      `SELECT to_char(date_trunc('day', "createdAt"), 'YYYY-MM-DD') as day, COUNT(*)::int as cnt
+       FROM "ReadingSession"
+       WHERE "articleId" = $1 AND "createdAt" >= to_timestamp($2/1000.0)
+       GROUP BY date_trunc('day', "createdAt")
+       ORDER BY day`,
+      matchedArticle.id,
+      startAt
+    );
+    const seriesByDay = new Map(rawSeries.map((r) => [r.day, r.cnt]));
+    const timeseries: UmamiTimeseriesPoint[] = [];
+    for (let d = new Date(startAt); d.getTime() <= now; d.setDate(d.getDate() + 1)) {
+      const key = d.toISOString().slice(0, 10);
+      timeseries.push({ x: new Date(d).toISOString(), y: seriesByDay.get(key) || 0 });
+    }
+    const totalViews = timeseries.reduce((acc, p) => acc + (p.y || 0), 0);
+
+    // Sources pour cet article (hostname/referrer) — provenance fine
+    const byHost = await prisma.readingSession.groupBy({
+      by: ['hostname'],
+      where: { articleId: matchedArticle.id, createdAt: { gte: new Date(startAt) } },
+      _count: { _all: true },
+    });
+    const referrers: UmamiPageMetric[] = byHost
+      .filter((h) => h.hostname)
+      .map((h) => ({ x: h.hostname!, y: h._count._all }))
+      .sort((a, b) => b.y - a.y)
+      .slice(0, 10);
 
     return {
       data: {

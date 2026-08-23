@@ -187,7 +187,11 @@ export default async function TenantHomepage({ params }: PageProps) {
             {articles.map((article, i) => (
               <Link
                 key={article.id}
-                href={`/article/${article.slug}`}
+                href={
+                  article.category?.slug
+                    ? `/${article.category.slug}/${article.slug}`
+                    : `/article/${article.slug}`
+                }
                 className={`group flex flex-col items-start transition-all duration-300 hover:-translate-y-1 
                   ${isMagazine && i === 0 ? 'md:col-span-12 md:flex-row md:items-center md:gap-12 border-b pb-12 mb-4' : ''}
                   ${isMagazine && i > 0 && i < 3 ? 'md:col-span-6' : ''}

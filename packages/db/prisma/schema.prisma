@@ -444,6 +444,7 @@ model Category {
   children Category[] @relation("CategoryHierarchy")
 
   articles Article[]
+  attributionCategories ArticleAttribution[] @relation("AttributionCategory")
 
   @@unique([slug, publicationId])
   @@index([publicationId])
@@ -558,6 +559,10 @@ model ArticleAttribution {
   // PENDING/ACCEPTED/DECLINED/WITHDRAWN/REVOKED — public byline requires ACCEPTED.
   consentStatus   String   @default("ACCEPTED")
   consentUpdatedAt DateTime?
+  // Catégorie per-attribution : le co-auteur peut classer l'article dans SA propre taxonomie (ex: "maison")
+  // Si NULL → fallback sur la catégorie canonique de l'article (Article.category)
+  categoryId String?
+  category   Category? @relation("AttributionCategory", fields: [categoryId], references: [id], onDelete: SetNull)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -565,6 +570,7 @@ model ArticleAttribution {
   @@index([articleId, order])
   @@index([articleId, consentStatus, isVisible])
   @@index([userId])
+  @@index([categoryId])
 }
 
 model Publication {
