@@ -79,6 +79,8 @@ export interface ArticleContributorDTO {
   order?: number;
   isVisible?: boolean;
   consentStatus?: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN' | 'REVOKED' | string;
+  categoryId?: string | null;
+  categorySlug?: string | null;
 }
 
 export interface CreatorProfileDTO {

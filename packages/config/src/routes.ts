@@ -86,8 +86,14 @@ export const routes = {
   /** 🌐 Multi-Tenant Creator Sites (`apps/tenants`) */
   tenant: {
     home: (subdomain: string, host?: string) => `${getMonorepoUrl('tenant', host, subdomain)}/`,
-    article: (subdomain: string, slug: string, host?: string) =>
+    article: (subdomain: string, slug: string, host?: string, categorySlug?: string | null) =>
+      categorySlug
+        ? `${getMonorepoUrl('tenant', host, subdomain)}/${encodeURIComponent(categorySlug)}/${encodeURIComponent(slug)}`
+        : `${getMonorepoUrl('tenant', host, subdomain)}/article/${encodeURIComponent(slug)}`,
+    articleLegacy: (subdomain: string, slug: string, host?: string) =>
       `${getMonorepoUrl('tenant', host, subdomain)}/article/${encodeURIComponent(slug)}`,
+    category: (subdomain: string, categorySlug: string, host?: string) =>
+      `${getMonorepoUrl('tenant', host, subdomain)}/${encodeURIComponent(categorySlug)}`,
   },
 } as const;
 

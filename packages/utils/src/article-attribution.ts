@@ -25,6 +25,7 @@ export interface ArticleAttributionInput {
   order?: number;
   isVisible?: boolean;
   consentStatus?: ArticleAttributionConsentStatus | string;
+  categoryId?: string | null;
 }
 
 export interface NormalizedArticleAttribution {
@@ -33,6 +34,7 @@ export interface NormalizedArticleAttribution {
   order: number;
   isVisible: boolean;
   consentStatus: ArticleAttributionConsentStatus | string;
+  categoryId?: string | null;
 }
 
 /**
@@ -59,6 +61,7 @@ export function normalizeArticleAttributions(
           isVisible: entry.userId === primaryAuthorId || entry.isVisible !== false,
           consentStatus:
             entry.userId === primaryAuthorId ? 'ACCEPTED' : entry.consentStatus || 'PENDING',
+          categoryId: entry.categoryId ?? null,
         },
       ])
     ).values()

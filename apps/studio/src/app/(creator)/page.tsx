@@ -2,7 +2,6 @@ import React from 'react';
 import { prisma } from '@qoe/db/client';
 import { requireUser } from '@qoe/auth/current-user';
 import { t } from '@lingui/core/macro';
-import { fetchUmamiWebsiteStats } from '@qoe/analytics/server';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import {
   Eye,
@@ -33,9 +32,20 @@ export default async function CreatorDashboardPage() {
         .then((p) => p?.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '')
     : process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '';
   const now = Date.now();
-  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+  const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
 
-  // Requêtes workspace-aware
+  // Requêtes workspace-aware — vues PLEIN par attribution (même article co-signé compte 100% chez chaque co-auteur)
+  const attributedWhere = isMediaWorkspace
+    ? { publicationId: workspace.publicationId }
+    : {
+        OR: [
+          { publicationId: workspace.publicationId },
+          {
+            attributions: { some: { userId: user.id, consentStatus: 'ACCEPTED', isVisible: true } },
+          },
+        ],
+      };
+
   const [
     publishedCount,
     subscribersCount,
@@ -45,7 +55,8 @@ export default async function CreatorDashboardPage() {
     draftArticles,
     scheduledThoughts,
     latestPublishedArticle,
-    telemetryStats,
+    telemetryPageviews,
+    telemetryVisitors,
   ] = await Promise.all([
     prisma.article.count({
       where: isMediaWorkspace
@@ -96,8 +107,51 @@ export default async function CreatorDashboardPage() {
         },
       },
     }),
-    fetchUmamiWebsiteStats(targetWebsiteId, thirtyDaysAgo, now),
+    // VUES TOTALES (30j) : lectures réelles sur TES articles attribués (feed/tenant/profil/direct) — pas le global
+    prisma.readingSession
+      .count({
+        where: {
+          article: isMediaWorkspace
+            ? { publicationId: workspace.publicationId }
+            : {
+                OR: [
+                  { publicationId: workspace.publicationId },
+                  {
+                    attributions: {
+                      some: { userId: user.id, consentStatus: 'ACCEPTED', isVisible: true },
+                    },
+                  },
+                ],
+              },
+          createdAt: { gte: thirtyDaysAgo },
+        },
+      })
+      .catch(() => 0),
+    prisma.readingSession
+      .findMany({
+        where: {
+          article: isMediaWorkspace
+            ? { publicationId: workspace.publicationId }
+            : {
+                OR: [
+                  { publicationId: workspace.publicationId },
+                  {
+                    attributions: {
+                      some: { userId: user.id, consentStatus: 'ACCEPTED', isVisible: true },
+                    },
+                  },
+                ],
+              },
+          createdAt: { gte: thirtyDaysAgo },
+        },
+        distinct: ['userId'],
+        select: { userId: true },
+      })
+      .then((rows) => rows.filter((r) => r.userId).length)
+      .catch(() => 0),
   ]);
+
+  const telemetryStats = { pageviews: telemetryPageviews, visitors: telemetryVisitors } as const;
 
   // Combine scheduled thoughts & draft articles into unified schedule items
   const scheduleItems = [
