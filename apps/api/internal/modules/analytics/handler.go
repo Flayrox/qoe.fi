@@ -32,6 +32,7 @@ func (h *Handler) Register(r chi.Router) {
 		r.Get("/creator", h.creatorAnalytics)
 		r.Get("/provenance", h.provenance)
 		r.Get("/audience/insights", h.audienceInsights)
+		r.Get("/product-metrics", h.productMetrics)
 	})
 }
 
@@ -308,4 +309,27 @@ func parsePeriod(r *http.Request) (int64, int64) {
 		endAt = v
 	}
 	return startAt, endAt
+}
+
+// GET /v1/analytics/product-metrics — métriques produit de la page analytics
+// (abonnés, top articles avec bookmarks/comments/highlights, catégories,
+// qualité de lecture) — parité getCreatorAnalyticsData Prisma.
+func (h *Handler) productMetrics(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	pub := publicationID(r)
+	if pub == "" {
+		response.BadRequest(w, "publicationId requis")
+		return
+	}
+	out, err := h.svc.ProductMetrics(r.Context(), userID, pub)
+	if err != nil {
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Permission insuffisante")
+			return
+		}
+		log.Printf("[analytics] product-metrics: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, out)
 }

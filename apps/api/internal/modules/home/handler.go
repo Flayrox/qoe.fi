@@ -1,9 +1,12 @@
 package home
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/middleware"
@@ -27,6 +30,7 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 		r.Get("/onboarding", h.getOnboarding)
 		r.Get("/suggested-creators", h.getSuggestedCreators)
 		r.Get("/semantic-trends", h.getSemanticTrends)
+		r.Post("/subscribe", h.subscribe)
 	})
 }
 
@@ -88,4 +92,33 @@ func (h *Handler) getSemanticTrends(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, trends)
+}
+
+// POST /v1/home/subscribe — inscription newsletter d'une publication (public).
+// Body : { email, publicationId }. Idempotent (upsert isActive=true).
+func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Email         string `json:"email"`
+		PublicationID string `json:"publicationId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	body.Email = strings.TrimSpace(strings.ToLower(body.Email))
+	if body.Email == "" || body.PublicationID == "" {
+		response.BadRequest(w, "email et publicationId requis")
+		return
+	}
+	emailRegex := regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
+	if !emailRegex.MatchString(body.Email) {
+		response.BadRequest(w, "Veuillez saisir une adresse email valide.")
+		return
+	}
+	if _, err := h.svc.SubscribeToNewsletter(r.Context(), body.Email, body.PublicationID); err != nil {
+		log.Printf("[home] subscribe: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
 }

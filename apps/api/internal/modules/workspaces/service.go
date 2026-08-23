@@ -49,7 +49,7 @@ func (s *Service) GetActive(ctx context.Context, userID, mediaID string) (Active
 		var pubLogo pgtype.Text
 		var role string
 		err := s.pool.QueryRow(ctx, `
-			SELECT p.id, p.name, p.slug, p."logoUrl", m.role
+			SELECT p.id, p.name, p.slug, p."logoUrl", mm.role
 			FROM "MediaMember" mm
 			JOIN "Media" m ON m.id = mm."mediaId"
 			JOIN "Publication" p ON p.id = m."publicationId"

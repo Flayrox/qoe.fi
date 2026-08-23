@@ -6,6 +6,7 @@ package home
 
 import (
 	"context"
+	"errors"
 	"log"
 	"math"
 	"strconv"
@@ -369,6 +370,31 @@ func (s *Service) GetSemanticTrends(ctx context.Context, limit int) ([]SemanticT
 		})
 	}
 	return out, nil
+}
+
+// ── Newsletter ─────────────────────────────────────────────────────────────────
+
+// SubscribeToNewsletter inscrit un email à la newsletter d'une publication
+// (upsert idempotent, isActive=true) — port Go de subscribeToNewsletterAction.
+func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationID string) (bool, error) {
+	var exists bool
+	err := s.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM "Publication" WHERE id = $1)`, publicationID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	if !exists {
+		return false, errors.New("publication introuvable")
+	}
+	_, err = s.pool.Exec(ctx, `
+		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, true, true, now(), now())
+		ON CONFLICT ("email", "publicationId") DO UPDATE SET "isActive" = true, "updatedAt" = now()`,
+		email, publicationID)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
