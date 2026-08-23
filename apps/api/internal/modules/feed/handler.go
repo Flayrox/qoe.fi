@@ -142,8 +142,10 @@ func (h *Handler) articles(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, items)
 }
 
-// personalized — feed Two-Tower personnalisé (GET /v1/feed/personalized?limit=&offset=&userHour=)
-// Auth optionnelle : cold-start si non authentifié (Sim=0.5 fallback).
+// personalized — moteur feed Two-Tower mixte (articles + pensées), port Go de
+// getPersonalizedFeed (GET /v1/feed/personalized?limit=&offset=&userHour=).
+// Auth optionnelle : cold-start (Sim=0.5) si non authentifié.
+// Renvoie des engine items {itemType, id, isDiscovery} pour réhydratation client.
 func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	limit, offset := parseLimitCursor(r)
@@ -153,13 +155,13 @@ func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) {
 			userHour = n
 		}
 	}
-	// Accept also offset param (task uses offset, not cursor)
+	// Accept also explicit offset param (used server-side by the task).
 	if v := r.URL.Query().Get("offset"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
 			offset = n
 		}
 	}
-	result, err := h.svc.PersonalizedFeed(r.Context(), userID, limit, offset, userHour)
+	result, err := h.svc.PersonalizedEngine(r.Context(), userID, limit, offset, userHour)
 	if err != nil {
 		log.Printf("[feed] personalized: %v", err)
 		response.Internal(w)

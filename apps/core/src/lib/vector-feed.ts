@@ -11,7 +11,7 @@
 
 import { prisma } from '@qoe/db/client';
 import type { Prisma } from '@qoe/db/types';
-import { getPersonalizedFeed } from '@qoe/db/feed';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import {
   buildFeedSlices,
   formatPollData,
@@ -467,8 +467,31 @@ export interface VectorFeedPageResult {
 // Map insertion-order = LRU simplifié ; 0 dépendance externe.
 const FEED_CACHE_TTL_MS = 60_000;
 const FEED_CACHE_MAX_ENTRIES = 500;
-type EnginePage = Awaited<ReturnType<typeof getPersonalizedFeed>>;
+
+// Moteur classé par le backend Go (GET /v1/feed/personalized) : items légers
+// {itemType, id, isDiscovery} + hasMore. La réhydratation complète reste Prisma.
+type EngineItem = { itemType: 'ARTICLE' | 'THOUGHT'; id: string; isDiscovery?: boolean };
+interface EngineResult {
+  items: EngineItem[];
+  hasMore: boolean;
+  nextCursor?: string;
+}
+type EnginePage = EngineResult;
 const feedEngineCache = new Map<string, { expires: number; data: Promise<EnginePage> }>();
+
+async function getEnginePage(
+  userId: string | null,
+  limit: number,
+  offset: number
+): Promise<EnginePage> {
+  const qs = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+    userHour: String(new Date().getHours()), // circadien
+  });
+  if (userId) qs.set('userId', userId);
+  return goFetch<EnginePage>(`/v1/feed/personalized?${qs.toString()}`);
+}
 
 function getCachedEnginePage(
   userId: string | null,
@@ -479,7 +502,7 @@ function getCachedEnginePage(
   const hit = feedEngineCache.get(key);
   if (hit && hit.expires > Date.now()) return hit.data;
 
-  const promise = getPersonalizedFeed({ userId, limit: limit + 1, offset });
+  const promise = getEnginePage(userId, limit, offset);
   feedEngineCache.set(key, { expires: Date.now() + FEED_CACHE_TTL_MS, data: promise });
 
   // Éviction LRU simple : on supprime l'entrée la plus ancienne si trop plein
@@ -496,10 +519,9 @@ export async function buildVectorFeedPage(params: {
   offset?: number;
 }): Promise<VectorFeedPageResult> {
   const { userId = null, limit = 20, offset = 0 } = params;
-  // +1 pour détecter hasMore de façon fiable. Moteur caché 60s (Phase 4).
-  const { items: engineItems } = await getCachedEnginePage(userId, limit, offset);
+  // Le moteur Go calcule hasMore ; il renvoie déjà au plus `limit` items.
+  const { items: engineItems, hasMore } = await getCachedEnginePage(userId, limit, offset);
 
-  const hasMore = engineItems.length > limit;
   const pageItems = engineItems.slice(0, limit);
 
   const articleIds = pageItems.filter((i) => i.itemType === 'ARTICLE').map((i) => i.id);
