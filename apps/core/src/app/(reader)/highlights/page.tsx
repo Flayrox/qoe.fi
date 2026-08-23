@@ -1,6 +1,7 @@
 import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
 import { prisma } from '@qoe/db/client';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import { Highlighter, ExternalLink } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { ReaderPageLayout } from '@/components/layout/ReaderPageLayout';
@@ -13,21 +14,83 @@ export default async function HighlightsPage() {
 
   if (!user) redirect('/login');
 
-  const highlights = await prisma.highlight.findMany({
-    where: { readerId: user.id },
-    include: {
+  // Go en primaire (GET /v1/me/highlights) — fallback Prisma en dev.
+  let highlights: Array<{
+    id: string;
+    text: string;
+    note: string | null;
+    article: {
+      title: string;
+      slug: string;
+      publication: {
+        name: string;
+        subdomain: string | null;
+        customDomain: string | null;
+        slug: string;
+      };
+    };
+  }>;
+  try {
+    const items = await goFetch<
+      Array<{
+        id: string;
+        text: string;
+        note: string | null;
+        articleTitle: string;
+        articleSlug: string;
+        publicationName: string;
+        subdomain: string | null;
+        customDomain: string | null;
+        publicationSlug: string;
+      }>
+    >('/v1/me/highlights?limit=100');
+    highlights = items.map((h) => ({
+      id: h.id,
+      text: h.text,
+      note: h.note,
       article: {
-        select: {
-          title: true,
-          slug: true,
-          publication: {
-            select: { name: true, subdomain: true, customDomain: true, slug: true },
+        title: h.articleTitle,
+        slug: h.articleSlug,
+        publication: {
+          name: h.publicationName,
+          subdomain: h.subdomain,
+          customDomain: h.customDomain,
+          slug: h.publicationSlug,
+        },
+      },
+    }));
+  } catch {
+    const rows = await prisma.highlight.findMany({
+      where: { readerId: user.id },
+      include: {
+        article: {
+          select: {
+            title: true,
+            slug: true,
+            publication: {
+              select: { name: true, subdomain: true, customDomain: true, slug: true },
+            },
           },
         },
       },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+      orderBy: { createdAt: 'desc' },
+    });
+    highlights = rows.map((h) => ({
+      id: h.id,
+      text: h.text,
+      note: h.note,
+      article: {
+        title: h.article.title,
+        slug: h.article.slug,
+        publication: {
+          name: h.article.publication?.name ?? '',
+          subdomain: h.article.publication?.subdomain ?? null,
+          customDomain: h.article.publication?.customDomain ?? null,
+          slug: h.article.publication?.slug ?? '',
+        },
+      },
+    }));
+  }
 
   return (
     <ReaderPageLayout giantTitle={t`Surlignages`}>

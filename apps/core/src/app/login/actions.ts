@@ -29,16 +29,30 @@ export async function login(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error?.message || 'Authentication failed')}`);
   }
 
-  const { prisma } = await import('@qoe/db/client');
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-  });
-  if (dbUser) {
-    if (dbUser.role === 'user') {
-      const followsCount = await prisma.follows.count({ where: { readerId: dbUser.id } });
-      const mutedCount = await prisma.mutedWord.count({ where: { userId: dbUser.id } });
-      if (followsCount === 0 && mutedCount === 0) {
-        redirect('/onboarding');
+  // Go en primaire (GET /v1/me : profil + compteurs) — fallback Prisma dev.
+  try {
+    const { goFetch } = await import('@qoe/api-client/actions/utils/go-client');
+    const profile = await goFetch<{
+      id: string;
+      role: string;
+      followsCount: number;
+      mutedWordsCount: number;
+    }>('/v1/me');
+    if (profile.role === 'user' && profile.followsCount === 0 && profile.mutedWordsCount === 0) {
+      redirect('/onboarding');
+    }
+  } catch {
+    const { prisma } = await import('@qoe/db/client');
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+    });
+    if (dbUser) {
+      if (dbUser.role === 'user') {
+        const followsCount = await prisma.follows.count({ where: { readerId: dbUser.id } });
+        const mutedCount = await prisma.mutedWord.count({ where: { userId: dbUser.id } });
+        if (followsCount === 0 && mutedCount === 0) {
+          redirect('/onboarding');
+        }
       }
     }
   }
