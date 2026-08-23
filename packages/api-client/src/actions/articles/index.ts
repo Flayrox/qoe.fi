@@ -66,14 +66,23 @@ export async function getActivePublicationId(userId: string): Promise<string> {
 }
 
 export const getArticlesAction = safeAction<
-  void,
-  Prisma.ArticleGetPayload<{ include: { category: true } }>[]
->(async () => {
+  string | void,
+  (Prisma.ArticleGetPayload<{ include: { category: true } }> & {
+    views: number;
+    viewsUnique: number;
+    commentsCount: number;
+  })[]
+>(async (period) => {
   const user = await authenticateUser();
   const publicationId = await getActivePublicationId(user.id);
-  return goFetch<Prisma.ArticleGetPayload<{ include: { category: true } }>[]>(
-    `/v1/articles?publicationId=${publicationId}`
-  );
+  const p = typeof period === 'string' && period ? period : '30d';
+  return goFetch<
+    (Prisma.ArticleGetPayload<{ include: { category: true } }> & {
+      views: number;
+      viewsUnique: number;
+      commentsCount: number;
+    })[]
+  >(`/v1/articles?publicationId=${publicationId}&period=${encodeURIComponent(p)}`);
 });
 
 type ArticleEditorPayload = Prisma.ArticleGetPayload<{
@@ -141,17 +150,6 @@ export const saveArticleAction = safeAction<
   let finalSlug = slugify(slug || title);
   if (!finalSlug) {
     finalSlug = `article-${shortId()}`;
-  }
-
-  const isSlugTaken = await prisma.article.findFirst({
-    where: {
-      slug: finalSlug,
-      NOT: id ? { id } : undefined,
-    },
-  });
-
-  if (isSlugTaken) {
-    finalSlug = `${finalSlug}-${shortId(4)}`;
   }
 
   const wordCount = content

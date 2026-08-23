@@ -27,6 +27,7 @@ import {
   saveCategoryAction,
   deleteCategoryAction,
   reviewArticleAction,
+  getArticlesAction,
 } from '@qoe/api-client/actions/articles';
 import { t } from '@lingui/core/macro';
 
@@ -54,6 +55,9 @@ interface ArticleWithCategory {
     highlights: number;
     letters: number;
   };
+  views?: number;
+  viewsUnique?: number;
+  commentsCount?: number;
 }
 
 interface CategoryWithCount {
@@ -93,6 +97,28 @@ export function ArticlesClient({
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [accessFilter, setAccessFilter] = useState<AccessFilter>('all');
+
+  // Vues period (ReadingSession) — 7j/30j/90j/all ; défaut 30j
+  const [period, setPeriod] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
+  const [isLoadingViews, setIsLoadingViews] = useState(false);
+
+  // Refetch Vues quand period change (30j initial déjà chargé côté serveur)
+  React.useEffect(() => {
+    let cancelled = false;
+    setIsLoadingViews(true);
+    getArticlesAction(period)
+      .then((res) => {
+        if (!cancelled && res.ok && res.data) {
+          setArticles(res.data as unknown as ArticleWithCategory[]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingViews(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [period]);
 
   // Article Inspector Modal State
   const [inspectingArticle, setInspectingArticle] = useState<{ id: string; slug: string } | null>(
@@ -425,6 +451,19 @@ export function ArticlesClient({
                   <option value="premium">Premium Paywall</option>
                 </select>
 
+                {/* Période Vues (ReadingSession) */}
+                <select
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value as '7d' | '30d' | '90d' | 'all')}
+                  className="bg-background border border-border/30 rounded-lg px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:border-border/60 transition-colors cursor-pointer font-sans"
+                  title="Période des vues (toutes les lectures envoyées au créateur)"
+                >
+                  <option value="7d">Vues 7j</option>
+                  <option value="30d">Vues 30j</option>
+                  <option value="90d">Vues 90j</option>
+                  <option value="all">Vues Tout</option>
+                </select>
+
                 <div className="h-4 w-[1px] bg-border/30 hidden sm:block" />
 
                 {/* Hairline Sort Field Dropdown */}
@@ -578,10 +617,15 @@ export function ArticlesClient({
                             setInspectingArticle({ id: art.id, slug: art.slug });
                           }}
                           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer p-1 rounded hover:bg-muted/60"
-                          title="Inspecter les statistiques réelles de cet article"
+                          title={`Vues ${period} — ${art.viewsUnique ?? 0} uniques / ${art.views ?? 0} totales • Cliquez pour tout l'analytics`}
                         >
                           <Eye className="w-3.5 h-3.5 stroke-[1.5]" />
-                          <span>Vues</span>
+                          <span className={isLoadingViews ? 'opacity-50' : ''}>
+                            {art.views ?? 0}
+                            {art.viewsUnique != null && art.viewsUnique !== art.views
+                              ? ` (${art.viewsUnique})`
+                              : ''}
+                          </span>
                         </button>
 
                         <button
@@ -590,10 +634,10 @@ export function ArticlesClient({
                             setInspectingArticle({ id: art.id, slug: art.slug });
                           }}
                           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer p-1 rounded hover:bg-muted/60"
-                          title="Voir les réactions & surlignages des lecteurs"
+                          title="Voir les réactions, surlignages & commentaires"
                         >
                           <MessageSquare className="w-3.5 h-3.5 stroke-[1.5]" />
-                          <span>{interactionsCount}</span>
+                          <span>{art.commentsCount ?? interactionsCount}</span>
                         </button>
                       </div>
 
@@ -798,11 +842,12 @@ export function ArticlesClient({
         )}
       </AnimatePresence>
 
-      {/* Article Inspector Drawer Modal */}
+      {/* Article Inspector Drawer Modal — période synchronisée avec la liste, toutes les données envoyées */}
       {inspectingArticle && (
         <ArticleInspectorModal
           urlPath={`/article/${inspectingArticle.slug}`}
           articleId={inspectingArticle.id}
+          period={period}
           onClose={() => setInspectingArticle(null)}
           onEdit={() => {
             window.location.href = `/articles/${inspectingArticle.id}`;

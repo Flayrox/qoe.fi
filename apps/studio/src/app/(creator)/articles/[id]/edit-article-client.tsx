@@ -58,26 +58,32 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = async (data: {
-    title: string;
-    content: string;
-    imageUrl: string | null;
-    slug: string;
-    published: boolean;
-    status?: string;
-    isPremium: boolean;
-    categoryId: string | null;
-    seoTitle: string | null;
-    seoDescription: string | null;
-    attributions?: ArticleAttributionDraft[];
-  }) => {
+  const handleSave = async (
+    data: {
+      title: string;
+      content: string;
+      imageUrl: string | null;
+      slug: string;
+      published: boolean;
+      status?: string;
+      isPremium: boolean;
+      categoryId: string | null;
+      seoTitle: string | null;
+      seoDescription: string | null;
+      attributions?: ArticleAttributionDraft[];
+    } & { id?: string }
+  ): Promise<{ id?: string } | void> => {
+    if (isSaving) return { id: article.id };
     try {
       setIsSaving(true);
-      await saveArticleAction({
-        id: article.id,
+      const res = await saveArticleAction({
+        id: (data as { id?: string }).id || article.id,
         ...data,
       });
+      // saveArticleAction renvoie l'article mis à jour ; on garde l'id pour l'auto-save
+      const newId = (res as { data?: { id?: string } })?.data?.id || article.id;
       router.refresh();
+      return { id: newId };
     } catch (err: unknown) {
       throw new Error(err instanceof Error ? err.message : "Échec de l'enregistrement.");
     } finally {

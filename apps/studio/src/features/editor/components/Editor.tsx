@@ -127,7 +127,7 @@ export interface EditorProps {
     allowPublicAnnotations?: boolean;
     allowComments?: boolean;
     attributions?: ArticleAttributionDraft[];
-  }) => Promise<void>;
+  }) => Promise<{ id?: string } | void>;
   onBack?: () => void;
 }
 
@@ -343,8 +343,9 @@ export function Editor({
 
   const { scheduleAutoSave, status: autoSaveStatus } = useAutoSaveArticle({
     delay: 2500,
+    enabled: !isSaving,
     onSave: async (payload: AutoSavePayload) => {
-      await onSave({
+      const res = (await onSave({
         title: payload.title,
         content: payload.content,
         imageUrl,
@@ -357,10 +358,13 @@ export function Editor({
         allowPublicAnnotations,
         allowComments,
         attributions,
-      });
+      })) as { id?: string } | void;
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
-      return { id: initialTitle ? 'existing' : 'new', updatedAt: new Date() };
+      // Retourne le vrai id pour que useAutoSaveArticle le réutilise (PATCH au lieu de POST)
+      const realId =
+        (res as { id?: string })?.id || (collaborationRoomId as string | undefined) || undefined;
+      return { id: realId ?? (initialTitle ? 'existing' : 'new'), updatedAt: new Date() };
     },
   });
 

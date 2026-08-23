@@ -70,7 +70,7 @@ func TestService_List_Owner(t *testing.T) {
 	svc := newService()
 	ctx := context.Background()
 
-	items, err := svc.List(ctx, fx.AuthorID, fx.PublicationID, 10, 0)
+	items, err := svc.List(ctx, fx.AuthorID, fx.PublicationID, 10, 0, "30d")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestService_List_ForbiddenForViewer(t *testing.T) {
 	ctx := context.Background()
 
 	// Un utilisateur inconnu (aucun lien avec la publication) est refusé.
-	_, err := svc.List(ctx, "00000000-0000-0000-0000-000000000099", fx.PublicationID, 10, 0)
+	_, err := svc.List(ctx, "00000000-0000-0000-0000-000000000099", fx.PublicationID, 10, 0, "30d")
 	if err == nil {
 		t.Fatal("List(inconnu) = nil, attendu errForbidden")
 	}
