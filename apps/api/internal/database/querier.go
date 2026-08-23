@@ -98,6 +98,9 @@ type Querier interface {
 	GetApiKeyByHash(ctx context.Context, keyhash string) (GetApiKeyByHashRow, error)
 	GetArticleByID(ctx context.Context, id string) (GetArticleByIDRow, error)
 	GetArticleBySlug(ctx context.Context, arg GetArticleBySlugParams) (GetArticleBySlugRow, error)
+	// Lecture publique par slug SEUL (premier article publié) — parité avec
+	// findFirstBySlug Prisma de la page autonome /article/[slug] du reader core.
+	GetArticleBySlugAny(ctx context.Context, slug string) (GetArticleBySlugAnyRow, error)
 	GetArticleCommentAuthor(ctx context.Context, id string) (string, error)
 	GetArticleCommentsConfig(ctx context.Context, id string) (GetArticleCommentsConfigRow, error)
 	// Retourne le vecteur d'un article sous forme texte ('' si absent). Le scan

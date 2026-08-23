@@ -118,13 +118,30 @@ func TestHandler_GetBySlug_Public_WithPaywall(t *testing.T) {
 	}
 }
 
-func TestHandler_GetBySlug_Public_MissingPublicationID(t *testing.T) {
+// Sans publicationId, GET /v1/articles/{slug} bascule en mode « slug seul »
+// (page autonome du reader core) : premier article publié par slug, contenu complet.
+func TestHandler_GetBySlug_Public_SlugOnly(t *testing.T) {
 	seed(t)
 	r := newTestRouter()
 
 	w, _ := doJSON(t, r, "GET", "/v1/articles/article-payant", "", nil)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, attendu 400", w.Code)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, attendu 200", w.Code)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json: %v", err)
+	}
+	// Mode slug seul = parité findFirstBySlug Prisma : contenu complet, pas de paywall.
+	if body["accessGranted"] != true {
+		t.Fatalf("accessGranted = %v, attendu true", body["accessGranted"])
+	}
+	if body["isTruncated"] == true {
+		t.Fatal("isTruncated = true en mode slug seul (contenu complet attendu)")
+	}
+	content, _ := body["content"].(string)
+	if !strings.Contains(content, "PAYANT SENSIBLE") {
+		t.Fatal("contenu complet attendu en mode slug seul")
 	}
 }
 

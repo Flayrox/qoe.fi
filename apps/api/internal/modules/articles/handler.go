@@ -81,8 +81,21 @@ func (h *Handler) getBySlug(w http.ResponseWriter, r *http.Request) {
 	}
 
 	publicationID := r.URL.Query().Get("publicationId")
+
+	// Mode slug seul (page autonome /article/[slug] du reader core) : premier
+	// article publié par slug, contenu complet — parité findFirstBySlug Prisma.
 	if publicationID == "" {
-		response.BadRequest(w, "publicationId requis")
+		article, err := h.svc.GetBySlugAny(r.Context(), slug)
+		if err != nil {
+			if errors.Is(err, errNotFound) {
+				response.NotFound(w, "Article introuvable")
+				return
+			}
+			log.Printf("[articles] getBySlugAny: %v", err)
+			response.Internal(w)
+			return
+		}
+		response.OK(w, article)
 		return
 	}
 

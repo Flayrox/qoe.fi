@@ -179,9 +179,13 @@ func newRouter(d RouterDeps) *chi.Mux {
 		highlightsHandler.RegisterPublic(pub)
 	})
 
-	// Home widgets publics (systemConfig, trends, promos) — Go-only, cache 1h côté Next.
+	// Home widgets publics (systemConfig, trends, promos, onboarding, créateurs
+	// suggérés, trends sémantiques) — Go-only. Auth optionnelle : suggested-creators
+	// utilise le userID pour la similarité vectorielle.
 	homeHandler := home.NewHandler(home.NewService(pool))
-	homeHandler.RegisterPublic(r)
+	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
+		homeHandler.RegisterPublic(pub)
+	})
 
 	// Settings créateur : sous-domaine (public) + profil/onboarding/clés API (protégé).
 	settingsHandler := settings.NewHandler(settings.NewService(pool))

@@ -107,11 +107,34 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        u."logoUrl"    AS author_logo,
        p.name         AS publication_name,
        p.slug         AS publication_slug,
-       p.subdomain    AS publication_subdomain
+       p.subdomain    AS publication_subdomain,
+       p."customDomain" AS publication_custom_domain
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
 JOIN "Publication" p ON p.id = a."publicationId"
 WHERE a.slug = $1 AND a."publicationId" = $2;
+
+-- name: GetArticleBySlugAny :one
+-- Lecture publique par slug SEUL (premier article publié) — parité avec
+-- findFirstBySlug Prisma de la page autonome /article/[slug] du reader core.
+SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
+       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."scheduledAt",
+       a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
+       a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
+       u.id::text     AS author_id,
+       u.name         AS author_name,
+       u.username     AS author_username,
+       u."logoUrl"    AS author_logo,
+       p.name         AS publication_name,
+       p.slug         AS publication_slug,
+       p.subdomain    AS publication_subdomain,
+       p."customDomain" AS publication_custom_domain
+FROM "Article" a
+JOIN "User" u ON u.id = a."authorId"
+JOIN "Publication" p ON p.id = a."publicationId"
+WHERE a.slug = $1 AND a.published = true
+ORDER BY a."createdAt" DESC, a.id DESC
+LIMIT 1;
 
 -- name: GetCreatorArticleBySlug :one
 -- Lecture d'un article PUBLIÉ d'une publication au format contrat créateurs
