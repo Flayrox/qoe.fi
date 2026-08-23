@@ -1,8 +1,9 @@
 import { createClient } from '@qoe/supabase/server';
 import { prisma } from '@qoe/db/client';
-import { getRequestDbUser, getCachedPromos, getCachedFeaturedArticle } from '@/lib/cached-queries';
-import { buildFeedSlices } from '@qoe/db/repositories/posts';
+import { getRequestDbUser, getCachedPromos } from '@/lib/cached-queries';
+import { buildFeedSlices, type FeedSlice } from '@qoe/db/repositories/posts';
 import { getSuggestedCreatorsByVector, getSemanticTrendingTopics } from '@qoe/db/feed';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import {
   articleFeedInclude,
   buildVectorFeedPage,
@@ -11,9 +12,88 @@ import {
   mapPublicationToAuthor,
   mapSliceToFeedItem,
   publicationProfileSelect,
+  type ArticleWithDetails,
   type FeedItem,
+  type HydrateArticle,
+  type HydratePublication,
 } from '@/lib/vector-feed';
 import { FeedDashboard } from './FeedDashboard';
+
+// ── Bundle Go de la home (GET /v1/home/feed) ─────────────────────────────────
+interface HomeFeedGroup {
+  articles: HydrateArticle[];
+  thoughts: FeedSlice[];
+}
+interface HomeFeedResult {
+  followedCreators: HydratePublication[];
+  followedUserIds: string[];
+  following: HomeFeedGroup;
+  discover: HomeFeedGroup;
+  recommended: HomeFeedGroup;
+  bookmarks: HydrateArticle[];
+  highlightsCount: number;
+  activityData: number[];
+  mutedWords: string[];
+  featuredArticle: HydrateArticle | null;
+}
+
+// HomeData est la forme normalisée consommée par FeedDashboard — produite soit
+// par le bundle Go, soit par le fallback Prisma (dev sans QOE_API_URL).
+type ArticleFeedItem = ReturnType<typeof mapArticleToFeedItem>;
+
+interface HomeData {
+  followingArticles: FeedItem[];
+  recommendationArticles: FeedItem[];
+  discoverArticles: FeedItem[];
+  bookmarks: ArticleFeedItem[];
+  followedCreators: ReturnType<typeof mapPublicationToAuthor>[];
+  followedAuthorIds: string[];
+  initialFollowsCount: number;
+  initialBookmarksCount: number;
+  initialHighlightsCount: number;
+  mutedWords: string[];
+  featuredArticle: ArticleFeedItem | null;
+  widgetRecArticles: ArticleFeedItem[];
+  activityData?: number[];
+}
+
+const mapHydrated = (a: HydrateArticle): ArticleFeedItem =>
+  mapArticleToFeedItem(a as unknown as ArticleWithDetails);
+
+const mergeTimeline = (articles: FeedItem[], thoughts: FeedSlice[], userId?: string): FeedItem[] =>
+  [...articles, ...thoughts.map((s) => mapSliceToFeedItem(s, userId))].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+function homeDataFromGo(h: HomeFeedResult, userId?: string): HomeData {
+  return {
+    followingArticles: mergeTimeline(
+      h.following.articles.map(mapHydrated),
+      h.following.thoughts,
+      userId
+    ),
+    recommendationArticles: mergeTimeline(
+      h.recommended.articles.map(mapHydrated),
+      h.recommended.thoughts,
+      userId
+    ),
+    discoverArticles: mergeTimeline(
+      h.discover.articles.map(mapHydrated),
+      h.discover.thoughts,
+      userId
+    ),
+    bookmarks: h.bookmarks.map(mapHydrated),
+    followedCreators: h.followedCreators.map((p) => mapPublicationToAuthor(p)),
+    followedAuthorIds: h.followedUserIds,
+    initialFollowsCount: h.followedCreators.length,
+    initialBookmarksCount: h.bookmarks.length,
+    initialHighlightsCount: h.highlightsCount,
+    mutedWords: h.mutedWords.map((w) => w.toLowerCase()),
+    featuredArticle: h.featuredArticle ? mapHydrated(h.featuredArticle) : null,
+    widgetRecArticles: h.recommended.articles.slice(0, 5).map(mapHydrated),
+    activityData: h.activityData,
+  };
+}
 
 export default async function ReaderHomePage() {
   const supabase = await createClient();
@@ -21,20 +101,9 @@ export default async function ReaderHomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Étape 1 : Récupérer les détails de dbUser, publications suivies et données d'onboarding en parallèle
-  const [dbUser, followedPublications, onboardingData] = await Promise.all([
+  // Étape 1 : dbUser + onboarding + données partagées (non couvertes par /v1/home/feed).
+  const [dbUser, onboardingData] = await Promise.all([
     user ? getRequestDbUser(user.id) : null,
-    user
-      ? prisma.follows.findMany({
-          where: { readerId: user.id },
-          include: {
-            publication: {
-              select: publicationProfileSelect,
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-        })
-      : [],
     (await import('@qoe/db/onboarding')).getOnboardingData(),
   ]);
 
@@ -42,9 +111,87 @@ export default async function ReaderHomePage() {
     dbUser && dbUser.role === 'user' && !dbUser.hasCompletedOnboarding
   );
 
+  // Étape 2 : bundle Go de la home (fallback Prisma si Go indisponible — dev).
+  let home: HomeData;
+  try {
+    const bundle = await goFetch<HomeFeedResult>('/v1/home/feed');
+    home = homeDataFromGo(bundle, user?.id);
+  } catch {
+    home = await buildHomeFromPrisma(user?.id ?? null);
+  }
+
+  // Moteur vectoriel Two-Tower pour l'onglet « Pour vous » (déjà Go).
+  const vectorFeedPagePromise = buildVectorFeedPage({
+    userId: user?.id ?? null,
+    limit: 20,
+    offset: 0,
+  });
+
+  const [vectorFeedPage, suggestedCreators, trends, promos] = await Promise.all([
+    vectorFeedPagePromise,
+    getSuggestedCreatorsByVector({ userId: user?.id, limit: 4 }),
+    getSemanticTrendingTopics({ limit: 5 }),
+    getCachedPromos(),
+  ]);
+
+  // Flux « Pour vous » : moteur vectoriel (première page ici, scroll via /api/feed/personalized).
+  let recommendationArticles: FeedItem[] = vectorFeedPage?.items ?? [];
+  const feedHasMore = vectorFeedPage?.hasMore ?? false;
+  if (recommendationArticles.length === 0) {
+    recommendationArticles = home.recommendationArticles;
+  }
+
+  const feedProps = {
+    dbUser,
+    followingArticles: home.followingArticles,
+    recommendationArticles,
+    feedHasMore,
+    discoverArticles: home.discoverArticles,
+    bookmarks: home.bookmarks,
+    followedCreators: home.followedCreators,
+    suggestedCreators,
+    semanticTrends: trends,
+    initialFollowsCount: home.initialFollowsCount,
+    followedAuthorIds: home.followedAuthorIds,
+    initialBookmarksCount: home.initialBookmarksCount,
+    initialHighlightsCount: home.initialHighlightsCount,
+    mutedWords: home.mutedWords,
+    featuredArticle: home.featuredArticle,
+    recommendedArticles: home.widgetRecArticles,
+    trends: trends.map((t) => ({ id: t.id, hashtag: t.topicName, count: t.count })),
+    promos: promos.map((p) => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      ctaText: p.ctaText,
+      ctaUrl: p.ctaUrl,
+      imageUrl: p.imageUrl,
+      isActive: p.isActive,
+    })),
+    needsOnboarding,
+    onboardingCategories: onboardingData.categories,
+    onboardingSuggestedCreators: onboardingData.suggestedCreators,
+    activityData: home.activityData,
+  };
+
+  return <FeedDashboard {...feedProps} />;
+}
+
+// ── Fallback Prisma (dev sans QOE_API_URL) : reproduit l'ancien comportement ──
+async function buildHomeFromPrisma(userId: string | null): Promise<HomeData> {
+  const user = userId;
+  const [followedPublications] = user
+    ? [
+        await prisma.follows.findMany({
+          where: { readerId: user },
+          include: { publication: { select: publicationProfileSelect } },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]
+    : [[]];
+
   const publicationIds = followedPublications.map((f) => f.publicationId);
 
-  // Résout les Users propriétaires des publications PERSONAL suivies (pour les Thoughts)
   const followedUserIds = await (async () => {
     if (publicationIds.length === 0) return [];
     const pubs = await prisma.publication.findMany({
@@ -54,9 +201,8 @@ export default async function ReaderHomePage() {
     return pubs.map((p) => p.user?.id).filter(Boolean) as string[];
   })();
 
-  const postIncludeSelect = getPostIncludeSelect(user?.id);
+  const postIncludeSelect = getPostIncludeSelect(user ?? undefined);
 
-  // Étape 2 : Définir les promesses de base de données parallèles
   const dbFollowingArticlesPromise =
     publicationIds.length > 0
       ? prisma.article.findMany({
@@ -65,42 +211,7 @@ export default async function ReaderHomePage() {
             published: true,
             author: { is: { isShadowbanned: false, isSuspended: false } },
           },
-          include: {
-            publication: { select: publicationProfileSelect },
-            author: {
-              select: {
-                id: true,
-                name: true,
-                username: true,
-                logoUrl: true,
-                isCertified: true,
-              },
-            },
-            coAuthors: {
-              select: {
-                id: true,
-                name: true,
-                username: true,
-                logoUrl: true,
-                isCertified: true,
-              },
-            },
-            attributions: {
-              orderBy: { order: 'asc' as const },
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    username: true,
-                    logoUrl: true,
-                    isCertified: true,
-                  },
-                },
-              },
-            },
-            category: { select: { name: true } },
-          },
+          include: articleFeedInclude,
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           take: 20,
         })
@@ -117,7 +228,7 @@ export default async function ReaderHomePage() {
             AND: [
               {
                 OR: [
-                  { authorId: user.id },
+                  { authorId: user },
                   {
                     authorId: { in: followedUserIds },
                     visibility: { in: ['public', 'followers'] },
@@ -152,14 +263,9 @@ export default async function ReaderHomePage() {
         {
           OR: [
             { visibility: 'public' },
-            ...(user ? [{ authorId: user.id }] : []),
+            ...(user ? [{ authorId: user }] : []),
             ...(followedUserIds.length > 0
-              ? [
-                  {
-                    authorId: { in: followedUserIds },
-                    visibility: 'followers',
-                  },
-                ]
+              ? [{ authorId: { in: followedUserIds }, visibility: 'followers' }]
               : []),
           ],
         },
@@ -181,42 +287,7 @@ export default async function ReaderHomePage() {
       },
       author: { is: { isShadowbanned: false, isSuspended: false } },
     },
-    include: {
-      publication: { select: publicationProfileSelect },
-      author: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          logoUrl: true,
-          isCertified: true,
-        },
-      },
-      coAuthors: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          logoUrl: true,
-          isCertified: true,
-        },
-      },
-      attributions: {
-        orderBy: { order: 'asc' as const },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              username: true,
-              logoUrl: true,
-              isCertified: true,
-            },
-          },
-        },
-      },
-      category: { select: { name: true } },
-    },
+    include: articleFeedInclude,
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: 20,
   });
@@ -235,9 +306,7 @@ export default async function ReaderHomePage() {
         ...(user
           ? {
               id:
-                followedUserIds.length > 0
-                  ? { notIn: [...followedUserIds, user.id] }
-                  : { not: user.id },
+                followedUserIds.length > 0 ? { notIn: [...followedUserIds, user] } : { not: user },
             }
           : {}),
       },
@@ -249,54 +318,15 @@ export default async function ReaderHomePage() {
 
   const bookmarksPromise = user
     ? prisma.bookmark.findMany({
-        where: { readerId: user.id },
-        include: {
-          article: {
-            include: {
-              publication: { select: publicationProfileSelect },
-              author: {
-                select: {
-                  id: true,
-                  name: true,
-                  username: true,
-                  logoUrl: true,
-                  isCertified: true,
-                },
-              },
-              coAuthors: {
-                select: {
-                  id: true,
-                  name: true,
-                  username: true,
-                  logoUrl: true,
-                  isCertified: true,
-                },
-              },
-              attributions: {
-                orderBy: { order: 'asc' as const },
-                include: {
-                  user: {
-                    select: {
-                      id: true,
-                      name: true,
-                      username: true,
-                      logoUrl: true,
-                      isCertified: true,
-                    },
-                  },
-                },
-              },
-              category: { select: { name: true } },
-            },
-          },
-        },
+        where: { readerId: user },
+        include: { article: { include: articleFeedInclude } },
         orderBy: { createdAt: 'desc' },
         take: 20,
       })
     : Promise.resolve([]);
 
   const highlightsCountPromise = user
-    ? prisma.highlight.count({ where: { readerId: user.id } })
+    ? prisma.highlight.count({ where: { readerId: user } })
     : Promise.resolve(0);
 
   const activityDataPromise = user
@@ -304,11 +334,11 @@ export default async function ReaderHomePage() {
         const since = new Date(Date.now() - 7 * 86400000);
         const [bms, hls] = await Promise.all([
           prisma.bookmark.findMany({
-            where: { readerId: user.id, createdAt: { gte: since } },
+            where: { readerId: user, createdAt: { gte: since } },
             select: { createdAt: true },
           }),
           prisma.highlight.findMany({
-            where: { readerId: user.id, createdAt: { gte: since } },
+            where: { readerId: user, createdAt: { gte: since } },
             select: { createdAt: true },
           }),
         ]);
@@ -326,33 +356,13 @@ export default async function ReaderHomePage() {
       })()
     : Promise.resolve(undefined as number[] | undefined);
 
-  // Moteur vectoriel Two-Tower pour l'onglet « Pour vous » (pgvector + circadien + MMR).
-  // Première page : connecté → affinité sémantique ; déconnecté → cold-start.
-  const vectorFeedPagePromise = buildVectorFeedPage({
-    userId: user?.id ?? null,
-    limit: 20,
-    offset: 0,
-  });
-
-  const suggestedCreatorsPromise = getSuggestedCreatorsByVector({
-    userId: user?.id,
-    limit: 4,
-  });
-
-  // Récupérer les mots masqués en parallèle
   const mutedWordsPromise = user
     ? prisma.mutedWord.findMany({
-        where: { userId: user.id },
+        where: { userId: user },
         select: { word: true },
       })
     : Promise.resolve([]);
 
-  // Promesses pour les Widgets (Tendances sémantiques IA + Promos + Article vedette)
-  const trendsPromise = getSemanticTrendingTopics({ limit: 5 });
-  const promosPromise = getCachedPromos();
-  const featuredArticlePromise = getCachedFeaturedArticle();
-
-  // Étape 2 : Exécuter toutes les promesses de base de données en parallèle
   const [
     dbFollowingArticles,
     dbFollowingPosts,
@@ -362,12 +372,7 @@ export default async function ReaderHomePage() {
     dbDiscoverPosts,
     bookmarks,
     highlightsCount,
-    suggestedCreators,
-    vectorFeedPage,
     mutedWords,
-    trends,
-    promos,
-    dbFeaturedArticle,
     activityData,
   ] = await Promise.all([
     dbFollowingArticlesPromise,
@@ -378,91 +383,47 @@ export default async function ReaderHomePage() {
     dbDiscoverPostsPromise,
     bookmarksPromise,
     highlightsCountPromise,
-    suggestedCreatorsPromise,
-    vectorFeedPagePromise,
     mutedWordsPromise,
-    trendsPromise,
-    promosPromise,
-    featuredArticlePromise,
     activityDataPromise,
   ]);
 
   const [followingSlices, recSlices, discoverSlices] = await Promise.all([
-    buildFeedSlices(dbFollowingPosts, user?.id),
-    buildFeedSlices(dbRecPosts, user?.id),
-    buildFeedSlices(dbDiscoverPosts, user?.id),
+    buildFeedSlices(dbFollowingPosts, user ?? undefined),
+    buildFeedSlices(dbRecPosts, user ?? undefined),
+    buildFeedSlices(dbDiscoverPosts, user ?? undefined),
   ]);
 
-  // Combiner et trier les éléments de la timeline
   const followingArticles = [
     ...dbFollowingArticles.map(mapArticleToFeedItem),
-    ...followingSlices.map((s) => mapSliceToFeedItem(s, user?.id)),
+    ...followingSlices.map((s) => mapSliceToFeedItem(s, user ?? undefined)),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  // Flux « Pour vous » : moteur vectoriel Two-Tower (pgvector + circadien + MMR).
-  // Connecté → affinité sémantique ; déconnecté → cold-start fraîcheur/engagement.
-  // Première page ici, pages suivantes au scroll via /api/feed/personalized.
-  let recommendationArticles: FeedItem[] = vectorFeedPage?.items ?? [];
-  const feedHasMore = vectorFeedPage?.hasMore ?? false;
-
-  if (recommendationArticles.length === 0) {
-    recommendationArticles = [
-      ...dbRecArticles.map(mapArticleToFeedItem),
-      ...recSlices.map((s) => mapSliceToFeedItem(s, user?.id)),
-    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }
+  const recommendationArticles = [
+    ...dbRecArticles.map(mapArticleToFeedItem),
+    ...recSlices.map((s) => mapSliceToFeedItem(s, user ?? undefined)),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const discoverArticles = [
     ...dbDiscoverArticles.map(mapArticleToFeedItem),
-    ...discoverSlices.map((s) => mapSliceToFeedItem(s, user?.id)),
+    ...discoverSlices.map((s) => mapSliceToFeedItem(s, user ?? undefined)),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const followsCount = followedPublications.length;
-  const bookmarksCount = bookmarks.length;
-  const mutedWordsList = mutedWords.map((w) => w.word.toLowerCase());
+  const featuredArticle = dbRecArticles[0] ? mapArticleToFeedItem(dbRecArticles[0]) : null;
+  const widgetRecArticles = dbRecArticles.slice(0, 5).map(mapArticleToFeedItem);
 
-  // Déterminer l'article à la une pour le widget
-  const featuredArticle = dbFeaturedArticle || dbRecArticles[0] || null;
-  const widgetFeaturedArticle = featuredArticle ? mapArticleToFeedItem(featuredArticle) : null;
-
-  // Déterminer les articles recommandés pour le widget (exclure l'article à la une)
-  const widgetRecArticles = dbRecArticles
-    .filter((art) => art.id !== featuredArticle?.id)
-    .slice(0, 5)
-    .map(mapArticleToFeedItem);
-
-  const feedProps = {
-    dbUser,
+  return {
     followingArticles,
     recommendationArticles,
-    feedHasMore,
     discoverArticles,
     bookmarks: bookmarks.map((b) => mapArticleToFeedItem(b.article)),
     followedCreators: followedPublications.map((f) => mapPublicationToAuthor(f.publication)),
-    suggestedCreators,
-    semanticTrends: trends,
-    initialFollowsCount: followsCount,
     followedAuthorIds: followedUserIds,
-    initialBookmarksCount: bookmarksCount,
+    initialFollowsCount: followedPublications.length,
+    initialBookmarksCount: bookmarks.length,
     initialHighlightsCount: highlightsCount,
-    mutedWords: mutedWordsList,
-    featuredArticle: widgetFeaturedArticle,
-    recommendedArticles: widgetRecArticles,
-    trends: trends.map((t) => ({ id: t.id, hashtag: t.topicName, count: t.count })),
-    promos: promos.map((p) => ({
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      ctaText: p.ctaText,
-      ctaUrl: p.ctaUrl,
-      imageUrl: p.imageUrl,
-      isActive: p.isActive,
-    })),
-    needsOnboarding,
-    onboardingCategories: onboardingData.categories,
-    onboardingSuggestedCreators: onboardingData.suggestedCreators,
+    mutedWords: mutedWords.map((w) => w.word.toLowerCase()),
+    featuredArticle,
+    widgetRecArticles,
     activityData,
   };
-
-  return <FeedDashboard {...feedProps} />;
 }

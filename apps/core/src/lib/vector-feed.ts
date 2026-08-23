@@ -480,16 +480,16 @@ interface EngineResult {
 type EnginePage = EngineResult;
 
 // Réhydratation Go (POST /v1/feed/hydrate) — shape miroir du JSON Go.
-interface HydrateAuthor {
+export interface HydrateAuthor {
   id: string;
   name: string | null;
   username: string | null;
   logoUrl: string | null;
   isCertified: boolean;
 }
-interface HydratePublication {
+export interface HydratePublication {
   id: string;
-  type: string;
+  type: 'PERSONAL' | 'MEDIA';
   name: string;
   slug: string;
   subdomain: string | null;
@@ -498,14 +498,14 @@ interface HydratePublication {
   heroText: string | null;
   isCertified: boolean;
 }
-interface HydrateAttribution {
+export interface HydrateAttribution {
   user: HydrateAuthor;
   role: string;
   order: number;
   isVisible: boolean;
   consentStatus: string;
 }
-interface HydrateArticle {
+export interface HydrateArticle {
   id: string;
   title: string;
   slug: string;
@@ -534,7 +534,7 @@ interface HydrateArticle {
   coAuthors: HydrateAuthor[];
   attributions: HydrateAttribution[];
 }
-interface HydrateResponse {
+export interface HydrateResponse {
   articles: HydrateArticle[];
   thoughts: FeedSlice[];
 }
