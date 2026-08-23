@@ -191,6 +191,13 @@ func newRouter(d RouterDeps) *chi.Mux {
 	settingsHandler := settings.NewHandler(settings.NewService(pool))
 	settingsHandler.RegisterPublic(r)
 
+	// Users : recherche publique (autocomplétion mentions @) + profil lecteur
+	// (/v1/me*) protégé. RegisterPublic est monté DIRECTEMENT sur le routeur
+	// racine pour battre le wildcard public du module creator
+	// (/v1/users/{username}) qui masquerait /v1/users/search sinon.
+	usersHandler := users.NewHandler(users.NewService(pool))
+	usersHandler.RegisterPublic(r)
+
 	// Fournisseur d'identité OAuth 2.1 / OIDC (qoe.fi) : discovery, JWKS,
 	// token, introspection, révocation et userinfo sont publics ; le token
 	// endpoint reçoit un rate-limit dédié (anti-brute-force) en plus du global.
@@ -238,7 +245,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 		workspacesHandler := workspaces.NewHandler(workspaces.NewService(pool))
 		workspacesHandler.Register(protected)
 
-		usersHandler := users.NewHandler(users.NewService(pool))
 		usersHandler.Register(protected)
 
 		trackingHandler.RegisterReader(protected)

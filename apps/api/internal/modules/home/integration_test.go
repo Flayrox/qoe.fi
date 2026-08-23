@@ -194,3 +194,35 @@ func TestSemanticTrends(t *testing.T) {
 		t.Fatal("growthRate vide")
 	}
 }
+
+func TestSubscribeToNewsletter(t *testing.T) {
+	ctx := context.Background()
+	seedHomeWidgets(t, ctx)
+	svc := newTestService()
+
+	ok, err := svc.SubscribeToNewsletter(ctx, "Newsletter@Test.dev", "pub_home_001")
+	if err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	if !ok {
+		t.Fatal("subscribe = false")
+	}
+
+	// Idempotent : re-inscription → toujours 1 ligne active.
+	if _, err := svc.SubscribeToNewsletter(ctx, "newsletter@test.dev", "pub_home_001"); err != nil {
+		t.Fatalf("resubscribe: %v", err)
+	}
+	var count int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "Subscriber" WHERE email = 'newsletter@test.dev' AND "publicationId" = 'pub_home_001'`).Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("count = %d, attendu 1 (upsert idempotent)", count)
+	}
+
+	// Publication inconnue → erreur.
+	if _, err := svc.SubscribeToNewsletter(ctx, "x@test.dev", "pub_inconnue"); err == nil {
+		t.Fatal("subscribe sur publication inconnue devrait échouer")
+	}
+}

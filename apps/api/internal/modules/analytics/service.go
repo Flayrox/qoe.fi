@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -224,20 +226,20 @@ type ReadingSessionCounts map[string]int
 
 // ArticleDetailStats est la réponse pour un article individuel (reading-sessions endpoint).
 type ArticleDetailStats struct {
-	ArticleID  string              `json:"articleId"`
-	TotalViews int                 `json:"totalViews"`
-	Timeseries []DailySeriesPoint  `json:"timeseries"`
-	ByHostname []ProvenanceBucket  `json:"byHostname"`
-	BySource   []ProvenanceBucket  `json:"bySource"`
+	ArticleID  string             `json:"articleId"`
+	TotalViews int                `json:"totalViews"`
+	Timeseries []DailySeriesPoint `json:"timeseries"`
+	ByHostname []ProvenanceBucket `json:"byHostname"`
+	BySource   []ProvenanceBucket `json:"bySource"`
 }
 
 // CreatorReadingStats est la réponse pour le dashboard créateur (creator endpoint).
 type CreatorReadingStats struct {
-	ArticleIDs     []string            `json:"articleIds"`
-	PerArticle     ReadingSessionCounts `json:"perArticle"`
-	TotalViews     int                 `json:"totalViews"`
-	DailySeries    []DailySeriesPoint  `json:"dailySeries"`
-	Provenance     ProvenanceBreakdown `json:"provenance"`
+	ArticleIDs  []string             `json:"articleIds"`
+	PerArticle  ReadingSessionCounts `json:"perArticle"`
+	TotalViews  int                  `json:"totalViews"`
+	DailySeries []DailySeriesPoint   `json:"dailySeries"`
+	Provenance  ProvenanceBreakdown  `json:"provenance"`
 }
 
 // attributedArticleIDs retourne les IDs d'articles attribués au créateur :
@@ -609,7 +611,7 @@ type DemographicBucket struct {
 }
 
 type AudienceDemographics struct {
-	Declared  int                `json:"declared"`
+	Declared  int                 `json:"declared"`
 	Gender    []DemographicBucket `json:"gender"`
 	AgeRange  []DemographicBucket `json:"ageRange"`
 	Countries []DemographicBucket `json:"countries"`
@@ -753,4 +755,165 @@ func toUUID(id string) pgtype.UUID {
 
 func round2(v float64) float64 {
 	return float64(int(v*100+0.5)) / 100
+}
+
+// ── Product metrics (port Go du bloc Prisma de getCreatorAnalyticsData) ──────
+
+type AnalyticsArticleMetric struct {
+	ID                string    `json:"id"`
+	Slug              string    `json:"slug"`
+	Title             string    `json:"title"`
+	CompletionRate    float64   `json:"completionRate"`
+	Bookmarks         int       `json:"bookmarks"`
+	Comments          int       `json:"comments"`
+	Highlights        int       `json:"highlights"`
+	HighlightsPublic  int       `json:"highlightsPublic"`
+	HighlightsPrivate int       `json:"highlightsPrivate"`
+	Annotations       int       `json:"annotations"`
+	Interactions      int       `json:"interactions"`
+	PublishedAt       time.Time `json:"publishedAt"`
+	CategoryName      *string   `json:"categoryName"`
+}
+
+type AnalyticsCategoryCount struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+type ReadingQuality struct {
+	DeepReadsRate int `json:"deepReadsRate"`
+	SkimsRate     int `json:"skimsRate"`
+	BouncesRate   int `json:"bouncesRate"`
+}
+
+type ProductMetrics struct {
+	SubscriberCount   int                      `json:"subscriberCount"`
+	SubscriberDelta7d int                      `json:"subscriberDelta7d"`
+	TotalBookmarks    int                      `json:"totalBookmarks"`
+	TotalHighlights   int                      `json:"totalHighlights"`
+	TotalInteractions int                      `json:"totalInteractions"`
+	AvgCompletionRate float64                  `json:"avgCompletionRate"`
+	ReadingQuality    ReadingQuality           `json:"readingQuality"`
+	TopCategories     []AnalyticsCategoryCount `json:"topCategories"`
+	TopArticles       []AnalyticsArticleMetric `json:"topArticles"`
+}
+
+// ProductMetrics calcule les métriques produit de la page analytics (parité
+// getCreatorAnalyticsData Prisma) : abonnés (total + 7j), articles de la
+// publication + co-signés (attribution ACCEPTED visible), compteurs
+// bookmarks/comments/highlights/annotations, catégories et qualité de lecture.
+func (s *Service) ProductMetrics(ctx context.Context, userID, publicationID string) (ProductMetrics, error) {
+	if !s.canAccess(ctx, userID, publicationID) {
+		return ProductMetrics{}, errForbidden
+	}
+
+	// Abonnés total + delta 7j.
+	var subTotal, subDelta int
+	_ = s.pool.QueryRow(ctx,
+		`SELECT COUNT(*)::int FROM "Subscriber" WHERE "publicationId" = $1`, publicationID).Scan(&subTotal)
+	_ = s.pool.QueryRow(ctx,
+		`SELECT COUNT(*)::int FROM "Subscriber"
+		 WHERE "publicationId" = $1 AND "createdAt" >= now() - interval '7 days'`, publicationID).Scan(&subDelta)
+
+	// Articles de la publication OU co-signés (attribution ACCEPTED visible).
+	rows, err := s.pool.Query(ctx, `
+		SELECT a.id, a.slug, a.title, a."completionRate", a."createdAt",
+		       c.name AS category_name,
+		       (SELECT COUNT(*)::int FROM "Bookmark" b WHERE b."articleId" = a.id) AS bookmarks,
+		       (SELECT COUNT(*)::int FROM "ArticleComment" ac WHERE ac."articleId" = a.id) AS comments,
+		       (SELECT COUNT(*)::int FROM "Highlight" h WHERE h."articleId" = a.id) AS highlights,
+		       (SELECT COUNT(*)::int FROM "Highlight" hp WHERE hp."articleId" = a.id AND hp."isPublic" = true) AS highlights_public,
+		       (SELECT COUNT(*)::int FROM "AnnotationComment" anc
+		         JOIN "Highlight" h2 ON h2.id = anc."highlightId"
+		        WHERE h2."articleId" = a.id) AS annotations
+		FROM "Article" a
+		LEFT JOIN "Category" c ON c.id = a."categoryId"
+		WHERE a.published = true AND (
+		      a."publicationId" = $1
+		   OR EXISTS (SELECT 1 FROM "ArticleAttribution" aa
+		              WHERE aa."articleId" = a.id AND aa."userId" = $2
+		                AND aa."consentStatus" = 'ACCEPTED' AND aa."isVisible" = true)
+		)
+		ORDER BY a."createdAt" DESC`, publicationID, toUUID(userID))
+	if err != nil {
+		return ProductMetrics{}, err
+	}
+	defer rows.Close()
+
+	articles := []AnalyticsArticleMetric{}
+	categoryCounts := map[string]int{}
+	for rows.Next() {
+		var a AnalyticsArticleMetric
+		var cat pgtype.Text
+		if err := rows.Scan(&a.ID, &a.Slug, &a.Title, &a.CompletionRate, &a.PublishedAt,
+			&cat, &a.Bookmarks, &a.Comments, &a.Highlights, &a.HighlightsPublic, &a.Annotations); err != nil {
+			continue
+		}
+		a.HighlightsPrivate = a.Highlights - a.HighlightsPublic
+		a.Interactions = a.Bookmarks + a.Comments + a.Highlights + a.Annotations
+		if cat.Valid {
+			a.CategoryName = &cat.String
+			categoryCounts[cat.String]++
+		}
+		articles = append(articles, a)
+	}
+
+	// Top 5 par interactions (tri stable, parité TS : sort().slice(0,5)).
+	sort.SliceStable(articles, func(i, j int) bool { return articles[i].Interactions > articles[j].Interactions })
+	top5 := articles
+	if len(top5) > 5 {
+		top5 = top5[:5]
+	}
+
+	topCategories := make([]AnalyticsCategoryCount, 0, len(categoryCounts))
+	for name, count := range categoryCounts {
+		topCategories = append(topCategories, AnalyticsCategoryCount{Name: name, Count: count})
+	}
+	sort.SliceStable(topCategories, func(i, j int) bool { return topCategories[i].Count > topCategories[j].Count })
+	if len(topCategories) > 6 {
+		topCategories = topCategories[:6]
+	}
+
+	// Qualité de lecture (completionRate réels).
+	totalRate := 0.0
+	deep, skim := 0, 0
+	rateCount := 0
+	for _, a := range articles {
+		if a.CompletionRate > 0 {
+			totalRate += a.CompletionRate
+			rateCount++
+			if a.CompletionRate >= 0.75 {
+				deep++
+			} else if a.CompletionRate < 0.5 {
+				skim++
+			}
+		}
+	}
+	avg := 0.0
+	deepRate, skimRate, bounceRate := 0, 0, 0
+	if rateCount > 0 {
+		avg = math.Round(totalRate/float64(rateCount)*100) / 100
+		deepRate = int(math.Round(float64(deep) / float64(rateCount) * 100))
+		skimRate = int(math.Round(float64(skim) / float64(rateCount) * 100))
+		bounceRate = max(0, 100-deepRate-skimRate)
+	}
+
+	totB, totH, totI := 0, 0, 0
+	for _, a := range top5 {
+		totB += a.Bookmarks
+		totH += a.Highlights
+		totI += a.Interactions
+	}
+
+	return ProductMetrics{
+		SubscriberCount:   subTotal,
+		SubscriberDelta7d: subDelta,
+		TotalBookmarks:    totB,
+		TotalHighlights:   totH,
+		TotalInteractions: totI,
+		AvgCompletionRate: avg,
+		ReadingQuality:    ReadingQuality{DeepReadsRate: deepRate, SkimsRate: skimRate, BouncesRate: bounceRate},
+		TopCategories:     topCategories,
+		TopArticles:       top5,
+	}, nil
 }

@@ -96,20 +96,20 @@ Recensement par dossier (fichiers avec `prisma` / total) :
 | Dossier | prisma | État | Cible Go |
 |---|---|---|---|
 | `auth` | 1 | `getCurrentUserAction` → `prisma.user.findUnique` | ✅ **`GET /v1/me`** (mapping identique au `getRequestDbUser` déjà porté) |
-| `tenant` | ~8 | `subscriber.upsert` (newsletter), bookmarks/highlights/wallet/posts via repos | ⚠️ partiel — Go couvre follow + posts ; subscriber/newsletter et wallet restent Prisma |
-| `dashboard` | 1 | `mediaMember.findUnique` (statut membre) | ⚠️ Go a `/v1/settings/profile` + subdomain ; le statut membre à porter |
-| `feed` | 3 | `subscriber.findFirst` (isMember), `user.update` + `findUnique` (`updateProfileAction`) | ⚠️ `/v1/me/profile` (PATCH) + abonnement à porter |
-| `articles` | 2 | `mediaMember.findUnique`, `user.findMany` (recherche) | ✅ `/v1/users/search` existe — brancher |
+| `tenant` | ~8 | `subscriber.upsert` (newsletter), bookmarks/highlights/wallet/posts via repos | ✅ **`POST /v1/home/subscribe`** (newsletter, publique) — bookmarks/highlights/posts déjà Go ; wallet reste Prisma (pas d'endpoint) |
+| `dashboard` | 1 | `mediaMember.findUnique` (statut membre) | ✅ **`isMediaMember` dans `/v1/me`** + `GET /v1/me/media/{mediaId}` (résolution workspace média) |
+| `feed` | 3 | `subscriber.findFirst` (isMember), `user.update` + `findUnique` (`updateProfileAction`) | ✅ `updateProfileAction` → `PATCH /v1/me/profile` ; `searchUsersAction` → `GET /v1/users/search` |
+| `articles` | 2 | `mediaMember.findUnique`, `user.findMany` (recherche) | ✅ `/v1/users/search` branché — reste la recherche articles |
 | `admin` | 1 | console superadmin (`prisma.user` + supabase admin) | ❌ surface admin, pas de Go |
 | `highlights`, `notifications`, `polls`, `search`, `starterPacks`, `threadgates`, `utils` | 0 | déjà Go ✅ | — |
 
-**Actions P1 (dans l'ordre) :**
-1. `auth/getCurrentUserAction` → `GET /v1/me` (un seul endpoint, mapping trivial). Consommé par le login
+**Actions P1 (dans l'ordre) — toutes livrées (`e0b7a15`/`e0b7b09`) :**
+1. ✅ `auth/getCurrentUserAction` → `GET /v1/me` (un seul endpoint, mapping trivial). Consommé par le login
    des 3 apps (core, studio, admin) — gros gain immédiat.
-2. `feed/updateProfileAction` → `PATCH /v1/me/profile` (existe) + `PATCH /v1/settings/profile` créateur.
-3. `articles` recherche → `GET /v1/users/search` (existe).
-4. `tenant` : créer `POST /v1/publications/{id}/subscribe` (newsletter) côté Go, puis brancher.
-5. `dashboard` statut membre → étendre le profil `/v1/me` avec `isMediaMember`.
+2. ✅ `feed/updateProfileAction` → `PATCH /v1/me/profile` (existe) + `PATCH /v1/settings/profile` créateur.
+3. ✅ `articles` recherche → `GET /v1/users/search` (existe).
+4. ✅ `tenant` : `POST /v1/home/subscribe` (newsletter, publique) côté Go, puis brancher.
+5. ✅ `dashboard` statut membre → `isMediaMember` dans `/v1/me` + `GET /v1/me/media/{mediaId}`.
 6. `admin` : à laisser en Prisma (console interne, pas de contrat mobile).
 
 ---
@@ -125,7 +125,7 @@ Seulement **5 fichiers** utilisent déjà `goFetch`/`isGoEnabled` : `analytics/a
 | Module | Fichiers | Modèles | Endpoint Go dispo |
 |---|---|---|---|
 | **Dashboard/accueil** | `(creator)/page.tsx`, `app-sidebar.tsx` | `Publication`, compteurs | ✅ `/v1/me`, `/v1/home/*` |
-| **Analytics** | `analytics/actions.ts` | `user.groupBy`, `follows`, `article` | ✅ module Go `analytics` existe ! |
+| **Analytics** | `analytics/actions.ts` | `user.groupBy`, `follows`, `article` | ✅ module Go `analytics` (product-metrics + audience/insights branchés, vérifié au navigateur) |
 | **Media** | `media/actions.ts` + `media/page.tsx` | `MediaAsset` | ❌ à créer |
 | **Import** | `import/actions.ts` | articles/attributions | ⚠️ `/v1/articles` POST existe |
 | **Advanced** | `advanced/actions.ts` | ? | à cartographier |
@@ -134,8 +134,13 @@ Seulement **5 fichiers** utilisent déjà `goFetch`/`isGoEnabled` : `analytics/a
 | **Settings** | `settings/page.tsx` | `Publication`, `User` | ✅ `/v1/settings/*` |
 | **Onboarding créateur** | `onboarding/page.tsx` | `Publication` count | ✅ `/v1/settings/onboarding` (créateur) |
 
-**Actions P2 :** commencer par **analytics** (le module Go existe déjà — il ne manque que le branchement
-front, pattern Go primaire/fallback Prisma), puis **webhooks/oauth** (Go complet), puis **settings créateur**.
+**Actions P2 :** ~~analytics~~ ✅ (fait — le module Go `analytics` existe, `product-metrics` créé pour le
+contrat `ProductMetrics` TS, `getAudienceInsights` branché ; vérifié au navigateur avec un vrai user
+créateur + workspace média), puis **webhooks/oauth** (Go complet), puis **settings créateur**.
+
+> 🔧 **Bug corrigé au passage** : `GET /v1/workspaces/active` (mode MEDIA) échouait toujours — la requête
+> sélectionnait `m.role` (colonne inexistante sur `Media`) au lieu de `mm.role` (`MediaMember`). La résolution
+> du workspace média retombait systématiquement sur la publication personnelle.
 
 ---
 
@@ -169,9 +174,9 @@ Repositories par taille d'usage (ordres de grandeur) :
 | ~~P0-1~~ | ~~Home : suggested creators + semantic trends + onboarding data → Go~~ ✅ `GET /v1/home/onboarding` + `/v1/home/suggested-creators` + `/v1/home/semantic-trends` (`def99ca`) | M | — |
 | ~~P0-2~~ | ~~`article/[slug]` → `GET /v1/articles/{slug}`~~ ✅ mode slug seul ajouté (`def99ca`), page basculée (`d8839a9`) | S | mapping DTO |
 | ~~P1-1~~ | ~~`auth/getCurrentUserAction` → `/v1/me`~~ ✅ (`d8839a9`) | S | — |
-| ~~P1-2~~ | ~~`feed/updateProfileAction` → `/v1/me/profile`~~ ✅ (`d8839a9`) ; `articles` search → `/v1/users/search` reste à faire | S | — |
-| **P1-3** | `tenant` : `POST /v1/publications/{id}/subscribe` + statut membre dans `/v1/me` | M | — |
-| **P2-1** | Studio analytics → module Go existant | M | — |
+| ~~P1-2~~ | ~~`feed/updateProfileAction` → `/v1/me/profile`~~ ✅ (`d8839a9`) ; ~~`articles` search → `/v1/users/search`~~ ✅ | S | — |
+| ~~P1-3~~ | ~~`tenant` : `POST /v1/home/subscribe` + `isMediaMember` dans `/v1/me` + résolution workspace média~~ ✅ | M | — |
+| ~~P2-1~~ | ~~Studio analytics → module Go existant~~ ✅ `GET /v1/analytics/product-metrics` (nouveau, contrat `ProductMetrics` TS) + `audience/insights` — vérifié au navigateur | M | — |
 | **P2-2** | Studio webhooks/oauth → Go existant | S | — |
 | **P2-3** | Studio media/import/audience → endpoints à créer | L | — |
 | **P3** | Admin console, billing lecteur, exportAccountData | L | volontaire |

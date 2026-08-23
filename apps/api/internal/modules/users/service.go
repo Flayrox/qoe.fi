@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -89,6 +90,30 @@ func (s *Service) SearchForContributors(ctx context.Context, query string, exclu
 	return out, rows.Err()
 }
 
+// MediaPublicationForUser renvoie l'id de publication d'un média pour lequel
+// l'utilisateur est membre actif (résolution du workspace MEDIA du dashboard).
+// Retourne ("", nil) si non membre — parité prisma.mediaMember.findUnique.
+func (s *Service) MediaPublicationForUser(ctx context.Context, userID, mediaID string) (string, error) {
+	var pubID pgtype.Text
+	err := s.pool.QueryRow(ctx, `
+		SELECT p.id::text
+		FROM "MediaMember" mm
+		JOIN "Media" m ON m.id = mm."mediaId"
+		JOIN "Publication" p ON p.id = m."publicationId"
+		WHERE mm."userId" = $1 AND mm."mediaId" = $2 AND mm.status = 'active'`,
+		toUUID(userID), mediaID).Scan(&pubID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+	if !pubID.Valid {
+		return "", nil
+	}
+	return pubID.String, nil
+}
+
 // ── Profil lecteur (GET /v1/me, PATCH /v1/me/profile) ─────────────────────
 
 // ReaderProfile est le profil lecteur renvoyé par GET /v1/me : identité +
@@ -108,6 +133,7 @@ type ReaderProfile struct {
 	CreatedAt              string  `json:"createdAt"`
 	FollowsCount           int32   `json:"followsCount"`
 	MutedWordsCount        int32   `json:"mutedWordsCount"`
+	IsMediaMember          bool    `json:"isMediaMember"`
 }
 
 var usernamePattern = regexp.MustCompile(`^[a-z0-9_]{3,30}$`)
@@ -120,12 +146,14 @@ func (s *Service) Profile(ctx context.Context, userID string) (*ReaderProfile, e
 		SELECT u.id::text, u.email, u.name, u.username, u."logoUrl", u."onboardingText", u.pronouns,
 		       u.role, u."walletBalanceCents", u."hasCompletedOnboarding", u."createdAt",
 		       (SELECT COUNT(*)::int FROM "Follows" f WHERE f."readerId" = u.id)  AS follows_count,
-		       (SELECT COUNT(*)::int FROM "MutedWord" m WHERE m."userId" = u.id)  AS muted_count
+		       (SELECT COUNT(*)::int FROM "MutedWord" m WHERE m."userId" = u.id)  AS muted_count,
+		       EXISTS(SELECT 1 FROM "MediaMember" mm
+		              WHERE mm."userId" = u.id AND mm.status = 'active') AS is_media_member
 		FROM "User" u
 		WHERE u.id = $1`, toUUID(userID)).
 		Scan(&p.ID, &p.Email, &p.Name, &p.Username, &p.LogoURL, &p.OnboardingText, &p.Pronouns,
 			&p.Role, &p.WalletBalanceCents, &p.HasCompletedOnboarding, &createdAt,
-			&p.FollowsCount, &p.MutedWordsCount)
+			&p.FollowsCount, &p.MutedWordsCount, &p.IsMediaMember)
 	if err != nil {
 		return nil, err
 	}

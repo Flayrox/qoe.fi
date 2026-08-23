@@ -96,6 +96,9 @@ func TestMe(t *testing.T) {
 	if p.FollowsCount != 1 || p.MutedWordsCount != 1 {
 		t.Fatalf("compteurs = follows %d / muted %d, attendu 1/1", p.FollowsCount, p.MutedWordsCount)
 	}
+	if p.IsMediaMember {
+		t.Fatal("isMediaMember = true, attendu false (aucun membership seedé)")
+	}
 	if p.CreatedAt == "" {
 		t.Fatalf("createdAt vide")
 	}
@@ -156,5 +159,57 @@ func TestProfileNotFound(t *testing.T) {
 	_, err := svc.Profile(ctx, "00000000-0000-0000-0000-00000000dead")
 	if !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatalf("err = %v, attendu pgx.ErrNoRows", err)
+	}
+}
+
+// TestMediaPublication vérifie GET /v1/me/media/{mediaId} : résolution de la
+// publication d'un média pour un membre actif, et "" pour un non-membre.
+func TestMediaPublication(t *testing.T) {
+	ctx := context.Background()
+	seedMe(t)
+	svc := NewService(poolTest)
+
+	// Média lié à une publication + membership actif.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		 VALUES ('pub_media_test', 'MEDIA', 'Media Test', 'media-test', now(), now())`); err != nil {
+		t.Fatalf("pub media: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Media" (id, "publicationId", "createdAt", "updatedAt")
+		 VALUES ('media_test_001', 'pub_media_test', now(), now())`); err != nil {
+		t.Fatalf("media: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "MediaMember" (id, "mediaId", "userId", role, status, "createdAt", "updatedAt")
+		 VALUES (gen_random_uuid()::text, 'media_test_001', $1, 'owner', 'active', now(), now())`,
+		userID); err != nil {
+		t.Fatalf("member: %v", err)
+	}
+
+	pubID, err := svc.MediaPublicationForUser(ctx, userID, "media_test_001")
+	if err != nil {
+		t.Fatalf("MediaPublicationForUser: %v", err)
+	}
+	if pubID != "pub_media_test" {
+		t.Fatalf("publicationId = %q, attendu pub_media_test", pubID)
+	}
+
+	// Non-membre → chaîne vide.
+	empty, err := svc.MediaPublicationForUser(ctx, otherID, "media_test_001")
+	if err != nil {
+		t.Fatalf("non-member: %v", err)
+	}
+	if empty != "" {
+		t.Fatalf("publicationId non-membre = %q, attendu vide", empty)
+	}
+
+	// Profil : isMediaMember = true pour le membre.
+	p, err := svc.Profile(ctx, userID)
+	if err != nil {
+		t.Fatalf("Profile: %v", err)
+	}
+	if !p.IsMediaMember {
+		t.Fatal("isMediaMember = false, attendu true pour le membre actif")
 	}
 }

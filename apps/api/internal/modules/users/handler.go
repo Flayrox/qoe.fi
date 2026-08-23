@@ -19,13 +19,21 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
+// Register — routes authentifiées (profil lecteur). À monter dans le groupe
+// protégé de main.go. Les routes /v1/me* n'entrent pas en conflit avec le
+// module creator (qui expose /v1/users/me et /v1/users/{username}).
 func (h *Handler) Register(r chi.Router) {
-	r.Route("/v1/users", func(r chi.Router) {
-		r.Get("/search", h.search)
-	})
-	// Profil lecteur (auth requise) — GET /v1/me, PATCH /v1/me/profile.
 	r.Get("/v1/me", h.me)
 	r.Patch("/v1/me/profile", h.updateProfile)
+	r.Get("/v1/me/media/{mediaId}", h.mediaPublication)
+}
+
+// RegisterPublic — GET /v1/users/search (autocomplétion mentions @, auth
+// optionnelle). À monter DIRECTEMENT sur le routeur racine : monté via un
+// groupe protégé (sous-mux), le wildcard public du module creator
+// (/v1/users/{username}) le masquerait (priorité basse des sous-mux chi).
+func (h *Handler) RegisterPublic(r chi.Router) {
+	r.Get("/v1/users/search", h.search)
 }
 
 // GET /v1/me — profil lecteur complet (remplace getRequestDbUser Prisma).
@@ -133,4 +141,21 @@ func splitComma(s string) []string {
 		}
 	}
 	return out
+}
+
+// GET /v1/me/media/{mediaId} — publication d'un média pour lequel l'utilisateur
+// est membre actif (résolution du workspace MEDIA du dashboard créateur).
+func (h *Handler) mediaPublication(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	mediaID := chi.URLParam(r, "mediaId")
+	pubID, err := h.svc.MediaPublicationForUser(r.Context(), userID, mediaID)
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]string{"publicationId": pubID})
 }
