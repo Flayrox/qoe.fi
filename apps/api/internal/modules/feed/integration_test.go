@@ -2,8 +2,10 @@ package feed
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -238,6 +240,95 @@ func TestPersonalizedEngine_Personalized(t *testing.T) {
 			t.Fatalf("id dupliqué dans le feed: %q", it.ID)
 		}
 		ids[it.ID] = true
+	}
+}
+
+// TestHydrate vérifie la réhydratation Go du feed : articles complets (parité
+// publicationProfileSelect : customDomain/logoUrl/heroText/isCertified) +
+// pensées FeedSlice, dans l'ordre des ids demandés.
+func TestHydrate(t *testing.T) {
+	ctx := context.Background()
+	readerID, err := seedEngine(ctx, poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	svc := newTestService()
+
+	// Récupère les ids classés par le moteur, puis réhydrate.
+	res, err := svc.PersonalizedEngine(ctx, readerID, 8, 0, 15)
+	if err != nil {
+		t.Fatalf("PersonalizedEngine: %v", err)
+	}
+	if len(res.Items) == 0 {
+		t.Fatal("moteur vide, impossible de tester l'hydratation")
+	}
+	hyd, err := svc.Hydrate(ctx, res.Items, readerID)
+	if err != nil {
+		t.Fatalf("Hydrate: %v", err)
+	}
+
+	seenArt, seenThought := false, false
+	for _, it := range res.Items {
+		if it.ItemType == "ARTICLE" {
+			seenArt = true
+			found := false
+			for _, a := range hyd.Articles {
+				if a.ID == it.ID {
+					found = true
+					// Parité publicationProfileSelect.
+					if a.Publication.ID == "" || a.Publication.Name == "" || a.Publication.Slug == "" {
+						t.Fatalf("article %s: publication incomplète %+v", a.ID, a.Publication)
+					}
+					if a.Publication.Type == "" {
+						t.Fatalf("article %s: publication.type vide", a.ID)
+					}
+					// Les champs optionnels (logoUrl, heroText, customDomain) doivent être
+					// PRÉSENTS dans le JSON (null explicite si absents en base), comme Prisma.
+					raw, err := json.Marshal(a)
+					if err != nil {
+						t.Fatalf("json.Marshal: %v", err)
+					}
+					for _, k := range []string{"logoUrl", "heroText", "customDomain", "subdomain", "isCertified", "imageUrl", "semanticTags", "coAuthors", "attributions"} {
+						if !strings.Contains(string(raw), `"`+k+`"`) {
+							t.Fatalf("article %s: champ JSON %q absent du contrat d'hydratation", a.ID, k)
+						}
+					}
+					if a.Author.ID == "" || a.Author.Username == nil {
+						t.Fatalf("article %s: auteur incomplet %+v", a.ID, a.Author)
+					}
+					if a.CoAuthors == nil || a.Attributions == nil {
+						t.Fatalf("article %s: coAuthors/attributions nil (attendu tableaux)", a.ID)
+					}
+					if a.Title == "" || a.Content == "" {
+						t.Fatalf("article %s: title/content vides", a.ID)
+					}
+					if a.CreatedAt == "" {
+						t.Fatalf("article %s: createdAt vide", a.ID)
+					}
+				}
+			}
+			if !found {
+				t.Fatalf("article %q absent de la réhydratation", it.ID)
+			}
+		}
+		if it.ItemType == "THOUGHT" {
+			seenThought = true
+			found := false
+			for _, s := range hyd.Thoughts {
+				if s.ID == it.ID {
+					found = true
+					if s.TargetPost.ID == "" {
+						t.Fatalf("thought %s: targetPost vide", it.ID)
+					}
+				}
+			}
+			if !found {
+				t.Fatalf("thought %q absent de la réhydratation", it.ID)
+			}
+		}
+	}
+	if !seenArt || !seenThought {
+		t.Fatalf("le seed doit contenir articles (%v) et pensées (%v)", seenArt, seenThought)
 	}
 }
 
