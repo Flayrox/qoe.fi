@@ -295,3 +295,122 @@ func TestCompleteOnboarding_UpdatesExisting(t *testing.T) {
 		t.Fatalf("publications = %d, attendu 2 (pas de doublon)", pubs)
 	}
 }
+
+// ─── Préférences lecteur (userSettings) ─────────────────────────────────
+
+// TestUserPreferences vérifie GET/PATCH /v1/settings/preferences : création
+// par défaut à la lecture, puis patch validé.
+func TestUserPreferences(t *testing.T) {
+	fx := seedSettings(t)
+	svc := NewService(poolTest)
+	ctx := context.Background()
+
+	// Lecture sans ligne → defaults créés (upsert-on-read).
+	s, err := svc.GetUserSettings(ctx, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("GetUserSettings: %v", err)
+	}
+	if s.ProfileVisibility != "PUBLIC" || s.FontScale != 100 || s.DefaultFeed != "FOLLOWING" {
+		t.Fatalf("defaults = %s/%d/%s", s.ProfileVisibility, s.FontScale, s.DefaultFeed)
+	}
+	if !s.AllowMentions || !s.AutoplayMedia || !s.ShowSensitiveContent {
+		t.Fatalf("defaults bools = %+v", s)
+	}
+
+	// Patch validé (miroir updateAccountSettingsAction).
+	upd, err := svc.UpdateUserSettings(ctx, fx.ViewerID, map[string]any{
+		"profileVisibility": "FOLLOWERS",
+		"fontScale":         125,
+		"defaultFeed":       "DISCOVER",
+		"reduceMotion":      true,
+	})
+	if err != nil {
+		t.Fatalf("UpdateUserSettings: %v", err)
+	}
+	if upd.ProfileVisibility != "FOLLOWERS" || upd.FontScale != 125 || upd.DefaultFeed != "DISCOVER" || !upd.ReduceMotion {
+		t.Fatalf("patch non appliqué: %+v", upd)
+	}
+	// Les autres valeurs restent par défaut.
+	if upd.AllowMentions != true {
+		t.Fatalf("allowMentions changé par erreur: %+v", upd)
+	}
+
+	// Valeur invalide → refusée, état inchangé.
+	if _, err := svc.UpdateUserSettings(ctx, fx.ViewerID, map[string]any{"fontScale": 999}); err == nil {
+		t.Fatalf("fontScale 999 accepté")
+	}
+	if _, err := svc.UpdateUserSettings(ctx, fx.ViewerID, map[string]any{"profileVisibility": "BOGUS"}); err == nil {
+		t.Fatalf("profileVisibility bogus accepté")
+	}
+	after, _ := svc.GetUserSettings(ctx, fx.ViewerID)
+	if after.FontScale != 125 || after.ProfileVisibility != "FOLLOWERS" {
+		t.Fatalf("état modifié après rejet: %+v", after)
+	}
+}
+
+// ─── Demande de suppression de compte ────────────────────────────────────
+
+// TestDeletionRequest vérifie POST/GET/DELETE /v1/me/account-deletion-request :
+// création idempotente, lecture, annulation.
+func TestDeletionRequest(t *testing.T) {
+	fx := seedSettings(t)
+	svc := NewService(poolTest)
+	ctx := context.Background()
+
+	// Aucune demande au départ.
+	none, err := svc.GetDeletionRequest(ctx, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("GetDeletionRequest: %v", err)
+	}
+	if none != nil {
+		t.Fatalf("demande initiale = %+v, attendu nil", none)
+	}
+
+	// Création.
+	req, err := svc.CreateDeletionRequest(ctx, fx.ViewerID, "User requested account deletion from settings")
+	if err != nil {
+		t.Fatalf("CreateDeletionRequest: %v", err)
+	}
+	if req.Status != "PENDING" || req.ID == "" || req.RequestedAt == "" {
+		t.Fatalf("demande = %+v", req)
+	}
+
+	// Idempotent : une seconde création renvoie la même demande (pas de doublon).
+	req2, err := svc.CreateDeletionRequest(ctx, fx.ViewerID, "again")
+	if err != nil {
+		t.Fatalf("CreateDeletionRequest 2: %v", err)
+	}
+	if req2.ID != req.ID {
+		t.Fatalf("ids = %s / %s, attendu identique (idempotence)", req.ID, req2.ID)
+	}
+	var n int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*)::int FROM "AccountDeletionRequest" WHERE "userId" = $1`,
+		fx.ViewerID).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("lignes = %d (err %v), attendu 1", n, err)
+	}
+
+	// Lecture → PENDING.
+	got, _ := svc.GetDeletionRequest(ctx, fx.ViewerID)
+	if got == nil || got.Status != "PENDING" {
+		t.Fatalf("get = %+v", got)
+	}
+
+	// Annulation → CANCELED.
+	if err := svc.CancelDeletionRequest(ctx, fx.ViewerID); err != nil {
+		t.Fatalf("CancelDeletionRequest: %v", err)
+	}
+	cancelled, _ := svc.GetDeletionRequest(ctx, fx.ViewerID)
+	if cancelled == nil || cancelled.Status != "CANCELED" {
+		t.Fatalf("après annulation = %+v", cancelled)
+	}
+
+	// Après annulation, une nouvelle création est possible.
+	req3, err := svc.CreateDeletionRequest(ctx, fx.ViewerID, "new")
+	if err != nil {
+		t.Fatalf("CreateDeletionRequest 3: %v", err)
+	}
+	if req3.Status != "PENDING" || req3.ID == req.ID {
+		t.Fatalf("nouvelle demande = %+v (ancienne %s)", req3, req.ID)
+	}
+}

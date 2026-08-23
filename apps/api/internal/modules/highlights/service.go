@@ -49,37 +49,43 @@ type AnnotationComment struct {
 
 // MyHighlight est un surlignage du lecteur avec l'article associé (bibliothèque).
 type MyHighlight struct {
-	ID              string  `json:"id"`
-	Text            string  `json:"text"`
-	Note            *string `json:"note"`
-	IsPublic        bool    `json:"isPublic"`
-	IsOfficial      bool    `json:"isOfficial"`
-	UpvotesCount    int     `json:"upvotesCount"`
-	ReaderID        string  `json:"readerId"`
-	ArticleID       string  `json:"articleId"`
-	CreatedAt       string  `json:"createdAt"`
-	ArticleTitle    string  `json:"articleTitle"`
-	ArticleSlug     string  `json:"articleSlug"`
-	PublicationID   string  `json:"publicationId"`
-	PublicationName string  `json:"publicationName"`
-	PublicationSlug string  `json:"publicationSlug"`
+	ID                      string  `json:"id"`
+	Text                    string  `json:"text"`
+	Note                    *string `json:"note"`
+	IsPublic                bool    `json:"isPublic"`
+	IsOfficial              bool    `json:"isOfficial"`
+	UpvotesCount            int     `json:"upvotesCount"`
+	ReaderID                string  `json:"readerId"`
+	ArticleID               string  `json:"articleId"`
+	CreatedAt               string  `json:"createdAt"`
+	ArticleTitle            string  `json:"articleTitle"`
+	ArticleSlug             string  `json:"articleSlug"`
+	PublicationID           string  `json:"publicationId"`
+	PublicationName         string  `json:"publicationName"`
+	PublicationSlug         string  `json:"publicationSlug"`
+	PublicationSubdomain    *string `json:"subdomain"`
+	PublicationCustomDomain *string `json:"customDomain"`
 }
 
 // BookmarkItem est un article sauvegardé (bibliothèque).
 type BookmarkItem struct {
-	BookmarkID          string  `json:"bookmarkId"`
-	BookmarkedAt        string  `json:"bookmarkedAt"`
-	ArticleID           string  `json:"articleId"`
-	ArticleTitle        string  `json:"articleTitle"`
-	ArticleSlug         string  `json:"articleSlug"`
-	ArticleReadingTime  int     `json:"readingTime"`
-	ArticleIsPremium    bool    `json:"isPremium"`
-	ArticleCreatedAt    string  `json:"articleCreatedAt"`
-	PublicationID       string  `json:"publicationId"`
-	PublicationName     string  `json:"publicationName"`
-	PublicationSlug     string  `json:"publicationSlug"`
-	PublicationSubdomain *string `json:"subdomain"`
-	Author              Author  `json:"author"`
+	BookmarkID             string  `json:"bookmarkId"`
+	BookmarkedAt           string  `json:"bookmarkedAt"`
+	ArticleID              string  `json:"articleId"`
+	ArticleTitle           string  `json:"articleTitle"`
+	ArticleSlug            string  `json:"articleSlug"`
+	ArticleReadingTime     int     `json:"readingTime"`
+	ArticleIsPremium       bool    `json:"isPremium"`
+	ArticleCreatedAt       string  `json:"articleCreatedAt"`
+	ArticleContent         string  `json:"content"`
+	PublicationID          string  `json:"publicationId"`
+	PublicationName        string  `json:"publicationName"`
+	PublicationSlug        string  `json:"publicationSlug"`
+	PublicationSubdomain   *string `json:"subdomain"`
+	PublicationCustomDomain *string `json:"customDomain"`
+	PublicationLogo        *string `json:"logoUrl"`
+	CategoryName           *string `json:"categoryName"`
+	Author                 Author  `json:"author"`
 }
 
 // Service porte les dépendances du domaine highlights.
@@ -322,9 +328,11 @@ func (s *Service) MyHighlights(ctx context.Context, readerID string, limit, offs
 			CreatedAt:       tsString(r.CreatedAt),
 			ArticleTitle:    r.ArticleTitle,
 			ArticleSlug:     r.ArticleSlug,
-			PublicationID:   r.PublicationID,
-			PublicationName: r.PublicationName,
-			PublicationSlug: r.PublicationSlug,
+			PublicationID:           r.PublicationID,
+			PublicationName:         r.PublicationName,
+			PublicationSlug:         r.PublicationSlug,
+			PublicationSubdomain:    textPtr(r.PublicationSubdomain),
+			PublicationCustomDomain: textPtr(r.PublicationCustomDomain),
 		})
 	}
 	return out, nil
@@ -354,10 +362,14 @@ func (s *Service) Bookmarks(ctx context.Context, readerID string, limit, offset 
 			ArticleReadingTime:  int(r.ArticleReadingTime),
 			ArticleIsPremium:    r.ArticleIsPremium,
 			ArticleCreatedAt:    tsString(r.ArticleCreatedAt),
-			PublicationID:       r.PublicationID,
-			PublicationName:     r.PublicationName,
-			PublicationSlug:     r.PublicationSlug,
-			PublicationSubdomain: textPtr(r.PublicationSubdomain),
+			PublicationID:            r.PublicationID,
+			PublicationName:          r.PublicationName,
+			PublicationSlug:          r.PublicationSlug,
+			PublicationSubdomain:     textPtr(r.PublicationSubdomain),
+			PublicationCustomDomain:  textPtr(r.PublicationCustomDomain),
+			PublicationLogo:          textPtr(r.PublicationLogo),
+			ArticleContent:           r.ArticleContent,
+			CategoryName:             textPtr(r.CategoryName),
 			Author: Author{
 				ID:       r.AuthorID,
 				Name:     textPtr(r.AuthorName),

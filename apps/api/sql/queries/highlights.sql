@@ -41,7 +41,9 @@ SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."upvotesCount",
        a.slug       AS article_slug,
        p.id         AS publication_id,
        p.name       AS publication_name,
-       p.slug       AS publication_slug
+       p.slug       AS publication_slug,
+       p.subdomain  AS publication_subdomain,
+       p."customDomain" AS publication_custom_domain
 FROM "Highlight" h
 JOIN "Article" a ON a.id = h."articleId"
 JOIN "Publication" p ON p.id = a."publicationId"

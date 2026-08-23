@@ -354,6 +354,10 @@ SELECT b.id                 AS bookmark_id,
        p.name               AS publication_name,
        p.slug               AS publication_slug,
        p.subdomain          AS publication_subdomain,
+       p."customDomain"     AS publication_custom_domain,
+       p."logoUrl"          AS publication_logo,
+       a.content            AS article_content,
+       c.name               AS category_name,
        u.id::text           AS author_id,
        u.name               AS author_name,
        u.username           AS author_username,
@@ -361,6 +365,7 @@ SELECT b.id                 AS bookmark_id,
 FROM "Bookmark" b
 JOIN "Article" a ON a.id = b."articleId" AND a.published = true
 JOIN "Publication" p ON p.id = a."publicationId"
+LEFT JOIN "Category" c ON c.id = a."categoryId"
 JOIN "User" u ON u.id = a."authorId"
 WHERE b."readerId" = $1
 ORDER BY b."createdAt" DESC
@@ -374,22 +379,26 @@ type ListBookmarksByReaderParams struct {
 }
 
 type ListBookmarksByReaderRow struct {
-	BookmarkID           string           `json:"bookmark_id"`
-	BookmarkedAt         pgtype.Timestamp `json:"bookmarked_at"`
-	ArticleID            string           `json:"article_id"`
-	ArticleTitle         string           `json:"article_title"`
-	ArticleSlug          string           `json:"article_slug"`
-	ArticleReadingTime   int32            `json:"article_reading_time"`
-	ArticleIsPremium     bool             `json:"article_is_premium"`
-	ArticleCreatedAt     pgtype.Timestamp `json:"article_created_at"`
-	PublicationID        string           `json:"publication_id"`
-	PublicationName      string           `json:"publication_name"`
-	PublicationSlug      string           `json:"publication_slug"`
-	PublicationSubdomain pgtype.Text      `json:"publication_subdomain"`
-	AuthorID             string           `json:"author_id"`
-	AuthorName           pgtype.Text      `json:"author_name"`
-	AuthorUsername       pgtype.Text      `json:"author_username"`
-	AuthorLogo           pgtype.Text      `json:"author_logo"`
+	BookmarkID              string           `json:"bookmark_id"`
+	BookmarkedAt            pgtype.Timestamp `json:"bookmarked_at"`
+	ArticleID               string           `json:"article_id"`
+	ArticleTitle            string           `json:"article_title"`
+	ArticleSlug             string           `json:"article_slug"`
+	ArticleReadingTime      int32            `json:"article_reading_time"`
+	ArticleIsPremium        bool             `json:"article_is_premium"`
+	ArticleCreatedAt        pgtype.Timestamp `json:"article_created_at"`
+	PublicationID           string           `json:"publication_id"`
+	PublicationName         string           `json:"publication_name"`
+	PublicationSlug         string           `json:"publication_slug"`
+	PublicationSubdomain    pgtype.Text      `json:"publication_subdomain"`
+	PublicationCustomDomain pgtype.Text      `json:"publication_custom_domain"`
+	PublicationLogo         pgtype.Text      `json:"publication_logo"`
+	ArticleContent          string           `json:"article_content"`
+	CategoryName            pgtype.Text      `json:"category_name"`
+	AuthorID                string           `json:"author_id"`
+	AuthorName              pgtype.Text      `json:"author_name"`
+	AuthorUsername          pgtype.Text      `json:"author_username"`
+	AuthorLogo              pgtype.Text      `json:"author_logo"`
 }
 
 // Articles sauvegardés (bookmarks) d'un lecteur, avec titre/slug/publication
@@ -416,6 +425,10 @@ func (q *Queries) ListBookmarksByReader(ctx context.Context, arg ListBookmarksBy
 			&i.PublicationName,
 			&i.PublicationSlug,
 			&i.PublicationSubdomain,
+			&i.PublicationCustomDomain,
+			&i.PublicationLogo,
+			&i.ArticleContent,
+			&i.CategoryName,
 			&i.AuthorID,
 			&i.AuthorName,
 			&i.AuthorUsername,

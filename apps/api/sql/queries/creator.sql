@@ -172,6 +172,10 @@ SELECT b.id                 AS bookmark_id,
        p.name               AS publication_name,
        p.slug               AS publication_slug,
        p.subdomain          AS publication_subdomain,
+       p."customDomain"     AS publication_custom_domain,
+       p."logoUrl"          AS publication_logo,
+       a.content            AS article_content,
+       c.name               AS category_name,
        u.id::text           AS author_id,
        u.name               AS author_name,
        u.username           AS author_username,
@@ -179,6 +183,7 @@ SELECT b.id                 AS bookmark_id,
 FROM "Bookmark" b
 JOIN "Article" a ON a.id = b."articleId" AND a.published = true
 JOIN "Publication" p ON p.id = a."publicationId"
+LEFT JOIN "Category" c ON c.id = a."categoryId"
 JOIN "User" u ON u.id = a."authorId"
 WHERE b."readerId" = $1
 ORDER BY b."createdAt" DESC
