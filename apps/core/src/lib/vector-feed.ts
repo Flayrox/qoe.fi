@@ -302,6 +302,11 @@ export const mapQuotedArticle = (article: FeedPostRecord['quotedArticle']) =>
       }
     : null;
 
+// Go sert les dates en string RFC3339, Prisma en Date — on normalise pour
+// que les deux sources soient acceptées par le mapping (parité JSON Go).
+const toISO = (d: Date | string | null | undefined): string | undefined =>
+  d == null ? undefined : (d instanceof Date ? d : new Date(d)).toISOString();
+
 export const mapPostToFeedItem = (post: FeedPostRecord, currentUserId?: string) => {
   const canonicalPost = post.repost || post;
   const likesCount = canonicalPost._count?.likes ?? post._count?.likes ?? 0;
@@ -333,7 +338,7 @@ export const mapPostToFeedItem = (post: FeedPostRecord, currentUserId?: string) 
     published: true,
     isPremium: false,
     readingTime: 1,
-    createdAt: post.createdAt.toISOString(),
+    createdAt: toISO(post.createdAt) ?? '',
     author: {
       ...post.author,
       heroText: post.author?.heroText ?? null,
@@ -342,7 +347,7 @@ export const mapPostToFeedItem = (post: FeedPostRecord, currentUserId?: string) 
     parent: post.parent
       ? {
           ...post.parent,
-          createdAt: post.parent.createdAt ? post.parent.createdAt.toISOString() : undefined,
+          createdAt: toISO(post.parent.createdAt),
           author: {
             ...post.parent.author,
             isCertified: post.parent.author?.isCertified || false,
@@ -352,9 +357,7 @@ export const mapPostToFeedItem = (post: FeedPostRecord, currentUserId?: string) 
     repost: post.repost
       ? {
           ...post.repost,
-          createdAt: post.repost.createdAt
-            ? post.repost.createdAt.toISOString()
-            : post.createdAt.toISOString(),
+          createdAt: toISO(post.repost.createdAt) ?? toISO(post.createdAt) ?? '',
           author: {
             ...post.repost.author,
             isCertified: post.repost.author?.isCertified || false,
