@@ -1,6 +1,7 @@
 package feed
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -38,10 +39,36 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/feed/trending", h.trending)
 	r.Get("/v1/feed/personalized", h.personalized)
+	r.Post("/v1/feed/hydrate", h.hydrate)
 	r.Get("/v1/posts/{id}/thread", h.thread)
 	r.Get("/v1/users/{username}/posts", h.userPosts)
 	r.Get("/v1/users/{username}/articles", h.userArticles)
 	r.Get("/v1/feed/articles", h.articles)
+}
+
+// hydrate — réhydratation du feed « Pour vous » (POST /v1/feed/hydrate).
+// Reçoit les ids classés par le moteur ({itemType, id}) et renvoie les
+// articles complets + pensées (FeedSlice) — remplace prisma côté Next.
+func (h *Handler) hydrate(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	var body struct {
+		Items []EngineItem `json:"items"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if len(body.Items) > 100 {
+		response.BadRequest(w, "trop d'items")
+		return
+	}
+	result, err := h.svc.Hydrate(r.Context(), body.Items, userID)
+	if err != nil {
+		log.Printf("[feed] hydrate: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, result)
 }
 
 // userArticles — articles publiés d'une publication (profil), paginés.

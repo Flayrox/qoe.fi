@@ -9,11 +9,9 @@
 // API /api/feed/personalized (pages suivantes au scroll).
 // =====================================================================
 
-import { prisma } from '@qoe/db/client';
 import type { Prisma } from '@qoe/db/types';
 import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import {
-  buildFeedSlices,
   formatPollData,
   type FeedPoll,
   type FormattedPoll,
@@ -477,6 +475,66 @@ interface EngineResult {
   nextCursor?: string;
 }
 type EnginePage = EngineResult;
+
+// Réhydratation Go (POST /v1/feed/hydrate) — shape miroir du JSON Go.
+interface HydrateAuthor {
+  id: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  isCertified: boolean;
+}
+interface HydratePublication {
+  id: string;
+  type: string;
+  name: string;
+  slug: string;
+  subdomain: string | null;
+  customDomain: string | null;
+  logoUrl: string | null;
+  heroText: string | null;
+  isCertified: boolean;
+}
+interface HydrateAttribution {
+  user: HydrateAuthor;
+  role: string;
+  order: number;
+  isVisible: boolean;
+  consentStatus: string;
+}
+interface HydrateArticle {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  imageUrl: string | null;
+  published: boolean;
+  isPremium: boolean;
+  visibility: string;
+  readingTime: number;
+  status: string;
+  completionRate: number;
+  semanticTags: string[];
+  allowPublicAnnotations: boolean;
+  allowComments: boolean;
+  scheduledAt: string | null;
+  publicationId: string;
+  authorId: string;
+  categoryId: string | null;
+  tierId: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  createdAt: string;
+  updatedAt: string;
+  author: HydrateAuthor;
+  publication: HydratePublication;
+  coAuthors: HydrateAuthor[];
+  attributions: HydrateAttribution[];
+}
+interface HydrateResponse {
+  articles: HydrateArticle[];
+  thoughts: FeedSlice[];
+}
 const feedEngineCache = new Map<string, { expires: number; data: Promise<EnginePage> }>();
 
 async function getEnginePage(
@@ -524,27 +582,15 @@ export async function buildVectorFeedPage(params: {
 
   const pageItems = engineItems.slice(0, limit);
 
-  const articleIds = pageItems.filter((i) => i.itemType === 'ARTICLE').map((i) => i.id);
-  const thoughtIds = pageItems.filter((i) => i.itemType === 'THOUGHT').map((i) => i.id);
+  // Réhydratation 100% Go : articles complets + pensées (FeedSlice).
+  const { articles, thoughts } = await goFetch<HydrateResponse>('/v1/feed/hydrate', {
+    method: 'POST',
+    body: { items: pageItems },
+  });
 
-  const postIncludeSelect = getPostIncludeSelect(userId ?? undefined);
-
-  const [vectorArticles, vectorPosts] = await Promise.all([
-    articleIds.length > 0
-      ? prisma.article.findMany({
-          where: { id: { in: articleIds } },
-          include: articleFeedInclude,
-        })
-      : Promise.resolve([]),
-    thoughtIds.length > 0
-      ? prisma.thought.findMany({
-          where: { id: { in: thoughtIds } },
-          include: postIncludeSelect,
-        })
-      : Promise.resolve([]),
-  ]);
-
-  const vectorSlices = await buildFeedSlices(vectorPosts, userId ?? undefined);
+  // Le JSON Go respecte le contrat Prisma lu par mapArticleToFeedItem.
+  const vectorArticles = articles as unknown as ArticleWithDetails[];
+  const vectorSlices = thoughts;
   const articleById = new Map(vectorArticles.map((a) => [a.id, a]));
   const sliceById = new Map(vectorSlices.map((s) => [s.id, s]));
 
