@@ -34,6 +34,7 @@ import (
 	"github.com/qoefi/api/internal/modules/search"
 	"github.com/qoefi/api/internal/modules/home"
 	"github.com/qoefi/api/internal/modules/settings"
+	"github.com/qoefi/api/internal/modules/tracking"
 	"github.com/qoefi/api/internal/modules/users"
 	"github.com/qoefi/api/internal/modules/webhooks"
 	"github.com/qoefi/api/internal/modules/workspaces"
@@ -231,6 +232,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		usersHandler := users.NewHandler(users.NewService(pool))
 		usersHandler.Register(protected)
+
+		trackingHandler := tracking.NewHandler(tracking.NewService(pool))
+		trackingHandler.RegisterProtected(protected)
 
 		oauthHandler.RegisterProtected(protected)
 	})
