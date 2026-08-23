@@ -9,7 +9,7 @@
 // =====================================================================
 
 import { cookies } from 'next/headers';
-import { prisma } from '@qoe/db/client';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 
 export interface ActiveWorkspace {
   type: 'PERSONAL' | 'MEDIA';
@@ -37,53 +37,29 @@ function parseCookie(raw: string | undefined): { type?: string; id?: string } | 
 }
 
 /**
- * 🎛️ Résout le workspace actif de l'utilisateur.
+ * 🎛️ Résout le workspace actif de l'utilisateur — Go-only.
  * - Si un Média actif est sélectionné et que l'utilisateur en est membre → contexte MEDIA.
  * - Sinon → publication personnelle du créateur.
+ * Délègue à Go `GET /v1/workspaces/active?mediaId=` (auth via Supabase JWT).
  */
 export async function getActiveWorkspace(userId: string): Promise<ActiveWorkspace> {
   const cookieStore = await cookies();
   const saved = parseCookie(cookieStore.get(WORKSPACE_COOKIE)?.value);
+  const mediaId = saved?.type === 'MEDIA' && saved.id ? saved.id : '';
 
-  if (saved?.type === 'MEDIA' && saved.id) {
-    const membership = await prisma.mediaMember.findUnique({
-      where: { mediaId_userId: { mediaId: saved.id, userId } },
-      include: {
-        media: {
-          include: {
-            publication: {
-              select: { id: true, name: true, slug: true, logoUrl: true },
-            },
-          },
-        },
-      },
-    });
-    if (membership) {
-      return {
-        type: 'MEDIA',
-        mediaId: membership.mediaId,
-        publicationId: membership.media.publication.id,
-        name: membership.media.publication.name,
-        slug: membership.media.publication.slug,
-        logoUrl: membership.media.publication.logoUrl,
-        mediaRole: membership.role,
-      };
-    }
+  try {
+    const qs = mediaId ? `?mediaId=${encodeURIComponent(mediaId)}` : '';
+    return await goFetch<ActiveWorkspace>(`/v1/workspaces/active${qs}`);
+  } catch {
+    // Fallback si Go indisponible (dev) : publication personnelle = userId
+    return {
+      type: 'PERSONAL',
+      publicationId: userId,
+      name: 'Profil Personnel',
+      slug: 'personal',
+      logoUrl: null,
+    };
   }
-
-  // Défaut : publication personnelle
-  const personal = await prisma.publication.findFirst({
-    where: { type: 'PERSONAL', user: { id: userId } },
-    select: { id: true, name: true, slug: true, logoUrl: true },
-  });
-
-  return {
-    type: 'PERSONAL',
-    publicationId: personal?.id ?? userId,
-    name: personal?.name || 'Profil Personnel',
-    slug: personal?.slug || 'personal',
-    logoUrl: personal?.logoUrl ?? null,
-  };
 }
 
 /**
