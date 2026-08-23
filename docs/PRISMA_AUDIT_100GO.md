@@ -128,5 +128,11 @@ Le module billing Go ne gère que les webhooks Stripe/Supabase. La page lecteur 
   cached-queries, settings, layout, library, highlights, onboarding, login.
 - **`billing/page.tsx` est le seul vrai gap d'endpoint** (aucun Go lecteur) — P3,
   à laisser en Prisma ou à couvrir par un `GET /v1/me/billing`.
+
+> ⚠️ **Complément** : l'audit au-delà de `apps/core` (packages/db, packages/api-client, studio,
+> admin) et les résidus indirects du chemin nominal (3 appels `@qoe/db/feed`/`onboarding` dans
+> `home/page.tsx`, `findFirstBySlug` dans `article/[slug]`) sont documentés dans
+> [`docs/PRISMA_AUDIT_BEYOND_CORE.md`](./PRISMA_AUDIT_BEYOND_CORE.md).
+
 - **`exportAccountDataAction`** reste volontairement sur Prisma (action rare, volume
   complet) — à déporter si un endpoint `GET /v1/me/export` est demandé.
