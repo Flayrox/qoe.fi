@@ -25,10 +25,11 @@ func (h *Handler) Register(r chi.Router) {
 }
 
 // RegisterProtected enregistre les routes nécessitant une authentification :
-// le feed d'abonnements (following).
+// le feed d'abonnements (following) et le feed personnalisé Two-Tower.
 func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Route("/v1/feed", func(r chi.Router) {
 		r.Get("/", h.following)
+		r.Get("/personalized", h.personalized)
 	})
 }
 
@@ -36,6 +37,7 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 // le feed tendance, le fil d'un post (thread), les pensées d'un profil, ses articles, et les articles du feed.
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/feed/trending", h.trending)
+	r.Get("/v1/feed/personalized", h.personalized)
 	r.Get("/v1/posts/{id}/thread", h.thread)
 	r.Get("/v1/users/{username}/posts", h.userPosts)
 	r.Get("/v1/users/{username}/articles", h.userArticles)
@@ -138,4 +140,30 @@ func (h *Handler) articles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, items)
+}
+
+// personalized — feed Two-Tower personnalisé (GET /v1/feed/personalized?limit=&offset=&userHour=)
+// Auth optionnelle : cold-start si non authentifié (Sim=0.5 fallback).
+func (h *Handler) personalized(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	limit, offset := parseLimitCursor(r)
+	userHour := -1
+	if v := r.URL.Query().Get("userHour"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 && n <= 23 {
+			userHour = n
+		}
+	}
+	// Accept also offset param (task uses offset, not cursor)
+	if v := r.URL.Query().Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+	result, err := h.svc.PersonalizedFeed(r.Context(), userID, limit, offset, userHour)
+	if err != nil {
+		log.Printf("[feed] personalized: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, result)
 }
