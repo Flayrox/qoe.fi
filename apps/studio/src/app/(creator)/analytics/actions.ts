@@ -243,41 +243,15 @@ export async function getCreatorAnalyticsData(
     const attributedSlugs = attributedArticles.map((a) => `/articles/${a.slug}`);
     const attributedSlugSet = new Set(attributedSlugs);
 
-    // Provenance fine (le plus poussé) : breakdown par source + hostname/referrer
-    const [bySource, byHostname, byReferrer] = await Promise.all([
-      prisma.readingSession.groupBy({
-        by: ['source'],
-        where: {
-          articleId: { in: attributedArticles.map((a) => a.id) },
-          createdAt: { gte: sevenDaysAgo },
-        },
-        _count: { _all: true },
-      }),
-      prisma.readingSession.groupBy({
-        by: ['hostname'],
-        where: {
-          articleId: { in: attributedArticles.map((a) => a.id) },
-          hostname: { not: null },
-          createdAt: { gte: sevenDaysAgo },
-        },
-        _count: { _all: true },
-      }),
-      prisma.readingSession.groupBy({
-        by: ['referrerUsername'],
-        where: {
-          articleId: { in: attributedArticles.map((a) => a.id) },
-          referrerUsername: { not: null },
-          createdAt: { gte: sevenDaysAgo },
-        },
-        _count: { _all: true },
-      }),
-    ]);
-
-    const provenance = {
-      bySource: bySource.map((s) => ({ key: s.source, count: s._count._all })),
-      byHostname: byHostname.map((s) => ({ key: s.hostname || 'inconnu', count: s._count._all })),
-      byReferrer: byReferrer.map((s) => ({ key: `@${s.referrerUsername}`, count: s._count._all })),
-    };
+    // Provenance fine (le plus poussé) : breakdown par source + hostname/referrer — Go-only (ReadingSession)
+    let provenance: ProvenanceBreakdown = { bySource: [], byHostname: [], byReferrer: [] };
+    try {
+      provenance = await goFetch<ProvenanceBreakdown>(
+        `/v1/analytics/provenance?publicationId=${workspace.publicationId}&period=7d`
+      );
+    } catch {
+      provenance = { bySource: [], byHostname: [], byReferrer: [] };
+    }
 
     const creator = await prisma.publication.findUnique({
       where: { id: workspace.publicationId },
@@ -457,52 +431,73 @@ export async function getCreatorAnalyticsData(
       unit = 'day';
     }
 
-    // 🎯 Vues PLEIN : agrégation par articleId (canonique, pas slug) via ReadingSession
+    // 🎯 Vues PLEIN : agrégation par articleId (canonique, pas slug) via ReadingSession — Go-only
     // → un co-auteur reçoit 100% des vues de l'article co-signé, et /maison/slug ne fragmente pas
-    const attributedArticleIds = attributedArticles.map((a) => a.id);
-    const perArticleDb = await prisma.readingSession.groupBy({
-      by: ['articleId'],
-      where:
-        period === 'all'
-          ? { articleId: { in: attributedArticleIds } }
-          : { articleId: { in: attributedArticleIds }, createdAt: { gte: new Date(startAt) } },
-      _count: { _all: true },
-    });
-    const perArticleViewsMap = new Map(perArticleDb.map((r) => [r.articleId, r._count._all]));
-    const creatorTotalViews = perArticleViewsMap.size
-      ? Array.from(perArticleViewsMap.values()).reduce((s, v) => s + v, 0)
-      : 0;
+    // Fallback Prisma si Go indisponible (dev)
+    let perArticleViewsMap = new Map<string, number>();
+    let creatorTotalViews = 0;
+    let timeseries: UmamiTimeseriesPoint[] = [];
+    let attributedTopPages: UmamiPageMetric[] = [];
+    try {
+      const goStats = await goFetch<{
+        perArticle: Record<string, number>;
+        totalViews: number;
+        dailySeries: Array<{ day: string; count: number }>;
+      }>(`/v1/analytics/creator?publicationId=${workspace.publicationId}&period=${period}`);
+      perArticleViewsMap = new Map(Object.entries(goStats.perArticle || {}));
+      creatorTotalViews = goStats.totalViews || 0;
+      const seriesByDayGo = new Map(goStats.dailySeries.map((r) => [r.day, r.count]));
+      // Timeseries Go : on reconstruit sur la même fenêtre que le front (startAt → now)
+      for (let d = new Date(startAt); d.getTime() <= now; d.setDate(d.getDate() + 1)) {
+        const key = d.toISOString().slice(0, 10);
+        timeseries.push({ x: new Date(d).toISOString(), y: seriesByDayGo.get(key) || 0 });
+      }
+      const slugByIdGo = new Map(attributedArticles.map((a) => [a.id, `/articles/${a.slug}`]));
+      attributedTopPages = Array.from(perArticleViewsMap.entries())
+        .map(([articleId, y]) => ({ x: slugByIdGo.get(articleId) || articleId, y }))
+        .sort((a, b) => b.y - a.y)
+        .slice(0, 10);
+    } catch {
+      const attributedArticleIds = attributedArticles.map((a) => a.id);
+      const perArticleDb = await prisma.readingSession.groupBy({
+        by: ['articleId'],
+        where:
+          period === 'all'
+            ? { articleId: { in: attributedArticleIds } }
+            : { articleId: { in: attributedArticleIds }, createdAt: { gte: new Date(startAt) } },
+        _count: { _all: true },
+      });
+      perArticleViewsMap = new Map(perArticleDb.map((r) => [r.articleId, r._count._all]));
+      creatorTotalViews = perArticleViewsMap.size
+        ? Array.from(perArticleViewsMap.values()).reduce((s, v) => s + v, 0)
+        : 0;
+      const slugById = new Map(attributedArticles.map((a) => [a.id, `/articles/${a.slug}`]));
+      attributedTopPages = Array.from(perArticleViewsMap.entries())
+        .map(([articleId, y]) => ({ x: slugById.get(articleId) || articleId, y }))
+        .sort((a, b) => b.y - a.y)
+        .slice(0, 10);
+      void attributedSlugSet;
+      const rawSeries = await prisma.$queryRawUnsafe<Array<{ day: string; cnt: number }>>(
+        `SELECT to_char(date_trunc('day', "createdAt"), 'YYYY-MM-DD') as day, COUNT(*)::int as cnt
+         FROM "ReadingSession"
+         WHERE "articleId" = ANY($1::text[]) AND "createdAt" >= to_timestamp($2/1000.0)
+         GROUP BY date_trunc('day', "createdAt")
+         ORDER BY day`,
+        attributedArticleIds,
+        startAt
+      );
+      const seriesByDay = new Map(rawSeries.map((r) => [r.day, r.cnt]));
+      for (let d = new Date(startAt); d.getTime() <= now; d.setDate(d.getDate() + 1)) {
+        const key = d.toISOString().slice(0, 10);
+        timeseries.push({ x: new Date(d).toISOString(), y: seriesByDay.get(key) || 0 });
+      }
+    }
 
     // Pour compat Umami, garde aussi le global pour visiteurs/visites, mais pageviews = DB plein
     const globalStats = await fetchUmamiWebsiteStats(targetWebsiteId, startAt, now);
     const creatorStats: UmamiStats | null = globalStats
       ? { ...globalStats, pageviews: creatorTotalViews }
       : { pageviews: creatorTotalViews, visitors: 0, visits: 0, bounces: 0, totaltime: 0 };
-
-    // topPages plein : par articleId, trié par vues DB, map vers /articles/slug pour UI
-    const slugById = new Map(attributedArticles.map((a) => [a.id, `/articles/${a.slug}`]));
-    const attributedTopPages: UmamiPageMetric[] = Array.from(perArticleViewsMap.entries())
-      .map(([articleId, y]) => ({ x: slugById.get(articleId) || articleId, y }))
-      .sort((a, b) => b.y - a.y)
-      .slice(0, 10);
-    void attributedSlugSet;
-
-    // Timeseries plein : lectures par jour pour SES articles (ReadingSession, pas Umami global)
-    const rawSeries = await prisma.$queryRawUnsafe<Array<{ day: string; cnt: number }>>(
-      `SELECT to_char(date_trunc('day', "createdAt"), 'YYYY-MM-DD') as day, COUNT(*)::int as cnt
-       FROM "ReadingSession"
-       WHERE "articleId" = ANY($1::text[]) AND "createdAt" >= to_timestamp($2/1000.0)
-       GROUP BY date_trunc('day', "createdAt")
-       ORDER BY day`,
-      attributedArticleIds,
-      startAt
-    );
-    const seriesByDay = new Map(rawSeries.map((r) => [r.day, r.cnt]));
-    const timeseries: UmamiTimeseriesPoint[] = [];
-    for (let d = new Date(startAt); d.getTime() <= now; d.setDate(d.getDate() + 1)) {
-      const key = d.toISOString().slice(0, 10);
-      timeseries.push({ x: new Date(d).toISOString(), y: seriesByDay.get(key) || 0 });
-    }
     // Referrers/devices restent Umami global (device/browser/country non stockés en DB)
     const [referrers, devices, browsers, countries] = await Promise.all([
       fetchUmamiReferrers(targetWebsiteId, startAt, now, 10),
