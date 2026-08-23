@@ -10,6 +10,7 @@ describe('article attributions', () => {
         order: 0,
         isVisible: true,
         consentStatus: 'ACCEPTED',
+        categoryId: null,
       },
     ]);
   });
@@ -32,6 +33,7 @@ describe('article attributions', () => {
         order: 0,
         isVisible: true,
         consentStatus: 'ACCEPTED',
+        categoryId: null,
       },
       {
         userId: 'co-author',
@@ -39,6 +41,7 @@ describe('article attributions', () => {
         order: 8,
         isVisible: true,
         consentStatus: 'PENDING',
+        categoryId: null,
       },
       {
         userId: 'translator',
@@ -46,6 +49,7 @@ describe('article attributions', () => {
         order: Number.MAX_SAFE_INTEGER + 3,
         isVisible: true,
         consentStatus: 'PENDING',
+        categoryId: null,
       },
     ]);
   });

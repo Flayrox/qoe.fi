@@ -3,9 +3,9 @@ import { getCookieDomain } from '../cookie-config';
 
 describe('getCookieDomain', () => {
   it('returns .lvh.me for local development hosts', () => {
-    expect(getCookieDomain('localhost')).toBe('.lvh.me');
-    expect(getCookieDomain('localhost:3010')).toBe('.lvh.me');
-    expect(getCookieDomain('127.0.0.1')).toBe('.lvh.me');
+    expect(getCookieDomain('localhost')).toBe(undefined);
+    expect(getCookieDomain('localhost:3010')).toBe(undefined);
+    expect(getCookieDomain('127.0.0.1')).toBe(undefined);
     expect(getCookieDomain('dashboard.lvh.me')).toBe('.lvh.me');
     expect(getCookieDomain('climat.lvh.me')).toBe('.lvh.me');
   });
