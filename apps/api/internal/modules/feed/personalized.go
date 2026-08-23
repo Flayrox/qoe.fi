@@ -623,3 +623,448 @@ func floatsToString(v []float32) string {
 	}
 	return strings.Join(parts, ",")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Moteur mixte Articles + Pensées — port Go complet de getPersonalizedFeed
+// (feed.ts). Renvoie les ENGINE ITEMS classés (id + type + flag découverte) ;
+// la réhydratation finale reste côté client (prisma) pour l'instant.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// EngineItem est un item classé par le moteur (léger, prêt à réhydrater).
+type EngineItem struct {
+	ItemType    string `json:"itemType"`               // ARTICLE | THOUGHT
+	ID          string `json:"id"`
+	IsDiscovery bool   `json:"isDiscovery,omitempty"`
+}
+
+// EngineResult est la réponse paginée du moteur (shape consommé par vector-feed.ts).
+type EngineResult struct {
+	Items      []EngineItem `json:"items"`
+	HasMore    bool         `json:"hasMore"`
+	NextCursor string       `json:"nextCursor,omitempty"`
+}
+
+// Constantes d'exploration ε-greedy — miroir feed.ts.
+const (
+	explorationRatioDefault = 0.12
+	explorationMinQuality   = 0.8
+	explorationCfgKey       = "feed.exploration_ratio"
+)
+
+// articleCandidate est un article brut extrait pour le reranking.
+type articleCandidate struct {
+	id, title, content, authorID, pubID string
+	readingTime       int
+	completionRate    float64
+	sim, freshness    float64
+	score             float64
+	createdAt         time.Time
+}
+
+// thoughtCandidate est une pensée brute extraite pour le reranking.
+type thoughtCandidate struct {
+	id, content, authorID                string
+	likeCount, replyCount, repostCount   int
+	sim, freshness, score                float64
+	createdAt                            time.Time
+}
+
+// mutedOK retourne false si text contient un mot masqué.
+func mutedOK(text string, muted []string) bool {
+	if len(muted) == 0 {
+		return true
+	}
+	low := strings.ToLower(text)
+	for _, w := range muted {
+		if strings.Contains(low, w) {
+			return false
+		}
+	}
+	return true
+}
+
+// PersonalizedEngine porte getPersonalizedFeed (articles + pensées, Two-Tower
+// pgvector + circadien + engagement + CF + MMR + interleaving + exploration).
+func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, offset, userHour int) (EngineResult, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	circadian := getCircadianProfile(userHour, -1)
+	// Répartition circadienne articles / pensées.
+	targetArticles := int(math.Ceil(float64(limit) * circadian.ArticleRatio))
+	targetThoughts := limit - targetArticles
+	if targetThoughts < 1 {
+		targetThoughts = 1
+		targetArticles = limit - 1
+	}
+
+	vec, err := s.fetchUserEmbedding(ctx, userID)
+	if err != nil {
+		log.Printf("[feed] engine fetchUserEmbedding: %v", err)
+		vec = nil
+	}
+	muted := s.fetchMutedWords(ctx, userID)
+	cfMap := s.getCoReadCandidates(ctx, userID)
+
+	artOver := clampInt(targetArticles*3, 1, 100)
+	thOver := clampInt(targetThoughts*3, 1, 100)
+
+	articles, err := s.fetchEngineArticles(ctx, vec, userID, artOver, offset, muted)
+	if err != nil {
+		return EngineResult{}, err
+	}
+	thoughts, err := s.fetchEngineThoughts(ctx, vec, userID, thOver, offset, muted)
+	if err != nil {
+		return EngineResult{}, err
+	}
+
+	engScores, penalties := s.getArticleEngagementScores(ctx, articleIDs(articles))
+
+	// Reranking circadien des articles.
+	for i := range articles {
+		a := &articles[i]
+		readMin := a.readingTime
+		if readMin <= 0 {
+			readMin = 8
+		}
+		circFit := computeCircadianFit(float64(readMin), circadian.TargetReadingMinutes, circadian.SigmaMinutes)
+		eng := 0.5
+		if v, ok := engScores[a.id]; ok {
+			eng = v
+		}
+		sim, fresh := a.sim, a.freshness
+		if sim <= 0 {
+			sim = 0.5
+		}
+		if fresh <= 0 {
+			fresh = 0.5
+		}
+		completionBonus := 0.7 + 0.3*a.completionRate
+		cf := cfMap[a.id]
+		score := (0.35*sim + 0.2*fresh + 0.15*eng + 0.15*circFit + 0.15*cf) * completionBonus
+		if penalties[a.id] {
+			score *= engNegativePenalty
+		}
+		a.score = score
+	}
+	sort.Slice(articles, func(i, j int) bool { return articles[i].score > articles[j].score })
+
+	// Reranking circadien des pensées.
+	for i := range thoughts {
+		t := &thoughts[i]
+		eng := math.Min(1.0, float64(t.likeCount+t.replyCount*2+t.repostCount*2)/30.0)
+		sim, fresh := t.sim, t.freshness
+		if sim <= 0 {
+			sim = 0.5
+		}
+		if fresh <= 0 {
+			fresh = 0.5
+		}
+		morningBonus := 0.0
+		if circadian.Name == "MORNING_BRIEF" {
+			morningBonus = 0.1
+		}
+		t.score = 0.45*sim + 0.25*fresh + 0.2*eng + 0.1*morningBonus
+	}
+	sort.Slice(thoughts, func(i, j int) bool { return thoughts[i].score > thoughts[j].score })
+
+	// MMR diversité : max 2 par auteur, puis découpe aux cibles circadiennes.
+	divA := applyDiversity(articles, 2, func(a articleCandidate) string { return a.authorID })
+	divT := applyDiversity(thoughts, 2, func(t thoughtCandidate) string { return t.authorID })
+	if len(divA) > targetArticles {
+		divA = divA[:targetArticles]
+	}
+	if len(divT) > targetThoughts {
+		divT = divT[:targetThoughts]
+	}
+
+	// Interleaving harmonieux selon le profil circadien.
+	aItems := make([]EngineItem, 0, len(divA))
+	for _, a := range divA {
+		aItems = append(aItems, EngineItem{ItemType: "ARTICLE", ID: a.id})
+	}
+	tItems := make([]EngineItem, 0, len(divT))
+	for _, t := range divT {
+		tItems = append(tItems, EngineItem{ItemType: "THOUGHT", ID: t.id})
+	}
+	interleaved := interleaveEngine(aItems, tItems, circadian.Name)
+	hasMore := len(interleaved) > limit || len(interleaved) == artOver+thOver
+	if len(interleaved) > limit {
+		interleaved = interleaved[:limit]
+	}
+
+	// 🌍 Exploration ε-greedy (injection hors bulle) pour lecteur authentifié.
+	if userID != "" {
+		interleaved = s.injectDiscovery(ctx, userID, interleaved, limit)
+	}
+
+	return EngineResult{Items: interleaved, HasMore: hasMore, NextCursor: strconv.Itoa(offset + len(interleaved))}, nil
+}
+
+func clampInt(v, lo, hi int) int {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
+}
+
+func articleIDs(as []articleCandidate) []string {
+	ids := make([]string, 0, len(as))
+	for _, a := range as {
+		ids = append(ids, a.id)
+	}
+	return ids
+}
+
+// applyDiversity garde au plus maxPer items par clé (MMR simple, ordre préservé).
+func applyDiversity[T any](items []T, maxPer int, key func(T) string) []T {
+	counts := map[string]int{}
+	out := make([]T, 0, len(items))
+	for _, it := range items {
+		k := key(it)
+		if counts[k] >= maxPer {
+			continue
+		}
+		out = append(out, it)
+		counts[k]++
+	}
+	return out
+}
+
+// interleaveEngine mélange articles/pensées selon le mode circadien.
+func interleaveEngine(a, t []EngineItem, circadianName string) []EngineItem {
+	var out []EngineItem
+	aI, tI := 0, 0
+	if circadianName == "MORNING_BRIEF" {
+		// Matin : 1 pensée, 1 article court, 1 pensée...
+		for aI < len(a) || tI < len(t) {
+			if tI < len(t) {
+				out = append(out, t[tI])
+				tI++
+			}
+			if aI < len(a) {
+				out = append(out, a[aI])
+				aI++
+			}
+		}
+		return out
+	}
+	// Jour / soir : 2 articles de fond, 1 pensée.
+	for aI < len(a) || tI < len(t) {
+		if aI < len(a) {
+			out = append(out, a[aI])
+			aI++
+		}
+		if aI < len(a) {
+			out = append(out, a[aI])
+			aI++
+		}
+		if tI < len(t) {
+			out = append(out, t[tI])
+			tI++
+		}
+	}
+	return out
+}
+
+// fetchEngineArticles extrait les articles candidats (ANN pgvector ou cold-start).
+func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector, userID string, limit, offset int, muted []string) ([]articleCandidate, error) {
+	var rows pgx.Rows
+	var err error
+	if vec != nil {
+		args := []any{*vec}
+		q := `
+		SELECT a.id, a.title, a.content, a."readingTime", a."completionRate", a."authorId", a."publicationId", a."createdAt",
+		       (1 - (a."embedding" <=> $1::vector))::float8 AS sim,
+		       EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800)::float8 AS fresh
+		FROM "Article" a JOIN "User" u ON u.id::text = a."authorId"::text
+		WHERE a.published = true AND a."embedding" IS NOT NULL
+		  AND u."isShadowbanned" = false AND u."isSuspended" = false`
+		ai := 2
+		if userID != "" {
+			q += fmt.Sprintf(` AND NOT EXISTS (SELECT 1 FROM "BlockedUser" bu WHERE bu."readerId"=$%d AND bu."creatorId"=a."authorId")`, ai)
+			args = append(args, toUUID(userID))
+			ai++
+			q += fmt.Sprintf(` AND NOT EXISTS (SELECT 1 FROM "ContentFeedback" cf WHERE cf."userId"=$%d AND cf."articleId"=a.id AND cf.type='SHOW_LESS')`, ai)
+			args = append(args, toUUID(userID))
+			ai++
+		}
+		q += fmt.Sprintf(` ORDER BY (0.50*(1 - (a."embedding" <=> $1::vector)) + 0.25*EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800) + 0.25*(0.70 + 0.30*a."completionRate")) DESC LIMIT $%d OFFSET $%d`, ai, ai+1)
+		args = append(args, limit, offset)
+		rows, err = s.pool.Query(ctx, q, args...)
+	} else {
+		q := `
+		SELECT a.id, a.title, a.content, a."readingTime", a."completionRate", a."authorId", a."publicationId", a."createdAt",
+		       0.5::float8 AS sim,
+		       EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800)::float8 AS fresh
+		FROM "Article" a JOIN "User" u ON u.id::text = a."authorId"::text
+		WHERE a.published = true AND u."isShadowbanned" = false AND u."isSuspended" = false
+		ORDER BY (0.50*EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800) + 0.50*(0.70 + 0.30*a."completionRate")) DESC
+		LIMIT $1 OFFSET $2`
+		rows, err = s.pool.Query(ctx, q, limit, offset)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []articleCandidate{}
+	for rows.Next() {
+		var c articleCandidate
+		var pubID *string
+		if err := rows.Scan(&c.id, &c.title, &c.content, &c.readingTime, &c.completionRate, &c.authorID, &pubID, &c.createdAt, &c.sim, &c.freshness); err != nil {
+			continue
+		}
+		if pubID != nil {
+			c.pubID = *pubID
+		}
+		if !mutedOK(c.title, muted) || !mutedOK(c.content, muted) {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+// fetchEngineThoughts extrait les pensées candidates (ANN pgvector ou cold-start).
+func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector, userID string, limit, offset int, muted []string) ([]thoughtCandidate, error) {
+	var rows pgx.Rows
+	var err error
+	if vec != nil {
+		args := []any{*vec}
+		q := `
+		SELECT p.id, p.content, p."authorId", p."createdAt", p."likeCount", p."replyCount", p."repostCount",
+		       (1 - (p."embedding" <=> $1::vector))::float8 AS sim,
+		       EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400)::float8 AS fresh
+		FROM "Post" p JOIN "User" u ON u.id = p."authorId"
+		WHERE p."parentId" IS NULL AND p."repostId" IS NULL AND p."deletedAt" IS NULL
+		  AND p."isDraft" = false AND p."isHiddenByAuthor" = false AND p."embedding" IS NOT NULL
+		  AND u."isShadowbanned" = false AND u."isSuspended" = false`
+		ai := 2
+		if userID != "" {
+			q += fmt.Sprintf(` AND NOT EXISTS (SELECT 1 FROM "BlockedUser" bu WHERE bu."readerId"=$%d AND bu."creatorId"=p."authorId")`, ai)
+			args = append(args, toUUID(userID))
+			ai++
+			q += fmt.Sprintf(` AND NOT EXISTS (SELECT 1 FROM "ContentFeedback" cf WHERE cf."userId"=$%d AND cf."thoughtId"=p.id AND cf.type='SHOW_LESS')`, ai)
+			args = append(args, toUUID(userID))
+			ai++
+		}
+		q += fmt.Sprintf(` ORDER BY (0.50*(1 - (p."embedding" <=> $1::vector)) + 0.25*EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400) + 0.25*LEAST(1.0,(p."likeCount" + p."replyCount"*2 + p."repostCount"*2)/30.0)) DESC LIMIT $%d OFFSET $%d`, ai, ai+1)
+		args = append(args, limit, offset)
+		rows, err = s.pool.Query(ctx, q, args...)
+	} else {
+		q := `
+		SELECT p.id, p.content, p."authorId", p."createdAt", p."likeCount", p."replyCount", p."repostCount",
+		       0.5::float8 AS sim,
+		       EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400)::float8 AS fresh
+		FROM "Post" p JOIN "User" u ON u.id = p."authorId"
+		WHERE p."parentId" IS NULL AND p."repostId" IS NULL AND p."deletedAt" IS NULL
+		  AND p."isDraft" = false AND p."isHiddenByAuthor" = false
+		  AND u."isShadowbanned" = false AND u."isSuspended" = false
+		ORDER BY (0.50*EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400) + 0.50*LEAST(1.0,(p."likeCount" + p."replyCount"*2 + p."repostCount"*2)/30.0)) DESC
+		LIMIT $1 OFFSET $2`
+		rows, err = s.pool.Query(ctx, q, limit, offset)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []thoughtCandidate{}
+	for rows.Next() {
+		var c thoughtCandidate
+		if err := rows.Scan(&c.id, &c.content, &c.authorID, &c.createdAt, &c.likeCount, &c.replyCount, &c.repostCount, &c.sim, &c.freshness); err != nil {
+			continue
+		}
+		if !mutedOK(c.content, muted) {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+// readConfig lit une valeur SystemConfig (best-effort).
+func (s *Service) readConfig(ctx context.Context, key string) string {
+	var v string
+	if err := s.pool.QueryRow(ctx, `SELECT value FROM "SystemConfig" WHERE key=$1`, key).Scan(&v); err != nil {
+		return ""
+	}
+	return v
+}
+
+// injectDiscovery implémente l'exploration ε-greedy : injecte ~ratio d'articles
+// de qualité hors des publications suivies (positions fixes [3,8]).
+func (s *Service) injectDiscovery(ctx context.Context, userID string, items []EngineItem, limit int) []EngineItem {
+	ratio := explorationRatioDefault
+	if v, err := strconv.ParseFloat(s.readConfig(ctx, explorationCfgKey), 64); err == nil && v >= 0 && v <= 0.5 {
+		ratio = v
+	}
+	slots := int(math.Round(float64(limit) * ratio))
+	if slots <= 0 {
+		return items
+	}
+
+	// Bulle = publications suivies. Si l'utilisateur n'en suit aucune, rien à casser.
+	var followed []string
+	rows, err := s.pool.Query(ctx, `SELECT "publicationId" FROM "Follows" WHERE "readerId"=$1 AND "publicationId" IS NOT NULL`, toUUID(userID))
+	if err != nil {
+		return items
+	}
+	for rows.Next() {
+		var pid string
+		if rows.Scan(&pid) == nil {
+			followed = append(followed, pid)
+		}
+	}
+	rows.Close()
+	if len(followed) == 0 {
+		return items
+	}
+
+	existing := map[string]bool{}
+	for _, it := range items {
+		existing[it.ID] = true
+	}
+
+	drows, err := s.pool.Query(ctx, `
+		SELECT id FROM "Article"
+		WHERE published = true AND "completionRate" >= $1
+		  AND "publicationId" <> ALL($2::text[])
+		  AND "authorId"::text <> $3
+		ORDER BY "createdAt" DESC LIMIT $4`, explorationMinQuality, followed, userID, slots)
+	if err != nil {
+		return items
+	}
+	defer drows.Close()
+	positions := []int{3, 8}
+	k := 0
+	for drows.Next() {
+		var id string
+		if drows.Scan(&id) != nil {
+			continue
+		}
+		if existing[id] {
+			continue
+		}
+		pos := len(items)
+		if k < len(positions) && positions[k] < len(items) {
+			pos = positions[k]
+		}
+		items = append(items, EngineItem{})
+		copy(items[pos+1:], items[pos:])
+		items[pos] = EngineItem{ItemType: "ARTICLE", ID: id, IsDiscovery: true}
+		existing[id] = true
+		k++
+	}
+	if len(items) > limit {
+		items = items[:limit]
+	}
+	return items
+}
