@@ -953,6 +953,20 @@ type Publication struct {
 	UpdatedAt              pgtype.Timestamp `json:"updatedAt"`
 }
 
+type ReadingSession struct {
+	ID                 string           `json:"id"`
+	ArticleId          string           `json:"articleId"`
+	UserId             pgtype.UUID      `json:"userId"`
+	Source             string           `json:"source"`
+	Status             string           `json:"status"`
+	ScrollDepth        int32            `json:"scrollDepth"`
+	DwellSeconds       int32            `json:"dwellSeconds"`
+	ReadingTimeMinutes int32            `json:"readingTimeMinutes"`
+	Hostname           pgtype.Text      `json:"hostname"`
+	ReferrerUsername   pgtype.Text      `json:"referrerUsername"`
+	CreatedAt          pgtype.Timestamp `json:"createdAt"`
+}
+
 type Recommendation struct {
 	ID            string           `json:"id"`
 	RecommenderId string           `json:"recommenderId"`
