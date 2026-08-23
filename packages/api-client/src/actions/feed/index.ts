@@ -27,6 +27,7 @@ import { ContentVisibility } from '@qoe/db/types';
 
 import { replyToPostSchema, createReportSchema, type CreateReportInput } from '@qoe/config';
 import { goFetch } from '../utils/go-client';
+import type { MeProfileDTO } from '../auth';
 
 import { safeAction } from '../utils/safe-action';
 import type {
@@ -713,24 +714,39 @@ export const updateProfileAction = safeAction<
   },
   { user: User }
 >(async (input, user) => {
-  const { prisma } = await import('@qoe/db/client');
-  const { publications } = await import('@qoe/db');
-  await publications.syncUserPublication(user.id, {
-    name: input.name ?? undefined,
-    heroText: input.heroText ?? undefined,
-    logoUrl: input.logoUrl ?? undefined,
-    headerImageUrl: input.headerImageUrl ?? undefined,
-  });
-  if (input.onboardingText !== undefined) {
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { onboardingText: input.onboardingText },
+  // Go en primaire (PATCH /v1/me/profile : profil lecteur). Les champs créateur
+  // (heroText, headerImageUrl) ne sont pas couverts par /v1/me/profile → fallback
+  // Prisma complet si Go indisponible OU si ces champs sont demandés.
+  try {
+    const profile = await goFetch<MeProfileDTO>('/v1/me/profile', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        name: input.name ?? undefined,
+        logoUrl: input.logoUrl ?? undefined,
+        onboardingText: input.onboardingText ?? undefined,
+      }),
     });
-  }
-  const updatedUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!updatedUser) throw new Error('USER_NOT_FOUND');
+    return { user: profile as unknown as User };
+  } catch {
+    const { prisma } = await import('@qoe/db/client');
+    const { publications } = await import('@qoe/db');
+    await publications.syncUserPublication(user.id, {
+      name: input.name ?? undefined,
+      heroText: input.heroText ?? undefined,
+      logoUrl: input.logoUrl ?? undefined,
+      headerImageUrl: input.headerImageUrl ?? undefined,
+    });
+    if (input.onboardingText !== undefined) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { onboardingText: input.onboardingText },
+      });
+    }
+    const updatedUser = await prisma.user.findUnique({ where: { id: user.id } });
+    if (!updatedUser) throw new Error('USER_NOT_FOUND');
 
-  return { user: updatedUser };
+    return { user: updatedUser };
+  }
 });
 
 export const searchUsersAction = safeAction<string, { users: SearchedUser[] }>(
