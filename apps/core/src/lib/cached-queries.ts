@@ -3,7 +3,42 @@ import { unstable_cache } from 'next/cache';
 import { prisma } from '@qoe/db/client';
 import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 
+// GET /v1/me — profil lecteur Go (identité + compteurs bibliothèque).
+export interface MeProfile {
+  id: string;
+  email: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  onboardingText: string | null;
+  pronouns: string | null;
+  role: string;
+  walletBalanceCents: number;
+  hasCompletedOnboarding: boolean;
+  createdAt: string;
+  followsCount: number;
+  mutedWordsCount: number;
+}
+
 export const getRequestDbUser = cache(async (id: string) => {
+  // Go en primaire (le JWT identifie l'utilisateur) — fallback Prisma en dev.
+  try {
+    const profile = await goFetch<MeProfile>('/v1/me');
+    return {
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      role: profile.role,
+      logoUrl: profile.logoUrl,
+      username: profile.username,
+      walletBalanceCents: profile.walletBalanceCents,
+      onboardingText: profile.onboardingText,
+      hasCompletedOnboarding: profile.hasCompletedOnboarding,
+    };
+  } catch {
+    // Fallback Prisma (dev sans QOE_API_URL) : lookup + sync email legacy.
+  }
+
   let dbUser = await prisma.user.findUnique({
     where: { id },
     select: {
