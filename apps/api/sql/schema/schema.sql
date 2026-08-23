@@ -1500,6 +1500,44 @@ ALTER TABLE "OAuthConsent" ADD CONSTRAINT "OAuthConsent_clientId_fkey" FOREIGN K
 -- AddForeignKey
 ALTER TABLE "OAuthConsent" ADD CONSTRAINT "OAuthConsent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- CreateTable
+CREATE TABLE "ReadingSession" (
+    "id" TEXT NOT NULL,
+    "articleId" TEXT NOT NULL,
+    "userId" UUID,
+    "source" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "scrollDepth" INTEGER NOT NULL DEFAULT 0,
+    "dwellSeconds" INTEGER NOT NULL DEFAULT 0,
+    "readingTimeMinutes" INTEGER NOT NULL DEFAULT 5,
+    "hostname" TEXT,
+    "referrerUsername" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ReadingSession_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "ReadingSession_userId_createdAt_idx" ON "ReadingSession"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ReadingSession_articleId_createdAt_idx" ON "ReadingSession"("articleId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ReadingSession_articleId_source_idx" ON "ReadingSession"("articleId", "source");
+
+-- CreateIndex
+CREATE INDEX "ReadingSession_articleId_hostname_idx" ON "ReadingSession"("articleId", "hostname");
+
+-- CreateIndex
+CREATE INDEX "ReadingSession_userId_articleId_idx" ON "ReadingSession"("userId", "articleId");
+
+-- AddForeignKey
+ALTER TABLE "ReadingSession" ADD CONSTRAINT "ReadingSession_articleId_fkey" FOREIGN KEY ("articleId") REFERENCES "Article"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ReadingSession" ADD CONSTRAINT "ReadingSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
 -- AddForeignKey
 ALTER TABLE "_CoAuthors" ADD CONSTRAINT "_CoAuthors_A_fkey" FOREIGN KEY ("A") REFERENCES "Article"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

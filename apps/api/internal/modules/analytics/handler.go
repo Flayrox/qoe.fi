@@ -27,6 +27,11 @@ func (h *Handler) Register(r chi.Router) {
 		r.Get("/audience", h.audience)
 		r.Get("/umami/returning", h.umamiReturning)
 		r.Get("/umami/hours", h.umamiHours)
+		// Lecture — migration Prisma → Go (ReadingSession)
+		r.Get("/reading-sessions", h.readingSessions)
+		r.Get("/creator", h.creatorAnalytics)
+		r.Get("/provenance", h.provenance)
+		r.Get("/audience/insights", h.audienceInsights)
 	})
 }
 
@@ -149,6 +154,147 @@ func (h *Handler) umamiHours(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, out)
+}
+
+// readingSessions expose les stats d'un article individuel (plein, par articleId).
+// GET /v1/analytics/reading-sessions?articleId=xxx&period=30d
+// ou ?articleId=xxx&startAt=epochMs&endAt=epochMs
+// Réponse: {articleId, totalViews, timeseries, byHostname, bySource}
+func (h *Handler) readingSessions(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	articleID := r.URL.Query().Get("articleId")
+	if articleID == "" {
+		response.BadRequest(w, "articleId requis")
+		return
+	}
+	since := parseSince(r)
+	out, err := h.svc.GetArticleReadingStats(r.Context(), userID, articleID, since)
+	if err != nil {
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Permission insuffisante")
+			return
+		}
+		log.Printf("[analytics] reading-sessions: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, out)
+}
+
+// creatorAnalytics expose les stats agrégées créateur (vues plein + provenance + série).
+// GET /v1/analytics/creator?publicationId=xxx&period=30d
+func (h *Handler) creatorAnalytics(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	pub := publicationID(r)
+	if pub == "" {
+		response.BadRequest(w, "publicationId requis")
+		return
+	}
+	if !h.svc.canAccess(r.Context(), userID, pub) {
+		response.Forbidden(w, "Permission insuffisante")
+		return
+	}
+	since := parseSince(r)
+	out, err := h.svc.GetCreatorReadingStats(r.Context(), userID, pub, since)
+	if err != nil {
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Permission insuffisante")
+			return
+		}
+		log.Printf("[analytics] creator: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, out)
+}
+
+// provenance expose le breakdown provenance seul (léger).
+// GET /v1/analytics/provenance?publicationId=xxx&period=30d
+func (h *Handler) provenance(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	pub := publicationID(r)
+	if pub == "" {
+		response.BadRequest(w, "publicationId requis")
+		return
+	}
+	if !h.svc.canAccess(r.Context(), userID, pub) {
+		response.Forbidden(w, "Permission insuffisante")
+		return
+	}
+	since := parseSince(r)
+	out, err := h.svc.GetProvenance(r.Context(), userID, pub, since)
+	if err != nil {
+		log.Printf("[analytics] provenance: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, out)
+}
+
+// audienceInsights expose la démographie agrégée (gender/age/country/language) créateur + plateforme.
+// GET /v1/analytics/audience/insights?publicationId=xxx
+func (h *Handler) audienceInsights(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	pub := publicationID(r)
+	if pub == "" {
+		response.BadRequest(w, "publicationId requis")
+		return
+	}
+	out, err := h.svc.GetAudienceInsights(r.Context(), userID, pub)
+	if err != nil {
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Permission insuffisante")
+			return
+		}
+		log.Printf("[analytics] audience/insights: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, out)
+}
+
+// parseSince convertit ?period= (24h|7d|30d|90d|all) ou ?startAt= en *time.Time (nil = all).
+func parseSince(r *http.Request) *time.Time {
+	q := r.URL.Query()
+	if v := q.Get("startAt"); v != "" {
+		if ms, err := strconv.ParseInt(v, 10, 64); err == nil && ms > 0 {
+			t := time.UnixMilli(ms)
+			return &t
+		}
+	}
+	switch q.Get("period") {
+	case "24h":
+		t := time.Now().Add(-24 * time.Hour)
+		return &t
+	case "7d":
+		t := time.Now().Add(-7 * 24 * time.Hour)
+		return &t
+	case "90d":
+		t := time.Now().Add(-90 * 24 * time.Hour)
+		return &t
+	case "all":
+		return nil
+	case "30d", "":
+		// défaut 30d — si period absent mais query contient startAt, déjà géré
+		if q.Get("period") == "" && q.Get("startAt") == "" {
+			// pour /creator sans param, 30j par défaut
+			t := time.Now().Add(-30 * 24 * time.Hour)
+			return &t
+		}
+		if q.Get("period") == "30d" {
+			t := time.Now().Add(-30 * 24 * time.Hour)
+			return &t
+		}
+		// period vide + startAt vide -> 30d
+		if q.Get("period") == "" {
+			t := time.Now().Add(-30 * 24 * time.Hour)
+			return &t
+		}
+		return nil
+	default:
+		t := time.Now().Add(-30 * 24 * time.Hour)
+		return &t
+	}
 }
 
 // parsePeriod lit startAt/endAt (epoch ms) avec défaut 30 jours.

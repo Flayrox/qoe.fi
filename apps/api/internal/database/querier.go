@@ -32,6 +32,9 @@ type Querier interface {
 	CountPollVotesByIDs(ctx context.Context, dollar_1 []string) ([]CountPollVotesByIDsRow, error)
 	CountPollVotesByPollID(ctx context.Context, pollid string) (int32, error)
 	CountPureReposts(ctx context.Context, arg CountPureRepostsParams) (int32, error)
+	CountReadingSessionsByArticleId(ctx context.Context, arg CountReadingSessionsByArticleIdParams) (int32, error)
+	// Variante batch pour provenance globale (tous les articleIds du créateur).
+	CountReadingSessionsByArticleIds(ctx context.Context, arg CountReadingSessionsByArticleIdsParams) ([]int32, error)
 	CreateAnnotationComment(ctx context.Context, arg CreateAnnotationCommentParams) (string, error)
 	CreateArticle(ctx context.Context, arg CreateArticleParams) (string, error)
 	CreateAttachment(ctx context.Context, arg CreateAttachmentParams) (string, error)
@@ -165,6 +168,7 @@ type Querier interface {
 	GetPublicationOwner(ctx context.Context, id string) (string, error)
 	GetPublicationTypeByID(ctx context.Context, id string) (GetPublicationTypeByIDRow, error)
 	GetPublicationUmamiWebsiteId(ctx context.Context, id string) (pgtype.Text, error)
+	GetReadingSessionDailySeries(ctx context.Context, arg GetReadingSessionDailySeriesParams) ([]GetReadingSessionDailySeriesRow, error)
 	GetRecentArticlesForAnalytics(ctx context.Context, arg GetRecentArticlesForAnalyticsParams) ([]GetRecentArticlesForAnalyticsRow, error)
 	GetRecentThoughtsForAnalytics(ctx context.Context, arg GetRecentThoughtsForAnalyticsParams) ([]GetRecentThoughtsForAnalyticsRow, error)
 	GetRepliesForThought(ctx context.Context, arg GetRepliesForThoughtParams) ([]GetRepliesForThoughtRow, error)
@@ -191,6 +195,21 @@ type Querier interface {
 	GetUserVotesByIDs(ctx context.Context, arg GetUserVotesByIDsParams) ([]GetUserVotesByIDsRow, error)
 	GetUsersByUsernames(ctx context.Context, dollar_1 []string) ([]GetUsersByUsernamesRow, error)
 	GetWebhook(ctx context.Context, id string) (Webhook, error)
+	GroupByHostname(ctx context.Context, arg GroupByHostnameParams) ([]GroupByHostnameRow, error)
+	GroupByReferrerUsername(ctx context.Context, arg GroupByReferrerUsernameParams) ([]GroupByReferrerUsernameRow, error)
+	GroupReadingSessionsByArticleId(ctx context.Context, arg GroupReadingSessionsByArticleIdParams) ([]GroupReadingSessionsByArticleIdRow, error)
+	// Analytics ReadingSession — migration Prisma → Go (sqlc + raw SQL fallback).
+	// Remplace :
+	//   prisma.readingSession.groupBy { by: ['source'|'hostname'|'referrerUsername'|'articleId'] }
+	//   prisma.$queryRawUnsafe `SELECT to_char(date_trunc('day', "createdAt")...)`
+	//   prisma.readingSession.count
+	//   prisma.user.groupBy (demographie) — voir analytics_demographics.sql si besoin
+	//   prisma.article.findMany + attributions — voir ListAttributedArticleIDs ci-dessous
+	GroupReadingSessionsBySource(ctx context.Context, arg GroupReadingSessionsBySourceParams) ([]GroupReadingSessionsBySourceRow, error)
+	GroupUsersByAgeRange(ctx context.Context, dollar_1 []pgtype.UUID) ([]GroupUsersByAgeRangeRow, error)
+	GroupUsersByCountry(ctx context.Context, dollar_1 []pgtype.UUID) ([]GroupUsersByCountryRow, error)
+	GroupUsersByGender(ctx context.Context, dollar_1 []pgtype.UUID) ([]GroupUsersByGenderRow, error)
+	GroupUsersByLanguage(ctx context.Context, dollar_1 []pgtype.UUID) ([]GroupUsersByLanguageRow, error)
 	IncrementLikeCount(ctx context.Context, id string) error
 	IncrementReplyCount(ctx context.Context, id string) error
 	IncrementRepostCount(ctx context.Context, id string) error
@@ -227,6 +246,9 @@ type Querier interface {
 	ListAnnotationComments(ctx context.Context, highlightid string) ([]ListAnnotationCommentsRow, error)
 	ListArticleComments(ctx context.Context, articleid string) ([]ListArticleCommentsRow, error)
 	ListArticlesWithCategory(ctx context.Context, arg ListArticlesWithCategoryParams) ([]ListArticlesWithCategoryRow, error)
+	// Articles attribués à un créateur : publication directe OU co-signés via ArticleAttribution ACCEPTED + visible.
+	// Miroir de prisma.article.findMany { OR: [{publicationId}, {attributions: {some: {userId, consentStatus, isVisible}}}] } où published = true.
+	ListAttributedArticleIDs(ctx context.Context, arg ListAttributedArticleIDsParams) ([]string, error)
 	// Articles sauvegardés (bookmarks) d'un lecteur, avec titre/slug/publication
 	// et la date de sauvegarde — pour la bibliothèque mobile.
 	ListBookmarksByReader(ctx context.Context, arg ListBookmarksByReaderParams) ([]ListBookmarksByReaderRow, error)
