@@ -54,6 +54,35 @@ export interface ArticleDetailData {
   totalViews: number;
 }
 
+// Contrat Go GET /v1/analytics/product-metrics (source primaire de productMetrics)
+export interface GoProductMetrics {
+  subscriberCount: number;
+  subscriberDelta7d: number;
+  totalBookmarks: number;
+  totalHighlights: number;
+  totalInteractions: number;
+  avgCompletionRate: number;
+  readingQuality: {
+    deepReadsRate: number;
+    skimsRate: number;
+    bouncesRate: number;
+  };
+  topCategories: { name: string; count: number }[];
+  topArticles: {
+    slug: string;
+    title: string;
+    completionRate: number;
+    bookmarks: number;
+    comments: number;
+    highlights: number;
+    highlightsPublic: number;
+    highlightsPrivate: number;
+    annotations: number;
+    interactions: number;
+    publishedAt: string | null;
+  }[];
+}
+
 export interface ProductMetrics {
   subscriberCount: number;
   subscriberDelta7d: number;
@@ -173,6 +202,18 @@ async function aggregateDemographics(userIds?: string[]): Promise<AudienceDemogr
 }
 
 async function getAudienceInsights(publicationId: string): Promise<AudienceInsights> {
+  // Go primaire (GET /v1/analytics/audience/insights) — fallback Prisma dev
+  try {
+    const go = await goFetch<AudienceInsights>(
+      `/v1/analytics/audience/insights?publicationId=${encodeURIComponent(publicationId)}`
+    );
+    if (go?.creator && go?.platform) {
+      return go;
+    }
+  } catch {
+    // fallback dev ci-dessous
+  }
+
   const [followers, platform] = await Promise.all([
     prisma.follows.findMany({
       where: { publicationId },
@@ -253,6 +294,8 @@ export async function getCreatorAnalyticsData(
       provenance = { bySource: [], byHostname: [], byReferrer: [] };
     }
 
+    // Publication légère : seul umamiWebsiteId est nécessaire (les métriques viennent du Go),
+    // + les abonnés pour le fallback Prisma dev.
     const creator = await prisma.publication.findUnique({
       where: { id: workspace.publicationId },
       select: {
@@ -263,23 +306,6 @@ export async function getCreatorAnalyticsData(
           where: { createdAt: { gte: sevenDaysAgo } },
           select: { id: true },
         },
-        articles: {
-          select: {
-            id: true,
-            slug: true,
-            title: true,
-            createdAt: true,
-            completionRate: true,
-            category: { select: { name: true } },
-            _count: { select: { bookmarks: true, comments: true, highlights: true } },
-            highlights: {
-              select: {
-                isPublic: true,
-                _count: { select: { comments: true } },
-              },
-            },
-          },
-        },
       },
     });
 
@@ -287,104 +313,135 @@ export async function getCreatorAnalyticsData(
       return { error: 'Publication introuvable' };
     }
 
-    // Union publication + attributions pour les métriques produit
-    const ownedSlugs = new Set(creator.articles.map((a) => a.slug));
-    const mergedArticlesMap = new Map<string, (typeof attributedArticles)[number]>();
-    for (const art of attributedArticles) mergedArticlesMap.set(art.id, art);
-    for (const art of creator.articles) {
-      if (!mergedArticlesMap.has(art.id)) {
-        // creator.articles n'a pas les mêmes champs exacts — on mappe manuellement
-        mergedArticlesMap.set(art.id, art as unknown as (typeof attributedArticles)[number]);
-      }
-    }
-    const allCreatorArticles = Array.from(mergedArticlesMap.values());
+    // attribution = articles de la publication + co-signés (attributedArticles couvre les deux)
+    const allCreatorArticles = attributedArticles;
 
+    // 🧭 Carte slugs → titres (TopPagesBlock) — construite depuis tous les articles attribués
     const articleTitlesMap: Record<string, string> = {};
-    const topArticles = allCreatorArticles
-      .map((a) => {
-        const highlightsPublic = a.highlights.filter((h) => h.isPublic).length;
-        const highlightsPrivate = a.highlights.length - highlightsPublic;
-        const annotations = a.highlights.reduce((s, h) => s + h._count.comments, 0);
-        const interactions =
-          a._count.bookmarks + a._count.comments + a._count.highlights + annotations;
-        return {
-          slug: a.slug,
-          title: a.title,
-          completionRate: typeof a.completionRate === 'number' ? a.completionRate : 0,
-          bookmarks: a._count.bookmarks,
-          comments: a._count.comments,
-          highlights: a._count.highlights,
-          highlightsPublic,
-          highlightsPrivate,
-          annotations,
-          interactions,
-          publishedAt: a.createdAt,
-        };
-      })
-      .sort((a, b) => b.interactions - a.interactions)
-      .slice(0, 5);
     allCreatorArticles.forEach((article) => {
       articleTitlesMap[`/articles/${article.slug}`] = article.title;
       articleTitlesMap[`/${article.slug}`] = article.title;
     });
 
-    // Top catégories + complétion moyenne & qualité de lecture — réaliste (pas de 0.8 / 72 magiques)
-    const categoryCounts = new Map<string, number>();
-    const completionRates: number[] = [];
-    allCreatorArticles.forEach((a) => {
-      if (a.category?.name) {
-        categoryCounts.set(a.category.name, (categoryCounts.get(a.category.name) ?? 0) + 1);
-      }
-      if (typeof a.completionRate === 'number') {
-        completionRates.push(a.completionRate);
-      }
-    });
-    const topCategories = [...categoryCounts.entries()]
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 6);
-    const avgCompletionRate =
-      completionRates.length > 0
-        ? Math.round((completionRates.reduce((s, v) => s + v, 0) / completionRates.length) * 100) /
-          100
-        : 0;
+    // 📦 productMetrics — Go primaire (GET /v1/analytics/product-metrics), fallback Prisma dev
+    let productMetrics: ProductMetrics;
+    try {
+      const go = await goFetch<GoProductMetrics>(
+        `/v1/analytics/product-metrics?publicationId=${workspace.publicationId}`
+      );
+      productMetrics = {
+        subscriberCount: go.subscriberCount,
+        subscriberDelta7d: go.subscriberDelta7d,
+        totalBookmarks: go.totalBookmarks,
+        totalHighlights: go.totalHighlights,
+        totalInteractions: go.totalInteractions,
+        avgCompletionRate: go.avgCompletionRate,
+        readingQuality: go.readingQuality,
+        trafficSources: {
+          feed: 0,
+          subdomain: 0,
+          publicProfile: 0,
+          direct: 0,
+        },
+        topCategories: go.topCategories,
+        topArticles: go.topArticles.map((a) => ({
+          slug: a.slug,
+          title: a.title,
+          completionRate: a.completionRate,
+          bookmarks: a.bookmarks,
+          comments: a.comments,
+          highlights: a.highlights,
+          highlightsPublic: a.highlightsPublic,
+          highlightsPrivate: a.highlightsPrivate,
+          annotations: a.annotations,
+          interactions: a.interactions,
+          publishedAt: a.publishedAt ? new Date(a.publishedAt) : null,
+        })),
+      };
+    } catch {
+      // Fallback dev — même calcul que l'ancien chemin Prisma, depuis attributedArticles
+      const topArticles = allCreatorArticles
+        .map((a) => {
+          const highlightsPublic = a.highlights.filter((h) => h.isPublic).length;
+          const highlightsPrivate = a.highlights.length - highlightsPublic;
+          const annotations = a.highlights.reduce((s, h) => s + h._count.comments, 0);
+          const interactions =
+            a._count.bookmarks + a._count.comments + a._count.highlights + annotations;
+          return {
+            slug: a.slug,
+            title: a.title,
+            completionRate: typeof a.completionRate === 'number' ? a.completionRate : 0,
+            bookmarks: a._count.bookmarks,
+            comments: a._count.comments,
+            highlights: a._count.highlights,
+            highlightsPublic,
+            highlightsPrivate,
+            annotations,
+            interactions,
+            publishedAt: a.createdAt,
+          };
+        })
+        .sort((a, b) => b.interactions - a.interactions)
+        .slice(0, 5);
 
-    // Qualité de lecture dérivée des completionRates réels (0 si pas de données)
-    const deepReadsRate =
-      completionRates.length > 0
-        ? Math.round(
-            (completionRates.filter((r) => r >= 0.75).length / completionRates.length) * 100
-          )
-        : 0;
-    const skimsRate =
-      completionRates.length > 0
-        ? Math.round((completionRates.filter((r) => r < 0.5).length / completionRates.length) * 100)
-        : 0;
-    const bouncesRate =
-      completionRates.length > 0 ? Math.max(0, 100 - deepReadsRate - skimsRate) : 0;
+      const categoryCounts = new Map<string, number>();
+      const completionRates: number[] = [];
+      allCreatorArticles.forEach((a) => {
+        if (a.category?.name) {
+          categoryCounts.set(a.category.name, (categoryCounts.get(a.category.name) ?? 0) + 1);
+        }
+        if (typeof a.completionRate === 'number') {
+          completionRates.push(a.completionRate);
+        }
+      });
+      const topCategories = [...categoryCounts.entries()]
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 6);
+      const avgCompletionRate =
+        completionRates.length > 0
+          ? Math.round(
+              (completionRates.reduce((s, v) => s + v, 0) / completionRates.length) * 100
+            ) / 100
+          : 0;
 
-    // trafficSources sera dérivé des referrers Umami après fetch (sinon 0 par défaut)
-    const productMetrics: ProductMetrics = {
-      subscriberCount: creator._count.subscribers,
-      subscriberDelta7d: creator.subscribers.length,
-      totalBookmarks: topArticles.reduce((s, a) => s + a.bookmarks, 0),
-      totalHighlights: topArticles.reduce((s, a) => s + a.highlights, 0),
-      totalInteractions: topArticles.reduce((s, a) => s + a.interactions, 0),
-      avgCompletionRate,
-      readingQuality: {
-        deepReadsRate,
-        skimsRate,
-        bouncesRate,
-      },
-      trafficSources: {
-        feed: 0,
-        subdomain: 0,
-        publicProfile: 0,
-        direct: 0,
-      },
-      topCategories,
-      topArticles,
-    };
+      const deepReadsRate =
+        completionRates.length > 0
+          ? Math.round(
+              (completionRates.filter((r) => r >= 0.75).length / completionRates.length) * 100
+            )
+          : 0;
+      const skimsRate =
+        completionRates.length > 0
+          ? Math.round(
+              (completionRates.filter((r) => r < 0.5).length / completionRates.length) * 100
+            )
+          : 0;
+      const bouncesRate =
+        completionRates.length > 0 ? Math.max(0, 100 - deepReadsRate - skimsRate) : 0;
+
+      productMetrics = {
+        subscriberCount: creator._count.subscribers,
+        subscriberDelta7d: creator.subscribers.length,
+        totalBookmarks: topArticles.reduce((s, a) => s + a.bookmarks, 0),
+        totalHighlights: topArticles.reduce((s, a) => s + a.highlights, 0),
+        totalInteractions: topArticles.reduce((s, a) => s + a.interactions, 0),
+        avgCompletionRate,
+        readingQuality: {
+          deepReadsRate,
+          skimsRate,
+          bouncesRate,
+        },
+        trafficSources: {
+          feed: 0,
+          subdomain: 0,
+          publicProfile: 0,
+          direct: 0,
+        },
+        topCategories,
+        topArticles,
+      };
+    }
 
     const audience = await getAudienceInsights(creator.id);
 

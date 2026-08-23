@@ -48,6 +48,15 @@ type Draft = Awaited<ReturnType<typeof posts.getUserDrafts>>[number];
 type ArticleRecord = Awaited<ReturnType<typeof articles.findFirstBySlug>>;
 type SearchedUser = Awaited<ReturnType<typeof users.searchUsers>>[number];
 
+// Contrat Go GET /v1/users/search (autocomplétion mentions @)
+interface GoSearchUser {
+  id: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  isCertified: boolean;
+}
+
 interface UnfurlExternalMetadata {
   title: string;
   description: string | null;
@@ -751,8 +760,16 @@ export const updateProfileAction = safeAction<
 
 export const searchUsersAction = safeAction<string, { users: SearchedUser[] }>(
   async (query) => {
-    const list = await users.searchUsers(query);
-    return { users: list };
+    // Go primaire (GET /v1/users/search : autocomplétion mentions) — fallback Prisma dev.
+    try {
+      const q = query.trim().replace(/^@/, '');
+      if (!q) return { users: [] };
+      const list = await goFetch<GoSearchUser[]>(`/v1/users/search?q=${encodeURIComponent(q)}`);
+      return { users: list as unknown as SearchedUser[] };
+    } catch {
+      const list = await users.searchUsers(query);
+      return { users: list };
+    }
   },
   { requireAuth: false }
 );

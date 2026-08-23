@@ -27,24 +27,33 @@ export const subscribeToNewsletterAction = safeAction<
       throw new Error('Veuillez saisir une adresse email valide.');
     }
 
-    await prisma.subscriber.upsert({
-      where: {
-        email_publicationId: {
-          email: cleanEmail,
-          publicationId,
+    // Go en primaire (POST /v1/home/subscribe, idempotent) — fallback Prisma.
+    try {
+      await goFetch<{ success: boolean }>('/v1/home/subscribe', {
+        method: 'POST',
+        body: JSON.stringify({ email: cleanEmail, publicationId }),
+      });
+      return { success: true };
+    } catch {
+      await prisma.subscriber.upsert({
+        where: {
+          email_publicationId: {
+            email: cleanEmail,
+            publicationId,
+          },
         },
-      },
-      update: {
-        isActive: true,
-      },
-      create: {
-        publicationId,
-        email: cleanEmail,
-        isActive: true,
-      },
-    });
+        update: {
+          isActive: true,
+        },
+        create: {
+          publicationId,
+          email: cleanEmail,
+          isActive: true,
+        },
+      });
 
-    return { success: true };
+      return { success: true };
+    }
   },
   { requireAuth: false }
 );

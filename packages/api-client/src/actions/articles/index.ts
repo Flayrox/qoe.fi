@@ -54,11 +54,19 @@ export async function getActivePublicationId(userId: string): Promise<string> {
   }
 
   if (saved?.type === 'MEDIA' && saved.id) {
-    const membership = await prisma.mediaMember.findUnique({
-      where: { mediaId_userId: { mediaId: saved.id, userId } },
-      include: { media: { include: { publication: { select: { id: true } } } } },
-    });
-    if (membership) return membership.media.publication.id;
+    // Go en primaire (GET /v1/me/media/{mediaId}) — fallback Prisma.
+    try {
+      const res = await goFetch<{ publicationId: string }>(
+        `/v1/me/media/${encodeURIComponent(saved.id)}`
+      );
+      if (res.publicationId) return res.publicationId;
+    } catch {
+      const membership = await prisma.mediaMember.findUnique({
+        where: { mediaId_userId: { mediaId: saved.id, userId } },
+        include: { media: { include: { publication: { select: { id: true } } } } },
+      });
+      if (membership) return membership.media.publication.id;
+    }
   }
 
   const personal = await publications.getOrCreatePersonalPublication(userId);
