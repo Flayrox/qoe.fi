@@ -38,7 +38,7 @@ import { t } from '@/lib/i18n';
 import { CustomSubHeader } from '@/components/header/CustomSubHeader';
 import { LiquidElasticButton } from '@/components/liquid-tab-bar/LiquidElasticButton';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
+import { useSharedValue } from 'react-native-reanimated';
 
 // Adapte le client au contrat du hook (FeedResult → ApiResponse<FeedSlice[]>).
 const makeFetcher =
@@ -67,11 +67,9 @@ export function ProfileScreen({
   const [followBusy, setFollowBusy] = useState(false);
   const scrollY = useSharedValue(0);
 
-  const onScrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
-    },
-  });
+  const onScrollHandler = (event: any) => {
+    scrollY.value = event.nativeEvent.contentOffset.y;
+  };
 
   // Si username vaut 'me', on résout avec le username/publicationId du compte connecté
   const resolvedUsername =
