@@ -4,6 +4,7 @@ package middleware
 import (
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -31,7 +32,7 @@ func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
-			if originSet[origin] || len(allowedOrigins) == 0 {
+			if originAllowed(origin, originSet, allowedOrigins) {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Vary", "Origin")
 			}
@@ -45,6 +46,29 @@ func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func originAllowed(origin string, exact map[string]bool, allowed []string) bool {
+	if origin == "" || len(allowed) == 0 {
+		return len(allowed) == 0
+	}
+	if exact[origin] {
+		return true
+	}
+	for _, pattern := range allowed {
+		star := strings.IndexByte(pattern, '*')
+		if star < 0 {
+			continue
+		}
+		prefix, suffix := pattern[:star], pattern[star+1:]
+		if strings.HasPrefix(origin, prefix) && strings.HasSuffix(origin, suffix) {
+			middle := origin[len(prefix) : len(origin)-len(suffix)]
+			if middle != "" && !strings.ContainsAny(middle, "/:.") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Logger journalise méthode, chemin, statut et durée.

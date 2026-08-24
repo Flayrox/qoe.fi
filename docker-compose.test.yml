@@ -1,0 +1,25 @@
+name: qoefi-test
+
+services:
+  test-db:
+    image: pgvector/pgvector:pg16
+    container_name: qoefi-test-db
+    restart: unless-stopped
+    ports:
+      - '55432:5432'
+    environment:
+      POSTGRES_USER: ${TEST_POSTGRES_USER:-qoe}
+      POSTGRES_PASSWORD: ${TEST_POSTGRES_PASSWORD:-qoe}
+      POSTGRES_DB: ${TEST_POSTGRES_DB:-qoe_test}
+    volumes:
+      - qoefi_test_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'pg_isready -U ${TEST_POSTGRES_USER:-qoe} -d ${TEST_POSTGRES_DB:-qoe_test}']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  qoefi_test_postgres_data:
+    name: qoefi-test-postgres-data

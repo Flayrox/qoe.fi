@@ -10,7 +10,7 @@
 # 🎯 Usage :
 #   ./scripts/seed-docker.sh              # migrations + seed
 #   ./scripts/seed-docker.sh --no-seed    # migrations seulement
-#   ./scripts/seed-docker.sh --reset      # ⚠️ RESET la DB + seed
+#   ./scripts/seed-docker.sh --reset      # RESET uniquement une DB *_test
 #
 # ⚠️  --reset SUPPRIME toutes les données ! Jamais en prod !
 # =====================================================================
@@ -73,14 +73,21 @@ cd "$PROJECT_ROOT/apps/api"
 export DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"
 
 if [ "$RESET" = true ]; then
-  echo -e "${YELLOW}⚠️  RESET demandé : toutes les données seront SUPPRIMÉES${NC}"
-  read -p "Es-tu sûr ? (tape 'oui' pour continuer) : " confirm
-  if [ "$confirm" != "oui" ]; then
+  if [[ "${DB_NAME,,}" != *_test ]]; then
+    echo -e "${RED}❌ Reset refusé : cette commande ne peut cibler qu'une base dont le nom finit par _test.${NC}"
+    echo "   Cible détectée: ${DB_HOST}:${DB_PORT}/${DB_NAME}"
+    echo "   La base dev est protégée. Utilise scripts/test-db.sh reset pour la base de test isolée."
+    exit 1
+  fi
+  echo -e "${YELLOW}⚠️  RESET demandé : les données de la base de TEST seront supprimées${NC}"
+  echo "   Cible: ${DB_HOST}:${DB_PORT}/${DB_NAME}"
+  read -r -p "Tape exactement RESET-TEST pour continuer : " confirm
+  if [ "$confirm" != "RESET-TEST" ]; then
     echo "Annulé."
     exit 0
   fi
-  # down-to 0 (DROP SCHEMA) puis up → base vierge migrée
-  go run ./cmd/migrate -dir sql/migrations down-to 0
+  # down-to 0 (DROP SCHEMA) puis up → base de test vierge migrée
+  go run ./cmd/migrate -dir sql/migrations --allow-destructive down-to 0
 fi
 # up = applique les migrations en attente, sûr pour la prod aussi
 go run ./cmd/migrate -dir sql/migrations up
