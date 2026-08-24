@@ -71,7 +71,12 @@ type createInput struct {
 
 // POST /v1/articles/{id}/highlights — crée un surlignage.
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
-	userID, _ := middleware.UserID(r.Context())
+	userID, ok := middleware.UserID(r.Context())
+	if !ok || userID == "" {
+		response.Unauthorized(w, "Non authentifié")
+		return
+	}
+
 	articleID := chi.URLParam(r, "id")
 
 	var in createInput
@@ -119,20 +124,31 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /v1/highlights/{id} — supprime un de ses surlignages.
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
-	userID, _ := middleware.UserID(r.Context())
+	userID, ok := middleware.UserID(r.Context())
+	if !ok || userID == "" {
+		response.Unauthorized(w, "Non authentifié")
+		return
+	}
 	id := chi.URLParam(r, "id")
 
-	if _, err := h.svc.Delete(r.Context(), id, userID); err != nil {
+	deleted, err := h.svc.Delete(r.Context(), id, userID)
+	if err != nil {
 		log.Printf("[highlights] delete: %v", err)
 		response.Internal(w)
 		return
 	}
-	response.OK(w, map[string]bool{"success": true})
+	// Reflète la réalité : false = inexistant ou non propriétaire.
+	response.OK(w, map[string]bool{"success": deleted})
 }
 
 // POST /v1/highlights/{id}/upvote — toggle upvote.
 func (h *Handler) toggleUpvote(w http.ResponseWriter, r *http.Request) {
-	userID, _ := middleware.UserID(r.Context())
+	userID, ok := middleware.UserID(r.Context())
+	if !ok || userID == "" {
+		response.Unauthorized(w, "Non authentifié")
+		return
+	}
+
 	id := chi.URLParam(r, "id")
 
 	upvoted, count, err := h.svc.ToggleUpvote(r.Context(), id, userID)
@@ -162,7 +178,12 @@ type createCommentInput struct {
 
 // POST /v1/highlights/{id}/comments — crée un commentaire d'annotation.
 func (h *Handler) createComment(w http.ResponseWriter, r *http.Request) {
-	userID, _ := middleware.UserID(r.Context())
+	userID, ok := middleware.UserID(r.Context())
+	if !ok || userID == "" {
+		response.Unauthorized(w, "Non authentifié")
+		return
+	}
+
 	id := chi.URLParam(r, "id")
 
 	var in createCommentInput
@@ -189,12 +210,13 @@ func (h *Handler) deleteComment(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	commentID := chi.URLParam(r, "commentId")
 
-	if _, err := h.svc.DeleteComment(r.Context(), commentID, userID); err != nil {
+	deleted, err := h.svc.DeleteComment(r.Context(), commentID, userID)
+	if err != nil {
 		log.Printf("[highlights] deleteComment: %v", err)
 		response.Internal(w)
 		return
 	}
-	response.OK(w, map[string]bool{"success": true})
+	response.OK(w, map[string]bool{"success": deleted})
 }
 
 // GET /v1/bookmarks — articles sauvegardés (bibliothèque), paginés.

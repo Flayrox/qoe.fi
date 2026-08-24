@@ -54,7 +54,7 @@ LIMIT $2 OFFSET $3;
 -- name: CreateHighlight :one
 INSERT INTO "Highlight" (id, text, note, "isPublic", "isOfficial", "readerId", "articleId")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6)
-RETURNING id;-- name: DeleteHighlight :exec
+RETURNING id;-- name: DeleteHighlight :execrows
 DELETE FROM "Highlight" WHERE id = $1 AND "readerId" = $2;
 
 -- name: UpdateHighlight :one
@@ -100,6 +100,6 @@ INSERT INTO "AnnotationComment" (id, content, "highlightId", "authorId")
 VALUES (gen_random_uuid()::text, $1, $2, $3)
 RETURNING id;
 
--- name: DeleteAnnotationComment :exec
+-- name: DeleteAnnotationComment :execrows
 DELETE FROM "AnnotationComment"
 WHERE id = $1 AND "authorId" = $2;

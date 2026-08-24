@@ -208,3 +208,124 @@ func TestBookmarksAndMyHighlights(t *testing.T) {
 func strPtr(s string) *string {
 	return &s
 }
+
+// ─── Suppressions & pagination ─────────────────────────────────────────
+
+func TestDeleteHighlight_OwnerVsOther(t *testing.T) {
+	fx, err := testutil.SeedPosts(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	svc := newTestService()
+	ctx := context.Background()
+
+	h, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "À supprimer", nil, true)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Un autre lecteur ne supprime pas (id ne matche pas son readerId).
+	deleted, err := svc.Delete(ctx, h.ID, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("Delete par autrui: %v", err)
+	}
+	if deleted {
+		t.Fatal("suppression par non-propriétaire réussie")
+	}
+	var n int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "Highlight" WHERE id = $1`, h.ID).Scan(&n); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if n != 1 {
+		t.Fatal("surlignage disparu après tentative par autrui")
+	}
+
+	// Le propriétaire supprime.
+	deleted, err = svc.Delete(ctx, h.ID, fx.AuthorID)
+	if err != nil || !deleted {
+		t.Fatalf("Delete owner = %v/%v, attendu true/nil", deleted, err)
+	}
+}
+
+func TestCreateAndDeleteComment(t *testing.T) {
+	fx, err := testutil.SeedPosts(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	svc := newTestService()
+	ctx := context.Background()
+
+	h, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Passage commenté", nil, true)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	c1, err := svc.CreateComment(ctx, h.ID, fx.ViewerID, "D'accord !")
+	if err != nil {
+		t.Fatalf("CreateComment: %v", err)
+	}
+	if _, err := svc.CreateComment(ctx, h.ID, fx.AuthorID, "Merci"); err != nil {
+		t.Fatalf("CreateComment 2: %v", err)
+	}
+
+	comments, err := svc.ListComments(ctx, h.ID)
+	if err != nil {
+		t.Fatalf("ListComments: %v", err)
+	}
+	if len(comments) != 2 {
+		t.Fatalf("comments = %d, attendu 2", len(comments))
+	}
+
+	// Seul l'auteur du commentaire le supprime.
+	deleted, err := svc.DeleteComment(ctx, c1.ID, fx.AuthorID)
+	if err != nil || deleted {
+		t.Fatalf("delete par autrui = %v/%v, attendu false/nil", deleted, err)
+	}
+	deleted, err = svc.DeleteComment(ctx, c1.ID, fx.ViewerID)
+	if err != nil || !deleted {
+		t.Fatalf("delete par auteur = %v/%v, attendu true/nil", deleted, err)
+	}
+
+	comments, _ = svc.ListComments(ctx, h.ID)
+	if len(comments) != 1 {
+		t.Fatalf("comments restants = %d, attendu 1", len(comments))
+	}
+}
+
+func TestMyHighlights_Pagination(t *testing.T) {
+	fx, err := testutil.SeedPosts(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	svc := newTestService()
+	ctx := context.Background()
+
+	for _, txt := range []string{"un", "deux", "trois"} {
+		if _, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, txt, nil, true); err != nil {
+			t.Fatalf("Create %s: %v", txt, err)
+		}
+	}
+
+	page1, err := svc.MyHighlights(ctx, fx.AuthorID, 2, 0)
+	if err != nil {
+		t.Fatalf("MyHighlights p1: %v", err)
+	}
+	if len(page1) != 2 {
+		t.Fatalf("page 1 = %d items, attendu 2", len(page1))
+	}
+
+	page2, err := svc.MyHighlights(ctx, fx.AuthorID, 2, 2)
+	if err != nil {
+		t.Fatalf("MyHighlights p2: %v", err)
+	}
+	if len(page2) != 1 {
+		t.Fatalf("page 2 = %d items, attendu 1", len(page2))
+	}
+
+	// Le viewer n'a aucun surlignage.
+	mine, _ := svc.MyHighlights(ctx, fx.ViewerID, 10, 0)
+	if len(mine) != 0 {
+		t.Fatalf("viewer highlights = %d, attendu 0", len(mine))
+	}
+}
