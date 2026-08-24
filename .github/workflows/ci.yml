@@ -49,6 +49,21 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
           SKIP_ENV_VALIDATION: 'true'
 
+      # Gate de couverture TypeScript des packages critiques (api-client,
+      # auth, utils, flags) — seuils progressifs par package dans
+      # vitest.coverage.config.ts.
+      - name: TypeScript Coverage Gate (packages critiques)
+        run: pnpm test:coverage
+
+      - name: Upload TS Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-ts
+          path: coverage/ts/
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Build Production Packages & Applications
         run: pnpm build
 
@@ -178,8 +193,8 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm e2e:install
 
-      - name: Run E2E (public + annotations suites)
-        run: pnpm e2e --project=public-web --project=annotations
+      - name: Run E2E (public + journeys + security + annotations)
+        run: pnpm e2e --project=public-web --project=core-journeys --project=security --project=annotations
         env:
           CI: 'true'
           PLAYWRIGHT_TEST_BASE_URL: 'http://localhost:3010'
@@ -192,6 +207,90 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  e2e-apps:
+    name: E2E Apps (tenants/studio/admin)
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Les specs tenants/studio/admin interrogent la DB directement (fixtures)
+    # et l'API Go (rendu). Même service Postgres que le job e2e principal.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: qoe
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qoe"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile --fetch-timeout 600000
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Prepare Database (goose migrations)
+        working-directory: apps/api
+        run: go run ./cmd/migrate -dir sql/migrations up
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+
+      - name: Seed Database (demo content)
+        working-directory: apps/api
+        run: go run ./cmd/seed
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+
+      - name: Install Playwright Chromium
+        run: pnpm e2e:install
+
+      # Gates auth studio/admin (redirection /login) : CI-safe sans session.
+      # Les parcours authentifiés complets (RUN_FULL_STACK=1) restent locaux.
+      # QOE_API_URL aligne e2e/lib/env.ts sur le port de l'API Go démarrée
+      # par playwright.apps.config.ts.
+      - name: Run E2E (tenants + studio + admin gates)
+        run: pnpm exec playwright test --config playwright.apps.config.ts
+        env:
+          CI: 'true'
+          PLAYWRIGHT_GO_API_PORT: '8091'
+          QOE_API_URL: 'http://localhost:8091'
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
+
+      - name: Upload Playwright Report (apps)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-apps
           path: playwright-report/
           retention-days: 7
           if-no-files-found: ignore

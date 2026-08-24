@@ -2,6 +2,14 @@ import { defineConfig, devices } from '@playwright/test';
 
 const PORT = Number(process.env.PLAYWRIGHT_PORT) || 3010;
 const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || `http://localhost:${PORT}`;
+const GO_API_PORT = Number(process.env.PLAYWRIGHT_GO_API_PORT) || 8090;
+const GO_API_URL = `http://localhost:${GO_API_PORT}`;
+
+// DSN sans paramètres réservés à Prisma (?schema=public) : pgx les enverrait
+// comme startup parameters (refusés par Postgres).
+const goDatabaseUrl = (process.env.API_DATABASE_URL ?? process.env.DATABASE_URL ?? '').split(
+  '?'
+)[0];
 
 export default defineConfig({
   testDir: './e2e',
@@ -19,20 +27,37 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
-  // Démarre le serveur automatiquement (local ou CI), sans dépendre d'un
-  // serveur déjà lancé. Réutilise un serveur existant si le port répond.
-  webServer: {
-    command: 'pnpm --filter @qoe/core dev',
-    port: PORT,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    env: {
-      PORT: String(PORT),
-      HOSTNAME: '127.0.0.1',
-      NEXT_TELEMETRY_DISABLED: '1',
-      SKIP_ENV_VALIDATION: 'true',
+  // Backend-of-record Go (QOE_API_URL) : requis par toutes les pages qui
+  // lisent le feed/articles (Prisma retiré). Démarre l'API Go avec la base
+  // seedée ; tolère Redis absent (rate-limit pass-through en erreur).
+  webServer: [
+    {
+      command: 'cd apps/api && go run ./cmd/server',
+      url: `${GO_API_URL}/healthz`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+      env: {
+        API_PORT: String(GO_API_PORT),
+        API_DATABASE_URL: goDatabaseUrl,
+        SUPABASE_AUTH_URL: process.env.SUPABASE_AUTH_URL ?? '',
+        SUPABASE_JWT_SECRET: process.env.SUPABASE_JWT_SECRET ?? 'e2e-router-secret',
+        REDIS_URL: process.env.REDIS_URL ?? '',
+      },
     },
-  },
+    {
+      command: 'pnpm --filter @qoe/core dev',
+      port: PORT,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      env: {
+        PORT: String(PORT),
+        HOSTNAME: '127.0.0.1',
+        NEXT_TELEMETRY_DISABLED: '1',
+        SKIP_ENV_VALIDATION: 'true',
+        QOE_API_URL: GO_API_URL,
+      },
+    },
+  ],
   projects: [
     {
       name: 'setup',
@@ -42,8 +67,20 @@ export default defineConfig({
       name: 'public-web',
       use: { ...devices['Desktop Chrome'] },
       // public.spec.ts (smoke) + public-reading.spec.ts (parcours lecture) —
-      // les deux tournent en CI avec le seed Prisma.
+      // tournent en CI avec le seed + API Go.
       testMatch: /public.*\.spec\.ts/,
+    },
+    {
+      // Parcours lecture public déterministe (article, paywall, 404).
+      name: 'core-journeys',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /core-journeys\.spec\.ts/,
+    },
+    {
+      // Campagne de sécurité au niveau HTTP (API Go + apps web).
+      name: 'security',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /security\.spec\.ts/,
     },
     {
       // Suite autonome (page.setContent, sans serveur/DB) — tourne en CI :
@@ -59,7 +96,9 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         storageState: 'playwright/.auth/user.json',
       },
-      testIgnore: /(public|annotations)\.spec\.ts/,
+      // Les specs publics/annotations/journeys/security tournent dans leurs
+      // propres projets ; studio/admin/tenants ont leur propre config (apps).
+      testIgnore: /(public|annotations|core-journeys|security|studio|admin|tenants)\.spec\.ts/,
       dependencies: ['setup'],
     },
   ],
