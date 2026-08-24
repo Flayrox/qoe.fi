@@ -130,6 +130,10 @@ jobs:
           check "internal/modules/creator" 30
           check "internal/modules/highlights" 54
           check "internal/modules/analytics" 38
+          check "internal/modules/users" 54
+          check "internal/modules/oauth" 56
+          check "internal/modules/home" 59
+          check "internal/modules/admin" 64
         env:
           TESTCONTAINERS_RYUK_DISABLED: 'true'
 
