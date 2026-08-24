@@ -33,11 +33,9 @@ export function ArticleScreen({ slug, publicationId }: { slug: string; publicati
   const theme = useTheme();
   const scrollY = useSharedValue(0);
 
-  const onScrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
-    },
-  });
+  const onScrollHandler = (event: any) => {
+    scrollY.value = event.nativeEvent.contentOffset.y;
+  };
 
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: [...feedKeys.all, 'article', slug, publicationId],
