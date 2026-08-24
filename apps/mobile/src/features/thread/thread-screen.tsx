@@ -347,7 +347,7 @@ function ReplyTree({
           <View key={child.id}>
             <ThreadPost
               post={child}
-              showParentLine={isRootBranch || index > 0 || depth > 0}
+              showParentLine={index > 0 || depth > 0}
               showChildLine={hasChild}
               indent={depth}
             />
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   scrollContent: {
-    paddingBottom: Spacing.four,
+    paddingBottom: Platform.OS === 'ios' ? 110 : 90,
   },
   mainPostSurface: {
     marginTop: -500,

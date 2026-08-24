@@ -24,6 +24,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { AdaptiveGlassView } from '@/components/liquid-tab-bar/AdaptiveGlassView';
+import { LiquidElasticButton } from '@/components/liquid-tab-bar/LiquidElasticButton';
 import { Avatar } from '@/components/thought/avatar';
 import { useDrawer } from '@/components/drawer/drawer-context';
 import { Spacing } from '@/constants/theme';
@@ -204,62 +205,21 @@ export function ThreadReplyComposer({
           style={[styles.sideButtonWrapper, animatedWrapperStyle]}
           pointerEvents="box-none"
         >
-          <Animated.View style={[styles.sideButton, animatedSideButtonStyle]}>
-            <TouchableOpacity
-              style={styles.touchArea}
-              activeOpacity={0.85}
-              onPressIn={() => {
-                avatarScale.value = withSpring(0.92, SPRING_PHYSICS);
-              }}
-              onPressOut={() => {
-                avatarScale.value = withSpring(1.0, SPRING_PHYSICS);
-              }}
+          <Animated.View
+            style={[styles.sideButton, animatedSideButtonStyle]}
+            pointerEvents="box-none"
+          >
+            <LiquidElasticButton
+              size={50}
+              borderRadius={25}
               onPress={() => {
                 playHaptic('Light');
                 openDrawer();
               }}
+              accessibilityLabel="Menu"
             >
-              {/* Fond Verre Liquide */}
-              <AdaptiveGlassView
-                style={StyleSheet.absoluteFill}
-                intensity={35}
-                borderRadius={25}
-                refraction={true}
-                thickness={1.4}
-                edgeReflectionStrength={1.0}
-                tilt={false}
-                tintColor={glassTint}
-              />
-
-              {/* Liseré supérieur doux */}
-              <View
-                style={[
-                  styles.softTopHighlightCircle,
-                  {
-                    backgroundColor: isDark
-                      ? 'rgba(255, 255, 255, 0.20)'
-                      : 'rgba(255, 255, 255, 0.75)',
-                  },
-                ]}
-                pointerEvents="none"
-              />
-
-              {/* Avatar au premier plan */}
-              <View style={styles.avatarInnerWrapper} pointerEvents="none">
-                <Avatar user={userAvatarProps} sizeNumber={32} />
-              </View>
-
-              {/* Bordure externe 360° ultra-fine */}
-              <View
-                style={[
-                  styles.seamlessCircleBorder,
-                  {
-                    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
-                  },
-                ]}
-                pointerEvents="none"
-              />
-            </TouchableOpacity>
+              <Avatar user={userAvatarProps} sizeNumber={32} />
+            </LiquidElasticButton>
           </Animated.View>
         </Animated.View>
 
@@ -397,13 +357,20 @@ export function ThreadReplyComposer({
 
 const styles = StyleSheet.create({
   outerContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.two,
-    paddingBottom: Platform.OS === 'ios' ? 24 : Spacing.two,
+    paddingBottom: Platform.OS === 'ios' ? 34 : Spacing.three,
+    backgroundColor: 'transparent',
+    zIndex: 99,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
+    backgroundColor: 'transparent',
   },
   mainBoxWrapper: {
     flex: 1,
