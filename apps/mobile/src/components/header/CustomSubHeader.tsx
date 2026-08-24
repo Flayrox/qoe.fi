@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { EdgeFadeView } from 'react-native-edge-fade';
 
 import { ThemedText } from '@/components/themed-text';
 import { LiquidElasticButton } from '@/components/liquid-tab-bar/LiquidElasticButton';
@@ -119,58 +120,78 @@ export function CustomSubHeader({
   };
 
   return (
-    <Animated.View
-      style={[styles.headerContainer, containerAnimatedStyle, style]}
-      pointerEvents="box-none"
-    >
-      {/* ─── Côté Gauche : Bouton Retour Liquid Glass ─── */}
-      <View style={styles.sideSection} pointerEvents="box-none">
-        {!hideBackButton ? (
-          <LiquidElasticButton
-            size={42}
-            borderRadius={21}
-            onPress={handleBack}
-            accessibilityLabel={t('common.back', 'Retour')}
-            icon={<Ionicons name="arrow-back" size={21} color={theme.text} />}
-          />
-        ) : (
-          <View style={styles.sidePlaceholder} />
-        )}
-      </View>
+    <>
+      {/* ─── Flou progressif zénithal (EdgeFadeView - Metal / AGSL) ─── */}
+      <EdgeFadeView
+        mode="blur"
+        top={108}
+        blurRadius={18}
+        curve={{ type: 'stops', values: [1, 0.7, 0.38, 0.14, 0.04, 0] }}
+        style={styles.blurBackground}
+        pointerEvents="none"
+      />
 
-      {/* ─── Section Centrale : Titre / Morphing Component ─── */}
-      <View style={styles.centerSection} pointerEvents="box-none">
-        {centerComponent ? (
-          centerComponent
-        ) : title ? (
-          <Animated.View
-            style={[styles.titleWrapper, centerAnimatedStyle]}
-            pointerEvents="box-none"
-          >
-            <ThemedText style={[styles.titleText, { color: theme.text }]} numberOfLines={1}>
-              {title}
-            </ThemedText>
-            {subtitle ? (
-              <ThemedText
-                style={[styles.subtitleText, { color: theme.textSecondary }]}
-                numberOfLines={1}
-              >
-                {subtitle}
+      <Animated.View
+        style={[styles.headerContainer, containerAnimatedStyle, style]}
+        pointerEvents="box-none"
+      >
+        {/* ─── Côté Gauche : Bouton Retour Liquid Glass ─── */}
+        <View style={styles.sideSection} pointerEvents="box-none">
+          {!hideBackButton ? (
+            <LiquidElasticButton
+              size={42}
+              borderRadius={21}
+              onPress={handleBack}
+              accessibilityLabel={t('common.back', 'Retour')}
+              icon={<Ionicons name="arrow-back" size={21} color={theme.text} />}
+            />
+          ) : (
+            <View style={styles.sidePlaceholder} />
+          )}
+        </View>
+
+        {/* ─── Section Centrale : Titre / Morphing Component ─── */}
+        <View style={styles.centerSection} pointerEvents="box-none">
+          {centerComponent ? (
+            centerComponent
+          ) : title ? (
+            <Animated.View
+              style={[styles.titleWrapper, centerAnimatedStyle]}
+              pointerEvents="box-none"
+            >
+              <ThemedText style={[styles.titleText, { color: theme.text }]} numberOfLines={1}>
+                {title}
               </ThemedText>
-            ) : null}
-          </Animated.View>
-        ) : null}
-      </View>
+              {subtitle ? (
+                <ThemedText
+                  style={[styles.subtitleText, { color: theme.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  {subtitle}
+                </ThemedText>
+              ) : null}
+            </Animated.View>
+          ) : null}
+        </View>
 
-      {/* ─── Côté Droit : Action personnalisée (Liquid Glass 42px) ─── */}
-      <View style={styles.sideSection} pointerEvents="box-none">
-        {rightComponent ? rightComponent : <View style={styles.sidePlaceholder} />}
-      </View>
-    </Animated.View>
+        {/* ─── Côté Droit : Action personnalisée (Liquid Glass 42px) ─── */}
+        <View style={styles.sideSection} pointerEvents="box-none">
+          {rightComponent ? rightComponent : <View style={styles.sidePlaceholder} />}
+        </View>
+      </Animated.View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  blurBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 115,
+    zIndex: 90,
+  },
   headerContainer: {
     position: 'absolute',
     top: 50,
