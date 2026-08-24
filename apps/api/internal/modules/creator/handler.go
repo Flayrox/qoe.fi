@@ -43,6 +43,30 @@ func NewHandler(pool *pgxpool.Pool, umamiCli *umami.Client, defaultWebsiteID str
 // route JWT → 401 sur le dashboard).
 func (h *Handler) RegisterAPIKey(r chi.Router) {
 	r.With(middleware.RequireAPIScope(middleware.ScopeAnalytics)).Get("/v1/analytics/stats", h.analyticsStats)
+	// Lecture des surlignages publics sur les articles du créateur
+	// (publication de la clé, articles signés ou co-écrits).
+	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/highlights", h.apiHighlights)
+}
+
+// apiHighlights — GET /v1/creator/highlights : surlignages publics des
+// lecteurs sur les articles liés au créateur (multi-auteurs inclus),
+// paginés. Réservé aux clés API (scope READ).
+func (h *Handler) apiHighlights(w http.ResponseWriter, r *http.Request) {
+	publicationID, _ := middleware.PublicationID(r.Context())
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("cursor"))
+	page, err := h.apiHighlightsPage(r.Context(), publicationID, userID, limit, offset)
+	if err != nil {
+		log.Printf("[creator] api highlights: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, page)
 }
 
 // RegisterPublic — routes publiques (auth optionnelle : le viewer connecté

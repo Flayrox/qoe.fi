@@ -170,3 +170,216 @@ func TestRequireAPIScope_JWTPassesWithoutScopes(t *testing.T) {
 		t.Fatalf("READ sur route ANALYTICS = %d, attendu 403", w.Code)
 	}
 }
+
+// ─── GET /v1/creator/highlights — surlignages publics multi-auteurs ────
+
+func TestCreatorAPI_Highlights(t *testing.T) {
+	ctx := context.Background()
+
+	// Fixture dédiée : publication créateur + 2 articles (dont un
+	// co-écrit) + lecteurs qui surlignent.
+	pubID := "pub_api_hl"
+	creatorID := "00000000-0000-0000-0000-000000000c01"
+	coAuthorID := "00000000-0000-0000-0000-000000000c02"
+	reader1 := "00000000-0000-0000-0000-000000000c03"
+	reader2 := "00000000-0000-0000-0000-000000000c04"
+
+	if _, err := poolTest.Exec(ctx,
+		`TRUNCATE TABLE "Highlight", "AnnotationComment", "Article", "_CoAuthors",
+		 "Publication", "User" CASCADE`); err != nil {
+		t.Fatalf("truncate: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		 VALUES ($1, 'PERSONAL', 'Créateur API', 'createur-api', now(), now())`, pubID); err != nil {
+		t.Fatalf("publication: %v", err)
+	}
+	for _, u := range []struct{ id, username string }{
+		{creatorID, "apicreator"}, {coAuthorID, "cocreator"},
+		{reader1, "readerone"}, {reader2, "readertwo"},
+	} {
+		var pub *string
+		if u.id == creatorID {
+			pub = &pubID
+		}
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+			 VALUES ($1, $2, $3, $3, 'user', $4, now(), now())`,
+			u.id, u.username+"@test.dev", u.username, pub); err != nil {
+			t.Fatalf("user %s: %v", u.username, err)
+		}
+	}
+
+	// Article signé par le créateur + article co-écrit.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Article" (id, title, slug, content, published, visibility,
+		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		 VALUES ('art_api_1', 'Article Solo', 'article-solo', '<p>x</p>', true, 'PUBLIC',
+		         3, 'PUBLISHED', $1, $2, now(), now())`,
+		pubID, creatorID); err != nil {
+		t.Fatalf("article solo: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Article" (id, title, slug, content, published, visibility,
+		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		 VALUES ('art_api_2', 'Article Duo', 'article-duo', '<p>y</p>', true, 'PUBLIC',
+		         3, 'PUBLISHED', $1, $2, now(), now())`,
+		pubID, creatorID); err != nil {
+		t.Fatalf("article duo: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "_CoAuthors" ("A", "B") VALUES ('art_api_2', $1)`, coAuthorID); err != nil {
+		t.Fatalf("co-auteur: %v", err)
+	}
+
+	// Surlignages : publics sur les 2 articles, un privé ignoré.
+	hl := func(id, articleID, readerID, text string, public bool) {
+		t.Helper()
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "Highlight" (id, text, "isPublic", "readerId", "articleId", "createdAt")
+			 VALUES ($1, $2, $3, $4, $5, now())`,
+			id, text, public, readerID, articleID); err != nil {
+			t.Fatalf("highlight %s: %v", id, err)
+		}
+	}
+	hl("hl_pub_solo", "art_api_1", reader1, "Passage solo souligné", true)
+	hl("hl_pub_duo", "art_api_2", reader2, "Passage duo souligné", true)
+	hl("hl_prive", "art_api_1", reader2, "Privé — ne doit pas sortir", false)
+
+	r := newAPIRouter()
+	key := insertAPIKey(t, creatorID, "lecteur", authmw.AllScopes)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/creator/highlights", nil)
+	req.Header.Set("Authorization", "Bearer "+key)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("highlights = %d %s", w.Code, w.Body.String())
+	}
+	var page struct {
+		Items []struct {
+			ID     string `json:"id"`
+			Text   string `json:"text"`
+			Reader struct {
+				Username *string `json:"username"`
+			} `json:"reader"`
+			Article struct {
+				Slug    string   `json:"slug"`
+				Authors []string `json:"authors"`
+			} `json:"article"`
+		} `json:"items"`
+		HasMore    bool   `json:"hasMore"`
+		NextCursor string `json:"nextCursor"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &page); err != nil {
+		t.Fatalf("json: %v (%s)", err, w.Body.String())
+	}
+
+	if len(page.Items) != 2 {
+		t.Fatalf("items = %d, attendu 2 (publics uniquement)", len(page.Items))
+	}
+	texts := map[string]string{}
+	for _, it := range page.Items {
+		texts[it.ID] = it.Text
+	}
+	if _, ok := texts["hl_pub_solo"]; !ok {
+		t.Fatal("highlight de l'article solo absent")
+	}
+	if _, ok := texts["hl_pub_duo"]; !ok {
+		t.Fatal("highlight de l'article co-écrit absent")
+	}
+	if _, ok := texts["hl_prive"]; ok {
+		t.Fatal("highlight privé exposé !")
+	}
+
+	// Pagination limit=1 → 1 item + curseur.
+	req = httptest.NewRequest(http.MethodGet, "/v1/creator/highlights?limit=1", nil)
+	req.Header.Set("Authorization", "Bearer "+key)
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	var paged map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &paged); err != nil {
+		t.Fatalf("json page 2: %v (%s)", err, w.Body.String())
+	}
+	if items, ok := paged["items"].([]any); !ok || len(items) != 1 {
+		t.Fatalf("pagination limit=1 : items=%v, attendu 1", paged["items"])
+	}
+	if paged["hasMore"] != true {
+		t.Fatal("hasMore attendu true avec limit=1 et 2 résultats")
+	}
+	if paged["nextCursor"] == nil || paged["nextCursor"] == "" {
+		t.Fatal("nextCursor manquant")
+	}
+
+	// Clé READ-only : autorisé (scope READ requis uniquement).
+	ro := insertAPIKey(t, creatorID, "read-only", []string{authmw.ScopeRead})
+	req = httptest.NewRequest(http.MethodGet, "/v1/creator/highlights", nil)
+	req.Header.Set("Authorization", "Bearer "+ro)
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("clé READ = %d %s, attendu 200", w.Code, w.Body.String())
+	}
+
+	// Anonyme → 401.
+	req = httptest.NewRequest(http.MethodGet, "/v1/creator/highlights", nil)
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("anonyme = %d, attendu 401", w.Code)
+	}
+}
+
+func TestCreatorAPI_Highlights_CoAuthorSeesOwnArticles(t *testing.T) {
+	ctx := context.Background()
+	r := newAPIRouter()
+
+	// Le co-auteur (clé propre) voit les surlignages de l'article duo
+	// même sans posséder la publication.
+	key := insertAPIKey(t, "00000000-0000-0000-0000-000000000c02", "coauteur", authmw.AllScopes)
+
+	// Recrée les données minimales si le test précédent a purgé.
+	var n int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "Highlight" WHERE id = 'hl_pub_duo'`).Scan(&n); err != nil || n == 0 {
+		t.Skip("données du test précédent absentes")
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/creator/highlights?limit=50", nil)
+	req.Header.Set("Authorization", "Bearer "+key)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("co-auteur = %d %s", w.Code, w.Body.String())
+	}
+	var page struct {
+		Items []struct {
+			ID      string `json:"id"`
+			Article struct {
+				Authors []string `json:"authors"`
+			} `json:"article"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &page); err != nil {
+		t.Fatalf("json: %v (%s)", err, w.Body.String())
+	}
+	foundDuo := false
+	foundAuthors := false
+	for _, it := range page.Items {
+		if it.ID == "hl_pub_duo" {
+			foundDuo = true
+			for _, a := range it.Article.Authors {
+				if a == "00000000-0000-0000-0000-000000000c02" {
+					foundAuthors = true
+				}
+			}
+		}
+	}
+	if !foundDuo {
+		t.Fatal("l'article co-écrit n'apparaît pas pour le co-auteur")
+	}
+	if !foundAuthors {
+		t.Fatal("le co-auteur n'est pas listé dans article.authors")
+	}
+}

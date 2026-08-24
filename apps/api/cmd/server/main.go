@@ -309,7 +309,8 @@ func newRouter(d RouterDeps) *chi.Mux {
 		trackingHandler.RegisterProtected(pub)
 	})
 
-	// API créateur par clé API (qoe_live_…) : catégories + analytics/stats (proxy Umami).
+	// API créateur par clé API (qoe_live_…) : analytics/stats (proxy Umami)
+	// + surlignages publics des articles du créateur.
 	r.Group(func(apiKey chi.Router) {
 		apiKey.Use(authmw.APIKeyAuth(db.New(pool)))
 		creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
