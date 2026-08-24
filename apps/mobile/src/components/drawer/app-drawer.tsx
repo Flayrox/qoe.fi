@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, type PropsWithChildren } from 'react';
-import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import {
+  Appearance,
+  Pressable,
+  StyleSheet,
+  useColorScheme,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -38,6 +45,8 @@ function clamp(value: number, min: number, max: number) {
 
 export function AppDrawer({ children }: PropsWithChildren) {
   const theme = useTheme();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark' || Appearance.getColorScheme() === 'dark';
   const { width } = useWindowDimensions();
   const progress = useSharedValue(0);
   const startProgress = useSharedValue(0);
@@ -130,12 +139,15 @@ export function AppDrawer({ children }: PropsWithChildren) {
               <View style={styles.deckSurface}>
                 {children}
 
-                {/* Overlay qui bloque toute manipulation du feed et de la tabbar quand la sidebar est ouverte */}
+                {/* Overlay qui bloque toute manipulation et assombrit/blanchit le deck lors de l'ouverture de la sidebar */}
                 <Animated.View
                   style={[
                     styles.deckBlockerOverlay,
+                    {
+                      backgroundColor: isDark ? '#000000' : '#ffffff',
+                    },
                     useAnimatedStyle(() => ({
-                      opacity: progress.value > 0.05 ? 1 : 0,
+                      opacity: interpolate(progress.value, [0, 1], [0, isDark ? 0.35 : 0.28]),
                       pointerEvents: progress.value > 0.05 ? 'auto' : 'none',
                     })),
                   ]}
