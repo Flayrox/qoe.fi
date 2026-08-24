@@ -397,21 +397,35 @@ func (h *Handler) userMe(w http.ResponseWriter, r *http.Request) {
 	}})
 }
 
-// userByUsername résout une publication par slug OU subdomain (parité Hono).
-// Si le viewer est connecté, `isFollowing` indique s'il suit déjà la
-// publication (lecture best-effort — échec → false).
+// userByUsername résout une publication par slug OU subdomain (parité Hono),
+// avec fallback sur User.username ou User.id pour les comptes personnels.
 func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 	username := chi.URLParam(r, "username")
 
 	row, err := h.q.GetPublicationBySlugOrSubdomain(r.Context(), username)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			response.NotFound(w, "User not found")
+			// Fallback : cherche si c'est un User.username ou User.id
+			var pubID string
+			errUser := h.pool.QueryRow(r.Context(), `
+				SELECT "publicationId" FROM "User" 
+				WHERE LOWER(username) = LOWER($1) 
+				   OR id::text = $1 
+				   OR "publicationId" = $1
+				LIMIT 1`, username).Scan(&pubID)
+			if errUser == nil && pubID != "" {
+				row, err = h.q.GetPublicationBySlugOrSubdomain(r.Context(), pubID)
+			}
+		}
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				response.NotFound(w, "User not found")
+				return
+			}
+			log.Printf("[creator] userByUsername: %v", err)
+			response.Internal(w)
 			return
 		}
-		log.Printf("[creator] userByUsername: %v", err)
-		response.Internal(w)
-		return
 	}
 
 	isFollowing := false
