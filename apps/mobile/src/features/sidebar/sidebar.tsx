@@ -34,6 +34,7 @@ export function Sidebar() {
   const {
     session,
     signOut,
+    signOutAll,
     savedAccounts,
     switchAccount,
     removeAccount,
@@ -213,14 +214,14 @@ export function Sidebar() {
         {
           key: 'sign_out_current',
           label: t('auth.sign_out_user', 'Se déconnecter de @%{handle}', {
-            handle: profileHandle,
+            handle: displayHandle,
           }),
           destructive: true,
           icon: {
             ios: 'rectangle.portrait.and.arrow.right',
             android: 'logout',
             web: 'logout',
-          },
+          } as const,
           onPress: () => {
             setAccountMenuOpen(false);
             if (currentUserId) {
@@ -230,6 +231,25 @@ export function Sidebar() {
             }
           },
         },
+        ...(savedAccounts.length > 1
+          ? [
+              {
+                key: 'sign_out_all',
+                label: t('auth.sign_out_all', 'Se déconnecter de tous les comptes'),
+                destructive: true,
+                icon: {
+                  ios: 'rectangle.portrait.and.arrow.right',
+                  android: 'logout',
+                  web: 'logout',
+                } as const,
+                onPress: () => {
+                  setAccountMenuOpen(false);
+                  closeDrawer();
+                  void signOutAll();
+                },
+              },
+            ]
+          : []),
       ],
     },
   ];

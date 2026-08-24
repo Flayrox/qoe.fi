@@ -49,14 +49,19 @@ export function PostMenuButton({
   const queryClient = useQueryClient();
   const { data: me } = useMe();
   const [busy, setBusy] = useState(false);
-
   const isOwn = me?.id === post.author.id;
-  const url = `https://qoe.fi/thought/${post.author.username || post.author.id}/${post.id}`;
+  const postUrl = `https://qoe.fi/thought/${post.author.username || post.author.id}/${post.id}`;
 
   const onCopyText = async () => {
     setOpen(false);
     await copyText(post.content);
-    Toast.show(t('post.copied', 'Copié dans le presse-papiers'), 'success');
+    Toast.show(t('post.copied_text', 'Texte copié'), 'success');
+  };
+
+  const onCopyLink = async () => {
+    setOpen(false);
+    await copyText(postUrl);
+    Toast.show(t('post.copied_link', 'Lien copié'), 'success');
   };
 
   const onTranslate = () => {
@@ -156,6 +161,7 @@ export function PostMenuButton({
 
   const groups: ActionSheetGroup[] = [];
 
+  // 1. Actions auteur
   if (isOwn) {
     groups.push({
       items: [
@@ -180,29 +186,37 @@ export function PostMenuButton({
     });
   }
 
+  // 2. Actions générales (Traduire, Copier le texte, Copier le lien)
   groups.push({
     items: [
-      {
-        key: 'copy',
-        label: t('post.copy', 'Copier le texte'),
-        icon: ICON.copy,
-        onPress: () => void onCopyText(),
-      },
       {
         key: 'translate',
         label: t('post.translate', 'Traduire'),
         icon: ICON.translate,
         onPress: onTranslate,
       },
+      {
+        key: 'copy_text',
+        label: t('post.copy_text', 'Copier le texte de la pensée'),
+        icon: ICON.copy,
+        onPress: () => void onCopyText(),
+      },
+      {
+        key: 'copy_link',
+        label: t('post.copy_link', 'Copier le lien vers la pensée'),
+        icon: { ios: 'link', android: 'link', web: 'link' },
+        onPress: () => void onCopyLink(),
+      },
     ],
   });
 
+  // 3. Actions de modération & masquage
   if (!isOwn) {
     groups.push({
       items: [
         {
           key: 'hide',
-          label: t('post.hide', 'Masquer cette pensée'),
+          label: t('post.hide', 'Masquer cette pensée pour moi'),
           icon: ICON.eyeSlash,
           onPress: () => onStub('Masquer'),
         },
@@ -221,7 +235,7 @@ export function PostMenuButton({
         },
         {
           key: 'block',
-          label: t('post.block', 'Bloquer le compte'),
+          label: t('post.block', `Bloquer @${post.author.username || '…'}`),
           icon: ICON.personX,
           destructive: true,
           onPress: () => void onBlock(),
@@ -239,7 +253,7 @@ export function PostMenuButton({
     });
   }
 
-  // Feedback algorithme (parité Show more/less like this).
+  // 4. Feedback feed Bluesky
   groups.push({
     items: [
       {

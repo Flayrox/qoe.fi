@@ -77,7 +77,10 @@ export function ThoughtCard({
       ) : null}
       {post.parent && !isPureRepost && post.parent.author ? (
         <View style={styles.banner}>
-          <RepliedTo handle={post.parent.author.username || post.parent.author.name || '…'} />
+          <RepliedTo
+            handle={post.parent.author.username || post.parent.author.name}
+            userId={post.parent.author.id}
+          />
         </View>
       ) : null}
 

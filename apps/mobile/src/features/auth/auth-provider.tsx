@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import {
+  clearAllStoredAccounts,
   getSavedAccounts,
   removeStoredAccount,
   saveAccount,
@@ -33,6 +34,7 @@ interface AuthContextValue {
   signInSecondary: (email: string, password: string) => Promise<AuthResult>;
   signUp: (email: string, password: string, fullName?: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
+  signOutAll: () => Promise<void>;
   switchAccount: (userId: string) => Promise<boolean>;
   removeAccount: (userId: string) => Promise<void>;
   updateCurrentAccountMeta: (metadata: {
@@ -160,6 +162,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
     queryClient.clear();
   }, [session]);
 
+  const signOutAll = useCallback(async () => {
+    await supabase.auth.signOut();
+    await clearAllStoredAccounts();
+    setSavedAccounts([]);
+    setSession(null);
+    setAccessToken(null);
+    queryClient.clear();
+  }, []);
+
   const switchAccount = useCallback(async (userId: string): Promise<boolean> => {
     const accounts = await getSavedAccounts();
     const target = accounts.find((a) => a.id === userId);
@@ -193,10 +204,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const remaining = await removeStoredAccount(userId);
       setSavedAccounts(remaining);
       if (session?.user?.id === userId) {
-        await signOut();
+        if (remaining.length > 0) {
+          const next = remaining[0];
+          const { data } = await supabase.auth.setSession({
+            access_token: next.accessToken,
+            refresh_token: next.refreshToken,
+          });
+          if (data.session) {
+            setSession(data.session);
+            setAccessToken(data.session.access_token);
+          }
+        } else {
+          await supabase.auth.signOut();
+          setSession(null);
+          setAccessToken(null);
+        }
       }
     },
-    [session, signOut]
+    [session]
   );
 
   const updateCurrentAccountMeta = useCallback(
@@ -223,6 +248,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       signInSecondary,
       signUp,
       signOut,
+      signOutAll,
       switchAccount,
       removeAccount,
       updateCurrentAccountMeta,
@@ -235,6 +261,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       signInSecondary,
       signUp,
       signOut,
+      signOutAll,
       switchAccount,
       removeAccount,
       updateCurrentAccountMeta,

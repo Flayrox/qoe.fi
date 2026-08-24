@@ -1,23 +1,79 @@
 import { SymbolView } from 'expo-symbols';
-import { StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useAuth } from '@/features/auth/auth-provider';
 import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/lib/i18n';
 
 // =====================================================================
-// ↩️ RepliedTo — ligne « En réponse à @x » (port de
-//    .reference/bluesky/src/components/Post/PostRepliedTo.tsx)
+// ↩️ RepliedTo — ligne « En réponse à @x » (port Bluesky PostRepliedTo)
 // =====================================================================
 // Bluesky : flèche coudée `ArrowCornerDownRight` (xs) + texte muted
-// « Replied to X » sur une seule ligne. Ici adapté : icône SF Symbol
-// `arrow.turn.down.right` (iOS) / `subdirectory_arrow_right` (Android),
-// libellé « En réponse à @handle » en textSecondary.
+// « Replied to X » / « Replied to you » sur une seule ligne.
 // =====================================================================
 
-export function RepliedTo({ handle }: { handle: string }) {
+export function RepliedTo({
+  handle,
+  userId,
+  isBlocked,
+  isNotFound,
+}: {
+  handle?: string | null;
+  userId?: string | null;
+  isBlocked?: boolean;
+  isNotFound?: boolean;
+}) {
   const theme = useTheme();
+  const { session } = useAuth();
+  const currentUserId = session?.user?.id;
+
+  const isMe = !!(userId && currentUserId && userId === currentUserId);
+
+  const openProfile = () => {
+    if (handle) {
+      router.push({ pathname: '/user/[username]', params: { username: handle } });
+    } else if (userId) {
+      router.push({ pathname: '/user/[username]', params: { username: userId } });
+    }
+  };
+
+  let labelNode = null;
+  if (isBlocked) {
+    labelNode = (
+      <ThemedText type="small" style={{ color: theme.textSecondary }}>
+        {t('feed.replied_blocked', 'En réponse à une pensée masquée')}
+      </ThemedText>
+    );
+  } else if (isNotFound) {
+    labelNode = (
+      <ThemedText type="small" style={{ color: theme.textSecondary }}>
+        {t('feed.replied_unknown', 'En réponse à une pensée')}
+      </ThemedText>
+    );
+  } else if (isMe) {
+    labelNode = (
+      <ThemedText type="small" style={{ color: theme.textSecondary }}>
+        {t('feed.replied_to_you', 'En réponse à votre pensée')}
+      </ThemedText>
+    );
+  } else if (handle) {
+    labelNode = (
+      <Pressable onPress={openProfile} hitSlop={4}>
+        <ThemedText type="small" numberOfLines={1} style={{ color: theme.textSecondary }}>
+          {t('feed.in_reply_to', 'En réponse à')}{' '}
+          <ThemedText type="small" style={[styles.strong, { color: theme.textSecondary }]}>
+            @{handle}
+          </ThemedText>
+        </ThemedText>
+      </Pressable>
+    );
+  } else {
+    return null;
+  }
+
   return (
     <View style={styles.row}>
       <SymbolView
@@ -28,18 +84,10 @@ export function RepliedTo({ handle }: { handle: string }) {
         }}
         size={12}
         tintColor={theme.textSecondary}
-        weight="regular"
+        weight="medium"
+        style={styles.icon}
       />
-      <ThemedText
-        type="small"
-        numberOfLines={1}
-        style={[styles.label, { color: theme.textSecondary }]}
-      >
-        {t('feed.in_reply_to', 'En réponse à')}{' '}
-        <ThemedText type="small" style={styles.strong}>
-          @{handle}
-        </ThemedText>
-      </ThemedText>
+      <View style={styles.labelContainer}>{labelNode}</View>
     </View>
   );
 }
@@ -48,12 +96,16 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.one,
+    gap: 6,
+    paddingBottom: 2,
   },
-  label: {
+  icon: {
+    marginTop: -1,
+  },
+  labelContainer: {
     flexShrink: 1,
   },
   strong: {
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });
