@@ -184,7 +184,7 @@ qoe.fi/
 
 - Schema, migrations, seed sont **dans le package `@qoe/db`**
 - `prisma.config.ts` (racine) pointe vers ce package
-- Docker `migrate` service : `prisma migrate deploy --schema=/app/packages/db/prisma/schema.prisma`
+- Docker `migrate` service : `qoe-migrate -dir /migrations up` (goose, `apps/api/sql/migrations`)
 - Plus de duplication `prisma/` racine / `packages/db/prisma/`
 
 ### 3. Composants UI partagés : `packages/ui/`

@@ -198,6 +198,35 @@ func (s *Service) Audience(ctx context.Context, userID, publicationID string) (A
 	return AudienceSummary{Total: int(row.Total), Active: int(row.Active), Premium: int(row.Premium)}, nil
 }
 
+// SubscriberDTO est un abonné listé dans la page audience du studio.
+type SubscriberDTO struct {
+	ID        string `json:"id"`
+	Email     string `json:"email"`
+	IsActive  bool   `json:"isActive"`
+	IsPremium bool   `json:"isPremium"`
+	LtvCents  int32  `json:"ltvCents"`
+	CreatedAt string `json:"createdAt"`
+}
+
+// ListSubscribers retourne les abonnés de la publication (page audience studio).
+func (s *Service) ListSubscribers(ctx context.Context, userID, publicationID string) ([]SubscriberDTO, error) {
+	if !s.canAccess(ctx, userID, publicationID) {
+		return nil, errForbidden
+	}
+	rows, err := s.q.ListSubscribers(ctx, publicationID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]SubscriberDTO, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, SubscriberDTO{
+			ID: r.ID, Email: r.Email, IsActive: r.IsActive, IsPremium: r.IsPremium,
+			LtvCents: r.LtvCents, CreatedAt: r.CreatedAt.Time.Format(time.RFC3339),
+		})
+	}
+	return out, nil
+}
+
 // ── ReadingSession — migration Prisma → Go ──────────────────────────────────
 // Remplace prisma.readingSession.groupBy / $queryRawUnsafe dans
 // apps/studio/src/app/(creator)/analytics/actions.ts
@@ -753,6 +782,14 @@ func toUUID(id string) pgtype.UUID {
 	return u
 }
 
+func textPtr(t pgtype.Text) *string {
+	if !t.Valid {
+		return nil
+	}
+	v := t.String
+	return &v
+}
+
 func round2(v float64) float64 {
 	return float64(int(v*100+0.5)) / 100
 }
@@ -796,6 +833,209 @@ type ProductMetrics struct {
 	ReadingQuality    ReadingQuality           `json:"readingQuality"`
 	TopCategories     []AnalyticsCategoryCount `json:"topCategories"`
 	TopArticles       []AnalyticsArticleMetric `json:"topArticles"`
+}
+
+// ── Dashboard accueil (migration Prisma → Go) ────────────────────────────────
+// Remplace le bloc Promise.all de prisma.* dans apps/studio/src/app/(creator)/page.tsx.
+
+// DashboardArticle est un article de la liste récente / brouillons du dashboard.
+type DashboardArticle struct {
+	ID        string  `json:"id"`
+	Title     string  `json:"title"`
+	Published bool    `json:"published"`
+	UpdatedAt string  `json:"updatedAt"`
+	Category  *string `json:"categoryName"`
+}
+
+// DashboardThought est une pensée programmée du dashboard.
+type DashboardThought struct {
+	ID          string `json:"id"`
+	Content     string `json:"content"`
+	ScheduledAt string `json:"scheduledAt"`
+}
+
+// DashboardCount est le compteur _count du dernier article publié.
+type DashboardCount struct {
+	Bookmarks  int `json:"bookmarks"`
+	Highlights int `json:"highlights"`
+	Letters    int `json:"letters"`
+}
+
+// DashboardLatestArticle est le dernier article publié (avec réactions lecteurs).
+type DashboardLatestArticle struct {
+	ID          string         `json:"id"`
+	Title       string         `json:"title"`
+	ReadingTime int32          `json:"readingTime"`
+	Category    *string        `json:"categoryName"`
+	Count       DashboardCount `json:"_count"`
+}
+
+// DashboardOverview est la réponse complète de la page d'accueil du studio.
+type DashboardOverview struct {
+	PublicationWebsiteID    string                  `json:"publicationWebsiteId"`
+	PublishedCount          int                     `json:"publishedCount"`
+	SubscribersCount        int                     `json:"subscribersCount"`
+	PremiumSubscribersCount int                     `json:"premiumSubscribersCount"`
+	MRRCents                int                     `json:"mrrCents"`
+	RecentArticles          []DashboardArticle      `json:"recentArticles"`
+	DraftArticles           []DashboardArticle      `json:"draftArticles"`
+	ScheduledThoughts       []DashboardThought      `json:"scheduledThoughts"`
+	LatestPublishedArticle  *DashboardLatestArticle `json:"latestPublishedArticle"`
+	Pageviews30d            int                     `json:"pageviews30d"`
+	Visitors30d             int                     `json:"visitors30d"`
+}
+
+// canViewDashboard vérifie que l'utilisateur peut consulter le dashboard de la
+// publication : propriétaire de sa publication personnelle OU membre d'un média
+// (tout rôle — le dashboard accueil est visible par tous les membres).
+func (s *Service) canViewDashboard(ctx context.Context, userID, publicationID string) bool {
+	if personal, err := s.q.GetUserPersonalPublication(ctx, userID); err == nil && personal.String == publicationID {
+		return true
+	}
+	_, err := s.q.GetMediaRoleForUser(ctx, db.GetMediaRoleForUserParams{
+		PublicationId: publicationID, UserId: toUUID(userID),
+	})
+	return err == nil
+}
+
+// articleScopeSQL retourne le WHERE articles du dashboard selon le workspace :
+//   - MEDIA → tous les articles de la publication ;
+//   - PERSONAL → les articles du créateur (publication personnelle OU co-signés
+//     via ArticleAttribution ACCEPTED + visible) — vues PLEIN par attribution.
+// $1 = publicationId, $2 = userId (uuid).
+func articleScopeSQL(media bool) string {
+	if media {
+		return `a."publicationId" = $1`
+	}
+	return `(a."publicationId" = $1 OR EXISTS (
+		SELECT 1 FROM "ArticleAttribution" aa
+		WHERE aa."articleId" = a.id
+		  AND aa."userId" = $2
+		  AND aa."consentStatus" = 'ACCEPTED'
+		  AND aa."isVisible" = true))`
+}
+
+// DashboardOverview retourne toutes les données de la page d'accueil du studio
+// (métriques, articles récents, brouillons, pensées programmées, dernier écrit
+// publié, lectures 30j). workspaceType = PERSONAL | MEDIA.
+func (s *Service) DashboardOverview(ctx context.Context, userID, publicationID, workspaceType string) (DashboardOverview, error) {
+	out := DashboardOverview{
+		RecentArticles:    []DashboardArticle{},
+		DraftArticles:     []DashboardArticle{},
+		ScheduledThoughts: []DashboardThought{},
+	}
+	if !s.canViewDashboard(ctx, userID, publicationID) {
+		return out, errForbidden
+	}
+	if s.pool == nil {
+		return out, fmt.Errorf("pool non configuré")
+	}
+	media := workspaceType == "MEDIA"
+	userUUID := toUUID(userID)
+
+	// Website Umami de la publication (fallback env géré côté studio).
+	_ = s.pool.QueryRow(ctx, `SELECT COALESCE("umamiWebsiteId", '') FROM "Publication" WHERE id = $1`, publicationID).Scan(&out.PublicationWebsiteID)
+
+	// Articles publiés (scope workspace).
+	if media {
+		_ = s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Article" WHERE "publicationId" = $1 AND published = true`, publicationID).Scan(&out.PublishedCount)
+	} else {
+		_ = s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Article" WHERE "authorId" = $1 AND published = true`, userUUID).Scan(&out.PublishedCount)
+	}
+
+	// Abonnés réseau + payants + LTV (MRR estimé = somme des ltvCents actifs).
+	_ = s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Subscriber" WHERE "publicationId" = $1 AND "isActive" = true`, publicationID).Scan(&out.SubscribersCount)
+	_ = s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "Subscriber" WHERE "publicationId" = $1 AND "isActive" = true AND "isPremium" = true`, publicationID).Scan(&out.PremiumSubscribersCount)
+	_ = s.pool.QueryRow(ctx, `SELECT COALESCE(SUM("ltvCents")::int, 0) FROM "Subscriber" WHERE "publicationId" = $1 AND "isActive" = true`, publicationID).Scan(&out.MRRCents)
+
+	// Articles récents (4, par updatedAt desc) + brouillons (4).
+	recentWhere := `a."publicationId" = $1`
+	recentArgs := []any{publicationID}
+	if !media {
+		recentWhere = `a."authorId" = $1`
+		recentArgs = []any{userUUID}
+	}
+	rows, err := s.pool.Query(ctx, `SELECT a.id, a.title, a.published, a."updatedAt", c.name
+		FROM "Article" a LEFT JOIN "Category" c ON c.id = a."categoryId"
+		WHERE `+recentWhere+`
+		ORDER BY a."updatedAt" DESC LIMIT 4`, recentArgs...)
+	if err == nil {
+		for rows.Next() {
+			var a DashboardArticle
+			var cat pgtype.Text
+			var updated pgtype.Timestamp
+			if err := rows.Scan(&a.ID, &a.Title, &a.Published, &updated, &cat); err != nil {
+				continue
+			}
+			a.UpdatedAt = updated.Time.Format(time.RFC3339)
+			a.Category = textPtr(cat)
+			out.RecentArticles = append(out.RecentArticles, a)
+		}
+		rows.Close()
+	}
+	rows, err = s.pool.Query(ctx, `SELECT a.id, a.title, a.published, a."updatedAt"
+		FROM "Article" a
+		WHERE `+recentWhere+` AND a.published = false
+		ORDER BY a."updatedAt" DESC LIMIT 4`, recentArgs...)
+	if err == nil {
+		for rows.Next() {
+			var a DashboardArticle
+			var updated pgtype.Timestamp
+			if err := rows.Scan(&a.ID, &a.Title, &a.Published, &updated); err != nil {
+				continue
+			}
+			a.UpdatedAt = updated.Time.Format(time.RFC3339)
+			out.DraftArticles = append(out.DraftArticles, a)
+		}
+		rows.Close()
+	}
+
+	// Pensées programmées (Post.scheduledAt non nul, 4, par date asc).
+	rows, err = s.pool.Query(ctx, `SELECT t.id, t.content, t."scheduledAt" FROM "Post" t
+		WHERE t."authorId" = $1 AND t."scheduledAt" IS NOT NULL AND t."deletedAt" IS NULL
+		ORDER BY t."scheduledAt" ASC LIMIT 4`, userUUID)
+	if err == nil {
+		for rows.Next() {
+			var th DashboardThought
+			var sched pgtype.Timestamp
+			if err := rows.Scan(&th.ID, &th.Content, &sched); err != nil {
+				continue
+			}
+			th.ScheduledAt = sched.Time.Format(time.RFC3339)
+			out.ScheduledThoughts = append(out.ScheduledThoughts, th)
+		}
+		rows.Close()
+	}
+
+	// Dernier écrit publié (avec catégorie + compteurs réactions lecteurs).
+	latest := DashboardLatestArticle{}
+	var cat pgtype.Text
+	var bookmarks, highlights, letters int
+	err = s.pool.QueryRow(ctx, `SELECT a.id, a.title, a."readingTime", c.name,
+			(SELECT COUNT(*)::int FROM "Bookmark" b WHERE b."articleId" = a.id),
+			(SELECT COUNT(*)::int FROM "Highlight" h WHERE h."articleId" = a.id),
+			(SELECT COUNT(*)::int FROM "Letter" l WHERE l."articleId" = a.id)
+		FROM "Article" a LEFT JOIN "Category" c ON c.id = a."categoryId"
+		WHERE `+recentWhere+` AND a.published = true
+		ORDER BY a."createdAt" DESC LIMIT 1`, recentArgs...).Scan(
+		&latest.ID, &latest.Title, &latest.ReadingTime, &cat, &bookmarks, &highlights, &letters)
+	if err == nil {
+		latest.Category = textPtr(cat)
+		latest.Count = DashboardCount{Bookmarks: bookmarks, Highlights: highlights, Letters: letters}
+		out.LatestPublishedArticle = &latest
+	}
+
+	// Lectures 30j (vues + lecteurs uniques) sur les articles attribués.
+	articleScope := articleScopeSQL(media)
+	scopeArgs := []any{publicationID, userUUID}
+	_ = s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "ReadingSession" rs
+		JOIN "Article" a ON a.id = rs."articleId"
+		WHERE rs."createdAt" >= now() - interval '30 days' AND `+articleScope, scopeArgs...).Scan(&out.Pageviews30d)
+	_ = s.pool.QueryRow(ctx, `SELECT COUNT(DISTINCT rs."userId")::int FROM "ReadingSession" rs
+		JOIN "Article" a ON a.id = rs."articleId"
+		WHERE rs."createdAt" >= now() - interval '30 days' AND rs."userId" IS NOT NULL AND `+articleScope, scopeArgs...).Scan(&out.Visitors30d)
+
+	return out, nil
 }
 
 // ProductMetrics calcule les métriques produit de la page analytics (parité

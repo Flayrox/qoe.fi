@@ -19,8 +19,8 @@ import { AnalyticsScript } from '@qoe/analytics/client';
 import { cn } from '@qoe/utils';
 import { DevtoolsPanel, ThemeProvider, ThemeSeedScript } from '@qoe/ui';
 import { QueryProvider } from '@/components/providers/QueryProvider';
+import { getDevtoolsData } from '@/features/devtools/actions';
 import {
-  getDevtoolsData,
   createMockUserAction,
   generateMockFeedPostsAction,
   resetDatabaseAction,

@@ -141,7 +141,7 @@ const getImages = (url: string | null | undefined): string[] => {
 import { QuotedThoughtCard } from '@/components/social/QuotedThoughtCard';
 import { QuotedArticleCard, type QuotedArticleData } from '@qoe/ui/social';
 import type { ThoughtData } from '@/components/social/ThoughtCard';
-import type { FeedArticleDTO } from '@qoe/db/types';
+import type { FeedArticleDTO } from '@/lib/feed-types';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
 

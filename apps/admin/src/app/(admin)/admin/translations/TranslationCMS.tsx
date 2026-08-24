@@ -13,7 +13,7 @@ import {
   Download,
   Upload,
 } from 'lucide-react';
-import { setSystemConfigAction } from '@qoe/api-client/actions/admin';
+import { setSystemConfigAction } from '@/lib/admin-aux-actions';
 
 interface TranslationOverrides {
   fr: Record<string, string>;
@@ -262,7 +262,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
           value: typeof overrides === 'string' ? overrides : JSON.stringify(overrides),
           description: 'System translation overrides',
         });
-        if (res.ok) {
+        if (res.success) {
           setSaveStatus('success');
           setTimeout(() => setSaveStatus('idle'), 3000);
         } else {

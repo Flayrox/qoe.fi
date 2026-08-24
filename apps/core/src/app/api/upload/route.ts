@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@qoe/supabase/server';
 import { uploadAndProcessMedia, IMAGE_FOLDERS, type ImageFolder } from '@qoe/supabase/media-engine';
-import { registerMediaAsset } from '@qoe/db/repositories/media';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 
 const ALLOWED_FOLDERS = new Set(Object.values(IMAGE_FOLDERS));
 
@@ -53,7 +53,10 @@ export async function POST(request: NextRequest) {
     });
 
     // 📝 Enregistrement dans le registre de cycle de vie MediaAsset (TTL 3j orphan)
-    await registerMediaAsset({
+    // Go-first : POST /v1/media-assets (dédoublonnage CAS par SHA-256).
+    const targetType: 'USER_AVATAR' | 'THOUGHT_ATTACHMENT' =
+      folder === IMAGE_FOLDERS.avatars ? 'USER_AVATAR' : 'THOUGHT_ATTACHMENT';
+    const assetPayload = {
       sha256: result.sha256,
       url: result.url,
       storagePath: result.storagePath,
@@ -63,8 +66,11 @@ export async function POST(request: NextRequest) {
       sizeBytes: result.sizeBytes,
       blurhash: result.blurhash,
       ownerId: user.id,
-      targetType: folder === IMAGE_FOLDERS.avatars ? 'USER_AVATAR' : 'THOUGHT_ATTACHMENT',
-    });
+      targetType,
+    };
+    // Go (backend-of-record, requis en Phase 3) : POST /v1/media-assets
+    // (dédoublonnage CAS par SHA-256, TTL 3j orphan).
+    await goFetch('/v1/media-assets', { method: 'POST', body: assetPayload });
 
     return NextResponse.json(
       {

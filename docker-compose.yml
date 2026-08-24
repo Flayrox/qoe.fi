@@ -655,13 +655,13 @@ services:
           cpus: '0.5'
 
   # ───────────────────────────────────────────────────────────────────
-  # 🔄 MIGRATE : one-shot Prisma migrate deploy
+  # 🔄 MIGRATE : one-shot goose up (migrations Go)
   # ───────────────────────────────────────────────────────────────────
   migrate:
     build:
       context: .
       dockerfile: Dockerfile
-      target: migrate # Stage dédié avec schema Prisma + migrations
+      target: migrate # Stage dédié avec le binaire qoe-migrate + migrations
     container_name: qoefi-migrate
     restart: 'no' # S'exécute une seule fois, ne redémarre pas
 

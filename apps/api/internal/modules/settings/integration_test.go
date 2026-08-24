@@ -33,6 +33,82 @@ func seedSettings(t *testing.T) *testutil.SettingsFixtures {
 	return fx
 }
 
+// ─── Lecture de la page settings (parité prisma.publication.findUnique include) ───
+
+func TestGetPublicationSettings(t *testing.T) {
+	fx := seedSettings(t)
+	svc := NewService(poolTest)
+	ctx := context.Background()
+
+	// Relations : 1 navigation, 1 lien social, 1 article, 1 catégorie.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "NavigationItem" (id, label, url, "order", "isExternal", "publicationId")
+		 VALUES (gen_random_uuid()::text, 'Accueil', '/', 0, false, $1)`,
+		fx.PubID); err != nil {
+		t.Fatalf("navigation: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "SocialLink" (id, platform, url, "order", "publicationId")
+		 VALUES (gen_random_uuid()::text, 'x', 'https://x.com/owner', 0, $1)`,
+		fx.PubID); err != nil {
+		t.Fatalf("social: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Category" (id, name, slug, description, "publicationId")
+		 VALUES ('cat_set_1', 'Technologie', 'tech', 'desc', $1)`,
+		fx.PubID); err != nil {
+		t.Fatalf("catégorie: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
+		                        "readingTime", status, "publicationId", "authorId", "categoryId", "createdAt", "updatedAt")
+		 VALUES ('art_set_1', 'Article settings', 'article-settings', '<p>Contenu</p>', true, false, 'PUBLIC',
+		         5, 'PUBLISHED', $1, $2, 'cat_set_1', now(), now())`,
+		fx.PubID, fx.OwnerID); err != nil {
+		t.Fatalf("article: %v", err)
+	}
+
+	pub, err := svc.GetPublicationSettings(ctx, fx.OwnerID, fx.PubID)
+	if err != nil {
+		t.Fatalf("GetPublicationSettings: %v", err)
+	}
+	if pub.Name != "Owner Blog" || pub.Slug != "owner-blog" {
+		t.Fatalf("pub = %+v", pub)
+	}
+	if pub.User == nil || pub.User.ID != fx.OwnerID || pub.User.AdvancedSettingsMode {
+		t.Fatalf("owner = %+v", pub.User)
+	}
+	if len(pub.Navigation) != 1 || pub.Navigation[0].Label != "Accueil" {
+		t.Fatalf("navigation = %+v", pub.Navigation)
+	}
+	if len(pub.SocialLinks) != 1 || pub.SocialLinks[0].Platform != "x" {
+		t.Fatalf("socialLinks = %+v", pub.SocialLinks)
+	}
+	if len(pub.Articles) != 1 || pub.Articles[0].Title != "Article settings" {
+		t.Fatalf("articles = %+v", pub.Articles)
+	}
+	if pub.Articles[0].CreatedAt == "" {
+		t.Fatalf("createdAt manquant")
+	}
+	if len(pub.Categories) != 1 || pub.Categories[0].Name != "Technologie" {
+		t.Fatalf("categories = %+v", pub.Categories)
+	}
+
+	// Viewer sans manage_settings → refus.
+	if _, err := svc.GetPublicationSettings(ctx, fx.ViewerID, fx.MediaPubID); err != errForbidden {
+		t.Fatalf("viewer = %v, attendu errForbidden", err)
+	}
+	// Editor avec manage_settings → OK.
+	if _, err := svc.GetPublicationSettings(ctx, fx.EditorID, fx.MediaPubID); err != nil {
+		t.Fatalf("editor: %v", err)
+	}
+	// Publication inconnue → errForbidden (pas de fuite d'existence : le check
+	// d'accès passe avant la lecture).
+	if _, err := svc.GetPublicationSettings(ctx, fx.OwnerID, "pub_inconnue"); err != errForbidden {
+		t.Fatalf("inconnue = %v, attendu errForbidden", err)
+	}
+}
+
 // ─── Génération de clés API ────────────────────────────────────────────
 
 func TestGenerateApiKey_ScopesFiltered(t *testing.T) {
@@ -117,6 +193,41 @@ func TestGenerateApiKey_OnlyInvalidScopes_Error(t *testing.T) {
 	_, err := svc.GenerateApiKey(ctx, fx.OwnerID, "Clé", []string{"NOPE", "HACK"})
 	if err == nil || !strings.Contains(err.Error(), "au moins un scope") {
 		t.Fatalf("GenerateApiKey(invalid only) = %v, attendu erreur scopes", err)
+	}
+}
+
+func TestListApiKeys(t *testing.T) {
+	fx := seedSettings(t)
+	svc := NewService(poolTest)
+	ctx := context.Background()
+
+	// viewer n'a aucune clé.
+	keys, err := svc.ListApiKeys(ctx, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("ListApiKeys(viewer): %v", err)
+	}
+	if len(keys) != 0 {
+		t.Fatalf("clés viewer = %d, attendu 0", len(keys))
+	}
+
+	// owner crée 2 clés (dont une sans scopes = accès complet).
+	if _, err := svc.GenerateApiKey(ctx, fx.OwnerID, "Clé 1", []string{"READ"}); err != nil {
+		t.Fatalf("GenerateApiKey 1: %v", err)
+	}
+	if _, err := svc.GenerateApiKey(ctx, fx.OwnerID, "Clé 2", nil); err != nil {
+		t.Fatalf("GenerateApiKey 2: %v", err)
+	}
+
+	keys, err = svc.ListApiKeys(ctx, fx.OwnerID)
+	if err != nil {
+		t.Fatalf("ListApiKeys(owner): %v", err)
+	}
+	if len(keys) != 2 {
+		t.Fatalf("clés = %d, attendu 2", len(keys))
+	}
+	// Le hash ne fait pas partie du DTO (structure, pas seulement JSON).
+	if keys[0].KeyPrefix != "qoe_live" || keys[0].CreatedAt == "" {
+		t.Fatalf("clé = %+v", keys[0])
 	}
 }
 

@@ -44,7 +44,7 @@
 | **meilisearch** | — | Full-text search (interne uniquement) |
 | **umami** | `umami.qoe.fi` | Analytics self-hosted |
 | **umami-db** | — | Postgres d'Umami |
-| **migrate** | — | One-shot Prisma migrate (s'exécute puis s'arrête) |
+| **migrate** | — | One-shot goose up (s'exécute puis s'arrête) |
 
 Supabase self-hébergé **à côté** (dans `/var/www/supabase/docker`, compose séparé) :
 Postgres 17 + pgvector, GoTrue, Kong, Storage, Realtime, Studio, Meta, Pooler.
@@ -392,15 +392,34 @@ entrypoint Kong supprime les credentials vides.
 **Cause** : `REALTIME_DB_ENC_KEY` doit faire **16 caractères** (AES-128).
 **Fix** : `REALTIME_DB_ENC_KEY=supabaserealtime` (ou 16 chars exactement).
 
-### 4. pgvector absent / migration P3018 `type "vector" does not exist`
-**Cause** : le stack Supabase v1.26 installe l'extension dans le schéma `extensions`, mais
-Prisma se connecte avec `?schema=public` (search_path = public) → le type n'est pas résolu.
+### 4bis. Bascule Prisma → goose sur une base existante (baseline)
+Sur une base déjà migrée par Prisma (prod), le schéma est en place mais la table
+goose (`goose_db_version`) n'existe pas. **Une seule fois** après le déploiement
+du nouveau service `migrate` (avant son premier `up`) :
+
+```bash
+docker compose run --rm --no-deps db psql -U ${POSTGRES_USER:-qoe} -d ${POSTGRES_DB:-qoe} -c "
+CREATE TABLE IF NOT EXISTS goose_db_version (
+  id SERIAL PRIMARY KEY,
+  version_id BIGINT NOT NULL,
+  is_applied BOOLEAN NOT NULL,
+  tstamp TIMESTAMP DEFAULT now()
+);
+INSERT INTO goose_db_version (version_id, is_applied) VALUES (1, true);"
+# puis le premier up ne fera rien (version 1 déjà appliquée)
+docker compose up migrate
+```
+
+Sur une base vierge (dev, CI, nouveau déploiement), aucun baseline n'est
+nécessaire : `goose up` applique `00001_init.sql` (squash de l'historique
+Prisma, identique à `apps/api/sql/schema/schema.sql`).
+
+### 4. pgvector absent / `type "vector" does not exist`
+**Cause** : le stack Supabase v1.26 installe l'extension dans le schéma `extensions`, mais la
+migration goose s'exécute avec `search_path = public` → le type n'est pas résolu.
 **Fix** :
 ```bash
 docker exec supabase-db psql -U postgres -d postgres -c "ALTER EXTENSION vector SET SCHEMA public;"
-# puis marquer la migration échouée comme rolled-back (elle est transactionnelle) :
-docker compose run --rm --no-deps migrate sh -c \
-  "cd /app/packages/db && npx prisma migrate resolve --rolled-back 20260519000000_bootstrap_from_scratch"
 docker compose up migrate
 ```
 

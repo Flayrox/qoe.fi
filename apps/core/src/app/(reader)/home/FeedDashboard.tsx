@@ -44,7 +44,7 @@ import { trackEvent } from '@/lib/analytics';
 import { routes } from '@qoe/config/routes';
 import { cn } from '@qoe/utils';
 import type { ThoughtData } from '@qoe/api-client';
-import type { FeedSlice } from '@qoe/db/repositories/posts';
+import type { FeedSlice } from '@/lib/feed-types';
 
 interface Author {
   id: string;

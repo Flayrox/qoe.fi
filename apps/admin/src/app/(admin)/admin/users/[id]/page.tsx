@@ -1,7 +1,7 @@
-import { prisma } from '@qoe/db/client';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Mail, ShieldCheck, Activity, Euro, Users, BookOpen } from 'lucide-react';
+import { getAdminUserDetail } from '@/lib/admin-data';
 
 interface PageProps {
   params: {
@@ -12,39 +12,16 @@ interface PageProps {
 export default async function UserProfilePage({ params }: PageProps) {
   const { id } = await params;
 
-  const user = await prisma.user.findUnique({
-    where: { id },
-    include: {
-      publication: {
-        select: {
-          subdomain: true,
-          _count: { select: { articles: true, subscribers: true } },
-        },
-      },
-      _count: {
-        select: {
-          walletTransactions: true,
-        },
-      },
-    },
-  });
+  // Détail utilisateur (Go en primaire, fallback Prisma dev).
+  const user = await getAdminUserDetail(id);
 
   if (!user) {
     notFound();
   }
 
-  // Calculate some intelligence metrics
-  // In a real app, this would use aggregated queries
-  const revenueCents = await prisma.walletTransaction.aggregate({
-    where: { userId: user.id, type: 'SUBSCRIPTION_PAYMENT' },
-    _sum: { amountCents: true },
-  });
-
-  const totalRevenue = (revenueCents._sum.amountCents || 0) / 100;
+  const totalRevenue = user.revenueCents / 100;
   const ltv =
-    (user.publication?._count?.subscribers ?? 0) > 0
-      ? (totalRevenue / (user.publication?._count?.subscribers ?? 1)).toFixed(2)
-      : '0.00';
+    user.subscribersCount > 0 ? (totalRevenue / user.subscribersCount).toFixed(2) : '0.00';
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 font-sans">
@@ -96,13 +73,13 @@ export default async function UserProfilePage({ params }: PageProps) {
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">Inscrit le</span>
               <span className="font-medium text-foreground">
-                {user.createdAt.toLocaleDateString('fr-FR')}
+                {new Date(user.createdAt).toLocaleDateString('fr-FR')}
               </span>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">Domaine</span>
               <span className="font-medium text-foreground">
-                {user.publication?.subdomain ? `${user.publication?.subdomain}.qoe.fi` : 'N/A'}
+                {user.subdomain ? `${user.subdomain}.qoe.fi` : 'N/A'}
               </span>
             </div>
           </div>
@@ -116,7 +93,7 @@ export default async function UserProfilePage({ params }: PageProps) {
               <h3 className="text-sm font-semibold">Abonnés Totaux</h3>
             </div>
             <div className="text-4xl font-bold text-foreground tracking-tight">
-              {user.publication?._count?.subscribers}
+              {user.subscribersCount}
             </div>
           </div>
 
@@ -126,7 +103,7 @@ export default async function UserProfilePage({ params }: PageProps) {
               <h3 className="text-sm font-semibold">Articles Publiés</h3>
             </div>
             <div className="text-4xl font-bold text-foreground tracking-tight">
-              {user.publication?._count?.articles}
+              {user.articlesCount}
             </div>
           </div>
 

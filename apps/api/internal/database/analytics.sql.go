@@ -163,3 +163,46 @@ func (q *Queries) GetRecentThoughtsForAnalytics(ctx context.Context, arg GetRece
 	}
 	return items, nil
 }
+
+const listSubscribers = `-- name: ListSubscribers :many
+SELECT id, email, "isActive", "isPremium", "ltvCents", "createdAt"
+FROM "Subscriber"
+WHERE "publicationId" = $1
+ORDER BY "createdAt" DESC
+`
+
+type ListSubscribersRow struct {
+	ID        string           `json:"id"`
+	Email     string           `json:"email"`
+	IsActive  bool             `json:"isActive"`
+	IsPremium bool             `json:"isPremium"`
+	LtvCents  int32            `json:"ltvCents"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
+func (q *Queries) ListSubscribers(ctx context.Context, publicationid string) ([]ListSubscribersRow, error) {
+	rows, err := q.db.Query(ctx, listSubscribers, publicationid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSubscribersRow{}
+	for rows.Next() {
+		var i ListSubscribersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.IsActive,
+			&i.IsPremium,
+			&i.LtvCents,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

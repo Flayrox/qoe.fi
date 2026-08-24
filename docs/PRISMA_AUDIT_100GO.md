@@ -13,11 +13,11 @@ mots masqués, à la une) et **historique de lecture** (`GET /v1/me/reading-hist
 Les **P1 sont éliminés** : profil lecteur (`GET /v1/me`, `PATCH /v1/me/profile`),
 préférences (`GET/PATCH /v1/settings/preferences`), demande de suppression
 (`GET/POST/DELETE /v1/me/account-deletion-request`) et les pages bibliothèque,
-surlignages, onboarding et login sont branchées sur le Go. Il reste **2 fichiers** avec
-du prisma hors fallback dev : `settings/actions.ts` (uniquement `exportAccountDataAction`,
-conservé volontairement) et `billing/page.tsx` (P3, aucun endpoint Go lecteur). Tous les
-autres `prisma.` (home, history, library, highlights, onboarding, login, layout,
-cached-queries, settings) sont dans des **fallbacks Prisma dev** — le chemin nominal est
+surlignages, onboarding et login sont branchées sur le Go. **Il ne reste plus aucun
+`prisma.` ni import `@qoe/db` dans `apps/core/src`** (Phase 3 livrée le 2026-08-24) :
+`settings/actions.ts`, `billing/page.tsx`, `exportAccountDataAction`, onboarding lecteur
+et tous les fallbacks dev ont été portés sur les endpoints Go (`GET /v1/me/billing`,
+`POST /v1/me/onboarding/complete`, `GET /v1/me/data-export`). Le chemin nominal est
 100 % Go.
 
 > ⚠️ Les 13 occurrences de `home/page.tsx` et l'occurrence de `history/page.tsx` sont
@@ -42,7 +42,7 @@ cached-queries, settings) sont dans des **fallbacks Prisma dev** — le chemin n
 | `app/(reader)/settings/actions.ts` | 16 | user, userSettings, notificationPreference, accountDeletionRequest, article, thought, bookmark, highlight, follows | `PATCH /v1/settings/profile`, `GET/PATCH /v1/notifications/preferences`, `POST /v1/settings/onboarding` | prefs lecteur (`userSettings`), suppression de compte, profil lecteur (`dbUser`) | **P1** |
 | `lib/cached-queries.ts` | 8 | user, systemConfig, article, trend, partnerPromo | `GET /v1/home/config`, `GET /v1/home/trends`, `GET /v1/home/promos` | `dbUser` (profil lecteur) sans endpoint Go public | **P1** |
 | `app/login/actions.ts` | 3 | user, follows, mutedWord | `GET /v1/users/me` (créateur, API scope) | profil lecteur + compteurs | P2 |
-| `app/(reader)/billing/page.tsx` | 2 | subscriber, user | — (module billing = webhooks seuls) | **aucun endpoint lecteur** | P3 |
+| `app/(reader)/billing/page.tsx` | 2 | subscriber, user | ✅ **`GET /v1/me/billing`** (wallet + transactions + abonnements actifs) | — | ✅ |
 | `app/layout.tsx` | 1 | userSettings | — | prefs lecteur (même gap que settings) | P1 |
 | `app/(reader)/onboarding/page.tsx` | 1 | user | `POST /v1/settings/onboarding` | profil lecteur | P2 |
 | `app/(reader)/library/page.tsx` | 1 | bookmark | `GET /v1/bookmarks` | — (brancher) | P2 |
@@ -97,15 +97,12 @@ Server actions de réglages du lecteur + lecture des prefs dans le layout. Mappi
 
 **Effort** : faible par page (0,25–0,5 j chacune).
 
-### P3 — `billing/page.tsx` (vrai gap : aucun endpoint Go lecteur)
+### P3 — `billing/page.tsx` ✅ (fait — `GET /v1/me/billing`)
 
-Le module billing Go ne gère que les webhooks Stripe/Supabase. La page lecteur lit
-`subscriber` (abonnement courant) + `user` (wallet). Deux options :
-- **Court terme** : garder Prisma sur cette page (isolée, peu critique).
-- **Moyen terme** : ajouter `GET /v1/me/billing` (subscription + wallet + historique de
-  facturation) dans le module billing Go.
-
-**Effort** : moyen (0,5–1 j Go + 0,5 j front). **Non bloquant** pour le 100 % Go lecteur.
+`GET /v1/me/billing` (module users, groupe JWT) renvoie le wallet (balance,
+devise), les transactions récentes et les abonnements premium actifs — mêmes
+champs que les lectures `prisma.user` / `prisma.subscriber` d'origine. La page
+`billing/page.tsx` est désormais **Go-only** (plus de fallback).
 
 ## Guide de vérification (pattern à répliquer)
 
@@ -126,8 +123,9 @@ Le module billing Go ne gère que les webhooks Stripe/Supabase. La page lecteur 
   (`GET /v1/me`, `PATCH /v1/me/profile`, `GET/PATCH /v1/settings/preferences`,
   `GET/POST/DELETE /v1/me/account-deletion-request`) et branchement de
   cached-queries, settings, layout, library, highlights, onboarding, login.
-- **`billing/page.tsx` est le seul vrai gap d'endpoint** (aucun Go lecteur) — P3,
-  à laisser en Prisma ou à couvrir par un `GET /v1/me/billing`.
+- **`billing/page.tsx` est couvert par `GET /v1/me/billing`** — avec
+  `POST /v1/me/onboarding/complete` et `GET /v1/me/data-export`, le parcours
+  lecteur n'a plus aucun `prisma.` ni import `@qoe/db` (Phase 3 core ✅).
 
 > ⚠️ **Complément** : l'audit au-delà de `apps/core` (packages/db, packages/api-client, studio,
 > admin) et les résidus indirects du chemin nominal (3 appels `@qoe/db/feed`/`onboarding` dans

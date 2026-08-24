@@ -32,7 +32,7 @@
 | **studio**        | 4020→3020    | public  | `studio`               | Next.js creator (`studio.qoe.fi`)                          |
 | **admin**         | 4030→3030    | public  | `admin`                | Next.js superadmin (`admin.qoe.fi`)                        |
 | **api**           | 4002→3002    | public  | `api`                  | Hono legacy (transition, `api-legacy.qoe.fi`)              |
-| **migrate**       | -            | private | runtime                | One-shot Prisma migrate (s'exécute puis s'arrête)          |
+| **migrate**       | -            | private | runtime                | One-shot goose up (s'exécute puis s'arrête)                |
 | **redis**         | 6379         | private | redis:7-alpine         | Cache + queue                                              |
 | **db (Supabase)** | 5433→5432    | private | `supabase/postgres:17` | Postgres 17 + pgvector (hébergé dans `/var/www/supabase/`) |
 | **mongodb**       | 27018→27017  | private | mongo:7                | Stockage du dashboard GrowthBook (dev)                     |

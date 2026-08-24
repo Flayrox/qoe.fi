@@ -17,25 +17,10 @@ import { TooltipProvider } from '@qoe/ui/ui/tooltip';
 import { Toaster } from '@qoe/ui/ui/sonner';
 import { AnalyticsScript } from '@qoe/analytics/client';
 import { cn } from '@qoe/utils';
-import { DevtoolsPanel, ThemeProvider, ThemeSeedScript, GlobalAuthModalProvider } from '@qoe/ui';
+import { ThemeProvider, ThemeSeedScript, GlobalAuthModalProvider } from '@qoe/ui';
 import { QueryProvider } from '@/components/providers/QueryProvider';
-import { getCurrentUser } from '@qoe/auth';
-import { prisma } from '@qoe/db/client';
-import {
-  getDevtoolsData,
-  createMockUserAction,
-  generateMockFeedPostsAction,
-  resetDatabaseAction,
-  seedFullDatabaseAction,
-  restoreTopDbAction,
-  resetOnboardingAction,
-  simulateSubscriberAction,
-  simulateFollowAction,
-  simulateLikeAction,
-  addMockFundsAction,
-  impersonateLoginAction,
-  logoutAction,
-} from '@qoe/db/devtools';
+import { createClient } from '@qoe/supabase/server';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 
 // CSS global unifié — source unique dans @qoe/theme
 import '@qoe/theme/styles';
@@ -60,50 +45,22 @@ export default async function RootLayout({
   const staticTranslations = await getStaticTranslations();
   const staticData = await staticTranslations.loadTranslations().catch(() => ({}));
 
-  // Timeout de sécurité (800ms) pour éviter tout blocage du SSR si la session/DB tarde à répondre
-  const userPromise = getCurrentUser().catch(() => null);
-  const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 800));
-  const currentUser = await Promise.race([userPromise, timeoutPromise]);
+  // Session Supabase (auth uniquement — plus aucun accès Prisma).
+  const supabase = await createClient();
+  const {
+    data: { user: currentUser },
+  } = await supabase.auth.getUser();
 
-  // Préférences lecteur : Go en primaire (GET /v1/settings/preferences) —
-  // fallback Prisma en dev. Utilisé pour le thème d'accessibilité (SSR).
+  // Préférences lecteur : Go (GET /v1/settings/preferences) — utilisé pour le
+  // thème d'accessibilité (SSR). Erreur Go → défauts (le thème reste sain).
   const accountSettings = currentUser
-    ? await (async () => {
-        try {
-          const { goFetch } = await import('@qoe/api-client/actions/utils/go-client');
-          const prefs = await goFetch<{
-            fontScale: number;
-            reduceMotion: boolean;
-            highContrast: boolean;
-          }>('/v1/settings/preferences');
-          return prefs;
-        } catch {
-          return prisma.userSettings
-            .findUnique({
-              where: { userId: currentUser.id },
-              select: { fontScale: true, reduceMotion: true, highContrast: true },
-            })
-            .catch(() => null);
-        }
-      })()
+    ? await goFetch<{
+        fontScale: number;
+        reduceMotion: boolean;
+        highContrast: boolean;
+      }>('/v1/settings/preferences').catch(() => null)
     : null;
   const flagsPayload = await getGrowthBookPayload().catch(() => ({}));
-
-  const devtoolsActions = {
-    getDevtoolsData,
-    createMockUserAction,
-    generateMockFeedPostsAction,
-    resetDatabaseAction,
-    seedFullDatabaseAction,
-    restoreTopDbAction,
-    resetOnboardingAction,
-    simulateSubscriberAction,
-    simulateFollowAction,
-    simulateLikeAction,
-    addMockFundsAction,
-    impersonateLoginAction,
-    logoutAction,
-  };
 
   return (
     <html
@@ -129,9 +86,6 @@ export default async function RootLayout({
                   <TooltipProvider>
                     {children}
                     <Toaster />
-                    {process.env.NODE_ENV === 'development' && (
-                      <DevtoolsPanel actions={devtoolsActions} />
-                    )}
                   </TooltipProvider>
                 </GlobalAuthModalProvider>
               </QueryProvider>

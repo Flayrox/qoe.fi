@@ -17,6 +17,12 @@ SELECT
 FROM "Subscriber"
 WHERE "publicationId" = $1;
 
+-- name: ListSubscribers :many
+SELECT id, email, "isActive", "isPremium", "ltvCents", "createdAt"
+FROM "Subscriber"
+WHERE "publicationId" = $1
+ORDER BY "createdAt" DESC;
+
 -- name: GetRecentArticlesForAnalytics :many
 SELECT id, title, "createdAt"
 FROM "Article"

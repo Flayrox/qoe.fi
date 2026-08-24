@@ -24,11 +24,17 @@ import (
 	"github.com/qoefi/api/internal/modules/analytics"
 	"github.com/qoefi/api/internal/modules/articles"
 	"github.com/qoefi/api/internal/modules/billing"
+	"github.com/qoefi/api/internal/modules/collaborations"
 	"github.com/qoefi/api/internal/modules/creator"
+	"github.com/qoefi/api/internal/modules/admin"
+	"github.com/qoefi/api/internal/modules/devtools"
 	"github.com/qoefi/api/internal/modules/events"
 	"github.com/qoefi/api/internal/modules/feed"
 	"github.com/qoefi/api/internal/modules/highlights"
 	"github.com/qoefi/api/internal/modules/home"
+	"github.com/qoefi/api/internal/modules/imports"
+	"github.com/qoefi/api/internal/modules/media"
+	"github.com/qoefi/api/internal/modules/mediaassets"
 	"github.com/qoefi/api/internal/modules/notifications"
 	"github.com/qoefi/api/internal/modules/oauth"
 	"github.com/qoefi/api/internal/modules/posts"
@@ -244,6 +250,24 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		workspacesHandler := workspaces.NewHandler(workspaces.NewService(pool))
 		workspacesHandler.Register(protected)
+
+		mediaHandler := media.NewHandler(media.NewService(pool))
+		mediaHandler.Register(protected)
+
+		importsHandler := imports.NewHandler(imports.NewService(pool))
+		importsHandler.Register(protected)
+
+		mediaAssetsHandler := mediaassets.NewHandler(mediaassets.NewService(pool))
+		mediaAssetsHandler.Register(protected)
+
+		collaborationsHandler := collaborations.NewHandler(collaborations.NewService(pool))
+		collaborationsHandler.Register(protected)
+
+		devtoolsHandler := devtools.NewHandler(devtools.NewService(pool))
+		devtoolsHandler.Register(protected)
+
+		adminHandler := admin.NewHandler(admin.NewService(pool))
+		adminHandler.Register(protected)
 
 		usersHandler.Register(protected)
 

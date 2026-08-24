@@ -1,10 +1,32 @@
 import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
-import { prisma } from '@qoe/db/client';
 import { goFetch } from '@qoe/api-client/actions/utils/go-client';
-import { getOnboardingData } from '@qoe/db/onboarding';
 import { OnboardingFlow } from '@qoe/ui';
 import { completeOnboarding } from './actions';
+
+// Contrat GET /v1/home/onboarding (module home — parité getOnboardingData).
+interface OnboardingSubtopic {
+  id: string;
+  name: string;
+  slug: string;
+  tags?: string[];
+}
+interface OnboardingCategory {
+  id: string;
+  name: string;
+  slug: string;
+  icon?: string;
+  subtopics: OnboardingSubtopic[];
+}
+interface OnboardingCreator {
+  id: string;
+  name: string | null;
+  slug?: string | null;
+  subdomain?: string | null;
+  logoUrl: string | null;
+  heroText: string | null;
+  isCertified?: boolean;
+}
 
 export default async function OnboardingPage() {
   const supabase = await createClient();
@@ -16,24 +38,17 @@ export default async function OnboardingPage() {
     redirect('/login');
   }
 
-  // Check if they already completed onboarding (Go /v1/me, fallback Prisma dev).
-  let hasCompletedOnboarding = false;
-  try {
-    const profile = await goFetch<{ hasCompletedOnboarding: boolean }>('/v1/me');
-    hasCompletedOnboarding = profile.hasCompletedOnboarding;
-  } catch {
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { hasCompletedOnboarding: true },
-    });
-    hasCompletedOnboarding = dbUser?.hasCompletedOnboarding ?? false;
-  }
-
-  if (hasCompletedOnboarding) {
+  // Go (backend-of-record, requis en Phase 3) : GET /v1/me.
+  const profile = await goFetch<{ hasCompletedOnboarding: boolean }>('/v1/me');
+  if (profile.hasCompletedOnboarding) {
     redirect('/');
   }
 
-  const { categories, suggestedCreators } = await getOnboardingData();
+  // Go : GET /v1/home/onboarding (catégories statiques + créateurs certifiés).
+  const { categories, suggestedCreators } = await goFetch<{
+    categories: OnboardingCategory[];
+    suggestedCreators: OnboardingCreator[];
+  }>('/v1/home/onboarding');
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-background px-4 py-12">

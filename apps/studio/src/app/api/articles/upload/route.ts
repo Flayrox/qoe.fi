@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@qoe/supabase/server';
 import { uploadAndProcessMedia, IMAGE_FOLDERS, type ImageFolder } from '@qoe/supabase/media-engine';
 import { getCurrentUser } from '@qoe/auth/current-user';
+import { goFetch, isGoEnabled } from '@qoe/api-client/actions/utils/go-client';
 import { registerMediaAsset } from '@qoe/db/repositories/media';
 
 const ALLOWED_FOLDERS = new Set(Object.values(IMAGE_FOLDERS));
@@ -48,7 +49,10 @@ export async function POST(request: NextRequest) {
     });
 
     // 📝 Enregistrement dans le registre de cycle de vie MediaAsset (TTL 3j orphan)
-    await registerMediaAsset({
+    // Go-first : POST /v1/media-assets (dédoublonnage CAS par SHA-256).
+    const targetType: 'PUBLICATION_BANNER' | 'ARTICLE_BODY' =
+      folder === IMAGE_FOLDERS.banners ? 'PUBLICATION_BANNER' : 'ARTICLE_BODY';
+    const assetPayload = {
       sha256: result.sha256,
       url: result.url,
       storagePath: result.storagePath,
@@ -58,8 +62,14 @@ export async function POST(request: NextRequest) {
       sizeBytes: result.sizeBytes,
       blurhash: result.blurhash,
       ownerId: user.id,
-      targetType: folder === IMAGE_FOLDERS.banners ? 'PUBLICATION_BANNER' : 'ARTICLE_BODY',
-    });
+      targetType,
+    };
+    if (isGoEnabled()) {
+      await goFetch('/v1/media-assets', { method: 'POST', body: assetPayload });
+    } else {
+      // 🐢 Fallback dev (sans QOE_API_URL) : repository Prisma.
+      await registerMediaAsset(assetPayload);
+    }
 
     return NextResponse.json(
       {

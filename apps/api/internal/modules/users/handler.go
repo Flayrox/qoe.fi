@@ -26,6 +26,9 @@ func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/me", h.me)
 	r.Patch("/v1/me/profile", h.updateProfile)
 	r.Get("/v1/me/media/{mediaId}", h.mediaPublication)
+	r.Get("/v1/me/billing", h.billing)
+	r.Post("/v1/me/onboarding-complete", h.onboardingComplete)
+	r.Get("/v1/me/data-export", h.dataExport)
 }
 
 // RegisterPublic — GET /v1/users/search (autocomplétion mentions @, auth
@@ -141,6 +144,82 @@ func splitComma(s string) []string {
 		}
 	}
 	return out
+}
+
+// GET /v1/me/billing — portefeuille + transactions + abonnements premium
+// actifs du lecteur (page billing de core).
+func (h *Handler) billing(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	data, err := h.svc.Billing(r.Context(), userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.NotFound(w, "Utilisateur introuvable")
+			return
+		}
+		response.Internal(w)
+		return
+	}
+	response.OK(w, data)
+}
+
+// POST /v1/me/onboarding-complete — finalise l'onboarding lecteur
+// (profil + embedding + mots masqués + suivis) — parité completeOnboardingInDb.
+func (h *Handler) onboardingComplete(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	var in struct {
+		Interests        []string `json:"interests"`
+		Subtopics        []string `json:"subtopics"`
+		OnboardingText   string   `json:"onboardingText"`
+		MutedWords       []string `json:"mutedWords"`
+		CreatorsToFollow []string `json:"creatorsToFollow"`
+		Gender           string   `json:"gender"`
+		AgeRange         string   `json:"ageRange"`
+		Pronouns         string   `json:"pronouns"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if err := h.svc.OnboardingComplete(r.Context(), userID, OnboardingCompleteInput{
+		Interests: in.Interests, Subtopics: in.Subtopics, OnboardingText: in.OnboardingText,
+		MutedWords: in.MutedWords, CreatorsToFollow: in.CreatorsToFollow,
+		Gender: in.Gender, AgeRange: in.AgeRange, Pronouns: in.Pronouns,
+	}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.NotFound(w, "Utilisateur introuvable")
+			return
+		}
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
+}
+
+// GET /v1/me/data-export — export complet du compte (GDPR), JSON brut.
+func (h *Handler) dataExport(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	data, err := h.svc.DataExport(r.Context(), userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.NotFound(w, "Utilisateur introuvable")
+			return
+		}
+		response.Internal(w)
+		return
+	}
+	response.OK(w, data)
 }
 
 // GET /v1/me/media/{mediaId} — publication d'un média pour lequel l'utilisateur

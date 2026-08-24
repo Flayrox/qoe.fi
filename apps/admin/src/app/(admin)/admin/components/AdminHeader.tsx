@@ -2,10 +2,17 @@
 
 import { Search } from 'lucide-react';
 import { motion } from 'framer-motion';
-import type { User } from '@qoe/db/types';
+
+interface AdminHeaderUser {
+  id: string;
+  name: string | null;
+  email: string;
+  username: string | null;
+  role: string;
+}
 
 interface AdminHeaderProps {
-  user: User | null;
+  user: AdminHeaderUser | null;
 }
 
 export function AdminHeader({ user }: AdminHeaderProps) {

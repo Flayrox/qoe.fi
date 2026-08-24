@@ -122,12 +122,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # La page /home interroge Prisma (article.findMany) : sans Postgres, le
-    # serveur Next démarre mais chaque requête DB échoue (500) → e2e rouge.
-    # On monte un Postgres de service et on applique le schéma Prisma avant.
-    # NB : image pgvector (le schéma déclare extensions=[vector]) ; l'historique
-    # de migrations n'est pas rejouable depuis zéro (deltas sur un schéma créé
-    # par db push) → db push, pas migrate deploy.
+    # La page /home interroge la DB : sans Postgres, le serveur Next démarre
+    # mais chaque requête DB échoue (500) → e2e rouge.
+    # On monte un Postgres de service et on applique les migrations goose
+    # avant (image pgvector : le schéma déclare extensions=[vector]).
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -160,24 +158,28 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --fetch-timeout 600000
 
-      # Schéma Prisma appliqué au Postgres de service. db push (et non migrate
-      # deploy) car les migrations du repo sont des deltas sur un schéma créé
-      # originellement par db push : un deploy from-scratch échoue sur des types
-      # manquants. Sur une DB éphémère de CI, db push est sûr et non-interactif.
-      - name: Prepare Database (Prisma schema)
-        run: cd packages/db && pnpm prisma db push --accept-data-loss
-        env:
-          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
-          DIRECT_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+      # Schéma appliqué via les migrations goose (apps/api/sql/migrations) —
+      # rejouables from-scratch (contrairement aux deltas Prisma).
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
 
-      # Contenu démo (3 articles publiés + publication certifiée) pour que
-      # les tests e2e vérifient du contenu réellement rendu, pas seulement
-      # l'absence d'erreurs.
-      - name: Seed Database (demo content)
-        run: cd packages/db && pnpm prisma db seed
+      - name: Prepare Database (goose migrations)
+        working-directory: apps/api
+        run: go run ./cmd/migrate -dir sql/migrations up
         env:
           DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
-          DIRECT_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+
+      # Contenu démo (articles publiés + publication certifiée + média) pour
+      # que les tests e2e vérifient du contenu réellement rendu, pas seulement
+      # l'absence d'erreurs. Seed Go (apps/api/cmd/seed — parité seed Prisma).
+      - name: Seed Database (demo content)
+        working-directory: apps/api
+        run: go run ./cmd/seed
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
 
       - name: Install Playwright Chromium
         run: pnpm e2e:install

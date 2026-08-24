@@ -50,10 +50,10 @@ test.describe('Feed (public)', () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test('affiche les articles publiés (contenu seedé via Prisma)', async ({ page }) => {
-    // Le seed de CI (prisma db seed) crée 3 articles PUBLIÉS sous la
+  test('affiche les articles publiés (contenu seedé via Go)', async ({ page }) => {
+    // Le seed de CI (go run ./cmd/seed) crée 3 articles PUBLIÉS sous la
     // publication démo. Le feed /home doit les rendre — ça vérifie que le
-    // chemin Prisma complet (schéma + données) fonctionne en CI, pas
+    // chemin complet (schéma goose + données) fonctionne en CI, pas
     // seulement l'absence d'erreurs.
     await page.goto('/', { waitUntil: 'networkidle' });
 

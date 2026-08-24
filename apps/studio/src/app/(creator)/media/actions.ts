@@ -34,16 +34,18 @@ async function createMediaNotification(opts: {
   return notifications.createNotification(opts);
 }
 
-async function getAuthenticatedUser() {
+async function getAuthUser() {
   const supabase = await createServerClient();
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
   if (!authUser) throw new Error('Non authentifié');
+  return authUser;
+}
 
-  const dbUser = await prisma.user.findUnique({ where: { id: authUser.id } });
+async function getDbUser(userId: string) {
+  const dbUser = await prisma.user.findUnique({ where: { id: userId } });
   if (!dbUser) throw new Error('Utilisateur introuvable');
-
   return dbUser;
 }
 
@@ -88,7 +90,20 @@ export async function createMediaAction(
   logoUrl?: string
 ) {
   try {
-    const user = await getAuthenticatedUser();
+    const user = await getAuthUser();
+
+    // Go en primaire (POST /v1/media) — chemin nominal.
+    if (isGoEnabled()) {
+      const media = await goFetch<{ id: string; publicationId: string }>('/v1/media', {
+        method: 'POST',
+        body: { name, slug, bio: bio ?? '', logoUrl: logoUrl ?? '' },
+      });
+      revalidatePath('/settings');
+      return { success: true as const, media };
+    }
+
+    // ⚠️ Fallback Prisma dev — le chemin nominal est le Go ci-dessus.
+    const dbUser = await getDbUser(user.id);
 
     if (!name || !slug) {
       return { success: false, error: 'Le nom et le permalien du Média sont requis' };
@@ -124,7 +139,7 @@ export async function createMediaAction(
           publicationId: publication.id,
           members: {
             create: {
-              userId: user.id,
+              userId: dbUser.id,
               role: MEDIA_ROLES.OWNER,
             },
           },
@@ -134,7 +149,7 @@ export async function createMediaAction(
       await tx.mediaAuditLog.create({
         data: {
           mediaId: createdMedia.id,
-          actorId: user.id,
+          actorId: dbUser.id,
           action: 'media.created',
           metadata: { name, slug: clean },
         },
@@ -144,7 +159,7 @@ export async function createMediaAction(
     });
 
     revalidatePath('/settings');
-    return { success: true, media };
+    return { success: true as const, media };
   } catch (err: unknown) {
     console.error('[Create Media Error]', err);
     return {
@@ -172,10 +187,21 @@ export type GetUserWorkspacesResponse =
 
 export async function getUserWorkspacesAction(): Promise<GetUserWorkspacesResponse> {
   try {
-    const user = await getAuthenticatedUser();
+    const user = await getAuthUser();
+
+    // Go en primaire (GET /v1/media/workspaces) — chemin nominal.
+    if (isGoEnabled()) {
+      const res = await goFetch<{ personal: WorkspaceInfo; medias: WorkspaceInfo[] }>(
+        '/v1/media/workspaces'
+      );
+      return { success: true, personal: res.personal, medias: res.medias };
+    }
+
+    // ⚠️ Fallback Prisma dev — le chemin nominal est le Go ci-dessus.
+    const dbUser = await getDbUser(user.id);
 
     const memberships = await prisma.mediaMember.findMany({
-      where: { userId: user.id },
+      where: { userId: dbUser.id },
       include: {
         media: {
           include: { publication: true },
@@ -184,16 +210,16 @@ export async function getUserWorkspacesAction(): Promise<GetUserWorkspacesRespon
     });
 
     const personalPublication = await prisma.publication.findFirst({
-      where: { type: 'PERSONAL', user: { id: user.id } },
+      where: { type: 'PERSONAL', user: { id: dbUser.id } },
     });
 
     return {
       success: true,
       personal: {
-        id: personalPublication?.id ?? user.id,
-        name: user.name || user.username || 'Profil Personnel',
-        slug: personalPublication?.slug || user.username || 'personal',
-        logoUrl: user.logoUrl || null,
+        id: personalPublication?.id ?? dbUser.id,
+        name: dbUser.name || dbUser.username || 'Profil Personnel',
+        slug: personalPublication?.slug || dbUser.username || 'personal',
+        logoUrl: dbUser.logoUrl || null,
         type: 'PERSONAL',
       },
       medias: memberships.map((m) => ({
@@ -214,13 +240,72 @@ export async function getUserWorkspacesAction(): Promise<GetUserWorkspacesRespon
   }
 }
 
+// Forme Go du détail média (parité include Prisma consommé par MediaStudioClient).
+interface GoMediaDetail {
+  id: string;
+  publication: {
+    id: string;
+    name: string;
+    slug: string;
+    subdomain: string | null;
+    customDomain: string | null;
+    bio: string | null;
+    logoUrl: string | null;
+    heroText: string | null;
+    headerImageUrl: string | null;
+    footerText: string | null;
+    accentColor: string | null;
+    themeMode: string | null;
+    layoutStyle: string | null;
+    seoTitle: string | null;
+    seoDescription: string | null;
+    allowIndexing: boolean;
+    supportUrl: string | null;
+    fontFamily: string | null;
+    _count: { articles: number };
+  };
+  members: Array<{
+    id: string;
+    role: string;
+    permissions: string[];
+    status: string;
+    joinedAt: string;
+    user: { id: string; name: string | null; username: string | null; logoUrl: string | null };
+  }>;
+  invites: Array<{
+    id: string;
+    email: string;
+    role: string;
+    status: string;
+    createdAt: string;
+    expiresAt: string | null;
+    inviter: { id: string; name: string | null; username: string | null };
+  }>;
+}
+
 /**
  * 🎯 Récupérer un Média complet (publication + membres) pour le studio média.
  */
 export async function getMediaByIdAction(mediaId: string) {
   try {
-    const user = await getAuthenticatedUser();
-    const membership = await getMediaMembership(mediaId, user.id);
+    const user = await getAuthUser();
+
+    // Go en primaire (GET /v1/media/{id}) — chemin nominal.
+    if (isGoEnabled()) {
+      const res = await goFetch<{ media: GoMediaDetail; myRole: string }>(
+        `/v1/media/${encodeURIComponent(mediaId)}`
+      );
+      return {
+        success: true as const,
+        media: res.media,
+        articlesCount: res.media.publication._count.articles,
+        myRole: res.myRole,
+      };
+    }
+
+    // ⚠️ Fallback Prisma dev — le chemin nominal est le Go ci-dessus.
+    const dbUser = await getDbUser(user.id);
+    const membership = await getMediaMembership(mediaId, dbUser.id);
     if (!membership) {
       return { success: false, error: "Vous n'êtes pas membre de ce Média" };
     }
@@ -247,7 +332,7 @@ export async function getMediaByIdAction(mediaId: string) {
 
     if (!media) return { success: false, error: 'Média introuvable' };
     return {
-      success: true,
+      success: true as const,
       media,
       articlesCount: media.publication._count.articles,
       myRole: membership.role,
@@ -265,12 +350,21 @@ export async function getMediaByIdAction(mediaId: string) {
  */
 export async function getMediaPublicationAction(mediaId: string) {
   try {
+    // Go en primaire (GET /v1/media/{id}) — chemin nominal.
+    if (isGoEnabled()) {
+      const res = await goFetch<{ media: GoMediaDetail }>(
+        `/v1/media/${encodeURIComponent(mediaId)}`
+      );
+      return { success: true as const, publication: res.media.publication };
+    }
+
+    // ⚠️ Fallback Prisma dev — le chemin nominal est le Go ci-dessus.
     const media = await prisma.media.findUnique({
       where: { id: mediaId },
       include: { publication: true },
     });
     if (!media) return { success: false, error: 'Média introuvable' };
-    return { success: true, publication: media.publication };
+    return { success: true as const, publication: media.publication };
   } catch (err: unknown) {
     return {
       success: false,
@@ -289,8 +383,21 @@ export async function inviteMediaMemberAction(
   role: string = MEDIA_ROLES.WRITER
 ) {
   try {
-    const user = await getAuthenticatedUser();
-    const membership = await getMediaMembership(mediaId, user.id);
+    const user = await getAuthUser();
+
+    // Go en primaire (POST /v1/media/{id}/invites) — chemin nominal.
+    if (isGoEnabled()) {
+      const res = await goFetch<{ success: boolean; alreadyMember?: boolean }>(
+        `/v1/media/${encodeURIComponent(mediaId)}/invites`,
+        { method: 'POST', body: { email, role } }
+      );
+      revalidatePath('/advanced');
+      return { success: true as const, alreadyMember: res.alreadyMember === true };
+    }
+
+    // ⚠️ Fallback Prisma dev — le chemin nominal est le Go ci-dessus.
+    const dbUser = await getDbUser(user.id);
+    const membership = await getMediaMembership(mediaId, dbUser.id);
     if (!canMedia(membership, 'media:manage_members')) {
       return {
         success: false,
@@ -313,12 +420,12 @@ export async function inviteMediaMemberAction(
           where: { mediaId_userId: { mediaId, userId: targetUser.id } },
           data: { role },
         });
-        await logMediaAction(mediaId, user.id, 'member.role_changed', {
+        await logMediaAction(mediaId, dbUser.id, 'member.role_changed', {
           targetId: targetUser.id,
           role,
         });
         revalidatePath('/advanced');
-        return { success: true, alreadyMember: true };
+        return { success: true as const, alreadyMember: true };
       }
     }
 
@@ -326,7 +433,7 @@ export async function inviteMediaMemberAction(
     const invite = await prisma.mediaInvite.create({
       data: {
         mediaId,
-        inviterId: user.id,
+        inviterId: dbUser.id,
         email: cleanEmail,
         role,
         token,
@@ -334,10 +441,10 @@ export async function inviteMediaMemberAction(
       },
     });
 
-    await logMediaAction(mediaId, user.id, 'member.invited', { email: cleanEmail, role });
+    await logMediaAction(mediaId, dbUser.id, 'member.invited', { email: cleanEmail, role });
 
     // Notifier le membre existant (s'il a un compte)
-    if (targetUser && targetUser.id !== user.id) {
+    if (targetUser && targetUser.id !== dbUser.id) {
       const media = await prisma.media.findUnique({
         where: { id: mediaId },
         include: { publication: { select: { id: true, name: true } } },
@@ -345,7 +452,7 @@ export async function inviteMediaMemberAction(
       if (media) {
         await createMediaNotification({
           recipientId: targetUser.id,
-          senderId: user.id,
+          senderId: dbUser.id,
           type: 'MEDIA_INVITE',
           publicationId: media.publication.id,
         }).catch((err: unknown) => logger.error('Erreur notification invite média', { err }));
@@ -353,7 +460,7 @@ export async function inviteMediaMemberAction(
     }
 
     revalidatePath('/advanced');
-    return { success: true, invite };
+    return { success: true as const, invite };
   } catch (err: unknown) {
     console.error('[Invite Media Member Error]', err);
     return { success: false, error: err instanceof Error ? err.message : "Échec de l'invitation" };
@@ -365,7 +472,20 @@ export async function inviteMediaMemberAction(
  */
 export async function acceptMediaInviteAction(token: string) {
   try {
-    const user = await getAuthenticatedUser();
+    const user = await getAuthUser();
+
+    // Go en primaire (POST /v1/media/invites/{token}/accept) — chemin nominal.
+    if (isGoEnabled()) {
+      const res = await goFetch<{ success: boolean; mediaId: string }>(
+        `/v1/media/invites/${encodeURIComponent(token)}/accept`,
+        { method: 'POST' }
+      );
+      revalidatePath('/advanced');
+      return { success: true as const, mediaId: res.mediaId };
+    }
+
+    // ⚠️ Fallback Prisma dev — le chemin nominal est le Go ci-dessus.
+    const dbUser = await getDbUser(user.id);
     const invite = await prisma.mediaInvite.findUnique({
       where: { token },
       include: { media: true },
@@ -378,17 +498,17 @@ export async function acceptMediaInviteAction(token: string) {
     if (invite.expiresAt && invite.expiresAt < new Date()) {
       return { success: false, error: 'Cette invitation a expiré' };
     }
-    if (invite.email.toLowerCase() !== user.email?.toLowerCase()) {
+    if (invite.email.toLowerCase() !== dbUser.email?.toLowerCase()) {
       return { success: false, error: "Cette invitation n'est pas destinée à ce compte" };
     }
 
     await prisma.$transaction(async (tx) => {
       await tx.mediaMember.upsert({
-        where: { mediaId_userId: { mediaId: invite.mediaId, userId: user.id } },
+        where: { mediaId_userId: { mediaId: invite.mediaId, userId: dbUser.id } },
         update: { role: invite.role, status: 'active' },
         create: {
           mediaId: invite.mediaId,
-          userId: user.id,
+          userId: dbUser.id,
           role: invite.role,
           status: 'active',
         },
@@ -400,15 +520,15 @@ export async function acceptMediaInviteAction(token: string) {
       await tx.mediaAuditLog.create({
         data: {
           mediaId: invite.mediaId,
-          actorId: user.id,
+          actorId: dbUser.id,
           action: 'member.joined',
-          metadata: { email: user.email },
+          metadata: { email: dbUser.email },
         },
       });
     });
 
     // Notifier l'inviteur
-    if (invite.inviterId !== user.id) {
+    if (invite.inviterId !== dbUser.id) {
       const media = await prisma.media.findUnique({
         where: { id: invite.mediaId },
         include: { publication: { select: { id: true, name: true } } },
@@ -416,7 +536,7 @@ export async function acceptMediaInviteAction(token: string) {
       if (media) {
         await createMediaNotification({
           recipientId: invite.inviterId,
-          senderId: user.id,
+          senderId: dbUser.id,
           type: 'MEDIA_MEMBER_JOINED',
           publicationId: media.publication.id,
         }).catch((err: unknown) => logger.error('Erreur notification member joined', { err }));
@@ -424,7 +544,7 @@ export async function acceptMediaInviteAction(token: string) {
     }
 
     revalidatePath('/advanced');
-    return { success: true, mediaId: invite.mediaId };
+    return { success: true as const, mediaId: invite.mediaId };
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : "Échec de l'acceptation" };
   }
@@ -440,8 +560,24 @@ export async function updateMediaMemberRoleAction(
   role: string
 ) {
   try {
-    const user = await getAuthenticatedUser();
-    const membership = await getMediaMembership(mediaId, user.id);
+    const user = await getAuthUser();
+
+    // Go en primaire (PATCH /v1/media/{id}/members/{userId}) — chemin nominal.
+    if (isGoEnabled()) {
+      await goFetch(
+        `/v1/media/${encodeURIComponent(mediaId)}/members/${encodeURIComponent(memberUserId)}`,
+        {
+          method: 'PATCH',
+          body: { role },
+        }
+      );
+      revalidatePath('/advanced');
+      return { success: true as const };
+    }
+
+    // ⚠️ Fallback Prisma dev — le chemin nominal est le Go ci-dessus.
+    const dbUser = await getDbUser(user.id);
+    const membership = await getMediaMembership(mediaId, dbUser.id);
     if (!canMedia(membership, 'media:manage_members')) {
       return { success: false, error: 'Permission insuffisante' };
     }
@@ -453,12 +589,12 @@ export async function updateMediaMemberRoleAction(
       where: { mediaId_userId: { mediaId, userId: memberUserId } },
       data: { role, permissions: [] },
     });
-    await logMediaAction(mediaId, user.id, 'member.role_changed', {
+    await logMediaAction(mediaId, dbUser.id, 'member.role_changed', {
       targetId: memberUserId,
       role,
     });
     revalidatePath('/advanced');
-    return { success: true };
+    return { success: true as const };
   } catch (err: unknown) {
     return {
       success: false,
@@ -477,8 +613,21 @@ export async function updateMediaMemberPermissionsAction(
   permissions: string[]
 ) {
   try {
-    const user = await getAuthenticatedUser();
-    const membership = await getMediaMembership(mediaId, user.id);
+    const user = await getAuthUser();
+
+    // Go en primaire (PATCH /v1/media/{id}/members/{userId}/permissions) — chemin nominal.
+    if (isGoEnabled()) {
+      await goFetch(
+        `/v1/media/${encodeURIComponent(mediaId)}/members/${encodeURIComponent(memberUserId)}/permissions`,
+        { method: 'PATCH', body: { permissions } }
+      );
+      revalidatePath('/advanced');
+      return { success: true as const };
+    }
+
+    // ⚠️ Fallback Prisma dev — le chemin nominal est le Go ci-dessus.
+    const dbUser = await getDbUser(user.id);
+    const membership = await getMediaMembership(mediaId, dbUser.id);
     if (!canMedia(membership, 'media:manage_members')) {
       return { success: false, error: 'Permission insuffisante' };
     }
@@ -487,12 +636,12 @@ export async function updateMediaMemberPermissionsAction(
       where: { mediaId_userId: { mediaId, userId: memberUserId } },
       data: { permissions },
     });
-    await logMediaAction(mediaId, user.id, 'member.permissions_changed', {
+    await logMediaAction(mediaId, dbUser.id, 'member.permissions_changed', {
       targetId: memberUserId,
       permissions,
     });
     revalidatePath('/advanced');
-    return { success: true };
+    return { success: true as const };
   } catch (err: unknown) {
     return {
       success: false,
@@ -507,8 +656,21 @@ export async function updateMediaMemberPermissionsAction(
  */
 export async function removeMediaMemberAction(mediaId: string, memberUserId: string) {
   try {
-    const user = await getAuthenticatedUser();
-    const membership = await getMediaMembership(mediaId, user.id);
+    const user = await getAuthUser();
+
+    // Go en primaire (DELETE /v1/media/{id}/members/{userId}) — chemin nominal.
+    if (isGoEnabled()) {
+      await goFetch(
+        `/v1/media/${encodeURIComponent(mediaId)}/members/${encodeURIComponent(memberUserId)}`,
+        { method: 'DELETE' }
+      );
+      revalidatePath('/advanced');
+      return { success: true as const };
+    }
+
+    // ⚠️ Fallback Prisma dev — le chemin nominal est le Go ci-dessus.
+    const dbUser = await getDbUser(user.id);
+    const membership = await getMediaMembership(mediaId, dbUser.id);
     if (!canMedia(membership, 'media:manage_members')) {
       return { success: false, error: 'Permission insuffisante' };
     }
@@ -524,9 +686,9 @@ export async function removeMediaMemberAction(mediaId: string, memberUserId: str
     await prisma.mediaMember.delete({
       where: { mediaId_userId: { mediaId, userId: memberUserId } },
     });
-    await logMediaAction(mediaId, user.id, 'member.removed', { targetId: memberUserId });
+    await logMediaAction(mediaId, dbUser.id, 'member.removed', { targetId: memberUserId });
     revalidatePath('/advanced');
-    return { success: true };
+    return { success: true as const };
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : 'Échec du retrait' };
   }
@@ -558,8 +720,21 @@ export async function updateMediaSettingsAction(
   }
 ) {
   try {
-    const user = await getAuthenticatedUser();
-    const membership = await getMediaMembership(mediaId, user.id);
+    const user = await getAuthUser();
+
+    // Go en primaire (PATCH /v1/media/{id}/settings) — chemin nominal.
+    if (isGoEnabled()) {
+      const res = await goFetch<{ success: boolean; publication: GoMediaDetail['publication'] }>(
+        `/v1/media/${encodeURIComponent(mediaId)}/settings`,
+        { method: 'PATCH', body: data }
+      );
+      revalidatePath('/settings');
+      return { success: true as const, publication: res.publication };
+    }
+
+    // ⚠️ Fallback Prisma dev — le chemin nominal est le Go ci-dessus.
+    const dbUser = await getDbUser(user.id);
+    const membership = await getMediaMembership(mediaId, dbUser.id);
     if (!canMedia(membership, 'media:manage_settings')) {
       return { success: false, error: 'Permission insuffisante' };
     }
@@ -592,11 +767,11 @@ export async function updateMediaSettingsAction(
       },
     });
 
-    await logMediaAction(mediaId, user.id, 'media.settings_updated', {
+    await logMediaAction(mediaId, dbUser.id, 'media.settings_updated', {
       fields: Object.keys(data),
     });
     revalidatePath('/settings');
-    return { success: true, publication };
+    return { success: true as const, publication };
   } catch (err: unknown) {
     return {
       success: false,

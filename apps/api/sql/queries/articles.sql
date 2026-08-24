@@ -183,6 +183,10 @@ WHERE a."publicationId" = $1
 ORDER BY a."createdAt" DESC
 LIMIT $2 OFFSET $3;
 
+-- name: GetArticleIdByPublicationAndSlug :one
+-- Dédoublonnage import RSS : un article existe déjà si publicationId + slug matchent.
+SELECT id FROM "Article" WHERE "publicationId" = $1 AND slug = $2 LIMIT 1;
+
 -- name: CreateArticle :one
 INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
                        "readingTime", "allowPublicAnnotations", "allowComments", status,

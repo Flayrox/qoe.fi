@@ -9,7 +9,7 @@
 #    - core     : apps/core (Next.js reader + auth, qoe.fi)
 #    - studio   : apps/studio (Next.js créateurs, studio.qoe.fi)
 #    - admin    : apps/admin (Next.js admin, admin.qoe.fi)
-#    - migrate  : one-shot Prisma migrate deploy
+#    - migrate  : one-shot goose up (schéma + migrations Go)
 #
 # 🎯 Usage (tag image = nom de service compose) :
 #    docker build --target tenants -t qoefi-tenants .
@@ -195,16 +195,24 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 CMD ["node", "apps/admin/server.js"]
 
 # ─────────────────────────────────────────────────────────────────────
-# 🔄 TARGET : MIGRATE (Prisma migrate deploy — one-shot)
+# 🔄 TARGET : MIGRATE (goose up — one-shot)
 # ─────────────────────────────────────────────────────────────────────
-FROM node:22-alpine AS migrate
-RUN apk add --no-cache libc6-compat openssl
-WORKDIR /app
-ENV NODE_ENV=production
+# Les migrations vivent dans apps/api/sql/migrations (squash de l'historique
+# Prisma — source de vérité : apps/api/sql/schema/schema.sql). Connexion via
+# DATABASE_URL (même variable que l'API).
+FROM golang:1.26-alpine AS migrate-builder
+WORKDIR /src
 
-# Copie le schema Prisma et les migrations depuis le builder
-COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY apps/api/go.mod apps/api/go.sum ./
+RUN go mod download
 
-CMD ["npx", "prisma", "migrate", "deploy", "--schema=/app/packages/db/prisma/schema.prisma"]
+COPY apps/api ./
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/qoe-migrate ./cmd/migrate
+
+FROM alpine:3.20 AS migrate
+RUN apk add --no-cache ca-certificates
+
+COPY --from=migrate-builder /out/qoe-migrate /usr/local/bin/qoe-migrate
+COPY --from=migrate-builder /src/sql/migrations /migrations
+
+CMD ["/usr/local/bin/qoe-migrate", "-dir", "/migrations", "up"]

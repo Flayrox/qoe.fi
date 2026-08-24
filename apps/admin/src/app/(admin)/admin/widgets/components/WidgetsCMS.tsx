@@ -11,7 +11,7 @@ import {
   savePromo,
   deletePromo,
   togglePromoActive,
-} from '../actions';
+} from '@/lib/admin-aux-actions';
 import { cn } from '@qoe/utils';
 
 interface Article {

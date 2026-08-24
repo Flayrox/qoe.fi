@@ -1,11 +1,31 @@
 import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
 import Image from 'next/image';
-import { prisma } from '@qoe/db/client';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import { Wallet, CreditCard, ShieldX, ArrowRight, Receipt } from 'lucide-react';
 import { ReaderPageLayout } from '@/components/layout/ReaderPageLayout';
 
 import { routes } from '@qoe/config/routes';
+
+// Contrat GET /v1/me/billing (module users — parité prisma.user.findUnique
+// include walletTransactions + subscriber.findMany).
+interface BillingTransaction {
+  id: string;
+  type: string;
+  amountCents: number;
+  createdAt: string;
+}
+
+interface BillingSubscription {
+  id: string;
+  publication: { name: string | null; logoUrl: string | null; slug: string } | null;
+}
+
+interface BillingData {
+  walletBalanceCents: number;
+  walletTransactions: BillingTransaction[];
+  subscriptions: BillingSubscription[];
+}
 
 export default async function BillingPage() {
   const supabase = await createClient();
@@ -15,17 +35,8 @@ export default async function BillingPage() {
 
   if (!user) redirect('/login');
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    include: {
-      walletTransactions: { orderBy: { createdAt: 'desc' }, take: 10 },
-    },
-  });
-
-  const subscriptions = await prisma.subscriber.findMany({
-    where: { email: user.email, isPremium: true, isActive: true },
-    include: { publication: { select: { name: true, logoUrl: true, slug: true } } },
-  });
+  // Go (backend-of-record, requis en Phase 3) — plus de fallback Prisma.
+  const billing = await goFetch<BillingData>('/v1/me/billing');
 
   return (
     <ReaderPageLayout giantTitle="Portefeuille">
@@ -54,7 +65,7 @@ export default async function BillingPage() {
                     Solde Disponible
                   </span>
                   <span className="text-3xl font-black font-sans text-foreground block mt-1 tracking-tight">
-                    {((dbUser?.walletBalanceCents || 0) / 100).toFixed(2)} €
+                    {((billing.walletBalanceCents || 0) / 100).toFixed(2)} €
                   </span>
                 </div>
               </div>
@@ -75,7 +86,7 @@ export default async function BillingPage() {
                 </span>
               </div>
 
-              {subscriptions.length === 0 ? (
+              {billing.subscriptions.length === 0 ? (
                 <div className="text-center py-10 text-muted-foreground flex flex-col items-center gap-3">
                   <CreditCard className="w-8 h-8 text-muted-foreground/40" />
                   <p className="text-xs font-semibold text-foreground">
@@ -90,18 +101,18 @@ export default async function BillingPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {subscriptions.map((sub) => (
+                  {billing.subscriptions.map((sub) => (
                     <div
                       key={sub.id}
                       className="flex items-center justify-between border border-border/60 p-4 rounded-xl bg-muted/30 hover:bg-muted/60 transition-colors"
                     >
                       <a
                         href={
-                          sub.publication.slug ? routes.feed.profile(sub.publication.slug) : '#'
+                          sub.publication?.slug ? routes.feed.profile(sub.publication.slug) : '#'
                         }
                         className="flex items-center gap-3 min-w-0 group"
                       >
-                        {sub.publication.logoUrl ? (
+                        {sub.publication?.logoUrl ? (
                           <Image
                             src={sub.publication.logoUrl}
                             width={40}
@@ -111,12 +122,12 @@ export default async function BillingPage() {
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">
-                            {sub.publication.name?.charAt(0)}
+                            {sub.publication?.name?.charAt(0)}
                           </div>
                         )}
                         <div className="min-w-0">
                           <span className="text-xs font-bold block truncate group-hover:text-primary transition-colors text-foreground">
-                            {sub.publication.name}
+                            {sub.publication?.name}
                           </span>
                           <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
                             Premium • Renouvellement auto.
@@ -144,13 +155,13 @@ export default async function BillingPage() {
                 </span>
               </div>
 
-              {(dbUser?.walletTransactions.length || 0) === 0 ? (
+              {billing.walletTransactions.length === 0 ? (
                 <div className="text-center py-10 text-muted-foreground">
                   <p className="text-xs font-semibold">Aucune transaction pour le moment.</p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {dbUser?.walletTransactions.map((tx) => (
+                  {billing.walletTransactions.map((tx) => (
                     <div
                       key={tx.id}
                       className="flex items-center justify-between p-3.5 rounded-xl border border-border/40 hover:bg-muted/40 transition-colors"

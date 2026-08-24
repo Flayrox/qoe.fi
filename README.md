@@ -113,9 +113,9 @@ pnpm dev:api         # api only
 ### Database Operations
 
 ```bash
-pnpm prisma:migrate    # Apply migrations
+pnpm db:migrate        # Apply migrations (goose, apps/api/sql/migrations)
+pnpm db:seed           # Seed demo data (Go, apps/api/cmd/seed)
 pnpm prisma:studio     # Launch Prisma Studio GUI
-pnpm prisma:seed       # Seed the database
 ```
 
 ---

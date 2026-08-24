@@ -35,6 +35,28 @@ func (q *Queries) CountArticlesByPublication(ctx context.Context, publicationid 
 	return count, err
 }
 
+const countMediaInvites = `-- name: CountMediaInvites :one
+SELECT COUNT(*)::int AS count FROM "MediaInvite" WHERE "mediaId" = $1
+`
+
+func (q *Queries) CountMediaInvites(ctx context.Context, mediaid string) (int32, error) {
+	row := q.db.QueryRow(ctx, countMediaInvites, mediaid)
+	var count int32
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countMediaMembers = `-- name: CountMediaMembers :one
+SELECT COUNT(*)::int AS count FROM "MediaMember" WHERE "mediaId" = $1
+`
+
+func (q *Queries) CountMediaMembers(ctx context.Context, mediaid string) (int32, error) {
+	row := q.db.QueryRow(ctx, countMediaMembers, mediaid)
+	var count int32
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createMedia = `-- name: CreateMedia :one
 INSERT INTO "Media" (id, "publicationId", "updatedAt")
 VALUES (gen_random_uuid()::text, $1, now())
@@ -345,6 +367,30 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 	return i, err
 }
 
+const getUserIdentity = `-- name: GetUserIdentity :one
+SELECT name, username, "logoUrl", email
+FROM "User" WHERE id = $1
+`
+
+type GetUserIdentityRow struct {
+	Name     pgtype.Text `json:"name"`
+	Username pgtype.Text `json:"username"`
+	LogoUrl  pgtype.Text `json:"logoUrl"`
+	Email    string      `json:"email"`
+}
+
+func (q *Queries) GetUserIdentity(ctx context.Context, id string) (GetUserIdentityRow, error) {
+	row := q.db.QueryRow(ctx, getUserIdentity, id)
+	var i GetUserIdentityRow
+	err := row.Scan(
+		&i.Name,
+		&i.Username,
+		&i.LogoUrl,
+		&i.Email,
+	)
+	return i, err
+}
+
 const getUserMediaMemberships = `-- name: GetUserMediaMemberships :many
 SELECT m."mediaId"        AS media_id,
        m.role,
@@ -353,6 +399,8 @@ SELECT m."mediaId"        AS media_id,
        p.id               AS publication_id,
        p.name             AS publication_name,
        p.slug             AS publication_slug,
+       p.subdomain        AS publication_subdomain,
+       p.bio              AS publication_bio,
        p."logoUrl"        AS publication_logo
 FROM "MediaMember" m
 JOIN "Media" md ON md.id = m."mediaId"
@@ -362,14 +410,16 @@ ORDER BY p.name ASC
 `
 
 type GetUserMediaMembershipsRow struct {
-	MediaID         string      `json:"media_id"`
-	Role            string      `json:"role"`
-	Permissions     []string    `json:"permissions"`
-	Status          string      `json:"status"`
-	PublicationID   string      `json:"publication_id"`
-	PublicationName string      `json:"publication_name"`
-	PublicationSlug string      `json:"publication_slug"`
-	PublicationLogo pgtype.Text `json:"publication_logo"`
+	MediaID              string      `json:"media_id"`
+	Role                 string      `json:"role"`
+	Permissions          []string    `json:"permissions"`
+	Status               string      `json:"status"`
+	PublicationID        string      `json:"publication_id"`
+	PublicationName      string      `json:"publication_name"`
+	PublicationSlug      string      `json:"publication_slug"`
+	PublicationSubdomain pgtype.Text `json:"publication_subdomain"`
+	PublicationBio       pgtype.Text `json:"publication_bio"`
+	PublicationLogo      pgtype.Text `json:"publication_logo"`
 }
 
 func (q *Queries) GetUserMediaMemberships(ctx context.Context, userid pgtype.UUID) ([]GetUserMediaMembershipsRow, error) {
@@ -389,6 +439,8 @@ func (q *Queries) GetUserMediaMemberships(ctx context.Context, userid pgtype.UUI
 			&i.PublicationID,
 			&i.PublicationName,
 			&i.PublicationSlug,
+			&i.PublicationSubdomain,
+			&i.PublicationBio,
 			&i.PublicationLogo,
 		); err != nil {
 			return nil, err
@@ -423,8 +475,59 @@ func (q *Queries) InsertMediaAuditLog(ctx context.Context, arg InsertMediaAuditL
 	return err
 }
 
+const listMediaInvites = `-- name: ListMediaInvites :many
+SELECT i.id, i.email, i.role, i.status, i."createdAt", i."expiresAt",
+       u.id::text AS inviter_id, u.name AS inviter_name, u.username AS inviter_username
+FROM "MediaInvite" i
+JOIN "User" u ON u.id = i."inviterId"
+WHERE i."mediaId" = $1 AND i.status = 'PENDING'
+ORDER BY i."createdAt" DESC
+`
+
+type ListMediaInvitesRow struct {
+	ID              string           `json:"id"`
+	Email           string           `json:"email"`
+	Role            string           `json:"role"`
+	Status          string           `json:"status"`
+	CreatedAt       pgtype.Timestamp `json:"createdAt"`
+	ExpiresAt       pgtype.Timestamp `json:"expiresAt"`
+	InviterID       string           `json:"inviter_id"`
+	InviterName     pgtype.Text      `json:"inviter_name"`
+	InviterUsername pgtype.Text      `json:"inviter_username"`
+}
+
+func (q *Queries) ListMediaInvites(ctx context.Context, mediaid string) ([]ListMediaInvitesRow, error) {
+	rows, err := q.db.Query(ctx, listMediaInvites, mediaid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMediaInvitesRow{}
+	for rows.Next() {
+		var i ListMediaInvitesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Role,
+			&i.Status,
+			&i.CreatedAt,
+			&i.ExpiresAt,
+			&i.InviterID,
+			&i.InviterName,
+			&i.InviterUsername,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMediaMembers = `-- name: ListMediaMembers :many
-SELECT m."userId"::text AS user_id, m.role, m.permissions, m.status, m."joinedAt",
+SELECT m.id AS member_id, m."userId"::text AS user_id, m.role, m.permissions, m.status, m."joinedAt",
        u.name, u.username, u."logoUrl"
 FROM "MediaMember" m
 JOIN "User" u ON u.id = m."userId"
@@ -433,6 +536,7 @@ ORDER BY m."joinedAt" ASC
 `
 
 type ListMediaMembersRow struct {
+	MemberID    string           `json:"member_id"`
 	UserID      string           `json:"user_id"`
 	Role        string           `json:"role"`
 	Permissions []string         `json:"permissions"`
@@ -453,6 +557,7 @@ func (q *Queries) ListMediaMembers(ctx context.Context, mediaid string) ([]ListM
 	for rows.Next() {
 		var i ListMediaMembersRow
 		if err := rows.Scan(
+			&i.MemberID,
 			&i.UserID,
 			&i.Role,
 			&i.Permissions,

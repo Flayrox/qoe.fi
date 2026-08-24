@@ -29,12 +29,14 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Route("/v1/settings", func(r chi.Router) {
 		r.Patch("/profile", h.updateProfile)
+		r.Get("/publication", h.getPublicationSettings)
 		r.Get("/preferences", h.getPreferences)
 		r.Patch("/preferences", h.updatePreferences)
 		r.Post("/subdomain", h.updateSubdomain)
 		r.Put("/navigation", h.saveNavigation)
 		r.Put("/social", h.saveSocial)
 		r.Post("/api-application", h.submitApiApplication)
+		r.Get("/api-keys", h.listApiKeys)
 		r.Post("/api-keys", h.generateApiKey)
 		r.Delete("/api-keys/{id}", h.revokeApiKey)
 		r.Post("/onboarding", h.completeOnboarding)
@@ -43,6 +45,36 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Get("/v1/me/account-deletion-request", h.getDeletionRequest)
 	r.Post("/v1/me/account-deletion-request", h.requestDeletion)
 	r.Delete("/v1/me/account-deletion-request", h.cancelDeletion)
+}
+
+// GET /v1/settings/publication?publicationId= — publication + relations de la
+// page settings créateur (navigation, socialLinks, articles, catégories, owner).
+func (h *Handler) getPublicationSettings(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok || userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	publicationID := r.URL.Query().Get("publicationId")
+	if publicationID == "" {
+		response.BadRequest(w, "publicationId requis")
+		return
+	}
+	pub, err := h.svc.GetPublicationSettings(r.Context(), userID, publicationID)
+	if err != nil {
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Accès refusé à cette publication.")
+			return
+		}
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Publication introuvable")
+			return
+		}
+		log.Printf("[settings] getPublicationSettings: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, pub)
 }
 
 // GET /v1/settings/preferences — préférences lecteur (userSettings).
@@ -286,6 +318,22 @@ func (h *Handler) generateApiKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]string{"apiKey": apiKey})
+}
+
+// GET /v1/settings/api-keys — liste les clés API de l'utilisateur (sans hash).
+func (h *Handler) listApiKeys(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	keys, err := h.svc.ListApiKeys(r.Context(), userID)
+	if err != nil {
+		log.Printf("[settings] listApiKeys: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"keys": keys})
 }
 
 // DELETE /v1/settings/api-keys/{id} — révoque une clé API.

@@ -14,7 +14,7 @@ import {
   Sparkles,
   Link as LinkIcon,
 } from 'lucide-react';
-import { saveMultipleFrontendConfigs } from '../actions';
+import { saveMultipleFrontendConfigs } from '@/lib/admin-aux-actions';
 import { ALL_LANGUAGES, type Language } from '@qoe/i18n';
 import { t } from '@lingui/core/macro';
 

@@ -19,7 +19,7 @@
 import React from 'react';
 import { MessageSquare } from 'lucide-react';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
-import type { FeedSlice } from '@qoe/db/repositories/posts';
+import type { FeedSlice } from '@/lib/feed-types';
 
 export interface ThoughtFeedSliceProps {
   slice: FeedSlice;

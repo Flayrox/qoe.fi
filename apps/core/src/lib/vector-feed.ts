@@ -9,14 +9,14 @@
 // API /api/feed/personalized (pages suivantes au scroll).
 // =====================================================================
 
-import type { Prisma } from '@qoe/db/types';
 import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import {
   formatPollData,
+  type FeedArticle,
   type FeedPoll,
-  type FormattedPoll,
   type FeedSlice,
-} from '@qoe/db/repositories/posts';
+  type FormattedPoll,
+} from '@/lib/feed-types';
 
 export const publicationProfileSelect = {
   id: true,
@@ -30,87 +30,14 @@ export const publicationProfileSelect = {
   isCertified: true,
 } as const;
 
-export const articleFeedInclude = {
-  publication: { select: publicationProfileSelect },
-  author: {
-    select: {
-      id: true,
-      name: true,
-      username: true,
-      logoUrl: true,
-      isCertified: true,
-    },
-  },
-  coAuthors: {
-    select: {
-      id: true,
-      name: true,
-      username: true,
-      logoUrl: true,
-      isCertified: true,
-    },
-  },
-  attributions: {
-    orderBy: { order: 'asc' as const },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          logoUrl: true,
-          isCertified: true,
-        },
-      },
-    },
-  },
-  category: { select: { name: true } },
-} satisfies Prisma.ArticleInclude;
-
-export type ArticleWithDetails = Prisma.ArticleGetPayload<{
-  include: {
-    publication: { select: typeof publicationProfileSelect };
-    author: {
-      select: {
-        id: true;
-        name: true;
-        username: true;
-        logoUrl: true;
-        isCertified: true;
-      };
-    };
-    coAuthors: {
-      select: {
-        id: true;
-        name: true;
-        username: true;
-        logoUrl: true;
-        isCertified: true;
-      };
-    };
-    attributions: {
-      orderBy: { order: 'asc' };
-      include: {
-        user: {
-          select: {
-            id: true;
-            name: true;
-            username: true;
-            logoUrl: true;
-            isCertified: true;
-          };
-        };
-      };
-    };
-    category: { select: { name: true } };
-  };
-}>;
+// Article complet du feed (parité avec le JSON Go — GET /v1/feed/hydrate).
+export type ArticleWithDetails = FeedArticle;
 
 export interface FeedPostRecord {
   id: string;
   content: string | null;
   imageUrl: string | null;
-  createdAt: Date;
+  createdAt: Date | string;
   tags?: string[] | null;
   author: {
     id: string;
@@ -125,7 +52,7 @@ export interface FeedPostRecord {
   parent?: {
     id: string;
     content: string | null;
-    createdAt: Date;
+    createdAt: Date | string;
     author: {
       id: string;
       name: string | null;
@@ -164,97 +91,6 @@ export interface FeedPostRecord {
   _count?: { likes: number; replies: number; reposts: number };
   poll?: FeedPoll | FormattedPoll | null;
 }
-
-export const getPostIncludeSelect = (userId?: string) => ({
-  author: {
-    select: {
-      id: true,
-      name: true,
-      username: true,
-      logoUrl: true,
-      isCertified: true,
-    },
-  },
-  parent: {
-    select: {
-      id: true,
-      content: true,
-      createdAt: true,
-      author: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          logoUrl: true,
-          isCertified: true,
-        },
-      },
-    },
-  },
-  repost: {
-    include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          logoUrl: true,
-          isCertified: true,
-        },
-      },
-      likes: userId ? { where: { userId }, select: { userId: true } } : false,
-      reposts: userId
-        ? {
-            where: { authorId: userId, deletedAt: null },
-            select: { id: true, authorId: true, content: true },
-          }
-        : false,
-      _count: { select: { likes: true, replies: true, reposts: true } },
-    },
-  },
-  quotedArticle: {
-    include: {
-      publication: {
-        select: {
-          id: true,
-          type: true,
-          name: true,
-          slug: true,
-          subdomain: true,
-          customDomain: true,
-          logoUrl: true,
-          isCertified: true,
-        },
-      },
-      author: {
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          logoUrl: true,
-          isCertified: true,
-        },
-      },
-    },
-  },
-  likes: userId ? { where: { userId }, select: { userId: true } } : false,
-  reposts: userId
-    ? {
-        where: { authorId: userId, deletedAt: null },
-        select: { id: true, authorId: true, content: true },
-      }
-    : false,
-  poll: {
-    include: {
-      options: {
-        orderBy: { order: 'asc' as const },
-        include: { _count: { select: { votes: true } } },
-      },
-      votes: { select: { optionId: true, userId: true } },
-    },
-  },
-  _count: { select: { likes: true, replies: true, reposts: true } },
-});
 
 export const mapPublicationToAuthor = (
   pub: {
@@ -470,7 +306,7 @@ const FEED_CACHE_TTL_MS = 60_000;
 const FEED_CACHE_MAX_ENTRIES = 500;
 
 // Moteur classé par le backend Go (GET /v1/feed/personalized) : items légers
-// {itemType, id, isDiscovery} + hasMore. La réhydratation complète reste Prisma.
+// {itemType, id, isDiscovery} + hasMore. Réhydratation 100 % Go.
 type EngineItem = { itemType: 'ARTICLE' | 'THOUGHT'; id: string; isDiscovery?: boolean };
 interface EngineResult {
   items: EngineItem[];

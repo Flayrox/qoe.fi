@@ -16,7 +16,7 @@ import {
   toggleUserShadowbanAction as toggleUserShadowban,
   suspendUserAction as suspendUser,
   unsuspendUserAction as unsuspendUser,
-} from '@qoe/api-client/actions/admin';
+} from '@/lib/admin-actions';
 
 export type AdminUser = {
   id: string;

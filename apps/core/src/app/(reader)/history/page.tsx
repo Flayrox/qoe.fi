@@ -1,5 +1,4 @@
 import { createClient } from '@qoe/supabase/server';
-import { prisma } from '@qoe/db/client';
 import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import { BookOpen, Clock, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
@@ -39,64 +38,15 @@ export default async function ReadingHistoryPage() {
   }
 
   const DAYS = 14;
-  let unique: HistorySession[];
-  try {
-    const res = await goFetch<{ sessions: HistorySession[] }>(
-      `/v1/me/reading-history?days=${DAYS}`
-    );
-    // Dédup par articleId, garde le plus récent (déjà fait côté Go — filet ici).
-    const seen = new Set<string>();
-    unique = res.sessions.filter((s) => {
-      if (seen.has(s.article.id)) return false;
-      seen.add(s.article.id);
-      return true;
-    });
-  } catch {
-    // Fallback Prisma (dev sans QOE_API_URL).
-    const since = new Date(Date.now() - DAYS * 24 * 3600 * 1000);
-    const sessions = await prisma.readingSession.findMany({
-      where: { userId: user.id, createdAt: { gte: since } },
-      include: {
-        article: {
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-            imageUrl: true,
-            readingTime: true,
-            createdAt: true,
-            publication: { select: { name: true } },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
-    const seen = new Set<string>();
-    unique = sessions
-      .map((s): HistorySession => ({
-        id: s.id,
-        source: s.source,
-        status: s.status,
-        scrollDepth: s.scrollDepth,
-        dwellSeconds: s.dwellSeconds,
-        createdAt: s.createdAt.toISOString(),
-        article: {
-          id: s.article.id,
-          title: s.article.title,
-          slug: s.article.slug,
-          imageUrl: s.article.imageUrl,
-          readingTime: s.article.readingTime,
-          createdAt: s.article.createdAt.toISOString(),
-          publication: s.article.publication ? { name: s.article.publication.name } : null,
-        },
-      }))
-      .filter((s) => {
-        if (seen.has(s.article.id)) return false;
-        seen.add(s.article.id);
-        return true;
-      });
-  }
+  // Go (backend-of-record, requis en Phase 3) : GET /v1/me/reading-history
+  // (la dédup par articleId est déjà faite côté Go — filet conservé ici).
+  const res = await goFetch<{ sessions: HistorySession[] }>(`/v1/me/reading-history?days=${DAYS}`);
+  const seen = new Set<string>();
+  const unique = res.sessions.filter((s) => {
+    if (seen.has(s.article.id)) return false;
+    seen.add(s.article.id);
+    return true;
+  });
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">

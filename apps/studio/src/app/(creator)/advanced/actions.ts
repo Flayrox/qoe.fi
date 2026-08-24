@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@qoe/supabase/server';
 import { prisma } from '@qoe/db/client';
 import { notifications } from '@qoe/db';
 import { revalidatePath } from 'next/cache';
+import { goFetch, isGoEnabled } from '@qoe/api-client/actions/utils/go-client';
 
 async function getAuthenticatedUser() {
   const supabase = await createServerClient();
@@ -12,14 +13,12 @@ async function getAuthenticatedUser() {
   } = await supabase.auth.getUser();
   if (!authUser) throw new Error('Non authentifié');
 
-  const dbUser = await prisma.user.findUnique({ where: { id: authUser.id } });
-  if (!dbUser) throw new Error('Utilisateur introuvable');
-
-  return dbUser;
+  return authUser;
 }
 
 /**
  * 🤝 Envoyer une demande de collaboration/co-rédaction sur un article
+ * Go-first : POST /v1/collaborations/invite-by-email.
  */
 export async function sendCollaborationRequestAction(articleId: string, inviteeEmail: string) {
   try {
@@ -29,6 +28,16 @@ export async function sendCollaborationRequestAction(articleId: string, inviteeE
       return { success: false, error: 'Adresse email invalide' };
     }
 
+    if (isGoEnabled()) {
+      const resp = await goFetch<{ success: boolean; request: unknown }>(
+        '/v1/collaborations/invite-by-email',
+        { method: 'POST', body: { articleId, inviteeEmail } }
+      );
+      revalidatePath('/advanced');
+      return { success: true, request: resp.request };
+    }
+
+    // 🐢 Fallback dev (sans QOE_API_URL) : Prisma.
     const article = await prisma.article.findUnique({ where: { id: articleId } });
     if (!article) {
       return { success: false, error: 'Article non trouvé' };
@@ -109,6 +118,7 @@ export async function sendCollaborationRequestAction(articleId: string, inviteeE
 
 /**
  * 📩 Répondre à une demande de collaboration (Accepter / Refuser + Option Profil Public)
+ * Go-first : POST /v1/collaborations/{requestId}/respond.
  */
 export async function respondToCollaborationRequestAction(
   requestId: string,
@@ -118,6 +128,16 @@ export async function respondToCollaborationRequestAction(
   try {
     const user = await getAuthenticatedUser();
 
+    if (isGoEnabled()) {
+      await goFetch(`/v1/collaborations/${encodeURIComponent(requestId)}/respond`, {
+        method: 'POST',
+        body: { accept, showOnPublicProfile },
+      });
+      revalidatePath('/advanced');
+      return { success: true };
+    }
+
+    // 🐢 Fallback dev (sans QOE_API_URL) : Prisma.
     const request = await prisma.collaborationRequest.findUnique({
       where: { id: requestId },
       include: { article: true },
@@ -204,7 +224,7 @@ export async function respondToCollaborationRequestAction(
 
 /**
  * ✉️ Invitation structurée depuis l'éditeur d'article.
- * Un contributeur externe n'est jamais ajouté à la byline avant son consentement.
+ * Go-first : POST /v1/collaborations/invite.
  */
 export async function sendArticleContributorInvitationAction(data: {
   articleId: string;
@@ -215,6 +235,26 @@ export async function sendArticleContributorInvitationAction(data: {
 }) {
   try {
     const inviter = await getAuthenticatedUser();
+
+    if (isGoEnabled()) {
+      const resp = await goFetch<{ success: boolean; request: unknown }>(
+        '/v1/collaborations/invite',
+        {
+          method: 'POST',
+          body: {
+            articleId: data.articleId,
+            inviteeId: data.inviteeId,
+            role: data.role,
+            order: data.order,
+          },
+        }
+      );
+      revalidatePath('/advanced');
+      revalidatePath(`/articles/${data.articleId}`);
+      return { success: true, request: resp.request };
+    }
+
+    // 🐢 Fallback dev (sans QOE_API_URL) : Prisma.
     const article = await prisma.article.findUnique({
       where: { id: data.articleId },
       include: { publication: { include: { media: { include: { members: true } } } } },
@@ -293,10 +333,22 @@ export async function sendArticleContributorInvitationAction(data: {
   }
 }
 
-/** Retire une attribution publique à la demande du propriétaire de l'article. */
+/** Retire une attribution publique à la demande du propriétaire de l'article.
+ * Go-first : DELETE /v1/collaborations/{articleId}/contributors/{contributorId}. */
 export async function removeArticleContributorAction(articleId: string, contributorId: string) {
   try {
     const actor = await getAuthenticatedUser();
+
+    if (isGoEnabled()) {
+      await goFetch(
+        `/v1/collaborations/${encodeURIComponent(articleId)}/contributors/${encodeURIComponent(contributorId)}`,
+        { method: 'DELETE' }
+      );
+      revalidatePath(`/articles/${articleId}`);
+      return { success: true };
+    }
+
+    // 🐢 Fallback dev (sans QOE_API_URL) : Prisma.
     const article = await prisma.article.findUnique({
       where: { id: articleId },
       include: { publication: { include: { media: { include: { members: true } } } } },
@@ -340,10 +392,20 @@ export async function removeArticleContributorAction(articleId: string, contribu
   }
 }
 
-/** Permet au contributeur de retirer lui-même son consentement. */
+/** Permet au contributeur de retirer lui-même son consentement.
+ * Go-first : POST /v1/collaborations/{articleId}/withdraw. */
 export async function withdrawArticleContributorConsentAction(articleId: string) {
   try {
     const contributor = await getAuthenticatedUser();
+
+    if (isGoEnabled()) {
+      await goFetch(`/v1/collaborations/${encodeURIComponent(articleId)}/withdraw`, {
+        method: 'POST',
+      });
+      return { success: true };
+    }
+
+    // 🐢 Fallback dev (sans QOE_API_URL) : Prisma.
     const article = await prisma.article.findUnique({ where: { id: articleId } });
     if (!article) return { success: false, error: 'Article non trouvé' };
     if (article.authorId === contributor.id) {
@@ -375,13 +437,32 @@ export async function withdrawArticleContributorConsentAction(articleId: string)
   }
 }
 
+interface CollaborationRequestListItem {
+  id: string;
+  articleId: string;
+  status: string;
+  article?: { id: string; title: string; slug: string } | null;
+  inviter?: { id: string; name: string | null; email: string; username: string | null } | null;
+  invitee?: { id: string; name: string | null; email: string; username: string | null } | null;
+}
+
 /**
  * 📥 Récupérer les demandes de collaboration reçues et envoyées
+ * Go-first : GET /v1/collaborations.
  */
 export async function getCollaborationRequestsAction() {
   try {
     const user = await getAuthenticatedUser();
 
+    if (isGoEnabled()) {
+      const resp = await goFetch<{
+        received: CollaborationRequestListItem[];
+        sent: CollaborationRequestListItem[];
+      }>('/v1/collaborations');
+      return { success: true, received: resp.received || [], sent: resp.sent || [] };
+    }
+
+    // 🐢 Fallback dev (sans QOE_API_URL) : Prisma.
     const received = await prisma.collaborationRequest.findMany({
       where: { inviteeId: user.id },
       include: {

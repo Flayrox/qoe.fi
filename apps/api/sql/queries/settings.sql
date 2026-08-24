@@ -57,6 +57,12 @@ SELECT "apiAccessStatus" FROM "User" WHERE id = $1;
 INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "userId")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5);
 
+-- name: ListApiKeys :many
+SELECT id, name, "keyPrefix", scopes, "createdAt", "lastUsedAt"
+FROM "ApiKey"
+WHERE "userId" = $1
+ORDER BY "createdAt" DESC;
+
 -- name: DeleteApiKey :exec
 DELETE FROM "ApiKey" WHERE id = $1 AND "userId" = $2;
 
@@ -78,3 +84,42 @@ WHERE id = $1;
 
 -- name: LinkUserPublication :exec
 UPDATE "User" SET "publicationId" = $2, "updatedAt" = now() WHERE id = $1;
+
+-- Page settings créateur (parité prisma.publication.findUnique include dans
+-- apps/studio/src/app/(creator)/settings/page.tsx).
+
+-- name: GetPublicationForSettings :one
+SELECT p.id, p.name, p.slug, p."subdomain", p."customDomain", p."heroText",
+       p."accentColor", p."fontFamily", p."themeMode", p."layoutStyle",
+       p."logoUrl", p."headerImageUrl", p."footerText", p."seoTitle",
+       p."seoDescription", p."allowIndexing", p."supportUrl", p.type,
+       COALESCE(u.id::text, '')::text AS owner_id, u.email AS owner_email, u.username AS owner_username,
+       u."advancedSettingsMode" AS owner_advanced_settings_mode
+FROM "Publication" p
+LEFT JOIN "User" u ON u."publicationId" = p.id
+WHERE p.id = $1;
+
+-- name: ListNavigationForPublication :many
+SELECT id, label, url, "order", "isExternal"
+FROM "NavigationItem"
+WHERE "publicationId" = $1
+ORDER BY "order" ASC;
+
+-- name: ListSocialLinksForPublication :many
+SELECT id, platform, url, "order"
+FROM "SocialLink"
+WHERE "publicationId" = $1
+ORDER BY "order" ASC;
+
+-- name: ListArticlesForSettings :many
+SELECT id, title, slug, content, published, "isPremium", "categoryId", "seoTitle",
+       "seoDescription", "createdAt"
+FROM "Article"
+WHERE "publicationId" = $1
+ORDER BY "createdAt" DESC;
+
+-- name: ListCategoriesForPublication :many
+SELECT id, name, slug
+FROM "Category"
+WHERE "publicationId" = $1
+ORDER BY name ASC;

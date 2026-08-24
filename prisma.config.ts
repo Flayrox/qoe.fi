@@ -2,7 +2,8 @@
 // ⚙️ prisma.config.ts — Configuration Prisma CLI
 // =====================================================================
 // 📖 Pointe vers la source unique : packages/db/prisma/
-//    Le schema, les migrations et le seed vivent tous dans @qoe/db.
+//    Le schema vit dans @qoe/db (le seed et les migrations ont migré en Go :
+//    apps/api/cmd/seed + apps/api/sql/migrations).
 // =====================================================================
 
 import 'dotenv/config';
@@ -12,7 +13,6 @@ export default defineConfig({
   schema: 'packages/db/prisma/schema.prisma',
   migrations: {
     path: 'packages/db/prisma/migrations',
-    seed: 'tsx packages/db/prisma/seed.ts',
   },
   datasource: {
     url: process.env['DATABASE_URL'] || '',

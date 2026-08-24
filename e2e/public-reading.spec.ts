@@ -7,9 +7,9 @@
 //   • lecture en lien profond (page /article/[slug] serveur)
 //   • onglet Explorer → contenu d'un média certifié (parcours média)
 //
-// Prérequis CI : `prisma db seed` (5 articles dont 1 média et 1 premium,
-// publication personnelle + média certifiées). Tout passe par Prisma —
-// aucune dépendance Supabase.
+// Prérequis CI : `go run ./cmd/seed` (5 articles dont 1 média et 1 premium,
+// publication personnelle + média certifiées). Schéma via goose — aucune
+// dépendance Supabase.
 // =====================================================================
 
 import { test, expect } from '@playwright/test';

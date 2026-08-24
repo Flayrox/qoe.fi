@@ -103,6 +103,76 @@ func (q *Queries) DeleteSocialLinks(ctx context.Context, publicationid string) e
 	return err
 }
 
+const getPublicationForSettings = `-- name: GetPublicationForSettings :one
+
+SELECT p.id, p.name, p.slug, p."subdomain", p."customDomain", p."heroText",
+       p."accentColor", p."fontFamily", p."themeMode", p."layoutStyle",
+       p."logoUrl", p."headerImageUrl", p."footerText", p."seoTitle",
+       p."seoDescription", p."allowIndexing", p."supportUrl", p.type,
+       COALESCE(u.id::text, '')::text AS owner_id, u.email AS owner_email, u.username AS owner_username,
+       u."advancedSettingsMode" AS owner_advanced_settings_mode
+FROM "Publication" p
+LEFT JOIN "User" u ON u."publicationId" = p.id
+WHERE p.id = $1
+`
+
+type GetPublicationForSettingsRow struct {
+	ID                        string          `json:"id"`
+	Name                      string          `json:"name"`
+	Slug                      string          `json:"slug"`
+	Subdomain                 pgtype.Text     `json:"subdomain"`
+	CustomDomain              pgtype.Text     `json:"customDomain"`
+	HeroText                  pgtype.Text     `json:"heroText"`
+	AccentColor               pgtype.Text     `json:"accentColor"`
+	FontFamily                pgtype.Text     `json:"fontFamily"`
+	ThemeMode                 pgtype.Text     `json:"themeMode"`
+	LayoutStyle               pgtype.Text     `json:"layoutStyle"`
+	LogoUrl                   pgtype.Text     `json:"logoUrl"`
+	HeaderImageUrl            pgtype.Text     `json:"headerImageUrl"`
+	FooterText                pgtype.Text     `json:"footerText"`
+	SeoTitle                  pgtype.Text     `json:"seoTitle"`
+	SeoDescription            pgtype.Text     `json:"seoDescription"`
+	AllowIndexing             bool            `json:"allowIndexing"`
+	SupportUrl                pgtype.Text     `json:"supportUrl"`
+	Type                      PublicationType `json:"type"`
+	OwnerID                   string          `json:"owner_id"`
+	OwnerEmail                pgtype.Text     `json:"owner_email"`
+	OwnerUsername             pgtype.Text     `json:"owner_username"`
+	OwnerAdvancedSettingsMode pgtype.Bool     `json:"owner_advanced_settings_mode"`
+}
+
+// Page settings créateur (parité prisma.publication.findUnique include dans
+// apps/studio/src/app/(creator)/settings/page.tsx).
+func (q *Queries) GetPublicationForSettings(ctx context.Context, id string) (GetPublicationForSettingsRow, error) {
+	row := q.db.QueryRow(ctx, getPublicationForSettings, id)
+	var i GetPublicationForSettingsRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.Subdomain,
+		&i.CustomDomain,
+		&i.HeroText,
+		&i.AccentColor,
+		&i.FontFamily,
+		&i.ThemeMode,
+		&i.LayoutStyle,
+		&i.LogoUrl,
+		&i.HeaderImageUrl,
+		&i.FooterText,
+		&i.SeoTitle,
+		&i.SeoDescription,
+		&i.AllowIndexing,
+		&i.SupportUrl,
+		&i.Type,
+		&i.OwnerID,
+		&i.OwnerEmail,
+		&i.OwnerUsername,
+		&i.OwnerAdvancedSettingsMode,
+	)
+	return i, err
+}
+
 const getUserApiAccessStatus = `-- name: GetUserApiAccessStatus :one
 SELECT "apiAccessStatus" FROM "User" WHERE id = $1
 `
@@ -256,6 +326,214 @@ type LinkUserPublicationParams struct {
 func (q *Queries) LinkUserPublication(ctx context.Context, arg LinkUserPublicationParams) error {
 	_, err := q.db.Exec(ctx, linkUserPublication, arg.ID, arg.PublicationId)
 	return err
+}
+
+const listApiKeys = `-- name: ListApiKeys :many
+SELECT id, name, "keyPrefix", scopes, "createdAt", "lastUsedAt"
+FROM "ApiKey"
+WHERE "userId" = $1
+ORDER BY "createdAt" DESC
+`
+
+type ListApiKeysRow struct {
+	ID         string           `json:"id"`
+	Name       string           `json:"name"`
+	KeyPrefix  string           `json:"keyPrefix"`
+	Scopes     []string         `json:"scopes"`
+	CreatedAt  pgtype.Timestamp `json:"createdAt"`
+	LastUsedAt pgtype.Timestamp `json:"lastUsedAt"`
+}
+
+func (q *Queries) ListApiKeys(ctx context.Context, userid pgtype.UUID) ([]ListApiKeysRow, error) {
+	rows, err := q.db.Query(ctx, listApiKeys, userid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListApiKeysRow{}
+	for rows.Next() {
+		var i ListApiKeysRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.KeyPrefix,
+			&i.Scopes,
+			&i.CreatedAt,
+			&i.LastUsedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listArticlesForSettings = `-- name: ListArticlesForSettings :many
+SELECT id, title, slug, content, published, "isPremium", "categoryId", "seoTitle",
+       "seoDescription", "createdAt"
+FROM "Article"
+WHERE "publicationId" = $1
+ORDER BY "createdAt" DESC
+`
+
+type ListArticlesForSettingsRow struct {
+	ID             string           `json:"id"`
+	Title          string           `json:"title"`
+	Slug           string           `json:"slug"`
+	Content        string           `json:"content"`
+	Published      bool             `json:"published"`
+	IsPremium      bool             `json:"isPremium"`
+	CategoryId     pgtype.Text      `json:"categoryId"`
+	SeoTitle       pgtype.Text      `json:"seoTitle"`
+	SeoDescription pgtype.Text      `json:"seoDescription"`
+	CreatedAt      pgtype.Timestamp `json:"createdAt"`
+}
+
+func (q *Queries) ListArticlesForSettings(ctx context.Context, publicationid string) ([]ListArticlesForSettingsRow, error) {
+	rows, err := q.db.Query(ctx, listArticlesForSettings, publicationid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListArticlesForSettingsRow{}
+	for rows.Next() {
+		var i ListArticlesForSettingsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Slug,
+			&i.Content,
+			&i.Published,
+			&i.IsPremium,
+			&i.CategoryId,
+			&i.SeoTitle,
+			&i.SeoDescription,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCategoriesForPublication = `-- name: ListCategoriesForPublication :many
+SELECT id, name, slug
+FROM "Category"
+WHERE "publicationId" = $1
+ORDER BY name ASC
+`
+
+type ListCategoriesForPublicationRow struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+}
+
+func (q *Queries) ListCategoriesForPublication(ctx context.Context, publicationid string) ([]ListCategoriesForPublicationRow, error) {
+	rows, err := q.db.Query(ctx, listCategoriesForPublication, publicationid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCategoriesForPublicationRow{}
+	for rows.Next() {
+		var i ListCategoriesForPublicationRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.Slug); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listNavigationForPublication = `-- name: ListNavigationForPublication :many
+SELECT id, label, url, "order", "isExternal"
+FROM "NavigationItem"
+WHERE "publicationId" = $1
+ORDER BY "order" ASC
+`
+
+type ListNavigationForPublicationRow struct {
+	ID         string      `json:"id"`
+	Label      string      `json:"label"`
+	Url        pgtype.Text `json:"url"`
+	Order      int32       `json:"order"`
+	IsExternal bool        `json:"isExternal"`
+}
+
+func (q *Queries) ListNavigationForPublication(ctx context.Context, publicationid string) ([]ListNavigationForPublicationRow, error) {
+	rows, err := q.db.Query(ctx, listNavigationForPublication, publicationid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListNavigationForPublicationRow{}
+	for rows.Next() {
+		var i ListNavigationForPublicationRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Url,
+			&i.Order,
+			&i.IsExternal,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSocialLinksForPublication = `-- name: ListSocialLinksForPublication :many
+SELECT id, platform, url, "order"
+FROM "SocialLink"
+WHERE "publicationId" = $1
+ORDER BY "order" ASC
+`
+
+type ListSocialLinksForPublicationRow struct {
+	ID       string `json:"id"`
+	Platform string `json:"platform"`
+	Url      string `json:"url"`
+	Order    int32  `json:"order"`
+}
+
+func (q *Queries) ListSocialLinksForPublication(ctx context.Context, publicationid string) ([]ListSocialLinksForPublicationRow, error) {
+	rows, err := q.db.Query(ctx, listSocialLinksForPublication, publicationid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSocialLinksForPublicationRow{}
+	for rows.Next() {
+		var i ListSocialLinksForPublicationRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Platform,
+			&i.Url,
+			&i.Order,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setApiApplication = `-- name: SetApiApplication :exec
