@@ -1,11 +1,10 @@
 // =====================================================================
-// 🃏 ThoughtCard — Carte pensée du feed (port de
-//    .reference/bluesky/src/view/com/posts/PostFeedItem.tsx)
+// 🃏 ThoughtCard — Carte pensée du feed (port fidèle Bluesky PostFeedItem)
 // =====================================================================
-// Layout Bluesky : colonne avatar 42px à gauche (LINEAR_AVI_WIDTH),
-// contenu à droite (header sans avatar + PostContent partagé + actions).
-// Repost pur → bannière « a repartagé » + contenu d'origine ; citation →
-// carte citée sous le texte (résolu via `resolveDisplay`).
+// Layout Bluesky :
+// 1. Zone bannière / Ligne supérieure (`showThreadConnectorTop`) au-dessus
+// 2. Row principale avec layoutAvi (Avatar 42px + Ligne inférieure descendante `showThreadConnectorBottom`)
+//    et layoutContent (Header auteur + PostContent + Actions).
 // =====================================================================
 
 import { Image } from 'expo-image';
@@ -26,10 +25,13 @@ import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/lib/i18n';
 import type { AnyThought } from './normalize';
 
+export const LINEAR_AVI_WIDTH = 42;
+
 export function ThoughtCard({
   thought,
   showThreadConnectorTop = false,
   showThreadConnectorBottom = false,
+  hideBottomBorder = false,
   onPressProfile,
   onReply,
   disableNavigation = false,
@@ -37,6 +39,7 @@ export function ThoughtCard({
   thought: AnyThought;
   showThreadConnectorTop?: boolean;
   showThreadConnectorBottom?: boolean;
+  hideBottomBorder?: boolean;
   onPressProfile?: (username: string) => void;
   onReply?: (postId: string) => void;
   /** Ne pas naviguer quand on tape sur la carte (post focus d'un fil). */
@@ -56,42 +59,67 @@ export function ThoughtCard({
     router.push({ pathname: '/user/[username]', params: { username } });
   };
 
-  return (
-    <ThemedView type="card" style={[styles.card, { borderBottomColor: theme.border }]}>
-      {/* Bannières (alignées sous l'avatar, façon Bluesky) */}
-      {isPureRepost ? (
-        <View style={styles.banner}>
-          <RepostBanner
-            username={display.author.username}
-            name={display.author.name}
-            onPress={() => openProfile(display.author.username || display.author.id)}
-          />
-        </View>
-      ) : null}
-      {post.isPinned ? (
-        <View style={styles.banner}>
-          <ThemedText type="small" style={{ color: theme.primary }}>
-            📌 {t('feed.pinned', 'Épinglé')}
-          </ThemedText>
-        </View>
-      ) : null}
-      {post.parent && !isPureRepost && post.parent.author ? (
-        <View style={styles.banner}>
-          <RepliedTo
-            handle={post.parent.author.username || post.parent.author.name}
-            userId={post.parent.author.id}
-          />
-        </View>
-      ) : null}
+  const hasBanner =
+    isPureRepost || post.isPinned || (post.parent && !isPureRepost && post.parent.author);
 
-      <View style={styles.contentRow}>
-        {/* Colonne avatar + connecteurs de fil */}
-        <View style={styles.avatarColumn}>
-          {showThreadConnectorTop ? (
-            <View style={[styles.connector, { backgroundColor: theme.border }]} />
-          ) : null}
+  return (
+    <ThemedView
+      type="card"
+      style={[
+        styles.card,
+        !hideBottomBorder && {
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: theme.border,
+        },
+      ]}
+    >
+      {/* ─── 1. Bannière de repost / épinglé / mention (si présente) ─── */}
+      {hasBanner && (
+        <View style={styles.topRow}>
+          <View style={styles.topAviCol} />
+          <View style={styles.topBannerContent}>
+            {isPureRepost ? (
+              <RepostBanner
+                username={display.author.username}
+                name={display.author.name}
+                onPress={() => openProfile(display.author.username || display.author.id)}
+              />
+            ) : null}
+            {post.isPinned ? (
+              <ThemedText type="small" style={{ color: theme.primary }}>
+                📌 {t('feed.pinned', 'Épinglé')}
+              </ThemedText>
+            ) : null}
+            {post.parent && !isPureRepost && post.parent.author ? (
+              <RepliedTo
+                handle={post.parent.author.username || post.parent.author.name}
+                userId={post.parent.author.id}
+              />
+            ) : null}
+          </View>
+        </View>
+      )}
+
+      {/* ─── 2. Segment de ligne reliant au parent au-dessus de l'avatar (parité Bluesky isThreadChild) ─── */}
+      {showThreadConnectorTop && !hasBanner && (
+        <View style={styles.topThreadLineRow}>
+          <View style={styles.topAviCol}>
+            <View
+              style={[
+                styles.replyLine,
+                { backgroundColor: theme.border, height: 10, marginBottom: 2 },
+              ]}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* ─── 3. Layout principal Bluesky : Avatar 42px à gauche, Contenu à droite ─── */}
+      <View style={styles.layout}>
+        {/* Colonne Avatar + Ligne descendante de fil */}
+        <View style={styles.layoutAvi}>
           <Pressable onPress={() => openProfile(display.author.username || display.author.id)}>
-            <ThemedView style={styles.avatarWrap}>
+            <View style={styles.avatarWrap}>
               {display.author.logoUrl ? (
                 <Image
                   source={{ uri: display.author.logoUrl }}
@@ -111,15 +139,27 @@ export function ThoughtCard({
                   </ThemedText>
                 </ThemedView>
               )}
-            </ThemedView>
+            </View>
           </Pressable>
+
+          {/* Ligne verticale continue reliant au post suivant (parité Bluesky isThreadParent) */}
           {showThreadConnectorBottom ? (
-            <View style={[styles.connector, { backgroundColor: theme.border }]} />
+            <View
+              style={[
+                styles.replyLine,
+                {
+                  backgroundColor: theme.border,
+                  flexGrow: 1,
+                  marginTop: 2,
+                  marginBottom: -8,
+                },
+              ]}
+            />
           ) : null}
         </View>
 
-        {/* Colonne contenu */}
-        <View style={styles.contentColumn}>
+        {/* Colonne Contenu (Header + PostContent + Actions) */}
+        <View style={styles.layoutContent}>
           <View style={styles.headerRow}>
             <View style={styles.headerMeta}>
               <ThoughtHeader
@@ -144,58 +184,67 @@ export function ThoughtCard({
 
 const styles = StyleSheet.create({
   card: {
-    // Parité web (ThoughtCardContainer) : carte blanche sur page grise,
-    // séparée par une hairline en bas — pas de carte grise arrondie.
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    gap: Spacing.two,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingLeft: 10,
+    paddingRight: 15,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
-  banner: {
+  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    // Aligné sous l'avatar : 42 (LINEAR_AVI_WIDTH) + gap 8 + paddingLeft 8.
-    paddingLeft: 50,
+    marginBottom: 4,
   },
-  contentRow: {
+  topThreadLineRow: {
     flexDirection: 'row',
-    gap: Spacing.two,
   },
-  avatarColumn: {
-    alignItems: 'center',
-    width: 42, // LINEAR_AVI_WIDTH (Bluesky)
+  topAviCol: {
+    width: LINEAR_AVI_WIDTH + 18, // Exactement 60px (8 paddingLeft + 42 avi + 10 paddingRight)
     paddingLeft: 8,
+    paddingRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBannerContent: {
+    flex: 1,
+  },
+  layout: {
+    flexDirection: 'row',
+  },
+  layoutAvi: {
+    width: LINEAR_AVI_WIDTH + 18, // Exactement 60px (8 paddingLeft + 42 avi + 10 paddingRight)
+    paddingLeft: 8,
+    paddingRight: 10,
+    alignItems: 'center',
   },
   avatarWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: LINEAR_AVI_WIDTH,
+    height: LINEAR_AVI_WIDTH,
+    borderRadius: LINEAR_AVI_WIDTH / 2,
     overflow: 'hidden',
   },
   avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: LINEAR_AVI_WIDTH,
+    height: LINEAR_AVI_WIDTH,
+    borderRadius: LINEAR_AVI_WIDTH / 2,
   },
   avatarFallback: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitial: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
   },
-  connector: {
+  replyLine: {
     width: 2,
-    flex: 1,
-    minHeight: 8,
     borderRadius: 1,
-    marginVertical: 2,
+    alignSelf: 'center',
   },
-  contentColumn: {
+  layoutContent: {
     flex: 1,
     minWidth: 0,
     gap: Spacing.one,
+    paddingBottom: 4,
   },
   headerRow: {
     flexDirection: 'row',
