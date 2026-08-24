@@ -10,7 +10,7 @@
 // vivent dans @qoe/devtools — outillage dev en écriture, Go-first.
 // =====================================================================
 
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 export interface DevtoolsUser {
   id: string;

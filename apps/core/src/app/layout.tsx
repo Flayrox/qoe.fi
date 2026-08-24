@@ -20,7 +20,7 @@ import { cn } from '@qoe/utils';
 import { ThemeProvider, ThemeSeedScript, GlobalAuthModalProvider } from '@qoe/ui';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { createClient } from '@qoe/supabase/server';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 // CSS global unifié — source unique dans @qoe/theme
 import '@qoe/theme/styles';

@@ -10,7 +10,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@qoe/supabase/server';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { MediaStudioClient } from './MediaStudioClient';
 
 interface MediaListItem {

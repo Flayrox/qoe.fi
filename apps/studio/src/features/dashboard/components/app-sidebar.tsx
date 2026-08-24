@@ -1,7 +1,7 @@
 import React from 'react';
 import { cookies, headers } from 'next/headers';
 import { createClient } from '@qoe/supabase/server';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { logout } from '@/app/login/actions';
 import { t } from '@lingui/core/macro';
 import { Sidebar } from '@qoe/ui/sidebar';

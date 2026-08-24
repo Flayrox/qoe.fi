@@ -26,7 +26,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
-import { feedKeys, type EngagementUser } from '@qoe/api-client/mobile';
+import { feedKeys, type EngagementUser } from '@qoe/sdk/mobile';
 
 export type EngagementKind = 'likes' | 'reposts' | 'quotes';
 

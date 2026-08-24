@@ -27,7 +27,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
-import { feedKeys } from '@qoe/api-client/mobile';
+import { feedKeys } from '@qoe/sdk/mobile';
 import type { NormalizedThought } from './normalize';
 
 // Parité Bluesky src/lib/constants.ts : MAX_POST_LINES = 25.

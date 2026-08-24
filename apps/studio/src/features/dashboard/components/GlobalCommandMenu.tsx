@@ -5,7 +5,7 @@ import { CmdKDialog, CmdKInput, CmdKList, CmdKGroup, CmdKItem } from '@qoe/ui';
 import { settingsTree, flattenSettingsTree } from '../../settings/config/settingsTree';
 import { useState, useEffect, useMemo } from 'react';
 import { useDebounce } from 'use-debounce';
-import { searchAllAction } from '@qoe/api-client/actions/search';
+import { searchAllAction } from '@qoe/sdk/actions/search';
 import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';

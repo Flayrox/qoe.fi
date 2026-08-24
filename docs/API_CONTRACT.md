@@ -4,7 +4,7 @@
 > `apps/api/internal/modules/*` (handlers/services/DTOs).
 > Ce document est le contrat **exact** (shapes JSON, auth, pagination) que
 > l'app mobile (`apps/mobile`) consomme via `QoeApiClient`
-> (`packages/api-client/src/client.ts`).
+> (`packages/sdk/src/client.ts`).
 >
 > Dernière mise à jour : août 2026. Vérifié contre le code Go.
 

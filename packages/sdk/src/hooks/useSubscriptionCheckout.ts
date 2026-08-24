@@ -1,5 +1,5 @@
 /**
- * 💳 PORTABLE SUBSCRIPTION CHECKOUT HOOKS — @qoe/api-client
+ * 💳 PORTABLE SUBSCRIPTION CHECKOUT HOOKS — @qoe/sdk
  *
  * Provides decoupled hooks for initiating Stripe Checkout sessions and Customer Portal redirections.
  * Zero dependency on DOM or web UI frameworks (mobile-ready).

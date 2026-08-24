@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { TrendingUp, Hash, Loader2 } from 'lucide-react';
-import { useTrendingQuery } from '@qoe/api-client';
+import { useTrendingQuery } from '@qoe/sdk';
 
 export function TrendingWidget() {
   const { data: trends, isLoading, isError } = useTrendingQuery(6);

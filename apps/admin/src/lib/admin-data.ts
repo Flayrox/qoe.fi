@@ -6,7 +6,7 @@
 // deliveries (module Go `admin`, réservé superadmin côté API).
 // =====================================================================
 
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 export interface AdminDashboardCounts {
   users: number;

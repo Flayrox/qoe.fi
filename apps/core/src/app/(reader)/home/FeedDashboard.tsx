@@ -8,7 +8,7 @@ import {
   toggleFollowCreatorHomeAction as toggleFollowCreatorHome,
   toggleBookmarkArticleHomeAction as toggleBookmarkArticleHome,
   getArticleThreadAction as getArticleThread,
-} from '@qoe/api-client/actions/feed';
+} from '@qoe/sdk/actions/feed';
 import { toast } from 'sonner';
 
 import {
@@ -29,7 +29,7 @@ import { ThoughtFeedSlice } from './components/ThoughtFeedSlice';
 import { VirtualizedFeedList } from '@/components/feed/VirtualizedFeedList';
 import { RealtimeFeedPill } from '@/components/feed/RealtimeFeedPill';
 import { useRealtimeFeedBuffer } from '@/hooks/useRealtimeFeedBuffer';
-import { useOptimisticBookmark, useOptimisticFollow, useDeletePostMutation } from '@qoe/api-client';
+import { useOptimisticBookmark, useOptimisticFollow, useDeletePostMutation } from '@qoe/sdk';
 import { ComposerModal } from './components/ComposerModal';
 import { FeedTabsHeader } from './components/FeedTabsHeader';
 import { ThoughtThreadView } from './components/ThoughtThreadView';
@@ -43,7 +43,7 @@ import { t } from '@lingui/core/macro';
 import { trackEvent } from '@/lib/analytics';
 import { routes } from '@qoe/config/routes';
 import { cn } from '@qoe/utils';
-import type { ThoughtData } from '@qoe/api-client';
+import type { ThoughtData } from '@qoe/sdk';
 import type { FeedSlice } from '@/lib/feed-types';
 
 interface Author {

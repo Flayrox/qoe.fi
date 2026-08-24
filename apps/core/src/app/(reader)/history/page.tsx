@@ -1,5 +1,5 @@
 import { createClient } from '@qoe/supabase/server';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { BookOpen, Clock, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { routes } from '@qoe/config/routes';

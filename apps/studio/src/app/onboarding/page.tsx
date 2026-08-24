@@ -1,5 +1,5 @@
 import { requireUser } from '@qoe/auth/current-user';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { redirect } from 'next/navigation';
 import { OnboardingWizard } from '@/features/onboarding/components/wizard';
 

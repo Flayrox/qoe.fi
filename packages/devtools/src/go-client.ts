@@ -1,7 +1,7 @@
 // =====================================================================
 // 🔗 Go API Client — mini-client local pour packages/devtools
 // =====================================================================
-// Même contrat que packages/api-client/src/actions/utils/go-client.ts
+// Même contrat que packages/sdk/src/actions/utils/go-client.ts
 // (QOE_API_URL, Bearer token Supabase, erreur avec statut HTTP).
 // Toutes les opérations DB du panneau devtools passent par l'API Go
 // (module superadmin /v1/devtools/*) — plus aucun Prisma.

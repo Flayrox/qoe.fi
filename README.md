@@ -52,7 +52,7 @@ The Single Source of Truth for logic, data, and configuration.
 - **`@qoe/config`**: Core environment variables mapping, global constants (ROLES, LIMITS), and Zod schema validations.
 - **`@qoe/auth`**: Strict RBAC (Role-Based Access Control) matrix (`permissions.ts`), user session validation, and mailer templates.
 - **`@qoe/supabase`**: Isomorphic Supabase client initialization handling complex Cookie behaviors for SSR, Middlewares, and client-side components.
-- **`@qoe/api-client`**: TanStack Query data layer encapsulating hooks, optimistic UI mutations (Like, Bookmark, Repost), and Server Action typings.
+- **`@qoe/sdk`**: TanStack Query data layer encapsulating hooks, optimistic UI mutations (Like, Bookmark, Repost), and Server Action typings.
 - **`@qoe/billing`**: Stripe Webhook handlers, subscription plans, and the server-side Paywall AST Truncation engine.
 - **`@qoe/ui`**: Shared UI components and Shadcn UI library implementations (Command Menus, Modals).
 - **`@qoe/theme`**: Centralized design tokens and CSS variable registries to enforce UI consistency across all apps.
@@ -123,7 +123,7 @@ pnpm prisma:studio     # Launch Prisma Studio GUI
 ## 🔒 Crucial Architectural Rules
 
 1. **Strict Single Source of Truth**: Data models exist only in `@qoe/db`. Do not replicate the Prisma schema.
-2. **Coupling Validation**: UI components must utilize shared logic via `packages/ui` and `packages/api-client`. Direct imports between `apps/` are strictly forbidden.
+2. **Coupling Validation**: UI components must utilize shared logic via `packages/ui` and `packages/sdk`. Direct imports between `apps/` are strictly forbidden.
 3. **Paywall Security**: Content truncation occurs explicitly at the Server Layer (`packages/billing/src/paywall/ast-truncation.ts`). Under no circumstances should premium content leak to the DOM for non-subscribers.
 4. **Optimistic UI Constraints**: Optimistic mutations (`useOptimisticLike`, etc.) must always include rigorous query-cancellation and rollback mechanisms on failure.
 

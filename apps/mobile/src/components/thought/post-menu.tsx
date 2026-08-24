@@ -21,7 +21,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { copyText } from '@/lib/clipboard';
 import { t } from '@/lib/i18n';
-import { feedKeys } from '@qoe/api-client/mobile';
+import { feedKeys } from '@qoe/sdk/mobile';
 import type { NormalizedThought } from './normalize';
 
 const ICON = {

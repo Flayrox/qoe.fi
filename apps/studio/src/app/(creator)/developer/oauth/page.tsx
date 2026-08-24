@@ -6,7 +6,7 @@
 // =====================================================================
 
 import { requireUser } from '@qoe/auth/current-user';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { listOAuthClientsAction } from './actions';
 import { OAuthAppsClient } from './OAuthAppsClient';
 

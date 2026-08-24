@@ -1,6 +1,6 @@
 import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { Highlighter, ExternalLink } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { ReaderPageLayout } from '@/components/layout/ReaderPageLayout';

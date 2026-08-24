@@ -3,7 +3,7 @@
 > **Backend unique** : `apps/api` (Go `chi/v5`, `sqlc` + `pgx/v5`, `asynq`, `pgvector`) — `apps/api/cmd/server/main.go:120` = source de vérité du routage.
 > **Dernière vérif code** : août 2026. Tous les exemples sont testés contre les handlers (`apps/api/internal/modules/*/handler.go`).
 > **2 APIs sur 1 backend** :
-> - **API App** (mobile `apps/mobile` + web) — JWT Supabase, `CombinedAuth` — `packages/api-client/src/client.ts:38`
+> - **API App** (mobile `apps/mobile` + web) — JWT Supabase, `CombinedAuth` — `packages/sdk/src/client.ts:38`
 > - **API Créateurs** (médias/CMS headless) — clés `qoe_live_*` + scopes — `docs/openapi/creators-api.yaml:1` + `VISION_CREATORS_API.md:1`
 
 ---
@@ -39,10 +39,10 @@
 400 {"error":"…"}  401 {"error":"…"} 403 {"error":"…"} 404 {"error":"…"} 500 {"error":"Internal Server Error"}
 429 {"error":"Trop de requêtes. Réessayez dans un instant."} + Retry-After
 // Certaines routes enveloppent {"data": …} (parité Hono). Le client officiel déplie auto :
-json.data !== undefined ? json.data : json   // packages/api-client/src/client.ts:102
+json.data !== undefined ? json.data : json   // packages/sdk/src/client.ts:102
 ```
 
-> **Côté mobile** `QoeApiClient.request()` retry GET/HEAD 3x avec backoff `400*2^(n)` sur `429`/`5xx` `packages/api-client/src/client.ts:55`.
+> **Côté mobile** `QoeApiClient.request()` retry GET/HEAD 3x avec backoff `400*2^(n)` sur `429`/`5xx` `packages/sdk/src/client.ts:55`.
 
 ### 0.4 Pagination — 3 dialectes
 
@@ -69,7 +69,7 @@ json.data !== undefined ? json.data : json   // packages/api-client/src/client.t
 
 ## 1. API App (mobile + web) — JWT / OptionalAuth
 
-> Consommée via `QoeApiClient` `packages/api-client/src/client.ts:38` (`baseUrl = window.location.origin` ou `http://localhost:8080`). Types : `packages/api-client/src/types.ts:1`.
+> Consommée via `QoeApiClient` `packages/sdk/src/client.ts:38` (`baseUrl = window.location.origin` ou `http://localhost:8080`). Types : `packages/sdk/src/types.ts:1`.
 
 ### 1.1 Health
 
@@ -97,7 +97,7 @@ const res = await fetch("http://localhost:8080/healthz").then(r=>r.json())
 **Auth** : `CombinedAuth` (login requis). **Handler** : `modules/feed/handler.go:104`.
 **Query** : `limit` 1-100 défaut 20, `cursor` offset défaut 0. `tab` ignoré (compat mobile).
 
-**Réponse** `200` (`FeedResult` `packages/api-client/src/types.ts:134`) :
+**Réponse** `200` (`FeedResult` `packages/sdk/src/types.ts:134`) :
 ```json
 {
   "items": [
@@ -130,7 +130,7 @@ const res = await fetch("http://localhost:8080/healthz").then(r=>r.json())
 curl -H "Authorization: Bearer $JWT" "http://localhost:8080/v1/feed?cursor=0&limit=20"
 ```
 ```ts
-import { createQoeApiClient } from "@qoe/api-client"
+import { createQoeApiClient } from "@qoe/sdk"
 const api = createQoeApiClient({ baseUrl:"http://localhost:8080", getAuthToken:()=>jwt })
 const { ok, data, error } = await api.getFeed({ cursor:"0", limit:20 })
 if(ok) console.log(data.items[0].targetPost.content)
@@ -209,7 +209,7 @@ await api.getProfileArticles("ada", { limit:10 })
 
 ### 1.3 Pensées (posts) — CRUD & interactions (`modules/posts/handler.go:337`)
 
-Toutes les shapes `FeedPost` = `Thought` unifiée (août 2026) `packages/api-client/src/types.ts:148` : plus de double shape `viewerLiked/viewerReposted`.
+Toutes les shapes `FeedPost` = `Thought` unifiée (août 2026) `packages/sdk/src/types.ts:148` : plus de double shape `viewerLiked/viewerReposted`.
 
 #### `POST /v1/posts` (alias `POST /v1/thoughts`)
 
@@ -1125,7 +1125,7 @@ curl -X POST -H "x-qoe-internal-secret: $QOE_INTERNAL_SECRET" -H "Content-Type: 
 
 ## 5. Shapes de référence (Go -> TS)
 
-### 5.1 `FeedPost` / `Thought` (unifiée) `packages/api-client/src/types.ts:93`
+### 5.1 `FeedPost` / `Thought` (unifiée) `packages/sdk/src/types.ts:93`
 
 ```json
 {
@@ -1156,9 +1156,9 @@ curl -X POST -H "x-qoe-internal-secret: $QOE_INTERNAL_SECRET" -H "Content-Type: 
 
 ### 5.3 `ArticleResponse` public (paywall complet)
 
-Voir §1.5 + `packages/api-client/src/types.ts:251` + `modules/articles/service.go`.
+Voir §1.5 + `packages/sdk/src/types.ts:251` + `modules/articles/service.go`.
 
-### 5.4 `Notification` groupée `packages/api-client/src/types.ts:438`
+### 5.4 `Notification` groupée `packages/sdk/src/types.ts:438`
 
 `type`: `LIKE|REPOST|REPLY|COMMENT|MENTION|FOLLOW|MEDIA_INVITE|MEDIA_MEMBER_JOINED|MEDIA_ARTICLE_PUBLISHED…` ; `senders:[]`, `thought|article|publication`, `totalCount`.
 
@@ -1169,7 +1169,7 @@ Voir §1.5 + `packages/api-client/src/types.ts:251` + `modules/articles/service.
 ### 6.1 App mobile — feed + like + reply (TS `QoeApiClient`)
 
 ```ts
-import { createQoeApiClient } from "@qoe/api-client"
+import { createQoeApiClient } from "@qoe/sdk"
 
 const api = createQoeApiClient({
   baseUrl: "http://localhost:8080",
@@ -1263,7 +1263,7 @@ Voir §3.1 flot PKCE complet + `docs/OAUTH_PROVIDER.md:106`.
 | Events internes | `apps/api/internal/modules/events/handler.go` | `queue/client.go` |
 | Middleware | `apps/api/internal/middleware/auth.go`, `apikey.go`, `ratelimit.go`, `middleware.go` | |
 | Router | `apps/api/cmd/server/main.go:120` | `router_integration_test.go` |
-| Client mobile | `packages/api-client/src/client.ts:38` | `types.ts`, `index.ts` |
+| Client mobile | `packages/sdk/src/client.ts:38` | `types.ts`, `index.ts` |
 | Contrat legacy | `docs/API_CONTRACT.md:1` | `docs/openapi/creators-api.yaml:1` |
 
 ---
@@ -1284,4 +1284,4 @@ Voir §3.1 flot PKCE complet + `docs/OAUTH_PROVIDER.md:106`.
 
 ---
 
-*Généré le 21 août 2026 — vérifié contre `apps/api/cmd/server/main.go:120` + `apps/api/internal/modules/*/handler.go` + `packages/api-client/src/client.ts:38`. Pour l'OpenAPI machine-readable : `docs/openapi/creators-api.yaml` (créateurs) + `docs/openapi/app-api.yaml` (app, nouveau).*
+*Généré le 21 août 2026 — vérifié contre `apps/api/cmd/server/main.go:120` + `apps/api/internal/modules/*/handler.go` + `packages/sdk/src/client.ts:38`. Pour l'OpenAPI machine-readable : `docs/openapi/creators-api.yaml` (créateurs) + `docs/openapi/app-api.yaml` (app, nouveau).*

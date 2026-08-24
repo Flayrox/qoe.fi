@@ -11,7 +11,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
-import type { BookmarkItem, MyHighlight } from '@qoe/api-client/mobile';
+import type { BookmarkItem, MyHighlight } from '@qoe/sdk/mobile';
 
 // =====================================================================
 // 📚 LibraryScreen — Bibliothèque (sauvegardés + surlignages)

@@ -1,5 +1,5 @@
 import { createClient } from '@qoe/supabase/server';
-import { getPostThreadAction } from '@qoe/api-client/actions/feed';
+import { getPostThreadAction } from '@qoe/sdk/actions/feed';
 import { getRequestDbUser } from '@/lib/cached-queries';
 import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';

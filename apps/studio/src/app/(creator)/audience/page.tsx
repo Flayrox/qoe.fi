@@ -7,7 +7,7 @@
 import { redirect } from 'next/navigation';
 import { requireUser } from '@qoe/auth/current-user';
 import { getActiveWorkspace } from '@/lib/active-workspace';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { AudienceClient, SubscriberItem } from './AudienceClient';
 
 interface SubscriberDTO {

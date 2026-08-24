@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { updateProfileAction as updateProfile } from '@qoe/api-client/actions/feed';
+import { updateProfileAction as updateProfile } from '@qoe/sdk/actions/feed';
 
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';

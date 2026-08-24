@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { routes } from '@qoe/config';
-import type { FeedArticleDTO } from '@qoe/api-client/types';
+import type { FeedArticleDTO } from '@qoe/sdk/types';
 import { useRequireAuth } from './auth/AuthModalContext';
 import { CertifiedBadge } from './ui/CertifiedBadge';
 import { SafeAvatar } from './SafeAvatar';

@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
   getCurrentUserWalletAction: vi.fn(),
 }));
 
-vi.mock('@qoe/api-client/actions/tenant', () => ({
+vi.mock('@qoe/sdk/actions/tenant', () => ({
   unlockArticleWithWalletAction: mocks.unlockArticleWithWalletAction,
   getCurrentUserWalletAction: mocks.getCurrentUserWalletAction,
 }));

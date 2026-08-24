@@ -1,7 +1,7 @@
 import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
 import Image from 'next/image';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { Wallet, CreditCard, ShieldX, ArrowRight, Receipt } from 'lucide-react';
 import { ReaderPageLayout } from '@/components/layout/ReaderPageLayout';
 

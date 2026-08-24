@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@qoe/supabase/client';
-import { feedKeys } from '@qoe/api-client';
-import type { ThoughtData } from '@qoe/api-client';
+import { feedKeys } from '@qoe/sdk';
+import type { ThoughtData } from '@qoe/sdk';
 
 export interface UseRealtimeFeedBufferOptions {
   enabled?: boolean;

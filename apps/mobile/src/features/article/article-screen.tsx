@@ -12,7 +12,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
-import { feedKeys } from '@qoe/api-client/mobile';
+import { feedKeys } from '@qoe/sdk/mobile';
 
 // =====================================================================
 // 📖 ArticleScreen — Lecteur d'article mobile (GET /v1/articles/{slug})

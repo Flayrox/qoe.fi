@@ -2,7 +2,7 @@
 // 🖥️ New Article Page — apps/studio/src/app/(creator)/articles/new/page.tsx
 // =====================================================================
 
-import { getCategoriesAction, getEditorCapabilitiesAction } from '@qoe/api-client/actions/articles';
+import { getCategoriesAction, getEditorCapabilitiesAction } from '@qoe/sdk/actions/articles';
 
 import { NewArticleClient } from './new-article-client';
 

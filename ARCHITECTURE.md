@@ -57,7 +57,7 @@ User Request -> Caddy Reverse Proxy
 
 ### Optimistic UI
 
-- **Mechanism:** Found in `@qoe/api-client/src/hooks/` (`useOptimisticLike`, `useOptimisticBookmark`, `useOptimisticFollow`).
+- **Mechanism:** Found in `@qoe/sdk/src/hooks/` (`useOptimisticLike`, `useOptimisticBookmark`, `useOptimisticFollow`).
 - **Safety Guarantee:** Implements explicit query cancellations (`cancelQueries`) and snapshot rollbacks to prevent UI state desync if a Supabase request fails or encounters a timeout.
 
 ---

@@ -3,7 +3,7 @@
 import { createClient as createServerClient } from '@qoe/supabase/server';
 import { revalidatePath } from 'next/cache';
 import DOMPurify from 'isomorphic-dompurify';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { getActivePublicationId } from '@/lib/active-workspace';
 
 async function getAuthenticatedCreator() {

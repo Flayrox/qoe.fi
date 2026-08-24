@@ -263,5 +263,5 @@ Postgres (collab_documents, état Yjs binaire) + autosave HTML (API Go)
 | `apps/dashboard/src/features/editor/components/Editor.tsx` | Éditeur TipTap + HocuspocusProvider + curseurs + seed post-sync |
 | `apps/collab-server/` | Serveur Hocuspocus : persistance Postgres + auth JWT + RBAC + factory testable |
 | `packages/workers/src/notification-email.ts` | Outbox email TS (à réécrire en Go ou brancher) |
-| `packages/api-client/src/actions/utils/go-client.ts` | Proxy fin web → Go (goFetch) |
+| `packages/sdk/src/actions/utils/go-client.ts` | Proxy fin web → Go (goFetch) |
 | `apps/feed/src/app/(reader)/[username]/components/ProfileView.tsx` | Profil web (épinglés, grille médias, partage, stats) |

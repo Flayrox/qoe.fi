@@ -4,7 +4,7 @@ import type { Mock } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { notificationKeys } from '@qoe/api-client';
+import { notificationKeys } from '@qoe/sdk';
 import { useRealtimeNotificationSync } from './useRealtimeNotificationSync';
 
 interface FakeRealtimeChannel {

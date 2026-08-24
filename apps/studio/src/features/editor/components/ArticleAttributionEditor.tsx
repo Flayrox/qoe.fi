@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { ArrowDown, ArrowUp, Search, UserRound, X } from 'lucide-react';
-import { searchArticleContributorsAction } from '@qoe/api-client/actions/articles';
+import { searchArticleContributorsAction } from '@qoe/sdk/actions/articles';
 import { cn } from '@qoe/utils';
 
 export type ArticleAttributionDraft = {

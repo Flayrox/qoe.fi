@@ -14,7 +14,7 @@
     "@base-ui/react": "^1.4.1",
     "@lingui/core": "6.6.0",
     "@qoe/analytics": "workspace:*",
-    "@qoe/api-client": "workspace:*",
+    "@qoe/sdk": "workspace:*",
     "@qoe/auth": "workspace:*",
     "@qoe/config": "workspace:*",
     "@qoe/flags": "workspace:*",

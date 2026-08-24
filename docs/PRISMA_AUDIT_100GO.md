@@ -127,7 +127,7 @@ champs que les lectures `prisma.user` / `prisma.subscriber` d'origine. La page
   `POST /v1/me/onboarding/complete` et `GET /v1/me/data-export`, le parcours
   lecteur n'a plus aucun `prisma.` ni import `@qoe/db` (Phase 3 core ✅).
 
-> ⚠️ **Complément** : l'audit au-delà de `apps/core` (packages/db, packages/api-client, studio,
+> ⚠️ **Complément** : l'audit au-delà de `apps/core` (packages/db, packages/sdk, studio,
 > admin) et les résidus indirects du chemin nominal (3 appels `@qoe/db/feed`/`onboarding` dans
 > `home/page.tsx`, `findFirstBySlug` dans `article/[slug]`) sont documentés dans
 > [`docs/PRISMA_AUDIT_BEYOND_CORE.md`](./PRISMA_AUDIT_BEYOND_CORE.md).

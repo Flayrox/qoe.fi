@@ -5,8 +5,8 @@ import {
   pinPostAction,
   unpinPostAction,
   toggleFollowCreatorHomeAction,
-} from '@qoe/api-client/actions/feed';
-import { useOptimisticFollow } from '@qoe/api-client/hooks/useOptimisticFollow';
+} from '@qoe/sdk/actions/feed';
+import { useOptimisticFollow } from '@qoe/sdk/hooks/useOptimisticFollow';
 import { toast } from 'sonner';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
 import { useThoughtThreadContext } from './ThoughtThreadContext';

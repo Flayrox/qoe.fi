@@ -2,7 +2,7 @@
 
 import { createClient as createServerClient } from '@qoe/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 async function getAuthenticatedUser() {
   const supabase = await createServerClient();

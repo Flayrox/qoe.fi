@@ -6,7 +6,7 @@ import { Lock, Wallet, Loader2, AlertCircle } from 'lucide-react';
 import {
   unlockArticleWithWalletAction as unlockArticleWithWallet,
   getCurrentUserWalletAction as getCurrentUser,
-} from '@qoe/api-client/actions/tenant';
+} from '@qoe/sdk/actions/tenant';
 
 import { cn } from '@qoe/utils';
 import { sanitizeHtml } from '@/lib/sanitize';

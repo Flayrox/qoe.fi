@@ -12,12 +12,7 @@ import { apiClient } from '@/lib/api';
 import { formatCount } from '@/lib/format';
 import { playHaptic } from '@/lib/haptics';
 import { t } from '@/lib/i18n';
-import {
-  updatePostShadow,
-  usePostShadow,
-  type ApiResult,
-  type PostShadow,
-} from '@qoe/api-client/mobile';
+import { updatePostShadow, usePostShadow, type ApiResult, type PostShadow } from '@qoe/sdk/mobile';
 
 // =====================================================================
 // ⚡ ThoughtActions — Barre d'actions Twitter / X (5 icônes vectorielles)

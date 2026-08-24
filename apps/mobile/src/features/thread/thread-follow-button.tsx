@@ -18,7 +18,7 @@ import { useMe } from '@/hooks/use-me';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
-import { userKeys } from '@qoe/api-client/mobile';
+import { userKeys } from '@qoe/sdk/mobile';
 
 export function ThreadFollowButton({
   authorId,

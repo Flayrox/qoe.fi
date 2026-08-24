@@ -18,7 +18,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
-import { notificationKeys } from '@qoe/api-client/mobile';
+import { notificationKeys } from '@qoe/sdk/mobile';
 
 export function NotificationsScreen() {
   const theme = useTheme();

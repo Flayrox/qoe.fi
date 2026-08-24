@@ -34,7 +34,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
-import { feedKeys } from '@qoe/api-client/mobile';
+import { feedKeys } from '@qoe/sdk/mobile';
 
 // Ancêtres visibles par défaut avant le repli « ReadMore » (Bluesky).
 const MAX_VISIBLE_ANCESTORS = 2;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { subscribeToNewsletterAction } from '@qoe/api-client/actions/tenant';
+import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 import { Loader2 } from 'lucide-react';
 
 interface SubscribeFormProps {

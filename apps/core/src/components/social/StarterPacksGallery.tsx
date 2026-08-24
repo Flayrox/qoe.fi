@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Sparkles, Loader2, Plus, Compass } from 'lucide-react';
-import { getStarterPacksAction, createStarterPackAction } from '@qoe/api-client';
+import { getStarterPacksAction, createStarterPackAction } from '@qoe/sdk';
 import { StarterPackCard, type StarterPackCardProps } from './StarterPackCard';
 
 export function StarterPacksGallery() {

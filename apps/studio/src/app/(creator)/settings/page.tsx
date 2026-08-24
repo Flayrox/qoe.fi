@@ -7,7 +7,7 @@
 
 import { redirect } from 'next/navigation';
 import { createClient } from '@qoe/supabase/server';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import VisualStudio, { CreatorProfile } from '@/features/settings/components/visual-studio';
 

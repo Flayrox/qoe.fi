@@ -9,7 +9,7 @@
 // =====================================================================
 
 import { revalidatePath } from 'next/cache';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 async function verifySuperadmin() {
   // Go vérifie le rôle superadmin sur chaque route admin (403 sinon).

@@ -3,7 +3,7 @@
 import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
 import { getSafeRedirectUrl } from '@qoe/utils';
-import { getCurrentUserAction, logoutAction } from '@qoe/api-client/actions/auth';
+import { getCurrentUserAction, logoutAction } from '@qoe/sdk/actions/auth';
 
 export async function login(formData: FormData) {
   const email = formData.get('email') as string;
@@ -31,7 +31,7 @@ export async function login(formData: FormData) {
 
   // Go (backend-of-record, requis en Phase 3) : GET /v1/me (profil + compteurs).
   // Un nouveau lecteur sans suivi ni mot masqué est dirigé vers l'onboarding.
-  const { goFetch } = await import('@qoe/api-client/actions/utils/go-client');
+  const { goFetch } = await import('@qoe/sdk/actions/utils/go-client');
   const profile = await goFetch<{
     id: string;
     role: string;

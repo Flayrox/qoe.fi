@@ -6,7 +6,7 @@ import {
   getArticleByIdAction,
   getCategoriesAction,
   getEditorCapabilitiesAction,
-} from '@qoe/api-client/actions/articles';
+} from '@qoe/sdk/actions/articles';
 
 import { EditArticleClient } from './edit-article-client';
 import { notFound } from 'next/navigation';

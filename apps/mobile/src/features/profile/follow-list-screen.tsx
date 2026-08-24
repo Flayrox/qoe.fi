@@ -23,7 +23,7 @@ import { useMe } from '@/hooks/use-me';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
-import { userKeys, type FollowActor } from '@qoe/api-client/mobile';
+import { userKeys, type FollowActor } from '@qoe/sdk/mobile';
 
 export type FollowTab = 'followers' | 'following';
 

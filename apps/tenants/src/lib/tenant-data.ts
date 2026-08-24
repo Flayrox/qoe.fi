@@ -11,7 +11,7 @@
 //   - GET /v1/home/onboarding                          (données du modal)
 // =====================================================================
 
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import type { AnnotationItem, HighlightItem } from '@qoe/ui/annotations';
 
 export interface TenantNavItem {

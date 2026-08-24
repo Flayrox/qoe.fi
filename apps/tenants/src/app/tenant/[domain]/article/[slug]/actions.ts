@@ -12,7 +12,7 @@ import {
   quotePassageToFeedAction,
   unlockArticleWithWalletAction,
   getCurrentUserWalletAction,
-} from '@qoe/api-client/actions/tenant';
+} from '@qoe/sdk/actions/tenant';
 
 export {
   createHighlightAction,
@@ -27,7 +27,7 @@ import {
   postArticleCommentAction as rawPostArticleComment,
   deleteArticleCommentAction as rawDeleteArticleComment,
   getArticleCommentsAction as rawGetArticleComments,
-} from '@qoe/api-client/actions/articles';
+} from '@qoe/sdk/actions/articles';
 
 export async function toggleFollowCreator(creatorId: string) {
   const res = await toggleFollowCreatorAction(creatorId);

@@ -1,5 +1,5 @@
 // =====================================================================
-// 🔌 Universal HTTP Client — @qoe/api-client
+// 🔌 Universal HTTP Client — @qoe/sdk
 // =====================================================================
 // 📖 Compatible avec le Web, Node.js et React Native / Mobile (Expo).
 // ⚠️ Utilisé principalement par le mobile (apps/mobile) pour appeler

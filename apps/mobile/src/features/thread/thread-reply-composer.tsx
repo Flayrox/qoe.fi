@@ -33,7 +33,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { playHaptic } from '@/lib/haptics';
 import { t } from '@/lib/i18n';
-import { feedKeys } from '@qoe/api-client/mobile';
+import { feedKeys } from '@qoe/sdk/mobile';
 
 const SPRING_PHYSICS = { damping: 20, stiffness: 240, mass: 0.5 };
 

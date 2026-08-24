@@ -9,7 +9,7 @@ import {
   getArticlesAction,
   getCategoriesAction,
   getEditorCapabilitiesAction,
-} from '@qoe/api-client/actions/articles';
+} from '@qoe/sdk/actions/articles';
 
 import { ArticlesClient } from './articles-client';
 

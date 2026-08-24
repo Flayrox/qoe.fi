@@ -143,7 +143,7 @@ qoe.fi/                              # 21 workspaces résolus
 │   ├── supabase/                    # 🔌 Clients d'authentification SSR
 │   ├── i18n/                        # 🌐 Helpers de traduction Lingui
 │   ├── analytics/                   # 📊 Événements et tracking
-│   ├── api-client/                  # 🔄 Couche de données TanStack Query + actions
+│   ├── sdk/                         # 🔄 Couche de données TanStack Query + actions
 │   ├── billing/                     # 💳 Logique Stripe abonnements
 │   ├── config/                      # ⚙️ Validation des variables d'environnement (Zod)
 │   ├── observability/               # 🔭 Logs structurés + Sentry centralisé

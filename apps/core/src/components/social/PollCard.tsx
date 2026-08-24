@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Check, Loader2 } from 'lucide-react';
-import { votePollAction } from '@qoe/api-client';
+import { votePollAction } from '@qoe/sdk';
 import { cn } from '@qoe/utils';
 
 export interface PollOption {

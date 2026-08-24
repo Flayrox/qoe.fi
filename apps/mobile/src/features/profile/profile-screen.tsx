@@ -5,7 +5,7 @@ import {
   feedKeys,
   useInfiniteFeed,
   userKeys,
-} from '@qoe/api-client/mobile';
+} from '@qoe/sdk/mobile';
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';

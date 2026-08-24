@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@qoe/supabase/server';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import type { MeProfile } from '@/lib/cached-queries';
 
 // ── Contrats des endpoints Go lecteur ────────────────────────────────────

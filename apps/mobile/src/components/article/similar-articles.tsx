@@ -8,8 +8,8 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
-import { feedKeys } from '@qoe/api-client/mobile';
-import type { SimilarArticle } from '@qoe/api-client/mobile';
+import { feedKeys } from '@qoe/sdk/mobile';
+import type { SimilarArticle } from '@qoe/sdk/mobile';
 
 // =====================================================================
 // 🧠 SimilarArticles — « À lire aussi » (recommandations sémantiques)

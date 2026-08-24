@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient as createServerClient } from '@qoe/supabase/server';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { revalidatePath } from 'next/cache';
 
 /**

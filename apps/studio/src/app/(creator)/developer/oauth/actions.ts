@@ -11,7 +11,7 @@
 import { createClient } from '@qoe/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { getActiveWorkspace } from '@/lib/active-workspace';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 export interface OAuthClientDTO {
   id: string;

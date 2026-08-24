@@ -1,5 +1,5 @@
 import { cache } from 'react';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 // GET /v1/me — profil lecteur Go (identité + compteurs bibliothèque).
 export interface MeProfile {

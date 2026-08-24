@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Loader2, ExternalLink, Search, Shield } from 'lucide-react';
-import { updateCreatorApiAccessAction } from '@qoe/api-client/actions/admin';
+import { updateCreatorApiAccessAction } from '@qoe/sdk/actions/admin';
 
 export interface ApiApplicant {
   id: string;

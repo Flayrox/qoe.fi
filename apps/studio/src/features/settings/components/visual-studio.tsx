@@ -34,7 +34,7 @@ import {
   updateSubdomainAction,
   saveNavigationLinksAction,
   saveSocialLinksAction,
-} from '@qoe/api-client/actions/dashboard';
+} from '@qoe/sdk/actions/dashboard';
 
 // =====================================================================
 // 🎨 TYPES & DATA DEFINITIONS
