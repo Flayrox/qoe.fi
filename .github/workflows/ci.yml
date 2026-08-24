@@ -122,6 +122,14 @@ jobs:
           check "internal/modules/posts" 35
           check "internal/modules/search" 55
           check "internal/workers" 60
+          # Modules couverts lors de la campagne P3 (2026-08) : gains
+          # verrouillés — une baisse doit s'accompagner de nouveaux tests.
+          check "internal/modules/notifications" 52
+          check "internal/modules/events" 78
+          check "internal/modules/workspaces" 52
+          check "internal/modules/creator" 30
+          check "internal/modules/highlights" 54
+          check "internal/modules/analytics" 38
         env:
           TESTCONTAINERS_RYUK_DISABLED: 'true'
 
