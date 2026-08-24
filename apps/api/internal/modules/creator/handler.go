@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -297,12 +298,64 @@ func (h *Handler) userMe(w http.ResponseWriter, r *http.Request) {
 	row, err := h.q.GetUserByIDFull(r.Context(), userID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			response.NotFound(w, "User not found")
+			// JIT Auto-provisioning : si l'utilisateur est authentifié via Supabase Auth
+			// mais que la ligne User n'est pas encore créée dans la base PostgreSQL locale,
+			// on la provisionne automatiquement pour auto-guérir le compte.
+			claims := middleware.Claims(r.Context())
+			email, _ := claims["email"].(string)
+			meta, _ := claims["user_metadata"].(map[string]any)
+			name := "Utilisateur"
+			username := "user"
+			if meta != nil {
+				if n, ok := meta["full_name"].(string); ok && n != "" {
+					name = n
+				} else if n, ok := meta["name"].(string); ok && n != "" {
+					name = n
+				}
+				if u, ok := meta["username"].(string); ok && u != "" {
+					username = u
+				}
+			}
+			if email != "" && username == "user" {
+				username = strings.Split(email, "@")[0]
+			}
+			if email != "" && name == "Utilisateur" {
+				name = strings.Title(strings.Split(email, "@")[0])
+			}
+
+			// Provisionne la publication personnelle et la ligne User
+			pubID := "pub_" + strings.ReplaceAll(userID, "-", "")
+			if len(pubID) > 36 {
+				pubID = pubID[:36]
+			}
+			slugVal := slug.Slugify(username)
+			if slugVal == "" {
+				slugVal = "user"
+			}
+
+			_, _ = h.pool.Exec(r.Context(), `
+				INSERT INTO "Publication" (id, type, name, slug, subdomain, "createdAt", "updatedAt")
+				VALUES ($1, 'PERSONAL', $2, $3, $3, now(), now())
+				ON CONFLICT (id) DO NOTHING`, pubID, name, slugVal)
+
+			_, _ = h.pool.Exec(r.Context(), `
+				INSERT INTO "User" (id, email, name, username, role, "publicationId", "createdAt", "updatedAt")
+				VALUES ($1, $2, $3, $4, 'user', $5, now(), now())
+				ON CONFLICT (id) DO UPDATE SET email = $2, name = $3, username = $4, "publicationId" = $5, "updatedAt" = now()`,
+				toUUID(userID), email, name, username, pubID)
+
+			// Re-fetch de la ligne fraîchement créée
+			row, err = h.q.GetUserByIDFull(r.Context(), userID)
+			if err != nil {
+				log.Printf("[creator] userMe auto-provision failed: %v", err)
+				response.NotFound(w, "User not found")
+				return
+			}
+		} else {
+			log.Printf("[creator] userMe: %v", err)
+			response.Internal(w)
 			return
 		}
-		log.Printf("[creator] userMe: %v", err)
-		response.Internal(w)
-		return
 	}
 
 	following, err := h.q.CountFollowing(r.Context(), toUUID(userID))
