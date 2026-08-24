@@ -1,19 +1,21 @@
 import * as WebBrowser from 'expo-web-browser';
 import { router, usePathname } from 'expo-router';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
-import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useDrawer } from '@/components/drawer/drawer-context';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/thought/avatar';
-import { ActionSheet } from '@/components/ui/action-sheet';
+import { ActionSheet, type ActionSheetGroup } from '@/components/ui/action-sheet';
 import { Toast } from '@/components/ui/toast';
 import { Spacing } from '@/constants/theme';
+import { AddAccountModal } from '@/features/auth/add-account-modal';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useMe } from '@/hooks/use-me';
 import { useTheme } from '@/hooks/use-theme';
+import { playHaptic } from '@/lib/haptics';
 import { t } from '@/lib/i18n';
 
 interface NavItem {
@@ -27,18 +29,47 @@ interface NavItem {
 export function Sidebar() {
   const theme = useTheme();
   const pathname = usePathname();
+  const { width } = useWindowDimensions();
   const { closeDrawer } = useDrawer();
-  const { session, signOut } = useAuth();
+  const {
+    session,
+    signOut,
+    savedAccounts,
+    switchAccount,
+    removeAccount,
+    updateCurrentAccountMeta,
+  } = useAuth();
   const { data: me } = useMe();
+
+  const sidebarWidth = width * 0.72;
 
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [walletSheetOpen, setWalletSheetOpen] = useState(false);
+  const [addAccountModalOpen, setAddAccountModalOpen] = useState(false);
+  const [addAccountMode, setAddAccountMode] = useState<'signin' | 'signup'>('signin');
 
   const user = session?.user;
+  const currentUserId = user?.id;
   const fullName = me?.name || (user?.user_metadata?.full_name as string | undefined);
   const username = me?.username || (user?.user_metadata?.username as string | undefined);
-  const profileHandle = username || user?.email?.split('@')[0] || 'me';
+  const profileHandle = username || me?.publicationId || user?.id || 'me';
+  const displayHandle = username || user?.email?.split('@')[0] || 'me';
   const displayName = fullName || username || user?.email?.split('@')[0] || 'Utilisateur';
+
+  // Synchroniser les métadonnées complètes du compte actuel (avatar, certif, name)
+  useEffect(() => {
+    if (me && session) {
+      updateCurrentAccountMeta({
+        name: me.name || undefined,
+        username: me.username || undefined,
+        avatarUrl: me.logoUrl || undefined,
+        isCertified: me.isCertified,
+      });
+    }
+  }, [me, session, updateCurrentAccountMeta]);
+
+  // Autres comptes enregistrés (excluant le compte actif)
+  const secondaryAccounts = savedAccounts.filter((a) => a.id !== currentUserId);
 
   const followingCount = me?.stats?.followingCount ?? 0;
   const followersCount = me?.stats?.followersCount ?? 0;
@@ -68,6 +99,14 @@ export function Sidebar() {
   const openSupport = () => {
     closeDrawer();
     void WebBrowser.openBrowserAsync('https://qoe.fi/support');
+  };
+
+  const handleSwitchAccount = async (targetId: string) => {
+    playHaptic('Light');
+    const success = await switchAccount(targetId);
+    if (!success) {
+      Toast.show(t('account.switch_error', 'Impossible de basculer sur ce compte'), 'error');
+    }
   };
 
   const mainItems: NavItem[] = [
@@ -115,9 +154,91 @@ export function Sidebar() {
     },
   ];
 
+  // Groupes pour l'ActionSheet des comptes (style X)
+  const accountActionGroups: ActionSheetGroup[] = [
+    {
+      // Liste de tous les comptes enregistrés
+      items: savedAccounts.map((acc) => {
+        const isCurrent = acc.id === currentUserId;
+        return {
+          key: `acc_${acc.id}`,
+          label: `${acc.name} (@${acc.username})`,
+          icon: {
+            ios: isCurrent ? 'checkmark.circle.fill' : 'circle',
+            android: isCurrent ? 'check_circle' : 'radio_button_unchecked',
+            web: isCurrent ? 'check_circle' : 'radio_button_unchecked',
+          },
+          right: acc.avatarUrl ? (
+            <Avatar
+              user={{ name: acc.name, username: acc.username, logoUrl: acc.avatarUrl }}
+              sizeNumber={24}
+              showCertified={acc.isCertified}
+            />
+          ) : undefined,
+          onPress: () => {
+            setAccountMenuOpen(false);
+            if (!isCurrent) {
+              void handleSwitchAccount(acc.id);
+            }
+          },
+        };
+      }),
+    },
+    {
+      items: [
+        {
+          key: 'add_existing_account',
+          label: t('account.add_existing_btn', 'Ajouter un compte existant'),
+          icon: { ios: 'plus', android: 'add', web: 'add' },
+          onPress: () => {
+            setAccountMenuOpen(false);
+            setAddAccountMode('signin');
+            setAddAccountModalOpen(true);
+          },
+        },
+        {
+          key: 'create_new_account',
+          label: t('account.create_new_btn', 'Créer un nouveau compte'),
+          icon: { ios: 'person.badge.plus', android: 'person_add', web: 'person_add' },
+          onPress: () => {
+            setAccountMenuOpen(false);
+            setAddAccountMode('signup');
+            setAddAccountModalOpen(true);
+          },
+        },
+      ],
+    },
+    {
+      items: [
+        {
+          key: 'sign_out_current',
+          label: t('auth.sign_out_user', 'Se déconnecter de @%{handle}', {
+            handle: profileHandle,
+          }),
+          destructive: true,
+          icon: {
+            ios: 'rectangle.portrait.and.arrow.right',
+            android: 'logout',
+            web: 'logout',
+          },
+          onPress: () => {
+            setAccountMenuOpen(false);
+            if (currentUserId) {
+              void removeAccount(currentUserId);
+            } else {
+              void signOut();
+            }
+          },
+        },
+      ],
+    },
+  ];
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.sidebar }]}>
-      {/* ─── En-tête : Avatar principal, switchers médias/comptes & Options ─── */}
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.sidebar, width: sidebarWidth }]}
+    >
+      {/* ─── En-tête : Avatar principal + Mini-avatars des autres comptes & bouton ⋯ (façon X) ─── */}
       <View style={styles.topRow}>
         <Pressable onPress={openProfile} hitSlop={8}>
           <Avatar
@@ -126,44 +247,47 @@ export function Sidebar() {
               username: profileHandle,
               logoUrl: me?.logoUrl || (user?.user_metadata?.avatar_url as string | undefined),
             }}
-            sizeNumber={42}
+            sizeNumber={44}
             showCertified={me?.isCertified}
           />
         </Pressable>
 
-        {/* Switchers médias/comptes associés + Bouton menu ⋯ */}
+        {/* Switchers rapides des comptes secondaires + Bouton menu ⋯ */}
         <View style={styles.accountSwitchersRow}>
-          {/* Si d'autres publications ou médias sont liés, on affiche leurs bulles d'accès rapide */}
-          {me?.publicationId ? (
+          {secondaryAccounts.slice(0, 2).map((acc) => (
             <Pressable
-              onPress={openProfile}
-              style={({ pressed }) => [
-                styles.mediaMiniBadge,
-                {
-                  backgroundColor: theme.backgroundElement,
-                  borderColor: theme.border,
-                  opacity: pressed ? 0.6 : 1,
-                },
-              ]}
-              hitSlop={4}
+              key={acc.id}
+              onPress={() => handleSwitchAccount(acc.id)}
+              style={({ pressed }) => [styles.secondaryAvatarWrap, { opacity: pressed ? 0.6 : 1 }]}
+              hitSlop={6}
             >
-              <ThemedText style={styles.mediaMiniBadgeText}>
-                {displayName.slice(0, 2).toUpperCase()}
-              </ThemedText>
+              <Avatar
+                user={{
+                  name: acc.name,
+                  username: acc.username,
+                  logoUrl: acc.avatarUrl,
+                }}
+                sizeNumber={32}
+                showCertified={acc.isCertified}
+              />
             </Pressable>
-          ) : null}
+          ))}
 
+          {/* Bouton Options / Gestion des comptes ⋯ */}
           <Pressable
-            onPress={() => setAccountMenuOpen(true)}
+            onPress={() => {
+              playHaptic('Light');
+              setAccountMenuOpen(true);
+            }}
             hitSlop={8}
             style={({ pressed }) => [
               styles.optionsButton,
-              { backgroundColor: pressed ? theme.backgroundSelected : 'transparent' },
+              { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
             ]}
           >
             <SymbolView
-              name={{ ios: 'ellipsis.circle', android: 'more_horiz', web: 'more_horiz' }}
-              size={24}
+              name={{ ios: 'ellipsis', android: 'more_horiz', web: 'more_horiz' }}
+              size={18}
               tintColor={theme.text}
               weight="medium"
             />
@@ -184,7 +308,7 @@ export function Sidebar() {
           ) : null}
         </View>
         <ThemedText style={[styles.handle, { color: theme.textSecondary }]} numberOfLines={1}>
-          @{profileHandle}
+          @{displayHandle}
         </ThemedText>
       </Pressable>
 
@@ -292,63 +416,12 @@ export function Sidebar() {
         ))}
       </View>
 
-      {/* ─── ActionSheet : Gestion de compte & Médias ─── */}
+      {/* ─── ActionSheet : Gestion de comptes façon X ─── */}
       <ActionSheet
         visible={accountMenuOpen}
-        title={displayName}
+        title={t('account.accounts_title', 'Comptes')}
         onClose={() => setAccountMenuOpen(false)}
-        groups={[
-          {
-            items: [
-              {
-                key: 'profile',
-                label: t('sidebar.view_profile', 'Voir mon profil (@%{handle})', {
-                  handle: profileHandle,
-                }),
-                icon: {
-                  ios: 'person.crop.circle',
-                  android: 'account_circle',
-                  web: 'account_circle',
-                },
-                onPress: () => {
-                  setAccountMenuOpen(false);
-                  openProfile();
-                },
-              },
-              {
-                key: 'switch_account',
-                label: t('sidebar.switch_media', 'Changer de média / compte…'),
-                icon: { ios: 'arrow.left.arrow.right', android: 'swap_horiz', web: 'swap_horiz' },
-                onPress: () => {
-                  setAccountMenuOpen(false);
-                  Toast.show(
-                    t('sidebar.media_switch_info', 'Gestion multi-médias activée'),
-                    'info'
-                  );
-                },
-              },
-            ],
-          },
-          {
-            items: [
-              {
-                key: 'sign_out',
-                label: t('auth.sign_out', 'Se déconnecter'),
-                destructive: true,
-                icon: {
-                  ios: 'rectangle.portrait.and.arrow.right',
-                  android: 'logout',
-                  web: 'logout',
-                },
-                onPress: () => {
-                  setAccountMenuOpen(false);
-                  closeDrawer();
-                  void signOut();
-                },
-              },
-            ],
-          },
-        ]}
+        groups={accountActionGroups}
       />
 
       {/* ─── ActionSheet : Portefeuille ─── */}
@@ -379,6 +452,13 @@ export function Sidebar() {
           },
         ]}
       />
+
+      {/* ─── Modale d'ajout de compte existant / création ─── */}
+      <AddAccountModal
+        visible={addAccountModalOpen}
+        initialMode={addAccountMode}
+        onClose={() => setAddAccountModalOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -399,24 +479,15 @@ const styles = StyleSheet.create({
   accountSwitchersRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: 10,
   },
-  mediaMiniBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mediaMiniBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
+  secondaryAvatarWrap: {
+    padding: 2,
   },
   optionsButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },

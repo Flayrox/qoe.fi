@@ -108,7 +108,7 @@ export function ProfileScreen({
     }
   };
 
-  const isPending = profilePending && postsPending;
+  const isPending = profilePending;
 
   if (isPending) {
     return (
@@ -123,7 +123,7 @@ export function ProfileScreen({
       <SafeAreaView style={styles.center}>
         <ThemedText type="small">{t('profile.not_found', 'Profil introuvable')}</ThemedText>
         {onNavigateBack ? (
-          <Pressable onPress={onNavigateBack}>
+          <Pressable onPress={onNavigateBack} hitSlop={8} style={{ padding: 8 }}>
             <ThemedText type="small" style={{ color: theme.primary }}>
               {t('common.back', 'Retour')}
             </ThemedText>
