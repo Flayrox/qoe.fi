@@ -454,6 +454,97 @@ export interface NotificationResult {
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// DTOs canoniques web — hérités des pages lecteur/tenant
+// ─────────────────────────────────────────────────────────────────────
+
+/** 📰 DTO Publication (identité brand polymorphe : personnel OU média). */
+export interface PublicationDTO {
+  id: string;
+  type: 'PERSONAL' | 'MEDIA';
+  name: string | null;
+  slug: string;
+  username: string | null; // Alias de slug (compat feed)
+  subdomain: string | null;
+  customDomain: string | null;
+  logoUrl: string | null;
+  heroText: string | null;
+  bio?: string | null;
+  isCertified?: boolean;
+}
+
+/** 👤 Contributeur d'article (byline « Par Sophie • Médium »). */
+export interface ArticleContributorDTO {
+  id: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  isCertified?: boolean;
+  role?: string;
+  order?: number;
+  isVisible?: boolean;
+  consentStatus?: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN' | 'REVOKED' | string;
+  categoryId?: string | null;
+  categorySlug?: string | null;
+}
+
+export interface CreatorProfileDTO {
+  id: string;
+  name: string | null;
+  username: string | null;
+  subdomain: string | null;
+  customDomain: string | null;
+  logoUrl: string | null;
+  heroText: string | null;
+  isCertified?: boolean;
+  type?: 'PERSONAL' | 'MEDIA';
+  authorName?: string | null;
+  journalist?: ArticleContributorDTO | null;
+  coAuthors?: ArticleContributorDTO[];
+  contributors?: ArticleContributorDTO[];
+}
+
+/** 📚 DTO Article de Feed (contrat web des pages lecteur). */
+export interface FeedArticleDTO {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  imageUrl?: string | null;
+  published: boolean;
+  isPremium: boolean;
+  readingTime: number;
+  createdAt: Date | string;
+  author: CreatorProfileDTO;
+  category: { name: string } | null;
+  tags?: string[];
+  contributors?: ArticleContributorDTO[];
+  likesCount?: number;
+  repliesCount?: number;
+  liked?: boolean;
+}
+
+/** 🔗 Lien de navigation d'un tenant (hiérarchique). */
+export interface NavigationItem {
+  id: string;
+  label: string;
+  url: string | null;
+  order: number;
+  isExternal: boolean;
+  publicationId: string;
+  parentId: string | null;
+  children?: NavigationItem[];
+}
+
+/** 🌐 Lien réseau social d'un tenant. */
+export interface SocialLink {
+  id: string;
+  platform: string;
+  url: string;
+  order: number;
+  publicationId: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Legacy (web) — conservé pour compatibilité
 // ─────────────────────────────────────────────────────────────────────
 

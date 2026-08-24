@@ -14,7 +14,7 @@
     "@lingui/core": "6.6.0",
     "@qoe/analytics": "workspace:*",
     "@qoe/config": "workspace:*",
-    "@qoe/db": "workspace:*",
+    "@qoe/devtools": "workspace:*",
     "@qoe/flags": "workspace:*",
     "@qoe/i18n": "workspace:*",
     "@qoe/observability": "workspace:^",

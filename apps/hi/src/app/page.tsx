@@ -14,12 +14,16 @@ import { FeaturedPublications } from '@/components/landing/FeaturedPublications'
 import { CTA } from '@/components/landing/CTA';
 
 import { unstable_cache } from 'next/cache';
-import { prisma } from '@qoe/db/client';
 
+// Go-first : GET /v1/home/config (public) — map clé → valeur des SystemConfig.
 const getCachedSystemConfig = unstable_cache(
   async () => {
-    const configs = await prisma.systemConfig.findMany();
-    return Object.fromEntries(configs.map((c) => [c.key, c.value]));
+    const res = await fetch(`${process.env.QOE_API_URL}/v1/home/config`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return {};
+    const data = (await res.json()) as Record<string, string>;
+    return data ?? {};
   },
   ['system-config'],
   {

@@ -1,7 +1,6 @@
 import React from 'react';
 import { cookies, headers } from 'next/headers';
 import { createClient } from '@qoe/supabase/server';
-import { prisma } from '@qoe/db/client';
 import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import { logout } from '@/app/login/actions';
 import { t } from '@lingui/core/macro';
@@ -78,26 +77,11 @@ export async function AppSidebar() {
       mediaBrandName = workspaces.medias.find((m) => m.id === activeMediaId)?.name ?? null;
     }
   } catch {
-    // 🐢 Fallback dev (sans QOE_API_URL) : Prisma.
-    dbUser = authUser
-      ? await prisma.user.findUnique({
-          where: { id: authUser.id },
-        })
-      : null;
-
-    unreadCount = dbUser
-      ? await prisma.notification.count({ where: { recipientId: dbUser.id, isRead: false } })
-      : 0;
-
-    if (activeMediaId && dbUser) {
-      const member = await prisma.mediaMember.findFirst({
-        where: { mediaId: activeMediaId, userId: dbUser.id },
-        include: { media: { include: { publication: { select: { name: true } } } } },
-      });
-      if (member) {
-        mediaBrandName = member.media.publication.name;
-      }
-    }
+    // Erreur Go (API indisponible / non connecté) → le sidebar retombe sur
+    // les métadonnées Supabase du user ; compteurs à zéro.
+    dbUser = null;
+    unreadCount = 0;
+    mediaBrandName = null;
   }
 
   const userEmail = dbUser?.email || authUser?.email || 'hello@qoe.fi';

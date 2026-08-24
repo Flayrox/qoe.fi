@@ -1,10 +1,9 @@
 'use server';
 
 import { createClient as createServerClient } from '@qoe/supabase/server';
-import { prisma } from '@qoe/db/client';
 import { revalidatePath } from 'next/cache';
 import DOMPurify from 'isomorphic-dompurify';
-import { goFetch, isGoEnabled } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import { getActivePublicationId } from '@/lib/active-workspace';
 
 async function getAuthenticatedCreator() {
@@ -14,10 +13,7 @@ async function getAuthenticatedCreator() {
   } = await supabase.auth.getUser();
   if (!authUser) throw new Error('Non authentifié');
 
-  const dbUser = await prisma.user.findUnique({ where: { id: authUser.id } });
-  if (!dbUser) throw new Error('Utilisateur introuvable');
-
-  return dbUser;
+  return authUser;
 }
 
 /**
@@ -122,43 +118,12 @@ export async function importRssFeedAction(rssUrl: string) {
       });
     }
 
-    let importedArticlesCount = 0;
-
-    if (isGoEnabled()) {
-      // 🚀 Go-first : création dédupliquée (par publicationId + slug) côté Go.
-      const resp = await goFetch<{ importedCount: number }>('/v1/import/articles', {
-        method: 'POST',
-        body: { publicationId, articles },
-      });
-      importedArticlesCount = resp.importedCount ?? 0;
-    } else {
-      // Fallback dev (sans QOE_API_URL) : dédup + création Prisma.
-      for (const art of articles) {
-        const existing = await prisma.article
-          .findUnique({
-            where: {
-              publicationId_slug: { publicationId, slug: art.slug },
-            },
-          })
-          .catch(() => null);
-
-        if (!existing) {
-          await prisma.article.create({
-            data: {
-              title: art.title,
-              slug: art.slug,
-              content: art.content,
-              published: true,
-              visibility: 'PUBLIC',
-              authorId: creator.id,
-              publicationId,
-              readingTime: art.readingTime,
-            },
-          });
-          importedArticlesCount++;
-        }
-      }
-    }
+    // 🚀 Go-first : création dédupliquée (par publicationId + slug) côté Go.
+    const resp = await goFetch<{ importedCount: number }>('/v1/import/articles', {
+      method: 'POST',
+      body: { publicationId, articles },
+    });
+    const importedArticlesCount = resp.importedCount ?? 0;
 
     revalidatePath('/articles');
     return { success: true, count: importedArticlesCount };

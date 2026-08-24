@@ -25,7 +25,7 @@ import {
   addMockFundsAction,
   impersonateLoginAction,
   logoutAction,
-} from '@qoe/db/devtools';
+} from '@qoe/devtools';
 
 // CSS global unifié — source unique dans @qoe/theme
 import '@qoe/theme/styles';

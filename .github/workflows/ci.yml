@@ -34,12 +34,6 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --fetch-timeout 600000
 
-      - name: Generate Prisma Client
-        run: pnpm prisma:generate
-        env:
-          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
-          DIRECT_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
-
       - name: Typecheck Monorepo
         run: pnpm typecheck
 

@@ -19,10 +19,20 @@ type ctxKey string
 
 const UserIDKey ctxKey = "userId"
 
+// ClaimsKey porte les claims JWT Supabase complets (sub, email,
+// user_metadata…) — utilisé par POST /v1/me/sync pour créer la ligne User.
+const ClaimsKey ctxKey = "claims"
+
 // UserID extrait l'UID Supabase du contexte.
 func UserID(ctx context.Context) (string, bool) {
 	id, ok := ctx.Value(UserIDKey).(string)
 	return id, ok
+}
+
+// Claims extrait les claims JWT du contexte (nil si absents).
+func Claims(ctx context.Context) map[string]any {
+	c, _ := ctx.Value(ClaimsKey).(map[string]any)
+	return c
 }
 
 // Auth est un validateur de jetons Supabase (RS256/ES256 via JWKS, fallback HS256).
@@ -78,6 +88,7 @@ func (a *Auth) OptionalAuth(next http.Handler) http.Handler {
 		}
 		if sub, ok := claims["sub"].(string); ok && sub != "" {
 			ctx := context.WithValue(r.Context(), UserIDKey, sub)
+			ctx = context.WithValue(ctx, ClaimsKey, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		} else {
 			next.ServeHTTP(w, r)
@@ -138,6 +149,7 @@ func (a *Auth) Middleware(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), UserIDKey, sub)
+		ctx = context.WithValue(ctx, ClaimsKey, claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

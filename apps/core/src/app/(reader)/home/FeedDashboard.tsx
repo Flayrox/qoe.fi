@@ -541,7 +541,7 @@ export function FeedDashboard({
     try {
       const res = await getArticleThread(slug);
       if (res.ok && res.data?.article) {
-        setActiveArticle(res.data.article);
+        setActiveArticle(res.data.article as unknown as Article);
       } else {
         window.location.href = routes.feed.article(slug);
       }

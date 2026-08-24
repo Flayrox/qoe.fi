@@ -11,10 +11,9 @@
 // ⚠️ Fichier serveur — non exposé au mobile.
 // =====================================================================
 
-import { prisma } from '@qoe/db/client';
-import { bookmarks, highlights, posts, wallet } from '@qoe/db';
 import { safeAction } from '../utils/safe-action';
 import { goFetch } from '../utils/go-client';
+import type { HighlightDTO, AnnotationCommentDTO } from '../highlights';
 
 export const subscribeToNewsletterAction = safeAction<
   { email: string; publicationId: string },
@@ -27,33 +26,12 @@ export const subscribeToNewsletterAction = safeAction<
       throw new Error('Veuillez saisir une adresse email valide.');
     }
 
-    // Go en primaire (POST /v1/home/subscribe, idempotent) — fallback Prisma.
-    try {
-      await goFetch<{ success: boolean }>('/v1/home/subscribe', {
-        method: 'POST',
-        body: JSON.stringify({ email: cleanEmail, publicationId }),
-      });
-      return { success: true };
-    } catch {
-      await prisma.subscriber.upsert({
-        where: {
-          email_publicationId: {
-            email: cleanEmail,
-            publicationId,
-          },
-        },
-        update: {
-          isActive: true,
-        },
-        create: {
-          publicationId,
-          email: cleanEmail,
-          isActive: true,
-        },
-      });
-
-      return { success: true };
-    }
+    // Go-only : POST /v1/home/subscribe (idempotent, backend-of-record).
+    await goFetch<{ success: boolean }>('/v1/home/subscribe', {
+      method: 'POST',
+      body: JSON.stringify({ email: cleanEmail, publicationId }),
+    });
+    return { success: true };
   },
   { requireAuth: false }
 );
@@ -69,59 +47,77 @@ export const toggleFollowCreatorAction = safeAction<string, { followed: boolean 
 );
 
 export const toggleBookmarkArticleAction = safeAction<string, { bookmarked: boolean }>(
-  async (articleId, user) => {
-    return bookmarks.toggleBookmark(user.id, articleId);
+  async (articleId) => {
+    // Go-only : ToggleBookmark cible les articles (miroir Hono targetId).
+    const res = await goFetch<{ bookmarked: boolean }>(
+      `/v1/posts/${encodeURIComponent(articleId)}/bookmark`,
+      { method: 'POST' }
+    );
+    return { bookmarked: res.bookmarked };
   }
 );
 
 export const createHighlightAction = safeAction<
   { articleId: string; text: string; note?: string; isPublic?: boolean },
-  Awaited<ReturnType<typeof highlights.createHighlight>>
->(async (data, user) => {
+  { highlight: HighlightDTO }
+>(async (data) => {
   const { articleId, text, note, isPublic = true } = data;
-  return highlights.createHighlight({
-    articleId,
-    readerId: user.id,
-    text,
-    note: note || null,
-    isPublic,
-  });
+  const highlight = await goFetch<HighlightDTO>(
+    `/v1/articles/${encodeURIComponent(articleId)}/highlights`,
+    { method: 'POST', body: { text, note: note || null, isPublic } }
+  );
+  return { highlight };
 });
 
 export const toggleHighlightPrivacyAction = safeAction<
   { highlightId: string; isPublic: boolean },
-  Awaited<ReturnType<typeof highlights.toggleHighlightPrivacy>>
->(async (data, user) => {
-  return highlights.toggleHighlightPrivacy(data.highlightId, user.id, data.isPublic);
+  { highlight: HighlightDTO }
+>(async (data) => {
+  const highlight = await goFetch<HighlightDTO>(
+    `/v1/highlights/${encodeURIComponent(data.highlightId)}`,
+    { method: 'PATCH', body: { isPublic: data.isPublic } }
+  );
+  return { highlight };
 });
 
 export const updateHighlightNoteAction = safeAction<
   { highlightId: string; note: string | null },
-  Awaited<ReturnType<typeof highlights.updateHighlightNote>>
->(async (data, user) => {
-  return highlights.updateHighlightNote(data.highlightId, user.id, data.note);
+  { highlight: HighlightDTO }
+>(async (data) => {
+  const highlight = await goFetch<HighlightDTO>(
+    `/v1/highlights/${encodeURIComponent(data.highlightId)}`,
+    { method: 'PATCH', body: { note: data.note } }
+  );
+  return { highlight };
 });
 
 export const upvoteHighlightAction = safeAction<
   string,
-  Awaited<ReturnType<typeof highlights.upvoteHighlight>>
->(async (highlightId, user) => {
-  return highlights.upvoteHighlight(highlightId, user.id);
+  { upvotesCount: number; hasUpvoted: boolean }
+>(async (highlightId) => {
+  const res = await goFetch<{ upvoted: boolean; upvotesCount: number }>(
+    `/v1/highlights/${encodeURIComponent(highlightId)}/upvote`,
+    { method: 'POST' }
+  );
+  return { upvotesCount: res.upvotesCount ?? 0, hasUpvoted: res.upvoted ?? false };
 });
 
 export const deleteHighlightAction = safeAction<string, { success: boolean }>(
-  async (highlightId, user) => {
-    const deleted = await highlights.deleteHighlight(highlightId, user.id);
-    if (!deleted) throw new Error('UNAUTHORIZED');
+  async (highlightId) => {
+    await goFetch(`/v1/highlights/${encodeURIComponent(highlightId)}`, { method: 'DELETE' });
     return { success: true };
   }
 );
 
 export const createAnnotationCommentAction = safeAction<
   { highlightId: string; content: string },
-  Awaited<ReturnType<typeof highlights.createAnnotationComment>>
->(async (data, user) => {
-  return highlights.createAnnotationComment(data.highlightId, user.id, data.content);
+  { comment: AnnotationCommentDTO }
+>(async (data) => {
+  const comment = await goFetch<AnnotationCommentDTO>(
+    `/v1/highlights/${encodeURIComponent(data.highlightId)}/comments`,
+    { method: 'POST', body: { content: data.content } }
+  );
+  return { comment };
 });
 
 export interface QuotePassageInput {
@@ -130,26 +126,22 @@ export interface QuotePassageInput {
   commentary?: string;
 }
 
-export type QuotePassageOutput = { post: Awaited<ReturnType<typeof posts.createThought>> };
+export type QuotePassageOutput = { post: Record<string, unknown> };
 
 export const quotePassageToFeedAction = safeAction<QuotePassageInput, QuotePassageOutput>(
-  async (data, user) => {
+  async (data) => {
     const { articleId, text, commentary } = data;
-    const article = await prisma.article.findUnique({
-      where: { id: articleId },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        publication: {
-          select: {
-            subdomain: true,
-            customDomain: true,
-            name: true,
-          },
-        },
-      },
-    });
+    // Go-only : résolution de l'article via /v1/articles/by-id/{id}.
+    const article = await goFetch<{
+      id: string;
+      title: string;
+      slug: string;
+      publication: {
+        subdomain: string | null;
+        customDomain: string | null;
+        name: string | null;
+      } | null;
+    }>(`/v1/articles/by-id/${encodeURIComponent(articleId)}`);
     if (!article) throw new Error('ARTICLE_NOT_FOUND');
 
     const subdomain = article.publication?.subdomain || article.publication?.customDomain;
@@ -161,30 +153,56 @@ export const quotePassageToFeedAction = safeAction<QuotePassageInput, QuotePassa
       ? `« ${text} »\n\n${commentary}\n\n${articleUrl}`
       : `« ${text} »\n\n${articleUrl}`;
 
-    const post = await posts.createThought({
-      content: quoteContent,
-      authorId: user.id,
+    const post = await goFetch<Record<string, unknown>>('/v1/posts', {
+      method: 'POST',
+      body: {
+        content: quoteContent,
+        quotedArticleId: articleId,
+        quotedExcerpt: text,
+      },
     });
 
-    return { post };
+    return { post: post as QuotePassageOutput['post'] };
   }
 );
 
 export const unlockArticleWithWalletAction = safeAction<
   { creatorId: string; costCents?: number },
   { success: boolean }
->(async ({ creatorId, costCents = 100 }, user) => {
-  const result = await wallet.unlockArticleWithWallet(user.id, creatorId, costCents);
-  if (!result.success) {
-    throw new Error(result.error || 'TRANSACTION_FAILED');
+>(async ({ creatorId, costCents = 100 }) => {
+  // Go-only : transaction wallet atomique côté backend (POST /v1/me/wallet/unlock).
+  const res = await goFetch<{ success: boolean }>('/v1/me/wallet/unlock', {
+    method: 'POST',
+    body: { creatorId, costCents },
+  });
+  if (!res.success) {
+    throw new Error('TRANSACTION_FAILED');
   }
   return { success: true };
 });
 
-export const getCurrentUserWalletAction = safeAction<
-  void,
-  Awaited<ReturnType<typeof wallet.getUserWallet>>
->(async (_, user) => {
-  const userWallet = await wallet.getUserWallet(user.id);
-  return userWallet;
+export interface UserWalletDTO {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  walletBalanceCents: number;
+}
+
+export const getCurrentUserWalletAction = safeAction<void, UserWalletDTO>(async () => {
+  // Go-only : GET /v1/me/billing (wallet + historique).
+  const billing = await goFetch<{
+    id: string;
+    email: string;
+    name: string | null;
+    role: string;
+    walletBalanceCents: number;
+  }>('/v1/me/billing');
+  return {
+    id: billing.id,
+    email: billing.email,
+    name: billing.name,
+    role: billing.role,
+    walletBalanceCents: billing.walletBalanceCents,
+  };
 });

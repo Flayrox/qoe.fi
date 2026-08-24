@@ -89,6 +89,9 @@ func (s *SearchWorker) ensureIndex(ctx context.Context, base string) {
 	resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK && info.PrimaryKey == "id" {
+		// Filterable attributes (best-effort) : nécessaire pour le scope « mine »
+		// du Cmd+K studio (publicationId = publication active).
+		s.doJSON(ctx, http.MethodPatch, base+"/indexes/"+searchIndex+"/settings/filterable-attributes", []string{"publicationId"})
 		return
 	}
 	if resp.StatusCode == http.StatusOK {
@@ -98,6 +101,7 @@ func (s *SearchWorker) ensureIndex(ctx context.Context, base string) {
 	s.doJSON(ctx, http.MethodPost, base+"/indexes", map[string]any{
 		"uid": searchIndex, "primaryKey": "id",
 	})
+	s.doJSON(ctx, http.MethodPatch, base+"/indexes/"+searchIndex+"/settings/filterable-attributes", []string{"publicationId"})
 }
 
 // doJSON envoie une requête HTTP JSON avec le Bearer key (best-effort).
@@ -154,6 +158,7 @@ func (s *SearchWorker) HandleSearchSync(ctx context.Context, t *asynq.Task) erro
 		"slug":           article.Slug,
 		"authorId":       uuidStr(article.AuthorId),
 		"categoryId":     textOrNil(article.CategoryId),
+		"publicationId":  article.PublicationId,
 		"published":      article.Published,
 		"isPremium":      article.IsPremium,
 		"seoTitle":       textOrNil(article.SeoTitle),

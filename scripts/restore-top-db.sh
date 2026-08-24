@@ -42,7 +42,4 @@ else
   echo "ℹ️ Umami backup ou UMAMI_DATABASE_URL manquant — skip"
 fi
 
-echo "🔄 Prisma generate..."
-pnpm --filter @qoe/db exec prisma generate 2>&1 | tail -n 5
-
 echo "✨ Top DB restaurée avec succès ! (500 users, 200 articles, 1480 posts, 5723 lectures, 10.5k Umami)"

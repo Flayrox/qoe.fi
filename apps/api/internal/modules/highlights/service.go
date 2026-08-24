@@ -200,6 +200,59 @@ func (s *Service) Delete(ctx context.Context, highlightID, readerID string) (boo
 	return true, nil
 }
 
+// Update modifie la note et/ou la visibilité d'un de ses surlignages
+// (parité toggleHighlightPrivacy / updateHighlightNote Prisma).
+func (s *Service) Update(ctx context.Context, highlightID, readerID string, note *string, isPublic *bool) (Highlight, error) {
+	// On résout les valeurs finales AVANT l'UPDATE : la requête COALESCE ne
+	// peut pas distinguer « non fourni » d'une valeur concrète pour un bool.
+	current, err := s.q.GetHighlightByID(ctx, highlightID)
+	if err != nil {
+		return Highlight{}, err
+	}
+	if current.ReaderId.String() != readerID {
+		return Highlight{}, errors.New("surlignage introuvable ou non autorisé")
+	}
+	finalNote := current.Note
+	if note != nil {
+		finalNote = pgtype.Text{String: *note, Valid: *note != ""}
+	}
+	finalPublic := current.IsPublic
+	if isPublic != nil {
+		finalPublic = *isPublic
+	}
+	if _, err := s.q.UpdateHighlight(ctx, db.UpdateHighlightParams{
+		ID:       highlightID,
+		ReaderId: toUUID(readerID),
+		Note:     finalNote,
+		IsPublic: finalPublic,
+	}); err != nil {
+		return Highlight{}, err
+	}
+	row, err := s.q.GetHighlightByID(ctx, highlightID)
+	if err != nil {
+		return Highlight{}, err
+	}
+	return Highlight{
+		ID:            row.ID,
+		Text:          row.Text,
+		Note:          textPtr(row.Note),
+		IsPublic:      row.IsPublic,
+		IsOfficial:    row.IsOfficial,
+		UpvotesCount:  int(row.UpvotesCount),
+		ReaderID:      row.ReaderID,
+		ArticleID:     row.ArticleId,
+		CreatedAt:     tsString(row.CreatedAt),
+		Reader: Author{
+			ID:       row.ReaderID,
+			Name:     textPtr(row.ReaderName),
+			Username: textPtr(row.ReaderUsername),
+			LogoURL:  textPtr(row.ReaderLogo),
+		},
+		ViewerUpvoted: false,
+		CommentsCount: 0,
+	}, nil
+}
+
 // ToggleUpvote ajoute/retire l'upvote du viewer sur un surlignage.
 // L'insertion est idempotente (ON CONFLICT DO NOTHING) : si aucune ligne
 // n'est retournée, l'upvote existait déjà → on le retire. Le compteur est

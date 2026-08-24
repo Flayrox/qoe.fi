@@ -38,7 +38,7 @@ export async function generateMockEmbedding(
  * Stub no-op pour l'instant — sera implémenté en Phase future.
  */
 export async function updateUserEmbedding(userId: string, vector: number[]): Promise<void> {
-  // Stub : no-op. Phase future : prisma.$executeRaw`UPDATE "User" SET embedding = ${vector}::vector WHERE id = ${userId}`
+  // Stub : no-op. Phase future : UPDATE "User" SET embedding = $2::vector WHERE id = $1 (SQL direct ou Go).
   void userId;
   void vector;
   return Promise.resolve();

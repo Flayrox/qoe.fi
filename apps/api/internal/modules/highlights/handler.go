@@ -37,6 +37,7 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 
 	// Surlignages d'un article.
 	r.Post("/v1/articles/{id}/highlights", h.create)
+	r.Patch("/v1/highlights/{id}", h.update)
 	r.Delete("/v1/highlights/{id}", h.delete)
 
 	// Upvotes.
@@ -90,6 +91,30 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.Created(w, item)
+}
+
+type updateInput struct {
+	Note     *string `json:"note"`
+	IsPublic *bool   `json:"isPublic"`
+}
+
+// PATCH /v1/highlights/{id} — met à jour la note et/ou la visibilité d'un de ses surlignages.
+func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+
+	var in updateInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	item, err := h.svc.Update(r.Context(), id, userID, in.Note, in.IsPublic)
+	if err != nil {
+		log.Printf("[highlights] update: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, item)
 }
 
 // DELETE /v1/highlights/{id} — supprime un de ses surlignages.

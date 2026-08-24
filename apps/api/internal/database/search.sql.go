@@ -12,7 +12,7 @@ import (
 )
 
 const getArticleForSearch = `-- name: GetArticleForSearch :one
-SELECT id, title, content, slug, "authorId", "categoryId", published, "isPremium",
+SELECT id, title, content, slug, "authorId", "categoryId", "publicationId", published, "isPremium",
        "seoTitle", "seoDescription", "createdAt", "updatedAt"
 FROM "Article"
 WHERE id = $1
@@ -25,6 +25,7 @@ type GetArticleForSearchRow struct {
 	Slug           string           `json:"slug"`
 	AuthorId       pgtype.UUID      `json:"authorId"`
 	CategoryId     pgtype.Text      `json:"categoryId"`
+	PublicationId  string           `json:"publicationId"`
 	Published      bool             `json:"published"`
 	IsPremium      bool             `json:"isPremium"`
 	SeoTitle       pgtype.Text      `json:"seoTitle"`
@@ -43,6 +44,7 @@ func (q *Queries) GetArticleForSearch(ctx context.Context, id string) (GetArticl
 		&i.Slug,
 		&i.AuthorId,
 		&i.CategoryId,
+		&i.PublicationId,
 		&i.Published,
 		&i.IsPremium,
 		&i.SeoTitle,
@@ -51,4 +53,79 @@ func (q *Queries) GetArticleForSearch(ctx context.Context, id string) (GetArticl
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const searchThoughts = `-- name: SearchThoughts :many
+SELECT p.id, p.content, p.tags, p."imageUrl", p."createdAt", p."authorId"::text AS author_id,
+       u.name AS author_name, u.username AS author_username, u."logoUrl" AS author_logo,
+       u."isCertified" AS author_certified,
+       p."likeCount", p."repostCount", p."replyCount"
+FROM "Post" p
+JOIN "User" u ON u.id = p."authorId"
+WHERE p."isDraft" = false
+  AND p."deletedAt" IS NULL
+  AND p.visibility = 'public'
+  AND u."isShadowbanned" = false
+  AND u."isSuspended" = false
+  AND (
+    p.content ILIKE '%' || $1 || '%'
+    OR EXISTS (SELECT 1 FROM unnest(p.tags) AS tag WHERE tag ILIKE $1)
+  )
+ORDER BY p."createdAt" DESC, p.id DESC
+LIMIT $2
+`
+
+type SearchThoughtsParams struct {
+	Column1 pgtype.Text `json:"column_1"`
+	Limit   int32       `json:"limit"`
+}
+
+type SearchThoughtsRow struct {
+	ID              string           `json:"id"`
+	Content         string           `json:"content"`
+	Tags            []string         `json:"tags"`
+	ImageUrl        pgtype.Text      `json:"imageUrl"`
+	CreatedAt       pgtype.Timestamp `json:"createdAt"`
+	AuthorID        string           `json:"author_id"`
+	AuthorName      pgtype.Text      `json:"author_name"`
+	AuthorUsername  pgtype.Text      `json:"author_username"`
+	AuthorLogo      pgtype.Text      `json:"author_logo"`
+	AuthorCertified bool             `json:"author_certified"`
+	LikeCount       int32            `json:"likeCount"`
+	RepostCount     int32            `json:"repostCount"`
+	ReplyCount      int32            `json:"replyCount"`
+}
+
+func (q *Queries) SearchThoughts(ctx context.Context, arg SearchThoughtsParams) ([]SearchThoughtsRow, error) {
+	rows, err := q.db.Query(ctx, searchThoughts, arg.Column1, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchThoughtsRow{}
+	for rows.Next() {
+		var i SearchThoughtsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Content,
+			&i.Tags,
+			&i.ImageUrl,
+			&i.CreatedAt,
+			&i.AuthorID,
+			&i.AuthorName,
+			&i.AuthorUsername,
+			&i.AuthorLogo,
+			&i.AuthorCertified,
+			&i.LikeCount,
+			&i.RepostCount,
+			&i.ReplyCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

@@ -54,11 +54,15 @@ LIMIT $2 OFFSET $3;
 -- name: CreateHighlight :one
 INSERT INTO "Highlight" (id, text, note, "isPublic", "isOfficial", "readerId", "articleId")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6)
-RETURNING id;
+RETURNING id;-- name: DeleteHighlight :exec
+DELETE FROM "Highlight" WHERE id = $1 AND "readerId" = $2;
 
--- name: DeleteHighlight :exec
-DELETE FROM "Highlight"
-WHERE id = $1 AND "readerId" = $2;
+-- name: UpdateHighlight :one
+UPDATE "Highlight"
+SET note = COALESCE($3, note),
+    "isPublic" = COALESCE($4, "isPublic")
+WHERE id = $1 AND "readerId" = $2
+RETURNING id, text, note, "isPublic", "isOfficial", "readerId", "articleId", "createdAt";
 
 -- name: ToggleHighlightUpvote :one
 -- Ajoute un upvote (idempotent). ⚠️ Le retrait et le comptage sont gérés

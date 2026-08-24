@@ -27,7 +27,6 @@
   "dependencies": {
     "@qoe/auth": "workspace:*",
     "@qoe/config": "workspace:*",
-    "@qoe/db": "workspace:*",
     "@qoe/supabase": "workspace:*",
     "@qoe/utils": "workspace:*",
     "@tanstack/react-query": "^5.62.7"

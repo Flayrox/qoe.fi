@@ -79,7 +79,7 @@ export function PollCard({ poll: initialPoll, onVoteSuccess, className }: PollCa
     setPoll(optimisticPoll);
 
     try {
-      const res = await votePollAction({ pollId: poll.id, optionId });
+      const res = await votePollAction({ thoughtId: poll.thoughtId, optionId });
       if (res.ok && res.data?.poll) {
         setPoll(res.data.poll);
         if (onVoteSuccess) onVoteSuccess(res.data.poll);

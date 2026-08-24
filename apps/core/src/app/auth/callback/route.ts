@@ -29,10 +29,22 @@ export async function GET(request: Request) {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        const { syncUserFromAuth } = await import('@qoe/db/sync-user');
-        const result = await syncUserFromAuth(user);
-        if (result.needsOnboarding) {
-          next = '/onboarding';
+        // Go-only : la ligne User est créée/mise à jour depuis le JWT par
+        // POST /v1/me/sync (parité syncUserFromAuth Prisma).
+        const goApi = process.env.QOE_API_URL;
+        if (goApi) {
+          const res = await fetch(`${goApi}/v1/me/sync`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${(await await supabase.auth.getSession()).data.session?.access_token ?? ''}`,
+            },
+          });
+          if (res.ok) {
+            const result = (await res.json()) as { needsOnboarding?: boolean };
+            if (result.needsOnboarding) {
+              next = '/onboarding';
+            }
+          }
         }
       }
 

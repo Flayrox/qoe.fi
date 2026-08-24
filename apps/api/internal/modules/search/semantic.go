@@ -43,6 +43,7 @@ type embedClient interface {
 // (mockable en test — *db.Queries l'implémente en prod).
 type semanticQuerier interface {
 	SearchSemanticArticles(ctx context.Context, params db.SearchSemanticArticlesParams) ([]db.SearchSemanticArticlesRow, error)
+	SearchThoughts(ctx context.Context, params db.SearchThoughtsParams) ([]db.SearchThoughtsRow, error)
 }
 
 func NewSemanticService(pool *pgxpool.Pool) *SemanticService {
@@ -198,6 +199,64 @@ func (s *SemanticService) Search(ctx context.Context, query string, limit int) (
 			Publication:   pubName,
 			Score:         r.Score,
 		})
+	}
+	return out, nil
+}
+
+// ThoughtHit — pensée trouvée par la recherche lexicale (contrat web
+// search.searchThoughts : { id, content, author, createdAt, ... }).
+type ThoughtHit struct {
+	ID          string   `json:"id"`
+	Content     string   `json:"content"`
+	Tags        []string `json:"tags"`
+	ImageURL    *string  `json:"imageUrl"`
+	CreatedAt   string   `json:"createdAt"`
+	AuthorID    string   `json:"authorId"`
+	AuthorName  *string  `json:"authorName"`
+	AuthorUser  *string  `json:"authorUsername"`
+	AuthorLogo  *string  `json:"authorLogo"`
+	IsCertified bool     `json:"isCertified"`
+	LikeCount   int32    `json:"likeCount"`
+	RepostCount int32    `json:"repostCount"`
+	ReplyCount  int32    `json:"replyCount"`
+}
+
+// SearchThoughts cherche les pensées publiques par contenu/tags (ILIKE,
+// parité search.searchThoughts Prisma — sans Meilisearch).
+func (s *SemanticService) SearchThoughts(ctx context.Context, query string, limit int) ([]ThoughtHit, error) {
+	// Le `#` d'un hashtag est un marqueur d'intention : le terme nu matche le
+	// contenu comme les tags (parité searchThoughts TS).
+	query = strings.TrimPrefix(strings.TrimSpace(query), "#")
+	rows, err := s.q.SearchThoughts(ctx, db.SearchThoughtsParams{Column1: pgtype.Text{String: query, Valid: true}, Limit: int32(limit)})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ThoughtHit, 0, len(rows))
+	for _, r := range rows {
+		hit := ThoughtHit{
+			ID:          r.ID,
+			Content:     r.Content,
+			Tags:        r.Tags,
+			CreatedAt:   r.CreatedAt.Time.Format(time.RFC3339),
+			AuthorID:    r.AuthorID,
+			IsCertified: r.AuthorCertified,
+			LikeCount:   r.LikeCount,
+			RepostCount: r.RepostCount,
+			ReplyCount:  r.ReplyCount,
+		}
+		if r.ImageUrl.Valid {
+			hit.ImageURL = &r.ImageUrl.String
+		}
+		if r.AuthorName.Valid {
+			hit.AuthorName = &r.AuthorName.String
+		}
+		if r.AuthorUsername.Valid {
+			hit.AuthorUser = &r.AuthorUsername.String
+		}
+		if r.AuthorLogo.Valid {
+			hit.AuthorLogo = &r.AuthorLogo.String
+		}
+		out = append(out, hit)
 	}
 	return out, nil
 }

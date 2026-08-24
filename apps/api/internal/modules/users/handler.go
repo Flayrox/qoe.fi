@@ -29,6 +29,10 @@ func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/me/billing", h.billing)
 	r.Post("/v1/me/onboarding-complete", h.onboardingComplete)
 	r.Get("/v1/me/data-export", h.dataExport)
+	r.Get("/v1/me/publication", h.myPublication)
+	r.Post("/v1/me/muted-words", h.toggleMuteWord)
+	r.Post("/v1/me/wallet/unlock", h.walletUnlock)
+	r.Post("/v1/me/sync", h.syncUser)
 }
 
 // RegisterPublic — GET /v1/users/search (autocomplétion mentions @, auth
@@ -237,4 +241,95 @@ func (h *Handler) mediaPublication(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]string{"publicationId": pubID})
+}
+
+// GET /v1/me/publication — publication personnelle (créée si absente).
+// Remplace publications.getOrCreatePersonalPublication (web).
+func (h *Handler) myPublication(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	pubID, err := h.svc.GetOrCreatePersonalPublication(r.Context(), userID)
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]string{"publicationId": pubID})
+}
+
+// POST /v1/me/muted-words — bascule un mot masqué. Body : { word }.
+func (h *Handler) toggleMuteWord(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	var body struct {
+		Word string `json:"word"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	muted, word, err := h.svc.ToggleMuteWord(r.Context(), userID, body.Word)
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, map[string]any{"muted": muted, "word": word})
+}
+
+// POST /v1/me/sync — crée/met à jour la ligne User depuis les claims JWT
+// (parité syncUserFromAuth Prisma, utilisé par les routes /auth/callback).
+func (h *Handler) syncUser(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	claims := middleware.Claims(r.Context())
+	created, needsOnboarding, err := h.svc.SyncUserFromAuth(r.Context(), userID, claims)
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"created": created, "needsOnboarding": needsOnboarding})
+}
+
+// POST /v1/me/wallet/unlock — débloque un article via le wallet.
+// Body : { creatorId (publicationId), costCents? }.
+func (h *Handler) walletUnlock(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	var body struct {
+		CreatorID string `json:"creatorId"`
+		CostCents *int   `json:"costCents,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if body.CreatorID == "" {
+		response.BadRequest(w, "creatorId requis")
+		return
+	}
+	cost := 200
+	if body.CostCents != nil {
+		cost = *body.CostCents
+	}
+	code, err := h.svc.UnlockArticleWithWallet(r.Context(), userID, body.CreatorID, cost)
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	if code != "" {
+		response.BadRequest(w, code)
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
 }

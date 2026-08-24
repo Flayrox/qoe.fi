@@ -9,19 +9,30 @@
 //    (/v1/posts threadgate via apps/api/internal/modules/posts).
 // =====================================================================
 
-import { threadgates } from '@qoe/db';
 import { revalidatePath } from 'next/cache';
 import { safeAction } from '../utils/safe-action';
+import { goFetch } from '../utils/go-client';
 
-export const canUserReplyAction = safeAction<{ thoughtId: string }, threadgates.CanReplyResult>(
-  async (input, user) => {
-    return threadgates.canUserReplyToThought(input.thoughtId, user.id);
+export type CanReplyResult = {
+  canReply: boolean;
+  reason?: string;
+  restriction: string;
+};
+
+export const canUserReplyAction = safeAction<{ thoughtId: string }, CanReplyResult>(
+  async (input) => {
+    // Go-only : threadgate vérifié côté backend (GET /v1/posts/{id}/can-reply).
+    return goFetch<CanReplyResult>(`/v1/posts/${encodeURIComponent(input.thoughtId)}/can-reply`);
   }
 );
 
 export const hideReplyAction = safeAction<{ replyId: string }, { isHiddenByAuthor: boolean }>(
-  async (input, user) => {
-    const result = await threadgates.toggleHideReplyByAuthor(input.replyId, user.id);
+  async (input) => {
+    // Go-only : seul l'auteur de la pensée parente peut masquer (403 sinon).
+    const result = await goFetch<{ isHiddenByAuthor: boolean }>(
+      `/v1/posts/${encodeURIComponent(input.replyId)}/hide`,
+      { method: 'POST' }
+    );
     revalidatePath('/post');
     return result;
   }

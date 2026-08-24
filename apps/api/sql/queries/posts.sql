@@ -39,9 +39,29 @@ FROM "Post"
 WHERE id = $1;
 
 -- name: CreateThought :one
-INSERT INTO "Post" (id, "content", "authorId", "updatedAt", tags, "imageUrl", visibility, "contentVisibility", "isDraft", "scheduledAt", "triggerWarning", "parentId", "rootId", "repostId", "replyRestriction", "isPinned", "likeCount", "repostCount", "replyCount")
-VALUES (gen_random_uuid()::text, sqlc.arg('content'), sqlc.arg('authorId'), now(), sqlc.arg('tags'), sqlc.arg('imageUrl'), sqlc.arg('visibility'), sqlc.arg('contentVisibility'), sqlc.arg('isDraft'), sqlc.arg('scheduledAt'), sqlc.arg('triggerWarning'), NULLIF(sqlc.arg('parentId'), ''), NULLIF(sqlc.arg('rootId'), ''), NULLIF(sqlc.arg('repostId'), ''), sqlc.arg('replyRestriction'), false, 0, 0, 0)
+INSERT INTO "Post" (id, "content", "authorId", "updatedAt", tags, "imageUrl", visibility, "contentVisibility", "isDraft", "scheduledAt", "triggerWarning", "parentId", "rootId", "repostId", "quotedArticleId", "quotedExcerpt", "replyRestriction", "isPinned", "likeCount", "repostCount", "replyCount")
+VALUES (gen_random_uuid()::text, sqlc.arg('content'), sqlc.arg('authorId'), now(), sqlc.arg('tags'), sqlc.arg('imageUrl'), sqlc.arg('visibility'), sqlc.arg('contentVisibility'), sqlc.arg('isDraft'), sqlc.arg('scheduledAt'), sqlc.arg('triggerWarning'), NULLIF(sqlc.arg('parentId'), ''), NULLIF(sqlc.arg('rootId'), ''), NULLIF(sqlc.arg('repostId'), ''), NULLIF(sqlc.arg('quotedArticleId'), ''), NULLIF(sqlc.arg('quotedExcerpt'), ''), sqlc.arg('replyRestriction'), false, 0, 0, 0)
 RETURNING id, "content", "authorId", "createdAt", tags, "parentId", "rootId", "repostId", "isDraft", "visibility", "contentVisibility";
+
+-- name: ListUserDrafts :many
+SELECT id, content, "imageUrl", visibility, "scheduledAt", "triggerWarning", tags, "updatedAt"
+FROM "Post"
+WHERE "authorId" = $1
+  AND "isDraft" = true
+  AND "deletedAt" IS NULL
+ORDER BY "updatedAt" DESC
+LIMIT $2;
+
+-- name: HidePostByAuthor :one
+UPDATE "Post" r
+SET "isHiddenByAuthor" = NOT r."isHiddenByAuthor"
+FROM "Post" p
+WHERE r.id = $1
+  AND r."deletedAt" IS NULL
+  AND r."parentId" IS NOT NULL
+  AND r."parentId" = p.id
+  AND p."authorId" = $2
+RETURNING r."isHiddenByAuthor";
 
 -- name: InsertLike :one
 INSERT INTO "Like" (id, "postId", "userId")

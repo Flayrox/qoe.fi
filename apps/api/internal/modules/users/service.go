@@ -35,6 +35,9 @@ type Contributor struct {
 	Username    *string `json:"username"`
 	LogoURL     *string `json:"logoUrl"`
 	IsCertified bool    `json:"isCertified"`
+	Slug        *string `json:"slug"`
+	Subdomain   *string `json:"subdomain"`
+	HeroText    *string `json:"heroText"`
 }
 
 func toUUID(id string) pgtype.UUID {
@@ -67,12 +70,14 @@ func (s *Service) SearchForContributors(ctx context.Context, query string, exclu
 	}
 	// Si aucun à exclure, on passe un tableau vide
 	rows, err := s.pool.Query(ctx, `
-		SELECT id::text, name, username, "logoUrl", "isCertified"
-		FROM "User"
-		WHERE "isSuspended" = false AND "isShadowbanned" = false
-		  AND id != ALL($2::uuid[])
-		  AND (name ILIKE $1 OR username ILIKE $1 OR email ILIKE $1)
-		ORDER BY name ASC
+		SELECT u.id::text, u.name, u.username, u."logoUrl", u."isCertified",
+		       p.slug, p."subdomain", p."heroText"
+		FROM "User" u
+		LEFT JOIN "Publication" p ON p.id = u."publicationId"
+		WHERE u."isSuspended" = false AND u."isShadowbanned" = false
+		  AND u.id != ALL($2::uuid[])
+		  AND (u.name ILIKE $1 OR u.username ILIKE $1 OR u.email ILIKE $1)
+		ORDER BY u.name ASC
 		LIMIT 8
 	`, q, excludeUUIDs)
 	if err != nil {
@@ -84,13 +89,17 @@ func (s *Service) SearchForContributors(ctx context.Context, query string, exclu
 		var c Contributor
 		var name, username, logo pgtype.Text
 		var certified bool
-		if err := rows.Scan(&c.ID, &name, &username, &logo, &certified); err != nil {
+		var pubSlug, pubSubdomain, pubHeroText pgtype.Text
+		if err := rows.Scan(&c.ID, &name, &username, &logo, &certified, &pubSlug, &pubSubdomain, &pubHeroText); err != nil {
 			continue
 		}
 		c.Name = textPtr(name)
 		c.Username = textPtr(username)
 		c.LogoURL = textPtr(logo)
 		c.IsCertified = certified
+		c.Slug = textPtr(pubSlug)
+		c.Subdomain = textPtr(pubSubdomain)
+		c.HeroText = textPtr(pubHeroText)
 		out = append(out, c)
 	}
 	if out == nil {
@@ -139,6 +148,8 @@ type ReaderProfile struct {
 	Role                   string  `json:"role"`
 	WalletBalanceCents     int32   `json:"walletBalanceCents"`
 	HasCompletedOnboarding bool    `json:"hasCompletedOnboarding"`
+	IsCertified            bool    `json:"isCertified"`
+	AdvancedSettingsMode   bool    `json:"advancedSettingsMode"`
 	CreatedAt              string  `json:"createdAt"`
 	FollowsCount           int32   `json:"followsCount"`
 	MutedWordsCount        int32   `json:"mutedWordsCount"`
@@ -153,7 +164,8 @@ func (s *Service) Profile(ctx context.Context, userID string) (*ReaderProfile, e
 	var createdAt pgtype.Timestamp
 	err := s.pool.QueryRow(ctx, `
 		SELECT u.id::text, u.email, u.name, u.username, u."logoUrl", u."onboardingText", u.pronouns,
-		       u.role, u."walletBalanceCents", u."hasCompletedOnboarding", u."createdAt",
+		       u.role, u."walletBalanceCents", u."hasCompletedOnboarding", u."isCertified",
+		       u."advancedSettingsMode", u."createdAt",
 		       (SELECT COUNT(*)::int FROM "Follows" f WHERE f."readerId" = u.id)  AS follows_count,
 		       (SELECT COUNT(*)::int FROM "MutedWord" m WHERE m."userId" = u.id)  AS muted_count,
 		       EXISTS(SELECT 1 FROM "MediaMember" mm
@@ -161,7 +173,8 @@ func (s *Service) Profile(ctx context.Context, userID string) (*ReaderProfile, e
 		FROM "User" u
 		WHERE u.id = $1`, toUUID(userID)).
 		Scan(&p.ID, &p.Email, &p.Name, &p.Username, &p.LogoURL, &p.OnboardingText, &p.Pronouns,
-			&p.Role, &p.WalletBalanceCents, &p.HasCompletedOnboarding, &createdAt,
+			&p.Role, &p.WalletBalanceCents, &p.HasCompletedOnboarding, &p.IsCertified,
+			&p.AdvancedSettingsMode, &createdAt,
 			&p.FollowsCount, &p.MutedWordsCount, &p.IsMediaMember)
 	if err != nil {
 		return nil, err

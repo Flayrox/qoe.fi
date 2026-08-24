@@ -3,7 +3,7 @@
 // =====================================================================
 // 🧵 ThoughtFeedSlice — Rendu d'un élément du feed (slice de conversation)
 // =====================================================================
-// Prend un `FeedSlice` (cf. @qoe/db/repositories/posts et l'API Go
+// Prend un `FeedSlice` (cf. le module Go posts)
 // /v1/feed) et le rend en 4 cas :
 //   1. Post isolé (pas de parent/root) → ThoughtCard simple.
 //   2. Fil multi-posts : Root → [séparateur pointillé si fil incomplet] →

@@ -35,7 +35,6 @@ function getMonorepoPorts() {
       admin: '3030',
       tenant: '3001',
       api: '3002',
-      prisma: '5555',
     };
   }
 
@@ -50,7 +49,6 @@ function getMonorepoPorts() {
       admin: '4030',
       tenant: '4001',
       api: '4002',
-      prisma: '5555',
     };
   }
 
@@ -61,7 +59,6 @@ function getMonorepoPorts() {
     admin: '3030',
     tenant: '3001',
     api: '3002',
-    prisma: '5555',
   };
 }
 
@@ -487,7 +484,6 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
     { name: 'Admin', url: getDynamicUrl('admin', ports.admin), port: ports.admin },
     { name: 'Tenant Web', url: getDynamicUrl('*', ports.tenant), port: ports.tenant },
     { name: 'API Gateway', url: getDynamicUrl('api', ports.api), port: ports.api },
-    { name: 'Prisma Studio', url: `http://localhost:${ports.prisma}`, port: ports.prisma },
   ];
 
   const creators = users.filter((u) => u.role === 'creator');

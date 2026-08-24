@@ -18,14 +18,48 @@
 
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import { prisma, type Article, type Category, type Prisma } from '@qoe/db/client';
 import { createClient } from '@qoe/supabase/server';
 import { normalizeArticleAttributions, type ArticleAttributionInput } from '@qoe/utils';
 import { slugify, shortId } from '@qoe/utils';
-import { publications } from '@qoe/db';
 import { safeAction } from '../utils/safe-action';
 import { goFetch } from '../utils/go-client';
 import type { SimilarArticle } from '../../types';
+
+/** 📰 Article (shape API Go /v1/articles). */
+export interface Article {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  published: boolean;
+  status: string;
+  isPremium: boolean;
+  readingTime: number;
+  categoryId: string | null;
+  authorId: string;
+  publicationId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 🗂️ Catégorie (shape API Go /v1/categories). */
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  publicationId: string;
+  parentId: string | null;
+}
+
+export type ArticleListPayload = Array<
+  Article & {
+    category: Category | null;
+    views: number;
+    viewsUnique: number;
+    commentsCount: number;
+  }
+>;
 
 async function authenticateUser() {
   const supabase = await createClient();
@@ -43,7 +77,7 @@ async function authenticateUser() {
  * 🎛️ Résout la publication active (personnelle OU média) depuis le cookie du workspace.
  * Le dashboard opère sur le workspace sélectionné sans changer de compte.
  */
-export async function getActivePublicationId(userId: string): Promise<string> {
+export async function getActivePublicationId(): Promise<string> {
   let saved: { type?: string; id?: string } | null = null;
   try {
     const cookieStore = await cookies();
@@ -53,69 +87,63 @@ export async function getActivePublicationId(userId: string): Promise<string> {
     saved = null;
   }
 
+  // Go-only (backend-of-record) : workspace média → publication du média,
+  // sinon publication personnelle (créée si absente via /v1/me/publication).
   if (saved?.type === 'MEDIA' && saved.id) {
-    // Go en primaire (GET /v1/me/media/{mediaId}) — fallback Prisma.
-    try {
-      const res = await goFetch<{ publicationId: string }>(
-        `/v1/me/media/${encodeURIComponent(saved.id)}`
-      );
-      if (res.publicationId) return res.publicationId;
-    } catch {
-      const membership = await prisma.mediaMember.findUnique({
-        where: { mediaId_userId: { mediaId: saved.id, userId } },
-        include: { media: { include: { publication: { select: { id: true } } } } },
-      });
-      if (membership) return membership.media.publication.id;
-    }
+    const res = await goFetch<{ publicationId: string }>(
+      `/v1/me/media/${encodeURIComponent(saved.id)}`
+    );
+    if (res.publicationId) return res.publicationId;
   }
 
-  const personal = await publications.getOrCreatePersonalPublication(userId);
-  return personal.id;
+  const personal = await goFetch<{ publicationId: string }>('/v1/me/publication');
+  return personal.publicationId;
 }
 
-export const getArticlesAction = safeAction<
-  string | void,
-  (Prisma.ArticleGetPayload<{ include: { category: true } }> & {
-    views: number;
-    viewsUnique: number;
-    commentsCount: number;
-  })[]
->(async (period) => {
-  const user = await authenticateUser();
-  const publicationId = await getActivePublicationId(user.id);
+export const getArticlesAction = safeAction<string | void, ArticleListPayload>(async (period) => {
+  const publicationId = await getActivePublicationId();
   const p = typeof period === 'string' && period ? period : '30d';
-  return goFetch<
-    (Prisma.ArticleGetPayload<{ include: { category: true } }> & {
-      views: number;
-      viewsUnique: number;
-      commentsCount: number;
-    })[]
-  >(`/v1/articles?publicationId=${publicationId}&period=${encodeURIComponent(p)}`);
+  return goFetch<ArticleListPayload>(
+    `/v1/articles?publicationId=${publicationId}&period=${encodeURIComponent(p)}`
+  );
 });
 
-type ArticleEditorPayload = Prisma.ArticleGetPayload<{
-  include: {
-    category: true;
-    author: {
-      select: { id: true; name: true; username: true; logoUrl: true; isCertified: true };
-    };
-    coAuthors: {
-      select: { id: true; name: true; username: true; logoUrl: true; isCertified: true };
-    };
-    attributions: {
-      orderBy: { order: 'asc' };
-      include: {
-        user: {
-          select: { id: true; name: true; username: true; logoUrl: true; isCertified: true };
-        };
-      };
-    };
-  };
-}>;
+export interface ArticleAuthorBrief {
+  id: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  isCertified: boolean;
+}
+
+export interface ArticleEditorPayload extends Article {
+  imageUrl: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  category: Category | null;
+  author: ArticleAuthorBrief;
+  coAuthors: ArticleAuthorBrief[];
+  attributions: Array<{
+    role: string;
+    order: number;
+    isVisible: boolean;
+    consentStatus?: string;
+    user: ArticleAuthorBrief;
+  }>;
+  views: number;
+  viewsUnique: number;
+  commentsCount: number;
+}
 
 export const getArticleByIdAction = safeAction<string, ArticleEditorPayload | null>(async (id) => {
   // ✅ Go-only : l'auth (auteur / membre de la publication) est vérifiée côté Go.
-  return goFetch<ArticleEditorPayload>(`/v1/articles/by-id/${id}`);
+  try {
+    return await goFetch<ArticleEditorPayload>(`/v1/articles/by-id/${id}`);
+  } catch (err) {
+    const status = (err as { status?: number }).status;
+    if (status === 404) return null;
+    throw err;
+  }
 });
 
 export const saveArticleAction = safeAction<
@@ -168,7 +196,7 @@ export const saveArticleAction = safeAction<
 
   // ✅ Go-only : le Go gère RBAC média, attributions, workflow et slug unique.
   if (id) {
-    const activePublicationId = await getActivePublicationId(user.id);
+    const activePublicationId = await getActivePublicationId();
     return goFetch<Article>(`/v1/articles/${id}`, {
       method: 'PATCH',
       body: {
@@ -188,7 +216,7 @@ export const saveArticleAction = safeAction<
       },
     });
   }
-  const publicationId = await getActivePublicationId(user.id);
+  const publicationId = await getActivePublicationId();
   return goFetch<Article>(`/v1/articles`, {
     method: 'POST',
     body: {
@@ -222,42 +250,14 @@ export const searchArticleContributorsAction = safeAction<
   const normalizedQuery = query.trim();
   if (normalizedQuery.length < 2) return [];
 
-  // Go-only : recherche insensible via ILIKE, déléguée à Go (plus de Prisma)
-  try {
-    const qs = new URLSearchParams({ q: normalizedQuery });
-    if (excludeIds.length > 0) qs.set('excludeIds', excludeIds.join(','));
-    return await goFetch<
-      Array<{
-        id: string;
-        name: string | null;
-        username: string | null;
-        logoUrl: string | null;
-        isCertified: boolean;
-      }>
-    >(`/v1/users/search?${qs.toString()}`);
-  } catch {
-    // Fallback dev si Go indisponible
-    return prisma.user.findMany({
-      where: {
-        id: { notIn: excludeIds },
-        isSuspended: false,
-        isShadowbanned: false,
-        OR: [
-          { name: { contains: normalizedQuery, mode: 'insensitive' } },
-          { username: { contains: normalizedQuery, mode: 'insensitive' } },
-          { email: { contains: normalizedQuery, mode: 'insensitive' } },
-        ],
-      },
-      select: { id: true, name: true, username: true, logoUrl: true, isCertified: true },
-      orderBy: { name: 'asc' },
-      take: 8,
-    });
-  }
+  // Go-only : recherche insensible via ILIKE, déléguée à Go.
+  const qs = new URLSearchParams({ q: normalizedQuery });
+  if (excludeIds.length > 0) qs.set('excludeIds', excludeIds.join(','));
+  return await goFetch<ArticleAuthorBrief[]>(`/v1/users/search?${qs.toString()}`);
 });
 
 export const deleteArticleAction = safeAction<string, { success: boolean }>(async (id) => {
-  const user = await authenticateUser();
-  const activePublicationId = await getActivePublicationId(user.id);
+  const activePublicationId = await getActivePublicationId();
   await goFetch(
     `/v1/articles/${id}?activePublicationId=${encodeURIComponent(activePublicationId)}`,
     { method: 'DELETE' }
@@ -281,12 +281,10 @@ export const reviewArticleAction = safeAction<{ id: string; approve: boolean }, 
   }
 );
 
-export const getCategoriesAction = safeAction<
-  void,
-  Prisma.CategoryGetPayload<{ include: { _count: { select: { articles: true } } } }>[]
->(async () => {
-  const user = await authenticateUser();
-  const publicationId = await getActivePublicationId(user.id);
+export type CategoryWithCount = Category & { _count: { articles: number } };
+
+export const getCategoriesAction = safeAction<void, CategoryWithCount[]>(async () => {
+  const publicationId = await getActivePublicationId();
   const res = await goFetch<{
     data: Array<{
       id: string;
@@ -304,7 +302,7 @@ export const getCategoriesAction = safeAction<
     publicationId,
     parentId: null,
     _count: { articles: c.articlesCount },
-  })) as Prisma.CategoryGetPayload<{ include: { _count: { select: { articles: true } } } }>[];
+  }));
 });
 
 export interface EditorCapabilities {
@@ -320,8 +318,8 @@ export interface EditorCapabilities {
  * 🎛️ Capacités d'édition de l'utilisateur dans le workspace actif.
  * Utilisé par l'éditeur pour adapter les actions (Publier vs Soumettre).
  */
-export const getEditorCapabilitiesAction = safeAction<void, EditorCapabilities>(async (_, user) => {
-  const publicationId = await getActivePublicationId(user.id);
+export const getEditorCapabilitiesAction = safeAction<void, EditorCapabilities>(async () => {
+  const publicationId = await getActivePublicationId();
   return goFetch<EditorCapabilities>(`/v1/articles/capabilities?publicationId=${publicationId}`);
 });
 
@@ -329,7 +327,6 @@ export const saveCategoryAction = safeAction<
   { id?: string; name: string; slug?: string; description?: string | null },
   Category
 >(async (data) => {
-  const user = await authenticateUser();
   const { id, name, slug, description = null } = data;
 
   if (!name.trim()) throw new Error('Le nom de la catégorie est requis.');
@@ -342,7 +339,7 @@ export const saveCategoryAction = safeAction<
     revalidatePath('/articles');
     return res;
   }
-  const publicationId = await getActivePublicationId(user.id);
+  const publicationId = await getActivePublicationId();
   const res = await goFetch<Category>(`/v1/categories`, {
     method: 'POST',
     body: { publicationId, name, slug, description },
@@ -357,13 +354,14 @@ export const deleteCategoryAction = safeAction<string, { success: boolean }>(asy
   return { success: true };
 });
 
-type ArticleCommentPayload = Prisma.ArticleCommentGetPayload<{
-  include: {
-    author: {
-      select: { id: true; name: true; username: true; logoUrl: true; isCertified: true };
-    };
-  };
-}>;
+export interface ArticleCommentPayload {
+  id: string;
+  content: string;
+  parentId: string | null;
+  articleId: string;
+  author: ArticleAuthorBrief;
+  createdAt: string;
+}
 
 export const postArticleCommentAction = safeAction<
   { articleId: string; content: string; parentId?: string | null },

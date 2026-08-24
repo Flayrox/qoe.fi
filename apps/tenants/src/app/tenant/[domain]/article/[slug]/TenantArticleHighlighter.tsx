@@ -63,11 +63,14 @@ export function TenantArticleHighlighter({
             isPublic: params.isPublic,
           }),
         onUpvote: async (highlightId: string) => upvoteHighlightAction(highlightId),
-        onComment: async (params) =>
-          createAnnotationCommentAction({
+        onComment: async (params) => {
+          const res = await createAnnotationCommentAction({
             highlightId: params.highlightId,
             content: params.content,
-          }),
+          });
+          if (!res.ok) return { ok: false, error: res.error };
+          return { ok: true, data: res.data.comment };
+        },
         onTogglePrivacy: async (params) =>
           toggleHighlightPrivacyAction({
             highlightId: params.highlightId,

@@ -7,7 +7,7 @@ import { ReaderPageLayout } from '@/components/layout/ReaderPageLayout';
 
 import { routes } from '@qoe/config/routes';
 
-// Contrat GET /v1/me/billing (module users — parité prisma.user.findUnique
+// Contrat GET /v1/me/billing (module users Go)
 // include walletTransactions + subscriber.findMany).
 interface BillingTransaction {
   id: string;

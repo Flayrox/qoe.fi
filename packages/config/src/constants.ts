@@ -58,6 +58,19 @@ export const POST_VISIBILITY = {
 export type PostVisibility = (typeof POST_VISIBILITY)[keyof typeof POST_VISIBILITY];
 
 /**
+ * 🔓 Visibilité de contenu des articles (paywall) — ex-enum Prisma
+ * `ContentVisibility`, désormais const locale sans dépendance Prisma.
+ */
+export const ContentVisibility = {
+  PUBLIC: 'PUBLIC',
+  MEMBERS_ONLY: 'MEMBERS_ONLY',
+  PAID_SUBSCRIBERS: 'PAID_SUBSCRIBERS',
+  TIER_SPECIFIC: 'TIER_SPECIFIC',
+} as const;
+
+export type ContentVisibility = (typeof ContentVisibility)[keyof typeof ContentVisibility];
+
+/**
  * 💰 Types de transactions wallet.
  */
 export const WALLET_TRANSACTION_TYPES = {

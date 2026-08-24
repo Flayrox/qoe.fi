@@ -6,7 +6,6 @@
 // =====================================================================
 
 import { redirect } from 'next/navigation';
-import { prisma } from '@qoe/db/client';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import { getActiveWorkspace } from '@/lib/active-workspace';
@@ -70,60 +69,6 @@ async function fetchSettingsGo(publicationId: string): Promise<SettingsPublicati
   );
 }
 
-/**
- * 🐢 Fallback dev (sans QOE_API_URL) : include Prisma d'origine.
- */
-async function fetchSettingsFallback(publicationId: string): Promise<SettingsPublicationDTO> {
-  const publication = await prisma.publication.findUnique({
-    where: { id: publicationId },
-    include: {
-      navigation: { orderBy: { order: 'asc' } },
-      socialLinks: { orderBy: { order: 'asc' } },
-      articles: { orderBy: { createdAt: 'desc' } },
-      categories: { orderBy: { name: 'asc' } },
-      user: { select: { id: true, email: true, username: true, advancedSettingsMode: true } },
-    },
-  });
-  if (!publication) return null as unknown as SettingsPublicationDTO;
-  return {
-    ...publication,
-    navigation: publication.navigation.map((n) => ({
-      id: n.id,
-      label: n.label,
-      url: n.url,
-      order: n.order,
-      isExternal: n.isExternal,
-    })),
-    socialLinks: publication.socialLinks.map((s) => ({
-      id: s.id,
-      platform: s.platform,
-      url: s.url,
-      order: s.order,
-    })),
-    articles: publication.articles.map((a) => ({
-      id: a.id,
-      title: a.title,
-      slug: a.slug,
-      content: a.content,
-      published: a.published,
-      isPremium: a.isPremium,
-      categoryId: a.categoryId,
-      seoTitle: a.seoTitle,
-      seoDescription: a.seoDescription,
-      createdAt: a.createdAt.toISOString(),
-    })),
-    categories: publication.categories.map((c) => ({ id: c.id, name: c.name, slug: c.slug })),
-    user: publication.user
-      ? {
-          id: publication.user.id,
-          email: publication.user.email,
-          username: publication.user.username,
-          advancedSettingsMode: publication.user.advancedSettingsMode,
-        }
-      : null,
-  };
-}
-
 export default async function CreatorSettingsPage() {
   // 1. Authentification de l'utilisateur
   const supabase = await createClient();
@@ -139,12 +84,12 @@ export default async function CreatorSettingsPage() {
   // 2. Workspace actif (publication personnelle OU média)
   const workspace = await getActiveWorkspace(user.id);
 
-  // 3. Chargement de la publication active avec ses relations — Go primaire, fallback dev.
+  // 3. Chargement de la publication active avec ses relations — Go.
   let publication: SettingsPublicationDTO | null = null;
   try {
     publication = await fetchSettingsGo(workspace.publicationId);
   } catch {
-    publication = await fetchSettingsFallback(workspace.publicationId);
+    publication = null;
   }
 
   if (!publication) {

@@ -5,14 +5,14 @@
 // 2. Modération multimodale OpenAI (Zéro-NSFW sur les publications tenants)
 // 3. Protection Anti-Bomb / Stripping EXIF / Transcodage WebP
 // 4. Dédoublonnage CAS par hachage SHA-256
-// 5. Enregistrement sous MediaAsset (DRAFT_ORPHAN, TTL: 3 jours)
+// 5. Enregistrement sous MediaAsset (DRAFT_ORPHAN, TTL: 3 jours) via Go
 // =====================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@qoe/supabase/server';
 import { uploadAndProcessMedia, IMAGE_FOLDERS, type ImageFolder } from '@qoe/supabase/media-engine';
 import { getCurrentUser } from '@qoe/auth/current-user';
-import { registerMediaAsset } from '@qoe/db/repositories/media';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 
 const ALLOWED_FOLDERS = new Set(Object.values(IMAGE_FOLDERS));
 
@@ -48,17 +48,21 @@ export async function POST(request: NextRequest) {
     });
 
     // 📝 Enregistrement dans le registre de cycle de vie MediaAsset (TTL 3j orphan)
-    await registerMediaAsset({
-      sha256: result.sha256,
-      url: result.url,
-      storagePath: result.storagePath,
-      mimeType: result.mimeType,
-      width: result.width,
-      height: result.height,
-      sizeBytes: result.sizeBytes,
-      blurhash: result.blurhash,
-      ownerId: user.id,
-      targetType: 'ARTICLE_BODY',
+    // Go-first : POST /v1/media-assets (dédoublonnage CAS par SHA-256).
+    await goFetch('/v1/media-assets', {
+      method: 'POST',
+      body: {
+        sha256: result.sha256,
+        url: result.url,
+        storagePath: result.storagePath,
+        mimeType: result.mimeType,
+        width: result.width,
+        height: result.height,
+        sizeBytes: result.sizeBytes,
+        blurhash: result.blurhash,
+        ownerId: user.id,
+        targetType: 'ARTICLE_BODY',
+      },
     });
 
     return NextResponse.json(

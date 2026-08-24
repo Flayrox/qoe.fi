@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation';
-import { prisma } from '@qoe/db/client';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Metadata } from 'next';
 import { SocialIcon, TenantHeader, SubscribeForm } from '@qoe/ui';
 import { t } from '@lingui/core/macro';
+import { fetchTenantPublication } from '@/lib/tenant-data';
 
 interface PageProps {
   params: Promise<{ domain: string }>;
@@ -14,11 +14,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
 
-  const publication = await prisma.publication.findFirst({
-    where: {
-      OR: [{ subdomain: decodedDomain }, { customDomain: decodedDomain }],
-    },
-  });
+  // Go-first : GET /v1/publications/by-domain/{domain}.
+  const publication = await fetchTenantPublication(decodedDomain);
 
   if (!publication) return {};
 
@@ -45,26 +42,9 @@ export default async function TenantHomepage({ params }: PageProps) {
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
 
-  const publication = await prisma.publication.findFirst({
-    where: {
-      OR: [{ subdomain: decodedDomain }, { customDomain: decodedDomain }],
-    },
-    include: {
-      navigation: {
-        orderBy: { order: 'asc' },
-      },
-      socialLinks: {
-        orderBy: { order: 'asc' },
-      },
-      articles: {
-        where: { published: true },
-        orderBy: { createdAt: 'desc' },
-        include: {
-          category: true,
-        },
-      },
-    },
-  });
+  // Go-first : GET /v1/publications/by-domain/{domain} — publication avec
+  // navigation, réseaux sociaux, catégories et articles publiés.
+  const publication = await fetchTenantPublication(decodedDomain);
 
   if (!publication) {
     return notFound();
@@ -76,7 +56,7 @@ export default async function TenantHomepage({ params }: PageProps) {
     accentColor,
     fontFamily,
     logoUrl,
-    articles,
+    articles = [],
     headerImageUrl,
     footerText,
     layoutStyle,
@@ -202,7 +182,7 @@ export default async function TenantHomepage({ params }: PageProps) {
                 <div className={`w-full ${isMagazine && i === 0 ? 'md:w-1/2' : ''}`}>
                   <div className="flex items-center gap-x-4 text-sm mb-4">
                     <time
-                      dateTime={article.createdAt.toISOString()}
+                      dateTime={article.createdAt}
                       className="text-[var(--tenant-accent)] font-medium uppercase tracking-wider text-xs"
                     >
                       {new Date(article.createdAt).toLocaleDateString('fr-FR', {

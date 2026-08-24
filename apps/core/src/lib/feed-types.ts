@@ -1,5 +1,5 @@
 // =====================================================================
-// 🧠 Types du feed — version locale (core, sans @qoe/db)
+// 🧠 Types du feed — version locale (core, Go-only)
 // =====================================================================
 // Structures du fil de pensées / articles telles que renvoyées par l'API Go
 // (GET /v1/feed/hydrate, /v1/home/feed) — parité avec les shapes Prisma

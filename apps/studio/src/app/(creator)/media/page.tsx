@@ -10,8 +10,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@qoe/supabase/server';
-import { prisma } from '@qoe/db/client';
-import { goFetch, isGoEnabled } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import { MediaStudioClient } from './MediaStudioClient';
 
 interface MediaListItem {
@@ -47,50 +46,11 @@ export default async function MediaPage() {
     activeWorkspace = null;
   }
 
-  // Go en primaire : liste des médias de l'utilisateur (chemin nominal).
-  if (isGoEnabled()) {
-    try {
-      const res = await goFetch<{ medias: MediaListItem[] }>('/v1/media');
-      const medias = res.medias ?? [];
-      const activeMediaId = resolveActiveMediaId(medias, activeWorkspace);
-      return <MediaStudioClient medias={medias} activeMediaId={activeMediaId} />;
-    } catch {
-      // Fallback Prisma dev ci-dessous (QOE_API_URL indisponible).
-    }
-  }
-
-  // ⚠️ Fallback dev — le chemin nominal est le Go ci-dessus.
-  const memberships = await prisma.mediaMember.findMany({
-    where: { userId: user.id },
-    include: {
-      media: {
-        include: {
-          publication: true,
-          _count: { select: { members: true, invites: true } },
-        },
-      },
-    },
-    orderBy: { joinedAt: 'asc' },
-  });
-
-  const medias = memberships.map((m) => ({
-    id: m.media.id,
-    name: m.media.publication.name,
-    slug: m.media.publication.slug,
-    subdomain: m.media.publication.subdomain,
-    bio: m.media.publication.bio,
-    logoUrl: m.media.publication.logoUrl,
-    role: m.role,
-    membersCount: m.media._count.members,
-    invitesCount: m.media._count.invites,
-  }));
-
-  const activeMedia =
-    activeWorkspace?.type === 'MEDIA'
-      ? (medias.find((m) => m.id === activeWorkspace?.id) ?? null)
-      : null;
-
-  return <MediaStudioClient medias={medias} activeMediaId={activeMedia?.id ?? null} />;
+  // Go : liste des médias de l'utilisateur.
+  const res = await goFetch<{ medias: MediaListItem[] }>('/v1/media');
+  const medias = res.medias ?? [];
+  const activeMediaId = resolveActiveMediaId(medias, activeWorkspace);
+  return <MediaStudioClient medias={medias} activeMediaId={activeMediaId} />;
 }
 
 function resolveActiveMediaId(

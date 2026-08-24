@@ -1,11 +1,11 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { prisma } from '@qoe/db/client';
 import { createClient } from '@qoe/supabase/server';
-import { getOnboardingData } from '@qoe/db/onboarding';
+import { getCurrentUser } from '@qoe/auth/current-user';
 import { AnalyticsScript } from '@qoe/analytics/client';
-import { OnboardingModal } from '@qoe/ui';
+import { OnboardingModal, type OnboardingCategory, type OnboardingCreator } from '@qoe/ui';
 import { completeOnboarding } from './onboarding-actions';
+import { fetchTenantPublication } from '@/lib/tenant-data';
 
 interface TenantLayoutProps {
   children: React.ReactNode;
@@ -16,18 +16,9 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
 
-  // Résolution polymorphe : la Publication (personnelle OU média) est l'identité tenant
-  const publication = await prisma.publication.findFirst({
-    where: {
-      OR: [{ subdomain: decodedDomain }, { customDomain: decodedDomain }],
-    },
-    select: {
-      id: true,
-      subdomain: true,
-      customDomain: true,
-      umamiWebsiteId: true,
-    },
-  });
+  // Go-first : GET /v1/publications/by-domain/{domain} — résolution polymorphe
+  // de la Publication (personnelle OU média) comme identité tenant.
+  const publication = await fetchTenantPublication(decodedDomain);
 
   if (!publication) {
     notFound();
@@ -38,7 +29,10 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
   // Onboarding en popup : si l'utilisateur est connecté mais n'a pas terminé
   // l'onboarding, on l'affiche sur n'importe quelle page tenant (pas de redirect
   // vers core). Non fermable tant qu'il n'est pas terminé.
-  let onboardingProps: Awaited<ReturnType<typeof getOnboardingData>> | null = null;
+  let onboardingProps: {
+    categories: OnboardingCategory[];
+    suggestedCreators: OnboardingCreator[];
+  } | null = null;
 
   const supabase = await createClient();
   const {
@@ -46,12 +40,22 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
   } = await supabase.auth.getUser();
 
   if (user) {
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { hasCompletedOnboarding: true },
-    });
-    if (!dbUser?.hasCompletedOnboarding) {
-      onboardingProps = await getOnboardingData();
+    try {
+      const dbUser = await getCurrentUser();
+      if (dbUser && !dbUser.hasCompletedOnboarding) {
+        // Go-first : GET /v1/home/onboarding (catégories + créateurs suggérés).
+        const data = await fetch(`${process.env.QOE_API_URL}/v1/home/onboarding`, {
+          cache: 'no-store',
+        });
+        if (data.ok) {
+          onboardingProps = (await data.json()) as {
+            categories: OnboardingCategory[];
+            suggestedCreators: OnboardingCreator[];
+          };
+        }
+      }
+    } catch (err) {
+      console.error('[tenant layout] onboarding data:', err);
     }
   }
 

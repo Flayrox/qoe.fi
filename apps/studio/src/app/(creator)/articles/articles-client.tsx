@@ -43,8 +43,8 @@ interface ArticleWithCategory {
   isPremium: boolean;
   readingTime: number;
   categoryId: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Date | string;
+  updatedAt: Date | string;
   category: {
     id: string;
     name: string;

@@ -11,45 +11,110 @@
 // ⚠️ Fichier serveur : non exposé au mobile (API Go /v1/notifications).
 // =====================================================================
 
-import { notifications } from '@qoe/db';
 import { safeAction } from '../utils/safe-action';
 import { goFetch } from '../utils/go-client';
 
 export type NotificationFilter = 'all' | 'mentions' | 'replies' | 'likes' | 'collaborations';
 
+export type GroupedNotificationType =
+  | 'LIKE'
+  | 'REPLY'
+  | 'REPOST'
+  | 'FOLLOW'
+  | 'MENTION'
+  | 'COMMENT'
+  | 'MEDIA_INVITE'
+  | 'MEDIA_MEMBER_JOINED';
+
+/** 🔔 Notification groupée (shape API Go /v1/notifications). */
+export interface GroupedNotification {
+  id: string;
+  notificationIds: string[];
+  type: GroupedNotificationType;
+  isRead: boolean;
+  createdAt: string;
+  thoughtId?: string | null;
+  articleId?: string | null;
+  commentId?: string | null;
+  thought?: { id: string; content: string; createdAt: string } | null;
+  article?: { id: string; title: string; slug: string } | null;
+  comment?: { id: string; content: string } | null;
+  publication?: { id: string; name: string | null; slug?: string | null } | null;
+  senders: Array<{
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+    isCertified: boolean;
+  }>;
+  totalCount: number;
+}
+
+/** ⚙️ Préférences de notifications (shape NotificationPreference). */
+export interface NotificationPreferences {
+  id: string;
+  userId: string;
+  emailLikes: boolean;
+  pushLikes: boolean;
+  emailReplies: boolean;
+  pushReplies: boolean;
+  emailMentions: boolean;
+  pushMentions: boolean;
+  emailFollows: boolean;
+  pushFollows: boolean;
+  emailReposts: boolean;
+  pushReposts: boolean;
+  emailComments: boolean;
+  pushComments: boolean;
+  emailMedia: boolean;
+  pushMedia: boolean;
+  emailCollaborations: boolean;
+  pushCollaborations: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NotificationPreferencesInput = Partial<{
+  emailLikes: boolean;
+  pushLikes: boolean;
+  emailReplies: boolean;
+  pushReplies: boolean;
+  emailMentions: boolean;
+  pushMentions: boolean;
+  emailFollows: boolean;
+  pushFollows: boolean;
+  emailReposts: boolean;
+  pushReposts: boolean;
+  emailComments: boolean;
+  pushComments: boolean;
+  emailMedia: boolean;
+  pushMedia: boolean;
+  emailCollaborations: boolean;
+  pushCollaborations: boolean;
+}>;
+
 export const getNotificationsAction = safeAction<
   { filter?: NotificationFilter; limit?: number; cursor?: string },
-  { notifications: notifications.GroupedNotification[]; nextCursor: string | null }
+  { notifications: GroupedNotification[]; nextCursor: string | null }
 >(async (rawInput) => {
   const filter = rawInput?.filter || 'all';
   const limit = rawInput?.limit || 30;
   const cursor = rawInput?.cursor;
 
-  try {
-    const res = await goFetch<{
-      notifications?: notifications.GroupedNotification[];
-      nextCursor?: string | null;
-    }>(
-      `/v1/notifications?filter=${filter}&limit=${limit}&cursor=${encodeURIComponent(cursor ?? '')}`
-    );
-    return {
-      notifications: (res?.notifications ?? []).filter(Boolean),
-      nextCursor: res?.nextCursor ?? null,
-    };
-  } catch {
-    return {
-      notifications: [],
-      nextCursor: null,
-    };
-  }
+  const res = await goFetch<{
+    notifications?: GroupedNotification[];
+    nextCursor?: string | null;
+  }>(
+    `/v1/notifications?filter=${filter}&limit=${limit}&cursor=${encodeURIComponent(cursor ?? '')}`
+  );
+  return {
+    notifications: (res?.notifications ?? []).filter(Boolean),
+    nextCursor: res?.nextCursor ?? null,
+  };
 });
 
 export const getUnreadNotificationCountAction = safeAction<void, { count: number }>(async () => {
-  try {
-    return await goFetch<{ count: number }>('/v1/notifications/unread-count');
-  } catch {
-    return { count: 0 };
-  }
+  return await goFetch<{ count: number }>('/v1/notifications/unread-count');
 });
 
 export const markNotificationsAsReadAction = safeAction<
@@ -64,36 +129,17 @@ export const markNotificationsAsReadAction = safeAction<
 
 export const getNotificationPreferencesAction = safeAction<
   void,
-  { preferences: Awaited<ReturnType<typeof notifications.getPreferences>> }
+  { preferences: NotificationPreferences }
 >(async () => {
-  return goFetch<{ preferences: Awaited<ReturnType<typeof notifications.getPreferences>> }>(
-    '/v1/notifications/preferences'
-  );
+  return goFetch<{ preferences: NotificationPreferences }>('/v1/notifications/preferences');
 });
 
 export const updateNotificationPreferencesAction = safeAction<
-  Partial<{
-    emailLikes: boolean;
-    pushLikes: boolean;
-    emailReplies: boolean;
-    pushReplies: boolean;
-    emailMentions: boolean;
-    pushMentions: boolean;
-    emailFollows: boolean;
-    pushFollows: boolean;
-    emailReposts: boolean;
-    pushReposts: boolean;
-    emailComments: boolean;
-    pushComments: boolean;
-    emailMedia: boolean;
-    pushMedia: boolean;
-    emailCollaborations: boolean;
-    pushCollaborations: boolean;
-  }>,
-  { preferences: Awaited<ReturnType<typeof notifications.updatePreferences>> }
+  NotificationPreferencesInput,
+  { preferences: NotificationPreferences }
 >(async (input) => {
-  return goFetch<{ preferences: Awaited<ReturnType<typeof notifications.updatePreferences>> }>(
-    '/v1/notifications/preferences',
-    { method: 'PATCH', body: input }
-  );
+  return goFetch<{ preferences: NotificationPreferences }>('/v1/notifications/preferences', {
+    method: 'PATCH',
+    body: input,
+  });
 });

@@ -7,7 +7,6 @@ import frTranslations from '../../../messages/fr.json';
 import enTranslations from '../../../messages/en.json';
 import frCatalog from '../../../messages/fr.js';
 import enCatalog from '../../../messages/en.js';
-import { prisma } from '@qoe/db/client';
 import { unstable_cache } from 'next/cache';
 import {
   getI18n,
@@ -25,17 +24,26 @@ const catalogs: Record<string, Record<string, string>> = {
 };
 
 // Next.js cache for translation overrides (cleared when Tag "i18n-overrides" is revalidated)
+// Chargés depuis le serveur Go (GET /v1/home/config — public, sans session) :
+// la clé SystemConfig "TRANSLATIONS_OVERRIDE" y est renvoyée telle quelle.
 export const getCachedOverrides = unstable_cache(
   async () => {
     try {
-      const config = await prisma.systemConfig.findUnique({
-        where: { key: 'TRANSLATIONS_OVERRIDE' },
-      });
-      if (config?.value) {
-        return JSON.parse(config.value);
+      const apiUrl = process.env.QOE_API_URL;
+      if (!apiUrl) {
+        return {};
+      }
+      const res = await fetch(`${apiUrl}/v1/home/config`);
+      if (!res.ok) {
+        return {};
+      }
+      const config = (await res.json()) as Record<string, string>;
+      const raw = config['TRANSLATIONS_OVERRIDE'];
+      if (raw) {
+        return JSON.parse(raw);
       }
     } catch (e) {
-      console.error('Failed to load i18n overrides from DB:', e);
+      console.error('Failed to load i18n overrides from Go API:', e);
     }
     return {};
   },

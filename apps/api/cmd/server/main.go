@@ -38,8 +38,10 @@ import (
 	"github.com/qoefi/api/internal/modules/notifications"
 	"github.com/qoefi/api/internal/modules/oauth"
 	"github.com/qoefi/api/internal/modules/posts"
+	"github.com/qoefi/api/internal/modules/publications"
 	"github.com/qoefi/api/internal/modules/search"
 	"github.com/qoefi/api/internal/modules/settings"
+	"github.com/qoefi/api/internal/modules/starterpacks"
 	"github.com/qoefi/api/internal/modules/tracking"
 	"github.com/qoefi/api/internal/modules/users"
 	"github.com/qoefi/api/internal/modules/webhooks"
@@ -154,6 +156,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 	searchHandler := search.NewHandler(search.NewSemanticService(d.Pool))
 	searchHandler.RegisterPublic(r)
 
+
 	// Endpoints internes (émission d'événements → asynq), protégés par secret.
 	eventsHandler := events.NewHandler(asynqClient, d.InternalSecret)
 	eventsHandler.Register(r)
@@ -164,6 +167,12 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 	// Auth JWT Supabase (instance partagée : Middleware obligatoire + OptionalAuth).
 	auth := authmw.NewAuth(d.JWTSecret, d.SupabaseAuthURL)
+
+	// Starter packs : lecture publique (auth optionnelle) + création/follow (protégé).
+	starterPacksHandler := starterpacks.NewHandler(starterpacks.NewService(pool))
+	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
+		starterPacksHandler.RegisterPublic(pub)
+	})
 
 	// Articles : lecture publique (auth optionnelle, paywall) hors groupe protégé.
 	articlesHandler := articles.NewHandler(articles.NewService(pool, rc, asynqClient))
@@ -183,6 +192,13 @@ func newRouter(d RouterDeps) *chi.Mux {
 	highlightsHandler := highlights.NewHandler(highlights.NewService(pool))
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
 		highlightsHandler.RegisterPublic(pub)
+	})
+
+	// Publications tenant (identité par sous-domaine/domaine) : lecture
+	// publique (auth optionnelle pour les entitlements/interactions du lecteur).
+	publicationsHandler := publications.NewHandler(publications.NewService(pool))
+	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
+		publicationsHandler.RegisterPublic(pub)
 	})
 
 	// Home widgets publics (systemConfig, trends, promos, onboarding, créateurs
@@ -262,6 +278,8 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		collaborationsHandler := collaborations.NewHandler(collaborations.NewService(pool))
 		collaborationsHandler.Register(protected)
+
+		starterPacksHandler.RegisterProtected(protected)
 
 		devtoolsHandler := devtools.NewHandler(devtools.NewService(pool))
 		devtoolsHandler.Register(protected)

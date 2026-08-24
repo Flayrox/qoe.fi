@@ -20,7 +20,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@qoe/db": "workspace:*",
+    "@qoe/config": "workspace:*",
     "clsx": "^2.1.1",
     "tailwind-merge": "^3.6.0",
     "zod": "^3.23.8"
