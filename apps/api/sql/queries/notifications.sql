@@ -127,30 +127,48 @@ LIMIT 500;
 
 -- name: InsertMediaInviteNotification :exec
 INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId")
-SELECT gen_random_uuid()::text, $1, $2, 'MEDIA_INVITE', $3
-WHERE $1 <> $2
+SELECT gen_random_uuid()::text,
+       sqlc.arg('recipient_id')::uuid,
+       sqlc.arg('sender_id')::uuid,
+       'MEDIA_INVITE',
+       sqlc.arg('publication_id')::text
+WHERE sqlc.arg('recipient_id')::uuid <> sqlc.arg('sender_id')::uuid
   AND (
-    COALESCE((SELECT "pushMedia" FROM "NotificationPreference" WHERE "userId" = $1), true)
-    OR COALESCE((SELECT "emailMedia" FROM "NotificationPreference" WHERE "userId" = $1), true)
+    COALESCE((SELECT "pushMedia" FROM "NotificationPreference"
+              WHERE "userId" = sqlc.arg('recipient_id')::uuid), true)
+    OR COALESCE((SELECT "emailMedia" FROM "NotificationPreference"
+              WHERE "userId" = sqlc.arg('recipient_id')::uuid), true)
   )
   AND NOT EXISTS (
     SELECT 1 FROM "Notification" n
-    WHERE n."recipientId" = $1 AND n."senderId" = $2 AND n.type = 'MEDIA_INVITE'
-      AND n."publicationId" = $3 AND n."isRead" = false
+    WHERE n."recipientId" = sqlc.arg('recipient_id')::uuid
+      AND n."senderId" = sqlc.arg('sender_id')::uuid
+      AND n.type = 'MEDIA_INVITE'
+      AND n."publicationId" = sqlc.arg('publication_id')::text
+      AND n."isRead" = false
   );
 
 -- name: InsertMediaMemberJoinedNotification :exec
 INSERT INTO "Notification" (id, "recipientId", "senderId", type, "publicationId")
-SELECT gen_random_uuid()::text, $1, $2, 'MEDIA_MEMBER_JOINED', $3
-WHERE $1 <> $2
+SELECT gen_random_uuid()::text,
+       sqlc.arg('recipient_id')::uuid,
+       sqlc.arg('sender_id')::uuid,
+       'MEDIA_MEMBER_JOINED',
+       sqlc.arg('publication_id')::text
+WHERE sqlc.arg('recipient_id')::uuid <> sqlc.arg('sender_id')::uuid
   AND (
-    COALESCE((SELECT "pushMedia" FROM "NotificationPreference" WHERE "userId" = $1), true)
-    OR COALESCE((SELECT "emailMedia" FROM "NotificationPreference" WHERE "userId" = $1), true)
+    COALESCE((SELECT "pushMedia" FROM "NotificationPreference"
+              WHERE "userId" = sqlc.arg('recipient_id')::uuid), true)
+    OR COALESCE((SELECT "emailMedia" FROM "NotificationPreference"
+              WHERE "userId" = sqlc.arg('recipient_id')::uuid), true)
   )
   AND NOT EXISTS (
     SELECT 1 FROM "Notification" n
-    WHERE n."recipientId" = $1 AND n."senderId" = $2 AND n.type = 'MEDIA_MEMBER_JOINED'
-      AND n."publicationId" = $3 AND n."isRead" = false
+    WHERE n."recipientId" = sqlc.arg('recipient_id')::uuid
+      AND n."senderId" = sqlc.arg('sender_id')::uuid
+      AND n.type = 'MEDIA_MEMBER_JOINED'
+      AND n."publicationId" = sqlc.arg('publication_id')::text
+      AND n."isRead" = false
   );
 
 -- name: InsertMediaArticleSubmittedFanout :exec

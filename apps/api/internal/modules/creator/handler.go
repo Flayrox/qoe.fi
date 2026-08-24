@@ -558,7 +558,13 @@ func parseFollowPage(r *http.Request) (limit, offset int) {
 
 // followToggle suit/se désabonne d'une publication (parité Hono /v1/users/{id}/follow).
 func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
-	userID, _ := middleware.UserID(r.Context())
+	userID, ok := middleware.UserID(r.Context())
+	// Défense en profondeur : la route est derrière CombinedAuth, mais un
+	// contexte sans session ne doit jamais atteindre le SQL (sinon 500).
+	if !ok || userID == "" {
+		response.Unauthorized(w, "Non authentifié")
+		return
+	}
 	targetID := chi.URLParam(r, "id")
 	ctx := r.Context()
 
