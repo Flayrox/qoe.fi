@@ -232,9 +232,21 @@ export function LiquidTabBar({
   const { session } = useAuth();
   const { data: me } = useMe();
   const user = session?.user;
+  const displayName =
+    me?.name ||
+    (user?.user_metadata?.full_name as string | undefined) ||
+    me?.username ||
+    user?.email?.split('@')[0] ||
+    '';
+  const displayUsername =
+    me?.username ||
+    (user?.user_metadata?.username as string | undefined) ||
+    user?.email?.split('@')[0] ||
+    '';
+
   const userAvatarProps = {
-    name: me?.name || (user?.user_metadata?.full_name as string) || 'Utilisateur',
-    username: me?.username || (user?.user_metadata?.username as string) || 'user',
+    name: displayName,
+    username: displayUsername,
     logoUrl: me?.logoUrl || (user?.user_metadata?.avatar_url as string | undefined),
   };
 

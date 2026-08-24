@@ -399,6 +399,15 @@ export class QoeApiClient {
     });
   }
 
+  /**
+   * POST /v1/me/sync — synchronise l'utilisateur Supabase avec la base PostgreSQL.
+   */
+  public async syncUser() {
+    return this.request<{ created: boolean; needsOnboarding: boolean }>('/v1/me/sync', {
+      method: 'POST',
+    });
+  }
+
   // ─── User Profile & Follows ─────────────────────────────────
   /**
    * GET /v1/users/me — profil courant complet (enveloppé `data`).

@@ -16,6 +16,7 @@ import {
   saveAccount,
   type StoredAccount,
 } from '@/features/auth/accounts-manager';
+import { apiClient } from '@/lib/api';
 import { queryClient } from '@/lib/query-client';
 import { setAccessToken } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
@@ -78,6 +79,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setSession(nextSession);
       setAccessToken(nextSession?.access_token ?? null);
       if (nextSession) {
+        // Synchroniser le user avec la base PostgreSQL de l'API Go
+        void apiClient.syncUser();
         saveAccount(nextSession).then((updated) => {
           setSavedAccounts(updated);
         });
