@@ -13,10 +13,18 @@ export function useMe() {
   return useQuery({
     queryKey: ['me'],
     queryFn: async () => {
-      const res = await apiClient.getMyProfile();
-      if (!res.ok) return null;
-      return res.data;
+      try {
+        const res = await apiClient.getMyProfile();
+        if (!res.ok) {
+          console.warn('[useMe] getMyProfile failed:', res.error);
+          return null;
+        }
+        return res.data;
+      } catch (err) {
+        console.error('[useMe] error:', err);
+        return null;
+      }
     },
-    staleTime: 5 * 60_000,
+    staleTime: 60_000,
   });
 }
