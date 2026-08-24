@@ -42,7 +42,7 @@
 
 # Cert DÉDIÉ pour base.admin.qoe.fi (3 niveaux — non couvert par *.qoe.fi).
 # À générer AVANT la migration (certbot -d base.admin.qoe.fi, challenge DNS)
-# pour qu'il soit inclus dans la sauvegarde letsencrypt/ (voir MIGRATION.md).
+# pour qu'il soit inclus dans la sauvegarde letsencrypt/ (voir docs/MIGRATION.md).
 (base_admin_cert) {
     tls /etc/letsencrypt/live/base.admin.qoe.fi/fullchain.pem /etc/letsencrypt/live/base.admin.qoe.fi/privkey.pem
 }
