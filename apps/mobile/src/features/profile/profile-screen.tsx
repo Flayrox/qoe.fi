@@ -11,8 +11,9 @@ import { Image } from 'expo-image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -163,13 +164,30 @@ export function ProfileScreen({
 
   return (
     <ThemedView style={styles.container}>
+      {/* ─── Arrière-plan étendu : Déduplication de la bannière floutée jusqu'au sommet de l'écran ─── */}
+      {profile.headerImageUrl ? (
+        <View style={styles.backdropCoverWrapper} pointerEvents="none">
+          <Image
+            source={{ uri: profile.headerImageUrl }}
+            style={styles.backdropCoverImage}
+            contentFit="cover"
+          />
+          <BlurView intensity={70} tint="prominent" style={StyleSheet.absoluteFill} />
+          <LinearGradient
+            colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0.1)', 'transparent']}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
+      ) : null}
+
       {/* ─── Header Custom Flottant Liquid Glass & Morphing ─── */}
       <CustomSubHeader
         title={profile.name || handle}
         subtitle={`@${handle}`}
         scrollY={scrollY}
         showTitleOnScrollOnly={true}
-        scrollThreshold={100}
+        scrollThreshold={120}
+        enableBlur={false}
         onBackPress={onNavigateBack}
         rightComponent={
           <ProfileMenuButton
@@ -188,7 +206,7 @@ export function ProfileScreen({
         }
       />
 
-      <SafeAreaView edges={['bottom']} style={styles.safeArea}>
+      <View style={styles.flex}>
         <FlashList
           data={items}
           keyExtractor={(item) => item.id}
@@ -199,25 +217,28 @@ export function ProfileScreen({
           scrollEventThrottle={16}
           refreshing={isRefetching}
           onRefresh={() => void refetch()}
+          contentContainerStyle={styles.scrollContent}
           ListHeaderComponent={
             <View>
-              {/* Bannière de couverture */}
-              {profile.headerImageUrl ? (
-                <Image
-                  source={{ uri: profile.headerImageUrl }}
-                  style={[styles.cover, { backgroundColor: theme.backgroundSelected }]}
-                  contentFit="cover"
-                  transition={200}
-                />
-              ) : (
-                <View
-                  style={[
-                    styles.cover,
-                    styles.coverFallback,
-                    { backgroundColor: theme.backgroundSelected },
-                  ]}
-                />
-              )}
+              {/* ─── Bannière principale nette descendue sous la barre ─── */}
+              <View style={styles.mainCoverContainer}>
+                {profile.headerImageUrl ? (
+                  <Image
+                    source={{ uri: profile.headerImageUrl }}
+                    style={[styles.cover, { backgroundColor: theme.backgroundSelected }]}
+                    contentFit="cover"
+                    transition={200}
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.cover,
+                      styles.coverFallback,
+                      { backgroundColor: theme.backgroundSelected },
+                    ]}
+                  />
+                )}
+              </View>
 
               {/* Avatar chevauchant la bannière */}
               <View style={styles.avatarRow}>
@@ -344,9 +365,8 @@ export function ProfileScreen({
             hasNextPage ? <ActivityIndicator color={theme.text} style={styles.footer} /> : null
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
-          contentContainerStyle={styles.content}
         />
-      </SafeAreaView>
+      </View>
     </ThemedView>
   );
 }
@@ -355,7 +375,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  safeArea: {
+  flex: {
     flex: 1,
   },
   center: {
@@ -365,24 +385,46 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     padding: Spacing.four,
   },
-  content: {
+  backdropCoverWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 220,
+    zIndex: 1,
+    overflow: 'hidden',
+  },
+  backdropCoverImage: {
+    width: '100%',
+    height: '100%',
+    transform: [{ scale: 1.25 }], // zoom léger pour amplifier la texture floutée
+  },
+  scrollContent: {
+    paddingTop: 104, // Démarre parfaitement sous la barre Custom Liquid Glass (50 + 52)
     paddingBottom: Spacing.four,
     gap: Spacing.two,
     flexGrow: 1,
   },
+  mainCoverContainer: {
+    paddingHorizontal: Spacing.three,
+    marginTop: Spacing.two,
+  },
   cover: {
     width: '100%',
-    height: 185,
+    height: 160,
+    borderRadius: 20, // Coins arrondis modernes pour la bannière principale
+    overflow: 'hidden',
   },
   coverFallback: {
-    height: 145,
+    height: 130,
+    borderRadius: 20,
   },
   avatarRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    paddingHorizontal: Spacing.three,
-    marginTop: -38, // fait chevaucher harmonieusement l'avatar sur la bannière
+    paddingHorizontal: Spacing.four,
+    marginTop: -34, // fait chevaucher harmonieusement l'avatar sur la bannière
   },
   followWrap: {
     marginBottom: Spacing.one,
