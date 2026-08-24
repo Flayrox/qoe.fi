@@ -27,9 +27,11 @@ export interface StarterPackCardProps {
         logoUrl?: string | null;
       };
     }>;
-    _count?: {
-      items: number;
-    };
+    _count?:
+      | number
+      | {
+          items: number;
+        };
   };
 }
 
@@ -38,7 +40,8 @@ export function StarterPackCard({ pack }: StarterPackCardProps) {
   const [hasFollowed, setHasFollowed] = useState(false);
   const [followedCount, setFollowedCount] = useState<number | null>(null);
 
-  const itemCount = pack._count?.items ?? pack.items?.length ?? 0;
+  const itemCount =
+    typeof pack._count === 'number' ? pack._count : (pack._count?.items ?? pack.items?.length ?? 0);
   const previewItems = pack.items?.slice(0, 5) || [];
 
   const handleFollowAll = async (e: React.MouseEvent) => {

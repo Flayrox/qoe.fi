@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ChevronDown, ArrowLeft } from 'lucide-react';
-import type { NavigationItem, SocialLink } from '@qoe/db/types';
+import type { NavigationItem, SocialLink } from '@qoe/api-client/types';
 import { SocialIcon } from './SocialIcon';
 
 // Define the nested type since Prisma returns flat by default without includes

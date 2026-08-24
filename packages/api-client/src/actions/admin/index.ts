@@ -10,10 +10,8 @@
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
-import { createClient as createServerClient } from '@qoe/supabase/server';
-import { prisma } from '@qoe/db/client';
 import { revalidatePath } from 'next/cache';
-import { goFetch, isGoEnabled } from '../utils/go-client';
+import { goFetch } from '../utils/go-client';
 import { safeAction } from '../utils/safe-action';
 
 function getAdminClient() {
@@ -29,36 +27,22 @@ function getAdminClient() {
   );
 }
 
-async function verifySuperadmin() {
-  const supabase = await createServerClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) throw new Error('Unauthorized');
-
-  const dbUser = await prisma.user.findUnique({ where: { id: authUser.id } });
-  if (dbUser?.role !== 'superadmin') throw new Error('Forbidden');
-
-  return dbUser;
-}
-
 export const setSystemConfigAction = safeAction<
   { key: string; value: string; description?: string },
   { success: boolean }
 >(async ({ key, value, description }) => {
-  await verifySuperadmin();
-  await prisma.systemConfig.upsert({
-    where: { key },
-    update: { value, description },
-    create: { key, value, description },
+  // Le backend Go vérifie le rôle superadmin (403 sinon).
+  await goFetch('/v1/admin/config', {
+    method: 'PUT',
+    body: { key, value, description },
   });
   revalidatePath('/', 'layout');
   return { success: true };
 });
 
 export const deleteSystemConfigAction = safeAction<string, { success: boolean }>(async (key) => {
-  await verifySuperadmin();
-  await prisma.systemConfig.delete({ where: { key } });
+  // Le backend Go vérifie le rôle superadmin (403 sinon).
+  await goFetch(`/v1/admin/config/${encodeURIComponent(key)}`, { method: 'DELETE' });
   revalidatePath('/', 'layout');
   return { success: true };
 });
@@ -67,10 +51,10 @@ export const suspendUserAction = safeAction<
   { userId: string; reason: string },
   { success: boolean }
 >(async ({ userId, reason }) => {
-  await verifySuperadmin();
-  await prisma.user.update({
-    where: { id: userId },
-    data: { isSuspended: true, suspendReason: reason },
+  // Le backend Go vérifie le rôle superadmin (403 sinon).
+  await goFetch(`/v1/admin/users/${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    body: { isSuspended: true, suspendReason: reason },
   });
 
   const adminClient = getAdminClient();
@@ -87,10 +71,10 @@ export const suspendUserAction = safeAction<
 });
 
 export const unsuspendUserAction = safeAction<string, { success: boolean }>(async (userId) => {
-  await verifySuperadmin();
-  await prisma.user.update({
-    where: { id: userId },
-    data: { isSuspended: false, suspendReason: null },
+  // Le backend Go vérifie le rôle superadmin (403 sinon).
+  await goFetch(`/v1/admin/users/${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    body: { isSuspended: false, suspendReason: null },
   });
 
   const adminClient = getAdminClient();
@@ -106,10 +90,10 @@ export const toggleUserCertificationAction = safeAction<
   { userId: string; isCertified: boolean },
   { success: boolean }
 >(async ({ userId, isCertified }) => {
-  await verifySuperadmin();
-  await prisma.user.update({
-    where: { id: userId },
-    data: { isCertified },
+  // Le backend Go vérifie le rôle superadmin (403 sinon).
+  await goFetch(`/v1/admin/users/${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    body: { isCertified },
   });
   revalidatePath('/admin/creators');
   return { success: true };
@@ -119,10 +103,10 @@ export const toggleUserShadowbanAction = safeAction<
   { userId: string; isShadowbanned: boolean },
   { success: boolean }
 >(async ({ userId, isShadowbanned }) => {
-  await verifySuperadmin();
-  await prisma.user.update({
-    where: { id: userId },
-    data: { isShadowbanned },
+  // Le backend Go vérifie le rôle superadmin (403 sinon).
+  await goFetch(`/v1/admin/users/${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    body: { isShadowbanned },
   });
   revalidatePath('/admin/creators');
   return { success: true };
@@ -133,20 +117,10 @@ export const updateOAuthClientStatusAction = safeAction<
   { clientId: string; status: 'APPROVED' | 'REJECTED' | 'REVOKED' | 'PENDING' },
   { success: boolean }
 >(async ({ clientId, status }) => {
-  if (isGoEnabled()) {
-    // Le backend Go vérifie le rôle superadmin (403 sinon).
-    await goFetch(`/v1/admin/oauth/clients/${encodeURIComponent(clientId)}`, {
-      method: 'PATCH',
-      body: { status },
-    });
-    revalidatePath('/admin/oauth');
-    return { success: true };
-  }
-  // 🐢 Fallback dev : Prisma.
-  await verifySuperadmin();
-  await prisma.oAuthClient.update({
-    where: { id: clientId },
-    data: { status },
+  // Le backend Go vérifie le rôle superadmin (403 sinon).
+  await goFetch(`/v1/admin/oauth/clients/${encodeURIComponent(clientId)}`, {
+    method: 'PATCH',
+    body: { status },
   });
   revalidatePath('/admin/oauth');
   return { success: true };
@@ -156,20 +130,10 @@ export const updateCreatorApiAccessAction = safeAction<
   { userId: string; status: 'approved' | 'rejected' | 'revoked' | 'none' },
   { success: boolean }
 >(async ({ userId, status }) => {
-  if (isGoEnabled()) {
-    // Le backend Go vérifie le rôle superadmin (403 sinon).
-    await goFetch(`/v1/admin/api-applicants/${encodeURIComponent(userId)}`, {
-      method: 'PATCH',
-      body: { status },
-    });
-    revalidatePath('/admin/api');
-    return { success: true };
-  }
-  // 🐢 Fallback dev : Prisma.
-  await verifySuperadmin();
-  await prisma.user.update({
-    where: { id: userId },
-    data: { apiAccessStatus: status },
+  // Le backend Go vérifie le rôle superadmin (403 sinon).
+  await goFetch(`/v1/admin/api-applicants/${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    body: { status },
   });
   revalidatePath('/admin/api');
   return { success: true };

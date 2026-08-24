@@ -1,6 +1,5 @@
 import React from 'react';
 import { notFound, redirect } from 'next/navigation';
-import { prisma } from '@qoe/db/client';
 import { createClient } from '@qoe/supabase/server';
 import { getMainAppUrl } from '@qoe/config';
 import Link from 'next/link';
@@ -15,8 +14,9 @@ import { ReaderActions } from '../../article/[slug]/ReaderActions';
 import { ArticleCommentsSection } from '../../article/[slug]/ArticleCommentsSection';
 import { getArticleCommentsAction } from '../../article/[slug]/actions';
 import { sliceContentAtPaywall } from '@qoe/utils';
-import { ContentVisibility } from '@qoe/db/types';
+import { ContentVisibility } from '@qoe/config';
 import { t } from '@lingui/core/macro';
+import { fetchTenantArticle, fetchArticleHighlights } from '@/lib/tenant-data';
 
 interface TenantCategoryArticlePageProps {
   params: Promise<{
@@ -38,90 +38,34 @@ export default async function TenantCategoryArticlePage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const currentUserProfile = user
-    ? await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { id: true, name: true, username: true, logoUrl: true },
-      })
-    : null;
 
-  const publication = await prisma.publication.findFirst({
-    where: {
-      OR: [
-        { subdomain: { equals: decodedDomain, mode: 'insensitive' } },
-        { customDomain: { equals: decodedDomain, mode: 'insensitive' } },
-      ],
-    },
-    include: {
-      navigation: { orderBy: { order: 'asc' } },
-      socialLinks: { orderBy: { order: 'asc' } },
-      user: { select: { id: true, username: true } },
-    },
-  });
+  // Go-first : GET /v1/publications/by-domain/{domain}/article/{slug} —
+  // résolution de la Publication + article (avec fallback attribution côté Go).
+  const bundle = await fetchTenantArticle(decodedDomain, decodedArticleSlug);
 
-  if (!publication) notFound();
+  if (!bundle) notFound();
 
+  const publication = bundle.publication;
+  const article = bundle.article;
   const displayName = publication.name || publication.user?.username || t`le créateur`;
-
-  // 1) Try hosted article (publicationId + slug)
-  let article = await prisma.article.findFirst({
-    where: {
-      publicationId: publication.id,
-      OR: [
-        { slug: { equals: decodedArticleSlug, mode: 'insensitive' } },
-        { id: decodedArticleSlug },
-      ],
-    },
-    include: {
-      category: true,
-      author: { select: { id: true, name: true, username: true, logoUrl: true } },
-    },
-  });
-
-  let attributionCategorySlug: string | null = null;
-  let isViaAttribution = false;
-
-  // 2) Fallback: co-authored article via attribution (tenant owner is co-author)
-  if (!article && publication.user?.id) {
-    const coAuthored = await prisma.article.findFirst({
-      where: {
-        OR: [
-          { slug: { equals: decodedArticleSlug, mode: 'insensitive' } },
-          { id: decodedArticleSlug },
-        ],
-        attributions: {
-          some: { userId: publication.user.id, consentStatus: 'ACCEPTED', isVisible: true },
-        },
-      },
-      include: {
-        category: true,
-        author: { select: { id: true, name: true, username: true, logoUrl: true } },
-        attributions: {
-          where: { userId: publication.user.id },
-          select: { categoryId: true, category: { select: { slug: true } } },
-        },
-      },
-    });
-    if (coAuthored) {
-      article = {
-        category: coAuthored.category,
-        author: coAuthored.author,
-      } as unknown as typeof coAuthored & { category: typeof coAuthored.category };
-      // Preserve full article object for later
-      const full = await prisma.article.findUnique({
-        where: { id: coAuthored.id },
-        include: {
-          category: true,
-          author: { select: { id: true, name: true, username: true, logoUrl: true } },
-        },
-      });
-      if (full) {
-        article = full;
-        isViaAttribution = true;
-        attributionCategorySlug = coAuthored.attributions[0]?.category?.slug || null;
+  const attributionCategorySlug: string | null = bundle.attributionCategorySlug ?? null;
+  const isViaAttribution = bundle.isViaAttribution;
+  const currentUserProfile: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+  } | null = user
+    ? {
+        id: user.id,
+        name: (user.user_metadata?.name as string) ?? null,
+        username:
+          (user.user_metadata?.username as string) ??
+          (user.user_metadata?.user_name as string) ??
+          null,
+        logoUrl: (user.user_metadata?.avatar_url as string) ?? null,
       }
-    }
-  }
+    : null;
 
   if (!article) {
     return (
@@ -159,13 +103,11 @@ export default async function TenantCategoryArticlePage({
   if (!canonicalCategorySlug && decodedCategorySlug !== 'article') {
     // Article has no category but URL used a category — redirect to /article
     // (keep legacy /article valid, but canonical is /article)
-    // Only redirect if category exists in this publication (to avoid false positive for article slugs that equal a category name)
-    const maybeCategory = await prisma.category.findFirst({
-      where: {
-        slug: { equals: decodedCategorySlug, mode: 'insensitive' },
-        publicationId: publication.id,
-      },
-    });
+    // Only redirect if category exists in this publication (to avoid false
+    // positive for article slugs that equal a category name).
+    const maybeCategory = publication.categories.some(
+      (c) => c.slug.toLowerCase() === decodedCategorySlug
+    );
     if (maybeCategory) {
       redirect(`/article/${encodeURIComponent(article.slug)}`);
     }
@@ -198,47 +140,16 @@ export default async function TenantCategoryArticlePage({
     );
   }
 
-  // Fetch interactions (same as /article/[slug] page)
-  let initialBookmarked = false;
-  let initialFollowed = false;
-  let initialHighlights: HighlightItem[] = [];
-  let publicHighlights: AnnotationItem[] = [];
-
-  const [bm, fl, hl, publicHl, commentsRes] = await Promise.all([
-    user
-      ? prisma.bookmark.findUnique({
-          where: { readerId_articleId: { readerId: user.id, articleId: article.id } },
-        })
-      : null,
-    user
-      ? prisma.follows.findUnique({
-          where: { readerId_publicationId: { readerId: user.id, publicationId: publication.id } },
-        })
-      : null,
-    user
-      ? prisma.highlight.findMany({
-          where: { readerId: user.id, articleId: article.id, isPublic: false, isOfficial: false },
-          select: { id: true, text: true, note: true },
-        })
-      : [],
-    prisma.highlight.findMany({
-      where: { articleId: article.id, OR: [{ isOfficial: true }, { isPublic: true }] },
-      include: {
-        reader: { select: { id: true, name: true, username: true, logoUrl: true } },
-        comments: {
-          include: { author: { select: { id: true, name: true, username: true, logoUrl: true } } },
-          orderBy: { createdAt: 'asc' },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    }),
+  // Interactions + surlignages + commentaires — Go-first (comme /article).
+  const initialBookmarked = bundle.bookmarked;
+  const initialFollowed = bundle.followed;
+  const [hlRes, commentsRes] = await Promise.all([
+    fetchArticleHighlights(article.id),
     getArticleCommentsAction(article.id),
   ]);
 
-  initialBookmarked = !!bm;
-  initialFollowed = !!fl;
-  initialHighlights = hl;
-  publicHighlights = publicHl;
+  const initialHighlights: HighlightItem[] = hlRes.myPrivateHighlights;
+  const publicHighlights: AnnotationItem[] = hlRes.publicHighlights;
 
   const initialComments = (commentsRes?.comments || []) as unknown as CommentItem[];
 
@@ -274,17 +185,10 @@ export default async function TenantCategoryArticlePage({
   const wordCount = plainText.split(/\s+/).length;
   const readingTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
 
-  // Paywall (same as /article page)
+  // Paywall entitlements (résolus côté Go dans le bundle) & truncation serveur.
   const isAuthor = user?.id === article.authorId;
-  let isPaidSubscriber = isAuthor;
-  let isMember = isAuthor;
-  if (user) {
-    const subscriberRecord = await prisma.subscriber.findFirst({
-      where: { publicationId: publication.id, email: user.email || '', isActive: true },
-    });
-    isPaidSubscriber = isAuthor || !!subscriberRecord?.isPremium;
-    isMember = isPaidSubscriber || !!subscriberRecord;
-  }
+  const isPaidSubscriber = isAuthor || bundle.entitlements.isPaidSubscriber;
+  const isMember = isAuthor || bundle.entitlements.isMember;
   const visibility = article.isPremium
     ? ContentVisibility.PAID_SUBSCRIBERS
     : ContentVisibility.PUBLIC;
@@ -350,7 +254,7 @@ export default async function TenantCategoryArticlePage({
                 </span>
               )}
               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                <time dateTime={article.createdAt.toISOString()}>
+                <time dateTime={article.createdAt}>
                   {new Date(article.createdAt).toLocaleDateString('fr-FR', {
                     day: 'numeric',
                     month: 'long',

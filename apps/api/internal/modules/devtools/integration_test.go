@@ -1,8 +1,5 @@
 package devtools
 
-// Tests d'intégration de l'inspecteur DevTools (GET /v1/devtools/data) :
-// superadmin → utilisateurs + compteurs ; non-superadmin → refus.
-
 import (
 	"context"
 	"log"
@@ -26,142 +23,273 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-const (
-	devtoolsAdminID  = "00000000-0000-0000-0000-0000000000f1"
-	devtoolsCreator  = "00000000-0000-0000-0000-0000000000f2"
-	devtoolsReaderID = "00000000-0000-0000-0000-0000000000f3"
-)
-
-// seedDevtools crée :
-//   - admin (superadmin) avec publication personnelle (subdomain/accentColor) ;
-//   - creator (rôle creator, sans publication) avec 1 article + 1 pensée + 1 like ;
-//   - reader (rôle user) + 1 subscriber sur la publication du creator ;
-//
-// Les createdAt sont explicites pour tester le tri DESC (creator plus récent).
-func seedDevtools(t *testing.T, ctx context.Context) {
+func seedDevtools(t *testing.T) (adminID, regularID string) {
 	t.Helper()
+	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
-		"Like", "Subscriber", "Post", "Article", "Category", "Publication", "User"
-		CASCADE`); err != nil {
+		"Follows", "Subscriber", "WalletTransaction", "User", "Publication", "Post",
+		"Like", "SystemConfig", "NavigationItem", "SocialLink", "Category", "Article" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
-
-	// Publication personnelle de l'admin (porteur du design).
-	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, subdomain, "accentColor", "layoutStyle", "createdAt", "updatedAt")
-		 VALUES ('pub_dev_001', 'PERSONAL', 'Admin Sanctuaire', 'admin-dev', 'admin-dev', '#c5a880', 'minimal',
-		         '2026-01-01 10:00:00', '2026-01-01 10:00:00')`); err != nil {
-		t.Fatalf("publication admin: %v", err)
-	}
-	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
-		 VALUES ('pub_dev_002', 'PERSONAL', 'Journal Devtools', 'journal-devtools', now(), now())`); err != nil {
-		t.Fatalf("publication creator: %v", err)
-	}
-
-	users := []struct{ id, email, username, name, role, pubID, createdAt string }{
-		{devtoolsAdminID, "admin-dev@test.dev", "admindev", "Admin", "superadmin", "pub_dev_001", "2026-01-01 11:00:00"},
-		{devtoolsCreator, "creator-dev@test.dev", "creatordev", "Creator", "creator", "pub_dev_002", "2026-01-02 11:00:00"},
-		{devtoolsReaderID, "reader-dev@test.dev", "readerdev", "Reader", "user", "", "2026-01-03 11:00:00"},
-	}
-	for _, u := range users {
-		if u.pubID == "" {
-			if _, err := poolTest.Exec(ctx,
-				`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
-				 VALUES ($1, $2, $3, $4, $5, $6::timestamp, $6::timestamp)`,
-				u.id, u.email, u.username, u.name, u.role, u.createdAt); err != nil {
-				t.Fatalf("user %s: %v", u.username, err)
-			}
-			continue
-		}
+	adminID = "00000000-0000-0000-0000-0000000000d1"
+	regularID = "00000000-0000-0000-0000-0000000000d2"
+	for i, u := range []struct{ id, email, role string }{
+		{adminID, "devtools.admin@test.dev", "superadmin"},
+		{regularID, "devtools.user@test.dev", "user"},
+	} {
+		username := []string{"devadmin", "devuser"}[i]
 		if _, err := poolTest.Exec(ctx,
-			`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
-			 VALUES ($1, $2, $3, $4, $5, $6, $7::timestamp, $7::timestamp)`,
-			u.id, u.email, u.username, u.name, u.role, u.pubID, u.createdAt); err != nil {
-			t.Fatalf("user %s: %v", u.username, err)
+			`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+			 VALUES ($1, $2, $3, $3, $4, now(), now())`,
+			u.id, u.email, username, u.role); err != nil {
+			t.Fatalf("user: %v", err)
 		}
 	}
+	return adminID, regularID
+}
 
-	// 1 article (creator) + 1 pensée + 1 like + 1 subscriber.
+func newTestService(t *testing.T) *Service {
+	t.Helper()
+	svc := NewService(poolTest)
+	t.Cleanup(func() {})
+	return svc
+}
+
+func TestDevtoolsRBAC(t *testing.T) {
+	_, regularID := seedDevtools(t)
+	svc := newTestService(t)
+	ctx := context.Background()
+
+	// Un non-superadmin est refusé partout.
+	if _, err := svc.Data(ctx, regularID); err == nil {
+		t.Fatal("Data: attendu errForbidden pour un non-superadmin")
+	}
+	if err := svc.GeneratePosts(ctx, regularID); err == nil {
+		t.Fatal("GeneratePosts: attendu errForbidden")
+	}
+	if err := svc.Reset(ctx, regularID); err == nil {
+		t.Fatal("Reset: attendu errForbidden")
+	}
+	if err := svc.Seed(ctx, regularID); err == nil {
+		t.Fatal("Seed: attendu errForbidden")
+	}
+	if err := svc.SimulateSubscriber(ctx, regularID, SimulateSubscriberParams{Email: "x@y.dev", PublicationID: "p"}); err == nil {
+		t.Fatal("SimulateSubscriber: attendu errForbidden")
+	}
+	if err := svc.SimulateFollow(ctx, regularID, regularID, "p"); err == nil {
+		t.Fatal("SimulateFollow: attendu errForbidden")
+	}
+	if _, err := svc.SimulateLike(ctx, regularID, "post", regularID); err == nil {
+		t.Fatal("SimulateLike: attendu errForbidden")
+	}
+	if _, err := svc.AddFunds(ctx, regularID, regularID, 100); err == nil {
+		t.Fatal("AddFunds: attendu errForbidden")
+	}
+	if err := svc.ResetOnboarding(ctx, regularID, ""); err == nil {
+		t.Fatal("ResetOnboarding: attendu errForbidden")
+	}
+	if _, err := svc.UserByEmail(ctx, regularID, "devtools.user@test.dev"); err == nil {
+		t.Fatal("UserByEmail: attendu errForbidden")
+	}
+}
+
+func TestDevtoolsDataAndCreateUser(t *testing.T) {
+	adminID, _ := seedDevtools(t)
+	svc := newTestService(t)
+	ctx := context.Background()
+
+	data, err := svc.Data(ctx, adminID)
+	if err != nil {
+		t.Fatalf("Data: %v", err)
+	}
+	if data.Stats.Users < 2 {
+		t.Fatalf("Stats.Users = %d, attendu >= 2", data.Stats.Users)
+	}
+
+	// Création d'un créateur + pack de départ.
+	creatorID := "00000000-0000-0000-0000-0000000000d3"
+	err = svc.CreateUser(ctx, adminID, CreateUserParams{
+		ID:          creatorID,
+		Name:        "Nouvelle Plume",
+		Email:       "plume@test.dev",
+		Username:    "nouvelleplume",
+		Role:        "creator",
+		Subdomain:   "plume",
+		LayoutStyle: "magazine",
+		AccentColor: "#123456",
+	})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	var count int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "Article" WHERE "authorId" = $1`, creatorID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 3 {
+		t.Fatalf("articles créés = %d, attendu 3", count)
+	}
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "NavigationItem" n JOIN "Publication" p ON p.id = n."publicationId"
+		 JOIN "User" u ON u."publicationId" = p.id WHERE u.id = $1`, creatorID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 4 {
+		t.Fatalf("nav items = %d, attendu 4", count)
+	}
+
+	// Idempotence : re-créer ne duplique pas les articles.
+	if err := svc.CreateUser(ctx, adminID, CreateUserParams{
+		ID: creatorID, Name: "Nouvelle Plume", Email: "plume@test.dev",
+		Username: "nouvelleplume", Role: "creator", Subdomain: "plume",
+	}); err != nil {
+		t.Fatalf("CreateUser (2e): %v", err)
+	}
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "Article" WHERE "authorId" = $1`, creatorID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 3 {
+		t.Fatalf("articles après re-création = %d, attendu 3", count)
+	}
+}
+
+func TestDevtoolsSimulators(t *testing.T) {
+	adminID, regularID := seedDevtools(t)
+	svc := newTestService(t)
+	ctx := context.Background()
+
+	// Publication personnelle du user régulier (cible des simulateurs).
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
-		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
-		 VALUES ('art_dev_01', 'Article Devtools', 'article-devtools', '<p>x</p>', true, false, 'PUBLIC', 4, 'PUBLISHED',
-		         'pub_dev_002', $1, now(), now())`, devtoolsCreator); err != nil {
-		t.Fatalf("article: %v", err)
+		`INSERT INTO "Publication" (id, type, name, slug, "updatedAt")
+		 VALUES ('pub_devtools', 'PERSONAL', 'Dev Pub', 'dev-pub', now())`); err != nil {
+		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt")
-		 VALUES ('post_dev_01', 'Pensée devtools', $1, now(), now())`, devtoolsCreator); err != nil {
+		`UPDATE "User" SET "publicationId" = 'pub_devtools' WHERE id = $1`, regularID); err != nil {
+		t.Fatalf("link: %v", err)
+	}
+
+	// Abonné premium → crédit le propriétaire.
+	if err := svc.SimulateSubscriber(ctx, adminID, SimulateSubscriberParams{
+		Email: "reader@test.dev", PublicationID: "pub_devtools", IsPremium: true, LtvCents: 1000,
+	}); err != nil {
+		t.Fatalf("SimulateSubscriber: %v", err)
+	}
+	var balance int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT "walletBalanceCents" FROM "User" WHERE id = $1`, regularID).Scan(&balance); err != nil {
+		t.Fatal(err)
+	}
+	if balance != 1000 {
+		t.Fatalf("balance owner = %d, attendu 1000", balance)
+	}
+
+	// Follow + Like (toggle).
+	if err := svc.SimulateFollow(ctx, adminID, adminID, "pub_devtools"); err != nil {
+		t.Fatalf("SimulateFollow: %v", err)
+	}
+	var follows int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "Follows" WHERE "readerId" = $1`, adminID).Scan(&follows); err != nil {
+		t.Fatal(err)
+	}
+	if follows != 1 {
+		t.Fatalf("follows = %d, attendu 1", follows)
+	}
+
+	postID := "post_devtools_1"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Post" (id, content, "authorId", visibility, "isDraft", "createdAt", "updatedAt")
+		 VALUES ($1, 'hello', $2, 'public', false, now(), now())`,
+		postID, regularID); err != nil {
 		t.Fatalf("post: %v", err)
 	}
-	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Like" (id, "postId", "userId", "createdAt")
-		 VALUES ('like_dev_01', 'post_dev_01', $1, now())`, devtoolsReaderID); err != nil {
-		t.Fatalf("like: %v", err)
+	liked, err := svc.SimulateLike(ctx, adminID, postID, adminID)
+	if err != nil || !liked {
+		t.Fatalf("SimulateLike on = %v, %v", liked, err)
 	}
-	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "createdAt", "updatedAt")
-		 VALUES (gen_random_uuid()::text, 'sub-dev@test.dev', 'pub_dev_002', true, true, now(), now())`); err != nil {
-		t.Fatalf("subscriber: %v", err)
+	liked, err = svc.SimulateLike(ctx, adminID, postID, adminID)
+	if err != nil || liked {
+		t.Fatalf("SimulateLike off = %v, %v", liked, err)
 	}
-}
 
-func newTestService() *Service {
-	return NewService(poolTest)
-}
-
-func TestGetData_Superadmin(t *testing.T) {
-	ctx := context.Background()
-	seedDevtools(t, ctx)
-	svc := newTestService()
-
-	data, err := svc.GetData(ctx, devtoolsAdminID)
+	// AddFunds retourne le nouveau solde.
+	balance, err = svc.AddFunds(ctx, adminID, regularID, 2500)
 	if err != nil {
-		t.Fatalf("GetData: %v", err)
+		t.Fatalf("AddFunds: %v", err)
+	}
+	if balance != 3500 {
+		t.Fatalf("balance après add = %d, attendu 3500", balance)
 	}
 
-	// Stats : 3 users, 1 article, 1 post, 1 like, 1 subscriber.
-	stats := data.Stats
-	if stats.Users != 3 || stats.Articles != 1 || stats.Posts != 1 || stats.Likes != 1 || stats.Subscribers != 1 {
-		t.Fatalf("stats = %+v, attendu users 3 / articles 1 / posts 1 / likes 1 / subscribers 1", stats)
+	// ResetOnboarding ciblé.
+	if _, err := poolTest.Exec(ctx,
+		`UPDATE "User" SET "hasCompletedOnboarding" = true WHERE id = $1`, regularID); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.ResetOnboarding(ctx, adminID, regularID); err != nil {
+		t.Fatalf("ResetOnboarding: %v", err)
+	}
+	var onboarding bool
+	if err := poolTest.QueryRow(ctx,
+		`SELECT "hasCompletedOnboarding" FROM "User" WHERE id = $1`, regularID).Scan(&onboarding); err != nil {
+		t.Fatal(err)
+	}
+	if onboarding {
+		t.Fatal("onboarding attendu false après reset")
 	}
 
-	// Users triés createdAt DESC → reader (03/01) en premier, admin (01/01) en dernier.
-	if len(data.Users) != 3 {
-		t.Fatalf("users = %d, attendu 3", len(data.Users))
+	// UserByEmail.
+	u, err := svc.UserByEmail(ctx, adminID, "devtools.user@test.dev")
+	if err != nil {
+		t.Fatalf("UserByEmail: %v", err)
 	}
-	if data.Users[0].Email != "reader-dev@test.dev" || data.Users[2].Email != "admin-dev@test.dev" {
-		t.Fatalf("ordre = %v", data.Users)
-	}
-
-	// Shape parité DevtoolsUser TS : publication personnelle imbriquée à plat.
-	admin := data.Users[2]
-	if admin.Role != "superadmin" || admin.Subdomain == nil || *admin.Subdomain != "admin-dev" ||
-		admin.AccentColor == nil || *admin.AccentColor != "#c5a880" || admin.LayoutStyle == nil ||
-		*admin.LayoutStyle != "minimal" {
-		t.Fatalf("admin = %+v", admin)
-	}
-	if admin.CreatedAt == "" {
-		t.Fatalf("createdAt vide pour admin")
-	}
-	reader := data.Users[0]
-	if reader.Subdomain != nil || reader.CustomDomain != nil {
-		t.Fatalf("reader (sans publication) = %+v, attendu nil design", reader)
+	if u.ID != regularID {
+		t.Fatalf("UserByEmail = %s, attendu %s", u.ID, regularID)
 	}
 }
 
-func TestGetData_Forbidden(t *testing.T) {
+func TestDevtoolsResetAndSeed(t *testing.T) {
+	adminID, _ := seedDevtools(t)
+	svc := newTestService(t)
 	ctx := context.Background()
-	seedDevtools(t, ctx)
-	svc := newTestService()
 
-	// Creator (rôle creator) → refus.
-	if _, err := svc.GetData(ctx, devtoolsCreator); err != errForbidden {
-		t.Fatalf("GetData(creator) = %v, attendu errForbidden", err)
+	if err := svc.Reset(ctx, adminID); err != nil {
+		t.Fatalf("Reset: %v", err)
 	}
-	// User inexistant → refus (pas de fuite d'existence).
-	if _, err := svc.GetData(ctx, "00000000-0000-0000-0000-0000000000ff"); err != errForbidden {
-		t.Fatalf("GetData(inconnu) = %v, attendu errForbidden", err)
+	var configs int
+	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "SystemConfig"`).Scan(&configs); err != nil {
+		t.Fatal(err)
+	}
+	if configs < 10 {
+		t.Fatalf("configs après reset = %d, attendu >= 10", configs)
+	}
+	var users int
+	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "User"`).Scan(&users); err != nil {
+		t.Fatal(err)
+	}
+	if users != 0 {
+		t.Fatalf("users après reset = %d, attendu 0", users)
+	}
+
+	// Seed canonique (utilisateur admin + articles + configs). Le Reset a
+	// supprimé le superadmin — on le recrée d'abord.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+		 VALUES ($1, 'devtools.admin@test.dev', 'devadmin', 'Dev Admin', 'superadmin', now(), now())`,
+		adminID); err != nil {
+		t.Fatalf("re-create admin: %v", err)
+	}
+	if err := svc.Seed(ctx, adminID); err != nil {
+		t.Fatalf("Seed: %v", err)
+	}
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "Article" WHERE published = true`).Scan(&users); err != nil {
+		t.Fatal(err)
+	}
+	if users < 4 {
+		t.Fatalf("articles seedés = %d, attendu >= 4", users)
 	}
 }

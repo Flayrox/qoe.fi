@@ -8,20 +8,18 @@
 // Fallback Prisma dev (verifySuperadmin + écritures) si QOE_API_URL absent.
 // =====================================================================
 
-import { createClient as createServerClient } from '@qoe/supabase/server';
-import { prisma } from '@qoe/db/client';
 import { revalidatePath } from 'next/cache';
-import { goFetch, isGoEnabled } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 
 async function verifySuperadmin() {
-  const supabase = await createServerClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) throw new Error('Unauthorized');
-  const dbUser = await prisma.user.findUnique({ where: { id: authUser.id } });
-  if (dbUser?.role !== 'superadmin') throw new Error('Forbidden');
-  return dbUser;
+  // Go vérifie le rôle superadmin sur chaque route admin (403 sinon).
+  try {
+    await goFetch('/v1/admin/dashboard');
+  } catch (err) {
+    const status = (err as { status?: number })?.status;
+    if (status === 403) throw new Error('Forbidden');
+    throw err;
+  }
 }
 
 function errorMessage(error: unknown, fallback: string) {
@@ -33,29 +31,10 @@ function errorMessage(error: unknown, fallback: string) {
 export async function toggleFeaturedArticle(articleId: string) {
   await verifySuperadmin();
   try {
-    if (isGoEnabled()) {
-      await goFetch('/v1/admin/widgets/featured', {
-        method: 'POST',
-        body: { articleId, featured: true },
-      });
-    } else {
-      // 🐢 Fallback dev : Prisma (un seul à la une).
-      const article = await prisma.article.findUnique({
-        where: { id: articleId },
-        select: { isEditorPick: true },
-      });
-      if (!article) return { success: false, error: 'Article non trouvé' };
-      if (!article.isEditorPick) {
-        await prisma.article.updateMany({
-          where: { isEditorPick: true },
-          data: { isEditorPick: false },
-        });
-      }
-      await prisma.article.update({
-        where: { id: articleId },
-        data: { isEditorPick: !article.isEditorPick },
-      });
-    }
+    await goFetch('/v1/admin/widgets/featured', {
+      method: 'POST',
+      body: { articleId, featured: true },
+    });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
     return { success: true };
@@ -72,15 +51,7 @@ export async function addTrend(hashtag: string, count: number) {
     if (!h.startsWith('#')) h = '#' + h;
     if (h.length < 2) return { success: false, error: 'Hashtag invalide' };
 
-    if (isGoEnabled()) {
-      await goFetch('/v1/admin/widgets/trends', { method: 'POST', body: { hashtag: h, count } });
-    } else {
-      await prisma.trend.upsert({
-        where: { hashtag: h },
-        update: { count },
-        create: { hashtag: h, count },
-      });
-    }
+    await goFetch('/v1/admin/widgets/trends', { method: 'POST', body: { hashtag: h, count } });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
     return { success: true };
@@ -93,11 +64,7 @@ export async function addTrend(hashtag: string, count: number) {
 export async function deleteTrend(id: string) {
   await verifySuperadmin();
   try {
-    if (isGoEnabled()) {
-      await goFetch(`/v1/admin/widgets/trends/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    } else {
-      await prisma.trend.delete({ where: { id } });
-    }
+    await goFetch(`/v1/admin/widgets/trends/${encodeURIComponent(id)}`, { method: 'DELETE' });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
     return { success: true };
@@ -110,14 +77,10 @@ export async function deleteTrend(id: string) {
 export async function updateTrendCount(id: string, count: number) {
   await verifySuperadmin();
   try {
-    if (isGoEnabled()) {
-      await goFetch(`/v1/admin/widgets/trends/${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        body: { count },
-      });
-    } else {
-      await prisma.trend.update({ where: { id }, data: { count } });
-    }
+    await goFetch(`/v1/admin/widgets/trends/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: { count },
+    });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
     return { success: true };
@@ -138,23 +101,10 @@ export async function savePromo(
   await verifySuperadmin();
   try {
     if (!title || !description) return { success: false, error: 'Titre et description requis' };
-    if (isGoEnabled()) {
-      await goFetch('/v1/admin/widgets/promos', {
-        method: 'POST',
-        body: { id, title, description, ctaText, ctaUrl, isActive },
-      });
-    } else {
-      if (id) {
-        await prisma.partnerPromo.update({
-          where: { id },
-          data: { title, description, ctaText, ctaUrl, isActive },
-        });
-      } else {
-        await prisma.partnerPromo.create({
-          data: { title, description, ctaText, ctaUrl, isActive },
-        });
-      }
-    }
+    await goFetch('/v1/admin/widgets/promos', {
+      method: 'POST',
+      body: { id, title, description, ctaText, ctaUrl, isActive },
+    });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
     return { success: true };
@@ -167,11 +117,7 @@ export async function savePromo(
 export async function deletePromo(id: string) {
   await verifySuperadmin();
   try {
-    if (isGoEnabled()) {
-      await goFetch(`/v1/admin/widgets/promos/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    } else {
-      await prisma.partnerPromo.delete({ where: { id } });
-    }
+    await goFetch(`/v1/admin/widgets/promos/${encodeURIComponent(id)}`, { method: 'DELETE' });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
     return { success: true };
@@ -184,14 +130,10 @@ export async function deletePromo(id: string) {
 export async function togglePromoActive(id: string, isActive: boolean) {
   await verifySuperadmin();
   try {
-    if (isGoEnabled()) {
-      await goFetch(`/v1/admin/widgets/promos/${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        body: { isActive },
-      });
-    } else {
-      await prisma.partnerPromo.update({ where: { id }, data: { isActive } });
-    }
+    await goFetch(`/v1/admin/widgets/promos/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: { isActive },
+    });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
     return { success: true };
@@ -233,25 +175,13 @@ export async function setSystemConfigAction(input: {
 }) {
   await verifySuperadmin();
   try {
-    if (isGoEnabled()) {
-      await upsertConfigsGo([
-        {
-          key: input.key.trim().toUpperCase(),
-          value: input.value.trim(),
-          description: input.description?.trim(),
-        },
-      ]);
-    } else {
-      await prisma.systemConfig.upsert({
-        where: { key: input.key.trim().toUpperCase() },
-        update: { value: input.value.trim(), description: input.description?.trim() },
-        create: {
-          key: input.key.trim().toUpperCase(),
-          value: input.value.trim(),
-          description: input.description?.trim() || null,
-        },
-      });
-    }
+    await upsertConfigsGo([
+      {
+        key: input.key.trim().toUpperCase(),
+        value: input.value.trim(),
+        description: input.description?.trim(),
+      },
+    ]);
     revalidatePath('/', 'layout');
     return { success: true };
   } catch (error: unknown) {
@@ -263,11 +193,7 @@ export async function setSystemConfigAction(input: {
 export async function deleteSystemConfigAction(key: string) {
   await verifySuperadmin();
   try {
-    if (isGoEnabled()) {
-      await goFetch(`/v1/admin/config/${encodeURIComponent(key)}`, { method: 'DELETE' });
-    } else {
-      await prisma.systemConfig.delete({ where: { key } });
-    }
+    await goFetch(`/v1/admin/config/${encodeURIComponent(key)}`, { method: 'DELETE' });
     revalidatePath('/', 'layout');
     return { success: true };
   } catch (error: unknown) {
@@ -293,28 +219,13 @@ export async function saveMultipleFrontendConfigs(
   }
 
   try {
-    if (isGoEnabled()) {
-      await upsertConfigsGo(
-        Object.entries(configs).map(([key, item]) => ({
-          key,
-          value: item.value,
-          description: item.description,
-        }))
-      );
-    } else {
-      await prisma.$transaction(
-        Object.entries(configs).map(([key, item]) =>
-          prisma.systemConfig.upsert({
-            where: { key },
-            update: {
-              value: item.value,
-              ...(item.description !== undefined && { description: item.description.trim() }),
-            },
-            create: { key, value: item.value, description: item.description?.trim() || null },
-          })
-        )
-      );
-    }
+    await upsertConfigsGo(
+      Object.entries(configs).map(([key, item]) => ({
+        key,
+        value: item.value,
+        description: item.description,
+      }))
+    );
     revalidatePath('/', 'layout');
     revalidatePath('/admin/frontend');
     return { success: true };
@@ -329,16 +240,9 @@ export async function saveMultipleFrontendConfigs(
 export async function retryNotificationDeliveryAction(deliveryId: string) {
   await verifySuperadmin();
   try {
-    if (isGoEnabled()) {
-      await goFetch(`/v1/admin/deliveries/${encodeURIComponent(deliveryId)}/retry`, {
-        method: 'POST',
-      });
-    } else {
-      await prisma.notificationDelivery.updateMany({
-        where: { id: deliveryId, status: { in: ['FAILED', 'DISABLED'] } },
-        data: { status: 'QUEUED', availableAt: new Date(), lastError: null },
-      });
-    }
+    await goFetch(`/v1/admin/deliveries/${encodeURIComponent(deliveryId)}/retry`, {
+      method: 'POST',
+    });
     return { success: true };
   } catch (error: unknown) {
     console.error(error);

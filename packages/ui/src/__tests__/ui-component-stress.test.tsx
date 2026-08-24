@@ -23,7 +23,7 @@ import { ClientDate } from '../ClientDate';
 import { UserAvatar } from '../ui/UserAvatar';
 import { ArticleCard } from '../ArticleCard';
 import { AuthModalProvider } from '../auth/AuthModalContext';
-import type { FeedArticleDTO } from '@qoe/db/types';
+import type { FeedArticleDTO } from '@qoe/api-client/types';
 
 describe('🛡️ UI Zero-Crash Resilience Test Suite', () => {
   describe('SafeAvatar', () => {

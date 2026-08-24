@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@qoe/supabase/server';
-import { completeOnboardingInDb } from '@qoe/db/onboarding';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 
 export async function completeOnboarding(data: {
   interests: string[];
@@ -19,5 +19,18 @@ export async function completeOnboarding(data: {
 
   if (!user) throw new Error('Unauthorized');
 
-  return completeOnboardingInDb(user.id, data);
+  // Go-first : POST /v1/me/onboarding-complete (parité completeOnboardingInDb).
+  return goFetch('/v1/me/onboarding-complete', {
+    method: 'POST',
+    body: {
+      interests: data.interests,
+      subtopics: [],
+      onboardingText: data.onboardingText ?? '',
+      mutedWords: data.mutedWords,
+      creatorsToFollow: data.creatorsToFollow,
+      gender: data.gender ?? '',
+      ageRange: data.ageRange ?? '',
+      pronouns: data.pronouns ?? '',
+    },
+  });
 }

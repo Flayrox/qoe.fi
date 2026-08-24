@@ -24,6 +24,6 @@ export {
   type UseArticleReadingTrackerProps,
 } from './useArticleReadingTracker';
 export { useFeedImpressionTracker, type FeedImpressionItem } from './useFeedImpressionTracker';
-// NOTE : creator-analytics est server-only (importe @qoe/db complet).
+// NOTE : creator-analytics est server-only (requiert la base via SQL direct).
 // Exposé via `@qoe/analytics/queries` pour ne pas faire fuiter Prisma/Redis
 // dans les bundles navigateur des composants client.

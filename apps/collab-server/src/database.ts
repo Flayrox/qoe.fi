@@ -5,8 +5,8 @@
 // Chaque nom de document (ex: `article:{uuid}`) correspond à une ligne dans
 // la table `collab_documents` : l'état Yjs est stocké en binaire (BYTEA).
 //
-// La table est créée par la migration Prisma :
-//   packages/db/prisma/migrations/*_collab_documents/migration.sql
+// La table est créée par la migration goose (apps/api/migrations) :
+//   *_collab_documents.sql
 // On fait aussi un CREATE TABLE IF NOT EXISTS ici pour que le serveur
 // fonctionne même si la migration n'a pas encore été appliquée (dev).
 // =====================================================================

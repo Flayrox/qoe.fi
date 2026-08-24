@@ -2,7 +2,7 @@ import { GlobalCommandMenu } from '@/features/dashboard/components/GlobalCommand
 import { AppSidebar } from '@/features/dashboard/components/app-sidebar';
 import { DashboardLayoutContent } from '@/features/dashboard/components/DashboardLayoutContent';
 import { requireUser } from '@qoe/auth/current-user';
-import { prisma } from '@qoe/db/client';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import { redirect } from 'next/navigation';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -14,8 +14,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect('/onboarding');
   }
 
-  // Si l'utilisateur n'a pas fait l'onboarding mais a déjà un domaine (anciens comptes), on le skip
-  const hasTenant = (await prisma.publication.count({ where: { user: { id: user.id } } })) > 0;
+  // Si l'utilisateur n'a pas fait l'onboarding mais a déjà un domaine (anciens comptes), on le skip.
+  // Go : GET /v1/users/me → publicationId (null si aucun tenant).
+  let hasTenant = false;
+  try {
+    const me = await goFetch<{ data: { publicationId: string | null } }>('/v1/users/me');
+    hasTenant = Boolean(me.data.publicationId);
+  } catch {
+    hasTenant = false;
+  }
   if (!user.hasCompletedOnboarding && !hasTenant) {
     redirect('/onboarding');
   }

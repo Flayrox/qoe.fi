@@ -1,5 +1,4 @@
 import React from 'react';
-import { prisma } from '@qoe/db/client';
 import { requireUser } from '@qoe/auth/current-user';
 import { t } from '@lingui/core/macro';
 import { goFetch } from '@qoe/api-client/actions/utils/go-client';
@@ -67,147 +66,6 @@ async function fetchDashboardGo(
   return goFetch<DashboardData>(`/v1/analytics/dashboard${qs}`);
 }
 
-/** 🐢 Fallback dev (sans QOE_API_URL) : le bloc Prisma d'origine, mappé sur le même contrat. */
-async function fetchDashboardFallback(
-  userId: string,
-  workspace: ActiveWorkspace
-): Promise<DashboardData> {
-  const isMediaWorkspace = workspace.type === 'MEDIA';
-  const now = Date.now();
-  const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
-
-  const attributedWhere = isMediaWorkspace
-    ? { publicationId: workspace.publicationId }
-    : {
-        OR: [
-          { publicationId: workspace.publicationId },
-          {
-            attributions: { some: { userId, consentStatus: 'ACCEPTED', isVisible: true } },
-          },
-        ],
-      };
-
-  const [
-    publishedCount,
-    subscribersCount,
-    premiumSubscribersCount,
-    subscribersList,
-    recentArticles,
-    draftArticles,
-    scheduledThoughts,
-    latestPublishedArticle,
-    telemetryPageviews,
-    telemetryVisitors,
-  ] = await Promise.all([
-    prisma.article.count({
-      where: isMediaWorkspace
-        ? { publicationId: workspace.publicationId, published: true }
-        : { authorId: userId, published: true },
-    }),
-    prisma.subscriber.count({
-      where: { publicationId: workspace.publicationId, isActive: true },
-    }),
-    prisma.subscriber.count({
-      where: { publicationId: workspace.publicationId, isActive: true, isPremium: true },
-    }),
-    prisma.subscriber.findMany({
-      where: { publicationId: workspace.publicationId, isActive: true },
-      select: { ltvCents: true, createdAt: true },
-    }),
-    prisma.article.findMany({
-      where: isMediaWorkspace ? { publicationId: workspace.publicationId } : { authorId: userId },
-      orderBy: { updatedAt: 'desc' },
-      take: 4,
-      include: { category: true },
-    }),
-    prisma.article.findMany({
-      where: isMediaWorkspace
-        ? { publicationId: workspace.publicationId, published: false }
-        : { authorId: userId, published: false },
-      orderBy: { updatedAt: 'desc' },
-      take: 4,
-    }),
-    prisma.thought.findMany({
-      where: { authorId: userId, scheduledAt: { not: null } },
-      orderBy: { scheduledAt: 'asc' },
-      take: 4,
-    }),
-    prisma.article.findFirst({
-      where: isMediaWorkspace
-        ? { publicationId: workspace.publicationId, published: true }
-        : { authorId: userId, published: true },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        category: true,
-        _count: {
-          select: {
-            bookmarks: true,
-            highlights: true,
-            letters: true,
-          },
-        },
-      },
-    }),
-    prisma.readingSession
-      .count({
-        where: { article: attributedWhere, createdAt: { gte: thirtyDaysAgo } },
-      })
-      .catch(() => 0),
-    prisma.readingSession
-      .findMany({
-        where: { article: attributedWhere, createdAt: { gte: thirtyDaysAgo } },
-        distinct: ['userId'],
-        select: { userId: true },
-      })
-      .then((rows) => rows.filter((r) => r.userId).length)
-      .catch(() => 0),
-  ]);
-
-  const totalLtvCents = subscribersList.reduce((acc, sub) => acc + (sub.ltvCents || 0), 0);
-
-  return {
-    publicationWebsiteId: '',
-    publishedCount,
-    subscribersCount,
-    premiumSubscribersCount,
-    mrrCents: totalLtvCents,
-    recentArticles: recentArticles.map((a) => ({
-      id: a.id,
-      title: a.title,
-      published: a.published,
-      updatedAt: a.updatedAt.toISOString(),
-      categoryName: a.category?.name ?? null,
-    })),
-    draftArticles: draftArticles.map((a) => ({
-      id: a.id,
-      title: a.title,
-      published: a.published,
-      updatedAt: a.updatedAt.toISOString(),
-      categoryName: null,
-    })),
-    scheduledThoughts: scheduledThoughts.map((th) => ({
-      id: th.id,
-      content: th.content,
-      scheduledAt: th.scheduledAt?.toISOString() ?? '',
-    })),
-    latestPublishedArticle: latestPublishedArticle
-      ? {
-          id: latestPublishedArticle.id,
-          title: latestPublishedArticle.title,
-          readingTime: latestPublishedArticle.readingTime,
-          categoryName: latestPublishedArticle.category?.name ?? null,
-          _count: {
-            bookmarks: latestPublishedArticle._count.bookmarks,
-            highlights: latestPublishedArticle._count.highlights,
-            letters: latestPublishedArticle._count.letters,
-          },
-        }
-      : null,
-    pageviews30d: telemetryPageviews,
-    visitors30d: telemetryVisitors,
-  };
-}
-
 export default async function CreatorDashboardPage() {
   const user = await requireUser();
 
@@ -215,13 +73,8 @@ export default async function CreatorDashboardPage() {
   const workspace = await getActiveWorkspace(user.id);
   const isMediaWorkspace = workspace.type === 'MEDIA';
 
-  // 🚀 Données du dashboard : Go primaire (zéro Prisma nominal), fallback dev.
-  let dashboard: DashboardData;
-  try {
-    dashboard = await fetchDashboardGo(user.id, workspace);
-  } catch {
-    dashboard = await fetchDashboardFallback(user.id, workspace);
-  }
+  // 🚀 Données du dashboard : Go.
+  const dashboard: DashboardData = await fetchDashboardGo(user.id, workspace);
 
   // Combine scheduled thoughts & draft articles into unified schedule items
   const scheduleItems = [

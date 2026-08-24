@@ -127,6 +127,7 @@ type SettingsPublication struct {
 	AllowIndexing  bool                `json:"allowIndexing"`
 	SupportURL     *string             `json:"supportUrl"`
 	Type           string              `json:"type"`
+	UmamiWebsiteID *string             `json:"umamiWebsiteId"`
 	Navigation     []SettingsNavItem   `json:"navigation"`
 	SocialLinks    []SettingsSocialLink `json:"socialLinks"`
 	Articles       []SettingsArticle   `json:"articles"`
@@ -159,7 +160,7 @@ func (s *Service) GetPublicationSettings(ctx context.Context, userID, publicatio
 		HeaderImageURL: textPtr(row.HeaderImageUrl), FooterText: textPtr(row.FooterText),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
 		AllowIndexing: row.AllowIndexing, SupportURL: textPtr(row.SupportUrl),
-		Type: string(row.Type),
+		Type: string(row.Type), UmamiWebsiteID: textPtr(row.UmamiWebsiteId),
 		Navigation:  []SettingsNavItem{},
 		SocialLinks: []SettingsSocialLink{},
 		Articles:    []SettingsArticle{},

@@ -1,4 +1,4 @@
-import { ContentVisibility } from '@qoe/db/types';
+import { ContentVisibility } from '@qoe/config';
 
 export interface UserEntitlements {
   isMember: boolean; // Registered free subscriber (has provided email)

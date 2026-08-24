@@ -36,6 +36,11 @@ type CreateFullInput struct {
 	ReplyRestriction string
 	Attachments      []AttachmentInput
 	Poll             *PollInput
+	IsDraft          bool
+	ScheduledAt      *time.Time
+	TriggerWarning   *string
+	QuotedArticleID  *string
+	QuotedExcerpt    *string
 }
 
 var urlRe = regexp.MustCompile(`https?://[^\s]+`)
@@ -89,6 +94,23 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 		imageUrl = pgtype.Text{String: *in.ImageURL, Valid: true}
 	}
 
+	scheduledAt := pgtype.Timestamp{}
+	if in.ScheduledAt != nil {
+		scheduledAt = pgtype.Timestamp{Time: *in.ScheduledAt, Valid: true}
+	}
+	triggerWarning := pgtype.Text{}
+	if in.TriggerWarning != nil && *in.TriggerWarning != "" {
+		triggerWarning = pgtype.Text{String: *in.TriggerWarning, Valid: true}
+	}
+	quotedArticleID := pgtype.Text{}
+	if in.QuotedArticleID != nil && *in.QuotedArticleID != "" {
+		quotedArticleID = pgtype.Text{String: *in.QuotedArticleID, Valid: true}
+	}
+	quotedExcerpt := pgtype.Text{}
+	if in.QuotedExcerpt != nil && *in.QuotedExcerpt != "" {
+		quotedExcerpt = pgtype.Text{String: *in.QuotedExcerpt, Valid: true}
+	}
+
 	created, err := s.q.CreateThought(ctx, db.CreateThoughtParams{
 		Content:           in.Content,
 		AuthorId:          authorID,
@@ -96,12 +118,14 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 		ImageUrl:          imageUrl,
 		Visibility:        "public",
 		ContentVisibility: db.ContentVisibilityPUBLIC,
-		IsDraft:           false,
-		ScheduledAt:       pgtype.Timestamp{},
-		TriggerWarning:    pgtype.Text{},
+		IsDraft:           in.IsDraft,
+		ScheduledAt:       scheduledAt,
+		TriggerWarning:    triggerWarning,
 		ParentId:          parentText,
 		RootId:            rootText,
 		RepostId:          repostText,
+		QuotedArticleId:   quotedArticleID,
+		QuotedExcerpt:     quotedExcerpt,
 		ReplyRestriction:  restriction,
 	})
 	if err != nil {

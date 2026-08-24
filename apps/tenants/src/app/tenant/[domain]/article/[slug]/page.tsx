@@ -1,6 +1,5 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { prisma } from '@qoe/db/client';
 import { createClient } from '@qoe/supabase/server';
 import { getMainAppUrl } from '@qoe/config';
 import Link from 'next/link';
@@ -15,8 +14,9 @@ import { ReaderActions } from './ReaderActions';
 import { ArticleCommentsSection } from './ArticleCommentsSection';
 import { getArticleCommentsAction } from './actions';
 import { sliceContentAtPaywall } from '@qoe/utils';
-import { ContentVisibility } from '@qoe/db/types';
+import { ContentVisibility } from '@qoe/config';
 import { t } from '@lingui/core/macro';
+import { fetchTenantArticle, fetchArticleHighlights } from '@/lib/tenant-data';
 interface TenantArticlePageProps {
   params: Promise<{
     domain: string;
@@ -34,47 +34,35 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const currentUserProfile = user
-    ? await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { id: true, name: true, username: true, logoUrl: true },
-      })
-    : null;
 
-  // 2. Résolution polymorphe : la Publication (personnelle OU média) est l'identité tenant
-  const publication = await prisma.publication.findFirst({
-    where: {
-      OR: [
-        { subdomain: { equals: decodedDomain, mode: 'insensitive' } },
-        { customDomain: { equals: decodedDomain, mode: 'insensitive' } },
-      ],
-    },
-    include: {
-      navigation: { orderBy: { order: 'asc' } },
-      socialLinks: { orderBy: { order: 'asc' } },
-      user: { select: { id: true, username: true } },
-    },
-  });
+  // 2+3. Go-first : GET /v1/publications/by-domain/{domain}/article/{slug} —
+  // résolution polymorphe de la Publication + article (catégorie, auteur,
+  // entitlements, bookmarked/followed) + fallback attribution côté Go.
+  const bundle = await fetchTenantArticle(decodedDomain, decodedSlug);
 
-  if (!publication) {
+  if (!bundle) {
     notFound();
   }
 
+  const publication = bundle.publication;
+  const article = bundle.article;
   const displayName = publication.name || publication.user?.username || t`le créateur`;
-
-  // 3. Fetch article by publicationId + slug (ou id)
-  const article = await prisma.article.findFirst({
-    where: {
-      publicationId: publication.id,
-      OR: [{ slug: { equals: decodedSlug, mode: 'insensitive' } }, { id: decodedSlug }],
-    },
-    include: {
-      category: true,
-      author: {
-        select: { id: true, name: true, username: true, logoUrl: true },
-      },
-    },
-  });
+  const currentUserProfile: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+  } | null = user
+    ? {
+        id: user.id,
+        name: (user.user_metadata?.name as string) ?? null,
+        username:
+          (user.user_metadata?.username as string) ??
+          (user.user_metadata?.user_name as string) ??
+          null,
+        logoUrl: (user.user_metadata?.avatar_url as string) ?? null,
+      }
+    : null;
 
   if (!article) {
     return (
@@ -134,85 +122,18 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
     );
   }
 
-  // 4. Fetch initial reader interactions, comments, and Genius public/official highlights
-  let initialBookmarked = false;
-  let initialFollowed = false;
-  let initialHighlights: HighlightItem[] = [];
-  let publicHighlights: AnnotationItem[] = [];
-
-  const [bm, fl, hl, publicHl, commentsRes] = await Promise.all([
-    user
-      ? prisma.bookmark.findUnique({
-          where: {
-            readerId_articleId: {
-              readerId: user.id,
-              articleId: article.id,
-            },
-          },
-        })
-      : null,
-    user
-      ? prisma.follows.findUnique({
-          where: {
-            readerId_publicationId: {
-              readerId: user.id,
-              publicationId: publication.id,
-            },
-          },
-        })
-      : null,
-    user
-      ? prisma.highlight.findMany({
-          where: {
-            readerId: user.id,
-            articleId: article.id,
-            isPublic: false,
-            isOfficial: false,
-          },
-          select: {
-            id: true,
-            text: true,
-            note: true,
-          },
-        })
-      : [],
-    prisma.highlight.findMany({
-      where: {
-        articleId: article.id,
-        OR: [{ isOfficial: true }, { isPublic: true }],
-      },
-      include: {
-        reader: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            logoUrl: true,
-          },
-        },
-        comments: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                name: true,
-                username: true,
-                logoUrl: true,
-              },
-            },
-          },
-          orderBy: { createdAt: 'asc' },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    }),
+  // 4. Interactions + surlignages + commentaires — Go-first.
+  // bookmarked/followed viennent du bundle ; les surlignages publics + les
+  // siens via GET /v1/articles/{id}/highlights ; commentaires via l'action Go.
+  const initialBookmarked = bundle.bookmarked;
+  const initialFollowed = bundle.followed;
+  const [hlRes, commentsRes] = await Promise.all([
+    fetchArticleHighlights(article.id),
     getArticleCommentsAction(article.id),
   ]);
 
-  initialBookmarked = !!bm;
-  initialFollowed = !!fl;
-  initialHighlights = hl;
-  publicHighlights = publicHl;
+  const initialHighlights: HighlightItem[] = hlRes.myPrivateHighlights;
+  const publicHighlights: AnnotationItem[] = hlRes.publicHighlights;
 
   const initialComments = (commentsRes?.comments || []) as unknown as CommentItem[];
 
@@ -249,22 +170,11 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   const wordCount = plainText.split(/\s+/).length;
   const readingTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
 
-  // 4. Check paywall entitlements & perform server-side zero-leak truncation
+  // 4. Paywall entitlements (résolus côté Go dans le bundle) & truncation
+  // serveur sans fuite.
   const isAuthor = user?.id === article.authorId;
-  let isPaidSubscriber = isAuthor;
-  let isMember = isAuthor;
-
-  if (user) {
-    const subscriberRecord = await prisma.subscriber.findFirst({
-      where: {
-        publicationId: publication.id,
-        email: user.email || '',
-        isActive: true,
-      },
-    });
-    isPaidSubscriber = isAuthor || !!subscriberRecord?.isPremium;
-    isMember = isPaidSubscriber || !!subscriberRecord;
-  }
+  const isPaidSubscriber = isAuthor || bundle.entitlements.isPaidSubscriber;
+  const isMember = isAuthor || bundle.entitlements.isMember;
 
   const visibility = article.isPremium
     ? ContentVisibility.PAID_SUBSCRIBERS
@@ -342,7 +252,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
                 </span>
               )}
               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                <time dateTime={article.createdAt.toISOString()}>
+                <time dateTime={article.createdAt}>
                   {new Date(article.createdAt).toLocaleDateString('fr-FR', {
                     day: 'numeric',
                     month: 'long',

@@ -92,7 +92,7 @@ UPDATE "User" SET "publicationId" = $2, "updatedAt" = now() WHERE id = $1;
 SELECT p.id, p.name, p.slug, p."subdomain", p."customDomain", p."heroText",
        p."accentColor", p."fontFamily", p."themeMode", p."layoutStyle",
        p."logoUrl", p."headerImageUrl", p."footerText", p."seoTitle",
-       p."seoDescription", p."allowIndexing", p."supportUrl", p.type,
+       p."seoDescription", p."allowIndexing", p."supportUrl", p.type, p."umamiWebsiteId",
        COALESCE(u.id::text, '')::text AS owner_id, u.email AS owner_email, u.username AS owner_username,
        u."advancedSettingsMode" AS owner_advanced_settings_mode
 FROM "Publication" p

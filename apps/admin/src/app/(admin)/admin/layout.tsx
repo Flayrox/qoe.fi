@@ -2,8 +2,7 @@ import { ReactNode } from 'react';
 import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
-import { prisma } from '@qoe/db/client';
-import { goFetch, isGoEnabled } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import { AdminSidebar } from './components/AdminSidebar';
 import { CommandPalette } from './components/CommandPalette';
 import { AdminHeader } from './components/AdminHeader';
@@ -29,8 +28,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     redirect(loginUrl);
   }
 
-  // ⚡ Go en primaire : le backend vérifie le rôle superadmin (403 sinon).
-  // Le fallback Prisma dev ne sert que sans QOE_API_URL.
+  // ⚡ Go : le backend vérifie le rôle superadmin (403 sinon).
   let user: {
     id: string;
     name: string | null;
@@ -39,32 +37,19 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     role: string;
   } | null = null;
 
-  if (isGoEnabled()) {
-    try {
-      await goFetch('/v1/admin/dashboard');
-      // Le user Supabase est superadmin (vérifié par le Go) — shape réduite
-      // pour l'AdminHeader (id + email + name + username + role).
-      user = {
-        id: authUser.id,
-        name: authUser.user_metadata?.name ?? null,
-        email: authUser.email ?? '',
-        username: authUser.user_metadata?.username ?? authUser.user_metadata?.user_name ?? null,
-        role: 'superadmin',
-      };
-    } catch {
-      // Non-superadmin ou erreur Go → refus (pas de fuite).
-    }
-  } else {
-    const dbUser = await prisma.user.findUnique({ where: { id: authUser.id } });
-    if (dbUser?.role === 'superadmin') {
-      user = {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        username: dbUser.username,
-        role: dbUser.role,
-      };
-    }
+  try {
+    await goFetch('/v1/admin/dashboard');
+    // Le user Supabase est superadmin (vérifié par le Go) — shape réduite
+    // pour l'AdminHeader (id + email + name + username + role).
+    user = {
+      id: authUser.id,
+      name: authUser.user_metadata?.name ?? null,
+      email: authUser.email ?? '',
+      username: authUser.user_metadata?.username ?? authUser.user_metadata?.user_name ?? null,
+      role: 'superadmin',
+    };
+  } catch {
+    // Non-superadmin ou erreur Go → refus (pas de fuite).
   }
 
   // Security Check: Only superadmins

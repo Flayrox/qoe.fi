@@ -73,8 +73,8 @@ func (q *Queries) CreateModerationReport(ctx context.Context, arg CreateModerati
 }
 
 const createThought = `-- name: CreateThought :one
-INSERT INTO "Post" (id, "content", "authorId", "updatedAt", tags, "imageUrl", visibility, "contentVisibility", "isDraft", "scheduledAt", "triggerWarning", "parentId", "rootId", "repostId", "replyRestriction", "isPinned", "likeCount", "repostCount", "replyCount")
-VALUES (gen_random_uuid()::text, $1, $2, now(), $3, $4, $5, $6, $7, $8, $9, NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), $13, false, 0, 0, 0)
+INSERT INTO "Post" (id, "content", "authorId", "updatedAt", tags, "imageUrl", visibility, "contentVisibility", "isDraft", "scheduledAt", "triggerWarning", "parentId", "rootId", "repostId", "quotedArticleId", "quotedExcerpt", "replyRestriction", "isPinned", "likeCount", "repostCount", "replyCount")
+VALUES (gen_random_uuid()::text, $1, $2, now(), $3, $4, $5, $6, $7, $8, $9, NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), NULLIF($13, ''), NULLIF($14, ''), $15, false, 0, 0, 0)
 RETURNING id, "content", "authorId", "createdAt", tags, "parentId", "rootId", "repostId", "isDraft", "visibility", "contentVisibility"
 `
 
@@ -91,6 +91,8 @@ type CreateThoughtParams struct {
 	ParentId          interface{}       `json:"parentId"`
 	RootId            interface{}       `json:"rootId"`
 	RepostId          interface{}       `json:"repostId"`
+	QuotedArticleId   interface{}       `json:"quotedArticleId"`
+	QuotedExcerpt     interface{}       `json:"quotedExcerpt"`
 	ReplyRestriction  string            `json:"replyRestriction"`
 }
 
@@ -122,6 +124,8 @@ func (q *Queries) CreateThought(ctx context.Context, arg CreateThoughtParams) (C
 		arg.ParentId,
 		arg.RootId,
 		arg.RepostId,
+		arg.QuotedArticleId,
+		arg.QuotedExcerpt,
 		arg.ReplyRestriction,
 	)
 	var i CreateThoughtRow
@@ -427,6 +431,30 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, e
 	return i, err
 }
 
+const hidePostByAuthor = `-- name: HidePostByAuthor :one
+UPDATE "Post" r
+SET "isHiddenByAuthor" = NOT r."isHiddenByAuthor"
+FROM "Post" p
+WHERE r.id = $1
+  AND r."deletedAt" IS NULL
+  AND r."parentId" IS NOT NULL
+  AND r."parentId" = p.id
+  AND p."authorId" = $2
+RETURNING r."isHiddenByAuthor"
+`
+
+type HidePostByAuthorParams struct {
+	ID       string `json:"id"`
+	AuthorId string `json:"authorId"`
+}
+
+func (q *Queries) HidePostByAuthor(ctx context.Context, arg HidePostByAuthorParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hidePostByAuthor, arg.ID, arg.AuthorId)
+	var isHiddenByAuthor bool
+	err := row.Scan(&isHiddenByAuthor)
+	return isHiddenByAuthor, err
+}
+
 const incrementLikeCount = `-- name: IncrementLikeCount :exec
 UPDATE "Post"
 SET "likeCount" = "likeCount" + 1
@@ -666,6 +694,61 @@ func (q *Queries) ListRepostsForPost(ctx context.Context, arg ListRepostsForPost
 			&i.UserLogo,
 			&i.UserCertified,
 			&i.RepostedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserDrafts = `-- name: ListUserDrafts :many
+SELECT id, content, "imageUrl", visibility, "scheduledAt", "triggerWarning", tags, "updatedAt"
+FROM "Post"
+WHERE "authorId" = $1
+  AND "isDraft" = true
+  AND "deletedAt" IS NULL
+ORDER BY "updatedAt" DESC
+LIMIT $2
+`
+
+type ListUserDraftsParams struct {
+	AuthorId string `json:"authorId"`
+	Limit    int32  `json:"limit"`
+}
+
+type ListUserDraftsRow struct {
+	ID             string           `json:"id"`
+	Content        string           `json:"content"`
+	ImageUrl       pgtype.Text      `json:"imageUrl"`
+	Visibility     string           `json:"visibility"`
+	ScheduledAt    pgtype.Timestamp `json:"scheduledAt"`
+	TriggerWarning pgtype.Text      `json:"triggerWarning"`
+	Tags           []string         `json:"tags"`
+	UpdatedAt      pgtype.Timestamp `json:"updatedAt"`
+}
+
+func (q *Queries) ListUserDrafts(ctx context.Context, arg ListUserDraftsParams) ([]ListUserDraftsRow, error) {
+	rows, err := q.db.Query(ctx, listUserDrafts, arg.AuthorId, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUserDraftsRow{}
+	for rows.Next() {
+		var i ListUserDraftsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Content,
+			&i.ImageUrl,
+			&i.Visibility,
+			&i.ScheduledAt,
+			&i.TriggerWarning,
+			&i.Tags,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

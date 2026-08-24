@@ -7,11 +7,11 @@
 // (threads, likes, reposts, bookmarks, rapports), profils publics, drafts,
 // épinglage, unfurl de liens, réglages de modération.
 //
-// 🔗 GO-ONLY : l'API Go est la source de vérité (QOE_API_URL défini),
-//    plusieurs actions délèguent la logique au backend Go (apps/api)
-//    via `goFetch()` — le contrat TS (ActionResult<T>) reste identique,
-//    seules l'implémentation et l'authentification changent (JWT en header).
-//    Sans Go, elles retombent sur les dépôts Prisma de `@qoe/db`.
+// 🔗 GO-ONLY : l'API Go est la source de vérité (QOE_API_URL requis,
+//    backend-of-record). Toutes les actions délèguent au backend Go
+//    (apps/api) via `goFetch()` — le contrat TS (ActionResult<T>) reste
+//    identique, seules l'implémentation et l'authentification changent
+//    (JWT en header).
 //
 // ⚠️ Fichier serveur : NON exposé au mobile via @qoe/api-client/mobile.
 //    Le mobile appelle directement l'API Go (QoeApiClient.getFeed,
@@ -19,17 +19,12 @@
 //    correspondent à ceux de `@qoe/api-client/types`.
 // =====================================================================
 
-import { follows, posts, articles, users, moderation, threadgates } from '@qoe/db';
-import type { FeedSlice } from '@qoe/db/repositories/posts';
-import { prisma, type User } from '@qoe/db/client';
-import { sliceContentAtPaywall, type PaywallCutResult } from '@qoe/utils';
-import { ContentVisibility } from '@qoe/db/types';
-
 import { replyToPostSchema, createReportSchema, type CreateReportInput } from '@qoe/config';
 import { goFetch } from '../utils/go-client';
 import type { MeProfileDTO } from '../auth';
 
 import { safeAction } from '../utils/safe-action';
+import { getActivePublicationId } from '../articles';
 import type {
   FeedSlice as ApiFeedSlice,
   FeedPost as ApiFeedPost,
@@ -40,13 +35,120 @@ import type {
   FollowActor as ApiFollowActor,
 } from '../../types';
 
-type ThoughtThreadPost = Awaited<ReturnType<typeof posts.createThoughtThread>>[number];
-type Reply = Awaited<ReturnType<typeof posts.replyToPost>>;
-type ThreadPost = Awaited<ReturnType<typeof posts.findThreadById>>;
-type RepostResult = Awaited<ReturnType<typeof posts.toggleRepost>>;
-type Draft = Awaited<ReturnType<typeof posts.getUserDrafts>>[number];
-type ArticleRecord = Awaited<ReturnType<typeof articles.findFirstBySlug>>;
-type SearchedUser = Awaited<ReturnType<typeof users.searchUsers>>[number];
+/** Résultat du découpage paywall (shape Go GET /v1/articles/{slug}). */
+export interface PaywallCutResult {
+  content: string;
+  isTruncated: boolean;
+  accessGranted: boolean;
+  paywallMeta: {
+    visibility: string;
+    teaserParagraphsCount: number;
+    requiredTierId: string | null;
+    totalLengthBytes: number;
+    previewLengthBytes: number;
+  } | null;
+}
+
+/** Pensée web (shape thread reconstruit côté web depuis l'API Go). */
+export interface WebThreadPost {
+  id: string;
+  content: string;
+  authorId: string;
+  imageUrl: string | null;
+  createdAt: string;
+  triggerWarning: string | null;
+  isPinned: boolean;
+  isDeleted: boolean;
+  isHiddenByAuthor: boolean;
+  author: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    subdomain: string | null;
+    logoUrl: string | null;
+    isCertified: boolean;
+  };
+  parentId: string | null;
+  rootId: string | null;
+  repostId: string | null;
+  parent: WebThreadPost | null;
+  repost: WebThreadPost | null;
+  likesCount: number;
+  repliesCount: number;
+  repostsCount: number;
+  /** Alias ThoughtData (compat ThoughtCard/OptimisticThought). */
+  likeCount: number;
+  replyCount: number;
+  repostCount: number;
+  liked: boolean;
+  reposted: boolean;
+  likes: Array<{ userId: string }>;
+  _count: { likes: number; replies: number; reposts: number };
+  attachments: Array<{ id?: string; url: string; type?: string; altText?: string | null }>;
+  poll:
+    | {
+        id: string;
+        thoughtId: string;
+        expiresAt: string;
+        isExpired: boolean;
+        totalVotes: number;
+        userVotedOptionId: string | null;
+        options: Array<{
+          id: string;
+          text: string;
+          order: number;
+          voteCount: number;
+          percentage: number;
+        }>;
+      }
+    | null
+    | undefined;
+  tags: string[];
+  replyRestriction: string;
+  replies: WebThreadPost[];
+}
+
+type ThoughtThreadPost = WebThreadPost;
+type Reply = WebThreadPost;
+type ThreadPost = WebThreadPost;
+type RepostResult = { post?: WebThreadPost };
+type Draft = {
+  id: string;
+  content?: string | null;
+  imageUrl?: string | null;
+  visibility?: string;
+  scheduledAt?: string | null;
+  triggerWarning?: string | null;
+  tags?: string[];
+  updatedAt?: string | Date;
+};
+/** 📰 Article web (shape Go GET /v1/articles/{slug} — paywall inclus). */
+export interface ArticleRecord {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  imageUrl?: string | null;
+  published: boolean;
+  isPremium: boolean;
+  readingTime: number;
+  createdAt: Date | string;
+  publicationId: string;
+  authorId: string;
+  isTruncated: boolean;
+  accessGranted: boolean;
+  paywallMeta: unknown;
+  author: Record<string, unknown>;
+  category: { name: string } | null;
+  tags?: string[];
+}
+type SearchedUser = {
+  id: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  isCertified: boolean;
+};
 
 // Contrat Go GET /v1/users/search (autocomplétion mentions @)
 interface GoSearchUser {
@@ -92,9 +194,21 @@ export const toggleFollowCreatorHomeAction = safeAction<string, { followed: bool
  * 📄 Liste paginée des abonnés / abonnements d'un profil (web).
  * Résout la publication par handle puis liste via le repo Prisma.
  */
+export interface FollowActorWebDTO {
+  id: string;
+  publicationId: string | null;
+  name: string | null;
+  username: string | null;
+  subdomain: string | null;
+  logoUrl: string | null;
+  isCertified: boolean;
+  followedAt: string;
+  viewerFollows: boolean;
+}
+
 export const getFollowListAction = safeAction<
   { handle: string; tab: 'followers' | 'following'; cursor?: number; limit?: number },
-  { items: follows.FollowActorDTO[]; nextCursor: string | null; hasMore: boolean }
+  { items: FollowActorWebDTO[]; nextCursor: string | null; hasMore: boolean }
 >(
   async ({ handle, tab, cursor = 0, limit = 30 }) => {
     const clean = decodeURIComponent(handle).replace(/^@/, '');
@@ -102,7 +216,7 @@ export const getFollowListAction = safeAction<
     const page = await goFetch<{ items: ApiFollowActor[]; nextCursor: string; hasMore: boolean }>(
       `/v1/users/${encodeURIComponent(clean)}/${path}?limit=${limit}&cursor=${cursor}`
     );
-    const items: follows.FollowActorDTO[] = (page.items ?? []).map((a) => ({
+    const items: FollowActorWebDTO[] = (page.items ?? []).map((a) => ({
       id: a.id,
       publicationId: a.publicationId,
       name: a.name,
@@ -150,8 +264,8 @@ export const createThoughtThreadAction = safeAction<
     parentId?: string | null;
   },
   { posts: ThoughtThreadPost[] }
->(async (rawInput, user) => {
-  const { thoughts, visibility, isDraft, scheduledAt, replyRestriction, parentId } = rawInput;
+>(async (rawInput) => {
+  const { thoughts, isDraft, scheduledAt, replyRestriction, parentId } = rawInput;
 
   if (!thoughts || !Array.isArray(thoughts) || thoughts.length === 0) {
     throw new Error('EMPTY_THREAD');
@@ -179,24 +293,35 @@ export const createThoughtThreadAction = safeAction<
     }
   }
 
-  // 2. Création du fil via la méthode transactionnelle atomique du dépôt
-  const createdPosts = await posts.createThoughtThread(user.id, {
-    thoughts: thoughts.map((t) => ({
-      content: t.content,
-      tags: t.tags ?? [],
-      imageUrl: t.imageUrl || null,
-      attachments: t.attachments ?? [],
-      quotedArticleId: t.quotedArticleId || null,
-      quotedExcerpt: t.quotedExcerpt || null,
-      triggerWarning: t.triggerWarning || null,
-      poll: t.poll ?? null,
-    })),
-    visibility: visibility ?? 'public',
-    isDraft: isDraft ?? false,
-    scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
-    replyRestriction: replyRestriction ?? 'everyone',
-    parentId: parentId || null,
-  });
+  // 2. Publication du fil côté Go : chaque pensée est créée séquentiellement,
+  //    chaînée par parentId (le Go supporte threads + drafts + scheduling +
+  //    citations + sondages via POST /v1/posts).
+  const createdPosts: ThoughtThreadPost[] = [];
+  let chainParentId: string | null = parentId || null;
+  for (let i = 0; i < thoughts.length; i++) {
+    const t = thoughts[i];
+    const created = await goFetch<Record<string, unknown>>('/v1/posts', {
+      method: 'POST',
+      body: {
+        content: t.content,
+        tags: t.tags ?? [],
+        imageUrl: t.imageUrl || null,
+        attachments: t.attachments ?? [],
+        quotedArticleId: t.quotedArticleId || null,
+        quotedExcerpt: t.quotedExcerpt || null,
+        triggerWarning: t.triggerWarning || null,
+        poll: t.poll ?? null,
+        isDraft: isDraft ?? false,
+        scheduledAt: scheduledAt ?? null,
+        replyRestriction: replyRestriction ?? 'everyone',
+        parentId: chainParentId ?? null,
+      },
+    });
+    createdPosts.push(created as unknown as WebThreadPost);
+    if (i === 0 && created?.id) {
+      chainParentId = created.id as string;
+    }
+  }
 
   return { posts: createdPosts };
 });
@@ -360,95 +485,39 @@ export const getArticleThreadAction = safeAction<
   string,
   { article: (ArticleRecord & PaywallCutResult) | null }
 >(
-  async (slug, user) => {
-    const article = await articles.findFirstBySlug(slug);
-    if (!article) return { article: null };
-
-    let isPaidSubscriber = false;
-    let isMember = false;
-
-    if (user) {
-      if (user.id === article.authorId) {
-        isPaidSubscriber = true;
-        isMember = true;
-      } else {
-        const legacySubscription = (
-          prisma as unknown as {
-            subscription?: {
-              findFirst: (args: {
-                where: { userId: string; creatorId: string; status: string };
-              }) => Promise<{ id: string } | null>;
-            };
-          }
-        ).subscription;
-
-        const [sub, subscriberRecord] = await Promise.all([
-          legacySubscription
-            ? legacySubscription.findFirst({
-                where: {
-                  userId: user.id,
-                  creatorId: article.authorId,
-                  status: 'active',
-                },
-              })
-            : null,
-          prisma.subscriber.findFirst({
-            where: {
-              publicationId: article.publicationId,
-              email: user.email || '',
-              isActive: true,
-            },
-          }),
-        ]);
-        isPaidSubscriber = !!sub;
-        isMember = isPaidSubscriber || !!subscriberRecord;
-      }
+  async (slug) => {
+    // Go-only : GET /v1/articles/{slug} — le paywall est tronqué côté serveur
+    // (isTruncated/accessGranted/paywallMeta renvoyés par le Go).
+    try {
+      const article = await goFetch<
+        ArticleRecord & {
+          isTruncated: boolean;
+          accessGranted: boolean;
+          paywallMeta: PaywallCutResult['paywallMeta'];
+        }
+      >(`/v1/articles/${encodeURIComponent(slug)}`);
+      return { article: article as unknown as ArticleRecord & PaywallCutResult };
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      if (status === 404) return { article: null };
+      throw err;
     }
-
-    const visibility = article.isPremium
-      ? ContentVisibility.PAID_SUBSCRIBERS
-      : ContentVisibility.PUBLIC;
-
-    const paywallCutResult = sliceContentAtPaywall(
-      article.content || '',
-      { isMember, isPaidSubscriber },
-      visibility
-    );
-
-    return {
-      article: {
-        ...article,
-        author: {
-          id: article.publication?.id ?? article.authorId,
-          name: article.publication?.name ?? article.author?.name ?? null,
-          username: article.publication?.slug ?? article.author?.username ?? null,
-          subdomain: article.publication?.subdomain ?? null,
-          customDomain: article.publication?.customDomain ?? null,
-          logoUrl: article.publication?.logoUrl ?? article.author?.logoUrl ?? null,
-          heroText: article.publication?.heroText ?? null,
-          isCertified: article.publication?.isCertified ?? false,
-          type: article.publication?.type ?? 'PERSONAL',
-          authorName: article.author?.name ?? null,
-        },
-        content: paywallCutResult.content,
-        isTruncated: paywallCutResult.isTruncated,
-        accessGranted: paywallCutResult.accessGranted,
-        paywallMeta: paywallCutResult.paywallMeta,
-      },
-    };
   },
   { requireAuth: false }
 );
 
 export const reportTargetAction = safeAction<CreateReportInput, { success: boolean }>(
-  async (rawInput, user) => {
+  async (rawInput) => {
     const { targetId, targetType, reason, details } = createReportSchema.parse(rawInput);
-    await moderation.createReport({
-      reporterId: user.id,
-      targetId,
-      targetType: targetType as 'thought' | 'article' | 'user' | 'comment',
-      reason,
-      details: details || null,
+    // Go-only : POST /v1/reports.
+    await goFetch('/v1/reports', {
+      method: 'POST',
+      body: {
+        targetId,
+        targetType: targetType as 'thought' | 'article' | 'user' | 'comment',
+        reason,
+        details: details || null,
+      },
     });
     return { success: true };
   }
@@ -471,9 +540,10 @@ export const deletePostAction = safeAction<string, { success: boolean }>(async (
   return { success: true };
 });
 
-export const getUserDraftsAction = safeAction<void, { drafts: Draft[] }>(async (_, user) => {
-  const drafts = await posts.getUserDrafts(user.id);
-  return { drafts };
+export const getUserDraftsAction = safeAction<void, { drafts: Draft[] }>(async () => {
+  // Go-only : GET /v1/posts/drafts (brouillons isDraft=true).
+  const res = await goFetch<{ drafts: Draft[] }>('/v1/posts/drafts');
+  return { drafts: res.drafts ?? [] };
 });
 
 export const pinPostAction = safeAction<string, { success: boolean; pinned?: boolean }>(
@@ -560,7 +630,10 @@ export const unfurlUrlAction = safeAction<string, UnfurlResult>(
         const postMatch = parsedUrl.pathname.match(/\/post\/([a-zA-Z0-9]+)/);
         if (postMatch) {
           const postId = postMatch[1];
-          const post = await posts.findThreadById(postId);
+          // Go-only : GET /v1/posts/{id} (thread/quote du post interne).
+          const post = await goFetch<ThreadPost>(`/v1/posts/${encodeURIComponent(postId)}`).catch(
+            () => null
+          );
           if (post) {
             const result: UnfurlResult = { isInternal: true, postType: 'post', data: post };
             unfurlCache.set(url, result);
@@ -571,7 +644,10 @@ export const unfurlUrlAction = safeAction<string, UnfurlResult>(
         const articleMatch = parsedUrl.pathname.match(/\/article\/([a-zA-Z0-9_-]+)/);
         if (articleMatch) {
           const slug = articleMatch[1];
-          const article = await articles.findFirstBySlug(slug);
+          // Go-only : GET /v1/articles/{slug}.
+          const article = await goFetch<ArticleRecord>(
+            `/v1/articles/${encodeURIComponent(slug)}`
+          ).catch(() => null);
           if (article) {
             const result: UnfurlResult = { isInternal: true, postType: 'article', data: article };
             unfurlCache.set(url, result);
@@ -713,6 +789,17 @@ export const unfurlUrlAction = safeAction<string, UnfurlResult>(
 // ─────────────────────────────────────────────────────────────────────
 // Profil & modération
 // ─────────────────────────────────────────────────────────────────────
+export interface UpdatedProfileUser {
+  id: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  heroText: string | null;
+  headerImageUrl: string | null;
+  onboardingText: string | null;
+  isCertified: boolean;
+}
+
 export const updateProfileAction = safeAction<
   {
     name?: string;
@@ -721,62 +808,69 @@ export const updateProfileAction = safeAction<
     logoUrl?: string;
     headerImageUrl?: string;
   },
-  { user: User }
->(async (input, user) => {
-  // Go en primaire (PATCH /v1/me/profile : profil lecteur). Les champs créateur
-  // (heroText, headerImageUrl) ne sont pas couverts par /v1/me/profile → fallback
-  // Prisma complet si Go indisponible OU si ces champs sont demandés.
-  try {
-    const profile = await goFetch<MeProfileDTO>('/v1/me/profile', {
+  { user: UpdatedProfileUser }
+>(async (input) => {
+  // Go-only : PATCH /v1/me/profile (champs lecteur) + PATCH /v1/settings/profile
+  // (champs créateur : heroText, headerImageUrl) via la publication active.
+  const [profile, publication] = await Promise.all([
+    goFetch<MeProfileDTO & { isCertified?: boolean }>('/v1/me/profile', {
       method: 'PATCH',
-      body: JSON.stringify({
+      body: {
         name: input.name ?? undefined,
         logoUrl: input.logoUrl ?? undefined,
         onboardingText: input.onboardingText ?? undefined,
-      }),
-    });
-    return { user: profile as unknown as User };
-  } catch {
-    const { prisma } = await import('@qoe/db/client');
-    const { publications } = await import('@qoe/db');
-    await publications.syncUserPublication(user.id, {
-      name: input.name ?? undefined,
-      heroText: input.heroText ?? undefined,
-      logoUrl: input.logoUrl ?? undefined,
-      headerImageUrl: input.headerImageUrl ?? undefined,
-    });
-    if (input.onboardingText !== undefined) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { onboardingText: input.onboardingText },
+      },
+    }),
+    (async () => {
+      if (input.heroText === undefined && input.headerImageUrl === undefined) {
+        return null;
+      }
+      const publicationId = await getActivePublicationId();
+      return goFetch<Record<string, unknown>>('/v1/settings/profile', {
+        method: 'PATCH',
+        body: {
+          publicationId,
+          heroText: input.heroText ?? undefined,
+          headerImageUrl: input.headerImageUrl ?? undefined,
+        },
       });
-    }
-    const updatedUser = await prisma.user.findUnique({ where: { id: user.id } });
-    if (!updatedUser) throw new Error('USER_NOT_FOUND');
+    })(),
+  ]);
 
-    return { user: updatedUser };
-  }
+  const pub = (publication ?? {}) as Record<string, unknown>;
+  return {
+    user: {
+      id: profile.id,
+      name: profile.name ?? null,
+      username: profile.username ?? null,
+      logoUrl: profile.logoUrl ?? null,
+      heroText: (pub.heroText as string | null) ?? null,
+      headerImageUrl: (pub.headerImageUrl as string | null) ?? null,
+      onboardingText:
+        (profile as unknown as { onboardingText?: string | null }).onboardingText ?? null,
+      isCertified: profile.isCertified ?? false,
+    },
+  };
 });
 
 export const searchUsersAction = safeAction<string, { users: SearchedUser[] }>(
   async (query) => {
-    // Go primaire (GET /v1/users/search : autocomplétion mentions) — fallback Prisma dev.
-    try {
-      const q = query.trim().replace(/^@/, '');
-      if (!q) return { users: [] };
-      const list = await goFetch<GoSearchUser[]>(`/v1/users/search?q=${encodeURIComponent(q)}`);
-      return { users: list as unknown as SearchedUser[] };
-    } catch {
-      const list = await users.searchUsers(query);
-      return { users: list };
-    }
+    // Go-only (GET /v1/users/search : autocomplétion mentions).
+    const q = query.trim().replace(/^@/, '');
+    if (!q) return { users: [] };
+    const list = await goFetch<GoSearchUser[]>(`/v1/users/search?q=${encodeURIComponent(q)}`);
+    return { users: list as unknown as SearchedUser[] };
   },
   { requireAuth: false }
 );
 
 export const toggleHideReplyAction = safeAction<string, { isHiddenByAuthor: boolean }>(
-  async (replyId, user) => {
-    const updated = await threadgates.toggleHideReplyByAuthor(replyId, user.id);
+  async (replyId) => {
+    // Go-only : seul l'auteur de la pensée parente peut masquer.
+    const updated = await goFetch<{ isHiddenByAuthor: boolean }>(
+      `/v1/posts/${encodeURIComponent(replyId)}/hide`,
+      { method: 'POST' }
+    );
     return { isHiddenByAuthor: updated.isHiddenByAuthor };
   }
 );
@@ -785,24 +879,35 @@ export const canUserReplyAction = safeAction<
   string,
   { canReply: boolean; reason?: string; restriction: string }
 >(
-  async (thoughtId, user) => {
-    const res = await threadgates.canUserReplyToThought(thoughtId, user.id);
+  async (thoughtId) => {
+    // Go-only : threadgate vérifié côté backend.
+    const res = await goFetch<{ canReply: boolean; reason?: string; restriction: string }>(
+      `/v1/posts/${encodeURIComponent(thoughtId)}/can-reply`
+    );
     return { canReply: res.canReply, reason: res.reason, restriction: res.restriction };
   },
   { requireAuth: false }
 );
 
 export const toggleBlockUserAction = safeAction<string, { blocked: boolean }>(
-  async (targetUserId, user) => {
-    const res = await moderation.toggleBlockUser(user.id, targetUserId);
-    return res;
+  async (targetUserId) => {
+    // Go-only : POST /v1/users/{id}/block.
+    const res = await goFetch<{ blocked: boolean }>(
+      `/v1/users/${encodeURIComponent(targetUserId)}/block`,
+      { method: 'POST' }
+    );
+    return { blocked: res.blocked };
   }
 );
 
 export const toggleMuteWordAction = safeAction<string, { muted: boolean; word: string }>(
-  async (word, user) => {
-    const res = await moderation.toggleMuteWord(user.id, word);
-    return res;
+  async (word) => {
+    // Go-only : POST /v1/me/muted-words.
+    const res = await goFetch<{ muted: boolean; word: string }>('/v1/me/muted-words', {
+      method: 'POST',
+      body: { word },
+    });
+    return { muted: res.muted, word: res.word };
   }
 );
 
@@ -816,7 +921,7 @@ export const getFeedItemsAction = safeAction<
     limit?: number;
     username?: string;
   },
-  { items: FeedSlice[]; nextCursor: string | null; hasMore: boolean }
+  { items: ApiFeedSlice[]; nextCursor: string | null; hasMore: boolean }
 >(
   async ({ feedType = 'recommandation', cursor = null, limit = 20, username }) => {
     // ✅ Go-only : le feed (shape FeedSlice + pagination + invalidation cache)
@@ -832,7 +937,7 @@ export const getFeedItemsAction = safeAction<
       hasMore: boolean;
     }>(path);
     return {
-      items: body.items as unknown as FeedSlice[],
+      items: body.items as unknown as ApiFeedSlice[],
       nextCursor: body.nextCursor,
       hasMore: body.hasMore,
     };

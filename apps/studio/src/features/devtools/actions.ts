@@ -7,11 +7,10 @@
 // Go en primaire : GET /v1/devtools/data (utilisateurs + compteurs,
 // réservé superadmin côté API). Les autres actions du panneau
 // (createMockUser, seedFullDatabase, simulate*, impersonateLogin…)
-// restent dans @qoe/db/devtools — outillage dev en écriture.
+// vivent dans @qoe/devtools — outillage dev en écriture, Go-first.
 // =====================================================================
 
-import { getDevtoolsData as getDevtoolsDataPrisma } from '@qoe/db/devtools';
-import { goFetch, isGoEnabled } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 
 export interface DevtoolsUser {
   id: string;
@@ -35,29 +34,23 @@ export interface DevtoolsStats {
 }
 
 /**
- * 📊 Récupère les données et compteurs de la base de données en direct.
- * Go en primaire (GET /v1/devtools/data) — fallback Prisma dev seulement
- * si QOE_API_URL est absent (le panneau est dev-only).
+ * 📊 Récupère les données et compteurs de la base de données en direct
+ * (GET /v1/devtools/data, réservé superadmin).
  */
 export async function getDevtoolsData() {
-  if (isGoEnabled()) {
-    try {
-      const data = await goFetch<{ users: DevtoolsUser[]; stats: DevtoolsStats }>(
-        '/v1/devtools/data'
-      );
-      return { success: true as const, users: data.users, stats: data.stats };
-    } catch (err: unknown) {
-      console.error('Error in getDevtoolsData (Go):', err);
-      return {
-        success: false as const,
-        error:
-          err instanceof Error
-            ? err.message
-            : 'Accès DevTools refusé (réservé au superadmin) ou erreur Go',
-      };
-    }
+  try {
+    const data = await goFetch<{ users: DevtoolsUser[]; stats: DevtoolsStats }>(
+      '/v1/devtools/data'
+    );
+    return { success: true as const, users: data.users, stats: data.stats };
+  } catch (err: unknown) {
+    console.error('Error in getDevtoolsData (Go):', err);
+    return {
+      success: false as const,
+      error:
+        err instanceof Error
+          ? err.message
+          : 'Accès DevTools refusé (réservé au superadmin) ou erreur Go',
+    };
   }
-
-  // 🐢 Fallback dev (sans QOE_API_URL) : Prisma.
-  return getDevtoolsDataPrisma();
 }

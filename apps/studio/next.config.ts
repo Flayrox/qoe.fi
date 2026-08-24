@@ -24,7 +24,6 @@ const nextConfig: NextConfig = {
   ],
   transpilePackages: [
     '@qoe/auth',
-    '@qoe/billing',
     '@qoe/config',
     '@qoe/db',
     '@qoe/flags',

@@ -5,7 +5,6 @@
 #    un seul repo avec un seul `node_modules` partagé (économie disque).
 #
 # 🎯 Tous les dossiers listés ici sont traités comme des packages :
-#    - Tu peux importer `@qoe/db` depuis n'importe quelle app
 #    - Une modif dans un package rebuild automatiquement
 #
 # 📖 Structure :
@@ -28,12 +27,9 @@ packages:
   - '!**/.turbo'
 
 # 🔧 Build scripts (pnpm 11 → allowBuilds)
-#    true  = on autorise le postinstall (prisma génère, sharp/esbuild compilent)
+#    true  = on autorise le postinstall (sharp/esbuild compilent)
 #    false = on ignore volontairement (scripts optionnels)
 allowBuilds:
-  '@prisma/client': true
-  '@prisma/engines': true
-  'prisma': true
   'sharp': true
   'esbuild': true
   '@sentry/cli': true

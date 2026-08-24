@@ -12,8 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@qoe/supabase/server';
 import { uploadAndProcessMedia, IMAGE_FOLDERS, type ImageFolder } from '@qoe/supabase/media-engine';
 import { getCurrentUser } from '@qoe/auth/current-user';
-import { goFetch, isGoEnabled } from '@qoe/api-client/actions/utils/go-client';
-import { registerMediaAsset } from '@qoe/db/repositories/media';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 
 const ALLOWED_FOLDERS = new Set(Object.values(IMAGE_FOLDERS));
 
@@ -64,12 +63,7 @@ export async function POST(request: NextRequest) {
       ownerId: user.id,
       targetType,
     };
-    if (isGoEnabled()) {
-      await goFetch('/v1/media-assets', { method: 'POST', body: assetPayload });
-    } else {
-      // 🐢 Fallback dev (sans QOE_API_URL) : repository Prisma.
-      await registerMediaAsset(assetPayload);
-    }
+    await goFetch('/v1/media-assets', { method: 'POST', body: assetPayload });
 
     return NextResponse.json(
       {

@@ -703,3 +703,60 @@ func (s *Service) TogglePin(ctx context.Context, postID, userID string) (bool, e
 	}
 	return s.q.PinPost(ctx, db.PinPostParams{ID: postID, AuthorId: userID})
 }
+
+// DraftItem — brouillon de pensée (contrat web getUserDraftsAction).
+type DraftItem struct {
+	ID             string     `json:"id"`
+	Content        string     `json:"content"`
+	ImageURL       *string    `json:"imageUrl"`
+	Visibility     string     `json:"visibility"`
+	ScheduledAt    *time.Time `json:"scheduledAt"`
+	TriggerWarning *string    `json:"triggerWarning"`
+	Tags           []string   `json:"tags"`
+	UpdatedAt      *time.Time `json:"updatedAt"`
+}
+
+// ListDrafts renvoie les brouillons (isDraft=true) de l'utilisateur.
+func (s *Service) ListDrafts(ctx context.Context, userID string, limit int) ([]DraftItem, error) {
+	rows, err := s.q.ListUserDrafts(ctx, db.ListUserDraftsParams{AuthorId: userID, Limit: int32(limit)})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]DraftItem, 0, len(rows))
+	for _, r := range rows {
+		item := DraftItem{
+			ID:         r.ID,
+			Content:    r.Content,
+			Visibility: r.Visibility,
+			Tags:       r.Tags,
+		}
+		if r.ImageUrl.Valid {
+			item.ImageURL = &r.ImageUrl.String
+		}
+		if r.ScheduledAt.Valid {
+			t := r.ScheduledAt.Time
+			item.ScheduledAt = &t
+		}
+		if r.TriggerWarning.Valid {
+			item.TriggerWarning = &r.TriggerWarning.String
+		}
+		if r.UpdatedAt.Valid {
+			t := r.UpdatedAt.Time
+			item.UpdatedAt = &t
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
+// ToggleHideReply masque/restaure une réponse (auteur uniquement).
+func (s *Service) ToggleHideReply(ctx context.Context, replyID, userID string) (bool, error) {
+	hidden, err := s.q.HidePostByAuthor(ctx, db.HidePostByAuthorParams{ID: replyID, AuthorId: userID})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, errors.New("réponse introuvable ou non autorisée")
+		}
+		return false, err
+	}
+	return hidden, nil
+}

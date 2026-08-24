@@ -28,12 +28,17 @@ export async function GET(request: Request) {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        // Garantit la ligne User (création/propagation). L'onboarding éventuel
-        // est affiché EN POPUP par le layout tenant — on ne saute jamais
-        // l'onboarding, mais on ne redirige plus vers core : on reste sur
-        // l'article d'origine.
-        const { syncUserFromAuth } = await import('@qoe/db/sync-user');
-        await syncUserFromAuth(user);
+        // Go-only : la ligne User est créée/mise à jour par POST /v1/me/sync.
+        const goApi = process.env.QOE_API_URL;
+        if (goApi) {
+          const session = await supabase.auth.getSession();
+          await fetch(`${goApi}/v1/me/sync`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session.data.session?.access_token ?? ''}`,
+            },
+          });
+        }
       }
 
       // Retour sur l'article (ou l'accueil) du tenant d'origine.

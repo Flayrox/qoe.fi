@@ -3,17 +3,39 @@
 // =====================================================================
 // 📖 Fonctions utilitaires pour récupérer l'utilisateur courant
 //    depuis n'importe quel Server Component / Server Action.
+// Go en primaire : GET /v1/me (backend-of-record, requis en Phase 3).
 // =====================================================================
 
 import { cache } from 'react';
-import { prisma } from '@qoe/db/client';
 import { createClient } from '@qoe/supabase/server';
-import type { User } from '@qoe/db/types';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { ROLES, type Role, getMonorepoUrl } from '@qoe/config';
 import { can, type Action } from './permissions';
+import { goFetch } from './go-client';
+
+/**
+ * 👤 Utilisateur DB (parité ReaderProfile Go — GET /v1/me).
+ */
+export interface DbUser {
+  id: string;
+  email: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  onboardingText: string | null;
+  pronouns: string | null;
+  role: string;
+  walletBalanceCents: number;
+  hasCompletedOnboarding: boolean;
+  isCertified: boolean;
+  advancedSettingsMode: boolean;
+  createdAt: string;
+  followsCount: number;
+  mutedWordsCount: number;
+  isMediaMember: boolean;
+}
 
 /**
  * 👤 Récupère l'utilisateur Supabase authentifié (depuis le cookie).
@@ -28,17 +50,19 @@ export const getAuthUser = cache(async (): Promise<SupabaseUser | null> => {
 });
 
 /**
- * 👤 Récupère l'utilisateur complet (Supabase + Prisma).
+ * 👤 Récupère l'utilisateur complet (Supabase + DB via GET /v1/me).
  * Retourne null si pas connecté ou pas en DB.
  */
-export const getCurrentUser = cache(async (): Promise<User | null> => {
+export const getCurrentUser = cache(async (): Promise<DbUser | null> => {
   const authUser = await getAuthUser();
   if (!authUser) return null;
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: authUser.id },
-  });
-  return dbUser;
+  try {
+    return await goFetch<DbUser>('/v1/me');
+  } catch {
+    // Utilisateur Supabase sans ligne DB (ex. tout juste inscrit) → null.
+    return null;
+  }
 });
 
 /**
@@ -49,7 +73,7 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
  *
  * Le paramètre ?redirect= encode l'URL COMPLÈTE courante pour retour après connexion.
  */
-export async function requireUser(): Promise<User> {
+export async function requireUser(): Promise<DbUser> {
   const user = await getCurrentUser();
 
   if (!user) {
@@ -82,7 +106,7 @@ export async function requireUser(): Promise<User> {
  * 🛡️ Récupère l'utilisateur OU throw s'il n'a pas la permission.
  * Utilisable dans les Server Actions.
  */
-export async function requirePermission(action: Action): Promise<User> {
+export async function requirePermission(action: Action): Promise<DbUser> {
   const user = await getCurrentUser();
   if (!user) throw new Error('Unauthorized');
   if (!can(user.role as Role, action)) {
@@ -94,7 +118,7 @@ export async function requirePermission(action: Action): Promise<User> {
 /**
  * 🛡️ Récupère l'utilisateur OU throw s'il n'a pas le rôle requis.
  */
-export async function requireRole(role: Role): Promise<User> {
+export async function requireRole(role: Role): Promise<DbUser> {
   const user = await getCurrentUser();
   if (!user) throw new Error('Unauthorized');
   if (user.role !== ROLES.SUPERADMIN && user.role !== role) {
@@ -106,13 +130,13 @@ export async function requireRole(role: Role): Promise<User> {
 /**
  * 🛡️ Récupère l'utilisateur OU throw s'il n'est pas superadmin.
  */
-export async function requireSuperadmin(): Promise<User> {
+export async function requireSuperadmin(): Promise<DbUser> {
   return requireRole(ROLES.SUPERADMIN);
 }
 
 /**
  * 🛡️ Récupère l'utilisateur OU throw s'il n'est pas creator+.
  */
-export async function requireCreator(): Promise<User> {
+export async function requireCreator(): Promise<DbUser> {
   return requireRole(ROLES.CREATOR);
 }

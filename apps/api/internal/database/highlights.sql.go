@@ -88,8 +88,7 @@ func (q *Queries) DeleteAnnotationComment(ctx context.Context, arg DeleteAnnotat
 }
 
 const deleteHighlight = `-- name: DeleteHighlight :exec
-DELETE FROM "Highlight"
-WHERE id = $1 AND "readerId" = $2
+DELETE FROM "Highlight" WHERE id = $1 AND "readerId" = $2
 `
 
 type DeleteHighlightParams struct {
@@ -404,4 +403,51 @@ func (q *Queries) ToggleHighlightUpvote(ctx context.Context, arg ToggleHighlight
 	var added int32
 	err := row.Scan(&added)
 	return added, err
+}
+
+const updateHighlight = `-- name: UpdateHighlight :one
+UPDATE "Highlight"
+SET note = COALESCE($3, note),
+    "isPublic" = COALESCE($4, "isPublic")
+WHERE id = $1 AND "readerId" = $2
+RETURNING id, text, note, "isPublic", "isOfficial", "readerId", "articleId", "createdAt"
+`
+
+type UpdateHighlightParams struct {
+	ID       string      `json:"id"`
+	ReaderId pgtype.UUID `json:"readerId"`
+	Note     pgtype.Text `json:"note"`
+	IsPublic bool        `json:"isPublic"`
+}
+
+type UpdateHighlightRow struct {
+	ID         string           `json:"id"`
+	Text       string           `json:"text"`
+	Note       pgtype.Text      `json:"note"`
+	IsPublic   bool             `json:"isPublic"`
+	IsOfficial bool             `json:"isOfficial"`
+	ReaderId   pgtype.UUID      `json:"readerId"`
+	ArticleId  string           `json:"articleId"`
+	CreatedAt  pgtype.Timestamp `json:"createdAt"`
+}
+
+func (q *Queries) UpdateHighlight(ctx context.Context, arg UpdateHighlightParams) (UpdateHighlightRow, error) {
+	row := q.db.QueryRow(ctx, updateHighlight,
+		arg.ID,
+		arg.ReaderId,
+		arg.Note,
+		arg.IsPublic,
+	)
+	var i UpdateHighlightRow
+	err := row.Scan(
+		&i.ID,
+		&i.Text,
+		&i.Note,
+		&i.IsPublic,
+		&i.IsOfficial,
+		&i.ReaderId,
+		&i.ArticleId,
+		&i.CreatedAt,
+	)
+	return i, err
 }

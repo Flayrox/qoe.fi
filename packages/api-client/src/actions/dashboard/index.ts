@@ -12,17 +12,22 @@
 // ⚠️ Fichier serveur — non exposé au mobile.
 // =====================================================================
 
-import { prisma, type User } from '@qoe/db/client';
-import { publications } from '@qoe/db';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { safeAction } from '../utils/safe-action';
 import { goFetch } from '../utils/go-client';
+import type { ArticleAuthorBrief } from '../articles';
+
+type User = ArticleAuthorBrief & {
+  email: string;
+  role: string;
+  walletBalanceCents: number;
+};
 
 /**
  * 🎛️ Résout la publication active (personnelle OU média) depuis le cookie du workspace.
  */
-async function getActivePublicationId(userId: string): Promise<string> {
+async function getActivePublicationId(): Promise<string> {
   let saved: { type?: string; id?: string } | null = null;
   try {
     const cookieStore = await cookies();
@@ -32,24 +37,17 @@ async function getActivePublicationId(userId: string): Promise<string> {
     saved = null;
   }
 
+  // Go-only (backend-of-record) : workspace média → publication du média,
+  // sinon publication personnelle (créée si absente via /v1/me/publication).
   if (saved?.type === 'MEDIA' && saved.id) {
-    // Go en primaire (GET /v1/me/media/{mediaId}) — fallback Prisma.
-    try {
-      const res = await goFetch<{ publicationId: string }>(
-        `/v1/me/media/${encodeURIComponent(saved.id)}`
-      );
-      if (res.publicationId) return res.publicationId;
-    } catch {
-      const membership = await prisma.mediaMember.findUnique({
-        where: { mediaId_userId: { mediaId: saved.id, userId } },
-        include: { media: { include: { publication: { select: { id: true } } } } },
-      });
-      if (membership) return membership.media.publication.id;
-    }
+    const res = await goFetch<{ publicationId: string }>(
+      `/v1/me/media/${encodeURIComponent(saved.id)}`
+    );
+    if (res.publicationId) return res.publicationId;
   }
 
-  const personal = await publications.getOrCreatePersonalPublication(userId);
-  return personal.id;
+  const personal = await goFetch<{ publicationId: string }>('/v1/me/publication');
+  return personal.publicationId;
 }
 
 interface UpdateCreatorProfileInput {
@@ -88,8 +86,8 @@ interface CompleteOnboardingInput {
 }
 
 export const updateCreatorProfileAction = safeAction<UpdateCreatorProfileInput, User>(
-  async (data, user) => {
-    const publicationId = await getActivePublicationId(user.id);
+  async (data) => {
+    const publicationId = await getActivePublicationId();
     return goFetch<User>('/v1/settings/profile', {
       method: 'PATCH',
       body: { publicationId, ...data },
@@ -107,8 +105,8 @@ export const checkSubdomainAvailabilityAction = safeAction<
 });
 
 export const updateSubdomainAction = safeAction<string, { success: boolean; subdomain: string }>(
-  async (subdomain, user) => {
-    const publicationId = await getActivePublicationId(user.id);
+  async (subdomain) => {
+    const publicationId = await getActivePublicationId();
     return goFetch<{ success: boolean; subdomain: string }>('/v1/settings/subdomain', {
       method: 'POST',
       body: { publicationId, subdomain },
@@ -117,8 +115,8 @@ export const updateSubdomainAction = safeAction<string, { success: boolean; subd
 );
 
 export const saveNavigationLinksAction = safeAction<NavigationLinkInput[], { success: boolean }>(
-  async (links, user) => {
-    const publicationId = await getActivePublicationId(user.id);
+  async (links) => {
+    const publicationId = await getActivePublicationId();
     await goFetch('/v1/settings/navigation', {
       method: 'PUT',
       body: { publicationId, links },
@@ -129,8 +127,8 @@ export const saveNavigationLinksAction = safeAction<NavigationLinkInput[], { suc
 );
 
 export const saveSocialLinksAction = safeAction<SocialLinkInput[], { success: boolean }>(
-  async (links, user) => {
-    const publicationId = await getActivePublicationId(user.id);
+  async (links) => {
+    const publicationId = await getActivePublicationId();
     await goFetch('/v1/settings/social', {
       method: 'PUT',
       body: { publicationId, links },

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/middleware"
@@ -29,6 +30,11 @@ type createThoughtInput struct {
 	ReplyRestriction string            `json:"replyRestriction,omitempty"`
 	Attachments      []AttachmentInput `json:"attachments,omitempty"`
 	Poll             *PollInput        `json:"poll,omitempty"`
+	IsDraft          bool              `json:"isDraft,omitempty"`
+	ScheduledAt      *time.Time        `json:"scheduledAt,omitempty"`
+	TriggerWarning   *string           `json:"triggerWarning,omitempty"`
+	QuotedArticleID  *string           `json:"quotedArticleId,omitempty"`
+	QuotedExcerpt    *string           `json:"quotedExcerpt,omitempty"`
 }
 
 func (h *Handler) Register(r chi.Router) {
@@ -56,14 +62,19 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Post("/v1/thoughts/{id}/like", h.toggleLike)
 	r.Post("/v1/thoughts/{id}/repost", h.toggleRepost)
 	r.Post("/v1/thoughts/{id}/bookmark", h.toggleBookmark)
+	r.Post("/v1/posts/{id}/hide", h.toggleHideReply)
 }
 
 // RegisterPublic enregistre la lecture publique d'un post et de ses listes d'engagement (auth optionnelle).
+// GET /v1/posts/drafts doit être déclaré AVANT /v1/posts/{id} pour que chi
+// ne capture pas "drafts" comme un id.
 func (h *Handler) RegisterPublic(r chi.Router) {
+	r.Get("/v1/posts/drafts", h.listDrafts)
 	r.Get("/v1/posts/{id}", h.get)
 	r.Get("/v1/posts/{id}/likes", h.likes)
 	r.Get("/v1/posts/{id}/reposts", h.reposts)
 	r.Get("/v1/posts/{id}/quotes", h.quotes)
+	r.Get("/v1/posts/{id}/can-reply", h.canReply)
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
@@ -84,6 +95,11 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		ReplyRestriction: in.ReplyRestriction,
 		Attachments:      in.Attachments,
 		Poll:             in.Poll,
+		IsDraft:          in.IsDraft,
+		ScheduledAt:      in.ScheduledAt,
+		TriggerWarning:   in.TriggerWarning,
+		QuotedArticleID:  in.QuotedArticleID,
+		QuotedExcerpt:    in.QuotedExcerpt,
 	})
 	if err != nil {
 		response.BadRequest(w, err.Error())
@@ -334,4 +350,54 @@ func (h *Handler) togglePin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]bool{"pinned": pinned})
+}
+
+// GET /v1/posts/drafts — brouillons de l'utilisateur connecté (isDraft=true).
+func (h *Handler) listDrafts(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	limit := 50
+	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 && v <= 100 {
+		limit = v
+	}
+	drafts, err := h.svc.ListDrafts(r.Context(), userID, limit)
+	if err != nil {
+		log.Printf("[posts] drafts: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"drafts": drafts})
+}
+
+// POST /v1/posts/{id}/hide — masque/restaure une réponse (auteur uniquement).
+func (h *Handler) toggleHideReply(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+
+	hidden, err := h.svc.ToggleHideReply(r.Context(), id, userID)
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, map[string]bool{"isHiddenByAuthor": hidden})
+}
+
+// GET /v1/posts/{id}/can-reply — contrôle threadgate pour le viewer (auth optionnelle).
+func (h *Handler) canReply(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+
+	res, err := h.svc.CanReply(r.Context(), id, userID)
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{
+		"canReply":    res.CanReply,
+		"reason":      res.Reason,
+		"restriction": res.Restriction,
+	})
 }

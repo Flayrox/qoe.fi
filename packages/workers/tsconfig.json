@@ -1,8 +1,0 @@
-{
-  "extends": "@qoe/tsconfig/node.json",
-  "compilerOptions": {
-    "baseUrl": "."
-  },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist"]
-}

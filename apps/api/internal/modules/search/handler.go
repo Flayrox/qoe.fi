@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/meilisearch/meilisearch-go"
@@ -51,6 +52,34 @@ func NewHandler(semantic *SemanticService) *Handler {
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/search/articles", h.searchArticles)
 	r.Get("/search/semantic", h.searchSemantic)
+	r.Get("/search/thoughts", h.searchThoughts)
+}
+
+// searchThoughts cherche les pensées publiques (contenu + tags, ILIKE).
+// Réponse : { thoughts: [...], nextCursor: null } — parité web.
+func (h *Handler) searchThoughts(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		response.OK(w, map[string]any{"thoughts": []any{}, "nextCursor": nil})
+		return
+	}
+	// Le `#` d'un hashtag est un marqueur d'intention : on cherche le terme nu
+	// (le tag comme le contenu), parité searchThoughts TS.
+	query = strings.TrimPrefix(strings.TrimSpace(query), "#")
+	limit := 20
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 50 {
+			limit = n
+		}
+	}
+
+	items, err := h.semantic.SearchThoughts(r.Context(), query, limit)
+	if err != nil {
+		log.Printf("[search] thoughts: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"thoughts": items, "nextCursor": nil})
 }
 
 // searchArticles cherche dans l'index Meilisearch des articles (limit 10).
@@ -62,7 +91,13 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := h.searcher.Search(query, &meilisearch.SearchRequest{Limit: 10})
+	// Filtre optionnel par publication (scope « mine » du Cmd+K studio).
+	req := &meilisearch.SearchRequest{Limit: 10}
+	if pubID := r.URL.Query().Get("publicationId"); pubID != "" {
+		req.Filter = "publicationId = '" + strings.ReplaceAll(pubID, "'", "''") + "'"
+	}
+
+	results, err := h.searcher.Search(query, req)
 	if err != nil {
 		log.Printf("[search] meilisearch: %v", err)
 		response.Internal(w)

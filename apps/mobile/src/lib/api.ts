@@ -1,4 +1,4 @@
-// Entrée RN-safe : évite l'index racine qui tire les actions serveur ('use server', @qoe/db).
+// Entrée RN-safe : évite l'index racine qui tire les actions serveur ('use server').
 import { QoeApiClient } from '@qoe/api-client/mobile';
 import Constants from 'expo-constants';
 import { isDevice } from 'expo-device';

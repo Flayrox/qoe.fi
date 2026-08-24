@@ -19,6 +19,10 @@ type stubQuerier struct {
 	gotParams *db.SearchSemanticArticlesParams
 }
 
+func (m *stubQuerier) SearchThoughts(_ context.Context, _ db.SearchThoughtsParams) ([]db.SearchThoughtsRow, error) {
+	return nil, nil
+}
+
 func (m *stubQuerier) SearchSemanticArticles(_ context.Context, params db.SearchSemanticArticlesParams) ([]db.SearchSemanticArticlesRow, error) {
 	if m.gotParams != nil {
 		*m.gotParams = params

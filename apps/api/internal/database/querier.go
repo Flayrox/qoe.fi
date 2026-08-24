@@ -62,6 +62,7 @@ type Querier interface {
 	CreatePersonalPublication(ctx context.Context, arg CreatePersonalPublicationParams) (string, error)
 	CreatePoll(ctx context.Context, arg CreatePollParams) (CreatePollRow, error)
 	CreatePollOption(ctx context.Context, arg CreatePollOptionParams) (string, error)
+	CreateStarterPack(ctx context.Context, arg CreateStarterPackParams) (StarterPack, error)
 	CreateThought(ctx context.Context, arg CreateThoughtParams) (CreateThoughtRow, error)
 	CreateWalletTransaction(ctx context.Context, arg CreateWalletTransactionParams) (string, error)
 	CreateWebhook(ctx context.Context, arg CreateWebhookParams) (CreateWebhookRow, error)
@@ -108,6 +109,7 @@ type Querier interface {
 	// en excluant l'article source. Requête ANN via l'index HNSW.
 	FindSimilarArticles(ctx context.Context, arg FindSimilarArticlesParams) ([]FindSimilarArticlesRow, error)
 	FindTrending(ctx context.Context, arg FindTrendingParams) ([]FindTrendingRow, error)
+	FollowPublications(ctx context.Context, arg FollowPublicationsParams) (int32, error)
 	GetActiveSubscribersByPublication(ctx context.Context, arg GetActiveSubscribersByPublicationParams) ([]GetActiveSubscribersByPublicationRow, error)
 	GetActiveSubscriptionForReply(ctx context.Context, arg GetActiveSubscriptionForReplyParams) (int32, error)
 	GetActiveWebhooksByPublication(ctx context.Context, arg GetActiveWebhooksByPublicationParams) ([]GetActiveWebhooksByPublicationRow, error)
@@ -210,6 +212,7 @@ type Querier interface {
 	GetReplyIDsForThought(ctx context.Context, parentid pgtype.Text) ([]string, error)
 	// Notifications REPLY / MENTION
 	GetReplyPrefs(ctx context.Context, userid pgtype.UUID) (GetReplyPrefsRow, error)
+	GetStarterPackByID(ctx context.Context, id string) (GetStarterPackByIDRow, error)
 	GetSubscriberEntitlement(ctx context.Context, arg GetSubscriberEntitlementParams) (GetSubscriberEntitlementRow, error)
 	GetSystemConfigsByKeys(ctx context.Context, dollar_1 []string) ([]SystemConfig, error)
 	GetThoughtByID(ctx context.Context, id string) (GetThoughtByIDRow, error)
@@ -252,6 +255,7 @@ type Querier interface {
 	GroupUsersByCountry(ctx context.Context, dollar_1 []pgtype.UUID) ([]GroupUsersByCountryRow, error)
 	GroupUsersByGender(ctx context.Context, dollar_1 []pgtype.UUID) ([]GroupUsersByGenderRow, error)
 	GroupUsersByLanguage(ctx context.Context, dollar_1 []pgtype.UUID) ([]GroupUsersByLanguageRow, error)
+	HidePostByAuthor(ctx context.Context, arg HidePostByAuthorParams) (bool, error)
 	IncrementLikeCount(ctx context.Context, id string) error
 	IncrementReplyCount(ctx context.Context, id string) error
 	IncrementRepostCount(ctx context.Context, id string) error
@@ -286,6 +290,7 @@ type Querier interface {
 	InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error
 	InsertRepostNotification(ctx context.Context, arg InsertRepostNotificationParams) error
 	InsertSocialLink(ctx context.Context, arg InsertSocialLinkParams) error
+	InsertStarterPackItem(ctx context.Context, arg InsertStarterPackItemParams) error
 	InsertWebhookDeliveryResult(ctx context.Context, arg InsertWebhookDeliveryResultParams) error
 	IsActiveMediaMember(ctx context.Context, arg IsActiveMediaMemberParams) (bool, error)
 	LinkUserPublication(ctx context.Context, arg LinkUserPublicationParams) error
@@ -349,9 +354,12 @@ type Querier interface {
 	ListRepostsForPost(ctx context.Context, arg ListRepostsForPostParams) ([]ListRepostsForPostRow, error)
 	ListSentCollaborationRequests(ctx context.Context, inviterid pgtype.UUID) ([]ListSentCollaborationRequestsRow, error)
 	ListSocialLinksForPublication(ctx context.Context, publicationid string) ([]ListSocialLinksForPublicationRow, error)
+	ListStarterPackItems(ctx context.Context, starterpackid string) ([]ListStarterPackItemsRow, error)
+	ListStarterPacks(ctx context.Context, arg ListStarterPacksParams) ([]ListStarterPacksRow, error)
 	ListSubscribers(ctx context.Context, publicationid string) ([]ListSubscribersRow, error)
 	// ── Feature Flags / Config / Frontend / Translations ────────────────────────
 	ListSystemConfigs(ctx context.Context) ([]SystemConfig, error)
+	ListUserDrafts(ctx context.Context, arg ListUserDraftsParams) ([]ListUserDraftsRow, error)
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
 	ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error)
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
@@ -365,6 +373,7 @@ type Querier interface {
 	RevokeOAuthTokensByUserClient(ctx context.Context, arg RevokeOAuthTokensByUserClientParams) error
 	// Recherche sémantique plein corpus (ordre par similarité cosinus).
 	SearchSemanticArticles(ctx context.Context, arg SearchSemanticArticlesParams) ([]SearchSemanticArticlesRow, error)
+	SearchThoughts(ctx context.Context, arg SearchThoughtsParams) ([]SearchThoughtsRow, error)
 	SetApiApplication(ctx context.Context, arg SetApiApplicationParams) error
 	SetArticleEditorPick(ctx context.Context, arg SetArticleEditorPickParams) (SetArticleEditorPickRow, error)
 	SetArticleStatus(ctx context.Context, arg SetArticleStatusParams) (string, error)
@@ -385,6 +394,7 @@ type Querier interface {
 	UpdateArticleFull(ctx context.Context, arg UpdateArticleFullParams) (string, error)
 	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) error
 	UpdateCollaborationRequestResponse(ctx context.Context, arg UpdateCollaborationRequestResponseParams) error
+	UpdateHighlight(ctx context.Context, arg UpdateHighlightParams) (UpdateHighlightRow, error)
 	UpdateMediaInviteStatus(ctx context.Context, arg UpdateMediaInviteStatusParams) error
 	UpdateMediaMemberPermissions(ctx context.Context, arg UpdateMediaMemberPermissionsParams) error
 	UpdateMediaMemberRole(ctx context.Context, arg UpdateMediaMemberRoleParams) error

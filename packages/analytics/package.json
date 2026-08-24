@@ -25,19 +25,12 @@
     "./referrers": {
       "types": "./src/referrers.ts",
       "default": "./src/referrers.ts"
-    },
-    "./queries": {
-      "types": "./src/queries/creator-analytics.ts",
-      "default": "./src/queries/creator-analytics.ts"
     }
   },
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
-  },
-  "dependencies": {
-    "@qoe/db": "workspace:*"
   },
   "peerDependencies": {
     "react": "^19"
