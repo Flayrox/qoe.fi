@@ -18,6 +18,11 @@ import (
 
 const searchIndex = "articles"
 
+// maxSearchQueryLength borne la taille d'une requête de recherche : rejette
+// les entrées adverses (payloads géants) avant tout appel au moteur
+// Meilisearch ou au SQL (ILIKE), indépendamment de leur disponibilité.
+const maxSearchQueryLength = 512
+
 // Searcher est la surface minimale utilisée par la route (mockable en test).
 type Searcher interface {
 	Search(query string, request *meilisearch.SearchRequest) (*meilisearch.SearchResponse, error)
@@ -63,6 +68,10 @@ func (h *Handler) searchThoughts(w http.ResponseWriter, r *http.Request) {
 		response.OK(w, map[string]any{"thoughts": []any{}, "nextCursor": nil})
 		return
 	}
+	if len(query) > maxSearchQueryLength {
+		response.Error(w, http.StatusBadRequest, "Recherche trop longue")
+		return
+	}
 	// Le `#` d'un hashtag est un marqueur d'intention : on cherche le terme nu
 	// (le tag comme le contenu), parité searchThoughts TS.
 	query = strings.TrimPrefix(strings.TrimSpace(query), "#")
@@ -88,6 +97,10 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	if query == "" {
 		response.OK(w, map[string]any{"hits": []any{}, "estimatedTotalHits": 0})
+		return
+	}
+	if len(query) > maxSearchQueryLength {
+		response.Error(w, http.StatusBadRequest, "Recherche trop longue")
 		return
 	}
 
