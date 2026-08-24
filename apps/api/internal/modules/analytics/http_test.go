@@ -115,3 +115,57 @@ func TestHTTP_DashboardAndCreatorShape(t *testing.T) {
 		t.Fatalf("creator owner = %d %s, attendu 200", w.Code, w.Body.String())
 	}
 }
+
+// ─── Endpoints restants : audience, provenance, insights, sessions ─────
+
+func TestHTTP_AudienceAndInsights(t *testing.T) {
+	fx, err := testutil.SeedPosts(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	r := newAnalyticsRouter()
+
+	var pubID string
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT "publicationId" FROM "User" WHERE id = $1`, fx.AuthorID).Scan(&pubID); err != nil {
+		t.Fatalf("publication auteur: %v", err)
+	}
+
+	for _, path := range []string{
+		"/v1/analytics/audience?publicationId=" + pubID,
+		"/v1/analytics/audience/subscribers?publicationId=" + pubID,
+		"/v1/analytics/provenance?publicationId=" + pubID,
+		"/v1/analytics/audience/insights?publicationId=" + pubID,
+		"/v1/analytics/reading-sessions?publicationId=" + pubID + "&articleId=" + fx.ArticleID,
+	} {
+		w := get(t, r, path, fx.AuthorID)
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s = %d %s, attendu 200", path, w.Code, w.Body.String())
+		}
+	}
+}
+
+func TestHTTP_UmamiEndpoints_NoConfig(t *testing.T) {
+	fx, err := testutil.SeedPosts(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	r := newAnalyticsRouter()
+
+	var pubID string
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT "publicationId" FROM "User" WHERE id = $1`, fx.AuthorID).Scan(&pubID); err != nil {
+		t.Fatalf("publication auteur: %v", err)
+	}
+
+	// Sans configuration Umami : dégradation propre (200, objet vide).
+	for _, path := range []string{
+		"/v1/analytics/umami/returning?publicationId=" + pubID,
+		"/v1/analytics/umami/hours?publicationId=" + pubID,
+	} {
+		w := get(t, r, path, fx.AuthorID)
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s = %d %s, attendu 200 dégradé", path, w.Code, w.Body.String())
+		}
+	}
+}

@@ -139,8 +139,8 @@ func (h *Handler) umamiReturning(w http.ResponseWriter, r *http.Request) {
 			response.Forbidden(w, "Permission insuffisante")
 			return
 		}
-		log.Printf("[analytics] umami/returning: %v", err)
-		response.Internal(w)
+		// Publication sans Umami provisionné : dégradation propre.
+		response.OK(w, map[string]any{})
 		return
 	}
 	startAt, endAt := parsePeriod(r)
@@ -167,8 +167,7 @@ func (h *Handler) umamiHours(w http.ResponseWriter, r *http.Request) {
 			response.Forbidden(w, "Permission insuffisante")
 			return
 		}
-		log.Printf("[analytics] umami/hours: %v", err)
-		response.Internal(w)
+		response.OK(w, map[string]any{})
 		return
 	}
 	startAt, endAt := parsePeriod(r)
