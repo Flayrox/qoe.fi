@@ -38,6 +38,8 @@ export interface CustomSubHeaderProps {
   scrollThreshold?: number;
   /** Si true, le titre apparaît au scroll (ex: profil quand l'avatar quitte l'écran) */
   showTitleOnScrollOnly?: boolean;
+  /** Activer ou désactiver le flou zénithal EdgeFadeView (défaut: true) */
+  enableBlur?: boolean;
   /** Style additionnel pour le conteneur */
   style?: StyleProp<ViewStyle>;
 }
@@ -53,6 +55,7 @@ export function CustomSubHeader({
   isScrollingDown,
   scrollThreshold = 35,
   showTitleOnScrollOnly = false,
+  enableBlur = true,
   style,
 }: CustomSubHeaderProps) {
   const theme = useTheme();
@@ -122,14 +125,16 @@ export function CustomSubHeader({
   return (
     <>
       {/* ─── Flou progressif zénithal (EdgeFadeView - Metal / AGSL) ─── */}
-      <EdgeFadeView
-        mode="blur"
-        top={108}
-        blurRadius={18}
-        curve={{ type: 'stops', values: [1, 0.7, 0.38, 0.14, 0.04, 0] }}
-        style={styles.blurBackground}
-        pointerEvents="none"
-      />
+      {enableBlur ? (
+        <EdgeFadeView
+          mode="blur"
+          top={108}
+          blurRadius={18}
+          curve={{ type: 'stops', values: [1, 0.7, 0.38, 0.14, 0.04, 0] }}
+          style={styles.blurBackground}
+          pointerEvents="none"
+        />
+      ) : null}
 
       <Animated.View
         style={[styles.headerContainer, containerAnimatedStyle, style]}
