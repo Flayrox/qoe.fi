@@ -227,3 +227,56 @@ func TestHTTP_ToggleMuteWord(t *testing.T) {
 		t.Fatalf("mot vide = %d, attendu 400", w.Code)
 	}
 }
+
+// ─── Publications & wallet ─────────────────────────────────────────────
+
+func TestHTTP_MyPublicationAndMedia(t *testing.T) {
+	fx, err := testutil.SeedPosts(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	r := newRouter()
+
+	w := do(r, http.MethodGet, "/v1/me/publication", fx.AuthorID, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("my publication = %d %s", w.Code, w.Body.String())
+	}
+
+	w = do(r, http.MethodGet, "/v1/me/media/media_inconnu", fx.AuthorID, "")
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"publicationId":""`) {
+		t.Fatalf("media inconnu = %d %s, attendu 200 publicationId vide", w.Code, w.Body.String())
+	}
+
+	if w = do(r, http.MethodGet, "/v1/me/publication", "", ""); w.Code != http.StatusUnauthorized {
+		t.Fatalf("anonyme = %d, attendu 401", w.Code)
+	}
+}
+
+func TestHTTP_WalletUnlock_Validation(t *testing.T) {
+	fx, err := testutil.SeedPosts(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	r := newRouter()
+
+	w := do(r, http.MethodPost, "/v1/me/wallet/unlock", fx.AuthorID, `{}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("creatorId manquant = %d, attendu 400", w.Code)
+	}
+
+	w = do(r, http.MethodPost, "/v1/me/wallet/unlock", fx.AuthorID, "{oops")
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("json invalide = %d, attendu 400", w.Code)
+	}
+
+	w = do(r, http.MethodPost, "/v1/me/wallet/unlock", "", `{"creatorId":"x"}`)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("anonyme = %d, attendu 401", w.Code)
+	}
+
+	w = do(r, http.MethodPost, "/v1/me/wallet/unlock", fx.ViewerID,
+		`{"creatorId":"`+fx.AuthorID+`","costCents":200}`)
+	if w.Code >= 500 {
+		t.Fatalf("unlock nominal = %d %s, pas de 5xx attendu", w.Code, w.Body.String())
+	}
+}
