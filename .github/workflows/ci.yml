@@ -43,8 +43,8 @@ jobs:
       - name: Run Unit & Integration Tests
         run: pnpm test
         env:
-          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
-          DIRECT_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
+          DIRECT_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
           NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co'
           NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
           SKIP_ENV_VALIDATION: 'true'
@@ -179,7 +179,7 @@ jobs:
         working-directory: apps/api
         run: go run ./cmd/migrate -dir sql/migrations up
         env:
-          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
 
       # Contenu démo (articles publiés + publication certifiée + média) pour
       # que les tests e2e vérifient du contenu réellement rendu, pas seulement
@@ -188,7 +188,7 @@ jobs:
         working-directory: apps/api
         run: go run ./cmd/seed
         env:
-          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
 
       - name: Install Playwright Chromium
         run: pnpm e2e:install
@@ -198,7 +198,7 @@ jobs:
         env:
           CI: 'true'
           PLAYWRIGHT_TEST_BASE_URL: 'http://localhost:3010'
-          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
           NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co'
           NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
 
@@ -261,13 +261,13 @@ jobs:
         working-directory: apps/api
         run: go run ./cmd/migrate -dir sql/migrations up
         env:
-          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
 
       - name: Seed Database (demo content)
         working-directory: apps/api
         run: go run ./cmd/seed
         env:
-          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
 
       - name: Install Playwright Chromium
         run: pnpm e2e:install
@@ -282,7 +282,7 @@ jobs:
           CI: 'true'
           PLAYWRIGHT_GO_API_PORT: '8091'
           QOE_API_URL: 'http://localhost:8091'
-          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe?schema=public'
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/qoe'
           NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321'
           NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder_anon_key'
 
