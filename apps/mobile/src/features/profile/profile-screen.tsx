@@ -168,7 +168,12 @@ export function ProfileScreen({
   }
 
   const handle = profile.subdomain || profile.slug;
-  const isOwn = me?.id === profile.id || (!!me?.username && me?.username === handle);
+  const isOwn =
+    (!!me?.id && (me.id === profile.id || me.id === profile.ownerUserId)) ||
+    (!!me?.publicationId && me.publicationId === profile.id) ||
+    (!!me?.username &&
+      (me.username.toLowerCase() === handle.toLowerCase() ||
+        me.username.toLowerCase() === (profile.slug || '').toLowerCase()));
   const isFollowing = following ?? profile.isFollowing ?? false;
   const followersCount = profile._count?.followers ?? 0;
 
