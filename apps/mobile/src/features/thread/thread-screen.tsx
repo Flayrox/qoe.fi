@@ -26,6 +26,7 @@ import { ThemedView } from '@/components/themed-view';
 import { PostFeedLoadingPlaceholder } from '@/components/ui/skeleton';
 import { ErrorMessage } from '@/components/ui/error-message';
 import { PostMenuButton } from '@/components/thought/post-menu';
+import { ViewFullThread } from '@/components/thought/view-full-thread';
 import { normalizeThought, type NormalizedThought } from '@/components/thought/normalize';
 import { ThreadAnchorCard } from '@/features/thread/thread-anchor-card';
 import { ThreadPost, OUTER_SPACE } from '@/features/thread/thread-post';
@@ -231,11 +232,10 @@ export function ThreadScreen({ postId }: { postId: string }) {
               },
             ]}
           >
-            {/* Repli « ReadMore » : chaîne d'ancêtres longue */}
+            {/* Repli « ViewFullThread » : chaîne d'ancêtres longue (pointillés SVG Bluesky) */}
             {hiddenAncestorCount > 0 && !showAllAncestors ? (
-              <ReadMoreRow
-                count={hiddenAncestorCount}
-                label={t('thread.show_more_parents', 'Afficher les pensées précédentes')}
+              <ViewFullThread
+                label={`${t('thread.show_more_parents', 'Afficher les pensées précédentes')} (${hiddenAncestorCount})`}
                 onPress={() => setShowAllAncestors(true)}
               />
             ) : null}

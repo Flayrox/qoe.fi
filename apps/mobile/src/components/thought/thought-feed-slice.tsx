@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThoughtCard } from '@/components/thought/thought-card';
+import { ViewFullThread } from '@/components/thought/view-full-thread';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/lib/i18n';
@@ -40,17 +41,12 @@ export function ThoughtFeedSlice({ slice }: { slice: FeedSlice }) {
         <ThoughtCard thought={rootPost} showThreadConnectorBottom={!!parentPost || true} />
       ) : null}
 
-      {/* Séparateur « Afficher la suite du fil » si incomplet */}
+      {/* Séparateur « Afficher la suite du fil » avec pointillés SVG Bluesky si incomplet */}
       {isIncompleteThread ? (
-        <Pressable onPress={openRootThread} style={styles.incompleteRow}>
-          <View style={styles.incompleteLine}>
-            <View style={[styles.dashed, { backgroundColor: theme.border }]} />
-          </View>
-          <ThemedText type="small" style={[styles.incompleteText, { color: theme.primary }]}>
-            {t('feed.show_thread', 'Afficher la suite du fil')}{' '}
-            {`(${hiddenIntermediateCount || 1} ${(hiddenIntermediateCount ?? 1) > 1 ? t('feed.messages', 'messages') : t('feed.message', 'message')} ${t('feed.more', 'de plus')})`}
-          </ThemedText>
-        </Pressable>
+        <ViewFullThread
+          onPress={openRootThread}
+          label={`${t('feed.show_thread', 'Afficher la suite du fil')} (${hiddenIntermediateCount || 1} ${(hiddenIntermediateCount ?? 1) > 1 ? t('feed.messages', 'messages') : t('feed.message', 'message')} ${t('feed.more', 'de plus')})`}
+        />
       ) : null}
 
       {/* Parent */}
@@ -71,26 +67,5 @@ export function ThoughtFeedSlice({ slice }: { slice: FeedSlice }) {
 const styles = StyleSheet.create({
   slice: {
     gap: Spacing.two,
-  },
-  incompleteRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingLeft: Spacing.three,
-    paddingVertical: Spacing.one,
-  },
-  incompleteLine: {
-    width: 36,
-    alignItems: 'center',
-  },
-  // Connecteur plein (RN ne supporte pas borderStyle dashed en natif).
-  dashed: {
-    width: 2,
-    height: 24,
-    borderRadius: 1,
-  },
-  incompleteText: {
-    fontSize: 12,
-    fontWeight: '600',
   },
 });
