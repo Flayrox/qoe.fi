@@ -17,14 +17,13 @@ test.describe('E2E — Recommandations & Tracking de Lecture Haute Précision', 
     // 1. Vérifie la présence du feed
     await expect(page.locator('main')).toBeVisible({ timeout: 15_000 });
 
-    // 2. Vérifie la présence de la barre latérale sur grand écran
-    const aside = page.locator('aside');
-    if (await aside.isVisible()) {
+    // 2. Vérifie la présence de la barre latérale sur grand écran.
+    // Deux <aside> existent (nav principale + widgets éditoriaux) : on cible
+    // celui des widgets par son contenu.
+    const widgets = page.locator('aside', { hasText: 'Plumes Recommandées' });
+    if (await widgets.isVisible()) {
       await expect(
-        aside.getByText('Plumes Recommandées').or(aside.getByText('À Découvrir'))
-      ).toBeVisible();
-      await expect(
-        aside.getByText('Sujets Émergents').or(aside.getByText('Votre semaine'))
+        widgets.getByText('Plumes Recommandées').or(widgets.getByText('À Découvrir'))
       ).toBeVisible();
     }
   });

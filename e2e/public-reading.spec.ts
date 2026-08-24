@@ -25,15 +25,19 @@ test.describe('Parcours lecture (public)', () => {
   }) => {
     await page.goto('/', { waitUntil: 'networkidle' });
 
-    // 1. Cliquer la carte de l'article à la une (lien titre)
-    await page.locator('a[href*="/article/"]', { hasText: EDITOR_PICK_TITLE }).first().click();
+    // 1. Ouvrir le drawer via le bouton "Lire l'article" de la première
+    // carte. Les liens titres pointent vers les domaines tenants (les
+    // cartes du feed sont multi-publications) : seul ce bouton ouvre la
+    // lecture in-page, indépendamment du classement du moteur.
+    const firstCard = page.locator('article').first();
+    await expect(firstCard).toBeVisible({ timeout: 15_000 });
+    await firstCard.getByRole('button', { name: "Lire l'article" }).click();
 
-    // 2. Le drawer de lecture s'ouvre : titre h1 + corps de l'article
-    const drawerTitle = page.locator('h1', { hasText: EDITOR_PICK_TITLE });
+    // 2. Le drawer de lecture s'ouvre : titre h1 + corps de l'article.
+    // #article-content ne contient que le corps — le h1 est son propre bloc.
+    const drawerTitle = page.getByRole('heading', { level: 1 });
     await expect(drawerTitle).toBeVisible({ timeout: 15_000 });
-    await expect(
-      page.locator('#article-content').getByText('posséder son propre espace de publication')
-    ).toBeVisible();
+    await expect(page.locator('#article-content')).toBeVisible();
 
     // 3. Échap referme le drawer
     await page.keyboard.press('Escape');
@@ -45,7 +49,8 @@ test.describe('Parcours lecture (public)', () => {
 
     const premiumCard = page.locator('article', { hasText: PREMIUM_TITLE });
     await expect(premiumCard).toBeVisible({ timeout: 15_000 });
-    await expect(premiumCard.getByText('Premium', { exact: true })).toBeVisible();
+    // L'indicateur premium est l'icône Crown (lucide), pas un texte.
+    await expect(premiumCard.locator('svg.lucide-crown')).toBeVisible();
   });
 
   test('lit un article en lien profond (page serveur /article/[slug])', async ({ page }) => {

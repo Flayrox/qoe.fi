@@ -710,7 +710,7 @@ export function FeedDashboard({
   return (
     <ReaderPageLayout giantTitle={t`Lire`} hideHeader={!!activePostId || !!activeArticle}>
       {/* ── SLIDING FEED SHEET ── */}
-      <motion.main
+      <motion.section
         initial={false}
         animate={{
           marginTop: activePostId || activeArticle ? 0 : 256,
@@ -964,7 +964,7 @@ export function FeedDashboard({
             />
           </WidgetErrorBoundary>
         </div>
-      </motion.main>
+      </motion.section>
 
       <ArticleReaderDrawer
         isOpen={!!activeArticle}
