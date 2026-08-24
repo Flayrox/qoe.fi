@@ -78,7 +78,12 @@ export function Sidebar() {
 
   const openProfile = () => {
     closeDrawer();
-    router.push({ pathname: '/user/[username]', params: { username: profileHandle } });
+    const target =
+      me?.username ||
+      me?.publicationId ||
+      user?.user_metadata?.username ||
+      (user?.email ? user.email.split('@')[0] : 'admin');
+    router.push({ pathname: '/user/[username]', params: { username: target } });
   };
 
   const openFollowing = () => {
