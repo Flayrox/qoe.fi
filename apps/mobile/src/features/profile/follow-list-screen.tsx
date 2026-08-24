@@ -24,6 +24,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
 import { userKeys, type FollowActor } from '@qoe/sdk/mobile';
+import { CustomSubHeader } from '@/components/header/CustomSubHeader';
 
 export type FollowTab = 'followers' | 'following';
 
@@ -80,90 +81,83 @@ export function FollowListScreen({ username, tab }: { username: string; tab: Fol
     }
   };
 
-  if (isPending) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator color={theme.text} />
-      </SafeAreaView>
-    );
-  }
-
-  if (isError) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <ErrorMessage
-          message={t('follow.error', 'Impossible de charger cette liste')}
-          onPressTryAgain={() => void refetch()}
-        />
-      </SafeAreaView>
-    );
-  }
+  const tabsHeader = (
+    <View style={[styles.tabs, { backgroundColor: theme.backgroundSelected }]}>
+      {(
+        [
+          { key: 'followers' as const, label: t('profile.followers', 'Abonnés') },
+          { key: 'following' as const, label: t('profile.following_tab', 'Abonnements') },
+        ] as const
+      ).map((t) => {
+        const isActive = active === t.key;
+        return (
+          <Pressable
+            key={t.key}
+            onPress={() => setActive(t.key)}
+            style={[styles.tab, isActive && { backgroundColor: theme.primary }]}
+          >
+            <ThemedText
+              type="smallBold"
+              style={{ color: isActive ? '#ffffff' : theme.textSecondary }}
+            >
+              {t.label}
+            </ThemedText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView edges={['top']} style={styles.safe}>
-        {/* Segmented control Abonnés / Abonnements (parité Bluesky) */}
-        <View style={styles.tabs}>
-          {(
-            [
-              { key: 'followers' as const, label: t('profile.followers', 'Abonnés') },
-              { key: 'following' as const, label: t('profile.following_tab', 'Abonnements') },
-            ] as const
-          ).map((t) => {
-            const isActive = active === t.key;
-            return (
-              <Pressable
-                key={t.key}
-                onPress={() => setActive(t.key)}
-                style={({ pressed }) => [
-                  styles.tab,
-                  isActive && { backgroundColor: theme.backgroundElement },
-                  pressed && { opacity: 0.6 },
-                ]}
-              >
-                <ThemedText
-                  type="smallBold"
-                  style={{ color: isActive ? theme.text : theme.textSecondary }}
-                >
-                  {t.label}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </View>
+      <CustomSubHeader centerComponent={tabsHeader} />
 
-        <FlashList
-          data={items}
-          keyExtractor={(a) => a.id}
-          renderItem={({ item }) => (
-            <FollowRow
-              actor={item}
-              isOwn={me?.id === item.id}
-              busy={busyId === item.id}
-              onFollow={() => void toggleFollow(item)}
+      <SafeAreaView edges={['bottom']} style={[styles.safe, { paddingTop: 105 }]}>
+        {isPending ? (
+          <View style={styles.center}>
+            <ActivityIndicator color={theme.text} />
+          </View>
+        ) : isError ? (
+          <View style={styles.center}>
+            <ErrorMessage
+              message={t('follow.error', 'Impossible de charger cette liste')}
+              onPressTryAgain={() => void refetch()}
             />
-          )}
-          onEndReached={onEndReached}
-          onEndReachedThreshold={0.4}
-          refreshing={isRefetching}
-          onRefresh={() => void refetch()}
-          ListEmptyComponent={
-            <EmptyState
-              icon={{ ios: 'person.2', android: 'people', web: 'people' }}
-              message={
-                active === 'followers'
-                  ? t('follow.no_followers', 'Aucun abonné pour le moment.')
-                  : t('follow.no_following', 'Ne suit personne pour le moment.')
-              }
-            />
-          }
-          ListFooterComponent={
-            hasNextPage ? <ActivityIndicator color={theme.text} style={styles.footer} /> : null
-          }
-          ItemSeparatorComponent={() => (
-            <View style={[styles.sep, { backgroundColor: theme.border }]} />
-          )}
-        />
+          </View>
+        ) : (
+          <FlashList
+            data={items}
+            keyExtractor={(a) => a.id}
+            renderItem={({ item }) => (
+              <FollowRow
+                actor={item}
+                isOwn={me?.id === item.id}
+                busy={busyId === item.id}
+                onFollow={() => void toggleFollow(item)}
+              />
+            )}
+            onEndReached={onEndReached}
+            onEndReachedThreshold={0.4}
+            refreshing={isRefetching}
+            onRefresh={() => void refetch()}
+            ListEmptyComponent={
+              <EmptyState
+                icon={{ ios: 'person.2', android: 'people', web: 'people' }}
+                message={
+                  active === 'followers'
+                    ? t('follow.no_followers', 'Aucun abonné pour le moment.')
+                    : t('follow.no_following', 'Ne suit personne pour le moment.')
+                }
+              />
+            }
+            ListFooterComponent={
+              hasNextPage ? <ActivityIndicator color={theme.text} style={styles.footer} /> : null
+            }
+            ItemSeparatorComponent={() => (
+              <View style={[styles.sep, { backgroundColor: theme.border }]} />
+            )}
+          />
+        )}
       </SafeAreaView>
     </ThemedView>
   );
@@ -256,14 +250,15 @@ const styles = StyleSheet.create({
   },
   tabs: {
     flexDirection: 'row',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    alignItems: 'center',
+    padding: 3,
+    borderRadius: 999,
+    gap: 3,
   },
   tab: {
     borderRadius: 999,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.one,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
   },
   footer: {
     paddingVertical: Spacing.three,

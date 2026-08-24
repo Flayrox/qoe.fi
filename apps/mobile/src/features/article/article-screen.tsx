@@ -3,9 +3,14 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Ionicons } from '@expo/vector-icons';
+import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
+
 import { ArticleHighlights } from '@/components/article/article-highlights';
 import { ArticleHtml } from '@/components/article/html-blocks';
 import { SimilarArticles } from '@/components/article/similar-articles';
+import { CustomSubHeader } from '@/components/header/CustomSubHeader';
+import { LiquidElasticButton } from '@/components/liquid-tab-bar/LiquidElasticButton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -26,6 +31,13 @@ import { feedKeys } from '@qoe/sdk/mobile';
 
 export function ArticleScreen({ slug, publicationId }: { slug: string; publicationId: string }) {
   const theme = useTheme();
+  const scrollY = useSharedValue(0);
+
+  const onScrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: [...feedKeys.all, 'article', slug, publicationId],
@@ -58,33 +70,42 @@ export function ArticleScreen({ slug, publicationId }: { slug: string; publicati
   // Au chargement de l'article, on vérifie s'il est déjà sauvegardé.
   void (async () => {
     if (bookmarkLoaded || !data?.id) return;
-    setBookmarkLoaded(true);
-    const res = await apiClient.getBookmarks({ limit: 100 });
-    if (res.ok) {
-      setBookmarked(res.data.some((b) => b.articleId === data.id));
+    try {
+      const b = await apiClient.getBookmarks({ limit: 100 });
+      if (b.ok) {
+        setBookmarked(b.data.some((item) => item.articleId === data.id));
+      }
+    } finally {
+      setBookmarkLoaded(true);
     }
   })();
 
   if (isPending) {
     return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator color={theme.text} />
-      </SafeAreaView>
+      <ThemedView style={styles.container}>
+        <CustomSubHeader title={t('article.title', 'Article')} />
+        <SafeAreaView style={styles.center}>
+          <ActivityIndicator color={theme.text} />
+        </SafeAreaView>
+      </ThemedView>
     );
   }
 
   if (isError || !data) {
     return (
-      <SafeAreaView style={styles.center}>
-        <ThemedText type="small">
-          {t('article.error', 'Impossible de charger l’article')}
-        </ThemedText>
-        <Pressable onPress={() => void refetch()}>
-          <ThemedText type="small" style={{ color: theme.primary }}>
-            {t('common.retry', 'Réessayer')}
+      <ThemedView style={styles.container}>
+        <CustomSubHeader title={t('article.title', 'Article')} />
+        <SafeAreaView style={styles.center}>
+          <ThemedText type="small">
+            {t('article.error', 'Impossible de charger l’article')}
           </ThemedText>
-        </Pressable>
-      </SafeAreaView>
+          <Pressable onPress={() => void refetch()} style={{ marginTop: 8 }}>
+            <ThemedText type="smallBold" style={{ color: theme.primary }}>
+              {t('common.retry', 'Réessayer')}
+            </ThemedText>
+          </Pressable>
+        </SafeAreaView>
+      </ThemedView>
     );
   }
 
@@ -99,7 +120,35 @@ export function ArticleScreen({ slug, publicationId }: { slug: string; publicati
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      {/* ─── Header Custom Flottant Liquid Glass ─── */}
+      <CustomSubHeader
+        title={data.title}
+        subtitle={authorName}
+        scrollY={scrollY}
+        showTitleOnScrollOnly={true}
+        scrollThreshold={80}
+        rightComponent={
+          <LiquidElasticButton
+            size={42}
+            borderRadius={21}
+            onPress={() => bookmark.mutate(data.id)}
+            accessibilityLabel={t('article.bookmark', 'Sauvegarder')}
+            icon={
+              <Ionicons
+                name={bookmarked ? 'bookmark' : 'bookmark-outline'}
+                size={20}
+                color={bookmarked ? theme.primary : theme.text}
+              />
+            }
+          />
+        }
+      />
+
+      <Animated.ScrollView
+        contentContainerStyle={[styles.content, { paddingTop: 105 }]}
+        onScroll={onScrollHandler}
+        scrollEventThrottle={16}
+      >
         {/* Meta (même hiérarchie que l'écran principal web) */}
         <View style={styles.byline}>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
@@ -189,7 +238,7 @@ export function ArticleScreen({ slug, publicationId }: { slug: string; publicati
             </Pressable>
           </ThemedView>
         ) : null}
-      </ScrollView>
+      </Animated.ScrollView>
     </ThemedView>
   );
 }
