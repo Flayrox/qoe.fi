@@ -259,7 +259,7 @@ Nouveau sous-système (port de `packages/ui/src/social/ThoughtCard.tsx` +
   via `showAvatar`, masqué dans `ThoughtCard` qui l'affiche déjà dans sa
   colonne de gauche — fix « photo de profil affichée 2× par post »).
 - **`thought-actions.tsx`** : like/reply/repost/share avec **optimistic UI**
-  (shadow store `@qoe/api-client/mobile`), compteurs dérivés localement
+  (shadow store `@qoe/sdk/mobile`), compteurs dérivés localement
   (le Go ne renvoie pas `likesCount`/`repostsCount`), partage natif
   (`Share.share`). Icônes `expo-symbols` (SF Symbols iOS / Material Android).
 - **`thought-card.tsx`** : bannière repost pur (« @x a repartagé »), badge

@@ -129,7 +129,7 @@ temps du run.
 
 ## Couverture TypeScript
 
-Gate unique racine, packages critiques uniquement (api-client, auth,
+Gate unique racine, packages critiques uniquement (sdk, auth,
 utils, flags) avec seuils progressifs par package :
 
 ```bash
@@ -137,7 +137,7 @@ pnpm test:coverage
 ```
 
 La config vit dans `vitest.coverage.config.ts`. Seuils mesures a
-l'introduction du gate (2026-08) : api-client 7%, auth 15%, utils 44%,
+l'introduction du gate (2026-08) : sdk 7%, auth 15%, utils 44%,
 flags 65% (lines/statements). Une baisse doit s'accompagner de nouveaux
 tests, pas d'un seuil abaisse. Objectif final : 80% sur le code metier.
 

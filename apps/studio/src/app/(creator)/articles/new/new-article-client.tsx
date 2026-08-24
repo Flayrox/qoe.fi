@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Editor } from '@/features/editor/components/Editor';
 import type { ArticleAttributionDraft } from '@/features/editor/components/ArticleAttributionEditor';
-import { saveArticleAction } from '@qoe/api-client/actions/articles';
-import type { EditorCapabilities } from '@qoe/api-client/actions/articles';
+import { saveArticleAction } from '@qoe/sdk/actions/articles';
+import type { EditorCapabilities } from '@qoe/sdk/actions/articles';
 
 interface NewArticleClientProps {
   categories: { id: string; name: string }[];

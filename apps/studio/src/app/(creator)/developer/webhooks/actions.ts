@@ -3,7 +3,7 @@
 import { createClient } from '@qoe/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { getActiveWorkspace } from '@/lib/active-workspace';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 // Aligné sur ValidWebhookEvents (apps/api/internal/modules/webhooks/service.go).
 // `article.scheduled` existe côté Go mais n'est encore émis par aucun flux.

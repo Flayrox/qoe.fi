@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { UserCheck, Users, Loader2, Sparkles } from 'lucide-react';
-import { followAllInStarterPackAction } from '@qoe/api-client';
+import { followAllInStarterPackAction } from '@qoe/sdk';
 
 export interface StarterPackCardProps {
   pack: {

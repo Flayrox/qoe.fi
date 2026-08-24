@@ -17,7 +17,7 @@ import { TimeElapsed } from '@/components/thought/time-elapsed';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/lib/i18n';
-import type { AppNotification } from '@qoe/api-client/mobile';
+import type { AppNotification } from '@qoe/sdk/mobile';
 
 const MAX_AUTHORS = 3;
 

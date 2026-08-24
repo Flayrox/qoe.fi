@@ -20,8 +20,8 @@ import { ThoughtCard } from '@/components/social/ThoughtCard';
 import { ArticleCard } from '@/app/(reader)/home/components/ArticleCard';
 import { EditProfileModal } from '@/components/profile/EditProfileModal';
 import { FollowList } from './FollowList';
-import { toggleFollowCreatorHomeAction as toggleFollowCreator } from '@qoe/api-client/actions/feed';
-import { useDeletePostMutation } from '@qoe/api-client';
+import { toggleFollowCreatorHomeAction as toggleFollowCreator } from '@qoe/sdk/actions/feed';
+import { useDeletePostMutation } from '@qoe/sdk';
 import {
   CertifiedBadge,
   Dialog,

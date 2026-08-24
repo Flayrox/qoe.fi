@@ -1,7 +1,7 @@
 import React from 'react';
 import { requireUser } from '@qoe/auth/current-user';
 import { t } from '@lingui/core/macro';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { getActiveWorkspace, type ActiveWorkspace } from '@/lib/active-workspace';
 import {
   Eye,

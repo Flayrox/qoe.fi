@@ -3,10 +3,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { MessageSquare, Send, Reply, Trash2, Loader2 } from 'lucide-react';
-import {
-  postArticleCommentAction,
-  deleteArticleCommentAction,
-} from '@qoe/api-client/actions/articles';
+import { postArticleCommentAction, deleteArticleCommentAction } from '@qoe/sdk/actions/articles';
 
 import { cn } from '@qoe/utils';
 import Image from 'next/image';

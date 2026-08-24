@@ -45,7 +45,7 @@ qoe.fi/
 │   ├── mobile/       # Expo SDK 57 — apps/mobile (React Native, expo-router)
 │   └── collab-server/# Hocuspocus/Yjs — co-édition TipTap temps réel
 ├── packages/         # Bibliothèques partagées (source de vérité)
-│   ├── api-client/   # Couche data : client HTTP universel + server actions + hooks React Query
+│   ├── sdk/              # Couche data : client HTTP universel + server actions + hooks React Query
 │   ├── auth/         # RBAC (permissions.ts, can(user, action)), mailer sécurité
 │   ├── billing/      # Stripe + paywall (truncation AST côté serveur)
 │   ├── config/       # ENV Zod, constantes, routes, tenant, features
@@ -74,7 +74,7 @@ Navigateur (web) / Mobile
         │  fetch / React Query
         ▼
 ┌─────────────────────────────┐
-│ Server Action Next.js        │  (packages/api-client/src/actions/*)
+│ Server Action Next.js        │  (packages/sdk/src/actions/*)
 │  = proxy fin                 │
 └──────────────┬──────────────┘
                │ QOE_API_URL défini ?  (goFetch, JWT Supabase en Bearer)
@@ -90,13 +90,13 @@ Navigateur (web) / Mobile
   PostgreSQL (+ Redis cache, + Meilisearch, + asynq workers)
 ```
 
-- **`safeAction(fn, {requireAuth})`** (`packages/api-client/src/actions/utils/safe-action.ts`)
+- **`safeAction(fn, {requireAuth})`** (`packages/sdk/src/actions/utils/safe-action.ts`)
   enveloppe chaque action : résout l'utilisateur Supabase (cookies SSR) puis
   retourne `ActionResult<T>` (`{ok, data}` / `{ok:false, error, code}`).
 - **`goFetch(path, {method, body})`** (`.../utils/go-client.ts`) remplace
   l'implémentation Prisma par un appel HTTP au backend Go, **même contrat TS**.
 - **Le mobile n'utilise PAS les server actions** : il appelle l'API Go en
-  direct via `QoeApiClient` (`packages/api-client/src/client.ts`), avec le
+  direct via `QoeApiClient` (`packages/sdk/src/client.ts`), avec le
   JWT Supabase en header `Authorization: Bearer`.
 
 ### 2.2 Auth — deux mondes, un même JWT Supabase
@@ -222,7 +222,7 @@ apps/mobile/src/
 
 | Package | Entrée | Usage mobile |
 |---|---|---|
-| `@qoe/api-client` | **`@qoe/api-client/mobile`** | Client HTTP + types + query-keys + `useInfiniteFeed` (**pas** les server actions) |
+| `@qoe/sdk` | **`@qoe/sdk/mobile`** | Client HTTP + types + query-keys + `useInfiniteFeed` (**pas** les server actions) |
 | `@qoe/theme` | `@qoe/theme/native` | Tokens RN pré-résolus (hex/rgba) |
 | `@qoe/i18n` | `@qoe/i18n/core` + `@qoe/i18n/catalogs` | Singleton Lingui + catalogues fr/en |
 | `@qoe/config` | (indirect) | constantes partagées |
@@ -266,11 +266,11 @@ apps/mobile/src/
 - `src/repositories/*` : accès typé (posts, articles, follows, bookmarks,
   notifications, highlights, polls, threadgates, starterPacks, wallet…).
 - `src/client.ts` : singleton Prisma. `src/index.ts` : re-exports.
-- **Relation** : consommé par les server actions (`@qoe/api-client/actions/*`)
+- **Relation** : consommé par les server actions (`@qoe/sdk/actions/*`)
   et les workers TS. Le backend Go a son **propre** mapping SQL (sqlc,
   `apps/api/sql/`) — attention à la double source pour les requêtes Go.
 
-### `@qoe/api-client` — La couche data (web + mobile)
+### `@qoe/sdk` — La couche data (web + mobile)
 - **`client.ts`** : `QoeApiClient` universel (fetch + Bearer token) — le
   coeur du mobile.
 - **`mobile.ts`** : entrée RN-safe (client + types + query-keys +
@@ -359,13 +359,13 @@ tout passe par `packages/*`. (`transpilePackages: ["@qoe/*"]` dans chaque
 1. **SSOT** : le modèle de données n'existe que dans `packages/db/prisma/`.
    Ne pas dupliquer.
 2. **Couplage** : les composants passent par `packages/ui` +
-   `packages/api-client`. Imports directs entre apps interdits.
+   `packages/sdk`. Imports directs entre apps interdits.
 3. **Paywall** : la troncature du contenu premium se fait **côté serveur**
    (`packages/billing/src/paywall/ast-truncation.ts` côté TS,
    `apps/api/internal/modules/articles/paywall.go` côté Go). Jamais de
    `display:none`.
 4. **Optimistic UI** : snapshot + rollback obligatoires.
-5. **Mobile** : le mobile consomme l'API Go via `@qoe/api-client/mobile` —
+5. **Mobile** : le mobile consomme l'API Go via `@qoe/sdk/mobile` —
    ne jamais importer de server action (`'use server'` / Prisma) dans l'app.
 6. **Go** : quand `QOE_API_URL` est défini, les server actions doivent
    proxiser via `goFetch` (ne pas dupliquer la logique Prisma).

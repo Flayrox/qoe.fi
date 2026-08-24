@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   checkSubdomainAvailabilityAction as checkSubdomainAction,
   completeOnboardingAction,
-} from '@qoe/api-client/actions/dashboard';
+} from '@qoe/sdk/actions/dashboard';
 
 import { useRouter } from 'next/navigation';
 import {

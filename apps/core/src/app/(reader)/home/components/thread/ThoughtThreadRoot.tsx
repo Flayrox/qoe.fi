@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { updatePostShadow } from '@qoe/api-client';
+import { updatePostShadow } from '@qoe/sdk';
 import {
   getPostThreadAction as getPostThread,
   toggleLikePostAction as toggleLikePost,
   replyToPostAction as replyToPost,
   deletePostAction as deletePost,
   toggleRepostPostAction as toggleRepostPost,
-} from '@qoe/api-client/actions/feed';
+} from '@qoe/sdk/actions/feed';
 
 import { routes } from '@qoe/config/routes';
 import { trackEvent } from '@/lib/analytics';

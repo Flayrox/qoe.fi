@@ -6,7 +6,7 @@ import {
   useMarkNotificationsAsReadMutation,
   useUnreadNotificationCountQuery,
   type NotificationFilter,
-} from '@qoe/api-client';
+} from '@qoe/sdk';
 import { CheckCheck, BellOff, Loader2, ChevronDown } from 'lucide-react';
 import { NotificationItem } from './NotificationItem';
 import { useRealtimeNotificationSync } from './useRealtimeNotificationSync';

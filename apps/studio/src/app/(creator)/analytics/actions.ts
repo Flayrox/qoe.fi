@@ -12,7 +12,7 @@ import {
   UmamiPageMetric,
   UmamiTimeseriesPoint,
 } from '@qoe/analytics/server';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 export type TimePeriod = '24h' | '7d' | '30d' | '90d' | 'all';
 

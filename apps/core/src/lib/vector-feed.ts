@@ -9,7 +9,7 @@
 // API /api/feed/personalized (pages suivantes au scroll).
 // =====================================================================
 
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import {
   formatPollData,
   type FeedArticle,

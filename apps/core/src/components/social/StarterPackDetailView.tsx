@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, UserCheck, Users, Loader2, Sparkles } from 'lucide-react';
-import { getStarterPackByIdAction, followAllInStarterPackAction } from '@qoe/api-client';
+import { getStarterPackByIdAction, followAllInStarterPackAction } from '@qoe/sdk';
 
 interface StarterPackUser {
   id: string;

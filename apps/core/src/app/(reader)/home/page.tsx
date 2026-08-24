@@ -1,7 +1,7 @@
 import { createClient } from '@qoe/supabase/server';
 import type { FeedSlice } from '@/lib/feed-types';
 import { getRequestDbUser, getCachedPromos } from '@/lib/cached-queries';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import {
   buildVectorFeedPage,
   mapArticleToFeedItem,

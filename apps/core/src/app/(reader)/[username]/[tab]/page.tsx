@@ -1,8 +1,8 @@
 import { createClient } from '@qoe/supabase/server';
 import { notFound } from 'next/navigation';
-import { resolveProfileAction } from '@qoe/api-client/actions/feed';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
-import type { PublicProfileData } from '@qoe/api-client';
+import { resolveProfileAction } from '@qoe/sdk/actions/feed';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import type { PublicProfileData } from '@qoe/sdk';
 import { ProfileView } from '../components/ProfileView';
 
 const VALID_TABS = [

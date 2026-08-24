@@ -6,7 +6,7 @@
 // VALEUR : l'invalidation et les updates optimistes ciblent ces familles
 // (`queryClient.invalidateQueries({ queryKey: feedKeys.all })`), donc
 // renommer une clé ici casse silencieusement le cache — attention.
-// ⚠️ Le mobile importe ce module via `@qoe/api-client/mobile` : ajouter une
+// ⚠️ Le mobile importe ce module via `@qoe/sdk/mobile` : ajouter une
 //    famille de clés ici la rend disponible au React Query de l'app mobile.
 // =====================================================================
 

@@ -3,7 +3,7 @@ import {
   type ApiResponse,
   type FeedFetcherFn,
   type FeedSlice,
-} from '@qoe/api-client/mobile';
+} from '@qoe/sdk/mobile';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { FlashList, type FlashListProps, type FlashListRef } from '@shopify/flash-list';
 import Animated from 'react-native-reanimated';
@@ -34,7 +34,7 @@ import { useRealtimeFeedPill } from '@/hooks/use-realtime-feed-pill';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
-import type { FeedArticle } from '@qoe/api-client/mobile';
+import type { FeedArticle } from '@qoe/sdk/mobile';
 
 type FeedRow = { kind: 'thought'; slice: FeedSlice } | { kind: 'article'; article: FeedArticle };
 

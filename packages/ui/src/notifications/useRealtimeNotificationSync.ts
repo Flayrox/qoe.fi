@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@qoe/supabase/client';
-import { notificationKeys } from '@qoe/api-client';
+import { notificationKeys } from '@qoe/sdk';
 
 /**
  * 📡 Synchronisation temps réel des notifications (badge + liste).

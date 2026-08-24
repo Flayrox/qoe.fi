@@ -1,17 +1,14 @@
 'use client';
 
 import React from 'react';
-import { usePostShadow } from '@qoe/api-client';
+import { usePostShadow } from '@qoe/sdk';
 import { ThoughtCardContainer, type ThoughtCardContainerProps } from './ThoughtCardContainer';
 import { ConfirmDeleteModal } from '@qoe/ui';
 import { ModerationReportModal } from './ModerationReportModal';
 import { routes } from '@qoe/config/routes';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
-import {
-  pinPostAction as pinPost,
-  unpinPostAction as unpinPost,
-} from '@qoe/api-client/actions/feed';
+import { pinPostAction as pinPost, unpinPostAction as unpinPost } from '@qoe/sdk/actions/feed';
 import { PollCard } from './PollCard';
 import { ThreadgateBadge, type ReplyRestrictionType } from './ThreadgateBadge';
 import { HiddenReplyCard } from './HiddenReplyCard';

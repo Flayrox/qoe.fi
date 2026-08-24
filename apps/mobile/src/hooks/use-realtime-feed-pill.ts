@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { apiClient } from '@/lib/api';
-import type { FeedSlice } from '@qoe/api-client/mobile';
+import type { FeedSlice } from '@qoe/sdk/mobile';
 
 // =====================================================================
 // 🔴 useRealtimeFeedPill — Pill « X nouvelles pensées » (feed mobile)

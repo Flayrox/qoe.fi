@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { EyeOff, CornerDownRight } from 'lucide-react';
-import { toggleHideReplyAction, toggleBlockUserAction } from '@qoe/api-client/actions/feed';
+import { toggleHideReplyAction, toggleBlockUserAction } from '@qoe/sdk/actions/feed';
 import { toast } from 'sonner';
 import { ThoughtThreadTombstone } from './ThoughtThreadTombstone';
 import { useThoughtThreadContext, type OptimisticThought } from './ThoughtThreadContext';

@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Sparkles, Clock } from 'lucide-react';
-import { getSimilarArticlesAction } from '@qoe/api-client/actions/articles';
-import type { SimilarArticle } from '@qoe/api-client';
+import { getSimilarArticlesAction } from '@qoe/sdk/actions/articles';
+import type { SimilarArticle } from '@qoe/sdk';
 
 interface SimilarArticlesSectionProps {
   articleId: string;

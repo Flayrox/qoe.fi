@@ -1,8 +1,8 @@
 // =====================================================================
 // 🔗 Go API Client — mini-client local pour packages/auth
 // =====================================================================
-// Évite la circularité avec @qoe/api-client (qui dépend de @qoe/auth) :
-// même contrat que packages/api-client/src/actions/utils/go-client.ts
+// Évite la circularité avec @qoe/sdk (qui dépend de @qoe/auth) :
+// même contrat que packages/sdk/src/actions/utils/go-client.ts
 // (QOE_API_URL, Bearer token Supabase, erreur avec statut HTTP).
 // =====================================================================
 

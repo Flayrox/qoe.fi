@@ -24,7 +24,7 @@ import {
   submitApiApplicationAction,
   generateApiKeyAction,
   revokeApiKeyAction,
-} from '@qoe/api-client/actions/dashboard';
+} from '@qoe/sdk/actions/dashboard';
 import { DeveloperNav } from './developer-nav';
 import { cn } from '@qoe/utils';
 

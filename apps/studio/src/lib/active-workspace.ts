@@ -9,7 +9,7 @@
 // =====================================================================
 
 import { cookies } from 'next/headers';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 export interface ActiveWorkspace {
   type: 'PERSONAL' | 'MEDIA';

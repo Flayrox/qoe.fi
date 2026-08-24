@@ -1,6 +1,6 @@
 import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { LibraryClient } from './LibraryClient';
 
 // ── Contrat GET /v1/bookmarks (bibliothèque, Go) ─────────────────────────

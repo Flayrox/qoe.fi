@@ -13,7 +13,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: [
-      'packages/api-client/src/**/*.test.ts',
+      'packages/sdk/src/**/*.test.ts',
       'packages/auth/src/**/*.test.ts',
       'packages/utils/src/**/*.test.ts',
       'packages/flags/src/**/*.test.ts',
@@ -29,7 +29,7 @@ export default defineConfig({
       // du gate (2026-08). Une baisse DOIT s'accompagner de nouveaux tests,
       // pas d'un seuil abaissé. Objectif final : 80% sur le code métier.
       thresholds: {
-        'packages/api-client/**': { lines: 7, statements: 6 },
+        'packages/sdk/**': { lines: 7, statements: 6 },
         'packages/auth/**': { lines: 15, statements: 14 },
         'packages/utils/**': { lines: 44, statements: 41 },
         'packages/flags/**': { lines: 65, statements: 65 },

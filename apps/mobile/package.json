@@ -9,7 +9,7 @@
     "@expo/vector-icons": "^15.1.1",
     "@lingui/core": "6.6.0",
     "@lingui/react": "6.6.0",
-    "@qoe/api-client": "workspace:*",
+    "@qoe/sdk": "workspace:*",
     "@qoe/i18n": "workspace:*",
     "@qoe/theme": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",

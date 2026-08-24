@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { AdminSidebar } from './components/AdminSidebar';
 import { CommandPalette } from './components/CommandPalette';
 import { AdminHeader } from './components/AdminHeader';

@@ -1,6 +1,6 @@
 'use server';
 
-import { subscribeToNewsletterAction } from '@qoe/api-client/actions/tenant';
+import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 
 export async function subscribeToNewsletter(formData: FormData) {
   const email = formData.get('email') as string;

@@ -110,7 +110,7 @@ apps/mobile/src/
 
 ### Connexion à l'API
 
-- Le mobile importe **`@qoe/api-client/mobile`** : entrée RN-safe du client
+- Le mobile importe **`@qoe/sdk/mobile`** : entrée RN-safe du client
   partagé (client + types + query-keys + `useInfiniteFeed`), sans les actions
   serveur (`'use server'` / Prisma) que tire l'index racine.
 - `src/lib/api.ts` résout l'hôte automatiquement : `localhost` sur simulateur,

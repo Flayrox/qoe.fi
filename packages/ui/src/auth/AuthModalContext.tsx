@@ -53,7 +53,7 @@ export function AuthModalProvider({ children, isAuthenticated = false }: AuthMod
     }
   }, [isAuthenticated]);
 
-  // Listen to qoe:unauthorized global custom events from @qoe/api-client
+  // Listen to qoe:unauthorized global custom events from @qoe/sdk
   useEffect(() => {
     if (typeof window === 'undefined') return;
 

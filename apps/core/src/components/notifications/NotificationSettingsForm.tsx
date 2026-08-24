@@ -3,7 +3,7 @@
 import {
   useNotificationPreferencesQuery,
   useUpdateNotificationPreferencesMutation,
-} from '@qoe/api-client';
+} from '@qoe/sdk';
 import {
   Loader2,
   Heart,

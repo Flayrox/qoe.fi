@@ -1,5 +1,5 @@
 // =====================================================================
-// 📱 React Native / Expo entry — @qoe/api-client/mobile
+// 📱 React Native / Expo entry — @qoe/sdk/mobile
 // =====================================================================
 // ⚠️ Contrairement à l'index racine, ce module n'exporte QUE les parties
 //    sans dépendance serveur (Prisma/Supabase/workers) afin de rester

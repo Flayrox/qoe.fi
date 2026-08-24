@@ -15,7 +15,7 @@ import {
   createAnnotationCommentAction,
   toggleHighlightPrivacyAction,
   deleteHighlightAction,
-} from '@qoe/api-client';
+} from '@qoe/sdk';
 import { SimilarArticlesSection } from './SimilarArticlesSection';
 import { useArticleReadingTracker } from '@qoe/analytics';
 

@@ -2,9 +2,9 @@
 
 > Complément de [`docs/PRISMA_AUDIT_100GO.md`](./PRISMA_AUDIT_100GO.md) (parcours lecteur dans `apps/core`, livré).
 > Cet audit couvre **toutes les surfaces Prisma en dehors du chemin nominal de `apps/core`** : les appels
-> indirects via `packages/db`, la couche d'actions `packages/api-client`, et les apps **studio** / **admin**.
+> indirects via `packages/db`, la couche d'actions `packages/sdk`, et les apps **studio** / **admin**.
 >
-> Date : août 2026 · Recensement : `grep -rn "prisma\." apps/studio/src apps/admin/src packages/api-client/src packages/db/src`
+> Date : août 2026 · Recensement : `grep -rn "prisma\." apps/studio/src apps/admin/src packages/sdk/src packages/db/src`
 
 ---
 
@@ -13,7 +13,7 @@
 | Surface | Réfs `prisma.` | Déjà Go ? | Verdict |
 |---|---|---|---|
 | `apps/core` chemin nominal | 0 direct, **0 indirect** | ✅ **100 % Go** (P0 livré `def99ca`/`d8839a9`) | — |
-| `packages/api-client/src/actions` | 18 | ~80 % (7 dossiers sur 12 sans prisma) | **P1 — auth/tenant/dashboard/feed/articles/admin** |
+| `packages/sdk/src/actions` | 18 | ~80 % (7 dossiers sur 12 sans prisma) | **P1 — auth/tenant/dashboard/feed/articles/admin** |
 | `apps/studio/src` | 158 | 5 fichiers seulement ont `goFetch` | **P2 — gros chantier créateur** |
 | `apps/admin/src` | 36 | ~0 | **P3 — console superadmin** |
 | `packages/db/src` (couche repo) | 396 | n/a (déjà consommée par le Go via sqlc) | fondation, pas une cible |
@@ -91,7 +91,7 @@ fallback Prisma dev — supprime l'import `@qoe/db/repositories/articles` du che
 
 ---
 
-## 2. `packages/api-client/src/actions` — 18 réf. prisma sur 12 dossiers
+## 2. `packages/sdk/src/actions` — 18 réf. prisma sur 12 dossiers
 
 Recensement par dossier (fichiers avec `prisma` / total) :
 
@@ -158,7 +158,7 @@ interne, faible trafic, risque/retour défavorable), sauf si l'équipe veut un p
 ## 5. `packages/db/src` — 396 réf. prisma (couche repository)
 
 Ce n'est **pas une cible de port en soi** : c'est la fondation consommée par les fallbacks dev de
-`apps/core`, par `apps/studio`/`apps/admin`, et par les actions `api-client` restantes. Le Go
+`apps/core`, par `apps/studio`/`apps/admin`, et par les actions du sdk restantes. Le Go
 interroge la même base via **sqlc**, pas via Prisma. Au fur et à mesure que les surfaces ci-dessus
 basculent sur le Go, les repositories deviennent des **fallbacks** puis des candidats à la suppression.
 

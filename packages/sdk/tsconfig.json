@@ -4,8 +4,8 @@
     "baseUrl": ".",
     "noEmit": true,
     "paths": {
-      "@qoe/api-client": ["./src/index.ts"],
-      "@qoe/api-client/*": ["./src/*"],
+      "@qoe/sdk": ["./src/index.ts"],
+      "@qoe/sdk/*": ["./src/*"],
       "@qoe/supabase": ["../supabase/src/index.ts"],
       "@qoe/supabase/server": ["../supabase/src/server.ts"],
       "@qoe/supabase/*": ["../supabase/src/*"],

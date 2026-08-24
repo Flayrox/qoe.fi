@@ -9,10 +9,7 @@ import {
   HelpCircle,
   MessageSquare,
 } from 'lucide-react';
-import {
-  toggleFollowCreatorAction,
-  toggleBookmarkArticleAction,
-} from '@qoe/api-client/actions/tenant';
+import { toggleFollowCreatorAction, toggleBookmarkArticleAction } from '@qoe/sdk/actions/tenant';
 
 import { cn } from '@qoe/utils';
 import { motion } from 'framer-motion';

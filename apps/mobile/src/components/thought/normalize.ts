@@ -7,13 +7,7 @@
 //    le chemin `viewerLiked`/`viewerReposted` a disparu.
 // =====================================================================
 
-import type {
-  FeedAttachment,
-  FeedAuthor,
-  FeedPoll,
-  FeedPost,
-  ThoughtData,
-} from '@qoe/api-client/mobile';
+import type { FeedAttachment, FeedAuthor, FeedPoll, FeedPost, ThoughtData } from '@qoe/sdk/mobile';
 
 export interface NormalizedAuthor {
   id: string;

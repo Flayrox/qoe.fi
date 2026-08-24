@@ -9,7 +9,7 @@
 
 import React, { useState } from 'react';
 import { Lock, CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
-import { useCreateCheckoutSession } from '@qoe/api-client';
+import { useCreateCheckoutSession } from '@qoe/sdk';
 import { t } from '@lingui/core/macro';
 
 export interface PaywallCutProps {

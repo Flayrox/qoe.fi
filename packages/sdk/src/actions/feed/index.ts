@@ -13,10 +13,10 @@
 //    identique, seules l'implémentation et l'authentification changent
 //    (JWT en header).
 //
-// ⚠️ Fichier serveur : NON exposé au mobile via @qoe/api-client/mobile.
+// ⚠️ Fichier serveur : NON exposé au mobile via @qoe/sdk/mobile.
 //    Le mobile appelle directement l'API Go (QoeApiClient.getFeed,
 //    toggleLike, toggleRepost, toggleBookmark…). Les contrats de données
-//    correspondent à ceux de `@qoe/api-client/types`.
+//    correspondent à ceux de `@qoe/sdk/types`.
 // =====================================================================
 
 import { replyToPostSchema, createReportSchema, type CreateReportInput } from '@qoe/config';

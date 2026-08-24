@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { EyeOff, Eye, ShieldAlert, Loader2 } from 'lucide-react';
-import { hideReplyAction } from '@qoe/api-client';
+import { hideReplyAction } from '@qoe/sdk';
 import { t } from '@lingui/core/macro';
 
 export interface HiddenReplyCardProps {

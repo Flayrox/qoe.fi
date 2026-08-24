@@ -7,7 +7,7 @@
 //   TOUTES les structures feed (infinite query `.pages` ou tableau plat).
 // - `onError` : restaure les snapshots + notifie l'UI d'un 401 (modal login).
 // - `onSettled` : invalide le feed pour resynchroniser avec le serveur.
-// ⚠️ Le mobile utilise le shadow store (packages/api-client/src/shadow.ts)
+// ⚠️ Le mobile utilise le shadow store (packages/sdk/src/shadow.ts)
 //    plutôt que ce hook (le cache React Query y est partagé, mais les
 //    mutations passent par l'API Go via QoeApiClient).
 // =====================================================================

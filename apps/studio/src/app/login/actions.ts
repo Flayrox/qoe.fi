@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { getMonorepoUrl } from '@qoe/config';
-import { logoutAction, getCurrentUserAction } from '@qoe/api-client/actions/auth';
+import { logoutAction, getCurrentUserAction } from '@qoe/sdk/actions/auth';
 
 export async function logout() {
   await logoutAction();

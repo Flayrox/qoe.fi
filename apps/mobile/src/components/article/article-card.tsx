@@ -8,7 +8,7 @@ import { Avatar } from '@/components/thought/avatar';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/lib/i18n';
-import type { FeedArticle } from '@qoe/api-client/mobile';
+import type { FeedArticle } from '@qoe/sdk/mobile';
 
 // =====================================================================
 // 🗞️ ArticleCard — Carte d'article du feed mobile (port de

@@ -1,6 +1,6 @@
 import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { OnboardingFlow } from '@qoe/ui';
 import { completeOnboarding } from './actions';
 

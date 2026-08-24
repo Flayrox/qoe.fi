@@ -6,7 +6,7 @@ import { ThoughtCard } from '@/components/thought/thought-card';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/lib/i18n';
-import type { FeedSlice } from '@qoe/api-client/mobile';
+import type { FeedSlice } from '@qoe/sdk/mobile';
 
 // =====================================================================
 // 🧵 ThoughtFeedSlice — Rendu d'un élément du feed (port de

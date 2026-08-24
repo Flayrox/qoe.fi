@@ -1,6 +1,6 @@
 'use client';
 
-import { useUnreadNotificationCountQuery } from '@qoe/api-client';
+import { useUnreadNotificationCountQuery } from '@qoe/sdk';
 import { useRealtimeNotificationSync } from './useRealtimeNotificationSync';
 import { cn } from '@qoe/utils';
 

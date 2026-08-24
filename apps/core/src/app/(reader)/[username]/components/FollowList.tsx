@@ -11,7 +11,7 @@ import { CertifiedBadge } from '@qoe/ui';
 import {
   toggleFollowCreatorHomeAction as toggleFollowCreator,
   getFollowListAction,
-} from '@qoe/api-client/actions/feed';
+} from '@qoe/sdk/actions/feed';
 import { toast } from 'sonner';
 
 interface FollowActor {

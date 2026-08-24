@@ -8,7 +8,7 @@
 > - `api.qoe.fi` → Go (`api:8080`, service compose `qoefi-api`) — seul point d'entrée API.
 > - `api-legacy.qoe.fi` → **supprimé** (bloc Caddy retiré).
 > - `apps/api` → **supprimé** du dépôt.
-> - Le client universel (`@qoe/api-client` `QoeApiClient`, mobile) pointe vers le
+> - Le client universel (`@qoe/sdk` `QoeApiClient`, mobile) pointe vers le
 >   Go : baseUrl par défaut `http://localhost:8080` en dev, `api.qoe.fi` en prod.
 
 ---
@@ -66,7 +66,7 @@
   (le Go vérifie `Stripe-Signature`). ⚠️ Vérifier la config dans le dashboard Stripe
   si un ancien endpoint `api-legacy.qoe.fi` y était enregistré.
 - **Supabase** : `POST /v1/webhooks/supabase` côté Go (stub acceptant 200).
-- **Mobile (à venir)** : le client universel `@qoe/api-client` (`QoeApiClient`)
+- **Mobile (à venir)** : le client universel `@qoe/sdk` (`QoeApiClient`)
   cible le Go (`/v1/posts`, `/v1/feed`, `/v1/users…`) — prêt pour Expo/React
   Native, aucun endpoint Hono n'est nécessaire.
 - **Rollback** : l'ancien déploiement Hono reste dans l'historique git

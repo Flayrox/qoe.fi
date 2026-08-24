@@ -1,4 +1,4 @@
-# `@qoe/api-client`
+# `@qoe/sdk`
 
 **Role:** Houses all API communication logic, TanStack Query keys, portable hooks, and UI Optimistic update engines to ensure consistency across the mono-repo.
 

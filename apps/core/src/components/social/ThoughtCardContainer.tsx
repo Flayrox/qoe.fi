@@ -2,11 +2,7 @@
 
 import React from 'react';
 import { ThoughtCard, type ThoughtCardProps } from '@qoe/ui';
-import {
-  usePostLikeMutationQueue,
-  usePostRepostMutationQueue,
-  unfurlUrlAction,
-} from '@qoe/api-client';
+import { usePostLikeMutationQueue, usePostRepostMutationQueue, unfurlUrlAction } from '@qoe/sdk';
 
 export interface ThoughtCardContainerProps extends Omit<
   ThoughtCardProps,

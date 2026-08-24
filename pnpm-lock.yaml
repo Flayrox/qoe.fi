@@ -219,9 +219,6 @@ importers:
       '@qoe/analytics':
         specifier: workspace:*
         version: link:../../packages/analytics
-      '@qoe/api-client':
-        specifier: workspace:*
-        version: link:../../packages/api-client
       '@qoe/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -237,6 +234,9 @@ importers:
       '@qoe/observability':
         specifier: workspace:^
         version: link:../../packages/observability
+      '@qoe/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@qoe/supabase':
         specifier: workspace:*
         version: link:../../packages/supabase
@@ -419,12 +419,12 @@ importers:
       '@lingui/react':
         specifier: 6.6.0
         version: 6.6.0(@babel/core@7.29.7(supports-color@8.1.1))(@babel/types@7.29.8)(babel-plugin-macros@3.1.0)(react@19.2.3)
-      '@qoe/api-client':
-        specifier: workspace:*
-        version: link:../../packages/api-client
       '@qoe/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@qoe/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@qoe/theme':
         specifier: workspace:*
         version: link:../../packages/theme
@@ -558,9 +558,6 @@ importers:
       '@qoe/analytics':
         specifier: workspace:*
         version: link:../../packages/analytics
-      '@qoe/api-client':
-        specifier: workspace:*
-        version: link:../../packages/api-client
       '@qoe/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -579,6 +576,9 @@ importers:
       '@qoe/observability':
         specifier: workspace:^
         version: link:../../packages/observability
+      '@qoe/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@qoe/supabase':
         specifier: workspace:*
         version: link:../../packages/supabase
@@ -712,9 +712,6 @@ importers:
       '@qoe/analytics':
         specifier: workspace:*
         version: link:../../packages/analytics
-      '@qoe/api-client':
-        specifier: workspace:*
-        version: link:../../packages/api-client
       '@qoe/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -733,6 +730,9 @@ importers:
       '@qoe/observability':
         specifier: workspace:^
         version: link:../../packages/observability
+      '@qoe/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@qoe/supabase':
         specifier: workspace:*
         version: link:../../packages/supabase
@@ -822,43 +822,6 @@ importers:
       typescript:
         specifier: ^5
         version: 5.9.3
-
-  packages/api-client:
-    dependencies:
-      '@qoe/auth':
-        specifier: workspace:*
-        version: link:../auth
-      '@qoe/config':
-        specifier: workspace:*
-        version: link:../config
-      '@qoe/supabase':
-        specifier: workspace:*
-        version: link:../supabase
-      '@qoe/utils':
-        specifier: workspace:*
-        version: link:../utils
-      '@tanstack/react-query':
-        specifier: ^5.62.7
-        version: 5.101.4(react@19.2.3)
-      react:
-        specifier: 19.2.3
-        version: 19.2.3
-    devDependencies:
-      '@qoe/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      '@types/node':
-        specifier: ^20
-        version: 20.19.43
-      '@types/react':
-        specifier: ^19
-        version: 19.2.18
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.7
-        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@20.19.43)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/auth:
     dependencies:
@@ -1001,6 +964,43 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  packages/sdk:
+    dependencies:
+      '@qoe/auth':
+        specifier: workspace:*
+        version: link:../auth
+      '@qoe/config':
+        specifier: workspace:*
+        version: link:../config
+      '@qoe/supabase':
+        specifier: workspace:*
+        version: link:../supabase
+      '@qoe/utils':
+        specifier: workspace:*
+        version: link:../utils
+      '@tanstack/react-query':
+        specifier: ^5.62.7
+        version: 5.101.4(react@19.2.3)
+      react:
+        specifier: 19.2.3
+        version: 19.2.3
+    devDependencies:
+      '@qoe/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^20
+        version: 20.19.43
+      '@types/react':
+        specifier: ^19
+        version: 19.2.18
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.7
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@20.19.43)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+
   packages/supabase:
     dependencies:
       '@supabase/ssr':
@@ -1061,12 +1061,12 @@ importers:
       '@floating-ui/react':
         specifier: ^0.27.20
         version: 0.27.20(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      '@qoe/api-client':
-        specifier: workspace:*
-        version: link:../api-client
       '@qoe/config':
         specifier: workspace:*
         version: link:../config
+      '@qoe/sdk':
+        specifier: workspace:*
+        version: link:../sdk
       '@qoe/supabase':
         specifier: workspace:*
         version: link:../supabase

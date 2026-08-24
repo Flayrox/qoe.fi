@@ -596,7 +596,7 @@ export function ThoughtComposer({
     const timer = setTimeout(async () => {
       if (typeaheadType === 'profile') {
         try {
-          const { searchUsersAction } = await import('@qoe/api-client/actions/feed');
+          const { searchUsersAction } = await import('@qoe/sdk/actions/feed');
           const res = await searchUsersAction(mentionQuery);
           if (res.ok && res.data?.users) {
             setMentionSuggestions(res.data.users.map((u) => ({ ...u, _type: 'profile' })));
@@ -916,7 +916,7 @@ export function ThoughtComposer({
     }
 
     try {
-      const { deletePostAction } = await import('@qoe/api-client/actions/feed');
+      const { deletePostAction } = await import('@qoe/sdk/actions/feed');
       const res = await deletePostAction(draftId);
       if (res.ok) {
         toast.success('Brouillon supprimé.');
@@ -934,7 +934,7 @@ export function ThoughtComposer({
   const loadDrafts = async () => {
     setLoadingDrafts(true);
     try {
-      const { getUserDraftsAction } = await import('@qoe/api-client/actions/feed');
+      const { getUserDraftsAction } = await import('@qoe/sdk/actions/feed');
       const res = await getUserDraftsAction();
       if (res.ok && res.data?.drafts) {
         setDrafts(res.data.drafts);
@@ -1009,8 +1009,7 @@ export function ThoughtComposer({
     setSubmitProgress('Préparation de la publication du fil...');
 
     try {
-      const { createThoughtThreadAction, deletePostAction } =
-        await import('@qoe/api-client/actions/feed');
+      const { createThoughtThreadAction, deletePostAction } = await import('@qoe/sdk/actions/feed');
 
       const thoughtsPayload = [];
       let firstCreatedPost: CreatedPostRecord | null = null;

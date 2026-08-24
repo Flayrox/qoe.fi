@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 export async function POST(req: NextRequest) {
   try {

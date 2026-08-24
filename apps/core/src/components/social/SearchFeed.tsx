@@ -10,7 +10,7 @@ import {
   FileText,
   Sparkles,
 } from 'lucide-react';
-import { useSearchQuery } from '@qoe/api-client';
+import { useSearchQuery } from '@qoe/sdk';
 import { ThoughtCard } from './ThoughtCard';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';

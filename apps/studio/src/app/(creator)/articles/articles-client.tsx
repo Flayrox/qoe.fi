@@ -28,7 +28,7 @@ import {
   deleteCategoryAction,
   reviewArticleAction,
   getArticlesAction,
-} from '@qoe/api-client/actions/articles';
+} from '@qoe/sdk/actions/articles';
 import { t } from '@lingui/core/macro';
 
 import { ArticleInspectorModal } from '../analytics/components/ArticleInspectorModal';

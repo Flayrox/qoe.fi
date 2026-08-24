@@ -2,7 +2,7 @@ import { GlobalCommandMenu } from '@/features/dashboard/components/GlobalCommand
 import { AppSidebar } from '@/features/dashboard/components/app-sidebar';
 import { DashboardLayoutContent } from '@/features/dashboard/components/DashboardLayoutContent';
 import { requireUser } from '@qoe/auth/current-user';
-import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { redirect } from 'next/navigation';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {

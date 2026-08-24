@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, ShieldCheck, KeyRound, Globe } from 'lucide-react';
-import { updateOAuthClientStatusAction } from '@qoe/api-client/actions/admin';
+import { updateOAuthClientStatusAction } from '@qoe/sdk/actions/admin';
 
 export interface OAuthClientAdmin {
   id: string;
