@@ -23,6 +23,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Toast } from '@/components/ui/toast';
 import { Avatar } from '@/components/thought/avatar';
 import { ThoughtFeedSlice } from '@/components/thought/thought-feed-slice';
 import { ProfileMenuButton } from '@/features/profile/profile-menu';
@@ -167,6 +168,7 @@ export function ProfileScreen({
   }
 
   const handle = profile.subdomain || profile.slug;
+  const isOwn = me?.id === profile.id || (!!me?.username && me?.username === handle);
   const isFollowing = following ?? profile.isFollowing ?? false;
   const followersCount = profile._count?.followers ?? 0;
 
@@ -252,15 +254,38 @@ export function ProfileScreen({
                 )}
               </View>
 
-              {/* Avatar chevauchant la bannière */}
+              {/* Avatar chevauchant la bannière & Bouton d'action */}
               <View style={styles.avatarRow}>
                 <Avatar
                   user={{ name: profile.name, username: handle, logoUrl: profile.logoUrl }}
                   size="lg"
                   showCertified={profile.isCertified}
                 />
-                <View style={styles.followWrap}>
-                  {me?.id !== profile.id ? (
+                <View style={styles.actionWrap}>
+                  {isOwn ? (
+                    <Pressable
+                      onPress={() => {
+                        Toast.show(
+                          t('profile.edit_coming_soon', 'Édition du profil bientôt disponible')
+                        );
+                      }}
+                      style={({ pressed }) => [
+                        styles.editProfileButton,
+                        {
+                          backgroundColor: pressed
+                            ? theme.backgroundSelected
+                            : isDark
+                              ? 'rgba(255, 255, 255, 0.10)'
+                              : 'rgba(0, 0, 0, 0.05)',
+                          borderColor: theme.border,
+                        },
+                      ]}
+                    >
+                      <ThemedText type="smallBold" style={{ color: theme.text }}>
+                        {t('profile.edit_profile', 'Modifier le profil')}
+                      </ThemedText>
+                    </Pressable>
+                  ) : (
                     <Pressable
                       onPress={() => void toggleFollow()}
                       disabled={followBusy}
@@ -288,8 +313,7 @@ export function ProfileScreen({
                         </ThemedText>
                       )}
                     </Pressable>
-                  ) : null}
-                  <ProfileMenuButton username={handle} isOwn={me?.id === profile.id} />
+                  )}
                 </View>
               </View>
 
@@ -445,11 +469,18 @@ const styles = StyleSheet.create({
     marginTop: -38, // fait chevaucher harmonieusement l'avatar sur la bannière
     zIndex: 2,
   },
-  followWrap: {
+  actionWrap: {
     marginBottom: Spacing.one,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+  },
+  editProfileButton: {
+    borderRadius: 999,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: 7,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   followButton: {
     borderRadius: 999,
