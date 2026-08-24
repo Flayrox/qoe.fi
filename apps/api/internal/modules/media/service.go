@@ -570,12 +570,12 @@ func (s *Service) InviteMember(ctx context.Context, userID, mediaID, email, role
 
 	// Notification au membre existant (s'il a un compte) — dédup + prefs en SQL.
 	if err == nil && target.ID != userID {
-		pub := pgtype.Text{}
+		var pub string
 		if m, merr := s.q.GetMediaWithPublication(ctx, mediaID); merr == nil {
-			pub = textFromString(m.PublicationID)
+			pub = textFromString(m.PublicationID).String
 		}
 		_ = s.q.InsertMediaInviteNotification(ctx, db.InsertMediaInviteNotificationParams{
-			RecipientId: toUUID(target.ID), SenderId: toUUID(userID), PublicationId: pub,
+			RecipientID: toUUID(target.ID), SenderID: toUUID(userID), PublicationID: pub,
 		})
 	}
 	return map[string]any{"success": true, "inviteId": inviteID}, nil
@@ -634,12 +634,12 @@ func (s *Service) AcceptInvite(ctx context.Context, userID, token string) (strin
 
 	// Notifier l'inviteur.
 	if invite.InviterID != userID {
-		pub := pgtype.Text{}
+		var pub string
 		if m, merr := s.q.GetMediaWithPublication(ctx, invite.MediaId); merr == nil {
-			pub = textFromString(m.PublicationID)
+			pub = textFromString(m.PublicationID).String
 		}
 		_ = s.q.InsertMediaMemberJoinedNotification(ctx, db.InsertMediaMemberJoinedNotificationParams{
-			RecipientId: toUUID(invite.InviterID), SenderId: toUUID(userID), PublicationId: pub,
+			RecipientID: toUUID(invite.InviterID), SenderID: toUUID(userID), PublicationID: pub,
 		})
 	}
 	return invite.MediaId, nil

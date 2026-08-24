@@ -183,18 +183,18 @@ func markReadIDs(ids []string) []string {
 // InsertMediaInvite crée une notification MEDIA_INVITE (dédup + prefs en SQL).
 func (s *Service) InsertMediaInvite(ctx context.Context, recipientID, senderID, publicationID string) error {
 	return s.q.InsertMediaInviteNotification(ctx, db.InsertMediaInviteNotificationParams{
-		RecipientId:   toUUID(recipientID),
-		SenderId:      toUUID(senderID),
-		PublicationId: pgtype.Text{String: publicationID, Valid: publicationID != ""},
+		RecipientID:   toUUID(recipientID),
+		SenderID:      toUUID(senderID),
+		PublicationID: publicationID,
 	})
 }
 
 // InsertMediaMemberJoined crée une notification MEDIA_MEMBER_JOINED.
 func (s *Service) InsertMediaMemberJoined(ctx context.Context, recipientID, senderID, publicationID string) error {
 	return s.q.InsertMediaMemberJoinedNotification(ctx, db.InsertMediaMemberJoinedNotificationParams{
-		RecipientId:   toUUID(recipientID),
-		SenderId:      toUUID(senderID),
-		PublicationId: pgtype.Text{String: publicationID, Valid: publicationID != ""},
+		RecipientID:   toUUID(recipientID),
+		SenderID:      toUUID(senderID),
+		PublicationID: publicationID,
 	})
 }
 
