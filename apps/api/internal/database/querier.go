@@ -70,7 +70,7 @@ type Querier interface {
 	DecrementLikeCount(ctx context.Context, id string) error
 	DecrementReplyCount(ctx context.Context, id string) error
 	DecrementRepostCount(ctx context.Context, id string) error
-	DeleteAnnotationComment(ctx context.Context, arg DeleteAnnotationCommentParams) error
+	DeleteAnnotationComment(ctx context.Context, arg DeleteAnnotationCommentParams) (int64, error)
 	DeleteApiKey(ctx context.Context, arg DeleteApiKeyParams) error
 	DeleteArticle(ctx context.Context, id string) error
 	DeleteArticleComment(ctx context.Context, id string) error
@@ -80,7 +80,7 @@ type Querier interface {
 	DeleteExpiredOAuthArtifacts(ctx context.Context) error
 	DeleteFollow(ctx context.Context, arg DeleteFollowParams) error
 	DeleteFollowNotification(ctx context.Context, arg DeleteFollowNotificationParams) error
-	DeleteHighlight(ctx context.Context, arg DeleteHighlightParams) error
+	DeleteHighlight(ctx context.Context, arg DeleteHighlightParams) (int64, error)
 	DeleteHighlightUpvote(ctx context.Context, arg DeleteHighlightUpvoteParams) error
 	DeleteLike(ctx context.Context, arg DeleteLikeParams) error
 	DeleteLikeNotification(ctx context.Context, arg DeleteLikeNotificationParams) error

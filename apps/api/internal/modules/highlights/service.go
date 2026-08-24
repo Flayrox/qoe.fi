@@ -191,13 +191,15 @@ func (s *Service) Create(ctx context.Context, articleID, readerID, text string, 
 
 // Delete supprime un de ses surlignages (ownership vérifié en requête).
 func (s *Service) Delete(ctx context.Context, highlightID, readerID string) (bool, error) {
-	if err := s.q.DeleteHighlight(ctx, db.DeleteHighlightParams{
+	rows, err := s.q.DeleteHighlight(ctx, db.DeleteHighlightParams{
 		ID:       highlightID,
 		ReaderId: toUUID(readerID),
-	}); err != nil {
+	})
+	if err != nil {
 		return false, err
 	}
-	return true, nil
+	// 0 ligne affectée = surlignage inexistant OU non propriétaire.
+	return rows > 0, nil
 }
 
 // Update modifie la note et/ou la visibilité d'un de ses surlignages
@@ -345,13 +347,14 @@ func (s *Service) CreateComment(ctx context.Context, highlightID, authorID, cont
 
 // DeleteComment supprime un de ses commentaires d'annotation.
 func (s *Service) DeleteComment(ctx context.Context, commentID, authorID string) (bool, error) {
-	if err := s.q.DeleteAnnotationComment(ctx, db.DeleteAnnotationCommentParams{
+	rows, err := s.q.DeleteAnnotationComment(ctx, db.DeleteAnnotationCommentParams{
 		ID:       commentID,
 		AuthorId: toUUID(authorID),
-	}); err != nil {
+	})
+	if err != nil {
 		return false, err
 	}
-	return true, nil
+	return rows > 0, nil
 }
 
 // MyHighlights retourne les surlignages du lecteur (bibliothèque), paginés.

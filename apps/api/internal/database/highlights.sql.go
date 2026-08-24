@@ -72,7 +72,7 @@ func (q *Queries) CreateHighlight(ctx context.Context, arg CreateHighlightParams
 	return id, err
 }
 
-const deleteAnnotationComment = `-- name: DeleteAnnotationComment :exec
+const deleteAnnotationComment = `-- name: DeleteAnnotationComment :execrows
 DELETE FROM "AnnotationComment"
 WHERE id = $1 AND "authorId" = $2
 `
@@ -82,12 +82,15 @@ type DeleteAnnotationCommentParams struct {
 	AuthorId pgtype.UUID `json:"authorId"`
 }
 
-func (q *Queries) DeleteAnnotationComment(ctx context.Context, arg DeleteAnnotationCommentParams) error {
-	_, err := q.db.Exec(ctx, deleteAnnotationComment, arg.ID, arg.AuthorId)
-	return err
+func (q *Queries) DeleteAnnotationComment(ctx context.Context, arg DeleteAnnotationCommentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteAnnotationComment, arg.ID, arg.AuthorId)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
-const deleteHighlight = `-- name: DeleteHighlight :exec
+const deleteHighlight = `-- name: DeleteHighlight :execrows
 DELETE FROM "Highlight" WHERE id = $1 AND "readerId" = $2
 `
 
@@ -96,9 +99,12 @@ type DeleteHighlightParams struct {
 	ReaderId pgtype.UUID `json:"readerId"`
 }
 
-func (q *Queries) DeleteHighlight(ctx context.Context, arg DeleteHighlightParams) error {
-	_, err := q.db.Exec(ctx, deleteHighlight, arg.ID, arg.ReaderId)
-	return err
+func (q *Queries) DeleteHighlight(ctx context.Context, arg DeleteHighlightParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteHighlight, arg.ID, arg.ReaderId)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const deleteHighlightUpvote = `-- name: DeleteHighlightUpvote :exec
