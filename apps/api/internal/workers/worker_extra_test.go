@@ -205,6 +205,86 @@ func TestStripe_UnknownEvent_NoOp(t *testing.T) {
 	}
 }
 
+func TestStripe_PaymentFailed_SetsPastDue(t *testing.T) {
+	pubID, _ := seedStripe(t)
+	worker := NewStripeWorker(poolTest, nil)
+
+	if _, err := poolTest.Exec(context.Background(),
+		`INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "isPremium", "updatedAt")
+		 VALUES (gen_random_uuid()::text, 'failed@test.dev', $1, 'ACTIVE', true, true, now())`,
+		pubID,
+	); err != nil {
+		t.Fatalf("subscriber: %v", err)
+	}
+
+	if err := worker.HandleStripeEvent(context.Background(), stripeTask(t, "evt_failed", "invoice.payment_failed", map[string]any{
+		"metadata": map[string]any{
+			"creatorId":       pubID,
+			"subscriberEmail": "failed@test.dev",
+		},
+	})); err != nil {
+		t.Fatalf("HandleStripeEvent: %v", err)
+	}
+
+	var status string
+	var active bool
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT status, "isActive" FROM "Subscriber" WHERE email = 'failed@test.dev'`,
+	).Scan(&status, &active); err != nil {
+		t.Fatalf("subscriber: %v", err)
+	}
+	if status != "PAST_DUE" || active {
+		t.Fatalf("subscriber = %q/%v, attendu PAST_DUE/inactif", status, active)
+	}
+}
+
+// resolvePublicationID doit retomber sur la publication personnelle quand
+// creatorRef est un user (et non une publication).
+func TestStripe_PaymentFailed_PersonalPublicationFallback(t *testing.T) {
+	_, ownerID := seedStripe(t)
+	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	worker := NewStripeWorker(poolTest, nil)
+
+	if _, err := poolTest.Exec(context.Background(),
+		`INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "isPremium", "updatedAt")
+		 VALUES (gen_random_uuid()::text, 'personal@test.dev', $1, 'ACTIVE', true, true, now())`,
+		fx.PublicationID,
+	); err != nil {
+		t.Fatalf("subscriber: %v", err)
+	}
+
+	if err := worker.HandleStripeEvent(context.Background(), stripeTask(t, "evt_personal", "invoice.payment_failed", map[string]any{
+		"metadata": map[string]any{
+			"creatorId":       ownerID,
+			"subscriberEmail": "personal@test.dev",
+		},
+	})); err != nil {
+		t.Fatalf("HandleStripeEvent: %v", err)
+	}
+
+	var status string
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT status FROM "Subscriber" WHERE email = 'personal@test.dev'`,
+	).Scan(&status); err != nil {
+		t.Fatalf("subscriber: %v", err)
+	}
+	if status != "PAST_DUE" {
+		t.Fatalf("subscriber = %q, attendu PAST_DUE via publication personnelle", status)
+	}
+}
+
+func TestStripe_PaymentFailed_MissingMetadata_NoOp(t *testing.T) {
+	seedStripe(t)
+	worker := NewStripeWorker(poolTest, nil)
+
+	if err := worker.HandleStripeEvent(context.Background(), stripeTask(t, "evt_nometadata", "invoice.payment_failed", nil)); err != nil {
+		t.Fatalf("metadata absente = erreur, attendu no-op silencieux: %v", err)
+	}
+}
+
 func TestStripe_MissingEventID_Error(t *testing.T) {
 	seedStripe(t)
 	worker := NewStripeWorker(poolTest, nil)
