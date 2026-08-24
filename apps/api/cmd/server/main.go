@@ -220,6 +220,12 @@ func newRouter(d RouterDeps) *chi.Mux {
 	usersHandler := users.NewHandler(users.NewService(pool))
 	usersHandler.RegisterPublic(r)
 
+	// Profils créateurs / publications publics (/v1/users/{username}, /followers, /following)
+	creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
+	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
+		creatorHandler.RegisterPublic(pub)
+	})
+
 	// Fournisseur d'identité OAuth 2.1 / OIDC (qoe.fi) : discovery, JWKS,
 	// token, introspection, révocation et userinfo sont publics ; le token
 	// endpoint reçoit un rate-limit dédié (anti-brute-force) en plus du global.
