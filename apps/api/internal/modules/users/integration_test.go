@@ -151,6 +151,180 @@ func TestUpdateProfile(t *testing.T) {
 	}
 }
 
+// TestBilling vérifie GET /v1/me/billing : portefeuille + transactions
+// récentes (tri DESC, limit 10) + abonnements premium actifs (par email).
+func TestBilling(t *testing.T) {
+	seedMe(t)
+	ctx := context.Background()
+	// Publications + abonnements du lecteur.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Publication" (id, type, name, slug, "logoUrl", "createdAt", "updatedAt")
+		 VALUES ('pub_bill_001', 'PERSONAL', 'Journal Billing', 'journal-billing', 'https://x/logo.png', now(), now()),
+		        ('pub_bill_002', 'PERSONAL', 'Journal Inactif', 'journal-inactif', NULL, now(), now())`); err != nil {
+		t.Fatalf("publication: %v", err)
+	}
+	// (email, publicationId) est UNIQUE → l'abonné inactif porte une autre publication.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt")
+		 VALUES (gen_random_uuid()::text, 'reader.me@test.dev', 'pub_bill_001', true, true, true, now(), now()),
+		        (gen_random_uuid()::text, 'reader.me@test.dev', 'pub_bill_002', false, true, true, now(), now()),
+		        (gen_random_uuid()::text, 'other.me@test.dev', 'pub_bill_001', true, true, true, now(), now())`); err != nil {
+		t.Fatalf("subscribers: %v", err)
+	}
+	// 2 transactions (1 crédit + 1 débit) — on vérifie le tri DESC.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "WalletTransaction" (id, "userId", "amountCents", type, "createdAt")
+		 VALUES ('tx_bill_01', $1, 500, 'DEPOSIT', now() - interval '2 days'),
+		        ('tx_bill_02', $1, -200, 'SUBSCRIPTION_PAYMENT', now() - interval '1 day')`, userID); err != nil {
+		t.Fatalf("transactions: %v", err)
+	}
+
+	svc := NewService(poolTest)
+	data, err := svc.Billing(ctx, userID)
+	if err != nil {
+		t.Fatalf("Billing: %v", err)
+	}
+	if data.WalletBalanceCents != 250 {
+		t.Fatalf("balance = %d, attendu 250", data.WalletBalanceCents)
+	}
+	// Tri createdAt DESC → tx_bill_02 (1j) avant tx_bill_01 (2j).
+	if len(data.WalletTransactions) != 2 || data.WalletTransactions[0].ID != "tx_bill_02" {
+		t.Fatalf("transactions = %+v", data.WalletTransactions)
+	}
+	if data.WalletTransactions[1].AmountCents != 500 || data.WalletTransactions[1].Type != "DEPOSIT" {
+		t.Fatalf("transactions[1] = %+v", data.WalletTransactions[1])
+	}
+	if data.WalletTransactions[0].CreatedAt == "" {
+		t.Fatal("createdAt transaction vide")
+	}
+	// Seul l'abonnement premium ET actif du lecteur est listé (inactif exclu,
+	// email d'un autre utilisateur exclu).
+	if len(data.Subscriptions) != 1 {
+		t.Fatalf("subscriptions = %d, attendu 1", len(data.Subscriptions))
+	}
+	sub := data.Subscriptions[0]
+	if sub.Publication == nil || sub.Publication.Name == nil || *sub.Publication.Name != "Journal Billing" {
+		t.Fatalf("subscription = %+v", sub)
+	}
+	if sub.Publication.Slug != "journal-billing" || sub.Publication.LogoURL == nil ||
+		*sub.Publication.LogoURL != "https://x/logo.png" {
+		t.Fatalf("publication = %+v", sub.Publication)
+	}
+
+	// otherID voit SON abonnement (filtrage par email) et aucune transaction.
+	other, err := svc.Billing(ctx, otherID)
+	if err != nil {
+		t.Fatalf("Billing(other): %v", err)
+	}
+	if len(other.WalletTransactions) != 0 || len(other.Subscriptions) != 1 ||
+		other.Subscriptions[0].Publication == nil {
+		t.Fatalf("other = %+v, attendu 0 transaction / 1 abonnement", other)
+	}
+
+	// Utilisateur inconnu → pgx.ErrNoRows.
+	if _, err := svc.Billing(ctx, "00000000-0000-0000-0000-00000000dead"); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("Billing(inconnu) = %v, attendu pgx.ErrNoRows", err)
+	}
+}
+
+// TestOnboardingComplete vérifie POST /v1/me/onboarding-complete : marque le
+// profil, enregistre les mots masqués et les suivis (dédup inclus), et écrit
+// un embedding (fallback déterministe, le service d'inférence n'existant pas).
+func TestOnboardingComplete(t *testing.T) {
+	seedMe(t)
+	ctx := context.Background()
+	svc := NewService(poolTest)
+
+	if err := svc.OnboardingComplete(ctx, userID, OnboardingCompleteInput{
+		Interests:        []string{"tech", "ecologie"},
+		Subtopics:        []string{"llm"},
+		OnboardingText:   "Lire et penser",
+		MutedWords:       []string{"  BuzzWord ", "buzzword", "autre"},
+		CreatorsToFollow: []string{pubID, pubID},
+		Gender:           "NON_BINARY",
+		AgeRange:         "AGE_25_34",
+		Pronouns:         "iel",
+	}); err != nil {
+		t.Fatalf("OnboardingComplete: %v", err)
+	}
+
+	// Profil marqué + démographie.
+	var done bool
+	var gender, pronouns string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT "hasCompletedOnboarding", COALESCE(gender::text, ''), COALESCE(pronouns, '')
+		 FROM "User" WHERE id = $1`, userID).Scan(&done, &gender, &pronouns); err != nil || !done || gender != "NON_BINARY" || pronouns != "iel" {
+		t.Fatalf("user = %v/%q/%q (err %v)", done, gender, pronouns, err)
+	}
+	// Embedding écrit (fallback déterministe 512 dims).
+	var emb string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COALESCE(embedding::text, '') FROM "User" WHERE id = $1`, userID).Scan(&emb); err != nil || emb == "" {
+		t.Fatalf("embedding vide (err %v)", err)
+	}
+	// Mots masqués dédupliqués (buzzword en minuscules ×2 → 1).
+	var mutedCount int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "MutedWord" WHERE "userId" = $1`, userID).Scan(&mutedCount); err != nil || mutedCount != 2 {
+		t.Fatalf("muted = %d (err %v), attendu 2", mutedCount, err)
+	}
+	// Suivis dédupliqués (pubID ×2 → 1).
+	var followsCount int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "Follows" WHERE "readerId" = $1`, userID).Scan(&followsCount); err != nil || followsCount != 1 {
+		t.Fatalf("follows = %d (err %v), attendu 1", followsCount, err)
+	}
+
+	// Gender invalide → ignoré (pas d'erreur), re-run idempotent.
+	if err := svc.OnboardingComplete(ctx, userID, OnboardingCompleteInput{
+		Interests: []string{"tech"}, MutedWords: []string{"buzzword"},
+		CreatorsToFollow: []string{pubID}, Gender: "ALIEN",
+	}); err != nil {
+		t.Fatalf("OnboardingComplete(2): %v", err)
+	}
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "MutedWord" WHERE "userId" = $1`, userID).Scan(&mutedCount); err != nil || mutedCount != 2 {
+		t.Fatalf("muted après re-run = %d (err %v), attendu 2 (idempotent)", mutedCount, err)
+	}
+}
+
+// TestDataExport vérifie GET /v1/me/data-export : toutes les sections
+// présentes, dates normalisées, valeurs null → nil.
+func TestDataExport(t *testing.T) {
+	seedMe(t)
+	ctx := context.Background()
+	svc := NewService(poolTest)
+
+	// Quelques données de l'utilisateur.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt")
+		 VALUES ('post_exp_01', 'pensée export', $1, now(), now())`, userID); err != nil {
+		t.Fatalf("post: %v", err)
+	}
+
+	data, err := svc.DataExport(ctx, userID)
+	if err != nil {
+		t.Fatalf("DataExport: %v", err)
+	}
+	if data["exportedAt"] == nil || data["account"] == nil {
+		t.Fatalf("data = %v", data)
+	}
+	account := data["account"].(map[string]any)
+	if account["email"] != "reader.me@test.dev" || account["createdAt"] == nil {
+		t.Fatalf("account = %v", account)
+	}
+	if account["name"] == nil {
+		t.Fatalf("name null alors que seedé")
+	}
+	thoughts := data["thoughts"].([]map[string]any)
+	if len(thoughts) != 1 || thoughts[0]["content"] != "pensée export" || thoughts[0]["createdAt"] == nil {
+		t.Fatalf("thoughts = %v", thoughts)
+	}
+	if len(data["articles"].([]map[string]any)) != 0 || len(data["follows"].([]map[string]any)) != 1 {
+		t.Fatalf("articles/follows = %v/%v", data["articles"], data["follows"])
+	}
+}
+
 // TestProfileNotFound — GET /v1/me sur un user inconnu → pgx.ErrNoRows (404).
 func TestProfileNotFound(t *testing.T) {
 	seedMe(t)

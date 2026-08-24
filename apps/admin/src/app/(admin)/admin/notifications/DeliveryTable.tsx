@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, Clock3, Loader2, RefreshCw, XCircle } from 'lucide-react';
-import { retryNotificationDeliveryAction } from './actions';
+import { retryNotificationDeliveryAction } from '@/lib/admin-aux-actions';
 
 export type DeliveryRow = {
   id: string;

@@ -151,43 +151,25 @@ services:
         condition: service_healthy
 
   # ───────────────────────────────────────────────────────────────────
-  # 🔄 MIGRATE (dev, one-shot)
+  # 🔄 MIGRATE (dev, one-shot — goose)
   # ───────────────────────────────────────────────────────────────────
-  # 📖 En dev, on n'utilise PAS le multi-stage Dockerfile.
-  #    On utilise une image node:20-alpine simple + pnpm install direct.
-  #    C'est plus rapide et ça évite le bug pnpm isolated en Docker.
+  # 📖 En dev, on n'utilise PAS le multi-stage Dockerfile : image golang
+  #    simple + bind mount de apps/api, `go run ./cmd/migrate up`.
   migrate:
-    image: node:22-alpine
+    image: golang:1.26-alpine
     container_name: qoefi-dev-migrate
     restart: 'no'
 
-    working_dir: /app
+    working_dir: /app/apps/api
 
     environment:
-      CI: 'true'
       DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:54322/postgres
-      DIRECT_URL: postgresql://postgres:postgres@host.docker.internal:54322/postgres
 
     # Bind mount du code source (pas besoin de rebuild pour migrate)
     volumes:
-      - ./apps/hi:/app/apps/hi
-      - ./apps/core:/app/apps/core
-      - ./apps/studio:/app/apps/studio
-      - ./apps/admin:/app/apps/admin
-      - ./apps/tenants:/app/apps/tenants
-      - ./packages:/app/packages
-      - ./prisma.config.ts:/app/prisma.config.ts
-      - ./package.json:/app/package.json
-      - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
-      - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
-      - ./.npmrc:/app/.npmrc
+      - ./apps/api:/app/apps/api
 
-    command: >
-      sh -c "corepack enable &&
-             corepack prepare pnpm@11.21.0 --activate &&
-             pnpm install --frozen-lockfile --filter @qoe/db... &&
-             cd packages/db &&
-             pnpm exec prisma migrate deploy --schema=prisma/schema.prisma"
+    command: sh -c "go run ./cmd/migrate -dir /app/apps/api/sql/migrations up"
 
     depends_on:
       db:

@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@qoe/supabase/server';
 import { prisma } from '@qoe/db/client';
 import { revalidatePath } from 'next/cache';
 import DOMPurify from 'isomorphic-dompurify';
+import { goFetch, isGoEnabled } from '@qoe/api-client/actions/utils/go-client';
 import { getActivePublicationId } from '@/lib/active-workspace';
 
 async function getAuthenticatedCreator() {
@@ -21,6 +22,8 @@ async function getAuthenticatedCreator() {
 
 /**
  * 📰 Importer des articles depuis un flux RSS / Substack / Ghost URL
+ * Go-first : le parsing + l'assainissement restent ici (logique pure, zéro DB),
+ * la création dédupliquée des articles est déléguée à POST /v1/import/articles.
  */
 export async function importRssFeedAction(rssUrl: string) {
   try {
@@ -53,7 +56,8 @@ export async function importRssFeedAction(rssUrl: string) {
       return { success: false, error: 'Aucun article trouvé dans ce flux RSS' };
     }
 
-    let importedArticlesCount = 0;
+    const publicationId = await getActivePublicationId(creator.id);
+    const articles: { title: string; slug: string; content: string; readingTime: number }[] = [];
 
     for (const itemXml of itemMatches) {
       const titleMatch = itemXml.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
@@ -107,34 +111,52 @@ export async function importRssFeedAction(rssUrl: string) {
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-+|-+$/g, '') || `article-${Date.now()}`;
 
-      // Vérifier si un article avec ce slug existe déjà pour cette publication
-      const publicationId = await getActivePublicationId(creator.id);
+      articles.push({
+        title,
+        slug,
+        content: safeHtml,
+        readingTime: Math.max(
+          1,
+          Math.ceil(safeHtml.replace(/<[^>]+>/g, '').split(/\s+/).length / 200)
+        ),
+      });
+    }
 
-      const existing = await prisma.article
-        .findUnique({
-          where: {
-            publicationId_slug: { publicationId, slug },
-          },
-        })
-        .catch(() => null);
+    let importedArticlesCount = 0;
 
-      if (!existing) {
-        await prisma.article.create({
-          data: {
-            title,
-            slug,
-            content: safeHtml,
-            published: true,
-            visibility: 'PUBLIC',
-            authorId: creator.id,
-            publicationId,
-            readingTime: Math.max(
-              1,
-              Math.ceil(safeHtml.replace(/<[^>]+>/g, '').split(/\s+/).length / 200)
-            ),
-          },
-        });
-        importedArticlesCount++;
+    if (isGoEnabled()) {
+      // 🚀 Go-first : création dédupliquée (par publicationId + slug) côté Go.
+      const resp = await goFetch<{ importedCount: number }>('/v1/import/articles', {
+        method: 'POST',
+        body: { publicationId, articles },
+      });
+      importedArticlesCount = resp.importedCount ?? 0;
+    } else {
+      // Fallback dev (sans QOE_API_URL) : dédup + création Prisma.
+      for (const art of articles) {
+        const existing = await prisma.article
+          .findUnique({
+            where: {
+              publicationId_slug: { publicationId, slug: art.slug },
+            },
+          })
+          .catch(() => null);
+
+        if (!existing) {
+          await prisma.article.create({
+            data: {
+              title: art.title,
+              slug: art.slug,
+              content: art.content,
+              published: true,
+              visibility: 'PUBLIC',
+              authorId: creator.id,
+              publicationId,
+              readingTime: art.readingTime,
+            },
+          });
+          importedArticlesCount++;
+        }
       }
     }
 

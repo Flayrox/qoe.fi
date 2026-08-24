@@ -4,8 +4,8 @@
 # =====================================================================
 # 📖 Ce script fait 3 choses :
 #   1. Attend que Postgres soit prêt (via wait-for-db.sh)
-#   2. Applique les migrations Prisma
-#   3. (Optionnel) Insère les données de seed depuis prisma/seed.ts
+#   2. Applique les migrations goose (apps/api/sql/migrations)
+#   3. (Optionnel) Insère les données de seed depuis apps/api/cmd/seed (Go)
 #
 # 🎯 Usage :
 #   ./scripts/seed-docker.sh              # migrations + seed
@@ -65,11 +65,12 @@ DB_HOST="$DB_HOST" DB_PORT="$DB_PORT" DB_TIMEOUT=30 \
     exit 1
   }
 
-# --- Étape 2 : Migrations Prisma ---
-# 📖 Source unique : packages/db/prisma/ (dédupliqué depuis prisma/)
+# --- Étape 2 : Migrations goose ---
+# 📖 Source unique : apps/api/sql/migrations (squash de l'historique Prisma)
 echo ""
-echo "🔄 Étape 2/3 : Application des migrations Prisma..."
-cd "$PROJECT_ROOT/packages/db"
+echo "🔄 Étape 2/3 : Application des migrations goose..."
+cd "$PROJECT_ROOT/apps/api"
+export DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"
 
 if [ "$RESET" = true ]; then
   echo -e "${YELLOW}⚠️  RESET demandé : toutes les données seront SUPPRIMÉES${NC}"
@@ -78,11 +79,11 @@ if [ "$RESET" = true ]; then
     echo "Annulé."
     exit 0
   fi
-  npx prisma migrate reset --force --skip-seed
-else
-  # deploy = applique les migrations sans reset, sûr pour la prod aussi
-  npx prisma migrate deploy
+  # down-to 0 (DROP SCHEMA) puis up → base vierge migrée
+  go run ./cmd/migrate -dir sql/migrations down-to 0
 fi
+# up = applique les migrations en attente, sûr pour la prod aussi
+go run ./cmd/migrate -dir sql/migrations up
 
 cd "$PROJECT_ROOT"
 
@@ -91,11 +92,12 @@ echo -e "${GREEN}✅ Migrations appliquées avec succès${NC}"
 # --- Étape 3 : Seed (optionnel) ---
 if [ "$SEED" = true ]; then
   echo ""
-  echo "🌾 Étape 3/3 : Exécution du seed..."
-  # Prisma execute le fichier pointé par "prisma.seed" dans package.json
-  npx prisma db seed || {
+  echo "🌾 Étape 3/3 : Exécution du seed (Go)..."
+  cd "$PROJECT_ROOT/apps/api"
+  go run ./cmd/seed || {
     echo -e "${YELLOW}⚠️  Le seed a échoué (normal si pas de données de test)${NC}"
   }
+  cd "$PROJECT_ROOT"
   echo -e "${GREEN}✅ Seed terminé${NC}"
 else
   echo ""

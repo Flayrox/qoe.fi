@@ -58,6 +58,169 @@ func (s *Service) authorizeSettings(ctx context.Context, userID, publicationID s
 	return nil
 }
 
+// ── Lecture de la page settings (parité prisma.publication.findUnique include) ──
+
+// SettingsNavItem est un lien de navigation (parité NavigationItem Prisma).
+type SettingsNavItem struct {
+	ID         string  `json:"id"`
+	Label      string  `json:"label"`
+	URL        *string `json:"url"`
+	Order      int32   `json:"order"`
+	IsExternal bool    `json:"isExternal"`
+}
+
+// SettingsSocialLink est un lien social (parité SocialLink Prisma).
+type SettingsSocialLink struct {
+	ID       string `json:"id"`
+	Platform string `json:"platform"`
+	URL      string `json:"url"`
+	Order    int32  `json:"order"`
+}
+
+// SettingsArticle est un article de la liste settings (parité Article Prisma).
+type SettingsArticle struct {
+	ID             string  `json:"id"`
+	Title          string  `json:"title"`
+	Slug           string  `json:"slug"`
+	Content        string  `json:"content"`
+	Published      bool    `json:"published"`
+	IsPremium      bool    `json:"isPremium"`
+	CategoryID     *string `json:"categoryId"`
+	SeoTitle       *string `json:"seoTitle"`
+	SeoDescription *string `json:"seoDescription"`
+	CreatedAt      string  `json:"createdAt"`
+}
+
+// SettingsCategory est une catégorie de la liste settings (parité Category Prisma).
+type SettingsCategory struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+}
+
+// SettingsOwner est le propriétaire de la publication (parité user: {select} Prisma).
+type SettingsOwner struct {
+	ID                   string  `json:"id"`
+	Email                *string `json:"email"`
+	Username             *string `json:"username"`
+	AdvancedSettingsMode bool    `json:"advancedSettingsMode"`
+}
+
+// SettingsPublication est la publication complète de la page settings
+// (mêmes champs JSON que le include Prisma — mapping studio inchangé).
+type SettingsPublication struct {
+	ID             string              `json:"id"`
+	Name           string              `json:"name"`
+	Slug           string              `json:"slug"`
+	Subdomain      *string             `json:"subdomain"`
+	CustomDomain   *string             `json:"customDomain"`
+	HeroText       *string             `json:"heroText"`
+	AccentColor    *string             `json:"accentColor"`
+	FontFamily     *string             `json:"fontFamily"`
+	ThemeMode      *string             `json:"themeMode"`
+	LayoutStyle    *string             `json:"layoutStyle"`
+	LogoURL        *string             `json:"logoUrl"`
+	HeaderImageURL *string             `json:"headerImageUrl"`
+	FooterText     *string             `json:"footerText"`
+	SeoTitle       *string             `json:"seoTitle"`
+	SeoDescription *string             `json:"seoDescription"`
+	AllowIndexing  bool                `json:"allowIndexing"`
+	SupportURL     *string             `json:"supportUrl"`
+	Type           string              `json:"type"`
+	Navigation     []SettingsNavItem   `json:"navigation"`
+	SocialLinks    []SettingsSocialLink `json:"socialLinks"`
+	Articles       []SettingsArticle   `json:"articles"`
+	Categories     []SettingsCategory  `json:"categories"`
+	User           *SettingsOwner      `json:"user"`
+}
+
+// GetPublicationSettings retourne la publication + relations de la page
+// settings créateur. Accès : publication personnelle OU média avec
+// manage_settings (même check que les écritures).
+func (s *Service) GetPublicationSettings(ctx context.Context, userID, publicationID string) (*SettingsPublication, error) {
+	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
+		return nil, errForbidden
+	}
+
+	row, err := s.q.GetPublicationForSettings(ctx, publicationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errNotFound
+		}
+		return nil, err
+	}
+
+	pub := &SettingsPublication{
+		ID: row.ID, Name: row.Name, Slug: row.Slug,
+		Subdomain: textPtr(row.Subdomain), CustomDomain: textPtr(row.CustomDomain),
+		HeroText: textPtr(row.HeroText), AccentColor: textPtr(row.AccentColor),
+		FontFamily: textPtr(row.FontFamily), ThemeMode: textPtr(row.ThemeMode),
+		LayoutStyle: textPtr(row.LayoutStyle), LogoURL: textPtr(row.LogoUrl),
+		HeaderImageURL: textPtr(row.HeaderImageUrl), FooterText: textPtr(row.FooterText),
+		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
+		AllowIndexing: row.AllowIndexing, SupportURL: textPtr(row.SupportUrl),
+		Type: string(row.Type),
+		Navigation:  []SettingsNavItem{},
+		SocialLinks: []SettingsSocialLink{},
+		Articles:    []SettingsArticle{},
+		Categories:  []SettingsCategory{},
+	}
+	if row.OwnerID != "" {
+		pub.User = &SettingsOwner{
+			ID: row.OwnerID, Email: textPtr(row.OwnerEmail),
+			Username: textPtr(row.OwnerUsername),
+			AdvancedSettingsMode: row.OwnerAdvancedSettingsMode.Bool,
+		}
+	}
+
+	navRows, err := s.q.ListNavigationForPublication(ctx, publicationID)
+	if err != nil {
+		return nil, err
+	}
+	for _, n := range navRows {
+		pub.Navigation = append(pub.Navigation, SettingsNavItem{
+			ID: n.ID, Label: n.Label, URL: textPtr(n.Url),
+			Order: n.Order, IsExternal: n.IsExternal,
+		})
+	}
+
+	socialRows, err := s.q.ListSocialLinksForPublication(ctx, publicationID)
+	if err != nil {
+		return nil, err
+	}
+	for _, sl := range socialRows {
+		pub.SocialLinks = append(pub.SocialLinks, SettingsSocialLink{
+			ID: sl.ID, Platform: sl.Platform, URL: sl.Url, Order: sl.Order,
+		})
+	}
+
+	articleRows, err := s.q.ListArticlesForSettings(ctx, publicationID)
+	if err != nil {
+		return nil, err
+	}
+	for _, a := range articleRows {
+		pub.Articles = append(pub.Articles, SettingsArticle{
+			ID: a.ID, Title: a.Title, Slug: a.Slug, Content: a.Content,
+			Published: a.Published, IsPremium: a.IsPremium,
+			CategoryID: textPtr(a.CategoryId), SeoTitle: textPtr(a.SeoTitle),
+			SeoDescription: textPtr(a.SeoDescription),
+			CreatedAt:      a.CreatedAt.Time.Format(time.RFC3339),
+		})
+	}
+
+	catRows, err := s.q.ListCategoriesForPublication(ctx, publicationID)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range catRows {
+		pub.Categories = append(pub.Categories, SettingsCategory{
+			ID: c.ID, Name: c.Name, Slug: c.Slug,
+		})
+	}
+
+	return pub, nil
+}
+
 // colonnes Publication autorisées pour le profil (body key → column).
 var profileStringColumns = map[string]string{
 	"name":           "name",
@@ -319,6 +482,40 @@ func (s *Service) RevokeApiKey(ctx context.Context, userID, id string) error {
 	return s.q.DeleteApiKey(ctx, db.DeleteApiKeyParams{ID: id, UserId: toUUID(userID)})
 }
 
+// ApiKeyDTO est une clé API listée (le hash n'est jamais exposé).
+type ApiKeyDTO struct {
+	ID         string   `json:"id"`
+	Name       string   `json:"name"`
+	KeyPrefix  string   `json:"keyPrefix"`
+	Scopes     []string `json:"scopes"`
+	CreatedAt  string   `json:"createdAt"`
+	LastUsedAt *string  `json:"lastUsedAt"`
+}
+
+// ListApiKeys retourne les clés API de l'utilisateur (triées par création déc).
+func (s *Service) ListApiKeys(ctx context.Context, userID string) ([]ApiKeyDTO, error) {
+	rows, err := s.q.ListApiKeys(ctx, toUUID(userID))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ApiKeyDTO, 0, len(rows))
+	for _, r := range rows {
+		dto := ApiKeyDTO{
+			ID:        r.ID,
+			Name:      r.Name,
+			KeyPrefix: r.KeyPrefix,
+			Scopes:    r.Scopes,
+			CreatedAt: r.CreatedAt.Time.Format(time.RFC3339),
+		}
+		if r.LastUsedAt.Valid {
+			last := r.LastUsedAt.Time.Format(time.RFC3339)
+			dto.LastUsedAt = &last
+		}
+		out = append(out, dto)
+	}
+	return out, nil
+}
+
 // OnboardingInput porte les données du formulaire d'onboarding.
 type OnboardingInput struct {
 	Name        string `json:"name"`
@@ -386,6 +583,14 @@ func (s *Service) CompleteOnboarding(ctx context.Context, userID string, in Onbo
 	return s.q.LinkUserPublication(ctx, db.LinkUserPublicationParams{
 		ID: userID, PublicationId: textFromString(id),
 	})
+}
+
+func textPtr(t pgtype.Text) *string {
+	if !t.Valid {
+		return nil
+	}
+	v := t.String
+	return &v
 }
 
 func toUUID(id string) pgtype.UUID {

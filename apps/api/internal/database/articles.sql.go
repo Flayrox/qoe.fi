@@ -359,6 +359,23 @@ func (q *Queries) GetArticleBySlugAny(ctx context.Context, slug string) (GetArti
 	return i, err
 }
 
+const getArticleIdByPublicationAndSlug = `-- name: GetArticleIdByPublicationAndSlug :one
+SELECT id FROM "Article" WHERE "publicationId" = $1 AND slug = $2 LIMIT 1
+`
+
+type GetArticleIdByPublicationAndSlugParams struct {
+	PublicationId string `json:"publicationId"`
+	Slug          string `json:"slug"`
+}
+
+// Dédoublonnage import RSS : un article existe déjà si publicationId + slug matchent.
+func (q *Queries) GetArticleIdByPublicationAndSlug(ctx context.Context, arg GetArticleIdByPublicationAndSlugParams) (string, error) {
+	row := q.db.QueryRow(ctx, getArticleIdByPublicationAndSlug, arg.PublicationId, arg.Slug)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getCreatorArticleBySlug = `-- name: GetCreatorArticleBySlug :one
 SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
        a."readingTime", a.status, a."tierId", a."createdAt", a."updatedAt",

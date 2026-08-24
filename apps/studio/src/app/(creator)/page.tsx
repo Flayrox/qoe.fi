@@ -2,7 +2,8 @@ import React from 'react';
 import { prisma } from '@qoe/db/client';
 import { requireUser } from '@qoe/auth/current-user';
 import { t } from '@lingui/core/macro';
-import { getActiveWorkspace } from '@/lib/active-workspace';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
+import { getActiveWorkspace, type ActiveWorkspace } from '@/lib/active-workspace';
 import {
   Eye,
   TrendingUp,
@@ -20,28 +21,68 @@ import {
   Building2,
 } from 'lucide-react';
 
-export default async function CreatorDashboardPage() {
-  const user = await requireUser();
+// ─── Données du dashboard (miroir Go GET /v1/analytics/dashboard) ───────────
+interface DashboardArticle {
+  id: string;
+  title: string;
+  published: boolean;
+  updatedAt: string;
+  categoryName: string | null;
+}
 
-  // 🎛️ Workspace actif : publication personnelle OU média sélectionné
-  const workspace = await getActiveWorkspace(user.id);
+interface DashboardThought {
+  id: string;
+  content: string;
+  scheduledAt: string;
+}
+
+interface DashboardLatestArticle {
+  id: string;
+  title: string;
+  readingTime: number;
+  categoryName: string | null;
+  _count: { bookmarks: number; highlights: number; letters: number };
+}
+
+interface DashboardData {
+  publicationWebsiteId: string;
+  publishedCount: number;
+  subscribersCount: number;
+  premiumSubscribersCount: number;
+  mrrCents: number;
+  recentArticles: DashboardArticle[];
+  draftArticles: DashboardArticle[];
+  scheduledThoughts: DashboardThought[];
+  latestPublishedArticle: DashboardLatestArticle | null;
+  pageviews30d: number;
+  visitors30d: number;
+}
+
+/** 🚀 Go-first : GET /v1/analytics/dashboard (workspace-aware). */
+async function fetchDashboardGo(
+  _userId: string,
+  workspace: ActiveWorkspace
+): Promise<DashboardData> {
+  const qs = `?publicationId=${encodeURIComponent(workspace.publicationId)}&workspaceType=${workspace.type}`;
+  return goFetch<DashboardData>(`/v1/analytics/dashboard${qs}`);
+}
+
+/** 🐢 Fallback dev (sans QOE_API_URL) : le bloc Prisma d'origine, mappé sur le même contrat. */
+async function fetchDashboardFallback(
+  userId: string,
+  workspace: ActiveWorkspace
+): Promise<DashboardData> {
   const isMediaWorkspace = workspace.type === 'MEDIA';
-  const targetWebsiteId = workspace.publicationId
-    ? await prisma.publication
-        .findUnique({ where: { id: workspace.publicationId }, select: { umamiWebsiteId: true } })
-        .then((p) => p?.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '')
-    : process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '';
   const now = Date.now();
   const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
 
-  // Requêtes workspace-aware — vues PLEIN par attribution (même article co-signé compte 100% chez chaque co-auteur)
   const attributedWhere = isMediaWorkspace
     ? { publicationId: workspace.publicationId }
     : {
         OR: [
           { publicationId: workspace.publicationId },
           {
-            attributions: { some: { userId: user.id, consentStatus: 'ACCEPTED', isVisible: true } },
+            attributions: { some: { userId, consentStatus: 'ACCEPTED', isVisible: true } },
           },
         ],
       };
@@ -61,7 +102,7 @@ export default async function CreatorDashboardPage() {
     prisma.article.count({
       where: isMediaWorkspace
         ? { publicationId: workspace.publicationId, published: true }
-        : { authorId: user.id, published: true },
+        : { authorId: userId, published: true },
     }),
     prisma.subscriber.count({
       where: { publicationId: workspace.publicationId, isActive: true },
@@ -74,7 +115,7 @@ export default async function CreatorDashboardPage() {
       select: { ltvCents: true, createdAt: true },
     }),
     prisma.article.findMany({
-      where: isMediaWorkspace ? { publicationId: workspace.publicationId } : { authorId: user.id },
+      where: isMediaWorkspace ? { publicationId: workspace.publicationId } : { authorId: userId },
       orderBy: { updatedAt: 'desc' },
       take: 4,
       include: { category: true },
@@ -82,19 +123,19 @@ export default async function CreatorDashboardPage() {
     prisma.article.findMany({
       where: isMediaWorkspace
         ? { publicationId: workspace.publicationId, published: false }
-        : { authorId: user.id, published: false },
+        : { authorId: userId, published: false },
       orderBy: { updatedAt: 'desc' },
       take: 4,
     }),
     prisma.thought.findMany({
-      where: { authorId: user.id, scheduledAt: { not: null } },
+      where: { authorId: userId, scheduledAt: { not: null } },
       orderBy: { scheduledAt: 'asc' },
       take: 4,
     }),
     prisma.article.findFirst({
       where: isMediaWorkspace
         ? { publicationId: workspace.publicationId, published: true }
-        : { authorId: user.id, published: true },
+        : { authorId: userId, published: true },
       orderBy: { createdAt: 'desc' },
       include: {
         category: true,
@@ -107,43 +148,14 @@ export default async function CreatorDashboardPage() {
         },
       },
     }),
-    // VUES TOTALES (30j) : lectures réelles sur TES articles attribués (feed/tenant/profil/direct) — pas le global
     prisma.readingSession
       .count({
-        where: {
-          article: isMediaWorkspace
-            ? { publicationId: workspace.publicationId }
-            : {
-                OR: [
-                  { publicationId: workspace.publicationId },
-                  {
-                    attributions: {
-                      some: { userId: user.id, consentStatus: 'ACCEPTED', isVisible: true },
-                    },
-                  },
-                ],
-              },
-          createdAt: { gte: thirtyDaysAgo },
-        },
+        where: { article: attributedWhere, createdAt: { gte: thirtyDaysAgo } },
       })
       .catch(() => 0),
     prisma.readingSession
       .findMany({
-        where: {
-          article: isMediaWorkspace
-            ? { publicationId: workspace.publicationId }
-            : {
-                OR: [
-                  { publicationId: workspace.publicationId },
-                  {
-                    attributions: {
-                      some: { userId: user.id, consentStatus: 'ACCEPTED', isVisible: true },
-                    },
-                  },
-                ],
-              },
-          createdAt: { gte: thirtyDaysAgo },
-        },
+        where: { article: attributedWhere, createdAt: { gte: thirtyDaysAgo } },
         distinct: ['userId'],
         select: { userId: true },
       })
@@ -151,11 +163,69 @@ export default async function CreatorDashboardPage() {
       .catch(() => 0),
   ]);
 
-  const telemetryStats = { pageviews: telemetryPageviews, visitors: telemetryVisitors } as const;
+  const totalLtvCents = subscribersList.reduce((acc, sub) => acc + (sub.ltvCents || 0), 0);
+
+  return {
+    publicationWebsiteId: '',
+    publishedCount,
+    subscribersCount,
+    premiumSubscribersCount,
+    mrrCents: totalLtvCents,
+    recentArticles: recentArticles.map((a) => ({
+      id: a.id,
+      title: a.title,
+      published: a.published,
+      updatedAt: a.updatedAt.toISOString(),
+      categoryName: a.category?.name ?? null,
+    })),
+    draftArticles: draftArticles.map((a) => ({
+      id: a.id,
+      title: a.title,
+      published: a.published,
+      updatedAt: a.updatedAt.toISOString(),
+      categoryName: null,
+    })),
+    scheduledThoughts: scheduledThoughts.map((th) => ({
+      id: th.id,
+      content: th.content,
+      scheduledAt: th.scheduledAt?.toISOString() ?? '',
+    })),
+    latestPublishedArticle: latestPublishedArticle
+      ? {
+          id: latestPublishedArticle.id,
+          title: latestPublishedArticle.title,
+          readingTime: latestPublishedArticle.readingTime,
+          categoryName: latestPublishedArticle.category?.name ?? null,
+          _count: {
+            bookmarks: latestPublishedArticle._count.bookmarks,
+            highlights: latestPublishedArticle._count.highlights,
+            letters: latestPublishedArticle._count.letters,
+          },
+        }
+      : null,
+    pageviews30d: telemetryPageviews,
+    visitors30d: telemetryVisitors,
+  };
+}
+
+export default async function CreatorDashboardPage() {
+  const user = await requireUser();
+
+  // 🎛️ Workspace actif : publication personnelle OU média sélectionné
+  const workspace = await getActiveWorkspace(user.id);
+  const isMediaWorkspace = workspace.type === 'MEDIA';
+
+  // 🚀 Données du dashboard : Go primaire (zéro Prisma nominal), fallback dev.
+  let dashboard: DashboardData;
+  try {
+    dashboard = await fetchDashboardGo(user.id, workspace);
+  } catch {
+    dashboard = await fetchDashboardFallback(user.id, workspace);
+  }
 
   // Combine scheduled thoughts & draft articles into unified schedule items
   const scheduleItems = [
-    ...scheduledThoughts.map((thought) => ({
+    ...dashboard.scheduledThoughts.map((thought) => ({
       id: thought.id,
       title: thought.content.substring(0, 40) + '...',
       type: t`Pensée programmée`,
@@ -168,7 +238,7 @@ export default async function CreatorDashboardPage() {
       isScheduled: true,
       href: '/feed',
     })),
-    ...draftArticles.map((a) => ({
+    ...dashboard.draftArticles.map((a) => ({
       id: a.id,
       title: a.title,
       type: t`Brouillon d'article`,
@@ -178,13 +248,12 @@ export default async function CreatorDashboardPage() {
     })),
   ];
 
-  const realPageviews = telemetryStats?.pageviews || 0;
-  const realVisitors = telemetryStats?.visitors || 0;
-  const totalLtvCents = subscribersList.reduce((acc, sub) => acc + (sub.ltvCents || 0), 0);
-  const mrrEur = (totalLtvCents / 100).toFixed(2);
-  const topArticle = recentArticles.find((a) => a.published);
+  const realPageviews = dashboard.pageviews30d || 0;
+  const realVisitors = dashboard.visitors30d || 0;
+  const mrrEur = (dashboard.mrrCents / 100).toFixed(2);
+  const topArticle = dashboard.recentArticles.find((a) => a.published);
 
-  const getRelativeTimeString = (date: Date) => {
+  const getRelativeTimeString = (date: string) => {
     const diffMs = Date.now() - new Date(date).getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -196,6 +265,7 @@ export default async function CreatorDashboardPage() {
     return new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   };
 
+  const latestPublishedArticle = dashboard.latestPublishedArticle;
   const latestReactionsCount = latestPublishedArticle
     ? (latestPublishedArticle._count.bookmarks || 0) +
       (latestPublishedArticle._count.highlights || 0) +
@@ -256,12 +326,12 @@ export default async function CreatorDashboardPage() {
           </div>
           <div className="mt-4">
             <div className="text-3xl font-bold text-foreground leading-tight tracking-tight">
-              {subscribersCount.toLocaleString()}
+              {dashboard.subscribersCount.toLocaleString()}
             </div>
             <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1 font-medium">
               <Zap className="w-3.5 h-3.5 text-primary stroke-[1.5]" />
               <span>
-                {premiumSubscribersCount} {t`abonnés payants`}
+                {dashboard.premiumSubscribersCount} {t`abonnés payants`}
               </span>
             </div>
           </div>
@@ -281,7 +351,7 @@ export default async function CreatorDashboardPage() {
             </div>
             <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1 font-medium">
               <span>
-                {publishedCount} {t`écrits publiés`}
+                {dashboard.publishedCount} {t`écrits publiés`}
               </span>
             </div>
           </div>
@@ -304,7 +374,7 @@ export default async function CreatorDashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {recentArticles.length === 0 ? (
+          {dashboard.recentArticles.length === 0 ? (
             <a
               href="/articles/new"
               className="group border border-dashed border-border/80 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-3 hover:border-primary/50 hover:bg-muted/30 transition-all aspect-video"
@@ -320,7 +390,7 @@ export default async function CreatorDashboardPage() {
               </div>
             </a>
           ) : (
-            recentArticles.map((art) => (
+            dashboard.recentArticles.map((art) => (
               <a key={art.id} href={`/articles/${art.id}`} className="group cursor-pointer block">
                 <div className="aspect-video bg-muted/40 rounded-xl border border-border/40 overflow-hidden relative mb-3 flex items-center justify-center group-hover:border-border/80 transition-all">
                   <FileText className="w-10 h-10 text-muted-foreground/50 stroke-[1.5]" />
@@ -341,7 +411,7 @@ export default async function CreatorDashboardPage() {
             ))
           )}
 
-          {recentArticles.length > 0 && recentArticles.length < 4 && (
+          {dashboard.recentArticles.length > 0 && dashboard.recentArticles.length < 4 && (
             <a
               href="/articles/new"
               className="group border border-dashed border-border/60 rounded-xl p-4 flex flex-col items-center justify-center text-center space-y-2 hover:border-primary/50 hover:bg-muted/30 transition-all aspect-video"
@@ -392,7 +462,7 @@ export default async function CreatorDashboardPage() {
                 {t`Engagement de votre communauté`}
               </h4>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                {t`Vous comptez actuellement ${subscribersCount} abonnés inscrits. Proposez du contenu exclusif pour augmenter vos abonnements payants.`}
+                {t`Vous comptez actuellement ${dashboard.subscribersCount} abonnés inscrits. Proposez du contenu exclusif pour augmenter vos abonnements payants.`}
               </p>
             </div>
           </div>
@@ -503,8 +573,8 @@ export default async function CreatorDashboardPage() {
                   {t`Thème`}
                 </span>
                 <p className="text-sm font-bold text-foreground mt-1 truncate">
-                  {latestPublishedArticle.category
-                    ? latestPublishedArticle.category.name
+                  {latestPublishedArticle.categoryName
+                    ? latestPublishedArticle.categoryName
                     : t`Général`}
                 </p>
               </div>

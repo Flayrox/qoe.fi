@@ -327,6 +327,61 @@ func TestHandler_GenerateApiKey_NotApproved(t *testing.T) {
 	}
 }
 
+func TestHandler_ListApiKeys_Owner(t *testing.T) {
+	fx := seed(t)
+	r := newTestRouter()
+	token := testJWT(fx.OwnerID)
+
+	// Aucune clé au départ.
+	w, body := doJSON(t, r, "GET", "/v1/settings/api-keys", token, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	keys, _ := body["keys"].([]any)
+	if len(keys) != 0 {
+		t.Fatalf("clés initiales = %d, attendu 0", len(keys))
+	}
+
+	// Crée 2 clés puis liste.
+	doJSON(t, r, "POST", "/v1/settings/api-keys", token, map[string]any{"name": "CMS", "scopes": []string{"READ"}})
+	doJSON(t, r, "POST", "/v1/settings/api-keys", token, map[string]any{"name": "CI"})
+
+	w, body = doJSON(t, r, "GET", "/v1/settings/api-keys", token, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	keys, _ = body["keys"].([]any)
+	if len(keys) != 2 {
+		t.Fatalf("clés = %d, attendu 2", len(keys))
+	}
+	first, _ := keys[0].(map[string]any)
+	if first["name"] == nil || first["keyPrefix"] != "qoe_live" || first["createdAt"] == nil {
+		t.Fatalf("clé = %v", first)
+	}
+	if _, ok := first["keyHash"]; ok {
+		t.Fatal("keyHash ne doit jamais être exposé")
+	}
+	// Le viewer (non approuvé) n'a pas de clés.
+	w, body = doJSON(t, r, "GET", "/v1/settings/api-keys", testJWT(fx.ViewerID), nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d (viewer), body = %s", w.Code, w.Body.String())
+	}
+	keys, _ = body["keys"].([]any)
+	if len(keys) != 0 {
+		t.Fatalf("clés viewer = %d, attendu 0", len(keys))
+	}
+}
+
+func TestHandler_ListApiKeys_NoAuth(t *testing.T) {
+	seed(t)
+	r := newTestRouter()
+
+	w, _ := doJSON(t, r, "GET", "/v1/settings/api-keys", "", nil)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, attendu 401", w.Code)
+	}
+}
+
 func TestHandler_RevokeApiKey_Owner(t *testing.T) {
 	fx := seed(t)
 	r := newTestRouter()

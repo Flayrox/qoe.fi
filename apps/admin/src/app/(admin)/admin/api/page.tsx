@@ -5,44 +5,24 @@
 // =====================================================================
 
 import React from 'react';
-import { prisma } from '@qoe/db/client';
 import { ApiRequestsClient, ApiApplicant } from './components/api-requests-client';
 import { Terminal } from 'lucide-react';
+import { getApiApplicants } from '@/lib/admin-data';
 
 export default async function AdminApiRequestsPage() {
-  // Récupérer tous les créateurs ayant demandé l'accès API (statut différent de "none")
-  // ou tous les créateurs ayant un statut spécifique (pending, approved, rejected, revoked)
-  const applicants = await prisma.user.findMany({
-    where: {
-      role: { in: ['creator', 'superadmin'] },
-      // On affiche tous ceux qui ne sont pas en "none"
-      apiAccessStatus: { not: 'none' },
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      publication: { select: { subdomain: true } },
-      apiAccessStatus: true,
-      apiApplicationReason: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-    orderBy: {
-      updatedAt: 'desc',
-    },
-  });
+  // Créateurs ayant demandé l'accès API (Go en primaire, fallback Prisma dev).
+  const applicants = await getApiApplicants();
 
   // Sérialisation propre des dates
   const serializedApplicants: ApiApplicant[] = applicants.map((app) => ({
     id: app.id,
     name: app.name,
     email: app.email,
-    subdomain: app.publication?.subdomain ?? null,
+    subdomain: app.subdomain,
     apiAccessStatus: app.apiAccessStatus,
     apiApplicationReason: app.apiApplicationReason,
-    createdAt: app.createdAt.toISOString(),
-    updatedAt: app.updatedAt.toISOString(),
+    createdAt: app.createdAt,
+    updatedAt: app.updatedAt,
   }));
 
   return (

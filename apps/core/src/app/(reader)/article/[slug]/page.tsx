@@ -1,5 +1,4 @@
 import { goFetch } from '@qoe/api-client/actions/utils/go-client';
-import { findFirstBySlug } from '@qoe/db/repositories/articles';
 import { ArticleAnnotatorView } from '@/components/social/ArticleAnnotatorView';
 import { notFound } from 'next/navigation';
 
@@ -27,36 +26,13 @@ interface GoArticle {
 }
 
 async function fetchArticleBySlug(slug: string): Promise<GoArticle | null> {
+  // Go (backend-of-record, requis en Phase 3) : GET /v1/articles/{slug}.
+  // Retourne null sur 404 (goFetch lève avec err.status).
   try {
     return await goFetch<GoArticle>(`/v1/articles/${encodeURIComponent(slug)}`);
-  } catch {
-    const article = await findFirstBySlug(slug);
-    if (!article) return null;
-    return {
-      id: article.id,
-      title: article.title,
-      slug: article.slug,
-      content: article.content ?? '',
-      readingTime: article.readingTime ?? undefined,
-      createdAt:
-        article.createdAt instanceof Date
-          ? article.createdAt.toISOString()
-          : String(article.createdAt),
-      isPremium: article.isPremium,
-      accessGranted: true,
-      author: {
-        id: article.author.id,
-        name: article.author.name ?? null,
-        username: article.author.username ?? null,
-        logoUrl: article.author.logoUrl ?? null,
-      },
-      publication: article.publication
-        ? {
-            subdomain: article.publication.subdomain ?? null,
-            customDomain: article.publication.customDomain ?? null,
-          }
-        : null,
-    };
+  } catch (err) {
+    if ((err as { status?: number })?.status === 404) return null;
+    throw err;
   }
 }
 

@@ -1,4 +1,4 @@
-import { prisma } from '@qoe/db/client';
+import { getSystemConfigs } from '@/lib/admin-data';
 import { TranslationCMS } from './TranslationCMS';
 import frTranslations from '../../../../../../../messages/fr.json';
 import enTranslations from '../../../../../../../messages/en.json';
@@ -20,12 +20,11 @@ export default async function TranslationsPage() {
   const defaultFr = flattenMessages(frTranslations);
   const defaultEn = flattenMessages(enTranslations);
 
-  // Load db overrides
+  // Load db overrides (Go en primaire, fallback Prisma dev)
   let initialOverrides = { fr: {}, en: {} };
   try {
-    const config = await prisma.systemConfig.findUnique({
-      where: { key: 'TRANSLATIONS_OVERRIDE' },
-    });
+    const configs = await getSystemConfigs(['TRANSLATIONS_OVERRIDE']);
+    const config = configs[0];
     if (config?.value) {
       initialOverrides = JSON.parse(config.value);
     }

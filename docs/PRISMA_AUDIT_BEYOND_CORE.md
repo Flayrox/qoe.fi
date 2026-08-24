@@ -78,14 +78,16 @@ fallback Prisma dev — supprime l'import `@qoe/db/repositories/articles` du che
 
 | Fichier | Appel | Endpoint Go ? | Priorité |
 |---|---|---|---|
-| `app/api/upload/route.ts` | `registerMediaAsset` (`@qoe/db/repositories/media`) | ❌ pas de module media Go | P2 |
-| `app/(reader)/onboarding/actions.ts` | `completeOnboardingInDb` (`@qoe/db/onboarding`) | ❌ `/v1/settings/onboarding` est **créateur**, pas lecteur | P2 |
-| `app/(reader)/billing/page.tsx` | `prisma.user` + `prisma.subscriber` directs | ❌ module Go billing = webhooks seuls | P3 (déjà identifié) |
-| `app/login/actions.ts` | `getCurrentUserAction()` → `prisma.user` | ✅ `/v1/me` (déjà utilisé dans le même fichier pour le login) | P1 |
-| `lib/cached-queries.ts` + `layout.tsx` + pages | tous les `prisma.` restants | ✅ / ⚠️ | tous **fallbacks dev** — OK |
+| `app/api/upload/route.ts` (core) + `app/api/articles/upload/route.ts` (studio) | `registerMediaAsset` (`@qoe/db/repositories/media`) | ✅ `POST /v1/media-assets` (studio **et** core branchés — plus d'usage nominal lecteur) | ✅ |
+| `app/(reader)/onboarding/actions.ts` | `completeOnboardingInDb` (`@qoe/db/onboarding`) | ✅ **`POST /v1/me/onboarding/complete`** (update + embedding pgvector + mots masqués + follows) | ✅ |
+| `app/(reader)/billing/page.tsx` | `prisma.user` + `prisma.subscriber` directs | ✅ **`GET /v1/me/billing`** (wallet + transactions + abonnements actifs) | ✅ |
+| `app/login/actions.ts` | `getCurrentUserAction()` → `prisma.user` | ✅ `/v1/me` | ✅ |
+| `lib/cached-queries.ts` + `layout.tsx` + pages | tous les `prisma.` restants | ✅ | **supprimés** — core 100 % Go |
 
-> Le reste des `prisma.` de `apps/core` (home fallback, library, highlights, history, settings, layout,
-> vector-feed) est **uniquement dans les branches `catch` de fallback dev** — le chemin nominal est Go.
+> **✅ Phase 3 core livrée (2026-08-24)** : plus aucun `prisma.` ni import `@qoe/db` dans
+> `apps/core/src` (seul un commentaire mentionne « prisma »). Types du feed portés dans
+> `apps/core/src/lib/feed-types.ts`. Nouveaux endpoints module users : `GET /v1/me/billing`,
+> `POST /v1/me/onboarding/complete`, `GET /v1/me/data-export`.
 
 ---
 
@@ -116,27 +118,28 @@ Recensement par dossier (fichiers avec `prisma` / total) :
 
 ## 3. `apps/studio/src` — 158 réf. prisma (surface créateur)
 
-Seulement **5 fichiers** utilisent déjà `goFetch`/`isGoEnabled` : `analytics/actions.ts`,
-`developer/oauth/actions.ts`, `developer/webhooks/actions.ts`, `media/actions.ts`,
-`lib/active-workspace.ts`. Le reste de la surface créateur est 100 % Prisma.
+Au départ, seuls 5 fichiers utilisaient `goFetch`/`isGoEnabled` ; à ce jour la quasi-totalité
+des modules créateur sont Go-first (voir le tableau ci-dessous et le plan §6).
 
 **Fichiers à porter (par module) :**
 
 | Module | Fichiers | Modèles | Endpoint Go dispo |
 |---|---|---|---|
-| **Dashboard/accueil** | `(creator)/page.tsx`, `app-sidebar.tsx` | `Publication`, compteurs | ✅ `/v1/me`, `/v1/home/*` |
+| **Dashboard/accueil** | `(creator)/page.tsx`, `app-sidebar.tsx` | `Publication`, compteurs | ✅ `GET /v1/analytics/dashboard` + `/v1/notifications/unread-count` + `/v1/media/workspaces` — page/sidebar Go-first |
 | **Analytics** | `analytics/actions.ts` | `user.groupBy`, `follows`, `article` | ✅ module Go `analytics` (product-metrics + audience/insights branchés, vérifié au navigateur) |
-| **Media** | `media/actions.ts` + `media/page.tsx` | `MediaAsset` | ❌ à créer |
-| **Import** | `import/actions.ts` | articles/attributions | ⚠️ `/v1/articles` POST existe |
-| **Advanced** | `advanced/actions.ts` | ? | à cartographier |
-| **Audience** | `audience/page.tsx` | `Subscriber` | ❌ à créer |
-| **Développeur** | `developer/page.tsx`, `oauth/page.tsx`, `webhooks/actions.ts` | clés API, OAuth, webhooks | ✅ module Go `webhooks` + `oauth` complets |
-| **Settings** | `settings/page.tsx` | `Publication`, `User` | ✅ `/v1/settings/*` |
-| **Onboarding créateur** | `onboarding/page.tsx` | `Publication` count | ✅ `/v1/settings/onboarding` (créateur) |
+| **Media** | `media/actions.ts` + `media/page.tsx` | Media/MediaMember/MediaInvite | ✅ module Go `media` complet (8 endpoints) — pages/actions Go-first |
+| **Import** | `import/actions.ts` | articles (dédup slug) | ✅ `POST /v1/import/articles` — action Go-first |
+| **Advanced** | `advanced/actions.ts` | CollaborationRequest, ArticleAttribution, `_ArticleToUser` | ✅ module Go `collaborations` complet (6 endpoints) — actions Go-first |
+| **Audience** | `audience/page.tsx` | `Subscriber` | ✅ `GET /v1/analytics/audience/subscribers` — page Go-first |
+| **Développeur** | `developer/page.tsx`, `oauth/page.tsx`, `webhooks/actions.ts` | clés API, OAuth, webhooks | ✅ module Go `webhooks` + `oauth` complets — pages Go-first (`/v1/users/me`, `/v1/settings/api-keys`) |
+| **Settings** | `settings/page.tsx` | `Publication`, `User` | ✅ `GET /v1/settings/publication` (mêmes champs que l'include Prisma) — page Go-first |
+| **Onboarding créateur** | `onboarding/page.tsx` | `Publication` count | ✅ page Go-first via `GET /v1/users/me` (`hasCompletedOnboarding` + `publicationId`) ; wizard déjà 100 % Go (`POST /v1/settings/onboarding`) |
+| **DevTools (inspecteur)** | `app/layout.tsx` + `features/devtools/actions.ts` | `User`, compteurs | ✅ module Go `devtools` (`GET /v1/devtools/data`, superadmin-only) — `getDevtoolsData` Go-first |
 
-**Actions P2 :** ~~analytics~~ ✅ (fait — le module Go `analytics` existe, `product-metrics` créé pour le
-contrat `ProductMetrics` TS, `getAudienceInsights` branché ; vérifié au navigateur avec un vrai user
-créateur + workspace média), puis **webhooks/oauth** (Go complet), puis **settings créateur**.
+**Actions P2 :** toutes livrées — analytics ✅, webhooks/oauth ✅ (module Go complet),
+settings créateur ✅ (`GET /v1/settings/publication`), media/import/audience/dashboard ✅,
+advanced ✅ (module Go `collaborations`), onboarding créateur ✅ (`/v1/users/me`),
+devtools ✅ (module Go `devtools`, superadmin). Reste : admin.
 
 > 🔧 **Bug corrigé au passage** : `GET /v1/workspaces/active` (mode MEDIA) échouait toujours — la requête
 > sélectionnait `m.role` (colonne inexistante sur `Media`) au lieu de `mm.role` (`MediaMember`). La résolution
@@ -177,9 +180,19 @@ Repositories par taille d'usage (ordres de grandeur) :
 | ~~P1-2~~ | ~~`feed/updateProfileAction` → `/v1/me/profile`~~ ✅ (`d8839a9`) ; ~~`articles` search → `/v1/users/search`~~ ✅ | S | — |
 | ~~P1-3~~ | ~~`tenant` : `POST /v1/home/subscribe` + `isMediaMember` dans `/v1/me` + résolution workspace média~~ ✅ | M | — |
 | ~~P2-1~~ | ~~Studio analytics → module Go existant~~ ✅ `GET /v1/analytics/product-metrics` (nouveau, contrat `ProductMetrics` TS) + `audience/insights` — vérifié au navigateur | M | — |
-| **P2-2** | Studio webhooks/oauth → Go existant | S | — |
-| **P2-3** | Studio media/import/audience → endpoints à créer | L | — |
-| **P3** | Admin console, billing lecteur, exportAccountData | L | volontaire |
+| ~~P2-2~~ | ~~Studio webhooks/oauth → Go existant~~ ✅ pages développeur/oauth/webhooks Go-first + `GET /v1/settings/api-keys` (liste des clés) | S | — |
+| ~~P2-3a~~ | ~~Studio media → module Go~~ ✅ module `media` (GET/POST /v1/media, /workspaces, détail, settings, invites, accept, members) + page/actions Go-first | L | — |
+| ~~P2-3b~~ | ~~Studio audience → Go~~ ✅ `GET /v1/analytics/audience/subscribers` + page Go-first | S | — |
+| ~~P2-3c~~ | ~~Studio import → Go~~ ✅ `POST /v1/import/articles` (dédup slug) + action Go-first | S | — |
+| ~~P2-3d~~ | ~~Dashboard accueil + sidebar → Go~~ ✅ `GET /v1/analytics/dashboard` (métriques, articles, pensées, lectures 30j) + page/sidebar Go-first | M | — |
+| ~~P2-3e~~ | ~~Upload MediaAsset (registerMediaAsset) → Go~~ ✅ `POST /v1/media-assets` (CAS sha256, TTL 3j) + routes upload studio **et core** Go-first | S | — |
+| ~~P2-4a~~ | ~~Studio settings créateur → Go~~ ✅ `GET /v1/settings/publication` (relations complètes, mapping inchangé) + page Go-first | M | — |
+| ~~P2-4b~~ | ~~Studio advanced (collaborations/attributions) → Go~~ ✅ module `collaborations` (invite-by-email, invite, respond, withdraw, remove, list) + actions Go-first | M | — |
+| ~~P2-4c~~ | ~~Onboarding créateur + devtools → Go~~ ✅ onboarding via `GET /v1/users/me` ; module `devtools` (`GET /v1/devtools/data`, superadmin) + `getDevtoolsData` Go-first | S | — |
+| ~~P3~~ | ~~Billing lecteur + exportAccountData + onboarding lecteur → Go~~ ✅ `GET /v1/me/billing`, `GET /v1/me/data-export`, `POST /v1/me/onboarding/complete` + page/actions core Go-only | L | — |
+| ~~P3-core~~ | ~~apps/core 100 % Go (suppression des fallbacks Prisma)~~ ✅ plus aucun `prisma.`/`@qoe/db` dans core | L | — |
+| ~~P3-admin~~ | ~~Console admin → Go~~ ✅ module `admin` complet (dashboard, users, widgets/tendances/promos, config & feature flags, frontend CMS, OAuth, demandes d'accès API, livraisons de notifications — superadmin) + layout/pages/actions Go-first (fallback Prisma dev) | L | — |
+| ~~P3-seed~~ | ~~Seed Prisma → Go/sqlc~~ ✅ `cmd/seed` + `internal/seed` (upserts idempotents) + scripts/CI | M | — |
 
 **Pattern de vérification (inchangé) :** Go primaire / fallback Prisma dev → test d'intégration Go
 par endpoint → `tsc` + specs e2e existants (`public-feed-capture`, `connected-feed-capture`) →

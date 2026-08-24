@@ -13,6 +13,8 @@ SELECT m."mediaId"        AS media_id,
        p.id               AS publication_id,
        p.name             AS publication_name,
        p.slug             AS publication_slug,
+       p.subdomain        AS publication_subdomain,
+       p.bio              AS publication_bio,
        p."logoUrl"        AS publication_logo
 FROM "MediaMember" m
 JOIN "Media" md ON md.id = m."mediaId"
@@ -89,6 +91,14 @@ UPDATE "MediaInvite"
 SET status = $2, "acceptedAt" = now()
 WHERE id = $1;
 
+-- name: ListMediaInvites :many
+SELECT i.id, i.email, i.role, i.status, i."createdAt", i."expiresAt",
+       u.id::text AS inviter_id, u.name AS inviter_name, u.username AS inviter_username
+FROM "MediaInvite" i
+JOIN "User" u ON u.id = i."inviterId"
+WHERE i."mediaId" = $1 AND i.status = 'PENDING'
+ORDER BY i."createdAt" DESC;
+
 -- name: GetMediaWithPublication :one
 SELECT md.id                 AS media_id,
        md."publicationId"    AS publication_id,
@@ -116,8 +126,18 @@ WHERE md.id = $1;
 -- name: CountArticlesByPublication :one
 SELECT COUNT(*)::int AS count FROM "Article" WHERE "publicationId" = $1;
 
+-- name: CountMediaMembers :one
+SELECT COUNT(*)::int AS count FROM "MediaMember" WHERE "mediaId" = $1;
+
+-- name: CountMediaInvites :one
+SELECT COUNT(*)::int AS count FROM "MediaInvite" WHERE "mediaId" = $1;
+
+-- name: GetUserIdentity :one
+SELECT name, username, "logoUrl", email
+FROM "User" WHERE id = $1;
+
 -- name: ListMediaMembers :many
-SELECT m."userId"::text AS user_id, m.role, m.permissions, m.status, m."joinedAt",
+SELECT m.id AS member_id, m."userId"::text AS user_id, m.role, m.permissions, m.status, m."joinedAt",
        u.name, u.username, u."logoUrl"
 FROM "MediaMember" m
 JOIN "User" u ON u.id = m."userId"

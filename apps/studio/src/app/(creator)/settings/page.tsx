@@ -8,8 +8,121 @@
 import { redirect } from 'next/navigation';
 import { prisma } from '@qoe/db/client';
 import { createClient } from '@qoe/supabase/server';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import VisualStudio, { CreatorProfile } from '@/features/settings/components/visual-studio';
+
+// Contrat Go GET /v1/settings/publication — mêmes champs JSON que le include
+// Prisma d'origine (le mapping vers CreatorProfile ci-dessous est inchangé).
+interface SettingsPublicationDTO {
+  id: string;
+  name: string;
+  slug: string;
+  subdomain: string | null;
+  customDomain: string | null;
+  heroText: string | null;
+  accentColor: string | null;
+  fontFamily: string | null;
+  themeMode: string | null;
+  layoutStyle: string | null;
+  logoUrl: string | null;
+  headerImageUrl: string | null;
+  footerText: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  allowIndexing: boolean;
+  supportUrl: string | null;
+  navigation: {
+    id: string;
+    label: string;
+    url: string | null;
+    order: number;
+    isExternal: boolean;
+  }[];
+  socialLinks: { id: string; platform: string; url: string; order: number }[];
+  articles: {
+    id: string;
+    title: string;
+    slug: string;
+    content: string;
+    published: boolean;
+    isPremium: boolean;
+    categoryId: string | null;
+    seoTitle: string | null;
+    seoDescription: string | null;
+    createdAt: string;
+  }[];
+  categories: { id: string; name: string; slug: string }[];
+  user: {
+    id: string;
+    email: string | null;
+    username: string | null;
+    advancedSettingsMode: boolean;
+  } | null;
+}
+
+/**
+ * 🚀 Go-first : GET /v1/settings/publication (même shape que le include Prisma).
+ */
+async function fetchSettingsGo(publicationId: string): Promise<SettingsPublicationDTO> {
+  return goFetch<SettingsPublicationDTO>(
+    `/v1/settings/publication?publicationId=${encodeURIComponent(publicationId)}`
+  );
+}
+
+/**
+ * 🐢 Fallback dev (sans QOE_API_URL) : include Prisma d'origine.
+ */
+async function fetchSettingsFallback(publicationId: string): Promise<SettingsPublicationDTO> {
+  const publication = await prisma.publication.findUnique({
+    where: { id: publicationId },
+    include: {
+      navigation: { orderBy: { order: 'asc' } },
+      socialLinks: { orderBy: { order: 'asc' } },
+      articles: { orderBy: { createdAt: 'desc' } },
+      categories: { orderBy: { name: 'asc' } },
+      user: { select: { id: true, email: true, username: true, advancedSettingsMode: true } },
+    },
+  });
+  if (!publication) return null as unknown as SettingsPublicationDTO;
+  return {
+    ...publication,
+    navigation: publication.navigation.map((n) => ({
+      id: n.id,
+      label: n.label,
+      url: n.url,
+      order: n.order,
+      isExternal: n.isExternal,
+    })),
+    socialLinks: publication.socialLinks.map((s) => ({
+      id: s.id,
+      platform: s.platform,
+      url: s.url,
+      order: s.order,
+    })),
+    articles: publication.articles.map((a) => ({
+      id: a.id,
+      title: a.title,
+      slug: a.slug,
+      content: a.content,
+      published: a.published,
+      isPremium: a.isPremium,
+      categoryId: a.categoryId,
+      seoTitle: a.seoTitle,
+      seoDescription: a.seoDescription,
+      createdAt: a.createdAt.toISOString(),
+    })),
+    categories: publication.categories.map((c) => ({ id: c.id, name: c.name, slug: c.slug })),
+    user: publication.user
+      ? {
+          id: publication.user.id,
+          email: publication.user.email,
+          username: publication.user.username,
+          advancedSettingsMode: publication.user.advancedSettingsMode,
+        }
+      : null,
+  };
+}
 
 export default async function CreatorSettingsPage() {
   // 1. Authentification de l'utilisateur
@@ -26,17 +139,13 @@ export default async function CreatorSettingsPage() {
   // 2. Workspace actif (publication personnelle OU média)
   const workspace = await getActiveWorkspace(user.id);
 
-  // 3. Chargement de la publication active avec ses relations
-  const publication = await prisma.publication.findUnique({
-    where: { id: workspace.publicationId },
-    include: {
-      navigation: { orderBy: { order: 'asc' } },
-      socialLinks: { orderBy: { order: 'asc' } },
-      articles: { orderBy: { createdAt: 'desc' } },
-      categories: { orderBy: { name: 'asc' } },
-      user: { select: { id: true, email: true, username: true, advancedSettingsMode: true } },
-    },
-  });
+  // 3. Chargement de la publication active avec ses relations — Go primaire, fallback dev.
+  let publication: SettingsPublicationDTO | null = null;
+  try {
+    publication = await fetchSettingsGo(workspace.publicationId);
+  } catch {
+    publication = await fetchSettingsFallback(workspace.publicationId);
+  }
 
   if (!publication) {
     return (
@@ -51,6 +160,9 @@ export default async function CreatorSettingsPage() {
 
   const owner = publication.user;
   const isMedia = workspace.type === 'MEDIA';
+
+  // Date du DTO Go = string ISO ; fallback Prisma = Date.
+  const toIso = (d: string | Date) => (typeof d === 'string' ? d : d.toISOString());
 
   // 4. Mapping sécurisé vers un objet sérialisable
   const initialCreatorData: CreatorProfile = {
@@ -95,7 +207,7 @@ export default async function CreatorSettingsPage() {
       categoryId: article.categoryId,
       seoTitle: article.seoTitle,
       seoDescription: article.seoDescription,
-      createdAt: article.createdAt.toISOString(),
+      createdAt: toIso(article.createdAt),
     })),
     categories: publication.categories.map((cat) => ({
       id: cat.id,

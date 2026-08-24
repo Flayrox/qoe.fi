@@ -1,16 +1,12 @@
 import { createClient } from '@qoe/supabase/server';
-import { prisma } from '@qoe/db/client';
-import type { FeedSlice } from '@qoe/db/repositories/posts';
+import type { FeedSlice } from '@/lib/feed-types';
 import { getRequestDbUser, getCachedPromos } from '@/lib/cached-queries';
 import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 import {
-  articleFeedInclude,
   buildVectorFeedPage,
-  getPostIncludeSelect,
   mapArticleToFeedItem,
   mapPublicationToAuthor,
   mapSliceToFeedItem,
-  publicationProfileSelect,
   type ArticleWithDetails,
   type FeedItem,
   type HydrateArticle,
@@ -78,8 +74,7 @@ interface HomeFeedResult {
   featuredArticle: HydrateArticle | null;
 }
 
-// HomeData est la forme normalisée consommée par FeedDashboard — produite soit
-// par le bundle Go, soit par le fallback Prisma (dev sans QOE_API_URL).
+// HomeData est la forme normalisée consommée par FeedDashboard (bundle Go).
 type ArticleFeedItem = ReturnType<typeof mapArticleToFeedItem>;
 
 interface HomeData {
@@ -142,7 +137,7 @@ export default async function ReaderHomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Étape 1 : dbUser + onboarding + données partagées (non couvertes par /v1/home/feed).
+  // Étape 1 : dbUser + onboarding + données partagées (Go — /v1/me + /v1/home/onboarding).
   const [dbUser, onboardingData] = await Promise.all([
     user ? getRequestDbUser(user.id) : null,
     fetchOnboardingData(),
@@ -152,16 +147,11 @@ export default async function ReaderHomePage() {
     dbUser && dbUser.role === 'user' && !dbUser.hasCompletedOnboarding
   );
 
-  // Étape 2 : bundle Go de la home (fallback Prisma si Go indisponible — dev).
-  let home: HomeData;
-  try {
-    const bundle = await goFetch<HomeFeedResult>('/v1/home/feed');
-    home = homeDataFromGo(bundle, user?.id);
-  } catch {
-    home = await buildHomeFromPrisma(user?.id ?? null);
-  }
+  // Étape 2 : bundle Go de la home (backend-of-record, requis en Phase 3).
+  const bundle = await goFetch<HomeFeedResult>('/v1/home/feed');
+  const home = homeDataFromGo(bundle, user?.id);
 
-  // Moteur vectoriel Two-Tower pour l'onglet « Pour vous » (déjà Go).
+  // Moteur vectoriel Two-Tower pour l'onglet « Pour vous » (Go).
   const vectorFeedPagePromise = buildVectorFeedPage({
     userId: user?.id ?? null,
     limit: 20,
@@ -170,7 +160,7 @@ export default async function ReaderHomePage() {
 
   const [vectorFeedPage, suggestedCreators, trends, promos] = await Promise.all([
     vectorFeedPagePromise,
-    fetchSuggestedCreators(user?.id),
+    fetchSuggestedCreators(),
     fetchSemanticTrends(),
     getCachedPromos(),
   ]);
@@ -218,325 +208,15 @@ export default async function ReaderHomePage() {
   return <FeedDashboard {...feedProps} />;
 }
 
-// ── Widgets : Go primaire, fallback Prisma (dev sans QOE_API_URL) ─────────────
+// ── Widgets : Go (backend-of-record, requis en Phase 3) ───────────────────────
 async function fetchOnboardingData(): Promise<OnboardingDataDTO> {
-  try {
-    return await goFetch<OnboardingDataDTO>('/v1/home/onboarding');
-  } catch {
-    const { getOnboardingData } = await import('@qoe/db/onboarding');
-    const data = await getOnboardingData();
-    return {
-      categories: data.categories.map((c) => ({
-        id: c.id,
-        name: c.name,
-        slug: c.slug,
-        icon: c.icon ?? '',
-        subtopics: (c.subtopics ?? []).map((st) => ({
-          id: st.id,
-          name: st.name,
-          slug: st.slug,
-          tags: st.tags,
-        })),
-      })),
-      suggestedCreators: data.suggestedCreators.map((c) => ({
-        id: c.id,
-        name: c.name,
-        slug: c.slug ?? null,
-        subdomain: c.subdomain ?? null,
-        logoUrl: c.logoUrl,
-        heroText: c.heroText,
-        isCertified: c.isCertified ?? false,
-      })),
-    };
-  }
+  return goFetch<OnboardingDataDTO>('/v1/home/onboarding');
 }
 
-async function fetchSuggestedCreators(userId?: string): Promise<SuggestedCreatorDTO[]> {
-  try {
-    return await goFetch<SuggestedCreatorDTO[]>(`/v1/home/suggested-creators?limit=4`);
-  } catch {
-    const { getSuggestedCreatorsByVector } = await import('@qoe/db/feed');
-    const creators = await getSuggestedCreatorsByVector({ userId, limit: 4 });
-    return creators.map((c) => ({
-      id: c.id,
-      name: c.name,
-      username: c.username,
-      subdomain: c.subdomain ?? null,
-      customDomain: c.customDomain ?? null,
-      logoUrl: c.logoUrl,
-      heroText: c.heroText ?? null,
-      isCertified: c.isCertified,
-      affinityScore: c.affinityScore,
-      recentArticleTitle: c.recentArticleTitle ?? null,
-      subscribersCount: c.subscribersCount ?? 0,
-    }));
-  }
+async function fetchSuggestedCreators(): Promise<SuggestedCreatorDTO[]> {
+  return goFetch<SuggestedCreatorDTO[]>('/v1/home/suggested-creators?limit=4');
 }
 
 async function fetchSemanticTrends(): Promise<SemanticTrendingTopicDTO[]> {
-  try {
-    return await goFetch<SemanticTrendingTopicDTO[]>('/v1/home/semantic-trends?limit=5');
-  } catch {
-    const { getSemanticTrendingTopics } = await import('@qoe/db/feed');
-    const topics = await getSemanticTrendingTopics({ limit: 5 });
-    return topics.map((t) => ({
-      id: t.id,
-      topicName: t.topicName,
-      description: t.description,
-      count: t.count,
-      growthRate: t.growthRate,
-    }));
-  }
-}
-
-// ── Fallback Prisma (dev sans QOE_API_URL) : reproduit l'ancien comportement ──
-async function buildHomeFromPrisma(userId: string | null): Promise<HomeData> {
-  const user = userId;
-  const [followedPublications] = user
-    ? [
-        await prisma.follows.findMany({
-          where: { readerId: user },
-          include: { publication: { select: publicationProfileSelect } },
-          orderBy: { createdAt: 'desc' },
-        }),
-      ]
-    : [[]];
-
-  const publicationIds = followedPublications.map((f) => f.publicationId);
-
-  const followedUserIds = await (async () => {
-    if (publicationIds.length === 0) return [];
-    const pubs = await prisma.publication.findMany({
-      where: { id: { in: publicationIds }, type: 'PERSONAL' },
-      select: { user: { select: { id: true } } },
-    });
-    return pubs.map((p) => p.user?.id).filter(Boolean) as string[];
-  })();
-
-  const postIncludeSelect = getPostIncludeSelect(user ?? undefined);
-
-  const dbFollowingArticlesPromise =
-    publicationIds.length > 0
-      ? prisma.article.findMany({
-          where: {
-            publicationId: { in: publicationIds },
-            published: true,
-            author: { is: { isShadowbanned: false, isSuspended: false } },
-          },
-          include: articleFeedInclude,
-          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          take: 20,
-        })
-      : Promise.resolve([]);
-
-  const dbFollowingPostsPromise =
-    followedUserIds.length > 0 && user
-      ? prisma.thought.findMany({
-          where: {
-            isDraft: false,
-            deletedAt: null,
-            author: { isShadowbanned: false, isSuspended: false },
-            OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
-            AND: [
-              {
-                OR: [
-                  { authorId: user },
-                  {
-                    authorId: { in: followedUserIds },
-                    visibility: { in: ['public', 'followers'] },
-                  },
-                ],
-              },
-            ],
-          },
-          include: postIncludeSelect,
-          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          take: 20,
-        })
-      : Promise.resolve([]);
-
-  const dbRecArticlesPromise = prisma.article.findMany({
-    where: {
-      published: true,
-      author: { is: { isShadowbanned: false, isSuspended: false } },
-    },
-    include: articleFeedInclude,
-    orderBy: [{ isEditorPick: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
-    take: 20,
-  });
-
-  const dbRecPostsPromise = prisma.thought.findMany({
-    where: {
-      isDraft: false,
-      deletedAt: null,
-      author: { isShadowbanned: false, isSuspended: false },
-      OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
-      AND: [
-        {
-          OR: [
-            { visibility: 'public' },
-            ...(user ? [{ authorId: user }] : []),
-            ...(followedUserIds.length > 0
-              ? [{ authorId: { in: followedUserIds }, visibility: 'followers' }]
-              : []),
-          ],
-        },
-      ],
-    },
-    include: postIncludeSelect,
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    take: 20,
-  });
-
-  const dbDiscoverArticlesPromise = prisma.article.findMany({
-    where: {
-      published: true,
-      publication: {
-        is: {
-          isCertified: true,
-          ...(publicationIds.length > 0 ? { id: { notIn: publicationIds } } : {}),
-        },
-      },
-      author: { is: { isShadowbanned: false, isSuspended: false } },
-    },
-    include: articleFeedInclude,
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    take: 20,
-  });
-
-  const dbDiscoverPostsPromise = prisma.thought.findMany({
-    where: {
-      isDraft: false,
-      deletedAt: null,
-      OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
-      visibility: 'public',
-      author: {
-        role: 'creator',
-        isCertified: true,
-        isShadowbanned: false,
-        isSuspended: false,
-        ...(user
-          ? {
-              id:
-                followedUserIds.length > 0 ? { notIn: [...followedUserIds, user] } : { not: user },
-            }
-          : {}),
-      },
-    },
-    include: postIncludeSelect,
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    take: 20,
-  });
-
-  const bookmarksPromise = user
-    ? prisma.bookmark.findMany({
-        where: { readerId: user },
-        include: { article: { include: articleFeedInclude } },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      })
-    : Promise.resolve([]);
-
-  const highlightsCountPromise = user
-    ? prisma.highlight.count({ where: { readerId: user } })
-    : Promise.resolve(0);
-
-  const activityDataPromise = user
-    ? (async () => {
-        const since = new Date(Date.now() - 7 * 86400000);
-        const [bms, hls] = await Promise.all([
-          prisma.bookmark.findMany({
-            where: { readerId: user, createdAt: { gte: since } },
-            select: { createdAt: true },
-          }),
-          prisma.highlight.findMany({
-            where: { readerId: user, createdAt: { gte: since } },
-            select: { createdAt: true },
-          }),
-        ]);
-        const data = Array(7).fill(0) as number[];
-        const now = new Date();
-        const dayStart = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        const todayStart = dayStart(now);
-        for (const { createdAt } of [...bms, ...hls]) {
-          const diff = Math.floor(
-            (todayStart.getTime() - dayStart(new Date(createdAt)).getTime()) / 86400000
-          );
-          if (diff >= 0 && diff < 7) data[6 - diff] += 1;
-        }
-        return data;
-      })()
-    : Promise.resolve(undefined as number[] | undefined);
-
-  const mutedWordsPromise = user
-    ? prisma.mutedWord.findMany({
-        where: { userId: user },
-        select: { word: true },
-      })
-    : Promise.resolve([]);
-
-  const [
-    dbFollowingArticles,
-    dbFollowingPosts,
-    dbRecArticles,
-    dbRecPosts,
-    dbDiscoverArticles,
-    dbDiscoverPosts,
-    bookmarks,
-    highlightsCount,
-    mutedWords,
-    activityData,
-  ] = await Promise.all([
-    dbFollowingArticlesPromise,
-    dbFollowingPostsPromise,
-    dbRecArticlesPromise,
-    dbRecPostsPromise,
-    dbDiscoverArticlesPromise,
-    dbDiscoverPostsPromise,
-    bookmarksPromise,
-    highlightsCountPromise,
-    mutedWordsPromise,
-    activityDataPromise,
-  ]);
-
-  const { buildFeedSlices } = await import('@qoe/db/repositories/posts');
-  const [followingSlices, recSlices, discoverSlices] = await Promise.all([
-    buildFeedSlices(dbFollowingPosts, user ?? undefined),
-    buildFeedSlices(dbRecPosts, user ?? undefined),
-    buildFeedSlices(dbDiscoverPosts, user ?? undefined),
-  ]);
-
-  const followingArticles = [
-    ...dbFollowingArticles.map(mapArticleToFeedItem),
-    ...followingSlices.map((s) => mapSliceToFeedItem(s, user ?? undefined)),
-  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-  const recommendationArticles = [
-    ...dbRecArticles.map(mapArticleToFeedItem),
-    ...recSlices.map((s) => mapSliceToFeedItem(s, user ?? undefined)),
-  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-  const discoverArticles = [
-    ...dbDiscoverArticles.map(mapArticleToFeedItem),
-    ...discoverSlices.map((s) => mapSliceToFeedItem(s, user ?? undefined)),
-  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-  const featuredArticle = dbRecArticles[0] ? mapArticleToFeedItem(dbRecArticles[0]) : null;
-  const widgetRecArticles = dbRecArticles.slice(0, 5).map(mapArticleToFeedItem);
-
-  return {
-    followingArticles,
-    recommendationArticles,
-    discoverArticles,
-    bookmarks: bookmarks.map((b) => mapArticleToFeedItem(b.article)),
-    followedCreators: followedPublications.map((f) => mapPublicationToAuthor(f.publication)),
-    followedAuthorIds: followedUserIds,
-    initialFollowsCount: followedPublications.length,
-    initialBookmarksCount: bookmarks.length,
-    initialHighlightsCount: highlightsCount,
-    mutedWords: mutedWords.map((w) => w.word.toLowerCase()),
-    featuredArticle,
-    widgetRecArticles,
-    activityData,
-  };
+  return goFetch<SemanticTrendingTopicDTO[]>('/v1/home/semantic-trends?limit=5');
 }

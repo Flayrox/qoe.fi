@@ -1,24 +1,10 @@
-import { prisma } from '@qoe/db/client';
+import { getAdminUsers } from '@/lib/admin-data';
 import { DataTable } from './components/data-table';
 import { columns, AdminUser } from './components/columns';
 
 export default async function AdminUsers() {
-  // Fetch all users for moderation
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      username: true,
-      role: true,
-      isCertified: true,
-      isShadowbanned: true,
-      isSuspended: true,
-      createdAt: true,
-      publication: { select: { subdomain: true } },
-    },
-  });
+  // Tous les utilisateurs pour la modération (Go en primaire, fallback Prisma dev).
+  const users = await getAdminUsers();
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-10">
@@ -39,8 +25,8 @@ export default async function AdminUsers() {
             isCertified: u.isCertified,
             isShadowbanned: u.isShadowbanned,
             isSuspended: u.isSuspended,
-            createdAt: u.createdAt,
-            subdomain: u.publication?.subdomain ?? null,
+            createdAt: new Date(u.createdAt),
+            subdomain: u.subdomain,
           })) as AdminUser[]
         }
       />

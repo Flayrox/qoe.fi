@@ -1,10 +1,8 @@
-import { prisma } from '@qoe/db/client';
-import { setSystemConfigAction, deleteSystemConfigAction } from '@qoe/api-client/actions/admin';
+import { getSystemConfigs } from '@/lib/admin-data';
+import { setSystemConfigAction, deleteSystemConfigAction } from '@/lib/admin-aux-actions';
 
 export default async function AdminConfig() {
-  const configs = await prisma.systemConfig.findMany({
-    orderBy: { key: 'asc' },
-  });
+  const configs = await getSystemConfigs();
 
   // Server Actions bound inside the component
   async function handleAddConfig(formData: FormData) {

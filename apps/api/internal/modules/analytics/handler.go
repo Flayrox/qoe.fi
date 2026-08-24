@@ -25,6 +25,7 @@ func (h *Handler) Register(r chi.Router) {
 		r.Get("/financial", h.financial)
 		r.Get("/top-content", h.topContent)
 		r.Get("/audience", h.audience)
+		r.Get("/audience/subscribers", h.audienceSubscribers)
 		r.Get("/umami/returning", h.umamiReturning)
 		r.Get("/umami/hours", h.umamiHours)
 		// Lecture — migration Prisma → Go (ReadingSession)
@@ -33,6 +34,7 @@ func (h *Handler) Register(r chi.Router) {
 		r.Get("/provenance", h.provenance)
 		r.Get("/audience/insights", h.audienceInsights)
 		r.Get("/product-metrics", h.productMetrics)
+		r.Get("/dashboard", h.dashboard)
 	})
 }
 
@@ -99,6 +101,28 @@ func (h *Handler) audience(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, summary)
+}
+
+// audienceSubscribers expose la liste des abonnés (page audience studio).
+// GET /v1/analytics/audience/subscribers?publicationId=xxx
+func (h *Handler) audienceSubscribers(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	pub := publicationID(r)
+	if pub == "" {
+		response.BadRequest(w, "publicationId requis")
+		return
+	}
+	subs, err := h.svc.ListSubscribers(r.Context(), userID, pub)
+	if err != nil {
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Permission insuffisante")
+			return
+		}
+		log.Printf("[analytics] audience/subscribers: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"subscribers": subs})
 }
 
 // umamiReturning expose visiteurs nouveaux vs récurrents (DB Umami).
@@ -328,6 +352,33 @@ func (h *Handler) productMetrics(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Printf("[analytics] product-metrics: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, out)
+}
+
+// GET /v1/analytics/dashboard?publicationId=&workspaceType=PERSONAL|MEDIA
+// — page d'accueil du studio (métriques, articles récents, brouillons,
+// pensées programmées, dernier écrit, lectures 30j).
+func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	pub := publicationID(r)
+	if pub == "" {
+		response.BadRequest(w, "publicationId requis")
+		return
+	}
+	workspaceType := r.URL.Query().Get("workspaceType")
+	if workspaceType == "" {
+		workspaceType = "PERSONAL"
+	}
+	out, err := h.svc.DashboardOverview(r.Context(), userID, pub, workspaceType)
+	if err != nil {
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Permission insuffisante")
+			return
+		}
+		log.Printf("[analytics] dashboard: %v", err)
 		response.Internal(w)
 		return
 	}

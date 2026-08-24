@@ -1,4 +1,4 @@
-import { prisma } from '@qoe/db/client';
+import { getSystemConfigs } from '@/lib/admin-data';
 import { FrontendCMS } from './components/FrontendCMS';
 
 export default async function AdminFrontend() {
@@ -54,12 +54,8 @@ export default async function AdminFrontend() {
     'ONBOARDING_INTERESTS',
   ];
 
-  // Fetch configs matching keys
-  const configs = await prisma.systemConfig.findMany({
-    where: {
-      key: { in: targetKeys },
-    },
-  });
+  // Fetch configs matching keys (Go en primaire, fallback Prisma dev)
+  const configs = await getSystemConfigs(targetKeys);
 
   // Create lookup dictionary
   const configMap: Record<string, string> = {};

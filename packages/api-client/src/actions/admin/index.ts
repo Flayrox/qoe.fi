@@ -13,6 +13,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@qoe/supabase/server';
 import { prisma } from '@qoe/db/client';
 import { revalidatePath } from 'next/cache';
+import { goFetch, isGoEnabled } from '../utils/go-client';
 import { safeAction } from '../utils/safe-action';
 
 function getAdminClient() {
@@ -132,6 +133,16 @@ export const updateOAuthClientStatusAction = safeAction<
   { clientId: string; status: 'APPROVED' | 'REJECTED' | 'REVOKED' | 'PENDING' },
   { success: boolean }
 >(async ({ clientId, status }) => {
+  if (isGoEnabled()) {
+    // Le backend Go vérifie le rôle superadmin (403 sinon).
+    await goFetch(`/v1/admin/oauth/clients/${encodeURIComponent(clientId)}`, {
+      method: 'PATCH',
+      body: { status },
+    });
+    revalidatePath('/admin/oauth');
+    return { success: true };
+  }
+  // 🐢 Fallback dev : Prisma.
   await verifySuperadmin();
   await prisma.oAuthClient.update({
     where: { id: clientId },
@@ -145,6 +156,16 @@ export const updateCreatorApiAccessAction = safeAction<
   { userId: string; status: 'approved' | 'rejected' | 'revoked' | 'none' },
   { success: boolean }
 >(async ({ userId, status }) => {
+  if (isGoEnabled()) {
+    // Le backend Go vérifie le rôle superadmin (403 sinon).
+    await goFetch(`/v1/admin/api-applicants/${encodeURIComponent(userId)}`, {
+      method: 'PATCH',
+      body: { status },
+    });
+    revalidatePath('/admin/api');
+    return { success: true };
+  }
+  // 🐢 Fallback dev : Prisma.
   await verifySuperadmin();
   await prisma.user.update({
     where: { id: userId },

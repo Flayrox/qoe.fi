@@ -43,10 +43,9 @@ supabase stop --no-backup   # arrête ET supprime les volumes (reset complet)
 ## 🧱 Schéma + RLS (à appliquer une seule fois, déjà fait)
 
 ```bash
-# Schéma Prisma (idem prod : prisma migrate deploy)
-DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
-DIRECT_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
-pnpm --filter @qoe/db exec prisma migrate deploy --schema=prisma/schema.prisma
+# Schéma (idem prod : goose up, migrations dans apps/api/sql/migrations)
+cd apps/api && DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+  go run ./cmd/migrate -dir sql/migrations up
 
 # RLS interactions (Post/Like/Bookmark/Follows/Highlight)
 docker exec -i supabase_db_qoe.fi psql -U postgres -d postgres -f - < scripts/rls-interactions.sql

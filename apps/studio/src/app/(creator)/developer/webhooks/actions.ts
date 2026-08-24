@@ -89,9 +89,6 @@ export interface WebhookDeliveryLog {
 /** 📜 Logs de livraison détaillés d'un webhook (via GET /v1/webhooks/{id}/deliveries en Go). */
 export async function listWebhookDeliveriesAction(webhookId: string) {
   const user = await getAuthenticatedUser();
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
-
   const workspace = await getActiveWorkspace(user.id);
 
   if (isGoEnabled()) {
@@ -109,6 +106,10 @@ export async function listWebhookDeliveriesAction(webhookId: string) {
       };
     }
   }
+
+  // Fallback Prisma dev
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
 
   const webhook = await prisma.webhook.findUnique({ where: { id: webhookId } });
   if (!webhook || webhook.publicationId !== workspace.publicationId) {
@@ -134,9 +135,6 @@ export async function listWebhookDeliveriesAction(webhookId: string) {
 
 export async function listWebhooksAction() {
   const user = await getAuthenticatedUser();
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
-
   const workspace = await getActiveWorkspace(user.id);
 
   if (isGoEnabled()) {
@@ -150,6 +148,10 @@ export async function listWebhooksAction() {
       workspaceName: workspace.name,
     };
   }
+
+  // Fallback Prisma dev
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
 
   const webhooks = await prisma.webhook.findMany({
     where: { publicationId: workspace.publicationId },
@@ -176,8 +178,6 @@ export async function createWebhookAction(input: {
   events: WebhookEvent[];
 }) {
   const user = await getAuthenticatedUser();
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
 
   const name = input.name?.trim();
   const url = input.url?.trim();
@@ -213,6 +213,10 @@ export async function createWebhookAction(input: {
     }
   }
 
+  // Fallback Prisma dev
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
+
   const secret = crypto.randomBytes(32).toString('hex');
 
   const webhook = await prisma.webhook.create({
@@ -232,9 +236,6 @@ export async function createWebhookAction(input: {
 
 export async function deleteWebhookAction(id: string) {
   const user = await getAuthenticatedUser();
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
-
   const workspace = await getActiveWorkspace(user.id);
 
   if (isGoEnabled()) {
@@ -255,6 +256,10 @@ export async function deleteWebhookAction(id: string) {
     }
   }
 
+  // Fallback Prisma dev
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
+
   const existing = await prisma.webhook.findUnique({ where: { id } });
   if (!existing || existing.publicationId !== workspace.publicationId) {
     return { success: false as const, error: 'Webhook introuvable' };
@@ -267,9 +272,6 @@ export async function deleteWebhookAction(id: string) {
 
 export async function toggleWebhookAction(id: string) {
   const user = await getAuthenticatedUser();
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
-
   const workspace = await getActiveWorkspace(user.id);
 
   if (isGoEnabled()) {
@@ -288,6 +290,10 @@ export async function toggleWebhookAction(id: string) {
     }
   }
 
+  // Fallback Prisma dev
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
+
   const existing = await prisma.webhook.findUnique({ where: { id } });
   if (!existing || existing.publicationId !== workspace.publicationId) {
     return { success: false as const, error: 'Webhook introuvable' };
@@ -301,9 +307,6 @@ export async function toggleWebhookAction(id: string) {
 /** 📡 Test ping — envoie un événement de test signé au endpoint. */
 export async function testWebhookAction(id: string) {
   const user = await getAuthenticatedUser();
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
-
   const workspace = await getActiveWorkspace(user.id);
 
   if (isGoEnabled()) {
@@ -324,6 +327,10 @@ export async function testWebhookAction(id: string) {
       };
     }
   }
+
+  // Fallback Prisma dev
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) return { success: false as const, error: 'Utilisateur introuvable' };
 
   const webhook = await prisma.webhook.findUnique({ where: { id } });
   if (!webhook || webhook.publicationId !== workspace.publicationId) {

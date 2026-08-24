@@ -1,21 +1,11 @@
-import { prisma } from '@qoe/db/client';
 import { Activity, AlertTriangle, CheckCircle2, Clock3, Mail } from 'lucide-react';
+import { getAdminDeliveries } from '@/lib/admin-data';
 import { DeliveryTable, type DeliveryRow } from './DeliveryTable';
 
 export default async function AdminNotificationsPage() {
-  const [groups, deliveries, totalCount] = await Promise.all([
-    prisma.notificationDelivery.groupBy({ by: ['status'], _count: { _all: true } }),
-    prisma.notificationDelivery.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-      include: {
-        notification: { select: { type: true, article: { select: { title: true } } } },
-      },
-    }),
-    prisma.notificationDelivery.count(),
-  ]);
+  // Compteurs + 50 dernières livraisons (Go en primaire, fallback Prisma dev).
+  const { counts, total: totalCount, deliveries } = await getAdminDeliveries();
 
-  const counts = Object.fromEntries(groups.map((group) => [group.status, group._count._all]));
   const rows: DeliveryRow[] = deliveries.map((delivery) => ({
     id: delivery.id,
     recipient: delivery.recipient,
@@ -24,10 +14,10 @@ export default async function AdminNotificationsPage() {
     attempts: delivery.attempts,
     provider: delivery.provider,
     lastError: delivery.lastError,
-    createdAt: delivery.createdAt.toISOString(),
+    createdAt: delivery.createdAt,
     notification: {
       type: delivery.notification.type,
-      articleTitle: delivery.notification.article?.title || null,
+      articleTitle: delivery.notification.articleTitle || null,
     },
   }));
 

@@ -106,6 +106,11 @@ func (s *Service) HomeFeed(ctx context.Context, userID string) (HomeFeedResult, 
 	res.Recommended = recommended
 	res.Bookmarks = bookmarks
 	res.HighlightsCount = highlightsCount
+	// Contrat JSON : mutedWords est TOUJOURS un tableau (jamais null) —
+	// l'appelant fait mutedWords.map(...).
+	if muted == nil {
+		muted = []string{}
+	}
 	res.MutedWords = muted
 	featured, _ = s.fetchFeaturedArticle(ctx)
 	res.FeaturedArticle = featured

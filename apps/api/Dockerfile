@@ -10,7 +10,8 @@ RUN go mod download
 
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/qoe-server ./cmd/server \
-    && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/qoe-worker ./cmd/worker
+    && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/qoe-worker ./cmd/worker \
+    && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /out/qoe-migrate ./cmd/migrate
 
 # Stage 2 : image runtime finale (alpine, ca-certificates pour HTTPS webhooks)
 FROM alpine:3.20
@@ -19,6 +20,9 @@ RUN apk add --no-cache ca-certificates tzdata \
 
 COPY --from=builder /out/qoe-server /usr/local/bin/qoe-server
 COPY --from=builder /out/qoe-worker /usr/local/bin/qoe-worker
+COPY --from=builder /out/qoe-migrate /usr/local/bin/qoe-migrate
+# Migrations goose embarquées (qoe-migrate -dir /migrations up).
+COPY --from=builder /src/sql/migrations /migrations
 
 USER qoe
 EXPOSE 8080

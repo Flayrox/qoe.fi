@@ -104,8 +104,8 @@ pnpm lint
 pnpm test
 pnpm test:ui # Lance l'interface interactive de Vitest
 
-# Lancer le seed Prisma (idempotent)
-pnpm prisma:seed
+# Lancer le seed Go (idempotent)
+pnpm db:seed
 ```
 
 ### Docker

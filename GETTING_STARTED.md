@@ -145,14 +145,14 @@ Puisque ta base de données tourne dans Docker, voici comment interagir avec ell
   pnpm prisma:studio
   # Ouvre http://localhost:5555
   ```
-- **Appliquer les migrations de base de données** (si le schéma change) :
+- **Appliquer les migrations de base de données** (goose, `apps/api/sql/migrations`) :
   ```bash
-  pnpm prisma:migrate
+  pnpm db:migrate
   ```
 - **Insérer des fausses données de test (Seed)** :
-  - En dev local (Postgres dans Docker, schéma Prisma déjà migré) :
+  - En dev local (Postgres dans Docker, schéma déjà migré) :
     ```bash
-    pnpm prisma:seed
+    pnpm db:seed
     ```
   - En passant par Docker (depuis l'hôte, ne nécessite pas de générateur local) :
     ```bash

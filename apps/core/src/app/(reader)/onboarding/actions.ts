@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@qoe/supabase/server';
-import { completeOnboardingInDb } from '@qoe/db/onboarding';
+import { goFetch } from '@qoe/api-client/actions/utils/go-client';
 
 export async function completeOnboarding(data: {
   interests: string[];
@@ -20,5 +20,12 @@ export async function completeOnboarding(data: {
 
   if (!user) throw new Error('Unauthorized');
 
-  return completeOnboardingInDb(user.id, data);
+  // Go (backend-of-record, requis en Phase 3) : POST /v1/me/onboarding-complete
+  // (profil + embedding pgvector + mots masqués + suivis — parité completeOnboardingInDb).
+  await goFetch('/v1/me/onboarding-complete', {
+    method: 'POST',
+    body: data,
+  });
+
+  return { success: true };
 }

@@ -1,14 +1,11 @@
-import { prisma } from '@qoe/db/client';
+import { getAdminDashboard } from '@/lib/admin-data';
 import { AnalyticsOverview } from './components/AnalyticsOverview';
 
 export default async function AdminDashboard() {
-  const usersCount = await prisma.user.count();
-  const creatorsCount = await prisma.user.count({ where: { role: 'creator' } });
-  const articlesCount = await prisma.article.count();
+  const counts = await getAdminDashboard();
 
   // Basic MRR calc (MVP logic - assuming subscriptions are 2€ for this example)
-  const premiumSubs = await prisma.subscriber.count({ where: { isPremium: true, isActive: true } });
-  const mrr = premiumSubs * 2.0;
+  const mrr = counts.premiumSubscribers * 2.0;
 
   // Generate 90 days of data for the Umami-style chart
   // In a real production app, this would be a single raw SQL query using date_trunc('day', createdAt)
@@ -17,9 +14,9 @@ export default async function AdminDashboard() {
 
   // Base daily increments to make the chart look realistic while ending at the exact DB totals
   // If DB is mostly empty, it shows a flat or small curve.
-  let currentUsers = Math.max(0, usersCount - 90 * 2);
-  let currentCreators = Math.max(0, creatorsCount - 90);
-  let currentArticles = Math.max(0, articlesCount - 90 * 3);
+  let currentUsers = Math.max(0, counts.users - 90 * 2);
+  let currentCreators = Math.max(0, counts.creators - 90);
+  let currentArticles = Math.max(0, counts.articles - 90 * 3);
   let currentRevenue = Math.max(0, mrr - 90 * 1.5);
 
   for (let i = 89; i >= 0; i--) {
@@ -34,25 +31,25 @@ export default async function AdminDashboard() {
 
     data.push({
       date: dateStr,
-      users: Math.min(currentUsers, usersCount),
-      creators: Math.min(currentCreators, creatorsCount),
-      articles: Math.min(currentArticles, articlesCount),
+      users: Math.min(currentUsers, counts.users),
+      creators: Math.min(currentCreators, counts.creators),
+      articles: Math.min(currentArticles, counts.articles),
       revenue: parseFloat(Math.min(currentRevenue, mrr).toFixed(2)),
     });
   }
 
   // Ensure the last data point matches the exact totals
   if (data.length > 0) {
-    data[data.length - 1].users = usersCount;
-    data[data.length - 1].creators = creatorsCount;
-    data[data.length - 1].articles = articlesCount;
+    data[data.length - 1].users = counts.users;
+    data[data.length - 1].creators = counts.creators;
+    data[data.length - 1].articles = counts.articles;
     data[data.length - 1].revenue = mrr;
   }
 
   const totals = {
-    users: usersCount,
-    creators: creatorsCount,
-    articles: articlesCount,
+    users: counts.users,
+    creators: counts.creators,
+    articles: counts.articles,
     revenue: mrr,
   };
 

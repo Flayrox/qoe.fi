@@ -5,17 +5,13 @@
 // =====================================================================
 
 import React from 'react';
-import { prisma } from '@qoe/db/client';
 import { ShieldCheck } from 'lucide-react';
+import { getOAuthClients } from '@/lib/admin-data';
 import { OAuthAppsClient, type OAuthClientAdmin } from './components/oauth-apps-client';
 
 export default async function AdminOAuthAppsPage() {
-  const clients = await prisma.oAuthClient.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: {
-      owner: { select: { name: true, email: true, username: true } },
-    },
-  });
+  // Applications OAuth (Go en primaire, fallback Prisma dev).
+  const clients = await getOAuthClients();
 
   const serialized: OAuthClientAdmin[] = clients.map((c) => ({
     id: c.id,
@@ -28,10 +24,10 @@ export default async function AdminOAuthAppsPage() {
     scopes: c.scopes,
     clientType: c.clientType,
     status: c.status,
-    ownerName: c.owner.name,
-    ownerEmail: c.owner.email,
-    ownerUsername: c.owner.username,
-    createdAt: c.createdAt.toISOString(),
+    ownerName: c.ownerName,
+    ownerEmail: c.ownerEmail,
+    ownerUsername: c.ownerUsername,
+    createdAt: c.createdAt,
   }));
 
   return (
