@@ -49,7 +49,7 @@ const makeFetcher =
   };
 
 export function ProfileScreen({
-  username,
+  username: initialUsername,
   onNavigateBack,
 }: {
   username: string;
@@ -61,14 +61,19 @@ export function ProfileScreen({
   const [following, setFollowing] = useState<boolean | null>(null);
   const [followBusy, setFollowBusy] = useState(false);
 
+  // Si username vaut 'me', on résout avec le username/publicationId du compte connecté
+  const resolvedUsername =
+    initialUsername === 'me' ? me?.username || me?.publicationId || 'admin' : initialUsername;
+
   // Profil public (publicationId dans data.id).
   const { data: profile, isPending: profilePending } = useQuery({
-    queryKey: userKeys.profile(username),
+    queryKey: userKeys.profile(resolvedUsername),
     queryFn: async () => {
-      const res = await apiClient.getUserProfile(username);
+      const res = await apiClient.getUserProfile(resolvedUsername);
       if (!res.ok) throw new Error(res.error);
       return res.data;
     },
+    enabled: !!resolvedUsername,
   });
 
   // Synchronise l'état initial depuis la réponse du profil (isFollowing).
@@ -76,19 +81,28 @@ export function ProfileScreen({
     if (profile) setFollowing(profile.isFollowing);
   }, [profile]);
 
-  // Pensées de l'utilisateur (infini).
+  // Pensées publiques du profil (infini).
   const {
-    data,
+    data: postsData,
+    fetchNextPage,
     hasNextPage,
     isFetching,
-    fetchNextPage,
     refetch,
+    isRefetching,
     isPending: postsPending,
     isError,
-    isRefetching,
-  } = useInfiniteFeed<FeedSlice>({ limit: 20, username, fetcher: makeFetcher(username) });
+  } = useInfiniteFeed<FeedSlice>({
+    username: resolvedUsername,
+    limit: 20,
+    minVisibleQuota: 20,
+    fetcher: useMemo(() => makeFetcher(resolvedUsername), [resolvedUsername]),
+    enabled: !!resolvedUsername,
+  });
 
-  const items = useMemo(() => data?.pages.flatMap((page) => page?.data ?? []) ?? [], [data]);
+  const items = useMemo(
+    () => postsData?.pages.flatMap((page) => page?.data ?? []) ?? [],
+    [postsData]
+  );
 
   const onEndReached = useCallback(() => {
     if (hasNextPage && !isFetching && !isRefetching) void fetchNextPage();

@@ -110,12 +110,44 @@ export function Sidebar() {
     }
   };
 
+  const isCreatorOrAdmin = me?.role === 'ADMIN' || me?.role === 'creator';
+
   const mainItems: NavItem[] = [
     {
       key: 'profile',
       label: t('sidebar.profile', 'Profil'),
       icon: { ios: 'person', android: 'person', web: 'person' },
       onPress: openProfile,
+    },
+    ...(isCreatorOrAdmin
+      ? [
+          {
+            key: 'creator_dashboard',
+            label: t('sidebar.creator_dashboard', 'Studio Créateur'),
+            icon: {
+              ios: 'chart.bar.xaxis',
+              android: 'analytics',
+              web: 'analytics',
+            } as SymbolViewProps['name'],
+            onPress: () => {
+              closeDrawer();
+              Toast.show(
+                t('sidebar.creator_dashboard_ready', 'Ouverture du Studio Créateur...'),
+                'info'
+              );
+              void WebBrowser.openBrowserAsync('https://qoe.fi/dashboard');
+            },
+          },
+        ]
+      : []),
+    {
+      key: '/notifications',
+      label: t('sidebar.notifications', 'Notifications'),
+      icon: { ios: 'bell', android: 'notifications', web: 'notifications' },
+      onPress: () => {
+        closeDrawer();
+        router.push('/notifications');
+      },
     },
     {
       key: '/library',
