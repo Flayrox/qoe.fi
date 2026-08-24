@@ -35,10 +35,14 @@ export function ThoughtFeedSlice({ slice }: { slice: FeedSlice }) {
 
   // Cas 2 : fil multi-posts.
   return (
-    <View style={[styles.slice, { borderColor: theme.border }]}>
+    <View style={styles.slice}>
       {/* Root */}
       {rootPost ? (
-        <ThoughtCard thought={rootPost} showThreadConnectorBottom={!!parentPost || true} />
+        <ThoughtCard
+          thought={rootPost}
+          showThreadConnectorBottom={!!parentPost || true}
+          hideBottomBorder={true}
+        />
       ) : null}
 
       {/* Séparateur « Afficher la suite du fil » avec pointillés SVG Bluesky si incomplet */}
@@ -55,17 +59,22 @@ export function ThoughtFeedSlice({ slice }: { slice: FeedSlice }) {
           thought={parentPost}
           showThreadConnectorTop={!!rootPost}
           showThreadConnectorBottom
+          hideBottomBorder={true}
         />
       ) : null}
 
       {/* Target (la réponse) */}
-      <ThoughtCard thought={targetPost} showThreadConnectorTop={!!(parentPost || rootPost)} />
+      <ThoughtCard
+        thought={targetPost}
+        showThreadConnectorTop={!!(parentPost || rootPost)}
+        hideBottomBorder={false}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   slice: {
-    gap: Spacing.two,
+    gap: 0,
   },
 });
