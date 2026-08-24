@@ -76,10 +76,15 @@ export function AppDrawer({ children }: PropsWithChildren) {
     [openDrawer, closeDrawer, progress]
   );
 
-  // L'écran principal : translation seule. L'ombre est statique (déjà là),
-  // pas d'animation. Tout s'exécute sur le thread UI (reanimated).
+  // L'écran principal : translation seule. L'ombre est statique (déjà là).
   const canvasStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: interpolate(progress.value, [0, 1], [0, drawerOffset]) }],
+  }));
+
+  // Estompement du contenu du deck (compatible avec 100% des thèmes futurs sans couleur en dur) :
+  // Le contenu fond harmonieusement vers l'arrière-plan du thème actuel.
+  const deckContentStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 1], [1, 0.45]),
   }));
 
   // Mini-pop de la sidebar : au début du scroll elle est nettement plus
@@ -119,7 +124,7 @@ export function AppDrawer({ children }: PropsWithChildren) {
 
   return (
     <DrawerContext.Provider value={value}>
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.container, { backgroundColor: theme.sidebar }]}>
         {/* 1. Sidecar en arrière-plan. Taper en dehors du deck ferme le drawer :
             les Pressables du menu (enfants) captent leurs propres taps. */}
         <View style={styles.sidecarContainer}>
@@ -137,17 +142,15 @@ export function AppDrawer({ children }: PropsWithChildren) {
           <Animated.View style={[styles.deck, { backgroundColor: theme.background }]}>
             <GestureDetector gesture={panGesture}>
               <View style={styles.deckSurface}>
-                {children}
+                <Animated.View style={[styles.deckContent, deckContentStyle]}>
+                  {children}
+                </Animated.View>
 
-                {/* Overlay qui bloque toute manipulation et assombrit/blanchit le deck lors de l'ouverture de la sidebar */}
+                {/* Bloqueur de clics transparent qui referme le deck au tap */}
                 <Animated.View
                   style={[
                     styles.deckBlockerOverlay,
-                    {
-                      backgroundColor: isDark ? '#000000' : '#ffffff',
-                    },
                     useAnimatedStyle(() => ({
-                      opacity: interpolate(progress.value, [0, 1], [0, isDark ? 0.35 : 0.28]),
                       pointerEvents: progress.value > 0.05 ? 'auto' : 'none',
                     })),
                   ]}
@@ -214,6 +217,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   deckSurface: {
+    flex: 1,
+  },
+  deckContent: {
     flex: 1,
   },
 });
