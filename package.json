@@ -45,7 +45,7 @@
     "docker:dev:build": "docker compose -f docker-compose.dev.yml up --build",
     "docker:dev:detached": "docker compose -f docker-compose.dev.yml up -d",
     "docker:dev:down": "docker compose -f docker-compose.dev.yml down",
-    "docker:dev:reset": "docker compose -f docker-compose.dev.yml down -v && docker compose -f docker-compose.dev.yml up --build",
+    "docker:dev:reset": "docker compose -f docker-compose.dev.yml down && docker compose -f docker-compose.dev.yml up --build",
     "docker:dev:logs": "docker compose -f docker-compose.dev.yml logs -f",
     "docker:dev:tenants": "docker compose -f docker-compose.dev.yml logs -f tenants",
     "docker:dev:hi": "docker compose -f docker-compose.dev.yml logs -f hi",
@@ -84,7 +84,12 @@
     "docker:deploy": "bash scripts/deploy.sh",
     "db:migrate": "cd apps/api && go run ./cmd/migrate up",
     "db:migrate:status": "cd apps/api && go run ./cmd/migrate status",
-    "db:seed": "cd apps/api && go run ./cmd/seed"
+    "db:seed": "cd apps/api && go run ./cmd/seed",
+    "test:db:up": "bash scripts/test-db.sh up",
+    "test:db:migrate": "bash scripts/test-db.sh migrate",
+    "test:db:status": "bash scripts/test-db.sh status",
+    "test:db": "bash scripts/test-db.sh test",
+    "test:db:reset": "bash scripts/test-db.sh reset"
   },
   "devDependencies": {
     "@lingui/cli": "^6.6.0",

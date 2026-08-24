@@ -159,7 +159,7 @@ func (a *Auth) parseToken(tokenString string) (jwt.MapClaims, error) {
 	secret := a.hmacSecret()
 	if len(secret) > 0 {
 		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			if t.Method.Alg() != jwt.SigningMethodHS256.Alg() {
 				return nil, fmt.Errorf("méthode de signature inattendue: %v", t.Header["alg"])
 			}
 			return secret, nil
@@ -238,6 +238,9 @@ func (a *Auth) findJWKSKey(tokenString string) (interface{}, error) {
 			continue
 		}
 		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+			if !jwksAlgorithmAllowed(t.Method.Alg(), k) {
+				return nil, fmt.Errorf("algorithme JWKS inattendu: %v", t.Header["alg"])
+			}
 			return key, nil
 		})
 		if err == nil && token.Valid {
@@ -246,6 +249,23 @@ func (a *Auth) findJWKSKey(tokenString string) (interface{}, error) {
 		lastErr = err
 	}
 	return nil, lastErr
+}
+
+func jwksAlgorithmAllowed(alg string, key jwkKey) bool {
+	switch key.Kty {
+	case "RSA":
+		return alg == "RS256"
+	case "EC":
+		switch key.Crv {
+		case "P-256":
+			return alg == "ES256"
+		case "P-384":
+			return alg == "ES384"
+		case "P-521":
+			return alg == "ES512"
+		}
+	}
+	return false
 }
 
 func (a *Auth) getJWKS() (*jwkSet, error) {

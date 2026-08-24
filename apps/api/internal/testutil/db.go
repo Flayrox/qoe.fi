@@ -1,30 +1,31 @@
-// Package testutil — helpers de tests d'intégration.
+// Package testutil - helpers de tests d'integration.
 //
-// Démarre UN conteneur PostgreSQL avec l'extension pgvector (parité prod) et
-// applique le schéma sqlc une seule fois par exécution. Les packages qui en ont
-// besoin l'utilisent via TestMain, ce qui évite de démarrer un conteneur par
-// test (économie de temps significative en CI et en local).
+// Les tests utilisent par defaut un conteneur PostgreSQL ephemere avec
+// pgvector. TEST_DATABASE_URL est un mode explicite pour une base de test
+// persistante, mais il est refuse si le nom de base ne finit pas par _test.
+// Cette barriere empeche les fixtures (TRUNCATE) de viser la base dev.
 package testutil
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// schemaFileName est le nom du fichier de schéma (cherché en remontant les
-// répertoires depuis le CWD du test — les tests Go tournent depuis le package
-// testé, pas depuis le package testutil).
-const schemaFileName = "sql/schema/schema.sql"
+const migrationsDirName = "sql/migrations"
 
 var (
 	poolOnce sync.Once
@@ -32,28 +33,25 @@ var (
 	poolErr  error
 )
 
-// Pool retourne le pool PostgreSQL de test (démarre le conteneur au premier
-// appel, partagé ensuite). Le conteneur tourne avec le schéma appliqué.
+// Pool retourne le pool PostgreSQL de test, partage pendant le processus.
 func Pool(ctx context.Context) (*pgxpool.Pool, error) {
 	poolOnce.Do(func() {
-		pool, poolErr = startContainer(ctx)
+		pool, poolErr = startDatabase(ctx)
 	})
 	return pool, poolErr
 }
 
-// MustPool est la variante de Pool qui échoue le test si le conteneur ne
-// démarre pas (à utiliser dans TestMain).
+// MustPool est la variante de Pool qui echoue le test si la base ne demarre pas.
 func MustPool(tb testing.TB) *pgxpool.Pool {
 	tb.Helper()
-	ctx := context.Background()
-	p, err := Pool(ctx)
+	p, err := Pool(context.Background())
 	if err != nil {
-		tb.Fatalf("testcontainers postgres: %v", err)
+		tb.Fatalf("postgres de test: %v", err)
 	}
 	return p
 }
 
-// ClosePool arrête le conteneur (appeler dans TestMain via defer).
+// ClosePool ferme le pool. Les packages existants utilisent Cleanup ci-dessous.
 func ClosePool() {
 	if pool != nil {
 		pool.Close()
@@ -61,17 +59,17 @@ func ClosePool() {
 	}
 }
 
-func startContainer(ctx context.Context) (*pgxpool.Pool, error) {
-	// Respecte une éventuelle variable d'environnement pour la config de la
-	// base (utile quand on pointe vers une base déjà lancée, ex: CI).
-	if url := os.Getenv("TEST_DATABASE_URL"); url != "" {
+func startDatabase(ctx context.Context) (*pgxpool.Pool, error) {
+	if url := strings.TrimSpace(os.Getenv("TEST_DATABASE_URL")); url != "" {
+		if err := validateTestDatabaseURL(url); err != nil {
+			return nil, err
+		}
+		if err := applyMigrations(url); err != nil {
+			return nil, err
+		}
 		return connect(ctx, url)
 	}
 
-	// ⚠️ pgvector : on utilise l'image pgvector/pgvector:pg16 (parité
-	// docker-compose prod) car le schéma exécute CREATE EXTENSION vector et
-	// définit des colonnes vector(1536). Une image postgres standard
-	// échouerait ici.
 	container, err := postgres.Run(ctx,
 		"pgvector/pgvector:pg16",
 		postgres.WithDatabase("qoe_test"),
@@ -83,57 +81,77 @@ func startContainer(ctx context.Context) (*pgxpool.Pool, error) {
 		),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("démarrage conteneur postgres: %w", err)
+		return nil, fmt.Errorf("demarrage conteneur postgres: %w", err)
 	}
 
-	// Nettoyage en fin de test : récupéré via t.Cleanup dans les packages.
 	stopContainer := func() {
 		_ = container.Terminate(context.Background())
 	}
-
 	url, err := container.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
 		stopContainer()
 		return nil, fmt.Errorf("connection string: %w", err)
 	}
-
+	if err := applyMigrations(url); err != nil {
+		stopContainer()
+		return nil, err
+	}
 	p, err := connect(ctx, url)
 	if err != nil {
 		stopContainer()
 		return nil, err
 	}
 
-	// Applique le schéma complet (création des types, tables, index, FKs).
-	schemaPath, err := findSchemaFile()
-	if err != nil {
-		p.Close()
-		stopContainer()
-		return nil, err
-	}
-	schema, err := os.ReadFile(schemaPath)
-	if err != nil {
-		p.Close()
-		stopContainer()
-		return nil, fmt.Errorf("lecture schéma: %w", err)
-	}
-	if _, err := p.Exec(ctx, string(schema)); err != nil {
-		p.Close()
-		stopContainer()
-		return nil, fmt.Errorf("application schéma: %w", err)
-	}
-
-	// Enregistre l'arrêt pour la fin de l'exécution (process de test).
 	stopOnce := sync.OnceFunc(stopContainer)
 	tcStop = append(tcStop, func() { stopOnce() })
-
 	return p, nil
 }
 
-// tcStop contient les fonctions d'arrêt enregistrées par le package test.
+// validateTestDatabaseURL refuse les bases qui ne sont pas explicitement des
+// bases de test. Cette fonction est pure pour pouvoir etre testee sans Docker.
+func validateTestDatabaseURL(rawURL string) error {
+	cfg, err := pgxpool.ParseConfig(rawURL)
+	if err != nil {
+		return fmt.Errorf("TEST_DATABASE_URL invalide: %w", err)
+	}
+	database := strings.ToLower(strings.TrimSpace(cfg.ConnConfig.Database))
+	if database == "" {
+		return fmt.Errorf("TEST_DATABASE_URL doit contenir un nom de base")
+	}
+	if !strings.HasSuffix(database, "_test") {
+		return fmt.Errorf("TEST_DATABASE_URL refusee: la base %q ne finit pas par _test; la base dev est protegee", database)
+	}
+	return nil
+}
+
+func applyMigrations(url string) error {
+	db, err := sql.Open("pgx", url)
+	if err != nil {
+		return fmt.Errorf("ouverture base de test: %w", err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	if err := db.Ping(); err != nil {
+		return fmt.Errorf("ping base de test: %w", err)
+	}
+	dir, err := findMigrationsDir()
+	if err != nil {
+		return err
+	}
+	if err := goose.SetDialect("postgres"); err != nil {
+		return fmt.Errorf("dialecte goose: %w", err)
+	}
+	if err := goose.Up(db, dir); err != nil {
+		return fmt.Errorf("migrations goose: %w", err)
+	}
+	return nil
+}
+
+// tcStop contient les fonctions d'arret des conteneurs ephemeres.
 var tcStop []func()
 
-// Cleanup stoppe les conteneurs démarrés par Pool. À appeler en fin de
-// TestMain (après m.Run).
+// Cleanup stoppe les conteneurs demarres par Pool.
 func Cleanup() {
 	for _, stop := range tcStop {
 		stop()
@@ -141,15 +159,13 @@ func Cleanup() {
 	tcStop = nil
 }
 
-// findSchemaFile cherche sql/schema/schema.sql en remontant les répertoires
-// depuis le CWD (les tests s'exécutent depuis le dossier de leur package).
-func findSchemaFile() (string, error) {
+func findMigrationsDir() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("getwd: %w", err)
 	}
 	for {
-		candidate := filepath.Join(dir, schemaFileName)
+		candidate := filepath.Join(dir, migrationsDirName)
 		if _, err := os.Stat(candidate); err == nil {
 			return candidate, nil
 		}
@@ -159,22 +175,22 @@ func findSchemaFile() (string, error) {
 		}
 		dir = parent
 	}
-	return "", fmt.Errorf("schéma introuvable (cherché %q depuis %s)", schemaFileName, dir)
+	return "", fmt.Errorf("migrations introuvables depuis %s", dir)
 }
 
 func connect(ctx context.Context, url string) (*pgxpool.Pool, error) {
 	cfg, err := pgxpool.ParseConfig(url)
 	if err != nil {
-		return nil, fmt.Errorf("parse DATABASE_URL: %w", err)
+		return nil, fmt.Errorf("parse base de test: %w", err)
 	}
 	cfg.MaxConns = 4
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("create pool: %w", err)
+		return nil, fmt.Errorf("creation pool: %w", err)
 	}
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
-		return nil, fmt.Errorf("ping: %w", err)
+		return nil, fmt.Errorf("ping pool: %w", err)
 	}
 	return pool, nil
 }
