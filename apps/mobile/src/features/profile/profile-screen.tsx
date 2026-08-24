@@ -372,17 +372,17 @@ const styles = StyleSheet.create({
   },
   cover: {
     width: '100%',
-    height: 140,
+    height: 185,
   },
   coverFallback: {
-    height: 96,
+    height: 145,
   },
   avatarRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     paddingHorizontal: Spacing.three,
-    marginTop: -Spacing.five, // fait chevaucher l'avatar sur la bannière
+    marginTop: -38, // fait chevaucher harmonieusement l'avatar sur la bannière
   },
   followWrap: {
     marginBottom: Spacing.one,
