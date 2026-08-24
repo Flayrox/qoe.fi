@@ -23,13 +23,13 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
       reportsDirectory: 'coverage/ts',
-      include: ['packages/{api-client,auth,utils,flags}/src/**/*.ts'],
+      include: ['packages/{sdk,auth,utils,flags}/src/**/*.ts'],
       exclude: ['**/*.test.ts', '**/*.test.tsx', '**/*.d.ts'],
       // Seuils progressifs par package, mesurés au moment de l'introduction
       // du gate (2026-08). Une baisse DOIT s'accompagner de nouveaux tests,
       // pas d'un seuil abaissé. Objectif final : 80% sur le code métier.
       thresholds: {
-        'packages/sdk/**': { lines: 7, statements: 6 },
+        'packages/sdk/**': { lines: 20, statements: 19 },
         'packages/auth/**': { lines: 15, statements: 14 },
         'packages/utils/**': { lines: 44, statements: 41 },
         'packages/flags/**': { lines: 65, statements: 65 },
