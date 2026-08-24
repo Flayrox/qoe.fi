@@ -100,24 +100,25 @@ export function ThoughtCard({
         </View>
       )}
 
-      {/* ─── 2. Segment de ligne reliant au parent au-dessus de l'avatar (parité Bluesky isThreadChild) ─── */}
-      {showThreadConnectorTop && !hasBanner && (
-        <View style={styles.topThreadLineRow}>
-          <View style={styles.topAviCol}>
+      {/* ─── 2. Layout principal Bluesky : Avatar 42px à gauche, Contenu à droite ─── */}
+      <View style={styles.layout}>
+        {/* Colonne Avatar + Lignes montante et descendante de fil */}
+        <View style={styles.layoutAvi}>
+          {/* Connecteur montant vers le post parent (sans marge ni coupure) */}
+          {showThreadConnectorTop && !hasBanner ? (
             <View
               style={[
                 styles.replyLine,
-                { backgroundColor: theme.border, height: 10, marginBottom: 2 },
+                {
+                  backgroundColor: theme.border,
+                  height: 12,
+                  marginTop: -8, // Déborde parfaitement jusqu'au bord supérieur de la carte
+                  marginBottom: 0,
+                },
               ]}
             />
-          </View>
-        </View>
-      )}
+          ) : null}
 
-      {/* ─── 3. Layout principal Bluesky : Avatar 42px à gauche, Contenu à droite ─── */}
-      <View style={styles.layout}>
-        {/* Colonne Avatar + Ligne descendante de fil */}
-        <View style={styles.layoutAvi}>
           <Pressable onPress={() => openProfile(display.author.username || display.author.id)}>
             <View style={styles.avatarWrap}>
               {display.author.logoUrl ? (
@@ -142,7 +143,7 @@ export function ThoughtCard({
             </View>
           </Pressable>
 
-          {/* Ligne verticale continue reliant au post suivant (parité Bluesky isThreadParent) */}
+          {/* Connecteur descendant vers le post enfant */}
           {showThreadConnectorBottom ? (
             <View
               style={[
@@ -150,8 +151,8 @@ export function ThoughtCard({
                 {
                   backgroundColor: theme.border,
                   flexGrow: 1,
-                  marginTop: 2,
-                  marginBottom: -8,
+                  marginTop: 0,
+                  marginBottom: -8, // Déborde parfaitement jusqu'au bord inférieur de la carte
                 },
               ]}
             />
