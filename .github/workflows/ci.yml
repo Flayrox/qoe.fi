@@ -124,14 +124,14 @@ jobs:
           check "internal/workers" 60
           # Modules couverts lors de la campagne P3 (2026-08) : gains
           # verrouillés — une baisse doit s'accompagner de nouveaux tests.
-          check "internal/modules/notifications" 52
+          check "internal/modules/notifications" 78
           check "internal/modules/events" 78
-          check "internal/modules/workspaces" 52
+          check "internal/modules/workspaces" 82
           check "internal/modules/creator" 30
           check "internal/modules/highlights" 54
-          check "internal/modules/analytics" 38
-          check "internal/modules/users" 54
-          check "internal/modules/oauth" 56
+          check "internal/modules/analytics" 52
+          check "internal/modules/users" 58
+          check "internal/modules/oauth" 64
           check "internal/modules/home" 59
           check "internal/modules/admin" 64
         env:
