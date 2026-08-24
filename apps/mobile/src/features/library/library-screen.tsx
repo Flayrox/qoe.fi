@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CustomSubHeader } from '@/components/header/CustomSubHeader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -63,20 +64,16 @@ export function LibraryScreen() {
     () => highlights.data?.pages.flatMap((p) => p ?? []) ?? [],
     [highlights.data]
   );
-  const items = segment === 'bookmarks' ? bookmarksItems : highlightsItems;
-  // Query active (pour les états isPending/isError/refetch du rendu).
+
   const query = segment === 'bookmarks' ? bookmarks : highlights;
+  const items = segment === 'bookmarks' ? bookmarksItems : highlightsItems;
 
   const onEndReached = useCallback(() => {
-    if (segment === 'bookmarks' ? bookmarks.hasNextPage : highlights.hasNextPage) {
-      const q = segment === 'bookmarks' ? bookmarks : highlights;
-      if (!q.isFetching) void q.fetchNextPage();
-    }
-  }, [segment, bookmarks, highlights]);
+    if (query.hasNextPage && !query.isFetching) void query.fetchNextPage();
+  }, [query]);
 
-  // Header : les deux segments.
-  const header = (
-    <View style={styles.segmentRow}>
+  const segmentHeader = (
+    <View style={[styles.segmentContainer, { backgroundColor: theme.backgroundSelected }]}>
       {(
         [
           { key: 'bookmarks', label: t('library.bookmarks', 'Sauvegardés') },
@@ -88,11 +85,7 @@ export function LibraryScreen() {
           <Pressable
             key={seg.key}
             onPress={() => setSegment(seg.key)}
-            style={({ pressed }) => [
-              styles.segment,
-              active && { backgroundColor: theme.primary },
-              pressed && styles.pressed,
-            ]}
+            style={[styles.segment, active && { backgroundColor: theme.primary }]}
           >
             <ThemedText
               type="smallBold"
@@ -106,62 +99,59 @@ export function LibraryScreen() {
     </View>
   );
 
-  if (query.isPending) {
-    return (
-      <SafeAreaView style={styles.center}>
-        {header}
-        <ActivityIndicator color={theme.text} />
-      </SafeAreaView>
-    );
-  }
-
-  if (query.isError) {
-    return (
-      <SafeAreaView style={styles.center}>
-        {header}
-        <ThemedText type="small">
-          {t('library.error', 'Impossible de charger la bibliothèque')}
-        </ThemedText>
-        <Pressable onPress={() => void query.refetch()}>
-          <ThemedText type="small" style={{ color: theme.primary }}>
-            {t('common.retry', 'Réessayer')}
-          </ThemedText>
-        </Pressable>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <FlashList<BookmarkItem | MyHighlight>
-          data={items}
-          keyExtractor={(item) => ('bookmarkId' in item ? item.bookmarkId : item.id)}
-          renderItem={({ item }) =>
-            'bookmarkId' in item ? <BookmarkRow item={item} /> : <HighlightRow item={item} />
-          }
-          onEndReached={onEndReached}
-          onEndReachedThreshold={0.4}
-          refreshing={query.isRefetching}
-          onRefresh={() => void query.refetch()}
-          ListHeaderComponent={header}
-          ListEmptyComponent={
-            <ThemedView type="backgroundElement" style={styles.empty}>
-              <ThemedText type="small">
-                {segment === 'bookmarks'
-                  ? t('library.no_bookmarks', 'Aucun article sauvegardé')
-                  : t('library.no_highlights', 'Aucun surlignage pour le moment')}
+      <CustomSubHeader centerComponent={segmentHeader} />
+
+      <SafeAreaView edges={['bottom']} style={[styles.safeArea, { paddingTop: 105 }]}>
+        {query.isPending ? (
+          <View style={styles.center}>
+            <ActivityIndicator color={theme.text} />
+          </View>
+        ) : query.isError ? (
+          <View style={styles.center}>
+            <ThemedText type="small">
+              {t('library.error', 'Impossible de charger la bibliothèque')}
+            </ThemedText>
+            <Pressable onPress={() => void query.refetch()} style={{ marginTop: 8 }}>
+              <ThemedText type="smallBold" style={{ color: theme.primary }}>
+                {t('common.retry', 'Réessayer')}
               </ThemedText>
-            </ThemedView>
-          }
-          ListFooterComponent={
-            query.hasNextPage ? (
-              <ActivityIndicator color={theme.text} style={styles.footer} />
-            ) : null
-          }
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          contentContainerStyle={styles.content}
-        />
+            </Pressable>
+          </View>
+        ) : (
+          <FlashList<BookmarkItem | MyHighlight>
+            data={items}
+            keyExtractor={(item) => ('bookmarkId' in item ? item.bookmarkId : item.id)}
+            renderItem={({ item }) =>
+              'bookmarkId' in item ? (
+                <BookmarkRow item={item} />
+              ) : (
+                <HighlightRow item={item as MyHighlight} />
+              )
+            }
+            onEndReached={onEndReached}
+            onEndReachedThreshold={0.4}
+            refreshing={query.isRefetching}
+            onRefresh={() => void query.refetch()}
+            ListEmptyComponent={
+              <ThemedView type="backgroundElement" style={styles.empty}>
+                <ThemedText type="small">
+                  {segment === 'bookmarks'
+                    ? t('library.no_bookmarks', 'Aucun article sauvegardé')
+                    : t('library.no_highlights', 'Aucun surlignage pour le moment')}
+                </ThemedText>
+              </ThemedView>
+            }
+            ListFooterComponent={
+              query.hasNextPage ? (
+                <ActivityIndicator color={theme.text} style={styles.footer} />
+              ) : null
+            }
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            contentContainerStyle={styles.content}
+          />
+        )}
       </SafeAreaView>
     </ThemedView>
   );
@@ -232,16 +222,17 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     flexGrow: 1,
   },
-  segmentRow: {
+  segmentContainer: {
     flexDirection: 'row',
-    gap: Spacing.two,
-    paddingBottom: Spacing.two,
+    alignItems: 'center',
+    padding: 3,
+    borderRadius: 999,
+    gap: 3,
   },
   segment: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   pressed: { opacity: 0.7 },
   row: { borderRadius: Spacing.three },

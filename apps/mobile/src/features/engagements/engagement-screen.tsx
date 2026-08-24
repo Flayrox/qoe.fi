@@ -36,6 +36,8 @@ const TITLES: Record<EngagementKind, { title: string; empty: string }> = {
   quotes: { title: 'Citations', empty: 'Aucune citation de cette pensée pour l’instant.' },
 };
 
+import { CustomSubHeader } from '@/components/header/CustomSubHeader';
+
 export function EngagementScreen({ postId, kind }: { postId: string; kind: EngagementKind }) {
   const theme = useTheme();
 
@@ -84,55 +86,51 @@ export function EngagementScreen({ postId, kind }: { postId: string; kind: Engag
     if (hasNextPage && !isFetching) void fetchNextPage();
   }, [hasNextPage, isFetching, fetchNextPage]);
 
-  if (isPending) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator color={theme.text} />
-      </SafeAreaView>
-    );
-  }
-
-  if (isError) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <ErrorMessage
-          message={t('engagement.error', 'Impossible de charger cette liste')}
-          onPressTryAgain={() => void refetch()}
-        />
-      </SafeAreaView>
-    );
-  }
-
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView edges={['top']} style={styles.safe}>
-        <FlashList
-          data={listData}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) =>
-            isQuotes ? (
-              <ThoughtCard thought={normalizeThought(item as never)} />
-            ) : (
-              <EngagementUserRow user={item as unknown as EngagementUser} />
-            )
-          }
-          onEndReached={onEndReached}
-          onEndReachedThreshold={0.4}
-          refreshing={isRefetching}
-          onRefresh={() => void refetch()}
-          ListEmptyComponent={
-            <EmptyState
-              icon={{ ios: 'person.2', android: 'people', web: 'people' }}
-              message={t('engagement.empty', TITLES[kind].empty)}
+      <CustomSubHeader title={t('engagement.title', TITLES[kind].title)} />
+
+      <SafeAreaView edges={['bottom']} style={[styles.safe, { paddingTop: 105 }]}>
+        {isPending ? (
+          <View style={styles.center}>
+            <ActivityIndicator color={theme.text} />
+          </View>
+        ) : isError ? (
+          <View style={styles.center}>
+            <ErrorMessage
+              message={t('engagement.error', 'Impossible de charger cette liste')}
+              onPressTryAgain={() => void refetch()}
             />
-          }
-          ListFooterComponent={
-            hasNextPage ? <ActivityIndicator color={theme.text} style={styles.footer} /> : null
-          }
-          ItemSeparatorComponent={() => (
-            <View style={[styles.sep, { backgroundColor: theme.border }]} />
-          )}
-        />
+          </View>
+        ) : (
+          <FlashList
+            data={listData}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) =>
+              isQuotes ? (
+                <ThoughtCard thought={normalizeThought(item as never)} />
+              ) : (
+                <EngagementUserRow user={item as unknown as EngagementUser} />
+              )
+            }
+            onEndReached={onEndReached}
+            onEndReachedThreshold={0.4}
+            refreshing={isRefetching}
+            onRefresh={() => void refetch()}
+            ListEmptyComponent={
+              <EmptyState
+                icon={{ ios: 'person.2', android: 'people', web: 'people' }}
+                message={t('engagement.empty', TITLES[kind].empty)}
+              />
+            }
+            ListFooterComponent={
+              hasNextPage ? <ActivityIndicator color={theme.text} style={styles.footer} /> : null
+            }
+            ItemSeparatorComponent={() => (
+              <View style={[styles.sep, { backgroundColor: theme.border }]} />
+            )}
+          />
+        )}
       </SafeAreaView>
     </ThemedView>
   );

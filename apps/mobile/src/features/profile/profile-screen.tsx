@@ -35,6 +35,11 @@ import { t } from '@/lib/i18n';
 // public est le **publicationId** — c'est lui qu'attend l'endpoint follow.
 // =====================================================================
 
+import { CustomSubHeader } from '@/components/header/CustomSubHeader';
+import { LiquidElasticButton } from '@/components/liquid-tab-bar/LiquidElasticButton';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
+
 // Adapte le client au contrat du hook (FeedResult → ApiResponse<FeedSlice[]>).
 const makeFetcher =
   (username: string): FeedFetcherFn<FeedSlice> =>
@@ -60,6 +65,13 @@ export function ProfileScreen({
   const { data: me } = useMe();
   const [following, setFollowing] = useState<boolean | null>(null);
   const [followBusy, setFollowBusy] = useState(false);
+  const scrollY = useSharedValue(0);
+
+  const onScrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
   // Si username vaut 'me', on résout avec le username/publicationId du compte connecté
   const resolvedUsername =
@@ -153,6 +165,31 @@ export function ProfileScreen({
 
   return (
     <ThemedView style={styles.container}>
+      {/* ─── Header Custom Flottant Liquid Glass & Morphing ─── */}
+      <CustomSubHeader
+        title={profile.name || handle}
+        subtitle={`@${handle}`}
+        scrollY={scrollY}
+        showTitleOnScrollOnly={true}
+        scrollThreshold={100}
+        onBackPress={onNavigateBack}
+        rightComponent={
+          <ProfileMenuButton
+            username={handle}
+            isOwn={me?.id === profile.id}
+            customButton={({ onPress }) => (
+              <LiquidElasticButton
+                size={42}
+                borderRadius={21}
+                onPress={onPress}
+                accessibilityLabel={t('profile.more', 'Plus d’options')}
+                icon={<Ionicons name="ellipsis-horizontal" size={20} color={theme.text} />}
+              />
+            )}
+          />
+        }
+      />
+
       <SafeAreaView edges={['bottom']} style={styles.safeArea}>
         <FlashList
           data={items}
@@ -160,6 +197,8 @@ export function ProfileScreen({
           renderItem={({ item }) => <ThoughtFeedSlice slice={item} />}
           onEndReached={onEndReached}
           onEndReachedThreshold={0.4}
+          onScroll={onScrollHandler}
+          scrollEventThrottle={16}
           refreshing={isRefetching}
           onRefresh={() => void refetch()}
           ListHeaderComponent={

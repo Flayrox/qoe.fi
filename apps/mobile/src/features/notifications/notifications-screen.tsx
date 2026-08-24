@@ -19,6 +19,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
 import { notificationKeys } from '@qoe/sdk/mobile';
+import { CustomSubHeader } from '@/components/header/CustomSubHeader';
+import { LiquidElasticButton } from '@/components/liquid-tab-bar/LiquidElasticButton';
 
 export function NotificationsScreen() {
   const theme = useTheme();
@@ -58,64 +60,70 @@ export function NotificationsScreen() {
     if (hasNextPage && !isFetching) void fetchNextPage();
   }, [hasNextPage, isFetching, fetchNextPage]);
 
-  if (isPending) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator color={theme.text} />
-      </SafeAreaView>
-    );
-  }
-
-  if (isError) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <ErrorMessage
-          message={t('notif.error', 'Impossible de charger les notifications')}
-          onPressTryAgain={() => void refetch()}
-        />
-      </SafeAreaView>
-    );
-  }
-
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView edges={['top']} style={styles.safe}>
+      {/* ─── Header Custom Flottant Liquid Glass ─── */}
+      <CustomSubHeader
+        title={t('notif.title', 'Notifications')}
+        rightComponent={
+          items.some((n) => !n.isRead) ? (
+            <LiquidElasticButton
+              size={42}
+              borderRadius={21}
+              onPress={() => void markAllRead()}
+              accessibilityLabel={t('notif.mark_all', 'Tout marquer lu')}
+              icon={
+                <SymbolView
+                  name={{ ios: 'checkmark.circle', android: 'done_all', web: 'done_all' }}
+                  size={20}
+                  tintColor={theme.primary}
+                  weight="semibold"
+                />
+              }
+            />
+          ) : undefined
+        }
+      />
+
+      <SafeAreaView edges={['bottom']} style={[styles.safe, { paddingTop: 105 }]}>
         {/* ========================================================= */}
         {/* SECTION 1 (50% HAUT) : NOTIFICATIONS                     */}
         {/* ========================================================= */}
         <View style={styles.halfSection}>
-          <View style={styles.header}>
-            <View style={styles.headerTitleRow}>
-              <ThemedText style={styles.title}>{t('notif.title', 'Notifications')}</ThemedText>
+          {isPending ? (
+            <View style={styles.center}>
+              <ActivityIndicator color={theme.text} />
             </View>
-            <Pressable onPress={() => void markAllRead()} hitSlop={8}>
-              <ThemedText type="small" style={{ color: theme.primary }}>
-                {t('notif.mark_all', 'Tout marquer lu')}
-              </ThemedText>
-            </Pressable>
-          </View>
-
-          <FlashList
-            data={items}
-            keyExtractor={(n) => n.id}
-            renderItem={({ item }) => <NotificationItem notification={item} />}
-            onEndReached={onEndReached}
-            onEndReachedThreshold={0.4}
-            refreshing={isRefetching}
-            onRefresh={() => void refetch()}
-            ListEmptyComponent={
-              <EmptyState
-                icon={{ ios: 'bell', android: 'notifications_none', web: 'notifications_none' }}
-                message={t('notif.empty', 'Aucune notification pour le moment.')}
+          ) : isError ? (
+            <View style={styles.center}>
+              <ErrorMessage
+                message={t('notif.error', 'Impossible de charger les notifications')}
+                onPressTryAgain={() => void refetch()}
               />
-            }
-            ListFooterComponent={
-              hasNextPage ? <ActivityIndicator color={theme.text} style={styles.footer} /> : null
-            }
-            ItemSeparatorComponent={() => (
-              <View style={[styles.sep, { backgroundColor: theme.border }]} />
-            )}
-          />
+            </View>
+          ) : (
+            <FlashList
+              data={items}
+              keyExtractor={(n) => n.id}
+              renderItem={({ item }) => <NotificationItem notification={item} />}
+              onEndReached={onEndReached}
+              onEndReachedThreshold={0.4}
+              refreshing={isRefetching}
+              onRefresh={() => void refetch()}
+              ListEmptyComponent={
+                <EmptyState
+                  icon={{ ios: 'bell', android: 'notifications_none', web: 'notifications_none' }}
+                  message={t('notif.empty', 'Aucune notification pour le moment.')}
+                />
+              }
+              ListFooterComponent={
+                hasNextPage ? <ActivityIndicator color={theme.text} style={styles.footer} /> : null
+              }
+              ItemSeparatorComponent={() => (
+                <View style={[styles.sep, { backgroundColor: theme.border }]} />
+              )}
+            />
+          )}
         </View>
 
         {/* SÉPARATEUR DE SECTION */}

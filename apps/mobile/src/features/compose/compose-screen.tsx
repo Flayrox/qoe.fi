@@ -12,8 +12,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { SymbolView } from 'expo-symbols';
+
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { CustomSubHeader } from '@/components/header/CustomSubHeader';
+import { LiquidElasticButton } from '@/components/liquid-tab-bar/LiquidElasticButton';
 import { WhoCanReplyPicker, type ReplyRestriction } from '@/components/thought/who-can-reply';
 import { CharProgress } from '@/features/compose/char-progress';
 import { deleteDraft, getDraft, saveDraft } from '@/features/compose/drafts';
@@ -87,12 +91,36 @@ export function ComposeScreen({
 
   return (
     <ThemedView style={styles.container}>
+      <CustomSubHeader
+        title={t('compose.title', 'Nouvelle pensée')}
+        rightComponent={
+          <LiquidElasticButton
+            size={42}
+            borderRadius={21}
+            onPress={() => void submit()}
+            accessibilityLabel={t('compose.post', 'Publier')}
+            icon={
+              posting ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                <SymbolView
+                  name={{ ios: 'arrow.up.circle.fill', android: 'send', web: 'send' }}
+                  size={26}
+                  tintColor={canPost ? theme.primary : theme.textSecondary}
+                  weight="bold"
+                />
+              )
+            }
+          />
+        }
+      />
+
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={88}
       >
-        <SafeAreaView edges={['bottom']} style={styles.flex}>
+        <SafeAreaView edges={['bottom']} style={[styles.flex, { paddingTop: 105 }]}>
           {/* Contexte de réponse */}
           {replyingTo ? (
             <View style={styles.replyContext}>

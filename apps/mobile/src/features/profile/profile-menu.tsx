@@ -17,7 +17,15 @@ import { useTheme } from '@/hooks/use-theme';
 import { copyText } from '@/lib/clipboard';
 import { t } from '@/lib/i18n';
 
-export function ProfileMenuButton({ username, isOwn }: { username: string; isOwn?: boolean }) {
+export function ProfileMenuButton({
+  username,
+  isOwn,
+  customButton,
+}: {
+  username: string;
+  isOwn?: boolean;
+  customButton?: (props: { onPress: () => void }) => React.ReactNode;
+}) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   const url = `https://qoe.fi/@${username}`;
@@ -90,19 +98,23 @@ export function ProfileMenuButton({ username, isOwn }: { username: string; isOwn
 
   return (
     <>
-      <Pressable
-        onPress={() => setOpen(true)}
-        hitSlop={8}
-        style={styles.btn}
-        accessibilityLabel={t('profile.more', 'Plus d’options')}
-      >
-        <SymbolView
-          name={{ ios: 'ellipsis', android: 'more_horiz', web: 'more_horiz' }}
-          size={20}
-          tintColor={theme.textSecondary}
-          weight="regular"
-        />
-      </Pressable>
+      {customButton ? (
+        customButton({ onPress: () => setOpen(true) })
+      ) : (
+        <Pressable
+          onPress={() => setOpen(true)}
+          hitSlop={8}
+          style={styles.btn}
+          accessibilityLabel={t('profile.more', 'Plus d’options')}
+        >
+          <SymbolView
+            name={{ ios: 'ellipsis', android: 'more_horiz', web: 'more_horiz' }}
+            size={20}
+            tintColor={theme.textSecondary}
+            weight="regular"
+          />
+        </Pressable>
+      )}
       <ActionSheet visible={open} groups={[{ items }]} onClose={() => setOpen(false)} />
     </>
   );
