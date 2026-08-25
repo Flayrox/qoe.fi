@@ -1173,7 +1173,27 @@ curl -H "Authorization: Bearer $JWT" "http://localhost:8080/v1/analytics/audienc
 curl -H "Authorization: Bearer $JWT" "http://localhost:8080/v1/analytics/top-content?publicationId=PUB_ID&limit=10"
 ```
 
-#### Créateur (clé API `ANALYTICS`, `modules/creator/handler.go:249`)
+#### Créateur v2 — front personnalisé (clé API `READ`, `modules/creator/api_content.go`)
+
+Bootstrap + contenu prêt à consommer pour un front tiers :
+
+| Endpoint                                  | Description                                                                                           |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `GET /v1/creator/me`                      | Profil de la publication portée par la clé + scopes effectifs                                         |
+| `GET /v1/creator/articles?limit=&cursor=` | Articles publiés : slug, titre, extrait texte brut, temps de lecture, premium, date, `authors[]`      |
+| `GET /v1/creator/articles/{slug}`         | Article complet avec `contentHtml` (HTML stocké), tags, auteurs (principal + co-auteurs `_CoAuthors`) |
+| `GET /v1/creator/highlights?article=slug` | Surlignages publics, filtrables par article                                                           |
+
+Toutes ces routes exigent le scope `READ` et sont montées uniquement derrière `APIKeyAuth`.
+
+```bash
+curl -H "Authorization: Bearer qoe_live_XXX" "http://localhost:8080/v1/creator/me"
+curl -H "Authorization: Bearer qoe_live_XXX" "http://localhost:8080/v1/creator/articles?limit=10"
+curl -H "Authorization: Bearer qoe_live_XXX" "http://localhost:8080/v1/creator/articles/mon-article"
+curl -H "Authorization: Bearer qoe_live_XXX" "http://localhost:8080/v1/creator/highlights?article=mon-article"
+```
+
+#### Créateur stats (clé API `ANALYTICS`, `modules/creator/handler.go`)
 
 `GET /v1/analytics/stats?startAt=&endAt=` -> proxy Umami `WebsiteStats` + `TopPages(10)`. `UmamiWebsiteID` depuis contexte clé ou `DefaultUmamiWebsiteID`. Si vide -> `{"stats":{"pageviews":0,…},"topPages":[]}`.
 

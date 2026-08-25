@@ -43,8 +43,11 @@ func NewHandler(pool *pgxpool.Pool, umamiCli *umami.Client, defaultWebsiteID str
 // route JWT → 401 sur le dashboard).
 func (h *Handler) RegisterAPIKey(r chi.Router) {
 	r.With(middleware.RequireAPIScope(middleware.ScopeAnalytics)).Get("/v1/analytics/stats", h.analyticsStats)
-	// Lecture des surlignages publics sur les articles du créateur
-	// (publication de la clé, articles signés ou co-écrits).
+	// Contenu pour front personnalisé : profil, liste et détail d'articles
+	// (HTML), surlignages publics filtrables par article. Scope READ.
+	r.Get("/v1/creator/me", h.apiMe)
+	r.Get("/v1/creator/articles", h.apiArticles)
+	r.Get("/v1/creator/articles/{slug}", h.apiArticleBySlug)
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/highlights", h.apiHighlights)
 }
 
@@ -58,9 +61,15 @@ func (h *Handler) apiHighlights(w http.ResponseWriter, r *http.Request) {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	offset, _ := strconv.Atoi(r.URL.Query().Get("cursor"))
-	page, err := h.apiHighlightsPage(r.Context(), publicationID, userID, limit, offset)
+	limit, offset := parseLimitCursor(r)
+	page, err := h.apiHighlightsPage(
+		r.Context(),
+		publicationID,
+		userID,
+		r.URL.Query().Get("article"),
+		limit,
+		offset,
+	)
 	if err != nil {
 		log.Printf("[creator] api highlights: %v", err)
 		response.Internal(w)
@@ -816,4 +825,17 @@ func timestampPtr(t pgtype.Timestamp) *string {
 	}
 	s := t.Time.Format(time.RFC3339)
 	return &s
+}
+
+// parseLimitCursor borne limit (20 défaut, 100 max) et offset.
+func parseLimitCursor(r *http.Request) (int, int) {
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("cursor"))
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return limit, offset
 }
