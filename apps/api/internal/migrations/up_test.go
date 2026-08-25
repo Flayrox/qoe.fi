@@ -89,11 +89,39 @@ func TestGooseUpFreshDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("version: %v", err)
 	}
-	// 00001_init + 00002_highlight_quote_ordinal : maintenir à jour à
-	// chaque nouvelle migration.
-	const latestVersion = 2
-	if version != latestVersion {
-		t.Fatalf("version goose = %d, attendu %d", version, latestVersion)
+	// Version attendue = nombre de fichiers de migration .sql dans
+	// sql/migrations (dynamique : plus besoin de maintenir à la main).
+	// Remonte depuis le cwd jusqu'à trouver sql/migrations (le test peut
+	// tourner depuis apps/api ou un autre répertoire de travail).
+	migrationsDir := ""
+	searchDir, _ := os.Getwd()
+	for {
+		candidate := filepath.Join(searchDir, "sql", "migrations")
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			migrationsDir = candidate
+			break
+		}
+		parent := filepath.Dir(searchDir)
+		if parent == searchDir {
+			break
+		}
+		searchDir = parent
+	}
+	if migrationsDir == "" {
+		t.Fatal("dossier sql/migrations introuvable en remontant depuis le cwd")
+	}
+	entries, readErr := os.ReadDir(migrationsDir)
+	if readErr != nil {
+		t.Fatalf("lire migrations: %v", readErr)
+	}
+	sqlCount := 0
+	for _, e := range entries {
+		if filepath.Ext(e.Name()) == ".sql" {
+			sqlCount++
+		}
+	}
+	if version != int64(sqlCount) {
+		t.Fatalf("version goose = %d, attendu %d (%d migrations)", version, sqlCount, sqlCount)
 	}
 }
 
