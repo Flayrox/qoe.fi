@@ -1,0 +1,139 @@
+:root {
+  --bg: #0d0d10;
+  --card: #16161a;
+  --border: #26262c;
+  --text: #ececf1;
+  --muted: #9a9aa5;
+  --accent: #7c6cf0;
+  --max-w: 720px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  line-height: 1.65;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.wrap {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+header.site {
+  padding: 3rem 0 2rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2rem;
+}
+
+header.site h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.9rem;
+  letter-spacing: -0.02em;
+}
+
+header.site p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+article.card {
+  display: block;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  margin-bottom: 1rem;
+  transition: border-color 0.15s ease;
+}
+
+article.card:hover {
+  border-color: var(--accent);
+}
+
+article.card h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.15rem;
+}
+
+article.card p.excerpt {
+  margin: 0 0 0.6rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.meta {
+  display: flex;
+  gap: 0.9rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0.05rem 0.55rem;
+}
+
+/* ── Rendu de l'article (contentHtml) ─────────────────────────────── */
+.prose h1,
+.prose h2,
+.prose h3 {
+  letter-spacing: -0.01em;
+  margin: 1.8rem 0 0.6rem;
+}
+
+.prose blockquote {
+  margin: 1.2rem 0;
+  padding: 0.4rem 1.1rem;
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+  font-style: italic;
+}
+
+.prose code {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.08rem 0.35rem;
+  font-size: 0.85em;
+}
+
+.prose img {
+  max-width: 100%;
+  border-radius: 12px;
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.back:hover {
+  color: var(--text);
+}

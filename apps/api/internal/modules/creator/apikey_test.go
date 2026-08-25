@@ -474,3 +474,59 @@ func TestCreatorAPI_Content(t *testing.T) {
 		t.Skip("aucun highlight seedé pour ce filtre")
 	}
 }
+
+// ─── Markdown : contentMarkdown généré depuis le HTML stocké ──────────
+
+func TestCreatorAPI_ArticleMarkdown(t *testing.T) {
+	ctx := context.Background()
+
+	// Fixture autonome (ce test peut tourner seul) : publication + auteur.
+	if _, err := poolTest.Exec(ctx,
+		`TRUNCATE TABLE "Highlight", "Article", "_CoAuthors", "Publication", "User" CASCADE`); err != nil {
+		t.Fatalf("truncate: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		 VALUES ('pub_api_hl', 'PERSONAL', 'Créateur API', 'createur-api', now(), now())`); err != nil {
+		t.Fatalf("publication: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		 VALUES ('00000000-0000-0000-0000-000000000c01', 'apicreator@test.dev', 'apicreator', 'apicreator', 'user', 'pub_api_hl', now(), now())`); err != nil {
+		t.Fatalf("user: %v", err)
+	}
+
+	r := newAPIRouter()
+	key := insertAPIKey(t, "00000000-0000-0000-0000-000000000c01", "md", authmw.AllScopes)
+
+	// Article avec du HTML sémantique riche.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Article" (id, title, slug, content, published, visibility,
+		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		 VALUES ('art_api_md', 'Article Markdown', 'article-markdown',
+		         '<h2>Introduction</h2><p>Du texte avec du <strong>gras</strong> et un <a href="https://qoe.fi">lien</a>.</p><ul><li>Puce un</li><li>Puce deux</li></ul><blockquote>Citation</blockquote>',
+		         true, 'PUBLIC', 2, 'PUBLISHED', $1, $2, now(), now())`,
+		"pub_api_hl", "00000000-0000-0000-0000-000000000c01"); err != nil {
+		t.Fatalf("article md: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/creator/articles/article-markdown", nil)
+	req.Header.Set("Authorization", "Bearer "+key)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("detail = %d %s", w.Code, w.Body.String())
+	}
+	var full struct {
+		ContentHTML     string `json:"contentHtml"`
+		ContentMarkdown string `json:"contentMarkdown"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &full); err != nil {
+		t.Fatalf("json: %v", err)
+	}
+	for _, want := range []string{"## Introduction", "**gras**", "[lien](https://qoe.fi)", "- Puce un", "> Citation"} {
+		if !strings.Contains(full.ContentMarkdown, want) {
+			t.Errorf("markdown sans %q :\n%s", want, full.ContentMarkdown)
+		}
+	}
+}
