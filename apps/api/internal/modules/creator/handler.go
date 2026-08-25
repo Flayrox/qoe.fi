@@ -49,6 +49,12 @@ func (h *Handler) RegisterAPIKey(r chi.Router) {
 	r.Get("/v1/creator/articles", h.apiArticles)
 	r.Get("/v1/creator/articles/{slug}", h.apiArticleBySlug)
 	r.Get("/v1/creator/categories", h.apiCategories)
+	r.Get("/v1/creator/search", h.apiSearch)
+	// Écriture CMS (scope WRITE) : créer / éditer / supprimer ses articles
+	// depuis des outils externes.
+	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Post("/v1/creator/articles", h.apiArticleCreate)
+	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Patch("/v1/creator/articles/{id}", h.apiArticleUpdate)
+	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Delete("/v1/creator/articles/{id}", h.apiArticleDelete)
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/highlights", h.apiHighlights)
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/highlights/{id}/comments", h.apiHighlightComments)
 }

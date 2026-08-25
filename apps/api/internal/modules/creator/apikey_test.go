@@ -802,3 +802,154 @@ func TestCreatorAPI_CMSTaxonomyAndFilters(t *testing.T) {
 		t.Fatalf("enrichissement catégorie absent : %v", it["category"])
 	}
 }
+
+// ─── Cycle de vie CMS : create → draft → patch → publish → search → delete
+
+func TestCreatorAPI_CMSLifecycle(t *testing.T) {
+	ctx := context.Background()
+
+	if _, err := poolTest.Exec(ctx,
+		`TRUNCATE TABLE "Highlight", "AnnotationComment", "Article", "Category",
+		 "_CoAuthors", "Publication", "User" CASCADE`); err != nil {
+		t.Fatalf("truncate: %v", err)
+	}
+	authorID := "00000000-0000-0000-0000-000000000e01"
+	readerID := "00000000-0000-0000-0000-000000000e02"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		 VALUES ('pub_cms', 'PERSONAL', 'Rédaction CMS', 'redaction-cms', now(), now())`); err != nil {
+		t.Fatalf("publication: %v", err)
+	}
+	for _, u := range []struct {
+		id, username string
+		withPub      bool
+	}{
+		{authorID, "cmsauteur", true}, // porte la publication (clés de création)
+		{readerID, "cmslecteur", false},
+	} {
+		var pub *string
+		if u.withPub {
+			pub = &[]string{"pub_cms"}[0]
+		}
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+			 VALUES ($1, $2, $3, $3, 'user', $4, now(), now())`,
+			u.id, u.username+"@test.dev", u.username, pub); err != nil {
+			t.Fatalf("user %s: %v", u.username, err)
+		}
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Category" (id, name, slug, description, "publicationId")
+		 VALUES ('cat_cms_pol', 'Politique CMS', 'politique-cms', NULL, 'pub_cms')`); err != nil {
+		t.Fatalf("category: %v", err)
+	}
+
+	r := newAPIRouter()
+	writeKey := insertAPIKey(t, authorID, "write", []string{authmw.ScopeWrite})
+	readKey := insertAPIKey(t, authorID, "read", []string{authmw.ScopeRead})
+	readerKey := insertAPIKey(t, readerID, "lecteur", authmw.AllScopes)
+
+	doKey := func(key, method, path, body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+key)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		return w
+	}
+
+	// 1. Création d'un brouillon.
+	w := doKey(writeKey, http.MethodPost, "/v1/creator/articles",
+		`{"title":"Enquête sur le budget","content":"<h2>Chiffrée</h2><p>Les chiffres du budget.</p>",
+		  "categoryId":"politique-cms","tags":["budget"],"isPremium":false}`)
+	if w.Code != http.StatusOK && w.Code != http.StatusCreated {
+		t.Fatalf("create = %d %s", w.Code, w.Body.String())
+	}
+	var created struct {
+		ID     string `json:"id"`
+		Slug   string `json:"slug"`
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil || created.ID == "" {
+		t.Fatalf("id absent : %s (%v)", w.Body.String(), err)
+	}
+	if created.Status != "DRAFT" {
+		t.Fatalf("status = %s, attendu DRAFT", created.Status)
+	}
+
+	// 2. Le brouillon n'est PAS dans la liste publique.
+	w = doKey(readKey, http.MethodGet, "/v1/creator/articles?limit=50", "")
+	var list struct {
+		Items []map[string]any `json:"items"`
+		Total int              `json:"total"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &list)
+	for _, it := range list.Items {
+		if it["id"] == created.ID {
+			t.Fatal("brouillon visible dans la liste publiée")
+		}
+	}
+
+	// 3. PATCH contenu + catégorie + publication.
+	patch := `{"content":"<h2>Version finale</h2><p>Le budget validé.</p>","publish":true,"regenerateSlug":true}`
+	w = doKey(writeKey, http.MethodPatch, "/v1/creator/articles/"+created.ID, patch)
+	if w.Code != http.StatusOK {
+		t.Fatalf("patch = %d %s", w.Code, w.Body.String())
+	}
+	var patched map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &patched)
+	if patched["published"] != true || patched["status"] != "PUBLISHED" {
+		t.Fatalf("non publié : %v/%v", patched["published"], patched["status"])
+	}
+
+	// 4. La recherche plein-texte le trouve.
+	w = doKey(writeKey, http.MethodGet, "/v1/creator/search?q=budget%20validé", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("search = %d %s", w.Code, w.Body.String())
+	}
+	var sres struct {
+		Items []struct {
+			Slug    string `json:"slug"`
+			Excerpt string `json:"excerpt"`
+		} `json:"items"`
+		Total int `json:"total"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &sres)
+	found := false
+	for _, it := range sres.Items {
+		if it.Slug == created.Slug {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("article introuvable dans la recherche : total=%d", sres.Total)
+	}
+
+	// 5. Un autre créateur ne peut ni modifier ni supprimer.
+	w = doKey(readerKey, http.MethodPatch,
+		"/v1/creator/articles/"+created.ID, `{"title":"Piraté"}`)
+	if w.Code != http.StatusNotFound && w.Code != http.StatusForbidden {
+		t.Fatalf("patch par un tiers = %d %s, attendu 403/404", w.Code, w.Body.String())
+	}
+	w = doKey(readerKey, http.MethodDelete, "/v1/creator/articles/"+created.ID, "")
+	if w.Code != http.StatusNotFound && w.Code != http.StatusForbidden {
+		t.Fatalf("delete par un tiers = %d, attendu 403/404", w.Code)
+	}
+
+	// 6. Scope READ seul : écriture refusée.
+	w = doKey(readKey, http.MethodPost, "/v1/creator/articles",
+		`{"title":"X"}`)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("POST avec scope READ = %d, attendu 403", w.Code)
+	}
+
+	// 7. Suppression par le propriétaire.
+	w = doKey(writeKey, http.MethodDelete, "/v1/creator/articles/"+created.ID, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("delete owner = %d %s", w.Code, w.Body.String())
+	}
+	var del map[string]bool
+	_ = json.Unmarshal(w.Body.Bytes(), &del)
+	if !del["deleted"] {
+		t.Fatal("contrat deleted attendu")
+	}
+}
