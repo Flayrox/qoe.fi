@@ -3,6 +3,7 @@ package creator
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -71,6 +72,8 @@ type apiArticlesPage struct {
 }
 
 type apiArticleFull struct {
+	Status    string `json:"status"` // DRAFT | PUBLISHED
+	Published bool   `json:"published"`
 	apiArticleSummary
 	ContentHTML     string `json:"contentHtml"`
 	ContentMarkdown string `json:"contentMarkdown"`
@@ -318,7 +321,19 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 		page.HasMore = true
 		page.NextCursor = strconv.Itoa(offset + limit)
 	}
-	response.OK(w, page)
+
+	var total int
+	if err := h.pool.QueryRow(r.Context(),
+		`SELECT COUNT(*)::int `+where, args...).Scan(&total); err == nil {
+		w.Header().Set("X-Total-Count", strconv.Itoa(total))
+	}
+	payload := map[string]any{
+		"items":      page.Items,
+		"total":      total,
+		"hasMore":    page.HasMore,
+		"nextCursor": page.NextCursor,
+	}
+	response.OK(w, payload)
 }
 
 // GET /v1/creator/articles/{slug} — article complet (contenu HTML).
@@ -389,4 +404,432 @@ func parseCursor(r *http.Request) (int, int) {
 		offset = 0
 	}
 	return limit, offset
+}
+
+// =====================================================================
+// ✍️ Écriture (scope WRITE) — créer / modifier / supprimer ses articles
+// depuis des outils externes. Le créateur ne touche qu'à SES articles :
+// publication de la clé, signature ou co-écriture.
+// =====================================================================
+
+var slugSanitizer = regexp.MustCompile(`[^a-z0-9]+`)
+
+// slugify transforme un titre en slug URL ASCII.
+func slugify(title string) string {
+	s := strings.ToLower(strings.TrimSpace(title))
+	s = strings.NewReplacer(
+		"à", "a", "â", "a", "ä", "a", "é", "e", "è", "e", "ê", "e", "ë", "e",
+		"î", "i", "ï", "i", "ô", "o", "ö", "o", "ù", "u", "û", "u", "ü", "u",
+		"ç", "c", "œ", "oe",
+	).Replace(s)
+	s = slugSanitizer.ReplaceAllString(s, "-")
+	s = strings.Trim(s, "-")
+	return s
+}
+
+// uniqueArticleSlug garantit un slug libre (suffixe -2, -3… sinon hash court).
+func (h *Handler) uniqueArticleSlug(ctx context.Context, base string) string {
+	if base == "" {
+		base = "article"
+	}
+	candidate := base
+	for i := 2; ; i++ {
+		var exists bool
+		if err := h.pool.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM "Article" WHERE slug = $1)`, candidate,
+		).Scan(&exists); err != nil || !exists {
+			return candidate
+		}
+		candidate = base + "-" + strconv.Itoa(i)
+	}
+}
+
+// creatorOwnsArticle vérifie le lien de propriété : publication de la clé,
+// auteur, ou co-auteur.
+func (h *Handler) creatorOwnsArticle(ctx context.Context, articleID, publicationID, userID string) bool {
+	var n int
+	err := h.pool.QueryRow(ctx, `
+		SELECT COUNT(*)::int FROM "Article" a
+		WHERE a.id = $1
+		  AND (
+		    a."publicationId" = $2
+		    OR a."authorId"::text = $3
+		    OR a.id IN (SELECT "A" FROM "_CoAuthors" WHERE "B"::text = $4)
+		  )`,
+		articleID, publicationID, userID, userID).Scan(&n)
+	return err == nil && n > 0
+}
+
+// readingTimeFromHTML estime le temps de lecture (~200 mots/min).
+func readingTimeFromHTML(html string) int32 {
+	text := stripHTMLTags(html, 1<<20)
+	words := len(strings.Fields(text))
+	if words == 0 {
+		return 1
+	}
+	rt := int32((words + 199) / 200)
+	if rt < 1 {
+		rt = 1
+	}
+	return rt
+}
+
+// POST /v1/creator/articles — crée un BROUILLON lié au créateur.
+// Réponse : la shape détail complète (contentHtml + contentMarkdown).
+type apiArticleCreateInput struct {
+	Title      string   `json:"title"`
+	Content    string   `json:"content"` // HTML
+	CategoryID string   `json:"categoryId"`
+	Tags       []string `json:"tags"`
+	IsPremium  bool     `json:"isPremium"`
+}
+
+func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	publicationID, _ := middleware.PublicationID(r.Context())
+
+	var in apiArticleCreateInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	in.Title = strings.TrimSpace(in.Title)
+	if in.Title == "" {
+		response.BadRequest(w, "title requis")
+		return
+	}
+	if in.CategoryID != "" {
+		var ok bool
+		if err := h.pool.QueryRow(r.Context(),
+			`SELECT EXISTS(SELECT 1 FROM "Category" WHERE id = $1 OR slug = $2)`,
+			in.CategoryID, in.CategoryID).Scan(&ok); err != nil || !ok {
+			response.BadRequest(w, "categoryId inconnue")
+			return
+		}
+		// Résout le slug vers l'id si besoin.
+		if err := h.pool.QueryRow(r.Context(),
+			`SELECT id FROM "Category" WHERE id = $1 OR slug = $2`,
+			in.CategoryID, in.CategoryID).Scan(&in.CategoryID); err != nil {
+			response.BadRequest(w, "categoryId inconnue")
+			return
+		}
+	}
+
+	visibility := "PUBLIC"
+	if in.IsPremium {
+		visibility = "PAID_SUBSCRIBERS"
+	}
+
+	id := "api_" + strings.ReplaceAll(slugify(in.Title), "-", "")[:8] + "-" +
+		strconv.FormatInt(time.Now().UnixNano()%100000, 10)
+	slug := h.uniqueArticleSlug(r.Context(), slugify(in.Title))
+
+	tags := in.Tags
+	if tags == nil {
+		tags = []string{}
+	}
+	if _, err := h.pool.Exec(r.Context(), `
+		INSERT INTO "Article" (id, title, slug, content, published, visibility,
+		                       "readingTime", status, "isPremium", "semanticTags",
+		                       "categoryId", "publicationId", "authorId", "createdAt", "updatedAt")
+		VALUES ($1, $2, $3, NULLIF($4,''), false, $5, $6, 'DRAFT', $7, $8,
+		        NULLIF($9,''), NULLIF($10,''), $11, now(), now())`,
+		id, in.Title, slug, in.Content, visibility,
+		readingTimeFromHTML(in.Content), in.IsPremium, tags,
+		in.CategoryID, publicationID, userID); err != nil {
+		log.Printf("[creator] article create: %v", err)
+		response.Internal(w)
+		return
+	}
+
+	h.serveCreatorArticleByID(w, r, id)
+}
+
+// serveCreatorArticleByID rend la shape détail complète pour un id interne
+// (création/édition) : contenu HTML + markdown, catégorie, auteurs, statut.
+func (h *Handler) serveCreatorArticleByID(w http.ResponseWriter, r *http.Request, id string) {
+	var full apiArticleFull
+	full.Authors = []apiAuthor{}
+	var createdAt time.Time
+	var catID, catSlug, catName sql.NullString
+	var tags []string
+
+	err := h.pool.QueryRow(r.Context(), `
+		SELECT a.id::text, a.slug, a.title, COALESCE(a.content,''), a."imageUrl",
+		       a."readingTime", a."isPremium", a."createdAt",
+		       a.status, a.published,
+		       a."semanticTags", cat.id::text, cat.slug, cat.name
+		FROM "Article" a
+		LEFT JOIN "Category" cat ON cat.id = a."categoryId"
+		WHERE a.id = $1`, id).Scan(
+		&full.ID, &full.Slug, &full.Title, &full.ContentHTML, &full.CoverURL,
+		&full.ReadingTime, &full.IsPremium, &createdAt,
+		&full.Status, &full.Published,
+		&tags, &catID, &catSlug, &catName)
+	if err != nil {
+		log.Printf("[creator] article by id %s: %v", id, err)
+		response.Internal(w)
+		return
+	}
+	full.PublishedAt = createdAt.Format("2006-01-02T15:04:05Z07:00")
+	full.ContentMarkdown = htmlToMarkdown(full.ContentHTML)
+	full.Excerpt = stripHTMLTags(full.ContentHTML, 180)
+	full.Tags = func() []any {
+		out := make([]any, len(tags))
+		for i, v := range tags {
+			out[i] = v
+		}
+		return out
+	}()
+	if catID.Valid {
+		full.Category = &apiCategoryRef{ID: catID.String, Slug: catSlug.String, Name: catName.String}
+	}
+	h.resolveAuthors(r.Context(), map[string]int{full.ID: 0}, &full)
+
+	response.OK(w, full)
+}
+
+// apiArticleUpdateInput : champs modifiables via PATCH (tous optionnels).
+type apiArticleUpdateInput struct {
+	Title      *string  `json:"title"`
+	Content    *string  `json:"content"` // HTML
+	CategoryID *string  `json:"categoryId"`
+	Tags       []string `json:"tags"`
+	IsPremium  *bool    `json:"isPremium"`
+	Publish    *bool    `json:"publish"` // true → PUBLISHED, false → DRAFT
+	RegenSlug  *bool    `json:"regenerateSlug"`
+}
+
+// PATCH /v1/creator/articles/{id} — met à jour un de SES articles.
+func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	publicationID, _ := middleware.PublicationID(r.Context())
+	userID, _ := middleware.UserID(r.Context())
+
+	if !h.creatorOwnsArticle(r.Context(), id, publicationID, userID) {
+		response.NotFound(w, "Article introuvable")
+		return
+	}
+
+	var in apiArticleUpdateInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+
+	// Titre.
+	if in.Title != nil && strings.TrimSpace(*in.Title) != "" {
+		title := strings.TrimSpace(*in.Title)
+		if _, err := h.pool.Exec(r.Context(),
+			`UPDATE "Article" SET title = $2, "updatedAt" = now() WHERE id = $1`,
+			id, title); err != nil {
+			log.Printf("[creator] update title: %v", err)
+			response.Internal(w)
+			return
+		}
+		if in.RegenSlug != nil && *in.RegenSlug {
+			slug := h.uniqueArticleSlug(r.Context(), slugify(title))
+			h.pool.Exec(r.Context(),
+				`UPDATE "Article" SET slug = $2, "updatedAt" = now() WHERE id = $1`, id, slug)
+		}
+	}
+	// Contenu (+ temps de lecture recalculé).
+	if in.Content != nil {
+		if _, err := h.pool.Exec(r.Context(),
+			`UPDATE "Article" SET content = $2, "readingTime" = $3, "updatedAt" = now() WHERE id = $1`,
+			id, *in.Content, readingTimeFromHTML(*in.Content)); err != nil {
+			log.Printf("[creator] update content: %v", err)
+			response.Internal(w)
+			return
+		}
+	}
+	// Catégorie (id ou slug ; vide = retirer).
+	if in.CategoryID != nil {
+		catID := sql.NullString{}
+		if *in.CategoryID != "" {
+			if err := h.pool.QueryRow(r.Context(),
+				`SELECT id FROM "Category" WHERE id = $1 OR slug = $1`,
+				*in.CategoryID).Scan(&catID); err != nil {
+				response.BadRequest(w, "categoryId inconnue")
+				return
+			}
+		}
+		if _, err := h.pool.Exec(r.Context(),
+			`UPDATE "Article" SET "categoryId" = NULLIF($2,''), "updatedAt" = now() WHERE id = $1`,
+			id, catID.String); err != nil {
+			log.Printf("[creator] update category: %v", err)
+			response.Internal(w)
+			return
+		}
+	}
+	// Tags.
+	if in.Tags != nil {
+		tags := in.Tags
+		if tags == nil || len(tags) == 0 {
+			tags = []string{}
+		}
+		if _, err := h.pool.Exec(r.Context(),
+			`UPDATE "Article" SET "semanticTags" = $2, "updatedAt" = now() WHERE id = $1`,
+			id, tags); err != nil {
+			log.Printf("[creator] update tags: %v", err)
+			response.Internal(w)
+			return
+		}
+	}
+	// Premium → visibilité alignée.
+	if in.IsPremium != nil {
+		vis := "PUBLIC"
+		if *in.IsPremium {
+			vis = "PAID_SUBSCRIBERS"
+		}
+		if _, err := h.pool.Exec(r.Context(),
+			`UPDATE "Article" SET "isPremium" = $2, visibility = $3, "updatedAt" = now() WHERE id = $1 AND status <> 'PUBLISHED'`,
+			id, *in.IsPremium, vis); err != nil {
+			log.Printf("[creator] update premium: %v", err)
+			response.Internal(w)
+			return
+		}
+	}
+	// Publication / dépublication.
+	if in.Publish != nil {
+		if *in.Publish {
+			if _, err := h.pool.Exec(r.Context(),
+				`UPDATE "Article" SET published = true, status = 'PUBLISHED', "updatedAt" = now()
+				 WHERE id = $1 AND COALESCE(content,'') <> ''`, id); err != nil {
+				log.Printf("[creator] publish: %v", err)
+				response.Internal(w)
+				return
+			}
+		} else if _, err := h.pool.Exec(r.Context(),
+			`UPDATE "Article" SET published = false, status = 'DRAFT', "updatedAt" = now() WHERE id = $1`,
+			id); err != nil {
+			log.Printf("[creator] unpublish: %v", err)
+			response.Internal(w)
+			return
+		}
+	}
+
+	h.serveCreatorArticleByID(w, r, id)
+}
+
+// DELETE /v1/creator/articles/{id} — supprime définitivement un de SES articles.
+func (h *Handler) apiArticleDelete(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	publicationID, _ := middleware.PublicationID(r.Context())
+	userID, _ := middleware.UserID(r.Context())
+
+	tag, err := h.pool.Exec(r.Context(), `
+		DELETE FROM "Article" a
+		WHERE a.id = $1 AND (
+		  a."authorId"::text = $2
+		  OR a."publicationId" = $3
+		  OR a.id IN (SELECT "A" FROM "_CoAuthors" WHERE "B"::text = $2)
+		)`,
+		id, userID, publicationID)
+	if err != nil {
+		log.Printf("[creator] article delete: %v", err)
+		response.Internal(w)
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		response.NotFound(w, "Article introuvable")
+		return
+	}
+	response.OK(w, map[string]bool{"deleted": true})
+}
+
+// ─── GET /v1/creator/search?q= — recherche plein-texte du CMS ──────────
+
+func (h *Handler) apiSearch(w http.ResponseWriter, r *http.Request) {
+	publicationID, _ := middleware.PublicationID(r.Context())
+	userID, _ := middleware.UserID(r.Context())
+
+	term := strings.TrimSpace(r.URL.Query().Get("q"))
+	limit, offset := parseLimitCursor(r)
+	category := r.URL.Query().Get("category")
+
+	result := map[string]any{
+		"items": []apiArticleSummary{}, "total": 0,
+		"nextCursor": "", "hasMore": false,
+	}
+	if len(term) < 2 {
+		response.OK(w, result)
+		return
+	}
+
+	where := apiArticlesFrom + `
+	  AND (a.title ILIKE '%' || $4 || '%' OR a.content ILIKE '%' || $4 || '%'
+	       OR EXISTS (SELECT 1 FROM unnest(a."semanticTags") t WHERE t ILIKE '%' || $4 || '%'))`
+	args := []any{publicationID, userID, userID, term}
+	if category != "" {
+		args = append(args, category)
+		where += ` AND cat.slug = $5`
+	}
+
+	// Total pour la pagination.
+	var total int
+	countArgs := args
+	if err := h.pool.QueryRow(r.Context(),
+		`SELECT COUNT(*)::int `+where, countArgs...).Scan(&total); err != nil {
+		log.Printf("[creator] search count: %v", err)
+		response.Internal(w)
+		return
+	}
+
+	query := `
+		SELECT a.id::text, a.slug, a.title, a.content, a."imageUrl",
+		       a."readingTime", a."isPremium", a."createdAt",
+		       cat.id::text, cat.slug, cat.name,
+		       (a.title ILIKE '%' || $4 || '%') AS title_hit
+		` + where + `
+		ORDER BY title_hit DESC, a."createdAt" DESC
+		LIMIT $` + strconv.Itoa(len(args)+1) + ` OFFSET $` + strconv.Itoa(len(args)+2)
+
+	page := apiArticlesPage{Items: []apiArticleSummary{}}
+	rows, err := h.pool.Query(r.Context(), query, append(args, limit+1, offset)...)
+	if err != nil {
+		log.Printf("[creator] search: %v", err)
+		response.Internal(w)
+		return
+	}
+	defer rows.Close()
+
+	ids := map[string]int{}
+	for rows.Next() {
+		var it apiArticleSummary
+		var content string
+		var createdAt time.Time
+		var catID, catSlug, catName sql.NullString
+		var titleHit bool
+		if err := rows.Scan(&it.ID, &it.Slug, &it.Title, &content, &it.CoverURL,
+			&it.ReadingTime, &it.IsPremium, &createdAt,
+			&catID, &catSlug, &catName, &titleHit); err != nil {
+			continue
+		}
+		it.PublishedAt = createdAt.Format("2006-01-02T15:04:05Z07:00")
+		it.Excerpt = stripHTMLTags(content, 180)
+		it.Authors = []apiAuthor{}
+		if catID.Valid {
+			it.Category = &apiCategoryRef{ID: catID.String, Slug: catSlug.String, Name: catName.String}
+		}
+		ids[it.ID] = len(page.Items)
+		page.Items = append(page.Items, it)
+	}
+	rows.Close()
+
+	h.resolveAuthors(r.Context(), ids, &page)
+
+	if len(page.Items) > limit {
+		page.Items = page.Items[:limit]
+		page.HasMore = true
+		page.NextCursor = strconv.Itoa(offset + limit)
+	}
+
+	payload := map[string]any{
+		"items":      page.Items,
+		"total":      total,
+		"hasMore":    page.HasMore,
+		"nextCursor": page.NextCursor,
+	}
+	response.OK(w, payload)
 }
