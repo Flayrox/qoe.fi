@@ -1177,13 +1177,14 @@ curl -H "Authorization: Bearer $JWT" "http://localhost:8080/v1/analytics/top-con
 
 Bootstrap + contenu prêt à consommer pour un front tiers :
 
-| Endpoint                                                | Description                                                                                                                     |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /v1/creator/me`                                    | Profil de la publication portée par la clé + scopes effectifs                                                                   |
-| `GET /v1/creator/articles?limit=&cursor=`               | Articles publiés : slug, titre, extrait texte brut, temps de lecture, premium, date, `authors[]`                                |
-| `GET /v1/creator/articles/{slug}`                       | Article complet : `contentHtml` **ET** `contentMarkdown` (conversion auto), tags, auteurs (principal + co-auteurs `_CoAuthors`) |
-| `GET /v1/creator/highlights?article=slug&official=true` | Surlignages publics, filtrables par article et annotations éditoriales (`isOfficial`)                                           |
-| `GET /v1/creator/highlights/{id}/comments`              | Discussion d'un surlignage, `isAuthor` marque les réponses de l'auteur de l'article                                             |
+| Endpoint                                                | Description                                                                                                                                                                                                                       |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/creator/me`                                    | Profil de la publication portée par la clé + scopes effectifs                                                                                                                                                                     |
+| `GET /v1/creator/articles`                              | Liste paginée filtrable : `category=slug`, `tag=x`, `premium=true/false`, `q=recherche titre`, `since=/until=YYYY-MM-DD`, `sort=published_desc\|published_asc\|title_asc\|title_desc`. Chaque item porte sa `category{slug,name}` |
+| `GET /v1/creator/categories`                            | Rubriques de la publication avec `articleCount` — la table des matières du CMS                                                                                                                                                    |
+| `GET /v1/creator/articles/{slug}`                       | Article complet : `contentHtml` **ET** `contentMarkdown` (conversion auto), tags, auteurs (principal + co-auteurs `_CoAuthors`)                                                                                                   |
+| `GET /v1/creator/highlights?article=slug&official=true` | Surlignages publics, filtrables par article et annotations éditoriales (`isOfficial`)                                                                                                                                             |
+| `GET /v1/creator/highlights/{id}/comments`              | Discussion d'un surlignage, `isAuthor` marque les réponses de l'auteur de l'article                                                                                                                                               |
 
 Toutes ces routes exigent le scope `READ` et sont montées uniquement derrière `APIKeyAuth`.
 
