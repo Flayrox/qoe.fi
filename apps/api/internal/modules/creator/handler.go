@@ -49,6 +49,7 @@ func (h *Handler) RegisterAPIKey(r chi.Router) {
 	r.Get("/v1/creator/articles", h.apiArticles)
 	r.Get("/v1/creator/articles/{slug}", h.apiArticleBySlug)
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/highlights", h.apiHighlights)
+	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/highlights/{id}/comments", h.apiHighlightComments)
 }
 
 // apiHighlights — GET /v1/creator/highlights : surlignages publics des
@@ -62,11 +63,13 @@ func (h *Handler) apiHighlights(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	limit, offset := parseLimitCursor(r)
+	officialOnly := r.URL.Query().Get("official") == "true"
 	page, err := h.apiHighlightsPage(
 		r.Context(),
 		publicationID,
 		userID,
 		r.URL.Query().Get("article"),
+		officialOnly,
 		limit,
 		offset,
 	)
@@ -838,4 +841,18 @@ func parseLimitCursor(r *http.Request) (int, int) {
 		offset = 0
 	}
 	return limit, offset
+}
+
+// apiHighlightComments — GET /v1/creator/highlights/{id}/comments :
+// discussion d'un surlignage, avec flag isAuthor sur les réponses
+// éditoriales de l'auteur de l'article.
+func (h *Handler) apiHighlightComments(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	comments, err := h.highlightComments(r.Context(), id)
+	if err != nil {
+		log.Printf("[creator] highlight comments: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"comments": comments})
 }

@@ -530,3 +530,127 @@ func TestCreatorAPI_ArticleMarkdown(t *testing.T) {
 		}
 	}
 }
+
+// ─── Annotations officielles de l'auteur + commentaires (isAuthor) ─────
+
+func TestCreatorAPI_OfficialAnnotationsAndComments(t *testing.T) {
+	ctx := context.Background()
+
+	// Fixture autonome : publication, auteur, lecteur, article,
+	// surlignage officiel de l'auteur + lecteur, et discussion.
+	if _, err := poolTest.Exec(ctx,
+		`TRUNCATE TABLE "AnnotationComment", "Highlight", "Article", "_CoAuthors",
+		 "Publication", "User" CASCADE`); err != nil {
+		t.Fatalf("truncate: %v", err)
+	}
+	authorID := "00000000-0000-0000-0000-000000000d01"
+	readerID := "00000000-0000-0000-0000-000000000d02"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		 VALUES ('pub_official', 'PERSONAL', 'Éditorial', 'editorial', now(), now())`); err != nil {
+		t.Fatalf("publication: %v", err)
+	}
+	for _, u := range []struct{ id, username string }{
+		{authorID, "officiauteur"}, {readerID, "lecteurannot"},
+	} {
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+			 VALUES ($1, $2, $3, $3, 'user', now(), now())`,
+			u.id, u.username+"@test.dev", u.username); err != nil {
+			t.Fatalf("user %s: %v", u.username, err)
+		}
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Article" (id, title, slug, content, published, visibility,
+		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		 VALUES ('art_official', 'Analyse annotée', 'analyse-annotee',
+		         '<p>Un passage important à souligner.</p>',
+		         true, 'PUBLIC', 2, 'PUBLISHED', 'pub_official', $1, now(), now())`,
+		authorID); err != nil {
+		t.Fatalf("article: %v", err)
+	}
+
+	hl := func(id, readerID, text string, official bool) {
+		t.Helper()
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "Highlight" (id, text, note, "isPublic", "isOfficial", "readerId", "articleId", "createdAt")
+			 VALUES ($1, $2, NULL, true, $3, $4, 'art_official', now())`,
+			id, text, official, readerID); err != nil {
+			t.Fatalf("highlight %s: %v", id, err)
+		}
+	}
+	hl("hl_officiel", authorID, "Un passage important", true)
+	hl("hl_lecteur", readerID, "À retenir aussi", false)
+
+	r := newAPIRouter()
+	key := insertAPIKey(t, authorID, "official", authmw.AllScopes)
+
+	getJSON := func(path string) map[string]any {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.Header.Set("Authorization", "Bearer "+key)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		var body map[string]any
+		_ = json.Unmarshal(w.Body.Bytes(), &body)
+		return body
+	}
+
+	// Filtre official=true → uniquement l'annotation éditoriale.
+	only := getJSON("/v1/creator/highlights?official=true")
+	items, _ := only["items"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("official=true = %d items, attendu 1", len(items))
+	}
+	item := items[0].(map[string]any)
+	if item["isOfficial"] != true || item["text"] != "Un passage important" {
+		t.Fatalf("annotation officielle incorrecte : %v", item)
+	}
+
+	// Sans filtre : les deux, avec le flag isOfficial correct.
+	all := getJSON("/v1/creator/highlights")
+	allItems, _ := all["items"].([]any)
+	if len(allItems) != 2 {
+		t.Fatalf("sans filtre = %d items, attendu 2", len(allItems))
+	}
+
+	// Commentaires du surlignage officiel : réponse auteur + lecteur.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "AnnotationComment" (id, content, "highlightId", "authorId", "createdAt")
+		 VALUES ('c_auteur', 'Merci pour la lecture attentive !', 'hl_officiel', $1, now()),
+		        ('c_lecteur', 'Très éclairant.', 'hl_officiel', $2, now())`,
+		authorID, readerID); err != nil {
+		t.Fatalf("comments seed: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/v1/creator/highlights/hl_officiel/comments", nil)
+	req.Header.Set("Authorization", "Bearer "+key)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("comments = %d %s", w.Code, w.Body.String())
+	}
+	var cRes struct {
+		Comments []struct {
+			Content string `json:"content"`
+			Author  struct {
+				ID string `json:"id"`
+			} `json:"author"`
+			IsAuthor bool `json:"isAuthor"`
+		} `json:"comments"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &cRes); err != nil {
+		t.Fatalf("json comments: %v (%s)", err, w.Body.String())
+	}
+	if len(cRes.Comments) != 2 {
+		t.Fatalf("comments = %d, attendu 2", len(cRes.Comments))
+	}
+	byAuthorFlag := map[string]bool{}
+	for _, c := range cRes.Comments {
+		byAuthorFlag[c.Content] = c.IsAuthor
+	}
+	if !byAuthorFlag["Merci pour la lecture attentive !"] {
+		t.Fatal("réponse de l'auteur non marquée isAuthor")
+	}
+	if byAuthorFlag["Très éclairant."] {
+		t.Fatal("commentaire lecteur marqué isAuthor")
+	}
+}

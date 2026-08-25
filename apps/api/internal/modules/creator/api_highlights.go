@@ -14,15 +14,17 @@ import (
 // =====================================================================
 
 type apiHighlightItem struct {
-	ID        string          `json:"id"`
-	Text      string          `json:"text"`
-	Note      *string         `json:"note,omitempty"`
-	IsPublic  bool            `json:"isPublic"`
-	CreatedAt string          `json:"createdAt"`
-	Upvotes   int64           `json:"upvotesCount"`
-	Comments  int64           `json:"commentsCount"`
-	Reader    apiActor        `json:"reader"`
-	Article   apiArticleBrief `json:"article"`
+	ID       string  `json:"id"`
+	Text     string  `json:"text"`
+	Note     *string `json:"note,omitempty"`
+	IsPublic bool    `json:"isPublic"`
+	// IsOfficial = annotation éditoriale de l'auteur de l'article.
+	IsOfficial bool            `json:"isOfficial"`
+	CreatedAt  string          `json:"createdAt"`
+	Upvotes    int64           `json:"upvotesCount"`
+	Comments   int64           `json:"commentsCount"`
+	Reader     apiActor        `json:"reader"`
+	Article    apiArticleBrief `json:"article"`
 }
 
 type apiActor struct {
@@ -46,7 +48,7 @@ type apiHighlightsPage struct {
 }
 
 const apiHighlightsQuery = `
-	SELECT h.id, h.text, h.note, h."isPublic", h."createdAt",
+	SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."createdAt",
 	       h."upvotesCount",
 	       (SELECT COUNT(*) FROM "AnnotationComment" c WHERE c."highlightId" = h.id) AS comments,
 	       u.id::text AS reader_id, u.username, u.name, u."logoUrl",
@@ -66,6 +68,7 @@ const apiHighlightsQuery = `
 func (h *Handler) apiHighlightsPage(
 	ctx context.Context,
 	publicationID, userID, articleSlug string,
+	officialOnly bool,
 	limit, offset int,
 ) (apiHighlightsPage, error) {
 	page := apiHighlightsPage{Items: []apiHighlightItem{}}
@@ -81,6 +84,11 @@ func (h *Handler) apiHighlightsPage(
 	if articleSlug != "" {
 		query += ` AND a.slug = $4`
 		args = append(args, articleSlug)
+	}
+	if officialOnly {
+		n := len(args) + 1
+		query += ` AND h."isOfficial" = $` + strconv.Itoa(n)
+		args = append(args, true)
 	}
 	query += `
 		ORDER BY h."createdAt" DESC
@@ -100,7 +108,7 @@ func (h *Handler) apiHighlightsPage(
 		var articleAuthorID string
 		var createdAt time.Time
 		if err := rows.Scan(
-			&it.ID, &it.Text, &it.Note, &it.IsPublic, &createdAt,
+			&it.ID, &it.Text, &it.Note, &it.IsPublic, &it.IsOfficial, &createdAt,
 			&it.Upvotes, &it.Comments,
 			&it.Reader.ID, &readerUsername, &readerName, &readerLogo,
 			&it.Article.ID, &it.Article.Slug, &it.Article.Title, &articleAuthorID,
@@ -158,4 +166,52 @@ func (h *Handler) appendCoAuthors(ctx context.Context, items []apiHighlightItem,
 			items[idx].Article.Authors = append(items[idx].Article.Authors, coAuthorID)
 		}
 	}
+}
+
+// apiComment est une réponse/discussion sur un surlignage, exposée à
+// l'API créateur. IsAuthor = commentaire de l'auteur de l'article
+// (réponse éditoriale) — permet au front de la styliser comme telle.
+type apiComment struct {
+	ID        string   `json:"id"`
+	Content   string   `json:"content"`
+	CreatedAt string   `json:"createdAt"`
+	Author    apiActor `json:"author"`
+	IsAuthor  bool     `json:"isAuthor"`
+}
+
+// highlightComments renvoie les commentaires d'un surlignage, auteur de
+// l'article résolu pour poser le flag isAuthor.
+func (h *Handler) highlightComments(ctx context.Context, highlightID string) ([]apiComment, error) {
+	out := []apiComment{}
+	rows, err := h.pool.Query(ctx, `
+		SELECT c.id::text, c.content, c."createdAt",
+		       u.id::text, u.username, u.name, u."logoUrl",
+		       COALESCE(a."authorId"::text, ''),
+		       (c."authorId"::text = COALESCE(a."authorId"::text,''))
+		FROM "AnnotationComment" c
+		JOIN "User" u ON u.id = c."authorId"
+		JOIN "Highlight" h ON h.id = c."highlightId"
+		JOIN "Article" a ON a.id = h."articleId"
+		WHERE c."highlightId" = $1
+		ORDER BY c."createdAt" ASC`, highlightID)
+	if err != nil {
+		return out, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var c apiComment
+		var createdAt time.Time
+		var articleAuthor string
+		if err := rows.Scan(
+			&c.ID, &c.Content, &createdAt,
+			&c.Author.ID, &c.Author.Username, &c.Author.Name, &c.Author.LogoURL,
+			&articleAuthor, &c.IsAuthor,
+		); err != nil {
+			continue
+		}
+		c.CreatedAt = createdAt.Format("2006-01-02T15:04:05Z07:00")
+		out = append(out, c)
+	}
+	return out, rows.Err()
 }
