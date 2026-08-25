@@ -1186,6 +1186,7 @@ Bootstrap + contenu prêt à consommer pour un front tiers :
 | `POST /v1/creator/articles`                             | **Créer un brouillon** : `{title, content(html), categoryId(slug ou id), tags[], isPremium}` — slug généré unique, readingTime calculé. Scope `WRITE`                                                                             |
 | `PATCH /v1/creator/articles/{id}`                       | **Éditer** ses articles : titre/contenu/catégorie/tags/premium, `publish:true\|false`, `regenerateSlug:true`. Scope `WRITE`                                                                                                       |
 | `DELETE /v1/creator/articles/{id}`                      | Supprimer définitivement un de ses articles. Scope `WRITE`                                                                                                                                                                        |
+| `PATCH /v1/creator/articles/{id}/slug`                  | **Slug par auteur** : `{slug}` personnalise SON URL pour l'article co-signé (unicité globale, 409 si pris, vide = retour au principal)                                                                                            |
 | `GET /v1/creator/articles/{slug}`                       | Article complet : `contentHtml` **ET** `contentMarkdown` (conversion auto), tags, auteurs (principal + co-auteurs `_CoAuthors`)                                                                                                   |
 | `GET /v1/creator/highlights?article=slug&official=true` | Surlignages publics, filtrables par article et annotations éditoriales (`isOfficial`)                                                                                                                                             |
 | `GET /v1/creator/highlights/{id}/comments`              | Discussion d'un surlignage, `isAuthor` marque les réponses de l'auteur de l'article                                                                                                                                               |
@@ -1211,6 +1212,12 @@ cité, retrouvé verbatim dans le contenu (`contentHtml` ou
 d'annotations de qoe.fi (`indexOf` sur le textContent). Un front tiers
 reproduit donc : chercher `text` → envelopper d'un `<mark>` → les
 annotations de l'auteur portent `isOfficial: true`.
+
+**Slugs multi-auteurs** : un article co-signé garde un seul ID mais chaque
+auteur peut avoir SON slug (table `ArticleSlug`). La résolution publique
+accepte le slug principal ET tous les variants ; `authors[].slug` expose
+le slug effectif de chacun — le front peut ouvrir la version de l'autre
+dans un nouvel onglet.
 
 **Passages répétés** : chaque surlignage porte `quoteOrdinal` (0-based) —
 quelle occurrence du passage surligner quand le même texte apparaît
