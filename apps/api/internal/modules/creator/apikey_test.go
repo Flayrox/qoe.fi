@@ -383,3 +383,94 @@ func TestCreatorAPI_Highlights_CoAuthorSeesOwnArticles(t *testing.T) {
 		t.Fatal("le co-auteur n'est pas listé dans article.authors")
 	}
 }
+
+// ─── API v2 : /me, /articles, /articles/{slug}, highlights filtrés ─────
+
+func TestCreatorAPI_Content(t *testing.T) {
+	r := newAPIRouter()
+	key := insertAPIKey(t, "00000000-0000-0000-0000-000000000c01", "contenu", authmw.AllScopes)
+
+	getJSON := func(path string) (int, map[string]any) {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.Header.Set("Authorization", "Bearer "+key)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		var body map[string]any
+		_ = json.Unmarshal(w.Body.Bytes(), &body)
+		return w.Code, body
+	}
+
+	// ── /v1/creator/me : publication + scopes.
+	code, me := getJSON("/v1/creator/me")
+	if code != http.StatusOK {
+		t.Fatalf("me = %d %v", code, me)
+	}
+	pub, _ := me["publication"].(map[string]any)
+	if pub == nil || pub["slug"] != "createur-api" || pub["name"] != "Créateur API" {
+		t.Fatalf("publication inattendue : %v", pub)
+	}
+	if scopes, ok := me["scopes"].([]any); !ok || len(scopes) == 0 {
+		t.Fatal("scopes absents de /me")
+	}
+
+	// ── /v1/creator/articles : 2 articles publiés avec auteurs résolus.
+	code, list := getJSON("/v1/creator/articles?limit=10")
+	if code != http.StatusOK {
+		t.Fatalf("articles = %d %v", code, list)
+	}
+	items, _ := list["items"].([]any)
+	if len(items) != 2 {
+		t.Fatalf("items = %d, attendu 2", len(items))
+	}
+	first := items[0].(map[string]any)
+	if first["excerpt"] == "" || first["excerpt"] == nil {
+		t.Fatal("extrait vide")
+	}
+	authors := first["authors"].([]any)
+	if len(authors) == 0 {
+		t.Fatal("auteurs non résolus sur la liste")
+	}
+	a0 := authors[0].(map[string]any)
+	if a0["username"] != "apicreator" && a0["username"] != "cocreator" {
+		t.Fatalf("auteur inattendu : %v", a0)
+	}
+
+	// ── /v1/creator/articles/article-duo : contenu HTML + co-auteur.
+	code, full := getJSON("/v1/creator/articles/article-duo")
+	if code != http.StatusOK {
+		t.Fatalf("article by slug = %d %v", code, full)
+	}
+	if html, _ := full["contentHtml"].(string); !strings.Contains(html, "<p>") {
+		t.Fatalf("contentHtml absent : %v", full["contentHtml"])
+	}
+	fullAuthors := full["authors"].([]any)
+	if len(fullAuthors) < 2 {
+		t.Fatalf("co-auteur manquant sur article-duo : %v", fullAuthors)
+	}
+
+	// Slug inconnu → 404.
+	req := httptest.NewRequest(http.MethodGet, "/v1/creator/articles/inconnu-xyz", nil)
+	req.Header.Set("Authorization", "Bearer "+key)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("slug inconnu = %d, attendu 404", w.Code)
+	}
+
+	// ── Highlights filtrés par article.
+	code, filtered := getJSON("/v1/creator/highlights?article=article-solo")
+	if code != http.StatusOK {
+		t.Fatalf("highlights filtrés = %d", code)
+	}
+	fItems, _ := filtered["items"].([]any)
+	for _, it := range fItems {
+		item := it.(map[string]any)
+		art := item["article"].(map[string]any)
+		if art["slug"] != "article-solo" {
+			t.Fatalf("filtre article ignoré : %v", art["slug"])
+		}
+	}
+	if len(fItems) == 0 {
+		t.Skip("aucun highlight seedé pour ce filtre")
+	}
+}
