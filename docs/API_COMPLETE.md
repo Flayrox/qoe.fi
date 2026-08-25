@@ -1207,6 +1207,13 @@ d'annotations de qoe.fi (`indexOf` sur le textContent). Un front tiers
 reproduit donc : chercher `text` → envelopper d'un `<mark>` → les
 annotations de l'auteur portent `isOfficial: true`.
 
+**Passages répétés** : chaque surlignage porte `quoteOrdinal` (0-based) —
+quelle occurrence du passage surligner quand le même texte apparaît
+plusieurs fois. Le moteur de rendu (`findQuoteOccurrence`, exporté par
+`@qoe/ui/annotations`) vise cette occurrence avec repli gracieux sur la
+première si le contenu a été édité. À la création, le client envoie
+`quoteOrdinal` dans le POST ; absent → 0.
+
 #### Créateur stats (clé API `ANALYTICS`, `modules/creator/handler.go`)
 
 `GET /v1/analytics/stats?startAt=&endAt=` -> proxy Umami `WebsiteStats` + `TopPages(10)`. `UmamiWebsiteID` depuis contexte clé ou `DefaultUmamiWebsiteID`. Si vide -> `{"stats":{"pageviews":0,…},"topPages":[]}`.

@@ -19,12 +19,14 @@ type apiHighlightItem struct {
 	Note     *string `json:"note,omitempty"`
 	IsPublic bool    `json:"isPublic"`
 	// IsOfficial = annotation éditoriale de l'auteur de l'article.
-	IsOfficial bool            `json:"isOfficial"`
-	CreatedAt  string          `json:"createdAt"`
-	Upvotes    int64           `json:"upvotesCount"`
-	Comments   int64           `json:"commentsCount"`
-	Reader     apiActor        `json:"reader"`
-	Article    apiArticleBrief `json:"article"`
+	IsOfficial bool `json:"isOfficial"`
+	// QuoteOrdinal = occurrence du passage cité (déduplication).
+	QuoteOrdinal int             `json:"quoteOrdinal"`
+	CreatedAt    string          `json:"createdAt"`
+	Upvotes      int64           `json:"upvotesCount"`
+	Comments     int64           `json:"commentsCount"`
+	Reader       apiActor        `json:"reader"`
+	Article      apiArticleBrief `json:"article"`
 }
 
 type apiActor struct {
@@ -48,7 +50,7 @@ type apiHighlightsPage struct {
 }
 
 const apiHighlightsQuery = `
-	SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."createdAt",
+	SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."createdAt",
 	       h."upvotesCount",
 	       (SELECT COUNT(*) FROM "AnnotationComment" c WHERE c."highlightId" = h.id) AS comments,
 	       u.id::text AS reader_id, u.username, u.name, u."logoUrl",
@@ -108,7 +110,7 @@ func (h *Handler) apiHighlightsPage(
 		var articleAuthorID string
 		var createdAt time.Time
 		if err := rows.Scan(
-			&it.ID, &it.Text, &it.Note, &it.IsPublic, &it.IsOfficial, &createdAt,
+			&it.ID, &it.Text, &it.Note, &it.IsPublic, &it.IsOfficial, &it.QuoteOrdinal, &createdAt,
 			&it.Upvotes, &it.Comments,
 			&it.Reader.ID, &readerUsername, &readerName, &readerLogo,
 			&it.Article.ID, &it.Article.Slug, &it.Article.Title, &articleAuthorID,

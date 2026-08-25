@@ -55,6 +55,8 @@ export const createHighlightAction = safeAction<
     note?: string | null;
     isPublic?: boolean;
     isOfficial?: boolean;
+    /** Occurrence du passage cité (0-based) si le texte se répète. */
+    quoteOrdinal?: number;
   },
   { highlight: HighlightDTO }
 >(async (input) => {
@@ -66,6 +68,7 @@ export const createHighlightAction = safeAction<
         text: input.text,
         note: input.note ?? null,
         isPublic: input.isPublic ?? true,
+        ...(input.quoteOrdinal !== undefined ? { quoteOrdinal: input.quoteOrdinal } : {}),
       },
     }
   );

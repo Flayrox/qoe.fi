@@ -44,18 +44,19 @@ func (q *Queries) CreateAnnotationComment(ctx context.Context, arg CreateAnnotat
 }
 
 const createHighlight = `-- name: CreateHighlight :one
-INSERT INTO "Highlight" (id, text, note, "isPublic", "isOfficial", "readerId", "articleId")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6)
+INSERT INTO "Highlight" (id, text, note, "isPublic", "isOfficial", "quoteOrdinal", "readerId", "articleId")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7)
 RETURNING id
 `
 
 type CreateHighlightParams struct {
-	Text       string      `json:"text"`
-	Note       pgtype.Text `json:"note"`
-	IsPublic   bool        `json:"isPublic"`
-	IsOfficial bool        `json:"isOfficial"`
-	ReaderId   pgtype.UUID `json:"readerId"`
-	ArticleId  string      `json:"articleId"`
+	Text         string      `json:"text"`
+	Note         pgtype.Text `json:"note"`
+	IsPublic     bool        `json:"isPublic"`
+	IsOfficial   bool        `json:"isOfficial"`
+	QuoteOrdinal int32       `json:"quoteOrdinal"`
+	ReaderId     pgtype.UUID `json:"readerId"`
+	ArticleId    string      `json:"articleId"`
 }
 
 func (q *Queries) CreateHighlight(ctx context.Context, arg CreateHighlightParams) (string, error) {
@@ -64,6 +65,7 @@ func (q *Queries) CreateHighlight(ctx context.Context, arg CreateHighlightParams
 		arg.Note,
 		arg.IsPublic,
 		arg.IsOfficial,
+		arg.QuoteOrdinal,
 		arg.ReaderId,
 		arg.ArticleId,
 	)
@@ -124,7 +126,7 @@ func (q *Queries) DeleteHighlightUpvote(ctx context.Context, arg DeleteHighlight
 
 const getHighlightByID = `-- name: GetHighlightByID :one
 
-SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."upvotesCount",
+SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."upvotesCount",
        h."readerId", h."articleId", h."createdAt",
        u.id::text AS reader_id,
        u.name     AS reader_name,
@@ -141,6 +143,7 @@ type GetHighlightByIDRow struct {
 	Note           pgtype.Text      `json:"note"`
 	IsPublic       bool             `json:"isPublic"`
 	IsOfficial     bool             `json:"isOfficial"`
+	QuoteOrdinal   int32            `json:"quoteOrdinal"`
 	UpvotesCount   int32            `json:"upvotesCount"`
 	ReaderId       pgtype.UUID      `json:"readerId"`
 	ArticleId      string           `json:"articleId"`
@@ -163,6 +166,7 @@ func (q *Queries) GetHighlightByID(ctx context.Context, id string) (GetHighlight
 		&i.Note,
 		&i.IsPublic,
 		&i.IsOfficial,
+		&i.QuoteOrdinal,
 		&i.UpvotesCount,
 		&i.ReaderId,
 		&i.ArticleId,
@@ -229,7 +233,7 @@ func (q *Queries) ListAnnotationComments(ctx context.Context, highlightid string
 }
 
 const listHighlightsByArticle = `-- name: ListHighlightsByArticle :many
-SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."upvotesCount",
+SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."upvotesCount",
        h."readerId", h."articleId", h."createdAt",
        u.id::text AS reader_id,
        u.name     AS reader_name,
@@ -259,6 +263,7 @@ type ListHighlightsByArticleRow struct {
 	Note           pgtype.Text      `json:"note"`
 	IsPublic       bool             `json:"isPublic"`
 	IsOfficial     bool             `json:"isOfficial"`
+	QuoteOrdinal   int32            `json:"quoteOrdinal"`
 	UpvotesCount   int32            `json:"upvotesCount"`
 	ReaderId       pgtype.UUID      `json:"readerId"`
 	ArticleId      string           `json:"articleId"`
@@ -287,6 +292,7 @@ func (q *Queries) ListHighlightsByArticle(ctx context.Context, arg ListHighlight
 			&i.Note,
 			&i.IsPublic,
 			&i.IsOfficial,
+			&i.QuoteOrdinal,
 			&i.UpvotesCount,
 			&i.ReaderId,
 			&i.ArticleId,
@@ -309,7 +315,7 @@ func (q *Queries) ListHighlightsByArticle(ctx context.Context, arg ListHighlight
 }
 
 const listMyHighlights = `-- name: ListMyHighlights :many
-SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."upvotesCount",
+SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."upvotesCount",
        h."readerId", h."articleId", h."createdAt",
        a.title      AS article_title,
        a.slug       AS article_slug,
@@ -338,6 +344,7 @@ type ListMyHighlightsRow struct {
 	Note                    pgtype.Text      `json:"note"`
 	IsPublic                bool             `json:"isPublic"`
 	IsOfficial              bool             `json:"isOfficial"`
+	QuoteOrdinal            int32            `json:"quoteOrdinal"`
 	UpvotesCount            int32            `json:"upvotesCount"`
 	ReaderId                pgtype.UUID      `json:"readerId"`
 	ArticleId               string           `json:"articleId"`
@@ -367,6 +374,7 @@ func (q *Queries) ListMyHighlights(ctx context.Context, arg ListMyHighlightsPara
 			&i.Note,
 			&i.IsPublic,
 			&i.IsOfficial,
+			&i.QuoteOrdinal,
 			&i.UpvotesCount,
 			&i.ReaderId,
 			&i.ArticleId,

@@ -38,7 +38,7 @@ func TestCreateAndListHighlights(t *testing.T) {
 	ctx := context.Background()
 
 	// Création d'un surlignage public par Alice sur l'article seed.
-	h, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Passage génial sur la lecture", strPtr("À garder"), true)
+	h, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Passage génial sur la lecture", strPtr("À garder"), true, 0)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestCreatePrivateHighlight_VisibleOnlyToOwner(t *testing.T) {
 	svc := newTestService()
 	ctx := context.Background()
 
-	if _, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Surlignage privé", nil, false); err != nil {
+	if _, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Surlignage privé", nil, false, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
@@ -109,7 +109,7 @@ func TestToggleUpvote_AddThenRemove(t *testing.T) {
 	svc := newTestService()
 	ctx := context.Background()
 
-	h, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Passage à upvoter", nil, true)
+	h, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Passage à upvoter", nil, true, 0)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestCreateAndListAnnotationComments(t *testing.T) {
 	svc := newTestService()
 	ctx := context.Background()
 
-	h, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Passage commenté", nil, true)
+	h, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Passage commenté", nil, true, 0)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestBookmarksAndMyHighlights(t *testing.T) {
 	ctx := context.Background()
 
 	// Alice crée un surlignage + bookmark l'article seed.
-	if _, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Passage sauvegardé", nil, true); err != nil {
+	if _, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Passage sauvegardé", nil, true, 0); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
@@ -219,7 +219,7 @@ func TestDeleteHighlight_OwnerVsOther(t *testing.T) {
 	svc := newTestService()
 	ctx := context.Background()
 
-	h, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "À supprimer", nil, true)
+	h, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "À supprimer", nil, true, 0)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -256,7 +256,7 @@ func TestCreateAndDeleteComment(t *testing.T) {
 	svc := newTestService()
 	ctx := context.Background()
 
-	h, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Passage commenté", nil, true)
+	h, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Passage commenté", nil, true, 0)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -302,7 +302,7 @@ func TestMyHighlights_Pagination(t *testing.T) {
 	ctx := context.Background()
 
 	for _, txt := range []string{"un", "deux", "trois"} {
-		if _, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, txt, nil, true); err != nil {
+		if _, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, txt, nil, true, 0); err != nil {
 			t.Fatalf("Create %s: %v", txt, err)
 		}
 	}

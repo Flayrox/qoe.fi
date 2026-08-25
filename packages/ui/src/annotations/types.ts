@@ -47,6 +47,8 @@ export type AnnotationCommentItem = CommentItem;
 export interface AnnotationItem {
   id: string;
   text: string;
+  /** Occurrence du passage cité (0-based) quand le texte se répète. */
+  quoteOrdinal?: number;
   note?: string | null;
   isPublic: boolean;
   isOfficial: boolean;
@@ -62,6 +64,8 @@ export interface AnnotationItem {
 export interface HighlightItem {
   id: string;
   text: string;
+  /** Occurrence du passage cité (0-based) quand le texte se répète. */
+  quoteOrdinal?: number;
   note: string | null;
   isPublic?: boolean;
   isOfficial?: boolean;
@@ -89,6 +93,8 @@ export interface CreateHighlightParams {
   text: string;
   note?: string | null;
   isPublic: boolean;
+  /** Occurrence du passage cité (0-based) si le texte se répète. */
+  quoteOrdinal?: number;
 }
 
 export interface CommentHighlightParams {

@@ -96,12 +96,13 @@ export function ArticleAnnotatorView({ article, initialSource }: ArticleAnnotato
 
   // Decoupled Annotation Action Callbacks bound to API client actions
   const callbacks: AnnotationActionCallbacks = {
-    onHighlightCreate: async ({ articleId, text, note, isPublic }) => {
+    onHighlightCreate: async ({ articleId, text, note, isPublic, quoteOrdinal }) => {
       const res = await createHighlightAction({
         articleId: articleId || article.id,
         text,
         note: note || null,
         isPublic: !!isPublic,
+        ...(quoteOrdinal !== undefined ? { quoteOrdinal } : {}),
       });
       if (res.ok && res.data?.highlight) {
         return { ok: true, data: res.data.highlight };
