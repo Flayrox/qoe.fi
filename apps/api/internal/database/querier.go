@@ -124,6 +124,7 @@ type Querier interface {
 	GetArticleBySlug(ctx context.Context, arg GetArticleBySlugParams) (GetArticleBySlugRow, error)
 	// Lecture publique par slug SEUL (premier article publié) — parité avec
 	// findFirstBySlug Prisma de la page autonome /article/[slug] du reader core.
+	// Résout aussi les slugs personnalisés par auteur (ArticleSlug).
 	GetArticleBySlugAny(ctx context.Context, slug string) (GetArticleBySlugAnyRow, error)
 	GetArticleCommentAuthor(ctx context.Context, id string) (string, error)
 	GetArticleCommentsConfig(ctx context.Context, id string) (GetArticleCommentsConfigRow, error)

@@ -44,6 +44,9 @@ type apiAuthor struct {
 	ID       string  `json:"id"`
 	Username *string `json:"username"`
 	Name     *string `json:"name"`
+	// Slug effectif de CET auteur pour l'article (variant personnel ou
+	// slug principal) — permet d'ouvrir la version de l'autre auteur.
+	Slug string `json:"slug"`
 }
 
 type apiCategoryRef struct {
@@ -315,6 +318,11 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 	rows.Close()
 
 	h.resolveAuthors(r.Context(), ids, &page)
+	for i := range page.Items {
+		page.Items[i].Authors = h.withEffectiveSlugs(
+			r.Context(), page.Items[i].ID, page.Items[i].Authors, page.Items[i].Slug,
+		)
+	}
 
 	if len(page.Items) > limit {
 		page.Items = page.Items[:limit]
@@ -380,8 +388,14 @@ func (h *Handler) apiArticleBySlug(w http.ResponseWriter, r *http.Request) {
 	}()
 	full.Excerpt = stripHTMLTags(full.ContentHTML, 180)
 
+	// Le slug affiché = celui de l'appelant (variant personnel si défini).
+	callerID, _ := middleware.UserID(r.Context())
+	baseSlug := full.Slug
+	full.Slug = h.effectiveSlug(r.Context(), full.ID, callerID, baseSlug)
+
 	ids := map[string]int{full.ID: 0}
 	h.resolveAuthors(r.Context(), ids, &full)
+	full.Authors = h.withEffectiveSlugs(r.Context(), full.ID, full.Authors, baseSlug)
 	response.OK(w, full)
 }
 
@@ -585,6 +599,13 @@ func (h *Handler) serveCreatorArticleByID(w http.ResponseWriter, r *http.Request
 		full.Category = &apiCategoryRef{ID: catID.String, Slug: catSlug.String, Name: catName.String}
 	}
 	h.resolveAuthors(r.Context(), map[string]int{full.ID: 0}, &full)
+
+	callerID, _ := middleware.UserID(r.Context())
+	baseSlug := full.Slug
+	if callerID != "" && baseSlug != "" {
+		full.Slug = h.effectiveSlug(r.Context(), full.ID, callerID, baseSlug)
+		full.Authors = h.withEffectiveSlugs(r.Context(), full.ID, full.Authors, baseSlug)
+	}
 
 	response.OK(w, full)
 }
@@ -832,4 +853,108 @@ func (h *Handler) apiSearch(w http.ResponseWriter, r *http.Request) {
 		"nextCursor": page.NextCursor,
 	}
 	response.OK(w, payload)
+}
+
+// =====================================================================
+// 🔗 Slugs par auteur — un article co-signé garde un seul ID, mais chaque
+// auteur peut avoir SON URL. Résolution publique : slug principal OU tout
+// variant (voir GetArticleBySlugAny).
+// =====================================================================
+
+// effectiveSlug renvoie le variant personnel de l'auteur s'il existe,
+// sinon le slug principal de l'article.
+func (h *Handler) effectiveSlug(ctx context.Context, articleID, userID, baseSlug string) string {
+	var s string
+	err := h.pool.QueryRow(ctx,
+		`SELECT slug FROM "ArticleSlug" WHERE "articleId" = $1 AND "ownerUserId"::text = $2`,
+		articleID, userID).Scan(&s)
+	if err != nil || s == "" {
+		return baseSlug
+	}
+	return s
+}
+
+// authorSlugs retourne le slug effectif de CHAQUE auteur de l'article :
+// principal + co-auteurs — pour que le front puisse ouvrir la version de
+// l'autre dans un nouvel onglet.
+func (h *Handler) authorSlugs(ctx context.Context, articleID, baseSlug, mainAuthorID string) map[string]string {
+	out := map[string]string{mainAuthorID: baseSlug}
+	rows, err := h.pool.Query(ctx, `
+		SELECT u.id::text,
+		       COALESCE(s.slug, $2) AS effective
+		FROM "User" u
+		JOIN "_CoAuthors" c ON c."B" = u.id AND c."A" = $1
+		LEFT JOIN "ArticleSlug" s ON s."articleId" = $1 AND s."ownerUserId" = u.id`, articleID, baseSlug)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var uid, eff string
+		if err := rows.Scan(&uid, &eff); err == nil {
+			out[uid] = eff
+		}
+	}
+	return out
+}
+
+// PATCH /v1/creator/articles/{id}/slug — définit (ou réinitialise) le
+// variant de slug de l'appelant pour cet article.
+type apiSlugInput struct {
+	Slug string `json:"slug"` // vide → revient au slug principal
+}
+
+func (h *Handler) apiArticleSlugSet(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	publicationID, _ := middleware.PublicationID(r.Context())
+	userID, _ := middleware.UserID(r.Context())
+
+	if !h.creatorOwnsArticle(r.Context(), id, publicationID, userID) {
+		response.NotFound(w, "Article introuvable")
+		return
+	}
+
+	var in apiSlugInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	want := strings.ToLower(strings.TrimSpace(in.Slug))
+
+	// Le slug principal de l'article = revenir au défaut.
+	var baseSlug string
+	if err := h.pool.QueryRow(r.Context(),
+		`SELECT slug FROM "Article" WHERE id = $1`, id).Scan(&baseSlug); err != nil {
+		response.NotFound(w, "Article introuvable")
+		return
+	}
+	if want == "" || want == baseSlug {
+		h.pool.Exec(r.Context(),
+			`DELETE FROM "ArticleSlug" WHERE "articleId" = $1 AND "ownerUserId"::text = $2`,
+			id, userID)
+		response.OK(w, map[string]string{"slug": baseSlug})
+		return
+	}
+
+	// Unicité globale : la même URL ne peut pas pointer ailleurs.
+	var taken bool
+	if err := h.pool.QueryRow(r.Context(),
+		`SELECT EXISTS(
+		   SELECT 1 FROM "Article" WHERE slug = $1
+		   UNION ALL
+		   SELECT 1 FROM "ArticleSlug" WHERE slug = $1
+		     AND NOT ("articleId" = $2 AND "ownerUserId"::text = $3)
+		 )`, want, id, userID).Scan(&taken); err != nil || taken {
+		response.Error(w, http.StatusConflict, "Ce slug est déjà utilisé")
+		return
+	}
+
+	h.pool.Exec(r.Context(), `
+		INSERT INTO "ArticleSlug" (id, "articleId", "ownerUserId", slug, "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2::uuid, $3, now(), now())
+		ON CONFLICT ("articleId", "ownerUserId")
+		DO UPDATE SET slug = EXCLUDED.slug, "updatedAt" = now()`,
+		id, userID, want)
+
+	response.OK(w, map[string]string{"slug": want})
 }
