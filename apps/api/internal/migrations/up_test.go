@@ -89,8 +89,11 @@ func TestGooseUpFreshDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("version: %v", err)
 	}
-	if version != 1 {
-		t.Fatalf("version goose = %d, attendu 1", version)
+	// 00001_init + 00002_highlight_quote_ordinal : maintenir à jour à
+	// chaque nouvelle migration.
+	const latestVersion = 2
+	if version != latestVersion {
+		t.Fatalf("version goose = %d, attendu %d", version, latestVersion)
 	}
 }
 
