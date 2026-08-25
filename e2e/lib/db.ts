@@ -77,4 +77,15 @@ export class TestDb {
     );
     return rows[0]?.id ?? null;
   }
+
+  /**
+   * 📰 Titres réellement publiés, lus en base plutôt que codés en dur
+   * (le classement du feed dépend du moteur de recommandation).
+   */
+  async publishedTitles(): Promise<{ title: string; isPremium: boolean }[]> {
+    const rows = await this.query<{ title: string; isPremium: boolean }>(
+      `SELECT title, "isPremium" AS "isPremium" FROM "Article" WHERE published = true ORDER BY "createdAt" DESC`
+    );
+    return rows;
+  }
 }
