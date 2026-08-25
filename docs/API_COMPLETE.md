@@ -1177,12 +1177,13 @@ curl -H "Authorization: Bearer $JWT" "http://localhost:8080/v1/analytics/top-con
 
 Bootstrap + contenu prêt à consommer pour un front tiers :
 
-| Endpoint                                  | Description                                                                                                                     |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /v1/creator/me`                      | Profil de la publication portée par la clé + scopes effectifs                                                                   |
-| `GET /v1/creator/articles?limit=&cursor=` | Articles publiés : slug, titre, extrait texte brut, temps de lecture, premium, date, `authors[]`                                |
-| `GET /v1/creator/articles/{slug}`         | Article complet : `contentHtml` **ET** `contentMarkdown` (conversion auto), tags, auteurs (principal + co-auteurs `_CoAuthors`) |
-| `GET /v1/creator/highlights?article=slug` | Surlignages publics, filtrables par article                                                                                     |
+| Endpoint                                                | Description                                                                                                                     |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/creator/me`                                    | Profil de la publication portée par la clé + scopes effectifs                                                                   |
+| `GET /v1/creator/articles?limit=&cursor=`               | Articles publiés : slug, titre, extrait texte brut, temps de lecture, premium, date, `authors[]`                                |
+| `GET /v1/creator/articles/{slug}`                       | Article complet : `contentHtml` **ET** `contentMarkdown` (conversion auto), tags, auteurs (principal + co-auteurs `_CoAuthors`) |
+| `GET /v1/creator/highlights?article=slug&official=true` | Surlignages publics, filtrables par article et annotations éditoriales (`isOfficial`)                                           |
+| `GET /v1/creator/highlights/{id}/comments`              | Discussion d'un surlignage, `isAuthor` marque les réponses de l'auteur de l'article                                             |
 
 Toutes ces routes exigent le scope `READ` et sont montées uniquement derrière `APIKeyAuth`.
 
@@ -1196,6 +1197,15 @@ curl -H "Authorization: Bearer qoe_live_XXX" "http://localhost:8080/v1/creator/h
 > 💡 **Exemple de front complet** : [`examples/creator-front-nextjs`](../examples/creator-front-nextjs) —
 > liste des derniers articles + page article (HTML ou Markdown), clé API
 > côté serveur uniquement.
+
+#### Ancrage des annotations sur un front personnalisé
+
+Les surlignages n'ont **pas d'offsets stockés** : l'ancre est le `text`
+cité, retrouvé verbatim dans le contenu (`contentHtml` ou
+`contentMarkdown`, espaces normalisées). C'est la technique du moteur
+d'annotations de qoe.fi (`indexOf` sur le textContent). Un front tiers
+reproduit donc : chercher `text` → envelopper d'un `<mark>` → les
+annotations de l'auteur portent `isOfficial: true`.
 
 #### Créateur stats (clé API `ANALYTICS`, `modules/creator/handler.go`)
 
