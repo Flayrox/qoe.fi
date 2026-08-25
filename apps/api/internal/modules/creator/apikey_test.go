@@ -654,3 +654,151 @@ func TestCreatorAPI_OfficialAnnotationsAndComments(t *testing.T) {
 		t.Fatal("commentaire lecteur marqué isAuthor")
 	}
 }
+
+// ─── CMS : catégories, filtres et tri des articles ─────────────────────
+
+func TestCreatorAPI_CMSTaxonomyAndFilters(t *testing.T) {
+	ctx := context.Background()
+
+	// Fixture autonome : publication, catégorie Politique + Culture,
+	// 3 articles répartis (tags, premium, dates échelonnées).
+	if _, err := poolTest.Exec(ctx,
+		`TRUNCATE TABLE "Highlight", "Article", "Category", "_CoAuthors",
+		 "Publication", "User" CASCADE`); err != nil {
+		t.Fatalf("truncate: %v", err)
+	}
+	authorID := "00000000-0000-0000-0000-000000000c01"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		 VALUES ('pub_api_hl', 'PERSONAL', 'Créateur API', 'createur-api', now(), now())
+		 ON CONFLICT (id) DO NOTHING`); err != nil {
+		t.Fatalf("publication: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		 VALUES ($1, 'apicreator@test.dev', 'apicreator', 'Créateur API', 'user', 'pub_api_hl', now(), now())
+		 ON CONFLICT (id) DO NOTHING`, authorID); err != nil {
+		t.Fatalf("user: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Category" (id, name, slug, description, "publicationId")
+		 VALUES ('cat_politique', 'Politique', 'politique', 'Vie publique', 'pub_api_hl'),
+		        ('cat_culture', 'Culture', 'culture', NULL, 'pub_api_hl')`); err != nil {
+		t.Fatalf("categories: %v", err)
+	}
+
+	insertArt := func(id, title, slug, catID string, tags []string, premium bool, daysAgo int) {
+		t.Helper()
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "Article" (id, title, slug, content, published, visibility,
+			                        "readingTime", status, "isPremium", "semanticTags",
+			                        "categoryId", "publicationId", "authorId", "createdAt", "updatedAt")
+			 VALUES ($1, $2, $3, '<p>Corps</p>', true, 'PUBLIC', 3, 'PUBLISHED', $4, $5,
+			         NULLIF($6,''), 'pub_api_hl', $7, now() - make_interval(days => $8), now())`,
+			id, title, slug, premium, tags, catID, authorID, daysAgo); err != nil {
+			t.Fatalf("article %s: %v", slug, err)
+		}
+	}
+	insertArt("art_pol_1", "Élection régionale", "election-regionale", "cat_politique",
+		[]string{"politique", "election"}, false, 10)
+	insertArt("art_pol_2", "Débat parlementaire", "debat-parlementaire", "cat_politique",
+		[]string{"politique"}, true, 5)
+	insertArt("art_cul_1", "Festival d'automne", "festival-automne", "cat_culture",
+		[]string{"culture", "festival"}, false, 1)
+
+	r := newAPIRouter()
+	key := insertAPIKey(t, authorID, "cms", authmw.AllScopes)
+
+	getJSON := func(path string) (int, map[string]any) {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.Header.Set("Authorization", "Bearer "+key)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		var body map[string]any
+		_ = json.Unmarshal(w.Body.Bytes(), &body)
+		return w.Code, body
+	}
+
+	slugs := func(body map[string]any) []string {
+		items, _ := body["items"].([]any)
+		var out []string
+		for _, it := range items {
+			m := it.(map[string]any)
+			out = append(out, m["slug"].(string))
+		}
+		return out
+	}
+
+	// ── Catégories : table des matières avec volumes.
+	code, cats := getJSON("/v1/creator/categories")
+	if code != http.StatusOK {
+		t.Fatalf("categories = %d %v", code, cats)
+	}
+	list, _ := cats["categories"].([]any)
+	if len(list) != 2 {
+		t.Fatalf("categories = %d, attendu 2", len(list))
+	}
+	foundPol := false
+	for _, c := range list {
+		cm := c.(map[string]any)
+		if cm["slug"] == "politique" {
+			foundPol = true
+			if cm["articleCount"].(float64) != 2 {
+				t.Fatalf("articleCount politique = %v, attendu 2", cm["articleCount"])
+			}
+			if cm["description"] != "Vie publique" {
+				t.Fatalf("description manquante : %v", cm)
+			}
+		}
+	}
+	if !foundPol {
+		t.Fatal("catégorie politique absente")
+	}
+
+	// ── Filtre par catégorie.
+	code, res := getJSON("/v1/creator/articles?category=politique")
+	if code != http.StatusOK || len(slugs(res)) != 2 {
+		t.Fatalf("category=politique = %d items %v", code, slugs(res))
+	}
+
+	// ── Filtre par tag.
+	code, res = getJSON("/v1/creator/articles?tag=festival")
+	if code != http.StatusOK || len(slugs(res)) != 1 || slugs(res)[0] != "festival-automne" {
+		t.Fatalf("tag=festival = %v", slugs(res))
+	}
+
+	// ── Filtre premium.
+	code, res = getJSON("/v1/creator/articles?premium=true")
+	if code != http.StatusOK || len(slugs(res)) != 1 || slugs(res)[0] != "debat-parlementaire" {
+		t.Fatalf("premium=true = %v", slugs(res))
+	}
+
+	// ── Recherche titre.
+	code, res = getJSON("/v1/creator/articles?q=débat")
+	if code != http.StatusOK || len(slugs(res)) != 1 || slugs(res)[0] != "debat-parlementaire" {
+		t.Fatalf("q=débat = %v", slugs(res))
+	}
+
+	// ── Tri alphabétique ascendant.
+	code, res = getJSON("/v1/creator/articles?sort=title_asc&limit=3")
+	got := slugs(res)
+	if code != http.StatusOK || len(got) != 3 ||
+		got[0] != "debat-parlementaire" || got[2] != "festival-automne" {
+		t.Fatalf("sort=title_asc = %v (attendu debat < election < festival)", got)
+	}
+
+	// ── Date since : uniquement les 3 derniers jours → festival seul.
+	code, res = getJSON("/v1/creator/articles?since=2026-08-24")
+	if code != http.StatusOK || len(slugs(res)) != 1 {
+		t.Fatalf("since = %v, attendu festival seul", slugs(res))
+	}
+
+	// ── Enrichissement catégorie sur la liste.
+	code, res = getJSON("/v1/creator/articles?category=culture")
+	items, _ := res["items"].([]any)
+	it := items[0].(map[string]any)
+	catRef, ok := it["category"].(map[string]any)
+	if !ok || catRef["slug"] != "culture" {
+		t.Fatalf("enrichissement catégorie absent : %v", it["category"])
+	}
+}

@@ -2,6 +2,7 @@ package creator
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log"
 	"net/http"
@@ -44,16 +45,23 @@ type apiAuthor struct {
 	Name     *string `json:"name"`
 }
 
+type apiCategoryRef struct {
+	ID   string `json:"id"`
+	Slug string `json:"slug"`
+	Name string `json:"name"`
+}
+
 type apiArticleSummary struct {
-	ID          string      `json:"id"`
-	Slug        string      `json:"slug"`
-	Title       string      `json:"title"`
-	Excerpt     string      `json:"excerpt"`
-	CoverURL    *string     `json:"coverImageUrl"`
-	ReadingTime int32       `json:"readingTime"`
-	IsPremium   bool        `json:"isPremium"`
-	PublishedAt string      `json:"publishedAt"`
-	Authors     []apiAuthor `json:"authors"`
+	Category    *apiCategoryRef `json:"category,omitempty"`
+	ID          string          `json:"id"`
+	Slug        string          `json:"slug"`
+	Title       string          `json:"title"`
+	Excerpt     string          `json:"excerpt"`
+	CoverURL    *string         `json:"coverImageUrl"`
+	ReadingTime int32           `json:"readingTime"`
+	IsPremium   bool            `json:"isPremium"`
+	PublishedAt string          `json:"publishedAt"`
+	Authors     []apiAuthor     `json:"authors"`
 }
 
 type apiArticlesPage struct {
@@ -114,8 +122,12 @@ func (h *Handler) apiMe(w http.ResponseWriter, r *http.Request) {
 
 // ─── Articles ──────────────────────────────────────────────────────────
 
-const apiArticlesWhere = `
+// apiArticlesFrom : source des articles liés au créateur, catégorie
+// jointe pour le filtrage et l'enrichissement. $1 publication de la clé,
+// $2 userId (signature), $3 co-écriture.
+const apiArticlesFrom = `
 	FROM "Article" a
+	LEFT JOIN "Category" cat ON cat.id = a."categoryId"
 	WHERE a.published = true
 	  AND a.status = 'PUBLISHED'
 	  AND (
@@ -123,6 +135,13 @@ const apiArticlesWhere = `
 	    OR a."authorId"::text = $2
 	    OR a.id IN (SELECT "A" FROM "_CoAuthors" WHERE "B" = $3)
 	  )`
+
+var apiArticlesSorts = map[string]string{
+	"published_desc": `a."createdAt" DESC`,
+	"published_asc":  `a."createdAt" ASC`,
+	"title_asc":      `a.title ASC`,
+	"title_desc":     `a.title DESC`,
+}
 
 func (h *Handler) resolveAuthors(ctx context.Context, articleIDs map[string]int, items byAuthorSetter) {
 	ids := make([]string, 0, len(articleIDs))
@@ -155,6 +174,52 @@ func (h *Handler) resolveAuthors(ctx context.Context, articleIDs map[string]int,
 	}
 }
 
+// ─── GET /v1/creator/categories ────────────────────────────────────────
+
+// apiCategoryItem : rubrique de la publication avec son volume d'articles
+// publiés — la table des matières du CMS.
+type apiCategoryItem struct {
+	ID           string  `json:"id"`
+	Slug         string  `json:"slug"`
+	Name         string  `json:"name"`
+	Description  *string `json:"description,omitempty"`
+	ArticleCount int     `json:"articleCount"`
+}
+
+func (h *Handler) apiCategories(w http.ResponseWriter, r *http.Request) {
+	publicationID, _ := middleware.PublicationID(r.Context())
+	userID, _ := middleware.UserID(r.Context())
+
+	items := []apiCategoryItem{}
+	rows, err := h.pool.Query(r.Context(), `
+		SELECT c.id::text, c.slug, c.name, c.description,
+		       COUNT(a.id)::int AS article_count
+		FROM "Category" c
+		LEFT JOIN "Article" a
+		  ON a."categoryId" = c.id AND a.published = true AND a.status = 'PUBLISHED'
+		WHERE c."publicationId" = $1
+		   OR c."publicationId" IN (
+		     SELECT DISTINCT a2."publicationId" FROM "Article" a2
+		     WHERE a2."authorId"::text = $2 AND a2.published = true
+		   )
+		GROUP BY c.id, c.slug, c.name, c.description
+		ORDER BY c.name ASC`, publicationID, userID)
+	if err != nil {
+		log.Printf("[creator] api categories: %v", err)
+		response.Internal(w)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var it apiCategoryItem
+		if err := rows.Scan(&it.ID, &it.Slug, &it.Name, &it.Description, &it.ArticleCount); err != nil {
+			continue
+		}
+		items = append(items, it)
+	}
+	response.OK(w, map[string]any{"categories": items})
+}
+
 // setter minimal pour partager la résolution d'auteurs entre les deux shapes.
 type byAuthorSetter interface {
 	setAuthor(index int, a apiAuthor)
@@ -168,23 +233,54 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 	publicationID, _ := middleware.PublicationID(r.Context())
 	userID, _ := middleware.UserID(r.Context())
 
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	offset, _ := strconv.Atoi(r.URL.Query().Get("cursor"))
-	if limit <= 0 || limit > 100 {
-		limit = 20
+	q := r.URL.Query()
+	limit, offset := parseLimitCursor(r)
+
+	// ── Filtres CMS : catégorie, tag, premium, recherche, dates ──
+	where := apiArticlesFrom
+	args := []any{publicationID, userID, userID}
+	add := func(fragment string, v ...any) {
+		args = append(args, v...)
+		where += strings.ReplaceAll(fragment, "$?", "$"+strconv.Itoa(len(args)))
 	}
-	if offset < 0 {
-		offset = 0
+	if cat := q.Get("category"); cat != "" {
+		add(` AND cat.slug = $?`, cat)
+	}
+	if tag := q.Get("tag"); tag != "" {
+		add(` AND a."semanticTags" @> ARRAY[$?]::text[]`, tag)
+	}
+	switch q.Get("premium") {
+	case "true":
+		add(` AND a."isPremium" = true`)
+	case "false":
+		add(` AND a."isPremium" = false`)
+	}
+	if term := q.Get("q"); term != "" {
+		add(` AND a.title ILIKE '%' || $? || '%'`, term)
+	}
+	for param, cond := range map[string]string{
+		"since": ` AND a."createdAt" >= $?::date`,
+		"until": ` AND a."createdAt" < ($?::date + INTERVAL '1 day')`,
+	} {
+		if v := q.Get(param); v != "" {
+			add(cond, v)
+		}
+	}
+
+	order, ok := apiArticlesSorts[q.Get("sort")]
+	if !ok {
+		order = apiArticlesSorts["published_desc"]
 	}
 
 	page := apiArticlesPage{Items: []apiArticleSummary{}}
 	rows, err := h.pool.Query(r.Context(), `
 		SELECT a.id::text, a.slug, a.title, a.content, a."imageUrl",
-		       a."readingTime", a."isPremium", a."createdAt"
-		`+apiArticlesWhere+`
-		ORDER BY a."createdAt" DESC
-		LIMIT $4 OFFSET $5`,
-		publicationID, userID, userID, limit+1, offset)
+		       a."readingTime", a."isPremium", a."createdAt",
+		       cat.id::text, cat.slug, cat.name
+		`+where+`
+		ORDER BY `+order+`
+		LIMIT $`+strconv.Itoa(len(args)+1)+` OFFSET $`+strconv.Itoa(len(args)+2),
+		append(args, limit+1, offset)...)
 	if err != nil {
 		log.Printf("[creator] api articles: %v", err)
 		response.Internal(w)
@@ -197,14 +293,19 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 		var it apiArticleSummary
 		var content string
 		var publishedAt time.Time
+		var catID, catSlug, catName sql.NullString
 		if err := rows.Scan(&it.ID, &it.Slug, &it.Title, &content, &it.CoverURL,
-			&it.ReadingTime, &it.IsPremium, &publishedAt); err != nil {
+			&it.ReadingTime, &it.IsPremium, &publishedAt,
+			&catID, &catSlug, &catName); err != nil {
 			log.Printf("[creator] articles scan: %v", err)
 			continue
 		}
 		it.PublishedAt = publishedAt.Format("2006-01-02T15:04:05Z07:00")
 		it.Excerpt = stripHTMLTags(content, 180)
 		it.Authors = []apiAuthor{}
+		if catID.Valid {
+			it.Category = &apiCategoryRef{ID: catID.String, Slug: catSlug.String, Name: catName.String}
+		}
 		ids[it.ID] = len(page.Items)
 		page.Items = append(page.Items, it)
 	}
@@ -230,15 +331,17 @@ func (h *Handler) apiArticleBySlug(w http.ResponseWriter, r *http.Request) {
 	full.Authors = []apiAuthor{}
 	var publishedAt time.Time
 	var tags []string
+	var catID, catSlug, catName sql.NullString
 	err := h.pool.QueryRow(r.Context(), `
 		SELECT a.id::text, a.slug, a.title, a.content, a."imageUrl",
 		       a."readingTime", a."isPremium", a."createdAt",
-		       a."semanticTags"
-		`+apiArticlesWhere+` AND a.slug = $4
+		       a."semanticTags", cat.id::text, cat.slug, cat.name
+		`+apiArticlesFrom+` AND a.slug = $4
 		LIMIT 1`,
 		publicationID, userID, userID, slug).Scan(
 		&full.ID, &full.Slug, &full.Title, &full.ContentHTML, &full.CoverURL,
-		&full.ReadingTime, &full.IsPremium, &publishedAt, &tags)
+		&full.ReadingTime, &full.IsPremium, &publishedAt, &tags,
+		&catID, &catSlug, &catName)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			response.NotFound(w, "Article introuvable")
@@ -249,6 +352,9 @@ func (h *Handler) apiArticleBySlug(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	full.PublishedAt = publishedAt.Format("2006-01-02T15:04:05Z07:00")
+	if catID.Valid {
+		full.Category = &apiCategoryRef{ID: catID.String, Slug: catSlug.String, Name: catName.String}
+	}
 	full.ContentMarkdown = htmlToMarkdown(full.ContentHTML)
 	full.Tags = func() []any {
 		out := make([]any, len(tags))

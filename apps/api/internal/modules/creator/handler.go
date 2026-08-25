@@ -48,6 +48,7 @@ func (h *Handler) RegisterAPIKey(r chi.Router) {
 	r.Get("/v1/creator/me", h.apiMe)
 	r.Get("/v1/creator/articles", h.apiArticles)
 	r.Get("/v1/creator/articles/{slug}", h.apiArticleBySlug)
+	r.Get("/v1/creator/categories", h.apiCategories)
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/highlights", h.apiHighlights)
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/highlights/{id}/comments", h.apiHighlightComments)
 }
