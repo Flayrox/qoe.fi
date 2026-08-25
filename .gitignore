@@ -5,6 +5,9 @@
 # ─── Dependencies ───────────────────────────────────────────
 # Root node_modules (si on garde quelque chose à la racine)
 node_modules
+examples/**/node_modules
+examples/**/.next
+examples/**/next-env.d.ts
 .pnp
 .pnp.*
 .yarn/*

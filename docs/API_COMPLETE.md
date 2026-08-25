@@ -1177,12 +1177,12 @@ curl -H "Authorization: Bearer $JWT" "http://localhost:8080/v1/analytics/top-con
 
 Bootstrap + contenu prêt à consommer pour un front tiers :
 
-| Endpoint                                  | Description                                                                                           |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `GET /v1/creator/me`                      | Profil de la publication portée par la clé + scopes effectifs                                         |
-| `GET /v1/creator/articles?limit=&cursor=` | Articles publiés : slug, titre, extrait texte brut, temps de lecture, premium, date, `authors[]`      |
-| `GET /v1/creator/articles/{slug}`         | Article complet avec `contentHtml` (HTML stocké), tags, auteurs (principal + co-auteurs `_CoAuthors`) |
-| `GET /v1/creator/highlights?article=slug` | Surlignages publics, filtrables par article                                                           |
+| Endpoint                                  | Description                                                                                                                     |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /v1/creator/me`                      | Profil de la publication portée par la clé + scopes effectifs                                                                   |
+| `GET /v1/creator/articles?limit=&cursor=` | Articles publiés : slug, titre, extrait texte brut, temps de lecture, premium, date, `authors[]`                                |
+| `GET /v1/creator/articles/{slug}`         | Article complet : `contentHtml` **ET** `contentMarkdown` (conversion auto), tags, auteurs (principal + co-auteurs `_CoAuthors`) |
+| `GET /v1/creator/highlights?article=slug` | Surlignages publics, filtrables par article                                                                                     |
 
 Toutes ces routes exigent le scope `READ` et sont montées uniquement derrière `APIKeyAuth`.
 
@@ -1192,6 +1192,10 @@ curl -H "Authorization: Bearer qoe_live_XXX" "http://localhost:8080/v1/creator/a
 curl -H "Authorization: Bearer qoe_live_XXX" "http://localhost:8080/v1/creator/articles/mon-article"
 curl -H "Authorization: Bearer qoe_live_XXX" "http://localhost:8080/v1/creator/highlights?article=mon-article"
 ```
+
+> 💡 **Exemple de front complet** : [`examples/creator-front-nextjs`](../examples/creator-front-nextjs) —
+> liste des derniers articles + page article (HTML ou Markdown), clé API
+> côté serveur uniquement.
 
 #### Créateur stats (clé API `ANALYTICS`, `modules/creator/handler.go`)
 

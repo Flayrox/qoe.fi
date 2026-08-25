@@ -64,8 +64,9 @@ type apiArticlesPage struct {
 
 type apiArticleFull struct {
 	apiArticleSummary
-	ContentHTML string `json:"contentHtml"`
-	Tags        []any  `json:"tags"`
+	ContentHTML     string `json:"contentHtml"`
+	ContentMarkdown string `json:"contentMarkdown"`
+	Tags            []any  `json:"tags"`
 }
 
 // ─── GET /v1/creator/me ────────────────────────────────────────────────
@@ -248,6 +249,7 @@ func (h *Handler) apiArticleBySlug(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	full.PublishedAt = publishedAt.Format("2006-01-02T15:04:05Z07:00")
+	full.ContentMarkdown = htmlToMarkdown(full.ContentHTML)
 	full.Tags = func() []any {
 		out := make([]any, len(tags))
 		for i, v := range tags {
