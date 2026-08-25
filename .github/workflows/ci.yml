@@ -206,7 +206,7 @@ jobs:
         run: pnpm e2e:install
 
       - name: Run E2E (public + journeys + security + annotations)
-        run: pnpm e2e --project=public-web --project=core-journeys --project=security --project=annotations
+        run: pnpm e2e --project=public-web --project=core-journeys --project=security --project=annotations --project=oauth-consent
         env:
           CI: 'true'
           PLAYWRIGHT_TEST_BASE_URL: 'http://localhost:3010'
