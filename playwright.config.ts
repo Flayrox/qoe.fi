@@ -83,6 +83,13 @@ export default defineConfig({
       testMatch: /security\.spec\.ts/,
     },
     {
+      // Vraie page de consentement OAuth (apps/core) : rendu + autorisation
+      // + redirection avec code/state, puis échange du code contre un token.
+      name: 'oauth-consent',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /oauth-consent\.spec\.ts/,
+    },
+    {
       // Suite autonome (page.setContent, sans serveur/DB) — tourne en CI :
       // contrat UI (drawer physics, tenant accent, paywall) sans dépendre
       // de Supabase ni du seed.
@@ -98,7 +105,8 @@ export default defineConfig({
       },
       // Les specs publics/annotations/journeys/security tournent dans leurs
       // propres projets ; studio/admin/tenants ont leur propre config (apps).
-      testIgnore: /(public|annotations|core-journeys|security|studio|admin|tenants)\.spec\.ts/,
+      testIgnore:
+        /(public|annotations|core-journeys|security|oauth-consent|studio|admin|tenants)\.spec\.ts/,
       dependencies: ['setup'],
     },
   ],

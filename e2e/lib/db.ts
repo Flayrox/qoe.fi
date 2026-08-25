@@ -49,10 +49,14 @@ export class TestDb {
     role: string,
     opts: { publicationId?: string; hasCompletedOnboarding?: boolean } = {}
   ): Promise<void> {
+    // L'email est unique : si une ancienne ligne porte cet email avec un
+    // autre id (ex. nouvel UUID GoTrue), on la retire pour garantir que
+    // l'upsert par id passe.
+    await this.query(`DELETE FROM "User" WHERE email = $2 AND id <> $1`, [id, email]);
     await this.query(
       `INSERT INTO "User" (id, email, username, name, role, "publicationId", "hasCompletedOnboarding", "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $3, $4, $5, $6, now(), now())
-       ON CONFLICT (id) DO UPDATE SET role = $4, "publicationId" = $5,
+       ON CONFLICT (id) DO UPDATE SET role = $4, email = $2, "publicationId" = $5,
          "hasCompletedOnboarding" = $6, "updatedAt" = now()`,
       [
         id,

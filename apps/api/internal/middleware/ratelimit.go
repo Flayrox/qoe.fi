@@ -14,7 +14,10 @@ import (
 
 // RateLimit limite à `max` requêtes par `window` pour une clé donnée
 // (IP par défaut, ou UID si présent → `rl:{key}:{window}:{id}`).
-func RateLimit(rc *redis.Client, window time.Duration, max int, scopeByUser bool) func(http.Handler) http.Handler {
+// name isole les compteurs entre limiteurs (global vs par-route) : sans
+// lui, tous partagent la même clé rl:{ip}:{bucket} et les limites se
+// cumulent (le plus bas gagne, ex. token bloqué par le trafic global).
+func RateLimit(name string, rc *redis.Client, window time.Duration, max int, scopeByUser bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if rc == nil {
@@ -34,7 +37,7 @@ func RateLimit(rc *redis.Client, window time.Duration, max int, scopeByUser bool
 			}
 
 			bucket := time.Now().Unix() / int64(window.Seconds())
-			redisKey := fmt.Sprintf("rl:%s:%d", key, bucket)
+			redisKey := fmt.Sprintf("rl:%s:%s:%d", name, key, bucket)
 			ctx := context.Background()
 
 			count, err := rc.Incr(ctx, redisKey).Result()

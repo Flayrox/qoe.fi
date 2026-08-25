@@ -69,3 +69,61 @@ export function mintJwt(sub: string, extra: Record<string, unknown> = {}): strin
     .replace(/=+$/, '');
   return `${header}.${payload}.${sig}`;
 }
+
+/** Clé anon Supabase (signup/sign-in GoTrue pour les sessions E2E réelles). */
+export const SUPABASE_ANON_KEY = resolve(
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  resolve(
+    'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
+    loadEnv('.env')['NEXT_PUBLIC_SUPABASE_ANON_KEY'] ?? ''
+  )
+);
+
+/**
+ * 🍞 Crée une session GoTrue RÉELLE (signup ou sign-in) contre Supabase
+ * local. Indispensable pour les pages qui valident la session côté serveur
+ * (getUser) — un JWT minté ne suffit pas pour elles.
+ */
+export async function createRealSession(
+  email: string,
+  password: string
+): Promise<{ access_token: string; refresh_token: string; gotrueUserId: string }> {
+  const headers = {
+    'Content-Type': 'application/json',
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+  };
+
+  let res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    // Compte déjà existant → connexion par mot de passe.
+    res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ email, password }),
+    });
+  }
+  if (!res.ok) {
+    throw new Error(`GoTrue ${res.status}: ${await res.text()}`);
+  }
+  const body = (await res.json()) as {
+    access_token?: string;
+    refresh_token?: string;
+    user?: { id?: string };
+    id?: string;
+  };
+  if (!body.access_token || !body.refresh_token) {
+    throw new Error('Session GoTrue incomplète (email confirmation requise ?)');
+  }
+  // L'UUID GoTrue est LA clé d'identité : les lignes DB doivent utiliser
+  // CET id (pas un id choisi arbitrairement).
+  const gotrueUserId = body.user?.id ?? body.id ?? '';
+  if (!gotrueUserId) {
+    throw new Error('id utilisateur GoTrue absent de la réponse');
+  }
+  return { access_token: body.access_token, refresh_token: body.refresh_token, gotrueUserId };
+}

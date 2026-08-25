@@ -141,7 +141,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 	r.Use(authmw.Logger)
 	r.Use(authmw.CORS([]string{"http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "https://qoe.fi", "https://*.qoe.fi"}))
 	// Rate-limiting global : 120 req/min par IP (anti-spam public).
-	r.Use(authmw.RateLimit(rc, time.Minute, 120, false))
+	r.Use(authmw.RateLimit("global", rc, time.Minute, 120, false))
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -237,7 +237,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 	}
 	oauthHandler := oauth.NewHandler(oauthService)
 	oauthHandler.RegisterPublic(r)
-	r.With(authmw.RateLimit(rc, time.Minute, 30, false)).Post("/v1/oauth/token", oauthHandler.Token())
+	r.With(authmw.RateLimit("oauth-token", rc, time.Minute, 30, false)).Post("/v1/oauth/token", oauthHandler.Token())
 
 	// Tracking de lecture : service partagé entre le groupe anonyme (lectures/
 	// impressions captées même sans session) et le groupe protégé (historique).
@@ -246,7 +246,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// Toute l'API créateur exige un Bearer token valide (JWT OU clé API qoe_live_).
 	r.Group(func(protected chi.Router) {
 		// 600 req/min par utilisateur (usage créateur légitime, généreux).
-		protected.Use(authmw.RateLimit(rc, time.Minute, 600, true))
+		protected.Use(authmw.RateLimit("protected", rc, time.Minute, 600, true))
 		protected.Use(auth.CombinedAuth(db.New(pool)))
 
 		postsHandler.RegisterProtected(protected)
