@@ -217,3 +217,37 @@ func (h *Handler) highlightComments(ctx context.Context, highlightID string) ([]
 	}
 	return out, rows.Err()
 }
+
+// withEffectiveSlugs remplace le champ slug de chaque auteur par SON slug
+// effectif pour cet article (variant personnel ou slug principal).
+func (h *Handler) withEffectiveSlugs(
+	ctx context.Context,
+	articleID string,
+	authors []apiAuthor,
+	baseSlug string,
+) []apiAuthor {
+	if len(authors) == 0 {
+		return authors
+	}
+	overrides := map[string]string{}
+	rows, err := h.pool.Query(ctx,
+		`SELECT "ownerUserId"::text, slug FROM "ArticleSlug" WHERE "articleId" = $1`,
+		articleID)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var uid, slug string
+			if err := rows.Scan(&uid, &slug); err == nil {
+				overrides[uid] = slug
+			}
+		}
+	}
+	for i := range authors {
+		out := baseSlug
+		if v, ok := overrides[authors[i].ID]; ok && v != "" {
+			out = v
+		}
+		authors[i].Slug = out
+	}
+	return authors
+}

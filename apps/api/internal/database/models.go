@@ -554,6 +554,15 @@ type ArticleComment struct {
 	ParentId  pgtype.Text      `json:"parentId"`
 }
 
+type ArticleSlug struct {
+	ID          string           `json:"id"`
+	ArticleId   string           `json:"articleId"`
+	OwnerUserId pgtype.UUID      `json:"ownerUserId"`
+	Slug        string           `json:"slug"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
+}
+
 type BlockedUser struct {
 	ID        string           `json:"id"`
 	CreatorId pgtype.UUID      `json:"creatorId"`

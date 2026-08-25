@@ -285,7 +285,10 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
 JOIN "Publication" p ON p.id = a."publicationId"
-WHERE a.slug = $1 AND a.published = true
+WHERE (a.slug = $1
+       OR EXISTS (SELECT 1 FROM "ArticleSlug" s
+                  WHERE s.slug = $1 AND s."articleId" = a.id))
+  AND a.published = true
 ORDER BY a."createdAt" DESC, a.id DESC
 LIMIT 1
 `
@@ -323,6 +326,7 @@ type GetArticleBySlugAnyRow struct {
 
 // Lecture publique par slug SEUL (premier article publié) — parité avec
 // findFirstBySlug Prisma de la page autonome /article/[slug] du reader core.
+// Résout aussi les slugs personnalisés par auteur (ArticleSlug).
 func (q *Queries) GetArticleBySlugAny(ctx context.Context, slug string) (GetArticleBySlugAnyRow, error) {
 	row := q.db.QueryRow(ctx, getArticleBySlugAny, slug)
 	var i GetArticleBySlugAnyRow

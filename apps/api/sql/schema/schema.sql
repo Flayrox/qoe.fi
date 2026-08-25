@@ -304,6 +304,23 @@ CREATE TABLE "Article" (
     CONSTRAINT "Article_pkey" PRIMARY KEY ("id")
 );
 
+CREATE TABLE "ArticleSlug" (
+    "id"          TEXT NOT NULL,
+    "articleId"   TEXT NOT NULL,
+    "ownerUserId" UUID NOT NULL,
+    "slug"        TEXT NOT NULL,
+    "createdAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ArticleSlug_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "ArticleSlug_articleId_fkey" FOREIGN KEY ("articleId") REFERENCES "Article"(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT "ArticleSlug_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "User"(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT "ArticleSlug_slug_key" UNIQUE ("slug"),
+    CONSTRAINT "ArticleSlug_article_owner_key" UNIQUE ("articleId", "ownerUserId")
+);
+
+CREATE INDEX "ArticleSlug_slug_idx" ON "ArticleSlug" ("slug");
+
 -- CreateTable
 CREATE TABLE "collab_documents" (
     "document_name" TEXT NOT NULL,

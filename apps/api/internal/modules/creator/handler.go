@@ -54,6 +54,7 @@ func (h *Handler) RegisterAPIKey(r chi.Router) {
 	// depuis des outils externes.
 	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Post("/v1/creator/articles", h.apiArticleCreate)
 	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Patch("/v1/creator/articles/{id}", h.apiArticleUpdate)
+	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Patch("/v1/creator/articles/{id}/slug", h.apiArticleSlugSet)
 	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Delete("/v1/creator/articles/{id}", h.apiArticleDelete)
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/highlights", h.apiHighlights)
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/highlights/{id}/comments", h.apiHighlightComments)
