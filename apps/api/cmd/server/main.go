@@ -21,12 +21,12 @@ import (
 	"github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/dbpool"
 	authmw "github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/modules/admin"
 	"github.com/qoefi/api/internal/modules/analytics"
 	"github.com/qoefi/api/internal/modules/articles"
 	"github.com/qoefi/api/internal/modules/billing"
 	"github.com/qoefi/api/internal/modules/collaborations"
 	"github.com/qoefi/api/internal/modules/creator"
-	"github.com/qoefi/api/internal/modules/admin"
 	"github.com/qoefi/api/internal/modules/devtools"
 	"github.com/qoefi/api/internal/modules/events"
 	"github.com/qoefi/api/internal/modules/feed"
@@ -141,7 +141,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 	r.Use(authmw.Logger)
 	r.Use(authmw.CORS([]string{"http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "https://qoe.fi", "https://*.qoe.fi"}))
 	// Rate-limiting global : 120 req/min par IP (anti-spam public).
-	r.Use(authmw.RateLimit("global", rc, time.Minute, 120, false))
+	// Global généreux : le trafic pages (SSR + widgets) compte ici ; les
+	// routes sensibles ont leur propre limiteur namespacé en plus.
+	r.Use(authmw.RateLimit("global", rc, time.Minute, 600, false))
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -155,7 +157,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// Recherche publique : articles (Meilisearch) + sémantique (pgvector/jina).
 	searchHandler := search.NewHandler(search.NewSemanticService(d.Pool))
 	searchHandler.RegisterPublic(r)
-
 
 	// Endpoints internes (émission d'événements → asynq), protégés par secret.
 	eventsHandler := events.NewHandler(asynqClient, d.InternalSecret)

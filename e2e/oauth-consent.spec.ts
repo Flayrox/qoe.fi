@@ -32,8 +32,20 @@ test.describe('Consentement OAuth (page réelle)', () => {
   let code_verifier: string;
   let code_challenge: string;
 
+  let supabaseUp = false;
+
   test.beforeAll(async () => {
     expect(DATABASE_URL, 'DATABASE_URL requis').toBeTruthy();
+
+    // Supabase local requis (sessions réelles) : skip propre en CI où
+    // seul Postgres existe.
+    try {
+      const health = await fetch('http://127.0.0.1:54321/auth/v1/health');
+      supabaseUp = health.ok;
+    } catch {
+      supabaseUp = false;
+    }
+    test.skip(!supabaseUp, 'Supabase local indisponible — parcours consentement local uniquement');
 
     // L'utilisateur doit exister côté DB avec l'UUID GOTRUE comme id :
     // l'API Go résout /v1/me via le sub du JWT (jamais par email).
