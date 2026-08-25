@@ -634,6 +634,7 @@ type Highlight struct {
 	Note         pgtype.Text      `json:"note"`
 	IsPublic     bool             `json:"isPublic"`
 	IsOfficial   bool             `json:"isOfficial"`
+	QuoteOrdinal int32            `json:"quoteOrdinal"`
 	UpvotesCount int32            `json:"upvotesCount"`
 	ReaderId     pgtype.UUID      `json:"readerId"`
 	ArticleId    string           `json:"articleId"`

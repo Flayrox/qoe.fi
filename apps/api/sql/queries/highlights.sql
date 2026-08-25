@@ -3,7 +3,7 @@
 -- Tables : Highlight, AnnotationComment, AnnotationUpvote.
 
 -- name: GetHighlightByID :one
-SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."upvotesCount",
+SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."upvotesCount",
        h."readerId", h."articleId", h."createdAt",
        u.id::text AS reader_id,
        u.name     AS reader_name,
@@ -15,7 +15,7 @@ WHERE h.id = $1;
 
 -- name: ListHighlightsByArticle :many
 -- Surlignages d'un article : publics + les siens (privés) + état upvote du viewer.
-SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."upvotesCount",
+SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."upvotesCount",
        h."readerId", h."articleId", h."createdAt",
        u.id::text AS reader_id,
        u.name     AS reader_name,
@@ -35,7 +35,7 @@ ORDER BY h."createdAt" DESC;
 
 -- name: ListMyHighlights :many
 -- Tous les surlignages d'un lecteur (bibliothèque), avec l'article associé.
-SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."upvotesCount",
+SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."upvotesCount",
        h."readerId", h."articleId", h."createdAt",
        a.title      AS article_title,
        a.slug       AS article_slug,
@@ -52,8 +52,8 @@ ORDER BY h."createdAt" DESC
 LIMIT $2 OFFSET $3;
 
 -- name: CreateHighlight :one
-INSERT INTO "Highlight" (id, text, note, "isPublic", "isOfficial", "readerId", "articleId")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6)
+INSERT INTO "Highlight" (id, text, note, "isPublic", "isOfficial", "quoteOrdinal", "readerId", "articleId")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7)
 RETURNING id;-- name: DeleteHighlight :execrows
 DELETE FROM "Highlight" WHERE id = $1 AND "readerId" = $2;
 

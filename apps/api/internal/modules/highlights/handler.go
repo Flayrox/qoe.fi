@@ -67,6 +67,8 @@ type createInput struct {
 	Text     string  `json:"text"`
 	Note     *string `json:"note"`
 	IsPublic bool    `json:"isPublic"`
+	// Occurrence du passage cité (0-based) si le texte se répète.
+	QuoteOrdinal *int `json:"quoteOrdinal,omitempty"`
 }
 
 // POST /v1/articles/{id}/highlights — crée un surlignage.
@@ -89,7 +91,13 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := h.svc.Create(r.Context(), articleID, userID, in.Text, in.Note, in.IsPublic)
+	// quoteOrdinal : quelle occurrence du passage (déduplication quand le
+	// même texte apparaît plusieurs fois). Absent/négatif → 0.
+	ordinal := 0
+	if in.QuoteOrdinal != nil && *in.QuoteOrdinal > 0 {
+		ordinal = *in.QuoteOrdinal
+	}
+	item, err := h.svc.Create(r.Context(), articleID, userID, in.Text, in.Note, in.IsPublic, ordinal)
 	if err != nil {
 		log.Printf("[highlights] create: %v", err)
 		response.Internal(w)

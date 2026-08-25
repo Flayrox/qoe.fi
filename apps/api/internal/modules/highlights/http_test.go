@@ -88,7 +88,7 @@ func TestHTTP_UpdateDeleteToggleUpvote(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 	svc := newTestService()
-	h0, err := svc.Create(context.Background(), fx.ArticleID, fx.AuthorID, "Texte", strPtr("note"), true)
+	h0, err := svc.Create(context.Background(), fx.ArticleID, fx.AuthorID, "Texte", strPtr("note"), true, 0)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestHTTP_CommentsRoutes(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 	svc := newTestService()
-	h0, err := svc.Create(context.Background(), fx.ArticleID, fx.AuthorID, "À annoter", nil, true)
+	h0, err := svc.Create(context.Background(), fx.ArticleID, fx.AuthorID, "À annoter", nil, true, 0)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}

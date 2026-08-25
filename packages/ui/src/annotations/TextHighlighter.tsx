@@ -19,6 +19,7 @@ import { cn } from '@qoe/utils';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { TextSelectionPopover } from './TextSelectionPopover';
 import { AnnotationSideDrawer } from './AnnotationSideDrawer';
+import { findQuoteOccurrence } from './quote-anchor';
 import { toast } from 'sonner';
 import {
   AnnotationFilterMode,
@@ -248,7 +249,8 @@ export function TextHighlighter({
             pub.isPublic,
             pub.isOfficial,
             pub.id,
-            pub
+            pub,
+            pub.quoteOrdinal
           );
         });
       return;
@@ -257,7 +259,16 @@ export function TextHighlighter({
     // Render all (private + public + official)
     // 1. Reader private highlights
     highlights.forEach((hl) => {
-      applyHighlightToDOM(articleEl, hl.text, hl.note || undefined, false, false, hl.id);
+      applyHighlightToDOM(
+        articleEl,
+        hl.text,
+        hl.note || undefined,
+        false,
+        false,
+        hl.id,
+        undefined,
+        hl.quoteOrdinal
+      );
     });
 
     // 2. Public & official creator highlights
@@ -281,34 +292,30 @@ export function TextHighlighter({
     isPublic: boolean = false,
     isOfficial: boolean = false,
     id?: string,
-    fullAnnotation?: AnnotationItem
+    fullAnnotation?: AnnotationItem,
+    quoteOrdinal: number = 0
   ) => {
     if (!textToHighlight || !textToHighlight.trim()) return;
 
     root.normalize();
 
     const targetText = textToHighlight.trim();
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const nodesToReplace: {
       textNode: Text;
       parent: HTMLElement;
       matches: { index: number; text: string }[];
     }[] = [];
 
-    let node: Node | null;
-    while ((node = walker.nextNode())) {
-      const textNode = node as Text;
-      const textContent = textNode.textContent || '';
-      const index = textContent.indexOf(targetText);
+    // Ancrage par citation via le helper partagé (réutilisé par les fronts
+    // tiers) : vise l'occurrence n° quoteOrdinal, repli sur la première.
+    const match = findQuoteOccurrence(root, targetText, quoteOrdinal);
+    if (!match) return;
 
-      if (index !== -1) {
-        nodesToReplace.push({
-          textNode,
-          parent: textNode.parentElement!,
-          matches: [{ index, text: targetText }],
-        });
-      }
-    }
+    nodesToReplace.push({
+      textNode: match.textNode,
+      parent: match.textNode.parentElement!,
+      matches: [{ index: match.index, text: targetText }],
+    });
 
     nodesToReplace.forEach(({ textNode, parent, matches }) => {
       const textContent = textNode.textContent || '';
@@ -438,6 +445,36 @@ export function TextHighlighter({
     }
   };
 
+  /**
+   * 🧮 Ordinal d'ancrage : nombre d'occurrences IDENTIQUES du texte
+   * sélectionné qui précèdent la sélection dans le conteneur. Permet de
+   * ré-ancrer au bon endroit quand le même passage apparaît plusieurs fois.
+   */
+  const computeQuoteOrdinal = (selectedText: string): number => {
+    const container = document.getElementById(containerId);
+    const selection = window.getSelection();
+    if (!container || !selection || selection.rangeCount === 0) return 0;
+
+    const range = selection.getRangeAt(0);
+    if (!container.contains(range.startContainer)) return 0;
+
+    // Texte du conteneur avant le début de la sélection.
+    const preRange = document.createRange();
+    preRange.selectNodeContents(container);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    const beforeText = preRange.toString();
+
+    let count = 0;
+    let from = 0;
+    for (;;) {
+      const idx = beforeText.indexOf(selectedText, from);
+      if (idx === -1) break;
+      count++;
+      from = idx + selectedText.length;
+    }
+    return count;
+  };
+
   const handleInstantHighlight = async (selectedText: string, clearSelection: () => void) => {
     if (!isAuthenticated) {
       handleLoginRedirect();
@@ -446,21 +483,32 @@ export function TextHighlighter({
 
     setSaving(true);
     try {
+      const quoteOrdinal = computeQuoteOrdinal(selectedText);
       const res = callbacks?.onHighlightCreate
         ? await callbacks.onHighlightCreate({
             articleId,
             text: selectedText,
             note: null,
             isPublic: false,
+            quoteOrdinal,
           })
         : { ok: true, data: { id: `hl-${Date.now()}`, text: selectedText, note: null } };
 
       if (res?.ok && res.data) {
         const createdData = res.data as { id: string };
-        setHighlights((prev) => [...prev, res.data as HighlightItem]);
+        setHighlights((prev) => [...prev, { ...(res.data as HighlightItem), quoteOrdinal }]);
         const articleEl = document.getElementById(containerId);
         if (articleEl) {
-          applyHighlightToDOM(articleEl, selectedText, undefined, false, false, createdData.id);
+          applyHighlightToDOM(
+            articleEl,
+            selectedText,
+            undefined,
+            false,
+            false,
+            createdData.id,
+            undefined,
+            quoteOrdinal
+          );
         }
         setSavedSuccess(true);
         setTimeout(() => {
@@ -488,6 +536,7 @@ export function TextHighlighter({
     }
 
     const targetText = activeDraftText || selectedText;
+    const quoteOrdinal = computeQuoteOrdinal(targetText);
 
     setErrorMessage(null);
     setSaving(true);
@@ -498,6 +547,7 @@ export function TextHighlighter({
             text: targetText,
             note: noteText || null,
             isPublic: isPublicChoice,
+            quoteOrdinal,
           })
         : {
             ok: true,
@@ -517,6 +567,7 @@ export function TextHighlighter({
         const createdItem: AnnotationItem = {
           id: createdData.id,
           text: targetText,
+          quoteOrdinal,
           note: noteText || null,
           isPublic: isPublicChoice,
           isOfficial: false,

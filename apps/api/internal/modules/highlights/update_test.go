@@ -16,7 +16,7 @@ func TestUpdateHighlight(t *testing.T) {
 	svc := newTestService()
 	ctx := context.Background()
 
-	h, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Passage privé", strPtr("note initiale"), false)
+	h, err := svc.Create(ctx, fx.ArticleID, fx.AuthorID, "Passage privé", strPtr("note initiale"), false, 0)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}

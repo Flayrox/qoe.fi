@@ -194,6 +194,7 @@ CREATE TABLE "Highlight" (
     "note" TEXT,
     "isPublic" BOOLEAN NOT NULL DEFAULT false,
     "isOfficial" BOOLEAN NOT NULL DEFAULT false,
+    "quoteOrdinal" INTEGER NOT NULL DEFAULT 0,
     "upvotesCount" INTEGER NOT NULL DEFAULT 0,
     "readerId" UUID NOT NULL,
     "articleId" TEXT NOT NULL,

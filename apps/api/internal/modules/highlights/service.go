@@ -16,35 +16,38 @@ import (
 
 // Author est l'auteur d'un surlignage ou d'un commentaire d'annotation.
 type Author struct {
-	ID          string  `json:"id"`
-	Name        *string `json:"name"`
-	Username    *string `json:"username"`
-	LogoURL     *string `json:"logoUrl"`
+	ID       string  `json:"id"`
+	Name     *string `json:"name"`
+	Username *string `json:"username"`
+	LogoURL  *string `json:"logoUrl"`
 }
 
 // Highlight est un surlignage d'article (shape API).
 type Highlight struct {
-	ID            string   `json:"id"`
-	Text          string   `json:"text"`
-	Note          *string  `json:"note"`
-	IsPublic      bool     `json:"isPublic"`
-	IsOfficial    bool     `json:"isOfficial"`
-	UpvotesCount  int      `json:"upvotesCount"`
-	ReaderID      string   `json:"readerId"`
-	ArticleID     string   `json:"articleId"`
-	CreatedAt     string   `json:"createdAt"`
-	Reader        Author   `json:"reader"`
-	ViewerUpvoted bool     `json:"viewerUpvoted"`
-	CommentsCount int      `json:"commentsCount"`
+	ID         string  `json:"id"`
+	Text       string  `json:"text"`
+	Note       *string `json:"note"`
+	IsPublic   bool    `json:"isPublic"`
+	IsOfficial bool    `json:"isOfficial"`
+	// QuoteOrdinal = quelle occurrence du passage citer (0-based) quand
+	// le même texte apparaît plusieurs fois dans l'article.
+	QuoteOrdinal  int    `json:"quoteOrdinal"`
+	UpvotesCount  int    `json:"upvotesCount"`
+	ReaderID      string `json:"readerId"`
+	ArticleID     string `json:"articleId"`
+	CreatedAt     string `json:"createdAt"`
+	Reader        Author `json:"reader"`
+	ViewerUpvoted bool   `json:"viewerUpvoted"`
+	CommentsCount int    `json:"commentsCount"`
 }
 
 // AnnotationComment est un commentaire attaché à un surlignage.
 type AnnotationComment struct {
-	ID          string   `json:"id"`
-	Content     string   `json:"content"`
-	CreatedAt   string   `json:"createdAt"`
-	HighlightID string   `json:"highlightId"`
-	Author      Author   `json:"author"`
+	ID          string `json:"id"`
+	Content     string `json:"content"`
+	CreatedAt   string `json:"createdAt"`
+	HighlightID string `json:"highlightId"`
+	Author      Author `json:"author"`
 }
 
 // MyHighlight est un surlignage du lecteur avec l'article associé (bibliothèque).
@@ -69,23 +72,23 @@ type MyHighlight struct {
 
 // BookmarkItem est un article sauvegardé (bibliothèque).
 type BookmarkItem struct {
-	BookmarkID             string  `json:"bookmarkId"`
-	BookmarkedAt           string  `json:"bookmarkedAt"`
-	ArticleID              string  `json:"articleId"`
-	ArticleTitle           string  `json:"articleTitle"`
-	ArticleSlug            string  `json:"articleSlug"`
-	ArticleReadingTime     int     `json:"readingTime"`
-	ArticleIsPremium       bool    `json:"isPremium"`
-	ArticleCreatedAt       string  `json:"articleCreatedAt"`
-	ArticleContent         string  `json:"content"`
-	PublicationID          string  `json:"publicationId"`
-	PublicationName        string  `json:"publicationName"`
-	PublicationSlug        string  `json:"publicationSlug"`
-	PublicationSubdomain   *string `json:"subdomain"`
+	BookmarkID              string  `json:"bookmarkId"`
+	BookmarkedAt            string  `json:"bookmarkedAt"`
+	ArticleID               string  `json:"articleId"`
+	ArticleTitle            string  `json:"articleTitle"`
+	ArticleSlug             string  `json:"articleSlug"`
+	ArticleReadingTime      int     `json:"readingTime"`
+	ArticleIsPremium        bool    `json:"isPremium"`
+	ArticleCreatedAt        string  `json:"articleCreatedAt"`
+	ArticleContent          string  `json:"content"`
+	PublicationID           string  `json:"publicationId"`
+	PublicationName         string  `json:"publicationName"`
+	PublicationSlug         string  `json:"publicationSlug"`
+	PublicationSubdomain    *string `json:"subdomain"`
 	PublicationCustomDomain *string `json:"customDomain"`
-	PublicationLogo        *string `json:"logoUrl"`
-	CategoryName           *string `json:"categoryName"`
-	Author                 Author  `json:"author"`
+	PublicationLogo         *string `json:"logoUrl"`
+	CategoryName            *string `json:"categoryName"`
+	Author                  Author  `json:"author"`
 }
 
 // Service porte les dépendances du domaine highlights.
@@ -129,15 +132,16 @@ func (s *Service) ListByArticle(ctx context.Context, articleID, viewerID string)
 	out := make([]Highlight, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, Highlight{
-			ID:            r.ID,
-			Text:          r.Text,
-			Note:          textPtr(r.Note),
-			IsPublic:      r.IsPublic,
-			IsOfficial:    r.IsOfficial,
-			UpvotesCount:  int(r.UpvotesCount),
-			ReaderID:      r.ReaderID,
-			ArticleID:     r.ArticleId,
-			CreatedAt:     tsString(r.CreatedAt),
+			ID:           r.ID,
+			Text:         r.Text,
+			Note:         textPtr(r.Note),
+			IsPublic:     r.IsPublic,
+			IsOfficial:   r.IsOfficial,
+			QuoteOrdinal: int(r.QuoteOrdinal),
+			UpvotesCount: int(r.UpvotesCount),
+			ReaderID:     r.ReaderID,
+			ArticleID:    r.ArticleId,
+			CreatedAt:    tsString(r.CreatedAt),
 			Reader: Author{
 				ID:       r.ReaderID,
 				Name:     textPtr(r.ReaderName),
@@ -152,14 +156,18 @@ func (s *Service) ListByArticle(ctx context.Context, articleID, viewerID string)
 }
 
 // Create crée un surlignage pour un lecteur sur un article.
-func (s *Service) Create(ctx context.Context, articleID, readerID, text string, note *string, isPublic bool) (Highlight, error) {
+func (s *Service) Create(ctx context.Context, articleID, readerID, text string, note *string, isPublic bool, quoteOrdinal int) (Highlight, error) {
+	if quoteOrdinal < 0 {
+		quoteOrdinal = 0
+	}
 	id, err := s.q.CreateHighlight(ctx, db.CreateHighlightParams{
-		Text:       text,
-		Note:       pgtype.Text{String: deref(note), Valid: note != nil},
-		IsPublic:   isPublic,
-		IsOfficial: false,
-		ReaderId:   toUUID(readerID),
-		ArticleId:  articleID,
+		Text:         text,
+		Note:         pgtype.Text{String: deref(note), Valid: note != nil},
+		IsPublic:     isPublic,
+		IsOfficial:   false,
+		QuoteOrdinal: int32(quoteOrdinal),
+		ReaderId:     toUUID(readerID),
+		ArticleId:    articleID,
 	})
 	if err != nil {
 		return Highlight{}, err
@@ -169,15 +177,15 @@ func (s *Service) Create(ctx context.Context, articleID, readerID, text string, 
 		return Highlight{}, err
 	}
 	return Highlight{
-		ID:            row.ID,
-		Text:          row.Text,
-		Note:          textPtr(row.Note),
-		IsPublic:      row.IsPublic,
-		IsOfficial:    row.IsOfficial,
-		UpvotesCount:  int(row.UpvotesCount),
-		ReaderID:      row.ReaderID,
-		ArticleID:     row.ArticleId,
-		CreatedAt:     tsString(row.CreatedAt),
+		ID:           row.ID,
+		Text:         row.Text,
+		Note:         textPtr(row.Note),
+		IsPublic:     row.IsPublic,
+		IsOfficial:   row.IsOfficial,
+		UpvotesCount: int(row.UpvotesCount),
+		ReaderID:     row.ReaderID,
+		ArticleID:    row.ArticleId,
+		CreatedAt:    tsString(row.CreatedAt),
 		Reader: Author{
 			ID:       row.ReaderID,
 			Name:     textPtr(row.ReaderName),
@@ -235,15 +243,15 @@ func (s *Service) Update(ctx context.Context, highlightID, readerID string, note
 		return Highlight{}, err
 	}
 	return Highlight{
-		ID:            row.ID,
-		Text:          row.Text,
-		Note:          textPtr(row.Note),
-		IsPublic:      row.IsPublic,
-		IsOfficial:    row.IsOfficial,
-		UpvotesCount:  int(row.UpvotesCount),
-		ReaderID:      row.ReaderID,
-		ArticleID:     row.ArticleId,
-		CreatedAt:     tsString(row.CreatedAt),
+		ID:           row.ID,
+		Text:         row.Text,
+		Note:         textPtr(row.Note),
+		IsPublic:     row.IsPublic,
+		IsOfficial:   row.IsOfficial,
+		UpvotesCount: int(row.UpvotesCount),
+		ReaderID:     row.ReaderID,
+		ArticleID:    row.ArticleId,
+		CreatedAt:    tsString(row.CreatedAt),
 		Reader: Author{
 			ID:       row.ReaderID,
 			Name:     textPtr(row.ReaderName),
@@ -373,17 +381,17 @@ func (s *Service) MyHighlights(ctx context.Context, readerID string, limit, offs
 	out := make([]MyHighlight, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, MyHighlight{
-			ID:              r.ID,
-			Text:            r.Text,
-			Note:            textPtr(r.Note),
-			IsPublic:        r.IsPublic,
-			IsOfficial:      r.IsOfficial,
-			UpvotesCount:    int(r.UpvotesCount),
-			ReaderID:        r.ReaderId.String(),
-			ArticleID:       r.ArticleId,
-			CreatedAt:       tsString(r.CreatedAt),
-			ArticleTitle:    r.ArticleTitle,
-			ArticleSlug:     r.ArticleSlug,
+			ID:                      r.ID,
+			Text:                    r.Text,
+			Note:                    textPtr(r.Note),
+			IsPublic:                r.IsPublic,
+			IsOfficial:              r.IsOfficial,
+			UpvotesCount:            int(r.UpvotesCount),
+			ReaderID:                r.ReaderId.String(),
+			ArticleID:               r.ArticleId,
+			CreatedAt:               tsString(r.CreatedAt),
+			ArticleTitle:            r.ArticleTitle,
+			ArticleSlug:             r.ArticleSlug,
 			PublicationID:           r.PublicationID,
 			PublicationName:         r.PublicationName,
 			PublicationSlug:         r.PublicationSlug,
@@ -410,22 +418,22 @@ func (s *Service) Bookmarks(ctx context.Context, readerID string, limit, offset 
 	out := make([]BookmarkItem, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, BookmarkItem{
-			BookmarkID:          r.BookmarkID,
-			BookmarkedAt:        tsString(r.BookmarkedAt),
-			ArticleID:           r.ArticleID,
-			ArticleTitle:        r.ArticleTitle,
-			ArticleSlug:         r.ArticleSlug,
-			ArticleReadingTime:  int(r.ArticleReadingTime),
-			ArticleIsPremium:    r.ArticleIsPremium,
-			ArticleCreatedAt:    tsString(r.ArticleCreatedAt),
-			PublicationID:            r.PublicationID,
-			PublicationName:          r.PublicationName,
-			PublicationSlug:          r.PublicationSlug,
-			PublicationSubdomain:     textPtr(r.PublicationSubdomain),
-			PublicationCustomDomain:  textPtr(r.PublicationCustomDomain),
-			PublicationLogo:          textPtr(r.PublicationLogo),
-			ArticleContent:           r.ArticleContent,
-			CategoryName:             textPtr(r.CategoryName),
+			BookmarkID:              r.BookmarkID,
+			BookmarkedAt:            tsString(r.BookmarkedAt),
+			ArticleID:               r.ArticleID,
+			ArticleTitle:            r.ArticleTitle,
+			ArticleSlug:             r.ArticleSlug,
+			ArticleReadingTime:      int(r.ArticleReadingTime),
+			ArticleIsPremium:        r.ArticleIsPremium,
+			ArticleCreatedAt:        tsString(r.ArticleCreatedAt),
+			PublicationID:           r.PublicationID,
+			PublicationName:         r.PublicationName,
+			PublicationSlug:         r.PublicationSlug,
+			PublicationSubdomain:    textPtr(r.PublicationSubdomain),
+			PublicationCustomDomain: textPtr(r.PublicationCustomDomain),
+			PublicationLogo:         textPtr(r.PublicationLogo),
+			ArticleContent:          r.ArticleContent,
+			CategoryName:            textPtr(r.CategoryName),
 			Author: Author{
 				ID:       r.AuthorID,
 				Name:     textPtr(r.AuthorName),
