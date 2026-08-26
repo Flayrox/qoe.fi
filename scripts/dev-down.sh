@@ -17,8 +17,8 @@ DEV_PORTS=(15401 15402 15403 15404 15405 15406 15407)
 C_GREEN=$'\033[32m'; C_RESET=$'\033[0m'
 ok() { echo "${C_GREEN}  ✔ $1${C_RESET}"; }
 
-echo "→ Arrêt des apps (ports ${DEV_PORTS[*]})…"
-pids="$(lsof -ti $(printf -- '-i :%s ' "${DEV_PORTS[@]}") 2>/dev/null || true)"
+echo "→ Arrêt des apps qoe.fi uniquement (ports ${DEV_PORTS[*]} LISTEN)…"
+pids="$(lsof -tiTCP:15401 -sTCP:LISTEN -tiTCP:15402 -sTCP:LISTEN -tiTCP:15403 -sTCP:LISTEN -tiTCP:15404 -sTCP:LISTEN -tiTCP:15405 -sTCP:LISTEN -tiTCP:15406 -sTCP:LISTEN -tiTCP:15407 -sTCP:LISTEN 2>/dev/null || true)"
 if [ -n "$pids" ]; then
   # shellcheck disable=SC2086
   kill $pids 2>/dev/null || true

@@ -11,7 +11,7 @@
     "dev": "node scripts/copy-env.js && pnpm intl:compile && turbo run dev --parallel",
     "dev:up": "./scripts/dev-up.sh",
     "dev:down": "./scripts/dev-down.sh",
-    "kill:dev": "lsof -ti :15401 -ti :15402 -ti :15403 -ti :15404 -ti :15405 -ti :15406 -ti :15407 | xargs kill || true",
+    "kill:dev": "lsof -tiTCP:15401 -sTCP:LISTEN -tiTCP:15402 -sTCP:LISTEN -tiTCP:15403 -sTCP:LISTEN -tiTCP:15404 -sTCP:LISTEN -tiTCP:15405 -sTCP:LISTEN -tiTCP:15406 -sTCP:LISTEN -tiTCP:15407 -sTCP:LISTEN 2>/dev/null | xargs kill 2>/dev/null || true",
     "dev:qoefi": "./scripts/dev-up.sh",
     "dev:qoefi:down": "./scripts/dev-down.sh",
     "dev:qoefi:logs": "docker compose -f docker-compose.dev.yml logs -f",

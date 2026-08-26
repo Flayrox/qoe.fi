@@ -17,10 +17,25 @@ import { TooltipProvider } from '@qoe/ui/ui/tooltip';
 import { Toaster } from '@qoe/ui/ui/sonner';
 import { AnalyticsScript } from '@qoe/analytics/client';
 import { cn } from '@qoe/utils';
-import { ThemeProvider, ThemeSeedScript, GlobalAuthModalProvider } from '@qoe/ui';
+import { DevtoolsPanel, ThemeProvider, ThemeSeedScript, GlobalAuthModalProvider } from '@qoe/ui';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import {
+  getDevtoolsData,
+  createMockUserAction,
+  generateMockFeedPostsAction,
+  resetDatabaseAction,
+  seedFullDatabaseAction,
+  restoreTopDbAction,
+  resetOnboardingAction,
+  simulateSubscriberAction,
+  simulateFollowAction,
+  simulateLikeAction,
+  addMockFundsAction,
+  impersonateLoginAction,
+  logoutAction,
+} from '@qoe/devtools';
 
 // CSS global unifié — source unique dans @qoe/theme
 import '@qoe/theme/styles';
@@ -62,6 +77,22 @@ export default async function RootLayout({
     : null;
   const flagsPayload = await getGrowthBookPayload().catch(() => ({}));
 
+  const devtoolsActions = {
+    getDevtoolsData,
+    createMockUserAction,
+    generateMockFeedPostsAction,
+    resetDatabaseAction,
+    seedFullDatabaseAction,
+    restoreTopDbAction,
+    resetOnboardingAction,
+    simulateSubscriberAction,
+    simulateFollowAction,
+    simulateLikeAction,
+    addMockFundsAction,
+    impersonateLoginAction,
+    logoutAction,
+  };
+
   return (
     <html
       lang={locale}
@@ -86,6 +117,9 @@ export default async function RootLayout({
                   <TooltipProvider>
                     {children}
                     <Toaster />
+                    {process.env.NODE_ENV === 'development' && (
+                      <DevtoolsPanel actions={devtoolsActions} />
+                    )}
                   </TooltipProvider>
                 </GlobalAuthModalProvider>
               </QueryProvider>
