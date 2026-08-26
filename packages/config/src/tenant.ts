@@ -89,14 +89,14 @@ export function parseTenantHost(hostname: string): TenantInfo {
 /**
  * 🔗 Calcule l'URL canonique de la plateforme principale (qoe.fi, lvh.me, etc.) selon l'hôte courant.
  */
-export function getMainAppUrl(hostname: string, port = 3010): string {
+export function getMainAppUrl(hostname: string, port = 15402): string {
   const hostWithoutPort = hostname.split(':')[0].toLowerCase();
 
   if (hostWithoutPort.endsWith('lvh.me')) {
-    return 'http://lvh.me:3010';
+    return 'http://lvh.me:15402';
   }
   if (hostWithoutPort.endsWith('qoe.test')) {
-    return 'http://qoe.test:3010';
+    return 'http://qoe.test';
   }
   if (hostWithoutPort === 'localhost' || hostWithoutPort.endsWith('.localhost')) {
     return `http://localhost:${port}`;
