@@ -10,11 +10,11 @@ export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') || '';
   const hostname = host.split(':')[0];
 
-  // 1. Étape 0 Absolue : Canonicalisation immédiate de localhost -> dashboard.lvh.me
+  // 1. Étape 0 Absolue : Canonicalisation immédiate de localhost -> studio.lvh.me
   // S'exécute avant toute lecture d'URL ou de session pour éliminer toute fuite de localhost dans les paramètres redirect.
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     const canonicalUrl = request.nextUrl.clone();
-    canonicalUrl.hostname = 'dashboard.lvh.me';
+    canonicalUrl.hostname = 'studio.lvh.me';
     return NextResponse.redirect(canonicalUrl);
   }
 

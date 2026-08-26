@@ -150,19 +150,19 @@ export function getMonorepoUrl(
   }
 
   const isCaddy = host && !host.includes(':');
-  const feedPort = isCaddy ? '' : ':3010';
-  const dashboardPort = isCaddy ? '' : ':3020';
-  const adminPort = isCaddy ? '' : ':3030';
-  const landingPort = isCaddy ? '' : ':3040';
-  // Backend Go (apps/api) — api.qoe.fi en prod, :8080 en dev direct.
-  const apiPort = isCaddy ? '' : ':8080';
-  const tenantPort = isCaddy ? '' : ':3001';
+  const feedPort = isCaddy ? '' : ':15402';
+  const dashboardPort = isCaddy ? '' : ':15404';
+  const adminPort = isCaddy ? '' : ':15405';
+  const landingPort = isCaddy ? '' : ':15401';
+  // Backend Go (apps/api) — api.qoe.fi en prod, :15407 en dev direct (isole 1540x).
+  const apiPort = isCaddy ? '' : ':15407';
+  const tenantPort = isCaddy ? '' : ':15403';
 
   switch (app) {
     case 'feed':
       return `http://${devBase}${feedPort}`;
     case 'dashboard':
-      return `http://dashboard.${devBase}${dashboardPort}`;
+      return `http://studio.${devBase}${dashboardPort}`;
     case 'admin':
       return `http://admin.${devBase}${adminPort}`;
     case 'landing':

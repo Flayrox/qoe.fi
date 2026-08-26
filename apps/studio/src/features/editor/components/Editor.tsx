@@ -712,7 +712,7 @@ export function Editor({
           {/* Public Article Page Preview Link */}
           {slug && (
             <a
-              href={`http://${subdomain || 'heheheh'}.lvh.me:3001/article/${slug}`}
+              href={`http://${subdomain || 'heheheh'}.lvh.me:15403/article/${slug}`}
               target="_blank"
               rel="noopener noreferrer"
               className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-semibold bg-muted/50 text-foreground hover:bg-muted border border-border/40 transition-all cursor-pointer shadow-xs"
