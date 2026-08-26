@@ -1180,13 +1180,13 @@ Bootstrap + contenu prêt à consommer pour un front tiers :
 | Endpoint                                                | Description                                                                                                                                                                                                                       |
 | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /v1/creator/me`                                    | Profil de la publication portée par la clé + scopes effectifs                                                                                                                                                                     |
-| `GET /v1/creator/articles`                              | Liste paginée filtrable : `category=slug`, `tag=x`, `premium=true/false`, `q=recherche titre`, `since=/until=YYYY-MM-DD`, `sort=published_desc\|published_asc\|title_asc\|title_desc`. Chaque item porte sa `category{slug,name}` |
+| `GET /v1/creator/articles`                              | Liste paginée filtrable : `category=id\|slug` (technique = `id` UUID, humain/SEO = `slug`), `status=draft\|published\|all` (défaut `published`), `tag=x`, `premium=true/false`, `q=recherche titre`, `since=/until=YYYY-MM-DD`, `sort=published_desc\|published_asc\|title_asc\|title_desc`. Chaque item porte sa `category{slug,name}` + `authors[].slug` (slug effectif par auteur) |
 | `GET /v1/creator/categories`                            | Rubriques de la publication avec `articleCount` — la table des matières du CMS                                                                                                                                                    |
 | `GET /v1/creator/search?q=&category=&tag=`              | Recherche plein-texte (titre + contenu + tags), tri pertinence puis date, `total` inclus                                                                                                                                          |
 | `POST /v1/creator/articles`                             | **Créer un brouillon** : `{title, content(html), categoryId(slug ou id), tags[], isPremium}` — slug généré unique, readingTime calculé. Scope `WRITE`                                                                             |
 | `PATCH /v1/creator/articles/{id}`                       | **Éditer** ses articles : titre/contenu/catégorie/tags/premium, `publish:true\|false`, `regenerateSlug:true`. Scope `WRITE`                                                                                                       |
 | `DELETE /v1/creator/articles/{id}`                      | Supprimer définitivement un de ses articles. Scope `WRITE`                                                                                                                                                                        |
-| `PATCH /v1/creator/articles/{id}/slug`                  | **Slug par auteur** : `{slug}` personnalise SON URL pour l'article co-signé (unicité globale, 409 si pris, vide = retour au principal)                                                                                            |
+| `PATCH /v1/creator/articles/{id}/slug`                  | **Slug par auteur** : `{slug}` personnalise SON URL pour l'article co-signé — validation `^[a-z0-9]+(-[a-z0-9]+)*$` 3-80c, réservés (`admin`/`api`…), auto-suffixe `-1`/`-2` si pris (jamais 409), vide = retour au principal ; ancien variant archivé en `ArticleSlugHistory` (200 via `GetArticleBySlugAny`) |
 | `GET /v1/creator/articles/{slug}`                       | Article complet : `contentHtml` **ET** `contentMarkdown` (conversion auto), tags, auteurs (principal + co-auteurs `_CoAuthors`)                                                                                                   |
 | `GET /v1/creator/highlights?article=slug&official=true` | Surlignages publics, filtrables par article et annotations éditoriales (`isOfficial`)                                                                                                                                             |
 | `GET /v1/creator/highlights/{id}/comments`              | Discussion d'un surlignage, `isAuthor` marque les réponses de l'auteur de l'article                                                                                                                                               |
@@ -1214,10 +1214,10 @@ reproduit donc : chercher `text` → envelopper d'un `<mark>` → les
 annotations de l'auteur portent `isOfficial: true`.
 
 **Slugs multi-auteurs** : un article co-signé garde un seul ID mais chaque
-auteur peut avoir SON slug (table `ArticleSlug`). La résolution publique
-accepte le slug principal ET tous les variants ; `authors[].slug` expose
-le slug effectif de chacun — le front peut ouvrir la version de l'autre
-dans un nouvel onglet.
+auteur peut avoir SON slug (table `ArticleSlug`, unique `slug` global + unique `articleId+ownerUserId`). La résolution publique
+`GetArticleBySlugAny` accepte le slug principal, tous les variants **et** l'historique `ArticleSlugHistory` (ancien variant → 200, liens externes intacts) ; `authors[].slug` expose
+le slug effectif de chacun — le front ouvre la version de l'autre
+dans un nouvel onglet. Filtre technique = `id` UUID (`?category=cat_news`), humain/SEO = `slug` (`?category=news`) ; `?status=draft` (ou `all`) permet au créateur de lister ses brouillons.
 
 **Passages répétés** : chaque surlignage porte `quoteOrdinal` (0-based) —
 quelle occurrence du passage surligner quand le même texte apparaît
