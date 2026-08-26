@@ -563,6 +563,13 @@ type ArticleSlug struct {
 	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
 }
 
+type ArticleSlugHistory struct {
+	ID        string           `json:"id"`
+	ArticleId string           `json:"articleId"`
+	Slug      string           `json:"slug"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
 type BlockedUser struct {
 	ID        string           `json:"id"`
 	CreatorId pgtype.UUID      `json:"creatorId"`
