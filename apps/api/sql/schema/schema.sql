@@ -321,6 +321,20 @@ CREATE TABLE "ArticleSlug" (
 
 CREATE INDEX "ArticleSlug_slug_idx" ON "ArticleSlug" ("slug");
 
+CREATE TABLE "ArticleSlugHistory" (
+    "id"        TEXT NOT NULL,
+    "articleId" TEXT NOT NULL,
+    "slug"      TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ArticleSlugHistory_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "ArticleSlugHistory_articleId_fkey" FOREIGN KEY ("articleId") REFERENCES "Article"(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT "ArticleSlugHistory_slug_key" UNIQUE ("slug")
+);
+
+CREATE INDEX "ArticleSlugHistory_slug_idx" ON "ArticleSlugHistory" ("slug");
+CREATE INDEX "ArticleSlugHistory_articleId_idx" ON "ArticleSlugHistory" ("articleId");
+
 -- CreateTable
 CREATE TABLE "collab_documents" (
     "document_name" TEXT NOT NULL,
