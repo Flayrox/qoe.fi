@@ -4,7 +4,7 @@
   "private": true,
   "description": "Admin app: superadmin panel (admin.qoe.fi)",
   "scripts": {
-    "dev": "next dev -p 3030",
+    "dev": "next dev -p 15405",
     "build": "next build",
     "start": "next start -p 3030",
     "lint": "eslint .",

@@ -4,7 +4,7 @@
   "private": true,
   "description": "Landing page qoe.fi (start.qoe.fi) - CMS dynamique relié à SystemConfig + pages légales",
   "scripts": {
-    "dev": "next dev -p 3040",
+    "dev": "next dev -p 15401",
     "build": "next build",
     "start": "next start -p 3040",
     "lint": "eslint .",

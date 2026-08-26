@@ -4,7 +4,7 @@
   "private": true,
   "description": "Public-facing web app: landing (start.qoe.fi) + tenant pages (*.qoe.fi)",
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "next dev -p 15403",
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "eslint .",

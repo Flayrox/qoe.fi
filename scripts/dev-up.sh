@@ -42,7 +42,7 @@ ok "Docker prêt"
 echo "→ Infra Docker : ${INFRA_SERVICES[*]}…"
 docker compose -f docker-compose.dev.yml up -d --wait --wait-timeout 120 "${INFRA_SERVICES[@]}" >/dev/null \
   || fail "Infra Docker KO (voir docker compose ps)"
-ok "Infra prête (pg 5433 · redis 6379 · meili 7700 · growthbook 3100 · umami 3000)"
+ok "Infra prête (pg 15409 · redis 15410 · meili 15408 · growthbook 15412 · umami 15411 — ports 1540x isolés)"
 
 # ── 3. Supabase local ────────────────────────────────────────────────────────
 status_out="$(supabase status 2>/dev/null || true)"
