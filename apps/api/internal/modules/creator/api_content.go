@@ -919,7 +919,7 @@ func (h *Handler) apiArticleSlugSet(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	want := strings.ToLower(strings.TrimSpace(in.Slug))
+	want := slugify(strings.ToLower(strings.TrimSpace(in.Slug)))
 
 	// Le slug principal de l'article = revenir au défaut.
 	var baseSlug string
@@ -936,18 +936,26 @@ func (h *Handler) apiArticleSlugSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Unicité globale : la même URL ne peut pas pointer ailleurs.
-	var taken bool
-	if err := h.pool.QueryRow(r.Context(),
-		`SELECT EXISTS(
-		   SELECT 1 FROM "Article" WHERE slug = $1
-		   UNION ALL
-		   SELECT 1 FROM "ArticleSlug" WHERE slug = $1
-		     AND NOT ("articleId" = $2 AND "ownerUserId"::text = $3)
-		 )`, want, id, userID).Scan(&taken); err != nil || taken {
-		response.Error(w, http.StatusConflict, "Ce slug est déjà utilisé")
-		return
+	// Unicité globale avec auto-suffixe (-1, -2…) si déjà pris.
+	candidate := want
+	for n := 1; ; n++ {
+		var taken bool
+		if err := h.pool.QueryRow(r.Context(),
+			`SELECT EXISTS(
+			   SELECT 1 FROM "Article" WHERE slug = $1
+			   UNION ALL
+			   SELECT 1 FROM "ArticleSlug" WHERE slug = $1
+			     AND NOT ("articleId" = $2 AND "ownerUserId"::text = $3)
+			 )`, candidate, id, userID).Scan(&taken); err != nil {
+			response.Internal(w)
+			return
+		}
+		if !taken {
+			break
+		}
+		candidate = want + "-" + strconv.Itoa(n)
 	}
+	want = candidate
 
 	h.pool.Exec(r.Context(), `
 		INSERT INTO "ArticleSlug" (id, "articleId", "ownerUserId", slug, "createdAt", "updatedAt")

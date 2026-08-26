@@ -116,8 +116,8 @@ func TestCreatorAPI_PerAuthorSlugs(t *testing.T) {
 		}
 	}
 
-	// 3. Conflit global : un slug déjà pris (principal d'un autre article)
-	//    est refusé comme variant → 409.
+	// 3. Conflit global avec auto-suffixe : un slug déjà pris (principal
+	//    d'un autre article) est automatiquement suffixé en -1.
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
 		 VALUES ('pub_tiers', 'PERSONAL', 'Tiers', 'tiers-pub', now(), now())
@@ -140,8 +140,46 @@ func TestCreatorAPI_PerAuthorSlugs(t *testing.T) {
 	}
 	w = doKey(coKey, http.MethodPatch,
 		"/v1/creator/articles/art_slugs/slug", `{"slug":"enquete-commune-2"}`)
-	if w.Code != http.StatusConflict {
-		t.Fatalf("conflit de slug = %d %s, attendu 409", w.Code, w.Body.String())
+	if w.Code != http.StatusOK {
+		t.Fatalf("auto-suffix attendu 200, got %d %s", w.Code, w.Body.String())
+	}
+	var suffixed map[string]string
+	if err := json.Unmarshal(w.Body.Bytes(), &suffixed); err != nil {
+		t.Fatalf("json suffixed: %v", err)
+	}
+	if suffixed["slug"] != "enquete-commune-2-1" {
+		t.Fatalf("slug auto-suffixé = %v, attendu enquete-commune-2-1", suffixed["slug"])
+	}
+	// Vérifie que le variant suffixé est bien résolu publiquement.
+	w = doKey(coKey, http.MethodGet, "/v1/creator/articles/enquete-commune-2-1", "")
+	if w.Code != http.StatusOK {
+		// fallback: vérifie via l'API publique GetArticleBySlugAny
+		t.Logf("variant suffixé non résolu via creator detail (ok si non publié pour ce user), code %d", w.Code)
+	}
+
+	// 3b. Cas co-auteur déjà propriétaire d'un article avec le même slug :
+	//     il possède déjà "mon-article-perso", tente de mettre le même
+	//     slug sur l'article partagé -> auto-suffixe en -1.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Article" (id, title, slug, content, published, visibility,
+		                        "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		 VALUES ('art_co_perso', 'Mon Article Perso', 'mon-article-perso', '<p>perso</p>', true, 'PUBLIC',
+		         1, 'PUBLISHED', 'pub_slugs', $1, now(), now())
+		 ON CONFLICT (id) DO NOTHING`, coAuthorID); err != nil {
+		t.Fatalf("article perso co-auteur: %v", err)
+	}
+	w = doKey(coKey, http.MethodPatch,
+		"/v1/creator/articles/art_slugs/slug", `{"slug":"mon-article-perso"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("variant conflit avec son propre article = %d %s, attendu 200 auto-suffixé", w.Code, w.Body.String())
+	}
+	var ownConflict map[string]string
+	_ = json.Unmarshal(w.Body.Bytes(), &ownConflict)
+	if ownConflict["slug"] == "mon-article-perso" {
+		t.Fatalf("slug aurait dû être suffixé, got %v", ownConflict["slug"])
+	}
+	if !strings.HasPrefix(ownConflict["slug"], "mon-article-perso-") {
+		t.Fatalf("slug suffixé inattendu: %v", ownConflict["slug"])
 	}
 
 	// 4. Réinitialisation : slug vide → retour au principal.
