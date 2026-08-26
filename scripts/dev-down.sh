@@ -12,7 +12,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 INFRA_SERVICES=(db redis meilisearch mongodb growthbook umami)
-DEV_PORTS=(3001 3010 3020 3030 3040 1234)
+DEV_PORTS=(15401 15402 15403 15404 15405 15406 15407)
 
 C_GREEN=$'\033[32m'; C_RESET=$'\033[0m'
 ok() { echo "${C_GREEN}  ✔ $1${C_RESET}"; }

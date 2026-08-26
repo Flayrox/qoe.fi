@@ -4,7 +4,7 @@
   "private": true,
   "description": "Feed app: home/feed + auth + reader settings (qoe.fi)",
   "scripts": {
-    "dev": "next dev -p 3010",
+    "dev": "next dev -p 15402",
     "build": "next build",
     "start": "next start -p 3010",
     "lint": "eslint .",

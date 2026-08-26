@@ -32,7 +32,7 @@ export interface CollabConfig {
 
 export function loadConfig(): CollabConfig {
   return {
-    port: Number(env('COLLAB_PORT', '1234')),
+    port: Number(env('COLLAB_PORT', '15406')),
     databaseUrl: env('DATABASE_URL'),
     supabaseUrl: env('SUPABASE_URL', env('NEXT_PUBLIC_SUPABASE_URL')),
     supabaseAnonKey: env(

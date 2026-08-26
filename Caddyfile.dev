@@ -12,33 +12,33 @@
 #    Caddy utilise HTTP par défaut ici. Si tu veux du HTTPS local avec 
 #    des certificats auto-signés de confiance automatique, remplace 
 #    simplement "http://" par "https://" (Caddy te demandera ton mot de 
-# 🍏 Feed (App principale) : localhost, qoe.test & lvh.me
+# 🍏 Feed (App principale) : localhost, qoe.test & lvh.me — isolé 15402
 http://localhost, http://qoe.test, http://lvh.me {
-    reverse_proxy localhost:3010
+    reverse_proxy localhost:15402
 }
 
-# 📣 Landing (Marketing) : start.localhost, start.qoe.test & start.lvh.me
+# 📣 Landing (Marketing) : start.localhost, start.qoe.test & start.lvh.me — isolé 15401
 http://start.localhost, http://start.qoe.test, http://start.lvh.me {
-    reverse_proxy localhost:3040
+    reverse_proxy localhost:15401
 }
 
-# 🟠 Dashboard Créateur : dashboard.localhost, dashboard.qoe.test & dashboard.lvh.me
+# 🟠 Dashboard Créateur : dashboard.localhost, dashboard.qoe.test & dashboard.lvh.me — isolé 15404
 http://dashboard.localhost, http://dashboard.qoe.test, http://dashboard.lvh.me {
-    reverse_proxy localhost:3020
+    reverse_proxy localhost:15404
 }
 
-# 🔴 Admin Plateforme : admin.localhost, admin.qoe.test & admin.lvh.me
+# 🔴 Admin Plateforme : admin.localhost, admin.qoe.test & admin.lvh.me — isolé 15405
 http://admin.localhost, http://admin.qoe.test, http://admin.lvh.me {
-    reverse_proxy localhost:3030
+    reverse_proxy localhost:15405
 }
 
-# 🔌 API (Backend Go) : api.localhost, api.qoe.test & api.lvh.me
+# 🔌 API (Backend Go) : api.localhost, api.qoe.test & api.lvh.me — isolé 15407
 http://api.localhost, http://api.qoe.test, http://api.lvh.me {
-    reverse_proxy localhost:8080
+    reverse_proxy localhost:15407
 }
 
-# 📚 Blogs Créateurs (Tenants / Wildcard) : *.localhost, *.qoe.test & *.lvh.me
+# 📚 Blogs Créateurs (Tenants / Wildcard) : *.localhost, *.qoe.test & *.lvh.me — isolé 15403
 # Ex: jean.localhost, test.localhost, jean.lvh.me -> redirigé vers l'app Web
 http://*.localhost, http://*.qoe.test, http://*.lvh.me {
-    reverse_proxy localhost:3001
+    reverse_proxy localhost:15403
 }
