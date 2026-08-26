@@ -59,12 +59,19 @@ paths:
         - $ref: '#/components/parameters/Page'
         - name: category
           in: query
-          description: Slug de la catégorie (filtre)
+          description: Catégorie — id UUID (technique) ou slug (humain/SEO)
           schema:
             type: string
+        - name: status
+          in: query
+          description: Filtre statut CMS headless (défaut published) — draft | published | all
+          schema:
+            type: string
+            enum: [draft, published, all]
+            default: published
         - name: published
           in: query
-          description: Filtrer sur les articles publiés (défaut true)
+          description: (legacy) Filtrer sur les articles publiés — préférer status
           schema:
             type: boolean
             default: true
