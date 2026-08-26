@@ -54,7 +54,8 @@ export interface ArticleSummary {
   readingTime: number;
   isPremium: boolean;
   publishedAt: string;
-  authors: { id: string; username: string | null; name: string | null }[];
+  category: { id: string; slug: string; name: string } | null;
+  authors: { id: string; username: string | null; name: string | null; slug: string }[];
 }
 
 export interface ArticleFull extends ArticleSummary {

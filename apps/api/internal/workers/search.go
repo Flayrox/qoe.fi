@@ -56,8 +56,8 @@ func (s *SearchWorker) Setup(ctx context.Context) {
 	host := envOr("MEILISEARCH_HOST", "http://localhost:7700")
 
 	settings := map[string]any{
-		"searchableAttributes": []string{"title", "content", "seoTitle", "seoDescription"},
-		"filterableAttributes": []string{"authorId", "categoryId", "isPremium", "published"},
+		"searchableAttributes": []string{"title", "content", "seoTitle", "seoDescription", "slug", "slugs"},
+		"filterableAttributes": []string{"authorId", "categoryId", "isPremium", "published", "publicationId"},
 		"sortableAttributes":   []string{"createdAt", "updatedAt"},
 		"typoTolerance": map[string]any{
 			"enabled":             true,
@@ -151,11 +151,23 @@ func (s *SearchWorker) HandleSearchSync(ctx context.Context, t *asynq.Task) erro
 		return err
 	}
 
+	// Slugs per auteur : indexe base + variants pour que la recherche
+	// retrouve l'article quel que soit le slug partagé (id = technique).
+	variantSlugs, _ := s.q.ListArticleSlugs(ctx, p.ArticleID)
+	slugs := []string{article.Slug}
+	seen := map[string]bool{article.Slug: true}
+	for _, v := range variantSlugs {
+		if !seen[v] {
+			slugs = append(slugs, v)
+			seen[v] = true
+		}
+	}
 	doc := map[string]any{
 		"id":             article.ID,
 		"title":          article.Title,
 		"content":        article.Content,
 		"slug":           article.Slug,
+		"slugs":          slugs,
 		"authorId":       uuidStr(article.AuthorId),
 		"categoryId":     textOrNil(article.CategoryId),
 		"publicationId":  article.PublicationId,

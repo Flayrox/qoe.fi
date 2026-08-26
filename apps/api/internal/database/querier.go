@@ -308,6 +308,7 @@ type Querier interface {
 	ListAnnotationComments(ctx context.Context, highlightid string) ([]ListAnnotationCommentsRow, error)
 	ListApiKeys(ctx context.Context, userid pgtype.UUID) ([]ListApiKeysRow, error)
 	ListArticleComments(ctx context.Context, articleid string) ([]ListArticleCommentsRow, error)
+	ListArticleSlugs(ctx context.Context, articleid string) ([]string, error)
 	ListArticlesForSettings(ctx context.Context, publicationid string) ([]ListArticlesForSettingsRow, error)
 	ListArticlesWithCategory(ctx context.Context, arg ListArticlesWithCategoryParams) ([]ListArticlesWithCategoryRow, error)
 	// Articles attribués à un créateur : publication directe OU co-signés via ArticleAttribution ACCEPTED + visible.
