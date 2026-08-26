@@ -27,7 +27,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   }
 
   const article = res.data;
-  const authorsLabel = article.authors.map((a) => a.name ?? a.username ?? a.id).join(', ');
+  const currentSlug = article.slug;
 
   return (
     <div className="wrap">
@@ -38,10 +38,36 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
       <article>
         <h1 style={{ fontSize: '2rem', letterSpacing: '-0.02em' }}>{article.title}</h1>
         <div className="meta" style={{ marginBottom: '2rem' }}>
-          {authorsLabel && <span>Par {authorsLabel}</span>}
+          {article.authors.length > 0 && (
+            <span>
+              Par{' '}
+              {article.authors.map((a, i) => {
+                const name = a.name ?? a.username ?? a.id;
+                const isCurrent = a.slug === currentSlug;
+                return (
+                  <span key={a.id}>
+                    {i > 0 && ', '}
+                    {isCurrent ? (
+                      <span>{name}</span>
+                    ) : (
+                      <a
+                        href={`/articles/${encodeURIComponent(a.slug)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Ouvrir la version de ${name} dans un nouvel onglet`}
+                      >
+                        {name} ↗
+                      </a>
+                    )}
+                  </span>
+                );
+              })}
+            </span>
+          )}
           <span>{formatDate(article.publishedAt)}</span>
           <span>{article.readingTime} min de lecture</span>
           {article.isPremium && <span className="badge">Premium</span>}
+          {article.category && <span>{article.category.name}</span>}
         </div>
 
         {/* Contenu HTML signé par l'éditeur qoe.fi (source de confiance). */}

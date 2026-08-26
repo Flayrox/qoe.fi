@@ -27,7 +27,9 @@ pnpm dev                    # http://localhost:3005
   deux formats) : cet exemple rend le HTML ; pour du Markdown, branche
   [`react-markdown`](https://github.com/remarkjs/react-markdown) sur
   `contentMarkdown`.
-- Les articles co-écrits incluent tous leurs auteurs (`authors[]`).
+- Les articles co-écrits incluent tous leurs auteurs (`authors[]` avec `authors[].slug` — slug effectif par auteur) : le front ouvre la version de l'autre auteur dans un nouvel onglet (`target="_blank"`), l'ancien slug reste résolu via `ArticleSlugHistory`.
+- Filtres pointilleux : `category=id|slug` (technique = `id` UUID, humain = `slug`) + `status=draft|all` + `q/sort/premium/tag/since/until` déjà câblés côté `lib/qoe.ts` (ajouter `?status=draft` pour lister les brouillons).
+- Validation slugs : `^[a-z0-9]+(-[a-z0-9]+)*$` 3-80c, réservés, auto-suffixe `-1` si pris.
 
 ## Aller plus loin
 

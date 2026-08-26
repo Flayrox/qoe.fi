@@ -55,6 +55,30 @@ func (q *Queries) GetArticleForSearch(ctx context.Context, id string) (GetArticl
 	return i, err
 }
 
+const listArticleSlugs = `-- name: ListArticleSlugs :many
+SELECT slug FROM "ArticleSlug" WHERE "articleId" = $1
+`
+
+func (q *Queries) ListArticleSlugs(ctx context.Context, articleid string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listArticleSlugs, articleid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var slug string
+		if err := rows.Scan(&slug); err != nil {
+			return nil, err
+		}
+		items = append(items, slug)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchThoughts = `-- name: SearchThoughts :many
 SELECT p.id, p.content, p.tags, p."imageUrl", p."createdAt", p."authorId"::text AS author_id,
        u.name AS author_name, u.username AS author_username, u."logoUrl" AS author_logo,

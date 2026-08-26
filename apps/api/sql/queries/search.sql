@@ -4,6 +4,9 @@ SELECT id, title, content, slug, "authorId", "categoryId", "publicationId", publ
 FROM "Article"
 WHERE id = $1;
 
+-- name: ListArticleSlugs :many
+SELECT slug FROM "ArticleSlug" WHERE "articleId" = $1;
+
 -- name: SearchThoughts :many
 SELECT p.id, p.content, p.tags, p."imageUrl", p."createdAt", p."authorId"::text AS author_id,
        u.name AS author_name, u.username AS author_username, u."logoUrl" AS author_logo,
