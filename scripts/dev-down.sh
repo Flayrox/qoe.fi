@@ -27,17 +27,29 @@ else
   ok "Aucune app en cours"
 fi
 
-echo "→ Arrêt de Supabase…"
-supabase stop >/dev/null 2>&1 && ok "Supabase stoppé" || ok "Supabase déjà arrêté"
-
-echo "→ Arrêt de Caddy…"
-if pgrep -x caddy >/dev/null 2>&1; then
-  pkill -x caddy 2>/dev/null || true
-  ok "Caddy arrêté"
-else
-  ok "Caddy déjà arrêté"
-fi
-
-echo "→ Arrêt de l'infra Docker…"
+echo "→ Arrêt de l'infra Docker qoe.fi uniquement (1540x)…"
 docker compose -f docker-compose.dev.yml stop "${INFRA_SERVICES[@]}" >/dev/null
-ok "Infra Docker stoppée (les données/volumes sont conservés)"
+ok "Infra qoe.fi stoppée (pg 15409, redis 15410… les autres projets intacts, volumes conservés)"
+
+# Supabase et Caddy sont partagés — on ne les coupe plus par défaut
+# (avant ça tuait la moitié de tes apps). Pour tout couper vraiment :
+#   ./scripts/dev-down.sh --with-supabase --with-caddy
+if [[ "${1:-}" == "--with-supabase" ]]; then
+  echo "→ Arrêt de Supabase (opt-in)…"
+  supabase stop >/dev/null 2>&1 && ok "Supabase stoppé" || ok "Supabase déjà arrêté"
+fi
+if [[ "${1:-}" == "--with-caddy" ]]; then
+  echo "→ Arrêt de Caddy (opt-in)…"
+  if pgrep -x caddy >/dev/null 2>&1; then
+    pkill -x caddy 2>/dev/null || true
+    ok "Caddy arrêté"
+  else
+    ok "Caddy déjà arrêté"
+  fi
+else
+  # juste reload pour libérer qoe.test sans tuer les autres vhosts
+  if pgrep -x caddy >/dev/null 2>&1; then
+    caddy reload --config Caddyfile.dev 2>/dev/null || true
+  fi
+  ok "Caddy laissé actif (autres projets intacts)"
+fi
