@@ -29,12 +29,12 @@ import { t } from '@lingui/core/macro';
 function getMonorepoPorts() {
   if (typeof window === 'undefined') {
     return {
-      landing: '3040',
-      feed: '3010',
-      dashboard: '3020',
-      admin: '3030',
-      tenant: '3001',
-      api: '3002',
+      landing: '15401',
+      feed: '15402',
+      dashboard: '15404',
+      admin: '15405',
+      tenant: '15403',
+      api: '15407',
     };
   }
 
@@ -43,22 +43,22 @@ function getMonorepoPorts() {
 
   if (isDocker) {
     return {
-      landing: '4040',
-      feed: '4000',
-      dashboard: '4020',
-      admin: '4030',
-      tenant: '4001',
-      api: '4002',
+      landing: '15401',
+      feed: '15402',
+      dashboard: '15404',
+      admin: '15405',
+      tenant: '15403',
+      api: '15407',
     };
   }
 
   return {
-    landing: '3040',
-    feed: '3010',
-    dashboard: '3020',
-    admin: '3030',
-    tenant: '3001',
-    api: '3002',
+    landing: '15401',
+    feed: '15402',
+    dashboard: '15404',
+    admin: '15405',
+    tenant: '15403',
+    api: '15407',
   };
 }
 

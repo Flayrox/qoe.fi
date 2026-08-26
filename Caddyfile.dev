@@ -22,7 +22,8 @@ http://start.localhost, http://start.qoe.test, http://start.lvh.me {
     reverse_proxy localhost:15401
 }
 
-# 🟠 Dashboard Créateur : dashboard.localhost, dashboard.qoe.test & dashboard.lvh.me — isolé 15404
+# 🟠 Dashboard Créateur : studio + dashboard (alias) — isolé 15404
+http://studio.localhost, http://studio.qoe.test, http://studio.lvh.me,
 http://dashboard.localhost, http://dashboard.qoe.test, http://dashboard.lvh.me {
     reverse_proxy localhost:15404
 }
