@@ -225,6 +225,9 @@ importers:
       '@qoe/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@qoe/devtools':
+        specifier: workspace:*
+        version: link:../../packages/devtools
       '@qoe/flags':
         specifier: workspace:*
         version: link:../../packages/flags
