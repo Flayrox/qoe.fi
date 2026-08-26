@@ -30,6 +30,14 @@ fi
 echo "→ Arrêt de Supabase…"
 supabase stop >/dev/null 2>&1 && ok "Supabase stoppé" || ok "Supabase déjà arrêté"
 
+echo "→ Arrêt de Caddy…"
+if pgrep -x caddy >/dev/null 2>&1; then
+  pkill -x caddy 2>/dev/null || true
+  ok "Caddy arrêté"
+else
+  ok "Caddy déjà arrêté"
+fi
+
 echo "→ Arrêt de l'infra Docker…"
 docker compose -f docker-compose.dev.yml stop "${INFRA_SERVICES[@]}" >/dev/null
 ok "Infra Docker stoppée (les données/volumes sont conservés)"

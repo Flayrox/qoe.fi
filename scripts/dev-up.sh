@@ -65,6 +65,30 @@ curl -sf --max-time 2 http://127.0.0.1:8081/health >/dev/null 2>&1 \
   && ok "Jina embeddings prêt (:8081)" \
   || warn "Jina embeddings injoignable sur :8081 (la recherche sémantique sera KO)"
 
+# ── 4b. Caddy (reverse-proxy sans port : http://qoe.test, http://start.qoe.test…) ─
+if command -v caddy >/dev/null 2>&1; then
+  echo "→ Caddy…"
+  if pgrep -x caddy >/dev/null 2>&1; then
+    caddy reload --config Caddyfile.dev 2>/dev/null && ok "Caddy rechargé (http://qoe.test, http://start.qoe.test…)" || warn "Caddy reload a échoué — relance manuelle : caddy run --config Caddyfile.dev"
+  else
+    # :80 nécessite sudo sur macOS — on tente sans, sinon on prévient
+    if caddy run --config Caddyfile.dev --adapter caddyfile >/tmp/caddy-qoefi.log 2>&1 & then
+      sleep 1
+      if pgrep -x caddy >/dev/null 2>&1; then
+        ok "Caddy prêt (http://qoe.test, http://start.qoe.test, http://*.qoe.test → 1540x)"
+      else
+        warn "Caddy n'a pas démarré (port 80 protégé ?) — lance : sudo caddy run --config Caddyfile.dev"
+        cat /tmp/caddy-qoefi.log 2>/dev/null | tail -5 | sed 's/^/   /'
+      fi
+    else
+      warn "Caddy KO — installe : brew install caddy — puis relance pnpm dev:qoefi"
+    fi
+  fi
+else
+  warn "Caddy non installé — http://lvh.me:1540x reste dispo, mais http://qoe.test nécessite : brew install caddy"
+fi
+
 # ── 5. Apps (turbo, au premier plan) ─────────────────────────────────────────
 echo "${C_BOLD}→ Lancement des apps (Ctrl+C pour tout couper)…${C_RESET}"
+echo "   http://qoe.test (ou http://lvh.me) → core:15402 | http://start.qoe.test → hi:15401 | http://dashboard.qoe.test → studio:15404"
 node scripts/copy-env.js && pnpm intl:compile && turbo run dev --parallel
