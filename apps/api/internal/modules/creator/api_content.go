@@ -134,9 +134,7 @@ func (h *Handler) apiMe(w http.ResponseWriter, r *http.Request) {
 const apiArticlesFrom = `
 	FROM "Article" a
 	LEFT JOIN "Category" cat ON cat.id = a."categoryId"
-	WHERE a.published = true
-	  AND a.status = 'PUBLISHED'
-	  AND (
+	WHERE (
 	    a."publicationId" = $1
 	    OR a."authorId"::text = $2
 	    OR a.id IN (SELECT "A" FROM "_CoAuthors" WHERE "B" = $3)
@@ -246,11 +244,14 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 	where := apiArticlesFrom
 	args := []any{publicationID, userID, userID}
 	add := func(fragment string, v ...any) {
-		args = append(args, v...)
-		where += strings.ReplaceAll(fragment, "$?", "$"+strconv.Itoa(len(args)))
+		for _, val := range v {
+			args = append(args, val)
+			fragment = strings.Replace(fragment, "$?", "$"+strconv.Itoa(len(args)), 1)
+		}
+		where += fragment
 	}
 	if cat := q.Get("category"); cat != "" {
-		add(` AND cat.slug = $?`, cat)
+		add(` AND (cat.slug = $? OR cat.id = $?)`, cat, cat)
 	}
 	if tag := q.Get("tag"); tag != "" {
 		add(` AND a."semanticTags" @> ARRAY[$?]::text[]`, tag)
@@ -260,6 +261,15 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 		add(` AND a."isPremium" = true`)
 	case "false":
 		add(` AND a."isPremium" = false`)
+	}
+	// Status filter: draft, published (default), all
+	switch q.Get("status") {
+	case "draft":
+		add(` AND a.status = 'DRAFT'`)
+	case "all":
+		// no filter
+	default:
+		add(` AND a.published = true AND a.status = 'PUBLISHED'`)
 	}
 	if term := q.Get("q"); term != "" {
 		add(` AND a.title ILIKE '%' || $? || '%'`, term)
@@ -359,7 +369,9 @@ func (h *Handler) apiArticleBySlug(w http.ResponseWriter, r *http.Request) {
 		SELECT a.id::text, a.slug, a.title, a.content, a."imageUrl",
 		       a."readingTime", a."isPremium", a."createdAt",
 		       a."semanticTags", cat.id::text, cat.slug, cat.name
-		`+apiArticlesFrom+` AND a.slug = $4
+		`+apiArticlesFrom+` AND (a.slug = $4
+		   OR EXISTS (SELECT 1 FROM "ArticleSlug" s WHERE s.slug = $4 AND s."articleId" = a.id)
+		   OR EXISTS (SELECT 1 FROM "ArticleSlugHistory" h WHERE h.slug = $4 AND h."articleId" = a.id))
 		LIMIT 1`,
 		publicationID, userID, userID, slug).Scan(
 		&full.ID, &full.Slug, &full.Title, &full.ContentHTML, &full.CoverURL,
@@ -427,6 +439,7 @@ func parseCursor(r *http.Request) (int, int) {
 // =====================================================================
 
 var slugSanitizer = regexp.MustCompile(`[^a-z0-9]+`)
+var slugValidRe = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
 // slugify transforme un titre en slug URL ASCII.
 func slugify(title string) string {
@@ -450,7 +463,11 @@ func (h *Handler) uniqueArticleSlug(ctx context.Context, base string) string {
 	for i := 2; ; i++ {
 		var exists bool
 		if err := h.pool.QueryRow(ctx,
-			`SELECT EXISTS(SELECT 1 FROM "Article" WHERE slug = $1)`, candidate,
+			`SELECT EXISTS(
+			   SELECT 1 FROM "Article" WHERE slug = $1
+			   UNION ALL SELECT 1 FROM "ArticleSlug" WHERE slug = $1
+			   UNION ALL SELECT 1 FROM "ArticleSlugHistory" WHERE slug = $1
+			 )`, candidate,
 		).Scan(&exists); err != nil || !exists {
 			return candidate
 		}
@@ -783,8 +800,9 @@ func (h *Handler) apiSearch(w http.ResponseWriter, r *http.Request) {
 	       OR EXISTS (SELECT 1 FROM unnest(a."semanticTags") t WHERE t ILIKE '%' || $4 || '%'))`
 	args := []any{publicationID, userID, userID, term}
 	if category != "" {
-		args = append(args, category)
-		where += ` AND cat.slug = $5`
+		// Accepte id OU slug pour la catégorie (technique = id, humain = slug)
+		where += ` AND (cat.slug = $` + strconv.Itoa(len(args)+1) + ` OR cat.id = $` + strconv.Itoa(len(args)+2) + `)`
+		args = append(args, category, category)
 	}
 
 	// Total pour la pagination.
@@ -920,6 +938,22 @@ func (h *Handler) apiArticleSlugSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	want := slugify(strings.ToLower(strings.TrimSpace(in.Slug)))
+	if want != "" {
+		if len(want) < 3 || len(want) > 80 {
+			response.BadRequest(w, "Slug doit faire entre 3 et 80 caractères")
+			return
+		}
+		if !slugValidRe.MatchString(want) {
+			response.BadRequest(w, "Slug invalide (lettres, chiffres, tirets uniquement)")
+			return
+		}
+		// Slugs réservés
+		reserved := map[string]bool{"admin": true, "api": true, "login": true, "_next": true, "oauth": true, "settings": true, "article": true}
+		if reserved[want] {
+			response.BadRequest(w, "Slug réservé")
+			return
+		}
+	}
 
 	// Le slug principal de l'article = revenir au défaut.
 	var baseSlug string
@@ -936,7 +970,12 @@ func (h *Handler) apiArticleSlugSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Unicité globale avec auto-suffixe (-1, -2…) si déjà pris.
+	// Sauvegarde l'ancien variant pour redirection 301 avant écrasement.
+	var oldSlug string
+	_ = h.pool.QueryRow(r.Context(),
+		`SELECT slug FROM "ArticleSlug" WHERE "articleId" = $1 AND "ownerUserId"::text = $2`,
+		id, userID).Scan(&oldSlug)
+	// Unicité globale avec auto-suffixe (-1, -2…) si déjà pris (inclut historique).
 	candidate := want
 	for n := 1; ; n++ {
 		var taken bool
@@ -946,6 +985,8 @@ func (h *Handler) apiArticleSlugSet(w http.ResponseWriter, r *http.Request) {
 			   UNION ALL
 			   SELECT 1 FROM "ArticleSlug" WHERE slug = $1
 			     AND NOT ("articleId" = $2 AND "ownerUserId"::text = $3)
+			   UNION ALL
+			   SELECT 1 FROM "ArticleSlugHistory" WHERE slug = $1
 			 )`, candidate, id, userID).Scan(&taken); err != nil {
 			response.Internal(w)
 			return
@@ -956,6 +997,11 @@ func (h *Handler) apiArticleSlugSet(w http.ResponseWriter, r *http.Request) {
 		candidate = want + "-" + strconv.Itoa(n)
 	}
 	want = candidate
+	if oldSlug != "" && oldSlug != want {
+		h.pool.Exec(r.Context(),
+			`INSERT INTO "ArticleSlugHistory" (id, "articleId", slug) VALUES (gen_random_uuid()::text, $1, $2) ON CONFLICT (slug) DO NOTHING`,
+			id, oldSlug)
+	}
 
 	h.pool.Exec(r.Context(), `
 		INSERT INTO "ArticleSlug" (id, "articleId", "ownerUserId", slug, "createdAt", "updatedAt")

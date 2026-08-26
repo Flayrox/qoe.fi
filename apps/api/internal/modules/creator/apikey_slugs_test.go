@@ -188,4 +188,102 @@ func TestCreatorAPI_PerAuthorSlugs(t *testing.T) {
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"slug":"enquete-commune"`) {
 		t.Fatalf("reset variant = %d %s", w.Code, w.Body.String())
 	}
+
+	// 5. Le variant suffixé reste résolu via l'API publique (GetArticleBySlugAny inclut history).
+	//    Vérifie que l'ancien slug "ma-version-du-duo" est bien en historique et résout encore.
+	var histCount int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "ArticleSlugHistory" WHERE slug = 'ma-version-du-duo' AND "articleId" = 'art_slugs'`).Scan(&histCount); err != nil {
+		t.Fatalf("history check: %v", err)
+	}
+	if histCount == 0 {
+		t.Fatalf("ancien variant non archivé en historique")
+	}
+}
+
+// ─── Filtres CMS par catégorie/tag/status et validation des slugs ───
+
+func TestCreatorAPI_CMSFiltersAndValidation(t *testing.T) {
+	ctx := context.Background()
+	if _, err := poolTest.Exec(ctx,
+		`TRUNCATE TABLE "ArticleSlugHistory", "ArticleSlug", "Article", "Category", "_CoAuthors", "Publication", "User" CASCADE`); err != nil {
+		t.Fatalf("truncate: %v", err)
+	}
+	authorID := "00000000-0000-0000-0000-000000000f10"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		 VALUES ('pub_cms_test', 'PERSONAL', 'CMS Test', 'cms-test', now(), now())`); err != nil {
+		t.Fatalf("pub: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		 VALUES ($1, 'cms@test.dev', 'cmstest', 'CMS', 'user', 'pub_cms_test', now(), now())`, authorID); err != nil {
+		t.Fatalf("user: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Category" (id, name, slug, "publicationId") VALUES ('cat_news', 'News', 'news', 'pub_cms_test')`); err != nil {
+		t.Fatalf("cat: %v", err)
+	}
+	// 2 articles : un publié, un brouillon
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
+		 VALUES ('art_pub', 'Publié', 'publie', '<p>pub</p>', true, 'PUBLIC', 1, 'PUBLISHED', 'pub_cms_test', $1, now(), now()),
+		        ('art_draft', 'Brouillon', 'brouillon', '<p>draft</p>', false, 'PUBLIC', 1, 'DRAFT', 'pub_cms_test', $1, now(), now())`, authorID); err != nil {
+		t.Fatalf("articles: %v", err)
+	}
+	// Assigne catégorie au publié
+	if _, err := poolTest.Exec(ctx, `UPDATE "Article" SET "categoryId" = 'cat_news' WHERE id = 'art_pub'`); err != nil {
+		t.Fatalf("cat assign: %v", err)
+	}
+
+	r := newAPIRouter()
+	key := insertAPIKey(t, authorID, "cms-filters", authmw.AllScopes)
+	doKey := func(method, path, body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+key)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		return w
+	}
+
+	// Filtre catégorie par slug et par id (technique = id)
+	for _, catVal := range []string{"news", "cat_news"} {
+		w := doKey(http.MethodGet, "/v1/creator/articles?category="+catVal, "")
+		if w.Code != http.StatusOK {
+			t.Fatalf("category=%s = %d %s", catVal, w.Code, w.Body.String())
+		}
+		var res struct{ Items []struct{ ID string `json:"id"` } `json:"items"` }
+		_ = json.Unmarshal(w.Body.Bytes(), &res)
+		if len(res.Items) != 1 || res.Items[0].ID != "art_pub" {
+			t.Fatalf("category=%s items=%v", catVal, res.Items)
+		}
+	}
+
+	// status=draft → seul le brouillon
+	w := doKey(http.MethodGet, "/v1/creator/articles?status=draft", "")
+	var draftRes struct{ Items []struct{ ID string `json:"id"` } `json:"items"` }
+	_ = json.Unmarshal(w.Body.Bytes(), &draftRes)
+	if len(draftRes.Items) != 1 || draftRes.Items[0].ID != "art_draft" {
+		t.Fatalf("status=draft = %v", draftRes.Items)
+	}
+
+	// status=all → les deux
+	w = doKey(http.MethodGet, "/v1/creator/articles?status=all", "")
+	var allRes struct{ Items []struct{ ID string `json:"id"` } `json:"items"` }
+	_ = json.Unmarshal(w.Body.Bytes(), &allRes)
+	if len(allRes.Items) != 2 {
+		t.Fatalf("status=all = %d, attendu 2", len(allRes.Items))
+	}
+
+	// Validation slug : réservé, trop court
+	for _, tc := range []struct{ slug string; want int }{
+		{"admin", 400},
+		{"ab", 400},
+		{"api", 400},
+	} {
+		w = doKey(http.MethodPatch, "/v1/creator/articles/art_pub/slug", `{"slug":"`+tc.slug+`"}`)
+		if w.Code != tc.want {
+			t.Fatalf("slug %q = %d, attendu %d (%s)", tc.slug, w.Code, tc.want, w.Body.String())
+		}
+	}
 }

@@ -135,7 +135,9 @@ JOIN "User" u ON u.id = a."authorId"
 JOIN "Publication" p ON p.id = a."publicationId"
 WHERE (a.slug = $1
        OR EXISTS (SELECT 1 FROM "ArticleSlug" s
-                  WHERE s.slug = $1 AND s."articleId" = a.id))
+                  WHERE s.slug = $1 AND s."articleId" = a.id)
+       OR EXISTS (SELECT 1 FROM "ArticleSlugHistory" h
+                  WHERE h.slug = $1 AND h."articleId" = a.id))
   AND a.published = true
 ORDER BY a."createdAt" DESC, a.id DESC
 LIMIT 1;
