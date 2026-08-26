@@ -241,17 +241,19 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
   const hasChanges = JSON.stringify(current) !== JSON.stringify(original);
 
   const getPublicBlogUrl = () => {
-    if (typeof window === 'undefined') return `http://${current.subdomain || 'climat'}.lvh.me:3001`;
+    if (typeof window === 'undefined')
+      return `http://${current.subdomain || 'climat'}.lvh.me:15403`;
     const host = window.location.hostname;
     const activeSub = current.subdomain || 'climat';
+    const isCaddy = !window.location.port;
     if (host.includes('lvh.me')) {
-      return `http://${activeSub}.lvh.me:3001`;
+      return `http://${activeSub}.lvh.me${isCaddy ? '' : ':15403'}`;
     }
     if (host.includes('qoe.test')) {
-      return `http://${activeSub}.qoe.test:3001`;
+      return `http://${activeSub}.qoe.test`;
     }
     if (host.includes('localhost')) {
-      return `http://${activeSub}.lvh.me:3001`;
+      return `http://${activeSub}.lvh.me:15403`;
     }
     return `https://${activeSub}.qoe.fi`;
   };

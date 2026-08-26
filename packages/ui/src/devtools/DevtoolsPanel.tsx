@@ -480,7 +480,7 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
   const appLinks = [
     { name: 'Feed', url: getDynamicUrl('', ports.feed), port: ports.feed },
     { name: 'Landing', url: getDynamicUrl('start', ports.landing), port: ports.landing },
-    { name: 'Studio', url: getDynamicUrl('dashboard', ports.dashboard), port: ports.dashboard },
+    { name: 'Studio', url: getDynamicUrl('studio', ports.dashboard), port: ports.dashboard },
     { name: 'Admin', url: getDynamicUrl('admin', ports.admin), port: ports.admin },
     { name: 'Tenant Web', url: getDynamicUrl('*', ports.tenant), port: ports.tenant },
     { name: 'API Gateway', url: getDynamicUrl('api', ports.api), port: ports.api },
