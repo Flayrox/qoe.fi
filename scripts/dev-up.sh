@@ -91,4 +91,4 @@ fi
 # ── 5. Apps (turbo, au premier plan) ─────────────────────────────────────────
 echo "${C_BOLD}→ Lancement des apps (Ctrl+C pour tout couper)…${C_RESET}"
 echo "   http://qoe.test (ou http://lvh.me) → core:15402 | http://start.qoe.test → hi:15401 | http://dashboard.qoe.test → studio:15404"
-node scripts/copy-env.js && pnpm intl:compile && turbo run dev --parallel
+node scripts/copy-env.js && pnpm intl:compile && pnpm exec turbo run dev --parallel
