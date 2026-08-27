@@ -8,7 +8,7 @@
 - `tsconfig.json`
 - `src/index.ts`
 - `src/ArticleCard.tsx`
-- `src/BentoPlateau.tsx`
+- `src/ui/BentoPlateau.tsx`
 - `src/GuestFloatingBar.tsx`
 - `src/LoginFormBento.tsx`
 - `src/LoginModal.tsx`

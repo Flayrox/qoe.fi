@@ -19,7 +19,7 @@ export { SubscribeForm } from './SubscribeForm';
 export { Logo } from './Logo';
 export { DevtoolsPanel } from './devtools/DevtoolsPanel';
 export { ThemeProvider, ThemeSeedScript } from './theme-provider';
-export { BentoPlateau, BentoItem } from './BentoPlateau';
+export { BentoPlateau, BentoItem } from './ui/BentoPlateau';
 export { GuestFloatingBar, type AuthActionContext } from './GuestFloatingBar';
 export { LoginModal } from './LoginModal';
 export { LoginFormBento, type LoginFormBentoProps } from './LoginFormBento';
