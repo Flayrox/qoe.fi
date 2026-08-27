@@ -26,6 +26,17 @@ fail() { echo "${C_RED}  ✘ $1${C_RESET}" >&2; exit 1; }
 
 echo "${C_BOLD}🚀 qoe.fi dev — démarrage du stack complet${C_RESET}"
 
+# ── 0. Nettoyage des orphelins (évite les EADDRINUSE si un ancien stack tourne) ──
+# Désactivable :  QOE_SKIP_CLEAN=1 pnpm dev:qoefi
+if [ "${QOE_SKIP_CLEAN:-0}" != 1 ]; then
+  echo "→ Nettoyage des process web orphelins (15401-15406)…"
+  if bash scripts/dev-clean.sh; then
+    ok "stack web propre"
+  else
+    warn "certains ports restent occupés — tu-les à la main avant de continuer"
+  fi
+fi
+
 # ── 1. Docker (OrbStack) ─────────────────────────────────────────────────────
 if ! docker info >/dev/null 2>&1; then
   echo "→ Démarrage d'OrbStack…"
@@ -72,7 +83,7 @@ for label in com.qoefi.api-server com.qoefi.api-worker; do
   fi
   launchctl kickstart -k "gui/$(id -u)/$label" 2>/dev/null || true
   case "$label" in
-    com.qoefi.api-server) port=15405 ;;
+    com.qoefi.api-server) port=15407 ;;   # API Go sur :15407 (QOE_API_URL / NEXT_PUBLIC_API_URL)
     com.qoefi.api-worker) port=0 ;;
   esac
   ready=0
