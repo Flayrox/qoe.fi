@@ -137,6 +137,41 @@ jobs:
         env:
           TESTCONTAINERS_RYUK_DISABLED: 'true'
 
+  api-shared-db:
+    name: Go Backend — base partagée (pnpm test:api)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # pnpm est requis pour la commande `pnpm test:api` (bash + Go + Docker
+      # uniquement, pas de node_modules) : setup minimal sans install.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+
+      # Mode base partagée : scripts/test-api.sh démarre la base de test
+      # (docker-compose.test.yml, port 55432) si besoin, puis lance
+      # go vet/build + go test -p 1 (packages sérialisés — les TRUNCATE des
+      # fixtures ne peuvent pas s'exécuter en parallèle sur une base unique).
+      # Complète le job `api` (Testcontainers, un conteneur par package).
+      - name: Test Go Backend (base partagée, -p 1)
+        run: pnpm test:api
+
   e2e:
     name: E2E (Playwright)
     needs: build-and-test
