@@ -85,6 +85,7 @@ export interface DevtoolsActions {
   seedFullDatabaseAction?: () => Promise<{ success: boolean; error?: string }>;
   restoreTopDbAction?: () => Promise<{ success: boolean; error?: string; details?: string }>;
   seedTopDbAction?: () => Promise<{ success: boolean; error?: string; details?: string }>;
+  seedTopCompleteAction?: () => Promise<{ success: boolean; error?: string; details?: string }>;
   reindexAction?: () => Promise<{ success: boolean; error?: string }>;
   resetOnboardingAction?: (
     targetEmailOrId?: string
@@ -122,6 +123,7 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
     seedFullDatabaseAction,
     restoreTopDbAction,
     seedTopDbAction,
+    seedTopCompleteAction,
     reindexAction,
     resetOnboardingAction,
     simulateSubscriberAction,
@@ -354,6 +356,29 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
     });
   };
 
+  const handleSeedTopComplete = () => {
+    if (!seedTopCompleteAction) {
+      triggerAlert('error', 'seedTopCompleteAction non branché');
+      return;
+    }
+    if (
+      !window.confirm(
+        'Générer la base de test complète : reset + contenu riche + interactions + Umami + embeddings + Meilisearch ?'
+      )
+    )
+      return;
+    startTransition(async () => {
+      const res = await seedTopCompleteAction();
+      if (res.success) {
+        triggerAlert('success', `🚀 Base de test complète générée : ${res.details || ''}`);
+        await refreshData();
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        triggerAlert('error', res.error || 'Échec seed complet');
+      }
+    });
+  };
+
   const handleReindex = () => {
     if (!window.confirm("Re-synchroniser l'index Meilisearch (backfill idempotent) ?")) return;
     startTransition(async () => {
@@ -374,7 +399,7 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
   const handleRestoreTopDb = () => {
     if (
       !window.confirm(
-        'Restaurer la DB top du top (500 users, 200 articles, 1480 posts, 5723 lectures, 10.5k Umami) depuis backups/top-db-20260822.sql.gz ? La DB actuelle sera écrasée.'
+        'Restaurer la DB top du top depuis le backup le plus récent de backups/ (top-db-*.sql.gz + umami-*.sql.gz) ? Toute la DB actuelle sera écrasée (schémas Supabase inclus).'
       )
     )
       return;
@@ -712,12 +737,20 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
                   <div className="apple-subheading">Actions Rapides</div>
                   <div className="grid grid-cols-2 gap-1.5">
                     <button
-                      onClick={handleSeedTopDb}
+                      onClick={handleSeedTopComplete}
                       disabled={isPending}
                       className="apple-btn-primary col-span-2"
-                      title="Régénère la DB top du top depuis zéro (déterministe, sans dépendre des backups/)"
+                      title="Reset + ajoute le contenu riche + interactions + Umami + embeddings + Meilisearch"
                     >
-                      ✨ Générer Top DB (0 dépendance backup)
+                      🚀 Générer la DB de test complète
+                    </button>
+                    <button
+                      onClick={handleSeedTopDb}
+                      disabled={isPending}
+                      className="apple-btn-action col-span-2"
+                      title="Régénère uniquement la DB top du top depuis zéro"
+                    >
+                      ✨ Générer Top DB (reset simple)
                     </button>
                     <button
                       onClick={handleRestoreTopDb}
