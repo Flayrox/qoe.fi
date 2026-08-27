@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle } from 'lucide-react';
 import { createClient } from '@qoe/supabase/client';
 import { cn } from '@qoe/utils';
-import { BentoPlateau, BentoItem } from './BentoPlateau';
+import { BentoPlateau, BentoItem } from './ui/BentoPlateau';
 import { Logo } from './Logo';
 import { Button } from './button';
 import type { AuthActionContext } from './GuestFloatingBar';

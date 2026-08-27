@@ -56,12 +56,17 @@ export function BentoItem({
         flexShrink: 0,
         flexGrow: active ? 0 : 1,
       }}
-      className={cn('relative rounded-[28px] overflow-hidden cursor-pointer', className)}
+      className={cn(
+        'relative rounded-[28px] overflow-hidden cursor-pointer min-h-[280px] md:min-h-0',
+        className
+      )}
     >
-      {/* Active State (White background) */}
+      {/* Active State (White background) — in-flow pour donner une hauteur
+          intrinsèque à l'item (sinon, en flex-col sous `md`, le flex-basis
+          en % ne se résout pas et l'item s'effondre en une fine ligne). */}
       <div
         className={cn(
-          'absolute inset-0 transition-opacity duration-400',
+          'relative h-full transition-opacity duration-400',
           active ? 'opacity-100' : 'opacity-0 pointer-events-none'
         )}
       >
@@ -75,7 +80,8 @@ export function BentoItem({
         </div>
       </div>
 
-      {/* Inactive State (Red/transparent overlay) */}
+      {/* Inactive State (Red/transparent overlay) — absolu par-dessus le
+          contenu actif pour permettre le cross-fade entre états. */}
       <div
         className={cn(
           'absolute inset-0 flex flex-col justify-end p-6 md:p-8 transition-opacity duration-400',
