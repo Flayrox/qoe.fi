@@ -3,6 +3,7 @@ package users
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -292,6 +293,7 @@ func (h *Handler) syncUser(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.Claims(r.Context())
 	created, needsOnboarding, err := h.svc.SyncUserFromAuth(r.Context(), userID, claims)
 	if err != nil {
+		log.Printf("[users] syncUser error (user=%s): %v", userID, err)
 		response.Internal(w)
 		return
 	}

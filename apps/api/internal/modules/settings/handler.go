@@ -86,6 +86,7 @@ func (h *Handler) getPreferences(w http.ResponseWriter, r *http.Request) {
 	}
 	settings, err := h.svc.GetUserSettings(r.Context(), userID)
 	if err != nil {
+		log.Printf("[settings] getPreferences: %v", err)
 		response.Internal(w)
 		return
 	}
