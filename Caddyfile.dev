@@ -14,32 +14,31 @@
 #    simplement "http://" par "https://" (Caddy te demandera ton mot de 
 # 🍏 Feed (App principale) : localhost, qoe.test & lvh.me — isolé 15402
 http://localhost, http://qoe.test, http://lvh.me {
-    reverse_proxy localhost:15402
+	reverse_proxy localhost:15402
 }
 
 # 📣 Landing (Marketing) : start.localhost, start.qoe.test & start.lvh.me — isolé 15401
 http://start.localhost, http://start.qoe.test, http://start.lvh.me {
-    reverse_proxy localhost:15401
+	reverse_proxy localhost:15401
 }
 
-# 🟠 Dashboard Créateur : studio + dashboard (alias) — isolé 15404
-http://studio.localhost, http://studio.qoe.test, http://studio.lvh.me,
-http://dashboard.localhost, http://dashboard.qoe.test, http://dashboard.lvh.me {
-    reverse_proxy localhost:15404
+# 🟠 Studio Créateur (ex-dashboard) — isolé 15404
+http://studio.localhost, http://studio.qoe.test, http://studio.lvh.me {
+	reverse_proxy localhost:15404
 }
 
 # 🔴 Admin Plateforme : admin.localhost, admin.qoe.test & admin.lvh.me — isolé 15405
 http://admin.localhost, http://admin.qoe.test, http://admin.lvh.me {
-    reverse_proxy localhost:15405
+	reverse_proxy localhost:15405
 }
 
 # 🔌 API (Backend Go) : api.localhost, api.qoe.test & api.lvh.me — isolé 15407
 http://api.localhost, http://api.qoe.test, http://api.lvh.me {
-    reverse_proxy localhost:15407
+	reverse_proxy localhost:15407
 }
 
 # 📚 Blogs Créateurs (Tenants / Wildcard) : *.localhost, *.qoe.test & *.lvh.me — isolé 15403
 # Ex: jean.localhost, test.localhost, jean.lvh.me -> redirigé vers l'app Web
 http://*.localhost, http://*.qoe.test, http://*.lvh.me {
-    reverse_proxy localhost:15403
+	reverse_proxy localhost:15403
 }
