@@ -1037,6 +1037,13 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
                       <span className="text-muted-foreground">development</span>
                     </div>
                     <div className="flex justify-between py-1.5">
+                      <span className="text-muted-foreground">API Go</span>
+                      <span className="flex items-center gap-1">
+                        <span className={`apple-status-dot ${stats ? 'on' : 'off'}`} />
+                        {`localhost:${ports.api}`}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-1.5">
                       <span className="text-muted-foreground">Viewport</span>
                       <span>{screenSize}</span>
                     </div>

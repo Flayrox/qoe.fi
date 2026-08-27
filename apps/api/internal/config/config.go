@@ -4,6 +4,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -38,6 +39,8 @@ type Config struct {
 	// id_token. Vide en dev → clé éphémère générée au démarrage (⚠️ ne pas
 	// utiliser en production multi-instances).
 	OAuthSigningKey string
+	// DevtoolsDevOnly active le panneau de dev par secret partagé (QOE_DEVTOOLS_DEV_ONLY).
+	DevtoolsDevOnly bool
 }
 
 func Load() *Config {
@@ -65,7 +68,13 @@ func Load() *Config {
 		OAuthIssuer:       envOr("OAUTH_ISSUER", "http://localhost:8090"),
 		OAuthAuthorizeURL: envOr("OAUTH_AUTHORIZE_URL", "http://localhost:3010/oauth/authorize"),
 		OAuthSigningKey:   envOr("OAUTH_SIGNING_KEY", ""),
+		DevtoolsDevOnly:   boolEnv("QOE_DEVTOOLS_DEV_ONLY"),
 	}
+}
+
+func boolEnv(key string) bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	return v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
 func (c *Config) PoolSize() int32 {

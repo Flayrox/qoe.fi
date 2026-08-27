@@ -25,17 +25,36 @@ import (
 
 var errForbidden = errors.New("réservé au superadmin")
 
-// Service porte les opérations du panneau devtools.
-type Service struct {
-	pool *pgxpool.Pool
+// Options configure le service devtools (mode dev uniquement).
+type Options struct {
+	// DevOnly active le bypass par secret partagé du panneau de dev : les
+	// requêtes authentifiées par x-qoe-internal-secret sont traitées comme
+	// superadmin sans lookup DB ni session utilisateur. Doit rester false en
+	// production (QOE_DEVTOOLS_DEV_ONLY absent).
+	DevOnly bool
 }
 
-func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool}
+// Service porte les opérations du panneau devtools.
+type Service struct {
+	pool    *pgxpool.Pool
+	devOnly bool
+}
+
+func NewService(pool *pgxpool.Pool, opts ...Options) *Service {
+	s := &Service{pool: pool}
+	if len(opts) > 0 {
+		s.devOnly = opts[0].DevOnly
+	}
+	return s
 }
 
 // checkSuperadmin vérifie que l'utilisateur est superadmin (via la table User).
+// En mode dev, le sentinel DevSecretUserID (requête authentifiée par le secret
+// partagé) est accepté directement, sans dépendre d'une ligne superadmin en base.
 func (s *Service) checkSuperadmin(ctx context.Context, userID string) error {
+	if s.devOnly && userID == DevSecretUserID {
+		return nil
+	}
 	var role string
 	err := s.pool.QueryRow(ctx,
 		`SELECT role FROM "User" WHERE id = $1`, userID).Scan(&role)

@@ -36,6 +36,28 @@ func count(t *testing.T, query string, args ...any) int {
 	return n
 }
 
+// TestRunTopKeepAdmin vérifie que la régénération « top du top » recrée bien
+// l'admin superadmin canonique (aligné sur Supabase Auth) après le wipe : sans
+// cela, GET /v1/me → 404 pour admin@qoe.fi et le RBAC superadmin → 403.
+func TestRunTopKeepAdmin(t *testing.T) {
+	ctx := context.Background()
+	// Petit profil pour que le test reste rapide.
+	if _, err := RunTop(ctx, poolTest, TopOptions{
+		Users: 20, Articles: 4, Posts: 10, ReadingSessions: 5,
+		CreatorsRatio: 0.4, PremiumRatio: 0.1,
+	}); err != nil {
+		t.Fatalf("RunTop: %v", err)
+	}
+
+	// L'admin superadmin aligné Supabase Auth doit exister (id fixe).
+	if n := count(t, `SELECT COUNT(*) FROM "User" WHERE id = $1 AND role = 'superadmin' AND email = 'admin@qoe.fi'`, AdminUserID); n != 1 {
+		t.Fatalf("admin superadmin après RunTop = %d, attendu 1", n)
+	}
+	if n := count(t, `SELECT COUNT(*) FROM "Publication" WHERE id = $1 AND "isCertified"`, AdminPubID); n != 1 {
+		t.Fatalf("publication admin certifiée après RunTop = %d, attendu 1", n)
+	}
+}
+
 func TestSeedRun(t *testing.T) {
 	ctx := context.Background()
 	if err := Run(ctx, poolTest); err != nil {

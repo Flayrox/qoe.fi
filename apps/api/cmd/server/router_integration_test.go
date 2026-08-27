@@ -229,6 +229,79 @@ func TestRouter_FullCreatorFlow(t *testing.T) {
 	}
 }
 
+func TestRouter_DevtoolsDevSecretAuth(t *testing.T) {
+	ctx := context.Background()
+	// Préparer un superadmin en base pour le chemin JWT.
+	superID := "12345678-1234-1234-1234-123456789012"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+		 VALUES ($1, 'devtools-secret@test.dev', 'devadmin', 'Dev Admin', 'superadmin', now(), now())
+		 ON CONFLICT (id) DO UPDATE SET role = 'superadmin', "updatedAt" = now()`, superID); err != nil {
+		t.Fatalf("seed superadmin: %v", err)
+	}
+
+	devRouter := func(t *testing.T, devOnly bool) *chi.Mux {
+		t.Helper()
+		return newRouter(RouterDeps{
+			Pool:             poolTest,
+			Redis:            nil,
+			Asynq:            nil,
+			JWTSecret:        routerSecret,
+			InternalSecret:   "test-internal-secret",
+			DevtoolsDevOnly:  devOnly,
+			StripeWebhookKey: "",
+			UmamiAPIURL:      "",
+		})
+	}
+
+	call := func(t *testing.T, r *chi.Mux, secret string, token string) (*httptest.ResponseRecorder, map[string]any) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/v1/devtools/data", bytes.NewReader(nil))
+		if secret != "" {
+			req.Header.Set("x-qoe-internal-secret", secret)
+		}
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		var parsed map[string]any
+		if strings.Contains(w.Header().Get("Content-Type"), "json") && w.Body.Len() > 0 {
+			_ = json.Unmarshal(w.Body.Bytes(), &parsed)
+		}
+		return w, parsed
+	}
+
+	// --- Mode dev : le secret partagé donne accès (200).
+	rDev := devRouter(t, true)
+	w, body := call(t, rDev, "test-internal-secret", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("dev secret = %d, body = %s", w.Code, w.Body.String())
+	}
+	if body["stats"] == nil {
+		t.Fatalf("dev secret body = %s (stats manquantes)", w.Body.String())
+	}
+
+	// --- Mode dev : mauvais secret → retombe sur CombinedAuth → 401 sans token.
+	w2, _ := call(t, rDev, "wrong-secret", "")
+	if w2.Code != http.StatusUnauthorized {
+		t.Fatalf("mauvais secret = %d, attendu 401", w2.Code)
+	}
+
+	// --- Mode dev : un JWT superadmin valide fonctionne toujours.
+	w3, _ := call(t, rDev, "", routerJWT(superID))
+	if w3.Code != http.StatusOK {
+		t.Fatalf("JWT superadmin = %d, body = %s", w3.Code, w3.Body.String())
+	}
+
+	// --- Mode prod (devOnly=false) : le secret est ignoré → 401 sans token.
+	rProd := devRouter(t, false)
+	w4, _ := call(t, rProd, "test-internal-secret", "")
+	if w4.Code != http.StatusUnauthorized {
+		t.Fatalf("prod secret = %d, attendu 401 (bypass ignoré)", w4.Code)
+	}
+}
+
 func TestRouter_APIKey_CreatorMode(t *testing.T) {
 	fx, err := testutil.SeedArticles(context.Background(), poolTest)
 	if err != nil {

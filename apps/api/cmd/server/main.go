@@ -79,6 +79,7 @@ func main() {
 		SupabaseAuthURL:  cfg.SupabaseAuthURL,
 		StripeWebhookKey: cfg.StripeWebhookSecret,
 		InternalSecret:   cfg.InternalSecret,
+		DevtoolsDevOnly:  cfg.DevtoolsDevOnly,
 		UmamiAPIURL:      cfg.UmamiAPIURL,
 		UmamiAPIKey:      cfg.UmamiAPIKey,
 		UmamiUser:        cfg.UmamiUser,
@@ -117,6 +118,8 @@ type RouterDeps struct {
 	SupabaseAuthURL  string
 	StripeWebhookKey string
 	InternalSecret   string
+	// DevtoolsDevOnly active le panneau de dev par secret partagé (hors prod).
+	DevtoolsDevOnly bool
 	UmamiAPIURL      string
 	UmamiAPIKey      string
 	UmamiUser        string
@@ -288,9 +291,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		starterPacksHandler.RegisterProtected(protected)
 
-		devtoolsHandler := devtools.NewHandler(devtools.NewService(pool))
-		devtoolsHandler.Register(protected)
-
 		adminHandler := admin.NewHandler(admin.NewService(pool))
 		adminHandler.Register(protected)
 
@@ -299,6 +299,17 @@ func newRouter(d RouterDeps) *chi.Mux {
 		trackingHandler.RegisterReader(protected)
 
 		oauthHandler.RegisterProtected(protected)
+	})
+
+	// Panneau de dev (devtools) : JWT/API superadmin, OU — en mode dev only —
+	// le secret partagé x-qoe-internal-secret pour un usage sans session ni
+	// enregistrement superadmin (outillage DB local). En production, DevOnlyAuth
+	// se comporte exactement comme CombinedAuth (superadmin JWT uniquement).
+	devtoolsHandler := devtools.NewHandler(devtools.NewService(pool, devtools.Options{DevOnly: d.DevtoolsDevOnly}))
+	r.With(devtools.DevOnlyAuth(auth.CombinedAuth(db.New(pool)), d.InternalSecret, d.DevtoolsDevOnly)).Group(func(dv chi.Router) {
+		// 600 req/min - même limite que le groupe protégé.
+		dv.Use(authmw.RateLimit("protected", rc, time.Minute, 600, true))
+		devtoolsHandler.Register(dv)
 	})
 
 	// Tracking de lecture (reading-session, feed-impression, show-less) :

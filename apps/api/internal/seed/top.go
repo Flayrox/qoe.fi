@@ -438,6 +438,16 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	}
 	log.Printf("[seed-top] ✔ %d users (%d créateurs)", len(res.Users), creators)
 
+	// ── 1b. Admin superadmin (aligné sur Supabase Auth) ───────────────────
+	// La DB app contient les users générés (UUID déterministes sans compte Supabase
+	// Auth). Sans cela, l'identité admin (admin@qoe.fi, id 85003f3c-… présent dans
+	// auth.users) n'existe pas côté app : /v1/me → 404 (crash des pages) et le
+	// cheim superadmin JWT des devtools/admin → 403. On recrée donc toujours
+	// l'admin canonique + sa publication personnelle après le wipe.
+	if err := upsertTopAdmin(ctx, pool); err != nil {
+		return nil, err
+	}
+
 	// ── 2. Catégories (2-3 par publication créateur) ───────────────────────
 	catNames := []string{"Souveraineté", "Écologie", "Politique", "Culture", "Économie", "Numérique"}
 	catSlugs := []string{"souverainete", "ecologie", "politique", "culture", "economie", "numerique"}
@@ -689,6 +699,30 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 
 	log.Printf("[seed-top] ✅ génération terminée en %s", time.Since(start).Round(time.Millisecond))
 	return res, nil
+}
+
+// upsertTopAdmin recrée l'admin superadmin canonique (admin@qoe.fi) et sa
+// publication personnelle après le wipe de RunTop. L'id AdminUserID correspond
+// au compte Supabase Auth « Admin Sanctuaire », ce qui rend l'identité admin
+// cohérente côté app (GET /v1/me) et côté RBAC (role superadmin).
+func upsertTopAdmin(ctx context.Context, pool *pgxpool.Pool) error {
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO "Publication" (id, type, name, slug, subdomain, "isCertified", "createdAt", "updatedAt")
+		VALUES ($1, 'PERSONAL', 'Super Admin', 'admin', 'admin', true, now(), now())
+		ON CONFLICT (id) DO UPDATE SET name = 'Super Admin', slug = 'admin',
+		  subdomain = 'admin', "isCertified" = true, "updatedAt" = now()`,
+		AdminPubID); err != nil {
+		return fmt.Errorf("publication admin (top): %w", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO "User" (id, email, username, name, role, "isCertified", "countryCode", "languageCode", "hasCompletedOnboarding", "publicationId", "createdAt", "updatedAt")
+		VALUES ($1, 'admin@qoe.fi', 'admin', 'Admin Sanctuaire', 'superadmin', true, 'FR', 'fr', true, $2, now(), now())
+		ON CONFLICT (id) DO UPDATE SET email = 'admin@qoe.fi', username = 'admin', name = 'Admin Sanctuaire',
+		  role = 'superadmin', "isCertified" = true, "publicationId" = $2, "updatedAt" = now()`,
+		AdminUserID, AdminPubID); err != nil {
+		return fmt.Errorf("user admin (top): %w", err)
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
