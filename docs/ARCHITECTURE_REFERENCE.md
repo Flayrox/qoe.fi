@@ -1,10 +1,8 @@
 # 🗺️ Référence d'Architecture & Relations — qoe.fi (à jour)
 
-> **Document de travail de référence.** Contrairement à `HANDOFF.md`
-> (périmé : il référence encore l'API Hono `apps/api` supprimée et un
-> `.agents/docs/API_AND_MOBILE_ARCHITECTURE.md` inexistant),
-> ce fichier décrit l'état **actuel** du monorepo et sert de base au
-> développement de l'**application mobile** (`apps/mobile`).
+> **Document de travail de référence.** Ce fichier décrit l'état **actuel**
+> du monorepo et sert de base au développement de l'**application mobile**
+> (`apps/mobile`).
 >
 > Dernière mise à jour : août 2026 (noms v3 : core/hi/studio/tenants/api).
 >
