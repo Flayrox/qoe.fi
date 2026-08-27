@@ -50,22 +50,7 @@ func (s *Service) SyncUserFromAuth(ctx context.Context, userID string, claims ma
 	}
 
 	if !exists {
-		emailPrefix := "user"
-		if email != "" {
-			emailPrefix = strings.Split(email, "@")[0]
-		}
-		finalUsername := username
-		if finalUsername == "" {
-			finalUsername = strings.ToLower(strings.Map(func(r rune) rune {
-				if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
-					return r
-				}
-				return -1
-			}, emailPrefix))
-		}
-		if finalUsername == "" {
-			finalUsername = "user"
-		}
+		finalUsername := derivedUserName(email, username)
 		// Unicité : suffixe aléatoire si le username est pris.
 		err = s.pool.QueryRow(ctx,
 			`SELECT username FROM "User" WHERE username = $1`, finalUsername).Scan(&usernameTaken)
@@ -76,7 +61,11 @@ func (s *Service) SyncUserFromAuth(ctx context.Context, userID string, claims ma
 		}
 		displayName := name
 		if displayName == "" {
-			displayName = emailPrefix
+			prefix := "user"
+			if email != "" {
+				prefix = strings.Split(email, "@")[0]
+			}
+			displayName = prefix
 		}
 		_, insertErr := s.pool.Exec(ctx,
 			`INSERT INTO "User" (id, email, name, username, role, "hasCompletedOnboarding", pronouns, "countryCode", "languageCode", "createdAt", "updatedAt")
@@ -106,6 +95,35 @@ func (s *Service) SyncUserFromAuth(ctx context.Context, userID string, claims ma
 		exists = true
 	}
 
+	// User existant : auto-réparation profil — si username/name sont vides en
+	// DB (comptes seedés / backup avec colonnes manquantes), on les remplit
+	// depuis les claims à chaque login, SANS écraser ce qui est déjà renseigné.
+	// Évite le rendu systématique @user (le front tombe sur un fallback 'user'
+	// quand le username DB est NULL). On se base sur les VALEURS DB, pas sur
+	// les claims : un username explicite dans user_metadata doit bien s'écrire
+	// quand la colonne est vide.
+	var dbName, dbUsername pgtype.Text
+	_ = s.pool.QueryRow(ctx,
+		`SELECT name, username FROM "User" WHERE id = $1`, userID).Scan(&dbName, &dbUsername)
+	needsUsername := !dbUsername.Valid || dbUsername.String == ""
+	if needsUsername || !dbName.Valid || dbName.String == "" {
+		// Username à écrire : dérivé des claims (meta sinon email), uniquement
+		// si la colonne est réellement vide (évite d'écraser un username pris).
+		newUsername := derivedUserName(email, username)
+		if !needsUsername {
+			newUsername = ""
+		}
+		if _, err = s.pool.Exec(ctx,
+			`UPDATE "User"
+			 SET username = COALESCE(NULLIF($1, ''), username),
+			     name     = COALESCE(NULLIF($2, ''), name),
+			     "updatedAt" = now()
+			 WHERE id = $3 AND (username IS NULL OR username = '' OR name IS NULL OR name = '')`,
+			newUsername, name, userID); err != nil {
+			return false, false, err
+		}
+	}
+
 	// User existant : propagation des champs profil si renseignés.
 	if pronouns != "" || countryCode != "" || languageCode != "" {
 		_, err = s.pool.Exec(ctx,
@@ -121,6 +139,35 @@ func (s *Service) SyncUserFromAuth(ctx context.Context, userID string, claims ma
 		}
 	}
 	return false, role == "user" && existingOnboarding == "false", nil
+}
+
+// derivedUserName calcule un username de base valide [a-z0-9_-] : soit le
+// claim `username` (sanitisé), soit le préfixe de l'email, soit "user" en
+// dernier recours. L'unicité n'est PAS gérée ici (binding côté création).
+func derivedUserName(email, username string) string {
+	if u := strings.TrimSpace(username); u != "" {
+		if s := strings.ToLower(strings.Map(func(r rune) rune {
+			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+				return r
+			}
+			return -1
+		}, u)); s != "" {
+			return s
+		}
+	}
+	prefix := "user"
+	if email != "" {
+		prefix = strings.Split(email, "@")[0]
+	}
+	if s := strings.ToLower(strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			return r
+		}
+		return -1
+	}, prefix)); s != "" {
+		return s
+	}
+	return "user"
 }
 
 func shortID() string {
