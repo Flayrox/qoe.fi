@@ -5,6 +5,7 @@
   "description": "qoe.fi monorepo — Turborepo + pnpm + Next.js (tenants, core, hi, studio, admin) + Go (api, worker asynq)",
   "scripts": {
     "test": "turbo run test",
+    "test:api": "bash scripts/test-api.sh",
     "test:coverage": "vitest run --config vitest.coverage.config.ts",
     "test:ui": "turbo run test:ui",
     "build": "pnpm intl:compile && turbo run build",

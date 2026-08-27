@@ -40,7 +40,25 @@ $(go env GOPATH)/bin/sqlc generate
 PORT=8080 DATABASE_URL="postgresql://…" SUPABASE_JWT_SECRET="…" go run ./cmd/server
 
 # Lancer les tests
-go build ./... && go vet ./...
+
+Deux modes (les tests d'intégration ont besoin de Postgres + pgvector) :
+
+1. **Testcontainers (défaut)** — un conteneur éphémère par package, run
+   parallèle possible (mode CI) :
+   ```bash
+   go test -race -count=1 ./...
+   ```
+
+2. **Base partagée Docker (recommandé en local)** — un seul conteneur sur
+   le port 55432 (`docker-compose.test.yml`), migrations appliquées une
+   fois, nettement plus rapide :
+   ```bash
+   bash scripts/test-api.sh   # ou depuis la racine : pnpm test:api
+   ```
+   ⚠️ En base partagée, les packages DOIVENT être sérialisés (`-p 1`) :
+   `go test` les lance en parallèle et les TRUNCATE des fixtures entrent
+   en conflit (deadlock SQLSTATE 40P01, clés dupliquées). Le script force
+   `-p 1` pour vous.
 ```
 
 ## Endpoints (module Feed + Posts)
