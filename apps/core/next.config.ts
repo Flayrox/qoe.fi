@@ -35,6 +35,10 @@ const nextConfig: NextConfig = {
     '@qoe/theme',
     '@qoe/observability',
   ],
+  // Isole du bundling RSC les paquets serveur lourds / CJS qui peuvent
+  // déclencher des `require is not defined` intermittents à froid sous
+  // Turbopack (ex. Sentry, dotenv). Chargés par le runtime Node au besoin.
+  serverExternalPackages: ['@sentry/nextjs', '@sentry/node', 'dotenv'],
   images: {
     dangerouslyAllowSVG: true,
     dangerouslyAllowLocalIP: true, // 🧪 Allow 127.0.0.1:54321 (Supabase local) — SSRF guard Next 16
