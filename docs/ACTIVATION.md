@@ -1,7 +1,7 @@
 # 🚀 Guide d'activation — qoe.fi monorepo (état post-découplage)
 
 > **La plateforme : 5 applications Next.js indépendantes + un backend Go (`apps/api`).**
-> L'API Hono legacy (`apps/api`) reste en transition (API créateurs/médias — voir `SUNSET_API_LEGACY.md`).
+> L'API Hono legacy (`apps/api`) a été supprimée — le backend Go (`apps/api`) est l'unique backend.
 > Ce guide explique comment démarrer et gérer le développement après cette refactorisation majeure.
 
 ---
@@ -47,7 +47,7 @@ pnpm docker:dev
 # → Admin (Platform):        http://localhost:4030  (interne: 3030)
 # → Landing (Vitrines/CMS):  http://localhost:4040  (interne: 3040)
 # → API (Go) : http://localhost:8080/health
-#   Backend de référence : apps/api (Go) — voir SUNSET_API_LEGACY.md
+#   Backend de référence : apps/api (Go)
 ```
 
 **C'est tout.** En 5 minutes tu as le stack complet qui tourne.

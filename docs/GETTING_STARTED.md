@@ -95,10 +95,9 @@ Sur macOS et Windows, démarre Caddy pour faire répondre `qoe.test` et ses sous
 caddy start --config Caddyfile.dev
 ```
 
-### 6. Générer le client Prisma et lancer le serveur de dev
+### 6. Lancer le serveur de dev
 
 ```bash
-pnpm prisma:generate
 pnpm dev
 ```
 
