@@ -105,14 +105,17 @@ export default async function RootLayout({
       data-qoe-high-contrast={accountSettings?.highContrast ? 'true' : 'false'}
       suppressHydrationWarning
     >
-      <head>
-        <ThemeSeedScript />
-      </head>
+      <head />
       <body
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
         style={{ fontSize: `${accountSettings?.fontScale ?? 100}%` }}
         suppressHydrationWarning
       >
+        {/* Script d'anti-FOUC du thème : next/script beforeInteractive est
+            hoisté dans le <head> par Next au SSR, quel que soit l'emplacement.
+            Placé hors de <head> pour éviter le warning React 16
+            "Encountered a script tag while rendering React component". */}
+        <ThemeSeedScript />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <GrowthBookProvider payload={flagsPayload}>
             <I18nClientProvider language={locale} staticData={staticData}>
