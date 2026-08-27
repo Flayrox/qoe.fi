@@ -94,6 +94,20 @@ signée HMAC vers l'endpoint, avec retries et log de livraison.
   exécuté en parallèle, artefact de traces en cas d'échec.
 - **Vitrine** : badge de couverture + rapport d'échec lisible.
 
+### Mode local — base partagée (`pnpm test:api`)
+
+En CI, chaque package Go monte son propre conteneur Testcontainers : les
+packages peuvent tourner en parallèle sans conflit. En local avec la base de
+test partagée (`docker-compose.test.yml`, port `55432`), `go test` lance les
+packages en parallèle et les TRUNCATE des fixtures se marchent dessus
+(deadlock `40P01`, clés dupliquées).
+
+`scripts/test-api.sh` (alias racine **`pnpm test:api`**) règle le problème : il
+démarre la base de test si besoin, lance `go vet` + `go build`, puis
+`go test -p 1 ./cmd/... ./internal/...` (packages sérialisés). La CI couvre les
+deux modes : `api-testcontainers` (parallèle) et `api-shared-db`
+(`pnpm test:api`).
+
 ---
 
 ## 📦 Organisation du code de test (Go)
