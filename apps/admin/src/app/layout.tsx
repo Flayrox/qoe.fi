@@ -84,13 +84,16 @@ export default async function RootLayout({
       className={cn('scroll-smooth', 'font-sans', geist.variable)}
       suppressHydrationWarning
     >
-      <head>
-        <ThemeSeedScript />
-      </head>
+      <head />
       <body
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
         suppressHydrationWarning
       >
+        {/* Script d'anti-FOUC du theme : next/script beforeInteractive est
+            hoiste dans le <head> par Next au SSR, quel que soit l'emplacement.
+            Place hors de <head> pour eviter le warning React 16
+            "Encountered a script tag while rendering React component". */}
+        <ThemeSeedScript />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <GrowthBookProvider payload={flagsPayload}>
             <I18nClientProvider language={locale} staticData={staticData}>
