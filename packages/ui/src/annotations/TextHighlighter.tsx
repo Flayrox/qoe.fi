@@ -20,7 +20,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { TextSelectionPopover } from './TextSelectionPopover';
 import { AnnotationSideDrawer } from './AnnotationSideDrawer';
 import { findQuoteOccurrence } from './quote-anchor';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import {
   AnnotationFilterMode,
   AnnotationItem,

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { MessageCircle, Link as LinkIcon, Share2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '@qoe/utils';
 

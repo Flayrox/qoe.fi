@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Search, Command, Menu } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import { ThemeToggle, useCommandMenu } from '@qoe/ui';
 
 import { HeaderWorkspaceSwitcher } from './HeaderWorkspaceSwitcher';

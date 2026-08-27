@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import { updatePostShadow } from '@qoe/sdk';
 import {
   getPostThreadAction as getPostThread,

@@ -9,7 +9,7 @@ import {
   toggleBookmarkArticleHomeAction as toggleBookmarkArticleHome,
   getArticleThreadAction as getArticleThread,
 } from '@qoe/sdk/actions/feed';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 
 import {
   GuestFloatingBar,

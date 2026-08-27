@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import { Loader2, ShieldCheck, KeyRound, Globe } from 'lucide-react';
 import { updateOAuthClientStatusAction } from '@qoe/sdk/actions/admin';
 

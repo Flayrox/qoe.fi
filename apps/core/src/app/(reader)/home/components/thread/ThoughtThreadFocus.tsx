@@ -7,7 +7,7 @@ import {
   toggleFollowCreatorHomeAction,
 } from '@qoe/sdk/actions/feed';
 import { useOptimisticFollow } from '@qoe/sdk/hooks/useOptimisticFollow';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
 import { useThoughtThreadContext } from './ThoughtThreadContext';
 

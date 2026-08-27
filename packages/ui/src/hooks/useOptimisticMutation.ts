@@ -5,7 +5,7 @@
 // =====================================================================
 
 import { useOptimistic, useTransition } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import type { ActionResult } from '@qoe/utils';
 
 export interface UseOptimisticMutationOptions<TState, TArgs extends unknown[], TResult> {

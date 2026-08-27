@@ -8,7 +8,7 @@ import {
 } from '@qoe/sdk/actions/dashboard';
 
 import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import {
   Loader2,
   ArrowRight,
