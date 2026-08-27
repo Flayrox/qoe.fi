@@ -442,7 +442,10 @@ export async function getArticleAnalyticsDetail(
     const pubLite = await fetchPublicationLite(workspace.publicationId);
 
     // Résout l'article par slug dans la publication (articleId canonique).
-    const slug = urlPath.replace(/^\/articles\//, '').replace(/^\//, '');
+    const slug = urlPath
+      .replace(/^\/(articles?)\//i, '')
+      .replace(/^\/+/, '')
+      .split(/[?#]/)[0];
     let matchedArticle: { id: string; title: string } | null =
       pubLite.articles.find((a) => a.slug.toLowerCase() === slug.toLowerCase()) ?? null;
     let title =

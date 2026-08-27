@@ -74,7 +74,31 @@ export default async function CreatorDashboardPage() {
   const isMediaWorkspace = workspace.type === 'MEDIA';
 
   // 🚀 Données du dashboard : Go.
-  const dashboard: DashboardData = await fetchDashboardGo(user.id, workspace);
+  // Dégradation gracieuse : si le workspace n'est pas encore résolvable
+  // (403/erreur Go, compte sans publication personnelle), on affiche un état
+  // vide au lieu de crasher la page avec des erreurs serveur répétées.
+  let dashboard: DashboardData | null = null;
+  try {
+    dashboard = await fetchDashboardGo(user.id, workspace);
+  } catch (err) {
+    console.error('Dashboard indisponible (workspace non résolu ?)', err);
+  }
+
+  if (!dashboard) {
+    return (
+      <main className="w-full space-y-8 pb-24 md:pb-12 text-foreground font-sans selection:bg-primary/20 selection:text-primary">
+        <div className="flex flex-col items-center justify-center py-24 text-center space-y-3">
+          <p className="text-sm font-semibold text-foreground">
+            Votre espace créateur n'est pas encore prêt.
+          </p>
+          <p className="text-xs text-muted-foreground max-w-sm">
+            Reconnectez-vous avec un compte créateur, ou terminez votre onboarding pour créer votre
+            publication.
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   // Combine scheduled thoughts & draft articles into unified schedule items
   const scheduleItems = [
