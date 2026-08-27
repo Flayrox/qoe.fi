@@ -118,7 +118,7 @@ func PublishStripeEvent(c *asynq.Client, p StripeEventPayload) error {
 	return err
 }
 
-// PublishArticleEmbedding enqueue un job de génération d'embedding.
+// PublishArticleEmbedding enqueue un job de génération d'embedding article.
 func PublishArticleEmbedding(c *asynq.Client, p EmbeddingPayload) error {
 	if c == nil {
 		return nil
@@ -128,6 +128,20 @@ func PublishArticleEmbedding(c *asynq.Client, p EmbeddingPayload) error {
 		return err
 	}
 	task := asynq.NewTask(TaskArticleEmbedding, payload, asynq.MaxRetry(5), asynq.Timeout(120*time.Second))
+	_, err = c.Enqueue(task, asynq.Queue("low"))
+	return err
+}
+
+// PublishUserEmbedding enqueue un job de génération d'embedding user.
+func PublishUserEmbedding(c *asynq.Client, p EmbeddingPayload) error {
+	if c == nil {
+		return nil
+	}
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	task := asynq.NewTask(TaskUserEmbedding, payload, asynq.MaxRetry(5), asynq.Timeout(120*time.Second))
 	_, err = c.Enqueue(task, asynq.Queue("low"))
 	return err
 }

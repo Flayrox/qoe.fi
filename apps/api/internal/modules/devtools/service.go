@@ -9,14 +9,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/seed"
+	"github.com/qoefi/api/internal/workers"
 )
 
 var errForbidden = errors.New("réservé au superadmin")
@@ -435,6 +439,70 @@ func (s *Service) Seed(ctx context.Context, userID string) error {
 		return err
 	}
 	return seed.Run(ctx, s.pool)
+}
+
+// Reindex re-synchronise l'index Meilisearch (backfill idempotent : seuls les
+// documents manquants sont upsertés). Retourne (total en base, upsertés).
+func (s *Service) Reindex(ctx context.Context, userID string) (map[string]any, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, err
+	}
+	total, upserted, err := workers.NewSearchWorker(s.pool).ReindexAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"success": true, "total": total, "upserted": upserted}, nil
+}
+
+// SeedTop régénère la DB « top du top » (wipe + génération déterministe) et
+// enqueue les embeddings articles + users en asynchrone (asynq) pour ne pas
+// bloquer la requête HTTP. L'umami est généré si UMAMI_DATABASE_URL est dispo.
+func (s *Service) SeedTop(ctx context.Context, userID string) (map[string]any, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, err
+	}
+	res, err := seed.RunTop(ctx, s.pool, seed.TopOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	out := map[string]any{
+		"success": true, "users": len(res.Users), "articles": len(res.Articles),
+		"posts": len(res.PostIDs), "readingSessions": res.ReadingSess,
+		"follows": res.Follows, "likes": res.Likes, "subscribers": res.Subscribers,
+	}
+
+	// Embeddings asynchrones (articles + users) — le worker s'en charge.
+	if ac := queue.NewClient(os.Getenv("REDIS_URL")); ac != nil {
+		for _, a := range res.Articles {
+			_ = queue.PublishArticleEmbedding(ac, queue.EmbeddingPayload{ArticleID: a.ID})
+		}
+		for _, u := range res.Users {
+			_ = queue.PublishUserEmbedding(ac, queue.EmbeddingPayload{UserID: u.ID})
+		}
+		ac.Close()
+		out["embeddingsEnqueued"] = len(res.Articles) + len(res.Users)
+	}
+
+	// Umami — pool séparé vers la DB analytics (best-effort).
+	if dsn := os.Getenv("UMAMI_DATABASE_URL"); dsn != "" {
+		umamiPool, err := pgxpool.New(ctx, dsn)
+		if err == nil {
+			defer umamiPool.Close()
+			if err := seed.RunTopUmami(ctx, umamiPool, res, seed.TopOptions{}); err != nil {
+				log.Printf("[devtools] umami seed: %v", err)
+			} else {
+				out["umami"] = "généré"
+			}
+		}
+	}
+
+	// Meili : reindex (le seed insère en SQL direct, sans passer par l'API).
+	if _, _, err := workers.NewSearchWorker(s.pool).ReindexAll(ctx); err != nil {
+		log.Printf("[devtools] reindex post-seed: %v", err)
+	}
+
+	return out, nil
 }
 
 // ---------------------------------------------------------------------------

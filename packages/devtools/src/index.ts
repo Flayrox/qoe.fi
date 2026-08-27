@@ -272,6 +272,52 @@ export async function restoreTopDbAction(): Promise<{
 }
 
 /**
+ * ✨ Régénère la DB « top du top » depuis zéro (POST /v1/devtools/seed-top) :
+ * reset complet + génération déterministe (500 users, 200 articles, 1480
+ * pensées, lectures, umami) + embeddings enqueueés + reindex Meili.
+ */
+export async function seedTopDbAction() {
+  try {
+    const res = await goFetch<{
+      users?: number;
+      articles?: number;
+      posts?: number;
+      readingSessions?: number;
+      umami?: string;
+    }>('/v1/devtools/seed-top', { method: 'POST' });
+    return {
+      success: true,
+      details: `${res.users ?? '?'} users · ${res.articles ?? '?'} articles · ${res.posts ?? '?'} pensées · ${res.readingSessions ?? '?'} lectures${res.umami ? ' · umami ✓' : ''}`,
+    };
+  } catch (error) {
+    console.error('Error in seedTopDbAction:', error);
+    return {
+      success: false,
+      error: (error instanceof Error ? error.message : 'Unknown error') || 'Seed top failed',
+    };
+  }
+}
+
+/**
+ * 🔎 Re-synchronise l'index Meilisearch (backfill idempotent : seuls les
+ * documents manquants sont upsertés) via POST /v1/devtools/reindex.
+ */
+export async function reindexAction() {
+  try {
+    const res = await goFetch<{ total?: number; upserted?: number }>('/v1/devtools/reindex', {
+      method: 'POST',
+    });
+    return { success: true, total: res.total, upserted: res.upserted };
+  } catch (error) {
+    console.error('Error in reindexAction:', error);
+    return {
+      success: false,
+      error: (error instanceof Error ? error.message : 'Unknown error') || 'Reindex failed',
+    };
+  }
+}
+
+/**
  * 🔄 Réinitialise l'état d'onboarding d'un utilisateur (ou de tous) pour
  * faciliter les tests (POST /v1/devtools/reset-onboarding).
  */

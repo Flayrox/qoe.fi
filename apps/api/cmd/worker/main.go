@@ -62,6 +62,7 @@ func main() {
 	mux.HandleFunc(queue.TaskStripeEvent, stripeWorker.HandleStripeEvent)
 	mux.HandleFunc(queue.TaskSearchSync, searchWorker.HandleSearchSync)
 	mux.HandleFunc(queue.TaskArticleEmbedding, embeddingWorker.HandleArticleEmbedding)
+	mux.HandleFunc(queue.TaskUserEmbedding, embeddingWorker.HandleUserEmbedding)
 
 	srv := queue.NewServer(cfg.RedisURL, 10)
 	if srv == nil {
