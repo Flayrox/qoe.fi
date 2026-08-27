@@ -22,13 +22,17 @@ export default async function OnboardingPage() {
   }
 
   const hasTenant = Boolean(me.data.publicationId);
-  if (me.data.hasCompletedOnboarding || hasTenant) {
+  // On ne reboucle vers / que si un espace créateur existe déjà. Un compte
+  // 'user' (onboarding lecteur fait dans core) sans tenant doit voir le
+  // wizard — sinon boucle infinie / → /onboarding → / (le layout (creator)
+  // renvoie les non-créateurs ici).
+  if (hasTenant) {
     redirect('/?already_onboarded=true');
   }
 
   return (
     <main className="min-h-screen bg-foreground">
-      <OnboardingWizard />
+      <OnboardingWizard initialName={user.name ?? ''} />
     </main>
   );
 }

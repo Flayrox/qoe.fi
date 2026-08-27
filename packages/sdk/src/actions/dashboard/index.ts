@@ -82,7 +82,6 @@ interface CompleteOnboardingInput {
   heroText: string;
   subdomain: string;
   layoutStyle: string;
-  advancedSettingsMode: boolean;
 }
 
 export const updateCreatorProfileAction = safeAction<UpdateCreatorProfileInput, User>(
