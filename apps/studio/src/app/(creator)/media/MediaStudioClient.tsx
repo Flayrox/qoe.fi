@@ -23,7 +23,7 @@ import {
   FileText,
   Clock,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import { cn } from '@qoe/utils';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';

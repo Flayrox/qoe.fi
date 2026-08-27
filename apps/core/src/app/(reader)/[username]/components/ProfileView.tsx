@@ -32,7 +32,7 @@ import {
 } from '@qoe/ui';
 
 import { routes } from '@qoe/config/routes';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import { cn } from '@qoe/utils';
 import { ReaderPageLayout } from '@/components/layout/ReaderPageLayout';
 import type { FeedArticleDTO } from '@/lib/feed-types';

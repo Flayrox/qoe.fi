@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import { Loader2, ExternalLink, Search, Shield } from 'lucide-react';
 import { updateCreatorApiAccessAction } from '@qoe/sdk/actions/admin';
 

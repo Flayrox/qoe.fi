@@ -7,7 +7,7 @@ import { createClient } from '@qoe/supabase/client';
 import { cn } from '@qoe/utils';
 import { BentoPlateau, BentoItem } from './ui/BentoPlateau';
 import { Logo } from './Logo';
-import { Button } from './button';
+import { Button } from './ui/button';
 import type { AuthActionContext } from './GuestFloatingBar';
 
 export interface LoginFormBentoProps {

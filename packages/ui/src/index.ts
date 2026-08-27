@@ -7,10 +7,9 @@
 // =====================================================================
 
 export * from './tokens';
-export { Button, buttonVariants } from './button';
+export { Button, buttonVariants } from './ui/button';
 export { ImageUploader } from './ui/ImageUploader';
 export { CertifiedBadge, type CertifiedBadgeProps } from './ui/CertifiedBadge';
-export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './card';
 
 // 🌍 Composants partagés
 export { SocialIcon } from './SocialIcon';

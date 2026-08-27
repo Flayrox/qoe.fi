@@ -12,7 +12,7 @@ import {
   toggleFollowCreatorHomeAction as toggleFollowCreator,
   getFollowListAction,
 } from '@qoe/sdk/actions/feed';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 
 interface FollowActor {
   id: string;

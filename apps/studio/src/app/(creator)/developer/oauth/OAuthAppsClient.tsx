@@ -17,7 +17,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import {
   createOAuthClientAction,
   listOAuthClientsAction,

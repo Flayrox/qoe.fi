@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Check, X, Shield, Loader2, AlertTriangle, ExternalLink } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import {
   decideOAuthAuthorizationAction,
   type OAuthAuthorizeInfo,

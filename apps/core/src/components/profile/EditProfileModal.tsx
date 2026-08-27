@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import { updateProfileAction as updateProfile } from '@qoe/sdk/actions/feed';
 
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';

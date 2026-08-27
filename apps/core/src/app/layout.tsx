@@ -14,7 +14,7 @@ import { getStaticTranslations, initI18n } from '@qoe/i18n/server';
 import { GrowthBookProvider } from '@qoe/flags';
 import { getGrowthBookPayload } from '@qoe/flags/server';
 import { TooltipProvider } from '@qoe/ui/ui/tooltip';
-import { Toaster } from '@qoe/ui/ui/sonner';
+import { Toaster } from '@qoe/ui/toast';
 import { AnalyticsScript } from '@qoe/analytics/client';
 import { cn } from '@qoe/utils';
 import { DevtoolsPanel, ThemeProvider, ThemeSeedScript, GlobalAuthModalProvider } from '@qoe/ui';

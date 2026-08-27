@@ -6,7 +6,7 @@ import { ThoughtCardContainer, type ThoughtCardContainerProps } from './ThoughtC
 import { ConfirmDeleteModal } from '@qoe/ui';
 import { ModerationReportModal } from './ModerationReportModal';
 import { routes } from '@qoe/config/routes';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import { createClient } from '@/lib/supabase/client';
 import { pinPostAction as pinPost, unpinPostAction as unpinPost } from '@qoe/sdk/actions/feed';
 import { PollCard } from './PollCard';

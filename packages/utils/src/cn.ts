@@ -2,7 +2,7 @@
 // 🎨 cn — Class name merger (tw + clsx)
 // =====================================================================
 // 📖 Combine clsx (conditions) et tailwind-merge (dédupe des classes Tailwind)
-//    C'est LE helper de référence pour les composants shadcn/ui.
+//    C'est LE helper de référence du design system.
 // =====================================================================
 
 import { clsx, type ClassValue } from 'clsx';

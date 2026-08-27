@@ -33,7 +33,7 @@ import { t } from '@lingui/core/macro';
 import { Popover, PopoverTrigger, PopoverContent } from '@qoe/ui/ui/popover';
 import { Calendar } from '@qoe/ui/ui/calendar';
 import { TimePickerInput } from '@qoe/ui/ui/time-picker-input';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@qoe/ui/ui/sheet';
 import { ProfileHoverCard } from '@qoe/ui/social/ProfileHoverCard';
 

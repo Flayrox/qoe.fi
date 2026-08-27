@@ -10,7 +10,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import { URLS } from '@qoe/config';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';

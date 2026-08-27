@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { EyeOff, CornerDownRight } from 'lucide-react';
 import { toggleHideReplyAction, toggleBlockUserAction } from '@qoe/sdk/actions/feed';
-import { toast } from 'sonner';
+import { toast } from '@qoe/ui/toast';
 import { ThoughtThreadTombstone } from './ThoughtThreadTombstone';
 import { useThoughtThreadContext, type OptimisticThought } from './ThoughtThreadContext';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
