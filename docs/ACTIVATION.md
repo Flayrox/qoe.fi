@@ -1,233 +1,220 @@
-# 🚀 Guide d'activation — qoe.fi monorepo (état post-découplage)
+# 🚀 Guide d'activation — qoe.fi monorepo
 
-> **La plateforme : 5 applications Next.js indépendantes + un backend Go (`apps/api`).**
-> L'API Hono legacy (`apps/api`) a été supprimée — le backend Go (`apps/api`) est l'unique backend.
-> Ce guide explique comment démarrer et gérer le développement après cette refactorisation majeure.
+> **La plateforme : 5 applications Next.js 16 indépendantes + un backend Go (`apps/api`)**
+> unique (chi + sqlc + goose + asynq). Prisma et l'API Hono legacy ont été
+> entièrement supprimés. Ce guide explique comment démarrer et gérer le
+> développement.
+>
+> Pour une mise en route pas-à-pas (macOS & Windows), voir
+> [`docs/GETTING_STARTED.md`](./GETTING_STARTED.md).
+
+---
+
+## 🏗️ Architecture du monorepo
+
+```
+qoe.fi/
+├── apps/                            # 8 services
+│   ├── core/        Next.js 16 — qoe.fi (flux lecteur & SSO centralisé)      :15402
+│   ├── studio/      Next.js 16 — studio.qoe.fi (studio créateur & TipTap)    :15404
+│   ├── admin/       Next.js 16 — admin.qoe.fi (superadmin & modération)      :15405
+│   ├── hi/          Next.js 16 — hi.qoe.fi (vitrine, textes légaux)          :15401
+│   ├── tenants/     Next.js 16 — *.qoe.fi & domaines customs (blogs)         :15403
+│   ├── api/         Go — api.qoe.fi (backend-of-record, worker asynq)        :15407
+│   ├── mobile/      Expo SDK 57 — reader mobile
+│   └── collab-server/  Hocuspocus/Yjs — co-édition TipTap
+├── packages/                        # 13 packages partagés
+│   ├── ui/          🎨 Design system & composants partagés (Button, toast bento, primitives base-ui)
+│   ├── theme/       🎨 Design tokens CSS multi-apps (source unique)
+│   ├── sdk/         🔄 Couche de données TanStack Query + actions
+│   ├── supabase/    🔌 Clients d'authentification SSR
+│   ├── auth/        🔐 Rôles, permissions et helpers session
+│   ├── i18n/        🌐 Traductions Lingui
+│   ├── analytics/   📊 Événements et tracking
+│   ├── config/      ⚙️ Validation des variables d'environnement (Zod)
+│   ├── observability/ 🔭 Logs structurés + Sentry centralisé
+│   ├── flags/       🚩 Feature flags GrowthBook
+│   ├── devtools/    🛠️ Outils de dev (mock user, seed, impersonate)
+│   ├── utils/       🔧 Fonctions utilitaires communes (cn, etc.)
+│   └── tsconfig/    📐 Configurations TypeScript partagées
+├── docker/                          # Caddy (reverse proxy), compose dev + prod
+└── Caddyfile.dev                    # Reverse proxy local (domain .qoe.test → ports 154xx)
+```
+
+### Sous-domaines (DNS wildcard)
+
+| Sous-domaine          | Application | Port local | Rôle                                  |
+| --------------------- | ----------- | ---------- | ------------------------------------- |
+| `qoe.fi`              | `apps/core` | 15402      | Portail, flux de lecture, SSO          |
+| `studio.qoe.fi`       | `apps/studio`| 15404      | Studio d'écriture des créateurs       |
+| `admin.qoe.fi`        | `apps/admin`| 15405      | Panel superadmin et modération        |
+| `hi.qoe.fi`           | `apps/hi`   | 15401      | Vitrine commerciale, mentions légales |
+| `*.qoe.fi` (wildcard) | `apps/tenants` | 15403   | Blogs publics des créateurs           |
+| `api.qoe.fi`          | `apps/api`  | 15407      | Backend Go unique                     |
+
+En local, remplace `.qoe.fi` par `.qoe.test` (via Caddy) ou `.lvh.me`.
 
 ---
 
 ## ✅ Pré-requis
 
-```bash
-# 1. Installer pnpm 11+
-npm install -g pnpm
-
-# 2. Vérifier la version
-pnpm --version
-# Doit afficher 11.21.0 ou plus récent
-```
-
-**Autres prérequis** :
-
-- Node.js 20+ (`node -v`)
-- Docker Desktop (pour la stack dev complète)
-- Git
+- **Node.js 20+** et **pnpm 11+** (`npm install -g pnpm`)
+- **Docker** (Docker Desktop ou OrbStack — recommandé sur macOS)
+- **Caddy** (`brew install caddy`) — optionnel si tu utilises `dev:up` (fallback Docker)
+- **Go 1.24+** pour le backend (`apps/api`)
 
 ---
 
-## 🎯 Démarrage en 4 étapes
+## 🏁 Démarrage
+
+### Option A — Tout en une commande (recommandé)
 
 ```bash
-# 1. Installer toutes les dépendances du monorepo (21 workspaces résolus)
+pnpm dev:up
+```
+
+`scripts/dev-up.sh` orchestre tout dans le bon ordre : infra Docker (Postgres
+pgvector, Redis, Meilisearch, MongoDB, GrowthBook, Umami), Supabase local, puis
+les apps Next.js en natif via Turborepo.
+
+### Option B — Manuel (workflow hybride)
+
+```bash
+# 1. Installer les dépendances
 pnpm install
 
-# 2. Générer le client Prisma (depuis packages/db/prisma/schema.prisma)
-pnpm prisma:generate
-
-# 3. Copier le template d'env
+# 2. Configurer l'environnement
 cp .env.docker.example .env
 # Édite .env avec tes clés Supabase, Stripe, etc.
 
-# 4. Lancer la stack dev complète avec Docker
-pnpm docker:dev
-# → Postgres + pgvector + Redis + landing + feed + dashboard + admin + web + api avec HMR
-# → Feed (Lecteur & Auth):  http://localhost:4000  (interne: 3010)
-# → Web (Blogs créateurs):   http://localhost:4001  (interne: 3000)
-# → Dashboard (Studio):      http://localhost:4020  (interne: 3020)
-# → Admin (Platform):        http://localhost:4030  (interne: 3030)
-# → Landing (Vitrines/CMS):  http://localhost:4040  (interne: 3040)
-# → API (Go) : http://localhost:8080/health
-#   Backend de référence : apps/api (Go)
+# 3. Lancer l'infra (bases de données + services de fond)
+docker compose -f docker-compose.dev.yml up -d db redis
+
+# 4. Lancer le reverse proxy local (Caddy)
+caddy start --config Caddyfile.dev
+
+# 5. Lancer les apps (Turborepo, HMR natif)
+pnpm dev
 ```
 
-**C'est tout.** En 5 minutes tu as le stack complet qui tourne.
+**C'est tout.** En quelques minutes le stack complet tourne : les 5 apps
+répondent sur `http://localhost:1540x` (ou via `http://qoe.test`,
+`http://studio.qoe.test`, …).
 
 ---
 
 ## 🛠️ Commandes quotidiennes
 
-### Développement Local Hybride (Recommandé)
-
-Le mode hybride lance les bases de données dans Docker et exécute les serveurs Next.js localement sur ton hôte (le backend de référence est Go : `apps/api`) pour des performances maximales et un Hot-Reload ultra-rapide.
+### Par application (sans chauffer tout le monorepo)
 
 ```bash
-# Lancer uniquement la DB et Redis dans Docker
-docker compose -f docker-compose.dev.yml up -d db redis
-
-# Tout lancer sur l'hôte en parallèle (Turbo orchestre)
-pnpm dev
-# → @qoe/feed (Flux & Connexion) sur :3010
-# → @qoe/web (Blogs des créateurs) sur :3001
-# → @qoe/dashboard (Studio d'écriture) sur :3020
-# → @qoe/admin (Pilotage superadmin) sur :3030
-# → @qoe/landing (Vitrine & Textes légaux) sur :3040
-# → backend Go (apps/api) sur :8080
+pnpm dev:core      # core + ses dépendances (15402)
+pnpm dev:studio    # studio (15404)
+pnpm dev:admin     # admin (15405)
+pnpm dev:hi        # hi (15401)
+pnpm dev:tenants   # tenants (15403)
 ```
 
-### Commandes par application
+### Backend Go
 
 ```bash
-pnpm --filter @qoe/landing dev      # Uniquement la landing page
-pnpm --filter @qoe/feed dev         # Uniquement le flux lecteur
-pnpm --filter @qoe/dashboard dev    # Uniquement l'espace créateur
-pnpm --filter @qoe/admin dev        # Uniquement l'espace administrateur
-pnpm --filter @qoe/web dev          # Uniquement le moteur multi-tenant des blogs
-cd apps/api && go run ./cmd/server   # Backend Go (unique)
-# Backend de référence (Go) : cd apps/api && go run ./cmd/server
+cd apps/api && go run ./cmd/server   # API sur :15407 (ou :8080 selon env)
+cd apps/api && go run ./cmd/migrate up   # applique les migrations goose
+cd apps/api && go run ./cmd/seed         # seed idempotent
 ```
 
-### Qualité & Build global
+### Qualité & vérification
 
 ```bash
-# Build toutes les applications et packages
-pnpm build
-# → 6/6 successful (api, landing, feed, dashboard, admin, web) en ~45s
-# → < 1s en cache hit (grâce au cache intelligent de Turborepo)
+pnpm typecheck     # tsc sur tout le monorepo
+pnpm lint          # eslint
+pnpm test          # tests vitest (TS)
+pnpm test:api      # tests Go d'intégration (base partagée, packages sérialisés)
+pnpm build         # build de production (Turborepo)
+```
 
-# Lancer la vérification des types TypeScript sur tout le projet
-pnpm typecheck
+### Base de données
 
-# Lancer le linter ESLint sur tout le projet
-pnpm lint
+```bash
+pnpm db:migrate          # goose up (migrations apps/api/sql/migrations)
+pnpm db:migrate:status   # état des migrations
+pnpm db:seed             # seed Go (idempotent)
+docker compose -f docker-compose.dev.yml exec db psql -U qoe -d qoe   # psql
+```
 
-# Lancer les tests unitaires
-pnpm test
-pnpm test:ui # Lance l'interface interactive de Vitest
+### Tests d'intégration Go (base de test dédiée)
 
-# Lancer le seed Go (idempotent)
-pnpm db:seed
+```bash
+pnpm test:db:up          # démarre la base de test (port 55432)
+pnpm test:db:migrate     # applique les migrations dessus
+pnpm test:api            # lance toute la suite Go (sérialisée, -p 1)
 ```
 
 ### Docker
 
 ```bash
-pnpm docker:dev          # Lance l'ensemble de la stack en local
-pnpm docker:dev:down     # Arrête et supprime les conteneurs
-pnpm docker:dev:reset    # ⚠️ Réinitialisation complète (supprime les bases de données)
-pnpm docker:dev:logs     # Affiche les logs en direct de tous les services
-pnpm docker:dev:db       # Connexion interactive psql dans le conteneur DB
-pnpm docker:dev:redis    # Connexion interactive redis-cli dans le conteneur Redis
-pnpm docker:dev:studio   # Lance Prisma Studio via Docker
+pnpm docker:dev          # stack complète en Docker (apps incluses)
+pnpm docker:dev:down     # arrête
+pnpm docker:prod:up      # stack de production
+pnpm docker:prod:rebuild # rebuild complet
 ```
 
 ---
 
-## 🏗️ Architecture finale du monorepo
+## 🎨 Composants UI partagés : `packages/ui`
 
-```
-qoe.fi/                              # 21 workspaces résolus
-├── apps/                            # 8 services / applications indépendantes
-│   ├── hi/                          # Next.js 16 — hi.qoe.fi (vitrine, textes légaux, CMS)
-│   ├── core/                        # Next.js 16 — qoe.fi (flux lecteurs & SSO centralisé)
-│   ├── studio/                      # Next.js 16 — studio.qoe.fi (studio créateur & TipTap)
-│   ├── admin/                       # Next.js 16 — admin.qoe.fi (superadmin & CMS config)
-│   ├── tenants/                     # Next.js 16 — *.qoe.fi & domaines customs (blogs créateurs)
-│   ├── api/                         # Go (chi + sqlc + asynq) — api.qoe.fi (backend-of-record)
-│   ├── mobile/                      # Expo SDK 57 — reader mobile
-│   └── collab-server/               # Hocuspocus/Yjs — co-édition TipTap
-├── packages/                        # 14 packages partagés
-│   ├── db/                          # 🐘 Prisma Singleton (Source unique de vérité DB)
-│   ├── auth/                        # 🔐 Rôles, permissions et helpers session
-│   ├── ui/                          # 🎨 Design System & composants partagés
-│   ├── theme/                       # 🎨 Design tokens CSS multi-apps (source unique)
-│   ├── supabase/                    # 🔌 Clients d'authentification SSR
-│   ├── i18n/                        # 🌐 Helpers de traduction Lingui
-│   ├── analytics/                   # 📊 Événements et tracking
-│   ├── sdk/                         # 🔄 Couche de données TanStack Query + actions
-│   ├── billing/                     # 💳 Logique Stripe abonnements
-│   ├── config/                      # ⚙️ Validation des variables d'environnement (Zod)
-│   ├── observability/               # 🔭 Logs structurés + Sentry centralisé
-│   ├── flags/                       # 🚩 Feature flags GrowthBook (client + serveur)
-│   ├── utils/                       # 🔧 Fonctions utilitaires communes
-│   └── tsconfig/                    # 📐 Configurations TypeScript partagées
-├── docker/                          # Configuration Caddy (Reverse Proxy), compose prod + dev
-└── prisma.config.ts                 # Redirige le CLI Prisma racine vers le package db
-```
+`@qoe/ui` centralise le design system :
 
-### Planification des sous-domaines (DNS Wildcard)
-
-| Sous-domaine          | Application Next.js | Rôle                                                         |
-| --------------------- | ------------------- | ------------------------------------------------------------ |
-| `qoe.fi`              | `apps/core`         | Portail d'accueil, flux de lecture et connexion unique (SSO) |
-| `studio.qoe.fi`       | `apps/studio`       | Studio d'écriture et de publication des créateurs            |
-| `admin.qoe.fi`        | `apps/admin`        | Panel de modération de la plateforme et édition du CMS       |
-| `hi.qoe.fi`           | `apps/hi`           | Vitrine commerciale, mentions légales et CGU de la marque    |
-| `*.qoe.fi` (wildcard) | `apps/tenants`      | Moteur multi-tenant servant les blogs publics des créateurs  |
-| `api.qoe.fi`          | `apps/api`          | Backend Go unique (feed, posts, articles, webhooks, analytics) |
-
----
-
-## 📂 Source unique de vérité : `packages/db/prisma/`
-
-Toutes les interactions avec la base de données (schéma, migrations, scripts de seed) s'effectuent au sein du package `@qoe/db` pour éviter tout drift technique.
-
-```ts
-// ✅ À importer depuis n'importe quelle application du monorepo
-import { prisma } from '@qoe/db/client';
-import type { User, Post } from '@qoe/db/types';
-```
-
-Le dossier `prisma/` racine a été totalement nettoyé.
-
----
-
-## 🎨 Composants UI partagés : `packages/ui/`
-
-Le package `@qoe/ui` centralise le design system de qoe.fi. Les composants communs à haute valeur ajoutée y sont logés :
-
-- `SocialIcon` : Icônes sociales pour les créateurs.
-- `TenantHeader` : En-tête dynamique du blog des créateurs.
-- `SubscribeForm` : Formulaire d'abonnement universel connecté à Stripe.
+- **Button unifié** (base-ui) : `import { Button } from '@qoe/ui/button'`
+- **Toasts bento** : `import { toast, Toaster } from '@qoe/ui/toast'` — rendre
+  `<Toaster />` une seule fois dans le layout racine, puis `toast.success(...)`,
+  `toast.error(...)`, `toast.info(...)`, `toast.warning(...)`, `toast.dismiss()`
+- **Primitives** base-ui : dialog, sheet, select, dropdown-menu, tooltip,
+  popover, hover-card, input, label, avatar, calendar, table…
+- **Composants métier** : LoginFormBento, LoginModal, BentoPlateau, Sidebar,
+  SocialIcon, TenantHeader, SubscribeForm…
 
 ```tsx
-// ✅ Importable dans n'importe quelle application
-import { TenantHeader, SubscribeForm } from '@qoe/ui';
+import { Button } from '@qoe/ui/button';
+import { toast } from '@qoe/ui/toast';
 ```
 
 ---
 
-## 🔌 Authentification Unique (SSO Subdomains)
+## 🔌 Authentification unique (SSO sous-domaines)
 
-Toutes les applications partagent la session grâce au package `@qoe/supabase`.
-Les cookies d'authentification sont configurés sur le domaine parent `.qoe.fi`, ce qui garantit qu'une authentification réussie sur `qoe.fi/login` ouvre automatiquement la session sur `studio.qoe.fi`, `admin.qoe.fi` et sur les blogs `*.qoe.fi`.
+Toutes les applications partagent la session grâce à `@qoe/supabase`. Les
+cookies d'authentification sont configurés sur le domaine parent `.qoe.fi` :
+une authentification sur `qoe.fi` ouvre automatiquement la session sur
+`studio.qoe.fi`, `admin.qoe.fi` et les blogs `*.qoe.fi`.
 
 ---
 
-## 🐛 Guide de dépannage (Troubleshooting)
+## 🐛 Dépannage
 
-### Port occupé lors du démarrage
-
-Si un message vous indique qu'un port est occupé en local (ex: `3010`), vous pouvez identifier le processus en cours et l'arrêter :
-
-```powershell
-# Sur Windows (PowerShell)
-Get-NetTCPConnection -LocalPort 3010 | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force }
-```
-
-### Erreur TypeScript "Module @prisma/client has no exported member"
-
-Le client Prisma doit être régénéré suite à une installation ou une mise à jour de schéma :
+### Port occupé
 
 ```bash
-pnpm prisma:generate
+lsof -iTCP:15402 -sTCP:LISTEN   # identifie le process sur le port
+# ou, pour tuer tous les dev servers :
+pnpm kill:dev
 ```
 
-### Erreurs de droits ou EACCES sur Windows
+### `pnpm install` échoue ou lockfile incohérent
 
-Sous Windows, Next.js ou pnpm peuvent parfois rencontrer des blocages d'accès réseau local (Windows Defender). Si cela arrive, exécutez votre terminal en mode administrateur ou lancez le projet dans WSL2 (Ubuntu).
+```bash
+pnpm install          # resynchronise pnpm-lock.yaml
+```
 
----
+### Le backend Go ne démarre pas
 
-## 🎉 Le projet est prêt pour le développement !
+Vérifie que `DATABASE_URL` pointe vers la bonne base dans `.env`
+(`scripts/copy-env.js` synchronise la racine vers `apps/api`), puis
+`cd apps/api && go run ./cmd/migrate up`.
 
-L'architecture est propre, découpée de manière étanche, performante et documentée. Tu as désormais toutes les clés en main pour bâtir des fonctionnalités d'élite sur qoe.fi ! 🏆
+### Tests Go d'intégration
+
+Les packages doivent tourner **sérialisés** sur la base partagée
+(`pnpm test:api` le fait avec `-p 1`). En CI, chaque package monte son propre
+conteneur Testcontainers — les deux modes sont couverts. Voir
+[`docs/TEST_STRATEGY.md`](./TEST_STRATEGY.md).

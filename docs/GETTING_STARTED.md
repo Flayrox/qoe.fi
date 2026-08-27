@@ -113,24 +113,23 @@ Pour les blogs créateurs sur Windows, utilise `*.lvh.me` plutôt que `*.qoe.tes
 
 C'est tout ! **Turborepo** va lancer en parallèle :
 
-- ⚛️ **Hi** (`hi.qoe.fi` local) sur : http://localhost:3040
-- 📰 **Core** (`qoe.fi` local) sur : http://localhost:3010
-- 🎨 **Studio** (`studio.qoe.fi` local) sur : http://localhost:3020
-- 🛡️ **Admin** (`admin.qoe.fi` local) sur : http://localhost:3030
-- 🌐 **Tenants** (`*.qoe.fi` local) sur : http://localhost:3001
-- 🔌 **API Go** (`api.qoe.fi` local) sur : http://localhost:8080 — backend-of-record (`cd apps/api && go run ./cmd/server`)
+- ⚛️ **Hi** (`hi.qoe.fi` local) sur : http://localhost:15401
+- 📰 **Core** (`qoe.fi` local) sur : http://localhost:15402
+- 🎨 **Studio** (`studio.qoe.fi` local) sur : http://localhost:15404
+- 🛡️ **Admin** (`admin.qoe.fi` local) sur : http://localhost:15405
+- 🌐 **Tenants** (`*.qoe.fi` local) sur : http://localhost:15403
+- 🔌 **API Go** (`api.qoe.fi` local) sur : http://localhost:15407 — backend-of-record (`cd apps/api && go run ./cmd/server`)
 
 
 > 💡 **Astuce performance** : pour travailler sur UNE app sans chauffer ton CPU,
 > préfère les scripts ciblés au lieu de `pnpm dev` (qui lance tout en parallèle) :
 >
 > ```bash
-> pnpm dev:feed      # feed + API (3010 + 3002)
-> pnpm dev:web       # web + API
-> pnpm dev:dashboard # dashboard + API
-> pnpm dev:landing   # landing seul
-> pnpm dev:admin     # admin seul
-> pnpm dev:api       # API seule
+> pnpm dev:core      # core seul (15402)
+> pnpm dev:studio    # studio seul (15404)
+> pnpm dev:admin     # admin seul (15405)
+> pnpm dev:hi        # hi seul (15401)
+> pnpm dev:tenants   # tenants seul (15403)
 > ```
 
 ---
@@ -139,11 +138,6 @@ C'est tout ! **Turborepo** va lancer en parallèle :
 
 Puisque ta base de données tourne dans Docker, voici comment interagir avec elle :
 
-- **Lancer l'interface graphique Prisma Studio** (pour voir et éditer tes tables dans ton navigateur) :
-  ```bash
-  pnpm prisma:studio
-  # Ouvre http://localhost:5555
-  ```
 - **Appliquer les migrations de base de données** (goose, `apps/api/sql/migrations`) :
   ```bash
   pnpm db:migrate
