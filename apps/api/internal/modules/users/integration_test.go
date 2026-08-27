@@ -448,3 +448,75 @@ func TestSyncUserAdoptsEmailConflict(t *testing.T) {
 		t.Fatalf("muted après adoption = %d (err %v)", n, err)
 	}
 }
+
+// TestSyncUserFillsEmptyUsername — user existant avec username/name NULL en DB
+// (comptes seedés / backup avec colonnes vides) : SyncUserFromAuth doit les
+// remplir depuis les claims au prochain login (dérivé email si pas de username
+// explicite), sans écraser un username déjà renseigné.
+func TestSyncUserFillsEmptyUsername(t *testing.T) {
+	seedMe(t)
+	ctx := context.Background()
+	svc := NewService(poolTest)
+
+	// Compte avec username + name vides (pattern du bug @user). L'ID est
+	// différent de userID/otherID seedés dans seedMe.
+	emptyID := "00000000-0000-0000-0000-000000000043"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, name, username, role, "createdAt", "updatedAt")
+		 VALUES ($1, 'jane.empty@test.dev', NULL, NULL, 'user', now(), now())`, emptyID); err != nil {
+		t.Fatalf("insert empty user: %v", err)
+	}
+
+	// Login avec un username explicite fourni dans user_metadata.
+	claims := map[string]any{
+		"email": "jane.empty@test.dev",
+		"user_metadata": map[string]any{"name": "Jane", "username": "janepro"},
+	}
+	created, _, err := svc.SyncUserFromAuth(ctx, emptyID, claims)
+	if err != nil {
+		t.Fatalf("SyncUserFromAuth: %v", err)
+	}
+	if created {
+		t.Fatal("created = true, attendu false (user existant)")
+	}
+
+	var name, username string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COALESCE(name, ''), COALESCE(username, '') FROM "User" WHERE id = $1`, emptyID).
+		Scan(&name, &username); err != nil {
+		t.Fatalf("relecture: %v", err)
+	}
+	if username != "janepro" {
+		t.Fatalf("username = %q, attendu janepro", username)
+	}
+	if name != "Jane" {
+		t.Fatalf("name = %q, attendu Jane", name)
+	}
+
+	// Sans username dans les claims → dérivé du préfixe email.
+	directID := "00000000-0000-0000-0000-000000000044"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, name, username, role, "createdAt", "updatedAt")
+		 VALUES ($1, 'john.empty@test.dev', NULL, NULL, 'user', now(), now())`, directID); err != nil {
+		t.Fatalf("insert empty user2: %v", err)
+	}
+	if _, _, err := svc.SyncUserFromAuth(ctx, directID, map[string]any{
+		"email": "john.empty@test.dev", "user_metadata": map[string]any{},
+	}); err != nil {
+		t.Fatalf("SyncUserFromAuth(2): %v", err)
+	}
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COALESCE(username, '') FROM "User" WHERE id = $1`, directID).Scan(&username); err != nil {
+		t.Fatalf("relecture2: %v", err)
+	}
+	if username != "johnempty" {
+		t.Fatalf("username dérivé = %q, attendu johnempty (préfixe email sanitise)", username)
+	}
+
+	// Un user déjà renseigné (readerme de seedMe) n'est jamais écrasé.
+	var kept string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COALESCE(username, '') FROM "User" WHERE id = $1`, userID).Scan(&kept); err != nil || kept != "readerme" {
+		t.Fatalf("username existant écrasé = %q (err %v), attendu readerme", kept, err)
+	}
+}
