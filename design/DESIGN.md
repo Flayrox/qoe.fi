@@ -4,7 +4,7 @@
 >
 > Ce document définit l'adaptation produit et design de l'esthétique **Apple Music Web (`music.apple.com`)** à l'écosystème **qoe.fi** (plateforme souveraine d'édition, de réseau social créateur et de lecture multi-tenant).
 >
-> Il fait foi avec [`STYLE.md`](../apps/dashboard/STYLE.md) et la charte système [`AI_CODEBASE_MAP.md`](../docs/AI_CODEBASE_MAP.md).
+> Il fait foi avec [`STYLE.md`](../apps/dashboard/STYLE.md).
 
 ---
 

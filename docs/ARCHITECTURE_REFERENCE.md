@@ -1,8 +1,8 @@
 # 🗺️ Référence d'Architecture & Relations — qoe.fi (à jour)
 
-> **Document de travail de référence.** Contrairement à `HANDOFF.md` /
-> `AI_CODEBASE_MAP.md` (périmés : ils référencent encore l'API Hono `apps/api`
-> supprimée et un `.agents/docs/API_AND_MOBILE_ARCHITECTURE.md` inexistant),
+> **Document de travail de référence.** Contrairement à `HANDOFF.md`
+> (périmé : il référence encore l'API Hono `apps/api` supprimée et un
+> `.agents/docs/API_AND_MOBILE_ARCHITECTURE.md` inexistant),
 > ce fichier décrit l'état **actuel** du monorepo et sert de base au
 > développement de l'**application mobile** (`apps/mobile`).
 >
