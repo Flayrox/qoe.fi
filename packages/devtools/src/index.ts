@@ -55,11 +55,24 @@ export async function getDevtoolsData() {
     const data = await goFetch<GoDevtoolsData>('/v1/devtools/data');
     return { success: true, users: data.users ?? [], stats: data.stats };
   } catch (error) {
+    // Erreurs auth (401/403) = API joignable mais refusée ; on les rend
+    // explicites plutôt que de laisser transparaître le message serveur brut.
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    const status =
+      error && typeof error === 'object' && 'status' in error
+        ? (error as { status?: number }).status
+        : undefined;
+    let clarity = 'Erreur de lecture des données (devtools) : ' + (msg || 'Unknown');
+    if (status === 401) {
+      clarity =
+        'Non autorisé : aucune session Supabase détectée pour le panneau devtools. Vérifie QOE_API_URL et la connexion du compte admin (' +
+        msg +
+        ').';
+    } else if (status === 403) {
+      clarity = 'Refusé : compte non superadmin côté API (' + msg + ').';
+    }
     console.error('Error in getDevtoolsData:', error);
-    return {
-      success: false,
-      error: (error instanceof Error ? error.message : 'Unknown error') || 'Unknown database error',
-    };
+    return { success: false, error: clarity };
   }
 }
 
