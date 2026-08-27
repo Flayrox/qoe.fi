@@ -84,6 +84,8 @@ export interface DevtoolsActions {
   resetDatabaseAction: () => Promise<{ success: boolean; error?: string }>;
   seedFullDatabaseAction?: () => Promise<{ success: boolean; error?: string }>;
   restoreTopDbAction?: () => Promise<{ success: boolean; error?: string; details?: string }>;
+  seedTopDbAction?: () => Promise<{ success: boolean; error?: string; details?: string }>;
+  reindexAction?: () => Promise<{ success: boolean; error?: string }>;
   resetOnboardingAction?: (
     targetEmailOrId?: string
   ) => Promise<{ success: boolean; error?: string }>;
@@ -119,6 +121,8 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
     resetDatabaseAction,
     seedFullDatabaseAction,
     restoreTopDbAction,
+    seedTopDbAction,
+    reindexAction,
     resetOnboardingAction,
     simulateSubscriberAction,
     addMockFundsAction,
@@ -323,6 +327,46 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
         await refreshData();
       } else {
         triggerAlert('error', res.error || 'Échec');
+      }
+    });
+  };
+
+  const handleSeedTopDb = () => {
+    if (
+      !window.confirm(
+        'Régénérer la DB « top du top » depuis zéro ? (reset complet + 500 users, 200 articles, 1480 pensées, lectures, umami, embeddings) — la DB actuelle sera écrasée.'
+      )
+    )
+      return;
+    startTransition(async () => {
+      if (!seedTopDbAction) {
+        triggerAlert('error', 'seedTopDbAction non branché');
+        return;
+      }
+      const res = await seedTopDbAction();
+      if (res.success) {
+        triggerAlert('success', `✨ Top DB générée : ${res.details || ''}`);
+        await refreshData();
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        triggerAlert('error', res.error || 'Échec seed top');
+      }
+    });
+  };
+
+  const handleReindex = () => {
+    if (!window.confirm("Re-synchroniser l'index Meilisearch (backfill idempotent) ?")) return;
+    startTransition(async () => {
+      if (!reindexAction) {
+        triggerAlert('error', 'reindexAction non branché');
+        return;
+      }
+      const res = await reindexAction();
+      if (res.success) {
+        triggerAlert('success', '🔎 Index Meilisearch à jour');
+        await refreshData();
+      } else {
+        triggerAlert('error', res.error || 'Échec reindex');
       }
     });
   };
@@ -668,12 +712,28 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
                   <div className="apple-subheading">Actions Rapides</div>
                   <div className="grid grid-cols-2 gap-1.5">
                     <button
-                      onClick={handleRestoreTopDb}
+                      onClick={handleSeedTopDb}
                       disabled={isPending}
                       className="apple-btn-primary col-span-2"
+                      title="Régénère la DB top du top depuis zéro (déterministe, sans dépendre des backups/)"
+                    >
+                      ✨ Générer Top DB (0 dépendance backup)
+                    </button>
+                    <button
+                      onClick={handleRestoreTopDb}
+                      disabled={isPending}
+                      className="apple-btn-action col-span-2"
                       title="Restaure 500 users, 200 articles, 1480 posts, 5723 lectures, 10.5k Umami depuis backups/"
                     >
-                      💾 Restaurer Top DB (1 clic)
+                      💾 Restaurer Top DB (depuis backup)
+                    </button>
+                    <button
+                      onClick={handleReindex}
+                      disabled={isPending}
+                      className="apple-btn-action col-span-2"
+                      title="Re-synchronise les articles vers l'index Meilisearch (seuls les documents manquants sont ajoutés)"
+                    >
+                      🔎 Réindexer Meili (search)
                     </button>
                     <button
                       onClick={handleSeedCompletePack}

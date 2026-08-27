@@ -7,11 +7,15 @@
 
 	<key>ProgramArguments</key>
 	<array>
-		<string>/Users/ephe/.qoefi/bin/qoe-server</string>
+		<string>/bin/sh</string>
+		<string>-c</string>
+		<string>cd /Users/ephe/Desktop/Qoe.fi/dev/prod/qoe.fi/apps/api || exit 78; exec /Users/ephe/.qoefi/bin/qoe-server</string>
 	</array>
 
+	<key>ProcessType</key>
+	<string>Interactive</string>
 	<key>WorkingDirectory</key>
-	<string>/Users/ephe/Desktop/Qoe.fi/dev/prod/qoe.fi/apps/api</string>
+	<string>/</string>
 
 	<key>RunAtLoad</key>
 	<true/>

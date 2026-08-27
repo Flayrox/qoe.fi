@@ -154,35 +154,158 @@ func (s *SearchWorker) HandleSearchSync(ctx context.Context, t *asynq.Task) erro
 	// Slugs per auteur : indexe base + variants pour que la recherche
 	// retrouve l'article quel que soit le slug partagé (id = technique).
 	variantSlugs, _ := s.q.ListArticleSlugs(ctx, p.ArticleID)
-	slugs := []string{article.Slug}
-	seen := map[string]bool{article.Slug: true}
-	for _, v := range variantSlugs {
-		if !seen[v] {
-			slugs = append(slugs, v)
-			seen[v] = true
-		}
-	}
-	doc := map[string]any{
-		"id":             article.ID,
-		"title":          article.Title,
-		"content":        article.Content,
-		"slug":           article.Slug,
-		"slugs":          slugs,
-		"authorId":       uuidStr(article.AuthorId),
-		"categoryId":     textOrNil(article.CategoryId),
-		"publicationId":  article.PublicationId,
-		"published":      article.Published,
-		"isPremium":      article.IsPremium,
-		"seoTitle":       textOrNil(article.SeoTitle),
-		"seoDescription": textOrNil(article.SeoDescription),
-		"createdAt":      article.CreatedAt.Time.UnixMilli(),
-		"updatedAt":      article.UpdatedAt.Time.UnixMilli(),
-	}
+	doc := searchDocMap(article.ID, article.Title, article.Content, article.Slug,
+		appendVariantSlugs(article.Slug, variantSlugs),
+		uuidStr(article.AuthorId), article.CategoryId, article.PublicationId,
+		article.Published, article.IsPremium, article.SeoTitle, article.SeoDescription,
+		article.CreatedAt.Time, article.UpdatedAt.Time)
 	if _, err := s.idx.AddDocuments([]any{doc}, nil); err != nil {
 		return err
 	}
 	log.Printf("[search] document upserté %s", p.ArticleID)
 	return nil
+}
+
+// ReindexAll re-synchronise l'index Meilisearch avec TOUS les articles de la
+// base (backfill idempotent : seuls les documents manquants sont upsertés).
+// Retourne (total en base, upsertés).
+func (s *SearchWorker) ReindexAll(ctx context.Context) (total, upserted int, err error) {
+	s.Setup(ctx)
+
+	host := envOr("MEILISEARCH_HOST", "http://localhost:7700")
+	key := envOr("MEILI_MASTER_KEY", "qoe_master_key_123")
+	idx := meilisearch.New(host, meilisearch.WithAPIKey(key)).Index(searchIndex)
+
+	// 1. IDs déjà présents dans l'index (pagination — limit max Meili = 1000).
+	existing := map[string]bool{}
+	for offset := 0; ; offset += 1000 {
+		var resp meilisearch.DocumentsResult
+		if err := idx.GetDocuments(&meilisearch.DocumentsQuery{
+			Fields: []string{"id"}, Limit: 1000, Offset: int64(offset),
+		}, &resp); err != nil {
+			return 0, 0, fmt.Errorf("get documents existants: %w", err)
+		}
+		for _, d := range resp.Results {
+			var id string
+			if raw, ok := d["id"]; ok {
+				_ = json.Unmarshal(raw, &id)
+			}
+			if id != "" {
+				existing[id] = true
+			}
+		}
+		if len(resp.Results) < 1000 {
+			break
+		}
+	}
+
+	// 2. Tous les articles (slug + variantes par auteur) en un seul passage.
+	rows, err := s.pool.Query(ctx, `
+		SELECT a.id, a.title, a.content, a.slug,
+		       a."authorId"::text, a."categoryId", a."publicationId",
+		       a.published, a."isPremium", a."seoTitle", a."seoDescription",
+		       a."createdAt", a."updatedAt",
+		       COALESCE(array_agg(s.slug) FILTER (WHERE s.slug IS NOT NULL), ARRAY[]::text[]) AS variant_slugs
+		FROM "Article" a
+		LEFT JOIN "ArticleSlug" s ON s."articleId" = a.id
+		GROUP BY a.id`)
+	if err != nil {
+		return 0, 0, fmt.Errorf("requête articles: %w", err)
+	}
+	defer rows.Close()
+
+	type row struct {
+		ID             string
+		Title          string
+		Content        string
+		Slug           string
+		AuthorID       string
+		CategoryID     pgtype.Text
+		PublicationID  string
+		Published      bool
+		IsPremium      bool
+		SeoTitle       pgtype.Text
+		SeoDescription pgtype.Text
+		CreatedAt      time.Time
+		UpdatedAt      time.Time
+		VariantSlugs   []string
+	}
+	var docs []any
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.ID, &r.Title, &r.Content, &r.Slug, &r.AuthorID,
+			&r.CategoryID, &r.PublicationID, &r.Published, &r.IsPremium,
+			&r.SeoTitle, &r.SeoDescription, &r.CreatedAt, &r.UpdatedAt, &r.VariantSlugs); err != nil {
+			return 0, 0, fmt.Errorf("scan article: %w", err)
+		}
+		total++
+		if existing[r.ID] {
+			continue
+		}
+		slugs := appendVariantSlugs(r.Slug, r.VariantSlugs)
+		docs = append(docs, searchDocMap(r.ID, r.Title, r.Content, r.Slug, slugs,
+			r.AuthorID, r.CategoryID, r.PublicationID, r.Published, r.IsPremium,
+			r.SeoTitle, r.SeoDescription, r.CreatedAt, r.UpdatedAt))
+	}
+	if err := rows.Err(); err != nil {
+		return 0, 0, fmt.Errorf("lecture articles: %w", err)
+	}
+
+	// 3. Upsert par lots de 100 (idempotent) + attente de fin de tâche.
+	const batchSize = 100
+	for i := 0; i < len(docs); i += batchSize {
+		end := min(i+batchSize, len(docs))
+		task, err := idx.AddDocuments(docs[i:end], nil)
+		if err != nil {
+			return 0, 0, fmt.Errorf("add documents: %w", err)
+		}
+		if _, err := idx.WaitForTask(task.TaskUID, time.Second); err != nil {
+			log.Printf("[search] attente tâche %d: %v", task.TaskUID, err)
+		}
+		upserted += end - i
+		log.Printf("[search] %d/%d documents upsertés…", upserted, len(docs))
+	}
+	log.Printf("[search] reindex terminé : %d en base, %d upsertés", total, upserted)
+	return total, upserted, nil
+}
+
+// searchDocMap est la source unique de vérité de la forme d'un document
+// Meilisearch (utilisée par le sync incrémental et le backfill).
+func searchDocMap(id, title, content, slug string, slugs []string,
+	authorID string, categoryID pgtype.Text,
+	publicationID string, published, isPremium bool,
+	seoTitle, seoDescription pgtype.Text,
+	createdAt, updatedAt time.Time) map[string]any {
+	return map[string]any{
+		"id":             id,
+		"title":          title,
+		"content":        content,
+		"slug":           slug,
+		"slugs":          slugs,
+		"authorId":       authorID,
+		"categoryId":     textOrNil(categoryID),
+		"publicationId":  publicationID,
+		"published":      published,
+		"isPremium":      isPremium,
+		"seoTitle":       textOrNil(seoTitle),
+		"seoDescription": textOrNil(seoDescription),
+		"createdAt":      createdAt.UnixMilli(),
+		"updatedAt":      updatedAt.UnixMilli(),
+	}
+}
+
+// appendVariantSlugs agrège le slug canonique + les variantes par auteur
+// (dédup, slug canonique en premier).
+func appendVariantSlugs(slug string, variants []string) []string {
+	slugs := []string{slug}
+	seen := map[string]bool{slug: true}
+	for _, v := range variants {
+		if !seen[v] {
+			slugs = append(slugs, v)
+			seen[v] = true
+		}
+	}
+	return slugs
 }
 
 func envOr(key, def string) string {

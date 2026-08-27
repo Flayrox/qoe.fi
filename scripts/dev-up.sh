@@ -65,7 +65,32 @@ curl -sf --max-time 2 http://127.0.0.1:8081/health >/dev/null 2>&1 \
   && ok "Jina embeddings prêt (:8081)" \
   || warn "Jina embeddings injoignable sur :8081 (la recherche sémantique sera KO)"
 
-# ── 4b. Caddy (reverse-proxy sans port : http://qoe.test, http://start.qoe.test…) ─
+# ── 4b. API + worker launchd (détection du stall getcwd) ────────────────
+for label in com.qoefi.api-server com.qoefi.api-worker; do
+  if ! launchctl print "gui/$(id -u)/$label" >/dev/null 2>&1; then
+    launchctl bootstrap "gui/$(id -u)" "scripts/launchd/$label.plist" 2>/dev/null || true
+  fi
+  launchctl kickstart -k "gui/$(id -u)/$label" 2>/dev/null || true
+  case "$label" in
+    com.qoefi.api-server) port=15405 ;;
+    com.qoefi.api-worker) port=0 ;;
+  esac
+  ready=0
+  for _ in $(seq 1 10); do
+    if [ "$port" = 0 ] || curl -sf --max-time 2 "http://127.0.0.1:$port/health" >/dev/null 2>&1; then
+      ready=1
+      break
+    fi
+    sleep 1
+  done
+  if [ "$ready" = 1 ]; then
+    ok "$label prêt"
+  else
+    warn "$label ne répond pas après 10s (possible stall getcwd) — voir /tmp/qoefi-api-*.err.log"
+  fi
+done
+
+# ── 4c. Caddy (reverse-proxy sans port : http://qoe.test, http://start.qoe.test…) ─
 if command -v caddy >/dev/null 2>&1; then
   echo "→ Caddy…"
   if pgrep -x caddy >/dev/null 2>&1; then

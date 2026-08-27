@@ -92,6 +92,18 @@ type httpEmbedClient struct {
 	http *http.Client
 }
 
+// embedURL accepte deux formes pour EMBEDDING_URL : une base
+// (http://host:8081 → http://host:8081/v1/embeddings) ou l'URL complète
+// déjà terminée par /v1/embeddings (celle de l'ancien embed-all.ts) — dans
+// ce cas on ne ré-ajoute pas le suffixe.
+func (c *httpEmbedClient) embedURL() string {
+	base := strings.TrimSuffix(c.base, "/")
+	if strings.HasSuffix(base, "/v1/embeddings") {
+		return base
+	}
+	return base + "/v1/embeddings"
+}
+
 func (c *httpEmbedClient) Embed(ctx context.Context, text string) ([]float32, error) {
 	payload := map[string]any{
 		"model": c.model,
@@ -104,7 +116,7 @@ func (c *httpEmbedClient) Embed(ctx context.Context, text string) ([]float32, er
 	body, _ := json.Marshal(payload)
 	req, err := http.NewRequestWithContext(
 		ctx, http.MethodPost,
-		strings.TrimSuffix(c.base, "/")+"/v1/embeddings",
+		c.embedURL(),
 		bytes.NewReader(body),
 	)
 	if err != nil {
@@ -181,6 +193,54 @@ func (s *EmbeddingWorker) HandleArticleEmbedding(ctx context.Context, t *asynq.T
 		return err
 	}
 	log.Printf("[embedding] article %s indexé (%d dims)", p.ArticleID, len(vector))
+	return nil
+}
+
+// HandleUserEmbedding traite TaskUserEmbedding : embedding d'un user
+// (nom + bio de sa publication) pour les recommandations « créateurs
+// similaires » (home/widgets). Idempotent ; skip propre si le service
+// d'inférence n'est pas configuré.
+func (s *EmbeddingWorker) HandleUserEmbedding(ctx context.Context, t *asynq.Task) error {
+	var p queue.EmbeddingPayload
+	if err := json.Unmarshal(t.Payload(), &p); err != nil {
+		return err
+	}
+	if p.UserID == "" {
+		return fmt.Errorf("userId manquant")
+	}
+	if os.Getenv(envEmbeddingURL) == "" {
+		log.Printf("[embedding] EMBEDDING_URL non défini — skip %s", p.UserID)
+		return nil
+	}
+
+	var name, bio string
+	if err := s.pool.QueryRow(ctx, `
+		SELECT COALESCE(u.name, u.username, ''), COALESCE(p.bio, '')
+		FROM "User" u
+		LEFT JOIN "Publication" p ON p.id = u."publicationId"
+		WHERE u.id = $1`, p.UserID).Scan(&name, &bio); err != nil {
+		return err
+	}
+	text := strings.TrimSpace(name + "\n\n" + bio)
+	if text == "" {
+		return nil
+	}
+
+	vector, err := s.embedder.Embed(ctx, text)
+	if err != nil {
+		return fmt.Errorf("embed user %s: %w", p.UserID, err)
+	}
+	dims := s.embeddingDims()
+	if len(vector) < dims {
+		return fmt.Errorf("embed user %s: dimension %d < %d", p.UserID, len(vector), dims)
+	}
+	vector = vector[:dims]
+
+	if _, err := s.pool.Exec(ctx, `UPDATE "User" SET embedding = $2, "updatedAt" = now() WHERE id = $1`,
+		p.UserID, pgvector.NewVector(vector)); err != nil {
+		return err
+	}
+	log.Printf("[embedding] user %s indexé (%d dims)", p.UserID, len(vector))
 	return nil
 }
 

@@ -34,6 +34,8 @@ func (h *Handler) Register(r chi.Router) {
 	r.Post("/v1/devtools/add-funds", h.addFunds)
 	r.Post("/v1/devtools/reset-onboarding", h.resetOnboarding)
 	r.Get("/v1/devtools/user-by-email", h.userByEmail)
+	r.Post("/v1/devtools/reindex", h.reindex)
+	r.Post("/v1/devtools/seed-top", h.seedTop)
 }
 
 func (h *Handler) requireSuperadmin(w http.ResponseWriter, r *http.Request) (string, bool) {
@@ -226,6 +228,34 @@ func (h *Handler) resetOnboarding(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]bool{"success": true})
+}
+
+// POST /v1/devtools/seed-top — régénère la DB top du top (déterministe).
+func (h *Handler) seedTop(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	res, err := h.svc.SeedTop(r.Context(), userID)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, res)
+}
+
+// POST /v1/devtools/reindex — re-synchronise l'index Meilisearch (backfill).
+func (h *Handler) reindex(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	res, err := h.svc.Reindex(r.Context(), userID)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, res)
 }
 
 // GET /v1/devtools/user-by-email — lookup pour l'impersonation.
