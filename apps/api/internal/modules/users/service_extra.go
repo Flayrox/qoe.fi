@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/qoefi/api/internal/slug"
 )
@@ -77,13 +78,32 @@ func (s *Service) SyncUserFromAuth(ctx context.Context, userID string, claims ma
 		if displayName == "" {
 			displayName = emailPrefix
 		}
-		if _, err := s.pool.Exec(ctx,
+		_, insertErr := s.pool.Exec(ctx,
 			`INSERT INTO "User" (id, email, name, username, role, "hasCompletedOnboarding", pronouns, "countryCode", "languageCode", "createdAt", "updatedAt")
 			 VALUES ($1, $2, $3, $4, 'user', false, NULLIF($5, ''), NULLIF($6, ''), NULLIF($7, ''), now(), now())`,
-			userID, email, displayName, finalUsername, pronouns, countryCode, languageCode); err != nil {
+			userID, email, displayName, finalUsername, pronouns, countryCode, languageCode)
+		if insertErr != nil && !isEmailConflict(insertErr) {
+			return false, false, insertErr
+		}
+		if insertErr == nil {
+			return true, true, nil
+		}
+		// L'email existe déjà avec un AUTRE id (session Supabase plus récente
+		// que la ligne DB — base reseedée, backup restauré, compte recréé) :
+		// on ADOPTE la ligne existante en re-pointant son id vers le JWT. Les
+		// FKs vers User(id) sont ON UPDATE CASCADE → articles, posts, likes,
+		// follows… suivent sans orphelins.
+		if _, adoptErr := s.pool.Exec(ctx,
+			`UPDATE "User" SET id = $1, "updatedAt" = now() WHERE email = $2 AND id <> $1`,
+			userID, email); adoptErr != nil {
+			return false, false, adoptErr
+		}
+		// Relit le profil comme un user existant (role, onboarding).
+		if err := s.pool.QueryRow(ctx,
+			`SELECT role, "hasCompletedOnboarding"::text FROM "User" WHERE id = $1`, userID).Scan(&role, &existingOnboarding); err != nil {
 			return false, false, err
 		}
-		return true, true, nil
+		exists = true
 	}
 
 	// User existant : propagation des champs profil si renseignés.
@@ -278,4 +298,11 @@ func (s *Service) UnlockArticleWithWallet(ctx context.Context, readerID, publica
 		return "TRANSACTION_FAILED", err
 	}
 	return "", nil
+}
+
+// isEmailConflict détecte la violation d'unicité sur User.email
+// (SQLSTATE 23505, contrainte User_email_key).
+func isEmailConflict(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "User_email_key"
 }

@@ -82,6 +82,15 @@ func (s *Service) HomeFeed(ctx context.Context, userID string) (HomeFeedResult, 
 		return res, err
 	}
 	res.FollowedUserIDs = followedUserIDs
+	// Contrat JSON : followedCreators/followedUserIds sont TOUJOURS des
+	// tableaux (jamais null) — l'appelant fait .map(...), .length et
+	// .includes(...) sur ces champs.
+	if res.FollowedCreators == nil {
+		res.FollowedCreators = []HydratePublication{}
+	}
+	if res.FollowedUserIDs == nil {
+		res.FollowedUserIDs = []string{}
+	}
 
 	// 2. Flux + widgets en parallèle.
 	var wg sync.WaitGroup

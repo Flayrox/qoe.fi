@@ -455,6 +455,25 @@ func TestHomeFeed(t *testing.T) {
 	if len(anon.Discover.Articles) != 2 {
 		t.Fatalf("anonyme Discover.Articles = %d, attendu 2", len(anon.Discover.Articles))
 	}
+
+	// Utilisateur connecté sans aucun follow : les tableaux restent vides
+	// non-nil (jamais null en JSON) pour ne pas casser .map()/.includes().
+	noFollowID := "00000000-0000-0000-0000-000000000099"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+		 VALUES ($1, 'nofollow@h.dev', 'nofollowh', 'No Follow', 'user', now(), now())`, noFollowID); err != nil {
+		t.Fatalf("insert no-follow reader: %v", err)
+	}
+	nf, err := svc.HomeFeed(ctx, noFollowID)
+	if err != nil {
+		t.Fatalf("HomeFeed(noFollow): %v", err)
+	}
+	if nf.FollowedCreators == nil || nf.FollowedUserIDs == nil {
+		t.Fatalf("followedCreators/followedUserIds doivent être des tableaux vides non-nil, got %#v / %#v", nf.FollowedCreators, nf.FollowedUserIDs)
+	}
+	if len(nf.FollowedCreators) != 0 || len(nf.FollowedUserIDs) != 0 {
+		t.Fatalf("no-follow reader ne doit avoir aucun suivi, got %d/%d", len(nf.FollowedCreators), len(nf.FollowedUserIDs))
+	}
 }
 
 // TestRecentArticles vérifie que le feed d'articles renvoie l'article publié

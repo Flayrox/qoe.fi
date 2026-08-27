@@ -387,3 +387,64 @@ func TestMediaPublication(t *testing.T) {
 		t.Fatal("isMediaMember = false, attendu true pour le membre actif")
 	}
 }
+
+
+// TestSyncUserAdoptsEmailConflict — session Supabase dont l'id JWT ne
+// correspond plus à la ligne User (même email, id différent : base reseedée,
+// backup restauré, compte recréé) : SyncUserFromAuth doit ADOPTER la ligne
+// existante (re-pointer son id vers le JWT) au lieu de crasher sur
+// l'unicité d'email. Les FKs ON UPDATE CASCADE font suivre le contenu.
+func TestSyncUserAdoptsEmailConflict(t *testing.T) {
+	seedMe(t) // crée userID (reader.me@test.dev) + follow + muted word
+	ctx := context.Background()
+	svc := NewService(poolTest)
+
+	// Contenu du user (pensée) avant adoption.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt")
+		 VALUES ('post_adopt_01', 'pensée à conserver', $1, now(), now())`, userID); err != nil {
+		t.Fatalf("post: %v", err)
+	}
+
+	// Nouvel id JWT (session recréée), même email.
+	newJWTID := "00000000-0000-0000-0000-000000000042"
+	claims := map[string]any{"email": "reader.me@test.dev", "user_metadata": map[string]any{}}
+
+	created, needsOnboarding, err := svc.SyncUserFromAuth(ctx, newJWTID, claims)
+	if err != nil {
+		t.Fatalf("SyncUserFromAuth: %v", err)
+	}
+	if created {
+		t.Fatal("created = true, attendu false (ligne adoptée)")
+	}
+	if needsOnboarding {
+		t.Fatal("needsOnboarding = true, attendu false (profil seedé avec hasCompletedOnboarding=true)")
+	}
+
+	// La ligne porte le nouvel id, l'ancien n'existe plus.
+	var email string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT email FROM "User" WHERE id = $1`, newJWTID).Scan(&email); err != nil || email != "reader.me@test.dev" {
+		t.Fatalf("user adopté = %s/%q (err %v)", newJWTID, email, err)
+	}
+	var n int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "User" WHERE id = $1`, userID).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("ancien id toujours présent (n=%d, err %v)", n, err)
+	}
+
+	// Le contenu a suivi via ON UPDATE CASCADE (post + follow + muted word).
+	var authorID string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT "authorId" FROM "Post" WHERE id = 'post_adopt_01'`).Scan(&authorID); err != nil || authorID != newJWTID {
+		t.Fatalf("post.authorId = %q (err %v), attendu %s", authorID, err, newJWTID)
+	}
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "Follows" WHERE "readerId" = $1`, newJWTID).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("follows après adoption = %d (err %v)", n, err)
+	}
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "MutedWord" WHERE "userId" = $1`, newJWTID).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("muted après adoption = %d (err %v)", n, err)
+	}
+}
