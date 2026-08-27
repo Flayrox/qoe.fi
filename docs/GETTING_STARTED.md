@@ -39,7 +39,7 @@ Plutôt que de faire tourner toute l'application (y compris Node.js et Next.js) 
 
 1. **Node.js 20+** et **pnpm 11+** (via le site officiel ou ton terminal).
 2. **Docker Desktop** pour Windows (avec WSL2 activé).
-3. Les entrées `hosts` suivantes doivent pointer vers `127.0.0.1` : `qoe.test`, `dashboard.qoe.test`, `admin.qoe.test`, `feed.qoe.test`.
+3. Les entrées `hosts` suivantes doivent pointer vers `127.0.0.1` : `qoe.test`, `studio.qoe.test`, `admin.qoe.test`, `api.qoe.test`, `start.qoe.test`.
 
 > [!WARNING]
 > Si tu as déjà lancé la stack complète par le passé, tes conteneurs Node (`api`, `migrate`, etc.) tournent peut-être encore et consomment énormément de CPU/RAM (comme illustré par exemple avec `api` à 1.3 Go de RAM et `migrate` à 1.6 Go).

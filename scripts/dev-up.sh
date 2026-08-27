@@ -40,7 +40,7 @@ ok "Docker prêt"
 
 # ── 2. Infra Docker (sans les apps, elles tournent en natif) ────────────────
 echo "→ Infra Docker : ${INFRA_SERVICES[*]}…"
-docker compose -f docker-compose.dev.yml up -d --wait --wait-timeout 120 "${INFRA_SERVICES[@]}" >/dev/null \
+docker compose -f docker-compose.dev.yml up -d --remove-orphans --wait --wait-timeout 120 "${INFRA_SERVICES[@]}" >/dev/null \
   || fail "Infra Docker KO (voir docker compose ps)"
 ok "Infra prête (pg 15409 · redis 15410 · meili 15408 · growthbook 15412 · umami 15411 — ports 1540x isolés)"
 
@@ -115,5 +115,5 @@ fi
 
 # ── 5. Apps (turbo, au premier plan) ─────────────────────────────────────────
 echo "${C_BOLD}→ Lancement des apps (Ctrl+C pour tout couper)…${C_RESET}"
-echo "   http://qoe.test (ou http://lvh.me) → core:15402 | http://start.qoe.test → hi:15401 | http://dashboard.qoe.test → studio:15404"
+echo "   http://qoe.test (ou http://lvh.me) → core:15402 | http://start.qoe.test → hi:15401 | http://studio.qoe.test → studio:15404"
 node scripts/copy-env.js && pnpm intl:compile && pnpm exec turbo run dev --parallel
