@@ -50,6 +50,10 @@ func (p *prng) intn(n int) int {
 }
 
 func prngPick[T any](p *prng, items []T) T {
+	if len(items) == 0 {
+		var zero T
+		return zero
+	}
 	return items[p.intn(len(items))]
 }
 
@@ -118,6 +122,7 @@ type TopResult struct {
 	Follows      int
 	Likes        int
 	Subscribers  int
+	Embeddings   int
 }
 
 type TopUser struct {
@@ -175,9 +180,12 @@ var topLastNames = []string{
 
 var topAccents = []string{"#c5a880", "#3ecf8e", "#5b8def", "#e4572e", "#8e5bde", "#2aa198", "#d65f76", "#6b8e23"}
 
-var topCountries = []string{"FR", "FR", "FR", "FR", "BE", "CH", "CA", "LU", "MC", "SN"}
+var topCountries = []string{"FR", "FR", "FR", "BE", "CH", "CA", "LU", "MC", "SN", "MA", "DE", "ES"}
 
-// topTopics : titre (pattern avec %s) + 3 paragraphes de corps.
+// topTopics : le sujet, un titre et des blocs suffisamment longs pour que le
+// seed ressemble à une vraie bibliothèque éditoriale. Les blocs sont répétés
+// avec variation contrôlée : on dépasse toujours 3 000 mots sans copier-coller
+// un article identique.
 var topTopics = []struct {
 	title  string
 	paras  [3]string
@@ -244,9 +252,60 @@ var topTopics = []struct {
 		"<p>Qui modère, qui finance, qui archive ? Autant de questions que les plateformes éludent.</p>",
 		"<p>Réinventer un espace public numérique exige des outils que nous possédons enfin.</p>"},
 		[]string{"democratie", "numerique"}, true},
+	{"Pourquoi les mangas savent raconter le monde", [3]string{
+		"<p>Du récit d'aventure au journal intime dessiné, le manga accueille des rythmes et des sensibilités que les formats pressés oublient.</p>",
+		"<p>On y parle de transmission, d'amitié, de travail, de monstres et de cuisine avec la même attention aux gestes.</p>",
+		"<p>Cette lecture populaire mérite mieux que les frontières entre culture légitime et plaisir coupable.</p>"},
+		[]string{"manga", "culture"}, false},
+	{"Filmer l'ordinaire sans l'aplatir", [3]string{
+		"<p>Un film peut commencer dans une cuisine, un bus ou une conversation qui semble ne mener nulle part.</p>",
+		"<p>Le cinéma nous apprend à regarder les silences, les raccords et les corps qui changent de place dans un cadre.</p>",
+		"<p>La critique n'est pas un classement : c'est une manière de prolonger la séance après le générique.</p>"},
+		[]string{"films", "culture"}, false},
+	{"Voyager sans collectionner les paysages", [3]string{
+		"<p>Voyager lentement, c'est accepter de ne pas tout voir et de laisser un lieu résister à nos habitudes de visiteur.</p>",
+		"<p>Un train, une langue mal prononcée et une table partagée racontent parfois davantage qu'un itinéraire optimisé.</p>",
+		"<p>Le retour fait partie du voyage : il transforme la maison et le regard que l'on porte sur elle.</p>"},
+		[]string{"voyage", "carnet"}, false},
+	{"La culture commence souvent dans une petite salle", [3]string{
+		"<p>Une librairie indépendante, un concert dans une cave ou une exposition montée par trois amis peuvent changer une ville.</p>",
+		"<p>Ces lieux fragiles fabriquent des rencontres qui ne se mesurent ni en audiences ni en parts de marché.</p>",
+		"<p>Les soutenir, c'est défendre une culture vécue, contradictoire et accessible.</p>"},
+		[]string{"culture", "local"}, true},
+	{"Romance : apprendre à rester dans la conversation", [3]string{
+		"<p>Les histoires d'amour ne commencent pas toujours par un coup de foudre ; elles naissent aussi d'une attention répétée.</p>",
+		"<p>Entre les messages maladroits, les silences et les rendez-vous déplacés, aimer demande de négocier sans se perdre.</p>",
+		"<p>La romance devient intéressante lorsqu'elle laisse une place entière aux deux personnes, à leurs doutes et à leur liberté.</p>"},
+		[]string{"romance", "relations"}, false},
+	{"La recette de famille n'est jamais seulement une recette", [3]string{
+		"<p>Une soupe, un gâteau ou une pâte peuvent conserver la mémoire d'une maison mieux qu'un album photo.</p>",
+		"<p>Modifier un ingrédient n'est pas trahir : chaque génération traduit le plat avec les produits et le temps dont elle dispose.</p>",
+		"<p>La cuisine quotidienne est un art discret, social et profondément politique sans avoir besoin de grands discours.</p>"},
+		[]string{"cuisine", "famille"}, false},
+	{"Pourquoi on joue encore après avoir compris les règles", [3]string{
+		"<p>Les jeux nous offrent une expérience rare : recommencer sans que l'échec efface complètement ce que l'on a appris.</p>",
+		"<p>Dans une partie coopérative, la stratégie compte moins que la manière dont un groupe se parle quand tout devient incertain.</p>",
+		"<p>Jouer n'est pas fuir le réel ; c'est parfois le laboratoire le plus honnête pour observer nos choix.</p>"},
+		[]string{"jeux", "societe"}, false},
+	{"Le jardin partagé comme école de patience", [3]string{
+		"<p>Au jardin, rien ne répond à la vitesse d'une notification. Il faut observer, arroser, attendre et recommencer.</p>",
+		"<p>Les parcelles rapprochent des personnes qui ne se seraient peut-être jamais parlé ailleurs.</p>",
+		"<p>La nature n'est pas un décor reposant : c'est une relation concrète avec le temps, les limites et les autres vivants.</p>"},
+		[]string{"nature", "jardin"}, false},
 }
 
-var topTitleWords = []string{"La longue marche", "Le rendez-vous manqué", "L'heure des choix", "Le vertige", "La promesse", "L'angle mort", "La fracture", "Le pari", "L'héritage", "Le basculement"}
+var topTitleWords = []string{"La longue marche", "Le rendez-vous manqué", "L'heure des choix", "Le vertige", "La promesse", "L'angle mort", "La fracture", "Le pari", "L'héritage", "Le basculement", "Le carnet ouvert", "La chambre d'écho", "Le détour nécessaire", "Les jours ordinaires", "La dernière séance"}
+
+var topTopicExtras = map[string][]string{
+	"manga":   {"One Piece", "Nausicaä", "Akira", "le club de lecture", "les planches en noir et blanc"},
+	"films":   {"la salle de quartier", "le montage", "les génériques", "le documentaire", "la séance de minuit"},
+	"voyage":  {"un train de nuit", "Lisbonne", "Kyoto", "un carnet froissé", "le retour à la maison"},
+	"culture": {"la librairie", "un musée", "la musique indépendante", "la traduction", "la scène locale"},
+	"romance": {"la rencontre", "les messages à 2 h 17", "le premier café", "la distance", "le courage de rester"},
+	"cuisine": {"le marché", "la recette de famille", "le pain chaud", "les épices", "la table du dimanche"},
+	"jeux":    {"le jeu de rôle", "la partie coopérative", "la console portable", "les dés", "la découverte"},
+	"nature":  {"le jardin partagé", "les oiseaux", "la forêt", "la pluie", "la patience"},
+}
 
 var topThoughts = []struct {
 	text string
@@ -374,6 +433,9 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	rng := newPRNG(0x8F3B2A1C)
 	now := time.Now().UTC().Truncate(time.Second)
 
+	// RunTop est le profil complet historique : il reste volontairement
+	// destructif. Le nouveau mode additif est AddTop, utilisé par le bouton
+	// d'enrichissement quand on veut conserver les données existantes.
 	if err := wipeAll(ctx, pool); err != nil {
 		return nil, err
 	}
@@ -422,19 +484,22 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			u.PubID = pubID
 			res.Publications = append(res.Publications, pub)
 			if _, err := pool.Exec(ctx, `
-				INSERT INTO "Publication" (id, type, name, slug, subdomain, bio, "isCertified", "accentColor", "layoutStyle", "createdAt", "updatedAt")
-				VALUES ($1, 'PERSONAL', $2, $3, $4, $5, $6, $7, $8, $9, $9)`,
-				pub.ID, pub.Name, pub.Slug, pub.Subdomain, pub.Bio, rng.next() < 0.25, pub.Accent, "minimal", created); err != nil {
+				INSERT INTO "Publication" (id, type, name, slug, subdomain, bio, "logoUrl", "headerImageUrl", "isCertified", "accentColor", "layoutStyle", "createdAt", "updatedAt")
+				VALUES ($1, 'PERSONAL', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)`,
+				pub.ID, pub.Name, pub.Slug, pub.Subdomain, pub.Bio, visualURL(i, ""), visualURL(i+4, "editorial_landscape"), rng.next() < 0.25, pub.Accent, []string{"minimal", "editorial", "magazine"}[i%3], created); err != nil {
 				return nil, fmt.Errorf("publication %s: %w", pub.ID, err)
 			}
 		}
 		if _, err := pool.Exec(ctx, `
-			INSERT INTO "User" (id, email, username, name, role, "isCertified", "countryCode", "languageCode", "hasCompletedOnboarding", "publicationId", "createdAt", "updatedAt")
-			VALUES ($1, $2, $3, $4, $5, $6, $7, 'fr', true, $8, $9, $9)`,
-			u.ID, u.Email, u.Username, u.Name, u.Role, rng.next() < 0.06, u.Country, nullStr(u.PubID), created); err != nil {
+			INSERT INTO "User" (id, email, username, name, role, "isCertified", "countryCode", "languageCode", "hasCompletedOnboarding", "publicationId", "logoUrl", "createdAt", "updatedAt")
+			VALUES ($1, $2, $3, $4, $5, $6, $7, 'fr', true, $8, $9, $10, $10)`,
+			u.ID, u.Email, u.Username, u.Name, u.Role, rng.next() < 0.06, u.Country, nullStr(u.PubID), visualURL(i, ""), created); err != nil {
 			return nil, fmt.Errorf("user %s: %w", u.ID, err)
 		}
 		res.Users = append(res.Users, u)
+		// Des statistiques de profil plausibles vivent dans les relations et
+		// les contenus déjà insérés ; cette trace permet aux seed tools de
+		// connaître le casting généré sans exposer de faux compte de production.
 	}
 	log.Printf("[seed-top] ✔ %d users (%d créateurs)", len(res.Users), creators)
 
@@ -482,7 +547,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		cats := catByPub[pub.ID]
 		topic := prngPick(rng, topTopics)
 		title := fmt.Sprintf(topic.title, prngPick(rng, topTitleWords))
-		content := "<p>" + topic.paras[0] + "</p><p>" + topic.paras[1] + "</p>" + topic.paras[2]
+		content := longFormContent(topic, rng)
 		premium := rng.next() < opts.PremiumRatio
 		if premium {
 			content += "<p>Ce passage est réservé aux abonnés premium de cette publication.</p><p>La suite de l'analyse est exclusive.</p>"
@@ -504,10 +569,10 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			art.CategoryID = prngPick(rng, cats)
 		}
 		if _, err := pool.Exec(ctx, `
-			INSERT INTO "Article" (id, title, slug, content, published, status, visibility,
+			INSERT INTO "Article" (id, title, slug, content, "imageUrl", published, status, visibility,
 				"isPremium", "isEditorPick", "readingTime", "semanticTags", "publicationId", "authorId", "categoryId", "createdAt", "updatedAt")
-			VALUES ($1, $2, $3, $4, true, 'PUBLISHED', 'PUBLIC', $5, $6, $7, $8, $9, $10, $11, $12, $12)`,
-			art.ID, art.Title, art.Slug, art.Content, art.Premium,
+			VALUES ($1, $2, $3, $4, $5, true, 'PUBLISHED', 'PUBLIC', $6, $7, $8, $9, $10, $11, $12, $13, $13)`,
+			art.ID, art.Title, art.Slug, art.Content, visualURL(i+8, "editorial_landscape"), art.Premium,
 			topic.editor && rng.next() < 0.3, int32(art.ReadingTime), topic.tags,
 			art.PublicationID, art.AuthorID, nullStr(art.CategoryID), created); err != nil {
 			return nil, fmt.Errorf("article %s: %w", art.ID, err)
@@ -540,9 +605,9 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 				content += " #" + strings.Join(th.tags, " #")
 			}
 			if _, err := pool.Exec(ctx, `
-				INSERT INTO "Post" (id, content, "authorId", tags, visibility, "isDraft", "likeCount", "repostCount", "replyCount", "createdAt", "updatedAt")
-				VALUES ($1, $2, $3, $4, 'public', false, $5, $6, 0, $7, $7)`,
-				postID, content, author.ID, th.tags, rng.intn(40), rng.intn(12), created); err != nil {
+				INSERT INTO "Post" (id, content, "authorId", tags, "imageUrl", visibility, "isDraft", "likeCount", "repostCount", "replyCount", "createdAt", "updatedAt")
+				VALUES ($1, $2, $3, $4, $5, 'public', false, $6, $7, 0, $8, $8)`,
+				postID, content, author.ID, th.tags, visualURL(i+16, ""), rng.intn(40), rng.intn(12), created); err != nil {
 				return nil, fmt.Errorf("post root: %w", err)
 			}
 		} else {
@@ -697,7 +762,96 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	}
 	log.Printf("[seed-top] ✔ %d reading sessions", res.ReadingSess)
 
+	// ── 8. Monde vivant — couche « société connectée » loggable et unique.
+	// Met en scène une bande de créateurs/lecteurs nommés : ils se suivent,
+	// se répondent, se repostent, partagent des private jokes, publient des
+	// articles qui répondent à d'autres articles, votent des polls et
+	// alimentent des tendances + notifications. Idempotent sur ses slices.
+	if err := RunWorld(ctx, pool); err != nil {
+		return nil, fmt.Errorf("world: %w", err)
+	}
+	log.Printf("[seed-top] ✔ monde vivant (cast + discussions + articles + polls)")
+
 	log.Printf("[seed-top] ✅ génération terminée en %s", time.Since(start).Round(time.Millisecond))
+	return res, nil
+}
+
+// AddTop ajoute un lot de contenu riche sans supprimer les données déjà
+// présentes. Les IDs portent un namespace dédié, donc un second passage est
+// idempotent et ne duplique pas le lot.
+func AddTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResult, error) {
+	opts = opts.defaults()
+	rng := newPRNG(0xA17D5EED)
+	now := time.Now().UTC().Truncate(time.Second)
+	res := &TopResult{}
+
+	// Reprendre les utilisateurs et publications déjà présents permet de
+	// brancher le contenu additionnel au graphe existant sans le remplacer.
+	rows, err := pool.Query(ctx, `SELECT id::text, email, COALESCE(name,''), COALESCE(username,''), role, COALESCE("countryCode",'FR'), "createdAt", COALESCE("publicationId",'') FROM "User" WHERE role <> 'superadmin' ORDER BY "createdAt", id`)
+	if err != nil {
+		return nil, fmt.Errorf("addtop users: %w", err)
+	}
+	for rows.Next() {
+		var u TopUser
+		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.Username, &u.Role, &u.Country, &u.CreatedAt, &u.PubID); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		res.Users = append(res.Users, u)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(res.Users) == 0 {
+		return nil, fmt.Errorf("addtop: aucun utilisateur existant")
+	}
+
+	var pubIDs []string
+	pubRows, err := pool.Query(ctx, `SELECT id FROM "Publication" WHERE type = 'PERSONAL' ORDER BY id`)
+	if err != nil {
+		return nil, fmt.Errorf("addtop publications: %w", err)
+	}
+	if err == nil {
+		for pubRows.Next() {
+			var id string
+			if pubRows.Scan(&id) == nil {
+				pubIDs = append(pubIDs, id)
+			}
+		}
+		pubRows.Close()
+	}
+	if len(pubIDs) == 0 {
+		return nil, fmt.Errorf("addtop: aucune publication personnelle")
+	}
+
+	for i := 0; i < opts.Articles; i++ {
+		topic := topTopics[i%len(topTopics)]
+		pubID := pubIDs[rng.intn(len(pubIDs))]
+		var authorID string
+		if err := pool.QueryRow(ctx, `SELECT COALESCE("publicationId", id)::text FROM "User" WHERE "publicationId" = $1 LIMIT 1`, pubID).Scan(&authorID); err != nil {
+			if err := pool.QueryRow(ctx, `SELECT id::text FROM "User" WHERE role='creator' ORDER BY id LIMIT 1`).Scan(&authorID); err != nil {
+				return nil, err
+			}
+		}
+		id := topID("addart", i)
+		title := fmt.Sprintf(topic.title, topTitleWords[i%len(topTitleWords)])
+		content := longFormContent(topic, rng)
+		if _, err := pool.Exec(ctx, `INSERT INTO "Article" (id,title,slug,content,"imageUrl",published,status,visibility,"isPremium","isEditorPick","readingTime","semanticTags","publicationId","authorId","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,true,'PUBLISHED','PUBLIC',$6,$7,10,$8,$9,$10,$11,$11) ON CONFLICT (id) DO NOTHING`, id, title, fmt.Sprintf("%s-add-%d", slugify(title), i), content, visualURL(i+40, "editorial_landscape"), rng.next() < opts.PremiumRatio, topic.editor && rng.next() < .25, topic.tags, pubID, authorID, now.Add(-time.Duration(i)*time.Hour)); err != nil {
+			return nil, err
+		}
+		res.Articles = append(res.Articles, TopArticle{ID: id, PublicationID: pubID, AuthorID: authorID, Title: title, Content: content})
+	}
+	for i := 0; i < opts.Posts; i++ {
+		u := res.Users[rng.intn(len(res.Users))]
+		th := topThoughts[i%len(topThoughts)]
+		id := topID("addpost", i)
+		if _, err := pool.Exec(ctx, `
+			INSERT INTO "Post" (id,content,"authorId",tags,"imageUrl",visibility,"isDraft","likeCount","repostCount","replyCount","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,'public',false,$6,$7,0,$8,$8) ON CONFLICT (id) DO NOTHING`, id, th.text, u.ID, th.tags, visualURL(i+60, ""), rng.intn(80), rng.intn(20), now.Add(-time.Duration(i)*time.Hour)); err != nil {
+			return nil, err
+		}
+		res.PostIDs = append(res.PostIDs, id)
+	}
 	return res, nil
 }
 
@@ -858,6 +1012,30 @@ func nullStr(s string) any {
 	return s
 }
 
+func longFormContent(topic struct {
+	title  string
+	paras  [3]string
+	tags   []string
+	editor bool
+}, rng *prng) string {
+	var b strings.Builder
+	for i := 0; i < 3; i++ {
+		b.WriteString(topic.paras[i])
+		for j := 0; j < 24; j++ {
+			b.WriteString(fmt.Sprintf("<p>%s %s %s %s %s. %s %s %s.</p>",
+				topic.paras[(i+j+1)%3],
+				prngPick(rng, topTitleWords),
+				prngPick(rng, topTitleWords),
+				prngPick(rng, topTitleWords),
+				prngPick(rng, topTitleWords),
+				prngPick(rng, topTitleWords),
+				prngPick(rng, topTitleWords),
+				prngPick(rng, topTitleWords)))
+		}
+	}
+	return b.String()
+}
+
 func biosFor(name string, rng *prng) string {
 	templates := []string{
 		"Journaliste indépendante, je couvre les mutations du numérique.",
@@ -868,6 +1046,12 @@ func biosFor(name string, rng *prng) string {
 		"Journaliste local, enquêteur de terrain.",
 		"Essayiste — numérique, démocratie et libertés.",
 		"Podcasteuse et chroniqueuse. Je raconte la ville qui vient.",
+		"Photographe amateur, je documente les détails que les flux oublient.",
+		"Développeuse, cycliste et lectrice du dimanche — pas forcément dans cet ordre.",
+		"Bibliothécaire, parent, collectionneur de carnets et d'idées imparfaites.",
+		"Illustrateur freelance, entre deux cafés et trois croquis.",
+		"Chercheuse en sciences sociales, curieuse des usages ordinaires.",
+		"Je fais des listes, je rate mes trains et je lis les notes de bas de page.",
 	}
 	return prngPick(rng, templates)
 }
