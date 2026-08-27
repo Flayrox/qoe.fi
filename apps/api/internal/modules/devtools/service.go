@@ -96,8 +96,8 @@ type DevtoolsUser struct {
 
 // Data retourne les compteurs + la liste des utilisateurs (tri createdAt DESC).
 func (s *Service) Data(ctx context.Context, userID string) (*struct {
-	Stats Stats           `json:"stats"`
-	Users []DevtoolsUser  `json:"users"`
+	Stats Stats          `json:"stats"`
+	Users []DevtoolsUser `json:"users"`
 }, error) {
 	if err := s.checkSuperadmin(ctx, userID); err != nil {
 		return nil, err
@@ -154,14 +154,14 @@ func (s *Service) Data(ctx context.Context, userID string) (*struct {
 
 // CreateUserParams sont les champs du formulaire « Nouveau Créateur ».
 type CreateUserParams struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Email        string `json:"email"`
-	Username     string `json:"username"`
-	Role         string `json:"role"`
-	Subdomain    string `json:"subdomain"`
-	LayoutStyle  string `json:"layoutStyle"`
-	AccentColor  string `json:"accentColor"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Email       string `json:"email"`
+	Username    string `json:"username"`
+	Role        string `json:"role"`
+	Subdomain   string `json:"subdomain"`
+	LayoutStyle string `json:"layoutStyle"`
+	AccentColor string `json:"accentColor"`
 }
 
 // CreateUser crée/met à jour un utilisateur + sa publication personnelle, puis
@@ -254,7 +254,10 @@ func (s *Service) seedCreatorPack(ctx context.Context, pubID, authorID string) e
 		return fmt.Errorf("article delete: %w", err)
 	}
 
-	navs := []struct{ label, url string; order int32 }{
+	navs := []struct {
+		label, url string
+		order      int32
+	}{
 		{"Accueil", "/", 1},
 		{"Souveraineté", "/category/souverainete", 2},
 		{"Écologie", "/category/ecologie", 3},
@@ -269,7 +272,10 @@ func (s *Service) seedCreatorPack(ctx context.Context, pubID, authorID string) e
 		}
 	}
 
-	socials := []struct{ platform, url string; order int32 }{
+	socials := []struct {
+		platform, url string
+		order         int32
+	}{
 		{"x", "https://x.com", 1},
 		{"bluesky", "https://bsky.app", 2},
 		{"mastodon", "https://mastodon.social", 3},
@@ -521,6 +527,65 @@ func (s *Service) SeedTop(ctx context.Context, userID string) (map[string]any, e
 		log.Printf("[devtools] reindex post-seed: %v", err)
 	}
 
+	return out, nil
+}
+
+// SeedTopComplete prépare une base de démonstration complète en une seule
+// action : reset déterministe, monde vivant, contenu additif riche, embeddings
+// via Redis et synchronisation Meilisearch/Umami.
+func (s *Service) SeedTopComplete(ctx context.Context, userID string) (map[string]any, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, err
+	}
+	res, err := seed.RunTop(ctx, s.pool, seed.TopOptions{})
+	if err != nil {
+		return nil, err
+	}
+	added, err := seed.AddTop(ctx, s.pool, seed.TopOptions{Articles: 200, Posts: 1480})
+	if err != nil {
+		return nil, err
+	}
+	res.Articles = append(res.Articles, added.Articles...)
+	res.PostIDs = append(res.PostIDs, added.PostIDs...)
+	// AddTop est exécuté après RunWorld : ses nouveaux articles réutilisent le
+	// graphe existant, puis on rejoue la couche d'interactions dédiée pour que
+	// les commentaires et lectures couvrent aussi le contenu additionnel.
+	if err := seed.RunWorld(ctx, s.pool); err != nil {
+		return nil, fmt.Errorf("world refresh: %w", err)
+	}
+
+	out := map[string]any{
+		"success": true, "users": len(res.Users), "articles": len(res.Articles),
+		"posts": len(res.PostIDs), "readingSessions": res.ReadingSess,
+		"follows": res.Follows, "likes": res.Likes, "subscribers": res.Subscribers,
+		"contentMode": "reset+additive",
+	}
+	if ac := queue.NewClient(os.Getenv("REDIS_URL")); ac != nil {
+		for _, a := range res.Articles {
+			_ = queue.PublishArticleEmbedding(ac, queue.EmbeddingPayload{ArticleID: a.ID})
+		}
+		for _, u := range res.Users {
+			_ = queue.PublishUserEmbedding(ac, queue.EmbeddingPayload{UserID: u.ID})
+		}
+		ac.Close()
+		out["embeddingsEnqueued"] = len(res.Articles) + len(res.Users)
+	}
+	if dsn := os.Getenv("UMAMI_DATABASE_URL"); dsn != "" {
+		umamiPool, openErr := pgxpool.New(ctx, dsn)
+		if openErr == nil {
+			defer umamiPool.Close()
+			if umamiErr := seed.RunTopUmami(ctx, umamiPool, res, seed.TopOptions{}); umamiErr == nil {
+				out["umami"] = "généré"
+			} else {
+				log.Printf("[devtools] umami seed: %v", umamiErr)
+			}
+		}
+	}
+	if total, upserted, reindexErr := workers.NewSearchWorker(s.pool).ReindexAll(ctx); reindexErr == nil {
+		out["meilisearch"] = map[string]int{"total": total, "upserted": upserted}
+	} else {
+		log.Printf("[devtools] reindex complete: %v", reindexErr)
+	}
 	return out, nil
 }
 

@@ -36,6 +36,7 @@ func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/devtools/user-by-email", h.userByEmail)
 	r.Post("/v1/devtools/reindex", h.reindex)
 	r.Post("/v1/devtools/seed-top", h.seedTop)
+	r.Post("/v1/devtools/seed-top-complete", h.seedTopComplete)
 }
 
 func (h *Handler) requireSuperadmin(w http.ResponseWriter, r *http.Request) (string, bool) {
@@ -237,6 +238,20 @@ func (h *Handler) seedTop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res, err := h.svc.SeedTop(r.Context(), userID)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, res)
+}
+
+// POST /v1/devtools/seed-top-complete — base complète reset + enrichissement.
+func (h *Handler) seedTopComplete(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	res, err := h.svc.SeedTopComplete(r.Context(), userID)
 	if err != nil {
 		h.handleErr(w, err)
 		return
