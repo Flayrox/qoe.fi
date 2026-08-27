@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@qoe/utils';
-import { Logo } from '../ui/Logo';
+import { Logo } from '../Logo';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import {
