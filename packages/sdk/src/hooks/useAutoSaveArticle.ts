@@ -34,7 +34,7 @@ export interface AutoSavePayload {
 export interface UseAutoSaveArticleOptions {
   delay?: number;
   enabled?: boolean;
-  onSave: (payload: AutoSavePayload) => Promise<{ id: string; updatedAt?: Date | string }>;
+  onSave: (payload: AutoSavePayload) => Promise<{ id?: string; updatedAt?: Date | string }>;
   onError?: (error: Error) => void;
 }
 
@@ -109,6 +109,7 @@ export function useAutoSaveArticle({
       }
 
       timeoutRef.current = setTimeout(() => {
+        timeoutRef.current = null;
         if (latestPayloadRef.current) {
           triggerSave(latestPayloadRef.current);
         }
@@ -117,13 +118,20 @@ export function useAutoSaveArticle({
     [delay, enabled, triggerSave]
   );
 
+  // Au démontage (navigation, fermeture de l'onglet), on flushe le debounce
+  // en cours pour ne pas perdre les dernières frappes (triggerSave ignore
+  // les titres vides ; isSavingRef évite de chevaucher une sauvegarde).
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+        if (latestPayloadRef.current && !isSavingRef.current) {
+          triggerSave(latestPayloadRef.current);
+        }
       }
     };
-  }, []);
+  }, [triggerSave]);
 
   return {
     status,
@@ -133,6 +141,10 @@ export function useAutoSaveArticle({
     scheduleAutoSave,
     saveNow: (payload: AutoSavePayload) => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+      // Le replay de la file (pending) lit latestPayloadRef : une sauvegarde
+      // explicite pendant qu'une autre est en vol doit aussi être rejouée.
+      latestPayloadRef.current = payload;
       return triggerSave(payload);
     },
   };

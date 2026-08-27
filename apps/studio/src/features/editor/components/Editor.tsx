@@ -43,6 +43,8 @@ import {
   ExternalLink,
   MessageSquare,
   UsersRound,
+  AlertCircle,
+  RotateCcw,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { compressImage } from '@/lib/image-compressor';
@@ -264,6 +266,38 @@ export function Editor({
 
   useEffect(() => () => collaborationProvider?.destroy(), [collaborationProvider]);
 
+  // ─── Refs d'état frais pour l'auto-save (évite les closures périmées) ───
+  // L'onUpdate de Tiptap et le onSave de l'auto-save peuvent être exécutés
+  // longtemps après le rendu : on lit TOUJOURS les dernières valeurs via ces
+  // refs plutôt que via les closures du rendu qui les a créés.
+  const editorStateRef = useRef({
+    title,
+    slug,
+    published,
+    isPremium,
+    categoryId,
+    seoTitle,
+    seoDescription,
+    imageUrl,
+    allowPublicAnnotations,
+    allowComments,
+    attributions,
+  });
+  editorStateRef.current = {
+    title,
+    slug,
+    published,
+    isPremium,
+    categoryId,
+    seoTitle,
+    seoDescription,
+    imageUrl,
+    allowPublicAnnotations,
+    allowComments,
+    attributions,
+  };
+  const scheduleAutoSaveRef = useRef<(p: AutoSavePayload) => void>(() => {});
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -310,8 +344,24 @@ export function Editor({
         return false;
       },
     },
-    onUpdate: () => {
+    onUpdate: ({ editor: currentEditor }) => {
       setHasUnsavedChanges(true);
+      // Le contenu de l'éditeur déclenche AUSSI l'auto-save (debouncé) :
+      // avant, seuls les métadonnées (titre, slug…) déclenchaient la
+      // sauvegarde — taper uniquement dans le corps ne sauvait rien.
+      const s = editorStateRef.current;
+      if (s.title.trim()) {
+        scheduleAutoSaveRef.current({
+          title: s.title,
+          content: currentEditor.getHTML(),
+          slug: s.slug,
+          published: s.published,
+          isPremium: s.isPremium,
+          categoryId: s.categoryId,
+          seoTitle: s.seoTitle,
+          seoDescription: s.seoDescription,
+        });
+      }
     },
   });
 
@@ -341,32 +391,59 @@ export function Editor({
     };
   }, [collaborationProvider, editor, collaborationDoc, initialContent]);
 
-  const { scheduleAutoSave, status: autoSaveStatus } = useAutoSaveArticle({
+  const {
+    scheduleAutoSave,
+    status: autoSaveStatus,
+    errorMessage: autoSaveError,
+    saveNow,
+  } = useAutoSaveArticle({
     delay: 2500,
     enabled: !isSaving,
     onSave: async (payload: AutoSavePayload) => {
+      const s = editorStateRef.current;
       const res = (await onSave({
         title: payload.title,
         content: payload.content,
-        imageUrl,
-        slug: payload.slug || slug,
-        published: payload.published ?? published,
-        isPremium: payload.isPremium ?? isPremium,
-        categoryId: payload.categoryId ?? categoryId,
-        seoTitle: payload.seoTitle ?? seoTitle,
-        seoDescription: payload.seoDescription ?? seoDescription,
-        allowPublicAnnotations,
-        allowComments,
-        attributions,
+        imageUrl: s.imageUrl,
+        slug: payload.slug || s.slug,
+        published: payload.published ?? s.published,
+        isPremium: payload.isPremium ?? s.isPremium,
+        categoryId: payload.categoryId ?? s.categoryId,
+        seoTitle: payload.seoTitle ?? s.seoTitle,
+        seoDescription: payload.seoDescription ?? s.seoDescription,
+        allowPublicAnnotations: s.allowPublicAnnotations,
+        allowComments: s.allowComments,
+        attributions: s.attributions,
       })) as { id?: string } | void;
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
-      // Retourne le vrai id pour que useAutoSaveArticle le réutilise (PATCH au lieu de POST)
+      // Retourne le vrai id pour que useAutoSaveArticle le réutilise
+      // (PATCH au lieu de POST). Pas de placeholder 'new'/'existing' : si la
+      // réponse n'a pas d'id, le hook garde l'id précédent.
       const realId =
         (res as { id?: string })?.id || (collaborationRoomId as string | undefined) || undefined;
-      return { id: realId ?? (initialTitle ? 'existing' : 'new'), updatedAt: new Date() };
+      return { id: realId, updatedAt: new Date() };
     },
   });
+
+  // Référence toujours fraîche pour l'onUpdate de Tiptap (closures).
+  scheduleAutoSaveRef.current = scheduleAutoSave;
+
+  // Réessaie la dernière sauvegarde après une erreur (rejoue le dernier état).
+  const retryAutoSave = () => {
+    const s = editorStateRef.current;
+    if (!s.title.trim() || !editor) return;
+    saveNow({
+      title: s.title,
+      content: editor.getHTML(),
+      slug: s.slug,
+      published: s.published,
+      isPremium: s.isPremium,
+      categoryId: s.categoryId,
+      seoTitle: s.seoTitle,
+      seoDescription: s.seoDescription,
+    });
+  };
 
   // Watch for state changes to trigger debounced auto-save
   useEffect(() => {
@@ -376,6 +453,9 @@ export function Editor({
       categoryId !== initialCategoryId ||
       seoTitle !== (initialSeoTitle || '') ||
       seoDescription !== (initialSeoDescription || '') ||
+      imageUrl !== initialImageUrl ||
+      allowPublicAnnotations !== initialAllowPublicAnnotations ||
+      allowComments !== initialAllowComments ||
       attributions !== initialAttributions
     ) {
       setHasUnsavedChanges(true);
@@ -400,6 +480,9 @@ export function Editor({
     seoDescription,
     published,
     isPremium,
+    imageUrl,
+    allowPublicAnnotations,
+    allowComments,
     attributions,
     initialAttributions,
   ]);
@@ -535,6 +618,20 @@ export function Editor({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [title, slug, published, isPremium, categoryId, seoTitle, seoDescription, editor]);
 
+  // Garde-fou : alerte native du navigateur quand on quitte la page avec des
+  // changements non enregistrés (le flush du hook sauvegarde en parallèle,
+  // mais on prévient l'utilisateur avant de perdre ses dernières frappes).
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
   if (!editor) {
     return null;
   }
@@ -573,31 +670,44 @@ export function Editor({
                     : 'Co-édition · reconnexion…'}
                 </span>
               )}
-              {(isSaving || autoSaveStatus === 'saving') && (
+              {/* Indicateur d'état d'enregistrement — chaîne priorisée :
+                  saving > error > saved > unsaved > idle. Avant, le cas
+                  'error' n'était pas affiché ET le badge « Sauvegardé à »
+                  restait visible en erreur (trompeur). */}
+              {isSaving || autoSaveStatus === 'saving' ? (
                 <span className="text-xs text-muted-foreground font-sans flex items-center gap-1.5">
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />{' '}
-                  Auto-sauvegarde...
+                  Enregistrement…
                 </span>
-              )}
-              {autoSaveStatus === 'saved' && (
+              ) : autoSaveStatus === 'error' ? (
+                <span className="text-[11px] font-normal text-destructive bg-destructive/10 border border-destructive/30 px-2 py-0.5 rounded-md flex items-center gap-1.5 font-sans max-w-[320px]">
+                  <AlertCircle className="w-3 h-3 text-destructive shrink-0" />
+                  <span className="truncate">
+                    Échec de l'enregistrement{autoSaveError ? ` — ${autoSaveError}` : ''}
+                  </span>
+                  <button
+                    onClick={retryAutoSave}
+                    className="ml-1 inline-flex items-center gap-1 text-[10px] font-semibold text-destructive hover:underline cursor-pointer shrink-0"
+                    title="Réessayer la sauvegarde"
+                  >
+                    <RotateCcw className="w-2.5 h-2.5" /> Réessayer
+                  </button>
+                </span>
+              ) : autoSaveStatus === 'saved' ? (
                 <span className="text-[11px] font-normal text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-md flex items-center gap-1.5 font-sans">
                   <Check className="w-3 h-3 text-success" /> Brouillon auto-enregistré
+                  {lastSaved ? ` à ${lastSaved.toLocaleTimeString()}` : ''}
                 </span>
-              )}
-              {lastSaved && autoSaveStatus !== 'saved' && !isSaving && (
+              ) : hasUnsavedChanges ? (
+                <span className="text-[10px] font-medium text-highlight bg-highlight/10 border border-highlight/20 px-2 py-0.5 rounded-md font-sans">
+                  Modifications en cours… (Cmd+S)
+                </span>
+              ) : lastSaved ? (
                 <span className="text-[11px] font-normal text-muted-foreground flex items-center gap-1.5 font-sans">
                   <Check className="w-3.5 h-3.5 text-muted-foreground" /> Sauvegardé à{' '}
                   {lastSaved.toLocaleTimeString()}
                 </span>
-              )}
-              {hasUnsavedChanges &&
-                autoSaveStatus !== 'saving' &&
-                autoSaveStatus !== 'saved' &&
-                !isSaving && (
-                  <span className="text-[10px] font-medium text-highlight bg-highlight/10 border border-highlight/20 px-2 py-0.5 rounded-md font-sans">
-                    Modifications en cours... (Cmd+S)
-                  </span>
-                )}
+              ) : null}
             </h2>
             <p className="text-xs text-muted-foreground font-sans mt-0.5">
               Rédigez sans bruit ni distraction
