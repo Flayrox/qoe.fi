@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, ChevronDown } from 'lucide-react';
 import { createClient } from '@qoe/supabase/client';
 import { cn } from '@qoe/utils';
 import { BentoPlateau, BentoItem } from './ui/BentoPlateau';
@@ -50,9 +50,6 @@ export function LoginFormBento({
   const [authMode, setAuthMode] = useState<'magic-link' | 'password' | 'signup'>(
     initialMode === 'signup' ? 'signup' : 'magic-link'
   );
-  const [signupStep, setSignupStep] = useState<1 | 2 | 3>(1);
-  const [direction, setDirection] = useState<number>(1);
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -60,7 +57,7 @@ export function LoginFormBento({
   const [gender, setGender] = useState<string | null>(null);
   const [ageRange, setAgeRange] = useState<string | null>(null);
   const [pronouns, setPronouns] = useState('');
-  const skipDemographicsRef = useRef(false);
+  const [showDemographics, setShowDemographics] = useState(false);
   const [loading, setLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -68,10 +65,8 @@ export function LoginFormBento({
 
   useEffect(() => {
     setAuthMode(initialMode === 'signup' ? 'signup' : 'magic-link');
-    setSignupStep(1);
     setLocalError(null);
     setMagicLinkSent(false);
-    skipDemographicsRef.current = false;
   }, [initialMode]);
 
   const getContextSubtitle = () => {
@@ -84,11 +79,8 @@ export function LoginFormBento({
     if (actionContext === 'repost') return 'Partagez ce post avec vos abonnés';
     if (actionContext === 'delete')
       return 'Connectez-vous pour gérer et supprimer vos propres publications';
-    if (authMode === 'signup') {
-      if (signupStep === 1) return 'Rejoignez le réseau souverain';
-      if (signupStep === 2) return 'Sécurisez vos identifiants';
-      return 'Dites-nous qui vous êtes — optionnel, ça reste entre nous';
-    }
+    if (authMode === 'signup')
+      return 'Rejoignez le réseau souverain — un seul formulaire, quelques secondes';
     return 'Accédez à votre espace souverain';
   };
 
@@ -161,8 +153,17 @@ export function LoginFormBento({
     try {
       if (authMode === 'signup') {
         if (!name.trim() || !username.trim()) {
-          setSignupStep(1);
           setLocalError("Veuillez renseigner votre nom et nom d'utilisateur.");
+          setLoading(false);
+          return;
+        }
+        if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          setLocalError('Veuillez renseigner une adresse email valide.');
+          setLoading(false);
+          return;
+        }
+        if (password.length < 8) {
+          setLocalError('Votre mot de passe doit contenir au moins 8 caractères.');
           setLoading(false);
           return;
         }
@@ -173,9 +174,9 @@ export function LoginFormBento({
             data: {
               name,
               username,
-              gender: !skipDemographicsRef.current ? gender || undefined : undefined,
-              ageRange: !skipDemographicsRef.current ? ageRange || undefined : undefined,
-              pronouns: !skipDemographicsRef.current ? pronouns.trim() || undefined : undefined,
+              gender: gender || undefined,
+              ageRange: ageRange || undefined,
+              pronouns: pronouns.trim() || undefined,
             },
           },
         });
@@ -205,50 +206,10 @@ export function LoginFormBento({
     }
   };
 
-  const goToSignupStep = (step: 1 | 2 | 3) => {
-    setDirection(step > signupStep ? 1 : -1);
-    setSignupStep(step);
-    setLocalError(null);
-  };
-
-  const handleNextStep1 = () => {
-    if (!name.trim()) {
-      setLocalError('Veuillez renseigner votre nom complet.');
-      return;
-    }
-    if (!username.trim()) {
-      setLocalError("Veuillez choisir un nom d'utilisateur.");
-      return;
-    }
-    goToSignupStep(2);
-  };
-
-  const handleNextStep2 = () => {
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setLocalError('Veuillez renseigner une adresse email valide.');
-      return;
-    }
-    if (password.length < 8) {
-      setLocalError('Votre mot de passe doit contenir au moins 8 caractères.');
-      return;
-    }
-    skipDemographicsRef.current = false;
-    goToSignupStep(3);
-  };
-
   const slideVariants = {
-    enter: (dir: number) => ({
-      x: dir > 0 ? 30 : -30,
-      opacity: 0,
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-    },
-    exit: (dir: number) => ({
-      x: dir > 0 ? -30 : 30,
-      opacity: 0,
-    }),
+    enter: { x: 30, opacity: 0 },
+    center: { x: 0, opacity: 1 },
+    exit: { x: -30, opacity: 0 },
   };
 
   return (
@@ -272,49 +233,6 @@ export function LoginFormBento({
                 {authMode === 'signup' ? 'Créer un compte' : 'Connexion'}
               </h2>
               <p className="text-muted-foreground text-xs md:text-sm">{getContextSubtitle()}</p>
-
-              {/* Multi-Step Interactive Dots for Signup */}
-              {authMode === 'signup' && (
-                <div className="flex items-center justify-center gap-2 mt-3">
-                  <button
-                    type="button"
-                    onClick={() => goToSignupStep(1)}
-                    className={cn(
-                      'h-2 rounded-full transition-all cursor-pointer',
-                      signupStep === 1
-                        ? 'w-6 bg-primary'
-                        : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                    )}
-                    aria-label="Étape 1"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (name.trim() && username.trim()) goToSignupStep(2);
-                    }}
-                    className={cn(
-                      'h-2 rounded-full transition-all cursor-pointer',
-                      signupStep === 2
-                        ? 'w-6 bg-primary'
-                        : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                    )}
-                    aria-label="Étape 2"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (email.trim() && password.length >= 8) goToSignupStep(3);
-                    }}
-                    className={cn(
-                      'h-2 rounded-full transition-all cursor-pointer',
-                      signupStep === 3
-                        ? 'w-6 bg-primary'
-                        : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                    )}
-                    aria-label="Étape 3"
-                  />
-                </div>
-              )}
             </div>
 
             {/* Error display */}
@@ -346,10 +264,9 @@ export function LoginFormBento({
                 </Button>
               </div>
             ) : (
-              <AnimatePresence mode="wait" custom={direction}>
+              <AnimatePresence mode="wait">
                 <motion.div
-                  key={authMode === 'signup' ? `signup-step-${signupStep}` : authMode}
-                  custom={direction}
+                  key={authMode}
                   variants={slideVariants}
                   initial="enter"
                   animate="center"
@@ -357,78 +274,75 @@ export function LoginFormBento({
                   transition={{ duration: 0.22, ease: 'easeInOut' }}
                   className="space-y-4"
                 >
-                  {/* Signup Step 1 or Magic-Link / Password Mode */}
-                  {(authMode !== 'signup' || signupStep === 1) && (
-                    <>
-                      {/* Social Logins - Mini Bento Style */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
-                          type="button"
-                          onClick={() => handleOAuth('google')}
-                          className="w-full flex items-center p-1.5 rounded-2xl bg-muted/60 hover:bg-muted border border-border/80 transition-all group cursor-pointer"
-                        >
-                          <div className="w-9 h-9 bg-card rounded-xl flex items-center justify-center shadow-xs border border-border group-hover:scale-105 transition-transform shrink-0">
-                            <svg className="w-4 h-4 text-card-foreground" viewBox="0 0 24 24">
-                              <path
-                                fill="currentColor"
-                                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                              />
-                              <path
-                                fill="currentColor"
-                                fillOpacity="0.5"
-                                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                              />
-                              <path
-                                fill="currentColor"
-                                fillOpacity="0.3"
-                                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                              />
-                              <path
-                                fill="currentColor"
-                                fillOpacity="0.6"
-                                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                              />
-                            </svg>
-                          </div>
-                          <div className="flex-1 flex items-center justify-center pr-2">
-                            <span className="text-[12px] font-semibold text-card-foreground/80 group-hover:text-card-foreground transition-colors">
-                              Google
-                            </span>
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleOAuth('apple')}
-                          className="w-full flex items-center p-1.5 rounded-2xl bg-muted/60 hover:bg-muted border border-border/80 transition-all group cursor-pointer"
-                        >
-                          <div className="w-9 h-9 bg-card rounded-xl flex items-center justify-center shadow-xs border border-border group-hover:scale-105 transition-transform shrink-0">
-                            <svg
-                              className="w-4 h-4 text-card-foreground"
-                              viewBox="0 0 24 24"
+                  {/* Social Logins - One-Click (Google/Apple) */}
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleOAuth('google')}
+                        className="w-full flex items-center p-1.5 rounded-2xl bg-muted/60 hover:bg-muted border border-border/80 transition-all group cursor-pointer"
+                      >
+                        <div className="w-9 h-9 bg-card rounded-xl flex items-center justify-center shadow-xs border border-border group-hover:scale-105 transition-transform shrink-0">
+                          <svg className="w-4 h-4 text-card-foreground" viewBox="0 0 24 24">
+                            <path
                               fill="currentColor"
-                            >
-                              <path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.48C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.1 16.67C20.08 16.74 19.67 18.11 18.71 19.5M15.97 4.17C16.63 3.37 17.07 2.28 16.95 1C16 1.04 14.9 1.6 14.24 2.38C13.68 3.04 13.19 4.14 13.34 5.39C14.39 5.47 15.4 4.88 15.97 4.17Z" />
-                            </svg>
-                          </div>
-                          <div className="flex-1 flex items-center justify-center pr-2">
-                            <span className="text-[12px] font-semibold text-card-foreground/80 group-hover:text-card-foreground transition-colors">
-                              Apple
-                            </span>
-                          </div>
-                        </button>
-                      </div>
+                              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                            />
+                            <path
+                              fill="currentColor"
+                              fillOpacity="0.5"
+                              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                            />
+                            <path
+                              fill="currentColor"
+                              fillOpacity="0.3"
+                              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                            />
+                            <path
+                              fill="currentColor"
+                              fillOpacity="0.6"
+                              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                            />
+                          </svg>
+                        </div>
+                        <div className="flex-1 flex items-center justify-center pr-2">
+                          <span className="text-[12px] font-semibold text-card-foreground/80 group-hover:text-card-foreground transition-colors">
+                            Google
+                          </span>
+                        </div>
+                      </button>
 
-                      {/* Separator */}
-                      <div className="flex items-center gap-4 my-3 opacity-60">
-                        <div className="flex-1 h-px bg-border"></div>
-                        <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
-                          Ou
-                        </span>
-                        <div className="flex-1 h-px bg-border"></div>
-                      </div>
-                    </>
-                  )}
+                      <button
+                        type="button"
+                        onClick={() => handleOAuth('apple')}
+                        className="w-full flex items-center p-1.5 rounded-2xl bg-muted/60 hover:bg-muted border border-border/80 transition-all group cursor-pointer"
+                      >
+                        <div className="w-9 h-9 bg-card rounded-xl flex items-center justify-center shadow-xs border border-border group-hover:scale-105 transition-transform shrink-0">
+                          <svg
+                            className="w-4 h-4 text-card-foreground"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                          >
+                            <path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.48C4.25 17 2.94 12.45 4.7 9.39C5.57 7.87 7.13 6.91 8.82 6.88C10.1 6.86 11.32 7.75 12.11 7.75C12.89 7.75 14.37 6.68 15.92 6.84C16.57 6.87 18.39 7.1 19.56 8.82C19.47 8.88 17.39 10.1 17.41 12.63C17.44 15.65 20.06 16.66 20.1 16.67C20.08 16.74 19.67 18.11 18.71 19.5M15.97 4.17C16.63 3.37 17.07 2.28 16.95 1C16 1.04 14.9 1.6 14.24 2.38C13.68 3.04 13.19 4.14 13.34 5.39C14.39 5.47 15.4 4.88 15.97 4.17Z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 flex items-center justify-center pr-2">
+                          <span className="text-[12px] font-semibold text-card-foreground/80 group-hover:text-card-foreground transition-colors">
+                            Apple
+                          </span>
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Separator */}
+                    <div className="flex items-center gap-4 my-3 opacity-60">
+                      <div className="flex-1 h-px bg-border"></div>
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                        Ou
+                      </span>
+                      <div className="flex-1 h-px bg-border"></div>
+                    </div>
+                  </>
 
                   {/* Form Content by Mode */}
                   {authMode === 'magic-link' && (
@@ -507,214 +421,185 @@ export function LoginFormBento({
 
                   {authMode === 'signup' && (
                     <form onSubmit={handlePasswordSubmit} className="space-y-3">
-                      {signupStep === 1 ? (
-                        <div className="space-y-3">
-                          <div className="space-y-1">
-                            <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                              Nom complet
-                            </label>
-                            <input
-                              name="name"
-                              type="text"
-                              required
-                              value={name}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                setName(e.target.value)
-                              }
-                              placeholder="Marc Dutronc"
-                              className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                              Nom d'utilisateur
-                            </label>
-                            <input
-                              name="username"
-                              type="text"
-                              required
-                              value={username}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                setUsername(e.target.value)
-                              }
-                              placeholder="@marcdutronc"
-                              className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                            />
-                          </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
+                          Nom complet
+                        </label>
+                        <input
+                          name="name"
+                          type="text"
+                          required
+                          value={name}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setName(e.target.value)
+                          }
+                          placeholder="Marc Dutronc"
+                          className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                      </div>
 
-                          <Button
-                            type="button"
-                            onClick={handleNextStep1}
-                            className="w-full h-10 font-sans font-bold mt-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-all text-xs cursor-pointer shadow-md shadow-primary/20 flex items-center justify-center gap-1"
-                          >
-                            <span>Continuer</span>
-                            <span>→</span>
-                          </Button>
-                        </div>
-                      ) : signupStep === 2 ? (
-                        <div className="space-y-3">
-                          <div className="space-y-1">
-                            <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                              Adresse Email
-                            </label>
-                            <input
-                              name="email"
-                              type="email"
-                              required
-                              value={email}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                setEmail(e.target.value)
-                              }
-                              placeholder="vous@exemple.com"
-                              className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                            />
-                          </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
+                          Nom d'utilisateur
+                        </label>
+                        <input
+                          name="username"
+                          type="text"
+                          required
+                          value={username}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setUsername(e.target.value)
+                          }
+                          placeholder="@marcdutronc"
+                          className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                      </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                              Mot de passe
-                            </label>
-                            <input
-                              name="password"
-                              type="password"
-                              required
-                              value={password}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                setPassword(e.target.value)
-                              }
-                              placeholder="••••••••"
-                              className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                            />
-                          </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
+                          Adresse Email
+                        </label>
+                        <input
+                          name="email"
+                          type="email"
+                          required
+                          value={email}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setEmail(e.target.value)
+                          }
+                          placeholder="vous@exemple.com"
+                          className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                      </div>
 
-                          <div className="flex items-center gap-2 pt-2">
-                            <button
-                              type="button"
-                              onClick={() => goToSignupStep(1)}
-                              className="px-4 h-10 rounded-xl border border-border text-muted-foreground hover:text-card-foreground text-xs font-semibold cursor-pointer transition-colors"
-                            >
-                              ← Retour
-                            </button>
-                            <Button
-                              type="button"
-                              onClick={handleNextStep2}
-                              className="flex-1 h-10 font-sans font-bold rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-all text-xs cursor-pointer shadow-md shadow-primary/20"
-                            >
-                              Continuer →
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <div>
-                            <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-                              Qu'est-ce qui vous décrit le mieux ?
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {GENDER_OPTIONS.map((opt) => {
-                                const selected = gender === opt.value;
-                                return (
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
+                          Mot de passe
+                        </label>
+                        <input
+                          name="password"
+                          type="password"
+                          required
+                          value={password}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setPassword(e.target.value)
+                          }
+                          placeholder="••••••••"
+                          className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Démographie optionnelle — repliée par défaut pour zéro friction */}
+                      <div className="rounded-xl border border-border/60 bg-muted/20">
+                        <button
+                          type="button"
+                          onClick={() => setShowDemographics((v) => !v)}
+                          className="w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors cursor-pointer hover:bg-muted/40"
+                          aria-expanded={showDemographics}
+                        >
+                          <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                            Votre profil (optionnel)
+                          </span>
+                          <ChevronDown
+                            className={cn(
+                              'w-4 h-4 text-muted-foreground transition-transform duration-200',
+                              showDemographics && 'rotate-180'
+                            )}
+                          />
+                        </button>
+
+                        {showDemographics && (
+                          <div className="px-3 pb-3 pt-3 border-t border-border/60 space-y-3">
+                            <div>
+                              <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+                                Qu'est-ce qui vous décrit le mieux ?
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {GENDER_OPTIONS.map((opt) => {
+                                  const selected = gender === opt.value;
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => setGender(selected ? null : opt.value)}
+                                      className={cn(
+                                        'px-3 py-1.5 rounded-full border text-[11px] font-semibold transition-all cursor-pointer',
+                                        selected
+                                          ? 'bg-primary/10 border-primary text-primary'
+                                          : 'bg-muted/30 border-border text-muted-foreground hover:text-card-foreground'
+                                      )}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div>
+                              <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+                                Votre tranche d'âge
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {AGE_RANGE_OPTIONS.map((opt) => {
+                                  const selected = ageRange === opt.value;
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => setAgeRange(selected ? null : opt.value)}
+                                      className={cn(
+                                        'px-3 py-1.5 rounded-full border text-[11px] font-semibold transition-all cursor-pointer',
+                                        selected
+                                          ? 'bg-primary/10 border-primary text-primary'
+                                          : 'bg-muted/30 border-border text-muted-foreground hover:text-card-foreground'
+                                      )}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
+                                Vos pronoms (optionnel)
+                              </label>
+                              <input
+                                name="pronouns"
+                                type="text"
+                                value={pronouns}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                  setPronouns(e.target.value)
+                                }
+                                placeholder="ex: iel, il/lui, elle, they/them"
+                                className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                              />
+                              <div className="flex flex-wrap gap-1 pt-1.5">
+                                {PRONOUN_SUGGESTIONS.map((p) => (
                                   <button
-                                    key={opt.value}
+                                    key={p}
                                     type="button"
-                                    onClick={() => setGender(selected ? null : opt.value)}
-                                    className={cn(
-                                      'px-3 py-1.5 rounded-full border text-[11px] font-semibold transition-all cursor-pointer',
-                                      selected
-                                        ? 'bg-primary/10 border-primary text-primary'
-                                        : 'bg-muted/30 border-border text-muted-foreground hover:text-card-foreground'
-                                    )}
+                                    onClick={() => setPronouns(p)}
+                                    className="px-2 py-0.5 rounded-md bg-muted/40 border border-border/60 text-[10px] text-muted-foreground hover:text-card-foreground transition-colors cursor-pointer"
                                   >
-                                    {opt.label}
+                                    {p}
                                   </button>
-                                );
-                              })}
+                                ))}
+                              </div>
                             </div>
                           </div>
+                        )}
+                      </div>
 
-                          <div>
-                            <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-                              Votre tranche d'âge
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {AGE_RANGE_OPTIONS.map((opt) => {
-                                const selected = ageRange === opt.value;
-                                return (
-                                  <button
-                                    key={opt.value}
-                                    type="button"
-                                    onClick={() => setAgeRange(selected ? null : opt.value)}
-                                    className={cn(
-                                      'px-3 py-1.5 rounded-full border text-[11px] font-semibold transition-all cursor-pointer',
-                                      selected
-                                        ? 'bg-primary/10 border-primary text-primary'
-                                        : 'bg-muted/30 border-border text-muted-foreground hover:text-card-foreground'
-                                    )}
-                                  >
-                                    {opt.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                              Vos pronoms (optionnel)
-                            </label>
-                            <input
-                              name="pronouns"
-                              type="text"
-                              value={pronouns}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                setPronouns(e.target.value)
-                              }
-                              placeholder="ex: iel, il/lui, elle, they/them"
-                              className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                            />
-                            <div className="flex flex-wrap gap-1 pt-1.5">
-                              {PRONOUN_SUGGESTIONS.map((p) => (
-                                <button
-                                  key={p}
-                                  type="button"
-                                  onClick={() => setPronouns(p)}
-                                  className="px-2 py-0.5 rounded-md bg-muted/40 border border-border/60 text-[10px] text-muted-foreground hover:text-card-foreground transition-colors cursor-pointer"
-                                >
-                                  {p}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 pt-1">
-                            <button
-                              type="button"
-                              onClick={() => goToSignupStep(2)}
-                              className="px-4 h-10 rounded-xl border border-border text-muted-foreground hover:text-card-foreground text-xs font-semibold cursor-pointer transition-colors"
-                            >
-                              ← Retour
-                            </button>
-                            <Button
-                              type="submit"
-                              onClick={() => {
-                                skipDemographicsRef.current = true;
-                              }}
-                              disabled={loading}
-                              variant="outline"
-                              className="h-10 px-4 font-sans font-bold rounded-xl border-border text-muted-foreground hover:text-card-foreground text-xs cursor-pointer transition-colors"
-                            >
-                              Passer
-                            </Button>
-                            <Button
-                              type="submit"
-                              disabled={loading}
-                              className="flex-1 h-10 font-sans font-bold rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-all text-xs cursor-pointer shadow-md shadow-primary/20"
-                            >
-                              {loading ? 'Chargement...' : "S'inscrire"}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
+                      <Button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full h-10 font-sans font-bold mt-1 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-all text-xs cursor-pointer shadow-md shadow-primary/20"
+                      >
+                        {loading ? 'Chargement...' : "S'inscrire"}
+                      </Button>
                     </form>
                   )}
 
@@ -747,7 +632,6 @@ export function LoginFormBento({
               type="button"
               onClick={() => {
                 setLocalError(null);
-                setSignupStep(1);
                 setAuthMode(authMode === 'signup' ? 'magic-link' : 'signup');
               }}
               className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground hover:text-card-foreground transition-colors cursor-pointer"
