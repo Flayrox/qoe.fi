@@ -814,25 +814,27 @@ func TestEmbedding_HandleArticleEmbedding_NoEnv_Skips(t *testing.T) {
 }
 
 // TestEmbedding_HandleUserEmbedding_UpsertsVector couvre le chemin nominal :
-// user + publication (bio) seedés, URL d'embedding active, puis vérifie que
-// l'embedding du user est bien persisté sur User.embedding (recommandations
-// « créateurs similaires »).
+// user seedé avec une pensée publiée (contenu — jamais la bio), URL
+// d'embedding active, puis vérifie que l'embedding du user est bien persisté
+// sur User.embedding (recommandations « créateurs similaires »).
 func TestEmbedding_HandleUserEmbedding_UpsertsVector(t *testing.T) {
 	t.Setenv(envEmbeddingURL, "http://embed.test")
 
 	userID := "11111111-1111-1111-1111-111111111111"
 	if _, err := poolTest.Exec(context.Background(),
-		`INSERT INTO "Publication" (id, type, name, slug, bio, "createdAt", "updatedAt")
-		 VALUES ('pub_embed_001', 'PERSONAL', 'Perso Embed', 'perso-embed', 'Fan de foot et d''anime.', now(), now())`,
-	); err != nil {
-		t.Fatalf("publication: %v", err)
-	}
-	if _, err := poolTest.Exec(context.Background(),
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
-		 VALUES ($1, 'embed@test.dev', 'embeduser', 'Embed', 'creator', 'pub_embed_001', now(), now())`,
+		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+		 VALUES ($1, 'embed@test.dev', 'embeduser', 'Embed', 'creator', now(), now())`,
 		userID,
 	); err != nil {
 		t.Fatalf("user: %v", err)
+	}
+	if _, err := poolTest.Exec(context.Background(),
+		`INSERT INTO "Post" (id, content, "authorId", tags, "createdAt", "updatedAt")
+		 VALUES ('post-embed-user-001', 'Derby ce soir, le virage va chanter !', $1,
+		         ARRAY['foot','derby'], now(), now())`,
+		userID,
+	); err != nil {
+		t.Fatalf("post: %v", err)
 	}
 
 	worker := &EmbeddingWorker{
@@ -869,6 +871,14 @@ func TestEmbedding_HandleUserEmbedding_WrongDimension_Errors(t *testing.T) {
 	); err != nil {
 		t.Fatalf("user: %v", err)
 	}
+	if _, err := poolTest.Exec(context.Background(),
+		`INSERT INTO "Post" (id, content, "authorId", tags, "createdAt", "updatedAt")
+		 VALUES ('post-embed-user-002', 'Contenu de test pour la dimension.', $1,
+		         ARRAY['tech'], now(), now())`,
+		dimUserID,
+	); err != nil {
+		t.Fatalf("post: %v", err)
+	}
 
 	worker := &EmbeddingWorker{
 		pool:     poolTest,
@@ -878,5 +888,42 @@ func TestEmbedding_HandleUserEmbedding_WrongDimension_Errors(t *testing.T) {
 	payload, _ := json.Marshal(map[string]any{"userId": dimUserID})
 	if err := worker.HandleUserEmbedding(context.Background(), asynq.NewTask("embedding.user", payload)); err == nil {
 		t.Fatal("dimension 128 = nil, attendu erreur (MRL 512 attendu)")
+	}
+}
+
+// TestEmbedding_HandleUserEmbedding_NoContent_ColdStart couvre la branche où
+// l'utilisateur n'a aucun contenu publié : pas de vecteur (cold start, le
+// feed le sert par fraîcheur/engagement) et aucune erreur — surtout pas
+// d'embedding calculé depuis la bio.
+func TestEmbedding_HandleUserEmbedding_NoContent_ColdStart(t *testing.T) {
+	t.Setenv(envEmbeddingURL, "http://embed.test")
+
+	coldUserID := "33333333-3333-3333-3333-333333333333"
+	if _, err := poolTest.Exec(context.Background(),
+		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+		 VALUES ($1, 'cold@test.dev', 'colduser', 'Cold', 'user', now(), now())`,
+		coldUserID,
+	); err != nil {
+		t.Fatalf("user: %v", err)
+	}
+
+	worker := &EmbeddingWorker{
+		pool:     poolTest,
+		q:        db.New(poolTest),
+		embedder: &mockEmbedder{vec: vec1024()},
+	}
+	payload, _ := json.Marshal(map[string]any{"userId": coldUserID})
+	if err := worker.HandleUserEmbedding(context.Background(), asynq.NewTask("embedding.user", payload)); err != nil {
+		t.Fatalf("cold start doit être un no-op, pas %v", err)
+	}
+
+	var has bool
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT ("embedding" IS NOT NULL) FROM "User" WHERE id = $1`, coldUserID,
+	).Scan(&has); err != nil {
+		t.Fatalf("embedding read: %v", err)
+	}
+	if has {
+		t.Fatal("user sans contenu ne doit PAS recevoir de vecteur (pas de bio)")
 	}
 }

@@ -83,16 +83,28 @@ func TestEmbedTop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EmbedTop: %v", err)
 	}
-	if articles != len(res.Articles) {
-		t.Fatalf("articles embeddés = %d, attendu %d", articles, len(res.Articles))
+	// EmbedTop est base-wide (embedding IS NULL) : il couvre res.* + les
+	// articles canoniques et le cast « monde vivant » ajoutés par RunTop/
+	// RunWorld en dehors de res.Articles/res.Users.
+	if articles < len(res.Articles) {
+		t.Fatalf("articles embeddés = %d, attendu >= %d (res + canoniques + monde vivant)", articles, len(res.Articles))
 	}
-	if users != len(res.Users) {
-		t.Fatalf("users embeddés = %d, attendu %d", users, len(res.Users))
+	if users < len(res.Users) {
+		t.Fatalf("users embeddés = %d, attendu >= %d (res.Users + monde vivant)", users, len(res.Users))
 	}
-	// Vérifie que les embeddings sont en base.
-	if n := count(t, `SELECT COUNT(*) FROM "Article" WHERE "embedding" IS NOT NULL AND id = $1`,
-		res.Articles[0].ID); n != 1 {
-		t.Fatalf("article avec embedding = %d, attendu 1", n)
+	// Chaque article du top ET chaque user (y compris sans contenu → repli
+	// persona) ont un vecteur en base.
+	for _, a := range res.Articles {
+		if n := count(t, `SELECT COUNT(*) FROM "Article" WHERE "embedding" IS NOT NULL AND id = $1`,
+			a.ID); n != 1 {
+			t.Fatalf("article %s sans embedding après EmbedTop", a.ID)
+		}
+	}
+	for _, u := range res.Users {
+		if n := count(t, `SELECT COUNT(*) FROM "User" WHERE "embedding" IS NOT NULL AND id = $1`,
+			u.ID); n != 1 {
+			t.Fatalf("user %s sans embedding après EmbedTop", u.ID)
+		}
 	}
 
 	// URL vide → skip silencieux.
