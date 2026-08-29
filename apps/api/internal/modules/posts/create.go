@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/queue"
 )
 
 // AttachmentInput est une pièce jointe envoyée par le client.
@@ -190,6 +191,16 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 	}
 
 	s.invalidateFeedCaches(ctx, authorID)
+
+	// Embedding sémantique de la pensée (feed « Pour vous » vectoriel).
+	// Seules les pensées réellement publiées sont indexées (pas les brouillons
+	// ni les programmées) ; le job est idempotent côté worker.
+	if !in.IsDraft && in.ScheduledAt == nil {
+		if s.ac != nil {
+			_ = queue.PublishPostEmbedding(s.ac, queue.EmbeddingPayload{PostID: created.ID})
+		}
+	}
+
 	return s.Get(ctx, created.ID, authorID)
 }
 

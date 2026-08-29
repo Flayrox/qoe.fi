@@ -28,6 +28,7 @@ func main() {
 	force := flag.Bool("force", false, "ré-enqueuer TOUS les articles publiés (ré-embedding complet)")
 	meili := flag.Bool("meili", false, "re-synchroniser l'index Meilisearch (upsert idempotent des documents manquants)")
 	users := flag.Bool("users", false, "enqueuer les embeddings users manquants (WHERE embedding IS NULL)")
+	posts := flag.Bool("posts", false, "enqueuer les embeddings de pensées manquants (WHERE embedding IS NULL)")
 	flag.Parse()
 
 	_ = godotenv.Load("../../../.env")
@@ -112,6 +113,41 @@ func main() {
 			}
 		}
 		log.Printf("✅ %d tâches embedding.user enqueuées", len(ids))
+		return
+	}
+
+	if *posts {
+		rows, err := pool.Query(ctx, `SELECT id FROM "Post"
+			WHERE "embedding" IS NULL AND "deletedAt" IS NULL
+			  AND "isDraft" = false AND "isHiddenByAuthor" = false`)
+		if err != nil {
+			log.Fatalf("requête posts: %v", err)
+		}
+		defer rows.Close()
+		var ids []string
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				log.Fatalf("scan post: %v", err)
+			}
+			ids = append(ids, id)
+		}
+		if rows.Err() != nil {
+			log.Fatalf("lecture posts: %v", rows.Err())
+		}
+		if len(ids) == 0 {
+			log.Println("aucun post à enqueuer (embeddings pensées déjà faits ?)")
+			return
+		}
+		for i, id := range ids {
+			if err := queue.PublishPostEmbedding(ac, queue.EmbeddingPayload{PostID: id}); err != nil {
+				log.Printf("enqueue %s: %v", id, err)
+			}
+			if (i+1)%100 == 0 {
+				log.Printf("%d/%d posts enqueués…", i+1, len(ids))
+			}
+		}
+		log.Printf("✅ %d tâches embedding.post enqueuées", len(ids))
 		return
 	}
 

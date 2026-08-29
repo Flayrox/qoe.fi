@@ -2,6 +2,7 @@ package posts
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/testutil"
+	"github.com/qoefi/api/internal/vectorfeed"
 )
 
 var poolTest *pgxpool.Pool
@@ -35,7 +37,8 @@ func seedPosts(t *testing.T) *testutil.PostFixtures {
 
 func newTestService() *Service {
 	// Pas de Redis en test : les invalidations de cache sont des no-op (nil safe).
-	return NewService(poolTest, nil)
+	// Pas de client asynq non plus : l'enqueue embedding est best-effort (nil safe).
+	return NewService(poolTest, nil, nil)
 }
 
 // ─── Création ──────────────────────────────────────────────────────────
@@ -542,4 +545,119 @@ func TestToggleBookmark_AddThenRemove(t *testing.T) {
 	if n != 0 {
 		t.Fatalf("bookmarks après retrait = %d, attendu 0", n)
 	}
+}
+
+// TestToggleLike_UpdatesUserVector vérifie le câblage EMA : liker une pensée
+// dont l'embedding existe déplace le vecteur de l'utilisateur vers lui
+// (package vectorfeed — base de la personnalisation « Pour vous »).
+func TestToggleLike_UpdatesUserVector(t *testing.T) {
+	fx := seedPosts(t)
+	svc := newTestService()
+	ctx := context.Background()
+
+	// Donne un embedding 512d au post (profil « foot ») et un vecteur neutre
+	// au user (profil « lecture ») — dimensions alignées.
+	footVec := make([]float32, 512)
+	for i := range footVec {
+		footVec[i] = 0.01
+	}
+	footVec[0] = 1.0
+	neutralVec := make([]float32, 512)
+	neutralVec[1] = 1.0
+
+	if _, err := poolTest.Exec(ctx, `UPDATE "Post" SET embedding=$1::vector WHERE id=$2`,
+		vectorLit(footVec), fx.PostID); err != nil {
+		t.Fatalf("post embedding: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx, `UPDATE "User" SET embedding=$1::vector WHERE id=$2`,
+		vectorLit(neutralVec), fx.ViewerID); err != nil {
+		t.Fatalf("user embedding: %v", err)
+	}
+
+	if _, err := svc.ToggleLike(ctx, fx.PostID, fx.ViewerID); err != nil {
+		t.Fatalf("ToggleLike: %v", err)
+	}
+
+	// Le vecteur du user doit avoir bougé vers le post : EMA α=0.08 (LIKE),
+	// new = 0.92·neutre + 0.08·foot normalisé. La composante dans la direction
+	// « foot » (axe 0) passe de 0 à ≈0.087 — signe que le profil s'est rapproché.
+	var ue string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COALESCE("embedding"::text,'') FROM "User" WHERE id=$1`, fx.ViewerID).Scan(&ue); err != nil {
+		t.Fatalf("lecture embedding: %v", err)
+	}
+	vec, ok := vectorfeed.ParseLit(strings.TrimSpace(ue))
+	if !ok || len(vec) < 2 {
+		t.Fatalf("embedding user illisible (len=%d)", len(ue))
+	}
+	if vec[0] < 0.05 {
+		t.Fatalf("composante foot (axe 0) = %.3f, attendu >= 0.05 (EMA non appliquée ?)", vec[0])
+	}
+	// Le profil reste majoritairement sur son axe initial (un like ne doit pas
+	// tout changer) mais il s'est rapproché du post liké.
+	if vec[1] < 0.9 {
+		t.Fatalf("composante axe 1 = %.3f, attendu >= 0.9 (mouvement trop fort pour un like)", vec[1])
+	}
+}
+
+// TestToggleBookmark_UpdatesUserVector vérifie le câblage EMA du bookmark :
+// sauvegarder un article (intention forte, α=0.16 BOOKMARK) déplace le vecteur
+// de l'utilisateur vers l'embedding de l'article.
+func TestToggleBookmark_UpdatesUserVector(t *testing.T) {
+	fx := seedPosts(t)
+	svc := newTestService()
+	ctx := context.Background()
+
+	footVec := make([]float32, 512)
+	for i := range footVec {
+		footVec[i] = 0.01
+	}
+	footVec[0] = 1.0
+	neutralVec := make([]float32, 512)
+	neutralVec[1] = 1.0
+
+	if _, err := poolTest.Exec(ctx, `UPDATE "Article" SET embedding=$1::vector WHERE id=$2`,
+		vectorLit(footVec), fx.ArticleID); err != nil {
+		t.Fatalf("article embedding: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx, `UPDATE "User" SET embedding=$1::vector WHERE id=$2`,
+		vectorLit(neutralVec), fx.ViewerID); err != nil {
+		t.Fatalf("user embedding: %v", err)
+	}
+
+	bookmarked, err := svc.ToggleBookmark(ctx, fx.ArticleID, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("ToggleBookmark: %v", err)
+	}
+	if !bookmarked {
+		t.Fatal("bookmark attendu à true")
+	}
+
+	var ue string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COALESCE("embedding"::text,'') FROM "User" WHERE id=$1`, fx.ViewerID).Scan(&ue); err != nil {
+		t.Fatalf("lecture embedding: %v", err)
+	}
+	vec, ok := vectorfeed.ParseLit(strings.TrimSpace(ue))
+	if !ok || len(vec) < 2 {
+		t.Fatalf("embedding user illisible (len=%d)", len(ue))
+	}
+	// BOOKMARK α=0.16 → composante foot ≈ 0.16 après normalisation (> celle
+	// d'un like à 0.08 : le bookmark est un signal d'intention plus fort).
+	if vec[0] < 0.12 {
+		t.Fatalf("composante foot (axe 0) = %.3f, attendu >= 0.12 (EMA bookmark non appliquée ?)", vec[0])
+	}
+}
+
+func vectorLit(v []float32) string {
+	var b strings.Builder
+	b.WriteByte('[')
+	for i, x := range v {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(fmt.Sprintf("%f", x))
+	}
+	b.WriteByte(']')
+	return b.String()
 }

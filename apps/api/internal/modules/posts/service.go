@@ -5,14 +5,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/cache"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/vectorfeed"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -39,10 +42,11 @@ type Service struct {
 	pool *pgxpool.Pool
 	q    *db.Queries
 	rc   *redis.Client
+	ac   *asynq.Client
 }
 
-func NewService(pool *pgxpool.Pool, rc *redis.Client) *Service {
-	return &Service{pool: pool, q: db.New(pool), rc: rc}
+func NewService(pool *pgxpool.Pool, rc *redis.Client, ac *asynq.Client) *Service {
+	return &Service{pool: pool, q: db.New(pool), rc: rc, ac: ac}
 }
 
 // invalidateFeedCaches invalide les caches Redis du feed (miroir TS).
@@ -265,7 +269,28 @@ func (s *Service) ToggleLike(ctx context.Context, postID, userID string) (bool, 
 	if err := notifyLike(ctx, tq, postID, userID); err != nil {
 		return false, err
 	}
-	return true, tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
+	}
+
+	// 🧠 EMA vectorielle : aimer une pensée rapproche le profil de son thème
+	// (fire-and-forget — ne bloque jamais le like).
+	s.applyPostVector(ctx, postID, userID, vectorfeed.InteractionLike)
+	return true, nil
+}
+
+// applyPostVector récupère l'embedding d'un post et déplace le vecteur de
+// l'utilisateur vers lui (EMA). No-op si le post n'est pas encore embeddé.
+func (s *Service) applyPostVector(ctx context.Context, postID, userID string, it vectorfeed.InteractionType) {
+	var txt string
+	if err := s.pool.QueryRow(ctx, `SELECT COALESCE("embedding"::text,'') FROM "Post" WHERE id=$1`, postID).Scan(&txt); err != nil || strings.TrimSpace(txt) == "" {
+		return
+	}
+	vec, ok := vectorfeed.ParseLit(txt)
+	if !ok {
+		return
+	}
+	_ = vectorfeed.ApplyInteraction(ctx, s.pool, userID, vec, it)
 }
 
 // ToggleRepost ajoute ou retire un repost pur, avec mise à jour du compteur.
@@ -339,7 +364,25 @@ func (s *Service) ToggleBookmark(ctx context.Context, targetID, userID string) (
 		}
 		return false, err
 	}
+
+	// 🧠 EMA vectorielle : sauvegarder un article = intention forte (signe
+	// « save » d'Instagram / playlist de Netflix) → rapproche le profil du thème.
+	s.applyArticleVector(ctx, targetID, userID, vectorfeed.InteractionBookmark)
 	return true, nil
+}
+
+// applyArticleVector récupère l'embedding d'un article et déplace le vecteur
+// de l'utilisateur vers lui (EMA). No-op si l'article n'est pas encore embeddé.
+func (s *Service) applyArticleVector(ctx context.Context, articleID, userID string, it vectorfeed.InteractionType) {
+	var txt string
+	if err := s.pool.QueryRow(ctx, `SELECT COALESCE("embedding"::text,'') FROM "Article" WHERE id=$1`, articleID).Scan(&txt); err != nil || strings.TrimSpace(txt) == "" {
+		return
+	}
+	vec, ok := vectorfeed.ParseLit(txt)
+	if !ok {
+		return
+	}
+	_ = vectorfeed.ApplyInteraction(ctx, s.pool, userID, vec, it)
 }
 
 // VotePoll enregistre le vote d'un utilisateur sur une option de sondage

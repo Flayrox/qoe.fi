@@ -146,6 +146,20 @@ func PublishUserEmbedding(c *asynq.Client, p EmbeddingPayload) error {
 	return err
 }
 
+// PublishPostEmbedding enqueue un job de génération d'embedding de pensée (post).
+func PublishPostEmbedding(c *asynq.Client, p EmbeddingPayload) error {
+	if c == nil {
+		return nil
+	}
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	task := asynq.NewTask(TaskPostEmbedding, payload, asynq.MaxRetry(5), asynq.Timeout(120*time.Second))
+	_, err = c.Enqueue(task, asynq.Queue("low"))
+	return err
+}
+
 // PublishSubscriberCreated enqueue l'événement subscriber.created.
 func PublishSubscriberCreated(c *asynq.Client, p SubscriberCreatedPayload) error {
 	if c == nil {

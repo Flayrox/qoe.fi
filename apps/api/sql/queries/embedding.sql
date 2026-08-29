@@ -6,6 +6,14 @@ UPDATE "Article" SET "embedding" = $2, "updatedAt" = now() WHERE id = $1;
 -- Écrit le vecteur d'un utilisateur/publication (profil).
 UPDATE "User" SET "embedding" = $2 WHERE id = $1;
 
+-- name: UpsertPostEmbedding :exec
+-- Écrit le vecteur d'une pensée (généré par le worker jina-embeddings-v3).
+UPDATE "Post" SET "embedding" = $2, "updatedAt" = now() WHERE id = $1;
+
+-- name: GetPostForEmbedding :one
+-- Retourne le contenu + tags + auteur d'une pensée pour calculer son vecteur.
+SELECT id, content, tags, "authorId" FROM "Post" WHERE id = $1;
+
 -- name: GetArticleEmbeddingText :one
 -- Retourne le vecteur d'un article sous forme texte ('' si absent). Le scan
 -- d'un type vector NULL n'est pas géré par pgvector-go → on cast en texte.

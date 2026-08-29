@@ -186,7 +186,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 	// Feed & Posts : lecture publique (auth optionnelle : threads, trending, posts, profil, engagement).
 	feedHandler := feed.NewHandler(feed.NewService(pool, rc))
-	postsHandler := posts.NewHandler(posts.NewService(pool, rc))
+	postsHandler := posts.NewHandler(posts.NewService(pool, rc, asynqClient))
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
 		feedHandler.RegisterPublic(pub)
 		postsHandler.RegisterPublic(pub)

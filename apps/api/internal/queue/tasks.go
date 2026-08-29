@@ -12,6 +12,7 @@ const (
 	TaskSearchSync        = "search.sync"
 	TaskArticleEmbedding  = "embedding.article"
 	TaskUserEmbedding     = "embedding.user"
+	TaskPostEmbedding     = "embedding.post"
 )
 
 // SearchSyncPayload est un job de sync Meilisearch (upsert/delete).
@@ -50,10 +51,11 @@ type SubscriberCreatedPayload struct {
 	CreatedAt     string `json:"createdAt"`
 }
 
-// EmbeddingPayload est un job de génération d'embedding (article ou user).
+// EmbeddingPayload est un job de génération d'embedding (article, user ou post).
 type EmbeddingPayload struct {
 	ArticleID string `json:"articleId,omitempty"`
 	UserID    string `json:"userId,omitempty"`
+	PostID    string `json:"postId,omitempty"`
 }
 
 // PostLikedPayload est le payload de TaskPostLiked.

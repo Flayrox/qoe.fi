@@ -195,6 +195,8 @@ type Querier interface {
 	GetPollOptionsByIDs(ctx context.Context, dollar_1 []string) ([]PollOption, error)
 	GetPollsByIDs(ctx context.Context, dollar_1 []string) ([]GetPollsByIDsRow, error)
 	GetPostAuthor(ctx context.Context, id string) (string, error)
+	// Retourne le contenu + tags + auteur d'une pensée pour calculer son vecteur.
+	GetPostForEmbedding(ctx context.Context, id string) (GetPostForEmbeddingRow, error)
 	GetPostThread(ctx context.Context, arg GetPostThreadParams) ([]GetPostThreadRow, error)
 	GetPostsByIDs(ctx context.Context, arg GetPostsByIDsParams) ([]GetPostsByIDsRow, error)
 	GetPremiumActiveSubscribers(ctx context.Context, publicationid string) ([]GetPremiumActiveSubscribersRow, error)
@@ -418,6 +420,8 @@ type Querier interface {
 	UpsertMediaMember(ctx context.Context, arg UpsertMediaMemberParams) error
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) error
 	UpsertOAuthConsent(ctx context.Context, arg UpsertOAuthConsentParams) error
+	// Écrit le vecteur d'une pensée (généré par le worker jina-embeddings-v3).
+	UpsertPostEmbedding(ctx context.Context, arg UpsertPostEmbeddingParams) error
 	UpsertPromo(ctx context.Context, arg UpsertPromoParams) (UpsertPromoRow, error)
 	UpsertSubscriberPayment(ctx context.Context, arg UpsertSubscriberPaymentParams) (string, error)
 	UpsertSystemConfig(ctx context.Context, arg UpsertSystemConfigParams) (SystemConfig, error)

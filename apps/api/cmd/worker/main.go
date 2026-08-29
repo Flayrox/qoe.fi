@@ -63,6 +63,7 @@ func main() {
 	mux.HandleFunc(queue.TaskSearchSync, searchWorker.HandleSearchSync)
 	mux.HandleFunc(queue.TaskArticleEmbedding, embeddingWorker.HandleArticleEmbedding)
 	mux.HandleFunc(queue.TaskUserEmbedding, embeddingWorker.HandleUserEmbedding)
+	mux.HandleFunc(queue.TaskPostEmbedding, embeddingWorker.HandlePostEmbedding)
 
 	srv := queue.NewServer(cfg.RedisURL, 10)
 	if srv == nil {

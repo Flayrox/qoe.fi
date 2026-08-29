@@ -495,6 +495,54 @@ func TestEmbedding_HandleArticleEmbedding_UpsertsVector(t *testing.T) {
 	}
 }
 
+func TestEmbedding_HandlePostEmbedding_UpsertsVector(t *testing.T) {
+	t.Setenv(envEmbeddingURL, "http://embed.test")
+
+	// Une pensée racine du seed posts (contenu + tags).
+	var postID string
+	if err := poolTest.QueryRow(context.Background(),
+		`INSERT INTO "Post" (id, content, "authorId", tags, "createdAt", "updatedAt")
+		 VALUES ('post-embed-test', 'Le foot, c''est la seule religion qui rassemble. #ligue1',
+		         (SELECT id FROM "User" LIMIT 1), ARRAY['foot','ligue1'], now(), now())
+		 RETURNING id`,
+	).Scan(&postID); err != nil {
+		t.Fatalf("seed post: %v", err)
+	}
+
+	worker := &EmbeddingWorker{
+		pool:     poolTest,
+		q:        db.New(poolTest),
+		embedder: &mockEmbedder{vec: vec1024()},
+	}
+	payload, _ := json.Marshal(map[string]any{"postId": postID})
+	if err := worker.HandlePostEmbedding(context.Background(), asynq.NewTask("embedding.post", payload)); err != nil {
+		t.Fatalf("HandlePostEmbedding: %v", err)
+	}
+
+	var has bool
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT ("embedding" IS NOT NULL) FROM "Post" WHERE id = $1`, postID,
+	).Scan(&has); err != nil {
+		t.Fatalf("embedding read: %v", err)
+	}
+	if !has {
+		t.Fatal("embedding post non persisté en base")
+	}
+}
+
+func TestEmbedding_HandlePostEmbedding_MissingID_Errors(t *testing.T) {
+	t.Setenv(envEmbeddingURL, "http://embed.test")
+	worker := &EmbeddingWorker{
+		pool:     poolTest,
+		q:        db.New(poolTest),
+		embedder: &mockEmbedder{vec: vec1024()},
+	}
+	payload, _ := json.Marshal(map[string]any{})
+	if err := worker.HandlePostEmbedding(context.Background(), asynq.NewTask("embedding.post", payload)); err == nil {
+		t.Fatal("postId manquant devrait être une erreur")
+	}
+}
+
 func TestEmbedding_HandleArticleEmbedding_WrongDimension_Errors(t *testing.T) {
 	t.Setenv(envEmbeddingURL, "http://embed.test")
 	fx, err := testutil.SeedArticles(context.Background(), poolTest)
