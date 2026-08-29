@@ -23,7 +23,7 @@ var errNotFound = errors.New("introuvable")
 
 // Service porte les lectures publiques des publications.
 type Service struct {
-	pool *pgxpool.Pool
+	pool pooler
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
