@@ -1,45 +1,59 @@
 #!/bin/bash
 # =====================================================================
-# 💾 restore-top-db.sh — Restaure la DB top du top depuis backups/
+# 💾 restore-top-db.sh — Restaure la fausse DB de test depuis backups/
 # =====================================================================
-# Usage: ./scripts/restore-top-db.sh
-# Restaure backups/top-db-20260822.sql.gz (main) + umami-20260822.sql.gz
-# Nécessite: DATABASE_URL, UMAMI_DATABASE_URL dans .env
+# Usage: ./scripts/restore-top-db.sh [-y]
+#
+# Restaure le dump le PLUS RÉCENT de backups/top-db-*.sql.gz (base
+# applicative) + backups/umami-*.sql.gz (umami) dans le conteneur de
+# dev (qoefi-dev-db).
+#
+# ⚠️ DESTRUCTIF : remplace intégralement les bases postgres et umami
+# du conteneur de dev. Confirmation demandée, sauf avec -y.
+# Pour créer un dump : ./scripts/backup-top-db.sh
 # =====================================================================
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MAIN_BACKUP="$REPO_ROOT/backups/top-db-20260822.sql.gz"
-UMAMI_BACKUP="$REPO_ROOT/backups/umami-20260822.sql.gz"
+BACKUP_DIR="${BACKUP_DIR:-$REPO_ROOT/backups}"
+DB_CONTAINER="${DB_CONTAINER:-qoefi-dev-db}"
+FORCE="${1:-}"
 
-if [ ! -f "$MAIN_BACKUP" ]; then
-  echo "❌ Backup main introuvable: $MAIN_BACKUP"
+# Le dump le plus récent par date (tri lexicographique = tri chronologique
+# avec le format YYYYMMDD).
+MAIN_BACKUP="$(ls -1 "$BACKUP_DIR"/top-db-*.sql.gz 2>/dev/null | sort | tail -n 1 || true)"
+if [ -z "$MAIN_BACKUP" ]; then
+  echo "❌ Aucun backup trouvé dans $BACKUP_DIR (top-db-*.sql.gz)."
+  echo "   Lance d'abord : ./scripts/backup-top-db.sh"
   exit 1
 fi
+UMAMI_BACKUP="${MAIN_BACKUP/top-db/umami}"
 
-# Load .env
-if [ -f "$REPO_ROOT/.env" ]; then
-  set -a
-  source "$REPO_ROOT/.env"
-  set +a
+echo "💾 Dump à restaurer : $(basename "$MAIN_BACKUP")"
+if [ ! -f "$UMAMI_BACKUP" ]; then
+  echo "⚠️ Backup umami manquant ($UMAMI_BACKUP) — umami ne sera pas restaurée."
 fi
 
-DB_URL="${DATABASE_URL:-}"
-if [ -z "$DB_URL" ]; then
-  echo "❌ DATABASE_URL manquant dans .env"
-  exit 1
+if [ "$FORCE" != "-y" ]; then
+  read -r -p "⚠️  Ceci REMPLACE les bases postgres et umami de $DB_CONTAINER. Continuer ? [y/N] " answer
+  if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
+    echo "Abandon."
+    exit 0
+  fi
 fi
 
-echo "💾 Restauration main DB depuis $MAIN_BACKUP ..."
-gunzip -c "$MAIN_BACKUP" | psql "$DB_URL" 2>&1 | tail -n 20
-echo "✅ Main DB restaurée"
+echo "💾 Restauration base applicative (postgres)..."
+docker exec -i "$DB_CONTAINER" \
+  pg_restore -U postgres -d postgres --clean --if-exists --no-owner \
+  < "$MAIN_BACKUP"
+echo "✅ Base applicative restaurée"
 
-if [ -f "$UMAMI_BACKUP" ] && [ -n "${UMAMI_DATABASE_URL:-}" ]; then
-  echo "📊 Restauration Umami DB depuis $UMAMI_BACKUP ..."
-  gunzip -c "$UMAMI_BACKUP" | psql "$UMAMI_DATABASE_URL" 2>&1 | tail -n 20
+if [ -f "$UMAMI_BACKUP" ]; then
+  echo "📊 Restauration umami..."
+  docker exec -i "$DB_CONTAINER" \
+    pg_restore -U postgres -d umami --clean --if-exists --no-owner \
+    < "$UMAMI_BACKUP"
   echo "✅ Umami restaurée"
-else
-  echo "ℹ️ Umami backup ou UMAMI_DATABASE_URL manquant — skip"
 fi
 
-echo "✨ Top DB restaurée avec succès ! (500 users, 200 articles, 1480 posts, 5723 lectures, 10.5k Umami)"
+echo "✨ Restauration terminée : $(du -h "$MAIN_BACKUP" | cut -f1) depuis $(basename "$MAIN_BACKUP")"
