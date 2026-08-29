@@ -110,9 +110,14 @@ func validateDestructiveDatabase(rawDSN string) error {
 }
 
 func mustVersion(v string) int64 {
-	n, err := strconv.ParseInt(v, 10, 64)
+	n, err := parseVersion(v)
 	if err != nil {
 		log.Fatalf("version invalide %q", v)
 	}
 	return n
+}
+
+// parseVersion parse une version de migration (séparé pour être testable).
+func parseVersion(v string) (int64, error) {
+	return strconv.ParseInt(v, 10, 64)
 }
