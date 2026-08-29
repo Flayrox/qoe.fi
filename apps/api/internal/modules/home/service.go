@@ -10,7 +10,7 @@ import (
 )
 
 type Service struct {
-	pool *pgxpool.Pool
+	pool pooler
 	q    *db.Queries
 }
 
