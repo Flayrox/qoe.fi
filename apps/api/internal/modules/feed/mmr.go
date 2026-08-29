@@ -2,23 +2,23 @@ package feed
 
 import "math"
 
-// mmrDupThreshold est le seuil de « quasi-duplicat » de la pénalité MMR :
-// deux items dont la similarité cosinus est sous ce seuil (ex. deux pensées
-// du même milieu, sim 0.6-0.8) ne se pénalisent PAS — ils restent ensemble
-// dans la page. Au-dessus (deux vraies copies, sim 0.9+), la pénalité monte
-// linéairement jusqu'à pleine à sim 1.0. C'est la variante « soft duplicate
-// tax » du MMR : elle enlève la redondance sans jamais étaler la page hors
-// du milieu de l'utilisateur (mesuré avec recsys-eval : le MMR classique
-// faisait chuter la pureté du feed, ex. foot 62 % → 42 %).
-const mmrDupThreshold = 0.92
-
 // dupSim transforme une similarité brute en pénalité de redondance : 0 sous
-// le seuil mmrDupThreshold (aucune pénalité), 1 à similarité parfaite.
-func dupSim(sim float64) float64 {
-	if sim <= mmrDupThreshold {
+// le seuil de quasi-duplicat (aucune pénalité), 1 à similarité parfaite.
+//
+// threshold est le seuil de « quasi-duplicat » : deux items dont la similarité
+// cosinus est sous ce seuil (ex. deux pensées du même milieu, sim 0.6-0.8) ne
+// se pénalisent PAS — ils restent ensemble dans la page. Au-dessus (deux
+// vraies copies, sim 0.9+), la pénalité monte linéairement jusqu'à pleine à
+// sim 1.0. C'est la variante « soft duplicate tax » du MMR : elle enlève la
+// redondance sans jamais étaler la page hors du milieu de l'utilisateur
+// (mesuré avec recsys-eval : le MMR classique faisait chuter la pureté du
+// feed, ex. foot 62 % → 42 %). Le seuil est pilotable via SystemConfig
+// (feed.mmr_dup_threshold).
+func dupSim(sim, threshold float64) float64 {
+	if sim <= threshold {
 		return 0
 	}
-	return (sim - mmrDupThreshold) / (1 - mmrDupThreshold)
+	return (sim - threshold) / (1 - threshold)
 }
 
 // mmrSelect applique la sélection par Maximal Marginal Relevance
@@ -38,8 +38,8 @@ func dupSim(sim float64) float64 {
 // pensées quasi identiques écrites par deux auteurs différents.
 //	// `lambda` contrôle l'arbitrage : 1.0 = pertinence pure (pas de diversité),
 	// 0.0 = diversité pure. Le défaut du moteur est 0.7 (pertinence dominante),
-	// et la similarité passe par dupSim : sous mmrDupThreshold (0.85), deux
-	// items ne se pénalisent pas — seules les quasi-copies sont écartées.
+	// et la similarité passe par dupSim : sous `dupThreshold`, deux items ne se
+	// pénalisent pas — seules les quasi-copies sont écartées.
 	//
 	// Les embeddings manquants (map absente ou vecteur vide) sont traités comme
 	// orthogonaux (similarité 0) : la sélection retombe alors sur l'ordre de
@@ -48,7 +48,7 @@ func dupSim(sim float64) float64 {
 	// Retourne les ids retenus dans l'ordre de sélection (≤ maxItems), le premier
 	// étant l'item le plus pertinent (aucun item n'est encore sélectionné, la
 	// pénalité de redondance est nulle).
-func mmrSelect(ids []string, scores map[string]float64, embs map[string][]float32, maxItems int, lambda float64) []string {
+func mmrSelect(ids []string, scores map[string]float64, embs map[string][]float32, maxItems int, lambda, dupThreshold float64) []string {
 	if maxItems <= 0 || len(ids) == 0 {
 		return nil
 	}
@@ -66,7 +66,7 @@ func mmrSelect(ids []string, scores map[string]float64, embs map[string][]float3
 			if lambda < 1 {
 				var maxDup float64 // pénalité de redondance max face à la sélection
 				for _, s := range selected {
-					if d := dupSim(cosine(embs[id], embs[s])); d > maxDup {
+					if d := dupSim(cosine(embs[id], embs[s]), dupThreshold); d > maxDup {
 						maxDup = d
 					}
 				}
