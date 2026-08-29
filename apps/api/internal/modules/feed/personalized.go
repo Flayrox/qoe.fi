@@ -53,6 +53,25 @@ const (
 	cfTopNeighbors   = 10
 	cfStatusWeights  = `CASE status WHEN 'READ_COMPLETE' THEN 1.0 WHEN 'READ_PARTIAL' THEN 0.6 WHEN 'SKIM' THEN 0.3 ELSE 0.1 END`
 	showMoreBoostMul = 0.12
+
+	// ⚡ Trending — vélocité d'engagement des dernières heures. C'est le signal
+	// « ce qui monte vite » des plateformes (TikTok/Reddit) : un contenu qui
+	// explose sur 48h ne doit pas attendre que son compteur cumulatif rattrape
+	// les vieux contenus populaires.
+	//
+	// ⚠️ Leçon mesurée (recsys-eval) : en composante séparée du rerank, la
+	// vélocité est un bruit global (identique pour tous les users) qui, ajouté
+	// à fraîcheur+engagement, noyait la personalisation (foot 62 % → 31 %,
+	// gaming 48 % → 30 %). On la fond donc DANS l'engagement :
+	// eng_effectif = max(engagement cumulatif, vélocité) — un post « chaud »
+	// monte sans jamais ajouter de poids global au rerank.
+	velWindowHours   = 48
+	velPostTarget    = 8  // ≥ 8 likes+réponses+reposts récents / 48h → vélocité max (pensées)
+	velArticleTarget = 20 // ≥ 20 sessions de lecture pondérées / 48h → vélocité max (articles)
+
+	// 🔀 MMR — facteur de pertinence λ (Maximal Marginal Relevance). 0.7 = la
+	// pertinence domine, la diversité sémantique arbitre à la marge. Voir mmr.go.
+	mmrLambda = 0.7
 )
 
 // getCircadianProfile mirrors TS getCircadianProfile.
@@ -408,9 +427,19 @@ type EngineResult struct {
 
 // Constantes d'exploration ε-greedy — miroir feed.ts.
 const (
-	explorationRatioDefault = 0.12
-	explorationMinQuality   = 0.8
-	explorationCfgKey       = "feed.exploration_ratio"
+	explorationRatioDefault    = 0.12
+	explorationMinQuality      = 0.8
+	explorationCfgKey          = "feed.exploration_ratio"
+	explorationCfgKeyCold      = "feed.exploration_ratio_cold" // taux pour les profils froids
+	explorationCfgKeyMinSignals = "feed.exploration_min_signals" // nb de signaux (likes+lectures) pour être « mature »
+
+	// 🎯 Exploration adaptative : un profil froid (peu de signaux) explore ~2×
+	// plus qu'un profil mature — il n'a pas encore de vecteur fiable pour
+	// personnaliser, donc on lui montre du contenu hors bulle (anti-cold-start,
+	// comportement bandit type TikTok). Un profil mature explore moins pour ne
+	// pas diluer sa bulle.
+	explorationRatioColdDefault   = 0.22
+	explorationMinSignalsDefault  = 10
 )
 
 // articleCandidate est un article brut extrait pour le reranking.
@@ -492,6 +521,10 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 	// Feedback positif explicite : « Voir plus » → items proches du contenu
 	// félicité boostés (miroir de impPenalty ; sûr même sans SHOW_MORE).
 	showMoreBoost := s.getShowMoreBoost(ctx, userID, artIDs, thIDs)
+	// ⚡ Trending : vélocité d'engagement des 48 dernières heures. Complément de
+	// l'engagement cumulatif : un post qui monte vite ne doit pas attendre que
+	// son compteur (likeCount…) rattrape les vieux contenus populaires.
+	artVel, thVel := s.getVelocityScores(ctx, artIDs, thIDs)
 
 	// Reranking circadien des articles.
 	for i := range articles {
@@ -503,6 +536,12 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 		circFit := computeCircadianFit(float64(readMin), circadian.TargetReadingMinutes, circadian.SigmaMinutes)
 		eng := 0.5
 		if v, ok := engScores[a.id]; ok {
+			eng = v
+		}
+		// ⚡ Trending : l'engagement effectif = max(cumulatif, vélocité 48h). Un
+		// article « chaud » (sessions récentes) est traité comme populaire sans
+		// ajouter de composante globale au rerank (cf. constante velWindowHours).
+		if v, ok := artVel[a.id]; ok && v > eng {
 			eng = v
 		}
 		sim, fresh := a.sim, a.freshness
@@ -547,6 +586,12 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 			morningBonus = 0.1
 		}
 		cfT := cfThoughtMap[t.id]
+		// ⚡ Trending : même fusion que pour les articles — l'engagement effectif
+		// = max(cumulatif, vélocité 48h) : une pensée « chaude » monte sans
+		// ajouter de composante globale au rerank.
+		if v, ok := thVel[t.id]; ok && v > eng {
+			eng = v
+		}
 		t.score = 0.40*sim + 0.22*fresh + 0.18*eng + 0.10*morningBonus + 0.10*cfT
 		if impPenalty[t.id] {
 			t.score *= 0.6
@@ -557,15 +602,16 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 	}
 	sort.Slice(thoughts, func(i, j int) bool { return thoughts[i].score > thoughts[j].score })
 
-	// MMR diversité : max 2 par auteur, puis découpe aux cibles circadiennes.
-	divA := applyDiversity(articles, 2, func(a articleCandidate) string { return a.authorID })
-	divT := applyDiversity(thoughts, 2, func(t thoughtCandidate) string { return t.authorID })
-	if len(divA) > targetArticles {
-		divA = divA[:targetArticles]
-	}
-	if len(divT) > targetThoughts {
-		divT = divT[:targetThoughts]
-	}
+	// 🔀 MMR sémantique (voir mmr.go) : on remplace l'ancien plafond par-auteur
+	// par une pénalité de redondance réelle — un candidat proche (cosinus
+	// item-item) d'un item déjà retenu dans la page perd des points, même s'il
+	// est écrit par un autre auteur. Les embeddings des candidats sont chargés
+	// en une requête par type ; en cas d'échec (map vide), mmrSelect retombe
+	// sur l'ordre de pertinence pur (repli sûr).
+	artEmb := s.fetchCandidateEmbeddings(ctx, "Article", artIDs)
+	thEmb := s.fetchCandidateEmbeddings(ctx, "Post", thIDs)
+	divA := pickArticles(articles, mmrSelect(articleIDs(articles), articleScores(articles), artEmb, targetArticles, mmrLambda))
+	divT := pickThoughts(thoughts, mmrSelect(thoughtIDs(thoughts), thoughtScores(thoughts), thEmb, targetThoughts, mmrLambda))
 
 	// Interleaving harmonieux selon le profil circadien.
 	aItems := make([]EngineItem, 0, len(divA))
@@ -721,18 +767,158 @@ func readSimMap(rows pgx.Rows, out map[string]float64) {
 }
 
 // applyDiversity garde au plus maxPer items par clé (MMR simple, ordre préservé).
-func applyDiversity[T any](items []T, maxPer int, key func(T) string) []T {
-	counts := map[string]int{}
-	out := make([]T, 0, len(items))
-	for _, it := range items {
-		k := key(it)
-		if counts[k] >= maxPer {
-			continue
+// articleScores extrait la map id → score de pertinence après rerank (pour MMR).
+func articleScores(as []articleCandidate) map[string]float64 {
+	m := make(map[string]float64, len(as))
+	for _, a := range as {
+		m[a.id] = a.score
+	}
+	return m
+}
+
+// thoughtScores extrait la map id → score de pertinence après rerank (pour MMR).
+func thoughtScores(ts []thoughtCandidate) map[string]float64 {
+	m := make(map[string]float64, len(ts))
+	for _, t := range ts {
+		m[t.id] = t.score
+	}
+	return m
+}
+
+// pickArticles réordonne les candidats dans l'ordre de sélection du MMR.
+func pickArticles(as []articleCandidate, ids []string) []articleCandidate {
+	byID := make(map[string]articleCandidate, len(as))
+	for _, a := range as {
+		byID[a.id] = a
+	}
+	out := make([]articleCandidate, 0, len(ids))
+	for _, id := range ids {
+		if a, ok := byID[id]; ok {
+			out = append(out, a)
 		}
-		out = append(out, it)
-		counts[k]++
 	}
 	return out
+}
+
+// pickThoughts réordonne les candidats dans l'ordre de sélection du MMR.
+func pickThoughts(ts []thoughtCandidate, ids []string) []thoughtCandidate {
+	byID := make(map[string]thoughtCandidate, len(ts))
+	for _, t := range ts {
+		byID[t.id] = t
+	}
+	out := make([]thoughtCandidate, 0, len(ids))
+	for _, id := range ids {
+		if t, ok := byID[id]; ok {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// getVelocityScores calcule la vélocité d'engagement des dernières
+// velWindowHours (48h) pour les candidats — le signal « trending » type
+// TikTok/Reddit : un contenu qui monte vite ne doit pas attendre que son
+// compteur cumulatif (likeCount, sessions totales…) rattrape les vieux
+// contenus populaires. Complète l'engagement cumulatif dans le rerank.
+//
+// Pensées : likes récents + réponses/reposts récents (posts enfants créés
+// dans la fenêtre). Articles : sessions de lecture récentes pondérées par le
+// statut (mêmes poids que l'engagement cumulatif).
+//
+// Retourne deux maps id → score ∈ [0, 1] (0 = aucun signal récent, 1 = post
+// « chaud »). Une erreur de lecture → map vide : le feed continue, la
+// vélocité est un bonus, jamais un blocage.
+func (s *Service) getVelocityScores(ctx context.Context, artIDs, thIDs []string) (map[string]float64, map[string]float64) {
+	artVel := map[string]float64{}
+	thVel := map[string]float64{}
+
+	// Pensées : likes + réponses/reposts dans la fenêtre.
+	if len(thIDs) > 0 {
+		rows, err := s.pool.Query(ctx, `
+			SELECT p.id,
+			       (SELECT count(*)::float8 FROM "Like" l
+			         WHERE l."postId" = p.id
+			           AND l."createdAt" > now() - make_interval(hours => $2))
+			     + (SELECT count(*)::float8 FROM "Post" r
+			         WHERE (r."parentId" = p.id OR r."repostId" = p.id)
+			           AND r."createdAt" > now() - make_interval(hours => $2)
+			           AND r."deletedAt" IS NULL) AS recent
+			FROM "Post" p
+			WHERE p.id = ANY($1::text[])`, thIDs, velWindowHours)
+		if err == nil {
+			for rows.Next() {
+				var id string
+				var recent float64
+				if rows.Scan(&id, &recent) == nil {
+					thVel[id] = math.Min(1.0, recent/velPostTarget)
+				}
+			}
+			rows.Close()
+		}
+	}
+
+	// Articles : sessions de lecture récentes, pondérées par le statut.
+	if len(artIDs) > 0 {
+		rows, err := s.pool.Query(ctx, `
+			SELECT rs."articleId",
+			       sum(CASE rs.status WHEN 'READ_COMPLETE' THEN 1.0
+			                          WHEN 'READ_PARTIAL' THEN 0.6
+			                          WHEN 'SKIM' THEN 0.3 ELSE 0.1 END)::float8 AS recent
+			FROM "ReadingSession" rs
+			WHERE rs."articleId" = ANY($1::text[])
+			  AND rs."createdAt" > now() - make_interval(hours => $2)
+			GROUP BY rs."articleId"`, artIDs, velWindowHours)
+		if err == nil {
+			for rows.Next() {
+				var id string
+				var recent float64
+				if rows.Scan(&id, &recent) == nil {
+					artVel[id] = math.Min(1.0, recent/velArticleTarget)
+				}
+			}
+			rows.Close()
+		}
+	}
+	return artVel, thVel
+}
+
+// fetchCandidateEmbeddings charge les embeddings des candidats (table
+// "Article" ou "Post") pour la sélection MMR. Une erreur de lecture → map
+// vide : mmrSelect retombe alors sur l'ordre de pertinence pur (repli sûr,
+// le feed ne se bloque jamais à cause de la diversité).
+func (s *Service) fetchCandidateEmbeddings(ctx context.Context, table string, ids []string) map[string][]float32 {
+	out := map[string][]float32{}
+	if len(ids) == 0 {
+		return out
+	}
+	// table est une constante du package ("Article"/"Post") — jamais de saisie
+	// utilisateur : l'interpolation %q est sûre ici.
+	rows, err := s.pool.Query(ctx, fmt.Sprintf(`SELECT id, embedding::text FROM %q WHERE id = ANY($1::text[])`, table), ids)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, txt string
+		if rows.Scan(&id, &txt) != nil {
+			continue
+		}
+		if v, ok := parseEmbeddingText(txt); ok {
+			out[id] = v.Slice()
+		}
+	}
+	return out
+}
+
+// pickExplorationRatio choisit le taux d'exploration selon la maturité du
+// profil : un utilisateur froid (signaux < minSignals) explore davantage car
+// son vecteur ne permet pas encore de personnaliser finement ; un profil
+// mature explore moins pour ne pas diluer sa bulle. Fonction pure (testable).
+func pickExplorationRatio(signals int, coldRatio, warmRatio float64, minSignals int) float64 {
+	if signals < minSignals {
+		return coldRatio
+	}
+	return warmRatio
 }
 
 // interleaveEngine mélange articles/pensées selon le mode circadien.
@@ -904,11 +1090,40 @@ func (s *Service) readConfig(ctx context.Context, key string) string {
 
 // injectDiscovery implémente l'exploration ε-greedy : injecte ~ratio d'articles
 // de qualité hors des publications suivies (positions fixes [3,8]).
-func (s *Service) injectDiscovery(ctx context.Context, userID string, items []EngineItem, limit int) []EngineItem {
-	ratio := explorationRatioDefault
-	if v, err := strconv.ParseFloat(s.readConfig(ctx, explorationCfgKey), 64); err == nil && v >= 0 && v <= 0.5 {
-		ratio = v
+// explorationRatio résout le taux d'exploration adaptatif. Priorité aux clés
+// SystemConfig (feed.exploration_ratio_cold, feed.exploration_min_signals,
+// feed.exploration_ratio), défauts du code sinon. La maturité = signaux
+// explicites (likes + sessions de lecture) : les impressions ne comptent pas,
+// voir sans agir n'est pas un signal. En cas d'erreur de lecture → taux
+// « mature » (prudent, peu d'exploration).
+func (s *Service) explorationRatio(ctx context.Context, userID string) float64 {
+	if userID == "" {
+		return explorationRatioDefault
 	}
+	cold := explorationRatioColdDefault
+	if v, err := strconv.ParseFloat(s.readConfig(ctx, explorationCfgKeyCold), 64); err == nil && v >= 0 && v <= 0.5 {
+		cold = v
+	}
+	warm := explorationRatioDefault
+	if v, err := strconv.ParseFloat(s.readConfig(ctx, explorationCfgKey), 64); err == nil && v >= 0 && v <= 0.5 {
+		warm = v
+	}
+	minSignals := explorationMinSignalsDefault
+	if v, err := strconv.Atoi(s.readConfig(ctx, explorationCfgKeyMinSignals)); err == nil && v >= 0 && v <= 1000 {
+		minSignals = v
+	}
+	var signals int
+	if err := s.pool.QueryRow(ctx, `
+		SELECT (SELECT count(*) FROM "Like" WHERE "userId" = $1)
+		     + (SELECT count(*) FROM "ReadingSession" WHERE "userId" = $1)`,
+		toUUID(userID)).Scan(&signals); err != nil {
+		return warm
+	}
+	return pickExplorationRatio(signals, cold, warm, minSignals)
+}
+
+func (s *Service) injectDiscovery(ctx context.Context, userID string, items []EngineItem, limit int) []EngineItem {
+	ratio := s.explorationRatio(ctx, userID)
 	slots := int(math.Round(float64(limit) * ratio))
 	if slots <= 0 {
 		return items
@@ -946,7 +1161,14 @@ func (s *Service) injectDiscovery(ctx context.Context, userID string, items []En
 		return items
 	}
 	defer drows.Close()
-	positions := []int{3, 8}
+	// Positions d'injection réparties uniformément sur la page (l'ancien
+	// tableau fixe {3, 8} plafonnait l'exploration à 2 slots, ce qui rendait
+	// le taux adaptatif sans effet au-delà). Ex. : 2 slots sur 10 → positions
+	// 3 et 6 ; 4 slots sur 20 → 4, 8, 12, 16.
+	positions := make([]int, 0, slots)
+	for i := 0; i < slots; i++ {
+		positions = append(positions, int(math.Round(float64(limit)*float64(i+1)/float64(slots+1))))
+	}
 	k := 0
 	for drows.Next() {
 		var id string
