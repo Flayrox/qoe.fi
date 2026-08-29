@@ -89,21 +89,33 @@ func TestEmbedTop(t *testing.T) {
 	if articles < len(res.Articles) {
 		t.Fatalf("articles embeddés = %d, attendu >= %d (res + canoniques + monde vivant)", articles, len(res.Articles))
 	}
-	if users < len(res.Users) {
-		t.Fatalf("users embeddés = %d, attendu >= %d (res.Users + monde vivant)", users, len(res.Users))
-	}
-	// Chaque article du top ET chaque user (y compris sans contenu → repli
-	// persona) ont un vecteur en base.
+	// Chaque article du top a un vecteur en base.
 	for _, a := range res.Articles {
 		if n := count(t, `SELECT COUNT(*) FROM "Article" WHERE "embedding" IS NOT NULL AND id = $1`,
 			a.ID); n != 1 {
 			t.Fatalf("article %s sans embedding après EmbedTop", a.ID)
 		}
 	}
+	// Contrat users : un user a un vecteur ssi il a du contenu — pensées
+	// publiées OU lectures à signal positif (ReadingSessions: 0 retombe sur
+	// le défaut 5700 dans defaults()). Plus de repli bio : un compte sans
+	// aucune activité reste en cold start, comme en prod.
+	withSignal := count(t, `SELECT COUNT(*) FROM "User" u WHERE (
+		EXISTS (SELECT 1 FROM "Post" p WHERE p."authorId" = u.id
+		  AND p."embedding" IS NOT NULL AND p."deletedAt" IS NULL
+		  AND p."isDraft" = false AND p."isHiddenByAuthor" = false)
+		OR EXISTS (SELECT 1 FROM "ReadingSession" rs WHERE rs."userId" = u.id
+		  AND rs.status IN ('READ_COMPLETE','READ_PARTIAL','SKIM'))
+	)`)
+	if users != withSignal {
+		t.Fatalf("users embeddés = %d, attendu %d (comptes avec pensées ou lectures)", users, withSignal)
+	}
 	for _, u := range res.Users {
-		if n := count(t, `SELECT COUNT(*) FROM "User" WHERE "embedding" IS NOT NULL AND id = $1`,
-			u.ID); n != 1 {
-			t.Fatalf("user %s sans embedding après EmbedTop", u.ID)
+		posts := count(t, `SELECT COUNT(*) FROM "Post" WHERE "authorId" = $1 AND "deletedAt" IS NULL AND "isDraft" = false`, u.ID)
+		reads := count(t, `SELECT COUNT(*) FROM "ReadingSession" WHERE "userId" = $1 AND status IN ('READ_COMPLETE','READ_PARTIAL','SKIM')`, u.ID)
+		has := count(t, `SELECT COUNT(*) FROM "User" WHERE "embedding" IS NOT NULL AND id = $1`, u.ID)
+		if (posts > 0 || reads > 0) != (has == 1) {
+			t.Fatalf("user %s : posts=%d reads=%d embedding=%d — attendu vecteur ssi (pensées ou lecture)", u.ID, posts, reads, has)
 		}
 	}
 
@@ -123,6 +135,52 @@ func TestEmbedTop(t *testing.T) {
 		t.Fatalf("EmbedTop(bad server) = %v", err)
 	}
 	_ = fmt.Sprint(a3, u3)
+}
+
+// TestEmbedTop_UsersFromReading couvre la dérivation des users par la
+// lecture : un compte sans pensée mais avec des sessions à signal positif
+// (READ_PARTIAL/COMPLETE/SKIM) reçoit un vecteur issu de ce qu'il lit ; un
+// compte 100% bounces reste en cold start (comme l'EMA prod).
+func TestEmbedTop_UsersFromReading(t *testing.T) {
+	ctx := context.Background()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		vec := make([]float64, 512)
+		for i := range vec {
+			vec[i] = 0.05
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": []any{map[string]any{"embedding": vec}},
+		})
+	}))
+	defer srv.Close()
+
+	res, err := RunTop(ctx, poolTest, TopOptions{
+		Users: 10, Articles: 4, Posts: 2, ReadingSessions: 60,
+		CreatorsRatio: 0.5, PremiumRatio: 0.1,
+	})
+	if err != nil {
+		t.Fatalf("RunTop: %v", err)
+	}
+	if _, _, err := EmbedTop(ctx, poolTest, res, srv.URL); err != nil {
+		t.Fatalf("EmbedTop: %v", err)
+	}
+
+	// Contrat : vecteur ⟺ (≥1 pensée) OU (≥1 session à signal positif).
+	checked := 0
+	for _, u := range res.Users {
+		posts := count(t, `SELECT COUNT(*) FROM "Post" WHERE "authorId" = $1 AND "deletedAt" IS NULL AND "isDraft" = false`, u.ID)
+		reads := count(t, `SELECT COUNT(*) FROM "ReadingSession" WHERE "userId" = $1 AND status IN ('READ_COMPLETE','READ_PARTIAL','SKIM')`, u.ID)
+		has := count(t, `SELECT COUNT(*) FROM "User" WHERE "embedding" IS NOT NULL AND id = $1`, u.ID)
+		want := posts > 0 || reads > 0
+		if (has == 1) != want {
+			t.Fatalf("user %s : posts=%d reads=%d has=%d — attendu vecteur ssi (pensées ou lecture)", u.ID, posts, reads, has)
+		}
+		checked++
+	}
+	if checked == 0 {
+		t.Fatal("aucun user vérifié")
+	}
 }
 
 func TestVectorLiteralInDB(t *testing.T) {
