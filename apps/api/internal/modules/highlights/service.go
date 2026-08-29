@@ -6,12 +6,14 @@ package highlights
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/vectorfeed"
 )
 
 // Author est l'auteur d'un surlignage ou d'un commentaire d'annotation.
@@ -171,6 +173,16 @@ func (s *Service) Create(ctx context.Context, articleID, readerID, text string, 
 	})
 	if err != nil {
 		return Highlight{}, err
+	}
+	// 🧠 EMA vectorielle : surligner = l'engagement le plus profond (on a
+	// vraiment lu le passage) → rapproche fortement le profil du thème.
+	if readerID != "" {
+		var emb string
+		if err := s.pool.QueryRow(ctx, `SELECT COALESCE("embedding"::text,'') FROM "Article" WHERE id=$1`, articleID).Scan(&emb); err == nil && strings.TrimSpace(emb) != "" {
+			if vec, ok := vectorfeed.ParseLit(emb); ok {
+				_ = vectorfeed.ApplyInteraction(ctx, s.pool, readerID, vec, vectorfeed.InteractionHighlight)
+			}
+		}
 	}
 	row, err := s.q.GetHighlightByID(ctx, id)
 	if err != nil {
