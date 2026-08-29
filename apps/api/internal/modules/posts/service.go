@@ -40,13 +40,13 @@ type Author struct {
 
 type Service struct {
 	pool *pgxpool.Pool
-	q    *db.Queries
+	q    ServiceQuerier
 	rc   *redis.Client
 	ac   *asynq.Client
 }
 
 func NewService(pool *pgxpool.Pool, rc *redis.Client, ac *asynq.Client) *Service {
-	return &Service{pool: pool, q: db.New(pool), rc: rc, ac: ac}
+	return &Service{pool: pool, q: &realQueryer{Queries: db.New(pool)}, rc: rc, ac: ac}
 }
 
 // invalidateFeedCaches invalide les caches Redis du feed (miroir TS).

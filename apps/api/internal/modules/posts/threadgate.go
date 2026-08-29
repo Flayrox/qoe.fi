@@ -85,7 +85,7 @@ func (s *Service) CanReply(ctx context.Context, thoughtID, userID string) (CanRe
 }
 
 // replyNotifications notifie les participants du fil (REPLY) et les @mentions (MENTION).
-func (s *Service) replyNotifications(ctx context.Context, tq *db.Queries, replyID, replyAuthor string, parentID, rootID string, content string) error {
+func (s *Service) replyNotifications(ctx context.Context, tq db.Querier, replyID, replyAuthor string, parentID, rootID string, content string) error {
 	recipients := make(map[string]string) // userId -> type
 
 	add := func(uid, kind string) {
@@ -118,7 +118,7 @@ func (s *Service) replyNotifications(ctx context.Context, tq *db.Queries, replyI
 }
 
 // createReplyNotification insère REPLY/MENTION (dédup + préférences).
-func createReplyNotification(ctx context.Context, tq *db.Queries, kind, recipientID, senderID, thoughtID string) error {
+func createReplyNotification(ctx context.Context, tq db.Querier, kind, recipientID, senderID, thoughtID string) error {
 	recipientUUID := toUUID(recipientID)
 	senderUUID := toUUID(senderID)
 
