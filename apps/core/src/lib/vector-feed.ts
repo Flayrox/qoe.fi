@@ -417,19 +417,37 @@ export async function buildVectorFeedPage(params: {
 }): Promise<VectorFeedPageResult> {
   const { userId = null, limit = 20, offset = 0 } = params;
   // Le moteur Go calcule hasMore ; il renvoie déjà au plus `limit` items.
-  const { items: engineItems, hasMore } = await getCachedEnginePage(userId, limit, offset);
+  let enginePage: EnginePage;
+  try {
+    enginePage = await getCachedEnginePage(userId, limit, offset);
+  } catch (error) {
+    // Le moteur vectoriel reste optionnel : la home doit continuer à servir
+    // le feed classique pendant une panne ou une réindexation du backend Go.
+    console.warn('[vector-feed] personalized feed unavailable', error);
+    return { items: [], hasMore: false, nextOffset: offset };
+  }
+  const { items: engineItems, hasMore } = enginePage;
 
   const pageItems = engineItems.slice(0, limit);
 
   // Réhydratation 100% Go : articles complets + pensées (FeedSlice).
-  const { articles, thoughts } = await goFetch<HydrateResponse>('/v1/feed/hydrate', {
-    method: 'POST',
-    body: { items: pageItems },
-  });
+  let hydrated: HydrateResponse;
+  try {
+    hydrated = await goFetch<HydrateResponse>('/v1/feed/hydrate', {
+      method: 'POST',
+      body: { items: pageItems },
+    });
+  } catch (error) {
+    console.warn('[vector-feed] feed hydration unavailable', error);
+    return { items: [], hasMore, nextOffset: offset };
+  }
+  const { articles, thoughts } = hydrated;
 
   // Le JSON Go respecte le contrat Prisma lu par mapArticleToFeedItem.
-  const vectorArticles = articles as unknown as ArticleWithDetails[];
-  const vectorSlices = thoughts;
+  const vectorArticles = Array.isArray(articles)
+    ? (articles as unknown as ArticleWithDetails[])
+    : [];
+  const vectorSlices = Array.isArray(thoughts) ? thoughts : [];
   const articleById = new Map(vectorArticles.map((a) => [a.id, a]));
   const sliceById = new Map(vectorSlices.map((s) => [s.id, s]));
 
