@@ -100,9 +100,41 @@ export function PostMenuButton({
     }
   };
 
+  // ❤️ « Voir plus de contenu comme ça » — préférence positive explicite :
+  // ContentFeedback SHOW_MORE + rapprochement vectoriel (EMA positif).
+  const onShowMore = async () => {
+    setOpen(false);
+    if (busy) return;
+    setBusy(true);
+    const res = await apiClient.showMore({ thoughtId: post.id });
+    setBusy(false);
+    if (res.ok) {
+      Toast.show(t('post.show_more_done', 'Tu verras plus de contenu comme ça.'), 'success');
+      await queryClient.invalidateQueries({ queryKey: feedKeys.all });
+    } else {
+      Toast.show(res.error, 'error');
+    }
+  };
+
   const onStub = (label: string) => {
     setOpen(false);
     Toast.show(t('post.coming_soon', `${label} — bientôt disponible`));
+  };
+
+  // 🚫 « Voir moins de contenu comme ça » — feedback négatif explicite :
+  // exclusion SQL (ContentFeedback) + éloignement vectoriel (EMA négatif).
+  const onShowLess = async () => {
+    setOpen(false);
+    if (busy) return;
+    setBusy(true);
+    const res = await apiClient.showLess({ thoughtId: post.id });
+    setBusy(false);
+    if (res.ok) {
+      Toast.show(t('post.show_less_done', 'Tu verras moins de contenu comme ça.'), 'success');
+      await queryClient.invalidateQueries({ queryKey: feedKeys.all });
+    } else {
+      Toast.show(res.error, 'error');
+    }
   };
 
   const onMute = async () => {
@@ -260,13 +292,14 @@ export function PostMenuButton({
         key: 'more',
         label: t('post.show_more', 'Voir plus de contenu comme ça'),
         icon: ICON.smile,
-        onPress: () => onStub('Feedback envoyé'),
+        onPress: () => void onShowMore(),
+        disabled: busy,
       },
       {
         key: 'less',
         label: t('post.show_less', 'Voir moins de contenu comme ça'),
         icon: ICON.sad,
-        onPress: () => onStub('Feedback envoyé'),
+        onPress: () => void onShowLess(),
       },
     ],
   });

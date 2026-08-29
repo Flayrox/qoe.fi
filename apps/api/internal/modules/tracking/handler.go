@@ -22,6 +22,7 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Post("/v1/tracking/reading-session", h.track)
 	r.Post("/v1/tracking/feed-impression", h.feedImpression)
 	r.Post("/v1/feed/show-less", h.showLess)
+	r.Post("/v1/feed/show-more", h.showMore)
 }
 
 // RegisterReader ajoute les routes du parcours lecteur connecté (auth requise).
@@ -141,4 +142,38 @@ func (h *Handler) showLess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]interface{}{"success": true, "hidden": true, "vectorAdjusted": vectorAdjusted, "feedbackId": feedbackID})
+}
+
+func (h *Handler) showMore(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Non authentifié")
+		return
+	}
+	var body struct {
+		ArticleID *string `json:"articleId"`
+		ThoughtID *string `json:"thoughtId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	articleID := ""
+	if body.ArticleID != nil {
+		articleID = *body.ArticleID
+	}
+	thoughtID := ""
+	if body.ThoughtID != nil {
+		thoughtID = *body.ThoughtID
+	}
+	if articleID == "" && thoughtID == "" {
+		response.BadRequest(w, "articleId ou thoughtId requis")
+		return
+	}
+	feedbackID, vectorAdjusted, err := h.svc.TrackShowMore(r.Context(), userID, articleID, thoughtID)
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]interface{}{"success": true, "featured": true, "vectorAdjusted": vectorAdjusted, "feedbackId": feedbackID})
 }

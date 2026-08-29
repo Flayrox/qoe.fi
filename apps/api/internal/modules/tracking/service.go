@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/vectorfeed"
 )
 
 type Service struct {
@@ -119,34 +120,27 @@ func (s *Service) updateUserVector(ctx context.Context, userID, articleID, statu
 	if err != nil || !embeddingText.Valid || embeddingText.String == "" {
 		return err
 	}
-	str := embeddingText.String
-	// Strip brackets and parse
-	// Reuse the same logic as feed's updateUserVectorOnInteraction: EMA 0.1 for READ_COMPLETE, 0.06 for READ_PARTIAL
-	// For simplicity, we just call the existing feed logic if available via raw SQL
-	// Here we do a minimal EMA: fetch user embedding, blend, and upsert
-	var userEmbedding pgtype.Text
-	_ = s.pool.QueryRow(ctx, `SELECT COALESCE("embedding"::text, '') FROM "User" WHERE id=$1`, toUUID(userID)).Scan(&userEmbedding)
-	// If either is empty, skip
-	if !userEmbedding.Valid || userEmbedding.String == "" {
-		// No user vector yet, set to article vector
-		_, _ = s.pool.Exec(ctx, `UPDATE "User" SET embedding = $1::vector WHERE id=$2`, str, toUUID(userID))
+	// EMA normalisée (package partagé vectorfeed) : lecture complétée déplace
+	// plus le profil qu'une lecture partielle. Fire-and-forget best-effort.
+	vec, ok := vectorfeed.ParseLit(embeddingText.String)
+	if !ok {
 		return nil
 	}
-	// Simple EMA: new = 0.9*old + 0.1*article (for READ_COMPLETE) or 0.94*old + 0.06*article (for READ_PARTIAL)
-	alpha := 0.06
-	if status == "READ_COMPLETE" {
-		alpha = 0.1
+	// Calibrage par statut (dwell time gating, comme TikTok/Netflix) :
+	//   READ_COMPLETE  → fort positif (complétion)
+	//   READ_PARTIAL   → positif faible
+	//   SKIM           → clic passif (à peine positif)
+	//   BOUNCE         → négatif implicite (l'utilisateur a quitté tout de suite)
+	switch status {
+	case "READ_COMPLETE":
+		return vectorfeed.ApplyInteraction(ctx, s.pool, userID, vec, vectorfeed.InteractionReadComplete)
+	case "SKIM":
+		return vectorfeed.ApplyInteraction(ctx, s.pool, userID, vec, vectorfeed.InteractionClick)
+	case "BOUNCE":
+		return vectorfeed.ApplyNegative(ctx, s.pool, userID, vec, 0.06)
+	default:
+		return vectorfeed.ApplyInteraction(ctx, s.pool, userID, vec, vectorfeed.InteractionReadPartial)
 	}
-	// Parse and blend in Go would require pgvector-go, but we can do SQL-side:
-	// UPDATE "User" SET embedding = (embedding * (1-alpha) + $1::vector * alpha) WHERE id=$2
-	// Postgres pgvector supports arithmetic via extension? Use raw.
-	_, _ = s.pool.Exec(ctx, `
-		UPDATE "User" SET embedding = (
-			SELECT (u.embedding * (1 - $1) + $2::vector * $1)
-			FROM "User" u WHERE u.id = $3
-		) WHERE id = $3
-	`, alpha, str, toUUID(userID))
-	return nil
 }
 
 // TrackFeedImpression enregistre un batch d'impressions (IntersectionObserver) + purge 30j.
@@ -241,13 +235,63 @@ func (s *Service) TrackShowLess(ctx context.Context, userID, articleID, thoughtI
 	var embeddingText pgtype.Text
 	_ = s.pool.QueryRow(ctx, `SELECT COALESCE("embedding"::text, '') FROM "`+table+`" WHERE id=$1`, targetID).Scan(&embeddingText)
 	if embeddingText.Valid && embeddingText.String != "" {
-		// Apply negative EMA: move user vector away from item vector
-		var userEmbedding pgtype.Text
-		_ = s.pool.QueryRow(ctx, `SELECT COALESCE("embedding"::text, '') FROM "User" WHERE id=$1`, toUUID(userID)).Scan(&userEmbedding)
-		if userEmbedding.Valid && userEmbedding.String != "" {
-			// Negative feedback: embedding = embedding - 0.05 * itemVector (gentle push away)
-			_, _ = s.pool.Exec(ctx, `UPDATE "User" SET embedding = (embedding - $1::vector * 0.05) WHERE id=$2`, embeddingText.String, toUUID(userID))
-			vectorAdjusted = true
+		// Éloignement vectoriel normalisé (package partagé vectorfeed) :
+		// « Voir moins » est un négatif explicite → éloignement fort (0.15).
+		if vec, ok := vectorfeed.ParseLit(embeddingText.String); ok {
+			if err := vectorfeed.ApplyNegative(ctx, s.pool, userID, vec, 0.15); err == nil {
+				vectorAdjusted = true
+			}
+		}
+	}
+	return feedbackID, vectorAdjusted, nil
+}
+
+// TrackShowMore enregistre un ContentFeedback SHOW_MORE + rapprochement vectoriel
+// positif : « montre-moi plus de contenu comme ça » pousse le profil vers l'item
+// (EMA normalisé via vectorfeed, fire-and-forget best-effort).
+func (s *Service) TrackShowMore(ctx context.Context, userID, articleID, thoughtID string) (string, bool, error) {
+	if articleID == "" && thoughtID == "" {
+		return "", false, nil
+	}
+	if userID == "" {
+		return "", false, nil
+	}
+	// Upsert idempotent (même patte anti-doublon que TrackShowLess).
+	var feedbackID string
+	err := s.pool.QueryRow(ctx, `
+		INSERT INTO "ContentFeedback" (id, "userId", "articleId", "thoughtId", type, "createdAt")
+		SELECT gen_random_uuid()::text, $1, $2, $3, 'SHOW_MORE', now()
+		WHERE NOT EXISTS (
+			SELECT 1 FROM "ContentFeedback"
+			WHERE "userId" = $1
+			  AND COALESCE("articleId",'') = COALESCE($2,'')
+			  AND COALESCE("thoughtId",'') = COALESCE($3,'')
+			  AND type = 'SHOW_MORE'
+		)
+		RETURNING id
+	`, toUUID(userID), pgTextPtr(articleID), pgTextPtr(thoughtID)).Scan(&feedbackID)
+	if err == pgx.ErrNoRows {
+		// Déjà signalé « Voir plus » → récupérer l'id existant (idempotent).
+		err = s.pool.QueryRow(ctx, `SELECT id FROM "ContentFeedback" WHERE "userId"=$1 AND COALESCE("articleId",'')=COALESCE($2,'') AND COALESCE("thoughtId",'')=COALESCE($3,'') AND type='SHOW_MORE'`, toUUID(userID), pgTextPtr(articleID), pgTextPtr(thoughtID)).Scan(&feedbackID)
+	}
+	if err != nil {
+		return "", false, err
+	}
+	// Rapprochement vectoriel positif.
+	vectorAdjusted := false
+	table := "Article"
+	targetID := articleID
+	if thoughtID != "" {
+		table = "Post"
+		targetID = thoughtID
+	}
+	var embeddingText pgtype.Text
+	_ = s.pool.QueryRow(ctx, `SELECT COALESCE("embedding"::text, '') FROM "`+table+`" WHERE id=$1`, targetID).Scan(&embeddingText)
+	if embeddingText.Valid && embeddingText.String != "" {
+		if vec, ok := vectorfeed.ParseLit(embeddingText.String); ok {
+			if err := vectorfeed.ApplyInteraction(ctx, s.pool, userID, vec, vectorfeed.InteractionShowMore); err == nil {
+				vectorAdjusted = true
+			}
 		}
 	}
 	return feedbackID, vectorAdjusted, nil
