@@ -308,6 +308,38 @@ export class QoeApiClient {
   }
 
   /**
+   * POST /v1/feed/show-less — « Voir moins de contenu comme ça » : exclusion
+   * SQL (ContentFeedback) + éloignement vectoriel (EMA négatif) côté Go.
+   */
+  public async showLess(target: { thoughtId?: string; articleId?: string }) {
+    return this.request<{
+      success: boolean;
+      hidden: boolean;
+      vectorAdjusted: boolean;
+      feedbackId: string;
+    }>('/v1/feed/show-less', {
+      method: 'POST',
+      body: JSON.stringify(target),
+    });
+  }
+
+  /**
+   * POST /v1/feed/show-more — « Voir plus de contenu comme ça » : rapprochement
+   * vectoriel positif (EMA) + ContentFeedback SHOW_MORE côté Go.
+   */
+  public async showMore(target: { thoughtId?: string; articleId?: string }) {
+    return this.request<{
+      success: boolean;
+      featured: boolean;
+      vectorAdjusted: boolean;
+      feedbackId: string;
+    }>('/v1/feed/show-more', {
+      method: 'POST',
+      body: JSON.stringify(target),
+    });
+  }
+
+  /**
    * POST /v1/posts/{id}/poll/vote — vote sur un sondage (idempotent,
    * changer d'option remplace le vote). Renvoie le sondage reformaté.
    */

@@ -11,8 +11,10 @@ package tracking
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -164,6 +166,65 @@ func TestTrackReadingSession(t *testing.T) {
 	}
 }
 
+// TestTrackReadingSession_BounceMovesVectorAway vérifie le signal négatif :
+// une session BOUNCE (l'utilisateur quitte immédiatement) éloigne le vecteur
+// du profil de l'article (dwell time gating, comme les « skips » Netflix).
+func TestTrackReadingSession_BounceMovesVectorAway(t *testing.T) {
+	ctx := context.Background()
+	userID, articleID, _, _, err := seedTracking(ctx, poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	svc := newTestService()
+
+	// Profil user sur l'axe 0, article sur l'axe 1 (orthogonaux).
+	userAxis := make([]float32, 512)
+	userAxis[0] = 1.0
+	artAxis := make([]float32, 512)
+	artAxis[1] = 1.0
+	if _, err := poolTest.Exec(ctx, `UPDATE "User" SET embedding=$1::vector, "updatedAt"=now() WHERE id=$2`, vecArr(userAxis), userID); err != nil {
+		t.Fatalf("user embedding: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx, `UPDATE "Article" SET embedding=$1::vector WHERE id=$2`, vecArr(artAxis), articleID); err != nil {
+		t.Fatalf("article embedding: %v", err)
+	}
+
+	cosBefore := cosSim(t, ctx, userID, articleID)
+	if _, err := svc.TrackReadingSession(ctx, userID, articleID, "feed", "BOUNCE", 3, 2, 2, nil, nil); err != nil {
+		t.Fatalf("TrackReadingSession(BOUNCE): %v", err)
+	}
+	cosAfter := cosSim(t, ctx, userID, articleID)
+	if cosAfter >= cosBefore {
+		t.Fatalf("cos après bounce = %.4f, attendu < avant (%.4f) : le négatif n'a pas éloigné le profil", cosAfter, cosBefore)
+	}
+}
+
+// cosSim calcule la similarité cosinus user↔article (pgvector <=>).
+func cosSim(t *testing.T, ctx context.Context, userID, articleID string) float64 {
+	t.Helper()
+	var sim float64
+	if err := poolTest.QueryRow(ctx,
+		`SELECT 1-(u.embedding <=> a.embedding) FROM "User" u, "Article" a WHERE u.id=$1::uuid AND a.id=$2`,
+		userID, articleID).Scan(&sim); err != nil {
+		t.Fatalf("cos sim: %v", err)
+	}
+	return sim
+}
+
+// vecArr sérialise un []float32 en littéral vector.
+func vecArr(v []float32) string {
+	var b strings.Builder
+	b.WriteByte('[')
+	for i, x := range v {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(fmt.Sprintf("%f", x))
+	}
+	b.WriteByte(']')
+	return b.String()
+}
+
 // TestTrackFeedImpression vérifie la capture des impressions du feed :
 // filtrage des items invalides, clamp de position, userId nul autorisé.
 func TestTrackFeedImpression(t *testing.T) {
@@ -266,6 +327,79 @@ func TestTrackShowLess(t *testing.T) {
 		t.Fatalf("TrackShowLess(anon): %v", err)
 	}
 	n, _ = countRows(ctx, poolTest, `SELECT COUNT(*) FROM "ContentFeedback" WHERE "articleId"=$1 AND "userId" IS NULL`, articleID)
+	if n != 0 {
+		t.Fatalf("ContentFeedback anonyme = %d, attendu 0", n)
+	}
+}
+
+// cosSimPost calcule la similarité cosinus user↔pensée (pgvector <=>).
+func cosSimPost(t *testing.T, ctx context.Context, userID, postID string) float64 {
+	t.Helper()
+	var sim float64
+	if err := poolTest.QueryRow(ctx,
+		`SELECT 1-(u.embedding <=> p.embedding) FROM "User" u, "Post" p WHERE u.id=$1::uuid AND p.id=$2`,
+		userID, postID).Scan(&sim); err != nil {
+		t.Fatalf("cos sim (post): %v", err)
+	}
+	return sim
+}
+
+// TestTrackShowMore vérifie le « Voir plus de contenu comme ça » : insertion
+// d'un ContentFeedback SHOW_MORE (idempotent) + RAPPROCHEMENT vectoriel positif
+// vers l'item (EMA via vectorfeed).
+func TestTrackShowMore(t *testing.T) {
+	ctx := context.Background()
+	userID, _, postID, _, err := seedTracking(ctx, poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	svc := newTestService()
+
+	// Profil user sur l'axe 0, pensée sur l'axe 1 : orthogonales (cos ≈ 0),
+	// un « voir plus » doit rapprocher (cos croissant).
+	userAxis := make([]float32, 512)
+	userAxis[0] = 1.0
+	postAxis := make([]float32, 512)
+	postAxis[1] = 1.0
+	if _, err := poolTest.Exec(ctx, `UPDATE "User" SET embedding=$1::vector, "updatedAt"=now() WHERE id=$2`, vecArr(userAxis), userID); err != nil {
+		t.Fatalf("user embedding: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx, `UPDATE "Post" SET embedding=$1::vector WHERE id=$2`, vecArr(postAxis), postID); err != nil {
+		t.Fatalf("post embedding: %v", err)
+	}
+
+	cosBefore := cosSimPost(t, ctx, userID, postID)
+
+	// 1. Sur une pensée (thoughtId) : feedback SHOW_MORE + rapprochement vectoriel.
+	fbID, vectorAdjusted, err := svc.TrackShowMore(ctx, userID, "", postID)
+	if err != nil {
+		t.Fatalf("TrackShowMore(thought): %v", err)
+	}
+	if fbID == "" {
+		t.Fatal("feedbackId vide pour un post valide")
+	}
+	if !vectorAdjusted {
+		t.Fatal("vectorAdjusted = false, attendu true (embeddings présents)")
+	}
+	cosAfter := cosSimPost(t, ctx, userID, postID)
+	if cosAfter <= cosBefore {
+		t.Fatalf("cos après show-more = %.4f, attendu > avant (%.4f) : le vecteur ne s'est pas rapproché", cosAfter, cosBefore)
+	}
+
+	// 2. Idempotence : pas de doublon SHOW_MORE pour (user, post).
+	if _, _, err := svc.TrackShowMore(ctx, userID, "", postID); err != nil {
+		t.Fatalf("TrackShowMore #2: %v", err)
+	}
+	n, _ := countRows(ctx, poolTest, `SELECT COUNT(*) FROM "ContentFeedback" WHERE "userId"=$1::uuid AND "thoughtId"=$2 AND type='SHOW_MORE'`, userID, postID)
+	if n != 1 {
+		t.Fatalf("ContentFeedback SHOW_MORE = %d, attendu 1 (idempotence)", n)
+	}
+
+	// 3. Anonyme → no-op.
+	if _, _, err := svc.TrackShowMore(ctx, "", "", postID); err != nil {
+		t.Fatalf("TrackShowMore(anon): %v", err)
+	}
+	n, _ = countRows(ctx, poolTest, `SELECT COUNT(*) FROM "ContentFeedback" WHERE "thoughtId"=$1 AND "userId" IS NULL AND type='SHOW_MORE'`, postID)
 	if n != 0 {
 		t.Fatalf("ContentFeedback anonyme = %d, attendu 0", n)
 	}
