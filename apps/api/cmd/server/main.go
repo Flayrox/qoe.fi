@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os/signal"
@@ -51,18 +52,26 @@ import (
 )
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	if err := run(ctx); err != nil {
+		log.Fatalf("api: %v", err)
+	}
+}
+
+// run démarre l'API HTTP et se bloque jusqu'à l'annulation de ctx (SIGINT/
+// SIGTERM en prod), puis arrête proprement le serveur. Séparée de main() pour
+// être testable (ctx pré-annulé → cycle de vie complet sans vraies signaux).
+func run(ctx context.Context) error {
 	// Charge le .env local (apps/api/.env, synchronisé par scripts/copy-env.js)
 	// ou celui de la racine du monorepo, selon le CWD de lancement.
 	_ = godotenv.Load(".env", "../.env", "../../.env")
 
 	cfg := config.Load()
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
 	pool, err := dbpool.New(ctx, cfg.DatabaseURL, cfg.PoolSize())
 	if err != nil {
-		log.Fatalf("connexion base de données: %v", err)
+		return fmt.Errorf("connexion base de données: %w", err)
 	}
 	defer pool.Close()
 
@@ -95,18 +104,26 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
+	serveErr := make(chan error, 1)
 	go func() {
 		log.Printf("api démarré sur :%s", cfg.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("serveur: %v", err)
+			serveErr <- err
+			return
 		}
+		serveErr <- nil
 	}()
 
-	<-ctx.Done()
+	select {
+	case err := <-serveErr:
+		return err
+	case <-ctx.Done():
+	}
+
 	log.Println("arrêt en cours…")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_ = srv.Shutdown(shutdownCtx)
+	return srv.Shutdown(shutdownCtx)
 }
 
 // RouterDeps porte les dépendances partagées par newRouter (injectables en test).

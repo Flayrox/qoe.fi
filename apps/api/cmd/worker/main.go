@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"log"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -43,27 +42,16 @@ func main() {
 	embeddingWorker := workers.NewEmbeddingWorker(pool)
 
 	mux := asynq.NewServeMux()
-	mux.HandleFunc(queue.TaskArticlePublished, func(ctx context.Context, t *asynq.Task) error {
-		if err := webhookWorker.HandleProcesses(ctx, t, queue.TaskArticlePublished); err != nil {
-			return err
-		}
-		return newsletterWorker.HandleArticlePublished(ctx, t)
+	handlers := buildHandlers(workerDeps{
+		webhook:   webhookWorker,
+		newsletter: newsletterWorker,
+		stripe:    stripeWorker,
+		search:    searchWorker,
+		embedding: embeddingWorker,
 	})
-	mux.HandleFunc(queue.TaskArticleUpdated, func(ctx context.Context, t *asynq.Task) error {
-		return webhookWorker.HandleProcesses(ctx, t, queue.TaskArticleUpdated)
-	})
-	mux.HandleFunc(queue.TaskArticleDeleted, func(ctx context.Context, t *asynq.Task) error {
-		return webhookWorker.HandleProcesses(ctx, t, queue.TaskArticleDeleted)
-	})
-	mux.HandleFunc(queue.TaskSubscriberCreated, func(ctx context.Context, t *asynq.Task) error {
-		return webhookWorker.HandleProcesses(ctx, t, queue.TaskSubscriberCreated)
-	})
-	mux.HandleFunc(queue.TaskPostLiked, newsletterWorker.HandlePostLiked)
-	mux.HandleFunc(queue.TaskStripeEvent, stripeWorker.HandleStripeEvent)
-	mux.HandleFunc(queue.TaskSearchSync, searchWorker.HandleSearchSync)
-	mux.HandleFunc(queue.TaskArticleEmbedding, embeddingWorker.HandleArticleEmbedding)
-	mux.HandleFunc(queue.TaskUserEmbedding, embeddingWorker.HandleUserEmbedding)
-	mux.HandleFunc(queue.TaskPostEmbedding, embeddingWorker.HandlePostEmbedding)
+	for taskType, fn := range handlers {
+		mux.HandleFunc(taskType, fn)
+	}
 
 	srv := queue.NewServer(cfg.RedisURL, 10)
 	if srv == nil {
@@ -95,6 +83,43 @@ func main() {
 	<-ctx.Done()
 	log.Println("arrêt des workers…")
 	srv.Shutdown()
+}
 
-	_ = os.Getpid
+// workerDeps porte les workers concrets utilisés par le mux asynq (injectés
+// en test pour vérifier le câblage tâche → handler).
+type workerDeps struct {
+	webhook    *workers.WebhookWorker
+	newsletter *workers.NewsletterWorker
+	stripe     *workers.StripeWorker
+	search     *workers.SearchWorker
+	embedding  *workers.EmbeddingWorker
+}
+
+// buildHandlers exprime le mapping tâche asynq → handler worker sous forme de
+// map (testable sans démarrer de serveur). L'article publié chaîne webhooks
+// puis newsletter ; les autres tâches ont un handler unique.
+func buildHandlers(d workerDeps) map[string]asynq.HandlerFunc {
+	return map[string]asynq.HandlerFunc{
+		queue.TaskArticlePublished: func(ctx context.Context, t *asynq.Task) error {
+			if err := d.webhook.HandleProcesses(ctx, t, queue.TaskArticlePublished); err != nil {
+				return err
+			}
+			return d.newsletter.HandleArticlePublished(ctx, t)
+		},
+		queue.TaskArticleUpdated: func(ctx context.Context, t *asynq.Task) error {
+			return d.webhook.HandleProcesses(ctx, t, queue.TaskArticleUpdated)
+		},
+		queue.TaskArticleDeleted: func(ctx context.Context, t *asynq.Task) error {
+			return d.webhook.HandleProcesses(ctx, t, queue.TaskArticleDeleted)
+		},
+		queue.TaskSubscriberCreated: func(ctx context.Context, t *asynq.Task) error {
+			return d.webhook.HandleProcesses(ctx, t, queue.TaskSubscriberCreated)
+		},
+		queue.TaskPostLiked:        d.newsletter.HandlePostLiked,
+		queue.TaskStripeEvent:      d.stripe.HandleStripeEvent,
+		queue.TaskSearchSync:       d.search.HandleSearchSync,
+		queue.TaskArticleEmbedding: d.embedding.HandleArticleEmbedding,
+		queue.TaskUserEmbedding:    d.embedding.HandleUserEmbedding,
+		queue.TaskPostEmbedding:    d.embedding.HandlePostEmbedding,
+	}
 }
