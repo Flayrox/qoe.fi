@@ -1412,9 +1412,25 @@ func EmbedTop(ctx context.Context, pool *pgxpool.Pool, res *TopResult, embedding
 		return out.Data[0].Embedding, nil
 	}
 
+	// Les requêtes sont « base-wide » (embedding IS NULL) et non limitées à
+	// res.* : le wipe de RunTop préserve le casting éditorial canonique du
+	// seed de base (users + leurs articles/pensées). Ces comptes ne sont pas
+	// dans res.Users/res.Posts ; sans cette couverture, ils resteraient sans
+	// vecteur et leurs contenus ne remonteraient jamais par similarité.
+
 	articles := 0
-	for _, a := range res.Articles {
-		text := a.Title + "\n\n" + stripHTML(a.Content)
+	rows, err := pool.Query(ctx, `SELECT id, title, content FROM "Article"
+		WHERE "embedding" IS NULL AND published = true`)
+	if err != nil {
+		return 0, 0, err
+	}
+	for rows.Next() {
+		var id, title, content string
+		if err := rows.Scan(&id, &title, &content); err != nil {
+			rows.Close()
+			return articles, 0, err
+		}
+		text := title + "\n\n" + stripHTML(content)
 		// Le service d'inférence local (llama.cpp) rejette les entrées trop
 		// longues (>~2k chars, contexte court). Le titre + le début du corps
 		// suffisent pour la similarité sémantique ; on borne donc l'entrée.
@@ -1426,22 +1442,99 @@ func EmbedTop(ctx context.Context, pool *pgxpool.Pool, res *TopResult, embedding
 		}
 		vec, err := embed(text)
 		if err != nil {
-			log.Printf("[seed-top] embed article %s: %v", a.ID, err)
+			log.Printf("[seed-top] embed article %s: %v", id, err)
 			continue
 		}
 		if len(vec) > 512 {
 			vec = vec[:512]
 		}
 		if _, err := pool.Exec(ctx, `UPDATE "Article" SET embedding = $2 WHERE id = $1`,
-			a.ID, vectorLiteral(vec)); err != nil {
+			id, vectorLiteral(vec)); err != nil {
+			rows.Close()
 			return articles, 0, err
 		}
 		articles++
 	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return articles, 0, err
+	}
+	rows.Close()
 	log.Printf("[seed-top] ✔ %d articles embeddés", articles)
 
-	users := 0
+	posts := 0
+	rows, err = pool.Query(ctx, `SELECT id, content, tags FROM "Post"
+		WHERE "embedding" IS NULL AND "deletedAt" IS NULL AND "isDraft" = false`)
+	if err != nil {
+		return articles, 0, err
+	}
+	for rows.Next() {
+		var id, content string
+		var tags []string
+		if err := rows.Scan(&id, &content, &tags); err != nil {
+			rows.Close()
+			return articles, 0, err
+		}
+		text := strings.TrimSpace(content)
+		if text == "" {
+			continue
+		}
+		if len(tags) > 0 {
+			text = text + "\n\nTags : " + strings.Join(tags, ", ")
+		}
+		vec, err := embed(text)
+		if err != nil {
+			log.Printf("[seed-top] embed post %s: %v", id, err)
+			continue
+		}
+		if len(vec) > 512 {
+			vec = vec[:512]
+		}
+		if _, err := pool.Exec(ctx, `UPDATE "Post" SET embedding = $2, "updatedAt" = now() WHERE id = $1`,
+			id, vectorLiteral(vec)); err != nil {
+			rows.Close()
+			return articles, 0, err
+		}
+		posts++
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return articles, 0, err
+	}
+	rows.Close()
+	log.Printf("[seed-top] ✔ %d pensées embeddées", posts)
+
+	// Users — contenu d'abord : le profil d'un user = la moyenne des
+	// embeddings de SES pensées (jamais sa bio, cohérent avec le worker de
+	// prod). Un seul UPDATE base-wide ; les comptes sans contenu passent au
+	// repli persona ci-dessous (cold-start de démo uniquement).
+	ct, err := pool.Exec(ctx, `
+		UPDATE "User" u
+		SET embedding = m.mean, "updatedAt" = now()
+		FROM (
+			SELECT p."authorId" AS uid, avg(p."embedding") AS mean
+			FROM "Post" p
+			WHERE p."embedding" IS NOT NULL AND p."deletedAt" IS NULL
+			  AND p."isDraft" = false AND p."isHiddenByAuthor" = false
+			GROUP BY p."authorId"
+		) m
+		WHERE u.id = m.uid AND u."embedding" IS NULL`)
+	if err != nil {
+		return articles, 0, err
+	}
+	users := int(ct.RowsAffected())
+
+	// Repli persona (bio + centres d'intérêt) pour les comptes du top sans
+	// contenu — uniquement pour la démo : en prod, un user sans contenu
+	// reste en cold start (fraîcheur/engagement) jusqu'à ses interactions.
 	for _, u := range res.Users {
+		var has bool
+		if err := pool.QueryRow(ctx, `SELECT ("embedding" IS NOT NULL) FROM "User" WHERE id = $1`, u.ID).Scan(&has); err != nil {
+			continue
+		}
+		if has {
+			continue
+		}
 		bio := u.Bio
 		if bio == "" {
 			for _, p := range res.Publications {
@@ -1472,32 +1565,7 @@ func EmbedTop(ctx context.Context, pool *pgxpool.Pool, res *TopResult, embedding
 		}
 		users++
 	}
-	log.Printf("[seed-top] ✔ %d users embeddés", users)
-
-	posts := 0
-	for _, p := range res.Posts {
-		text := strings.TrimSpace(p.Content)
-		if text == "" {
-			continue
-		}
-		if len(p.Tags) > 0 {
-			text = text + "\n\nTags : " + strings.Join(p.Tags, ", ")
-		}
-		vec, err := embed(text)
-		if err != nil {
-			log.Printf("[seed-top] embed post %s: %v", p.ID, err)
-			continue
-		}
-		if len(vec) > 512 {
-			vec = vec[:512]
-		}
-		if _, err := pool.Exec(ctx, `UPDATE "Post" SET embedding = $2, "updatedAt" = now() WHERE id = $1`,
-			p.ID, vectorLiteral(vec)); err != nil {
-			return articles, users, err
-		}
-		posts++
-	}
-	log.Printf("[seed-top] ✔ %d pensées embeddées", posts)
+	log.Printf("[seed-top] ✔ %d users embeddés (contenu + repli persona)", users)
 	return articles, users, nil
 }
 

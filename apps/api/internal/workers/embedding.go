@@ -197,10 +197,14 @@ func (s *EmbeddingWorker) HandleArticleEmbedding(ctx context.Context, t *asynq.T
 	return nil
 }
 
-// HandleUserEmbedding traite TaskUserEmbedding : embedding d'un user
-// (nom + bio de sa publication) pour les recommandations « créateurs
-// similaires » (home/widgets). Idempotent ; skip propre si le service
-// d'inférence n'est pas configuré.
+// HandleUserEmbedding traite TaskUserEmbedding : embedding d'un user à
+// partir de SON CONTENU publié (ses pensées), jamais de sa bio. En prod,
+// le profil d'un user reflète ce qu'il publie/lit/like (construit par
+// l'EMA vectorfeed), pas son autodescription — la bio n'est qu'une entrée
+// de cold-start de démo (seed). Un user sans contenu reste sans vecteur
+// (cold start) : le feed classique le sert par fraîcheur/engagement et les
+// interactions construisent le vecteur au fil de l'eau. Idempotent ; skip
+// propre si le service d'inférence n'est pas configuré.
 func (s *EmbeddingWorker) HandleUserEmbedding(ctx context.Context, t *asynq.Task) error {
 	var p queue.EmbeddingPayload
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
@@ -214,19 +218,51 @@ func (s *EmbeddingWorker) HandleUserEmbedding(ctx context.Context, t *asynq.Task
 		return nil
 	}
 
-	var name, bio string
-	if err := s.pool.QueryRow(ctx, `
-		SELECT COALESCE(u.name, u.username, ''), COALESCE(p.bio, '')
-		FROM "User" u
-		LEFT JOIN "Publication" p ON p.id = u."publicationId"
-		WHERE u.id = $1`, p.UserID).Scan(&name, &bio); err != nil {
+	// Contenu publié de l'utilisateur (pensées racines + réponses), les plus
+	// récentes d'abord, borné à 50 pour borner le coût d'inférence.
+	rows, err := s.pool.Query(ctx, `
+		SELECT content, tags
+		FROM "Post"
+		WHERE "authorId" = $1 AND "deletedAt" IS NULL
+		  AND "isDraft" = false AND "isHiddenByAuthor" = false
+		ORDER BY "createdAt" DESC
+		LIMIT 50`, p.UserID)
+	if err != nil {
 		return err
 	}
-	text := strings.TrimSpace(name + "\n\n" + bio)
-	if text == "" {
+	var parts []string
+	for rows.Next() {
+		var content string
+		var tags []string
+		if err := rows.Scan(&content, &tags); err != nil {
+			rows.Close()
+			return err
+		}
+		content = strings.TrimSpace(content)
+		if content == "" {
+			continue
+		}
+		if len(tags) > 0 {
+			content += "\n\nTags : " + strings.Join(tags, ", ")
+		}
+		parts = append(parts, content)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+	if len(parts) == 0 {
+		log.Printf("[embedding] user %s sans contenu publié — cold start (pas de vecteur)", p.UserID)
 		return nil
 	}
 
+	// Même borne que les articles : le service local (llama.cpp) rejette les
+	// entrées trop longues (>~2k chars, contexte court).
+	text := strings.Join(parts, "\n\n")
+	if len(text) > 1800 {
+		text = text[:1800]
+	}
 	vector, err := s.embedder.Embed(ctx, text)
 	if err != nil {
 		return fmt.Errorf("embed user %s: %w", p.UserID, err)
@@ -241,7 +277,7 @@ func (s *EmbeddingWorker) HandleUserEmbedding(ctx context.Context, t *asynq.Task
 		p.UserID, pgvector.NewVector(vector)); err != nil {
 		return err
 	}
-	log.Printf("[embedding] user %s indexé (%d dims)", p.UserID, len(vector))
+	log.Printf("[embedding] user %s indexé (%d dims, %d pensées)", p.UserID, len(vector), len(parts))
 	return nil
 }
 
