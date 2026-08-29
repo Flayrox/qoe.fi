@@ -121,3 +121,26 @@ blob-report/
 
 # ─── Modèles d'inférence locaux (GGUF) ────────────────────
 /models/
+
+# ─── Sauvegardes et scripts premium locaux ─────────────────
+# Données de base générées localement, potentiellement volumineuses/sensibles.
+backups/premium/
+scripts/premium-snapshot.sh
+scripts/verify-premium-db.sh
+
+# ─── Fausse DB locale (seed + images) ───────────────────────
+# Tout ce qui fabrique notre base fictive reste en local : photos de
+# profil scrapées (Pinterest/Commons), catalogue d'avatars, personas,
+# scripts de téléchargement. Rien de tout ça n'est commité.
+apps/api/internal/seed/assets/avatars/
+
+# outil d'évaluation de la fausse db (recsys-eval)
+apps/api/cmd/recsys-eval/
+apps/api/recsys-eval
+apps/api/internal/seed/personas.go
+scripts/fetch-avatars.sh
+scripts/fetch-base-avatars.sh
+scripts/fetch-gaming-avatars.sh
+scripts/fetch-pinterest-avatars.sh
+scripts/fetch-themed-avatars.sh
+scripts/compress-avatars.sh

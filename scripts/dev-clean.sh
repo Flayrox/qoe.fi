@@ -27,18 +27,60 @@ warn() { echo "${C_YELLOW}  ⚠ $1${C_RESET}"; }
 # Ports des apps Next + collab-server (NE PAS tuer 15407 = API Go)
 WEB_PORTS=(15401 15402 15403 15404 15405 15406)
 
+is_infrastructure_process() {
+  local command="$1"
+  [[ "$command" == *OrbStack* || "$command" == *Docker* || "$command" == *containerd* ]]
+}
+
+stop_docker_web_container() {
+  local port="$1"
+  local container=""
+  container="$(docker ps --filter "publish=$port" --format '{{.Names}}' 2>/dev/null | head -1 || true)"
+  if [ -n "$container" ]; then
+    case "$container" in
+      qoefi-dev-core|qoefi-dev-tenants|qoefi-dev-hi|qoefi-dev-studio|qoefi-dev-admin|qoefi-dev-collab-server)
+        docker stop "$container" >/dev/null 2>&1 || true
+        echo "  → $port container=$container arrêté"
+        return 0
+        ;;
+    esac
+  fi
+  return 1
+}
+
 killed_pids=()
 for port in "${WEB_PORTS[@]}"; do
   pid="$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null | head -1 || true)"
   if [ -n "$pid" ]; then
-    cmd="$(ps -p "$pid" -o command= 2>/dev/null | head -c 60 || true)"
+    if stop_docker_web_container "$port"; then
+      continue
+    fi
+    cmd="$(ps -p "$pid" -o command= 2>/dev/null | head -c 120 || true)"
+    # OrbStack/Docker peut exposer des ports de containers sur l'hôte :
+    # ne jamais tuer ce processus système, même si le port d'une app correspond.
+    if is_infrastructure_process "$cmd"; then
+      warn "$port est exposé par l'infrastructure ($cmd) — processus conservé"
+      continue
+    fi
     killed_pids+=("$pid")
     kill "$pid" 2>/dev/null || true
     echo "  → $port pid=$pid tué  (${cmd})"
   fi
 done
 
-# Attend que les ports soient réellement libérés
+# Les ports exposés par OrbStack/Docker ne sont pas des apps web natives.
+# Ils ne doivent pas empêcher dev-up de continuer.
+for port in "${WEB_PORTS[@]}"; do
+  p="$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null | head -1 || true)"
+  [ -z "$p" ] && continue
+  cmd="$(ps -p "$p" -o command= 2>/dev/null || true)"
+  if is_infrastructure_process "$cmd"; then
+    continue
+  fi
+  kill "$p" 2>/dev/null || true
+done
+
+# Attend que les ports réellement gérés par les apps soient libérés
 for _ in $(seq 1 20); do
   any=0
   for port in "${WEB_PORTS[@]}"; do
@@ -49,8 +91,10 @@ for _ in $(seq 1 20); do
 done
 
 leaks=()
-for port in "${WEB_PORTS[@]}"; do
-  if lsof -tiTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then leaks+=("$port"); fi
+for port in "${WEB_PORTS[@]}"; do    p="$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null | head -1 || true)"
+    cmd="$(ps -p "$p" -o command= 2>/dev/null || true)"
+    if [ -n "$p" ] && ! is_infrastructure_process "$cmd"; then leaks+=("$port"); fi
+
 done
 
 if [ "${#killed_pids[@]}" = 0 ]; then
@@ -60,7 +104,7 @@ else
 fi
 
 if [ "${#leaks[@]}" -gt 0 ]; then
-  warn "ports encore occupés (à tuer à la main) : ${leaks[*]}" >&2
+  warn "ports encore occupés : ${leaks[*]}" >&2
   for port in "${leaks[@]}"; do
     p="$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null | head -1)"; [ -n "$p" ] && echo "   $port → pid $p"
   done

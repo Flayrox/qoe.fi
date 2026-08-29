@@ -45,7 +45,9 @@ export default defineConfig({
       },
     },
     {
-      command: 'pnpm --filter @qoe/core dev',
+      // `next dev` SANS -p : le flag du script dev (apps/core: "-p 15402")
+      // écraserait PORT env et le readiness check attendrait le mauvais port.
+      command: 'pnpm --filter @qoe/core exec next dev',
       port: PORT,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

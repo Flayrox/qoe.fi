@@ -42,3 +42,13 @@ http://api.localhost, http://api.qoe.test, http://api.lvh.me {
 http://*.localhost, http://*.qoe.test, http://*.lvh.me {
 	reverse_proxy localhost:15403
 }
+
+# 🧪 LASSEZ — Labo Studio (Vue) qui pilote le daemon : studio.lassez.test → 4405
+http://studio.lassez.test {
+	reverse_proxy localhost:4405
+}
+
+# 🧪 LASSEZ — Front Next.js (site public) : lassez.test → 2500
+http://lassez.test {
+	reverse_proxy localhost:2500
+}
