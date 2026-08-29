@@ -138,6 +138,10 @@ apps/api/internal/seed/assets/avatars/
 apps/api/cmd/recsys-eval/
 apps/api/recsys-eval
 apps/api/internal/seed/personas.go
+
+# Sauvegardes de la fausse DB (dumps pg_dump, souvent volumineux)
+backups/top-db-*.sql.gz
+backups/umami-*.sql.gz
 scripts/fetch-avatars.sh
 scripts/fetch-base-avatars.sh
 scripts/fetch-gaming-avatars.sh
