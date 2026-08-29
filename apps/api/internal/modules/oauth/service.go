@@ -110,7 +110,7 @@ func defaultSettings() Settings {
 // ─────────────────────────────────────────────────────────────────────
 type Service struct {
 	pool         *pgxpool.Pool
-	q            *db.Queries
+	q            oauthQuerier
 	issuer       string
 	authorizeURL string
 	signingKey   *ecdsa.PrivateKey
