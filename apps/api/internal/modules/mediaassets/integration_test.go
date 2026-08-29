@@ -35,7 +35,8 @@ func seedAssets(t *testing.T, ctx context.Context) {
 	}
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
-		 VALUES ($1, 'owner-assets@test.dev', 'ownerassets', 'Owner', 'creator', now(), now())`,
+		 VALUES ($1, 'owner-assets@test.dev', 'ownerassets', 'Owner', 'creator', now(), now())
+		 ON CONFLICT (id) DO NOTHING`,
 		assetOwnerID); err != nil {
 		t.Fatalf("user: %v", err)
 	}
