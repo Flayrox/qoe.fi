@@ -27,13 +27,19 @@ export default defineConfig({
       'packages/auth/src/**/*.test.{ts,tsx}',
       'packages/utils/src/**/*.test.{ts,tsx}',
       'packages/flags/src/**/*.test.{ts,tsx}',
+      'apps/core/src/**/*.test.{ts,tsx}',
+      'apps/mobile/src/**/*.test.{ts,tsx}',
     ],
     coverage: {
       enabled: true,
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
       reportsDirectory: 'coverage/ts',
-      include: ['packages/{sdk,auth,utils,flags}/src/**/*.ts'],
+      include: [
+        'packages/{sdk,auth,utils,flags}/src/**/*.ts',
+        'apps/core/src/**/*.ts',
+        'apps/mobile/src/**/*.ts',
+      ],
       exclude: ['**/*.test.ts', '**/*.test.tsx', '**/*.d.ts'],
       // Seuils progressifs par package, mesurés au moment de l'introduction
       // du gate (2026-08). Une baisse DOIT s'accompagner de nouveaux tests,
