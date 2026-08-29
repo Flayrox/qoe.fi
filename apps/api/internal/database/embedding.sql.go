@@ -115,6 +115,30 @@ func (q *Queries) GetArticleEmbeddingText(ctx context.Context, id string) (strin
 	return embedding_text, err
 }
 
+const getPostForEmbedding = `-- name: GetPostForEmbedding :one
+SELECT id, content, tags, "authorId" FROM "Post" WHERE id = $1
+`
+
+type GetPostForEmbeddingRow struct {
+	ID       string   `json:"id"`
+	Content  string   `json:"content"`
+	Tags     []string `json:"tags"`
+	AuthorId string   `json:"authorId"`
+}
+
+// Retourne le contenu + tags + auteur d'une pensée pour calculer son vecteur.
+func (q *Queries) GetPostForEmbedding(ctx context.Context, id string) (GetPostForEmbeddingRow, error) {
+	row := q.db.QueryRow(ctx, getPostForEmbedding, id)
+	var i GetPostForEmbeddingRow
+	err := row.Scan(
+		&i.ID,
+		&i.Content,
+		&i.Tags,
+		&i.AuthorId,
+	)
+	return i, err
+}
+
 const searchSemanticArticles = `-- name: SearchSemanticArticles :many
 SELECT a.id,
        a.title,
@@ -214,6 +238,21 @@ type UpsertArticleEmbeddingParams struct {
 // Écrit le vecteur d'un article (généré par le worker jina-embeddings-v3).
 func (q *Queries) UpsertArticleEmbedding(ctx context.Context, arg UpsertArticleEmbeddingParams) error {
 	_, err := q.db.Exec(ctx, upsertArticleEmbedding, arg.ID, arg.Embedding)
+	return err
+}
+
+const upsertPostEmbedding = `-- name: UpsertPostEmbedding :exec
+UPDATE "Post" SET "embedding" = $2, "updatedAt" = now() WHERE id = $1
+`
+
+type UpsertPostEmbeddingParams struct {
+	ID        string          `json:"id"`
+	Embedding pgvector.Vector `json:"embedding"`
+}
+
+// Écrit le vecteur d'une pensée (généré par le worker jina-embeddings-v3).
+func (q *Queries) UpsertPostEmbedding(ctx context.Context, arg UpsertPostEmbeddingParams) error {
+	_, err := q.db.Exec(ctx, upsertPostEmbedding, arg.ID, arg.Embedding)
 	return err
 }
 

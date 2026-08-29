@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pgvector/pgvector-go"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/vectorfeed"
 	"github.com/qoefi/api/internal/queue"
 )
 
@@ -241,6 +242,67 @@ func (s *EmbeddingWorker) HandleUserEmbedding(ctx context.Context, t *asynq.Task
 		return err
 	}
 	log.Printf("[embedding] user %s indexé (%d dims)", p.UserID, len(vector))
+	return nil
+}
+
+// HandlePostEmbedding traite TaskPostEmbedding : embedding d'une pensée
+// (contenu + tags) pour le feed « Pour vous » (ANN sur Post.embedding).
+// Idempotent ; skip propre si le service d'inférence n'est pas configuré.
+func (s *EmbeddingWorker) HandlePostEmbedding(ctx context.Context, t *asynq.Task) error {
+	var p queue.EmbeddingPayload
+	if err := json.Unmarshal(t.Payload(), &p); err != nil {
+		return err
+	}
+	if p.PostID == "" {
+		return fmt.Errorf("postId manquant")
+	}
+	if os.Getenv(envEmbeddingURL) == "" {
+		log.Printf("[embedding] EMBEDDING_URL non défini — skip %s", p.PostID)
+		return nil
+	}
+
+	post, err := s.q.GetPostForEmbedding(ctx, p.PostID)
+	if err != nil {
+		return err
+	}
+
+	// Contenu + tags, sans HTML. Les pensées sont courtes (≤500 car.) mais on
+	// passe par normalizeForEmbedding pour la robustesse (balises, espaces).
+	text := strings.TrimSpace(post.Content)
+	if text == "" {
+		return nil
+	}
+	if len(post.Tags) > 0 {
+		text = text + "\n\nTags : " + strings.Join(post.Tags, ", ")
+	}
+	text = normalizeForEmbedding("", text)
+	if strings.TrimSpace(text) == "" {
+		return nil
+	}
+
+	vector, err := s.embedder.Embed(ctx, text)
+	if err != nil {
+		return fmt.Errorf("embed post %s: %w", p.PostID, err)
+	}
+	dims := s.embeddingDims()
+	if len(vector) < dims {
+		return fmt.Errorf("embed post %s: dimension %d < %d", p.PostID, len(vector), dims)
+	}
+	vector = vector[:dims]
+
+	if err := s.q.UpsertPostEmbedding(ctx, db.UpsertPostEmbeddingParams{
+		ID:        p.PostID,
+		Embedding: pgvector.NewVector(vector),
+	}); err != nil {
+		return err
+	}
+	log.Printf("[embedding] post %s indexé (%d dims)", p.PostID, len(vector))
+
+	// 🧠 EMA : l'auteur « est » ce qu'il publie — son vecteur se rapproche
+	// du contenu qu'il a écrit (fire-and-forget).
+	if post.AuthorId != "" {
+		_ = vectorfeed.ApplyInteraction(ctx, s.pool, post.AuthorId, vector, vectorfeed.InteractionCreatePost)
+	}
 	return nil
 }
 
