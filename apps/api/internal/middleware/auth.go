@@ -29,10 +29,18 @@ func UserID(ctx context.Context) (string, bool) {
 	return id, ok
 }
 
-// Claims extrait les claims JWT du contexte (nil si absents).
+// Claims extrait les claims JWT du contexte (nil si absents). Le middleware
+// stocke une jwt.MapClaims (alias vers map[string]interface{}) ; on accepte
+// les deux formes pour rester robuste.
 func Claims(ctx context.Context) map[string]any {
-	c, _ := ctx.Value(ClaimsKey).(map[string]any)
-	return c
+	switch c := ctx.Value(ClaimsKey).(type) {
+	case map[string]any:
+		return c
+	case jwt.MapClaims:
+		return map[string]any(c)
+	default:
+		return nil
+	}
 }
 
 // Auth est un validateur de jetons Supabase (RS256/ES256 via JWKS, fallback HS256).
