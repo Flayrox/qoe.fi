@@ -47,12 +47,12 @@ type AudienceSummary struct {
 }
 
 type Service struct {
-	pool *pgxpool.Pool
-	q    *db.Queries
+	pool pooler
+	q    ServiceQuerier
 
 	// umami est un pool en lecture seule vers la DB Postgres d'Umami
 	// (vide si UMAMI_DATABASE_URL n'est pas configurée).
-	umami *pgxpool.Pool
+	umami pooler
 }
 
 func NewService(pool *pgxpool.Pool, umamiDSN string) *Service {
