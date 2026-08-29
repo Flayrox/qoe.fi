@@ -340,10 +340,15 @@ var topTopics = []topTopic{
 		"<p>Regarder ce qu'on joue — et pourquoi on joue — en dit long sur qui l'on est.</p>"},
 		[]string{"gaming", "culture"}, false},
 	{"%s : l'animation japonaise, art mondial", [3]string{
-		"<p>L'anime n'est plus une curiosité de niche : c'est une industrie globale qui influence le cinéma, la mode et la narration.</p>",
-		"<p>Des studios indépendants aux grands classiques, l'animation japonaise porte une exigence de dessin et de rythme que peu de productions égalent.</p>",
-		"<p>Derrière les fans et les cosplays, il y a des artisans qui défendent un art à part entière.</p>"},
+		"<p>On l'a longtemps traitée comme une niche : entre saisons diffusées en simulcast, openings cultes et films aux chiffres globaux, l'animation japonaise s'est imposée comme un pilier de la culture mondiale.</p>",
+		"<p>De l'adaptation d'un shonen à succès d'audience au seinen confidentiel porté par une communauté de fans, chaque saison renouvelle l'exigence de dessin, de montage et de rythme.</p>",
+		"<p>Doublages, OST marquantes, figures collector et cosplay transforment une œuvre fermée en monde partagé.</p>"},
 		[]string{"anime", "manga"}, false},
+	{"%s : cosplay et conventions, la communauté anime en chair et en os", [3]string{
+		"<p>Derrière les écrans, la culture anime se vit aussi dans les conventions et les concours de cosplay, où des milliers de fans se retrouvent chaque saison.</p>",
+		"<p>Vendeurs de figurines, étals de doujinshi, panels de studios et cosplayeurs en armure : l'événement transforme une passion parfois solitaire en famille choisie.</p>",
+		"<p>Cosplayer un personnage, c'est lui rendre hommage tout en inventant sa propre version — l'endroit exact où la fiction devient une vraie communauté.</p>"},
+		[]string{"anime", "cosplay"}, false},
 	{"%s : la scène musicale indépendante résiste", [3]string{
 		"<p>Concentrée, algorithmisée, la musique en streaming n'a jamais été aussi riche — ni aussi uniforme.</p>",
 		"<p>Les labels indépendants et les salles de quartier fabriquent pourtant une scène vivante, fragile et indispensable.</p>",
