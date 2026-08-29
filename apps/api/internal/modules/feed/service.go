@@ -24,7 +24,7 @@ type FeedResult struct {
 
 type Service struct {
 	pool *pgxpool.Pool
-	q    *db.Queries
+	q    ServiceQuerier
 	rc   *redis.Client
 }
 

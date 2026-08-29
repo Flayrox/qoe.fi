@@ -110,7 +110,7 @@ func BuildFeedPostWithAncestors(r *db.GetPostsByIDsRow, all map[string]*db.GetPo
 }
 
 // AttachmentsFor charge les pièces jointes groupées par thoughtId.
-func AttachmentsFor(ctx context.Context, q *db.Queries, ids []string) (map[string][]Attachment, error) {
+func AttachmentsFor(ctx context.Context, q db.Querier, ids []string) (map[string][]Attachment, error) {
 	out := map[string][]Attachment{}
 	if len(ids) == 0 {
 		return out, nil
@@ -136,7 +136,7 @@ func AttachmentsFor(ctx context.Context, q *db.Queries, ids []string) (map[strin
 }
 
 // PollsFor charge et formate les sondages groupés par thoughtId.
-func PollsFor(ctx context.Context, q *db.Queries, ids []string, viewerID string) (map[string]*Poll, error) {
+func PollsFor(ctx context.Context, q db.Querier, ids []string, viewerID string) (map[string]*Poll, error) {
 	out := map[string]*Poll{}
 	if len(ids) == 0 {
 		return out, nil
@@ -226,7 +226,7 @@ func PollsFor(ctx context.Context, q *db.Queries, ids []string, viewerID string)
 
 // FollowingFor calcule, pour une liste d'auteurs, si le viewer les suit
 // (Follows par publicationId). Renvoie un map authorID → bool.
-func FollowingFor(ctx context.Context, q *db.Queries, viewerID string, authorIDs []string) (map[string]bool, error) {
+func FollowingFor(ctx context.Context, q db.Querier, viewerID string, authorIDs []string) (map[string]bool, error) {
 	out := map[string]bool{}
 	if viewerID == "" || len(authorIDs) == 0 {
 		return out, nil

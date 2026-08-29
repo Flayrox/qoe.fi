@@ -15,7 +15,7 @@ var mentionRe = regexp.MustCompile(`@([a-zA-Z0-9_]+)`)
 
 // notifyMentionsInContent notifie les @mentionnés d'un post (standalone OU réponse).
 // Best-effort : ignore les erreurs de résolution de username.
-func notifyMentionsInContent(ctx context.Context, tq *db.Queries, content, postID, senderID string) {
+func notifyMentionsInContent(ctx context.Context, tq db.Querier, content, postID, senderID string) {
 	matches := mentionRe.FindAllStringSubmatch(content, -1)
 	seen := map[string]bool{}
 	var usernames []string
@@ -40,16 +40,16 @@ func notifyMentionsInContent(ctx context.Context, tq *db.Queries, content, postI
 
 // notifyLike crée la notification LIKE (repli du comportement Prisma TS) :
 // pas d'auto-notification, respect des préférences, déduplication non-lue.
-func notifyLike(ctx context.Context, tq *db.Queries, postID, senderID string) error {
+func notifyLike(ctx context.Context, tq db.Querier, postID, senderID string) error {
 	return createEngagementNotification(ctx, tq, "LIKE", postID, senderID)
 }
 
 // notifyRepost crée la notification REPOST.
-func notifyRepost(ctx context.Context, tq *db.Queries, postID, senderID string) error {
+func notifyRepost(ctx context.Context, tq db.Querier, postID, senderID string) error {
 	return createEngagementNotification(ctx, tq, "REPOST", postID, senderID)
 }
 
-func createEngagementNotification(ctx context.Context, tq *db.Queries, kind, postID, senderID string) error {
+func createEngagementNotification(ctx context.Context, tq db.Querier, kind, postID, senderID string) error {
 	authorID, err := tq.GetPostAuthor(ctx, postID)
 	if err != nil {
 		return err
@@ -114,7 +114,7 @@ func createEngagementNotification(ctx context.Context, tq *db.Queries, kind, pos
 }
 
 // deleteEngagementNotification supprime la notification au unlike/unrepost.
-func deleteEngagementNotification(ctx context.Context, tq *db.Queries, kind, postID, senderID string) error {
+func deleteEngagementNotification(ctx context.Context, tq db.Querier, kind, postID, senderID string) error {
 	authorID, err := tq.GetPostAuthor(ctx, postID)
 	if err != nil {
 		return err
