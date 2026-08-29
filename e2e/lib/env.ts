@@ -32,8 +32,14 @@ function resolve(key: string, fallback = ''): string {
 /** URL de la base de l'app (Postgres, schéma goose). */
 export const DATABASE_URL = resolve('DATABASE_URL', resolve('API_DATABASE_URL', ''));
 
-/** URL de l'API Go (QOE_API_URL tel que le voient les apps web). */
-export const GO_API_URL = resolve('QOE_API_URL', 'http://localhost:8090');
+/**
+ * URL de l'API Go. ⚠️ N'utilise PAS le fallback apps/api/.env : celui-ci
+ * pointe vers l'API de DEV (15407), pas vers l'API Go que Playwright démarre
+ * (8090). Sinon les specs (creator-slugs, tenants…) appellent la base dev et
+ * échouent (401 Clé API invalide) quand l'e2e est isolé sur qoe_test.
+ * On privilégie process.env.QOE_API_URL (CI / app-config), sinon :8090.
+ */
+export const GO_API_URL = process.env.QOE_API_URL ?? 'http://localhost:8090';
 
 /** Secret HMAC GoTrue utilisé par l'API Go (SUPABASE_JWT_SECRET). */
 export const JWT_SECRET = resolve('SUPABASE_JWT_SECRET', resolve('SUPABASE_SECRET_KEY', ''));
