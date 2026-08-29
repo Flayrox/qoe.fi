@@ -939,6 +939,53 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		likeSeq++
 		res.Likes++
 	}
+
+	// ⚡ Bursts de vélocité (trending) : une douzaine de pensées reçoit un pic
+	// de likes sur les dernières 48h (10-19 likes chacun), en plus du bruit de
+	// fond étalé sur 14 jours. C'est le signal « vélocité 48h » du moteur de
+	// feed (max(engagement cumulatif, vélocité)) : ces posts « chauds » montent
+	// dans le feed de démo sans attendre que leur compteur cumulatif rattrape
+	// les vieux contenus — le trending devient visible.
+	//
+	// On cible des posts à FAIBLE compteur cumulatif (likeCount < 15) : c'est là
+	// que la vélocité a le plus d'effet visible (eng 0.3 → 1.0), pas sur les
+	// posts déjà populaires (eng déjà à 1.0).
+	var burstCandidates []string
+	{
+		bRows, err := pool.Query(ctx, `SELECT id FROM "Post"
+			WHERE "parentId" IS NULL AND "repostId" IS NULL AND "deletedAt" IS NULL
+			  AND "isDraft" = false AND "likeCount" < 15`)
+		if err != nil {
+			return nil, fmt.Errorf("candidats burst: %w", err)
+		}
+		for bRows.Next() {
+			var id string
+			if bRows.Scan(&id) == nil {
+				burstCandidates = append(burstCandidates, id)
+			}
+		}
+		bRows.Close()
+	}
+	for i := 0; i < 12 && len(burstCandidates) > 0; i++ {
+		post := burstCandidates[rng.intn(len(burstCandidates))]
+		burst := 10 + rng.intn(10) // 10 à 19 likes en 48h (cible vélocité : 8)
+		for j := 0; j < burst; j++ {
+			user := res.Users[rng.intn(len(res.Users))]
+			key := post + "|" + user.ID
+			if seenLike[key] {
+				continue
+			}
+			seenLike[key] = true
+			if _, err := pool.Exec(ctx, `
+				INSERT INTO "Like" (id, "postId", "userId", "createdAt")
+				VALUES ($1, $2, $3, $4)`,
+				topID("lik", likeSeq), post, user.ID, now.Add(-time.Duration(rng.intn(48))*time.Hour)); err != nil {
+				return nil, fmt.Errorf("like burst (trending): %w", err)
+			}
+			likeSeq++
+			res.Likes++
+		}
+	}
 	subSeq := 0
 	walletSeq := 0
 	for i := 0; i < 1500; i++ {
@@ -1064,7 +1111,28 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		sessSeq++
 		res.ReadingSess++
 	}
-	log.Printf("[seed-top] ✔ %d reading sessions (alignées milieu)", res.ReadingSess)
+
+	// ⚡ Bursts de lecture (trending articles) : une demi-douzaine d'articles
+	// reçoit un pic de lectures COMPLÈTES sur les dernières 48h (15-25 sessions,
+	// cible vélocité article : 20). Comme pour les likes, ces articles « chauds »
+	// montent dans les feeds de démo via la vélocité 48h du moteur.
+	for i := 0; i < 6 && len(artIndex) > 0; i++ {
+		art := artIndex[rng.intn(len(artIndex))]
+		burst := 15 + rng.intn(11) // 15 à 25 lectures complètes en 48h
+		for j := 0; j < burst; j++ {
+			user := res.Users[rng.intn(len(res.Users))]
+			created := now.Add(-time.Duration(rng.intn(48)) * time.Hour)
+			if _, err := pool.Exec(ctx, `
+				INSERT INTO "ReadingSession" (id, "articleId", "userId", source, status, "scrollDepth", "dwellSeconds", "readingTimeMinutes", hostname, "createdAt")
+				VALUES ($1, $2, $3, 'feed', 'READ_COMPLETE', 95, $4, $5, 'qoe.test', $6)`,
+				topID("rs", sessSeq), art.id, user.ID, art.readingTime*60, art.readingTime, created); err != nil {
+				return nil, fmt.Errorf("session burst (trending): %w", err)
+			}
+			sessSeq++
+			res.ReadingSess++
+		}
+	}
+	log.Printf("[seed-top] ✔ %d reading sessions (alignées milieu + bursts trending)", res.ReadingSess)
 
 	// ── 8. Monde vivant — couche « société connectée » loggable et unique.
 	// Met en scène une bande de créateurs/lecteurs nommés : ils se suivent,

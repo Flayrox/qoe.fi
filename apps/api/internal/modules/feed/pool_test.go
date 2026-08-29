@@ -72,7 +72,7 @@ func TestEnginePool_SimDominant(t *testing.T) {
 
 	svc := newTestService()
 	readerVec := halfVec(3, 1)
-	pool, err := svc.fetchEngineArticles(ctx, &readerVec, "", 39, 0, nil)
+	pool, err := svc.fetchEngineArticles(ctx, &readerVec, "", 39, 0, nil, svc.loadEngineConfig(ctx), nil)
 	if err != nil {
 		t.Fatalf("fetchEngineArticles: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestEnginePool_SimDominant(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		insertPost("pool_post_e"+string(rune('a'+i)), "Pensée édito "+string(rune('a'+i)), false, []string{"edito"}, halfVec(1, 3))
 	}
-	thoughtPool, err := svc.fetchEngineThoughts(ctx, &readerVec, "", 30, 0, nil)
+	thoughtPool, err := svc.fetchEngineThoughts(ctx, &readerVec, "", 30, 0, nil, svc.loadEngineConfig(ctx), nil)
 	if err != nil {
 		t.Fatalf("fetchEngineThoughts: %v", err)
 	}

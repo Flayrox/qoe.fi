@@ -69,10 +69,103 @@ const (
 	velPostTarget    = 8  // ≥ 8 likes+réponses+reposts récents / 48h → vélocité max (pensées)
 	velArticleTarget = 20 // ≥ 20 sessions de lecture pondérées / 48h → vélocité max (articles)
 
-	// 🔀 MMR — facteur de pertinence λ (Maximal Marginal Relevance). 0.7 = la
-	// pertinence domine, la diversité sémantique arbitre à la marge. Voir mmr.go.
-	mmrLambda = 0.7
+	// 🔀 MMR — λ et seuil de quasi-duplicat. Défauts calibrés par recsys-eval,
+	// surchargeables via SystemConfig (voir engineConfig). Voir mmr.go.
+	mmrLambdaDefault       = 0.7
+	mmrDupThresholdDefault = 0.92
+
+	// 🎛️ Poids du moteur exposés dans SystemConfig (pilotage sans recompiler).
+	// Défauts = les valeurs calibrées par recsys-eval (pool sim-dominant 65/15/20,
+	// rerank sim-dominante 0.40/0.15/0.15). Chaque clé est bornée à [0,1] ; une
+	// valeur invalide retombe sur le défaut.
+	cfgPoolSim        = "feed.pool_sim"
+	cfgPoolFresh      = "feed.pool_fresh"
+	cfgPoolCompletion = "feed.pool_completion"
+	cfgRerankSim      = "feed.rerank_sim"
+	cfgRerankFresh    = "feed.rerank_fresh"
+	cfgRerankEng      = "feed.rerank_engagement"
+	cfgMMRLambda      = "feed.mmr_lambda"
+	cfgMMRDupThreshold = "feed.mmr_dup_threshold"
+
+	poolSimDefault, poolFreshDefault, poolCompletionDefault = 0.65, 0.15, 0.20
+	rerankSimDefault, rerankFreshDefault, rerankEngDefault  = 0.40, 0.15, 0.15
+
+	// 🚫 Pénalité de milieu : dès milieuPenaltyThreshold signalements négatifs
+	// cumulés sur un tag (SHOW_LESS sur pensées/articles + sessions en BOUNCE),
+	// les contenus de ce tag sont DÉVALUÉS dans le pool et le rerank de cet
+	// utilisateur (sim × milieuPenaltyFactor) — jamais exclus, pour que le
+	// feed reste toujours non vide (même garde-fou que le « quelque chose
+	// s'affiche toujours » du filtre de langue de Bluesky).
+	milieuPenaltyThreshold = 3
+	milieuPenaltyFactor    = 0.5
 )
+
+// engineConfig regroupe les poids du moteur (pool, rerank, MMR) pilotables
+// via SystemConfig sans recompiler. Les défauts sont les valeurs calibrées
+// par recsys-eval ; une clé absente ou invalide laisse le défaut.
+type engineConfig struct {
+	poolSim, poolFresh, poolCompletion float64
+	rerankSim, rerankFresh, rerankEng  float64
+	mmrLambda, mmrDupThreshold         float64
+}
+
+// loadEngineConfig lit toutes les clés du moteur en UNE requête (les défauts
+// sont conservés pour les clés absentes). Une erreur de lecture → défauts :
+// le moteur ne se bloque jamais à cause de la config.
+func (s *Service) loadEngineConfig(ctx context.Context) engineConfig {
+	cfg := engineConfig{
+		poolSim:        poolSimDefault,
+		poolFresh:      poolFreshDefault,
+		poolCompletion: poolCompletionDefault,
+		rerankSim:      rerankSimDefault,
+		rerankFresh:    rerankFreshDefault,
+		rerankEng:      rerankEngDefault,
+		mmrLambda:      mmrLambdaDefault,
+		mmrDupThreshold: mmrDupThresholdDefault,
+	}
+	rows, err := s.pool.Query(ctx, `SELECT key, value FROM "SystemConfig" WHERE key = ANY($1::text[])`,
+		[]string{cfgPoolSim, cfgPoolFresh, cfgPoolCompletion, cfgRerankSim, cfgRerankFresh, cfgRerankEng, cfgMMRLambda, cfgMMRDupThreshold})
+	if err != nil {
+		return cfg
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var k, v string
+		if rows.Scan(&k, &v) != nil {
+			continue
+		}
+		switch k {
+		case cfgPoolSim:
+			cfg.poolSim = parseCfgFloat(v, cfg.poolSim)
+		case cfgPoolFresh:
+			cfg.poolFresh = parseCfgFloat(v, cfg.poolFresh)
+		case cfgPoolCompletion:
+			cfg.poolCompletion = parseCfgFloat(v, cfg.poolCompletion)
+		case cfgRerankSim:
+			cfg.rerankSim = parseCfgFloat(v, cfg.rerankSim)
+		case cfgRerankFresh:
+			cfg.rerankFresh = parseCfgFloat(v, cfg.rerankFresh)
+		case cfgRerankEng:
+			cfg.rerankEng = parseCfgFloat(v, cfg.rerankEng)
+		case cfgMMRLambda:
+			cfg.mmrLambda = parseCfgFloat(v, cfg.mmrLambda)
+		case cfgMMRDupThreshold:
+			cfg.mmrDupThreshold = parseCfgFloat(v, cfg.mmrDupThreshold)
+		}
+	}
+	return cfg
+}
+
+// parseCfgFloat parse une valeur SystemConfig en float borné [0,1]. Toute
+// valeur invalide (non numérique, hors bornes, vide) retombe sur le défaut —
+// fonction pure, testable.
+func parseCfgFloat(v string, def float64) float64 {
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil || f < 0 || f > 1 {
+		return def
+	}
+	return f
+}
 
 // getCircadianProfile mirrors TS getCircadianProfile.
 func getCircadianProfile(userHour int, userDayOfWeek int) CircadianProfile {
@@ -442,9 +535,11 @@ const (
 	explorationMinSignalsDefault  = 10
 )
 
-// articleCandidate est un article brut extrait pour le reranking.
+// articleCandidate est un article brut extrait pour le reranking. tags sert à
+// la pénalité de milieu (item portant un tag rejeté → dévalué).
 type articleCandidate struct {
 	id, title, content, authorID, pubID string
+	tags              []string
 	readingTime       int
 	completionRate    float64
 	sim, freshness    float64
@@ -452,9 +547,11 @@ type articleCandidate struct {
 	createdAt         time.Time
 }
 
-// thoughtCandidate est une pensée brute extraite pour le reranking.
+// thoughtCandidate est une pensée brute extraite pour le reranking. tags sert
+// à la pénalité de milieu.
 type thoughtCandidate struct {
 	id, content, authorID                string
+	tags                                 []string
 	likeCount, replyCount, repostCount   int
 	sim, freshness, score                float64
 	createdAt                            time.Time
@@ -501,14 +598,19 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 	cfMap := s.getCoReadCandidates(ctx, userID)
 	cfThoughtMap := s.getCoReadThoughtCandidates(ctx, userID)
 
+	// 🎛️ Poids du moteur (SystemConfig) + 🚫 tags rejetés par l'utilisateur :
+	// chargés une fois, partagés entre le pool et le rerank.
+	cfg := s.loadEngineConfig(ctx)
+	penalized := s.penalizedTags(ctx, userID)
+
 	artOver := clampInt(targetArticles*3, 1, 100)
 	thOver := clampInt(targetThoughts*3, 1, 100)
 
-	articles, err := s.fetchEngineArticles(ctx, vec, userID, artOver, offset, muted)
+	articles, err := s.fetchEngineArticles(ctx, vec, userID, artOver, offset, muted, cfg, penalized)
 	if err != nil {
 		return EngineResult{}, err
 	}
-	thoughts, err := s.fetchEngineThoughts(ctx, vec, userID, thOver, offset, muted)
+	thoughts, err := s.fetchEngineThoughts(ctx, vec, userID, thOver, offset, muted, cfg, penalized)
 	if err != nil {
 		return EngineResult{}, err
 	}
@@ -553,12 +655,18 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 		}
 		completionBonus := 0.7 + 0.3*a.completionRate
 		cf := cfMap[a.id]
-		// Sim dominante (0.40, comme le rerank des pensées) : la fraîcheur à
-		// 0.20 laissait les articles « du jour » passer devant le contenu du
-		// profil (mesuré : article foot frais en tête du feed gaming).
-		score := (0.40*sim + 0.15*fresh + 0.15*eng + 0.15*circFit + 0.15*cf) * completionBonus
+		// Sim dominante (0.40 par défaut, pilotable via feed.rerank_sim) : la
+		// fraîcheur à 0.20 laissait les articles « du jour » passer devant le
+		// contenu du profil (mesuré : article foot frais en tête du feed gaming).
+		score := (cfg.rerankSim*sim + cfg.rerankFresh*fresh + cfg.rerankEng*eng + 0.15*circFit + 0.15*cf) * completionBonus
 		if penalties[a.id] {
 			score *= engNegativePenalty
+		}
+		// 🚫 Pénalité de milieu : l'item porte un tag rejeté (≥3 signalements
+		// négatifs de l'utilisateur) → dévalué, jamais exclu (le feed reste
+		// non vide). Miroir de la dévaluation du pool.
+		if hasPenalizedTag(a.tags, penalized) {
+			score *= milieuPenaltyFactor
 		}
 		if impPenalty[a.id] {
 			score *= 0.6 // déjà vu sans engagement → re-exposition dévalorisée
@@ -592,9 +700,15 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 		if v, ok := thVel[t.id]; ok && v > eng {
 			eng = v
 		}
-		t.score = 0.40*sim + 0.22*fresh + 0.18*eng + 0.10*morningBonus + 0.10*cfT
+		// Mêmes poids configurables que les articles (feed.rerank_sim/fresh/eng) :
+		// la similarité reste dominante, fraîcheur/engagement à la marge.
+		t.score = cfg.rerankSim*sim + cfg.rerankFresh*fresh + cfg.rerankEng*eng + 0.10*morningBonus + 0.10*cfT
 		if impPenalty[t.id] {
 			t.score *= 0.6
+		}
+		// 🚫 Pénalité de milieu (miroir du pool) : jamais d'exclusion.
+		if hasPenalizedTag(t.tags, penalized) {
+			t.score *= milieuPenaltyFactor
 		}
 		if b, ok := showMoreBoost[t.id]; ok && b > 0 {
 			t.score *= 1 + showMoreBoostMul*b // proche d'un contenu « Voir plus » → boosté
@@ -610,8 +724,10 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 	// sur l'ordre de pertinence pur (repli sûr).
 	artEmb := s.fetchCandidateEmbeddings(ctx, "Article", artIDs)
 	thEmb := s.fetchCandidateEmbeddings(ctx, "Post", thIDs)
-	divA := pickArticles(articles, mmrSelect(articleIDs(articles), articleScores(articles), artEmb, targetArticles, mmrLambda))
-	divT := pickThoughts(thoughts, mmrSelect(thoughtIDs(thoughts), thoughtScores(thoughts), thEmb, targetThoughts, mmrLambda))
+	// λ et seuil de quasi-duplicat pilotables (feed.mmr_lambda,
+	// feed.mmr_dup_threshold) sans recompiler.
+	divA := pickArticles(articles, mmrSelect(articleIDs(articles), articleScores(articles), artEmb, targetArticles, cfg.mmrLambda, cfg.mmrDupThreshold))
+	divT := pickThoughts(thoughts, mmrSelect(thoughtIDs(thoughts), thoughtScores(thoughts), thEmb, targetThoughts, cfg.mmrLambda, cfg.mmrDupThreshold))
 
 	// Interleaving harmonieux selon le profil circadien.
 	aItems := make([]EngineItem, 0, len(divA))
@@ -921,6 +1037,77 @@ func pickExplorationRatio(signals int, coldRatio, warmRatio float64, minSignals 
 	return warmRatio
 }
 
+// penalizedTags retourne les tags « rejetés » par l'utilisateur : un tag est
+// pénalisé dès milieuPenaltyThreshold (3) signalements négatifs cumulés —
+// SHOW_LESS sur pensées ou articles + sessions de lecture en BOUNCE sur les
+// articles portant ce tag. Inspiré du « non intéressé » de TikTok : 3
+// signalements = tout le milieu est dévalué pour cet utilisateur (dans le
+// pool ET le rerank), sans jamais être exclu — le feed reste non vide.
+func (s *Service) penalizedTags(ctx context.Context, userID string) map[string]bool {
+	out := map[string]bool{}
+	if userID == "" {
+		return out
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT t.tag
+		FROM (
+			SELECT unnest(p.tags) AS tag FROM "ContentFeedback" cf
+			JOIN "Post" p ON p.id = cf."thoughtId"
+			WHERE cf."userId" = $1 AND cf.type = 'SHOW_LESS'
+			UNION ALL
+			SELECT unnest(a."semanticTags") FROM "ContentFeedback" cf
+			JOIN "Article" a ON a.id = cf."articleId"
+			WHERE cf."userId" = $1 AND cf.type = 'SHOW_LESS'
+			UNION ALL
+			SELECT unnest(a."semanticTags") FROM "ReadingSession" rs
+			JOIN "Article" a ON a.id = rs."articleId"
+			WHERE rs."userId" = $1 AND rs.status = 'BOUNCE'
+		) t
+		GROUP BY t.tag
+		HAVING count(*) >= $2`, toUUID(userID), milieuPenaltyThreshold)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var tag string
+		if rows.Scan(&tag) == nil {
+			out[tag] = true
+		}
+	}
+	return out
+}
+
+// hasPenalizedTag indique si un candidat porte au moins un tag rejeté.
+func hasPenalizedTag(tags []string, penalized map[string]bool) bool {
+	if len(penalized) == 0 {
+		return false
+	}
+	for _, t := range tags {
+		if penalized[t] {
+			return true
+		}
+	}
+	return false
+}
+
+// penalizedArray construit le fragment SQL de dévaluation du pool et ses
+// arguments : quand la map des tags rejetés est vide, le fragment est vide
+// (aucun coût de requête). Sinon, le score de pool est multiplié par
+// milieuPenaltyFactor si l'item porte un des tags (opérateur && de
+// chevauchement d'arrays). tagCol est le nom de la colonne de tags de la
+// table interrogée ("semanticTags" pour Article, tags pour Post).
+func penalizedArray(penalized map[string]bool, ai int, tagCol string) ([]any, string) {
+	if len(penalized) == 0 {
+		return nil, ""
+	}
+	tags := make([]string, 0, len(penalized))
+	for t := range penalized {
+		tags = append(tags, t)
+	}
+	return []any{tags}, fmt.Sprintf(` * CASE WHEN %s && $%d::text[] THEN %.2f ELSE 1 END`, tagCol, ai, milieuPenaltyFactor)
+}
+
 // interleaveEngine mélange articles/pensées selon le mode circadien.
 func interleaveEngine(a, t []EngineItem, circadianName string) []EngineItem {
 	var out []EngineItem
@@ -958,13 +1145,13 @@ func interleaveEngine(a, t []EngineItem, circadianName string) []EngineItem {
 }
 
 // fetchEngineArticles extrait les articles candidats (ANN pgvector ou cold-start).
-func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector, userID string, limit, offset int, muted []string) ([]articleCandidate, error) {
+func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector, userID string, limit, offset int, muted []string, cfg engineConfig, penalized map[string]bool) ([]articleCandidate, error) {
 	var rows pgx.Rows
 	var err error
 	if vec != nil {
 		args := []any{*vec}
 		q := `
-		SELECT a.id, a.title, a.content, a."readingTime", a."completionRate", a."authorId", a."publicationId", a."createdAt",
+		SELECT a.id, a.title, a.content, a."readingTime", a."completionRate", a."authorId", a."publicationId", a."createdAt", COALESCE(a."semanticTags", '{}'),
 		       (1 - (a."embedding" <=> $1::vector))::float8 AS sim,
 		       EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800)::float8 AS fresh
 		FROM "Article" a JOIN "User" u ON u.id::text = a."authorId"::text
@@ -979,17 +1166,23 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 			args = append(args, toUUID(userID))
 			ai++
 		}
-		// Pool sim-dominant (65% sim / 15% fresh / 20% complétion) : le rerank
-		// final (0.35 sim) ne peut pas récupérer un pool déjà pollué par la
-		// fraîcheur — un tri à 50/25/25 laissait les articles « du jour » et
-		// l'éditorial noyer les contenus du profil (mesuré : pool gaming 18%
-		// au lieu de 92% en tri par sim pure).
-		q += fmt.Sprintf(` ORDER BY (0.65*(1 - (a."embedding" <=> $1::vector)) + 0.15*EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800) + 0.20*(0.70 + 0.30*a."completionRate")) DESC LIMIT $%d OFFSET $%d`, ai, ai+1)
+		// Pool sim-dominant (défauts 65% sim / 15% fresh / 20% complétion,
+		// pilotables via feed.pool_*) : le rerank final ne peut pas récupérer
+		// un pool déjà pollué par la fraîcheur — un tri à 50/25/25 laissait les
+		// articles « du jour » et l'éditorial noyer les contenus du profil
+		// (mesuré : pool gaming 18% au lieu de 92% en tri par sim pure).
+		// 🚫 Les items portant un tag rejeté sont dévalués (× milieuPenaltyFactor)
+		// sur TOUT le score de pool — jamais exclus : le feed reste non vide.
+		penArgs, penSQL := penalizedArray(penalized, ai, "\"semanticTags\"")
+		args = append(args, penArgs...)
+		ai += len(penArgs)
+		q += fmt.Sprintf(` ORDER BY ((%.2f*(1 - (a."embedding" <=> $1::vector)) + %.2f*EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800) + %.2f*(0.70 + 0.30*a."completionRate"))%s) DESC LIMIT $%d OFFSET $%d`,
+			cfg.poolSim, cfg.poolFresh, cfg.poolCompletion, penSQL, ai, ai+1)
 		args = append(args, limit, offset)
 		rows, err = s.pool.Query(ctx, q, args...)
 	} else {
 		q := `
-		SELECT a.id, a.title, a.content, a."readingTime", a."completionRate", a."authorId", a."publicationId", a."createdAt",
+		SELECT a.id, a.title, a.content, a."readingTime", a."completionRate", a."authorId", a."publicationId", a."createdAt", COALESCE(a."semanticTags", '{}'),
 		       0.5::float8 AS sim,
 		       EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800)::float8 AS fresh
 		FROM "Article" a JOIN "User" u ON u.id::text = a."authorId"::text
@@ -1007,7 +1200,7 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 	for rows.Next() {
 		var c articleCandidate
 		var pubID *string
-		if err := rows.Scan(&c.id, &c.title, &c.content, &c.readingTime, &c.completionRate, &c.authorID, &pubID, &c.createdAt, &c.sim, &c.freshness); err != nil {
+		if err := rows.Scan(&c.id, &c.title, &c.content, &c.readingTime, &c.completionRate, &c.authorID, &pubID, &c.createdAt, &c.tags, &c.sim, &c.freshness); err != nil {
 			continue
 		}
 		if pubID != nil {
@@ -1022,13 +1215,13 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 }
 
 // fetchEngineThoughts extrait les pensées candidates (ANN pgvector ou cold-start).
-func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector, userID string, limit, offset int, muted []string) ([]thoughtCandidate, error) {
+func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector, userID string, limit, offset int, muted []string, cfg engineConfig, penalized map[string]bool) ([]thoughtCandidate, error) {
 	var rows pgx.Rows
 	var err error
 	if vec != nil {
 		args := []any{*vec}
 		q := `
-		SELECT p.id, p.content, p."authorId", p."createdAt", p."likeCount", p."replyCount", p."repostCount",
+		SELECT p.id, p.content, p."authorId", p."createdAt", p."likeCount", p."replyCount", p."repostCount", COALESCE(p.tags, '{}'),
 		       (1 - (p."embedding" <=> $1::vector))::float8 AS sim,
 		       EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400)::float8 AS fresh
 		FROM "Post" p JOIN "User" u ON u.id = p."authorId"
@@ -1044,12 +1237,18 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 			args = append(args, toUUID(userID))
 			ai++
 		}
-		q += fmt.Sprintf(` ORDER BY (0.65*(1 - (p."embedding" <=> $1::vector)) + 0.15*EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400) + 0.20*LEAST(1.0,(p."likeCount" + p."replyCount"*2 + p."repostCount"*2)/30.0)) DESC LIMIT $%d OFFSET $%d`, ai, ai+1)
+		// Pool sim-dominant (poids pilotables via feed.pool_*) + dévaluation des
+		// items portant un tag rejeté (jamais d'exclusion).
+		penArgs, penSQL := penalizedArray(penalized, ai, "tags")
+		args = append(args, penArgs...)
+		ai += len(penArgs)
+		q += fmt.Sprintf(` ORDER BY ((%.2f*(1 - (p."embedding" <=> $1::vector)) + %.2f*EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400) + %.2f*LEAST(1.0,(p."likeCount" + p."replyCount"*2 + p."repostCount"*2)/30.0))%s) DESC LIMIT $%d OFFSET $%d`,
+			cfg.poolSim, cfg.poolFresh, cfg.poolCompletion, penSQL, ai, ai+1)
 		args = append(args, limit, offset)
 		rows, err = s.pool.Query(ctx, q, args...)
 	} else {
 		q := `
-		SELECT p.id, p.content, p."authorId", p."createdAt", p."likeCount", p."replyCount", p."repostCount",
+		SELECT p.id, p.content, p."authorId", p."createdAt", p."likeCount", p."replyCount", p."repostCount", COALESCE(p.tags, '{}'),
 		       0.5::float8 AS sim,
 		       EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400)::float8 AS fresh
 		FROM "Post" p JOIN "User" u ON u.id = p."authorId"
@@ -1068,7 +1267,7 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 	out := []thoughtCandidate{}
 	for rows.Next() {
 		var c thoughtCandidate
-		if err := rows.Scan(&c.id, &c.content, &c.authorID, &c.createdAt, &c.likeCount, &c.replyCount, &c.repostCount, &c.sim, &c.freshness); err != nil {
+		if err := rows.Scan(&c.id, &c.content, &c.authorID, &c.createdAt, &c.likeCount, &c.replyCount, &c.repostCount, &c.tags, &c.sim, &c.freshness); err != nil {
 			continue
 		}
 		if !mutedOK(c.content, muted) {

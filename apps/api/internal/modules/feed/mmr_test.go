@@ -20,7 +20,7 @@ func TestMMRSelect_RedundancyPenalty(t *testing.T) {
 		"B": vec2(1, 0), // identique à A → redondant
 		"C": vec2(0, 1), // orthogonal → diversifie la page
 	}
-	got := mmrSelect([]string{"A", "B", "C"}, scores, embs, 3, 0.7)
+	got := mmrSelect([]string{"A", "B", "C"}, scores, embs, 3, 0.7, 0.92)
 	// A d'abord (pertinence max, rien de sélectionné), puis C (B est trop
 	// similaire à A), puis B en dernier (redondance pénalisée).
 	want := []string{"A", "C", "B"}
@@ -38,12 +38,12 @@ func TestMMRSelect_RedundancyPenalty(t *testing.T) {
 // la sélection retombe sur l'ordre de pertinence pur (jamais de blocage).
 func TestMMRSelect_NoEmbeddingsFallback(t *testing.T) {
 	scores := map[string]float64{"A": 0.9, "B": 0.8, "C": 0.7}
-	got := mmrSelect([]string{"A", "B", "C"}, scores, nil, 2, 0.7)
+	got := mmrSelect([]string{"A", "B", "C"}, scores, nil, 2, 0.7, 0.92)
 	if len(got) != 2 || got[0] != "A" || got[1] != "B" {
 		t.Fatalf("repli sans embeddings = %v, attendu [A B]", got)
 	}
 	// maxItems supérieur à la liste → tout est retenu, ordre de pertinence.
-	got2 := mmrSelect([]string{"A", "B"}, scores, nil, 10, 0.7)
+	got2 := mmrSelect([]string{"A", "B"}, scores, nil, 10, 0.7, 0.92)
 	if len(got2) != 2 || got2[0] != "A" {
 		t.Fatalf("maxItems > len = %v, attendu [A B]", got2)
 	}
@@ -53,14 +53,14 @@ func TestMMRSelect_NoEmbeddingsFallback(t *testing.T) {
 // λ=1 = pertinence pure sans pénalité de redondance).
 func TestMMRSelect_EdgeCases(t *testing.T) {
 	scores := map[string]float64{"A": 1}
-	if got := mmrSelect(nil, scores, nil, 3, 0.7); got != nil {
+	if got := mmrSelect(nil, scores, nil, 3, 0.7, 0.92); got != nil {
 		t.Fatalf("ids vides = %v, attendu nil", got)
 	}
-	if got := mmrSelect([]string{"A"}, scores, nil, 0, 0.7); got != nil {
+	if got := mmrSelect([]string{"A"}, scores, nil, 0, 0.7, 0.92); got != nil {
 		t.Fatalf("maxItems 0 = %v, attendu nil", got)
 	}
 	got := mmrSelect([]string{"A", "B"}, map[string]float64{"A": 1, "B": 0.9},
-		map[string][]float32{"A": vec2(1, 0), "B": vec2(1, 0)}, 2, 1.0)
+		map[string][]float32{"A": vec2(1, 0), "B": vec2(1, 0)}, 2, 1.0, 0.92)
 	if len(got) != 2 || got[0] != "A" || got[1] != "B" {
 		t.Fatalf("λ=1 = %v, attendu [A B] (pertinence pure)", got)
 	}
@@ -68,21 +68,27 @@ func TestMMRSelect_EdgeCases(t *testing.T) {
 
 // TestDupSim vérifie la taxe de quasi-duplicat : aucune pénalité sous le
 // seuil (deux pensées du même milieu restent ensemble), montée linéaire
-// jusqu'à pleine pénalité à similarité parfaite.
+// jusqu'à pleine pénalité à similarité parfaite. Le seuil est un paramètre
+// (pilotable via SystemConfig) : à 1.0, aucune pénalité, même à sim 0.99.
 func TestDupSim(t *testing.T) {
-	if d := dupSim(0.5); d != 0 {
+	const thr = 0.92
+	if d := dupSim(0.5, thr); d != 0 {
 		t.Fatalf("sous le seuil: dupSim=%v, attendu 0", d)
 	}
-	if d := dupSim(mmrDupThreshold); d != 0 {
+	if d := dupSim(thr, thr); d != 0 {
 		t.Fatalf("au seuil: dupSim=%v, attendu 0", d)
 	}
-	if d := dupSim(1.0); math.Abs(d-1.0) > 1e-9 {
+	if d := dupSim(1.0, thr); math.Abs(d-1.0) > 1e-9 {
 		t.Fatalf("similarité parfaite: dupSim=%v, attendu 1", d)
 	}
 	// À mi-chemin entre le seuil et 1.0 → moitié de la pénalité.
-	mid := (1.0 + mmrDupThreshold) / 2
-	if d := dupSim(mid); math.Abs(d-0.5) > 1e-9 {
+	mid := (1.0 + thr) / 2
+	if d := dupSim(mid, thr); math.Abs(d-0.5) > 1e-9 {
 		t.Fatalf("mi-chemin: dupSim=%v, attendu 0.5", d)
+	}
+	// Seuil à 1.0 (config) → aucune pénalité, même à sim 0.99.
+	if d := dupSim(0.99, 1.0); d != 0 {
+		t.Fatalf("seuil 1.0: dupSim=%v, attendu 0", d)
 	}
 }
 
@@ -103,6 +109,26 @@ func TestCosine(t *testing.T) {
 	}
 	if c := cosine(vec2(0, 0), vec2(0, 0)); c != 0 {
 		t.Fatalf("vecteurs nuls: cosine=%v, attendu 0", c)
+	}
+}
+
+// TestParseCfgFloat vérifie la fonction pure de lecture des poids : une
+// valeur invalide (vide, non numérique, hors bornes) retombe sur le défaut.
+func TestParseCfgFloat(t *testing.T) {
+	if v := parseCfgFloat("0.8", 0.65); v != 0.8 {
+		t.Fatalf("valide: %v, attendu 0.8", v)
+	}
+	if v := parseCfgFloat("", 0.65); v != 0.65 {
+		t.Fatalf("vide: %v, attendu défaut 0.65", v)
+	}
+	if v := parseCfgFloat("abc", 0.65); v != 0.65 {
+		t.Fatalf("non numérique: %v, attendu défaut 0.65", v)
+	}
+	if v := parseCfgFloat("1.5", 0.65); v != 0.65 {
+		t.Fatalf("hors bornes: %v, attendu défaut 0.65", v)
+	}
+	if v := parseCfgFloat("-0.1", 0.65); v != 0.65 {
+		t.Fatalf("négatif: %v, attendu défaut 0.65", v)
 	}
 }
 
