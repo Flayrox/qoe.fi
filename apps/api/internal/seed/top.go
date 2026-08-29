@@ -117,12 +117,21 @@ type TopResult struct {
 	Users        []TopUser
 	Publications []TopPublication
 	Articles     []TopArticle
+	Posts        []TopPost
 	PostIDs      []string
 	ReadingSess  int
 	Follows      int
 	Likes        int
 	Subscribers  int
 	Embeddings   int
+}
+
+// TopPost est une pensée générée (contenu + tags), utilisée notamment pour
+// calculer l'embedding sémantique dans EmbedTop.
+type TopPost struct {
+	ID      string
+	Content string
+	Tags    []string
 }
 
 type TopUser struct {
@@ -134,6 +143,10 @@ type TopUser struct {
 	Country   string
 	CreatedAt time.Time
 	PubID     string // publication PERSONAL si créateur
+	Bio       string
+	Interests []string
+	Gender    string
+	AgeRange  string
 }
 
 type TopPublication struct {
@@ -144,6 +157,7 @@ type TopPublication struct {
 	Subdomain string
 	Bio       string
 	Accent    string
+	Tags      []string
 }
 
 type TopArticle struct {
@@ -163,11 +177,32 @@ type TopArticle struct {
 // Corpus (compact mais varié — même esprit que l'ancien seed LLM)
 // ---------------------------------------------------------------------------
 
-var topFirstNames = []string{
-	"Ambre", "Noé", "Clara", "Lucas", "Inès", "Gabriel", "Léa", "Raphaël", "Emma", "Louis",
-	"Chloé", "Arthur", "Manon", "Jules", "Camille", "Hugo", "Sarah", "Nathan", "Zoé", "Théo",
-	"Eva", "Adam", "Lina", "Victor", "Rose", "Antoine", "Mila", "Paul", "Alice", "Nino",
-	"Margaux", "Eliott", "June", "Sacha", "Lou", "Marius", "Nour", "Axel", "Romy", "Isaac",
+// topFirstNames sont séparés par genre pour que les comptes « Prénom Nom »
+// soient cohérents avec le genre et la photo de profil attribués.
+var topMaleFirstNames = []string{
+	"Noé", "Lucas", "Gabriel", "Louis", "Arthur", "Hugo", "Nathan", "Théo", "Adam", "Victor",
+	"Paul", "Nino", "Eliott", "Marius", "Axel", "Isaac", "Raphaël", "Jules", "Antoine", "Enzo",
+	"Léo", "Yanis", "Mehdi", "Karim", "Bastien", "Thibault", "Simon", "Hugo",
+}
+
+var topFemaleFirstNames = []string{
+	"Ambre", "Clara", "Inès", "Léa", "Emma", "Manon", "Chloé", "Camille", "Sarah", "Zoé",
+	"Eva", "Lina", "Rose", "Mila", "Alice", "Margaux", "June", "Lou", "Nour", "Romy",
+	"Jade", "Inaya", "Fatou", "Océane", "Charlotte", "Élise", "Maëlle", "Nina",
+}
+
+func topFirstName(rng *prng, gender string) string {
+	switch gender {
+	case "MALE":
+		return prngPick(rng, topMaleFirstNames)
+	case "FEMALE":
+		return prngPick(rng, topFemaleFirstNames)
+	default:
+		if rng.next() < 0.5 {
+			return prngPick(rng, topMaleFirstNames)
+		}
+		return prngPick(rng, topFemaleFirstNames)
+	}
 }
 
 var topLastNames = []string{
@@ -186,12 +221,14 @@ var topCountries = []string{"FR", "FR", "FR", "BE", "CH", "CA", "LU", "MC", "SN"
 // seed ressemble à une vraie bibliothèque éditoriale. Les blocs sont répétés
 // avec variation contrôlée : on dépasse toujours 3 000 mots sans copier-coller
 // un article identique.
-var topTopics = []struct {
+type topTopic struct {
 	title  string
 	paras  [3]string
 	tags   []string
 	editor bool
-}{
+}
+
+var topTopics = []topTopic{
 	{"%s : la souveraineté des médias indépendants", [3]string{
 		"<p>Dans un monde saturé de plateformes, posséder son propre espace de publication n'est plus un luxe : c'est une condition de survie éditoriale.</p>",
 		"<p>Cet article explore ce que signifie réellement être souverain sur son audience, son contenu et ses revenus, loin des algorithmes de capture de l'attention.</p>",
@@ -292,6 +329,86 @@ var topTopics = []struct {
 		"<p>Les parcelles rapprochent des personnes qui ne se seraient peut-être jamais parlé ailleurs.</p>",
 		"<p>La nature n'est pas un décor reposant : c'est une relation concrète avec le temps, les limites et les autres vivants.</p>"},
 		[]string{"nature", "jardin"}, false},
+	{"%s : la tactique a changé le foot moderne", [3]string{
+		"<p>Le football d'aujourd'hui se joue d'abord dans les statistiques et les couloirs de passes, avant même de se jouer sur la pelouse.</p>",
+		"<p>Du pressing géométrique aux données de course, chaque club moderne ressemble à un laboratoire où l'intuition a cédé la place à la mesure.</p>",
+		"<p>Pourtant, les supporters savent que le jeu reste un sport de quartier, d'émotion et de hasard — et c'est tant mieux.</p>"},
+		[]string{"foot", "tactique"}, false},
+	{"%s : ce que le jeu vidéo dit de nous", [3]string{
+		"<p>Le jeu vidéo est devenu le premier loisir culturel au monde, et pourtant on continue de le traiter comme un passe-temps d'adolescent.</p>",
+		"<p>Chaque génération de joueurs raconte quelque chose de son époque : la quête, la coopération, la performance, l'évasion.</p>",
+		"<p>Regarder ce qu'on joue — et pourquoi on joue — en dit long sur qui l'on est.</p>"},
+		[]string{"gaming", "culture"}, false},
+	{"%s : l'animation japonaise, art mondial", [3]string{
+		"<p>L'anime n'est plus une curiosité de niche : c'est une industrie globale qui influence le cinéma, la mode et la narration.</p>",
+		"<p>Des studios indépendants aux grands classiques, l'animation japonaise porte une exigence de dessin et de rythme que peu de productions égalent.</p>",
+		"<p>Derrière les fans et les cosplays, il y a des artisans qui défendent un art à part entière.</p>"},
+		[]string{"anime", "manga"}, false},
+	{"%s : la scène musicale indépendante résiste", [3]string{
+		"<p>Concentrée, algorithmisée, la musique en streaming n'a jamais été aussi riche — ni aussi uniforme.</p>",
+		"<p>Les labels indépendants et les salles de quartier fabriquent pourtant une scène vivante, fragile et indispensable.</p>",
+		"<p>Soutenir les artistes directement, c'est choisir une musique qui ne ressemble pas à une playlist optimisée.</p>"},
+		[]string{"musique", "independance"}, false},
+	{"%s : vie privée, le retour de bâton", [3]string{
+		"<p>Après deux décennies de collecte massive, les utilisateurs redécouvrent que leurs données sont un patrimoine, pas une ressource gratuite.</p>",
+		"<p>Applications chiffrées, hébergement personnel, consentement : une contre-offensive silencieuse s'organise.</p>",
+		"<p>La vie privée n'est pas une nostalgie : c'est une infrastructure technique et politique.</p>"},
+		[]string{"tech", "vieprivee"}, false},
+	{"%s : la seconde main, nouvelle frontière de la mode", [3]string{
+		"<p>Friperies, vide-dressing, revente en ligne : la seconde main a cessé d'être un recours pour devenir un choix.</p>",
+		"<p>Elle prolonge la vie des vêtements, réduit la pression sur les ressources et invente de nouvelles économies locales.</p>",
+		"<p>Le style n'est plus une question de budget, mais de regard.</p>"},
+		[]string{"mode", "seconde_main"}, false},
+	{"%s : le sport comme hygiène mentale", [3]string{
+		"<p>Courir, nager, soulever : l'activité physique est l'un des rares remèdes dont l'efficacité sur l'anxiété est documentée.</p>",
+		"<p>Au-delà du corps, le sport fabrique de la régularité, du temps pour soi et une fierté simple.</p>",
+		"<p>Il ne s'agit pas de performance : il s'agit de se retrouver.</p>"},
+		[]string{"sport", "sante"}, false},
+	{"%s : les créateurs, nouveaux patrons du divertissement", [3]string{
+		"<p>Streams, chaînes, podcasts : une génération de créateurs a construit des audiences que les médias traditionnels envient.</p>",
+		"<p>Sans intermédiaires, avec des revenus directs et un lien quotidien avec leur communauté, ils réinventent la production.</p>",
+		"<p>Le modèle a ses limites, mais il a définitivement changé la donne.</p>"},
+		[]string{"streaming", "createurs"}, false},
+	{"%s : l'e-sport entre sport et spectacle", [3]string{
+		"<p>Des stades remplis pour des finales de jeux vidéo : l'e-sport est devenu un spectacle de masse qui emprunte au sport ses codes.</p>",
+		"<p>Entraînements millimétrés, transferts, sponsors : les équipes professionnelles calquent leur management sur les clubs historiques.</p>",
+		"<p>La question n'est plus de savoir si c'est un sport, mais ce que cette industrie nous apprend du jeu.</p>"},
+		[]string{"esport", "gaming"}, false},
+	{"%s : élever ses enfants dans le chaos numérique", [3]string{
+		"<p>Écrans, réseaux, jeux : les parents naviguent dans un territoire que personne n'a balisé avant eux.</p>",
+		"<p>Entre interdits stériles et laisser-faire, il existe une voie : le dialogue, l'exemple et des règles discutées ensemble.</p>",
+		"<p>Éduquer au numérique, c'est avant tout éduquer au temps et à l'attention.</p>"},
+		[]string{"famille", "education"}, false},
+	{"%s : réinventer l'université après les amphis vides", [3]string{
+		"<p>Les amphithéâtres se vident, les plateformes se remplissent : l'enseignement supérieur cherche un second souffle.</p>",
+		"<p>Hybride, orientée projet, connectée au terrain, l'université de demain doit réconcilier masse et accompagnement.</p>",
+		"<p>La vraie question n'est pas la technologie, mais ce qu'on attend d'un diplôme.</p>"},
+		[]string{"etudes", "education"}, false},
+	{"%s : ce que nos animaux de compagnie changent en nous", [3]string{
+		"<p>Un chien qui remue la queue à 7h du matin, un chat qui dort sur le clavier : ces présences silencieuses transforment nos journées.</p>",
+		"<p>Adopter, c'est accepter une responsabilité, mais c'est aussi découvrir une fidélité que peu de relations humaines égalent.</p>",
+		"<p>Les refuges débordent pourtant, et chaque adoption est une victoire modeste mais réelle.</p>"},
+		[]string{"animaux", "quotidien"}, false},
+	{"%s : la série qui a changé notre rapport au temps", [3]string{
+		"<p>En quelques années, la série est devenue la forme narrative dominante : plus longue, plus lente, plus intime que le film.</p>",
+		"<p>Le binge-watching a remplacé le rendez-vous hebdomadaire, et avec lui une autre manière de vivre les histoires.</p>",
+		"<p>La question n'est pas de savoir si c'est mieux, mais ce que cette bascule dit de nous.</p>"},
+		[]string{"series", "culture"}, false},
+	{"%s : l'argent, ce tabou qu'on devrait discuter", [3]string{
+		"<p>On parle de tout, sauf d'argent. Le salaire, le loyer, les dettes restent des sujets que l'on tait par pudeur.</p>",
+		"<p>Cette omerta coûte cher : mal informés, mal conseillés, beaucoup naviguent à vue dans leurs finances.</p>",
+		"<p>En parler simplement, sans jargon ni jugement, est le premier pas vers plus d'autonomie.</p>"},
+		[]string{"argent", "quotidien"}, false},
+	{"%s : marcher pour retrouver le monde", [3]string{
+		"<p>La randonnée ne demande ni abonnement ni matériel coûteux : une paire de chaussures et l'envie de ralentir.</p>",
+		"<p>Marcher, c'est retrouver un rythme que les écrans nous ont volé, et un rapport direct au paysage.</p>",
+		"<p>Les sentiers se remplissent chaque week-end, preuve que le besoin de lenteur est massif.</p>"},
+		[]string{"randonnee", "nature"}, false},
+	{"%s : lire, encore et toujours", [3]string{
+		"<p>La lecture résiste à toutes les prédictions de disparition, du livre papier au format audio, en passant par l'ebook.</p>",
+		"<p>Lire, c'est accepter un temps long dans une époque qui le refuse, et c'est précisément pour cela que ça compte.</p>",
+		"<p>Les librairies indépendantes, les clubs et les bibliothèques portent cette flamme mieux que les algorithmes.</p>"},
+		[]string{"lecture", "culture"}, false},
 }
 
 var topTitleWords = []string{"La longue marche", "Le rendez-vous manqué", "L'heure des choix", "Le vertige", "La promesse", "L'angle mort", "La fracture", "Le pari", "L'héritage", "Le basculement", "Le carnet ouvert", "La chambre d'écho", "Le détour nécessaire", "Les jours ordinaires", "La dernière séance"}
@@ -345,6 +462,13 @@ var topReplyTemplates = []string{
 	"Je partage, même si %s reste à démontrer.",
 	"Très juste. %s devrait être enseigné partout.",
 	"Oui ! Et %s, on en parle quand ?",
+	"mdr trop vrai %s",
+	"GG pour ce post. %s, c'est exactement ça.",
+	"%s, je valide à 100%.",
+	"On peut en reparler autour d'un café ? %s mérite un vrai débat.",
+	"up ! %s, quelqu'un devait le dire.",
+	"Je suis pas d'accord mais je respecte. %s, c'est discutable.",
+	"La 2e mi-temps de ce fil va être chaude, %s c'est du lourd.",
 }
 
 var topCommentTemplates = []string{
@@ -403,19 +527,37 @@ func unaccent(r rune) rune {
 	return r
 }
 
-// wipeAll vide la base dans un ordre sûr (miroir de devtools.Reset).
-func wipeAll(ctx context.Context, pool *pgxpool.Pool) error {
-	tables := []string{
-		"PollVote", "PollOption", "Poll", "StarterPackItem", "StarterPack",
-		"Notification", "NotificationPreference", "AnnotationComment", "AnnotationUpvote",
-		"ArticleComment", "ApiKey", "TranslationAuditLog", "CollaborationRequest",
-		"MediaMember", "MediaInvite", "Recommendation", "Like", "Post", "Highlight",
-		"Bookmark", "Subscriber", "WalletTransaction", "Follows", "MutedWord",
-		"BlockedUser", "Letter", "ArticleSlugHistory", "ArticleSlug", "Article", "Tier",
-		"Category", "NavigationItem", "SocialLink", "PartnerPromo", "Trend",
-		"ReadingSession", "User", "SystemConfig", "Media", "Publication",
-	}
-	for _, t := range tables {
+// WipeTables est la liste UNIQUE des tables à vider, dans l'ordre sûr (les
+// enfants avant les parents pour respecter les clés étrangères). Elle est
+// partagée par RunTop (wipe avant régénération) et par devtools.Reset : les
+// deux boutons doivent vider exactement la même base, sinon des résidus
+// (ReadingSession, ArticleSlugHistory, OAuth*, MediaAsset…) survivent à un
+// reset.
+var WipeTables = []string{
+	"PollVote", "PollOption", "Poll",
+	"StarterPackItem", "StarterPack",
+	"NotificationDelivery", "NotificationPreference", "Notification",
+	"AnnotationUpvote", "AnnotationComment", "Highlight",
+	"ArticleComment",
+	"Letter", "Bookmark", "Follows", "Subscriber", "WalletTransaction",
+	"MutedWord", "MutedUser", "BlockedUser",
+	"MediaAttachment", "Like", "Post", "FeedImpression", "ContentFeedback", "ReadingSession",
+	"ArticleAttribution", "ArticleSlugHistory", "ArticleSlug", "CollaborationRequest",
+	"_CoAuthors", "collab_documents",
+	"Article",
+	"Category", "NavigationItem", "SocialLink", "Recommendation", "Tier",
+	"MediaAuditLog", "MediaInvite", "MediaMember", "Media",
+	"ApiKey", "WebhookDelivery", "Webhook", "TranslationAuditLog", "UserSettings",
+	"AccountDeletionRequest", "OAuthConsent", "OAuthToken", "OAuthAuthorizationCode",
+	"OAuthClient", "ModerationReport", "MediaAsset",
+	"User",
+	"Trend", "PartnerPromo", "SystemConfig",
+	"Publication",
+}
+
+// WipeAll vide la base dans l'ordre sûr (liste WipeTables).
+func WipeAll(ctx context.Context, pool *pgxpool.Pool) error {
+	for _, t := range WipeTables {
 		if _, err := pool.Exec(ctx, fmt.Sprintf(`DELETE FROM "%s"`, t)); err != nil {
 			return fmt.Errorf("wipe %s: %w", t, err)
 		}
@@ -436,7 +578,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	// RunTop est le profil complet historique : il reste volontairement
 	// destructif. Le nouveau mode additif est AddTop, utilisé par le bouton
 	// d'enrichissement quand on veut conserver les données existantes.
-	if err := wipeAll(ctx, pool); err != nil {
+	if err := WipeAll(ctx, pool); err != nil {
 		return nil, err
 	}
 
@@ -446,60 +588,97 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		opts.Users, opts.Articles, opts.Posts, opts.ReadingSessions)
 
 	// ── 1. Users + publications PERSONAL (créateurs) ───────────────────────
+	// Chaque compte reçoit un milieu (foot, gaming, anime, cuisine…), une
+	// identité (pseudonyme ou « Prénom Nom »), un genre/âge et une photo de
+	// profil réelle assortie — comme dans un vrai réseau.
+	avatars := loadAvatarCatalog()
 	creators := 0
 	seenUsername := map[string]bool{}
 	seenEmail := map[string]bool{}
 	for i := 0; i < opts.Users; i++ {
-		first := prngPick(rng, topFirstNames)
-		last := prngPick(rng, topLastNames)
-		name := first + " " + last
-		username := slugify(first + last)
-		for seenUsername[username] {
-			username = fmt.Sprintf("%s%d", slugify(first+last), rng.intn(9999))
-		}
-		seenUsername[username] = true
 		role := "user"
 		if rng.next() < opts.CreatorsRatio {
 			role = "creator"
 		}
-		domains := []string{"gmail.com", "outlook.fr", "proton.me", "icloud.com", "orange.fr"}
-		email := fmt.Sprintf("%s.%s%d@%s", slugify(first), slugify(last), rng.intn(900)+100, prngPick(rng, domains))
+		per := randomPersona(rng)
+		gender := pickGender(rng, per.maleProb)
+		ageRange := pickAgeRange(rng, per.ageW)
+
+		// Identité : pseudonyme (surnom + handle) ou « Prénom Nom » classique.
+		// Les pools de surnoms/pseudos sont filtrés par genre pour rester
+		// crédibles (pas de « mamanDebordee » sur un compte masculin).
+		nickPool := poolForGender(per.nicks, gender, nickGender)
+		pseudoPool := poolForGender(per.pseudos, gender, pseudoGender)
+		var name, username string
+		if pickPseudoAccount(rng, role) {
+			handle := prngPick(rng, pseudoPool)
+			if rng.next() < 0.5 {
+				handle = pseudoFromNick(rng, prngPick(rng, nickPool))
+			}
+			username = slugify(handle)
+			for seenUsername[username] {
+				username = fmt.Sprintf("%s%d", slugify(handle), rng.intn(9999))
+			}
+			seenUsername[username] = true
+			if rng.next() < 0.6 {
+				name = prngPick(rng, nickPool)
+			} else {
+				name = humanizeHandle(handle)
+			}
+		} else {
+			first := topFirstName(rng, gender)
+			last := prngPick(rng, topLastNames)
+			name = first + " " + last
+			username = slugify(first + last)
+			for seenUsername[username] {
+				username = fmt.Sprintf("%s%d", slugify(first+last), rng.intn(9999))
+			}
+			seenUsername[username] = true
+		}
+
+		domains := []string{"gmail.com", "outlook.fr", "proton.me", "icloud.com", "orange.fr", "hotmail.fr"}
+		email := fmt.Sprintf("%s@%s", username, prngPick(rng, domains))
 		for seenEmail[email] {
-			email = fmt.Sprintf("%s.%s%d@%s", slugify(first), slugify(last), rng.intn(900)+100, prngPick(rng, domains))
+			email = fmt.Sprintf("%s%d@%s", username, rng.intn(9999), prngPick(rng, domains))
 		}
 		seenEmail[email] = true
 		created := now.AddDate(0, 0, -rng.intn(180))
+		bio := prngPick(rng, per.bios)
+		if rng.next() < 0.25 {
+			bio = biosFor(name, rng)
+		}
+		avatar := avatars.pick(gender, themeForKey(per.key))
 
 		u := TopUser{
 			ID: topUUID(i, "user"), Email: email, Name: name, Username: username,
 			Role: role, Country: prngPick(rng, topCountries), CreatedAt: created,
+			Bio: bio, Interests: append([]string(nil), per.tags...),
+			Gender: gender, AgeRange: ageRange,
 		}
 		if role == "creator" {
 			creators++
 			pubID := topID("pub", i)
 			pub := TopPublication{
 				ID: pubID, OwnerID: u.ID, Name: name, Slug: username,
-				Subdomain: username, Bio: biosFor(name, rng), Accent: prngPick(rng, topAccents),
+				Subdomain: username, Bio: bio, Accent: prngPick(rng, topAccents),
+				Tags: append([]string(nil), per.tags...),
 			}
 			u.PubID = pubID
 			res.Publications = append(res.Publications, pub)
 			if _, err := pool.Exec(ctx, `
 				INSERT INTO "Publication" (id, type, name, slug, subdomain, bio, "logoUrl", "headerImageUrl", "isCertified", "accentColor", "layoutStyle", "createdAt", "updatedAt")
 				VALUES ($1, 'PERSONAL', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)`,
-				pub.ID, pub.Name, pub.Slug, pub.Subdomain, pub.Bio, visualURL(i, ""), visualURL(i+4, "editorial_landscape"), rng.next() < 0.25, pub.Accent, []string{"minimal", "editorial", "magazine"}[i%3], created); err != nil {
+				pub.ID, pub.Name, pub.Slug, pub.Subdomain, pub.Bio, avatar, visualURL(i+4, "editorial_landscape"), rng.next() < 0.25, pub.Accent, []string{"minimal", "editorial", "magazine"}[i%3], created); err != nil {
 				return nil, fmt.Errorf("publication %s: %w", pub.ID, err)
 			}
 		}
 		if _, err := pool.Exec(ctx, `
-			INSERT INTO "User" (id, email, username, name, role, "isCertified", "countryCode", "languageCode", "hasCompletedOnboarding", "publicationId", "logoUrl", "createdAt", "updatedAt")
-			VALUES ($1, $2, $3, $4, $5, $6, $7, 'fr', true, $8, $9, $10, $10)`,
-			u.ID, u.Email, u.Username, u.Name, u.Role, rng.next() < 0.06, u.Country, nullStr(u.PubID), visualURL(i, ""), created); err != nil {
+			INSERT INTO "User" (id, email, username, name, role, "isCertified", "countryCode", "languageCode", gender, "ageRange", "hasCompletedOnboarding", "publicationId", "logoUrl", "createdAt", "updatedAt")
+			VALUES ($1, $2, $3, $4, $5, $6, $7, 'fr', $8, $9, true, $10, $11, $12, $12)`,
+			u.ID, u.Email, u.Username, u.Name, u.Role, rng.next() < 0.06, u.Country, gender, ageRange, nullStr(u.PubID), avatar, created); err != nil {
 			return nil, fmt.Errorf("user %s: %w", u.ID, err)
 		}
 		res.Users = append(res.Users, u)
-		// Des statistiques de profil plausibles vivent dans les relations et
-		// les contenus déjà insérés ; cette trace permet aux seed tools de
-		// connaître le casting généré sans exposer de faux compte de production.
 	}
 	log.Printf("[seed-top] ✔ %d users (%d créateurs)", len(res.Users), creators)
 
@@ -514,14 +693,26 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	}
 
 	// ── 2. Catégories (2-3 par publication créateur) ───────────────────────
-	catNames := []string{"Souveraineté", "Écologie", "Politique", "Culture", "Économie", "Numérique"}
-	catSlugs := []string{"souverainete", "ecologie", "politique", "culture", "economie", "numerique"}
+	// Les catégories reflètent le milieu de la publication quand c'est possible
+	// (un compte gaming a des catégories Gaming/Tech, pas Souveraineté).
+	catNames := []string{"Football", "Gaming", "Anime", "Cuisine", "Musique", "Mode", "Sport", "Tech", "Voyage", "Culture", "Écologie", "Politique", "Économie", "Numérique"}
+	catSlugs := []string{"football", "gaming", "anime", "cuisine", "musique", "mode", "sport", "tech", "voyage", "culture", "ecologie", "politique", "economie", "numerique"}
+	catByKey := map[string]int{"foot": 0, "gaming": 1, "anime": 2, "cuisine": 3, "musique": 4, "mode": 5, "fitness": 6, "tech": 7, "voyage": 8}
 	catByPub := map[string][]string{}
 	catSeq := 0
 	for _, pub := range res.Publications {
 		nb := 2 + rng.intn(2)
+		first := -1
+		if len(pub.Tags) > 0 {
+			if ci, ok := catByKey[pub.Tags[0]]; ok {
+				first = ci
+			}
+		}
 		for c := 0; c < nb; c++ {
-			ci := rng.intn(len(catNames))
+			ci := first
+			if ci < 0 || (c > 0 && rng.next() < 0.6) {
+				ci = rng.intn(len(catNames))
+			}
 			catID := topID("cat", catSeq)
 			catSeq++
 			if _, err := pool.Exec(ctx, `
@@ -546,7 +737,13 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		pub := res.Publications[rng.weightedIndex(pubWeights)]
 		cats := catByPub[pub.ID]
 		topic := prngPick(rng, topTopics)
-		title := fmt.Sprintf(topic.title, prngPick(rng, topTitleWords))
+		// 40% : sujet aligné avec le milieu du créateur (foot, gaming…).
+		if rng.next() < 0.4 {
+			if t := topicForTags(pub.Tags); t != nil {
+				topic = *t
+			}
+		}
+		title := topicTitle(topic, prngPick(rng, topTitleWords))
 		content := longFormContent(topic, rng)
 		premium := rng.next() < opts.PremiumRatio
 		if premium {
@@ -579,6 +776,42 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		}
 		res.Articles = append(res.Articles, art)
 	}
+
+	// Articles canoniques — requis par l'e2e (core-journeys, security) qui
+	// font référence à ces slugs exacts. Sans eux, ces specs échouaient : le
+	// corpus -top génère des slugs dérivés du titre, pas ces identifiants fixes.
+	canonical := []struct {
+		slug, title, content, visibility string
+		premium, editorPick               bool
+	}{
+		{"souverainete-medias-independants", "La souveraineté des médias indépendants",
+			"<p>Dans un monde saturé de plateformes, posséder son propre espace de publication n'est plus un luxe : c'est une condition de survie éditoriale.</p><p>Cet article explore ce que signifie réellement être souverain sur son audience, son contenu et ses revenus.</p>",
+			"PUBLIC", false, true},
+		{"essai-premium-souverainete", "L'économie de l'attention, dix ans après",
+			"<p>Premier paragraphe offert : le temps de lecture est une denrée rare.</p><p>Deuxième paragraphe offert : la plupart des plateformes en vivent.</p><!--paywall--><p>Ce passage est réservé aux abonnés premium de cette publication.</p><p>La suite de l'analyse est exclusive.</p>",
+			"PAID_SUBSCRIBERS", true, false},
+	}
+	// Upsert avec ID déterministe — res.Articles doit porter un ID valide
+	// (les bookmarks et EmbedTop piochent dessus ; un ID vide = FK cassée sur
+	// Bookmark.articleId). On insère donc en direct avec un id canonique fixe.
+	for i, a := range canonical {
+		artID := topID("artc", i)
+		if _, err := pool.Exec(ctx, `
+			INSERT INTO "Article" (id, title, slug, content, "imageUrl", published, status, visibility,
+				"isPremium", "isEditorPick", "readingTime", "semanticTags", "publicationId", "authorId", "createdAt", "updatedAt")
+			VALUES ($1, $2, $3, $4, $5, true, 'PUBLISHED', $6, $7, $8, 6, $9, $10, $11, now(), now())
+			ON CONFLICT ("publicationId", slug) DO UPDATE SET
+			  title = $2, content = $4, visibility = $6, "isPremium" = $7, "isEditorPick" = $8, "updatedAt" = now()`,
+			artID, a.title, a.slug, a.content, visualURL(200+i, "editorial_landscape"), a.visibility,
+			a.premium, a.editorPick, []string{"edito"}, AdminPubID, AdminUserID); err != nil {
+			return nil, fmt.Errorf("article canonique %s: %w", a.slug, err)
+		}
+		res.Articles = append(res.Articles, TopArticle{
+			ID: artID, PublicationID: AdminPubID, AuthorID: AdminUserID,
+			Slug: a.slug, Title: a.title, Content: a.content, Premium: a.premium,
+			ReadingTime: 6, CreatedAt: time.Now().UTC().Truncate(time.Second),
+		})
+	}
 	log.Printf("[seed-top] ✔ %d articles", len(res.Articles))
 
 	// ── 4. Pensées (~1480 : racines + réponses) ────────────────────────────
@@ -594,32 +827,49 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	rootCount := int(float64(opts.Posts) * 0.85)
 	replyCount := opts.Posts - rootCount
 	allPostIDs := make([]string, 0, opts.Posts)
+	postTags := map[string][]string{} // tags par post (pour aligner les réponses)
 	for i := 0; i < opts.Posts; i++ {
 		author := res.Users[rng.weightedIndex(userWeights)]
 		created := now.AddDate(0, 0, -rng.intn(14)).Add(-time.Duration(rng.intn(20)) * time.Hour)
 		postID := topID("post", i)
+		var content string
+		var tags []string
 		if i < rootCount {
-			th := prngPick(rng, topThoughts)
-			content := th.text
+			// Pensée cohérente avec le milieu de l'auteur (foot, gaming…).
+			text, tgs := thoughtFor(rng, author)
+			tags = tgs
+			content = text
 			if rng.next() < 0.5 {
-				content += " #" + strings.Join(th.tags, " #")
+				content += " #" + strings.Join(tags, " #")
+			}
+			postImage := ""
+			if rng.next() < 0.25 {
+				postImage = visualURL(i+16, "editorial_landscape")
 			}
 			if _, err := pool.Exec(ctx, `
 				INSERT INTO "Post" (id, content, "authorId", tags, "imageUrl", visibility, "isDraft", "likeCount", "repostCount", "replyCount", "createdAt", "updatedAt")
 				VALUES ($1, $2, $3, $4, $5, 'public', false, $6, $7, 0, $8, $8)`,
-				postID, content, author.ID, th.tags, visualURL(i+16, ""), rng.intn(40), rng.intn(12), created); err != nil {
+				postID, content, author.ID, tags, postImage, rng.intn(40), rng.intn(12), created); err != nil {
 				return nil, fmt.Errorf("post root: %w", err)
 			}
+			postTags[postID] = tags
 		} else {
 			parent := allPostIDs[rng.intn(len(allPostIDs))]
-			content := fmt.Sprintf(prngPick(rng, topReplyTemplates), prngPick(rng, topThoughts).tags[0])
+			// Réponse alignée sur le milieu du post parent (tags hérités).
+			tags = postTags[parent]
+			if len(tags) == 0 {
+				tags = prngPick(rng, topThoughts).tags
+			}
+			content = fmt.Sprintf(prngPick(rng, topReplyTemplates), tags[0])
 			if _, err := pool.Exec(ctx, `
 				INSERT INTO "Post" (id, content, "authorId", tags, visibility, "isDraft", "likeCount", "repostCount", "replyCount", "parentId", "rootId", "createdAt", "updatedAt")
 				VALUES ($1, $2, $3, $4, 'public', false, $5, 0, 0, $6, $6, $7, $7)`,
-				postID, content, author.ID, []string{}, rng.intn(10), parent, created); err != nil {
+				postID, content, author.ID, tags, rng.intn(10), parent, created); err != nil {
 				return nil, fmt.Errorf("post reply: %w", err)
 			}
+			postTags[postID] = tags
 		}
+		res.Posts = append(res.Posts, TopPost{ID: postID, Content: content, Tags: tags})
 		allPostIDs = append(allPostIDs, postID)
 	}
 	res.PostIDs = allPostIDs
@@ -829,13 +1079,13 @@ func AddTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		topic := topTopics[i%len(topTopics)]
 		pubID := pubIDs[rng.intn(len(pubIDs))]
 		var authorID string
-		if err := pool.QueryRow(ctx, `SELECT COALESCE("publicationId", id)::text FROM "User" WHERE "publicationId" = $1 LIMIT 1`, pubID).Scan(&authorID); err != nil {
+		if err := pool.QueryRow(ctx, `SELECT id::text FROM "User" WHERE "publicationId" = $1 LIMIT 1`, pubID).Scan(&authorID); err != nil {
 			if err := pool.QueryRow(ctx, `SELECT id::text FROM "User" WHERE role='creator' ORDER BY id LIMIT 1`).Scan(&authorID); err != nil {
 				return nil, err
 			}
 		}
 		id := topID("addart", i)
-		title := fmt.Sprintf(topic.title, topTitleWords[i%len(topTitleWords)])
+		title := topicTitle(topic, topTitleWords[i%len(topTitleWords)])
 		content := longFormContent(topic, rng)
 		if _, err := pool.Exec(ctx, `INSERT INTO "Article" (id,title,slug,content,"imageUrl",published,status,visibility,"isPremium","isEditorPick","readingTime","semanticTags","publicationId","authorId","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,true,'PUBLISHED','PUBLIC',$6,$7,10,$8,$9,$10,$11,$11) ON CONFLICT (id) DO NOTHING`, id, title, fmt.Sprintf("%s-add-%d", slugify(title), i), content, visualURL(i+40, "editorial_landscape"), rng.next() < opts.PremiumRatio, topic.editor && rng.next() < .25, topic.tags, pubID, authorID, now.Add(-time.Duration(i)*time.Hour)); err != nil {
 			return nil, err
@@ -844,12 +1094,14 @@ func AddTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	}
 	for i := 0; i < opts.Posts; i++ {
 		u := res.Users[rng.intn(len(res.Users))]
-		th := topThoughts[i%len(topThoughts)]
+		// Pensée cohérente avec le milieu de l'auteur (comme la passe principale).
+		text, tags := thoughtFor(rng, u)
 		id := topID("addpost", i)
 		if _, err := pool.Exec(ctx, `
-			INSERT INTO "Post" (id,content,"authorId",tags,"imageUrl",visibility,"isDraft","likeCount","repostCount","replyCount","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,'public',false,$6,$7,0,$8,$8) ON CONFLICT (id) DO NOTHING`, id, th.text, u.ID, th.tags, visualURL(i+60, ""), rng.intn(80), rng.intn(20), now.Add(-time.Duration(i)*time.Hour)); err != nil {
+			INSERT INTO "Post" (id,content,"authorId",tags,"imageUrl",visibility,"isDraft","likeCount","repostCount","replyCount","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,'public',false,$6,$7,0,$8,$8) ON CONFLICT (id) DO NOTHING`, id, text, u.ID, tags, visualURL(i+60, ""), rng.intn(80), rng.intn(20), now.Add(-time.Duration(i)*time.Hour)); err != nil {
 			return nil, err
 		}
+		res.Posts = append(res.Posts, TopPost{ID: id, Content: text, Tags: tags})
 		res.PostIDs = append(res.PostIDs, id)
 	}
 	return res, nil
@@ -1012,27 +1264,78 @@ func nullStr(s string) any {
 	return s
 }
 
-func longFormContent(topic struct {
-	title  string
-	paras  [3]string
-	tags   []string
-	editor bool
-}, rng *prng) string {
+// topSentenceConnectors / topSentenceClauses — banque de phrases générique
+// pour construire des articles longs variés sans répéter mécaniquement les 3
+// paragraphes du sujet (l'ancien seed cyclait les mêmes blocs 72 fois).
+var topSentenceConnectors = []string{
+	"", "En pratique,", "Pour autant,", "Dans les faits,", "Prenons un exemple concret :",
+	"À bien des égards,", "Sur le terrain,", "Au quotidien,", "Sans surprise,",
+	"D'un autre côté,", "Finalement,", "À y regarder de près,", "Reste une nuance :",
+	"Force est de constater que", "Il faut le dire :", "Ce n'est pas un hasard si",
+}
+
+var topSentenceClauses = []string{
+	"le sujet mérite mieux qu'un raccourci.",
+	"les acteurs concernés le savent depuis longtemps.",
+	"rien ne se règle par décret du jour au lendemain.",
+	"les habitudes ont la vie dure.",
+	"la question est plus nuancée qu'il n'y paraît.",
+	"il y a un écart entre le discours et la réalité du terrain.",
+	"chaque territoire vit la situation à son rythme.",
+	"les solutions existent, il manque souvent la volonté.",
+	"on observe une lente mais réelle prise de conscience.",
+	"le temps est une variable que les décideurs oublient trop souvent.",
+	"les chiffres racontent une partie de l'histoire, pas toute l'histoire.",
+	"il faut regarder ce qui se passe en dehors des métropoles.",
+	"les générations suivantes jugeront nos choix actuels.",
+	"la simplicité apparente cache des mécanismes complexes.",
+	"le débat public a besoin de faits, pas de slogans.",
+	"l'expérience locale montre que c'est possible.",
+	"le compromis n'est pas une faiblesse, c'est une méthode.",
+	"les effets se mesurent sur la durée, pas à l'instant.",
+	"beaucoup préfèrent l'immédiateté à la solidité.",
+	"la confiance se construit dans la durée.",
+	"les témoignages convergent sur l'essentiel.",
+	"le détail change souvent la conclusion.",
+	"il reste beaucoup à faire, et c'est une bonne nouvelle.",
+	"les initiatives fleurissent quand on leur laisse de l'air.",
+	"la méthode compte autant que le résultat.",
+}
+
+func longFormContent(topic topTopic, rng *prng) string {
 	var b strings.Builder
+	// Intro : les 3 paragraphes du sujet.
 	for i := 0; i < 3; i++ {
 		b.WriteString(topic.paras[i])
-		for j := 0; j < 24; j++ {
-			b.WriteString(fmt.Sprintf("<p>%s %s %s %s %s. %s %s %s.</p>",
-				topic.paras[(i+j+1)%3],
-				prngPick(rng, topTitleWords),
-				prngPick(rng, topTitleWords),
-				prngPick(rng, topTitleWords),
-				prngPick(rng, topTitleWords),
-				prngPick(rng, topTitleWords),
-				prngPick(rng, topTitleWords),
-				prngPick(rng, topTitleWords)))
-		}
 	}
+	// Développement : ~45 phrases construites à partir d'une banque variée
+	// (clauses générales + paragraphes du sujet + mots de titre), pour que
+	// deux articles du même sujet ne se ressemblent pas.
+	clauses := make([]string, 0, len(topSentenceClauses)+9)
+	clauses = append(clauses, topSentenceClauses...)
+	for i := 0; i < 9; i++ {
+		clauses = append(clauses, topic.paras[i%3])
+	}
+	for i := 0; i < 45; i++ {
+		clause := prngPick(rng, clauses)
+		clause = strings.TrimPrefix(clause, "<p>")
+		clause = strings.TrimSuffix(clause, "</p>")
+		conn := prngPick(rng, topSentenceConnectors)
+		sentence := clause
+		if conn != "" {
+			// Minuscule de la PREMIÈRE RUNE (pas du premier octet : une
+			// clause peut commencer par « À », « É »… multi-octets en UTF-8,
+			// et clause[:1] tronquerait l'octet → texte invalide rejeté par
+			// Postgres (SQLSTATE 22021)).
+			rs := []rune(clause)
+			if len(rs) > 0 {
+				sentence = conn + " " + strings.ToLower(string(rs[0])) + string(rs[1:])
+			}
+		}
+		b.WriteString("<p>" + sentence + "</p>")
+	}
+	// Conclusion : une ouverture.
+	b.WriteString("<p>" + prngPick(rng, topSentenceClauses) + "</p>")
 	return b.String()
 }
 
@@ -1052,6 +1355,11 @@ func biosFor(name string, rng *prng) string {
 		"Illustrateur freelance, entre deux cafés et trois croquis.",
 		"Chercheuse en sciences sociales, curieuse des usages ordinaires.",
 		"Je fais des listes, je rate mes trains et je lis les notes de bas de page.",
+		"Maman de deux enfants, je cherche de belles histoires entre l'école et le dîner.",
+		"Cinéphile du dimanche, collectionneur de billets et de génériques oubliés.",
+		"Passionné de manga, de cafés calmes et de voyages sans programme.",
+		"Je cuisine pour comprendre les villes et je note tout dans un carnet bleu.",
+		"Lectrice compulsive, joueuse occasionnelle, toujours partante pour une bonne discussion.",
 	}
 	return prngPick(rng, templates)
 }
@@ -1102,6 +1410,12 @@ func EmbedTop(ctx context.Context, pool *pgxpool.Pool, res *TopResult, embedding
 	articles := 0
 	for _, a := range res.Articles {
 		text := a.Title + "\n\n" + stripHTML(a.Content)
+		// Le service d'inférence local (llama.cpp) rejette les entrées trop
+		// longues (>~2k chars, contexte court). Le titre + le début du corps
+		// suffisent pour la similarité sémantique ; on borne donc l'entrée.
+		if len(text) > 1800 {
+			text = text[:1800]
+		}
 		if strings.TrimSpace(text) == "" {
 			continue
 		}
@@ -1123,14 +1437,16 @@ func EmbedTop(ctx context.Context, pool *pgxpool.Pool, res *TopResult, embedding
 
 	users := 0
 	for _, u := range res.Users {
-		bio := ""
-		for _, p := range res.Publications {
-			if p.OwnerID == u.ID {
-				bio = p.Bio
-				break
+		bio := u.Bio
+		if bio == "" {
+			for _, p := range res.Publications {
+				if p.OwnerID == u.ID {
+					bio = p.Bio
+					break
+				}
 			}
 		}
-		text := strings.TrimSpace(u.Name + "\n\n" + bio)
+		text := strings.TrimSpace(u.Name + "\n\n" + bio + "\n\nCentres d'intérêt : " + strings.Join(u.Interests, ", "))
 		if text == "" {
 			continue
 		}
@@ -1141,13 +1457,42 @@ func EmbedTop(ctx context.Context, pool *pgxpool.Pool, res *TopResult, embedding
 		if len(vec) > 512 {
 			vec = vec[:512]
 		}
-		if _, err := pool.Exec(ctx, `UPDATE "User" SET embedding = $2 WHERE id = $1`,
+		// updatedAt=now() est crucial : la décroissance temporelle du vecteur
+		// (vectorfeed, demi-vie 60j) s'appuie sur updatedAt. Sans ça, les profils
+		// fraîchement seedés (createdAt antidaté) sembleraient « périmés » et
+		// dériveraient vers le centroïde dès leur première interaction.
+		if _, err := pool.Exec(ctx, `UPDATE "User" SET embedding = $2, "updatedAt" = now() WHERE id = $1`,
 			u.ID, vectorLiteral(vec)); err != nil {
 			return articles, users, err
 		}
 		users++
 	}
 	log.Printf("[seed-top] ✔ %d users embeddés", users)
+
+	posts := 0
+	for _, p := range res.Posts {
+		text := strings.TrimSpace(p.Content)
+		if text == "" {
+			continue
+		}
+		if len(p.Tags) > 0 {
+			text = text + "\n\nTags : " + strings.Join(p.Tags, ", ")
+		}
+		vec, err := embed(text)
+		if err != nil {
+			log.Printf("[seed-top] embed post %s: %v", p.ID, err)
+			continue
+		}
+		if len(vec) > 512 {
+			vec = vec[:512]
+		}
+		if _, err := pool.Exec(ctx, `UPDATE "Post" SET embedding = $2, "updatedAt" = now() WHERE id = $1`,
+			p.ID, vectorLiteral(vec)); err != nil {
+			return articles, users, err
+		}
+		posts++
+	}
+	log.Printf("[seed-top] ✔ %d pensées embeddées", posts)
 	return articles, users, nil
 }
 

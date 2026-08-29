@@ -188,6 +188,77 @@ func TestRunTopKeepAdmin(t *testing.T) {
 	}
 }
 
+// TestRunTopPersonas vérifie que la génération produit des comptes variés et
+// crédibles : photos de profil réelles (catalogue) quasi toutes distinctes,
+// mix pseudonymes / « Prénom Nom », genre et tranche d'âge renseignés.
+func TestRunTopPersonas(t *testing.T) {
+	ctx := context.Background()
+	if _, err := RunTop(ctx, poolTest, TopOptions{
+		Users: 120, Articles: 4, Posts: 60, ReadingSessions: 5,
+		CreatorsRatio: 0.4, PremiumRatio: 0.1,
+	}); err != nil {
+		t.Fatalf("RunTop: %v", err)
+	}
+
+	// Avatars : le catalogue (~270 photos) doit éviter les répétitions sur 120
+	// comptes → quasi tous distincts (l'admin n'a pas de logoUrl).
+	distinct := count(t, `SELECT COUNT(DISTINCT "logoUrl") FROM "User" WHERE "logoUrl" IS NOT NULL AND id <> $1`, AdminUserID)
+	if distinct < 90 {
+		t.Fatalf("avatars distincts = %d, attendu >= 90 (catalogue 270)", distinct)
+	}
+
+	// Mix d'identités : pseudonymes (noms sans espace) et noms réels (avec espace).
+	if n := count(t, `SELECT COUNT(*) FROM "User" WHERE name NOT LIKE '% %'`); n < 20 {
+		t.Fatalf("comptes pseudonymes = %d, attendu >= 20", n)
+	}
+	if n := count(t, `SELECT COUNT(*) FROM "User" WHERE name LIKE '% %'`); n < 20 {
+		t.Fatalf("comptes nom+prénom = %d, attendu >= 20", n)
+	}
+
+	// Genre et tranche d'âge renseignés (colonnes désormais alimentées).
+	if n := count(t, `SELECT COUNT(*) FROM "User" WHERE gender IS NOT NULL AND "ageRange" IS NOT NULL`); n < 100 {
+		t.Fatalf("users avec genre+âge = %d, attendu >= 100", n)
+	}
+
+	// Cohérence posts ↔ milieu : un créateur publie presque toujours dans son
+	// milieu (thoughtFor persona à 90%) → pour chaque auteur ayant ≥2 racines
+	// taguées, son tag dominant doit couvrir la majorité de ses racines. Une
+	// réponse hérite des tags de son parent (alignement du fil).
+	var incoherentAuthors int
+	if err := poolTest.QueryRow(ctx, `WITH author_tags AS (
+			SELECT p."authorId", p.tags[1] AS t, count(*) AS n
+			FROM "Post" p
+			WHERE p."parentId" IS NULL AND cardinality(p.tags) > 0
+			GROUP BY 1, 2
+		), dominants AS (
+			SELECT "authorId", t, n, row_number() OVER (PARTITION BY "authorId" ORDER BY n DESC) AS rn
+			FROM author_tags
+		)
+		SELECT count(*) FROM (
+			SELECT d."authorId", d.n::float / sum(n) OVER (PARTITION BY d."authorId") AS ratio
+			FROM dominants d WHERE d.rn = 1
+		) x WHERE ratio < 0.6`).Scan(&incoherentAuthors); err != nil {
+		t.Fatalf("count auteurs incohérents: %v", err)
+	}
+	if incoherentAuthors > 3 {
+		t.Fatalf("auteurs au milieu dispersé = %d, attendu <= 3 (thoughtFor persona 90%%)", incoherentAuthors)
+	}
+	var alignedReplies int
+	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "Post" r
+		JOIN "Post" p ON p.id = r."parentId"
+		WHERE r.id LIKE 'post_%' AND r."parentId" IS NOT NULL
+		  AND cardinality(p.tags) > 0 AND p.tags && r.tags`).Scan(&alignedReplies); err != nil {
+		t.Fatalf("count réponses alignées: %v", err)
+	}
+	var totalReplies int
+	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "Post" r WHERE r.id LIKE 'post_%' AND r."parentId" IS NOT NULL`).Scan(&totalReplies); err != nil {
+		t.Fatalf("count réponses totales: %v", err)
+	}
+	if alignedReplies*100 < totalReplies*60 {
+		t.Fatalf("réponses alignées sur le parent = %d/%d, attendu >= 60%%", alignedReplies, totalReplies)
+	}
+}
+
 func TestSeedRun(t *testing.T) {
 	ctx := context.Background()
 	if err := Run(ctx, poolTest); err != nil {
