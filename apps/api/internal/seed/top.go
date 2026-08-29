@@ -988,18 +988,67 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		res.Likes, res.Subscribers, walletSeq, bmkSeq)
 
 	// ── 7. ReadingSessions (~5700 sur 14 jours) ────────────────────────────
+	// Alignées sur le milieu du lecteur : ~70% des sessions portent sur un
+	// article partageant un tag avec les centres d'intérêt du user (un profil
+	// foot lit des articles foot), le reste explore ailleurs (découverte
+	// réaliste). La lecture devient ainsi un vrai signal de profil — en prod,
+	// l'EMA vectorfeed l'applique sur chaque session (READ_COMPLETE fort,
+	// READ_PARTIAL faible, SKIM clic, BOUNCE négatif).
+	type artInfo struct {
+		id          string
+		tags        []string
+		readingTime int
+	}
+	var artIndex []artInfo
+	artByID := map[string]artInfo{}
+	artByTag := map[string][]string{}
+	{
+		artRows, err := pool.Query(ctx, `SELECT id, COALESCE("semanticTags", '{}'), "readingTime" FROM "Article" WHERE published = true ORDER BY id`)
+		if err != nil {
+			return nil, fmt.Errorf("articles pour sessions: %w", err)
+		}
+		for artRows.Next() {
+			var a artInfo
+			if err := artRows.Scan(&a.id, &a.tags, &a.readingTime); err != nil {
+				artRows.Close()
+				return nil, err
+			}
+			artIndex = append(artIndex, a)
+			artByID[a.id] = a
+			for _, t := range a.tags {
+				artByTag[t] = append(artByTag[t], a.id)
+			}
+		}
+		artRows.Close()
+		if err := artRows.Err(); err != nil {
+			return nil, err
+		}
+	}
+
 	sessSeq := 0
 	statuses := []string{"BOUNCE", "SKIM", "READ_PARTIAL", "READ_COMPLETE"}
 	sources := []string{"feed", "feed", "feed", "subdomain", "subdomain", "direct", "notification"}
 	for i := 0; i < opts.ReadingSessions; i++ {
-		art := res.Articles[rng.intn(len(res.Articles))]
 		user := res.Users[rng.intn(len(res.Users))]
+		var art artInfo
+		if rng.next() < 0.7 {
+			var candidates []string
+			for _, t := range user.Interests {
+				candidates = append(candidates, artByTag[t]...)
+			}
+			if len(candidates) > 0 {
+				art = artByID[candidates[rng.intn(len(candidates))]]
+			}
+		}
+		if art.id == "" {
+			art = artIndex[rng.intn(len(artIndex))]
+		}
 		dwell := 15 + rng.intn(420)
 		scroll := 15 + rng.intn(86)
 		status := statuses[0]
-		if scroll >= 80 && dwell < art.ReadingTime*60*35/100 {
+		if scroll >= 80 && dwell < art.readingTime*60*35/100 {
 			status = "SKIM"
-		} else if scroll >= 85 && dwell >= art.ReadingTime*60 {
+		} else if scroll >= 85 && dwell >= art.readingTime*60 {
 			status = "READ_COMPLETE"
 		} else if scroll >= 25 {
 			status = "READ_PARTIAL"
@@ -1008,14 +1057,14 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		if _, err := pool.Exec(ctx, `
 			INSERT INTO "ReadingSession" (id, "articleId", "userId", source, status, "scrollDepth", "dwellSeconds", "readingTimeMinutes", hostname, "createdAt")
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-			topID("rs", sessSeq), art.ID, user.ID, prngPick(rng, sources), status, scroll, dwell,
-			art.ReadingTime, "qoe.test", created); err != nil {
+			topID("rs", sessSeq), art.id, user.ID, prngPick(rng, sources), status, scroll, dwell,
+			art.readingTime, "qoe.test", created); err != nil {
 			return nil, fmt.Errorf("reading session: %w", err)
 		}
 		sessSeq++
 		res.ReadingSess++
 	}
-	log.Printf("[seed-top] ✔ %d reading sessions", res.ReadingSess)
+	log.Printf("[seed-top] ✔ %d reading sessions (alignées milieu)", res.ReadingSess)
 
 	// ── 8. Monde vivant — couche « société connectée » loggable et unique.
 	// Met en scène une bande de créateurs/lecteurs nommés : ils se suivent,
@@ -1506,8 +1555,7 @@ func EmbedTop(ctx context.Context, pool *pgxpool.Pool, res *TopResult, embedding
 
 	// Users — contenu d'abord : le profil d'un user = la moyenne des
 	// embeddings de SES pensées (jamais sa bio, cohérent avec le worker de
-	// prod). Un seul UPDATE base-wide ; les comptes sans contenu passent au
-	// repli persona ci-dessous (cold-start de démo uniquement).
+	// prod). Un seul UPDATE base-wide.
 	ct, err := pool.Exec(ctx, `
 		UPDATE "User" u
 		SET embedding = m.mean, "updatedAt" = now()
@@ -1524,48 +1572,28 @@ func EmbedTop(ctx context.Context, pool *pgxpool.Pool, res *TopResult, embedding
 	}
 	users := int(ct.RowsAffected())
 
-	// Repli persona (bio + centres d'intérêt) pour les comptes du top sans
-	// contenu — uniquement pour la démo : en prod, un user sans contenu
-	// reste en cold start (fraîcheur/engagement) jusqu'à ses interactions.
-	for _, u := range res.Users {
-		var has bool
-		if err := pool.QueryRow(ctx, `SELECT ("embedding" IS NOT NULL) FROM "User" WHERE id = $1`, u.ID).Scan(&has); err != nil {
-			continue
-		}
-		if has {
-			continue
-		}
-		bio := u.Bio
-		if bio == "" {
-			for _, p := range res.Publications {
-				if p.OwnerID == u.ID {
-					bio = p.Bio
-					break
-				}
-			}
-		}
-		text := strings.TrimSpace(u.Name + "\n\n" + bio + "\n\nCentres d'intérêt : " + strings.Join(u.Interests, ", "))
-		if text == "" {
-			continue
-		}
-		vec, err := embed(text)
-		if err != nil {
-			continue
-		}
-		if len(vec) > 512 {
-			vec = vec[:512]
-		}
-		// updatedAt=now() est crucial : la décroissance temporelle du vecteur
-		// (vectorfeed, demi-vie 60j) s'appuie sur updatedAt. Sans ça, les profils
-		// fraîchement seedés (createdAt antidaté) sembleraient « périmés » et
-		// dériveraient vers le centroïde dès leur première interaction.
-		if _, err := pool.Exec(ctx, `UPDATE "User" SET embedding = $2, "updatedAt" = now() WHERE id = $1`,
-			u.ID, vectorLiteral(vec)); err != nil {
-			return articles, users, err
-		}
-		users++
+	// Puis lecture : les comptes sans pensée mais avec de vraies sessions de
+	// lecture reçoivent un vecteur issu de CE QU'ILS LISENT — moyenne des
+	// articles lus avec un signal positif (READ_COMPLETE/PARTIAL/SKIM, comme
+	// l'EMA prod sur les lectures). Les bounces sont exclus : un user 100%
+	// bounces reste en cold start. Pas de repli bio : un user sans aucune
+	// activité reste en cold start (fraîcheur/engagement), comme en prod.
+	ct2, err := pool.Exec(ctx, `
+		UPDATE "User" u
+		SET embedding = sub.mean, "updatedAt" = now()
+		FROM (
+			SELECT rs."userId" AS uid,
+			       avg(a."embedding") FILTER (WHERE rs.status IN ('READ_COMPLETE','READ_PARTIAL','SKIM')) AS mean
+			FROM "ReadingSession" rs
+			JOIN "Article" a ON a.id = rs."articleId" AND a."embedding" IS NOT NULL
+			GROUP BY rs."userId"
+		) sub
+		WHERE u.id = sub.uid AND u."embedding" IS NULL AND sub.mean IS NOT NULL`)
+	if err != nil {
+		return articles, users, err
 	}
-	log.Printf("[seed-top] ✔ %d users embeddés (contenu + repli persona)", users)
+	users += int(ct2.RowsAffected())
+	log.Printf("[seed-top] ✔ %d users embeddés (pensées + lecture, sans bio)", users)
 	return articles, users, nil
 }
 
