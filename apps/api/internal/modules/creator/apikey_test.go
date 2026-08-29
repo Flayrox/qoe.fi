@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	db "github.com/qoefi/api/internal/database"
@@ -788,7 +789,12 @@ func TestCreatorAPI_CMSTaxonomyAndFilters(t *testing.T) {
 	}
 
 	// ── Date since : uniquement les 3 derniers jours → festival seul.
-	code, res = getJSON("/v1/creator/articles?since=2026-08-24")
+	// Le since est CALCULÉ depuis now() (pas en dur) : les articles are seedées
+	// avec des dates relatives (now() - N jours), donc un since fixe cassait
+	// dès que le temps réel dépassait la date (bombe temporelle — cf. 2026-08
+	// où debat-parlementaire, créé à now()-5j, tombait dans la fenêtre).
+	since := time.Now().AddDate(0, 0, -3).Format(time.DateOnly)
+	code, res = getJSON("/v1/creator/articles?since=" + since)
 	if code != http.StatusOK || len(slugs(res)) != 1 {
 		t.Fatalf("since = %v, attendu festival seul", slugs(res))
 	}
