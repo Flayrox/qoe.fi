@@ -18,6 +18,10 @@ export default defineConfig({
     alias: {
       react: path.resolve(__dirname, 'node_modules/react'),
       'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+      // Alias des apps (Next.js) : apps/core résout `@/` vers son src.
+      // Seul apps/core utilise `@/` dans le périmètre couvert — le même
+      // mapping que apps/core/vitest.config.ts.
+      '@': path.resolve(__dirname, 'apps/core/src'),
     },
   },
   test: {
@@ -53,6 +57,7 @@ export default defineConfig({
         // car les .ts UI/route/edge sont du glom persistant (pas de test unitaire
         // rentable). Seuils au départ bas (2026-08), objectif 80% sur ce périmètre.
         'apps/core/src/lib/{utils,feed-types,analytics}.ts': { lines: 80, statements: 78 },
+        'apps/core/src/lib/vector-feed.ts': { lines: 80, statements: 78 },
         'apps/core/src/lib/supabase/server.ts': { lines: 80, statements: 78 },
         'apps/mobile/src/lib/format.ts': { lines: 95, statements: 95 },
         'apps/mobile/src/components/thought/normalize.ts': { lines: 80, statements: 78 },
