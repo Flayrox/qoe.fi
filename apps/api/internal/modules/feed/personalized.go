@@ -17,8 +17,13 @@ import (
 // ─────────────────────────────────────────────────────────────────────────────
 // Two-Tower personalized feed — Go port of packages/db/src/feed.ts (1382 lines)
 // ─────────────────────────────────────────────────────────────────────────────
-// Mirrors TS logic:
-//   Score = (0.40*Sim + 0.20*Fresh + 0.20*Engagement + 0.20*Circadian) * CompletionBonus
+// Score final (articles) = (0.40*Sim + 0.15*Fresh + 0.15*Engagement +
+//   0.15*Circadian + 0.15*CF) * CompletionBonus — sim dominante.
+// Score final (pensées) = 0.40*Sim + 0.22*Fresh + 0.18*Engagement +
+//   0.10*MorningBonus + 0.10*CF.
+// Le POOL de candidats est construit en sim-dominant (65% sim / 15% fresh /
+// 20% complétion) : un pool à 50/25/25 laissait la fraîcheur et l'éditorial
+// noyer le contenu du profil avant même le rerank (cf. pool_test.go).
 // + MMR diversity (max 2 / author)
 // + Collaborative Filtering via co-reading (ReadingSession, ArticleAttribution)
 // + Cold-start (nil embedding → fallback)
@@ -509,7 +514,10 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 		}
 		completionBonus := 0.7 + 0.3*a.completionRate
 		cf := cfMap[a.id]
-		score := (0.35*sim + 0.2*fresh + 0.15*eng + 0.15*circFit + 0.15*cf) * completionBonus
+		// Sim dominante (0.40, comme le rerank des pensées) : la fraîcheur à
+		// 0.20 laissait les articles « du jour » passer devant le contenu du
+		// profil (mesuré : article foot frais en tête du feed gaming).
+		score := (0.40*sim + 0.15*fresh + 0.15*eng + 0.15*circFit + 0.15*cf) * completionBonus
 		if penalties[a.id] {
 			score *= engNegativePenalty
 		}
@@ -785,7 +793,12 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 			args = append(args, toUUID(userID))
 			ai++
 		}
-		q += fmt.Sprintf(` ORDER BY (0.50*(1 - (a."embedding" <=> $1::vector)) + 0.25*EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800) + 0.25*(0.70 + 0.30*a."completionRate")) DESC LIMIT $%d OFFSET $%d`, ai, ai+1)
+		// Pool sim-dominant (65% sim / 15% fresh / 20% complétion) : le rerank
+		// final (0.35 sim) ne peut pas récupérer un pool déjà pollué par la
+		// fraîcheur — un tri à 50/25/25 laissait les articles « du jour » et
+		// l'éditorial noyer les contenus du profil (mesuré : pool gaming 18%
+		// au lieu de 92% en tri par sim pure).
+		q += fmt.Sprintf(` ORDER BY (0.65*(1 - (a."embedding" <=> $1::vector)) + 0.15*EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800) + 0.20*(0.70 + 0.30*a."completionRate")) DESC LIMIT $%d OFFSET $%d`, ai, ai+1)
 		args = append(args, limit, offset)
 		rows, err = s.pool.Query(ctx, q, args...)
 	} else {
@@ -845,7 +858,7 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 			args = append(args, toUUID(userID))
 			ai++
 		}
-		q += fmt.Sprintf(` ORDER BY (0.50*(1 - (p."embedding" <=> $1::vector)) + 0.25*EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400) + 0.25*LEAST(1.0,(p."likeCount" + p."replyCount"*2 + p."repostCount"*2)/30.0)) DESC LIMIT $%d OFFSET $%d`, ai, ai+1)
+		q += fmt.Sprintf(` ORDER BY (0.65*(1 - (p."embedding" <=> $1::vector)) + 0.15*EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400) + 0.20*LEAST(1.0,(p."likeCount" + p."replyCount"*2 + p."repostCount"*2)/30.0)) DESC LIMIT $%d OFFSET $%d`, ai, ai+1)
 		args = append(args, limit, offset)
 		rows, err = s.pool.Query(ctx, q, args...)
 	} else {
