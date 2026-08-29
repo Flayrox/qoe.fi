@@ -22,7 +22,7 @@ import (
 )
 
 type Service struct {
-	pool *pgxpool.Pool
+	pool pooler
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
