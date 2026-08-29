@@ -30,8 +30,8 @@ var (
 
 // Service porte les opérations de settings du créateur.
 type Service struct {
-	pool *pgxpool.Pool
-	q    *db.Queries
+	pool pooler
+	q    ServiceQuerier
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
