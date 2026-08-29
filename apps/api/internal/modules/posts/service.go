@@ -178,32 +178,37 @@ func (s *Service) Get(ctx context.Context, id, viewerID string) (FeedPost, error
 		add(ParentIDOf(&rows[i]))
 		add(RepostIDOf(&rows[i]))
 	}
-	for more := true; more && len(extras) < 100; {
-		more = false
-		var next []string
-		for _, eid := range extras {
-			if r, ok := all[eid]; ok {
-				if pid := ParentIDOf(r); pid != nil && !want[*pid] {
-					want[*pid] = true
-					next = append(next, *pid)
-					more = true
-				}
-				if rid := RepostIDOf(r); rid != nil && !want[*rid] {
-					want[*rid] = true
-					next = append(next, *rid)
-					more = true
-				}
+	// Charge les ancêtres (root → parent) par batch : à chaque tour on récupère
+	// les ids pas encore chargés et on découvre leurs propres ancêtres. L'ancien
+	// code ne relançait que depuis les lignes déjà en mémoire : le premier lot de
+	// parents n'était jamais requêté → Parent toujours nil.
+	for pending := extras; len(pending) > 0 && len(extras) < 100; {
+		var toFetch []string
+		for _, eid := range pending {
+			if _, ok := all[eid]; !ok {
+				toFetch = append(toFetch, eid)
 			}
 		}
-		if len(next) > 0 {
-			extraRows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: next, ViewerID: toUUID(viewerID)})
-			if err != nil {
-				return FeedPost{}, err
+		if len(toFetch) == 0 {
+			break
+		}
+		extraRows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: toFetch, ViewerID: toUUID(viewerID)})
+		if err != nil {
+			return FeedPost{}, err
+		}
+		pending = nil
+		for i := range extraRows {
+			all[extraRows[i].ID] = &extraRows[i]
+			if pid := ParentIDOf(&extraRows[i]); pid != nil && !want[*pid] {
+				want[*pid] = true
+				extras = append(extras, *pid)
+				pending = append(pending, *pid)
 			}
-			for i := range extraRows {
-				all[extraRows[i].ID] = &extraRows[i]
+			if rid := RepostIDOf(&extraRows[i]); rid != nil && !want[*rid] {
+				want[*rid] = true
+				extras = append(extras, *rid)
+				pending = append(pending, *rid)
 			}
-			extras = append(extras, next...)
 		}
 	}
 
