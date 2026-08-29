@@ -18,7 +18,7 @@ var errForbidden = errors.New("réservé au superadmin")
 // Service porte les opérations de la console admin.
 type Service struct {
 	pool *pgxpool.Pool
-	q    *db.Queries
+	q    adminQuerier
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
