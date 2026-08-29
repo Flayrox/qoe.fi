@@ -333,6 +333,74 @@ func TestHydrate(t *testing.T) {
 	}
 }
 
+// axisVector construit un vecteur 512-d presque vide (unitaire) avec les
+// valeurs indiquées en position idx→val. Utile pour des tests directionnels.
+func axisVector(values ...[2]float64) string {
+	parts := make([]string, 512)
+	for i := range parts {
+		parts[i] = "0"
+	}
+	for _, p := range values {
+		parts[int(p[0])] = fmt.Sprintf("%g", p[1])
+	}
+	return fmt.Sprintf("[%s]", strings.Join(parts, ","))
+}
+
+// TestShowMoreBoost vérifie getShowMoreBoost : un contenu « Voir plus »
+// (SHOW_MORE) ancre une direction → un candidat proche de l'ancre est boosté
+// (sim élevée), un candidat orthogonal ne l'est pas (absent de la map).
+func TestShowMoreBoost(t *testing.T) {
+	ctx := context.Background()
+	if _, err := seedEngine(ctx, poolTest); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	svc := newTestService()
+	readerID := "00000000-0000-0000-0000-000000000010"
+
+	// Trois articles supplémentaires à directions contrôlées.
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+		VALUES ('boost_anchor', 'Anchor', 'anchor', '<p>a</p>', true, 'PUBLIC', 5, 'PUBLISHED', 'pub_engine', '00000000-0000-0000-0000-000000000011', now(), now(), $1::vector)`, axisVector([2]float64{0, 1})); err != nil {
+		t.Fatalf("insert anchor: %v", err)
+	}
+	// Candidat proche de l'ancre (axe 0) et candidat orthogonal (axe 1).
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+		VALUES ('boost_sim', 'Similaire', 'sim', '<p>s</p>', true, 'PUBLIC', 5, 'PUBLISHED', 'pub_engine', '00000000-0000-0000-0000-000000000012', now(), now(), $1::vector)`, axisVector([2]float64{0, 0.95})); err != nil {
+		t.Fatalf("insert sim: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+		VALUES ('boost_orth', 'Orthogonal', 'orth', '<p>o</p>', true, 'PUBLIC', 5, 'PUBLISHED', 'pub_engine', '00000000-0000-0000-0000-000000000011', now(), now(), $1::vector)`, axisVector([2]float64{1, 1})); err != nil {
+		t.Fatalf("insert orth: %v", err)
+	}
+
+	// L'utilisateur a félicité l'ancre (« Voir plus »).
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "ContentFeedback" (id, "userId", "articleId", type, "createdAt")
+		VALUES ('cf_boost', $1::uuid, 'boost_anchor', 'SHOW_MORE', now())`, readerID); err != nil {
+		t.Fatalf("insert SHOW_MORE: %v", err)
+	}
+
+	boost := svc.getShowMoreBoost(ctx, readerID, []string{"boost_sim", "boost_orth"}, nil)
+
+	sim := boost["boost_sim"]
+	if sim < 0.8 {
+		t.Fatalf("boost_sim sim = %.2f, attendu ≥ 0.8 (proche de l'ancre)", sim)
+	}
+	// Le candidat orthogonal à l'ancre ne doit pas être boosté (sim ≈ 0).
+	if orth, ok := boost["boost_orth"]; ok && orth > 0.3 {
+		t.Fatalf("boost_orth sim = %.2f, attendu ~0 (orthogonal)", orth)
+	}
+
+	// Cohérence : un item aussi « Voir moins » est exclu du boost même s'il
+	// est sémantiquement proche.
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "ContentFeedback" (id, "userId", "articleId", type, "createdAt")
+		VALUES ('cf_less', $1::uuid, 'boost_sim', 'SHOW_LESS', now())`, readerID); err != nil {
+		t.Fatalf("insert SHOW_LESS: %v", err)
+	}
+	boost2 := svc.getShowMoreBoost(ctx, readerID, []string{"boost_sim"}, nil)
+	if _, ok := boost2["boost_sim"]; ok {
+		t.Fatalf("boost_sim exclu via SHOW_LESS mais encore boosté")
+	}
+}
+
 // seedHomeFeed crée un environnement home : 2 publications certifiées (chacune
 // avec 1 article + 1 pensée d'un créateur certifié), le lecteur suit pubA.
 func seedHomeFeed(ctx context.Context, pool *pgxpool.Pool) (readerID, pubAID, pubBID string, err error) {

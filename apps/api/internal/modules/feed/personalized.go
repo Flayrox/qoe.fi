@@ -35,27 +35,6 @@ type CircadianProfile struct {
 	ThoughtRatio         float64 `json:"thoughtRatio"`
 }
 
-// InteractionType for EMA updates.
-type InteractionType string
-
-const (
-	InteractionHighlight    InteractionType = "HIGHLIGHT"
-	InteractionBookmark     InteractionType = "BOOKMARK"
-	InteractionLike         InteractionType = "LIKE"
-	InteractionReadComplete InteractionType = "READ_COMPLETE"
-	InteractionReadPartial  InteractionType = "READ_PARTIAL"
-	InteractionClick        InteractionType = "CLICK"
-)
-
-var emaWeights = map[InteractionType]float64{
-	InteractionHighlight:    0.15,
-	InteractionBookmark:     0.15,
-	InteractionReadComplete: 0.10,
-	InteractionReadPartial:  0.06,
-	InteractionLike:         0.08,
-	InteractionClick:        0.03,
-}
-
 // Engagement / CF constants — mirrors feed.ts.
 const (
 	engReadWeight       = 0.5
@@ -65,9 +44,10 @@ const (
 	engNegativeThresh   = 0.25
 	engNegativePenalty  = 0.85
 
-	cfMinMyReads    = 3
-	cfTopNeighbors  = 10
-	cfStatusWeights = `CASE status WHEN 'READ_COMPLETE' THEN 1.0 WHEN 'READ_PARTIAL' THEN 0.6 WHEN 'SKIM' THEN 0.3 ELSE 0.1 END`
+	cfMinMyReads     = 3
+	cfTopNeighbors   = 10
+	cfStatusWeights  = `CASE status WHEN 'READ_COMPLETE' THEN 1.0 WHEN 'READ_PARTIAL' THEN 0.6 WHEN 'SKIM' THEN 0.3 ELSE 0.1 END`
+	showMoreBoostMul = 0.12
 )
 
 // getCircadianProfile mirrors TS getCircadianProfile.
@@ -134,22 +114,6 @@ func parseEmbeddingText(s string) (pgvector.Vector, bool) {
 	return pgvector.NewVector(vec), true
 }
 
-func normalizeVector(v []float32) []float32 {
-	var norm float64
-	for _, x := range v {
-		norm += float64(x) * float64(x)
-	}
-	norm = math.Sqrt(norm)
-	if norm == 0 {
-		return v
-	}
-	out := make([]float32, len(v))
-	for i, x := range v {
-		out[i] = float32(float64(x) / norm)
-	}
-	return out
-}
-
 // fetchUserEmbedding returns vector or nil (cold-start). Mirrors TS userVectorStr fetch.
 func (s *Service) fetchUserEmbedding(ctx context.Context, userID string) (*pgvector.Vector, error) {
 	if userID == "" {
@@ -193,17 +157,19 @@ func (s *Service) fetchMutedWords(ctx context.Context, userID string) []string {
 	return out
 }
 
-// getCoReadCandidates mirrors TS getCoReadCandidates via ReadingSession.
-func (s *Service) getCoReadCandidates(ctx context.Context, userID string) map[string]float64 {
+// coReadNeighbors identifie les voisins de lecture (mêmes articles lus que
+// moi), triés par affinité décroissante, normalisée 0..1. Base commune du CF
+// articles (getCoReadCandidates) et du CF pensées (getCoReadThoughtCandidates).
+func (s *Service) coReadNeighbors(ctx context.Context, userID string) (map[string]float64, bool) {
 	empty := map[string]float64{}
 	if userID == "" {
-		return empty
+		return empty, false
 	}
 	// Guard: need >=3 reads else cold-start noise
 	var myCount int
 	err := s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "ReadingSession" WHERE "userId" = $1`, toUUID(userID)).Scan(&myCount)
 	if err != nil || myCount < cfMinMyReads {
-		return empty
+		return empty, false
 	}
 	rows, err := s.pool.Query(ctx, fmt.Sprintf(`
 		WITH my_reads AS (
@@ -213,18 +179,12 @@ func (s *Service) getCoReadCandidates(ctx context.Context, userID string) map[st
 			SELECT r2."userId" as neighbor_id, SUM(my.w * %s) as affinity
 			FROM my_reads my JOIN "ReadingSession" r2 ON r2."articleId" = my."articleId" AND r2."userId" != $1
 			GROUP BY r2."userId" ORDER BY affinity DESC LIMIT %d
-		),
-		cf_candidates AS (
-			SELECT rs."articleId", SUM(na.affinity * %s) as cf_score
-			FROM "ReadingSession" rs JOIN neighbor_affinity na ON na.neighbor_id = rs."userId"
-			WHERE rs."articleId" NOT IN (SELECT "articleId" FROM my_reads) AND rs.status != 'BOUNCE'
-			GROUP BY rs."articleId"
 		)
-		SELECT "articleId", cf_score FROM cf_candidates
-	`, cfStatusWeights, cfStatusWeights, cfTopNeighbors, cfStatusWeights), toUUID(userID))
+		SELECT neighbor_id, affinity FROM neighbor_affinity
+	`, cfStatusWeights, cfStatusWeights, cfTopNeighbors), toUUID(userID))
 	if err != nil {
-		log.Printf("[feed CF] query failed: %v", err)
-		return empty
+		log.Printf("[feed CF] neighbors query failed: %v", err)
+		return empty, false
 	}
 	defer rows.Close()
 	type rec struct {
@@ -243,10 +203,125 @@ func (s *Service) getCoReadCandidates(ctx context.Context, userID string) map[st
 			}
 		}
 	}
-	// Normalize 0..1
 	out := map[string]float64{}
 	for _, r := range recs {
 		out[r.id] = r.score / maxScore
+	}
+	return out, len(out) > 0
+}
+
+// getCoReadCandidates — CF collaboratif sur ARTICLES : des articles lus par
+// mes voisins de lecture (que je n'ai pas encore lus) sont boostés. Miroir TS.
+func (s *Service) getCoReadCandidates(ctx context.Context, userID string) map[string]float64 {
+	empty := map[string]float64{}
+	neighbors, ok := s.coReadNeighbors(ctx, userID)
+	if !ok {
+		return empty
+	}
+	// Reconstruit l'affinité normalisée en paramètre SQL pour la jointure.
+	// Les ids sont des UUID (issus de la base) — cast ::uuid pour joindre sur
+	// ReadingSession.userId sans erreur de type.
+	neighborVals := neighborValues(neighbors)
+
+	rows, err := s.pool.Query(ctx, fmt.Sprintf(`
+		WITH my_reads AS (
+			SELECT "articleId", %s as w FROM "ReadingSession" WHERE "userId" = $1
+		),
+		na AS (
+			SELECT * FROM (%s) AS t(neighbor_id, affinity)
+		),
+		cf_candidates AS (
+			SELECT rs."articleId", SUM(na.affinity * %s) as cf_score
+			FROM "ReadingSession" rs JOIN na ON na.neighbor_id = rs."userId"
+			WHERE rs."articleId" NOT IN (SELECT "articleId" FROM my_reads) AND rs.status != 'BOUNCE'
+			GROUP BY rs."articleId"
+		)
+		SELECT "articleId", cf_score FROM cf_candidates
+	`, cfStatusWeights, neighborVals, cfStatusWeights), toUUID(userID))
+	if err != nil {
+		log.Printf("[feed CF] articles query failed: %v", err)
+		return empty
+	}
+	defer rows.Close()
+	out := map[string]float64{}
+	var maxScore float64 = 1
+	for rows.Next() {
+		var id string
+		var sc float64
+		if err := rows.Scan(&id, &sc); err == nil {
+			if sc > maxScore {
+				maxScore = sc
+			}
+			out[id] = sc
+		}
+	}
+	for id, sc := range out {
+		out[id] = sc / maxScore
+	}
+	return out
+}
+
+// neighborValues construit un VALUES SQL typé (uuid, float8) à partir de la
+// map d'affinités des voisins de lecture.
+func neighborValues(neighbors map[string]float64) string {
+	var sb strings.Builder
+	sb.WriteString("SELECT * FROM (VALUES ")
+	first := true
+	for nid := range neighbors {
+		if !first {
+			sb.WriteString(",")
+		}
+		first = false
+		sb.WriteString("('" + nid + "'::uuid, " + strconv.FormatFloat(neighbors[nid], 'f', -1, 64) + "::float8)")
+	}
+	sb.WriteString(") AS t(neighbor_id, affinity)")
+	return sb.String()
+}
+
+// getCoReadThoughtCandidates — CF collaboratif sur PENSÉES : les pensées
+// likées par mes voisins de lecture (que je n'ai ni likées ni postées) sont
+// boostées. Complète le CF articles pour le versant social du feed.
+func (s *Service) getCoReadThoughtCandidates(ctx context.Context, userID string) map[string]float64 {
+	empty := map[string]float64{}
+	neighbors, ok := s.coReadNeighbors(ctx, userID)
+	if !ok {
+		return empty
+	}
+	neighborVals := neighborValues(neighbors)
+
+	rows, err := s.pool.Query(ctx, `
+		WITH na AS (
+			SELECT * FROM (`+neighborVals+`) AS t(neighbor_id, affinity)
+		),
+		cf_thoughts AS (
+			SELECT l."postId" AS id, SUM(na.affinity) AS cf_score
+			FROM "Like" l JOIN na ON na.neighbor_id = l."userId"
+			WHERE l."postId" NOT IN (
+				SELECT id FROM "Post" WHERE "authorId" = $1 OR id IN (SELECT "postId" FROM "Like" WHERE "userId" = $1)
+			)
+			GROUP BY l."postId"
+		)
+		SELECT id, cf_score FROM cf_thoughts
+	`, toUUID(userID))
+	if err != nil {
+		log.Printf("[feed CF] thoughts query failed: %v", err)
+		return empty
+	}
+	defer rows.Close()
+	out := map[string]float64{}
+	var maxScore float64 = 1
+	for rows.Next() {
+		var id string
+		var sc float64
+		if err := rows.Scan(&id, &sc); err == nil {
+			if sc > maxScore {
+				maxScore = sc
+			}
+			out[id] = sc
+		}
+	}
+	for id, sc := range out {
+		out[id] = sc / maxScore
 	}
 	return out
 }
@@ -304,102 +379,6 @@ func (s *Service) getArticleEngagementScores(ctx context.Context, articleIDs []s
 		scores[id] = eng
 	}
 	return scores, penalties
-}
-
-// UpdateUserVectorOnInteraction mirrors TS updateUserVectorOnInteraction (EMA).
-func (s *Service) UpdateUserVectorOnInteraction(ctx context.Context, userID string, targetEmbedding []float32, interactionType InteractionType) error {
-	if userID == "" || len(targetEmbedding) == 0 {
-		return nil
-	}
-	alpha, ok := emaWeights[interactionType]
-	if !ok {
-		alpha = 0.05
-	}
-	var txt string
-	err := s.pool.QueryRow(ctx, `SELECT COALESCE("embedding"::text,'') FROM "User" WHERE id=$1`, toUUID(userID)).Scan(&txt)
-	if err != nil {
-		return nil
-	}
-	txt = strings.TrimSpace(txt)
-	if txt == "" {
-		norm := normalizeVector(targetEmbedding)
-		vecStr := "[" + floatsToString(norm) + "]"
-		_, err = s.pool.Exec(ctx, `UPDATE "User" SET "embedding"=$1::vector WHERE id=$2`, vecStr, toUUID(userID))
-		return err
-	}
-	curVec, ok := parseEmbeddingTextToFloat32(txt)
-	if !ok || len(curVec) != len(targetEmbedding) {
-		return nil
-	}
-	updated := make([]float32, len(curVec))
-	for i, c := range curVec {
-		updated[i] = float32((1-alpha)*float64(c) + alpha*float64(targetEmbedding[i]))
-	}
-	updated = normalizeVector(updated)
-	vecStr := "[" + floatsToString(updated) + "]"
-	_, err = s.pool.Exec(ctx, `UPDATE "User" SET "embedding"=$1::vector WHERE id=$2`, vecStr, toUUID(userID))
-	return err
-}
-
-// ApplyNegativeVectorFeedback mirrors TS applyNegativeVectorFeedback.
-func (s *Service) ApplyNegativeVectorFeedback(ctx context.Context, userID string, targetEmbedding []float32, strength float64) error {
-	if strength == 0 {
-		strength = 0.12
-	}
-	if userID == "" || len(targetEmbedding) == 0 {
-		return nil
-	}
-	var txt string
-	err := s.pool.QueryRow(ctx, `SELECT COALESCE("embedding"::text,'') FROM "User" WHERE id=$1`, toUUID(userID)).Scan(&txt)
-	if err != nil || strings.TrimSpace(txt) == "" {
-		return nil
-	}
-	curVec, ok := parseEmbeddingTextToFloat32(txt)
-	if !ok || len(curVec) != len(targetEmbedding) {
-		return nil
-	}
-	pushed := make([]float32, len(curVec))
-	for i, c := range curVec {
-		pushed[i] = float32(float64(c) + strength*(float64(c)-float64(targetEmbedding[i])))
-	}
-	pushed = normalizeVector(pushed)
-	vecStr := "[" + floatsToString(pushed) + "]"
-	_, err = s.pool.Exec(ctx, `UPDATE "User" SET "embedding"=$1::vector WHERE id=$2`, vecStr, toUUID(userID))
-	return err
-}
-
-func parseEmbeddingTextToFloat32(s string) ([]float32, bool) {
-	s = strings.TrimSpace(s)
-	s = strings.TrimPrefix(s, "[")
-	s = strings.TrimSuffix(s, "]")
-	if s == "" {
-		return nil, false
-	}
-	parts := strings.Split(s, ",")
-	out := make([]float32, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		f, err := strconv.ParseFloat(p, 32)
-		if err != nil {
-			return nil, false
-		}
-		out = append(out, float32(f))
-	}
-	if len(out) == 0 {
-		return nil, false
-	}
-	return out, true
-}
-
-func floatsToString(v []float32) string {
-	parts := make([]string, len(v))
-	for i, x := range v {
-		parts[i] = strconv.FormatFloat(float64(x), 'f', -1, 32)
-	}
-	return strings.Join(parts, ",")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -486,6 +465,7 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 	}
 	muted := s.fetchMutedWords(ctx, userID)
 	cfMap := s.getCoReadCandidates(ctx, userID)
+	cfThoughtMap := s.getCoReadThoughtCandidates(ctx, userID)
 
 	artOver := clampInt(targetArticles*3, 1, 100)
 	thOver := clampInt(targetThoughts*3, 1, 100)
@@ -500,6 +480,13 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 	}
 
 	engScores, penalties := s.getArticleEngagementScores(ctx, articleIDs(articles))
+	artIDs, thIDs := articleIDs(articles), thoughtIDs(thoughts)
+	// Feedback implicite négatif : items vus ≥3× sans engagement (FeedImpression
+	// collecté mais jamais exploité — signal « skip » type Netflix/TikTok).
+	impPenalty := s.getImpressionPenalties(ctx, userID, artIDs, thIDs)
+	// Feedback positif explicite : « Voir plus » → items proches du contenu
+	// félicité boostés (miroir de impPenalty ; sûr même sans SHOW_MORE).
+	showMoreBoost := s.getShowMoreBoost(ctx, userID, artIDs, thIDs)
 
 	// Reranking circadien des articles.
 	for i := range articles {
@@ -526,6 +513,12 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 		if penalties[a.id] {
 			score *= engNegativePenalty
 		}
+		if impPenalty[a.id] {
+			score *= 0.6 // déjà vu sans engagement → re-exposition dévalorisée
+		}
+		if b, ok := showMoreBoost[a.id]; ok && b > 0 {
+			score *= 1 + showMoreBoostMul*b // proche d'un contenu « Voir plus » → ×(1+0.12·sim)
+		}
 		a.score = score
 	}
 	sort.Slice(articles, func(i, j int) bool { return articles[i].score > articles[j].score })
@@ -545,7 +538,14 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 		if circadian.Name == "MORNING_BRIEF" {
 			morningBonus = 0.1
 		}
-		t.score = 0.45*sim + 0.25*fresh + 0.2*eng + 0.1*morningBonus
+		cfT := cfThoughtMap[t.id]
+		t.score = 0.40*sim + 0.22*fresh + 0.18*eng + 0.10*morningBonus + 0.10*cfT
+		if impPenalty[t.id] {
+			t.score *= 0.6
+		}
+		if b, ok := showMoreBoost[t.id]; ok && b > 0 {
+			t.score *= 1 + showMoreBoostMul*b // proche d'un contenu « Voir plus » → boosté
+		}
 	}
 	sort.Slice(thoughts, func(i, j int) bool { return thoughts[i].score > thoughts[j].score })
 
@@ -598,6 +598,118 @@ func articleIDs(as []articleCandidate) []string {
 		ids = append(ids, a.id)
 	}
 	return ids
+}
+
+func thoughtIDs(ts []thoughtCandidate) []string {
+	ids := make([]string, 0, len(ts))
+	for _, t := range ts {
+		ids = append(ids, t.id)
+	}
+	return ids
+}
+
+// getImpressionPenalties renvoie les ids d'items que l'utilisateur a déjà vus
+// ≥3 fois dans le feed (30j) sans jamais s'y engager. C'est le signal « skip »
+// implicite des grandes plateformes : re-exposer un contenu déjà ignoré
+// plusieurs fois dégrade l'expérience, donc on le dévalorise au reranking.
+// Les FeedImpression étaient collectées mais jamais exploitées.
+func (s *Service) getImpressionPenalties(ctx context.Context, userID string, artIDs, thIDs []string) map[string]bool {
+	out := map[string]bool{}
+	if userID == "" || (len(artIDs) == 0 && len(thIDs) == 0) {
+		return out
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT "itemType", "itemId", COUNT(*)::int
+		FROM "FeedImpression"
+		WHERE "userId" = $1 AND "createdAt" > now() - interval '30 days'
+		  AND ("itemId" = ANY($2::text[]) OR "itemId" = ANY($3::text[]))
+		GROUP BY "itemType", "itemId"`, toUUID(userID), artIDs, thIDs)
+	if err != nil {
+		log.Printf("[feed] impression query failed: %v", err)
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var typ, id string
+		var n int
+		if err := rows.Scan(&typ, &id, &n); err == nil && n >= 3 {
+			out[id] = true
+		}
+	}
+	return out
+}
+
+// getShowMoreBoost renvoie, pour chaque item candidat, la similarité cosinus
+// maximale à l'un des contenus que l'utilisateur a explicitement félicités
+// (ContentFeedback SHOW_MORE). Miroir positif de la pénalité d'impressions :
+// si « Voir moins → items vus-ignorés dévalorisés (×0.6) », alors « Voir plus →
+// items proches du contenu félicité boostés (×(1+α·sim)) ». Seuls les SHOW_MORE
+// les plus récents (30j) comptent, et on ignore les items déjà vus-ignorés
+// (cohérence : un contenu « voir moins » ne ressort pas via un « voir plus »).
+func (s *Service) getShowMoreBoost(ctx context.Context, userID string, artIDs, thIDs []string) map[string]float64 {
+	out := map[string]float64{}
+	if userID == "" || (len(artIDs) == 0 && len(thIDs) == 0) {
+		return out
+	}
+	// Ancre articles : embeddings des articles SHOW_MORE (30j).
+	if len(artIDs) > 0 {
+		rows, err := s.pool.Query(ctx, `
+			WITH anchors AS (
+				SELECT cf."articleId" AS id, a.embedding
+				FROM "ContentFeedback" cf JOIN "Article" a ON a.id = cf."articleId"
+				WHERE cf."userId" = $1 AND cf.type = 'SHOW_MORE' AND cf."createdAt" > now() - interval '30 days'
+				  AND a.embedding IS NOT NULL
+			)
+			SELECT a.id, MAX(1 - (a.embedding <=> an.embedding))::float8 AS sim
+			FROM "Article" a JOIN anchors an ON true
+			WHERE a.id = ANY($2::text[]) AND a.embedding IS NOT NULL
+			  AND NOT EXISTS (
+			      SELECT 1 FROM "ContentFeedback" cf
+			      WHERE cf."userId" = $1 AND cf."articleId" = a.id AND cf.type = 'SHOW_LESS')
+			GROUP BY a.id`, toUUID(userID), artIDs)
+		if err == nil {
+			readSimMap(rows, out)
+		}
+	}
+	// Ancre pensées : embeddings des pensées SHOW_MORE (30j).
+	if len(thIDs) > 0 {
+		rows, err := s.pool.Query(ctx, `
+			WITH anchors AS (
+				SELECT cf."thoughtId" AS id, p.embedding
+				FROM "ContentFeedback" cf JOIN "Post" p ON p.id = cf."thoughtId"
+				WHERE cf."userId" = $1 AND cf.type = 'SHOW_MORE' AND cf."createdAt" > now() - interval '30 days'
+				  AND p.embedding IS NOT NULL
+			)
+			SELECT p.id, MAX(1 - (p.embedding <=> an.embedding))::float8 AS sim
+			FROM "Post" p JOIN anchors an ON true
+			WHERE p.id = ANY($2::text[]) AND p.embedding IS NOT NULL
+			  AND NOT EXISTS (
+			      SELECT 1 FROM "ContentFeedback" cf
+			      WHERE cf."userId" = $1 AND cf."thoughtId" = p.id AND cf.type = 'SHOW_LESS')
+			GROUP BY p.id`, toUUID(userID), thIDs)
+		if err == nil {
+			readSimMap(rows, out)
+		}
+	}
+	return out
+}
+
+// readSimMap lit des lignes (id, sim::float8) dans une map, en plafonnant à 1.
+func readSimMap(rows pgx.Rows, out map[string]float64) {
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var sim float64
+		if rows.Scan(&id, &sim) == nil {
+			if sim < 0 {
+				sim = 0
+			}
+			if sim > 1 {
+				sim = 1
+			}
+			out[id] = sim
+		}
+	}
 }
 
 // applyDiversity garde au plus maxPer items par clé (MMR simple, ordre préservé).
