@@ -411,6 +411,110 @@ func TestSearch_HandleSync_MeliError_Returned(t *testing.T) {
 	}
 }
 
+// meilisearchMock sert un faux serveur Meilisearch : il enregistre les
+// requêtes et répond selon le chemin/méthode pour couvrir Setup/ensureIndex/
+// doJSON/ReindexAll sans serveur réel.
+type meilisearchMock struct {
+	t        *testing.T
+	requests []string
+	// primaryOK : si true, le GET de l'index répond primaryKey "id" (le
+	// chemin « index déjà corrigé ») ; sinon 404 → recréation de l'index.
+	primaryOK bool
+}
+
+func (m *meilisearchMock) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	m.requests = append(m.requests, r.Method+" "+r.URL.Path)
+	w.Header().Set("Content-Type", "application/json")
+	switch {
+	case r.Method == http.MethodGet && r.URL.Path == "/indexes/"+searchIndex:
+		if m.primaryOK {
+			_, _ = w.Write([]byte(`{"uid":"` + searchIndex + `","primaryKey":"id"}`))
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"message":"index not found"}`))
+		}
+	case r.Method == http.MethodPost && r.URL.Path == "/indexes/"+searchIndex+"/documents/fetch":
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"results":[],"total":0,"offset":0,"limit":1000}`))
+	case r.Method == http.MethodPost && r.URL.Path == "/indexes/"+searchIndex+"/documents":
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"taskUid":42,"type":"documentAdditionOrUpdate","status":"enqueued"}`))
+	case r.Method == http.MethodDelete && r.URL.Path == "/indexes/"+searchIndex:
+		_, _ = w.Write([]byte(`{"taskUid":43}`))
+	default:
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"taskUid":1,"status":"enqueued"}`))
+	}
+}
+
+func newMeiliServer(t *testing.T, primaryOK bool) (*httptest.Server, *meilisearchMock) {
+	t.Helper()
+	m := &meilisearchMock{t: t, primaryOK: primaryOK}
+	srv := httptest.NewServer(m)
+	t.Cleanup(srv.Close)
+	return srv, m
+}
+
+func TestSearch_Setup_CreatesIndexWhenMissing(t *testing.T) {
+	srv, mock := newMeiliServer(t, false)
+	t.Setenv("MEILISEARCH_HOST", srv.URL)
+
+	worker := &SearchWorker{pool: poolTest, q: db.New(poolTest)}
+	worker.Setup(context.Background())
+
+	// GET index (404) + POST /indexes (create) + PATCH filterable + PATCH settings.
+	joined := strings.Join(mock.requests, "\n")
+	for _, want := range []string{
+		"GET /indexes/" + searchIndex,
+		"POST /indexes",
+		"PATCH /indexes/" + searchIndex + "/settings",
+		"PATCH /indexes/" + searchIndex + "/settings/filterable-attributes",
+	} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("Setup devait émettre %q ; requêtes:\n%s", want, joined)
+		}
+	}
+}
+
+func TestSearch_Setup_KeepsExistingPrimaryKeyID(t *testing.T) {
+	srv, mock := newMeiliServer(t, true)
+	t.Setenv("MEILISEARCH_HOST", srv.URL)
+
+	worker := &SearchWorker{pool: poolTest, q: db.New(poolTest)}
+	worker.Setup(context.Background())
+
+	joined := strings.Join(mock.requests, "\n")
+	if strings.Contains(joined, "DELETE /indexes/"+searchIndex) {
+		t.Errorf("index OK (primaryKey=id) : re-création indésirable:\n%s", joined)
+	}
+	if !strings.Contains(joined, "PATCH /indexes/"+searchIndex+"/settings/filterable-attributes") {
+		t.Errorf("filterable-attributes attendu:\n%s", joined)
+	}
+}
+
+func TestSearch_ReindexAll_BackfillsArticles(t *testing.T) {
+	fx, err := testutil.SeedArticles(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	_ = fx
+
+	srv, _ := newMeiliServer(t, true)
+	t.Setenv("MEILISEARCH_HOST", srv.URL)
+
+	worker := &SearchWorker{pool: poolTest, q: db.New(poolTest)}
+	total, upserted, err := worker.ReindexAll(context.Background())
+	if err != nil {
+		t.Fatalf("ReindexAll: %v", err)
+	}
+	if total <= 0 {
+		t.Fatalf("total = %d, attendu > 0 articles en base", total)
+	}
+	if upserted != total {
+		t.Fatalf("upserted = %d, attendu %d (aucun pré-existant)", upserted, total)
+	}
+}
+
 // ─── Embedding worker (jina-embeddings-v3) ───────────────────────────
 
 // mockEmbedder imite le service d'inférence (vecteur 1024 dims, tronqué en
@@ -706,5 +810,73 @@ func TestEmbedding_HandleArticleEmbedding_NoEnv_Skips(t *testing.T) {
 	payload, _ := json.Marshal(map[string]any{"articleId": articleID})
 	if err := worker.HandleArticleEmbedding(context.Background(), asynq.NewTask("embedding.article", payload)); err != nil {
 		t.Fatalf("sans EMBEDDING_URL: %v (attendu skip nil)", err)
+	}
+}
+
+// TestEmbedding_HandleUserEmbedding_UpsertsVector couvre le chemin nominal :
+// user + publication (bio) seedés, URL d'embedding active, puis vérifie que
+// l'embedding du user est bien persisté sur User.embedding (recommandations
+// « créateurs similaires »).
+func TestEmbedding_HandleUserEmbedding_UpsertsVector(t *testing.T) {
+	t.Setenv(envEmbeddingURL, "http://embed.test")
+
+	userID := "11111111-1111-1111-1111-111111111111"
+	if _, err := poolTest.Exec(context.Background(),
+		`INSERT INTO "Publication" (id, type, name, slug, bio, "createdAt", "updatedAt")
+		 VALUES ('pub_embed_001', 'PERSONAL', 'Perso Embed', 'perso-embed', 'Fan de foot et d''anime.', now(), now())`,
+	); err != nil {
+		t.Fatalf("publication: %v", err)
+	}
+	if _, err := poolTest.Exec(context.Background(),
+		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		 VALUES ($1, 'embed@test.dev', 'embeduser', 'Embed', 'creator', 'pub_embed_001', now(), now())`,
+		userID,
+	); err != nil {
+		t.Fatalf("user: %v", err)
+	}
+
+	worker := &EmbeddingWorker{
+		pool:     poolTest,
+		q:        db.New(poolTest),
+		embedder: &mockEmbedder{vec: vec1024()},
+	}
+	payload, _ := json.Marshal(map[string]any{"userId": userID})
+	if err := worker.HandleUserEmbedding(context.Background(), asynq.NewTask("embedding.user", payload)); err != nil {
+		t.Fatalf("HandleUserEmbedding: %v", err)
+	}
+
+	var has bool
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT ("embedding" IS NOT NULL) FROM "User" WHERE id = $1`, userID,
+	).Scan(&has); err != nil {
+		t.Fatalf("embedding read: %v", err)
+	}
+	if !has {
+		t.Fatal("embedding user non persisté en base")
+	}
+}
+
+// TestEmbedding_HandleUserEmbedding_WrongDimension_Errors couvre la branche
+// erreur où l'inférence renvoie une dimension inférieure au MRL attendu.
+func TestEmbedding_HandleUserEmbedding_WrongDimension_Errors(t *testing.T) {
+	t.Setenv(envEmbeddingURL, "http://embed.test")
+
+	dimUserID := "22222222-2222-2222-2222-222222222222"
+	if _, err := poolTest.Exec(context.Background(),
+		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+		 VALUES ($1, 'dim@test.dev', 'dimuser', 'Dim', 'creator', now(), now())`,
+		dimUserID,
+	); err != nil {
+		t.Fatalf("user: %v", err)
+	}
+
+	worker := &EmbeddingWorker{
+		pool:     poolTest,
+		q:        db.New(poolTest),
+		embedder: &mockEmbedder{vec: make([]float32, 128)}, // trop court vs MRL 512
+	}
+	payload, _ := json.Marshal(map[string]any{"userId": dimUserID})
+	if err := worker.HandleUserEmbedding(context.Background(), asynq.NewTask("embedding.user", payload)); err == nil {
+		t.Fatal("dimension 128 = nil, attendu erreur (MRL 512 attendu)")
 	}
 }
