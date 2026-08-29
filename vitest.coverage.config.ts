@@ -49,6 +49,14 @@ export default defineConfig({
         'packages/auth/**': { lines: 15, statements: 14 },
         'packages/utils/**': { lines: 44, statements: 41 },
         'packages/flags/**': { lines: 65, statements: 65 },
+        // Logic pure des apps front (core) et mobile — gate mesuré séparément
+        // car les .ts UI/route/edge sont du glom persistant (pas de test unitaire
+        // rentable). Seuils au départ bas (2026-08), objectif 80% sur ce périmètre.
+        'apps/core/src/lib/{utils,feed-types,analytics}.ts': { lines: 80, statements: 78 },
+        'apps/core/src/lib/supabase/server.ts': { lines: 80, statements: 78 },
+        'apps/mobile/src/lib/format.ts': { lines: 95, statements: 95 },
+        'apps/mobile/src/components/thought/normalize.ts': { lines: 80, statements: 78 },
+        'apps/mobile/src/features/compose/drafts.ts': { lines: 80, statements: 78 },
       },
     },
   },
