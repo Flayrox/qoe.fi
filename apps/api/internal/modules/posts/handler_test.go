@@ -106,6 +106,10 @@ func TestHandlers_LikeRepostBookmarkPin(t *testing.T) {
 	if rr := doJSON(t, r, "POST", "/v1/posts/"+fx.ArticleID+"/bookmark", ""); rr.Code != http.StatusOK {
 		t.Fatalf("bookmark code = %d, body=%s", rr.Code, rr.Body.String())
 	}
+	// Second toggle → retire le signet (branche delete).
+	if rr := doJSON(t, r, "POST", "/v1/posts/"+fx.ArticleID+"/bookmark", ""); rr.Code != http.StatusOK {
+		t.Fatalf("unbookmark code = %d, body=%s", rr.Code, rr.Body.String())
+	}
 	// pin est réservé à l'auteur.
 	ra := newTestRouter(t, fx.AuthorID)
 	if rr := doJSON(t, ra, "POST", "/v1/posts/"+fx.PostID+"/pin", ""); rr.Code != http.StatusOK {
@@ -153,7 +157,11 @@ func TestHandlers_BlockMuteReportHide(t *testing.T) {
 		t.Fatalf("mute code = %d", rr.Code)
 	}
 	if rr := doJSON(t, r, "POST", "/v1/reports", `{"targetId":"`+fx.PostID+`","targetType":"post","reason":"spam"}`); rr.Code != http.StatusOK {
-		t.Fatalf("report code = %d", rr.Code)
+		t.Fatalf("report code = %d, body=%s", rr.Code, rr.Body.String())
+	}
+	// Report impossible sans raison → erreur de service → 400.
+	if rr := doJSON(t, r, "POST", "/v1/reports", `{"targetId":"`+fx.PostID+`","targetType":"post","reason":""}`); rr.Code != http.StatusBadRequest {
+		t.Fatalf("report sans reason code = %d, attendu 400", rr.Code)
 	}
 	// hide (réservé à l'auteur du post parent).
 	ra := newTestRouter(t, fx.AuthorID)
@@ -199,9 +207,38 @@ func TestHandlers_PollVote(t *testing.T) {
 	if rr := doJSON(t, r, "POST", "/v1/posts/"+created.ID+"/poll/vote", `{"optionId":"`+opt+`"}`); rr.Code != http.StatusOK {
 		t.Fatalf("vote code = %d, body=%s", rr.Code, rr.Body.String())
 	}
+	// vote sur une option inexistante → 400.
+	if rr := doJSON(t, r, "POST", "/v1/posts/"+created.ID+"/poll/vote", `{"optionId":"opt-inexistante"}`); rr.Code != http.StatusBadRequest {
+		t.Fatalf("vote option inexistante code = %d, attendu 400", rr.Code)
+	}
 	// unvote.
 	if rr := doJSON(t, r, "POST", "/v1/posts/"+created.ID+"/poll/unvote", ""); rr.Code != http.StatusOK {
 		t.Fatalf("unvote code = %d, body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+// TestHandlers_ErrorPaths couvre les branches d'erreur des handlers HTTP
+// (targets inexistants → 4xx/5xx) qui ne réussissaient jamais en succès.
+func TestHandlers_ErrorPaths(t *testing.T) {
+	seedPosts(t)
+	ra := newTestRouter(t, "00000000-0000-0000-0000-000000000002") // auteur
+	rb := newTestRouter(t, "00000000-0000-0000-0000-000000000003") // viewer
+
+	// Like/repost sur un post inexistant → erreur (5xx) par le path du service.
+	if rr := doJSON(t, rb, "POST", "/v1/posts/introuvable/like", ""); rr.Code == http.StatusOK {
+		t.Fatal("like d'un post inexistant ne doit pas réussir")
+	}
+	// Repost d'un post inexistant → erreur.
+	if rr := doJSON(t, rb, "POST", "/v1/posts/introuvable/repost", ""); rr.Code == http.StatusOK {
+		t.Fatal("repost d'un post inexistant ne doit pas réussir")
+	}
+	// Liker sa propre pensée reste un succès (couvert) ; bloquer un user inconnu échoue.
+	if rr := doJSON(t, ra, "POST", "/v1/users/00000000-0000-0000-0000-00000000ffff/block", ""); rr.Code == http.StatusOK {
+		t.Fatal("block d'un user inconnu ne doit pas réussir")
+	}
+	// Liste des likes d'un post inexistant → page vide (200), jamais une erreur.
+	if rr := doJSON(t, rb, "GET", "/v1/posts/introuvable/likes", ""); rr.Code != http.StatusOK {
+		t.Fatalf("likes d'un post inexistant code = %d, attendu 200 vide", rr.Code)
 	}
 }
 
