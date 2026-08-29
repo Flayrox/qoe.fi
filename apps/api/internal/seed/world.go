@@ -40,6 +40,9 @@ type worldCharacter struct {
 	accent      string
 	publication string // slug pour la pub perso (créateurs)
 	mutedWords  []string
+	gender      string
+	ageRange    string
+	theme       string // dossier de photos thématiques (assets/avatars/themed/)
 }
 
 func worldCast() []worldCharacter {
@@ -48,59 +51,73 @@ func worldCast() []worldCharacter {
 			id: topUUID(900, "wc"), email: "ambre.feuillet@qoe.dev", username: "ambre.feuillet",
 			name: "Ambre Feuillet", bio: "Ancienne alertée culture, éditorialiste. Je fouille les coulisses de l'éco de l'attention.",
 			role: "creator", isCertified: true, layout: "editorial", accent: "#3ecf8e",
-			publication: "ambrefeuillet", mutedWords: []string{"promo", "météo"},
+			publication: "ambrefeuillet", mutedWords: []string{"promo", "météo"}, gender: "FEMALE", ageRange: "AGE_35_44",
 		},
 		{
 			id: topUUID(901, "wc"), email: "noe.hertig@qoe.dev", username: "noehertig",
 			name: "Noé Hertig", bio: "Écologiste de terrain. Les solutions existent, il manque l'audace.",
 			role: "creator", isCertified: true, layout: "minimal", accent: "#5b8def",
-			publication: "noehertig", mutedWords: []string{"rendez-vous de comptes", "politick"},
+			publication: "noehertig", mutedWords: []string{"rendez-vous de comptes", "politick"}, gender: "MALE", ageRange: "AGE_35_44",
 		},
 		{
 			id: topUUID(902, "wc"), email: "clara.vigo@qoe.dev", username: "claravixo",
 			name: "Clara Vigo", bio: "photos mal cadrées + enquêtes locales. insta girl devenue éditorialiste.",
 			role: "creator", isCertified: false, layout: "magazine", accent: "#e4572e",
-			publication: "claravigo", mutedWords: []string{"météo"},
+			publication: "claravigo", mutedWords: []string{"météo"}, gender: "FEMALE", ageRange: "AGE_25_34",
 		},
 		{
 			id: topUUID(903, "wc"), email: "raphael.meriot@qoe.dev", username: "raphmeriot",
 			name: "Raphaël Mériot", bio: "Essayiste. Le temps long comme méthode de publication.",
 			role: "creator", isCertified: true, layout: "minimal", accent: "#8e5bde",
-			publication: "raphmeriot",
+			publication: "raphmeriot", gender: "MALE", ageRange: "AGE_45_54",
 		},
 		{
 			id: topUUID(904, "wc"), email: "ines.durand@qoe.dev", username: "ines.drd",
 			name: "Inès Durand", bio: "Data journaliste. Je traque les algorithmes de capture.",
 			role: "creator", isCertified: false, layout: "editorial", accent: "#2aa198",
-			publication: "inesdrd",
+			publication: "inesdrd", gender: "FEMALE", ageRange: "AGE_25_34",
 		},
 		{
 			id: topUUID(905, "wc"), email: "lucas.benoist@qoe.dev", username: "lcs_ben",
 			name: "Lucas Benoist", bio: "chroniqueur nocturne. Le @lcs_ben des 2h du mat.",
 			role: "creator", isCertified: false, layout: "anecdote", accent: "#d65f76",
-			publication: "lcsben",
+			publication: "lcsben", gender: "MALE", ageRange: "AGE_25_34",
 		},
 		{
 			id: topUUID(906, "wc"), email: "mara.coulibaly@qoe.dev", username: "mara.c",
 			name: "Mara Coulibaly", bio: "Podcasteuse et autrice. Je raconte la ville qui vient.",
 			role: "creator", isCertified: true, layout: "minimal", accent: "#6b8e23",
-			publication: "marac",
+			publication: "marac", gender: "FEMALE", ageRange: "AGE_35_44",
 		},
 		{
 			id: topUUID(907, "wc"), email: "lea.perrin@qoe.dev", username: "lea.perrin",
 			name: "Léa Perrin", bio: "journalisme de l'attention. jamais de clic pour le clic.",
 			role: "creator", isCertified: false, layout: "editorial", accent: "#5b8def",
-			publication: "leaperrin",
+			publication: "leaperrin", gender: "FEMALE", ageRange: "AGE_35_44",
 		},
 		// Lecteurs actifs (feed personnalisé, loggables).
 		{id: topUUID(910, "wc"), email: "rubie.rd@qoe.dev", username: "rubie.rd", name: "Rubie",
-			bio: "lectrice passionnée, bookmarker compulsive.", role: "user"},
+			bio: "lectrice passionnée, bookmarker compulsive.", role: "user", gender: "FEMALE", ageRange: "AGE_18_24"},
 		{id: topUUID(911, "wc"), email: "theo.d@qoe.dev", username: "theo.d", name: "Théo D.",
-			bio: "je lis beaucoup, je commente peu, je reposte trop.", role: "user"},
+			bio: "je lis beaucoup, je commente peu, je reposte trop.", role: "user", gender: "MALE", ageRange: "AGE_18_24"},
 		{id: topUUID(912, "wc"), email: "zoe.view@qoe.dev", username: "zoe.view", name: "Zoé",
-			bio: "recommandations > algorithmes toujours.", role: "user"},
+			bio: "recommandations > algorithmes toujours.", role: "user", gender: "FEMALE", ageRange: "AGE_18_24"},
 		{id: topUUID(913, "wc"), email: "axelle.ronde@qoe.dev", username: "axelle.r", name: "Axelle R.",
-			bio: "fil en vrac, signal fort.", role: "user"},
+			bio: "fil en vrac, signal fort.", role: "user", gender: "FEMALE", ageRange: "AGE_25_34"},
+		{
+			id: topUUID(914, "wc"), email: "bilal.kara@qoe.dev", username: "bilou_gg",
+			name: "Bilal Kara", bio: "streamer et joueur. ranked la nuit, montage le jour, café en continu.",
+			role: "creator", isCertified: false, layout: "minimal", accent: "#e4572e",
+			publication: "bilougg", mutedWords: []string{"spoiler"}, gender: "MALE", ageRange: "AGE_25_34", theme: "streaming",
+		},
+		{
+			id: topUUID(915, "wc"), email: "aicha.diallo@qoe.dev", username: "aicha.du.virage",
+			name: "Aïcha Diallo", bio: "supportrice de la première heure. le foot se vit au virage, se raconte partout.",
+			role: "creator", isCertified: false, layout: "editorial", accent: "#2aa198",
+			publication: "aichaduvirage", mutedWords: []string{"var"}, gender: "FEMALE", ageRange: "AGE_25_34", theme: "foot",
+		},
+		{id: topUUID(916, "wc"), email: "hugo.l@qoe.dev", username: "hugo.l", name: "Hugo L.",
+			bio: "anime, gaming et siestes. je lis les spoilers puis je regarde quand même.", role: "user", gender: "MALE", ageRange: "AGE_18_24"},
 	}
 }
 
@@ -163,16 +180,20 @@ func RunWorld(ctx context.Context, pool *pgxpool.Pool) error {
 }
 
 // seedWorldUsers upsert des comptes du cast et relia leur publication perso.
+// Chaque personnage reçoit une vraie photo de profil assortie à son genre
+// (catalogue de photos réelles), comme le reste des comptes générés.
 func seedWorldUsers(ctx context.Context, pool *pgxpool.Pool, cast []worldCharacter) error {
+	avatars := loadAvatarCatalog()
 	for i, ch := range cast {
 		role := ch.role
+		avatar := avatars.pick(ch.gender, ch.theme)
 		if _, err := pool.Exec(ctx, `
-			INSERT INTO "User" (id, email, username, name, role, "isCertified", "hasCompletedOnboarding", "logoUrl", "createdAt", "updatedAt")
-			VALUES ($1,$2,$3,$4,$5,$6, true, $7, now() - interval '120 days', now())
+			INSERT INTO "User" (id, email, username, name, role, "isCertified", "hasCompletedOnboarding", gender, "ageRange", "logoUrl", "createdAt", "updatedAt")
+			VALUES ($1,$2,$3,$4,$5,$6, true, $7, $8, $9, now() - interval '120 days', now())
 			ON CONFLICT (id) DO UPDATE SET
 			  email = $2, username = $3, name = $4, role = $5,
 			  "isCertified" = $6, "hasCompletedOnboarding" = true, "updatedAt" = now()`,
-			ch.id, ch.email, ch.username, ch.name, role, ch.isCertified, visualURL(i, "")); err != nil {
+			ch.id, ch.email, ch.username, ch.name, role, ch.isCertified, ch.gender, ch.ageRange, avatar); err != nil {
 			return fmt.Errorf("world user %s: %w", ch.id, err)
 		}
 
@@ -185,7 +206,7 @@ func seedWorldUsers(ctx context.Context, pool *pgxpool.Pool, cast []worldCharact
 			VALUES ($1,'PERSONAL',$2,$3,$4,$5,$6,$7,$8,$9, now() - interval '120 days', now())
 			ON CONFLICT (id) DO UPDATE SET
 			  name = $2, slug = $3, subdomain = $4, bio = $5, "accentColor" = $6, "layoutStyle" = $7, "updatedAt" = now()`,
-				pubID, ch.name, ch.username, ch.publication, ch.bio, visualURL(i+4, ""), visualURL(i+8, "editorial_landscape"), ch.accent, ch.layout); err != nil {
+				pubID, ch.name, ch.username, ch.publication, ch.bio, avatar, visualURL(i+8, "editorial_landscape"), ch.accent, ch.layout); err != nil {
 				return fmt.Errorf("world pub %s: %w", ch.username, err)
 			}
 			if _, err := pool.Exec(ctx, `
@@ -304,6 +325,10 @@ var worldQuotes = []string{
 	"les algorithmes cultivent l'engagement, les éditeurs cultivent la confiance.",
 	"la ville n'est pas un décor, c'est une conversation entre habitants.",
 	"l'indépendance financière des créateurs commence par la propriété de leur audience.",
+	"le derby, c'est 90 minutes de pure émotion et une semaine de mauvaise foi.",
+	"ranked en solo queue, c'est le plus grand jeu de survie jamais créé.",
+	"un bon plat maison vaut tous les restaurants du monde.",
+	"le vrai endgame, c'est de ranger son bureau après une session.",
 }
 
 var worldPrivateJokes = []string{
@@ -362,6 +387,20 @@ func seedWorldConversations(ctx context.Context, pool *pgxpool.Pool, cast []worl
 			author: 5, text: worldPrivateJokes[0], tags: []string{"bande", "off"}, members: true,
 			replies:  [][2]int{{2, 7}, {1, 5}},
 			likeBase: 4, repost: 0,
+		},
+		// Derby soir — le foot au virage (Aïcha, cast 13).
+		{
+			author: 13, text: "Ce soir c'est derby. Le voisin supporte l'autre camp, je garde le silence jusqu'au coup de sifflet final. #derby",
+			tags:     []string{"foot", "derby"},
+			replies:  [][2]int{{1, 10}, {6, 2}, {5, 12}},
+			likeBase: 19, repost: 6,
+		},
+		// SoloQ à 1h du matin — le gamer (Bilal, cast 12).
+		{
+			author: 12, text: "SoloQ à 1h du mat', trois défaites d'affilée. Je ferme. Je rouvre. Je suis le problème. #gaming",
+			tags:     []string{"gaming", "soloq"},
+			replies:  [][2]int{{4, 11}, {2, 4}, {7, 13}},
+			likeBase: 11, repost: 3,
 		},
 	}
 
@@ -472,6 +511,16 @@ func seedWorldArticles(ctx context.Context, pool *pgxpool.Pool, cast []worldChar
 			title: "La romance après le premier message", slug: "romance-apres-premier-message",
 			content: "<p>Les relations commencent souvent dans l'espace fragile entre curiosité et maladresse.</p><p>Prendre soin d'une conversation est déjà une manière de prendre soin de l'autre.</p>", tags: []string{"romance", "relations"},
 		},
+		{
+			id: topID("wart", 6), pub: topID("pubw", 12), author: cast[12].id,
+			title: "Le grinding n'est pas du travail, c'est une discipline", slug: "grinding-discipline",
+			content: "<p>On me demande comment je peux passer des heures sur un jeu. La vraie question, c'est comment on peut ne pas comprendre qu'une partie, c'est un projet.</p><p>Le grinding, c'est de la régularité : chaque soir, un peu. Comme l'écriture, comme le sport. La discipline n'a pas de genre.</p>", tags: []string{"gaming", "discipline"},
+		},
+		{
+			id: topID("wart", 7), pub: topID("pubw", 13), author: cast[13].id,
+			title: "Pourquoi le 4-3-3 a remplacé le 4-4-2", slug: "433-remplace-442",
+			content: "<p>On a tous un souvenir du 4-4-2 de notre enfance. Puis un jour, tout le monde a basculé sur le 4-3-3. Que s'est-il passé ?</p><p>Le football moderne aime les triangles. Le 4-3-3 en fabrique partout : au milieu, sur les côtés, devant. Le 4-4-2, lui, alignait des lignes.</p>", tags: []string{"foot", "tactique"},
+		},
 	}
 	for _, a := range articles {
 		vis := "PUBLIC"
@@ -505,6 +554,8 @@ func seedWorldArticleComments(ctx context.Context, pool *pgxpool.Pool, cast []wo
 		{"world_comment_film_1", topID("wart", 4), cast[10].id, "Le passage sur les salles de quartier m'a rappelé pourquoi je préfère parfois une petite salle vide."},
 		{"world_comment_romance_1", topID("wart", 5), cast[11].id, "Très juste sur les messages maladroits. On sent que le texte laisse de la place aux lecteurs."},
 		{"world_comment_manga_2", topID("wart", 3), cast[2].id, "J'ajoute une voix au débat : le dessin porte souvent ce que le dialogue ne sait pas dire."},
+		{"world_comment_foot_1", topID("wart", 7), cast[12].id, "Enfin quelqu'un qui explique la bascule du 4-4-2 au 4-3-3 sans jargon. Merci pour ce texte."},
+		{"world_comment_gaming_1", topID("wart", 6), cast[9].id, "Le passage sur la régularité m'a parlé. Je range mon bureau après avoir lu, promis."},
 	}
 	for _, c := range comments {
 		if _, err := pool.Exec(ctx, `
@@ -551,6 +602,7 @@ func seedWorldPollsAndTrends(ctx context.Context, pool *pgxpool.Pool, cast []wor
 		count int
 	}{
 		{"#souverainete", 1240}, {"#ecologie", 890}, {"#attention", 512}, {"#villeqoe", 331}, {"#bande", 214},
+		{"#ligue1", 780}, {"#gaming", 540}, {"#anime", 430}, {"#cuisine", 310}, {"#esport", 265},
 	} {
 		if _, err := pool.Exec(ctx, `
 			INSERT INTO "Trend" (id, hashtag, count, "createdAt", "updatedAt")

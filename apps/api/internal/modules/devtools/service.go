@@ -380,6 +380,18 @@ func (s *Service) GeneratePosts(ctx context.Context, userID string) error {
 		"L'écriture longue forme nous force à structurer notre pensée, là où les réseaux de micro-messages l'émiettent.",
 		"Nous devons repenser notre relation à la technologie : l'outil doit servir l'homme, non l'asservir à ses métriques d'engagement.",
 		"Le Sanctuaire Elfique de qoe.fi est conçu pour libérer l'esprit de sa charge mentale algorithmique.",
+		"Ce soir c'est derby. Le voisin supporte l'autre camp : silence radio jusqu'au coup de sifflet final.",
+		"Un 4-4-2 bien placé bat toujours un 4-3-3 en rodage. C'est mathématique.",
+		"GG à l'équipe. On a perdu mais on a bien ri, c'est ça l'essentiel.",
+		"Je disais « juste une partie » à 22h. Il est 3h du matin et je suis en promo.",
+		"On ne choisit pas son anime de réconfort. Il choisit son moment.",
+		"Le cosplay, c'est 10% de couture et 90% de stress le jour J.",
+		"Recette du soir : ce qu'il y a dans le frigo + l'impro. Résultat : un plat culte de la maison.",
+		"Trouvé une veste en cuir à 15€ en friperie. Je me sens invincible.",
+		"5km ce matin à 7h. La ville appartient à ceux qui se lèvent tôt (et à ceux qui dorment encore, soyons honnêtes).",
+		"Je cours après le bus comme on court après ses rêves : en sueur et en retard.",
+		"J'ai passé 3h à automatiser une tâche de 5 minutes. Rentabilisé dans 36 ans.",
+		"Le lundi, je suis une personne différente. La personne qui regrette le dimanche.",
 	}
 	tagsOptions := [][]string{
 		{"philosophie", "souverainete"},
@@ -387,6 +399,13 @@ func (s *Service) GeneratePosts(ctx context.Context, userID string) error {
 		{"attention", "silence"},
 		{"medias"},
 		{"technologie", "ethique"},
+		{"foot", "derby"},
+		{"gaming"},
+		{"anime", "manga"},
+		{"cuisine", "recettes"},
+		{"mode", "seconde_main"},
+		{"sport", "running"},
+		{"humour", "quotidien"},
 	}
 
 	for i := 0; i < 15; i++ {
@@ -415,19 +434,11 @@ func (s *Service) Reset(ctx context.Context, userID string) error {
 		return err
 	}
 
-	tables := []string{
-		"PollVote", "PollOption", "Poll", "StarterPackItem", "StarterPack",
-		"Notification", "NotificationPreference", "AnnotationComment", "AnnotationUpvote",
-		"ArticleComment", "ApiKey", "TranslationAuditLog", "CollaborationRequest",
-		"MediaMember", "MediaInvite", "Recommendation", "Like", "Post", "Highlight",
-		"Bookmark", "Subscriber", "WalletTransaction", "Follows", "MutedWord",
-		"BlockedUser", "Letter", "Article", "Tier", "Category", "NavigationItem",
-		"SocialLink", "PartnerPromo", "Trend", "User", "SystemConfig", "Media", "Publication",
-	}
-	for _, t := range tables {
-		if _, err := s.pool.Exec(ctx, fmt.Sprintf(`DELETE FROM "%s"`, t)); err != nil {
-			return fmt.Errorf("delete %s: %w", t, err)
-		}
+	// Wipe via la liste UNIQUE partagée avec le seed (seed.WipeTables) : les
+	// deux chemins de reset doivent vider exactement la même base, sinon des
+	// résidus survivent (ReadingSession, ArticleSlugHistory, OAuth*…).
+	if err := seed.WipeAll(ctx, s.pool); err != nil {
+		return err
 	}
 
 	configs := []struct{ key, value, description string }{
@@ -499,14 +510,19 @@ func (s *Service) SeedTop(ctx context.Context, userID string) (map[string]any, e
 
 	// Embeddings asynchrones (articles + users) — le worker s'en charge.
 	if ac := queue.NewClient(os.Getenv("REDIS_URL")); ac != nil {
+		queued := 0
 		for _, a := range res.Articles {
-			_ = queue.PublishArticleEmbedding(ac, queue.EmbeddingPayload{ArticleID: a.ID})
+			if err := queue.PublishArticleEmbedding(ac, queue.EmbeddingPayload{ArticleID: a.ID}); err == nil {
+				queued++
+			}
 		}
 		for _, u := range res.Users {
-			_ = queue.PublishUserEmbedding(ac, queue.EmbeddingPayload{UserID: u.ID})
+			if err := queue.PublishUserEmbedding(ac, queue.EmbeddingPayload{UserID: u.ID}); err == nil {
+				queued++
+			}
 		}
 		ac.Close()
-		out["embeddingsEnqueued"] = len(res.Articles) + len(res.Users)
+		out["embeddingsEnqueued"] = queued
 	}
 
 	// Umami — pool séparé vers la DB analytics (best-effort).
@@ -554,6 +570,13 @@ func (s *Service) SeedTopComplete(ctx context.Context, userID string) (map[strin
 		return nil, fmt.Errorf("world refresh: %w", err)
 	}
 
+	// RunWorld crée aussi du contenu, mais ne renvoie pas ses IDs. Le worker
+	// doit tout de même couvrir ces lignes et les comptes préexistants : il
+	// génère les vecteurs manquants à partir de la base complète.
+	if err := enqueueMissingEmbeddings(ctx, s.pool); err != nil {
+		log.Printf("[devtools] enqueue missing embeddings: %v", err)
+	}
+
 	out := map[string]any{
 		"success": true, "users": len(res.Users), "articles": len(res.Articles),
 		"posts": len(res.PostIDs), "readingSessions": res.ReadingSess,
@@ -561,14 +584,19 @@ func (s *Service) SeedTopComplete(ctx context.Context, userID string) (map[strin
 		"contentMode": "reset+additive",
 	}
 	if ac := queue.NewClient(os.Getenv("REDIS_URL")); ac != nil {
+		queued := 0
 		for _, a := range res.Articles {
-			_ = queue.PublishArticleEmbedding(ac, queue.EmbeddingPayload{ArticleID: a.ID})
+			if err := queue.PublishArticleEmbedding(ac, queue.EmbeddingPayload{ArticleID: a.ID}); err == nil {
+				queued++
+			}
 		}
 		for _, u := range res.Users {
-			_ = queue.PublishUserEmbedding(ac, queue.EmbeddingPayload{UserID: u.ID})
+			if err := queue.PublishUserEmbedding(ac, queue.EmbeddingPayload{UserID: u.ID}); err == nil {
+				queued++
+			}
 		}
 		ac.Close()
-		out["embeddingsEnqueued"] = len(res.Articles) + len(res.Users)
+		out["embeddingsEnqueued"] = queued
 	}
 	if dsn := os.Getenv("UMAMI_DATABASE_URL"); dsn != "" {
 		umamiPool, openErr := pgxpool.New(ctx, dsn)
@@ -587,6 +615,52 @@ func (s *Service) SeedTopComplete(ctx context.Context, userID string) (map[strin
 		log.Printf("[devtools] reindex complete: %v", reindexErr)
 	}
 	return out, nil
+}
+
+func enqueueMissingEmbeddings(ctx context.Context, pool *pgxpool.Pool) error {
+	client := queue.NewClient(os.Getenv("REDIS_URL"))
+	if client == nil {
+		return errors.New("REDIS_URL non configuré")
+	}
+	defer client.Close()
+	rows, err := pool.Query(ctx, `SELECT id FROM "Article" WHERE embedding IS NULL`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err == nil {
+			_ = queue.PublishArticleEmbedding(client, queue.EmbeddingPayload{ArticleID: id})
+		}
+	}
+	rows.Close()
+	rows, err = pool.Query(ctx, `SELECT id FROM "User" WHERE embedding IS NULL`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err == nil {
+			_ = queue.PublishUserEmbedding(client, queue.EmbeddingPayload{UserID: id})
+		}
+	}
+	rows.Close()
+	rows, err = pool.Query(ctx, `SELECT id FROM "Post"
+		WHERE embedding IS NULL AND "deletedAt" IS NULL
+		  AND "isDraft" = false AND "isHiddenByAuthor" = false`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err == nil {
+			_ = queue.PublishPostEmbedding(client, queue.EmbeddingPayload{PostID: id})
+		}
+	}
+	return rows.Err()
 }
 
 // ---------------------------------------------------------------------------
