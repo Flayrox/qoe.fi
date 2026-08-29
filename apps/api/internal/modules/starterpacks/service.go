@@ -53,8 +53,8 @@ type StarterPackDTO struct {
 }
 
 type Service struct {
-	pool *pgxpool.Pool
-	q    *db.Queries
+	pool pooler
+	q    starterQuerier
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
