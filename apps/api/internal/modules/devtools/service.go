@@ -827,9 +827,11 @@ func (s *Service) ResetOnboarding(ctx context.Context, userID, target string) er
 		return err
 	}
 	if target != "" {
+		// id::text : le paramètre peut être un id UUID OU un email — comparer en
+		// texte évite l'inférence de type uuid qui casse le lookup par email.
 		if _, err := s.pool.Exec(ctx, `
 			UPDATE "User" SET "hasCompletedOnboarding" = false, "updatedAt" = now()
-			WHERE id = $1 OR lower(email) = lower($1::text)`, target); err != nil {
+			WHERE id::text = $1 OR lower(email) = lower($1::text)`, target); err != nil {
 			return fmt.Errorf("reset onboarding: %w", err)
 		}
 		return nil
