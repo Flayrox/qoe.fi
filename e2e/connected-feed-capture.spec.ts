@@ -38,11 +38,19 @@ function loadEnv(file: string): Record<string, string> {
   return out;
 }
 
+// ── Env local (apps/api/.env) ────────────────────────────────────────────
+// L'environnement de processus (CI/e2e.sh) PRIME sur apps/api/.env : c'est
+// ce qui permet de faire tourner e2e contre une base de TEST dédiée
+// (qoe_test:55432) sans jamais toucher la base de dev (15409).
 const env = loadEnv(path.join(process.cwd(), 'apps/api/.env'));
-const SUPABASE_URL = env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321';
-const ANON_KEY = env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
-const SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-const DATABASE_URL = env.DATABASE_URL ?? '';
+const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321';
+const ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ?? env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+const DATABASE_URL =
+  process.env.DATABASE_URL ?? process.env.API_DATABASE_URL ?? env.DATABASE_URL ?? '';
 // supabase-js dérive le nom du cookie : `sb-<hostname.split('.')[0]>-auth-token`.
 const COOKIE_NAME = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`;
 

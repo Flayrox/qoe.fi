@@ -14,7 +14,7 @@
 import { test, expect } from '@playwright/test';
 import crypto from 'crypto';
 import { TestDb } from './lib/db';
-import { DATABASE_URL } from './lib/env';
+import { DATABASE_URL, SUPABASE_ANON_KEY } from './lib/env';
 
 const CONSENT_EMAIL = 'consent.e2e@qoe.fi';
 const CONSENT_PASSWORD = 'E2E-Consent-Passw0rd!';
@@ -49,7 +49,7 @@ test.describe('Consentement OAuth (page réelle)', () => {
 
     // L'utilisateur doit exister côté DB avec l'UUID GOTRUE comme id :
     // l'API Go résout /v1/me via le sub du JWT (jamais par email).
-    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+    const anon = SUPABASE_ANON_KEY;
     if (!anon) throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY requis');
 
     const signup = await fetch('http://127.0.0.1:54321/auth/v1/signup', {
