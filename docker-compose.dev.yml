@@ -169,7 +169,7 @@ services:
     working_dir: /app/apps/api
 
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:54322/postgres
+      DATABASE_URL: postgresql://postgres:wPwAMQTJwB1WTBXF@host.docker.internal:15409/postgres
 
     # Bind mount du code source (pas besoin de rebuild pour migrate)
     volumes:
@@ -206,7 +206,7 @@ services:
       CHOKIDAR_USEPOLLING: 'true'
       WATCHPACK_POLLING: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
-      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:54322/postgres
+      DATABASE_URL: postgresql://postgres:wPwAMQTJwB1WTBXF@host.docker.internal:15409/postgres
       REDIS_URL: redis://redis:6379
 
     # 🎯 BIND MOUNT : ton code source est monté en temps réel
@@ -216,6 +216,8 @@ services:
       - ./package.json:/app/package.json
       - ./pnpm-lock.yaml:/app/pnpm-lock.yaml
       - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml
+      - ./lingui.config.ts:/app/lingui.config.ts:ro
+      - ./messages:/app/messages
       - ./.npmrc:/app/.npmrc
       # Exclut node_modules du container (utilise celui du container)
       - /app/apps/tenants/node_modules
@@ -252,7 +254,7 @@ services:
       CHOKIDAR_USEPOLLING: 'true'
       WATCHPACK_POLLING: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
-      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:54322/postgres
+      DATABASE_URL: postgresql://postgres:wPwAMQTJwB1WTBXF@host.docker.internal:15409/postgres
       REDIS_URL: redis://redis:6379
 
     volumes:
@@ -296,7 +298,7 @@ services:
       CHOKIDAR_USEPOLLING: 'true'
       WATCHPACK_POLLING: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
-      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:54322/postgres
+      DATABASE_URL: postgresql://postgres:wPwAMQTJwB1WTBXF@host.docker.internal:15409/postgres
       REDIS_URL: redis://redis:6379
 
     volumes:
@@ -340,7 +342,7 @@ services:
       CHOKIDAR_USEPOLLING: 'true'
       WATCHPACK_POLLING: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
-      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:54322/postgres
+      DATABASE_URL: postgresql://postgres:wPwAMQTJwB1WTBXF@host.docker.internal:15409/postgres
       REDIS_URL: redis://redis:6379
 
     volumes:
@@ -384,7 +386,7 @@ services:
       CHOKIDAR_USEPOLLING: 'true'
       WATCHPACK_POLLING: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
-      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:54322/postgres
+      DATABASE_URL: postgresql://postgres:wPwAMQTJwB1WTBXF@host.docker.internal:15409/postgres
       REDIS_URL: redis://redis:6379
 
     volumes:

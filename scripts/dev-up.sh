@@ -7,8 +7,11 @@
 #                                  growthbook, umami — PAS les apps Next,
 #                                  elles tournent en natif via turbo)
 #   3. Supabase local             (CLI, DB sur 127.0.0.1:54322)
-#   4. Jina embeddings            (launchd llama.cpp sur :8081)
-#   5. Apps Next.js               (copy-env + lingui + turbo dev --parallel)
+#   4. Jina embeddings            (launchd llama.cpp sur :8081)#    5. Apps Next.js               (copy-env + lingui + turbo dev --parallel)
+#
+#    Les apps Next sont lancées en natif ; ne pas démarrer leurs services
+#    Docker correspondants dans la même session.
+
 #
 # Usage :  pnpm dev:up        (ou ./scripts/dev-up.sh)
 # Arrêt :  Ctrl+C tue les apps ; `pnpm dev:down` stoppe infra + supabase.
@@ -51,6 +54,7 @@ ok "Docker prêt"
 
 # ── 2. Infra Docker (sans les apps, elles tournent en natif) ────────────────
 echo "→ Infra Docker : ${INFRA_SERVICES[*]}…"
+docker compose -f docker-compose.dev.yml stop core tenants hi studio admin >/dev/null 2>&1 || true
 docker compose -f docker-compose.dev.yml up -d --remove-orphans --wait --wait-timeout 120 "${INFRA_SERVICES[@]}" >/dev/null \
   || fail "Infra Docker KO (voir docker compose ps)"
 ok "Infra prête (pg 15409 · redis 15410 · meili 15408 · growthbook 15412 · umami 15411 — ports 1540x isolés)"
@@ -61,7 +65,7 @@ if [ -z "$status_out" ] || grep -q '^Stopped services:' <<<"$status_out"; then
   echo "→ Démarrage de Supabase…"
   supabase start >/dev/null || fail "supabase start a échoué"
 fi
-ok "Supabase prêt (DB 54322 · API 54321 · Studio 54323)"
+ok "Supabase prêt (DB 54322 · API 54321 · Studio 54323) — auth UNIQUEMENT, la base app reste sur 15409"
 
 # ── 4. Jina embeddings (launchd) ────────────────────────────────────────────
 if ! curl -sf --max-time 2 http://127.0.0.1:8081/health >/dev/null 2>&1; then
