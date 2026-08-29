@@ -96,7 +96,7 @@ type BookmarkItem struct {
 // Service porte les dépendances du domaine highlights.
 type Service struct {
 	pool *pgxpool.Pool
-	q    *db.Queries
+	q    highlightQuerier
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
