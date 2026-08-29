@@ -454,13 +454,26 @@ export function FeedDashboard({
   };
 
   // 🚫 « Voir moins de contenu comme ça » — feedback négatif explicite.
-  // Retire la carte localement ; l'exclusion SQL + le push vectoriel sont
-  // faits par /api/feed/show-less (appelé dans les composants cartes).
-  const handleHideArticle = (article: Article) => {
+  // Retire la carte localement ET persiste via /api/feed/show-less : exclusion
+  // SQL (ContentFeedback) + éloignement vectoriel (EMA négatif) côté Go.
+  const handleHideArticle = async (article: Article) => {
     setLocalPosts((prev) => prev.filter((p) => p.id !== article.id));
     setFeedItems((prev) => prev.filter((p) => p.id !== article.id));
     trackEvent('feed_show_less', { articleId: article.id });
-    toast.success(t`Tu verras moins de contenu comme ça.`);
+    try {
+      const res = await fetch('/api/feed/show-less', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ articleId: article.id }),
+      });
+      if (res.ok) {
+        toast.success(t`Tu verras moins de contenu comme ça.`);
+      } else {
+        toast.error(t`Erreur lors de la sauvegarde de ta préférence.`);
+      }
+    } catch {
+      toast.error(t`Erreur réseau.`);
+    }
   };
 
   const handleHidePost = (postId: string) => {
