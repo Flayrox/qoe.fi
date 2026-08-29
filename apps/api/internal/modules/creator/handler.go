@@ -26,8 +26,8 @@ import (
 )
 
 type Handler struct {
-	pool       *pgxpool.Pool
-	q          *db.Queries
+	pool       pooler
+	q          ServiceQuerier
 	umami      *umami.Client
 	defaultWeb string
 }
@@ -733,7 +733,7 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 // notifyFollow crée la notification FOLLOW au propriétaire d'une publication
 // (PERSONAL → créateur, MEDIA → membre owner). Best-effort, respecte les
 // préférences du destinataire et déduplique les suivis non lus.
-func notifyFollow(ctx context.Context, tq *db.Queries, publicationID, senderID string) error {
+func notifyFollow(ctx context.Context, tq ServiceQuerier, publicationID, senderID string) error {
 	ownerID, err := tq.GetPublicationOwner(ctx, publicationID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -781,7 +781,7 @@ func notifyFollow(ctx context.Context, tq *db.Queries, publicationID, senderID s
 }
 
 // deleteFollowNotification supprime la notification FOLLOW lors d'un unfollow.
-func deleteFollowNotification(ctx context.Context, tq *db.Queries, publicationID, senderID string) error {
+func deleteFollowNotification(ctx context.Context, tq ServiceQuerier, publicationID, senderID string) error {
 	ownerID, err := tq.GetPublicationOwner(ctx, publicationID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
