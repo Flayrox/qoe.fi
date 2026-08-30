@@ -12,6 +12,8 @@ type Config struct {
 	DatabaseURL string
 	// SupabaseAuthURL est l'URL d'auth (pour la résolution JWKS RS256).
 	SupabaseAuthURL string
+	// SupabaseServiceRoleKey est utilisé uniquement côté serveur pour l'Admin API GoTrue.
+	SupabaseServiceRoleKey string
 	// JWTSecret est la clé HMAC de fallback (GoTrue legacy `sb_secret_…`).
 	JWTSecret string
 	// RedisURL pour le rate-limiting / asynq.
@@ -47,20 +49,21 @@ func Load() *Config {
 	return &Config{
 		// Port dédié à l'API Go (API_PORT), indépendant du PORT des apps web.
 		// Évite la collision avec le Next.js web (3000) et avec « Soneph » (8080).
-		Port:                  envOr("API_PORT", "8090"),
+		Port: envOr("API_PORT", "8090"),
 		// API_DATABASE_URL : DSN sans paramètres réservés à Prisma (ex: ?schema=public)
 		// que pgx enverrait comme startup parameters (refusés par Postgres).
-		DatabaseURL:           envOr("API_DATABASE_URL", envOr("DATABASE_URL", "")),
-		SupabaseAuthURL:       envOr("SUPABASE_AUTH_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")),
-		JWTSecret:             envOr("SUPABASE_JWT_SECRET", envOr("SUPABASE_SECRET_KEY", "")),
-		RedisURL:              envOr("REDIS_URL", "redis://localhost:6379"),
-		InternalSecret:        envOr("QOE_INTERNAL_SECRET", envOr("SUPABASE_SERVICE_ROLE_KEY", "")),
-		StripeWebhookSecret:   envOr("STRIPE_WEBHOOK_SECRET", ""),
-		UmamiAPIURL:           envOr("UMAMI_API_URL", "https://api.umami.is/v1"),
-		UmamiAPIKey:           envOr("UMAMI_API_KEY", ""),
-		UmamiUser:             envOr("UMAMI_USERNAME", ""),
-		UmamiPass:             envOr("UMAMI_PASSWORD", ""),
-		DefaultUmamiWebsiteID: envOr("NEXT_PUBLIC_UMAMI_WEBSITE_ID", ""),
+		DatabaseURL:            envOr("API_DATABASE_URL", envOr("DATABASE_URL", "")),
+		SupabaseAuthURL:        envOr("SUPABASE_AUTH_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")),
+		SupabaseServiceRoleKey: envOr("SUPABASE_SERVICE_ROLE_KEY", ""),
+		JWTSecret:              envOr("SUPABASE_JWT_SECRET", envOr("SUPABASE_SECRET_KEY", "")),
+		RedisURL:               envOr("REDIS_URL", "redis://localhost:6379"),
+		InternalSecret:         envOr("QOE_INTERNAL_SECRET", envOr("SUPABASE_SERVICE_ROLE_KEY", "")),
+		StripeWebhookSecret:    envOr("STRIPE_WEBHOOK_SECRET", ""),
+		UmamiAPIURL:            envOr("UMAMI_API_URL", "https://api.umami.is/v1"),
+		UmamiAPIKey:            envOr("UMAMI_API_KEY", ""),
+		UmamiUser:              envOr("UMAMI_USERNAME", ""),
+		UmamiPass:              envOr("UMAMI_PASSWORD", ""),
+		DefaultUmamiWebsiteID:  envOr("NEXT_PUBLIC_UMAMI_WEBSITE_ID", ""),
 		// Connexion read-only à la DB Postgres d'Umami (visiteurs récurrents,
 		// heatmap horaire — métriques absentes de l'API REST).
 		UmamiDatabaseURL: envOr("UMAMI_DATABASE_URL", ""),

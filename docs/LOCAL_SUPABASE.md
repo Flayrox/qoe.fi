@@ -51,6 +51,23 @@ cd apps/api && DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:54322/post
 docker exec -i supabase_db_qoe.fi psql -U postgres -d postgres -f - < scripts/rls-interactions.sql
 ```
 
+## 🔐 Baseline de sécurité des sessions
+
+La configuration locale suit le baseline de production pour éviter les écarts :
+
+- access tokens JWT valides 1 heure ;
+- rotation des refresh tokens activée ;
+- réutilisation tolérée seulement 10 secondes ;
+- sessions limitées à 30 jours ;
+- expiration après 30 jours d’inactivité ;
+- changement de mot de passe sécurisé et réauthentification requise ;
+- mots de passe d’au moins 12 caractères avec majuscules, minuscules, chiffres et symboles ;
+- MFA TOTP activée, avec activation effective à compléter par l’utilisateur.
+
+En production, ces valeurs doivent être vérifiées après déploiement via la configuration
+GoTrue effective et ajustées selon l’analyse de risque, les besoins de support et la
+politique de conservation. Ne jamais exposer la service-role key au navigateur.
+
 ## 🧪 Vérifier
 
 - Signup local : `curl -X POST http://127.0.0.1:54321/auth/v1/signup -H "apikey: <anon>" -H "Content-Type: application/json" -d '{"email":"...","password":"..."}'`

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Download, ExternalLink, ShieldAlert, Trash2 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import { URLS } from '@qoe/config';
@@ -16,6 +16,54 @@ export interface AccountSecurityProfile {
 export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }) {
   const [deletionConfirmation, setDeletionConfirmation] = useState('');
   const [busy, setBusy] = useState(false);
+  const [identity, setIdentity] = useState(profile);
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [mfaFactors, setMfaFactors] = useState<Record<string, unknown> | null>(null);
+  const [mfaBusy, setMfaBusy] = useState(false);
+  const [sessions, setSessions] = useState<
+    Array<{ id: string; clientId: string; current: boolean }>
+  >([]);
+  const [consent, setConsent] = useState({
+    analytics: false,
+    personalization: false,
+    marketing: false,
+    version: '1',
+  });
+
+  useEffect(() => {
+    goFetch<AccountSecurityProfile>('/v1/me/identity')
+      .then(setIdentity)
+      .catch(() => undefined);
+    goFetch<Record<string, unknown>>('/v1/me/mfa')
+      .then(setMfaFactors)
+      .catch(() => undefined);
+    goFetch<{ sessions: Array<{ id: string; clientId: string; current: boolean }> }>(
+      '/v1/me/sessions'
+    )
+      .then((r) => setSessions(r.sessions))
+      .catch(() => undefined);
+    goFetch<typeof consent>('/v1/settings/consent')
+      .then(setConsent)
+      .catch(() => undefined);
+  }, []);
+
+  async function enrollMfa() {
+    setMfaBusy(true);
+    try {
+      const result = await goFetch<Record<string, unknown>>('/v1/me/mfa/totp/enroll', {
+        method: 'POST',
+        body: {},
+      });
+      setMfaFactors(result);
+      toast.success('Scannez le QR code avec votre application d’authentification.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'MFA indisponible.');
+    } finally {
+      setMfaBusy(false);
+    }
+  }
 
   async function exportData() {
     setBusy(true);
@@ -64,7 +112,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
         <h3 className="font-semibold">Identité</h3>
         <div className="text-sm text-muted-foreground">
           <p>
-            Email : <strong className="text-foreground">{profile.email}</strong>
+            Email : <strong className="text-foreground">{identity.email}</strong>{' '}
           </p>
           <p>
             Username :{' '}
@@ -87,23 +135,154 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
           <h3 className="font-semibold">Authentification</h3>
         </div>
         <p className="text-sm text-muted-foreground">
-          Les changements d’email, de mot de passe et la MFA seront branchés à l’API Go et à
-          Supabase auto-hébergé. Cette section est prête à recevoir ces contrôles.
+          Les actions sensibles demandent le mot de passe actuel et déclenchent la vérification côté
+          fournisseur d’identité.
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
-          <button disabled className="rounded-lg border px-3 py-2 text-left text-sm opacity-60">
-            Changer l’email — bientôt disponible
+          <input
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            type="password"
+            placeholder="Mot de passe actuel"
+            className="rounded-lg border bg-background px-3 py-2 text-sm"
+          />
+          <input
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            type="email"
+            placeholder="Nouvel email"
+            className="rounded-lg border bg-background px-3 py-2 text-sm"
+          />
+          <button
+            disabled={busy || !newEmail || !currentPassword}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await goFetch('/v1/me/email-change', {
+                  method: 'POST',
+                  body: { newEmail, currentPassword },
+                });
+                toast.success('Un email de vérification a été envoyé.');
+                setNewEmail('');
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : 'Impossible de changer l’email.');
+              } finally {
+                setBusy(false);
+              }
+            }}
+            className="rounded-lg border px-3 py-2 text-left text-sm disabled:opacity-50"
+          >
+            Changer l’email
           </button>
-          <button disabled className="rounded-lg border px-3 py-2 text-left text-sm opacity-60">
-            Changer le mot de passe — bientôt disponible
+          <input
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            type="password"
+            placeholder="Nouveau mot de passe"
+            className="rounded-lg border bg-background px-3 py-2 text-sm"
+          />
+          <button
+            disabled={busy || !newPassword || !currentPassword}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await goFetch('/v1/me/password-change', {
+                  method: 'POST',
+                  body: { newPassword, currentPassword },
+                });
+                toast.success('Mot de passe modifié.');
+                setNewPassword('');
+                setCurrentPassword('');
+              } catch (e) {
+                toast.error(
+                  e instanceof Error ? e.message : 'Impossible de changer le mot de passe.'
+                );
+              } finally {
+                setBusy(false);
+              }
+            }}
+            className="rounded-lg border px-3 py-2 text-left text-sm disabled:opacity-50"
+          >
+            Changer le mot de passe
           </button>
-          <button disabled className="rounded-lg border px-3 py-2 text-left text-sm opacity-60">
-            Activer la MFA — bientôt disponible
+          <button
+            disabled={mfaBusy}
+            onClick={enrollMfa}
+            className="rounded-lg border px-3 py-2 text-left text-sm disabled:opacity-50"
+          >
+            {mfaFactors ? 'MFA configurée — gérer le facteur' : 'Activer la MFA'}
           </button>
-          <button disabled className="rounded-lg border px-3 py-2 text-left text-sm opacity-60">
-            Sessions actives — bientôt disponible
+          <button
+            onClick={async () => {
+              setMfaBusy(true);
+              try {
+                await goFetch('/v1/me/sessions/revoke-others', { method: 'POST', body: {} });
+                setSessions(sessions.filter((s) => s.current));
+                toast.success('Les autres sessions ont été révoquées.');
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : 'Révocation impossible.');
+              } finally {
+                setMfaBusy(false);
+              }
+            }}
+            disabled={mfaBusy || sessions.length < 2}
+            className="rounded-lg border px-3 py-2 text-left text-sm disabled:opacity-50"
+          >
+            Révoquer les autres sessions ({sessions.length})
+          </button>
+          <button
+            onClick={async () => {
+              setMfaBusy(true);
+              try {
+                await goFetch('/v1/me/sessions/revoke-all', { method: 'POST', body: {} });
+                setSessions([]);
+                toast.success('Toutes les sessions OAuth ont été révoquées.');
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : 'Révocation impossible.');
+              } finally {
+                setMfaBusy(false);
+              }
+            }}
+            disabled={mfaBusy || sessions.length === 0}
+            className="rounded-lg border px-3 py-2 text-left text-sm text-destructive disabled:opacity-50"
+          >
+            Révoquer toutes les sessions OAuth
           </button>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-border/50 bg-card p-5 space-y-3">
+        <h3 className="font-semibold">Consentements</h3>
+        <p className="text-sm text-muted-foreground">
+          Contrôlez les traitements facultatifs. Les traitements nécessaires restent actifs.
+        </p>
+        {(['analytics', 'personalization', 'marketing'] as const).map((key) => (
+          <label key={key} className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={consent[key]}
+              onChange={(e) => setConsent({ ...consent, [key]: e.target.checked })}
+            />{' '}
+            {key === 'analytics'
+              ? 'Mesure d’audience'
+              : key === 'personalization'
+                ? 'Personnalisation'
+                : 'Marketing'}
+          </label>
+        ))}
+        <button
+          onClick={async () => {
+            try {
+              await goFetch('/v1/settings/consent', { method: 'PATCH', body: consent });
+              toast.success('Préférences de consentement enregistrées.');
+            } catch {
+              toast.error('Impossible d’enregistrer le consentement.');
+            }
+          }}
+          className="rounded-lg border px-3 py-2 text-sm"
+        >
+          Enregistrer mes choix
+        </button>
       </div>
 
       <div className="rounded-xl border border-border/50 bg-card p-5 space-y-3">

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
@@ -25,6 +26,17 @@ func NewHandler(svc *Service) *Handler {
 // module creator (qui expose /v1/users/me et /v1/users/{username}).
 func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/me", h.me)
+	r.Get("/v1/me/identity", h.identity)
+	r.Get("/v1/me/mfa", h.mfa)
+	r.Post("/v1/me/mfa/totp/enroll", h.mfaEnroll)
+	r.Post("/v1/me/mfa/totp/verify", h.mfaVerify)
+	r.Delete("/v1/me/mfa/totp/{factorId}", h.mfaUnenroll)
+	r.Post("/v1/me/email-change", h.changeEmail)
+	r.Post("/v1/me/password-change", h.changePassword)
+	r.Get("/v1/me/sessions", h.sessions)
+	r.Delete("/v1/me/sessions/{id}", h.revokeSession)
+	r.Post("/v1/me/sessions/revoke-others", h.revokeOtherSessions)
+	r.Post("/v1/me/sessions/revoke-all", h.revokeAllSessions)
 	r.Patch("/v1/me/profile", h.updateProfile)
 	r.Get("/v1/me/media/{mediaId}", h.mediaPublication)
 	r.Get("/v1/me/billing", h.billing)
@@ -99,6 +111,183 @@ func deref(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+type sensitiveAuthInput struct {
+	CurrentPassword string `json:"currentPassword"`
+}
+
+func (h *Handler) identity(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	identity, err := h.svc.Identity(r.Context(), userID)
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, identity)
+}
+
+func (h *Handler) mfa(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	data, err := h.svc.MFA(r.Context(), userID, r.Header.Get("Authorization"))
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, data)
+}
+func (h *Handler) mfaEnroll(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	data, err := h.svc.MFARequest(r.Context(), userID, r.Header.Get("Authorization"), "POST", "/auth/v1/factors", map[string]any{"factor_type": "totp", "friendly_name": "qoe.fi"})
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	response.OK(w, data)
+}
+func (h *Handler) mfaVerify(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	var in map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	path, _ := in["path"].(string)
+	if path == "" {
+		response.BadRequest(w, "path requis")
+		return
+	}
+	delete(in, "path")
+	data, err := h.svc.MFARequest(r.Context(), userID, r.Header.Get("Authorization"), "POST", path, in)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	response.OK(w, data)
+}
+func (h *Handler) mfaUnenroll(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	path := "/auth/v1/factors/" + chi.URLParam(r, "factorId")
+	if err := h.svc.MFADelete(r.Context(), userID, r.Header.Get("Authorization"), path); err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
+}
+
+func (h *Handler) sessions(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	token := r.Header.Get("Authorization")
+	token = strings.TrimPrefix(token, "Bearer ")
+	data, err := h.svc.Sessions(r.Context(), userID, token)
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"sessions": data})
+}
+func (h *Handler) revokeSession(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	if err := h.svc.RevokeSession(r.Context(), userID, chi.URLParam(r, "id")); err != nil {
+		response.NotFound(w, err.Error())
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
+}
+func (h *Handler) revokeAllSessions(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	if err := h.svc.RevokeAllSessions(r.Context(), userID); err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
+}
+func (h *Handler) revokeOtherSessions(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if err := h.svc.RevokeOtherSessions(r.Context(), userID, token); err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
+}
+
+func (h *Handler) changeEmail(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	var in struct {
+		sensitiveAuthInput
+		NewEmail string `json:"newEmail"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if err := h.svc.ChangeEmail(r.Context(), userID, in.CurrentPassword, in.NewEmail); err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	response.OK(w, map[string]bool{"success": true, "verificationRequired": true})
+}
+
+func (h *Handler) changePassword(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	var in struct {
+		sensitiveAuthInput
+		NewPassword string `json:"newPassword"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if err := h.svc.ChangePassword(r.Context(), userID, in.CurrentPassword, in.NewPassword); err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
 }
 
 func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
