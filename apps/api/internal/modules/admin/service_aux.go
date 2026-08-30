@@ -7,6 +7,8 @@ package admin
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -258,6 +260,30 @@ func (s *Service) UpsertSystemConfigs(ctx context.Context, userID string, items 
 	return nil
 }
 
+// UpdateReservedIdentifiers validates and stores the admin-controlled denylist
+// for usernames or subdomains. The API still applies hard-coded route guards.
+func (s *Service) UpdateReservedIdentifiers(ctx context.Context, userID, kind string, values []string) error {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return err
+	}
+	key := "RESERVED_" + strings.ToUpper(kind) + "S"
+	if kind != "username" && kind != "subdomain" {
+		return errors.New("type d'identifiant invalide")
+	}
+	clean := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value != "" {
+			clean = append(clean, value)
+		}
+	}
+	_, err := s.q.UpsertSystemConfig(ctx, db.UpsertSystemConfigParams{
+		Key: key, Value: strings.Join(clean, "\\n"),
+		Description: pgtype.Text{String: "Noms réservés " + kind, Valid: true},
+	})
+	return err
+}
+
 func (s *Service) DeleteSystemConfig(ctx context.Context, userID, key string) error {
 	if err := s.checkSuperadmin(ctx, userID); err != nil {
 		return err
@@ -320,14 +346,14 @@ func (s *Service) UpdateOAuthClientStatus(ctx context.Context, userID, clientID,
 // ── Demandes d'accès API ─────────────────────────────────────────────────────
 
 type AdminApiApplicant struct {
-	ID                  string  `json:"id"`
-	Name                *string `json:"name"`
-	Email               string  `json:"email"`
-	Subdomain           *string `json:"subdomain"`
-	ApiAccessStatus     string  `json:"apiAccessStatus"`
+	ID                   string  `json:"id"`
+	Name                 *string `json:"name"`
+	Email                string  `json:"email"`
+	Subdomain            *string `json:"subdomain"`
+	ApiAccessStatus      string  `json:"apiAccessStatus"`
 	ApiApplicationReason *string `json:"apiApplicationReason"`
-	CreatedAt           string  `json:"createdAt"`
-	UpdatedAt           string  `json:"updatedAt"`
+	CreatedAt            string  `json:"createdAt"`
+	UpdatedAt            string  `json:"updatedAt"`
 }
 
 func (s *Service) ListApiApplicants(ctx context.Context, userID string) ([]AdminApiApplicant, error) {
@@ -342,11 +368,11 @@ func (s *Service) ListApiApplicants(ctx context.Context, userID string) ([]Admin
 	for _, r := range rows {
 		out = append(out, AdminApiApplicant{
 			ID: r.ID, Name: textPtr(r.Name), Email: r.Email,
-			Subdomain: textPtr(r.PublicationSubdomain),
-			ApiAccessStatus: r.ApiAccessStatus,
+			Subdomain:            textPtr(r.PublicationSubdomain),
+			ApiAccessStatus:      r.ApiAccessStatus,
 			ApiApplicationReason: textPtr(r.ApiApplicationReason),
-			CreatedAt: r.CreatedAt.Time.Format(time.RFC3339),
-			UpdatedAt: r.UpdatedAt.Time.Format(time.RFC3339),
+			CreatedAt:            r.CreatedAt.Time.Format(time.RFC3339),
+			UpdatedAt:            r.UpdatedAt.Time.Format(time.RFC3339),
 		})
 	}
 	return out, nil
@@ -365,14 +391,14 @@ func (s *Service) UpdateApiAccessStatus(ctx context.Context, userID, targetID, s
 // ── Notifications & livraisons ───────────────────────────────────────────────
 
 type AdminDelivery struct {
-	ID          string  `json:"id"`
-	Recipient   string  `json:"recipient"`
-	Status      string  `json:"status"`
-	Channel     string  `json:"channel"`
-	Attempts    int32   `json:"attempts"`
-	Provider    *string `json:"provider"`
-	LastError   *string `json:"lastError"`
-	CreatedAt   string  `json:"createdAt"`
+	ID           string  `json:"id"`
+	Recipient    string  `json:"recipient"`
+	Status       string  `json:"status"`
+	Channel      string  `json:"channel"`
+	Attempts     int32   `json:"attempts"`
+	Provider     *string `json:"provider"`
+	LastError    *string `json:"lastError"`
+	CreatedAt    string  `json:"createdAt"`
 	Notification struct {
 		Type         string  `json:"type"`
 		ArticleTitle *string `json:"articleTitle"`

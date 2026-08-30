@@ -43,6 +43,7 @@ func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/admin/config", h.configs)
 	r.Put("/v1/admin/config", h.upsertConfigs)
 	r.Delete("/v1/admin/config/{key}", h.deleteConfig)
+	r.Put("/v1/admin/reserved-identifiers/{kind}", h.updateReservedIdentifiers)
 
 	// OAuth
 	r.Get("/v1/admin/oauth/clients", h.oauthClients)
@@ -324,6 +325,27 @@ func (h *Handler) upsertConfigs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.svc.UpsertSystemConfigs(r.Context(), userID, items); err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
+}
+
+// PUT /v1/admin/reserved-identifiers/{kind} — replaces the admin-managed
+// username/subdomain denylist. Values are normalized server-side.
+func (h *Handler) updateReservedIdentifiers(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Values []string `json:"values"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if err := h.svc.UpdateReservedIdentifiers(r.Context(), userID, chi.URLParam(r, "kind"), in.Values); err != nil {
 		h.handleErr(w, err)
 		return
 	}

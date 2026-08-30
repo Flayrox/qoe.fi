@@ -109,30 +109,30 @@ type SettingsOwner struct {
 // SettingsPublication est la publication complète de la page settings
 // (mêmes champs JSON que le include Prisma — mapping studio inchangé).
 type SettingsPublication struct {
-	ID             string              `json:"id"`
-	Name           string              `json:"name"`
-	Slug           string              `json:"slug"`
-	Subdomain      *string             `json:"subdomain"`
-	CustomDomain   *string             `json:"customDomain"`
-	HeroText       *string             `json:"heroText"`
-	AccentColor    *string             `json:"accentColor"`
-	FontFamily     *string             `json:"fontFamily"`
-	ThemeMode      *string             `json:"themeMode"`
-	LayoutStyle    *string             `json:"layoutStyle"`
-	LogoURL        *string             `json:"logoUrl"`
-	HeaderImageURL *string             `json:"headerImageUrl"`
-	FooterText     *string             `json:"footerText"`
-	SeoTitle       *string             `json:"seoTitle"`
-	SeoDescription *string             `json:"seoDescription"`
-	AllowIndexing  bool                `json:"allowIndexing"`
-	SupportURL     *string             `json:"supportUrl"`
-	Type           string              `json:"type"`
-	UmamiWebsiteID *string             `json:"umamiWebsiteId"`
-	Navigation     []SettingsNavItem   `json:"navigation"`
+	ID             string               `json:"id"`
+	Name           string               `json:"name"`
+	Slug           string               `json:"slug"`
+	Subdomain      *string              `json:"subdomain"`
+	CustomDomain   *string              `json:"customDomain"`
+	HeroText       *string              `json:"heroText"`
+	AccentColor    *string              `json:"accentColor"`
+	FontFamily     *string              `json:"fontFamily"`
+	ThemeMode      *string              `json:"themeMode"`
+	LayoutStyle    *string              `json:"layoutStyle"`
+	LogoURL        *string              `json:"logoUrl"`
+	HeaderImageURL *string              `json:"headerImageUrl"`
+	FooterText     *string              `json:"footerText"`
+	SeoTitle       *string              `json:"seoTitle"`
+	SeoDescription *string              `json:"seoDescription"`
+	AllowIndexing  bool                 `json:"allowIndexing"`
+	SupportURL     *string              `json:"supportUrl"`
+	Type           string               `json:"type"`
+	UmamiWebsiteID *string              `json:"umamiWebsiteId"`
+	Navigation     []SettingsNavItem    `json:"navigation"`
 	SocialLinks    []SettingsSocialLink `json:"socialLinks"`
-	Articles       []SettingsArticle   `json:"articles"`
-	Categories     []SettingsCategory  `json:"categories"`
-	User           *SettingsOwner      `json:"user"`
+	Articles       []SettingsArticle    `json:"articles"`
+	Categories     []SettingsCategory   `json:"categories"`
+	User           *SettingsOwner       `json:"user"`
 }
 
 // GetPublicationSettings retourne la publication + relations de la page
@@ -169,7 +169,7 @@ func (s *Service) GetPublicationSettings(ctx context.Context, userID, publicatio
 	if row.OwnerID != "" {
 		pub.User = &SettingsOwner{
 			ID: row.OwnerID, Email: textPtr(row.OwnerEmail),
-			Username: textPtr(row.OwnerUsername),
+			Username:             textPtr(row.OwnerUsername),
 			AdvancedSettingsMode: row.OwnerAdvancedSettingsMode.Bool,
 		}
 	}
@@ -318,7 +318,7 @@ func (s *Service) updatePublication(ctx context.Context, publicationID string, f
 	return err
 }
 
-var reservedSubdomains = map[string]bool{
+var defaultReservedSubdomains = map[string]bool{
 	"admin": true, "api": true, "app": true, "auth": true, "billing": true,
 	"blog": true, "dashboard": true, "dev": true, "developer": true, "docs": true,
 	"feed": true, "help": true, "login": true, "main": true, "media": true,
@@ -330,7 +330,25 @@ var reservedSubdomains = map[string]bool{
 var subdomainRegex = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
 // CheckSubdomain valide un sous-domaine et vérifie sa disponibilité.
+func isReservedIdentifier(ctx context.Context, pool pooler, kind, value string) (bool, error) {
+	var raw string
+	err := pool.QueryRow(ctx, `SELECT value FROM "SystemConfig" WHERE key = $1`, "RESERVED_"+strings.ToUpper(kind)+"S").Scan(&raw)
+	if errors.Is(err, pgx.ErrNoRows) {
+		raw = "admin,api,app,auth,billing,docs,feed,home,login,settings,studio,www"
+	} else if err != nil {
+		return false, err
+	}
+	for _, item := range strings.FieldsFunc(strings.ToLower(raw), func(r rune) bool { return r == ',' || r == '\n' || r == '\r' || r == ' ' }) {
+		if item == strings.ToLower(value) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (s *Service) CheckSubdomain(ctx context.Context, subdomain string) (available bool, reason string) {
+	// Subdomains intentionally keep their existing hyphenated syntax; only the
+	// protected-name source is shared with the admin configuration contract.
 	clean := strings.ToLower(strings.TrimSpace(subdomain))
 	if !subdomainRegex.MatchString(clean) {
 		return false, "Le sous-domaine ne doit contenir que des lettres minuscules, chiffres et tirets."
@@ -338,7 +356,11 @@ func (s *Service) CheckSubdomain(ctx context.Context, subdomain string) (availab
 	if len(clean) < 3 || len(clean) > 30 {
 		return false, "La longueur doit être comprise entre 3 et 30 caractères."
 	}
-	if reservedSubdomains[clean] {
+	reserved, err := isReservedIdentifier(ctx, s.pool, "subdomain", clean)
+	if err != nil {
+		return false, "Vérification impossible, réessayez."
+	}
+	if reserved || defaultReservedSubdomains[clean] {
 		return false, "Ce nom de sous-domaine est réservé par la plateforme."
 	}
 	exists, err := s.q.CheckSubdomainExists(ctx, pgtype.Text{String: clean, Valid: true})

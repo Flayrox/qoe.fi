@@ -7,9 +7,11 @@ import { Logo } from '@qoe/ui';
 import { useUnreadNotificationCount } from '@qoe/ui/notifications';
 import { routes } from '@qoe/config/routes';
 import { t } from '@lingui/core/macro';
+import { useMemo } from 'react';
 
 interface AppSidebarProps {
   userName?: string;
+  userUsername?: string | null;
   userEmail?: string;
   userAvatar?: string | null;
   userRole?: string;
@@ -18,6 +20,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({
   userName = t`Lecteur`,
+  userUsername = null,
   userEmail = '',
   userAvatar = null,
   onLogout,
@@ -27,6 +30,11 @@ export function AppSidebar({
   const pathname = usePathname();
   // 🔕 Pas de badge tant qu'on est sur la page notifications
   const isOnNotificationsPage = pathname.startsWith('/notifications');
+
+  const profileHref = useMemo(() => {
+    const username = userUsername?.trim().replace(/^@/, '').toLowerCase();
+    return username ? `/${username}` : '/settings';
+  }, [userUsername]);
 
   const menuItems = [
     {
@@ -64,6 +72,11 @@ export function AppSidebar({
       title: t`Portefeuille`,
       url: routes.feed.billing(),
       iconName: 'Wallet',
+    },
+    {
+      title: t`Mon profil`,
+      url: profileHref,
+      iconName: 'CircleUserRound',
     },
     {
       title: t`Réglages`,

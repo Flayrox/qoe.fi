@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState, useTransition, type ReactNode } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { t } from '@lingui/core/macro';
 import { useI18n } from '@qoe/i18n';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import {
   Accessibility,
@@ -31,7 +31,6 @@ import {
   logoutAccountAction,
   requestAccountDeletionAction,
   toggleMutedWordAction,
-  updateAccountProfileAction,
   updateAccountSettingsAction,
   type AccountSettingsPatch,
 } from './actions';
@@ -40,12 +39,11 @@ export type AccountSettingsData = Awaited<
   ReturnType<typeof import('./actions').getAccountSettingsAction>
 >;
 
-type SettingsSection = 'account' | 'profile' | 'notifications' | 'privacy' | 'appearance' | 'data';
+type SettingsSection = 'account' | 'notifications' | 'privacy' | 'appearance' | 'data';
 
 // Libellés résolus au rendu pour suivre la langue active (tableau au module = figé).
 const sections: Array<{ id: SettingsSection; label: () => string; icon: typeof UserRound }> = [
   { id: 'account', label: () => t`Compte`, icon: UserRound },
-  { id: 'profile', label: () => t`Profil public`, icon: UserRound },
   { id: 'notifications', label: () => t`Notifications`, icon: Bell },
   { id: 'privacy', label: () => t`Confidentialité`, icon: Shield },
   { id: 'appearance', label: () => t`Apparence & lecture`, icon: Palette },
@@ -68,7 +66,21 @@ export default function AccountSettingsPage({
   // The server page wrapper supplies this in production; keeping a small loading
   // fallback makes the component easy to mount in isolated UI tests.
   const [data, setData] = useState<AccountSettingsData | null>(initialData || null);
-  const [activeSection, setActiveSection] = useState<SettingsSection>('account');
+  const pathname = usePathname();
+  const router = useRouter();
+  const sectionFromPath = pathname.match(/^\/settings(?:\/([^/]+))?/)?.[1] as
+    SettingsSection | undefined;
+  const [activeSection, setActiveSection] = useState<SettingsSection>(sectionFromPath ?? 'account');
+
+  useEffect(() => {
+    const nextSection = sectionFromPath ?? 'account';
+    if (nextSection !== activeSection) setActiveSection(nextSection);
+  }, [sectionFromPath, activeSection]);
+
+  const navigateToSection = (section: SettingsSection) => {
+    setActiveSection(section);
+    router.push(section === 'account' ? '/settings' : `/settings/${section}`);
+  };
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
@@ -78,13 +90,6 @@ export default function AccountSettingsPage({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const [profile, setProfile] = useState(() => ({
-    name: initialData?.user.name || '',
-    username: initialData?.user.username || '',
-    onboardingText: initialData?.user.onboardingText || '',
-    logoUrl: initialData?.user.logoUrl || '',
-    pronouns: initialData?.user.pronouns || '',
-  }));
   const [deletionConfirmation, setDeletionConfirmation] = useState('');
 
   // Mots masqués (section Confidentialité).
@@ -110,22 +115,6 @@ export default function AccountSettingsPage({
       } catch (error) {
         showMessage(
           error instanceof Error ? error.message : t`Impossible d’enregistrer ce réglage.`
-        );
-      }
-    });
-  };
-
-  const saveProfile = () => {
-    startTransition(async () => {
-      try {
-        await updateAccountProfileAction(profile);
-        setData((current) =>
-          current ? { ...current, user: { ...current.user, ...profile } } : current
-        );
-        showMessage(t`Profil mis à jour.`);
-      } catch (error) {
-        showMessage(
-          error instanceof Error ? error.message : t`Impossible de mettre à jour le profil.`
         );
       }
     });
@@ -269,7 +258,7 @@ export default function AccountSettingsPage({
                 <button
                   key={section.id}
                   type="button"
-                  onClick={() => setActiveSection(section.id)}
+                  onClick={() => navigateToSection(section.id)}
                   className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
                     activeSection === section.id
                       ? 'bg-primary/10 font-semibold text-primary'
@@ -295,7 +284,7 @@ export default function AccountSettingsPage({
           </div>
           <select
             value={activeSection}
-            onChange={(event) => setActiveSection(event.target.value as SettingsSection)}
+            onChange={(event) => navigateToSection(event.target.value as SettingsSection)}
             className="rounded-lg border border-border bg-background px-2 py-2 text-xs"
           >
             {sections.map((section) => (
@@ -392,83 +381,6 @@ export default function AccountSettingsPage({
                   <LogOut className="h-3.5 w-3.5" /> {t`Se déconnecter`}
                 </button>
               </form>
-            </div>
-          </SettingsPanel>
-        )}
-
-        {activeSection === 'profile' && (
-          <SettingsPanel
-            title={t`Profil public`}
-            description={t`Ce que les autres membres peuvent voir sur votre identité qoe.fi.`}
-          >
-            <div className="flex items-center gap-4 rounded-xl bg-muted/40 p-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-lg font-bold text-primary">
-                {profile.logoUrl ? (
-                  <Image
-                    src={profile.logoUrl}
-                    alt=""
-                    width={56}
-                    height={56}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  (profile.name || profile.username || 'Q').slice(0, 2).toUpperCase()
-                )}
-              </div>
-              <div>
-                <p className="font-semibold">{profile.name || t`Votre nom`}</p>
-                <p className="text-xs text-muted-foreground">
-                  @{profile.username || t`nom_utilisateur`}
-                </p>
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <LabeledInput
-                label={t`Nom affiché`}
-                value={profile.name}
-                onChange={(value) => setProfile({ ...profile, name: value })}
-              />
-              <LabeledInput
-                label={t`Nom d’utilisateur`}
-                prefix="@"
-                value={profile.username}
-                onChange={(value) => setProfile({ ...profile, username: value })}
-              />
-              <LabeledInput
-                label={t`Pronoms`}
-                value={profile.pronouns}
-                onChange={(value) => setProfile({ ...profile, pronouns: value })}
-                placeholder={t`ex: iel, il/lui, elle, they/them`}
-              />
-            </div>
-            <LabeledInput
-              label={t`URL de la photo de profil`}
-              value={profile.logoUrl}
-              onChange={(value) => setProfile({ ...profile, logoUrl: value })}
-              placeholder="https://…"
-            />
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium">{t`Présentation`}</span>
-              <textarea
-                value={profile.onboardingText}
-                onChange={(event) => setProfile({ ...profile, onboardingText: event.target.value })}
-                maxLength={500}
-                rows={4}
-                className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
-                placeholder={t`Quelques mots sur vous…`}
-              />
-              <span className="block text-right text-[11px] text-muted-foreground">
-                {profile.onboardingText.length}/500
-              </span>
-            </label>
-            <div className="flex justify-end">
-              <button
-                disabled={isPending}
-                onClick={saveProfile}
-                className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-              >
-                {t`Enregistrer le profil`}
-              </button>
             </div>
           </SettingsPanel>
         )}
@@ -671,13 +583,13 @@ export default function AccountSettingsPage({
               icon={Accessibility}
               title={t`Mots masqués`}
               description={t`Gérez les mots filtrés de votre fil d’actualité.`}
-              onClick={() => setActiveSection('privacy')}
+              onClick={() => navigateToSection('privacy')}
             />
             <SettingsLink
               icon={Palette}
               title={t`Accessibilité`}
               description={t`Les réglages de lecture sont disponibles dans Apparence & lecture.`}
-              onClick={() => setActiveSection('appearance')}
+              onClick={() => navigateToSection('appearance')}
             />
             {data.deletionRequest?.status === 'PENDING' && (
               <div className="flex items-center justify-between gap-3 rounded-xl border border-highlight/25 bg-highlight/[0.05] px-4 py-3 text-sm">
@@ -768,34 +680,6 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
       </p>
       <p className="mt-1 truncate text-sm font-medium">{value}</p>
     </div>
-  );
-}
-function LabeledInput({
-  label,
-  value,
-  onChange,
-  placeholder,
-  prefix,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  prefix?: string;
-}) {
-  return (
-    <label className="block space-y-1.5">
-      <span className="text-sm font-medium">{label}</span>
-      <div className="flex items-center rounded-xl border border-border bg-background focus-within:border-primary">
-        {prefix && <span className="pl-3 text-sm text-muted-foreground">{prefix}</span>}
-        <input
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={placeholder}
-          className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm outline-none"
-        />
-      </div>
-    </label>
   );
 }
 function ToggleRow({

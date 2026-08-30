@@ -190,6 +190,24 @@ export async function setSystemConfigAction(input: {
   }
 }
 
+export async function updateReservedIdentifiersAction(
+  kind: 'username' | 'subdomain',
+  values: string[]
+) {
+  await verifySuperadmin();
+  try {
+    await goFetch(`/v1/admin/reserved-identifiers/${kind}`, {
+      method: 'PUT',
+      body: { values },
+    });
+    revalidatePath('/admin/config');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
+  }
+}
+
 export async function deleteSystemConfigAction(key: string) {
   await verifySuperadmin();
   try {

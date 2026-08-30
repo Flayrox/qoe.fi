@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   Bell,
   Settings,
+  UserRound,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { Logo, ThemeToggle, SafeAvatar } from '@qoe/ui';
@@ -23,6 +24,7 @@ import { t } from '@lingui/core/macro';
 
 interface ReaderNavOverlayProps {
   userName?: string;
+  userUsername?: string | null;
   userEmail?: string;
   userAvatar?: string | null;
   userRole?: string;
@@ -31,6 +33,7 @@ interface ReaderNavOverlayProps {
 
 export function ReaderNavOverlay({
   userName = t`Lecteur`,
+  userUsername = null,
   userEmail = '',
   userAvatar,
   userRole,
@@ -46,6 +49,10 @@ export function ReaderNavOverlay({
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  const profileHref = userUsername?.trim()
+    ? `/${userUsername.trim().replace(/^@/, '').toLowerCase()}`
+    : '/settings';
 
   const navItems = [
     { label: t`Accueil`, href: routes.feed.home(), icon: Home },
@@ -66,6 +73,7 @@ export function ReaderNavOverlay({
       href: routes.feed.billing(),
       icon: Wallet,
     },
+    { label: t`Mon profil`, href: profileHref, icon: UserRound },
     { label: t`Réglages`, href: '/settings', icon: Settings },
   ];
 
@@ -210,12 +218,12 @@ export function ReaderNavOverlay({
                 )}
 
                 <Link
-                  href="/settings"
+                  href={profileHref}
                   onClick={() => setIsProfileOpen(false)}
                   className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                 >
-                  <Settings className="w-3.5 h-3.5" />
-                  <span>{t`Réglages du compte`}</span>
+                  <UserRound className="w-3.5 h-3.5" />
+                  <span>{t`Mon profil`}</span>
                 </Link>
 
                 <div className="flex items-center justify-between gap-2 px-3 py-1.5">
