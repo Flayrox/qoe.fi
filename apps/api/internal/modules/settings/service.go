@@ -319,12 +319,16 @@ func (s *Service) updatePublication(ctx context.Context, publicationID string, f
 }
 
 var defaultReservedSubdomains = map[string]bool{
+	// Platform routes and infrastructure names must never become tenant hosts.
 	"admin": true, "api": true, "app": true, "auth": true, "billing": true,
-	"blog": true, "dashboard": true, "dev": true, "developer": true, "docs": true,
-	"feed": true, "help": true, "login": true, "main": true, "media": true,
-	"onboarding": true, "portal": true, "qoe": true, "root": true, "settings": true,
-	"start": true, "static": true, "status": true, "store": true, "studio": true,
-	"support": true, "www": true,
+	"blog": true, "cdn": true, "dashboard": true, "dev": true, "developer": true,
+	"developers": true, "docs": true, "download": true, "email": true, "feed": true,
+	"files": true, "help": true, "home": true, "login": true, "mail": true,
+	"main": true, "media": true, "metrics": true, "onboarding": true, "payments": true,
+	"portal": true, "qoe": true, "root": true, "search": true, "settings": true,
+	"staging": true, "start": true, "static": true, "status": true, "store": true,
+	"studio": true, "support": true, "system": true, "uploads": true, "web": true,
+	"www": true,
 }
 
 var subdomainRegex = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
@@ -355,6 +359,9 @@ func (s *Service) CheckSubdomain(ctx context.Context, subdomain string) (availab
 	}
 	if len(clean) < 3 || len(clean) > 30 {
 		return false, "La longueur doit être comprise entre 3 et 30 caractères."
+	}
+	if strings.HasPrefix(clean, "-") || strings.HasSuffix(clean, "-") || strings.Contains(clean, "--") {
+		return false, "Le sous-domaine ne peut pas commencer, finir ou répéter un tiret."
 	}
 	reserved, err := isReservedIdentifier(ctx, s.pool, "subdomain", clean)
 	if err != nil {

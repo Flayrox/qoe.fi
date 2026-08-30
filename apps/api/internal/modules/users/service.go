@@ -159,7 +159,9 @@ type ReaderProfile struct {
 // Usernames are stable public identifiers: ASCII lowercase letters, digits,
 // underscores and dots only. Keeping the rule here (rather than in the UI)
 // makes every client and import path obey the same contract.
-var usernamePattern = regexp.MustCompile(`^[a-z0-9_.]{3,24}$`)
+// A separator must be surrounded by identifier characters: dots and
+// underscores are allowed, but never consecutively ("a..b", "a__b", etc.).
+var usernamePattern = regexp.MustCompile(`^[a-z0-9]+(?:[._][a-z0-9]+)*$`)
 
 // Profile retourne le profil lecteur complet (id = sub du JWT Supabase).
 func (s *Service) Profile(ctx context.Context, userID string) (*ReaderProfile, error) {
@@ -208,8 +210,8 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, name, username, onb
 		pronouns = pronouns[:50]
 	}
 
-	if username != "" && !usernamePattern.MatchString(username) {
-		return nil, errors.New("Le nom d'utilisateur doit contenir 3 à 24 caractères : lettres minuscules, chiffres, _ ou .")
+	if username != "" && (len(username) < 3 || len(username) > 24 || !usernamePattern.MatchString(username)) {
+		return nil, errors.New("Le nom d'utilisateur doit contenir 3 à 24 caractères : lettres minuscules, chiffres, _ ou ., sans séparateurs consécutifs.")
 	}
 	if username != "" {
 		reserved, err := isReservedIdentifier(ctx, s.pool, "username", username)
@@ -248,7 +250,7 @@ func isReservedIdentifier(ctx context.Context, pool pooler, kind, value string) 
 	var raw string
 	err := pool.QueryRow(ctx, `SELECT value FROM "SystemConfig" WHERE key = $1`, "RESERVED_"+strings.ToUpper(kind)+"S").Scan(&raw)
 	if errors.Is(err, pgx.ErrNoRows) {
-		raw = "admin,api,app,auth,billing,docs,feed,home,login,settings,studio,www"
+		raw = "admin,api,app,auth,billing,blog,cdn,dashboard,dev,developer,developers,docs,download,email,feed,files,help,home,login,mail,main,media,metrics,onboarding,payments,portal,qoe,root,search,settings,staging,start,static,status,store,studio,support,system,uploads,web,www"
 	} else if err != nil {
 		return false, err
 	}
