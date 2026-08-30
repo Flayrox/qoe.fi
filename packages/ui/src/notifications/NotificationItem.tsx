@@ -13,6 +13,7 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
+import { t } from '@lingui/core/macro';
 
 export type GroupedNotificationLike = {
   id: string;
@@ -73,78 +74,78 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
     case 'LIKE':
       Icon = Heart;
       iconColorClass = 'text-destructive bg-destructive/10';
-      actionText = 'a aimé votre pensée';
+      actionText = t`a aimé votre pensée`;
       break;
     case 'REPOST':
       Icon = Repeat;
       iconColorClass = 'text-success bg-success/10';
-      actionText = 'a repartagé votre pensée';
+      actionText = t`a repartagé votre pensée`;
       break;
     case 'REPLY':
       Icon = MessageCircle;
       iconColorClass = 'text-primary bg-primary/10';
-      actionText = 'a répondu à votre pensée';
+      actionText = t`a répondu à votre pensée`;
       break;
     case 'COMMENT':
       Icon = MessageCircle;
       iconColorClass = 'text-primary bg-primary/10';
-      actionText = article ? 'a commenté votre article' : 'a commenté votre écrit';
+      actionText = article ? t`a commenté votre article` : t`a commenté votre écrit`;
       break;
     case 'MENTION':
       Icon = AtSign;
       iconColorClass = 'text-highlight bg-highlight/10';
-      actionText = 'vous a mentionné';
+      actionText = t`vous a mentionné`;
       break;
     case 'FOLLOW':
       Icon = UserPlus;
       iconColorClass = 'text-primary bg-primary/10';
-      actionText = "s'est abonné à votre profil";
+      actionText = t`s'est abonné à votre profil`;
       break;
     case 'MEDIA_INVITE':
       Icon = UserPlus;
       iconColorClass = 'text-highlight bg-highlight/10';
       actionText = notification.publication?.name
-        ? `vous a invité à rejoindre le Média`
-        : 'vous a invité à rejoindre un Média';
+        ? t`vous a invité à rejoindre le Média`
+        : t`vous a invité à rejoindre un Média`;
       break;
     case 'MEDIA_MEMBER_JOINED':
       Icon = UserPlus;
       iconColorClass = 'text-success bg-success/10';
-      actionText = notification.publication?.name ? 'a rejoint le Média' : 'a rejoint un Média';
+      actionText = notification.publication?.name ? t`a rejoint le Média` : t`a rejoint un Média`;
       break;
     case 'MEDIA_ARTICLE_PUBLISHED':
       Icon = Newspaper;
       iconColorClass = 'text-primary bg-primary/10';
       actionText = notification.publication?.name
-        ? `a publié « ${notification.article?.title ?? 'un nouvel article'} » dans le Média`
-        : 'a publié dans le Média';
+        ? t`a publié « ${notification.article?.title ?? t`un nouvel article`} » dans le Média`
+        : t`a publié dans le Média`;
       break;
     case 'MEDIA_ARTICLE_SUBMITTED':
       Icon = Clock;
       iconColorClass = 'text-highlight bg-highlight/10';
       actionText = notification.publication?.name
-        ? `a soumis un article pour revue dans le Média`
-        : 'a soumis un article pour revue';
+        ? t`a soumis un article pour revue dans le Média`
+        : t`a soumis un article pour revue`;
       break;
     case 'ARTICLE_CONTRIBUTOR_INVITED':
       Icon = UsersRound;
       iconColorClass = 'text-primary bg-primary/10';
-      actionText = 'vous invite à apparaître comme contributeur de cet article';
+      actionText = t`vous invite à apparaître comme contributeur de cet article`;
       break;
     case 'ARTICLE_CONTRIBUTOR_ACCEPTED':
       Icon = UsersRound;
       iconColorClass = 'text-success bg-success/10';
-      actionText = 'a accepté votre invitation de contribution';
+      actionText = t`a accepté votre invitation de contribution`;
       break;
     case 'ARTICLE_CONTRIBUTOR_DECLINED':
       Icon = UsersRound;
       iconColorClass = 'text-destructive bg-destructive/10';
-      actionText = 'a refusé votre invitation de contribution';
+      actionText = t`a refusé votre invitation de contribution`;
       break;
     case 'ARTICLE_CONTRIBUTOR_REMOVED':
       Icon = UsersRound;
       iconColorClass = 'text-muted-foreground bg-muted';
-      actionText = 'a retiré votre attribution de cet article';
+      actionText = t`a retiré votre attribution de cet article`;
       break;
   }
 
@@ -152,13 +153,13 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
   const dateObj = new Date(createdAt);
   const now = new Date();
   const diffInMinutes = Math.floor((now.getTime() - dateObj.getTime()) / 60000);
-  let timeAgo = "à l'instant";
+  let timeAgo = t`à l'instant`;
   if (diffInMinutes >= 60 * 24) {
-    timeAgo = `${Math.floor(diffInMinutes / (60 * 24))}j`;
+    timeAgo = t`${Math.floor(diffInMinutes / (60 * 24))}j`;
   } else if (diffInMinutes >= 60) {
-    timeAgo = `${Math.floor(diffInMinutes / 60)}h`;
+    timeAgo = t`${Math.floor(diffInMinutes / 60)}h`;
   } else if (diffInMinutes > 0) {
-    timeAgo = `${diffInMinutes}m`;
+    timeAgo = t`${diffInMinutes}m`;
   }
 
   const targetLink =
@@ -207,13 +208,13 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
                 {sender.logoUrl ? (
                   <Image
                     src={sender.logoUrl}
-                    alt={sender.name || sender.username || 'User'}
+                    alt={sender.name || sender.username || t`Utilisateur`}
                     fill
                     className="object-cover"
                   />
                 ) : (
                   <div className="size-full flex items-center justify-center font-bold text-xs bg-muted text-muted-foreground">
-                    {(sender.name || sender.username || 'U').charAt(0).toUpperCase()}
+                    {(sender.name || sender.username || t`U`).charAt(0).toUpperCase()}
                   </div>
                 )}
               </div>
@@ -223,12 +224,12 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
           {/* Description de l'action */}
           <div className="text-sm text-foreground">
             <span className="font-semibold text-foreground">
-              {firstSender?.name || firstSender?.username || 'Un utilisateur'}
+              {firstSender?.name || firstSender?.username || t`Un utilisateur`}
             </span>
             {otherSendersCount > 0 && (
               <span className="text-muted-foreground">
                 {' '}
-                et {otherSendersCount} autre{otherSendersCount > 1 ? 's' : ''}
+                {t`et ${otherSendersCount} autre${otherSendersCount > 1 ? 's' : ''}`}
               </span>
             )}{' '}
             <span className="text-muted-foreground">{actionText}</span>

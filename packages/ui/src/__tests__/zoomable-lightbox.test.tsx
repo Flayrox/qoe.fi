@@ -6,6 +6,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+
+vi.mock('@lingui/core/macro', () => ({
+  t: (str: unknown) => (Array.isArray(str) ? str[0] : String(str || '')),
+}));
 import {
   ZoomableLightbox,
   LightboxProvider,

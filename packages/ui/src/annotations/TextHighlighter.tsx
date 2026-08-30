@@ -420,7 +420,7 @@ export function TextHighlighter({
         };
 
         if (note) {
-          mark.title = `${isOfficial ? 'Annotation officielle' : isPublic ? 'Annotation publique' : 'Note privée'} : ${note}`;
+          mark.title = `${isOfficial ? t`Annotation officielle` : isPublic ? t`Annotation publique` : t`Note privée`} : ${note}`;
         }
 
         fragment.appendChild(mark);
@@ -588,7 +588,7 @@ export function TextHighlighter({
           window.getSelection()?.removeAllRanges();
         }, 800);
       } else if (res && !res.ok && res.error?.code === 'PUBLIC_ANNOTATIONS_DISABLED') {
-        setErrorMessage('Le créateur a désactivé les annotations publiques sur cet écrit.');
+        setErrorMessage(t`Le créateur a désactivé les annotations publiques sur cet écrit.`);
       }
     } catch (e) {
       console.error(e);
@@ -611,18 +611,18 @@ export function TextHighlighter({
 
       if (res?.ok) {
         setSavedSuccess(true);
-        toast.success('Passage cité avec succès sur le Feed !');
+        toast.success(t`Passage cité avec succès sur le Feed !`);
         setTimeout(() => {
           clearSelection();
           clearForm();
           window.getSelection()?.removeAllRanges();
         }, 1000);
       } else {
-        toast.error('Impossible de citer ce passage');
+        toast.error(t`Impossible de citer ce passage`);
       }
     } catch (e) {
       console.error(e);
-      toast.error('Une erreur est survenue');
+      toast.error(t`Une erreur est survenue`);
     } finally {
       setSaving(false);
     }
@@ -634,7 +634,7 @@ export function TextHighlighter({
       <div className="my-4 flex items-center justify-between border-b border-border/20 pb-3">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
           <Eye className="w-3.5 h-3.5 text-muted-foreground" />
-          <span>Affichage des annotations :</span>
+          <span>{t`Affichage des annotations :`}</span>
         </div>
 
         <div className="flex items-center gap-1 p-1 rounded-full bg-muted/50 border border-border/20 text-xs font-sans">
@@ -646,9 +646,9 @@ export function TextHighlighter({
                 ? 'bg-primary text-primary-foreground shadow-xs'
                 : 'text-muted-foreground hover:text-foreground'
             )}
-            title="Afficher toutes les annotations (publiques, officielles et privées)"
+            title={t`Afficher toutes les annotations (publiques, officielles et privées)`}
           >
-            Toutes
+            {t`Toutes`}
           </button>
 
           <button
@@ -659,10 +659,10 @@ export function TextHighlighter({
                 ? 'bg-highlight text-highlight-foreground shadow-xs font-semibold'
                 : 'text-muted-foreground hover:text-foreground'
             )}
-            title="Afficher uniquement les annotations officielles de l'auteur"
+            title={t`Afficher uniquement les annotations officielles de l'auteur`}
           >
             <Sparkles className="w-3 h-3" />
-            <span>Officielles</span>
+            <span>{t`Officielles`}</span>
           </button>
 
           <button
@@ -673,10 +673,10 @@ export function TextHighlighter({
                 ? 'bg-muted text-foreground font-semibold'
                 : 'text-muted-foreground hover:text-foreground'
             )}
-            title="Masquer toutes les annotations pour une lecture épurée sans interruption"
+            title={t`Masquer toutes les annotations pour une lecture épurée sans interruption`}
           >
             <EyeOff className="w-3 h-3" />
-            <span>Aucune</span>
+            <span>{t`Aucune`}</span>
           </button>
         </div>
       </div>
@@ -837,7 +837,7 @@ export function TextHighlighter({
                       autoFocus
                       value={noteText}
                       onChange={(e) => setNoteText(e.target.value)}
-                      placeholder="Écrivez votre réflexion sur ce passage..."
+                      placeholder={t`Écrivez votre réflexion sur ce passage...`}
                       className="w-full bg-transparent p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none font-sans resize-none h-20 leading-relaxed border-none"
                     />
                   </div>
@@ -878,12 +878,12 @@ export function TextHighlighter({
                       )}
                       title={
                         !allowPublicAnnotations
-                          ? "Les annotations publiques sont désactivées par l'auteur"
-                          : 'Annotation publique'
+                          ? t`Les annotations publiques sont désactivées par l'auteur`
+                          : t`Annotation publique`
                       }
                     >
                       <Globe className="w-3.5 h-3.5" />
-                      <span>Publique</span>
+                      <span>{t`Publique`}</span>
                       {isPublicChoice && (
                         <motion.div
                           layoutId="privacy-pill-indicator"

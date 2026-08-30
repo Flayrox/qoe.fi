@@ -3,6 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { t } from '@lingui/core/macro';
 import { X } from 'lucide-react';
 import { LoginFormBento } from './LoginFormBento';
 import type { AuthActionContext } from './GuestFloatingBar';
@@ -63,7 +64,7 @@ export function LoginModal({
             <button
               onClick={onClose}
               className="absolute -top-3 -right-3 z-50 p-2.5 rounded-full bg-card text-card-foreground border border-border shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer"
-              aria-label="Fermer"
+              aria-label={t`Fermer`}
             >
               <X className="w-4 h-4" />
             </button>

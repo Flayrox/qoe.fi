@@ -233,7 +233,7 @@ export function AnnotationSideDrawer({
         setAnnotationsList(newList);
         if (onUpdateAnnotation) onUpdateAnnotation(updated);
       } else if (res && !res.ok && res.error?.code === 'PUBLIC_ANNOTATIONS_DISABLED') {
-        setPrivacyError('Le créateur a désactivé les annotations publiques sur cet écrit.');
+        setPrivacyError(t`Le créateur a désactivé les annotations publiques sur cet écrit.`);
       }
     } catch (err) {
       console.error(err);
@@ -402,7 +402,7 @@ export function AnnotationSideDrawer({
                       onClick={handlePrev}
                       disabled={currentIndex === 0}
                       className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
-                      title="Annotation précédente (Flèche gauche)"
+                      title={t`Annotation précédente (Flèche gauche)`}
                     >
                       <ChevronLeft className="w-3.5 h-3.5" />
                     </button>
@@ -413,7 +413,7 @@ export function AnnotationSideDrawer({
                       onClick={handleNext}
                       disabled={currentIndex === totalAnnotations - 1}
                       className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
-                      title="Annotation suivante (Flèche droite)"
+                      title={t`Annotation suivante (Flèche droite)`}
                     >
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>
@@ -531,7 +531,9 @@ export function AnnotationSideDrawer({
                               ? 'bg-success/10 text-success border-success/20 hover:bg-success/20'
                               : 'bg-muted text-muted-foreground border-border/30 hover:text-foreground'
                           )}
-                          title={isPublicState ? 'Rendre privée' : "Rendre publique sur l'article"}
+                          title={
+                            isPublicState ? t`Rendre privée` : t`Rendre publique sur l'article`
+                          }
                         >
                           {togglingPrivacy ? (
                             <Loader2 className="w-3 h-3 animate-spin" />
@@ -566,7 +568,7 @@ export function AnnotationSideDrawer({
                       rows={3}
                       value={editNoteContent}
                       onChange={(e) => setEditNoteContent(e.target.value)}
-                      placeholder="Modifier votre réflexion..."
+                      placeholder={t`Modifier votre réflexion...`}
                       className="w-full p-3 rounded-2xl bg-background border border-border/30 text-xs text-foreground focus:outline-none focus:border-primary font-sans resize-none leading-relaxed"
                     />
                     <div className="flex justify-end gap-2">
@@ -694,7 +696,7 @@ export function AnnotationSideDrawer({
                       type="text"
                       value={newCommentText}
                       onChange={(e) => setNewCommentText(e.target.value)}
-                      placeholder="Réagir à cette annotation..."
+                      placeholder={t`Réagir à cette annotation...`}
                       className="flex-1 bg-background border border-border/30 rounded-xl px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary font-sans"
                     />
                     <button

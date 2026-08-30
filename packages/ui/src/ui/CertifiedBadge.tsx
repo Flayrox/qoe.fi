@@ -10,7 +10,7 @@ export interface CertifiedBadgeProps {
 export function CertifiedBadge({
   size = 14,
   className = '',
-  title = 'Auteur certifié',
+  title = t`Auteur certifié`,
 }: CertifiedBadgeProps) {
   return (
     <span

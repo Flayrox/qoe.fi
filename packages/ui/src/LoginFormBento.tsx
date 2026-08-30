@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, ChevronDown } from 'lucide-react';
 import { createClient } from '@qoe/supabase/client';
+import { t } from '@lingui/core/macro';
 import { cn } from '@qoe/utils';
 import { BentoPlateau, BentoItem } from './ui/BentoPlateau';
 import { Logo } from './Logo';
@@ -21,22 +22,22 @@ export interface LoginFormBentoProps {
 // ── Démographie signup (optionnelle, jamais obligatoire) ────────────────
 // Les valeurs correspondent aux enums Prisma (Gender / AgeRange).
 const GENDER_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: 'FEMALE', label: 'Femme' },
-  { value: 'MALE', label: 'Homme' },
-  { value: 'NON_BINARY', label: 'Non-binaire' },
-  { value: 'OTHER', label: 'Autre' },
-  { value: 'PREFER_NOT_TO_SAY', label: 'Préfère ne pas dire' },
+  { value: 'FEMALE', label: t`Femme` },
+  { value: 'MALE', label: t`Homme` },
+  { value: 'NON_BINARY', label: t`Non-binaire` },
+  { value: 'OTHER', label: t`Autre` },
+  { value: 'PREFER_NOT_TO_SAY', label: t`Préfère ne pas dire` },
 ];
 
 const AGE_RANGE_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: 'UNDER_18', label: 'Moins de 18 ans' },
-  { value: 'AGE_18_24', label: '18-24 ans' },
-  { value: 'AGE_25_34', label: '25-34 ans' },
-  { value: 'AGE_35_44', label: '35-44 ans' },
-  { value: 'AGE_45_54', label: '45-54 ans' },
-  { value: 'AGE_55_64', label: '55-64 ans' },
-  { value: 'AGE_65_PLUS', label: '65 ans et +' },
-  { value: 'PREFER_NOT_TO_SAY', label: 'Préfère ne pas dire' },
+  { value: 'UNDER_18', label: t`Moins de 18 ans` },
+  { value: 'AGE_18_24', label: t`18-24 ans` },
+  { value: 'AGE_25_34', label: t`25-34 ans` },
+  { value: 'AGE_35_44', label: t`35-44 ans` },
+  { value: 'AGE_45_54', label: t`45-54 ans` },
+  { value: 'AGE_55_64', label: t`55-64 ans` },
+  { value: 'AGE_65_PLUS', label: t`65 ans et +` },
+  { value: 'PREFER_NOT_TO_SAY', label: t`Préfère ne pas dire` },
 ];
 
 const PRONOUN_SUGGESTIONS = ['iel', 'il/lui', 'elle', 'they/them', 'on'];
@@ -70,30 +71,31 @@ export function LoginFormBento({
   }, [initialMode]);
 
   const getContextSubtitle = () => {
-    if (actionContext === 'like') return 'Connectez-vous pour aimer ce post et soutenir cet auteur';
+    if (actionContext === 'like')
+      return t`Connectez-vous pour aimer ce post et soutenir cet auteur`;
     if (actionContext === 'follow')
-      return 'Abonnez-vous à cet auteur pour ne rater aucun de ses écrits';
+      return t`Abonnez-vous à cet auteur pour ne rater aucun de ses écrits`;
     if (actionContext === 'bookmark')
-      return 'Enregistrez cet écrit dans votre sanctuaire de lecture';
-    if (actionContext === 'comment') return "Rejoignez la conversation et répondez à l'auteur";
-    if (actionContext === 'repost') return 'Partagez ce post avec vos abonnés';
+      return t`Enregistrez cet écrit dans votre sanctuaire de lecture`;
+    if (actionContext === 'comment') return t`Rejoignez la conversation et répondez à l'auteur`;
+    if (actionContext === 'repost') return t`Partagez ce post avec vos abonnés`;
     if (actionContext === 'delete')
-      return 'Connectez-vous pour gérer et supprimer vos propres publications';
+      return t`Connectez-vous pour gérer et supprimer vos propres publications`;
     if (authMode === 'signup')
-      return 'Rejoignez le réseau souverain — un seul formulaire, quelques secondes';
-    return 'Accédez à votre espace souverain';
+      return t`Rejoignez le réseau souverain — un seul formulaire, quelques secondes`;
+    return t`Accédez à votre espace souverain`;
   };
 
   const manifestoMessages = [
     {
-      target: 'Créateurs',
-      title: 'Reprenez le contrôle \nde votre audience.',
-      desc: "Pas de publicités. Pas d'algorithmes opaques. Juste vous et vos lecteurs, sur une infrastructure souveraine.",
+      target: t`Créateurs`,
+      title: t`Reprenez le contrôle \nde votre audience.`,
+      desc: t`Pas de publicités. Pas d'algorithmes opaques. Juste vous et vos lecteurs, sur une infrastructure souveraine.`,
     },
     {
-      target: 'Lecteurs',
-      title: 'Retrouvez le goût \ndu temps long.',
-      desc: 'Un sanctuaire dédié à la lecture profonde. Fuyez le bruit constant, cultivez le silence et choisissez qui vous influence.',
+      target: t`Lecteurs`,
+      title: t`Retrouvez le goût \ndu temps long.`,
+      desc: t`Un sanctuaire dédié à la lecture profonde. Fuyez le bruit constant, cultivez le silence et choisissez qui vous influence.`,
     },
   ];
 
@@ -117,7 +119,7 @@ export function LoginFormBento({
       });
       if (error) throw error;
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Une erreur est survenue.';
+      const message = err instanceof Error ? err.message : t`Une erreur est survenue.`;
       setLocalError(message);
       setLoading(false);
     }
@@ -138,7 +140,7 @@ export function LoginFormBento({
       if (error) throw error;
       setMagicLinkSent(true);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Une erreur est survenue.';
+      const message = err instanceof Error ? err.message : t`Une erreur est survenue.`;
       setLocalError(message);
     } finally {
       setLoading(false);
@@ -153,17 +155,17 @@ export function LoginFormBento({
     try {
       if (authMode === 'signup') {
         if (!name.trim() || !username.trim()) {
-          setLocalError("Veuillez renseigner votre nom et nom d'utilisateur.");
+          setLocalError(t`Veuillez renseigner votre nom et nom d'utilisateur.`);
           setLoading(false);
           return;
         }
         if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          setLocalError('Veuillez renseigner une adresse email valide.');
+          setLocalError(t`Veuillez renseigner une adresse email valide.`);
           setLoading(false);
           return;
         }
         if (password.length < 8) {
-          setLocalError('Votre mot de passe doit contenir au moins 8 caractères.');
+          setLocalError(t`Votre mot de passe doit contenir au moins 8 caractères.`);
           setLoading(false);
           return;
         }
@@ -199,7 +201,7 @@ export function LoginFormBento({
         window.location.href = next;
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur d'authentification.";
+      const message = err instanceof Error ? err.message : t`Erreur d'authentification.`;
       setLocalError(message);
     } finally {
       setLoading(false);
@@ -230,7 +232,7 @@ export function LoginFormBento({
             {/* Header */}
             <div className="mb-4 text-center">
               <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-1 text-card-foreground">
-                {authMode === 'signup' ? 'Créer un compte' : 'Connexion'}
+                {authMode === 'signup' ? t`Créer un compte` : t`Connexion`}
               </h2>
               <p className="text-muted-foreground text-xs md:text-sm">{getContextSubtitle()}</p>
             </div>
@@ -250,9 +252,9 @@ export function LoginFormBento({
                   ✓
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-lg font-bold text-success">Lien magique envoyé</h3>
+                  <h3 className="text-lg font-bold text-success">{t`Lien magique envoyé`}</h3>
                   <p className="text-muted-foreground text-xs leading-relaxed px-4">
-                    Consultez votre boîte mail et cliquez sur le lien pour vous connecter.
+                    {t`Consultez votre boîte mail et cliquez sur le lien pour vous connecter.`}
                   </p>
                 </div>
                 <Button
@@ -260,7 +262,7 @@ export function LoginFormBento({
                   variant="outline"
                   className="mt-4 text-xs font-mono border-border text-muted-foreground hover:text-foreground"
                 >
-                  Retour
+                  {t`Retour`}
                 </Button>
               </div>
             ) : (
@@ -338,7 +340,7 @@ export function LoginFormBento({
                     <div className="flex items-center gap-4 my-3 opacity-60">
                       <div className="flex-1 h-px bg-border"></div>
                       <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
-                        Ou
+                        {t`Ou`}
                       </span>
                       <div className="flex-1 h-px bg-border"></div>
                     </div>
@@ -349,7 +351,7 @@ export function LoginFormBento({
                     <form onSubmit={handleMagicLinkSubmit} className="space-y-3">
                       <div className="space-y-1">
                         <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                          Email
+                          {t`Email`}
                         </label>
                         <input
                           type="email"
@@ -359,7 +361,7 @@ export function LoginFormBento({
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             setEmail(e.target.value)
                           }
-                          placeholder="vous@exemple.com"
+                          placeholder={t`vous@exemple.com`}
                           className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                         />
                       </div>
@@ -368,7 +370,7 @@ export function LoginFormBento({
                         disabled={loading}
                         className="w-full h-10 font-sans font-bold mt-2 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-all text-xs cursor-pointer shadow-md shadow-primary/20"
                       >
-                        {loading ? 'Chargement...' : 'Recevoir un lien magique'}
+                        {loading ? t`Chargement...` : t`Recevoir un lien magique`}
                       </Button>
                     </form>
                   )}
@@ -377,7 +379,7 @@ export function LoginFormBento({
                     <form onSubmit={handlePasswordSubmit} className="space-y-3">
                       <div className="space-y-1">
                         <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                          Email
+                          {t`Email`}
                         </label>
                         <input
                           name="email"
@@ -387,14 +389,14 @@ export function LoginFormBento({
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             setEmail(e.target.value)
                           }
-                          placeholder="vous@exemple.com"
+                          placeholder={t`vous@exemple.com`}
                           className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                         />
                       </div>
 
                       <div className="space-y-1">
                         <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                          Mot de passe
+                          {t`Mot de passe`}
                         </label>
                         <input
                           name="password"
@@ -414,7 +416,7 @@ export function LoginFormBento({
                         disabled={loading}
                         className="w-full h-10 font-sans font-bold mt-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-all text-xs cursor-pointer shadow-md shadow-primary/20"
                       >
-                        {loading ? 'Chargement...' : 'Se connecter'}
+                        {loading ? t`Chargement...` : t`Se connecter`}
                       </Button>
                     </form>
                   )}
@@ -423,7 +425,7 @@ export function LoginFormBento({
                     <form onSubmit={handlePasswordSubmit} className="space-y-3">
                       <div className="space-y-1">
                         <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                          Nom complet
+                          {t`Nom complet`}
                         </label>
                         <input
                           name="name"
@@ -433,14 +435,14 @@ export function LoginFormBento({
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             setName(e.target.value)
                           }
-                          placeholder="Marc Dutronc"
+                          placeholder={t`Marc Dutronc`}
                           className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                         />
                       </div>
 
                       <div className="space-y-1">
                         <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                          Nom d'utilisateur
+                          {t`Nom d'utilisateur`}
                         </label>
                         <input
                           name="username"
@@ -450,14 +452,14 @@ export function LoginFormBento({
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             setUsername(e.target.value)
                           }
-                          placeholder="@marcdutronc"
+                          placeholder={t`@marcdutronc`}
                           className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                         />
                       </div>
 
                       <div className="space-y-1">
                         <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                          Adresse Email
+                          {t`Adresse Email`}
                         </label>
                         <input
                           name="email"
@@ -474,7 +476,7 @@ export function LoginFormBento({
 
                       <div className="space-y-1">
                         <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                          Mot de passe
+                          {t`Mot de passe`}
                         </label>
                         <input
                           name="password"
@@ -498,7 +500,7 @@ export function LoginFormBento({
                           aria-expanded={showDemographics}
                         >
                           <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
-                            Votre profil (optionnel)
+                            {t`Votre profil (optionnel)`}
                           </span>
                           <ChevronDown
                             className={cn(
@@ -512,7 +514,7 @@ export function LoginFormBento({
                           <div className="px-3 pb-3 pt-3 border-t border-border/60 space-y-3">
                             <div>
                               <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-                                Qu'est-ce qui vous décrit le mieux ?
+                                {t`Qu'est-ce qui vous décrit le mieux ?`}
                               </p>
                               <div className="flex flex-wrap gap-1.5">
                                 {GENDER_OPTIONS.map((opt) => {
@@ -538,7 +540,7 @@ export function LoginFormBento({
 
                             <div>
                               <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-                                Votre tranche d'âge
+                                {t`Votre tranche d'âge`}
                               </p>
                               <div className="flex flex-wrap gap-1.5">
                                 {AGE_RANGE_OPTIONS.map((opt) => {
@@ -564,7 +566,7 @@ export function LoginFormBento({
 
                             <div className="space-y-1">
                               <label className="text-[10px] uppercase tracking-wider font-sans font-bold text-muted-foreground block mb-0.5">
-                                Vos pronoms (optionnel)
+                                {t`Vos pronoms (optionnel)`}
                               </label>
                               <input
                                 name="pronouns"
@@ -573,7 +575,7 @@ export function LoginFormBento({
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                   setPronouns(e.target.value)
                                 }
-                                placeholder="ex: iel, il/lui, elle, they/them"
+                                placeholder={t`ex: iel, il/lui, elle, they/them`}
                                 className="h-10 w-full rounded-xl bg-muted/30 border border-border text-xs px-3 text-card-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                               />
                               <div className="flex flex-wrap gap-1 pt-1.5">
@@ -598,7 +600,7 @@ export function LoginFormBento({
                         disabled={loading}
                         className="w-full h-10 font-sans font-bold mt-1 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-all text-xs cursor-pointer shadow-md shadow-primary/20"
                       >
-                        {loading ? 'Chargement...' : "S'inscrire"}
+                        {loading ? t`Chargement...` : t`S'inscrire`}
                       </Button>
                     </form>
                   )}
@@ -617,8 +619,8 @@ export function LoginFormBento({
                       className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground hover:text-card-foreground transition-colors cursor-pointer"
                     >
                       {authMode === 'magic-link'
-                        ? 'Se connecter par mot de passe'
-                        : 'Se connecter par lien magique'}
+                        ? t`Se connecter par mot de passe`
+                        : t`Se connecter par lien magique`}
                     </button>
                   </div>
                 </motion.div>
@@ -637,8 +639,8 @@ export function LoginFormBento({
               className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground hover:text-card-foreground transition-colors cursor-pointer"
             >
               {authMode === 'signup'
-                ? 'Déjà un compte ? Connexion'
-                : "Pas encore de compte ? S'inscrire"}
+                ? t`Déjà un compte ? Connexion`
+                : t`Pas encore de compte ? S'inscrire`}
             </button>
           </div>
         </div>
@@ -664,7 +666,7 @@ export function LoginFormBento({
                   className="absolute inset-0 flex flex-col justify-end pb-2"
                 >
                   <p className="text-white/80 text-[10px] uppercase tracking-[0.2em] font-bold mb-2">
-                    Pour les {manifestoMessages[manifestoIdx].target}
+                    {t`Pour les`} {manifestoMessages[manifestoIdx].target}
                   </p>
                   <h3 className="text-white text-2xl md:text-3xl font-bold tracking-tight leading-tight mb-3 whitespace-pre-line font-sans">
                     {manifestoMessages[manifestoIdx].title}
