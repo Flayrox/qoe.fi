@@ -128,6 +128,83 @@ func (s *SearchWorker) apiKey() string {
 	return envOr("MEILI_MASTER_KEY", "qoe_master_key_123")
 }
 
+// ClearAll vide entièrement l'index Meilisearch et ATTEND la fin de la tâche
+// de suppression (le DELETE est asynchrone chez Meili ; sans attente, un
+// ReindexAll lancé juste après verrait encore les anciens IDs et ne
+// remplacerait rien → index vide ou périmé). Nécessaire avant un reindex
+// après régénération de la DB : le seed est déterministe, les IDs d'articles
+// sont identiques à l'ancienne base, et ReindexAll (idempotent par ID) ne
+// mettrait à jour aucun document.
+func (s *SearchWorker) ClearAll(ctx context.Context) {
+	host := strings.TrimSuffix(envOr("MEILISEARCH_HOST", "http://localhost:7700"), "/")
+	taskUID := s.doJSONTask(ctx, http.MethodDelete, host+"/indexes/"+searchIndex+"/documents", nil)
+	if taskUID <= 0 {
+		return
+	}
+	// Poll /tasks/{uid} jusqu'à succès (timeout 30 s).
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		status := s.taskStatus(ctx, host, taskUID)
+		if status == "succeeded" {
+			return
+		}
+		if status == "failed" || status == "canceled" {
+			log.Printf("[search] clear index: tâche %d %s", taskUID, status)
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	log.Printf("[search] clear index: tâche %d toujours en cours après 30 s", taskUID)
+}
+
+// doJSONTask est identique à doJSON mais renvoie le taskUid Meilisearch
+// (0 si la requête échoue ou que la réponse n'en contient pas).
+func (s *SearchWorker) doJSONTask(ctx context.Context, method, url string, body any) int64 {
+	raw, _ := json.Marshal(body)
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(raw))
+	if err != nil {
+		return 0
+	}
+	req.Header.Set("Authorization", "Bearer "+s.apiKey())
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Printf("[search] %s %s: %v", method, url, err)
+		return 0
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		log.Printf("[search] %s %s: status %d", method, url, resp.StatusCode)
+		return 0
+	}
+	var out struct {
+		TaskUID int64 `json:"taskUid"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&out)
+	return out.TaskUID
+}
+
+// taskStatus interroge l'état d'une tâche Meilisearch ("enqueued",
+// "processing", "succeeded", "failed"…).
+func (s *SearchWorker) taskStatus(ctx context.Context, host string, taskUID int64) string {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		fmt.Sprintf("%s/tasks/%d", host, taskUID), nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("Authorization", "Bearer "+s.apiKey())
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	var out struct {
+		Status string `json:"status"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&out)
+	return out.Status
+}
+
 // HandleSearchSync traite TaskSearchSync (upsert/delete d'un article).
 func (s *SearchWorker) HandleSearchSync(ctx context.Context, t *asynq.Task) error {
 	var p queue.SearchSyncPayload
