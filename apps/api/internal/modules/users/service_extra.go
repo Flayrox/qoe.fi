@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/qoefi/api/internal/shared/identifier"
 	"github.com/qoefi/api/internal/slug"
 )
 
@@ -50,12 +51,13 @@ func (s *Service) SyncUserFromAuth(ctx context.Context, userID string, claims ma
 	}
 
 	if !exists {
-		finalUsername := derivedUserName(email, username)
-		// Unicité : suffixe aléatoire si le username est pris.
+		finalUsername := safeProvisionedUsername(email, username)
+		// Unicité : suffixe aléatoire si le username est pris. La contrainte
+		// unique reste l'autorité finale en cas de course concurrente.
 		err = s.pool.QueryRow(ctx,
-			`SELECT username FROM "User" WHERE username = $1`, finalUsername).Scan(&usernameTaken)
+			`SELECT username FROM "User" WHERE lower(username) = lower($1)`, finalUsername).Scan(&usernameTaken)
 		if err == nil {
-			finalUsername += "_" + strings.ToLower(shortID())
+			finalUsername = uniqueProvisionedUsername(ctx, s.pool, finalUsername)
 		} else if !errors.Is(err, pgx.ErrNoRows) {
 			return false, false, err
 		}
@@ -109,7 +111,7 @@ func (s *Service) SyncUserFromAuth(ctx context.Context, userID string, claims ma
 	if needsUsername || !dbName.Valid || dbName.String == "" {
 		// Username à écrire : dérivé des claims (meta sinon email), uniquement
 		// si la colonne est réellement vide (évite d'écraser un username pris).
-		newUsername := derivedUserName(email, username)
+		newUsername := safeProvisionedUsername(email, username)
 		if !needsUsername {
 			newUsername = ""
 		}
@@ -145,29 +147,49 @@ func (s *Service) SyncUserFromAuth(ctx context.Context, userID string, claims ma
 // claim `username` (sanitisé), soit le préfixe de l'email, soit "user" en
 // dernier recours. L'unicité n'est PAS gérée ici (binding côté création).
 func derivedUserName(email, username string) string {
-	if u := strings.TrimSpace(username); u != "" {
-		if s := strings.ToLower(strings.Map(func(r rune) rune {
-			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
-				return r
-			}
-			return -1
-		}, u)); s != "" {
-			return s
-		}
-	}
-	prefix := "user"
-	if email != "" {
-		prefix = strings.Split(email, "@")[0]
-	}
-	if s := strings.ToLower(strings.Map(func(r rune) rune {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+	return safeProvisionedUsername(email, username)
+}
+
+// safeProvisionedUsername applique exactement le contrat public des usernames,
+// y compris pour l'inscription/JIT OAuth. Les claims ne sont jamais écrits
+// directement en base.
+func safeProvisionedUsername(email, username string) string {
+	candidate := identifier.NormalizeUsername(username)
+	candidate = strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '.' {
 			return r
 		}
 		return -1
-	}, prefix)); s != "" {
-		return s
+	}, candidate)
+	candidate = strings.Trim(candidate, "._")
+	if !identifier.ValidUsername(candidate) || identifier.IsReserved(candidate) {
+		candidate = strings.Split(email, "@")[0]
+		candidate = strings.ToLower(strings.Map(func(r rune) rune {
+			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+				return r
+			}
+			return -1
+		}, candidate))
 	}
-	return "user"
+	if !identifier.ValidUsername(candidate) || identifier.IsReserved(candidate) {
+		candidate = "user"
+	}
+	return candidate
+}
+
+func uniqueProvisionedUsername(ctx context.Context, pool pooler, base string) string {
+	for i := 0; i < 8; i++ {
+		candidate := base + "_" + strings.ToLower(shortID())
+		if len(candidate) > 24 {
+			candidate = candidate[:24]
+			candidate = strings.TrimRight(candidate, "._")
+		}
+		var exists bool
+		if err := pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "User" WHERE lower(username) = lower($1))`, candidate).Scan(&exists); err == nil && !exists {
+			return candidate
+		}
+	}
+	return "user_" + strings.ToLower(shortID())
 }
 
 func shortID() string {

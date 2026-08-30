@@ -10,15 +10,16 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/shared/identifier"
 )
 
 type Service struct {
@@ -161,7 +162,7 @@ type ReaderProfile struct {
 // makes every client and import path obey the same contract.
 // A separator must be surrounded by identifier characters: dots and
 // underscores are allowed, but never consecutively ("a..b", "a__b", etc.).
-var usernamePattern = regexp.MustCompile(`^[a-z0-9]+(?:[._][a-z0-9]+)*$`)
+var usernamePattern = identifier.UsernamePattern
 
 // Profile retourne le profil lecteur complet (id = sub du JWT Supabase).
 func (s *Service) Profile(ctx context.Context, userID string) (*ReaderProfile, error) {
@@ -195,8 +196,7 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, name, username, onb
 	if len(name) > 120 {
 		name = name[:120]
 	}
-	username = strings.TrimSpace(strings.ToLower(username))
-	username = strings.TrimPrefix(username, "@")
+	username = identifier.NormalizeUsername(username)
 	onboardingText = strings.TrimSpace(onboardingText)
 	if len(onboardingText) > 500 {
 		onboardingText = onboardingText[:500]
@@ -238,6 +238,9 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, name, username, onb
 		WHERE id = $6`,
 		optText(name), optText(username), optText(onboardingText), optText(logoURL), optText(pronouns),
 		toUUID(userID)); err != nil {
+		if isUniqueViolation(err) {
+			return nil, errors.New("Ce nom d'utilisateur est déjà utilisé.")
+		}
 		return nil, err
 	}
 	return s.Profile(ctx, userID)
@@ -246,6 +249,11 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, name, username, onb
 // isReservedIdentifier reads the admin-managed denylist from SystemConfig.
 // Values are newline- or comma-separated and compared case-insensitively.
 // A missing key falls back to the platform's minimal route denylist.
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
+
 func isReservedIdentifier(ctx context.Context, pool pooler, kind, value string) (bool, error) {
 	var raw string
 	err := pool.QueryRow(ctx, `SELECT value FROM "SystemConfig" WHERE key = $1`, "RESERVED_"+strings.ToUpper(kind)+"S").Scan(&raw)

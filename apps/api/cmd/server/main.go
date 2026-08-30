@@ -232,14 +232,18 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 	// Settings créateur : sous-domaine (public) + profil/onboarding/clés API (protégé).
 	settingsHandler := settings.NewHandler(settings.NewService(pool))
-	settingsHandler.RegisterPublic(r)
+	r.With(authmw.RateLimit("tenant-check", rc, time.Minute, 30, false)).Group(func(publicSettings chi.Router) {
+		settingsHandler.RegisterPublic(publicSettings)
+	})
 
 	// Users : recherche publique (autocomplétion mentions @) + profil lecteur
 	// (/v1/me*) protégé. RegisterPublic est monté DIRECTEMENT sur le routeur
 	// racine pour battre le wildcard public du module creator
 	// (/v1/users/{username}) qui masquerait /v1/users/search sinon.
 	usersHandler := users.NewHandler(users.NewService(pool))
-	usersHandler.RegisterPublic(r)
+	r.With(authmw.RateLimit("username-search", rc, time.Minute, 60, false)).Group(func(publicUsers chi.Router) {
+		usersHandler.RegisterPublic(publicUsers)
+	})
 
 	// Profils créateurs / publications publics (/v1/users/{username}, /followers, /following)
 	creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
