@@ -60,6 +60,18 @@ func routerJWT(userID string) string {
 	return s
 }
 
+// routerDemoJWT fabrique un JWT de login de démo : sub (id inconnu en base) +
+// email (comme les claims Supabase que lit /v1/me/sync).
+func routerDemoJWT(userID, email string) string {
+	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":   userID,
+		"email": email,
+		"exp":   time.Now().Add(time.Hour).Unix(),
+	})
+	s, _ := tok.SignedString([]byte(routerSecret))
+	return s
+}
+
 func routerAPIKey(t *testing.T, userID string) string {
 	t.Helper()
 	raw := "qoe_live_" + strings.Repeat("c", 32) + t.Name()
@@ -226,6 +238,83 @@ func TestRouter_FullCreatorFlow(t *testing.T) {
 	w6, _ := doReq(t, r, "DELETE", "/v1/articles/"+createdID+"?activePublicationId="+fx.PublicationID, token, nil)
 	if w6.Code != http.StatusOK {
 		t.Fatalf("suppression = %d", w6.Code)
+	}
+}
+
+// TestRouter_DemoLogin_SyncThenMe simule le login de démo (JWT sans ligne
+// "User" en base) : POST /v1/me/sync crée la ligne depuis les claims, puis
+// GET /v1/me répond 200 (le profil existe désormais).
+func TestRouter_DemoLogin_SyncThenMe(t *testing.T) {
+	ctx := context.Background()
+	// Nouvel id JWT de démo, sans ligne User en base.
+	demoID := "00000000-0000-0000-0000-0000000000ee"
+	if _, err := poolTest.Exec(ctx, `DELETE FROM "User" WHERE id::text = $1`, demoID); err != nil {
+		t.Fatalf("clean demo user: %v", err)
+	}
+	token := routerDemoJWT(demoID, "demo-login@test.dev")
+	r := testRouter(t)
+
+	// POST /v1/me/sync recrée la ligne User depuis les claims JWT (le login de
+	// démo : session Supabase valide mais ligne User absente en base).
+	w, body := doReq(t, r, http.MethodPost, "/v1/me/sync", token, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("POST /v1/me/sync = %d, body=%s; attendu 200", w.Code, w.Body.String())
+	}
+	if body["created"] != true {
+		t.Fatalf("POST /v1/me/sync created = %v, body=%s; attendu true", body["created"], w.Body.String())
+	}
+
+	// La ligne existe désormais en base.
+	var exists bool
+	if err := poolTest.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM "User" WHERE id::text = $1)`, demoID).Scan(&exists); err != nil || !exists {
+		t.Fatalf("ligne User absente après sync (err=%v)", err)
+	}
+
+	// GET /v1/me répond 200 avec l'identité du JWT de démo.
+	w, body = doReq(t, r, http.MethodGet, "/v1/me", token, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /v1/me (après sync) = %d, body=%s; attendu 200", w.Code, w.Body.String())
+	}
+	if body["id"] != demoID {
+		t.Fatalf("GET /v1/me id = %v, body=%s; attendu %s", body["id"], w.Body.String(), demoID)
+	}
+	if body["email"] != "demo-login@test.dev" {
+		t.Fatalf("GET /v1/me email = %v, body=%s", body["email"], w.Body.String())
+	}
+}
+
+// TestRouter_ReaderEndpointAutoRepair vérifie l'auto-réparation CENTRALISÉE :
+// GET /v1/me/billing (endpoint reader) répond 404 quand la ligne User est
+// absente, puis 200 après avoir été rejoué par le middleware AutoRepairReaderUser
+// (qui recrée la ligne depuis les claims JWT) — sans appel explicite à /v1/me/sync.
+func TestRouter_ReaderEndpointAutoRepair(t *testing.T) {
+	ctx := context.Background()
+	demoID := "00000000-0000-0000-0000-0000000000ef"
+	if _, err := poolTest.Exec(ctx, `DELETE FROM "User" WHERE id::text = $1`, demoID); err != nil {
+		t.Fatalf("clean demo user: %v", err)
+	}
+	token := routerDemoJWT(demoID, "reader-repair@test.dev")
+	r := testRouter(t)
+
+	// GET /v1/me/billing en 404 initial (ligne absente) → le middleware recrée
+	// la ligne et REJOUE le handler → 200.
+	w, _ := doReq(t, r, http.MethodGet, "/v1/me/billing", token, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /v1/me/billing = %d, body=%s; attendu 200 après auto-réparation", w.Code, w.Body.String())
+	}
+
+	// La ligne a bien été créée par le middleware.
+	var exists bool
+	if err := poolTest.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM "User" WHERE id::text = $1)`, demoID).Scan(&exists); err != nil || !exists {
+		t.Fatalf("ligne User absente après auto-réparation (err=%v)", err)
+	}
+
+	// Un second appel répond 200 (idempotent).
+	w2, _ := doReq(t, r, http.MethodGet, "/v1/me/billing", token, nil)
+	if w2.Code != http.StatusOK {
+		t.Fatalf("GET /v1/me/billing (2e) = %d, body=%s; attendu 200", w2.Code, w2.Body.String())
 	}
 }
 

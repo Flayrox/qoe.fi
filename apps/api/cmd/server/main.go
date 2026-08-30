@@ -136,7 +136,7 @@ type RouterDeps struct {
 	StripeWebhookKey string
 	InternalSecret   string
 	// DevtoolsDevOnly active le panneau de dev par secret partagé (hors prod).
-	DevtoolsDevOnly bool
+	DevtoolsDevOnly  bool
 	UmamiAPIURL      string
 	UmamiAPIKey      string
 	UmamiUser        string
@@ -271,7 +271,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 		protected.Use(auth.CombinedAuth(db.New(pool)))
 
 		postsHandler.RegisterProtected(protected)
-		feedHandler.RegisterProtected(protected)
 
 		articlesHandler.RegisterProtected(protected, authmw.RequireAPIScope)
 
@@ -311,9 +310,19 @@ func newRouter(d RouterDeps) *chi.Mux {
 		adminHandler := admin.NewHandler(admin.NewService(pool))
 		adminHandler.Register(protected)
 
-		usersHandler.Register(protected)
-
-		trackingHandler.RegisterReader(protected)
+		// Routes reader (/v1/me*, feed protégé, lecture) : auto-réparation
+		// centralisée de la ligne User absente (login de démo / reseed /
+		// backup restauré → 404 « Utilisateur introuvable »). Un 404 sur ces
+		// endpoints recrée la ligne depuis les claims JWT puis rejoue une fois.
+		var usersSvc = users.NewService(d.Pool)
+		protected.With(authmw.AutoRepairReaderUser(func(ctx context.Context, userID string, claims map[string]any) (bool, error) {
+			created, _, err := usersSvc.SyncUserFromAuth(ctx, userID, claims)
+			return created, err
+		})).Group(func(reader chi.Router) {
+			feedHandler.RegisterProtected(reader)
+			usersHandler.Register(reader)
+			trackingHandler.RegisterReader(reader)
+		})
 
 		oauthHandler.RegisterProtected(protected)
 	})
