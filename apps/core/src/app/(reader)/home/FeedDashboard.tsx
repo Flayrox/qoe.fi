@@ -224,6 +224,7 @@ export function FeedDashboard({
   const [lightboxImages] = useState<{ url: string; alt?: string | null }[]>([]);
   const [lightboxIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const slidingSheetOffset = 256;
 
   // Global Hotkeys Listener
   React.useEffect(() => {
@@ -726,11 +727,11 @@ export function FeedDashboard({
       <motion.section
         initial={false}
         animate={{
-          marginTop: activePostId || activeArticle ? 0 : 256,
+          marginTop: activePostId || activeArticle ? 0 : slidingSheetOffset,
         }}
         transition={{ type: 'spring', stiffness: 350, damping: 32 }}
         className={cn(
-          'bg-card/95 backdrop-blur-2xl text-card-foreground border-x border-border/40 shadow-2xl min-h-screen relative z-10 transition-colors',
+          'bg-card/95 backdrop-blur-2xl text-card-foreground border-x border-border/40 shadow-2xl relative z-10 transition-colors',
           activePostId || activeArticle ? 'rounded-none border-t-0' : 'rounded-t-2xl border-t'
         )}
       >
@@ -950,32 +951,7 @@ export function FeedDashboard({
             </AnimatePresence>
           </div>
 
-          {/* Right Sidebar Widgets Column */}
-          <WidgetErrorBoundary>
-            <FeedSidebarWidgets
-              suggestedCreators={suggestedCreators}
-              semanticTrends={semanticTrends}
-              onFollowToggle={(c) => {
-                handleFollowToggle(c as unknown as Creator);
-              }}
-              onOpenProfile={(username) => {
-                window.location.href = routes.feed.profile(username);
-              }}
-              onSelectTopic={(topicName) => {
-                setSelectedTag(topicName);
-              }}
-              userStats={
-                dbUser
-                  ? {
-                      articlesRead: initialBookmarksCount,
-                      highlights: initialHighlightsCount,
-                      following: initialFollowsCount,
-                    }
-                  : undefined
-              }
-              activityData={activityData}
-            />
-          </WidgetErrorBoundary>
+          {/* The sliding page is intentionally feed-only for now. Home widgets will move elsewhere. */}
         </div>
       </motion.section>
 

@@ -59,7 +59,7 @@ export function ReaderPageLayout({
       </div>
 
       {/* ── FOREGROUND SLIDING FEED SHEET (FULL STAGE WIDTH) ── */}
-      <div className="relative z-10 w-full min-h-screen">
+      <div className="relative z-10 w-full">
         <div className={cn('w-full px-0 sm:px-2 md:px-4', isTimeline ? 'pt-0' : 'pt-8')}>
           {children}
         </div>
