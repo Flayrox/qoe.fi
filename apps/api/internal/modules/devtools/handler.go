@@ -32,6 +32,7 @@ func (h *Handler) Register(r chi.Router) {
 	r.Post("/v1/devtools/add-funds", h.addFunds)
 	r.Post("/v1/devtools/reset-onboarding", h.resetOnboarding)
 	r.Get("/v1/devtools/user-by-email", h.userByEmail)
+	r.Get("/v1/devtools/embedding-diagnostic", h.embeddingDiagnostic)
 	r.Post("/v1/devtools/reindex", h.reindex)
 	r.Post("/v1/devtools/seed-top-complete", h.seedTopComplete)
 	r.Get("/v1/devtools/seed-top-progress/{jobID}", h.seedTopProgress)
@@ -232,6 +233,21 @@ func (h *Handler) seedTopProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, job)
+}
+
+// GET /v1/devtools/embedding-diagnostic — qualité d'embedding par compte
+// (qui est cold start vs bien profilé, pour piloter le seed / les filtres).
+func (h *Handler) embeddingDiagnostic(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	diag, err := h.svc.EmbeddingDiagnostic(r.Context(), userID)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, diag)
 }
 
 // POST /v1/devtools/reindex — re-synchronise l'index Meilisearch (backfill).

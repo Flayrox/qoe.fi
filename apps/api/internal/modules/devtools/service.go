@@ -10,7 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -412,6 +414,178 @@ func (s *Service) Reindex(ctx context.Context, userID string) (map[string]any, e
 	return map[string]any{"success": true, "total": total, "upserted": upserted}, nil
 }
 
+// ---------------------------------------------------------------------------
+// 🔎 Diagnostic embeddings (qualité de personnalisation par compte)
+// ---------------------------------------------------------------------------
+
+// EmbeddingTier classe la qualité de personnalisation d'un compte.
+type EmbeddingTier string
+
+const (
+	TierColdStart EmbeddingTier = "cold_start"
+	TierWeak      EmbeddingTier = "faible"
+	TierDecent    EmbeddingTier = "correct"
+	TierRich      EmbeddingTier = "riche"
+)
+
+// EmbeddingDiagnosticRow est la ligne de diagnostic d'un compte.
+type EmbeddingDiagnosticRow struct {
+	ID            string        `json:"id"`
+	Username      string        `json:"username"`
+	Name          string        `json:"name"`
+	Email         string        `json:"email"`
+	Role          string        `json:"role"`
+	Thoughts      int           `json:"thoughts"`                // pensées publiées servant au profil (embedding non nul)
+	PositiveReads int           `json:"positiveReads"`           // lectures à signal positif (COMPLETE/PARTIAL/SKIM)
+	Bounces       int           `json:"bounces"`                 // lectures rebonds (facteur d'un profil froid)
+	HasEmbedding  bool          `json:"hasEmbedding"`            // vecteur présent en base
+	FreshnessDays *int          `json:"freshnessDays,omitempty"` // jours depuis la dernière activité (null = aucune)
+	Quality       float64       `json:"quality"`                 // score de personnalisation 0..1
+	Tier          EmbeddingTier `json:"tier"`
+}
+
+// EmbeddingDiagnostic est la sortie du diagnostic (synthèse + lignes triées).
+type EmbeddingDiagnostic struct {
+	Total     int                      `json:"total"`
+	ColdStart int                      `json:"coldStart"`
+	Weak      int                      `json:"weak"`
+	Decent    int                      `json:"decent"`
+	Rich      int                      `json:"rich"`
+	Rows      []EmbeddingDiagnosticRow `json:"rows"`
+}
+
+// EmbeddingDiagnostic classe les comptes par qualité d'embedding. Contrat
+// identique au worker prod (embed_test.go) : le vecteur d'un user = moyenne de
+// SES pensées publiées, ou de ce qu'il lit à signal positif ; un compte sans
+// aucune activité reste en cold start. La sortie expose qui est froid vs bien
+// profilé pour piloter finement le seed / les filtres de recommandation.
+func (s *Service) EmbeddingDiagnostic(ctx context.Context, userID string) (*EmbeddingDiagnostic, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, err
+	}
+
+	rows, err := s.pool.Query(ctx, `
+		SELECT u.id::text,
+		       COALESCE(u.username, ''),
+		       COALESCE(u.name, ''),
+		       u.email,
+		       u.role,
+		       COALESCE(ps.thoughts, 0),
+		       COALESCE(rs.positive_reads, 0),
+		       COALESCE(rs.bounces, 0),
+		       (u.embedding IS NOT NULL),
+		       ps.last_post,
+		       rs.last_read
+		FROM "User" u
+		LEFT JOIN (
+			SELECT p."authorId" AS uid, COUNT(*)::int AS thoughts, MAX(p."createdAt") AS last_post
+			FROM "Post" p
+			WHERE p.embedding IS NOT NULL AND p."deletedAt" IS NULL
+			  AND p."isDraft" = false AND p."isHiddenByAuthor" = false
+			GROUP BY p."authorId"
+		) ps ON ps.uid = u.id
+		LEFT JOIN (
+			SELECT rs."userId" AS uid,
+			       COUNT(*) FILTER (WHERE rs.status IN ('READ_COMPLETE','READ_PARTIAL','SKIM'))::int AS positive_reads,
+			       COUNT(*) FILTER (WHERE rs.status = 'BOUNCE')::int AS bounces,
+			       MAX(rs."createdAt") AS last_read
+			FROM "ReadingSession" rs
+			GROUP BY rs."userId"
+		) rs ON rs.uid = u.id`)
+	if err != nil {
+		return nil, fmt.Errorf("diagnostic embeddings: %w", err)
+	}
+	defer rows.Close()
+
+	diag := &EmbeddingDiagnostic{Rows: []EmbeddingDiagnosticRow{}}
+	for rows.Next() {
+		var r EmbeddingDiagnosticRow
+		var lastPost, lastRead *time.Time
+		if err := rows.Scan(&r.ID, &r.Username, &r.Name, &r.Email, &r.Role,
+			&r.Thoughts, &r.PositiveReads, &r.Bounces, &r.HasEmbedding,
+			&lastPost, &lastRead); err != nil {
+			return nil, err
+		}
+
+		// Fraîcheur : dernière activité (pensée publiée ou lecture).
+		var last *time.Time
+		switch {
+		case lastPost != nil && lastRead != nil && lastRead.After(*lastPost):
+			last = lastRead
+		case lastPost != nil:
+			last = lastPost
+		case lastRead != nil:
+			last = lastRead
+		}
+		if last != nil {
+			days := int(time.Since(*last).Hours() / 24)
+			if days < 0 {
+				days = 0
+			}
+			r.FreshnessDays = &days
+		}
+		r.Quality, r.Tier = embeddingScore(r)
+
+		diag.Rows = append(diag.Rows, r)
+		diag.Total++
+		switch r.Tier {
+		case TierRich:
+			diag.Rich++
+		case TierDecent:
+			diag.Decent++
+		case TierWeak:
+			diag.Weak++
+		default:
+			diag.ColdStart++
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Tri : qualité desc, puis volume de signal (pensées puis lectures).
+	sort.Slice(diag.Rows, func(i, j int) bool {
+		a, b := diag.Rows[i], diag.Rows[j]
+		if a.Quality != b.Quality {
+			return a.Quality > b.Quality
+		}
+		if a.Thoughts != b.Thoughts {
+			return a.Thoughts > b.Thoughts
+		}
+		return a.PositiveReads > b.PositiveReads
+	})
+	return diag, nil
+}
+
+// embeddingScore évalue la richesse de personnalisation d'un compte : 0 =
+// cold start (pas de vecteur), puis boost par les pensées publiées (signal le
+// plus fort, 0..0.5), les lectures positives (0..0.3) et la fraîcheur (0..0.2).
+// Le tier découle du vecteur présent + du volume de signal.
+func embeddingScore(r EmbeddingDiagnosticRow) (float64, EmbeddingTier) {
+	if !r.HasEmbedding {
+		return 0, TierColdStart
+	}
+	postsBoost := math.Min(0.5, 0.1*float64(r.Thoughts))
+	readsBoost := math.Min(0.3, 0.04*float64(r.PositiveReads))
+	fresh := 0.0
+	if r.FreshnessDays != nil {
+		fresh = math.Max(0, 0.2*(1-float64(*r.FreshnessDays)/60.0))
+	}
+	q := math.Min(1, 0.2+postsBoost+readsBoost+fresh)
+	q = math.Round(q*100) / 100
+
+	var tier EmbeddingTier
+	switch {
+	case r.Thoughts >= 3:
+		tier = TierRich
+	case r.Thoughts > 0 || r.PositiveReads >= 10:
+		tier = TierDecent
+	default:
+		tier = TierWeak
+	}
+	return q, tier
+}
+
 // SeedTopComplete prépare une base de démonstration complète (synchrone) :
 // reset déterministe, monde vivant, contenu additif riche, embeddings via
 // Redis et synchronisation Meilisearch/Umami. Utilisé par les tests ; le
@@ -567,9 +741,20 @@ func runSeedTopComplete(ctx context.Context, pool *pgxpool.Pool, onStep func(str
 		return nil, fmt.Errorf("world refresh: %w", err)
 	}
 
-	// RunWorld crée aussi du contenu, mais ne renvoie pas ses IDs. Le worker
-	// doit tout de même couvrir ces lignes et les comptes préexistants : il
-	// génère les vecteurs manquants à partir de la base complète.
+	// Embeddings SYNCHRONES (articles + posts + users) : le devtools devrait
+	// produire une base prête à l'emploi — vecteurs calculés et persistés en
+	// dur ici, et non pas délégués à un worker qui tourne après coup. La file
+	// Redis ci-dessous reste en recours pour couvrir ce qui aurait échoué.
+	step("Embeddings (synchrone, persistés en DB)")
+	_, _, embedErr := seed.EmbedTop(ctx, pool, res, os.Getenv("EMBEDDING_URL"))
+	if embedErr != nil {
+		log.Printf("[devtools] embeddings synchrones: %v", embedErr)
+	}
+	embeddingsSynced := embedErr == nil && os.Getenv("EMBEDDING_URL") != ""
+
+	// RunWorld crée aussi du contenu, mais ne renvoie pas ses IDs. Les
+	// vecteurs manquants (embedding encore NULL après le passe synchrone)
+	// sont enqueuées pour que le worker les calcule en background.
 	step("Embeddings (enqueue Redis)")
 	if err := enqueueMissingEmbeddings(ctx, pool); err != nil {
 		log.Printf("[devtools] enqueue missing embeddings: %v", err)
@@ -579,7 +764,8 @@ func runSeedTopComplete(ctx context.Context, pool *pgxpool.Pool, onStep func(str
 		"success": true, "users": len(res.Users), "articles": len(res.Articles),
 		"posts": len(res.PostIDs), "readingSessions": res.ReadingSess,
 		"follows": res.Follows, "likes": res.Likes, "subscribers": res.Subscribers,
-		"contentMode": "reset+additive",
+		"embeddingsSynced": embeddingsSynced,
+		"contentMode":      "reset+additive",
 	}
 	if ac := queue.NewClient(os.Getenv("REDIS_URL")); ac != nil {
 		queued := 0
@@ -609,7 +795,11 @@ func runSeedTopComplete(ctx context.Context, pool *pgxpool.Pool, onStep func(str
 		}
 	}
 	step("Meilisearch (reindex)")
-	if total, upserted, reindexErr := workers.NewSearchWorker(pool).ReindexAll(ctx); reindexErr == nil {
+	searchWorker := workers.NewSearchWorker(pool)
+	// La DB vient d'être régénérée : l'index doit être vidé d'abord, sinon
+	// ReindexAll (idempotent par ID, seed déterministe) ne remplacerait rien.
+	searchWorker.ClearAll(ctx)
+	if total, upserted, reindexErr := searchWorker.ReindexAll(ctx); reindexErr == nil {
 		out["meilisearch"] = map[string]int{"total": total, "upserted": upserted}
 	} else {
 		log.Printf("[devtools] reindex complete: %v", reindexErr)

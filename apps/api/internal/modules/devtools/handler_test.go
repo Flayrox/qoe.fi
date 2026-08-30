@@ -64,6 +64,7 @@ func TestDevtoolsHandlers_Unauthorized(t *testing.T) {
 		{"POST", "/v1/devtools/add-funds"},
 		{"POST", "/v1/devtools/reset-onboarding"},
 		{"GET", "/v1/devtools/user-by-email"},
+		{"GET", "/v1/devtools/embedding-diagnostic"},
 		{"POST", "/v1/devtools/reindex"},
 		{"POST", "/v1/devtools/seed-top-complete"},
 		{"GET", "/v1/devtools/seed-top-progress/seed_test"},
@@ -102,6 +103,31 @@ func TestDevtoolsHandler_Data(t *testing.T) {
 	}
 	if body["stats"] == nil || body["users"] == nil {
 		t.Fatalf("body = %s", w.Body.String())
+	}
+}
+
+func TestDevtoolsHandler_EmbeddingDiagnostic(t *testing.T) {
+	seedDevtools(t)
+	r := newDevRouter(t)
+
+	w := devReq(t, r, "GET", "/v1/devtools/embedding-diagnostic", "", true)
+	if w.Code != http.StatusOK {
+		t.Fatalf("embedding-diagnostic = %d, body = %s", w.Code, w.Body.String())
+	}
+	var body map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json: %v", err)
+	}
+	rows, _ := body["rows"].([]any)
+	if rows == nil {
+		t.Fatalf("rows manquant: %s", w.Body.String())
+	}
+	// Les 2 comptes seedDevtools n'ont aucun signal → cold start.
+	if n, _ := body["total"].(float64); int(n) != 2 {
+		t.Fatalf("total = %v, attendu 2", body["total"])
+	}
+	if n, _ := body["coldStart"].(float64); int(n) != 2 {
+		t.Fatalf("coldStart = %v, attendu 2", body["coldStart"])
 	}
 }
 
