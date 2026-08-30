@@ -21,6 +21,10 @@ import (
 //   0.15*Circadian + 0.15*CF) * CompletionBonus — sim dominante.
 // Score final (pensées) = 0.40*Sim + 0.22*Fresh + 0.18*Engagement +
 //   0.10*MorningBonus + 0.10*CF.
+// La répartition articles / pensées part du profil circadien puis est
+// recalibrée par utilisateur selon sa façon de lire (getThoughtPreference) :
+// un lecteur de formats courts reçoit plus de pensées, un lecteur de
+// long-format plus d'articles.
 // Le POOL de candidats est construit en sim-dominant (65% sim / 15% fresh /
 // 20% complétion) : un pool à 50/25/25 laissait la fraîcheur et l'éditorial
 // noyer le contenu du profil avant même le rerank (cf. pool_test.go).
@@ -40,19 +44,26 @@ type CircadianProfile struct {
 	ThoughtRatio         float64 `json:"thoughtRatio"`
 }
 
-// Engagement / CF constants — mirrors feed.ts.
+// Engagement / CF constants — mirrors feed.ts. Chaque valeur ci-dessous est
+// un DÉFAUT pilotable sans recompiler via SystemConfig (clés feed.*, voir
+// engineConfig + loadEngineConfig) : une clé absente ou invalide retombe sur
+// le défaut, et toutes les valeurs sont bornées lors du parsing.
 const (
-	engReadWeight       = 0.5
-	engSocialWeight     = 0.3
-	engConfidenceWeight = 0.2
-	engMinSessions      = 5
-	engNegativeThresh   = 0.25
-	engNegativePenalty  = 0.85
+	engReadWeightDefault       = 0.5  // poids de la QUALITÉ de lecture dans l'engagement article
+	engSocialWeightDefault     = 0.3  // poids des marque-pages + highlights (preuve sociale)
+	engConfidenceWeightDefault = 0.2  // poids de la confiance (nb de sessions)
+	engMinSessionsDefault      = 5    // sessions minimales avant pénalité de rebond
+	engNegativeThreshDefault   = 0.25 // qualité de lecture sous laquelle l'engagement est pénalisé
+	engNegativePenaltyDefault  = 0.85 // facteur appliqué à un article « rejeté » (×0.85)
 
-	cfMinMyReads     = 3
-	cfTopNeighbors   = 10
-	cfStatusWeights  = `CASE status WHEN 'READ_COMPLETE' THEN 1.0 WHEN 'READ_PARTIAL' THEN 0.6 WHEN 'SKIM' THEN 0.3 ELSE 0.1 END`
-	showMoreBoostMul = 0.12
+	cfMinMyReadsDefault   = 3  // lectures minimales avant d'activer le CF co-lecture
+	cfTopNeighborsDefault = 10 // nb de voisins de lecture conservés pour le CF
+	cfStatusWeights       = `CASE status WHEN 'READ_COMPLETE' THEN 1.0 WHEN 'READ_PARTIAL' THEN 0.6 WHEN 'SKIM' THEN 0.3 ELSE 0.1 END`
+
+	showMoreBoostMulDefault    = 0.12 // boost « Voir plus » : score × (1 + α·sim)
+	feedbackWindowDaysDefault  = 30   // fenêtre des retours explicites (impressions + Voir plus/moins)
+	impressionThresholdDefault = 3    // impressions vues sans engagement avant dévaluation
+	impressionFactorDefault    = 0.6  // ×0.6 sur un item déjà vu-ignoré
 
 	// ⚡ Trending — vélocité d'engagement des dernières heures. C'est le signal
 	// « ce qui monte vite » des plateformes (TikTok/Reddit) : un contenu qui
@@ -65,9 +76,9 @@ const (
 	// gaming 48 % → 30 %). On la fond donc DANS l'engagement :
 	// eng_effectif = max(engagement cumulatif, vélocité) — un post « chaud »
 	// monte sans jamais ajouter de poids global au rerank.
-	velWindowHours   = 48
-	velPostTarget    = 8  // ≥ 8 likes+réponses+reposts récents / 48h → vélocité max (pensées)
-	velArticleTarget = 20 // ≥ 20 sessions de lecture pondérées / 48h → vélocité max (articles)
+	velWindowHoursDefault   = 48 // fenêtre de vélocité (heures)
+	velPostTargetDefault    = 8  // ≥ 8 likes+réponses+reposts récents / fenêtre → vélocité max (pensées)
+	velArticleTargetDefault = 20 // ≥ 20 sessions de lecture pondérées / fenêtre → vélocité max (articles)
 
 	// 🔀 MMR — λ et seuil de quasi-duplicat. Défauts calibrés par recsys-eval,
 	// surchargeables via SystemConfig (voir engineConfig). Voir mmr.go.
@@ -78,17 +89,41 @@ const (
 	// Défauts = les valeurs calibrées par recsys-eval (pool sim-dominant 65/15/20,
 	// rerank sim-dominante 0.40/0.15/0.15). Chaque clé est bornée à [0,1] ; une
 	// valeur invalide retombe sur le défaut.
-	cfgPoolSim        = "feed.pool_sim"
-	cfgPoolFresh      = "feed.pool_fresh"
-	cfgPoolCompletion = "feed.pool_completion"
-	cfgRerankSim      = "feed.rerank_sim"
-	cfgRerankFresh    = "feed.rerank_fresh"
-	cfgRerankEng      = "feed.rerank_engagement"
-	cfgMMRLambda      = "feed.mmr_lambda"
+	cfgPoolSim         = "feed.pool_sim"
+	cfgPoolFresh       = "feed.pool_fresh"
+	cfgPoolCompletion  = "feed.pool_completion"
+	cfgRerankSim       = "feed.rerank_sim"
+	cfgRerankFresh     = "feed.rerank_fresh"
+	cfgRerankEng       = "feed.rerank_engagement"
+	cfgMMRLambda       = "feed.mmr_lambda"
 	cfgMMRDupThreshold = "feed.mmr_dup_threshold"
 
 	poolSimDefault, poolFreshDefault, poolCompletionDefault = 0.65, 0.15, 0.20
 	rerankSimDefault, rerankFreshDefault, rerankEngDefault  = 0.40, 0.15, 0.15
+
+	// 🎯 Mix adaptatif pensées/articles : chacun lit à sa façon. On dérive le
+	// penchant format-court (pensées) vs long-format (articles) des sessions
+	// réelles de l'utilisateur (ReadingSession) et des retours explicites
+	// (ContentFeedback SHOW_MORE / SHOW_LESS), puis on décale le ratio circadien
+	// de ±adaptK·(affinité−0.5), borné à [adaptFloor, adaptCeil] pour ne jamais
+	// supprimer un type de contenu. adaptMinSessions exige un minimum de données
+	// avant d'ajuster (sinon affinité neutre 0.5 → ratio circadien pur).
+	//
+	// Ces valeurs sont pilotables sans recompiler via SystemConfig
+	// (feed.adapt_k / feed.adapt_ratio_floor / feed.adapt_ratio_ceil,
+	// feed.adapt_min_sessions / feed.feedback_prefer_weight /
+	// feed.feedback_min_signals).
+	adaptKDefault     = 0.40
+	adaptFloorDefault = 0.15
+	adaptCeilDefault  = 0.85
+
+	// Force du signal explicite (SHOW_MORE / SHOW_LESS) sur le penchant
+	// pensées/articles : un retour explicite (« Voir plus » / « Voir moins »)
+	// pèse davantage qu'une simple durée de session. feedbackMinSignals exige un
+	// minimum de retours avant d'appliquer le drift (sinon bruit).
+	adaptMinSessionsDefault     = 3
+	feedbackPreferWeightDefault = 0.25
+	feedbackMinSignalsDefault   = 2
 
 	// 🚫 Pénalité de milieu : dès milieuPenaltyThreshold signalements négatifs
 	// cumulés sur un tag (SHOW_LESS sur pensées/articles + sessions en BOUNCE),
@@ -96,17 +131,139 @@ const (
 	// utilisateur (sim × milieuPenaltyFactor) — jamais exclus, pour que le
 	// feed reste toujours non vide (même garde-fou que le « quelque chose
 	// s'affiche toujours » du filtre de langue de Bluesky).
-	milieuPenaltyThreshold = 3
-	milieuPenaltyFactor    = 0.5
+	milieuPenaltyThresholdDefault = 3
+	milieuPenaltyFactorDefault    = 0.5
+
+	// 🌅 Profils circadiens — chaque créneau expose la durée de lecture visée
+	// (target_min), la largeur de la gaussienne (sigma) et le ratio pensées
+	// (thought_ratio, le ratio articles = 1 − thought_ratio). Clés
+	// feed.circadian_{slot}_{target_min,sigma,thought_ratio}.
+	circWeekendMinDefault, circWeekendSigmaDefault, circWeekendThoughtDefault       = 12.0, 4.5, 0.60
+	circMorningMinDefault, circMorningSigmaDefault, circMorningThoughtDefault       = 5.5, 2.2, 0.70
+	circMiddayMinDefault, circMiddaySigmaDefault, circMiddayThoughtDefault          = 7.5, 2.8, 0.60
+	circAfternoonMinDefault, circAfternoonSigmaDefault, circAfternoonThoughtDefault = 8.5, 3.0, 0.60
+	circEveningMinDefault, circEveningSigmaDefault, circEveningThoughtDefault       = 12.0, 4.0, 0.55
+	circNightMinDefault, circNightSigmaDefault, circNightThoughtDefault             = 7.0, 3.0, 0.65
+
+	// Poids résiduels du rerank (composantes fixes du score final).
+	rerankCircadianWeightDefault = 0.15 // poids du fit circadien dans le score article
+	rerankCfWeightDefault        = 0.15 // poids du CF co-lecture dans le score article
+	thoughtCfWeightDefault       = 0.10 // poids du CF co-lecture dans le score pensée
+	thoughtMorningBonusDefault   = 0.10 // bonus matinal appliqué aux pensées
+	completionBonusBaseDefault   = 0.7  // base du bonus de complétion (0.7 + 0.3·taux)
+	completionBonusScaleDefault  = 0.3  // pente du bonus de complétion
+	coldStartSimDefault          = 0.5  // similarité neutre quand l'embedding manque (cold-start)
+
+	explorationMinQualityDefault = 0.8 // qualité minimale (completionRate) des articles injectés en exploration
+
+	// Clés SystemConfig des réglages exposés ci-dessus — miroir de feed.pool_sim.
+	cfgEngReadWeight         = "feed.eng_read_weight"
+	cfgEngSocialWeight       = "feed.eng_social_weight"
+	cfgEngConfWeight         = "feed.eng_conf_weight"
+	cfgEngMinSessions        = "feed.eng_min_sessions"
+	cfgEngNegativeThresh     = "feed.eng_negative_thresh"
+	cfgEngNegativePenalty    = "feed.eng_negative_penalty"
+	cfgCfMinMyReads          = "feed.cf_min_my_reads"
+	cfgCfTopNeighbors        = "feed.cf_top_neighbors"
+	cfgVelWindowHours        = "feed.vel_window_hours"
+	cfgVelPostTarget         = "feed.vel_post_target"
+	cfgVelArticleTarget      = "feed.vel_article_target"
+	cfgMilieuThreshold       = "feed.milieu_penalty_threshold"
+	cfgMilieuFactor          = "feed.milieu_penalty_factor"
+	cfgShowMoreBoostMul      = "feed.show_more_boost_mult"
+	cfgFeedbackWindowDays    = "feed.feedback_window_days"
+	cfgImpressionThreshold   = "feed.impression_penalty_threshold"
+	cfgImpressionFactor      = "feed.impression_penalty_factor"
+	cfgAdaptMinSessions      = "feed.adapt_min_sessions"
+	cfgFeedbackPreferWeight  = "feed.feedback_prefer_weight"
+	cfgFeedbackMinSignals    = "feed.feedback_min_signals"
+	cfgExplorationMinQuality = "feed.exploration_min_quality"
+	cfgRerankCircadian       = "feed.rerank_circadian_weight"
+	cfgRerankCf              = "feed.rerank_cf_weight"
+	cfgThoughtCf             = "feed.thought_cf_weight"
+	cfgThoughtMorningBonus   = "feed.thought_morning_bonus"
+	cfgCompletionBase        = "feed.completion_bonus_base"
+	cfgCompletionScale       = "feed.completion_bonus_scale"
+	cfgColdStartSim          = "feed.cold_start_sim"
+
+	// Clés circadiennes (6 créneaux × 3 valeurs).
+	cfgCircWeekendMin       = "feed.circadian_weekend_target_min"
+	cfgCircWeekendSigma     = "feed.circadian_weekend_sigma"
+	cfgCircWeekendThought   = "feed.circadian_weekend_thought_ratio"
+	cfgCircMorningMin       = "feed.circadian_morning_target_min"
+	cfgCircMorningSigma     = "feed.circadian_morning_sigma"
+	cfgCircMorningThought   = "feed.circadian_morning_thought_ratio"
+	cfgCircMiddayMin        = "feed.circadian_midday_target_min"
+	cfgCircMiddaySigma      = "feed.circadian_midday_sigma"
+	cfgCircMiddayThought    = "feed.circadian_midday_thought_ratio"
+	cfgCircAfternoonMin     = "feed.circadian_afternoon_target_min"
+	cfgCircAfternoonSigma   = "feed.circadian_afternoon_sigma"
+	cfgCircAfternoonThought = "feed.circadian_afternoon_thought_ratio"
+	cfgCircEveningMin       = "feed.circadian_evening_target_min"
+	cfgCircEveningSigma     = "feed.circadian_evening_sigma"
+	cfgCircEveningThought   = "feed.circadian_evening_thought_ratio"
+	cfgCircNightMin         = "feed.circadian_night_target_min"
+	cfgCircNightSigma       = "feed.circadian_night_sigma"
+	cfgCircNightThought     = "feed.circadian_night_thought_ratio"
+
+	// Clés du mix adaptatif — miroir de feed.pool_sim etc.
+	cfgAdaptK     = "feed.adapt_k"
+	cfgAdaptFloor = "feed.adapt_ratio_floor"
+	cfgAdaptCeil  = "feed.adapt_ratio_ceil"
 )
 
-// engineConfig regroupe les poids du moteur (pool, rerank, MMR) pilotables
-// via SystemConfig sans recompiler. Les défauts sont les valeurs calibrées
-// par recsys-eval ; une clé absente ou invalide laisse le défaut.
+// circadianTuning regroupe les 3 valeurs pilotables d'un créneau circadien.
+type circadianTuning struct {
+	TargetMinutes float64
+	SigmaMinutes  float64
+	ThoughtRatio  float64
+}
+
+// engineConfig regroupe TOUS les poids du moteur (pool, rerank, MMR, circadien,
+// engagement, CF, vélocité, pénalités, exploration) pilotables via SystemConfig
+// sans recompiler. Les défauts sont les valeurs calibrées par recsys-eval ; une
+// clé absente ou invalide laisse le défaut.
 type engineConfig struct {
 	poolSim, poolFresh, poolCompletion float64
 	rerankSim, rerankFresh, rerankEng  float64
 	mmrLambda, mmrDupThreshold         float64
+	adaptK, adaptFloor, adaptCeil      float64
+
+	// Profils circadiens (6 créneaux).
+	circWeekend, circMorning, circMidday, circAfternoon, circEvening, circNight circadianTuning
+
+	// Engagement article.
+	engReadWeight, engSocialWeight, engConfWeight float64
+	engMinSessions                                int
+	engNegativeThresh, engNegativePenalty         float64
+
+	// CF co-lecture.
+	cfMinMyReads, cfTopNeighbors int
+
+	// Vélocité (trending 48h).
+	velWindowHours, velPostTarget, velArticleTarget int
+
+	// Pénalité de milieu (tags rejetés).
+	milieuThreshold int
+	milieuFactor    float64
+
+	// Feedback explicite + impressions.
+	showMoreBoostMul    float64
+	feedbackWindowDays  int
+	impressionThreshold int
+	impressionFactor    float64
+
+	// Mix adaptatif pensées/articles.
+	adaptMinSessions     int
+	feedbackPreferWeight float64
+	feedbackMinSignals   int
+
+	// Exploration ε-greedy.
+	explorationMinQuality float64
+
+	// Poids résiduels du rerank.
+	rerankCircadian, rerankCf, thoughtCf, thoughtMorningBonus float64
+	completionBase, completionScale, coldStartSim             float64
 }
 
 // loadEngineConfig lit toutes les clés du moteur en UNE requête (les défauts
@@ -114,17 +271,76 @@ type engineConfig struct {
 // le moteur ne se bloque jamais à cause de la config.
 func (s *Service) loadEngineConfig(ctx context.Context) engineConfig {
 	cfg := engineConfig{
-		poolSim:        poolSimDefault,
-		poolFresh:      poolFreshDefault,
-		poolCompletion: poolCompletionDefault,
-		rerankSim:      rerankSimDefault,
-		rerankFresh:    rerankFreshDefault,
-		rerankEng:      rerankEngDefault,
-		mmrLambda:      mmrLambdaDefault,
+		poolSim:         poolSimDefault,
+		poolFresh:       poolFreshDefault,
+		poolCompletion:  poolCompletionDefault,
+		rerankSim:       rerankSimDefault,
+		rerankFresh:     rerankFreshDefault,
+		rerankEng:       rerankEngDefault,
+		mmrLambda:       mmrLambdaDefault,
 		mmrDupThreshold: mmrDupThresholdDefault,
+		adaptK:          adaptKDefault,
+		adaptFloor:      adaptFloorDefault,
+		adaptCeil:       adaptCeilDefault,
+
+		circWeekend:   circadianTuning{circWeekendMinDefault, circWeekendSigmaDefault, circWeekendThoughtDefault},
+		circMorning:   circadianTuning{circMorningMinDefault, circMorningSigmaDefault, circMorningThoughtDefault},
+		circMidday:    circadianTuning{circMiddayMinDefault, circMiddaySigmaDefault, circMiddayThoughtDefault},
+		circAfternoon: circadianTuning{circAfternoonMinDefault, circAfternoonSigmaDefault, circAfternoonThoughtDefault},
+		circEvening:   circadianTuning{circEveningMinDefault, circEveningSigmaDefault, circEveningThoughtDefault},
+		circNight:     circadianTuning{circNightMinDefault, circNightSigmaDefault, circNightThoughtDefault},
+
+		engReadWeight:         engReadWeightDefault,
+		engSocialWeight:       engSocialWeightDefault,
+		engConfWeight:         engConfidenceWeightDefault,
+		engMinSessions:        engMinSessionsDefault,
+		engNegativeThresh:     engNegativeThreshDefault,
+		engNegativePenalty:    engNegativePenaltyDefault,
+		cfMinMyReads:          cfMinMyReadsDefault,
+		cfTopNeighbors:        cfTopNeighborsDefault,
+		velWindowHours:        velWindowHoursDefault,
+		velPostTarget:         velPostTargetDefault,
+		velArticleTarget:      velArticleTargetDefault,
+		milieuThreshold:       milieuPenaltyThresholdDefault,
+		milieuFactor:          milieuPenaltyFactorDefault,
+		showMoreBoostMul:      showMoreBoostMulDefault,
+		feedbackWindowDays:    feedbackWindowDaysDefault,
+		impressionThreshold:   impressionThresholdDefault,
+		impressionFactor:      impressionFactorDefault,
+		adaptMinSessions:      adaptMinSessionsDefault,
+		feedbackPreferWeight:  feedbackPreferWeightDefault,
+		feedbackMinSignals:    feedbackMinSignalsDefault,
+		explorationMinQuality: explorationMinQualityDefault,
+
+		rerankCircadian:     rerankCircadianWeightDefault,
+		rerankCf:            rerankCfWeightDefault,
+		thoughtCf:           thoughtCfWeightDefault,
+		thoughtMorningBonus: thoughtMorningBonusDefault,
+		completionBase:      completionBonusBaseDefault,
+		completionScale:     completionBonusScaleDefault,
+		coldStartSim:        coldStartSimDefault,
 	}
 	rows, err := s.pool.Query(ctx, `SELECT key, value FROM "SystemConfig" WHERE key = ANY($1::text[])`,
-		[]string{cfgPoolSim, cfgPoolFresh, cfgPoolCompletion, cfgRerankSim, cfgRerankFresh, cfgRerankEng, cfgMMRLambda, cfgMMRDupThreshold})
+		[]string{
+			cfgPoolSim, cfgPoolFresh, cfgPoolCompletion, cfgRerankSim, cfgRerankFresh, cfgRerankEng,
+			cfgMMRLambda, cfgMMRDupThreshold, cfgAdaptK, cfgAdaptFloor, cfgAdaptCeil,
+			cfgCircWeekendMin, cfgCircWeekendSigma, cfgCircWeekendThought,
+			cfgCircMorningMin, cfgCircMorningSigma, cfgCircMorningThought,
+			cfgCircMiddayMin, cfgCircMiddaySigma, cfgCircMiddayThought,
+			cfgCircAfternoonMin, cfgCircAfternoonSigma, cfgCircAfternoonThought,
+			cfgCircEveningMin, cfgCircEveningSigma, cfgCircEveningThought,
+			cfgCircNightMin, cfgCircNightSigma, cfgCircNightThought,
+			cfgEngReadWeight, cfgEngSocialWeight, cfgEngConfWeight, cfgEngMinSessions,
+			cfgEngNegativeThresh, cfgEngNegativePenalty,
+			cfgCfMinMyReads, cfgCfTopNeighbors,
+			cfgVelWindowHours, cfgVelPostTarget, cfgVelArticleTarget,
+			cfgMilieuThreshold, cfgMilieuFactor,
+			cfgShowMoreBoostMul, cfgFeedbackWindowDays, cfgImpressionThreshold, cfgImpressionFactor,
+			cfgAdaptMinSessions, cfgFeedbackPreferWeight, cfgFeedbackMinSignals,
+			cfgExplorationMinQuality,
+			cfgRerankCircadian, cfgRerankCf, cfgThoughtCf, cfgThoughtMorningBonus,
+			cfgCompletionBase, cfgCompletionScale, cfgColdStartSim,
+		})
 	if err != nil {
 		return cfg
 	}
@@ -151,7 +367,126 @@ func (s *Service) loadEngineConfig(ctx context.Context) engineConfig {
 			cfg.mmrLambda = parseCfgFloat(v, cfg.mmrLambda)
 		case cfgMMRDupThreshold:
 			cfg.mmrDupThreshold = parseCfgFloat(v, cfg.mmrDupThreshold)
+		case cfgAdaptK:
+			cfg.adaptK = parseCfgFloat(v, cfg.adaptK)
+		case cfgAdaptFloor:
+			cfg.adaptFloor = parseCfgFloat(v, cfg.adaptFloor)
+		case cfgAdaptCeil:
+			cfg.adaptCeil = parseCfgFloat(v, cfg.adaptCeil)
+
+		// 🌅 Circadien.
+		case cfgCircWeekendMin:
+			cfg.circWeekend.TargetMinutes = parseCfgFloatRange(v, cfg.circWeekend.TargetMinutes, 0, 10000)
+		case cfgCircWeekendSigma:
+			cfg.circWeekend.SigmaMinutes = parseCfgFloatRange(v, cfg.circWeekend.SigmaMinutes, 0.1, 100)
+		case cfgCircWeekendThought:
+			cfg.circWeekend.ThoughtRatio = parseCfgFloat(v, cfg.circWeekend.ThoughtRatio)
+		case cfgCircMorningMin:
+			cfg.circMorning.TargetMinutes = parseCfgFloatRange(v, cfg.circMorning.TargetMinutes, 0, 10000)
+		case cfgCircMorningSigma:
+			cfg.circMorning.SigmaMinutes = parseCfgFloatRange(v, cfg.circMorning.SigmaMinutes, 0.1, 100)
+		case cfgCircMorningThought:
+			cfg.circMorning.ThoughtRatio = parseCfgFloat(v, cfg.circMorning.ThoughtRatio)
+		case cfgCircMiddayMin:
+			cfg.circMidday.TargetMinutes = parseCfgFloatRange(v, cfg.circMidday.TargetMinutes, 0, 10000)
+		case cfgCircMiddaySigma:
+			cfg.circMidday.SigmaMinutes = parseCfgFloatRange(v, cfg.circMidday.SigmaMinutes, 0.1, 100)
+		case cfgCircMiddayThought:
+			cfg.circMidday.ThoughtRatio = parseCfgFloat(v, cfg.circMidday.ThoughtRatio)
+		case cfgCircAfternoonMin:
+			cfg.circAfternoon.TargetMinutes = parseCfgFloatRange(v, cfg.circAfternoon.TargetMinutes, 0, 10000)
+		case cfgCircAfternoonSigma:
+			cfg.circAfternoon.SigmaMinutes = parseCfgFloatRange(v, cfg.circAfternoon.SigmaMinutes, 0.1, 100)
+		case cfgCircAfternoonThought:
+			cfg.circAfternoon.ThoughtRatio = parseCfgFloat(v, cfg.circAfternoon.ThoughtRatio)
+		case cfgCircEveningMin:
+			cfg.circEvening.TargetMinutes = parseCfgFloatRange(v, cfg.circEvening.TargetMinutes, 0, 10000)
+		case cfgCircEveningSigma:
+			cfg.circEvening.SigmaMinutes = parseCfgFloatRange(v, cfg.circEvening.SigmaMinutes, 0.1, 100)
+		case cfgCircEveningThought:
+			cfg.circEvening.ThoughtRatio = parseCfgFloat(v, cfg.circEvening.ThoughtRatio)
+		case cfgCircNightMin:
+			cfg.circNight.TargetMinutes = parseCfgFloatRange(v, cfg.circNight.TargetMinutes, 0, 10000)
+		case cfgCircNightSigma:
+			cfg.circNight.SigmaMinutes = parseCfgFloatRange(v, cfg.circNight.SigmaMinutes, 0.1, 100)
+		case cfgCircNightThought:
+			cfg.circNight.ThoughtRatio = parseCfgFloat(v, cfg.circNight.ThoughtRatio)
+
+		// 📚 Engagement article.
+		case cfgEngReadWeight:
+			cfg.engReadWeight = parseCfgFloat(v, cfg.engReadWeight)
+		case cfgEngSocialWeight:
+			cfg.engSocialWeight = parseCfgFloat(v, cfg.engSocialWeight)
+		case cfgEngConfWeight:
+			cfg.engConfWeight = parseCfgFloat(v, cfg.engConfWeight)
+		case cfgEngMinSessions:
+			cfg.engMinSessions = parseCfgInt(v, cfg.engMinSessions, 0, 1000)
+		case cfgEngNegativeThresh:
+			cfg.engNegativeThresh = parseCfgFloat(v, cfg.engNegativeThresh)
+		case cfgEngNegativePenalty:
+			cfg.engNegativePenalty = parseCfgFloat(v, cfg.engNegativePenalty)
+
+		// 👥 CF co-lecture.
+		case cfgCfMinMyReads:
+			cfg.cfMinMyReads = parseCfgInt(v, cfg.cfMinMyReads, 0, 1000)
+		case cfgCfTopNeighbors:
+			cfg.cfTopNeighbors = parseCfgInt(v, cfg.cfTopNeighbors, 1, 100)
+
+		// ⚡ Vélocité.
+		case cfgVelWindowHours:
+			cfg.velWindowHours = parseCfgInt(v, cfg.velWindowHours, 1, 720)
+		case cfgVelPostTarget:
+			cfg.velPostTarget = parseCfgInt(v, cfg.velPostTarget, 1, 1000)
+		case cfgVelArticleTarget:
+			cfg.velArticleTarget = parseCfgInt(v, cfg.velArticleTarget, 1, 1000)
+
+		// 🚫 Pénalité de milieu.
+		case cfgMilieuThreshold:
+			cfg.milieuThreshold = parseCfgInt(v, cfg.milieuThreshold, 0, 100)
+		case cfgMilieuFactor:
+			cfg.milieuFactor = parseCfgFloat(v, cfg.milieuFactor)
+
+		// 👍 Feedback explicite + impressions.
+		case cfgShowMoreBoostMul:
+			cfg.showMoreBoostMul = parseCfgFloat(v, cfg.showMoreBoostMul)
+		case cfgFeedbackWindowDays:
+			cfg.feedbackWindowDays = parseCfgInt(v, cfg.feedbackWindowDays, 1, 365)
+		case cfgImpressionThreshold:
+			cfg.impressionThreshold = parseCfgInt(v, cfg.impressionThreshold, 0, 100)
+		case cfgImpressionFactor:
+			cfg.impressionFactor = parseCfgFloat(v, cfg.impressionFactor)
+
+		// 🎯 Mix adaptatif.
+		case cfgAdaptMinSessions:
+			cfg.adaptMinSessions = parseCfgInt(v, cfg.adaptMinSessions, 0, 1000)
+		case cfgFeedbackPreferWeight:
+			cfg.feedbackPreferWeight = parseCfgFloat(v, cfg.feedbackPreferWeight)
+		case cfgFeedbackMinSignals:
+			cfg.feedbackMinSignals = parseCfgInt(v, cfg.feedbackMinSignals, 0, 100)
+
+		// 🌍 Exploration.
+		case cfgExplorationMinQuality:
+			cfg.explorationMinQuality = parseCfgFloat(v, cfg.explorationMinQuality)
+
+		// ⚖️ Poids résiduels du rerank.
+		case cfgRerankCircadian:
+			cfg.rerankCircadian = parseCfgFloat(v, cfg.rerankCircadian)
+		case cfgRerankCf:
+			cfg.rerankCf = parseCfgFloat(v, cfg.rerankCf)
+		case cfgThoughtCf:
+			cfg.thoughtCf = parseCfgFloat(v, cfg.thoughtCf)
+		case cfgThoughtMorningBonus:
+			cfg.thoughtMorningBonus = parseCfgFloat(v, cfg.thoughtMorningBonus)
+		case cfgCompletionBase:
+			cfg.completionBase = parseCfgFloat(v, cfg.completionBase)
+		case cfgCompletionScale:
+			cfg.completionScale = parseCfgFloat(v, cfg.completionScale)
+		case cfgColdStartSim:
+			cfg.coldStartSim = parseCfgFloat(v, cfg.coldStartSim)
 		}
+	}
+	if cfg.adaptFloor > cfg.adaptCeil {
+		cfg.adaptFloor, cfg.adaptCeil = cfg.adaptCeil, cfg.adaptFloor
 	}
 	return cfg
 }
@@ -167,6 +502,26 @@ func parseCfgFloat(v string, def float64) float64 {
 	return f
 }
 
+// parseCfgFloatRange parse une valeur SystemConfig en float borné [lo, hi].
+// Toute valeur invalide retombe sur le défaut — fonction pure, testable.
+func parseCfgFloatRange(v string, def, lo, hi float64) float64 {
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil || f < lo || f > hi {
+		return def
+	}
+	return f
+}
+
+// parseCfgInt parse une valeur SystemConfig en entier borné [lo, hi]. Toute
+// valeur invalide retombe sur le défaut — fonction pure, testable.
+func parseCfgInt(v string, def, lo, hi int) int {
+	n, err := strconv.Atoi(strings.TrimSpace(v))
+	if err != nil || n < lo || n > hi {
+		return def
+	}
+	return n
+}
+
 // getCircadianProfile mirrors TS getCircadianProfile.
 func getCircadianProfile(userHour int, userDayOfWeek int) CircadianProfile {
 	now := time.Now()
@@ -179,26 +534,70 @@ func getCircadianProfile(userHour int, userDayOfWeek int) CircadianProfile {
 		d = userDayOfWeek
 	}
 	isWeekend := d == 0 || d == 6
+	// ⚖️ Ratios rééquilibrés (2026-08) : le catalogue est pensées-dominant (≈87% de
+	// pensées vs 13% d'articles), l'ancien design 70/30 week-end et 75/25 le soir
+	// donnait un feed perçu comme articles-lourd. On remonte ENCORE les pensées de
+	// +0.15 sur chaque créneau (demande produit 2026-08) : les articles plafonnent
+	// à ~40-45% le soir / week-end et 30-40% le reste du temps. Le ratio exact de
+	// chaque utilisateur est ensuite recalibré par sa façon de lire (voir
+	// getThoughtPreference / blendThoughtRatio dans PersonalizedEngine).
 	if isWeekend {
-		return CircadianProfile{Name: "WEEKEND_LONGFORM", Label: "Exploration & Temps Long du Week-end", TargetReadingMinutes: 12, SigmaMinutes: 4.5, ArticleRatio: 0.7, ThoughtRatio: 0.3}
+		return CircadianProfile{Name: "WEEKEND_LONGFORM", Label: "Exploration & Temps Long du Week-end", TargetReadingMinutes: 12, SigmaMinutes: 4.5, ArticleRatio: 0.40, ThoughtRatio: 0.60}
 	}
 	switch {
 	case h >= 6 && h < 11:
-		return CircadianProfile{Name: "MORNING_BRIEF", Label: "Matinée & Trajets : Formats Courts & Pensées", TargetReadingMinutes: 5.5, SigmaMinutes: 2.2, ArticleRatio: 0.45, ThoughtRatio: 0.55}
+		return CircadianProfile{Name: "MORNING_BRIEF", Label: "Matinée & Trajets : Formats Courts & Pensées", TargetReadingMinutes: 5.5, SigmaMinutes: 2.2, ArticleRatio: 0.30, ThoughtRatio: 0.70}
 	case h >= 11 && h < 15:
-		return CircadianProfile{Name: "MIDDAY_BREAK", Label: "Pause Déjeuner : Débats & Terroirs", TargetReadingMinutes: 7.5, SigmaMinutes: 2.8, ArticleRatio: 0.6, ThoughtRatio: 0.4}
+		return CircadianProfile{Name: "MIDDAY_BREAK", Label: "Pause Déjeuner : Débats & Terroirs", TargetReadingMinutes: 7.5, SigmaMinutes: 2.8, ArticleRatio: 0.40, ThoughtRatio: 0.60}
 	case h >= 15 && h < 19:
-		return CircadianProfile{Name: "AFTERNOON_FLOW", Label: "Après-midi : Essais & Perspectives", TargetReadingMinutes: 8.5, SigmaMinutes: 3.0, ArticleRatio: 0.65, ThoughtRatio: 0.35}
+		return CircadianProfile{Name: "AFTERNOON_FLOW", Label: "Après-midi : Essais & Perspectives", TargetReadingMinutes: 8.5, SigmaMinutes: 3.0, ArticleRatio: 0.40, ThoughtRatio: 0.60}
 	case h >= 19 && h <= 23:
-		return CircadianProfile{Name: "EVENING_SANCTUARY", Label: "Sanctuaire du Soir : Essais de Fond & Philosophie", TargetReadingMinutes: 12.0, SigmaMinutes: 4.0, ArticleRatio: 0.75, ThoughtRatio: 0.25}
+		return CircadianProfile{Name: "EVENING_SANCTUARY", Label: "Sanctuaire du Soir : Essais de Fond & Philosophie", TargetReadingMinutes: 12.0, SigmaMinutes: 4.0, ArticleRatio: 0.45, ThoughtRatio: 0.55}
 	default:
-		return CircadianProfile{Name: "LATE_NIGHT", Label: "Lecture Nocturne Calme", TargetReadingMinutes: 7.0, SigmaMinutes: 3.0, ArticleRatio: 0.5, ThoughtRatio: 0.5}
+		return CircadianProfile{Name: "LATE_NIGHT", Label: "Lecture Nocturne Calme", TargetReadingMinutes: 7.0, SigmaMinutes: 3.0, ArticleRatio: 0.35, ThoughtRatio: 0.65}
 	}
 }
 
 func computeCircadianFit(readingTimeMinutes, targetMinutes, sigma float64) float64 {
 	diff := readingTimeMinutes - targetMinutes
 	return math.Exp(-(diff * diff) / (2 * sigma * sigma))
+}
+
+// applyCircadianConfig surcharge un profil circadien par défaut avec les
+// valeurs pilotées via SystemConfig (feed.circadian_{slot}_{target_min,sigma,
+// thought_ratio}). Convention : une valeur à 0 (ou absente) laisse le défaut
+// du créneau — un ratio pensées à 0 n'a pas de sens (le moteur garantit de
+// toute façon au moins 1 pensée par page). Le ratio articles suit toujours
+// (1 − thoughtRatio).
+func applyCircadianConfig(p CircadianProfile, cfg engineConfig) CircadianProfile {
+	var t circadianTuning
+	switch p.Name {
+	case "WEEKEND_LONGFORM":
+		t = cfg.circWeekend
+	case "MORNING_BRIEF":
+		t = cfg.circMorning
+	case "MIDDAY_BREAK":
+		t = cfg.circMidday
+	case "AFTERNOON_FLOW":
+		t = cfg.circAfternoon
+	case "EVENING_SANCTUARY":
+		t = cfg.circEvening
+	case "LATE_NIGHT":
+		t = cfg.circNight
+	default:
+		return p
+	}
+	if t.TargetMinutes > 0 {
+		p.TargetReadingMinutes = t.TargetMinutes
+	}
+	if t.SigmaMinutes > 0 {
+		p.SigmaMinutes = t.SigmaMinutes
+	}
+	if t.ThoughtRatio > 0 && t.ThoughtRatio <= 1 {
+		p.ThoughtRatio = t.ThoughtRatio
+		p.ArticleRatio = 1 - t.ThoughtRatio
+	}
+	return p
 }
 
 // parseEmbeddingText parses "[0.1,0.2,...]" into pgvector.Vector.
@@ -277,7 +676,9 @@ func (s *Service) fetchMutedWords(ctx context.Context, userID string) []string {
 // coReadNeighbors identifie les voisins de lecture (mêmes articles lus que
 // moi), triés par affinité décroissante, normalisée 0..1. Base commune du CF
 // articles (getCoReadCandidates) et du CF pensées (getCoReadThoughtCandidates).
-func (s *Service) coReadNeighbors(ctx context.Context, userID string) (map[string]float64, bool) {
+// cfMinMyReads (lectures minimales avant activation) et cfTopNeighbors (nb de
+// voisins) sont pilotables via SystemConfig.
+func (s *Service) coReadNeighbors(ctx context.Context, userID string, cfg engineConfig) (map[string]float64, bool) {
 	empty := map[string]float64{}
 	if userID == "" {
 		return empty, false
@@ -285,7 +686,7 @@ func (s *Service) coReadNeighbors(ctx context.Context, userID string) (map[strin
 	// Guard: need >=3 reads else cold-start noise
 	var myCount int
 	err := s.pool.QueryRow(ctx, `SELECT COUNT(*)::int FROM "ReadingSession" WHERE "userId" = $1`, toUUID(userID)).Scan(&myCount)
-	if err != nil || myCount < cfMinMyReads {
+	if err != nil || myCount < cfg.cfMinMyReads {
 		return empty, false
 	}
 	rows, err := s.pool.Query(ctx, fmt.Sprintf(`
@@ -298,7 +699,7 @@ func (s *Service) coReadNeighbors(ctx context.Context, userID string) (map[strin
 			GROUP BY r2."userId" ORDER BY affinity DESC LIMIT %d
 		)
 		SELECT neighbor_id, affinity FROM neighbor_affinity
-	`, cfStatusWeights, cfStatusWeights, cfTopNeighbors), toUUID(userID))
+	`, cfStatusWeights, cfStatusWeights, cfg.cfTopNeighbors), toUUID(userID))
 	if err != nil {
 		log.Printf("[feed CF] neighbors query failed: %v", err)
 		return empty, false
@@ -329,9 +730,9 @@ func (s *Service) coReadNeighbors(ctx context.Context, userID string) (map[strin
 
 // getCoReadCandidates — CF collaboratif sur ARTICLES : des articles lus par
 // mes voisins de lecture (que je n'ai pas encore lus) sont boostés. Miroir TS.
-func (s *Service) getCoReadCandidates(ctx context.Context, userID string) map[string]float64 {
+func (s *Service) getCoReadCandidates(ctx context.Context, userID string, cfg engineConfig) map[string]float64 {
 	empty := map[string]float64{}
-	neighbors, ok := s.coReadNeighbors(ctx, userID)
+	neighbors, ok := s.coReadNeighbors(ctx, userID, cfg)
 	if !ok {
 		return empty
 	}
@@ -398,9 +799,9 @@ func neighborValues(neighbors map[string]float64) string {
 // getCoReadThoughtCandidates — CF collaboratif sur PENSÉES : les pensées
 // likées par mes voisins de lecture (que je n'ai ni likées ni postées) sont
 // boostées. Complète le CF articles pour le versant social du feed.
-func (s *Service) getCoReadThoughtCandidates(ctx context.Context, userID string) map[string]float64 {
+func (s *Service) getCoReadThoughtCandidates(ctx context.Context, userID string, cfg engineConfig) map[string]float64 {
 	empty := map[string]float64{}
-	neighbors, ok := s.coReadNeighbors(ctx, userID)
+	neighbors, ok := s.coReadNeighbors(ctx, userID, cfg)
 	if !ok {
 		return empty
 	}
@@ -443,8 +844,10 @@ func (s *Service) getCoReadThoughtCandidates(ctx context.Context, userID string)
 	return out
 }
 
-// articleEngagement mirrors getArticleEngagementScores.
-func (s *Service) getArticleEngagementScores(ctx context.Context, articleIDs []string) (map[string]float64, map[string]bool) {
+// articleEngagement mirrors getArticleEngagementScores. Les poids (qualité de
+// lecture, preuve sociale, confiance) et les seuils de pénalité sont pilotables
+// via SystemConfig (feed.eng_*).
+func (s *Service) getArticleEngagementScores(ctx context.Context, articleIDs []string, cfg engineConfig) (map[string]float64, map[string]bool) {
 	scores := map[string]float64{}
 	penalties := map[string]bool{}
 	if len(articleIDs) == 0 {
@@ -481,10 +884,10 @@ func (s *Service) getArticleEngagementScores(ctx context.Context, articleIDs []s
 		socialRaw := float64(bookmarks) + float64(highlights)*1.5
 		socialProof := math.Min(1, socialRaw/12)
 		conf := math.Min(1, float64(sessions)/10)
-		eng := engReadWeight*rq + engSocialWeight*socialProof + engConfidenceWeight*conf
+		eng := cfg.engReadWeight*rq + cfg.engSocialWeight*socialProof + cfg.engConfWeight*conf
 		bounceRate := float64(bounces) / float64(sessions)
-		if sessions >= engMinSessions && (rq < engNegativeThresh || bounceRate > 0.5) {
-			eng *= engNegativePenalty
+		if sessions >= cfg.engMinSessions && (rq < cfg.engNegativeThresh || bounceRate > 0.5) {
+			eng *= cfg.engNegativePenalty
 			penalties[id] = true
 		}
 		if eng < 0 {
@@ -506,7 +909,7 @@ func (s *Service) getArticleEngagementScores(ctx context.Context, articleIDs []s
 
 // EngineItem est un item classé par le moteur (léger, prêt à réhydrater).
 type EngineItem struct {
-	ItemType    string `json:"itemType"`               // ARTICLE | THOUGHT
+	ItemType    string `json:"itemType"` // ARTICLE | THOUGHT
 	ID          string `json:"id"`
 	IsDiscovery bool   `json:"isDiscovery,omitempty"`
 }
@@ -518,12 +921,14 @@ type EngineResult struct {
 	NextCursor string       `json:"nextCursor,omitempty"`
 }
 
-// Constantes d'exploration ε-greedy — miroir feed.ts.
+// Constantes d'exploration ε-greedy — miroir feed.ts. explorationMinQuality
+// (qualité minimale des articles injectés) est pilotable via
+// feed.exploration_min_quality (voir engineConfig) ; les taux et le seuil de
+// maturité restent lus par explorationRatio.
 const (
-	explorationRatioDefault    = 0.12
-	explorationMinQuality      = 0.8
-	explorationCfgKey          = "feed.exploration_ratio"
-	explorationCfgKeyCold      = "feed.exploration_ratio_cold" // taux pour les profils froids
+	explorationRatioDefault     = 0.12
+	explorationCfgKey           = "feed.exploration_ratio"
+	explorationCfgKeyCold       = "feed.exploration_ratio_cold"  // taux pour les profils froids
 	explorationCfgKeyMinSignals = "feed.exploration_min_signals" // nb de signaux (likes+lectures) pour être « mature »
 
 	// 🎯 Exploration adaptative : un profil froid (peu de signaux) explore ~2×
@@ -531,30 +936,30 @@ const (
 	// personnaliser, donc on lui montre du contenu hors bulle (anti-cold-start,
 	// comportement bandit type TikTok). Un profil mature explore moins pour ne
 	// pas diluer sa bulle.
-	explorationRatioColdDefault   = 0.22
-	explorationMinSignalsDefault  = 10
+	explorationRatioColdDefault  = 0.22
+	explorationMinSignalsDefault = 10
 )
 
 // articleCandidate est un article brut extrait pour le reranking. tags sert à
 // la pénalité de milieu (item portant un tag rejeté → dévalué).
 type articleCandidate struct {
 	id, title, content, authorID, pubID string
-	tags              []string
-	readingTime       int
-	completionRate    float64
-	sim, freshness    float64
-	score             float64
-	createdAt         time.Time
+	tags                                []string
+	readingTime                         int
+	completionRate                      float64
+	sim, freshness                      float64
+	score                               float64
+	createdAt                           time.Time
 }
 
 // thoughtCandidate est une pensée brute extraite pour le reranking. tags sert
 // à la pénalité de milieu.
 type thoughtCandidate struct {
-	id, content, authorID                string
-	tags                                 []string
-	likeCount, replyCount, repostCount   int
-	sim, freshness, score                float64
-	createdAt                            time.Time
+	id, content, authorID              string
+	tags                               []string
+	likeCount, replyCount, repostCount int
+	sim, freshness, score              float64
+	createdAt                          time.Time
 }
 
 // mutedOK retourne false si text contient un mot masqué.
@@ -580,9 +985,23 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 	if offset < 0 {
 		offset = 0
 	}
-	circadian := getCircadianProfile(userHour, -1)
-	// Répartition circadienne articles / pensées.
-	targetArticles := int(math.Ceil(float64(limit) * circadian.ArticleRatio))
+	cfg := s.loadEngineConfig(ctx)
+	// 🌅 Profil circadien (défauts du code) puis surcharges SystemConfig
+	// (feed.circadian_{slot}_{target_min,sigma,thought_ratio}) : régler le mix
+	// pensées/articles ou les durées de lecture visées sans recompiler.
+	circadian := applyCircadianConfig(getCircadianProfile(userHour, -1), cfg)
+	// 🎯 Mix adaptatif : le ratio circadien articles/pensées est recalibré selon
+	// ce que l'utilisateur aime RÉELLEMENT lire (durée de ses sessions + retours
+	// explicites « Voir plus/moins »). La force (feed.adapt_k) et les bornes sont
+	// pilotables via SystemConfig. Un butineur de formats courts reçoit plus de
+	// pensées, un lecteur de long-format plus d'articles — sans jamais sortir
+	// des bornes, et sans dévier du ratio circadien quand on n'a pas assez de
+	// données.
+	thoughtPref := s.getThoughtPreference(ctx, userID, cfg)
+	effThoughtRatio := blendThoughtRatio(circadian.ThoughtRatio, thoughtPref, cfg.adaptK, cfg.adaptFloor, cfg.adaptCeil)
+	effArticleRatio := 1 - effThoughtRatio
+	// Répartition articles / pensées.
+	targetArticles := int(math.Ceil(float64(limit) * effArticleRatio))
 	targetThoughts := limit - targetArticles
 	if targetThoughts < 1 {
 		targetThoughts = 1
@@ -595,13 +1014,11 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 		vec = nil
 	}
 	muted := s.fetchMutedWords(ctx, userID)
-	cfMap := s.getCoReadCandidates(ctx, userID)
-	cfThoughtMap := s.getCoReadThoughtCandidates(ctx, userID)
+	cfMap := s.getCoReadCandidates(ctx, userID, cfg)
+	cfThoughtMap := s.getCoReadThoughtCandidates(ctx, userID, cfg)
 
-	// 🎛️ Poids du moteur (SystemConfig) + 🚫 tags rejetés par l'utilisateur :
-	// chargés une fois, partagés entre le pool et le rerank.
-	cfg := s.loadEngineConfig(ctx)
-	penalized := s.penalizedTags(ctx, userID)
+	// 🚫 Tags rejetés par l'utilisateur (plus loin que le pool et le rerank).
+	penalized := s.penalizedTags(ctx, userID, cfg)
 
 	artOver := clampInt(targetArticles*3, 1, 100)
 	thOver := clampInt(targetThoughts*3, 1, 100)
@@ -615,18 +1032,18 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 		return EngineResult{}, err
 	}
 
-	engScores, penalties := s.getArticleEngagementScores(ctx, articleIDs(articles))
+	engScores, penalties := s.getArticleEngagementScores(ctx, articleIDs(articles), cfg)
 	artIDs, thIDs := articleIDs(articles), thoughtIDs(thoughts)
 	// Feedback implicite négatif : items vus ≥3× sans engagement (FeedImpression
 	// collecté mais jamais exploité — signal « skip » type Netflix/TikTok).
-	impPenalty := s.getImpressionPenalties(ctx, userID, artIDs, thIDs)
+	impPenalty := s.getImpressionPenalties(ctx, userID, artIDs, thIDs, cfg)
 	// Feedback positif explicite : « Voir plus » → items proches du contenu
 	// félicité boostés (miroir de impPenalty ; sûr même sans SHOW_MORE).
-	showMoreBoost := s.getShowMoreBoost(ctx, userID, artIDs, thIDs)
+	showMoreBoost := s.getShowMoreBoost(ctx, userID, artIDs, thIDs, cfg)
 	// ⚡ Trending : vélocité d'engagement des 48 dernières heures. Complément de
 	// l'engagement cumulatif : un post qui monte vite ne doit pas attendre que
 	// son compteur (likeCount…) rattrape les vieux contenus populaires.
-	artVel, thVel := s.getVelocityScores(ctx, artIDs, thIDs)
+	artVel, thVel := s.getVelocityScores(ctx, artIDs, thIDs, cfg)
 
 	// Reranking circadien des articles.
 	for i := range articles {
@@ -648,31 +1065,33 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 		}
 		sim, fresh := a.sim, a.freshness
 		if sim <= 0 {
-			sim = 0.5
+			sim = cfg.coldStartSim
 		}
 		if fresh <= 0 {
 			fresh = 0.5
 		}
-		completionBonus := 0.7 + 0.3*a.completionRate
+		completionBonus := cfg.completionBase + cfg.completionScale*a.completionRate
 		cf := cfMap[a.id]
 		// Sim dominante (0.40 par défaut, pilotable via feed.rerank_sim) : la
 		// fraîcheur à 0.20 laissait les articles « du jour » passer devant le
 		// contenu du profil (mesuré : article foot frais en tête du feed gaming).
-		score := (cfg.rerankSim*sim + cfg.rerankFresh*fresh + cfg.rerankEng*eng + 0.15*circFit + 0.15*cf) * completionBonus
+		// Les poids du fit circadien et du CF sont pilotables
+		// (feed.rerank_circadian_weight / feed.rerank_cf_weight).
+		score := (cfg.rerankSim*sim + cfg.rerankFresh*fresh + cfg.rerankEng*eng + cfg.rerankCircadian*circFit + cfg.rerankCf*cf) * completionBonus
 		if penalties[a.id] {
-			score *= engNegativePenalty
+			score *= cfg.engNegativePenalty
 		}
 		// 🚫 Pénalité de milieu : l'item porte un tag rejeté (≥3 signalements
 		// négatifs de l'utilisateur) → dévalué, jamais exclu (le feed reste
 		// non vide). Miroir de la dévaluation du pool.
 		if hasPenalizedTag(a.tags, penalized) {
-			score *= milieuPenaltyFactor
+			score *= cfg.milieuFactor
 		}
 		if impPenalty[a.id] {
-			score *= 0.6 // déjà vu sans engagement → re-exposition dévalorisée
+			score *= cfg.impressionFactor // déjà vu sans engagement → re-exposition dévalorisée
 		}
 		if b, ok := showMoreBoost[a.id]; ok && b > 0 {
-			score *= 1 + showMoreBoostMul*b // proche d'un contenu « Voir plus » → ×(1+0.12·sim)
+			score *= 1 + cfg.showMoreBoostMul*b // proche d'un contenu « Voir plus » → ×(1+α·sim)
 		}
 		a.score = score
 	}
@@ -691,7 +1110,7 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 		}
 		morningBonus := 0.0
 		if circadian.Name == "MORNING_BRIEF" {
-			morningBonus = 0.1
+			morningBonus = cfg.thoughtMorningBonus
 		}
 		cfT := cfThoughtMap[t.id]
 		// ⚡ Trending : même fusion que pour les articles — l'engagement effectif
@@ -701,17 +1120,19 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 			eng = v
 		}
 		// Mêmes poids configurables que les articles (feed.rerank_sim/fresh/eng) :
-		// la similarité reste dominante, fraîcheur/engagement à la marge.
-		t.score = cfg.rerankSim*sim + cfg.rerankFresh*fresh + cfg.rerankEng*eng + 0.10*morningBonus + 0.10*cfT
+		// la similarité reste dominante, fraîcheur/engagement à la marge. Le
+		// bonus matinal et le poids du CF pensées sont pilotables
+		// (feed.thought_morning_bonus / feed.thought_cf_weight).
+		t.score = cfg.rerankSim*sim + cfg.rerankFresh*fresh + cfg.rerankEng*eng + cfg.thoughtMorningBonus*morningBonus + cfg.thoughtCf*cfT
 		if impPenalty[t.id] {
-			t.score *= 0.6
+			t.score *= cfg.impressionFactor
 		}
 		// 🚫 Pénalité de milieu (miroir du pool) : jamais d'exclusion.
 		if hasPenalizedTag(t.tags, penalized) {
-			t.score *= milieuPenaltyFactor
+			t.score *= cfg.milieuFactor
 		}
 		if b, ok := showMoreBoost[t.id]; ok && b > 0 {
-			t.score *= 1 + showMoreBoostMul*b // proche d'un contenu « Voir plus » → boosté
+			t.score *= 1 + cfg.showMoreBoostMul*b // proche d'un contenu « Voir plus » → boosté
 		}
 	}
 	sort.Slice(thoughts, func(i, j int) bool { return thoughts[i].score > thoughts[j].score })
@@ -739,14 +1160,22 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 		tItems = append(tItems, EngineItem{ItemType: "THOUGHT", ID: t.id})
 	}
 	interleaved := interleaveEngine(aItems, tItems, circadian.Name)
-	hasMore := len(interleaved) > limit || len(interleaved) == artOver+thOver
+
+	// hasMore se déduit des POOLS BRUTS pré-MMR (articles/thoughts chargés en
+	// oversampling), pas de la page retournée (post-MMR ≈ limit, donc toujours
+	// ≤ limit et jamais égal à artOver+thOver). Un pool qui renvoie une page
+	// pleine (== son oversample) signifie qu'il reste du contenu derrière —
+	// sinon on a épuisé la source. Sans cette source, hasMore serait TOUJOURS
+	// false et le scroll infini (feed « Pour vous ») s'arrêterait au premier
+	// fetch.*/
+	hasMore := len(articles) == artOver || len(thoughts) == thOver
 	if len(interleaved) > limit {
 		interleaved = interleaved[:limit]
 	}
 
 	// 🌍 Exploration ε-greedy (injection hors bulle) pour lecteur authentifié.
 	if userID != "" {
-		interleaved = s.injectDiscovery(ctx, userID, interleaved, limit)
+		interleaved = s.injectDiscovery(ctx, userID, interleaved, limit, cfg)
 	}
 
 	return EngineResult{Items: interleaved, HasMore: hasMore, NextCursor: strconv.Itoa(offset + len(interleaved))}, nil
@@ -760,6 +1189,137 @@ func clampInt(v, lo, hi int) int {
 		return hi
 	}
 	return v
+}
+
+// blendThoughtRatio recalibre le ratio pensées circadien de base avec le
+// penchant réel de lecture de l'utilisateur (getThoughtPreference). L'affinité
+// est centrée sur 0.5 (neutre) : un lecteur de long-format (affinité ~0) baisse
+// la part pensées, un butineur de formats courts (affinité ~1) la monte. La
+// force (adaptK) et les bornes (floor/ceil) sont pilotables via SystemConfig.
+func blendThoughtRatio(circadianThoughtRatio, thoughtPref, k, floor, ceil float64) float64 {
+	shifted := circadianThoughtRatio + k*(thoughtPref-0.5)
+	if shifted < floor {
+		shifted = floor
+	}
+	if shifted > ceil {
+		shifted = ceil
+	}
+	return shifted
+}
+
+// getThoughtPreference dérive le penchant pensées/articles d'un utilisateur à
+// partir de sa lecture réelle (ReadingSession des 90 derniers jours) : des
+// sessions courtes signalent un lecteur de formats courts (→ plus de pensées),
+// des sessions longues un lecteur d'articles. Le statut pondère (READ_COMPLETE
+// > READ_PARTIAL > SKIM > BOUNCE) pour qu'un bounce artificiel ne fasse pas
+// basculer la balance. Renvoie une affinité en [0,1] (0.5 = neutre) ; avec trop
+// peu de données (< adaptMinSessions) → 0.5, pour que le ratio circadien reste
+// le seul maître (jamais de personnalisation déréglée sur du bruit).
+// adaptMinSessions, feedbackPreferWeight et feedbackMinSignals sont pilotables
+// via SystemConfig (feed.adapt_min_sessions / feed.feedback_prefer_weight /
+// feed.feedback_min_signals).
+func (s *Service) getThoughtPreference(ctx context.Context, userID string, cfg engineConfig) float64 {
+	if userID == "" {
+		return 0.5
+	}
+	rows, err := s.pool.Query(ctx,
+		`SELECT status, COALESCE("readingTimeMinutes"::float8, 0)
+		 FROM "ReadingSession"
+		 WHERE "userId" = $1 AND "createdAt" >= now() - interval '90 days'`,
+		toUUID(userID))
+	if err != nil {
+		log.Printf("[feed] getThoughtPreference query failed: %v", err)
+		return 0.5
+	}
+	defer rows.Close()
+
+	statusWeight := func(st string) float64 {
+		switch st {
+		case "READ_COMPLETE":
+			return 1.0
+		case "READ_PARTIAL":
+			return 0.6
+		case "SKIM":
+			return 0.3
+		default: // BOUNCE et autres statuts éphémères
+			return 0.15
+		}
+	}
+	// Durée de session → penchant pensées : ≤3min ~ pensées (0.85), ≥8min ~
+	// articles (0.15), linéaire entre les deux.
+	sessionLean := func(mins float64) float64 {
+		switch {
+		case mins <= 3:
+			return 0.85
+		case mins >= 8:
+			return 0.15
+		default:
+			return 0.85 - 0.70*(mins-3)/5
+		}
+	}
+
+	var n int
+	var weightSum, leanSum float64
+	for rows.Next() {
+		var st string
+		var mins float64
+		if err := rows.Scan(&st, &mins); err != nil {
+			continue
+		}
+		w := statusWeight(st)
+		if w <= 0 {
+			continue
+		}
+		leanSum += w * sessionLean(mins)
+		weightSum += w
+		n++
+	}
+	// Affinité implicite (durée des sessions) ; 0.5 (neutre) si pas assez de
+	// données pour ne jamais dérailler sur du bruit.
+	aff := 0.5
+	if n >= cfg.adaptMinSessions && weightSum > 0 {
+		aff = leanSum / weightSum
+	}
+	// Affinité explicite : les « Voir plus / Voir moins » pèsent en plus de la
+	// durée des sessions (signal fort, feedbackPreferWeight).
+	aff += cfg.feedbackPreferWeight * s.getThoughtFeedbackDrift(ctx, userID, cfg)
+	if aff < 0 {
+		aff = 0
+	}
+	if aff > 1 {
+		aff = 1
+	}
+	return aff
+}
+
+// getThoughtFeedbackDrift résout l'impact des retours explicites (ContentFeedback)
+// sur le penchant pensées/articles des 90 derniers jours : un SHOW_MORE sur une
+// pensée (ou SHOW_LESS sur un article) penche vers les pensées (+), l'inverse vers
+// les articles (−). Le drift est borné en [-1,1] ; il est nul si l'utilisateur n'a
+// pas assez de retours (feedbackMinSignals) pour éviter de réagir à du bruit.
+func (s *Service) getThoughtFeedbackDrift(ctx context.Context, userID string, cfg engineConfig) float64 {
+	if userID == "" {
+		return 0
+	}
+	var thoughtMore, thoughtLess, articleMore, articleLess int
+	err := s.pool.QueryRow(ctx, `SELECT
+			COUNT(*) FILTER (WHERE "thoughtId" IS NOT NULL AND type = 'SHOW_MORE'),
+			COUNT(*) FILTER (WHERE "thoughtId" IS NOT NULL AND type = 'SHOW_LESS'),
+			COUNT(*) FILTER (WHERE "articleId" IS NOT NULL AND type = 'SHOW_MORE'),
+			COUNT(*) FILTER (WHERE "articleId" IS NOT NULL AND type = 'SHOW_LESS')
+		FROM "ContentFeedback"
+		WHERE "userId" = $1 AND "createdAt" >= now() - interval '90 days'`, toUUID(userID)).Scan(
+		&thoughtMore, &thoughtLess, &articleMore, &articleLess)
+	if err != nil {
+		return 0
+	}
+	total := thoughtMore + thoughtLess + articleMore + articleLess
+	if total < cfg.feedbackMinSignals {
+		return 0
+	}
+	// Un « Voir moins » pèse comme un « Voir plus » opposé (signal aussi fort).
+	signals := float64(thoughtMore + articleLess - thoughtLess - articleMore)
+	return signals / float64(total)
 }
 
 func articleIDs(as []articleCandidate) []string {
@@ -783,7 +1343,7 @@ func thoughtIDs(ts []thoughtCandidate) []string {
 // implicite des grandes plateformes : re-exposer un contenu déjà ignoré
 // plusieurs fois dégrade l'expérience, donc on le dévalorise au reranking.
 // Les FeedImpression étaient collectées mais jamais exploitées.
-func (s *Service) getImpressionPenalties(ctx context.Context, userID string, artIDs, thIDs []string) map[string]bool {
+func (s *Service) getImpressionPenalties(ctx context.Context, userID string, artIDs, thIDs []string, cfg engineConfig) map[string]bool {
 	out := map[string]bool{}
 	if userID == "" || (len(artIDs) == 0 && len(thIDs) == 0) {
 		return out
@@ -791,9 +1351,9 @@ func (s *Service) getImpressionPenalties(ctx context.Context, userID string, art
 	rows, err := s.pool.Query(ctx, `
 		SELECT "itemType", "itemId", COUNT(*)::int
 		FROM "FeedImpression"
-		WHERE "userId" = $1 AND "createdAt" > now() - interval '30 days'
+		WHERE "userId" = $1 AND "createdAt" > now() - make_interval(days => $4)
 		  AND ("itemId" = ANY($2::text[]) OR "itemId" = ANY($3::text[]))
-		GROUP BY "itemType", "itemId"`, toUUID(userID), artIDs, thIDs)
+		GROUP BY "itemType", "itemId"`, toUUID(userID), artIDs, thIDs, cfg.feedbackWindowDays)
 	if err != nil {
 		log.Printf("[feed] impression query failed: %v", err)
 		return out
@@ -802,7 +1362,7 @@ func (s *Service) getImpressionPenalties(ctx context.Context, userID string, art
 	for rows.Next() {
 		var typ, id string
 		var n int
-		if err := rows.Scan(&typ, &id, &n); err == nil && n >= 3 {
+		if err := rows.Scan(&typ, &id, &n); err == nil && n >= cfg.impressionThreshold {
 			out[id] = true
 		}
 	}
@@ -816,18 +1376,18 @@ func (s *Service) getImpressionPenalties(ctx context.Context, userID string, art
 // items proches du contenu félicité boostés (×(1+α·sim)) ». Seuls les SHOW_MORE
 // les plus récents (30j) comptent, et on ignore les items déjà vus-ignorés
 // (cohérence : un contenu « voir moins » ne ressort pas via un « voir plus »).
-func (s *Service) getShowMoreBoost(ctx context.Context, userID string, artIDs, thIDs []string) map[string]float64 {
+func (s *Service) getShowMoreBoost(ctx context.Context, userID string, artIDs, thIDs []string, cfg engineConfig) map[string]float64 {
 	out := map[string]float64{}
 	if userID == "" || (len(artIDs) == 0 && len(thIDs) == 0) {
 		return out
 	}
-	// Ancre articles : embeddings des articles SHOW_MORE (30j).
+	// Ancre articles : embeddings des articles SHOW_MORE (fenêtre feedbackWindowDays).
 	if len(artIDs) > 0 {
 		rows, err := s.pool.Query(ctx, `
 			WITH anchors AS (
 				SELECT cf."articleId" AS id, a.embedding
 				FROM "ContentFeedback" cf JOIN "Article" a ON a.id = cf."articleId"
-				WHERE cf."userId" = $1 AND cf.type = 'SHOW_MORE' AND cf."createdAt" > now() - interval '30 days'
+				WHERE cf."userId" = $1 AND cf.type = 'SHOW_MORE' AND cf."createdAt" > now() - make_interval(days => $3)
 				  AND a.embedding IS NOT NULL
 			)
 			SELECT a.id, MAX(1 - (a.embedding <=> an.embedding))::float8 AS sim
@@ -836,18 +1396,18 @@ func (s *Service) getShowMoreBoost(ctx context.Context, userID string, artIDs, t
 			  AND NOT EXISTS (
 			      SELECT 1 FROM "ContentFeedback" cf
 			      WHERE cf."userId" = $1 AND cf."articleId" = a.id AND cf.type = 'SHOW_LESS')
-			GROUP BY a.id`, toUUID(userID), artIDs)
+			GROUP BY a.id`, toUUID(userID), artIDs, cfg.feedbackWindowDays)
 		if err == nil {
 			readSimMap(rows, out)
 		}
 	}
-	// Ancre pensées : embeddings des pensées SHOW_MORE (30j).
+	// Ancre pensées : embeddings des pensées SHOW_MORE (fenêtre feedbackWindowDays).
 	if len(thIDs) > 0 {
 		rows, err := s.pool.Query(ctx, `
 			WITH anchors AS (
 				SELECT cf."thoughtId" AS id, p.embedding
 				FROM "ContentFeedback" cf JOIN "Post" p ON p.id = cf."thoughtId"
-				WHERE cf."userId" = $1 AND cf.type = 'SHOW_MORE' AND cf."createdAt" > now() - interval '30 days'
+				WHERE cf."userId" = $1 AND cf.type = 'SHOW_MORE' AND cf."createdAt" > now() - make_interval(days => $3)
 				  AND p.embedding IS NOT NULL
 			)
 			SELECT p.id, MAX(1 - (p.embedding <=> an.embedding))::float8 AS sim
@@ -856,7 +1416,7 @@ func (s *Service) getShowMoreBoost(ctx context.Context, userID string, artIDs, t
 			  AND NOT EXISTS (
 			      SELECT 1 FROM "ContentFeedback" cf
 			      WHERE cf."userId" = $1 AND cf."thoughtId" = p.id AND cf.type = 'SHOW_LESS')
-			GROUP BY p.id`, toUUID(userID), thIDs)
+			GROUP BY p.id`, toUUID(userID), thIDs, cfg.feedbackWindowDays)
 		if err == nil {
 			readSimMap(rows, out)
 		}
@@ -944,7 +1504,7 @@ func pickThoughts(ts []thoughtCandidate, ids []string) []thoughtCandidate {
 // Retourne deux maps id → score ∈ [0, 1] (0 = aucun signal récent, 1 = post
 // « chaud »). Une erreur de lecture → map vide : le feed continue, la
 // vélocité est un bonus, jamais un blocage.
-func (s *Service) getVelocityScores(ctx context.Context, artIDs, thIDs []string) (map[string]float64, map[string]float64) {
+func (s *Service) getVelocityScores(ctx context.Context, artIDs, thIDs []string, cfg engineConfig) (map[string]float64, map[string]float64) {
 	artVel := map[string]float64{}
 	thVel := map[string]float64{}
 
@@ -960,13 +1520,13 @@ func (s *Service) getVelocityScores(ctx context.Context, artIDs, thIDs []string)
 			           AND r."createdAt" > now() - make_interval(hours => $2)
 			           AND r."deletedAt" IS NULL) AS recent
 			FROM "Post" p
-			WHERE p.id = ANY($1::text[])`, thIDs, velWindowHours)
+			WHERE p.id = ANY($1::text[])`, thIDs, cfg.velWindowHours)
 		if err == nil {
 			for rows.Next() {
 				var id string
 				var recent float64
 				if rows.Scan(&id, &recent) == nil {
-					thVel[id] = math.Min(1.0, recent/velPostTarget)
+					thVel[id] = math.Min(1.0, recent/float64(cfg.velPostTarget))
 				}
 			}
 			rows.Close()
@@ -983,13 +1543,13 @@ func (s *Service) getVelocityScores(ctx context.Context, artIDs, thIDs []string)
 			FROM "ReadingSession" rs
 			WHERE rs."articleId" = ANY($1::text[])
 			  AND rs."createdAt" > now() - make_interval(hours => $2)
-			GROUP BY rs."articleId"`, artIDs, velWindowHours)
+			GROUP BY rs."articleId"`, artIDs, cfg.velWindowHours)
 		if err == nil {
 			for rows.Next() {
 				var id string
 				var recent float64
 				if rows.Scan(&id, &recent) == nil {
-					artVel[id] = math.Min(1.0, recent/velArticleTarget)
+					artVel[id] = math.Min(1.0, recent/float64(cfg.velArticleTarget))
 				}
 			}
 			rows.Close()
@@ -1043,7 +1603,7 @@ func pickExplorationRatio(signals int, coldRatio, warmRatio float64, minSignals 
 // articles portant ce tag. Inspiré du « non intéressé » de TikTok : 3
 // signalements = tout le milieu est dévalué pour cet utilisateur (dans le
 // pool ET le rerank), sans jamais être exclu — le feed reste non vide.
-func (s *Service) penalizedTags(ctx context.Context, userID string) map[string]bool {
+func (s *Service) penalizedTags(ctx context.Context, userID string, cfg engineConfig) map[string]bool {
 	out := map[string]bool{}
 	if userID == "" {
 		return out
@@ -1064,7 +1624,7 @@ func (s *Service) penalizedTags(ctx context.Context, userID string) map[string]b
 			WHERE rs."userId" = $1 AND rs.status = 'BOUNCE'
 		) t
 		GROUP BY t.tag
-		HAVING count(*) >= $2`, toUUID(userID), milieuPenaltyThreshold)
+		HAVING count(*) >= $2`, toUUID(userID), cfg.milieuThreshold)
 	if err != nil {
 		return out
 	}
@@ -1097,7 +1657,7 @@ func hasPenalizedTag(tags []string, penalized map[string]bool) bool {
 // milieuPenaltyFactor si l'item porte un des tags (opérateur && de
 // chevauchement d'arrays). tagCol est le nom de la colonne de tags de la
 // table interrogée ("semanticTags" pour Article, tags pour Post).
-func penalizedArray(penalized map[string]bool, ai int, tagCol string) ([]any, string) {
+func penalizedArray(penalized map[string]bool, ai int, tagCol string, factor float64) ([]any, string) {
 	if len(penalized) == 0 {
 		return nil, ""
 	}
@@ -1105,7 +1665,7 @@ func penalizedArray(penalized map[string]bool, ai int, tagCol string) ([]any, st
 	for t := range penalized {
 		tags = append(tags, t)
 	}
-	return []any{tags}, fmt.Sprintf(` * CASE WHEN %s && $%d::text[] THEN %.2f ELSE 1 END`, tagCol, ai, milieuPenaltyFactor)
+	return []any{tags}, fmt.Sprintf(` * CASE WHEN %s && $%d::text[] THEN %.2f ELSE 1 END`, tagCol, ai, factor)
 }
 
 // interleaveEngine mélange articles/pensées selon le mode circadien.
@@ -1173,7 +1733,7 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 		// (mesuré : pool gaming 18% au lieu de 92% en tri par sim pure).
 		// 🚫 Les items portant un tag rejeté sont dévalués (× milieuPenaltyFactor)
 		// sur TOUT le score de pool — jamais exclus : le feed reste non vide.
-		penArgs, penSQL := penalizedArray(penalized, ai, "\"semanticTags\"")
+		penArgs, penSQL := penalizedArray(penalized, ai, "\"semanticTags\"", cfg.milieuFactor)
 		args = append(args, penArgs...)
 		ai += len(penArgs)
 		q += fmt.Sprintf(` ORDER BY ((%.2f*(1 - (a."embedding" <=> $1::vector)) + %.2f*EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800) + %.2f*(0.70 + 0.30*a."completionRate"))%s) DESC LIMIT $%d OFFSET $%d`,
@@ -1181,14 +1741,16 @@ func (s *Service) fetchEngineArticles(ctx context.Context, vec *pgvector.Vector,
 		args = append(args, limit, offset)
 		rows, err = s.pool.Query(ctx, q, args...)
 	} else {
-		q := `
+		// Cold-start : similarité neutre (feed.cold_start_sim) faute d'embedding
+		// utilisateur ; l'ordre retombe sur fraîcheur + complétion.
+		q := fmt.Sprintf(`
 		SELECT a.id, a.title, a.content, a."readingTime", a."completionRate", a."authorId", a."publicationId", a."createdAt", COALESCE(a."semanticTags", '{}'),
-		       0.5::float8 AS sim,
+		       %.2f::float8 AS sim,
 		       EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800)::float8 AS fresh
 		FROM "Article" a JOIN "User" u ON u.id::text = a."authorId"::text
 		WHERE a.published = true AND u."isShadowbanned" = false AND u."isSuspended" = false
 		ORDER BY (0.50*EXP(-EXTRACT(EPOCH FROM (NOW() - a."createdAt"))/172800) + 0.50*(0.70 + 0.30*a."completionRate")) DESC
-		LIMIT $1 OFFSET $2`
+		LIMIT $1 OFFSET $2`, cfg.coldStartSim)
 		rows, err = s.pool.Query(ctx, q, limit, offset)
 	}
 	if err != nil {
@@ -1239,7 +1801,7 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 		}
 		// Pool sim-dominant (poids pilotables via feed.pool_*) + dévaluation des
 		// items portant un tag rejeté (jamais d'exclusion).
-		penArgs, penSQL := penalizedArray(penalized, ai, "tags")
+		penArgs, penSQL := penalizedArray(penalized, ai, "tags", cfg.milieuFactor)
 		args = append(args, penArgs...)
 		ai += len(penArgs)
 		q += fmt.Sprintf(` ORDER BY ((%.2f*(1 - (p."embedding" <=> $1::vector)) + %.2f*EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400) + %.2f*LEAST(1.0,(p."likeCount" + p."replyCount"*2 + p."repostCount"*2)/30.0))%s) DESC LIMIT $%d OFFSET $%d`,
@@ -1247,16 +1809,18 @@ func (s *Service) fetchEngineThoughts(ctx context.Context, vec *pgvector.Vector,
 		args = append(args, limit, offset)
 		rows, err = s.pool.Query(ctx, q, args...)
 	} else {
-		q := `
+		// Cold-start : similarité neutre (feed.cold_start_sim) faute d'embedding
+		// utilisateur ; l'ordre retombe sur fraîcheur + engagement.
+		q := fmt.Sprintf(`
 		SELECT p.id, p.content, p."authorId", p."createdAt", p."likeCount", p."replyCount", p."repostCount", COALESCE(p.tags, '{}'),
-		       0.5::float8 AS sim,
+		       %.2f::float8 AS sim,
 		       EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400)::float8 AS fresh
 		FROM "Post" p JOIN "User" u ON u.id = p."authorId"
 		WHERE p."parentId" IS NULL AND p."repostId" IS NULL AND p."deletedAt" IS NULL
 		  AND p."isDraft" = false AND p."isHiddenByAuthor" = false
 		  AND u."isShadowbanned" = false AND u."isSuspended" = false
 		ORDER BY (0.50*EXP(-EXTRACT(EPOCH FROM (NOW() - p."createdAt"))/86400) + 0.50*LEAST(1.0,(p."likeCount" + p."replyCount"*2 + p."repostCount"*2)/30.0)) DESC
-		LIMIT $1 OFFSET $2`
+		LIMIT $1 OFFSET $2`, cfg.coldStartSim)
 		rows, err = s.pool.Query(ctx, q, limit, offset)
 	}
 	if err != nil {
@@ -1321,7 +1885,7 @@ func (s *Service) explorationRatio(ctx context.Context, userID string) float64 {
 	return pickExplorationRatio(signals, cold, warm, minSignals)
 }
 
-func (s *Service) injectDiscovery(ctx context.Context, userID string, items []EngineItem, limit int) []EngineItem {
+func (s *Service) injectDiscovery(ctx context.Context, userID string, items []EngineItem, limit int, cfg engineConfig) []EngineItem {
 	ratio := s.explorationRatio(ctx, userID)
 	slots := int(math.Round(float64(limit) * ratio))
 	if slots <= 0 {
@@ -1355,7 +1919,7 @@ func (s *Service) injectDiscovery(ctx context.Context, userID string, items []En
 		WHERE published = true AND "completionRate" >= $1
 		  AND "publicationId" <> ALL($2::text[])
 		  AND "authorId"::text <> $3
-		ORDER BY "createdAt" DESC LIMIT $4`, explorationMinQuality, followed, userID, slots)
+		ORDER BY "createdAt" DESC LIMIT $4`, cfg.explorationMinQuality, followed, userID, slots)
 	if err != nil {
 		return items
 	}

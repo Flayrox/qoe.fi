@@ -22,7 +22,7 @@ func TestGetImpressionPenalties(t *testing.T) {
 	}
 
 	svc := newTestService()
-	pens := svc.getImpressionPenalties(ctx, readerID, []string{"eng_art_a", "eng_art_b"}, nil)
+	pens := svc.getImpressionPenalties(ctx, readerID, []string{"eng_art_a", "eng_art_b"}, nil, svc.loadEngineConfig(ctx))
 	if !pens["eng_art_a"] {
 		t.Fatalf("eng_art_a (3 impressions) doit être pénalisé: %v", pens)
 	}
@@ -31,11 +31,11 @@ func TestGetImpressionPenalties(t *testing.T) {
 	}
 
 	// Aucun item → no-op (aucune clé).
-	if p := svc.getImpressionPenalties(ctx, readerID, nil, nil); len(p) != 0 {
+	if p := svc.getImpressionPenalties(ctx, readerID, nil, nil, svc.loadEngineConfig(ctx)); len(p) != 0 {
 		t.Fatalf("sans items, penalties = %v, attendu vide", p)
 	}
 	// Utilisateur vide → no-op.
-	if p := svc.getImpressionPenalties(ctx, "", []string{"eng_art_a"}, nil); len(p) != 0 {
+	if p := svc.getImpressionPenalties(ctx, "", []string{"eng_art_a"}, nil, svc.loadEngineConfig(ctx)); len(p) != 0 {
 		t.Fatalf("userID vide, penalties = %v", p)
 	}
 }

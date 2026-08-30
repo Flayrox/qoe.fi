@@ -119,14 +119,17 @@ export function FeedSidebarWidgets({
           </div>
 
           <div className="space-y-4">
-            {suggestedCreators.slice(0, 4).map((creator) => {
+            {suggestedCreators.slice(0, 4).map((creator, idx) => {
               const isFollowedLocally = followedLocally.has(creator.id);
               const isJustFollowed = justFollowed === creator.id;
 
               return (
                 <div
                   key={creator.id}
-                  className="flex flex-col gap-2 p-2.5 rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors border border-border/30"
+                  className={cn(
+                    'flex flex-col gap-2 p-2.5 rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors border',
+                    idx === 0 ? 'border-primary/25 ring-1 ring-primary/10' : 'border-border/30'
+                  )}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <motion.button
@@ -232,26 +235,34 @@ export function FeedSidebarWidgets({
             </span>
           </div>
 
-          <div className="space-y-3">
-            {semanticTrends.map((topic) => (
+          <div className="space-y-1.5">
+            {semanticTrends.map((topic, idx) => (
               <div
                 key={topic.id}
                 onClick={() => onSelectTopic?.(topic.topicName)}
-                className="group flex items-center justify-between p-2 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer border border-transparent hover:border-border/30"
+                className="group flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/50 hover:border-primary/25 transition-colors cursor-pointer border border-transparent"
               >
-                <div className="min-w-0 pr-2">
+                <span
+                  className={cn(
+                    'flex items-center justify-center w-5 h-5 rounded-md text-[10px] font-bold shrink-0',
+                    idx < 3 ? 'bg-primary/10 text-primary' : 'bg-muted/40 text-muted-foreground'
+                  )}
+                >
+                  {idx + 1}
+                </span>
+                <div className="min-w-0 flex-1">
                   <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors block truncate">
                     {topic.topicName}
                   </span>
-                  <span className="text-[10px] text-muted-foreground block truncate">
+                  <span className="text-[10px] text-muted-foreground block truncate mt-0.5">
                     {topic.description || `${topic.count} réflexions & essais`}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[9px] font-medium text-success bg-success/10 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-semibold text-success bg-success/10 px-2 py-0.5 rounded-full whitespace-nowrap">
                     {topic.growthRate}
                   </span>
-                  <ArrowUpRight className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                  <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </div>
               </div>
             ))}

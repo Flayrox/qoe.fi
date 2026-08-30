@@ -298,8 +298,8 @@ func TestSeedRun(t *testing.T) {
 	if n := count(t, `SELECT COUNT(*) FROM "Category" WHERE "publicationId" = $1`, AdminPubID); n != 2 {
 		t.Fatalf("catégories = %d, attendu 2", n)
 	}
-	if n := count(t, `SELECT COUNT(*) FROM "SystemConfig"`); n != 18 {
-		t.Fatalf("systemConfigs = %d, attendu 18", n)
+	if n := count(t, `SELECT COUNT(*) FROM "SystemConfig"`); n != 18+len(DefaultEngineConfigs()) {
+		t.Fatalf("systemConfigs = %d, attendu %d (18 landing + catalogue moteur)", n, 18+len(DefaultEngineConfigs()))
 	}
 
 	// Idempotence : un second run ne crée pas de doublons.

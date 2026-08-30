@@ -143,6 +143,78 @@ func TestSuggestedCreatorsColdStart(t *testing.T) {
 	}
 }
 
+// TestSuggestedCreators_ThoughtOnly vérifie qu'un créateur SANS article publié
+// (pensées uniquement — plateforme pensées-dominante) apparaît bien dans les
+// recommandations : le moteur ne doit plus l'invisibiliser via son INNER JOIN
+// sur Article.
+func TestSuggestedCreators_ThoughtOnly(t *testing.T) {
+	ctx := context.Background()
+	seedHomeWidgets(t, ctx)
+	svc := newTestService()
+
+	const pubID = "pub_home_thought"
+	const authorID = "00000000-0000-0000-0000-0000000000cc"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Publication" (id, type, name, slug, "isCertified", "createdAt", "updatedAt")
+		 VALUES ($1, 'PERSONAL', 'Pensees-only', 'pensees-only', true, now(), now())`, pubID); err != nil {
+		t.Fatalf("publication: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
+		 VALUES ($1::uuid, 'thoughtonly@test.dev', 'thoughtonly', 'Pensees Only', 'creator', $2, now(), now())`,
+		authorID, pubID); err != nil {
+		t.Fatalf("user: %v", err)
+	}
+	// Pensées uniquement (pas d'article).
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt", tags, visibility,
+		                     "contentVisibility", "isDraft", "replyRestriction", "likeCount", "repostCount", "replyCount")
+		 VALUES ('post_thought_only', 'Une pensée profonde', $1::uuid, now(), now(), ARRAY['Philosophie']::text[],
+		         'public', 'PUBLIC', false, 'everyone', 12, 0, 1)`, authorID); err != nil {
+		t.Fatalf("post: %v", err)
+	}
+
+	// Cold-start : un auteur pensées-only (certifié) doit être recommandé.
+	creators, err := svc.GetSuggestedCreators(ctx, "", 8)
+	if err != nil {
+		t.Fatalf("cold-start thought-only: %v", err)
+	}
+	found := false
+	for _, c := range creators {
+		if c.Username == "thoughtonly" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("créateur pensées-only absent des recommandations: %+v", creators)
+	}
+
+	// Vectoriel aussi : l'auteur n'a pas d'embedding d'article → on retombe sur le
+	// fallback neutre (sim 0.5), il doit rester listé.
+	const readerID = "00000000-0000-0000-0000-0000000000dd"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt", "embedding")
+		 VALUES ($1, 'reader2@test.dev', 'reader2', 'L2', 'user', now(), now(),
+		         ('[' || array_to_string(array_fill(0.1::float8, ARRAY[512]), ',') || ']')::vector)`, readerID); err != nil {
+		t.Fatalf("reader2: %v", err)
+	}
+	creatorsVec, err := svc.GetSuggestedCreators(ctx, readerID, 8)
+	if err != nil {
+		t.Fatalf("vector thought-only: %v", err)
+	}
+	found = false
+	for _, c := range creatorsVec {
+		if c.Username == "thoughtonly" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("créateur pensées-only absent des recommandations vectorielles: %+v", creatorsVec)
+	}
+}
+
 func TestSuggestedCreatorsVector(t *testing.T) {
 	ctx := context.Background()
 	seedHomeWidgets(t, ctx)
@@ -171,11 +243,42 @@ func TestSuggestedCreatorsVector(t *testing.T) {
 	}
 }
 
+// TestSemanticTrends vérifie que les « sujets émergents » sont classés par
+// momentum d'ENGAGEMENT réel (événements horodatés) et non par comptage de
+// publications : un sujet densément lu depuis peu monte devant un sujet publié
+// mais peu consommé.
 func TestSemanticTrends(t *testing.T) {
 	ctx := context.Background()
 	seedHomeWidgets(t, ctx)
-	svc := newTestService()
+	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE "ReadingSession", "Like", "Post", "ContentFeedback" CASCADE`); err != nil {
+		t.Fatalf("truncate engagement: %v", err)
+	}
+	// Tags sémantiques des articles seedés (seedHomeWidgets n'en pose pas).
+	if _, err := poolTest.Exec(ctx,
+		`UPDATE "Article" SET "semanticTags" = ARRAY['Technologie'] WHERE id IN ('art_home_01','art_home_03');
+		 UPDATE "Article" SET "semanticTags" = ARRAY['Gastronomie'] WHERE id = 'art_home_04';`); err != nil {
+		t.Fatalf("set semanticTags: %v", err)
+	}
+	now := time.Now()
+	sevenDays := now.Add(-2 * 24 * time.Hour)
+	fourteenDays := now.Add(-10 * 24 * time.Hour)
+	addRead := func(art string, at time.Time) {
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "ReadingSession" (id, "articleId", "userId", source, status, "readingTimeMinutes", "createdAt")
+			 VALUES (gen_random_uuid()::text, $1, NULL, 'feed', 'READ_COMPLETE', 5, $2)`, art, at); err != nil {
+			t.Fatalf("read %s: %v", art, err)
+		}
+	}
+	// tech : 4 lectures récentes + 1 dans la fenêtre précédente → momentum fort
+	// (300 %) même si le nombre d'articles publiés n'a pas bougé.
+	for i := 0; i < 4; i++ {
+		addRead("art_home_01", sevenDays)
+	}
+	addRead("art_home_03", fourteenDays) // base prev7 de tech
+	// food : 1 seule lecture récente → précède? NON, momentum faible sans base.
+	addRead("art_home_04", sevenDays)
 
+	svc := newTestService()
 	trends, err := svc.GetSemanticTrends(ctx, 5)
 	if err != nil {
 		t.Fatalf("semantic-trends: %v", err)
@@ -183,12 +286,12 @@ func TestSemanticTrends(t *testing.T) {
 	if len(trends) == 0 {
 		t.Fatal("aucun trend")
 	}
-	// tech a 3 articles → en tête ; growthRate : 2 dans les 7j, 1 dans les 7j précédents.
+	// tech domine grâce à son momentum (pas à son nombre de publications).
 	if trends[0].TopicName != "Technologie" {
-		t.Fatalf("tech attendue en tête, got %s", trends[0].TopicName)
+		t.Fatalf("tech attendue en tête (momentum), got %s", trends[0].TopicName)
 	}
-	if trends[0].Count != 3 {
-		t.Fatalf("count tech = 3 attendu, got %d", trends[0].Count)
+	if trends[0].Count != 4 {
+		t.Fatalf("count tech = 4 attendu (4 lectures récentes), got %d", trends[0].Count)
 	}
 	if trends[0].GrowthRate == "" {
 		t.Fatal("growthRate vide")
