@@ -115,6 +115,8 @@ docker inspect supabase_auth_qoe.fi --format '{{range .Config.Env}}{{println .}}
 
 Redirect URI autorisée chez Google (local) : `http://localhost:54321/auth/v1/callback`.
 
+> En production, utiliser uniquement les callbacks HTTPS exacts du domaine public et laisser `skip_nonce_check = false`. Ne pas réutiliser les secrets OAuth locaux en production.
+
 ## 🔁 Différence prod / local (assumée)
 
 | | Local | Prod (VPS) |

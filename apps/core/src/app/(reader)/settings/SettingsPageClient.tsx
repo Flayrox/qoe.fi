@@ -16,6 +16,7 @@ import {
   KeyRound,
   Lock,
   LogOut,
+  ShieldCheck,
   Palette,
   Shield,
   Trash2,
@@ -24,6 +25,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { NotificationSettingsForm } from '@/components/notifications/NotificationSettingsForm';
+import SecuritySettings from './SecuritySettings';
 import {
   cancelAccountDeletionAction,
   changePasswordAction,
@@ -39,7 +41,7 @@ export type AccountSettingsData = Awaited<
   ReturnType<typeof import('./actions').getAccountSettingsAction>
 >;
 
-type SettingsSection = 'account' | 'notifications' | 'privacy' | 'appearance' | 'data';
+type SettingsSection = 'account' | 'notifications' | 'privacy' | 'appearance' | 'data' | 'security';
 
 // Libellés résolus au rendu pour suivre la langue active (tableau au module = figé).
 const sections: Array<{ id: SettingsSection; label: () => string; icon: typeof UserRound }> = [
@@ -48,6 +50,7 @@ const sections: Array<{ id: SettingsSection; label: () => string; icon: typeof U
   { id: 'privacy', label: () => t`Confidentialité`, icon: Shield },
   { id: 'appearance', label: () => t`Apparence & lecture`, icon: Palette },
   { id: 'data', label: () => t`Données & sécurité`, icon: Lock },
+  { id: 'security', label: () => t`Sécurité`, icon: ShieldCheck },
 ];
 
 const roleLabel = (role: string): string => {
@@ -236,7 +239,7 @@ export default function AccountSettingsPage({
     new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl gap-8 px-4 py-8 pb-24 md:px-8">
+    <main className="mx-auto flex w-full max-w-6xl gap-8 px-4 py-8 pb-32 md:px-8">
       <aside className="hidden w-56 shrink-0 md:block">
         <div className="sticky top-8 space-y-5">
           <div>
@@ -300,6 +303,8 @@ export default function AccountSettingsPage({
             <Check className="h-4 w-4" /> {message}
           </div>
         )}
+
+        {activeSection === 'security' && <SecuritySettings />}
 
         {activeSection === 'account' && (
           <SettingsPanel
@@ -643,6 +648,30 @@ export default function AccountSettingsPage({
         {isPending && (
           <p className="mt-4 text-center text-xs text-muted-foreground">{t`Enregistrement…`}</p>
         )}
+
+        <nav
+          aria-label={t`Navigation rapide des réglages`}
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 px-2 py-2 backdrop-blur md:hidden"
+        >
+          <div className="mx-auto flex max-w-2xl items-center justify-around gap-1">
+            {sections.map((section) => {
+              const Icon = section.icon;
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => navigateToSection(section.id)}
+                  aria-label={section.label()}
+                  aria-current={activeSection === section.id ? 'page' : undefined}
+                  className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[10px] ${activeSection === section.id ? 'bg-primary/10 font-semibold text-primary' : 'text-muted-foreground'}`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="max-w-full truncate">{section.label()}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
       </div>
     </main>
   );
