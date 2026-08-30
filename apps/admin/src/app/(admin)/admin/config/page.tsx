@@ -6,11 +6,59 @@ import {
 } from '@/lib/admin-aux-actions';
 
 export default async function AdminConfig() {
+  // Include the platform defaults in the editor so the admin can see and
+  // extend the complete denylist rather than unknowingly replacing it.
+  const defaultReservedSubdomains = [
+    'admin',
+    'api',
+    'app',
+    'auth',
+    'billing',
+    'blog',
+    'cdn',
+    'dashboard',
+    'dev',
+    'developer',
+    'developers',
+    'docs',
+    'download',
+    'email',
+    'feed',
+    'files',
+    'help',
+    'home',
+    'login',
+    'mail',
+    'main',
+    'media',
+    'metrics',
+    'onboarding',
+    'payments',
+    'portal',
+    'qoe',
+    'root',
+    'search',
+    'settings',
+    'staging',
+    'start',
+    'static',
+    'status',
+    'store',
+    'studio',
+    'support',
+    'system',
+    'uploads',
+    'web',
+    'www',
+  ];
   const [configs, reservedUsernames, reservedSubdomains] = await Promise.all([
     getSystemConfigs(),
     getReservedIdentifiers('username'),
     getReservedIdentifiers('subdomain'),
   ]);
+  const visibleReservedSubdomains = Array.from(
+    new Set([...defaultReservedSubdomains, ...reservedSubdomains])
+  );
 
   // Server Actions bound inside the component
   async function handleAddConfig(formData: FormData) {
@@ -128,7 +176,7 @@ export default async function AdminConfig() {
           {(
             [
               ['username', 'Usernames', reservedUsernames],
-              ['subdomain', 'Subdomains', reservedSubdomains],
+              ['subdomain', 'Subdomains', visibleReservedSubdomains],
             ] as const
           ).map(([kind, label, values]) => (
             <form key={kind} action={handleUpdateReserved} className="space-y-3">
