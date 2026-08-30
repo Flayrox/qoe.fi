@@ -331,6 +331,7 @@ var defaultReservedSubdomains = map[string]bool{
 	"www": true,
 }
 
+// Tenant subdomains are single DNS labels: dots are deliberately forbidden.
 var subdomainRegex = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
 // CheckSubdomain valide un sous-domaine et vérifie sa disponibilité.
@@ -354,8 +355,8 @@ func (s *Service) CheckSubdomain(ctx context.Context, subdomain string) (availab
 	// Subdomains intentionally keep their existing hyphenated syntax; only the
 	// protected-name source is shared with the admin configuration contract.
 	clean := strings.ToLower(strings.TrimSpace(subdomain))
-	if !subdomainRegex.MatchString(clean) {
-		return false, "Le sous-domaine ne doit contenir que des lettres minuscules, chiffres et tirets."
+	if !subdomainRegex.MatchString(clean) || strings.Contains(clean, ".") {
+		return false, "Le sous-domaine ne doit contenir que des lettres minuscules et des tirets, sans point."
 	}
 	if len(clean) < 3 || len(clean) > 30 {
 		return false, "La longueur doit être comprise entre 3 et 30 caractères."
