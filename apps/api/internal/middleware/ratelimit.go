@@ -4,6 +4,7 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -59,18 +60,22 @@ func RateLimit(name string, rc *redis.Client, window time.Duration, max int, sco
 	}
 }
 
-// clientIP extrait l'IP réelle (RealIP header si derrière un proxy).
+// clientIP extrait l'IP réelle. Le middleware doit être placé derrière un
+// proxy de confiance qui réécrit ces headers (ou utiliser chi.RealIP).
 func clientIP(r *http.Request) string {
 	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
 		parts := strings.Split(fwd, ",")
 		return strings.TrimSpace(parts[0])
 	}
-	if r.Header.Get("X-Real-IP") != "" {
-		return r.Header.Get("X-Real-IP")
+	if realIP := strings.TrimSpace(r.Header.Get("X-Real-IP")); realIP != "" {
+		return realIP
 	}
 	host := r.RemoteAddr
-	if i := strings.LastIndex(host, ":"); i != -1 {
-		return host[:i]
+	if host == "" {
+		return "unknown"
+	}
+	if parsedHost, _, err := net.SplitHostPort(host); err == nil {
+		return parsedHost
 	}
 	return host
 }

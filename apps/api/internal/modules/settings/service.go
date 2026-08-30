@@ -9,17 +9,18 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/permissions"
+	"github.com/qoefi/api/internal/shared/identifier"
 	"github.com/qoefi/api/internal/slug"
 )
 
@@ -332,7 +333,7 @@ var defaultReservedSubdomains = map[string]bool{
 }
 
 // Tenant subdomains are single DNS labels: dots are deliberately forbidden.
-var subdomainRegex = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+var subdomainRegex = identifier.SubdomainPattern
 
 // CheckSubdomain valide un sous-domaine et vérifie sa disponibilité.
 func isReservedIdentifier(ctx context.Context, pool pooler, kind, value string) (bool, error) {
@@ -354,8 +355,8 @@ func isReservedIdentifier(ctx context.Context, pool pooler, kind, value string) 
 func (s *Service) CheckSubdomain(ctx context.Context, subdomain string) (available bool, reason string) {
 	// Subdomains intentionally keep their existing hyphenated syntax; only the
 	// protected-name source is shared with the admin configuration contract.
-	clean := strings.ToLower(strings.TrimSpace(subdomain))
-	if !subdomainRegex.MatchString(clean) || strings.Contains(clean, ".") {
+	clean := identifier.NormalizeSubdomain(subdomain)
+	if !identifier.ValidSubdomain(clean) || strings.Contains(clean, ".") {
 		return false, "Le sous-domaine ne doit contenir que des lettres minuscules et des tirets, sans point."
 	}
 	if len(clean) < 3 || len(clean) > 30 {
@@ -386,14 +387,28 @@ func (s *Service) UpdateSubdomain(ctx context.Context, userID, publicationID, su
 	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
 		return err
 	}
-	available, reason := s.CheckSubdomain(ctx, subdomain)
+	clean := strings.ToLower(strings.TrimSpace(subdomain))
+	available, reason := s.CheckSubdomain(ctx, clean)
 	if !available {
 		return errors.New(reason)
 	}
-	return s.q.UpdatePublicationSubdomain(ctx, db.UpdatePublicationSubdomainParams{
+	if err := s.q.UpdatePublicationSubdomain(ctx, db.UpdatePublicationSubdomainParams{
 		ID:        publicationID,
-		Subdomain: pgtype.Text{String: strings.ToLower(strings.TrimSpace(subdomain)), Valid: true},
-	})
+		Subdomain: pgtype.Text{String: clean, Valid: true},
+	}); err != nil {
+		// The database unique index is authoritative under concurrent requests.
+		// Do not leak a driver error or turn a race into a 500.
+		if isUniqueViolation(err) {
+			return errors.New("Ce sous-domaine est déjà attribué à une autre publication.")
+		}
+		return err
+	}
+	return nil
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
 // NavigationLink est un lien de navigation du studio.
