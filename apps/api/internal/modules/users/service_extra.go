@@ -170,6 +170,9 @@ func safeProvisionedUsername(email, username string) string {
 			}
 			return -1
 		}, candidate))
+		if len(candidate) > 24 {
+			candidate = candidate[:24]
+		}
 	}
 	if !identifier.ValidUsername(candidate) || identifier.IsReserved(candidate) {
 		candidate = "user"
