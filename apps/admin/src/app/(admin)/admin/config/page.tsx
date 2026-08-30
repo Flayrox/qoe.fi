@@ -1,8 +1,16 @@
-import { getSystemConfigs } from '@/lib/admin-data';
-import { setSystemConfigAction, deleteSystemConfigAction } from '@/lib/admin-aux-actions';
+import { getReservedIdentifiers, getSystemConfigs } from '@/lib/admin-data';
+import {
+  setSystemConfigAction,
+  deleteSystemConfigAction,
+  updateReservedIdentifiersAction,
+} from '@/lib/admin-aux-actions';
 
 export default async function AdminConfig() {
-  const configs = await getSystemConfigs();
+  const [configs, reservedUsernames, reservedSubdomains] = await Promise.all([
+    getSystemConfigs(),
+    getReservedIdentifiers('username'),
+    getReservedIdentifiers('subdomain'),
+  ]);
 
   // Server Actions bound inside the component
   async function handleAddConfig(formData: FormData) {
@@ -31,6 +39,16 @@ export default async function AdminConfig() {
       value: value.trim(),
       description: description?.trim(),
     });
+  }
+
+  async function handleUpdateReserved(formData: FormData) {
+    'use server';
+    const kind = formData.get('kind') as 'username' | 'subdomain';
+    const values = String(formData.get('values') || '')
+      .split(/[\\n,\\r ]+/)
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+    await updateReservedIdentifiersAction(kind, values);
   }
 
   async function handleDeleteConfig(formData: FormData) {
@@ -95,6 +113,46 @@ export default async function AdminConfig() {
           </div>
         </form>
       </div>
+
+      {/* Protected identifiers are edited as a dedicated allowlisted setting,
+          not as arbitrary feature-flag text. The API validates the kind and
+          still keeps hard-coded route protections as a final safety net. */}
+      <section className="space-y-5 border-y border-border py-8">
+        <div>
+          <h2 className="text-xl font-semibold">Protected identifiers</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            One username or subdomain per line. Matching is case-insensitive.
+          </p>
+        </div>
+        <div className="grid gap-8 md:grid-cols-2">
+          {(
+            [
+              ['username', 'Usernames', reservedUsernames],
+              ['subdomain', 'Subdomains', reservedSubdomains],
+            ] as const
+          ).map(([kind, label, values]) => (
+            <form key={kind} action={handleUpdateReserved} className="space-y-3">
+              <input type="hidden" name="kind" value={kind} />
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium">{label}</span>
+                <textarea
+                  name="values"
+                  defaultValue={values.join('\\n')}
+                  rows={8}
+                  className="w-full rounded-lg border border-border bg-transparent px-3 py-2 font-mono text-sm"
+                  aria-label={`${label} protégés`}
+                />
+              </label>
+              <button
+                type="submit"
+                className="rounded-lg bg-secondary px-3 py-1.5 text-sm font-medium hover:bg-border"
+              >
+                Save {label.toLowerCase()}
+              </button>
+            </form>
+          ))}
+        </div>
+      </section>
 
       {/* Feature Flags Table */}
       <div className="w-full">

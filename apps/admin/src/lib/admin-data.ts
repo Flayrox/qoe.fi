@@ -163,6 +163,11 @@ export async function getAdminWidgets(): Promise<AdminWidgets> {
 }
 
 /** 🚩 Config système (toutes ou filtrée par clés — page config / frontend / traductions). */
+export async function getReservedIdentifiers(kind: 'username' | 'subdomain'): Promise<string[]> {
+  const configs = await getSystemConfigs([`RESERVED_${kind.toUpperCase()}S`]);
+  return (configs[0]?.value ?? '').split(/[\\n,\\r ]+/).filter(Boolean);
+}
+
 export async function getSystemConfigs(keys?: string[]): Promise<SystemConfigItem[]> {
   const qs = keys && keys.length > 0 ? `?keys=${encodeURIComponent(keys.join(','))}` : '';
   return goFetch<SystemConfigItem[]>(`/v1/admin/config${qs}`);

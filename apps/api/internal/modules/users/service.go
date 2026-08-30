@@ -156,7 +156,10 @@ type ReaderProfile struct {
 	IsMediaMember          bool    `json:"isMediaMember"`
 }
 
-var usernamePattern = regexp.MustCompile(`^[a-z0-9_]{3,30}$`)
+// Usernames are stable public identifiers: ASCII lowercase letters, digits,
+// underscores and dots only. Keeping the rule here (rather than in the UI)
+// makes every client and import path obey the same contract.
+var usernamePattern = regexp.MustCompile(`^[a-z0-9_.]{3,24}$`)
 
 // Profile retourne le profil lecteur complet (id = sub du JWT Supabase).
 func (s *Service) Profile(ctx context.Context, userID string) (*ReaderProfile, error) {
@@ -206,12 +209,19 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, name, username, onb
 	}
 
 	if username != "" && !usernamePattern.MatchString(username) {
-		return nil, errors.New("Le nom d'utilisateur doit contenir 3 à 30 caractères : lettres, chiffres ou _.")
+		return nil, errors.New("Le nom d'utilisateur doit contenir 3 à 24 caractères : lettres minuscules, chiffres, _ ou .")
 	}
 	if username != "" {
+		reserved, err := isReservedIdentifier(ctx, s.pool, "username", username)
+		if err != nil {
+			return nil, err
+		}
+		if reserved {
+			return nil, errors.New("Ce nom d'utilisateur est réservé.")
+		}
 		var exists bool
 		if err := s.pool.QueryRow(ctx,
-			`SELECT EXISTS(SELECT 1 FROM "User" WHERE username = $1 AND id <> $2)`,
+			`SELECT EXISTS(SELECT 1 FROM "User" WHERE lower(username) = lower($1) AND id <> $2)`,
 			username, toUUID(userID)).Scan(&exists); err != nil {
 			return nil, err
 		}
@@ -229,6 +239,25 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, name, username, onb
 		return nil, err
 	}
 	return s.Profile(ctx, userID)
+}
+
+// isReservedIdentifier reads the admin-managed denylist from SystemConfig.
+// Values are newline- or comma-separated and compared case-insensitively.
+// A missing key falls back to the platform's minimal route denylist.
+func isReservedIdentifier(ctx context.Context, pool pooler, kind, value string) (bool, error) {
+	var raw string
+	err := pool.QueryRow(ctx, `SELECT value FROM "SystemConfig" WHERE key = $1`, "RESERVED_"+strings.ToUpper(kind)+"S").Scan(&raw)
+	if errors.Is(err, pgx.ErrNoRows) {
+		raw = "admin,api,app,auth,billing,docs,feed,home,login,settings,studio,www"
+	} else if err != nil {
+		return false, err
+	}
+	for _, item := range strings.FieldsFunc(strings.ToLower(raw), func(r rune) bool { return r == ',' || r == '\n' || r == '\r' || r == ' ' }) {
+		if item == strings.ToLower(value) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // ── Billing lecteur (GET /v1/me/billing) ─────────────────────────────────
@@ -250,8 +279,8 @@ type BillingPublication struct {
 
 // BillingSubscription est un abonnement premium actif du lecteur.
 type BillingSubscription struct {
-	ID          string               `json:"id"`
-	Publication *BillingPublication  `json:"publication"`
+	ID          string              `json:"id"`
+	Publication *BillingPublication `json:"publication"`
 }
 
 // BillingData est la réponse de GET /v1/me/billing : portefeuille +
@@ -530,7 +559,7 @@ func fallbackMockEmbedding(text string, interests []string) []float32 {
 	vec := make([]float32, dims)
 	for i := 0; i < dims; i++ {
 		x := math.Sin(float64(hash)+float64(i)) * 10000
-		v := (x - math.Floor(x)) * 2 - 1
+		v := (x-math.Floor(x))*2 - 1
 		vec[i] = float32(v)
 	}
 	return vec
