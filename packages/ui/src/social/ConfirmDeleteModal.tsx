@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { t } from '@lingui/core/macro';
 import { Trash2, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 
@@ -18,10 +19,10 @@ export function ConfirmDeleteModal({
   isOpen,
   onClose,
   onConfirm,
-  title = 'Supprimer cette pensée ?',
-  description = 'Cette action est irréversible. La pensée et ses interactions seront définitivement retirées de la plateforme.',
-  confirmLabel = 'Supprimer',
-  cancelLabel = 'Annuler',
+  title = t`Supprimer cette pensée ?`,
+  description = t`Cette action est irréversible. La pensée et ses interactions seront définitivement retirées de la plateforme.`,
+  confirmLabel = t`Supprimer`,
+  cancelLabel = t`Annuler`,
 }: ConfirmDeleteModalProps) {
   const [pending, setPending] = useState(false);
 

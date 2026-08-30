@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { t } from '@lingui/core/macro';
 import { Command } from 'cmdk';
 import { Search } from 'lucide-react';
 
@@ -106,7 +107,7 @@ export function CmdKList({
   return (
     <Command.List className="max-h-[300px] overflow-y-auto p-2 custom-scrollbar space-y-2">
       <Command.Empty className="text-center py-6 text-muted-foreground text-xs font-medium">
-        {emptyText || 'Aucun résultat trouvé.'}
+        {emptyText || t`Aucun résultat trouvé.`}
       </Command.Empty>
       {children}
     </Command.List>

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { t } from '@lingui/core/macro';
 import { X, ChevronLeft, ChevronRight, Download, Info } from 'lucide-react';
 
 export interface MediaLightboxImage {
@@ -98,7 +99,7 @@ export function MediaLightbox({ isOpen, images, initialIndex = 0, onClose }: Med
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-white/10 hover:bg-white/20 text-white'
                 }`}
-                title="Afficher la description (Alt-Text)"
+                title={t`Afficher la description (Alt-Text)`}
               >
                 <Info className="w-4 h-4" />
               </button>
@@ -108,7 +109,7 @@ export function MediaLightbox({ isOpen, images, initialIndex = 0, onClose }: Med
               type="button"
               onClick={handleDownload}
               className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
-              title="Télécharger l'image"
+              title={t`Télécharger l'image`}
             >
               <Download className="w-4 h-4" />
             </button>
@@ -117,7 +118,7 @@ export function MediaLightbox({ isOpen, images, initialIndex = 0, onClose }: Med
               type="button"
               onClick={onClose}
               className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
-              title="Fermer (Échap)"
+              title={t`Fermer (Échap)`}
             >
               <X className="w-5 h-5" />
             </button>
@@ -133,7 +134,7 @@ export function MediaLightbox({ isOpen, images, initialIndex = 0, onClose }: Med
               handlePrev();
             }}
             className="absolute left-4 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all transform hover:scale-105 cursor-pointer backdrop-blur-md"
-            title="Image précédente (Flèche gauche)"
+            title={t`Image précédente (Flèche gauche)`}
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
@@ -151,7 +152,7 @@ export function MediaLightbox({ isOpen, images, initialIndex = 0, onClose }: Med
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             src={currentImage.url}
-            alt={currentImage.alt || 'Aperçu média qoe.fi'}
+            alt={currentImage.alt || t`Aperçu média qoe.fi`}
             className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
           />
 
@@ -178,7 +179,7 @@ export function MediaLightbox({ isOpen, images, initialIndex = 0, onClose }: Med
               handleNext();
             }}
             className="absolute right-4 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all transform hover:scale-105 cursor-pointer backdrop-blur-md"
-            title="Image suivante (Flèche droite)"
+            title={t`Image suivante (Flèche droite)`}
           >
             <ChevronRight className="w-6 h-6" />
           </button>

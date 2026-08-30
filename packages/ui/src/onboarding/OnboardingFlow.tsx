@@ -79,11 +79,11 @@ const getGenderOptions = () => [
 
 const getAgeRangeOptions = () => [
   { value: 'UNDER_18', label: t`Moins de 18 ans` },
-  { value: 'AGE_18_24', label: '18-24 ans' },
-  { value: 'AGE_25_34', label: '25-34 ans' },
-  { value: 'AGE_35_44', label: '35-44 ans' },
-  { value: 'AGE_45_54', label: '45-54 ans' },
-  { value: 'AGE_55_64', label: '55-64 ans' },
+  { value: 'AGE_18_24', label: t`18-24 ans` },
+  { value: 'AGE_25_34', label: t`25-34 ans` },
+  { value: 'AGE_35_44', label: t`35-44 ans` },
+  { value: 'AGE_45_54', label: t`45-54 ans` },
+  { value: 'AGE_55_64', label: t`55-64 ans` },
   { value: 'AGE_65_PLUS', label: t`65 ans et +` },
   { value: 'PREFER_NOT_TO_SAY', label: t`Préfère ne pas dire` },
 ];
@@ -235,7 +235,7 @@ export function OnboardingFlow({
         router.refresh();
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur lors de la configuration.';
+      const message = err instanceof Error ? err.message : t`Erreur lors de la configuration.`;
       setError(message);
       setLoading(false);
     }
@@ -411,7 +411,7 @@ export function OnboardingFlow({
                       onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
                         setBio(e.target.value)
                       }
-                      placeholder="ex: Je souhaite suivre l'indépendance technologique européenne, les essais philosophiques sur l'attention et des enquêtes économiques..."
+                      placeholder={t`ex: Je souhaite suivre l'indépendance technologique européenne, les essais philosophiques sur l'attention et des enquêtes économiques...`}
                       rows={3}
                       className="w-full rounded-2xl bg-muted/40 border border-border text-xs resize-none p-3.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#EE4B2B]"
                     />
@@ -423,7 +423,7 @@ export function OnboardingFlow({
                         {t`Créateurs suggérés d'après vos choix`}
                       </span>
                       <span className="text-[10px] text-muted-foreground font-sans font-medium">
-                        {followedCreators.length} suivi(s)
+                        {t`${followedCreators.length} suivi(s)`}
                       </span>
                     </div>
 
@@ -445,13 +445,13 @@ export function OnboardingFlow({
                                 {creator.logoUrl ? (
                                   <Image
                                     src={creator.logoUrl}
-                                    alt={creator.name || 'Creator'}
+                                    alt={creator.name || t`Creator`}
                                     fill
                                     className="object-cover"
                                   />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center font-bold text-xs font-sans">
-                                    {creator.name?.charAt(0) || 'C'}
+                                    {creator.name?.charAt(0) || t`C`}
                                   </div>
                                 )}
                               </div>
@@ -530,7 +530,7 @@ export function OnboardingFlow({
                       <Input
                         value={mutedInput}
                         onChange={(e) => setMutedInput(e.target.value)}
-                        placeholder="ex: télé-réalité, spoils, etc."
+                        placeholder={t`ex: télé-réalité, spoils, etc.`}
                         className="rounded-xl bg-muted/40 border-border text-xs h-10"
                       />
                       <Button
@@ -601,7 +601,7 @@ export function OnboardingFlow({
                     <Input
                       value={pronouns}
                       onChange={(e) => setPronouns(e.target.value)}
-                      placeholder="ex: iel, il/lui, elle, they/them"
+                      placeholder={t`ex: iel, il/lui, elle, they/them`}
                       className="rounded-xl bg-muted/40 border-border text-xs h-9"
                     />
                   </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { t } from '@lingui/core/macro';
 import { cn } from '@qoe/utils';
 import { MoreHorizontal, Pin, Flag, EyeOff, Eye, Ban, Copy, Trash2 } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
@@ -75,7 +76,7 @@ export function ThoughtHeader({
               isFocus ? 'text-sm sm:text-base' : 'text-xs sm:text-sm'
             )}
           >
-            {author.name || 'Auteur'}
+            {author.name || t`Auteur`}
           </span>
         </ProfileHoverCard>
 
@@ -113,7 +114,7 @@ export function ThoughtHeader({
                 : 'bg-brand text-brand-foreground hover:bg-brand/90'
             )}
           >
-            {isFollowingAuthor ? 'Abonné' : 'Suivre'}
+            {isFollowingAuthor ? t`Abonné` : t`Suivre`}
           </button>
         )}
 
@@ -124,7 +125,7 @@ export function ThoughtHeader({
               <button
                 type="button"
                 className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center justify-center outline-none"
-                title="Options"
+                title={t`Options`}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -150,7 +151,7 @@ export function ThoughtHeader({
                 className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer font-medium"
               >
                 <Copy className="w-3.5 h-3.5" />
-                <span>Copier le texte</span>
+                <span>{t`Copier le texte`}</span>
               </button>
             )}
 
@@ -166,7 +167,7 @@ export function ThoughtHeader({
                 className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer font-medium"
               >
                 <Copy className="w-3.5 h-3.5" />
-                <span>Copier le lien</span>
+                <span>{t`Copier le lien`}</span>
               </button>
             )}
 
@@ -180,7 +181,7 @@ export function ThoughtHeader({
                 className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer font-medium"
               >
                 <Pin className="w-3.5 h-3.5 rotate-45" />
-                <span>{isPinned ? 'Désépingler' : 'Épingler'}</span>
+                <span>{isPinned ? t`Désépingler` : t`Épingler`}</span>
               </button>
             )}
 
@@ -198,7 +199,9 @@ export function ThoughtHeader({
                 ) : (
                   <EyeOff className="w-3.5 h-3.5" />
                 )}
-                <span>{isHiddenByAuthor ? 'Afficher cette réponse' : 'Masquer cette réponse'}</span>
+                <span>
+                  {isHiddenByAuthor ? t`Afficher cette réponse` : t`Masquer cette réponse`}
+                </span>
               </button>
             )}
 
@@ -212,7 +215,7 @@ export function ThoughtHeader({
                 className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Supprimer</span>
+                <span>{t`Supprimer`}</span>
               </button>
             )}
 
@@ -227,7 +230,7 @@ export function ThoughtHeader({
               >
                 <Ban className="w-3.5 h-3.5" />
                 <span>
-                  {isBlocked ? 'Débloquer' : 'Bloquer'} @{authorHandle}
+                  {isBlocked ? t`Débloquer` : t`Bloquer`} @{authorHandle}
                 </span>
               </button>
             )}
@@ -242,7 +245,7 @@ export function ThoughtHeader({
                 className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted/40 transition-colors flex items-center gap-2 cursor-pointer font-medium"
               >
                 <EyeOff className="w-3.5 h-3.5" />
-                <span>Voir moins de contenu comme ça</span>
+                <span>{t`Voir moins de contenu comme ça`}</span>
               </button>
             )}
 
@@ -256,7 +259,7 @@ export function ThoughtHeader({
                 className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-highlight hover:bg-highlight/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
               >
                 <Flag className="w-3.5 h-3.5" />
-                <span>Signaler</span>
+                <span>{t`Signaler`}</span>
               </button>
             )}
           </PopoverContent>

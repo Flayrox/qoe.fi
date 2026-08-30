@@ -11,13 +11,14 @@ import { CheckCheck, BellOff, Loader2, ChevronDown } from 'lucide-react';
 import { NotificationItem } from './NotificationItem';
 import { useRealtimeNotificationSync } from './useRealtimeNotificationSync';
 import { cn } from '@qoe/utils';
+import { t } from '@lingui/core/macro';
 
 const TABS: Array<{ id: NotificationFilter; label: string }> = [
-  { id: 'all', label: 'Toutes' },
-  { id: 'mentions', label: 'Mentions' },
-  { id: 'replies', label: 'Réponses' },
-  { id: 'likes', label: "J'aime" },
-  { id: 'collaborations', label: 'Collaborations' },
+  { id: 'all', label: t`Toutes` },
+  { id: 'mentions', label: t`Mentions` },
+  { id: 'replies', label: t`Réponses` },
+  { id: 'likes', label: t`J'aime` },
+  { id: 'collaborations', label: t`Collaborations` },
 ];
 
 export function NotificationList() {
@@ -98,10 +99,10 @@ export function NotificationList() {
           onClick={handleMarkAllRead}
           disabled={isMarkingRead}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors shrink-0 cursor-pointer"
-          title="Tout marquer comme lu"
+          title={t`Tout marquer comme lu`}
         >
           <CheckCheck className="size-3.5 text-primary" strokeWidth={1.5} />
-          <span className="hidden sm:inline">Tout marquer comme lu</span>
+          <span className="hidden sm:inline">{t`Tout marquer comme lu`}</span>
         </button>
       </div>
 
@@ -109,7 +110,7 @@ export function NotificationList() {
       {isLoading ? (
         <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
           <Loader2 className="size-6 animate-spin mb-2 text-primary" />
-          <p className="text-sm">Chargement de vos notifications...</p>
+          <p className="text-sm">{t`Chargement de vos notifications...`}</p>
         </div>
       ) : notifications.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-16 text-center text-muted-foreground">
@@ -117,12 +118,12 @@ export function NotificationList() {
             <BellOff className="size-8 text-muted-foreground/60" strokeWidth={1.5} />
           </div>
           <h3 className="font-semibold text-foreground text-base mb-1">
-            Aucune notification pour le moment
+            {t`Aucune notification pour le moment`}
           </h3>
           <p className="text-sm max-w-xs text-muted-foreground">
             {filter === 'all'
-              ? "Lorsque d'autres membres aimeront vos pensées, vous répondront ou s'abonneront, les alertes apparaîtront ici."
-              : `Aucune notification de type "${filter}" trouvée.`}
+              ? t`Lorsque d'autres membres aimeront vos pensées, vous répondront ou s'abonneront, les alertes apparaîtront ici.`
+              : t`Aucune notification de type "${filter}" trouvée.`}
           </p>
         </div>
       ) : (
@@ -146,7 +147,7 @@ export function NotificationList() {
             ) : (
               <ChevronDown className="size-3.5" strokeWidth={1.5} />
             )}
-            Charger plus
+            {t`Charger plus`}
           </button>
         </div>
       )}

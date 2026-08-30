@@ -34,6 +34,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
+import { t } from '@lingui/core/macro';
 import { SafeImage } from '../SafeImage';
 
 export interface LightboxImageItem {
@@ -238,7 +239,7 @@ export function ZoomableLightbox({
                 onClick={zoomOut}
                 disabled={scale <= 1}
                 className="p-1.5 rounded-full text-white hover:bg-white/15 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
-                title="Dézoomer (-)"
+                title={t`Dézoomer (-)`}
               >
                 <ZoomOut className="w-4 h-4" />
               </button>
@@ -246,7 +247,7 @@ export function ZoomableLightbox({
                 type="button"
                 onClick={resetZoom}
                 className="px-2 py-1 text-xs font-medium text-white/80 hover:text-white transition-colors cursor-pointer"
-                title="Taille normale (0)"
+                title={t`Taille normale (0)`}
               >
                 <RotateCcw className="w-3.5 h-3.5" />
               </button>
@@ -255,7 +256,7 @@ export function ZoomableLightbox({
                 onClick={zoomIn}
                 disabled={scale >= 4}
                 className="p-1.5 rounded-full text-white hover:bg-white/15 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
-                title="Zoomer (+)"
+                title={t`Zoomer (+)`}
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
@@ -282,7 +283,7 @@ export function ZoomableLightbox({
               type="button"
               onClick={handleCopyLink}
               className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-colors cursor-pointer"
-              title="Copier le lien de l'image"
+              title={t`Copier le lien de l'image`}
             >
               {isCopied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
             </button>
@@ -292,7 +293,7 @@ export function ZoomableLightbox({
               type="button"
               onClick={handleDownload}
               className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-colors cursor-pointer"
-              title="Télécharger l'image HD"
+              title={t`Télécharger l'image HD`}
             >
               <Download className="w-4 h-4" />
             </button>
@@ -302,7 +303,7 @@ export function ZoomableLightbox({
               type="button"
               onClick={onClose}
               className="p-2.5 rounded-full bg-white/15 hover:bg-white/25 text-white border border-white/10 transition-colors cursor-pointer ml-1"
-              title="Fermer (Échap)"
+              title={t`Fermer (Échap)`}
             >
               <X className="w-5 h-5" />
             </button>
@@ -318,7 +319,7 @@ export function ZoomableLightbox({
               handlePrev();
             }}
             className="absolute left-4 z-20 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all transform hover:scale-105 cursor-pointer backdrop-blur-md"
-            title="Image précédente (Flèche gauche)"
+            title={t`Image précédente (Flèche gauche)`}
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
@@ -356,7 +357,7 @@ export function ZoomableLightbox({
           >
             <SafeImage
               src={currentImage.url}
-              alt={currentImage.alt || 'Aperçu média qoe.fi'}
+              alt={currentImage.alt || t`Aperçu média qoe.fi`}
               width={currentImage.width || 1920}
               height={currentImage.height || 1080}
               unoptimized
@@ -374,7 +375,7 @@ export function ZoomableLightbox({
                 className="absolute bottom-16 left-6 right-6 sm:left-auto sm:right-6 sm:max-w-md p-4 rounded-2xl bg-black/85 text-white/90 text-sm leading-relaxed border border-white/15 backdrop-blur-xl max-h-48 overflow-y-auto shadow-2xl z-20"
               >
                 <div className="font-semibold text-primary mb-1 flex items-center gap-1.5">
-                  <Info className="w-4 h-4" /> Description de l’image
+                  <Info className="w-4 h-4" /> {t`Description de l’image`}
                 </div>
                 <p className="text-white/80">{currentImage.alt}</p>
               </motion.div>
@@ -391,7 +392,7 @@ export function ZoomableLightbox({
               handleNext();
             }}
             className="absolute right-4 z-20 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all transform hover:scale-105 cursor-pointer backdrop-blur-md"
-            title="Image suivante (Flèche droite)"
+            title={t`Image suivante (Flèche droite)`}
           >
             <ChevronRight className="w-6 h-6" />
           </button>

@@ -280,7 +280,7 @@ export function Sidebar({
   onLogout,
   primaryAction,
   onSearchChange,
-  searchPlaceholder = 'Rechercher...',
+  searchPlaceholder = t`Rechercher...`,
   className,
   children,
 }: SidebarProps) {
@@ -366,7 +366,7 @@ export function Sidebar({
         )}
       >
         <nav
-          aria-label="Navigation principale"
+          aria-label={t`Navigation principale`}
           className={cn(
             'h-full flex flex-col justify-between p-4 rounded-[18px] relative overflow-hidden',
             'bg-sidebar backdrop-blur-[25px] saturate-[180%] border border-sidebar-border shadow-xl text-sidebar-foreground'
@@ -481,13 +481,13 @@ export function Sidebar({
                       'w-full flex items-center gap-2.5 p-1.5 rounded-[12px] transition-colors outline-none',
                       'hover:bg-sidebar-accent/60 text-sidebar-foreground'
                     )}
-                    aria-label="Menu compte"
+                    aria-label={t`Menu compte`}
                   >
                     <span className="w-7 h-7 rounded-full bg-sidebar-primary/10 text-sidebar-primary font-bold text-xs flex items-center justify-center shrink-0 border border-sidebar-primary/20 overflow-hidden">
                       {userAvatar ? (
                         <img
                           src={userAvatar}
-                          alt={userName || 'Utilisateur'}
+                          alt={userName || t`Utilisateur`}
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -496,7 +496,7 @@ export function Sidebar({
                     </span>
                     <div className="flex-1 text-left truncate min-w-0">
                       <span className="text-xs font-semibold block leading-tight truncate">
-                        {userName || 'Créateur'}
+                        {userName || t`Créateur`}
                       </span>
                       {userEmail && (
                         <span className="text-[11px] text-muted-foreground block truncate leading-tight mt-0.5">
@@ -520,7 +520,7 @@ export function Sidebar({
                       >
                         <div className="px-2.5 py-2 mb-1 border-b border-sidebar-border/60">
                           <span className="font-semibold text-xs block leading-tight truncate">
-                            {userName || 'Créateur'}
+                            {userName || t`Créateur`}
                           </span>
                           {userEmail && (
                             <span className="text-[10px] text-muted-foreground block truncate mt-0.5">
@@ -535,7 +535,7 @@ export function Sidebar({
                           onClick={() => setIsAccountOpen(false)}
                         >
                           <User className="w-4 h-4" />
-                          <span>Mon Compte Personnel</span>
+                          <span>{t`Mon Compte Personnel`}</span>
                         </a>
 
                         <Link

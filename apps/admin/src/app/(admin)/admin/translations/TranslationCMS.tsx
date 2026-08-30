@@ -33,11 +33,38 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
   const [isPending, startTransition] = useTransition();
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [showModal, setShowModal] = useState(false);
+  const [showUntranslatedOnly, setShowUntranslatedOnly] = useState(false);
 
   // Get all unique keys from French (primary) and English
   const allKeys = Array.from(
     new Set([...Object.keys(defaultFr), ...Object.keys(defaultEn)])
   ).sort();
+
+  // Détection automatique des clés non traduites : une clé est considérée
+  // comme « à traduire » quand la version anglaise est absente, ou quand elle
+  // est identique au français sans être un mot neutre court (marque, chiffre).
+  // Une surcharge EN non vide compte comme traduction fournie par l'admin.
+  const isKeyTranslated = (key: string): boolean => {
+    const frVal = defaultFr[key] || '';
+    const enVal = defaultEn[key] || '';
+    const enOverride = overrides.en?.[key] || '';
+    if (!frVal.trim()) return true; // pas de source → rien à traduire
+    if (enOverride.trim()) return true; // surcharge admin fournie
+    if (!enVal.trim()) return false; // clé EN manquante
+    if (enVal === frVal) {
+      // Valeur identique : suspicion de copier-coller, sauf mot neutre court
+      // (ex. "Articles", "Premium", "MRR") ou valeur sans lettre.
+      const words = frVal.trim().split(/\s+/);
+      const hasAccent = /[àâçéèêëîïôöùûüÿœ]/.test(frVal);
+      const hasLetter = /[a-zA-Z]/.test(frVal);
+      if (!hasLetter) return true;
+      return words.length === 1 && !hasAccent;
+    }
+    return true;
+  };
+
+  const untranslatedKeys = allKeys.filter((key) => !isKeyTranslated(key));
+  const untranslatedSet = new Set(untranslatedKeys);
 
   // Extract unique namespaces (first segment of the key, e.g. "login" from "login.title")
   const namespaces = Array.from(new Set(allKeys.map((key) => key.split('.')[0]))).sort();
@@ -59,7 +86,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
       frOverride.toLowerCase().includes(searchTerm.toLowerCase()) ||
       enOverride.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return namespaceMatches && searchMatches;
+    return namespaceMatches && searchMatches && (!showUntranslatedOnly || untranslatedSet.has(key));
   });
 
   const handleOverrideChange = (lang: 'fr' | 'en', key: string, val: string) => {
@@ -378,6 +405,29 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
             ))}
           </select>
         </div>
+
+        {/* Untranslated Filter Toggle */}
+        <button
+          type="button"
+          onClick={() => setShowUntranslatedOnly((v) => !v)}
+          className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
+            showUntranslatedOnly
+              ? 'bg-highlight text-highlight-foreground border-highlight'
+              : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+          }`}
+        >
+          <AlertCircle className="w-3.5 h-3.5" />
+          Non traduites ({untranslatedKeys.length})
+          {showUntranslatedOnly && (
+            <X
+              className="w-3.5 h-3.5 ml-0.5"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowUntranslatedOnly(false);
+              }}
+            />
+          )}
+        </button>
       </div>
 
       {/* Save Notification */}
@@ -398,6 +448,25 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
         </div>
       )}
 
+      {/* Untranslated Summary Banner */}
+      {untranslatedKeys.length > 0 && (
+        <div className="bg-highlight/10 border border-highlight/30 px-3 py-2 rounded-xl flex items-center gap-2 text-[10px] text-highlight">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          <span>
+            <strong>{untranslatedKeys.length} clés</strong> encore non traduites en anglais (valeur
+            absente ou copiée du français). Saisissez une traduction dans la colonne 🇬🇧, puis
+            enregistrez.
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowUntranslatedOnly(true)}
+            className="ml-auto text-[10px] font-bold underline underline-offset-2 hover:opacity-80 cursor-pointer"
+          >
+            Voir
+          </button>
+        </div>
+      )}
+
       {/* High-density grid-table of keys */}
       <div className="border border-border rounded-xl overflow-hidden bg-white shadow-xs">
         {/* Table Header */}
@@ -412,7 +481,9 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
         <div className="divide-y divide-border max-h-[600px] overflow-y-auto">
           {filteredKeys.length === 0 ? (
             <div className="text-center py-12 text-xs text-muted-foreground bg-muted/20">
-              Aucune clé de traduction trouvée.
+              {showUntranslatedOnly && untranslatedKeys.length === 0
+                ? '🎉 Aucune clé non traduite : les catalogues fr/en sont synchronisés.'
+                : 'Aucune clé de traduction trouvée.'}
             </div>
           ) : (
             filteredKeys.map((key) => {
@@ -422,31 +493,40 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
               const isOverriddenFr = overrides.fr?.[key] !== undefined;
               const isOverriddenEn = overrides.en?.[key] !== undefined;
               const isAnyOverridden = isOverriddenFr || isOverriddenEn;
+              const isUntranslated = untranslatedSet.has(key);
 
-              // Extract namespace badge for display
+              // Extract namespace badge for display (les IDs Lingui n'ont pas de point)
               const parts = key.split('.');
-              const namespace = parts[0];
-              const restKey = parts.slice(1).join('.');
+              const hasNamespace = parts.length > 1;
+              const namespace = hasNamespace ? parts[0] : '';
+              const restKey = hasNamespace ? parts.slice(1).join('.') : key;
 
               return (
                 <div
                   key={key}
                   className={`grid grid-cols-12 gap-4 px-4 py-2.5 items-center hover:bg-muted/30 transition-colors ${
-                    isAnyOverridden ? 'bg-destructive/5' : ''
+                    isAnyOverridden ? 'bg-destructive/5' : isUntranslated ? 'bg-highlight/5' : ''
                   }`}
                 >
                   {/* Key Column */}
                   <div className="col-span-3 min-w-0 pr-2">
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] uppercase font-bold bg-muted text-muted-foreground rounded px-1 w-max">
-                        {namespace}
-                      </span>
+                      {hasNamespace && (
+                        <span className="text-[9px] uppercase font-bold bg-muted text-muted-foreground rounded px-1 w-max">
+                          {namespace}
+                        </span>
+                      )}
                       <span
                         className="text-[11px] font-semibold text-foreground break-all select-all leading-tight"
                         title={key}
                       >
                         {restKey}
                       </span>
+                      {isUntranslated && (
+                        <span className="inline-flex items-center gap-1 text-[9px] uppercase font-bold bg-highlight/15 text-highlight border border-highlight/30 rounded px-1.5 py-0.5 w-max">
+                          <AlertCircle className="w-2.5 h-2.5" />À traduire
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -474,20 +554,26 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
                   {/* EN Translation Input */}
                   <div className="col-span-4 space-y-1">
                     <span
-                      className="text-[10px] text-muted-foreground block truncate leading-none"
+                      className={`text-[10px] block truncate leading-none ${
+                        isUntranslated && !isOverriddenEn
+                          ? 'text-highlight font-bold'
+                          : 'text-muted-foreground'
+                      }`}
                       title={defaultEnVal}
                     >
-                      Default: {defaultEnVal}
+                      Default: {defaultEnVal || '—'}
                     </span>
                     <input
                       type="text"
                       value={overrides.en?.[key] ?? ''}
-                      placeholder={defaultEnVal}
+                      placeholder={defaultEnVal || (defaultFrVal ? 'Traduire en anglais…' : '')}
                       onChange={(e) => handleOverrideChange('en', key, e.target.value)}
                       className={`w-full bg-muted/30 border rounded-lg px-2 py-1 text-[11px] focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] focus:bg-white outline-none transition-colors ${
                         isOverriddenEn
                           ? 'border-[#EE4B2B]/40 bg-destructive/10 font-medium'
-                          : 'border-border'
+                          : isUntranslated
+                            ? 'border-highlight/50 bg-highlight/10 placeholder:text-highlight/60'
+                            : 'border-border'
                       }`}
                     />
                   </div>

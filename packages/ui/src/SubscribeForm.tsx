@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { t } from '@lingui/core/macro';
 import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 import { Loader2 } from 'lucide-react';
 
@@ -23,10 +24,10 @@ export function SubscribeForm({ publicationId, isBrutalist }: SubscribeFormProps
 
     if (res.ok) {
       setStatus('success');
-      setMessage('Merci ! Vérifiez votre boîte mail pour confirmer votre abonnement.');
+      setMessage(t`Merci ! Vérifiez votre boîte mail pour confirmer votre abonnement.`);
     } else {
       setStatus('error');
-      setMessage(res.error?.message || 'Une erreur est survenue lors de la souscription.');
+      setMessage(res.error?.message || t`Une erreur est survenue lors de la souscription.`);
     }
   }
 
@@ -35,13 +36,13 @@ export function SubscribeForm({ publicationId, isBrutalist }: SubscribeFormProps
       <div
         className={`p-6 max-w-md mx-auto text-center ${isBrutalist ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-background' : 'bg-success/10 rounded-xl'}`}
       >
-        <h4 className="text-lg font-bold text-success mb-2">You&apos;re on the list!</h4>
+        <h4 className="text-lg font-bold text-success mb-2">{t`Vous êtes sur la liste !`}</h4>
         <p className="text-muted-foreground">{message}</p>
         <button
           onClick={() => setStatus('idle')}
           className="mt-4 text-sm font-medium text-[var(--tenant-accent)] hover:underline"
         >
-          Subscribe another email
+          {t`S'abonner avec une autre adresse`}
         </button>
       </div>
     );
@@ -55,7 +56,7 @@ export function SubscribeForm({ publicationId, isBrutalist }: SubscribeFormProps
           type="email"
           name="email"
           required
-          placeholder="Your email address"
+          placeholder={t`Votre adresse email`}
           className={`flex-1 h-14 px-5 text-lg ${isBrutalist ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] bg-background text-foreground placeholder:text-muted-foreground' : 'rounded-xl border border-input bg-background focus:ring-2 focus:ring-[var(--tenant-accent)] focus:border-transparent outline-none transition-all'}`}
         />
         <button
@@ -64,7 +65,7 @@ export function SubscribeForm({ publicationId, isBrutalist }: SubscribeFormProps
           className={`h-14 px-8 font-semibold text-white text-lg transition-all flex items-center justify-center gap-2 ${isBrutalist ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase tracking-wider hover:translate-y-1 hover:shadow-none disabled:opacity-50' : 'rounded-xl hover:opacity-90 active:scale-95 disabled:opacity-50'}`}
           style={{ backgroundColor: 'var(--tenant-accent)' }}
         >
-          {status === 'loading' ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Subscribe'}
+          {status === 'loading' ? <Loader2 className="w-5 h-5 animate-spin" /> : t`S'abonner`}
         </button>
       </form>
       {status === 'error' && <p className="mt-3 text-sm text-destructive text-center">{message}</p>}

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { t } from '@lingui/core/macro';
 import { X, Keyboard } from 'lucide-react';
 
 export interface HotkeyHelpModalProps {
@@ -13,15 +14,15 @@ export function HotkeyHelpModal({ isOpen, onClose }: HotkeyHelpModalProps) {
   if (!isOpen) return null;
 
   const hotkeysList = [
-    { key: 'n', description: 'Rédiger une nouvelle pensée (Nouveau post)' },
-    { key: '/', description: 'Activer la barre de recherche' },
-    { key: 'j', description: 'Naviguer vers le bas (Pensée suivante)' },
-    { key: 'k', description: 'Naviguer vers le haut (Pensée précédente)' },
-    { key: 'l', description: 'Liker / Déliker la pensée active' },
-    { key: 'r', description: 'Répondre à la pensée active' },
-    { key: 'e', description: 'Ouvrir le thread complet de la pensée' },
-    { key: '?', description: "Ouvrir cette modale d'aide des raccourcis" },
-    { key: 'Échap', description: 'Fermer les modales et réinitialiser la sélection' },
+    { key: 'n', description: t`Rédiger une nouvelle pensée (Nouveau post)` },
+    { key: '/', description: t`Activer la barre de recherche` },
+    { key: 'j', description: t`Naviguer vers le bas (Pensée suivante)` },
+    { key: 'k', description: t`Naviguer vers le haut (Pensée précédente)` },
+    { key: 'l', description: t`Liker / Déliker la pensée active` },
+    { key: 'r', description: t`Répondre à la pensée active` },
+    { key: 'e', description: t`Ouvrir le thread complet de la pensée` },
+    { key: '?', description: t`Ouvrir cette modale d'aide des raccourcis` },
+    { key: 'Échap', description: t`Fermer les modales et réinitialiser la sélection` },
   ];
 
   return (
@@ -45,7 +46,7 @@ export function HotkeyHelpModal({ isOpen, onClose }: HotkeyHelpModalProps) {
                 <Keyboard className="w-5 h-5" />
               </div>
               <h3 className="text-base font-bold tracking-tight text-foreground">
-                Raccourcis Clavier
+                {t`Raccourcis Clavier`}
               </h3>
             </div>
             <button
@@ -74,11 +75,11 @@ export function HotkeyHelpModal({ isOpen, onClose }: HotkeyHelpModalProps) {
 
           {/* Footer Note */}
           <div className="pt-4 mt-4 border-t border-border/40 text-center text-[11px] text-muted-foreground">
-            Appuyez sur{' '}
+            {t`Appuyez sur`}{' '}
             <kbd className="px-1.5 py-0.5 border border-border rounded bg-background font-mono text-[10px]">
               ?
             </kbd>{' '}
-            à tout moment pour afficher cette aide.
+            {t`à tout moment pour afficher cette aide.`}
           </div>
         </motion.div>
       </div>

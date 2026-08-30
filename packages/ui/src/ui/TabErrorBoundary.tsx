@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { t } from '@lingui/core/macro';
 import { AlertTriangle, RefreshCw, X } from 'lucide-react';
 
 interface Props {
@@ -72,7 +73,7 @@ function TabErrorFallback({
           Oups, cet onglet a rencontré un problème
         </h4>
         <p className="text-[11px] text-muted-foreground max-w-sm leading-relaxed">
-          Une erreur imprévue s'est produite lors du rendu de ce composant. Détails :{' '}
+          {t`Une erreur imprévue s'est produite lors du rendu de ce composant. Détails :`}{' '}
           <code className="bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono text-[10px] block mt-1">
             {error?.message || 'Erreur interne'}
           </code>

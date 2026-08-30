@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { t } from '@lingui/core/macro';
 import { MessageCircle, Link as LinkIcon, Share2 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
@@ -62,7 +63,7 @@ export function ShareMenu({
     try {
       if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
         await navigator.clipboard.writeText(shareUrl);
-        toast.success('Lien copié dans le presse-papier !');
+        toast.success(t`Lien copié dans le presse-papier !`);
       } else {
         const textarea = document.createElement('textarea');
         textarea.value = shareUrl;
@@ -70,10 +71,10 @@ export function ShareMenu({
         textarea.select();
         document.execCommand('copy');
         document.body.removeChild(textarea);
-        toast.success('Lien copié dans le presse-papier !');
+        toast.success(t`Lien copié dans le presse-papier !`);
       }
     } catch {
-      toast.error('Impossible de copier le lien.');
+      toast.error(t`Impossible de copier le lien.`);
     }
   };
 
@@ -95,7 +96,7 @@ export function ShareMenu({
           },
         })
       );
-      toast.info('Messagerie privée bientôt disponible !');
+      toast.info(t`Messagerie privée bientôt disponible !`);
     }
   };
 
@@ -106,7 +107,7 @@ export function ShareMenu({
 
     const shareUrl = resolveUrl();
     const shareData = {
-      title: title || (type === 'article' ? 'Article sur Qoe' : 'Pensée sur Qoe'),
+      title: title || (type === 'article' ? t`Article sur Qoe` : t`Pensée sur Qoe`),
       text: text || '',
       url: shareUrl,
     };
@@ -134,8 +135,8 @@ export function ShareMenu({
         'flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer outline-none group/share',
         className
       )}
-      title="Partager"
-      aria-label="Partager"
+      title={t`Partager`}
+      aria-label={t`Partager`}
     >
       <Share2 className="w-4 h-4 transition-transform group-hover/share:scale-110" />
     </button>
@@ -156,7 +157,7 @@ export function ShareMenu({
           className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-muted/80 rounded-xl transition-colors cursor-pointer"
         >
           <MessageCircle className="w-4 h-4 text-foreground shrink-0" />
-          <span>Send via Chat</span>
+          <span>{t`Envoyer via Chat`}</span>
         </button>
 
         <button
@@ -165,7 +166,7 @@ export function ShareMenu({
           className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-muted/80 rounded-xl transition-colors cursor-pointer"
         >
           <LinkIcon className="w-4 h-4 text-foreground shrink-0" />
-          <span>Copy link</span>
+          <span>{t`Copier le lien`}</span>
         </button>
 
         <button
@@ -174,7 +175,9 @@ export function ShareMenu({
           className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-muted/80 rounded-xl transition-colors cursor-pointer"
         >
           <Share2 className="w-4 h-4 text-foreground shrink-0" />
-          <span>{type === 'article' ? 'Share article via ...' : 'Share post via ...'}</span>
+          <span>
+            {type === 'article' ? t`Partager l'article via ...` : t`Partager le post via ...`}
+          </span>
         </button>
       </PopoverContent>
     </Popover>

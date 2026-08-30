@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { t } from '@lingui/core/macro';
 import { Flag, Loader2, Check } from 'lucide-react';
 import { reportTargetAction } from '@qoe/sdk/actions/feed';
 import { toast } from '@qoe/ui/toast';
@@ -15,11 +16,11 @@ export interface ReportModalProps {
 }
 
 const REPORT_REASONS = [
-  { id: 'spam', label: 'Spam ou publicité non sollicitée' },
-  { id: 'harassment', label: 'Harcèlement, haine ou intimidation' },
-  { id: 'misleading', label: 'Désinformation ou propos trompeurs' },
-  { id: 'hate_speech', label: 'Contenu inapproprié ou explicite' },
-  { id: 'other', label: 'Autre motif' },
+  { id: 'spam', label: t`Spam ou publicité non sollicitée` },
+  { id: 'harassment', label: t`Harcèlement, haine ou intimidation` },
+  { id: 'misleading', label: t`Désinformation ou propos trompeurs` },
+  { id: 'hate_speech', label: t`Contenu inapproprié ou explicite` },
+  { id: 'other', label: t`Autre motif` },
 ] as const;
 
 export type ReportReason = (typeof REPORT_REASONS)[number]['id'];
@@ -48,13 +49,13 @@ export function ReportModal({
       });
 
       if (res.ok) {
-        toast.success("Signalement transmis à l'équipe de modération.");
+        toast.success(t`Signalement transmis à l'équipe de modération.`);
         onClose();
       } else {
-        toast.error("Erreur lors de l'envoi du signalement.");
+        toast.error(t`Erreur lors de l'envoi du signalement.`);
       }
     } catch {
-      toast.error('Erreur réseau.');
+      toast.error(t`Erreur réseau.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -71,17 +72,17 @@ export function ReportModal({
         <DialogHeader className="space-y-1">
           <DialogTitle className="text-base font-semibold text-foreground flex items-center gap-2">
             <Flag className="w-4 h-4 text-highlight" />
-            <span>Signaler le contenu</span>
+            <span>{t`Signaler le contenu`}</span>
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Aidez-nous à préserver la qualité de la communauté{authorName ? ` (${authorName})` : ''}
-            .
+            {t`Aidez-nous à préserver la qualité de la communauté`}
+            {authorName ? ` (${authorName})` : ''}.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">Motif du signalement</label>
+            <label className="text-xs font-medium text-foreground">{t`Motif du signalement`}</label>
             <div className="space-y-1.5">
               {REPORT_REASONS.map((r) => (
                 <button
@@ -102,11 +103,11 @@ export function ReportModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">Précisions (optionnel)</label>
+            <label className="text-xs font-medium text-foreground">{t`Précisions (optionnel)`}</label>
             <textarea
               value={details}
               onChange={(e) => setDetails(e.target.value)}
-              placeholder="Expliquez brièvement le problème..."
+              placeholder={t`Expliquez brièvement le problème...`}
               rows={3}
               className="w-full p-2.5 rounded-xl border border-border/40 bg-background text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-highlight resize-none"
             />
@@ -118,7 +119,7 @@ export function ReportModal({
               onClick={onClose}
               className="px-3.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
-              Annuler
+              {t`Annuler`}
             </button>
             <button
               type="submit"
@@ -126,7 +127,7 @@ export function ReportModal({
               className="px-4 py-1.5 rounded-xl bg-highlight text-black text-xs font-semibold hover:bg-highlight/90 transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
               {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              <span>Envoyer</span>
+              <span>{t`Envoyer`}</span>
             </button>
           </div>
         </form>

@@ -17,6 +17,7 @@ import Cropper, { type Area } from 'react-easy-crop';
 import imageCompression from 'browser-image-compression';
 import { ImagePlus, Loader2, RefreshCcw, Trash2, UploadCloud } from 'lucide-react';
 import { cn } from '@qoe/utils';
+import { t } from '@lingui/core/macro';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './dialog';
 import { Button } from './button';
 
@@ -119,7 +120,7 @@ function canvasToFile(canvas: HTMLCanvasElement, baseName: string, quality: numb
     canvas.toBlob(
       (blob) => {
         if (!blob) {
-          reject(new Error('Échec de l’encodage de l’image'));
+          reject(new Error(t`Échec de l’encodage de l’image`));
           return;
         }
         resolve(new File([blob], `${baseName}.${ext}`, { type: mimeType }));
@@ -166,11 +167,11 @@ export function ImageUploader({
     async (file: File) => {
       setError(null);
       if (!file.type.startsWith('image/')) {
-        setError('Le fichier doit être une image.');
+        setError(t`Le fichier doit être une image.`);
         return;
       }
       if (file.size > 10 * 1024 * 1024) {
-        setError('L’image ne doit pas dépasser 10 Mo.');
+        setError(t`L’image ne doit pas dépasser 10 Mo.`);
         return;
       }
       const objectUrl = URL.createObjectURL(file);
@@ -196,7 +197,7 @@ export function ImageUploader({
         const url = await upload(file);
         onChange(url);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Échec de l’upload de l’image.');
+        setError(err instanceof Error ? err.message : t`Échec de l’upload de l’image.`);
       } finally {
         setIsUploading(false);
       }
@@ -225,7 +226,7 @@ export function ImageUploader({
       resetEditor();
       await performUpload(compressed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de traiter l’image.');
+      setError(err instanceof Error ? err.message : t`Impossible de traiter l’image.`);
       resetEditor();
     }
   }, [imageSrc, croppedAreaPixels, rotation, maxDimension, quality, resetEditor, performUpload]);
@@ -263,7 +264,7 @@ export function ImageUploader({
         <div className="flex items-center gap-3">
           <img
             src={value}
-            alt="Aperçu de l'image"
+            alt={t`Aperçu de l'image`}
             className={cn(previewClass, 'object-cover border border-border/40 bg-muted/30')}
           />
           <div className="flex flex-col gap-1.5">
@@ -280,7 +281,7 @@ export function ImageUploader({
               ) : (
                 <RefreshCcw className="w-3.5 h-3.5" />
               )}
-              Remplacer
+              {t`Remplacer`}
             </Button>
             <Button
               type="button"
@@ -290,7 +291,7 @@ export function ImageUploader({
               className="text-xs text-destructive hover:text-destructive"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              Supprimer
+              {t`Supprimer`}
             </Button>
           </div>
         </div>
@@ -320,7 +321,7 @@ export function ImageUploader({
             <UploadCloud className="w-5 h-5" strokeWidth={1.5} />
           )}
           <span className="text-[11px] font-medium">
-            {isUploading ? 'Upload…' : 'Glisser ou cliquer pour ajouter'}
+            {isUploading ? t`Upload…` : t`Glisser ou cliquer pour ajouter`}
           </span>
         </button>
       )}
@@ -342,8 +343,8 @@ export function ImageUploader({
       <Dialog open={isEditorOpen} onOpenChange={(open) => !open && resetEditor()}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Éditer l'image</DialogTitle>
-            <DialogDescription>Recadrez, zoomez et faites pivoter votre image.</DialogDescription>
+            <DialogTitle>{t`Éditer l'image`}</DialogTitle>
+            <DialogDescription>{t`Recadrez, zoomez et faites pivoter votre image.`}</DialogDescription>
           </DialogHeader>
 
           <div className="relative h-72 w-full overflow-hidden rounded-xl bg-black/40">
@@ -371,7 +372,7 @@ export function ImageUploader({
           <div className="space-y-3 pt-1">
             <label className="flex items-center gap-3 text-xs text-muted-foreground">
               <ImagePlus className="w-3.5 h-3.5 shrink-0" />
-              Zoom
+              {t`Zoom`}
               <input
                 type="range"
                 min={1}
@@ -384,7 +385,7 @@ export function ImageUploader({
             </label>
             <label className="flex items-center gap-3 text-xs text-muted-foreground">
               <RefreshCcw className="w-3.5 h-3.5 shrink-0" />
-              Rotation
+              {t`Rotation`}
               <input
                 type="range"
                 min={0}
@@ -399,10 +400,10 @@ export function ImageUploader({
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" size="sm" onClick={resetEditor}>
-              Annuler
+              {t`Annuler`}
             </Button>
             <Button type="button" size="sm" onClick={handleApply}>
-              Appliquer
+              {t`Appliquer`}
             </Button>
           </div>
         </DialogContent>
