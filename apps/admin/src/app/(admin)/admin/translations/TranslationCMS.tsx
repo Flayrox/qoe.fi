@@ -258,7 +258,10 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
     startTransition(async () => {
       try {
         const res = await setSystemConfigAction({
-          key: 'TRANSLATION_OVERRIDES',
+          // ⚠️ Clé lue au runtime par packages/i18n (GET /v1/home/config) :
+          // TRANSLATIONS_OVERRIDE (avec S) — l'ancienne clé TRANSLATION_OVERRIDES
+          // était une clé morte : les surcharges ne s'appliquaient jamais.
+          key: 'TRANSLATIONS_OVERRIDE',
           value: typeof overrides === 'string' ? overrides : JSON.stringify(overrides),
           description: 'System translation overrides',
         });
