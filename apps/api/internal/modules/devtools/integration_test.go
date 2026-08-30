@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -242,6 +243,128 @@ func TestDevtoolsSimulators(t *testing.T) {
 	}
 	if u.ID != regularID {
 		t.Fatalf("UserByEmail = %s, attendu %s", u.ID, regularID)
+	}
+}
+
+// vector512Literal renvoie un littéral vector(512) pour les inserts de test.
+func vector512Literal() string {
+	parts := make([]string, 512)
+	for i := range parts {
+		parts[i] = "0.1"
+	}
+	return "[" + strings.Join(parts, ",") + "]"
+}
+
+// insertDiagPost insère une pensée avec ou sans vecteur (WITH embedding ou non,
+// pour distinguer les pensées qui servent au profil de celles qui n'y comptent
+// pas — lb contract du worker). created il y a 10 jours (fraîcheur contrôlée).
+func insertDiagPost(t *testing.T, id, author string, withEmbedding bool) {
+	t.Helper()
+	if withEmbedding {
+		if _, err := poolTest.Exec(context.Background(), `
+			INSERT INTO "Post" (id, content, "authorId", embedding, "isDraft", "isHiddenByAuthor", "createdAt", "updatedAt")
+			VALUES ($1, 'contenu', $2, $3::vector, false, false, now() - interval '10 days', now())`,
+			id, author, vector512Literal()); err != nil {
+			t.Fatalf("post(emb) %s: %v", id, err)
+		}
+		return
+	}
+	if _, err := poolTest.Exec(context.Background(), `
+		INSERT INTO "Post" (id, content, "authorId", "isDraft", "isHiddenByAuthor", "createdAt", "updatedAt")
+		VALUES ($1, 'contenu', $2, false, false, now() - interval '10 days', now())`,
+		id, author); err != nil {
+		t.Fatalf("post %s: %v", id, err)
+	}
+}
+
+// insertDiagRead insère une ReadingSession (article art_diag, créé par le test).
+func insertDiagRead(t *testing.T, sessID, user, status string) {
+	t.Helper()
+	if _, err := poolTest.Exec(context.Background(), `
+		INSERT INTO "ReadingSession" (id, "articleId", "userId", source, status, "createdAt")
+		VALUES ($1, 'art_diag', $2, 'feed', $3, now() - interval '2 days')`,
+		sessID, user, status); err != nil {
+		t.Fatalf("session %s: %v", sessID, err)
+	}
+}
+
+func TestDevtoolsEmbeddingDiagnostic(t *testing.T) {
+	adminID, _ := seedDevtools(t)
+	ctx := context.Background()
+
+	// Publication + article de base (FK des ReadingSessions).
+	if _, err := poolTest.Exec(ctx, `
+		INSERT INTO "Publication" (id, type, name, slug, "updatedAt")
+		VALUES ('pub_diag', 'PERSONAL', 'Diag Pub', 'diag-pub', now())`); err != nil {
+		t.Fatalf("publication: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx, `
+		INSERT INTO "Article" (id, title, content, slug, published, "publicationId", "authorId", "createdAt", "updatedAt")
+		VALUES ('art_diag', 'Titre', '<p>corps</p>', 'diagnostic', true, 'pub_diag', $1, now(), now())`,
+		adminID); err != nil {
+		t.Fatalf("article: %v", err)
+	}
+
+	// Profils variés : riche (3 pensées), correct (1 pensée), faible (lectures
+	// positives < 10, pas de pensée), cold start (aucun signal).
+	users := map[string]string{
+		"00000000-0000-0000-0000-0000000000f1": "rich",
+		"00000000-0000-0000-0000-0000000000f2": "decent",
+		"00000000-0000-0000-0000-0000000000f3": "weak",
+		"00000000-0000-0000-0000-0000000000f4": "cold",
+	}
+	for id, uname := range users {
+		if _, err := poolTest.Exec(ctx, `
+			INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+			VALUES ($1, $2, $3, $3, 'user', now(), now())`,
+			id, uname+"@t.dev", uname); err != nil {
+			t.Fatalf("user: %v", err)
+		}
+
+	}
+
+	// Embeddings utilisateur posés pour les profils non froids (le diagnostic
+	// classe le degré de personnalisation, pas la dérivation du vecteur).
+	for _, id := range []string{"00000000-0000-0000-0000-0000000000f1", "00000000-0000-0000-0000-0000000000f2", "00000000-0000-0000-0000-0000000000f3"} {
+		if _, err := poolTest.Exec(ctx, `UPDATE "User" SET embedding = $2::vector WHERE id = $1`,
+			id, vector512Literal()); err != nil {
+			t.Fatalf("user embed %s: %v", id, err)
+		}
+	}
+
+	// rich : 3 pensées. decent : 1 pensée. weak : 0 pensée, 5 lectures SKIM.
+	insertDiagPost(t, "post_f1_1", "00000000-0000-0000-0000-0000000000f1", true)
+	insertDiagPost(t, "post_f1_2", "00000000-0000-0000-0000-0000000000f1", true)
+	insertDiagPost(t, "post_f1_3", "00000000-0000-0000-0000-0000000000f1", true)
+	insertDiagPost(t, "post_f2_1", "00000000-0000-0000-0000-0000000000f2", true)
+	for i := 0; i < 5; i++ {
+		insertDiagRead(t, "sess_f3_"+string(rune('a'+i)), "00000000-0000-0000-0000-0000000000f3", "SKIM")
+	}
+
+	diag, err := NewService(poolTest, Options{DevOnly: true}).EmbeddingDiagnostic(ctx, adminID)
+	if err != nil {
+		t.Fatalf("EmbeddingDiagnostic: %v", err)
+	}
+
+	// synthèse (seedDevtools: admin + regular froids, + f4 froid → 3 cold).
+	if diag.Total != 6 || diag.Rich != 1 || diag.Decent != 1 || diag.Weak != 1 || diag.ColdStart != 3 {
+		t.Fatalf("synthèse = total(%d) rich(%d) decent(%d) weak(%d) cold(%d), attendu 6/1/1/1/3",
+			diag.Total, diag.Rich, diag.Decent, diag.Weak, diag.ColdStart)
+	}
+
+	// Tri : le profil le plus riche (3 pensées) doit être en tête ; chaque ligne
+	// porte ses signaux (HasEmbedding + Thoughts + PositiveReads + tier).
+	first := diag.Rows[0]
+	if first.ID != "00000000-0000-0000-0000-0000000000f1" || !first.HasEmbedding || first.Thoughts != 3 || first.Tier != TierRich {
+		t.Fatalf("première ligne = %+v, attendu rich (3 pensées, tier riche)", first)
+	}
+	if first.Quality <= 0 || first.FreshnessDays == nil || *first.FreshnessDays < 0 {
+		t.Fatalf("rich: quality=%v freshness=%v, attendu score>0 et fraîcheur connue", first.Quality, first.FreshnessDays)
+	}
+
+	// RBAC : un non-superadmin est refusé.
+	if _, err := NewService(poolTest).EmbeddingDiagnostic(ctx, "00000000-0000-0000-0000-0000000000f1"); err == nil {
+		t.Fatal("EmbeddingDiagnostic non-superadmin attendu errForbidden")
 	}
 }
 
