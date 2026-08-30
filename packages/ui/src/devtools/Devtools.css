@@ -442,6 +442,30 @@
   color: #f87171;
 }
 
+/* Progression de régénération de la DB — couleurs scopées css */
+.apple-progress-ok {
+  color: #4ade80;
+}
+
+.apple-progress-err {
+  color: #f87171;
+}
+
+.apple-progress-bar {
+  height: 4px;
+  width: 100%;
+  border-radius: 9999px;
+  background: rgba(128, 128, 128, 0.18);
+  overflow: hidden;
+}
+
+.apple-progress-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: #4ade80;
+  transition: width 0.3s ease;
+}
+
 /* Status dot (diagnostics) — couleurs scopées css, pas de classes Tailwind */
 .apple-status-dot {
   display: inline-block;

@@ -10,9 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -24,6 +24,7 @@ import (
 )
 
 var errForbidden = errors.New("réservé au superadmin")
+var errSeedJobNotFound = errors.New("job de régénération inconnu")
 
 // Options configure le service devtools (mode dev uniquement).
 type Options struct {
@@ -38,6 +39,10 @@ type Options struct {
 type Service struct {
 	pool    *pgxpool.Pool
 	devOnly bool
+
+	// Job de régénération asynchrone (un seul à la fois).
+	jobMu sync.Mutex
+	job   *SeedJob
 }
 
 func NewService(pool *pgxpool.Pool, opts ...Options) *Service {
@@ -338,92 +343,6 @@ func (s *Service) seedCreatorPack(ctx context.Context, pubID, authorID string) e
 }
 
 // ---------------------------------------------------------------------------
-// ✍️ Génération de pensées de démo (+15 posts feed)
-// ---------------------------------------------------------------------------
-
-// GeneratePosts insère 15 pensées aléatoires de créateurs existants.
-func (s *Service) GeneratePosts(ctx context.Context, userID string) error {
-	if err := s.checkSuperadmin(ctx, userID); err != nil {
-		return err
-	}
-
-	rows, err := s.pool.Query(ctx,
-		`SELECT id FROM "User" WHERE role = 'creator' ORDER BY random() LIMIT 10`)
-	if err != nil {
-		return fmt.Errorf("creators: %w", err)
-	}
-	creators := []string{}
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return err
-		}
-		creators = append(creators, id)
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	if len(creators) == 0 {
-		return errors.New("veuillez d'abord créer au moins un utilisateur 'creator' avec les devtools !")
-	}
-
-	quotes := []string{
-		"Dans un monde de stimulations algorithmiques continues, la lecture silencieuse est un acte de résistance spirituelle.",
-		"L'attention n'est pas une ressource à exploiter, c'est l'essence même de notre conscience libre.",
-		"Le vrai luxe moderne n'est pas d'être connecté partout, mais d'avoir le choix de s'isoler pour penser profondément.",
-		"L'écologie politique n'est pas une liste de privations, mais le projet enthousiasmant d'une souveraineté partagée.",
-		"Reprendre le contrôle de ses écrits, c'est refuser de livrer ses pensées aux machines de capture d'attention.",
-		"Une communauté solide se construit sur la confiance et l'indépendance financière mutuelle, loin des intermédiaires publicitaires.",
-		"La clarté de l'esprit commence par le dépouillement des notifications et des flux d'actualités anxiogènes.",
-		"L'écriture longue forme nous force à structurer notre pensée, là où les réseaux de micro-messages l'émiettent.",
-		"Nous devons repenser notre relation à la technologie : l'outil doit servir l'homme, non l'asservir à ses métriques d'engagement.",
-		"Le Sanctuaire Elfique de qoe.fi est conçu pour libérer l'esprit de sa charge mentale algorithmique.",
-		"Ce soir c'est derby. Le voisin supporte l'autre camp : silence radio jusqu'au coup de sifflet final.",
-		"Un 4-4-2 bien placé bat toujours un 4-3-3 en rodage. C'est mathématique.",
-		"GG à l'équipe. On a perdu mais on a bien ri, c'est ça l'essentiel.",
-		"Je disais « juste une partie » à 22h. Il est 3h du matin et je suis en promo.",
-		"On ne choisit pas son anime de réconfort. Il choisit son moment.",
-		"Le cosplay, c'est 10% de couture et 90% de stress le jour J.",
-		"Recette du soir : ce qu'il y a dans le frigo + l'impro. Résultat : un plat culte de la maison.",
-		"Trouvé une veste en cuir à 15€ en friperie. Je me sens invincible.",
-		"5km ce matin à 7h. La ville appartient à ceux qui se lèvent tôt (et à ceux qui dorment encore, soyons honnêtes).",
-		"Je cours après le bus comme on court après ses rêves : en sueur et en retard.",
-		"J'ai passé 3h à automatiser une tâche de 5 minutes. Rentabilisé dans 36 ans.",
-		"Le lundi, je suis une personne différente. La personne qui regrette le dimanche.",
-	}
-	tagsOptions := [][]string{
-		{"philosophie", "souverainete"},
-		{"ecologie", "politique"},
-		{"attention", "silence"},
-		{"medias"},
-		{"technologie", "ethique"},
-		{"foot", "derby"},
-		{"gaming"},
-		{"anime", "manga"},
-		{"cuisine", "recettes"},
-		{"mode", "seconde_main"},
-		{"sport", "running"},
-		{"humour", "quotidien"},
-	}
-
-	for i := 0; i < 15; i++ {
-		author := creators[rand.Intn(len(creators))]
-		quote := quotes[rand.Intn(len(quotes))]
-		tags := tagsOptions[rand.Intn(len(tagsOptions))]
-		content := fmt.Sprintf("%s #%s", quote, strings.Join(tags, " #"))
-		if _, err := s.pool.Exec(ctx, `
-			INSERT INTO "Post" (id, content, "authorId", tags, visibility, "isDraft", "createdAt", "updatedAt")
-			VALUES (gen_random_uuid()::text, $1, $2, $3, 'public', false, now(), now())`,
-			content, author, tags); err != nil {
-			return fmt.Errorf("post %d: %w", i, err)
-		}
-	}
-	return nil
-}
-
-// ---------------------------------------------------------------------------
 // 🧹 Reset de la base (parité resetDatabaseAction)
 // ---------------------------------------------------------------------------
 
@@ -466,15 +385,18 @@ func (s *Service) Reset(ctx context.Context, userID string) error {
 			return fmt.Errorf("config %s: %w", c.key, err)
 		}
 	}
-	return nil
-}
-
-// Seed exécute le seed canonique Go (internal/seed) — bouton « Pack Complet ».
-func (s *Service) Seed(ctx context.Context, userID string) error {
-	if err := s.checkSuperadmin(ctx, userID); err != nil {
-		return err
+	// Catalogue du moteur feed + OAuth (mêmes clés que seed.RunSeed : le reset
+	// et le seed doivent exposer exactement le même panel de réglages).
+	for _, c := range seed.DefaultEngineConfigs() {
+		if _, err := s.pool.Exec(ctx, `
+			INSERT INTO "SystemConfig" ("key", value, description, "updatedAt")
+			VALUES ($1, $2, $3, now())
+			ON CONFLICT ("key") DO UPDATE SET value = $2, description = $3, "updatedAt" = now()`,
+			c.Key, c.Value, c.Description); err != nil {
+			return fmt.Errorf("config %s: %w", c.Key, err)
+		}
 	}
-	return seed.Run(ctx, s.pool)
+	return nil
 }
 
 // Reindex re-synchronise l'index Meilisearch (backfill idempotent : seuls les
@@ -490,90 +412,166 @@ func (s *Service) Reindex(ctx context.Context, userID string) (map[string]any, e
 	return map[string]any{"success": true, "total": total, "upserted": upserted}, nil
 }
 
-// SeedTop régénère la DB « top du top » (wipe + génération déterministe) et
-// enqueue les embeddings articles + users en asynchrone (asynq) pour ne pas
-// bloquer la requête HTTP. L'umami est généré si UMAMI_DATABASE_URL est dispo.
-func (s *Service) SeedTop(ctx context.Context, userID string) (map[string]any, error) {
-	if err := s.checkSuperadmin(ctx, userID); err != nil {
-		return nil, err
-	}
-	res, err := seed.RunTop(ctx, s.pool, seed.TopOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	out := map[string]any{
-		"success": true, "users": len(res.Users), "articles": len(res.Articles),
-		"posts": len(res.PostIDs), "readingSessions": res.ReadingSess,
-		"follows": res.Follows, "likes": res.Likes, "subscribers": res.Subscribers,
-	}
-
-	// Embeddings asynchrones (articles + users) — le worker s'en charge.
-	if ac := queue.NewClient(os.Getenv("REDIS_URL")); ac != nil {
-		queued := 0
-		for _, a := range res.Articles {
-			if err := queue.PublishArticleEmbedding(ac, queue.EmbeddingPayload{ArticleID: a.ID}); err == nil {
-				queued++
-			}
-		}
-		for _, u := range res.Users {
-			if err := queue.PublishUserEmbedding(ac, queue.EmbeddingPayload{UserID: u.ID}); err == nil {
-				queued++
-			}
-		}
-		ac.Close()
-		out["embeddingsEnqueued"] = queued
-	}
-
-	// Umami — pool séparé vers la DB analytics (best-effort).
-	if dsn := os.Getenv("UMAMI_DATABASE_URL"); dsn != "" {
-		umamiPool, err := pgxpool.New(ctx, dsn)
-		if err == nil {
-			defer umamiPool.Close()
-			if err := seed.RunTopUmami(ctx, umamiPool, res, seed.TopOptions{}); err != nil {
-				log.Printf("[devtools] umami seed: %v", err)
-			} else {
-				out["umami"] = "généré"
-			}
-		}
-	}
-
-	// Meili : reindex (le seed insère en SQL direct, sans passer par l'API).
-	if _, _, err := workers.NewSearchWorker(s.pool).ReindexAll(ctx); err != nil {
-		log.Printf("[devtools] reindex post-seed: %v", err)
-	}
-
-	return out, nil
-}
-
-// SeedTopComplete prépare une base de démonstration complète en une seule
-// action : reset déterministe, monde vivant, contenu additif riche, embeddings
-// via Redis et synchronisation Meilisearch/Umami.
+// SeedTopComplete prépare une base de démonstration complète (synchrone) :
+// reset déterministe, monde vivant, contenu additif riche, embeddings via
+// Redis et synchronisation Meilisearch/Umami. Utilisé par les tests ; le
+// panneau devtools passe par StartSeedTopComplete (asynchrone avec suivi).
 func (s *Service) SeedTopComplete(ctx context.Context, userID string) (map[string]any, error) {
 	if err := s.checkSuperadmin(ctx, userID); err != nil {
 		return nil, err
 	}
-	res, err := seed.RunTop(ctx, s.pool, seed.TopOptions{})
+	return runSeedTopComplete(ctx, s.pool, nil)
+}
+
+// ---------------------------------------------------------------------------
+// 🔄 Régénération asynchrone avec suivi de progression (panneau devtools)
+// ---------------------------------------------------------------------------
+
+// SeedJob suit la progression d'une régénération de la DB lancée en
+// arrière-plan. Un seul job actif à la fois (dev-only, mono-utilisateur).
+type SeedJob struct {
+	mu       sync.Mutex
+	ID       string         `json:"id"`
+	Done     bool           `json:"done"`
+	Success  bool           `json:"success"`
+	Error    string         `json:"error,omitempty"`
+	Current  string         `json:"current,omitempty"`
+	Steps    []string       `json:"steps"`
+	Progress int            `json:"progress"`
+	Result   map[string]any `json:"result,omitempty"`
+	Updated  time.Time      `json:"updatedAt"`
+}
+
+const seedTotalSteps = 5
+
+// markStep passe à l'étape suivante (l'étape en cours rejoint Steps).
+func (j *SeedJob) markStep(label string) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	if j.Current != "" {
+		j.Steps = append(j.Steps, j.Current)
+	}
+	j.Current = label
+	j.Progress = len(j.Steps) * 100 / seedTotalSteps
+	j.Updated = time.Now()
+}
+
+// finish clôt le job (succès ou échec) avec le résultat final.
+func (j *SeedJob) finish(res map[string]any, err error) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	if j.Current != "" {
+		j.Steps = append(j.Steps, j.Current)
+		j.Current = ""
+	}
+	j.Done = true
+	j.Progress = 100
+	j.Updated = time.Now()
+	if err != nil {
+		j.Error = err.Error()
+		return
+	}
+	j.Success = true
+	j.Result = res
+}
+
+// Snapshot retourne une copie sûre du job (pour la sérialisation HTTP).
+func (j *SeedJob) Snapshot() *SeedJob {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	cp := &SeedJob{
+		ID:       j.ID,
+		Done:     j.Done,
+		Success:  j.Success,
+		Error:    j.Error,
+		Current:  j.Current,
+		Steps:    append([]string(nil), j.Steps...),
+		Progress: j.Progress,
+		Updated:  j.Updated,
+	}
+	if j.Result != nil {
+		cp.Result = make(map[string]any, len(j.Result))
+		for k, v := range j.Result {
+			cp.Result[k] = v
+		}
+	}
+	return cp
+}
+
+// StartSeedTopComplete lance la régénération complète en arrière-plan et
+// retourne immédiatement le job (progression via SeedJobProgress). Si un job
+// est déjà en cours, il est retourné tel quel (pas de double démarrage).
+func (s *Service) StartSeedTopComplete(ctx context.Context, userID string) (*SeedJob, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, err
+	}
+	s.jobMu.Lock()
+	if s.job != nil && !s.job.Done {
+		job := s.job
+		s.jobMu.Unlock()
+		return job.Snapshot(), nil
+	}
+	job := &SeedJob{ID: fmt.Sprintf("seed_%d", time.Now().UnixNano()), Steps: []string{}}
+	s.job = job
+	s.jobMu.Unlock()
+
+	go func() {
+		res, err := runSeedTopComplete(context.Background(), s.pool, job.markStep)
+		job.finish(res, err)
+	}()
+	return job.Snapshot(), nil
+}
+
+// SeedJobProgress retourne l'état courant d'un job (404 si inconnu).
+func (s *Service) SeedJobProgress(ctx context.Context, userID, jobID string) (*SeedJob, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, err
+	}
+	s.jobMu.Lock()
+	defer s.jobMu.Unlock()
+	if s.job == nil || s.job.ID != jobID {
+		return nil, errSeedJobNotFound
+	}
+	return s.job.Snapshot(), nil
+}
+
+// runSeedTopComplete exécute les étapes de la régénération complète. onStep
+// (optionnel) est appelé au début de chaque étape pour suivre la progression.
+func runSeedTopComplete(ctx context.Context, pool *pgxpool.Pool, onStep func(string)) (map[string]any, error) {
+	step := func(label string) {
+		if onStep != nil {
+			onStep(label)
+		}
+		log.Printf("[devtools] seed-top-complete: %s", label)
+	}
+
+	step("Wipe + génération du volume (RunTop)")
+	res, err := seed.RunTop(ctx, pool, seed.TopOptions{})
 	if err != nil {
 		return nil, err
 	}
-	added, err := seed.AddTop(ctx, s.pool, seed.TopOptions{Articles: 200, Posts: 1480})
+
+	step("Contenu additif (AddTop)")
+	added, err := seed.AddTop(ctx, pool, seed.TopOptions{Articles: 200, Posts: 1480})
 	if err != nil {
 		return nil, err
 	}
 	res.Articles = append(res.Articles, added.Articles...)
 	res.PostIDs = append(res.PostIDs, added.PostIDs...)
-	// AddTop est exécuté après RunWorld : ses nouveaux articles réutilisent le
+
+	// AddTop est exécuté après RunTop : ses nouveaux articles réutilisent le
 	// graphe existant, puis on rejoue la couche d'interactions dédiée pour que
 	// les commentaires et lectures couvrent aussi le contenu additionnel.
-	if err := seed.RunWorld(ctx, s.pool); err != nil {
+	step("Monde vivant (RunWorld)")
+	if err := seed.RunWorld(ctx, pool); err != nil {
 		return nil, fmt.Errorf("world refresh: %w", err)
 	}
 
 	// RunWorld crée aussi du contenu, mais ne renvoie pas ses IDs. Le worker
 	// doit tout de même couvrir ces lignes et les comptes préexistants : il
 	// génère les vecteurs manquants à partir de la base complète.
-	if err := enqueueMissingEmbeddings(ctx, s.pool); err != nil {
+	step("Embeddings (enqueue Redis)")
+	if err := enqueueMissingEmbeddings(ctx, pool); err != nil {
 		log.Printf("[devtools] enqueue missing embeddings: %v", err)
 	}
 
@@ -599,6 +597,7 @@ func (s *Service) SeedTopComplete(ctx context.Context, userID string) (map[strin
 		out["embeddingsEnqueued"] = queued
 	}
 	if dsn := os.Getenv("UMAMI_DATABASE_URL"); dsn != "" {
+		step("Umami (analytics)")
 		umamiPool, openErr := pgxpool.New(ctx, dsn)
 		if openErr == nil {
 			defer umamiPool.Close()
@@ -609,7 +608,8 @@ func (s *Service) SeedTopComplete(ctx context.Context, userID string) (map[strin
 			}
 		}
 	}
-	if total, upserted, reindexErr := workers.NewSearchWorker(s.pool).ReindexAll(ctx); reindexErr == nil {
+	step("Meilisearch (reindex)")
+	if total, upserted, reindexErr := workers.NewSearchWorker(pool).ReindexAll(ctx); reindexErr == nil {
 		out["meilisearch"] = map[string]int{"total": total, "upserted": upserted}
 	} else {
 		log.Printf("[devtools] reindex complete: %v", reindexErr)

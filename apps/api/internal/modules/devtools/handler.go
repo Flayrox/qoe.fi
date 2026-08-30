@@ -25,9 +25,7 @@ func NewHandler(svc *Service) *Handler {
 func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/devtools/data", h.data)
 	r.Post("/v1/devtools/create-user", h.createUser)
-	r.Post("/v1/devtools/generate-posts", h.generatePosts)
 	r.Post("/v1/devtools/reset", h.reset)
-	r.Post("/v1/devtools/seed", h.seed)
 	r.Post("/v1/devtools/simulate-subscriber", h.simulateSubscriber)
 	r.Post("/v1/devtools/simulate-follow", h.simulateFollow)
 	r.Post("/v1/devtools/simulate-like", h.simulateLike)
@@ -35,8 +33,8 @@ func (h *Handler) Register(r chi.Router) {
 	r.Post("/v1/devtools/reset-onboarding", h.resetOnboarding)
 	r.Get("/v1/devtools/user-by-email", h.userByEmail)
 	r.Post("/v1/devtools/reindex", h.reindex)
-	r.Post("/v1/devtools/seed-top", h.seedTop)
 	r.Post("/v1/devtools/seed-top-complete", h.seedTopComplete)
+	r.Get("/v1/devtools/seed-top-progress/{jobID}", h.seedTopProgress)
 }
 
 func (h *Handler) requireSuperadmin(w http.ResponseWriter, r *http.Request) (string, bool) {
@@ -52,6 +50,8 @@ func (h *Handler) handleErr(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, errForbidden):
 		response.Forbidden(w, "Accès réservé au superadmin.")
+	case errors.Is(err, errSeedJobNotFound):
+		response.NotFound(w, "Job de régénération inconnu.")
 	case errors.Is(err, pgx.ErrNoRows):
 		response.NotFound(w, "Introuvable.")
 	default:
@@ -92,19 +92,6 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, map[string]bool{"success": true})
 }
 
-// POST /v1/devtools/generate-posts — 15 pensées de démo.
-func (h *Handler) generatePosts(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
-	if !ok {
-		return
-	}
-	if err := h.svc.GeneratePosts(r.Context(), userID); err != nil {
-		h.handleErr(w, err)
-		return
-	}
-	response.OK(w, map[string]bool{"success": true})
-}
-
 // POST /v1/devtools/reset — vide la base + configs par défaut.
 func (h *Handler) reset(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.requireSuperadmin(w, r)
@@ -112,19 +99,6 @@ func (h *Handler) reset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.svc.Reset(r.Context(), userID); err != nil {
-		h.handleErr(w, err)
-		return
-	}
-	response.OK(w, map[string]bool{"success": true})
-}
-
-// POST /v1/devtools/seed — seed canonique Go (internal/seed).
-func (h *Handler) seed(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
-	if !ok {
-		return
-	}
-	if err := h.svc.Seed(r.Context(), userID); err != nil {
 		h.handleErr(w, err)
 		return
 	}
@@ -231,32 +205,33 @@ func (h *Handler) resetOnboarding(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, map[string]bool{"success": true})
 }
 
-// POST /v1/devtools/seed-top — régénère la DB top du top (déterministe).
-func (h *Handler) seedTop(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
-	if !ok {
-		return
-	}
-	res, err := h.svc.SeedTop(r.Context(), userID)
-	if err != nil {
-		h.handleErr(w, err)
-		return
-	}
-	response.OK(w, res)
-}
-
-// POST /v1/devtools/seed-top-complete — base complète reset + enrichissement.
+// POST /v1/devtools/seed-top-complete — lance la régénération complète de la
+// DB en arrière-plan (progression via /v1/devtools/seed-top-progress/{jobID}).
 func (h *Handler) seedTopComplete(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.requireSuperadmin(w, r)
 	if !ok {
 		return
 	}
-	res, err := h.svc.SeedTopComplete(r.Context(), userID)
+	job, err := h.svc.StartSeedTopComplete(r.Context(), userID)
 	if err != nil {
 		h.handleErr(w, err)
 		return
 	}
-	response.OK(w, res)
+	response.OK(w, job)
+}
+
+// GET /v1/devtools/seed-top-progress/{jobID} — état d'un job de régénération.
+func (h *Handler) seedTopProgress(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	job, err := h.svc.SeedJobProgress(r.Context(), userID, chi.URLParam(r, "jobID"))
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, job)
 }
 
 // POST /v1/devtools/reindex — re-synchronise l'index Meilisearch (backfill).

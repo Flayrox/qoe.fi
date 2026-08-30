@@ -19,6 +19,10 @@
 		<string>127.0.0.1</string>
 		<string>--ctx-size</string>
 		<string>8192</string>
+		<string>-b</string>
+		<string>4096</string>
+		<string>-ub</string>
+		<string>4096</string>
 		<string>--alias</string>
 		<string>jina-embeddings-v3</string>
 	</array>

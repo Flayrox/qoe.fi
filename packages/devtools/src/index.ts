@@ -4,8 +4,7 @@
 // Remplaçant 100 % Go du panneau DevtoolsPanel : toutes les opérations
 // base de données passent par le module superadmin /v1/devtools/* de
 // l'API Go. Seules les interactions Supabase Auth restent côté TS
-// (création de comptes, impersonation, déconnexion) et la restauration
-// de backup (psql pur, aucun accès app).
+// (création de comptes, impersonation, déconnexion).
 // =====================================================================
 
 'use server';
@@ -13,13 +12,7 @@
 import 'dotenv/config';
 import { createServiceClient, createClient } from '@qoe/supabase/server';
 import crypto from 'crypto';
-import fs from 'node:fs';
-import path from 'node:path';
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
 import { goFetch } from './go-client';
-
-const execAsync = promisify(exec);
 
 export interface DevtoolsUser {
   id: string;
@@ -173,23 +166,6 @@ export async function createMockUserAction({
 }
 
 /**
- * ✍️ Génère 15 pensées (micro-posts) premium aléatoires sur la timeline
- * globale (POST /v1/devtools/generate-posts).
- */
-export async function generateMockFeedPostsAction() {
-  try {
-    await goFetch('/v1/devtools/generate-posts', { method: 'POST' });
-    return { success: true };
-  } catch (error) {
-    console.error('Error in generateMockFeedPostsAction:', error);
-    return {
-      success: false,
-      error: (error instanceof Error ? error.message : 'Unknown error') || 'Unknown error',
-    };
-  }
-}
-
-/**
  * 🧹 Réinitialise entièrement la base de données de test locale de manière
  * ordonnée (POST /v1/devtools/reset) et recrée les SystemConfig par défaut.
  */
@@ -207,209 +183,22 @@ export async function resetDatabaseAction() {
 }
 
 /**
- * ⚡ Seeder complet du pack de test — exécute le seed canonique Go
- * (internal/seed) via POST /v1/devtools/seed.
+ * 🔄 Lance la régénération de la DB de test complète en arrière-plan
+ * (POST /v1/devtools/seed-top-complete) : reset complet + monde vivant
+ * (500 users, 200 articles, 1480 pensées, lectures, interactions, umami),
+ * embeddings enqueueés + reindex Meili. Retourne l'ID du job — la progression
+ * se suit avec seedTopProgressAction.
  */
-export async function seedFullDatabaseAction() {
-  try {
-    await goFetch('/v1/devtools/seed', { method: 'POST' });
-    return { success: true };
-  } catch (error) {
-    console.error('Error in seedFullDatabaseAction:', error);
-    return {
-      success: false,
-      error: (error instanceof Error ? error.message : 'Unknown error') || 'Failed to seed',
-    };
-  }
-}
-
-/**
- * 💾 Restaure la DB top du top depuis le backup le plus récent plus l'umami.
- *
- * Pourquoi pas un simple `psql` : en dev local, `psql` n'existe que DANS les
- * containers (pas sur le host), et le dump app est un dump Supabase complet
- * (schémas auth/storage/realtime…) dont la restauration exige le superuser
- * `supabase_admin` (et non `postgres`). La restauration passe donc par
- * `docker exec` vers les containers dev, avec les rôles adaptés.
- */
-
-type PsqlTarget =
-  | { kind: 'docker'; container: string; role: string; database: string }
-  | { kind: 'host'; url: string };
-
-type RestoredBackup = { main: string; umami?: string };
-
-// Retrouve le dossier `backups/` du monorepo (remonte les niveaux depuis cwd).
-function findBackupsDir(): string | null {
-  let dir = process.cwd();
-  for (let i = 0; i < 10; i++) {
-    const candidate = path.join(dir, 'backups');
-    try {
-      if (fs.existsSync(candidate)) {
-        const entries = fs.readdirSync(candidate);
-        if (entries.some((f) => f.endsWith('.sql.gz'))) return candidate;
-      }
-    } catch {
-      /* ignore */
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return null;
-}
-
-// Backup le plus récent `prefix*.sql.gz` (les noms sont préfixés par la date).
-function findLatestBackup(dir: string | null, prefix: string): string | null {
-  if (!dir) return null;
-  try {
-    const files = (fs.readdirSync(dir) as string[])
-      .filter((f) => f.startsWith(prefix) && f.endsWith('.sql.gz'))
-      .sort()
-      .reverse();
-    return files.length ? path.join(dir, files[0]) : null;
-  } catch {
-    return null;
-  }
-}
-
-// Résout les fichiers de backup (env override d'abord, sinon le plus récent).
-function resolveBackups(): RestoredBackup {
-  const dir = findBackupsDir();
-  return {
-    main: process.env.QOE_TOP_DB_BACKUP || findLatestBackup(dir, 'top-db-') || '',
-    umami: process.env.QOE_UMAMI_BACKUP || findLatestBackup(dir, 'umami-') || undefined,
-  };
-}
-
-function dockerContainer(name: string | undefined, fallback: string): string {
-  return name || fallback;
-}
-
-// Strie les balises `\restrict` / `\unrestrict` (pg_dump 17) : sans cela, `psql`
-// ne charge que les données (COPY) et ignore le schéma → restore en double.
-function sedStripRestrict(): string {
-  return `sed -E '/^\\\\restrict[ \\t].*$/d; /^\\\\unrestrict[ \\t].*$/d'`;
-}
-
-// Restaure un dump SQL gzip vers une cible (container via docker exec, ou psql host).
-async function streamRestore(
-  gzPath: string,
-  target: PsqlTarget,
-  opts?: { stripRestrict?: boolean; maxBufferMB?: number }
-): Promise<string> {
-  const maxBuffer = (opts?.maxBufferMB ?? 100) * 1024 * 1024;
-  const filter = opts?.stripRestrict ? `${sedStripRestrict()} |` : '';
-  let command: string;
-  if (target.kind === 'docker') {
-    command = `gunzip -c "${gzPath}" | ${filter} docker exec -i ${target.container} psql -U ${target.role} -d ${target.database} -v ON_ERROR_STOP=0`;
-  } else {
-    command = `gunzip -c "${gzPath}" | ${filter} psql "${target.url.replace(/"/g, '\\"')}"`;
-  }
-  const { stdout } = await execAsync(command, { maxBuffer });
-  return stdout;
-}
-
-// Restaure la DB app (Supabase) puis la DB umami (best-effort).
-export async function restoreTopDbAction(): Promise<{
+export async function seedTopCompleteAction(): Promise<{
   success: boolean;
+  jobId?: string;
   error?: string;
-  details?: string;
 }> {
   try {
-    const { main, umami } = resolveBackups();
-    if (!main) {
-      return {
-        success: false,
-        error:
-          "Backup main DB introuvable. Vide backups/ d'un top-db-*.sql.gz (ou pointe QOE_TOP_DB_BACKUP).",
-      };
-    }
-
-    // Cible app : le DB PostgreSQL derrière DATABASE_URL. En dev local c'est le
-    // Postgres Supabase (port 54322) dont le superuser est `supabase_admin`
-    // (pas `postgres`). Containers surchargeables via env.
-    const appTarget: PsqlTarget = {
-      kind: 'docker',
-      container: dockerContainer(process.env.QOE_APP_DB_CONTAINER, 'supabase_db_qoe.fi'),
-      role: process.env.QOE_APP_DB_ROLE || 'supabase_admin',
-      database: process.env.QOE_APP_DB_NAME || 'postgres',
-    };
-
-    // Pré-reset déterministe du schéma `public` : le dump ne droppe que dans
-    // l'ordre de sa propre liste, et échoue (“other objects depend on it”) sur
-    // une base déjà polluée. Vider `public` d'abord garantit un état vierge.
-    await execAsync(
-      `docker exec -i ${appTarget.container} psql -U ${appTarget.role} -d ${appTarget.database} -v ON_ERROR_STOP=1 -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO postgres; GRANT ALL ON SCHEMA public TO public;"`,
-      { maxBuffer: 10 * 1024 * 1024 }
-    );
-
-    // Le dump app est un dump Supabase complet : on supprime les marqueurs
-    // `\restrict`/`\unrestrict` pour restaurer schéma + données en une passe.
-    await streamRestore(main, appTarget, { stripRestrict: true, maxBufferMB: 150 });
-
-    // DB umami — best-effort (la base d\'analytics est secondaire). On passe
-    // par docker exec (psql fiable dans le container) sauf si on demande
-    // explicitement le psql host via QOE_RESTORE_USE_HOST_PG=1. On supprime
-    // aussi les marqueurs `\restrict` pour un comportement déterministe quel
-    // que soit la version de psql.
-    let umamiDetail = '';
-    if (umami) {
-      const umamiTarget: PsqlTarget =
-        process.env.QOE_RESTORE_USE_HOST_PG === '1' && process.env.UMAMI_DATABASE_URL
-          ? { kind: 'host', url: process.env.UMAMI_DATABASE_URL }
-          : {
-              kind: 'docker',
-              container: dockerContainer(process.env.QOE_UMAMI_DB_CONTAINER, 'qoefi-dev-db'),
-              role: process.env.QOE_UMAMI_DB_ROLE || 'postgres',
-              database: process.env.QOE_UMAMI_DB_NAME || 'umami',
-            };
-      try {
-        await streamRestore(umami, umamiTarget, { stripRestrict: true, maxBufferMB: 50 });
-        umamiDetail = ` · umami ✓ (${path.basename(umami)})`;
-      } catch (e) {
-        console.warn('[restoreTopDb] Umami restore warn', e);
-        umamiDetail = ' · umami ⚠ échec (voir logs)';
-      }
-    }
-
-    return {
-      success: true,
-      details: `Restauré depuis ${path.basename(main)}${umamiDetail}`,
-    };
-  } catch (e) {
-    console.error('restoreTopDbAction failed', e);
-    const msg = e instanceof Error ? e.message : String(e);
-    return {
-      success: false,
-      error:
-        msg.includes('docker') || msg.includes('Cannot connect')
-          ? `Docker indisponible ou container non trouvé — ${msg}`
-          : msg,
-    };
-  }
-}
-
-/**
- * ✨ Régénère la DB « top du top » depuis zéro (POST /v1/devtools/seed-top) :
- * reset complet + génération déterministe (500 users, 200 articles, 1480
- * pensées, lectures, umami) + embeddings enqueueés + reindex Meili.
- */
-export async function seedTopCompleteAction() {
-  try {
-    const res = await goFetch<{
-      users?: number;
-      articles?: number;
-      posts?: number;
-      readingSessions?: number;
-      embeddingsEnqueued?: number;
-      umami?: string;
-      meilisearch?: { total?: number; upserted?: number };
-    }>('/v1/devtools/seed-top-complete', { method: 'POST' });
-    return {
-      success: true,
-      details: `${res.users ?? '?'} comptes · ${res.articles ?? '?'} articles · ${res.posts ?? '?'} posts · ${res.readingSessions ?? '?'} lectures · ${res.embeddingsEnqueued ?? 0} embeddings${res.umami ? ' · Umami ✓' : ''}${res.meilisearch ? ' · Meili ✓' : ''}`,
-    };
+    const res = await goFetch<{ id: string }>('/v1/devtools/seed-top-complete', {
+      method: 'POST',
+    });
+    return { success: true, jobId: res.id };
   } catch (error) {
     console.error('Error in seedTopCompleteAction:', error);
     return {
@@ -419,24 +208,36 @@ export async function seedTopCompleteAction() {
   }
 }
 
-export async function seedTopDbAction() {
+/** Progression d'une régénération de la DB (parité SeedJob Go). */
+export interface SeedJobProgress {
+  id: string;
+  done: boolean;
+  success: boolean;
+  error?: string;
+  current?: string;
+  steps: string[];
+  progress: number;
+  result?: Record<string, unknown>;
+  updatedAt?: string;
+}
+
+/**
+ * 📊 Progression d'une régénération de la DB
+ * (GET /v1/devtools/seed-top-progress/{jobId}).
+ */
+export async function seedTopProgressAction(
+  jobId: string
+): Promise<{ success: boolean; job?: SeedJobProgress; error?: string }> {
   try {
-    const res = await goFetch<{
-      users?: number;
-      articles?: number;
-      posts?: number;
-      readingSessions?: number;
-      umami?: string;
-    }>('/v1/devtools/seed-top', { method: 'POST' });
-    return {
-      success: true,
-      details: `${res.users ?? '?'} users · ${res.articles ?? '?'} articles · ${res.posts ?? '?'} pensées · ${res.readingSessions ?? '?'} lectures${res.umami ? ' · umami ✓' : ''}`,
-    };
+    const job = await goFetch<SeedJobProgress>(
+      `/v1/devtools/seed-top-progress/${encodeURIComponent(jobId)}`
+    );
+    return { success: true, job };
   } catch (error) {
-    console.error('Error in seedTopDbAction:', error);
+    console.error('Error in seedTopProgressAction:', error);
     return {
       success: false,
-      error: (error instanceof Error ? error.message : 'Unknown error') || 'Seed top failed',
+      error: (error instanceof Error ? error.message : 'Unknown error') || 'Seed progress failed',
     };
   }
 }
