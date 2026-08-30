@@ -40,6 +40,32 @@ interface GoDevtoolsData {
   users: DevtoolsUser[];
 }
 
+/** Parité EmbeddingDiagnosticRow Go (qualité de personnalisation d'un compte). */
+export interface EmbeddingDiagnosticRow {
+  id: string;
+  username: string;
+  name: string;
+  email: string;
+  role: string;
+  thoughts: number;
+  positiveReads: number;
+  bounces: number;
+  hasEmbedding: boolean;
+  freshnessDays?: number;
+  quality: number;
+  tier: 'cold_start' | 'faible' | 'correct' | 'riche';
+}
+
+/** Parité EmbeddingDiagnostic Go (synthèse par tier + lignes triées). */
+export interface EmbeddingDiagnostic {
+  total: number;
+  coldStart: number;
+  weak: number;
+  decent: number;
+  rich: number;
+  rows: EmbeddingDiagnosticRow[];
+}
+
 /**
  * 📊 Récupère les données et compteurs de la base en direct (GET /v1/devtools/data).
  */
@@ -66,6 +92,24 @@ export async function getDevtoolsData() {
     }
     console.error('Error in getDevtoolsData:', error);
     return { success: false, error: clarity };
+  }
+}
+
+/**
+ * 🧬 Classe chaque compte par qualité d'embedding (qui est cold start vs bien
+ * profilé) pour le panneau devtools (GET /v1/devtools/embedding-diagnostic).
+ */
+export async function getEmbeddingDiagnosticAction() {
+  try {
+    const diagnostic = await goFetch<EmbeddingDiagnostic>('/v1/devtools/embedding-diagnostic');
+    return { success: true, diagnostic };
+  } catch (error) {
+    console.error('Error in getEmbeddingDiagnosticAction:', error);
+    return {
+      success: false,
+      error:
+        (error instanceof Error ? error.message : 'Unknown error') || 'Embedding diagnostic failed',
+    };
   }
 }
 

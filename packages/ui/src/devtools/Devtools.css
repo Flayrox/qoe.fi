@@ -483,3 +483,20 @@
   background: #fbbf24;
   box-shadow: 0 0 6px rgba(251, 191, 36, 0.5);
 }
+
+/* Tiers qualité d'embedding (diagnostic Embeddings) — couleurs scopées css */
+.apple-tier-cold {
+  background: #a1a1aa;
+}
+
+.apple-tier-weak {
+  background: #fbbf24;
+}
+
+.apple-tier-correct {
+  background: #38bdf8;
+}
+
+.apple-tier-rich {
+  background: #34d399;
+}

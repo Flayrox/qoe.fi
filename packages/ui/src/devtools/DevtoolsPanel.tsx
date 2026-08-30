@@ -33,6 +33,32 @@ export interface SeedJobProgress {
   result?: Record<string, unknown>;
   updatedAt?: string;
 }
+
+/** Parité EmbeddingDiagnosticRow Go : signaux + tier d'un compte. */
+export interface EmbeddingDiagnosticRow {
+  id: string;
+  username: string;
+  name: string;
+  email: string;
+  role: string;
+  thoughts: number;
+  positiveReads: number;
+  bounces: number;
+  hasEmbedding: boolean;
+  freshnessDays?: number;
+  quality: number;
+  tier: 'cold_start' | 'faible' | 'correct' | 'riche';
+}
+
+/** Parité EmbeddingDiagnostic Go : synthèse par tier + lignes triées. */
+export interface EmbeddingDiagnostic {
+  total: number;
+  coldStart: number;
+  weak: number;
+  decent: number;
+  rich: number;
+  rows: EmbeddingDiagnosticRow[];
+}
 import './Devtools.css';
 
 import { RefreshCw, Check, Copy, ExternalLink, X, ArrowUpRight } from 'lucide-react';
@@ -93,6 +119,11 @@ export interface DevtoolsActions {
   }) => Promise<{ success: boolean; error?: string; [key: string]: unknown }>;
 
   resetDatabaseAction: () => Promise<{ success: boolean; error?: string }>;
+  embeddingDiagnosticAction?: () => Promise<{
+    success: boolean;
+    diagnostic?: EmbeddingDiagnostic;
+    error?: string;
+  }>;
   seedTopCompleteAction: () => Promise<{ success: boolean; jobId?: string; error?: string }>;
   seedTopProgressAction: (jobId: string) => Promise<{
     success: boolean;
@@ -174,9 +205,70 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
     ltvCents: 1000,
   });
   const [simWallet, setSimWallet] = useState({ userId: '', amountEuros: '50' });
+  const [accountQuery, setAccountQuery] = useState('');
+  const [showAllAccounts, setShowAllAccounts] = useState(false);
+  const ACCOUNT_LIST_CAP = 120;
   const [screenSize, setScreenSize] = useState('');
   const [seedJob, setSeedJob] = useState<SeedJobProgress | null>(null);
   const seedPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Onglet Embeddings : diagnostic de qualité de personnalisation ────────
+  const [diag, setDiag] = useState<EmbeddingDiagnostic | null>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagSort, setDiagSort] = useState<'quality' | 'freshness' | 'thoughts' | 'reads' | 'tier'>(
+    'quality'
+  );
+
+  const loadEmbeddingDiagnostic = useCallback(async () => {
+    if (!actions.embeddingDiagnosticAction) return;
+    setDiagLoading(true);
+    try {
+      const res = await actions.embeddingDiagnosticAction();
+      if (res.success && res.diagnostic) setDiag(res.diagnostic);
+      else if (res.error) setAlert({ type: 'error', message: `Diagnostic: ${res.error}` });
+    } catch (err: unknown) {
+      console.error('Failed to load embedding diagnostic:', err);
+    } finally {
+      setDiagLoading(false);
+    }
+  }, [actions]);
+
+  // Apparence + ordre de priorité des tiers (pour la barre et le tri).
+  // Couleurs CSS scopées (apple-tier-*) dans Devtools.css : le lint projet
+  // interdit les classes Tailwind de couleur brutes (custom/no-raw-tailwind-colors).
+  const tierMeta: Record<
+    EmbeddingDiagnosticRow['tier'],
+    { label: string; dot: string; rank: number }
+  > = {
+    cold_start: { label: 'Cold start', dot: 'apple-tier-cold', rank: 0 },
+    faible: { label: 'Faible', dot: 'apple-tier-weak', rank: 1 },
+    correct: { label: 'Correct', dot: 'apple-tier-correct', rank: 2 },
+    riche: { label: 'Riche', dot: 'apple-tier-rich', rank: 3 },
+  };
+
+  const sortedDiagnosticRows = useCallback(() => {
+    const copy = [...(diag?.rows ?? [])];
+    const rankOf = (r: EmbeddingDiagnosticRow) => tierMeta[r.tier].rank;
+    copy.sort((a, b) => {
+      switch (diagSort) {
+        case 'thoughts':
+          return b.thoughts - a.thoughts;
+        case 'reads':
+          return b.positiveReads - a.positiveReads;
+        case 'freshness':
+          // Fraîcheur : plus petit nombre de jours = plus récent = en tête.
+          return (
+            (a.freshnessDays ?? Number.MAX_SAFE_INTEGER) -
+            (b.freshnessDays ?? Number.MAX_SAFE_INTEGER)
+          );
+        case 'tier':
+          return rankOf(b) - rankOf(a) || b.quality - a.quality;
+        default:
+          return b.quality - a.quality;
+      }
+    });
+    return copy;
+  }, [diag, diagSort, tierMeta]);
 
   const stopSeedPoll = useCallback(() => {
     if (seedPollRef.current) {
@@ -533,6 +625,21 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
 
   const creators = users.filter((u) => u.role === 'creator');
 
+  // Liste des comptes : filtrable et plafonnée pour ne pas re-rendre 500+ lignes
+  // (le lag au scroll venait de <div> x 516). La recherche déplie tout.
+  const query = accountQuery.trim().toLowerCase();
+  const filteredAccounts = query
+    ? users.filter((u) =>
+        [u.name, u.email, u.username, u.role].some((v) =>
+          String(v ?? '')
+            .toLowerCase()
+            .includes(query)
+        )
+      )
+    : users;
+  const visibleAccounts =
+    showAllAccounts || query ? filteredAccounts : filteredAccounts.slice(0, ACCOUNT_LIST_CAP);
+
   return (
     <div className="apple-devtools">
       {/* Sleek Minimal Trigger Button */}
@@ -595,6 +702,15 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
               className={`apple-seg-btn ${activeTab === 'metrics' ? 'active' : ''}`}
             >
               Metrics
+            </button>
+            <button
+              onClick={() => {
+                handleTabChange('embeddings');
+                if (!diag && !diagLoading) loadEmbeddingDiagnostic();
+              }}
+              className={`apple-seg-btn ${activeTab === 'embeddings' ? 'active' : ''}`}
+            >
+              Embeddings
             </button>
           </div>
 
@@ -962,67 +1078,85 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
                   </button>
                 </div>
 
+                <input
+                  type="search"
+                  placeholder="Rechercher nom, email, @username ou rôle…"
+                  className="apple-input w-full"
+                  value={accountQuery}
+                  onChange={(e) => setAccountQuery(e.target.value)}
+                />
+
                 <div className="divide-y divide-border">
-                  {users.length === 0 ? (
+                  {filteredAccounts.length === 0 ? (
                     <div className="apple-empty">
                       Aucun utilisateur. Régénérez la DB de test dans Sandbox !
                     </div>
                   ) : (
-                    users.map((user) => {
-                      const isCopied = copiedId === user.id;
-                      return (
-                        <div key={user.id} className="apple-list-row">
-                          <div className="min-w-0 flex-1 pr-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className="apple-row-title truncate">
-                                {user.name || user.username || 'Sans nom'}
-                              </span>
-                              <span className="apple-role-tag">{user.role}</span>
+                    <>
+                      {visibleAccounts.map((user) => {
+                        const isCopied = copiedId === user.id;
+                        return (
+                          <div key={user.id} className="apple-list-row">
+                            <div className="min-w-0 flex-1 pr-2">
+                              <div className="flex items-center gap-1.5">
+                                <span className="apple-row-title truncate">
+                                  {user.name || user.username || 'Sans nom'}
+                                </span>
+                                <span className="apple-role-tag">{user.role}</span>
+                              </div>
+                              <div className="apple-url-text truncate">{user.email}</div>
                             </div>
-                            <div className="apple-url-text truncate">{user.email}</div>
-                          </div>
 
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <button
-                              onClick={() => copyToClipboard(user.email, user.id)}
-                              className="apple-btn-secondary"
-                              title="Copier email"
-                            >
-                              {isCopied ? <Check size={11} /> : <Copy size={11} />}
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (!resetOnboardingAction) return;
-                                startTransition(async () => {
-                                  const res = await resetOnboardingAction(user.id);
-                                  if (res.success) {
-                                    triggerAlert(
-                                      'success',
-                                      `✨ Onboarding réinitialisé pour ${user.name || user.username} !`
-                                    );
-                                    await handleImpersonateLogin(user.email);
-                                  } else {
-                                    triggerAlert('error', res.error || 'Échec');
-                                  }
-                                });
-                              }}
-                              disabled={isPending}
-                              className="apple-btn-secondary"
-                              title="Relancer le flow Onboarding pour ce compte"
-                            >
-                              Onboarding
-                            </button>
-                            <button
-                              onClick={() => handleImpersonateLogin(user.email)}
-                              disabled={isPending}
-                              className="apple-btn-primary"
-                            >
-                              Connexion
-                            </button>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button
+                                onClick={() => copyToClipboard(user.email, user.id)}
+                                className="apple-btn-secondary"
+                                title="Copier email"
+                              >
+                                {isCopied ? <Check size={11} /> : <Copy size={11} />}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (!resetOnboardingAction) return;
+                                  startTransition(async () => {
+                                    const res = await resetOnboardingAction(user.id);
+                                    if (res.success) {
+                                      triggerAlert(
+                                        'success',
+                                        `✨ Onboarding réinitialisé pour ${user.name || user.username} !`
+                                      );
+                                      await handleImpersonateLogin(user.email);
+                                    } else {
+                                      triggerAlert('error', res.error || 'Échec');
+                                    }
+                                  });
+                                }}
+                                disabled={isPending}
+                                className="apple-btn-secondary"
+                                title="Relancer le flow Onboarding pour ce compte"
+                              >
+                                Onboarding
+                              </button>
+                              <button
+                                onClick={() => handleImpersonateLogin(user.email)}
+                                disabled={isPending}
+                                className="apple-btn-primary"
+                              >
+                                Connexion
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })
+                        );
+                      })}
+                      {!query && !showAllAccounts && filteredAccounts.length > ACCOUNT_LIST_CAP && (
+                        <button
+                          onClick={() => setShowAllAccounts(true)}
+                          className="apple-btn-action w-full mt-2"
+                        >
+                          Tout afficher ({filteredAccounts.length})
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -1087,6 +1221,167 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* TAB 5: EMBEDDINGS — diagnostic de qualité de personnalisation */}
+            {activeTab === 'embeddings' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="apple-subheading mb-0">Diagnostic Embeddings</span>
+                  <button
+                    onClick={loadEmbeddingDiagnostic}
+                    disabled={diagLoading}
+                    className="apple-btn-primary text-xs py-0.5 px-2"
+                  >
+                    {diagLoading ? 'Chargement…' : diag ? 'Rafraîchir' : 'Charger'}
+                  </button>
+                </div>
+
+                {!actions.embeddingDiagnosticAction && (
+                  <div className="apple-empty">embeddingDiagnosticAction non branché.</div>
+                )}
+
+                {diag && (
+                  <>
+                    {/* Barre de répartition des tiers (qualité du seed). */}
+                    <div>
+                      <div className="apple-subheading">Répartition des tiers ({diag.total})</div>
+                      <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
+                        {(
+                          [
+                            ['cold_start', diag.coldStart],
+                            ['faible', diag.weak],
+                            ['correct', diag.decent],
+                            ['riche', diag.rich],
+                          ] as [EmbeddingDiagnosticRow['tier'], number][]
+                        ).map(
+                          ([k, n]) =>
+                            n > 0 && (
+                              <div
+                                key={k}
+                                className={`${tierMeta[k].dot} h-3 ${diag.total ? 'transition-all' : ''}`}
+                                style={{
+                                  width: diag.total ? `${(n / diag.total) * 100}%` : '0%',
+                                }}
+                                title={`${tierMeta[k].label} : ${n}`}
+                              />
+                            )
+                        )}
+                      </div>
+                      <div className="mt-2 grid grid-cols-4 gap-1.5">
+                        {(
+                          [
+                            ['cold_start', 'Cold start', diag.coldStart],
+                            ['faible', 'Faible', diag.weak],
+                            ['correct', 'Correct', diag.decent],
+                            ['riche', 'Riche', diag.rich],
+                          ] as [EmbeddingDiagnosticRow['tier'], string, number][]
+                        ).map(([k, label, n]) => (
+                          <div key={k} className="apple-stat-card !gap-0">
+                            <div className="flex items-center gap-1">
+                              <span className={`h-2 w-2 rounded-full ${tierMeta[k].dot}`} />
+                              <span className="text-[10px] text-muted-foreground">{label}</span>
+                            </div>
+                            <span className="apple-stat-num">{n}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Table triable des comptes. */}
+                    <div className="apple-box overflow-hidden px-0">
+                      <div className="apple-box-title px-3">
+                        Comptes — triés par {diagSort === 'quality' && 'qualité'}
+                        {diagSort === 'freshness' && 'fraîcheur'}
+                        {diagSort === 'thoughts' && 'volume de pensées'}
+                        {diagSort === 'reads' && 'volume de lectures'}
+                        {diagSort === 'tier' && 'tier'}
+                      </div>
+                      <div className="max-h-[52vh] overflow-auto">
+                        <table className="w-full text-xs">
+                          <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
+                            <tr className="border-b border-border text-muted-foreground">
+                              <th className="px-3 py-1.5 text-left font-medium">Compte</th>
+                              {(
+                                [
+                                  ['thoughts', 'Pensées'],
+                                  ['reads', 'Lectures'],
+                                  ['freshness', 'Fraîcheur'],
+                                  ['tier', 'Tier'],
+                                ] as ['thoughts' | 'reads' | 'freshness' | 'tier', string][]
+                              ).map(([k, label]) => (
+                                <th
+                                  key={k}
+                                  onClick={() => setDiagSort(k)}
+                                  className={`cursor-pointer select-none whitespace-nowrap px-2 py-1.5 text-right font-medium hover:text-foreground ${
+                                    diagSort === k ? 'text-foreground' : ''
+                                  }`}
+                                >
+                                  {label}
+                                  {diagSort === k && ' ▾'}
+                                </th>
+                              ))}
+                              <th
+                                onClick={() => setDiagSort('quality')}
+                                className={`cursor-pointer select-none whitespace-nowrap px-3 py-1.5 text-right font-medium hover:text-foreground ${
+                                  diagSort === 'quality' ? 'text-foreground' : ''
+                                }`}
+                              >
+                                Qualité{diagSort === 'quality' && ' ▾'}
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {sortedDiagnosticRows().map((row) => {
+                              const display = row.name || row.username || '—';
+                              return (
+                                <tr key={row.id} className="hover:bg-muted/40">
+                                  <td className="px-3 py-1.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <span
+                                        className={`h-1.5 w-1.5 rounded-full ${tierMeta[row.tier].dot}`}
+                                      />
+                                      <span className="apple-row-title truncate max-w-[120px]">
+                                        {display}
+                                      </span>
+                                      <span className="apple-role-tag">{row.role}</span>
+                                    </div>
+                                    <div className="apple-url-text truncate">{row.email}</div>
+                                  </td>
+                                  <td className="px-2 py-1.5 text-right tabular-nums">
+                                    {row.thoughts}
+                                  </td>
+                                  <td className="px-2 py-1.5 text-right tabular-nums">
+                                    {row.positiveReads}
+                                  </td>
+                                  <td className="px-2 py-1.5 text-right tabular-nums">
+                                    {row.freshnessDays !== undefined
+                                      ? `${row.freshnessDays}j`
+                                      : '—'}
+                                  </td>
+                                  <td className="px-2 py-1.5 text-right">
+                                    <span className="capitalize">{tierMeta[row.tier].label}</span>
+                                  </td>
+                                  <td className="px-3 py-1.5 text-right tabular-nums font-medium">
+                                    {row.quality.toFixed(2)}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {sortedDiagnosticRows().length === 0 && (
+                              <tr>
+                                <td colSpan={6} className="px-3 py-3 text-center">
+                                  Aucun compte.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
