@@ -2,6 +2,7 @@ import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { OnboardingFlow } from '@qoe/ui';
+import { fetchMeProfile } from '@/lib/me';
 import { completeOnboarding } from './actions';
 
 // Contrat GET /v1/home/onboarding (module home — parité getOnboardingData).
@@ -39,7 +40,9 @@ export default async function OnboardingPage() {
   }
 
   // Go (backend-of-record, requis en Phase 3) : GET /v1/me.
-  const profile = await goFetch<{ hasCompletedOnboarding: boolean }>('/v1/me');
+  // fetchMeProfile auto-répare un 404 (ligne User absente) avant d'entrer
+  // dans l'onboarding.
+  const profile = await fetchMeProfile();
   if (profile.hasCompletedOnboarding) {
     redirect('/');
   }

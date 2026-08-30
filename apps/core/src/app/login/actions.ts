@@ -4,6 +4,7 @@ import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
 import { getSafeRedirectUrl } from '@qoe/utils';
 import { getCurrentUserAction, logoutAction } from '@qoe/sdk/actions/auth';
+import { fetchMeProfile } from '@/lib/me';
 
 export async function login(formData: FormData) {
   const email = formData.get('email') as string;
@@ -31,13 +32,8 @@ export async function login(formData: FormData) {
 
   // Go (backend-of-record, requis en Phase 3) : GET /v1/me (profil + compteurs).
   // Un nouveau lecteur sans suivi ni mot masqué est dirigé vers l'onboarding.
-  const { goFetch } = await import('@qoe/sdk/actions/utils/go-client');
-  const profile = await goFetch<{
-    id: string;
-    role: string;
-    followsCount: number;
-    mutedWordsCount: number;
-  }>('/v1/me');
+  // fetchMeProfile auto-répare un 404 (ligne User absente — login dev de démo).
+  const profile = await fetchMeProfile();
   if (profile.role === 'user' && profile.followsCount === 0 && profile.mutedWordsCount === 0) {
     redirect('/onboarding');
   }

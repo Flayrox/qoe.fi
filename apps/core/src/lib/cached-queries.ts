@@ -1,5 +1,6 @@
 import { cache } from 'react';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { fetchMeProfile } from './me';
 
 // GET /v1/me — profil lecteur Go (identité + compteurs bibliothèque).
 export interface MeProfile {
@@ -21,22 +22,9 @@ export interface MeProfile {
 export const getRequestDbUser = cache(async (id: string) => {
   // Go (backend-of-record, requis en Phase 3) : GET /v1/me (le JWT identifie
   // l'utilisateur — le paramètre id reste pour la signature cache()).
-  const profile = await goFetch<MeProfile>('/v1/me').catch(async (err) => {
-    // Session Supabase valide mais ligne User absente (ex. base resettée après
-    // connexion, ou compte créé en Auth avant un reseed) : un 404 ici fait
-    // crasher toutes les pages /reader. On répare la ligne via POST /v1/me/sync
-    // (crée le User depuis les claims JWT — même chemin que /auth/callback),
-    // puis on relit le profil.
-    const status =
-      err && typeof err === 'object' && 'status' in err
-        ? (err as { status?: number }).status
-        : undefined;
-    if (status === 404) {
-      await goFetch<{ created: boolean }>('/v1/me/sync', { method: 'POST' });
-      return goFetch<MeProfile>('/v1/me');
-    }
-    throw err;
-  });
+  // L'auto-réparation d'un 404 (ligne User absente) est centralisée dans
+  // fetchMeProfile (src/lib/me.ts) pour ne dépendre d'aucune copie locale.
+  const profile = await fetchMeProfile();
   return {
     id: profile.id,
     name: profile.name,
