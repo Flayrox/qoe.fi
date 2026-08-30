@@ -13,6 +13,7 @@ import { DevtoolsPanel, ThemeProvider, ThemeSeedScript, GlobalAuthModalProvider 
 import { getCurrentUser } from '@qoe/auth';
 import {
   getDevtoolsData,
+  getEmbeddingDiagnosticAction,
   createMockUserAction,
   resetDatabaseAction,
   reindexAction,
@@ -61,6 +62,7 @@ export default async function RootLayout({
 
   const devtoolsActions = {
     getDevtoolsData,
+    embeddingDiagnosticAction: getEmbeddingDiagnosticAction,
     createMockUserAction,
     resetDatabaseAction,
     reindexAction,

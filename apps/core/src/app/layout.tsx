@@ -23,6 +23,7 @@ import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import {
   getDevtoolsData,
+  getEmbeddingDiagnosticAction,
   createMockUserAction,
   resetDatabaseAction,
   reindexAction,
@@ -79,6 +80,7 @@ export default async function RootLayout({
 
   const devtoolsActions = {
     getDevtoolsData,
+    embeddingDiagnosticAction: getEmbeddingDiagnosticAction,
     createMockUserAction,
     resetDatabaseAction,
     reindexAction,

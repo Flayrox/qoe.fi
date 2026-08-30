@@ -21,6 +21,7 @@ import { DevtoolsPanel, ThemeProvider, ThemeSeedScript } from '@qoe/ui';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { getDevtoolsData } from '@/features/devtools/actions';
 import {
+  getEmbeddingDiagnosticAction,
   createMockUserAction,
   resetDatabaseAction,
   reindexAction,
@@ -61,6 +62,7 @@ export default async function RootLayout({
 
   const devtoolsActions = {
     getDevtoolsData,
+    embeddingDiagnosticAction: getEmbeddingDiagnosticAction,
     createMockUserAction,
     resetDatabaseAction,
     reindexAction,

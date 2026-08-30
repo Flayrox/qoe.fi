@@ -20,6 +20,7 @@ import { cn } from '@qoe/utils';
 import { DevtoolsPanel, ThemeProvider, ThemeSeedScript } from '@qoe/ui';
 import {
   getDevtoolsData,
+  getEmbeddingDiagnosticAction,
   createMockUserAction,
   resetDatabaseAction,
   reindexAction,
@@ -60,6 +61,7 @@ export default async function RootLayout({
 
   const devtoolsActions = {
     getDevtoolsData,
+    embeddingDiagnosticAction: getEmbeddingDiagnosticAction,
     createMockUserAction,
     resetDatabaseAction,
     reindexAction,
