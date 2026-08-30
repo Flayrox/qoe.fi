@@ -64,14 +64,8 @@ func TestDevtoolsRBAC(t *testing.T) {
 	if _, err := svc.Data(ctx, regularID); err == nil {
 		t.Fatal("Data: attendu errForbidden pour un non-superadmin")
 	}
-	if err := svc.GeneratePosts(ctx, regularID); err == nil {
-		t.Fatal("GeneratePosts: attendu errForbidden")
-	}
 	if err := svc.Reset(ctx, regularID); err == nil {
 		t.Fatal("Reset: attendu errForbidden")
-	}
-	if err := svc.Seed(ctx, regularID); err == nil {
-		t.Fatal("Seed: attendu errForbidden")
 	}
 	if err := svc.SimulateSubscriber(ctx, regularID, SimulateSubscriberParams{Email: "x@y.dev", PublicationID: "p"}); err == nil {
 		t.Fatal("SimulateSubscriber: attendu errForbidden")
@@ -251,7 +245,7 @@ func TestDevtoolsSimulators(t *testing.T) {
 	}
 }
 
-func TestDevtoolsResetAndSeed(t *testing.T) {
+func TestDevtoolsReset(t *testing.T) {
 	adminID, _ := seedDevtools(t)
 	svc := newTestService(t)
 	ctx := context.Background()
@@ -272,24 +266,5 @@ func TestDevtoolsResetAndSeed(t *testing.T) {
 	}
 	if users != 0 {
 		t.Fatalf("users après reset = %d, attendu 0", users)
-	}
-
-	// Seed canonique (utilisateur admin + articles + configs). Le Reset a
-	// supprimé le superadmin — on le recrée d'abord.
-	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
-		 VALUES ($1, 'devtools.admin@test.dev', 'devadmin', 'Dev Admin', 'superadmin', now(), now())`,
-		adminID); err != nil {
-		t.Fatalf("re-create admin: %v", err)
-	}
-	if err := svc.Seed(ctx, adminID); err != nil {
-		t.Fatalf("Seed: %v", err)
-	}
-	if err := poolTest.QueryRow(ctx,
-		`SELECT COUNT(*) FROM "Article" WHERE published = true`).Scan(&users); err != nil {
-		t.Fatal(err)
-	}
-	if users < 4 {
-		t.Fatalf("articles seedés = %d, attendu >= 4", users)
 	}
 }

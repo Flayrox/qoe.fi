@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -56,9 +57,7 @@ func TestDevtoolsHandlers_Unauthorized(t *testing.T) {
 	routes := []struct{ method, path string }{
 		{"GET", "/v1/devtools/data"},
 		{"POST", "/v1/devtools/create-user"},
-		{"POST", "/v1/devtools/generate-posts"},
 		{"POST", "/v1/devtools/reset"},
-		{"POST", "/v1/devtools/seed"},
 		{"POST", "/v1/devtools/simulate-subscriber"},
 		{"POST", "/v1/devtools/simulate-follow"},
 		{"POST", "/v1/devtools/simulate-like"},
@@ -66,8 +65,8 @@ func TestDevtoolsHandlers_Unauthorized(t *testing.T) {
 		{"POST", "/v1/devtools/reset-onboarding"},
 		{"GET", "/v1/devtools/user-by-email"},
 		{"POST", "/v1/devtools/reindex"},
-		{"POST", "/v1/devtools/seed-top"},
 		{"POST", "/v1/devtools/seed-top-complete"},
+		{"GET", "/v1/devtools/seed-top-progress/seed_test"},
 	}
 	for _, rt := range routes {
 		w := devReq(t, r, rt.method, rt.path, "", false)
@@ -127,43 +126,6 @@ func TestDevtoolsHandler_CreateUser(t *testing.T) {
 	w = devReq(t, r, "POST", "/v1/devtools/create-user", `{"email":"x@t.dev"}`, true)
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("id manquant = %d, attendu 500", w.Code)
-	}
-}
-
-func TestDevtoolsHandler_GeneratePosts(t *testing.T) {
-	adminID, _ := seedDevtools(t)
-	r := newDevRouter(t)
-
-	// Aucun créateur → 500.
-	w := devReq(t, r, "POST", "/v1/devtools/generate-posts", "", true)
-	if w.Code != http.StatusInternalServerError {
-		t.Fatalf("no creators = %d, attendu 500", w.Code)
-	}
-
-	// On crée un créateur puis on génère.
-	if _, err := poolTest.Exec(context.Background(),
-		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
-		 VALUES ('00000000-0000-0000-0000-0000000000e2', 'gen@t.dev', 'gen', 'Gen', 'creator', now(), now())`); err != nil {
-		t.Fatalf("creator: %v", err)
-	}
-	w = devReq(t, r, "POST", "/v1/devtools/generate-posts", "", true)
-	if w.Code != http.StatusOK {
-		t.Fatalf("generate = %d, body = %s", w.Code, w.Body.String())
-	}
-	var n int
-	if err := poolTest.QueryRow(context.Background(),
-		`SELECT COUNT(*) FROM "Post" WHERE "authorId" = '00000000-0000-0000-0000-0000000000e2'`).Scan(&n); err != nil {
-		t.Fatal(err)
-	}
-	if n < 1 {
-		t.Fatalf("posts = %d, attendu >= 1", n)
-	}
-
-	// RBAC via handler : le sentinel passe, mais un vrai non-superadmin passe
-	// par CombinedAuth (pas testé ici) — vérifions juste l'idempotence.
-	if _, err := poolTest.Exec(context.Background(),
-		`UPDATE "User" SET role = 'user' WHERE id = $1`, adminID); err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -265,26 +227,6 @@ func TestDevtoolsHandler_Reindex_NoMeili(t *testing.T) {
 	}
 }
 
-func TestDevtoolsHandler_SeedTop(t *testing.T) {
-	seedDevtools(t)
-	t.Setenv("REDIS_URL", "")
-	t.Setenv("UMAMI_DATABASE_URL", "")
-	t.Setenv("MEILISEARCH_HOST", "http://127.0.0.1:1")
-	r := newDevRouter(t)
-
-	w := devReq(t, r, "POST", "/v1/devtools/seed-top", "", true)
-	if w.Code != http.StatusOK {
-		t.Fatalf("seed-top = %d, body = %s", w.Code, w.Body.String())
-	}
-	var body map[string]any
-	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
-		t.Fatalf("json: %v", err)
-	}
-	if body["success"] != true || body["users"] == nil {
-		t.Fatalf("body = %s", w.Body.String())
-	}
-}
-
 func TestDevtoolsHandler_SeedTopComplete(t *testing.T) {
 	seedDevtools(t)
 	t.Setenv("REDIS_URL", "")
@@ -292,31 +234,50 @@ func TestDevtoolsHandler_SeedTopComplete(t *testing.T) {
 	t.Setenv("MEILISEARCH_HOST", "http://127.0.0.1:1")
 	r := newDevRouter(t)
 
+	// Le POST démarre la régénération en arrière-plan et rend le job.
 	w := devReq(t, r, "POST", "/v1/devtools/seed-top-complete", "", true)
 	if w.Code != http.StatusOK {
 		t.Fatalf("seed-top-complete = %d, body = %s", w.Code, w.Body.String())
 	}
+	var start map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &start); err != nil {
+		t.Fatalf("json: %v", err)
+	}
+	jobID, _ := start["id"].(string)
+	if jobID == "" {
+		t.Fatalf("job id manquant: %s", w.Body.String())
+	}
+
+	// On poll la progression jusqu'à la fin (le seed complet est long).
+	deadline := time.Now().Add(5 * time.Minute)
+	for {
+		w = devReq(t, r, "GET", "/v1/devtools/seed-top-progress/"+jobID, "", true)
+		if w.Code != http.StatusOK {
+			t.Fatalf("progress = %d, body = %s", w.Code, w.Body.String())
+		}
+		var job map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &job); err != nil {
+			t.Fatalf("json: %v", err)
+		}
+		if job["done"] == true {
+			if job["success"] != true {
+				t.Fatalf("job en échec: %s", w.Body.String())
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("timeout: job de régénération pas terminé")
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
-func TestDevtoolsHandler_ResetAndSeed(t *testing.T) {
-	adminID, _ := seedDevtools(t)
+func TestDevtoolsHandler_Reset(t *testing.T) {
+	seedDevtools(t)
 	r := newDevRouter(t)
 
 	w := devReq(t, r, "POST", "/v1/devtools/reset", "", true)
 	if w.Code != http.StatusOK {
 		t.Fatalf("reset = %d, body = %s", w.Code, w.Body.String())
-	}
-	// Le reset a tout vidé (le sentinel dev n'a pas besoin de user en base).
-	ctx := context.Background()
-	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
-		 VALUES ($1, 'devtools.admin@test.dev', 'devadmin', 'Dev Admin', 'superadmin', now(), now())`,
-		adminID); err != nil {
-		t.Fatalf("re-create admin: %v", err)
-	}
-
-	w = devReq(t, r, "POST", "/v1/devtools/seed", "", true)
-	if w.Code != http.StatusOK {
-		t.Fatalf("seed = %d, body = %s", w.Code, w.Body.String())
 	}
 }

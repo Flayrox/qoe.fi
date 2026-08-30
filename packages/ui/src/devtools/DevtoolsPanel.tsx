@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useTransition, useCallback } from 'react';
+import React, { useState, useEffect, useTransition, useCallback, useRef } from 'react';
 export interface DevtoolsUser {
   id: string;
   name: string | null;
@@ -20,6 +20,18 @@ export interface DevtoolsStats {
   posts: number;
   likes: number;
   subscribers: number;
+}
+
+export interface SeedJobProgress {
+  id: string;
+  done: boolean;
+  success: boolean;
+  error?: string;
+  current?: string;
+  steps: string[];
+  progress: number;
+  result?: Record<string, unknown>;
+  updatedAt?: string;
 }
 import './Devtools.css';
 
@@ -80,12 +92,13 @@ export interface DevtoolsActions {
     accentColor?: string;
   }) => Promise<{ success: boolean; error?: string; [key: string]: unknown }>;
 
-  generateMockFeedPostsAction: () => Promise<{ success: boolean; error?: string }>;
   resetDatabaseAction: () => Promise<{ success: boolean; error?: string }>;
-  seedFullDatabaseAction?: () => Promise<{ success: boolean; error?: string }>;
-  restoreTopDbAction?: () => Promise<{ success: boolean; error?: string; details?: string }>;
-  seedTopDbAction?: () => Promise<{ success: boolean; error?: string; details?: string }>;
-  seedTopCompleteAction?: () => Promise<{ success: boolean; error?: string; details?: string }>;
+  seedTopCompleteAction: () => Promise<{ success: boolean; jobId?: string; error?: string }>;
+  seedTopProgressAction: (jobId: string) => Promise<{
+    success: boolean;
+    job?: SeedJobProgress;
+    error?: string;
+  }>;
   reindexAction?: () => Promise<{ success: boolean; error?: string }>;
   resetOnboardingAction?: (
     targetEmailOrId?: string
@@ -118,12 +131,9 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
   const {
     getDevtoolsData,
     createMockUserAction,
-    generateMockFeedPostsAction,
     resetDatabaseAction,
-    seedFullDatabaseAction,
-    restoreTopDbAction,
-    seedTopDbAction,
     seedTopCompleteAction,
+    seedTopProgressAction,
     reindexAction,
     resetOnboardingAction,
     simulateSubscriberAction,
@@ -165,6 +175,18 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
   });
   const [simWallet, setSimWallet] = useState({ userId: '', amountEuros: '50' });
   const [screenSize, setScreenSize] = useState('');
+  const [seedJob, setSeedJob] = useState<SeedJobProgress | null>(null);
+  const seedPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const stopSeedPoll = useCallback(() => {
+    if (seedPollRef.current) {
+      clearTimeout(seedPollRef.current);
+      seedPollRef.current = null;
+    }
+  }, []);
+
+  // Nettoie le polling si le panneau est démonté en cours de seed.
+  useEffect(() => () => stopSeedPoll(), [stopSeedPoll]);
 
   const refreshData = useCallback(async () => {
     setIsRefreshing(true);
@@ -300,82 +322,59 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
     });
   };
 
-  const handleSeedCompletePack = () => {
-    if (
-      !window.confirm(
-        'Vider la DB et seeder le Pack Sanctuaire Ultime (20+ Utilisateurs avec Avatars, 25+ Articles, 60+ Thoughts, Réseau, Tiers & Commentaires) ?'
-      )
-    )
-      return;
-    startTransition(async () => {
-      const res = seedFullDatabaseAction
-        ? await seedFullDatabaseAction()
-        : await resetDatabaseAction();
-
-      if (res.success) {
-        triggerAlert('success', '🔥 Pack Sanctuaire Ultime injecté avec succès !');
-        await refreshData();
-      } else {
-        triggerAlert('error', res.error || 'Échec du seeding complet');
-      }
-    });
-  };
-
-  const handleSeedThoughts = () => {
-    startTransition(async () => {
-      const res = await generateMockFeedPostsAction();
-      if (res.success) {
-        triggerAlert('success', '+15 posts générés');
-        await refreshData();
-      } else {
-        triggerAlert('error', res.error || 'Échec');
-      }
-    });
-  };
-
-  const handleSeedTopDb = () => {
-    if (
-      !window.confirm(
-        'Régénérer la DB « top du top » depuis zéro ? (reset complet + 500 users, 200 articles, 1480 pensées, lectures, umami, embeddings) — la DB actuelle sera écrasée.'
-      )
-    )
-      return;
-    startTransition(async () => {
-      if (!seedTopDbAction) {
-        triggerAlert('error', 'seedTopDbAction non branché');
-        return;
-      }
-      const res = await seedTopDbAction();
-      if (res.success) {
-        triggerAlert('success', `✨ Top DB générée : ${res.details || ''}`);
-        await refreshData();
-        setTimeout(() => window.location.reload(), 1500);
-      } else {
-        triggerAlert('error', res.error || 'Échec seed top');
-      }
-    });
-  };
-
   const handleSeedTopComplete = () => {
-    if (!seedTopCompleteAction) {
-      triggerAlert('error', 'seedTopCompleteAction non branché');
-      return;
-    }
     if (
       !window.confirm(
-        'Générer la base de test complète : reset + contenu riche + interactions + Umami + embeddings + Meilisearch ?'
+        'Régénérer la base de test complète ? Reset complet + monde vivant (500 users, 200 articles, 1480 pensées, lectures, interactions, Umami, embeddings, Meilisearch) — la DB actuelle sera écrasée.'
       )
     )
       return;
     startTransition(async () => {
       const res = await seedTopCompleteAction();
-      if (res.success) {
-        triggerAlert('success', `🚀 Base de test complète générée : ${res.details || ''}`);
-        await refreshData();
-        setTimeout(() => window.location.reload(), 1500);
-      } else {
-        triggerAlert('error', res.error || 'Échec seed complet');
+      if (!res.success || !res.jobId) {
+        triggerAlert('error', res.error || 'Échec du démarrage de la régénération');
+        return;
       }
+      const jobId = res.jobId;
+      setSeedJob({
+        id: jobId,
+        steps: [],
+        current: 'Démarrage…',
+        progress: 0,
+        done: false,
+        success: false,
+      });
+
+      const poll = async () => {
+        const prog = await seedTopProgressAction(jobId);
+        if (prog.success && prog.job) {
+          setSeedJob({ ...prog.job, steps: prog.job.steps ?? [] });
+          if (prog.job.done) {
+            if (prog.job.success) {
+              const r = (prog.job.result ?? {}) as Record<string, unknown>;
+              const details = [
+                `${r.users ?? '?'} comptes`,
+                `${r.articles ?? '?'} articles`,
+                `${r.posts ?? '?'} posts`,
+                `${r.readingSessions ?? '?'} lectures`,
+                r.umami ? 'Umami ✓' : null,
+                r.meilisearch ? 'Meili ✓' : null,
+              ]
+                .filter(Boolean)
+                .join(' · ');
+              triggerAlert('success', `🚀 DB régénérée : ${details}`);
+              await refreshData();
+              setTimeout(() => window.location.reload(), 1500);
+            } else {
+              triggerAlert('error', prog.job.error || 'Échec de la régénération');
+            }
+            return;
+          }
+        }
+        seedPollRef.current = setTimeout(poll, 1000);
+      };
+      stopSeedPoll();
+      seedPollRef.current = setTimeout(poll, 500);
     });
   };
 
@@ -392,29 +391,6 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
         await refreshData();
       } else {
         triggerAlert('error', res.error || 'Échec reindex');
-      }
-    });
-  };
-
-  const handleRestoreTopDb = () => {
-    if (
-      !window.confirm(
-        'Restaurer la DB top du top depuis le backup le plus récent de backups/ (top-db-*.sql.gz + umami-*.sql.gz) ? Toute la DB actuelle sera écrasée (schémas Supabase inclus).'
-      )
-    )
-      return;
-    startTransition(async () => {
-      if (!restoreTopDbAction) {
-        triggerAlert('error', 'restoreTopDbAction non branché');
-        return;
-      }
-      const res = await restoreTopDbAction();
-      if (res.success) {
-        triggerAlert('success', `✅ Top DB restaurée ${res.details || ''}`);
-        await refreshData();
-        setTimeout(() => window.location.reload(), 1200);
-      } else {
-        triggerAlert('error', res.error || 'Échec restore');
       }
     });
   };
@@ -738,27 +714,13 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
                   <div className="grid grid-cols-2 gap-1.5">
                     <button
                       onClick={handleSeedTopComplete}
-                      disabled={isPending}
+                      disabled={isPending || (seedJob !== null && !seedJob.done)}
                       className="apple-btn-primary col-span-2"
-                      title="Reset + ajoute le contenu riche + interactions + Umami + embeddings + Meilisearch"
+                      title="Reset complet + monde vivant : 500 users, 200 articles, 1480 pensées, lectures, interactions, Umami, embeddings, Meilisearch"
                     >
-                      🚀 Générer la DB de test complète
-                    </button>
-                    <button
-                      onClick={handleSeedTopDb}
-                      disabled={isPending}
-                      className="apple-btn-action col-span-2"
-                      title="Régénère uniquement la DB top du top depuis zéro"
-                    >
-                      ✨ Générer Top DB (reset simple)
-                    </button>
-                    <button
-                      onClick={handleRestoreTopDb}
-                      disabled={isPending}
-                      className="apple-btn-action col-span-2"
-                      title="Restaure 500 users, 200 articles, 1480 posts, 5723 lectures, 10.5k Umami depuis backups/"
-                    >
-                      💾 Restaurer Top DB (depuis backup)
+                      {seedJob !== null && !seedJob.done
+                        ? '⏳ Régénération en cours…'
+                        : '🔄 Régénérer la DB de test complète'}
                     </button>
                     <button
                       onClick={handleReindex}
@@ -767,20 +729,6 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
                       title="Re-synchronise les articles vers l'index Meilisearch (seuls les documents manquants sont ajoutés)"
                     >
                       🔎 Réindexer Meili (search)
-                    </button>
-                    <button
-                      onClick={handleSeedCompletePack}
-                      disabled={isPending}
-                      className="apple-btn-action"
-                    >
-                      Pack Complet Test
-                    </button>
-                    <button
-                      onClick={handleSeedThoughts}
-                      disabled={isPending}
-                      className="apple-btn-action"
-                    >
-                      +15 Posts Feed
                     </button>
                     <button
                       onClick={handleResetOnboarding}
@@ -798,6 +746,53 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
                     </button>
                   </div>
                 </div>
+
+                {seedJob && (
+                  <div className="apple-box">
+                    <div className="apple-box-title">
+                      {seedJob.done
+                        ? seedJob.success
+                          ? '✅ Régénération terminée'
+                          : '❌ Régénération en échec'
+                        : '🔄 Régénération de la DB en cours…'}
+                    </div>
+                    <div className="space-y-1 pt-1">
+                      {seedJob.steps.map((step) => (
+                        <div key={step} className="flex items-center gap-1.5 text-xs">
+                          <span className="apple-progress-ok">✓</span>
+                          <span className="apple-url-text">{step}</span>
+                        </div>
+                      ))}
+                      {!seedJob.done && seedJob.current && (
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <RefreshCw size={11} className="animate-spin" />
+                          <span className="apple-url-text">{seedJob.current}</span>
+                        </div>
+                      )}
+                      {seedJob.done && !seedJob.success && (
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <span className="apple-progress-err">✗</span>
+                          <span className="apple-progress-err">
+                            {seedJob.error || 'Erreur inconnue'}
+                          </span>
+                        </div>
+                      )}
+                      {!seedJob.done && (
+                        <div className="pt-1">
+                          <div className="apple-progress-bar">
+                            <div
+                              className="apple-progress-bar-fill"
+                              style={{ width: `${seedJob.progress}%` }}
+                            />
+                          </div>
+                          <div className="pt-1 text-[10px] text-muted-foreground">
+                            {Math.min(seedJob.progress, 99)}% — le seed complet prend ~1-2 min
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="apple-box">
                   <div className="apple-box-title">Simuler un Abonné CRM</div>
@@ -970,7 +965,7 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
                 <div className="divide-y divide-border">
                   {users.length === 0 ? (
                     <div className="apple-empty">
-                      Aucun utilisateur. Générez le Pack Complet dans Sandbox !
+                      Aucun utilisateur. Régénérez la DB de test dans Sandbox !
                     </div>
                   ) : (
                     users.map((user) => {

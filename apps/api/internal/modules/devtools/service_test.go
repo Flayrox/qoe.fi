@@ -2,7 +2,6 @@ package devtools
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -216,9 +215,9 @@ func TestDevtools_ResetOnboarding_Targeted(t *testing.T) {
 	}
 }
 
-// TestDevtools_SeedTop_RedisAndUmami couvre les branches optionnelles de
-// SeedTop : enqueue des embeddings (REDIS_URL) et génération Umami.
-func TestDevtools_SeedTop_RedisAndUmami(t *testing.T) {
+// TestDevtools_SeedTopComplete_RedisAndUmami couvre les branches optionnelles
+// de la régénération complète : enqueue des embeddings (REDIS_URL) et Umami.
+func TestDevtools_SeedTopComplete_RedisAndUmami(t *testing.T) {
 	seedDevtools(t)
 	ctx := context.Background()
 
@@ -256,9 +255,9 @@ func TestDevtools_SeedTop_RedisAndUmami(t *testing.T) {
 	t.Setenv("MEILISEARCH_HOST", "http://127.0.0.1:1")
 
 	svc := NewService(poolTest, Options{DevOnly: true})
-	res, err := svc.SeedTop(ctx, DevSecretUserID)
+	res, err := svc.SeedTopComplete(ctx, DevSecretUserID)
 	if err != nil {
-		t.Fatalf("SeedTop: %v", err)
+		t.Fatalf("SeedTopComplete: %v", err)
 	}
 	if res["success"] != true {
 		t.Fatalf("res = %+v", res)
@@ -304,15 +303,5 @@ func TestDevtools_SeedTopComplete_Additive(t *testing.T) {
 	}
 	if n, ok := res["embeddingsEnqueued"].(int); !ok || n == 0 {
 		t.Fatalf("embeddingsEnqueued = %v, attendu > 0", res["embeddingsEnqueued"])
-	}
-}
-
-// TestDevtools_GeneratePosts_NoCreators couvre le chemin d'erreur métier.
-func TestDevtools_GeneratePosts_NoCreators(t *testing.T) {
-	seedDevtools(t)
-	svc := NewService(poolTest, Options{DevOnly: true})
-	err := svc.GeneratePosts(context.Background(), DevSecretUserID)
-	if err == nil || !strings.Contains(err.Error(), "créer au moins un utilisateur") {
-		t.Fatalf("GeneratePosts(sans créateur) = %v, attendu erreur métier", err)
 	}
 }
