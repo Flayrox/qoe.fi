@@ -57,7 +57,7 @@ func Load() *Config {
 		SupabaseServiceRoleKey: envOr("SUPABASE_SERVICE_ROLE_KEY", ""),
 		JWTSecret:              envOr("SUPABASE_JWT_SECRET", envOr("SUPABASE_SECRET_KEY", "")),
 		RedisURL:               envOr("REDIS_URL", "redis://localhost:6379"),
-		InternalSecret:         envOr("QOE_INTERNAL_SECRET", envOr("SUPABASE_SERVICE_ROLE_KEY", "")),
+		InternalSecret:         envOr("QOE_INTERNAL_SECRET", ""),
 		StripeWebhookSecret:    envOr("STRIPE_WEBHOOK_SECRET", ""),
 		UmamiAPIURL:            envOr("UMAMI_API_URL", "https://api.umami.is/v1"),
 		UmamiAPIKey:            envOr("UMAMI_API_KEY", ""),

@@ -103,7 +103,11 @@ func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, n
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool, gotrue: newGoTrueClient(os.Getenv("SUPABASE_AUTH_URL"), os.Getenv("SUPABASE_SERVICE_ROLE_KEY"))}
+	return NewServiceWithGoTrue(pool, os.Getenv("SUPABASE_AUTH_URL"), os.Getenv("SUPABASE_SERVICE_ROLE_KEY"))
+}
+
+func NewServiceWithGoTrue(pool *pgxpool.Pool, authURL, serviceRoleKey string) *Service {
+	return &Service{pool: pool, gotrue: newGoTrueClient(authURL, serviceRoleKey)}
 }
 
 type Contributor struct {
