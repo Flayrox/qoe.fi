@@ -21,101 +21,109 @@ type RItem =
   | { type: 'quote'; text: string }
   | { type: 'divider' };
 
-const READER_ITEMS: RItem[] = [
-  { type: 'label', text: 'Clara Lambert · Essai · 8 min' },
-  { type: 'title', text: 'Le silence comme infrastructure' },
-  {
-    type: 'body',
-    text: "Il y a des architectures invisibles. Non pas des bâtiments, mais des espaces mentaux — des structures que l'on construit délibérément pour penser mieux.",
-  },
-  {
-    type: 'body',
-    text: "Le silence est l'une d'entre elles. Non pas l'absence de son, mais l'absence de sollicitations qui se déguisent en urgences.",
-  },
-  { type: 'quote', text: '« On ne pense vraiment que dans les intervalles. »' },
-  {
-    type: 'body',
-    text: "Pendant des siècles, la rareté de l'écrit était une contrainte naturelle. Copier un manuscrit prenait des mois. Lire était un acte rare, presque sacré.",
-  },
-  {
-    type: 'body',
-    text: "Aujourd'hui, l'abondance est le problème. Nous ne manquons pas d'informations — nous manquons de distance.",
-  },
-  { type: 'section', text: "I. L'anxiété du flux" },
-  {
-    type: 'body',
-    text: "La vitesse à laquelle le contenu est produit dépasse notre capacité à l'assimiler. Ce qui reste, c'est une anxiété cognitive chronique : le sentiment d'être toujours en retard.",
-  },
-  {
-    type: 'body',
-    text: "Choisir de lire lentement est un acte politique. C'est refuser l'économie de l'attention telle qu'elle est organisée.",
-  },
-  { type: 'quote', text: "« Lire, c'est résister. »" },
-  { type: 'section', text: 'II. Les conditions de la profondeur' },
-  {
-    type: 'body',
-    text: "Les grandes œuvres ont toutes été écrites dans des conditions que nous qualifierions d'ennuyeuses. Pas de notifications. Pas de flux. Pas de stories.",
-  },
-  {
-    type: 'body',
-    text: 'Proust écrivait dans une chambre capitonnée. Kafka après minuit. Wittgenstein, dans une cabane en Norvège.',
-  },
-  { type: 'section', text: 'III. Comment se donner ces conditions' },
-  {
-    type: 'body',
-    text: "La question n'est pas : comment consommer davantage de contenu de qualité ? La question est : comment me donner les conditions pour qu'un seul texte m'affecte vraiment ?",
-  },
-  {
-    type: 'quote',
-    text: "« Le silence n'est pas passivité. C'est la condition même de la pensée. »",
-  },
-  { type: 'label', text: '— Fin —' },
-  { type: 'divider' },
-  { type: 'label', text: 'Julien Roche · Technologie · 5 min' },
-  { type: 'title', text: 'Sortir du cloud des géants' },
-  {
-    type: 'body',
-    text: "L'hébergement de nos médias indépendants ne peut plus reposer sur les serveurs des GAFAM. Ce n'est pas une question technique. C'est une question de souveraineté.",
-  },
-  {
-    type: 'body',
-    text: "Le Cloud Act américain permet aux autorités des États-Unis d'accéder aux données hébergées par des entreprises américaines, où qu'elles soient dans le monde.",
-  },
-  { type: 'quote', text: "« La liberté de la presse passe par la liberté de l'infrastructure. »" },
-  { type: 'section', text: 'Les alternatives existent' },
-  {
-    type: 'body',
-    text: "Hetzner, en Allemagne. Scaleway, en France. OVH, à Roubaix. Des datacenters où le droit européen s'applique réellement.",
-  },
-  {
-    type: 'body',
-    text: "Ce que nous choisissons d'héberger dit ce que nous choisissons de défendre.",
-  },
-  { type: 'label', text: '— Fin —' },
-  { type: 'divider' },
-  { type: 'label', text: 'Sophie Laurent · Philosophie · 6 min' },
-  { type: 'title', text: "La mémoire contre l'archive" },
-  {
-    type: 'body',
-    text: "Nous archivons tout. Chaque photo, chaque message, chaque note vocale. Mais archiver n'est pas se souvenir.",
-  },
-  {
-    type: 'body',
-    text: "La mémoire est active. Elle transforme. Elle reconstruit. Elle donne du sens à ce qu'elle retient en le plaçant dans un récit.",
-  },
-  { type: 'quote', text: '« Une mémoire sans oubli est une prison. »' },
-  { type: 'section', text: "L'archive ne pense pas" },
-  {
-    type: 'body',
-    text: "L'archive est passive. Elle conserve sans digérer. Elle accumule sans comprendre. Elle est fidèle aux faits, et infidèle à la vie.",
-  },
-  {
-    type: 'body',
-    text: "En voulant tout garder, nous n'avons peut-être rien retenu. L'oubli sélectif n'est pas une défaillance. C'est une fonction.",
-  },
-  { type: 'quote', text: '« Oublier est une forme de liberté. »' },
-  { type: 'label', text: '— Fin —' },
-];
+// Contenu de démonstration de l'aperçu lecteur — construit au rendu pour que
+// les traductions suivent la langue active (un tableau évalué au module
+// resterait figé dans la langue par défaut).
+function getReaderItems(): RItem[] {
+  return [
+    { type: 'label', text: t`Clara Lambert · Essai · 8 min` },
+    { type: 'title', text: t`Le silence comme infrastructure` },
+    {
+      type: 'body',
+      text: t`Il y a des architectures invisibles. Non pas des bâtiments, mais des espaces mentaux — des structures que l'on construit délibérément pour penser mieux.`,
+    },
+    {
+      type: 'body',
+      text: t`Le silence est l'une d'entre elles. Non pas l'absence de son, mais l'absence de sollicitations qui se déguisent en urgences.`,
+    },
+    { type: 'quote', text: t`« On ne pense vraiment que dans les intervalles. »` },
+    {
+      type: 'body',
+      text: t`Pendant des siècles, la rareté de l'écrit était une contrainte naturelle. Copier un manuscrit prenait des mois. Lire était un acte rare, presque sacré.`,
+    },
+    {
+      type: 'body',
+      text: t`Aujourd'hui, l'abondance est le problème. Nous ne manquons pas d'informations — nous manquons de distance.`,
+    },
+    { type: 'section', text: t`I. L'anxiété du flux` },
+    {
+      type: 'body',
+      text: t`La vitesse à laquelle le contenu est produit dépasse notre capacité à l'assimiler. Ce qui reste, c'est une anxiété cognitive chronique : le sentiment d'être toujours en retard.`,
+    },
+    {
+      type: 'body',
+      text: t`Choisir de lire lentement est un acte politique. C'est refuser l'économie de l'attention telle qu'elle est organisée.`,
+    },
+    { type: 'quote', text: t`« Lire, c'est résister. »` },
+    { type: 'section', text: t`II. Les conditions de la profondeur` },
+    {
+      type: 'body',
+      text: t`Les grandes œuvres ont toutes été écrites dans des conditions que nous qualifierions d'ennuyeuses. Pas de notifications. Pas de flux. Pas de stories.`,
+    },
+    {
+      type: 'body',
+      text: t`Proust écrivait dans une chambre capitonnée. Kafka après minuit. Wittgenstein, dans une cabane en Norvège.`,
+    },
+    { type: 'section', text: t`III. Comment se donner ces conditions` },
+    {
+      type: 'body',
+      text: t`La question n'est pas : comment consommer davantage de contenu de qualité ? La question est : comment me donner les conditions pour qu'un seul texte m'affecte vraiment ?`,
+    },
+    {
+      type: 'quote',
+      text: t`« Le silence n'est pas passivité. C'est la condition même de la pensée. »`,
+    },
+    { type: 'label', text: t`— Fin —` },
+    { type: 'divider' },
+    { type: 'label', text: t`Julien Roche · Technologie · 5 min` },
+    { type: 'title', text: t`Sortir du cloud des géants` },
+    {
+      type: 'body',
+      text: t`L'hébergement de nos médias indépendants ne peut plus reposer sur les serveurs des GAFAM. Ce n'est pas une question technique. C'est une question de souveraineté.`,
+    },
+    {
+      type: 'body',
+      text: t`Le Cloud Act américain permet aux autorités des États-Unis d'accéder aux données hébergées par des entreprises américaines, où qu'elles soient dans le monde.`,
+    },
+    {
+      type: 'quote',
+      text: t`« La liberté de la presse passe par la liberté de l'infrastructure. »`,
+    },
+    { type: 'section', text: t`Les alternatives existent` },
+    {
+      type: 'body',
+      text: t`Hetzner, en Allemagne. Scaleway, en France. OVH, à Roubaix. Des datacenters où le droit européen s'applique réellement.`,
+    },
+    {
+      type: 'body',
+      text: t`Ce que nous choisissons d'héberger dit ce que nous choisissons de défendre.`,
+    },
+    { type: 'label', text: t`— Fin —` },
+    { type: 'divider' },
+    { type: 'label', text: t`Sophie Laurent · Philosophie · 6 min` },
+    { type: 'title', text: t`La mémoire contre l'archive` },
+    {
+      type: 'body',
+      text: t`Nous archivons tout. Chaque photo, chaque message, chaque note vocale. Mais archiver n'est pas se souvenir.`,
+    },
+    {
+      type: 'body',
+      text: t`La mémoire est active. Elle transforme. Elle reconstruit. Elle donne du sens à ce qu'elle retient en le plaçant dans un récit.`,
+    },
+    { type: 'quote', text: t`« Une mémoire sans oubli est une prison. »` },
+    { type: 'section', text: t`L'archive ne pense pas` },
+    {
+      type: 'body',
+      text: t`L'archive est passive. Elle conserve sans digérer. Elle accumule sans comprendre. Elle est fidèle aux faits, et infidèle à la vie.`,
+    },
+    {
+      type: 'body',
+      text: t`En voulant tout garder, nous n'avons peut-être rien retenu. L'oubli sélectif n'est pas une défaillance. C'est une fonction.`,
+    },
+    { type: 'quote', text: t`« Oublier est une forme de liberté. »` },
+    { type: 'label', text: t`— Fin —` },
+  ];
+}
 
 // ─── Reader scroll — pauses on inactive, resumes from exact position ──────────
 function ReaderScroll({ active, items }: { active: boolean; items: RItem[] }) {
@@ -327,7 +335,7 @@ function PlateauPreview({ onClose, showChrome, autoClickDot, config, locale }: P
 
   const customReaderItemsJson =
     config[`hero_reader_items_${locale}`] || config['hero_reader_items'];
-  let readerItems = READER_ITEMS;
+  let readerItems = getReaderItems();
   if (customReaderItemsJson) {
     try {
       const parsed = JSON.parse(customReaderItemsJson);

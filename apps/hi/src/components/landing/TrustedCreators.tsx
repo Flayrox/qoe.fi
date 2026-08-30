@@ -14,33 +14,33 @@ export const TrustedCreators = ({ config }: TrustedCreatorsProps) => {
   const tagline = config['creators_tagline'] || t`Des voix libres et indépendantes`;
 
   const mediaLogos = [
-    { name: 'Mediapart', desc: "Média d'investigation" },
-    { name: 'Basta!', desc: 'Média écologiste' },
-    { name: 'StreetPress', desc: 'Journalisme de terrain' },
-    { name: "L'Humanité", desc: 'Quotidien engagé' },
+    { name: 'Mediapart', desc: t`Média d'investigation` },
+    { name: 'Basta!', desc: t`Média écologiste` },
+    { name: 'StreetPress', desc: t`Journalisme de terrain` },
+    { name: "L'Humanité", desc: t`Quotidien engagé` },
   ];
 
   const creators = [
     {
       name: 'Maxime Vivas',
-      role: "Journaliste d'enquête",
+      role: t`Journaliste d'enquête`,
       subscribers: '12.4k',
       articles: 184,
-      desc: "Ancien reporter, spécialisé dans l'impact écologique des infrastructures numériques.",
+      desc: t`Ancien reporter, spécialisé dans l'impact écologique des infrastructures numériques.`,
     },
     {
       name: 'Chloé Dufour',
-      role: 'Sociologue & Écrivaine',
+      role: t`Sociologue & Écrivaine`,
       subscribers: '8.1k',
       articles: 92,
-      desc: "Chroniqueuse sur la décroissance attentionnelle et l'auto-suffisance technologique.",
+      desc: t`Chroniqueuse sur la décroissance attentionnelle et l'auto-suffisance technologique.`,
     },
     {
       name: 'David Graber',
-      role: 'Philosophe indépendant',
+      role: t`Philosophe indépendant`,
       subscribers: '24.9k',
       articles: 301,
-      desc: "Auteur d'essais sur la réappropriation du temps de cerveau disponible.",
+      desc: t`Auteur d'essais sur la réappropriation du temps de cerveau disponible.`,
     },
   ];
 

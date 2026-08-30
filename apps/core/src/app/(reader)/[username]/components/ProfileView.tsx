@@ -172,7 +172,7 @@ export function ProfileView({
     const res = await deletePost(postId);
 
     if (!res.ok) {
-      toast.error('Erreur lors de la suppression de la pensée.');
+      toast.error(t`Erreur lors de la suppression de la pensée.`);
       return false;
     }
 
@@ -183,7 +183,7 @@ export function ProfileView({
         ? { ...prev._count, posts: Math.max(0, (prev._count.posts || 0) - 1) }
         : prev._count,
     }));
-    toast.success('Pensée supprimée.');
+    toast.success(t`Pensée supprimée.`);
     return true;
   };
 
@@ -273,7 +273,7 @@ export function ProfileView({
                       : 'bg-foreground text-background hover:opacity-90'
                   )}
                 >
-                  {isFollowing ? 'Abonné' : 'Suivre'}
+                  {isFollowing ? t`Abonné` : t`Suivre`}
                 </button>
               )}
 
@@ -392,14 +392,14 @@ export function ProfileView({
               active={activeTab === 'thoughts'}
               onClick={() => handleTabChange('thoughts')}
               icon={<MessageSquare className="w-3.5 h-3.5" />}
-              label="Pensées"
+              label={t`Pensées`}
               count={rootThoughts.length}
             />
             <TabButton
               active={activeTab === 'with_replies'}
               onClick={() => handleTabChange('with_replies')}
               icon={<MessageSquare className="w-3.5 h-3.5 opacity-60" />}
-              label="Réponses"
+              label={t`Réponses`}
               count={replyThoughts.length}
             />
             <TabButton
@@ -420,7 +420,7 @@ export function ProfileView({
               active={activeTab === 'media'}
               onClick={() => handleTabChange('media')}
               icon={<ImageIcon className="w-3.5 h-3.5" />}
-              label="Médias"
+              label={t`Médias`}
               count={mediaThoughts.length}
             />
           </div>

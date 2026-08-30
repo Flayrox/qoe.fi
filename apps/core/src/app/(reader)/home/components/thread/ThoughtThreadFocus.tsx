@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { t } from '@lingui/core/macro';
 import {
   pinPostAction,
   unpinPostAction,
@@ -52,18 +53,18 @@ export function ThoughtThreadFocus() {
     if (post.isPinned) {
       const res = await unpinPostAction(post.id);
       if (res.ok) {
-        toast.success('Pensée détachée du profil.');
+        toast.success(t`Pensée détachée du profil.`);
         post.isPinned = false;
       } else {
-        toast.error('Erreur lors de la mise à jour.');
+        toast.error(t`Erreur lors de la mise à jour.`);
       }
     } else {
       const res = await pinPostAction(post.id);
       if (res.ok) {
-        toast.success('Pensée épinglée sur le profil.');
+        toast.success(t`Pensée épinglée sur le profil.`);
         post.isPinned = true;
       } else {
-        toast.error("Erreur lors de l'épinglage.");
+        toast.error(t`Erreur lors de l'épinglage.`);
       }
     }
   };
@@ -79,7 +80,7 @@ export function ThoughtThreadFocus() {
         const res = await toggleFollowCreatorHomeAction(creatorId);
         if (res?.ok) {
           toast.success(
-            res.data.followed ? 'Vous suivez maintenant ce créateur.' : 'Abonnement retiré.'
+            res.data.followed ? t`Vous suivez maintenant ce créateur.` : t`Abonnement retiré.`
           );
           return { success: true };
         }

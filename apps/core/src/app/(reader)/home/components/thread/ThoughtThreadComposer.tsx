@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { t } from '@lingui/core/macro';
 import { Lock } from 'lucide-react';
 import { ThoughtComposer, type ComposedPost } from '../ThoughtComposer';
 import { useThoughtThreadContext, type OptimisticThought } from './ThoughtThreadContext';
@@ -11,7 +12,7 @@ export interface ThoughtThreadComposerProps {
 }
 
 export function ThoughtThreadComposer({
-  placeholder = 'Exprimer votre réponse...',
+  placeholder = t`Exprimer votre réponse...`,
   parentId,
 }: ThoughtThreadComposerProps) {
   const {
@@ -45,7 +46,7 @@ export function ThoughtThreadComposer({
 
   // Check threadgate restrictions if not the author
   if (!isAuthor && restriction !== 'everyone') {
-    let restrictionText = "Les réponses à cette pensée sont limitées par l'auteur.";
+    let restrictionText = t`Les réponses à cette pensée sont limitées par l'auteur.`;
     if (restriction === 'subscribers') {
       restrictionText = `Seuls les abonnés à @${authorHandle} peuvent répondre.`;
     } else if (restriction === 'following') {

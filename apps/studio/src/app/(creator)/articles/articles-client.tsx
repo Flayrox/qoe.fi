@@ -165,7 +165,7 @@ export function ArticlesClient({
       });
 
       if (!res.ok) throw new Error(res.error.message);
-      if (!res.data) throw new Error('Échec de création de la catégorie.');
+      if (!res.data) throw new Error(t`Échec de création de la catégorie.`);
       const created = res.data;
 
       const newCatWithCount: CategoryWithCount = {
@@ -189,7 +189,7 @@ export function ArticlesClient({
       const message =
         err instanceof Error
           ? err.message
-          : 'Une erreur est survenue lors de la création du thème.';
+          : t`Une erreur est survenue lors de la création du thème.`;
       setCategoryError(message);
     } finally {
       setIsCreatingCategory(false);
@@ -211,7 +211,7 @@ export function ArticlesClient({
         )
       );
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Échec de la suppression.';
+      const message = err instanceof Error ? err.message : t`Échec de la suppression.`;
       alert(message);
     }
   };
@@ -226,7 +226,7 @@ export function ArticlesClient({
       await deleteArticleAction(id);
       setArticles((prev) => prev.filter((a) => a.id !== id));
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Échec de la suppression.';
+      const message = err instanceof Error ? err.message : t`Échec de la suppression.`;
       alert(message);
     }
   };
@@ -249,7 +249,7 @@ export function ArticlesClient({
         )
       );
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Échec de la revue.';
+      const message = err instanceof Error ? err.message : t`Échec de la revue.`;
       alert(message);
     }
   };
@@ -367,7 +367,7 @@ export function ArticlesClient({
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Rechercher un écrit..."
+                placeholder={t`Rechercher un écrit...`}
                 className="w-full bg-card border border-border/40 rounded-full py-2 pl-9.5 pr-4 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all font-sans"
               />
             </div>
@@ -456,7 +456,7 @@ export function ArticlesClient({
                   value={period}
                   onChange={(e) => setPeriod(e.target.value as '7d' | '30d' | '90d' | 'all')}
                   className="bg-background border border-border/30 rounded-lg px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:border-border/60 transition-colors cursor-pointer font-sans"
-                  title="Période des vues (toutes les lectures envoyées au créateur)"
+                  title={t`Période des vues (toutes les lectures envoyées au créateur)`}
                 >
                   <option value="7d">Vues 7j</option>
                   <option value="30d">Vues 30j</option>
@@ -482,7 +482,7 @@ export function ArticlesClient({
                 <button
                   onClick={() => setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
                   className="flex items-center gap-1 px-2 py-1 rounded-lg bg-background border border-border/30 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-sans"
-                  title={`Ordre : ${sortDirection === 'desc' ? 'Décroissant' : 'Croissant'}`}
+                  title={t`Ordre : ${sortDirection === 'desc' ? t`Décroissant` : t`Croissant`}`}
                 >
                   <ArrowUpDown className="w-3 h-3 stroke-[1.5]" />
                   <span className="uppercase text-[10px] font-bold">{sortDirection}</span>
@@ -493,7 +493,7 @@ export function ArticlesClient({
                   <button
                     onClick={resetFilters}
                     className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-destructive/10 border border-destructive/20 text-xs font-semibold text-destructive hover:bg-destructive/20 transition-colors cursor-pointer font-sans"
-                    title="Réinitialiser tous les filtres"
+                    title={t`Réinitialiser tous les filtres`}
                   >
                     <FilterX className="w-3 h-3" />
                     <span>Effacer</span>
@@ -513,7 +513,7 @@ export function ArticlesClient({
                   <p className="text-xs text-muted-foreground max-w-xs font-sans">
                     {hasActiveFilters
                       ? 'Essayez de modifier vos critères de recherche ou de tri.'
-                      : 'Prenez la plume pour donner corps à vos pensées.'}
+                      : t`Prenez la plume pour donner corps à vos pensées.`}
                   </p>
                 </div>
                 {hasActiveFilters ? (
@@ -595,7 +595,7 @@ export function ArticlesClient({
                                   : 'bg-muted text-muted-foreground border border-border/30'
                               )}
                             >
-                              {art.published ? 'Publié' : 'Brouillon'}
+                              {art.published ? t`Publié` : t`Brouillon`}
                             </span>
                           )}
 
@@ -634,7 +634,7 @@ export function ArticlesClient({
                             setInspectingArticle({ id: art.id, slug: art.slug });
                           }}
                           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer p-1 rounded hover:bg-muted/60"
-                          title="Voir les réactions, surlignages & commentaires"
+                          title={t`Voir les réactions, surlignages & commentaires`}
                         >
                           <MessageSquare className="w-3.5 h-3.5 stroke-[1.5]" />
                           <span>{art.commentsCount ?? interactionsCount}</span>
@@ -681,7 +681,7 @@ export function ArticlesClient({
                         <a
                           href={`/articles/${art.id}`}
                           className="p-1.5 text-muted-foreground hover:text-foreground rounded hover:bg-muted transition-colors"
-                          title="Éditer"
+                          title={t`Éditer`}
                         >
                           <Edit3 className="w-4 h-4 stroke-[1.5]" />
                         </a>
@@ -786,7 +786,7 @@ export function ArticlesClient({
                       type="text"
                       value={newCatName}
                       onChange={handleCategoryNameChange}
-                      placeholder="Ex: Poésie, Tech..."
+                      placeholder={t`Ex: Poésie, Tech...`}
                       required
                       className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans"
                     />
@@ -833,7 +833,7 @@ export function ArticlesClient({
                     disabled={isCreatingCategory || !newCatName.trim()}
                     className="w-full h-8 flex items-center justify-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-sans font-bold text-xs rounded-xl transition-all disabled:opacity-50 cursor-pointer shadow-sm"
                   >
-                    {isCreatingCategory ? 'Création...' : 'Ajouter le thème'}
+                    {isCreatingCategory ? t`Création...` : t`Ajouter le thème`}
                   </button>
                 </form>
               </div>

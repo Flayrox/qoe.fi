@@ -13,12 +13,12 @@ import { useRealtimeNotificationSync } from './useRealtimeNotificationSync';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 
-const TABS: Array<{ id: NotificationFilter; label: string }> = [
-  { id: 'all', label: t`Toutes` },
-  { id: 'mentions', label: t`Mentions` },
-  { id: 'replies', label: t`Réponses` },
-  { id: 'likes', label: t`J'aime` },
-  { id: 'collaborations', label: t`Collaborations` },
+const TABS: Array<{ id: NotificationFilter; label: () => string }> = [
+  { id: 'all', label: () => t`Toutes` },
+  { id: 'mentions', label: () => t`Mentions` },
+  { id: 'replies', label: () => t`Réponses` },
+  { id: 'likes', label: () => t`J'aime` },
+  { id: 'collaborations', label: () => t`Collaborations` },
 ];
 
 export function NotificationList() {
@@ -90,7 +90,7 @@ export function NotificationList() {
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               )}
             >
-              {tab.label}
+              {tab.label()}
             </button>
           ))}
         </div>

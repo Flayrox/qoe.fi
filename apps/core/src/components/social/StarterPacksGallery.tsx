@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { t } from '@lingui/core/macro';
 import { Sparkles, Loader2, Plus, Compass } from 'lucide-react';
 import { getStarterPacksAction, createStarterPackAction } from '@qoe/sdk';
 import { StarterPackCard, type StarterPackCardProps } from './StarterPackCard';
@@ -76,7 +77,7 @@ export function StarterPacksGallery() {
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-all shrink-0"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>{isCreating ? 'Fermer' : 'Créer un Pack'}</span>
+          <span>{isCreating ? t`Fermer` : t`Créer un Pack`}</span>
         </button>
       </div>
 
@@ -107,7 +108,7 @@ export function StarterPacksGallery() {
           <textarea
             value={newDesc}
             onChange={(e) => setNewTitleDesc(e.target.value)}
-            placeholder="Description optionnelle de la sélection..."
+            placeholder={t`Description optionnelle de la sélection...`}
             className="w-full px-3 py-2 text-xs bg-background border border-border rounded-xl focus:outline-hidden focus:ring-1 focus:ring-primary resize-none h-20"
           />
           <div className="flex justify-end">

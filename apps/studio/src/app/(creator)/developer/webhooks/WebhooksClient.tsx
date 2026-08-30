@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
 import {
   Plus,
@@ -31,11 +32,11 @@ import {
 } from './actions';
 import { DeveloperNav } from '@/features/developer/components/developer-nav';
 
-const EVENT_LABELS: Record<string, string> = {
-  'article.published': 'Article publié',
-  'article.updated': 'Article modifié',
-  'article.deleted': 'Article supprimé',
-  'subscriber.created': 'Nouvel abonné',
+const EVENT_LABELS: Record<string, () => string> = {
+  'article.published': () => t`Article publié`,
+  'article.updated': () => t`Article modifié`,
+  'article.deleted': () => t`Article supprimé`,
+  'subscriber.created': () => t`Nouvel abonné`,
 };
 
 function QuietDot({ active }: { active?: boolean }) {
@@ -80,7 +81,7 @@ export function WebhooksClient({
     const res = await createWebhookAction({ name, url, events: selectedEvents });
     setCreating(false);
     if (res.success) {
-      toast.success('Webhook créé ! Copiez le secret maintenant.');
+      toast.success(t`Webhook créé ! Copiez le secret maintenant.`);
       setRevealedSecret(res.secret);
       setName('');
       setUrl('');
@@ -89,7 +90,7 @@ export function WebhooksClient({
       if (list.success) setWebhooks(list.webhooks);
       router.refresh();
     } else {
-      toast.error(res.error || 'Échec de la création.');
+      toast.error(res.error || t`Échec de la création.`);
     }
   };
 
@@ -112,7 +113,7 @@ export function WebhooksClient({
     setBusyId(null);
     if (res.success) {
       setWebhooks((prev) => prev.filter((w) => w.id !== id));
-      toast.success('Webhook supprimé.');
+      toast.success(t`Webhook supprimé.`);
     } else {
       toast.error(res.error || 'Erreur');
     }
@@ -125,12 +126,12 @@ export function WebhooksClient({
     if (res.success) {
       toast.success(`Événement de test envoyé — HTTP ${res.status}`);
     } else {
-      toast.error(res.error || 'Test échoué');
+      toast.error(res.error || t`Test échoué`);
     }
   };
 
   const copySecret = (secret: string) => {
-    navigator.clipboard?.writeText(secret).then(() => toast.success('Secret copié.'));
+    navigator.clipboard?.writeText(secret).then(() => toast.success(t`Secret copié.`));
   };
 
   const openDeliveries = async (webhook: WebhookWithDeliveries) => {
@@ -247,7 +248,7 @@ export function WebhooksClient({
                     )}
                   >
                     <span>{isSelected ? '✓' : '+'}</span>
-                    <span>{EVENT_LABELS[ev] || ev}</span>
+                    <span>{EVENT_LABELS[ev] ? EVENT_LABELS[ev]() : ev}</span>
                   </button>
                 );
               })}
@@ -352,7 +353,7 @@ export function WebhooksClient({
                         key={ev}
                         className="px-2 py-0.5 rounded-md bg-muted/60 text-[10px] font-medium text-muted-foreground border border-border/40"
                       >
-                        {EVENT_LABELS[ev] || ev}
+                        {EVENT_LABELS[ev] ? EVENT_LABELS[ev]() : ev}
                       </span>
                     ))}
                   </div>

@@ -168,7 +168,7 @@ export function GlobalCommandMenu() {
                 <CmdKItem
                   key={action.id}
                   icon={action.icon}
-                  label={action.label as string}
+                  label={action.label}
                   category={action.category}
                   onSelect={() => handleSelect(action.path)}
                 />
@@ -216,7 +216,7 @@ export function GlobalCommandMenu() {
         {items.length > 0 && (
           <CmdKGroup heading={t`Réglages du Studio`}>
             {items.map((item) => {
-              const displayTitle = item.label;
+              const displayTitle = item.label();
               const breadcrumbStr = item.breadcrumbLabels?.length
                 ? item.breadcrumbLabels.join(' → ')
                 : undefined;
@@ -225,7 +225,7 @@ export function GlobalCommandMenu() {
                   key={item.id}
                   value={`${displayTitle} ${item.keywordsKey?.join(' ') || ''}`}
                   icon={Sliders}
-                  label={displayTitle as string}
+                  label={displayTitle}
                   subtitle={breadcrumbStr}
                   category={t`Réglage`}
                   onSelect={() => handleSelect(item.path)}

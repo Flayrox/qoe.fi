@@ -173,62 +173,62 @@ export const FeaturedPublications = ({ articles, config }: FeaturedPublicationsP
   const mockArticles = [
     {
       id: 'm1',
-      title: "L'impératif de la sobriété attentionnelle",
+      title: t`L'impératif de la sobriété attentionnelle`,
       content:
         '<p>Notre époque est marquée par une capture permanente de notre attention par des algorithmes toxiques.</p>',
       slug: 'sobriete',
       createdAt: new Date().toISOString(),
       isPremium: true,
       author: { name: 'Clara Lambert', logoUrl: null },
-      category: { name: 'Philosophie' },
+      category: { name: t`Philosophie` },
     },
     {
       id: 'm2',
-      title: "Sortir du cloud : l'infrastructure éthique",
+      title: t`Sortir du cloud : l'infrastructure éthique`,
       content:
         "<p>Pourquoi l'hébergement de nos médias indépendants ne peut plus reposer sur les serveurs des GAFAM.</p>",
       slug: 'infra',
       createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
       isPremium: false,
       author: { name: 'Julien Roche', logoUrl: null },
-      category: { name: 'Technologie' },
+      category: { name: t`Technologie` },
     },
     {
       id: 'm3',
-      title: "La mémoire contre l'archive",
+      title: t`La mémoire contre l'archive`,
       content: "<p>Nous archivons tout. Mais archiver n'est pas se souvenir.</p>",
       slug: 'memoire',
       createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
       isPremium: false,
       author: { name: 'Sophie Laurent', logoUrl: null },
-      category: { name: 'Philosophie' },
+      category: { name: t`Philosophie` },
     },
     {
       id: 'm4',
-      title: 'Décentraliser la presse : protocoles et souveraineté',
+      title: t`Décentraliser la presse : protocoles et souveraineté`,
       content: '<p>Vers une ère de protocoles décentralisés et de souveraineté numérique.</p>',
       slug: 'decentral',
       createdAt: new Date(Date.now() - 86400000 * 8).toISOString(),
       isPremium: true,
       author: { name: 'Alexandre Marin', logoUrl: null },
-      category: { name: 'Politique' },
+      category: { name: t`Politique` },
     },
     {
       id: 'm5',
-      title: "Le journalisme d'enquête à l'ère du numérique",
+      title: t`Le journalisme d'enquête à l'ère du numérique`,
       content: '<p>Comment les outils numériques transforment les pratiques journalistiques.</p>',
       slug: 'enquete',
       createdAt: new Date(Date.now() - 86400000 * 12).toISOString(),
       isPremium: false,
       author: { name: 'Marc Dutronc', logoUrl: null },
-      category: { name: 'Médias' },
+      category: { name: t`Médias` },
     },
   ];
 
   const displayArticles = articles.length > 0 ? articles : mockArticles;
 
   const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+    new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'long' });
 
   return (
     <section

@@ -8,6 +8,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
 import { toast } from '@qoe/ui/toast';
@@ -211,7 +212,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
       setSubdomainCheck({
         loading: false,
         available: false,
-        error: 'Le sous-domaine ne peut pas être vide.',
+        error: t`Le sous-domaine ne peut pas être vide.`,
       });
       return;
     }
@@ -231,7 +232,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
         setSubdomainCheck({
           loading: false,
           available: false,
-          error: 'Erreur de vérification.',
+          error: t`Erreur de vérification.`,
         });
       }
     }
@@ -267,7 +268,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
 
   const handleDiscardChanges = () => {
     setCurrent(original);
-    toast.info('Modifications annulées.');
+    toast.info(t`Modifications annulées.`);
   };
 
   const handleSaveAll = async () => {
@@ -328,7 +329,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
         await saveSocialLinksAction(current.socialLinks);
       }
 
-      toast.success('Paramètres enregistrés.');
+      toast.success(t`Paramètres enregistrés.`);
       setOriginal(current);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Erreur de sauvegarde.');
@@ -411,7 +412,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
             <p className="text-xs text-muted-foreground mt-0.5">
               {isMediaWorkspace
                 ? `Configuration du Média « ${current.name} » et de son équipe sur qoe.fi`
-                : "Configuration de votre espace d'écriture sur qoe.fi"}
+                : t`Configuration de votre espace d'écriture sur qoe.fi`}
             </p>
           </div>
 
@@ -468,10 +469,10 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
           <div className="flex gap-6 border-b border-border/40">
             {(
               [
-                { id: 'general', label: 'Général' },
-                { id: 'domain', label: 'Domaine & DNS' },
-                { id: 'navigation', label: 'Navigation & Réseaux' },
-                { id: 'seo', label: 'SEO & Pied de page' },
+                { id: 'general', label: t`Général` },
+                { id: 'domain', label: t`Domaine & DNS` },
+                { id: 'navigation', label: t`Navigation & Réseaux` },
+                { id: 'seo', label: t`SEO & Pied de page` },
               ] as const
             ).map((tab) => {
               const isSelected = activeTab === tab.id;
@@ -546,7 +547,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
                       onChange={(e) =>
                         setCurrent((prev) => ({ ...prev, heroText: e.target.value }))
                       }
-                      placeholder="Ex. Réflexions sur la technologie, l'art et l'écriture libre..."
+                      placeholder={t`Ex. Réflexions sur la technologie, l'art et l'écriture libre...`}
                       rows={3}
                       className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 resize-none"
                     />
@@ -877,7 +878,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
                             updated[idx] = { ...updated[idx], label: e.target.value };
                             setCurrent((prev) => ({ ...prev, navigation: updated }));
                           }}
-                          placeholder="Intitulé"
+                          placeholder={t`Intitulé`}
                           className="w-1/3 px-3 py-1.5 bg-background border border-border/30 rounded text-xs font-medium text-foreground focus:outline-none"
                         />
 
@@ -995,7 +996,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
                       onChange={(e) =>
                         setCurrent((prev) => ({ ...prev, seoTitle: e.target.value }))
                       }
-                      placeholder="Ex. Le Carnet de Sarah — Écrits & Analyses"
+                      placeholder={t`Ex. Le Carnet de Sarah — Écrits & Analyses`}
                       className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
                     />
                   </div>
@@ -1017,7 +1018,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
                       onChange={(e) =>
                         setCurrent((prev) => ({ ...prev, seoDescription: e.target.value }))
                       }
-                      placeholder="Description concise de votre ligne éditoriale..."
+                      placeholder={t`Description concise de votre ligne éditoriale...`}
                       rows={3}
                       className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 resize-none"
                     />
@@ -1068,7 +1069,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
                       onChange={(e) =>
                         setCurrent((prev) => ({ ...prev, footerText: e.target.value }))
                       }
-                      placeholder="Ex. Tous droits réservés. Merci de votre lecture."
+                      placeholder={t`Ex. Tous droits réservés. Merci de votre lecture.`}
                       rows={2}
                       className="w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 resize-none"
                     />

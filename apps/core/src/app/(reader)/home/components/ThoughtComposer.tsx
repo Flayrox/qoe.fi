@@ -400,7 +400,7 @@ export function ThoughtComposer({
       isSwitchingRef.current = false;
     }, 50);
 
-    toast.success('Nouvelle pensée ajoutée au fil.');
+    toast.success(t`Nouvelle pensée ajoutée au fil.`);
   };
 
   // 4. Retirer une pensée du fil
@@ -415,7 +415,7 @@ export function ThoughtComposer({
       (targetNode.text.trim().length > 0 || targetNode.images.length > 0) &&
       indexToRemove === activeNodeIndex
     ) {
-      if (!confirm('Voulez-vous vraiment supprimer cette pensée et son contenu ?')) {
+      if (!confirm(t`Voulez-vous vraiment supprimer cette pensée et son contenu ?`)) {
         return;
       }
     }
@@ -446,7 +446,7 @@ export function ThoughtComposer({
       isSwitchingRef.current = false;
     }, 50);
 
-    toast.success('Pensée retirée du fil.');
+    toast.success(t`Pensée retirée du fil.`);
   };
 
   // 5. Basculer de nœud d'édition
@@ -518,7 +518,7 @@ export function ThoughtComposer({
         isSwitchingRef.current = false;
       }, 50);
 
-      toast.success('Fil de discussion restauré avec succès !');
+      toast.success(t`Fil de discussion restauré avec succès !`);
     } catch {
       toast.error('Impossible de restaurer le fil.');
     }
@@ -823,7 +823,7 @@ export function ThoughtComposer({
     if (files.length === 0) return;
 
     if (images.length + files.length > 4) {
-      toast.error("Vous pouvez ajouter jusqu'à 4 images maximum par post.");
+      toast.error(t`Vous pouvez ajouter jusqu'à 4 images maximum par post.`);
       return;
     }
 
@@ -847,7 +847,7 @@ export function ThoughtComposer({
     if (files.length > 0) {
       e.preventDefault();
       if (images.length + files.length > 4) {
-        toast.error("Vous pouvez ajouter jusqu'à 4 images maximum par post.");
+        toast.error(t`Vous pouvez ajouter jusqu'à 4 images maximum par post.`);
         return;
       }
       setSubmitError(null);
@@ -906,7 +906,7 @@ export function ThoughtComposer({
     setIsDraftsOpen(false);
 
     localStorage.setItem('qoe_micro_post_draft', draft.content || '');
-    toast.success("Brouillon chargé dans l'éditeur.");
+    toast.success(t`Brouillon chargé dans l'éditeur.`);
   };
 
   const handleDeleteDraft = async (draftId: string) => {
@@ -919,14 +919,14 @@ export function ThoughtComposer({
       const { deletePostAction } = await import('@qoe/sdk/actions/feed');
       const res = await deletePostAction(draftId);
       if (res.ok) {
-        toast.success('Brouillon supprimé.');
+        toast.success(t`Brouillon supprimé.`);
       } else {
         toast.error('Impossible de supprimer le brouillon.');
         loadDrafts();
       }
     } catch (err) {
       console.error(err);
-      toast.error('Erreur réseau lors de la suppression.');
+      toast.error(t`Erreur réseau lors de la suppression.`);
       loadDrafts();
     }
   };
@@ -943,7 +943,7 @@ export function ThoughtComposer({
       }
     } catch (err) {
       console.error(err);
-      toast.error('Erreur lors de la récupération des brouillons.');
+      toast.error(t`Erreur lors de la récupération des brouillons.`);
     } finally {
       setLoadingDrafts(false);
     }
@@ -973,7 +973,7 @@ export function ThoughtComposer({
       }
       const data = await res.json();
       if (!data.url) {
-        throw new Error("L'upload de l'image a échoué.");
+        throw new Error(t`L'upload de l'image a échoué.`);
       }
       uploadedUrls.push(data.url);
     }
@@ -1006,7 +1006,7 @@ export function ThoughtComposer({
 
     setSubmitError(null);
     setIsSubmitting(true);
-    setSubmitProgress('Préparation de la publication du fil...');
+    setSubmitProgress(t`Préparation de la publication du fil...`);
 
     try {
       const { createThoughtThreadAction, deletePostAction } = await import('@qoe/sdk/actions/feed');
@@ -1077,7 +1077,7 @@ export function ThoughtComposer({
         throw new Error(res.error?.message || 'Impossible de publier le fil de discussion.');
       }
       if (!res.data?.posts || res.data.posts.length === 0) {
-        throw new Error('Impossible de publier le fil (données de publication manquantes).');
+        throw new Error(t`Impossible de publier le fil (données de publication manquantes).`);
       }
 
       firstCreatedPost = res.data.posts[0];
@@ -1150,7 +1150,9 @@ export function ThoughtComposer({
         } as unknown as ComposedPost);
       }
 
-      toast.success(isDraftSubmit ? 'Brouillon de fil enregistré.' : 'Fil de discussion publié !');
+      toast.success(
+        isDraftSubmit ? t`Brouillon de fil enregistré.` : t`Fil de discussion publié !`
+      );
 
       // Remise à zéro complète
       setPostText('');
@@ -1192,7 +1194,7 @@ export function ThoughtComposer({
     } catch (err: unknown) {
       console.error(err);
       const message =
-        err instanceof Error ? err.message : 'Erreur de publication du fil. Veuillez réessayer.';
+        err instanceof Error ? err.message : t`Erreur de publication du fil. Veuillez réessayer.`;
       setSubmitError(message);
       toast.error(message);
     } finally {
@@ -1203,7 +1205,7 @@ export function ThoughtComposer({
 
   const defaultPlaceholder =
     placeholder ||
-    (replyToThought || parentId ? 'Poster votre réponse' : 'Quelle est votre pensée du jour ?');
+    (replyToThought || parentId ? t`Poster votre réponse` : t`Quelle est votre pensée du jour ?`);
 
   return (
     <div className="pb-4 border-b border-border/30 flex flex-col gap-2 font-sans transition-all duration-200">
@@ -1239,7 +1241,7 @@ export function ThoughtComposer({
                   type="button"
                   onClick={() => setReplyToThought(null)}
                   className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                  title="Annuler la réponse"
+                  title={t`Annuler la réponse`}
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -1299,7 +1301,7 @@ export function ThoughtComposer({
                       <textarea
                         ref={textareaRef}
                         placeholder={
-                          idx === 0 ? defaultPlaceholder : 'Ajouter une autre pensée à ce fil...'
+                          idx === 0 ? defaultPlaceholder : t`Ajouter une autre pensée à ce fil...`
                         }
                         value={displayText}
                         onChange={handleTextChange}
@@ -1512,7 +1514,7 @@ export function ThoughtComposer({
                     type="button"
                     onClick={() => removeThreadNode(node.id)}
                     className="p-1.5 rounded-full text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 cursor-pointer shrink-0 self-start mt-0.5 transition-all outline-none"
-                    title="Supprimer cette pensée du fil"
+                    title={t`Supprimer cette pensée du fil`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -1587,7 +1589,7 @@ export function ThoughtComposer({
                                   type="button"
                                   onClick={() => moveImage(idx, 'left')}
                                   className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors"
-                                  title="Déplacer vers la gauche"
+                                  title={t`Déplacer vers la gauche`}
                                 >
                                   <ArrowLeft className="w-3.5 h-3.5" />
                                 </button>
@@ -1597,7 +1599,7 @@ export function ThoughtComposer({
                                   type="button"
                                   onClick={() => moveImage(idx, 'right')}
                                   className="bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-[var(--radius-button)] cursor-pointer transition-colors"
-                                  title="Déplacer vers la droite"
+                                  title={t`Déplacer vers la droite`}
                                 >
                                   <ArrowRight className="w-3.5 h-3.5" />
                                 </button>
@@ -1629,7 +1631,7 @@ export function ThoughtComposer({
                                 title={
                                   img.altText
                                     ? `Alt-text: ${img.altText}`
-                                    : "Ajouter un texte d'accessibilité"
+                                    : t`Ajouter un texte d'accessibilité`
                                 }
                               >
                                 ALT
@@ -1785,14 +1787,14 @@ export function ThoughtComposer({
                             ? 'bg-primary/10 border-primary/40 text-primary'
                             : 'border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60'
                         )}
-                        title="Qui peut répondre"
+                        title={t`Qui peut répondre`}
                       >
                         <Globe className="w-3 h-3 text-primary" />
                         <span>
-                          {replyRestriction === 'everyone' && 'Tout le monde peut répondre'}
-                          {replyRestriction === 'subscribers' && 'Abonnés uniquement'}
-                          {replyRestriction === 'following' && 'Personnes suivies'}
-                          {replyRestriction === 'mentioned' && 'Personnes mentionnées'}
+                          {replyRestriction === 'everyone' && t`Tout le monde peut répondre`}
+                          {replyRestriction === 'subscribers' && t`Abonnés uniquement`}
+                          {replyRestriction === 'following' && t`Personnes suivies`}
+                          {replyRestriction === 'mentioned' && t`Personnes mentionnées`}
                         </span>
                       </button>
                     }
@@ -2174,7 +2176,7 @@ export function ThoughtComposer({
                     onClick={addThreadNode}
                     disabled={isSubmitting}
                     className="p-2 rounded-xl border border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all cursor-pointer flex items-center justify-center active:scale-95 shrink-0"
-                    title="Ajouter une autre pensée à ce fil de discussion"
+                    title={t`Ajouter une autre pensée à ce fil de discussion`}
                   >
                     <Plus className="w-4 h-4 text-primary" />
                   </button>
@@ -2296,7 +2298,7 @@ export function ThoughtComposer({
                     type="button"
                     onClick={() => {
                       localStorage.removeItem('qoe_multi_thought_drafts');
-                      toast.success('Brouillon local supprimé.');
+                      toast.success(t`Brouillon local supprimé.`);
                       setThreadNodes([
                         {
                           id: generateUUID(),
@@ -2422,7 +2424,7 @@ export function ThoughtComposer({
                 )
               );
               setCroppingImage(null);
-              toast.success('Image recadrée avec succès.');
+              toast.success(t`Image recadrée avec succès.`);
             }}
           />
         )}

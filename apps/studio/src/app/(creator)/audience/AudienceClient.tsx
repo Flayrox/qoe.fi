@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { t } from '@lingui/core/macro';
 import { Users, Search, Download, Zap, Mail, CreditCard } from 'lucide-react';
 
 export interface SubscriberItem {
@@ -181,7 +182,7 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
             <p className="text-xs text-muted-foreground mt-1 max-w-xs">
               {searchQuery
                 ? 'Aucun abonné ne correspond à votre recherche.'
-                : "Les personnes qui s'abonnent à votre espace apparaîtront ici."}
+                : t`Les personnes qui s'abonnent à votre espace apparaîtront ici.`}
             </p>
           </div>
         ) : (
