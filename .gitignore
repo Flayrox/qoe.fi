@@ -45,6 +45,12 @@ dist/
 Thumbs.db
 *.pem
 
+# ─── Backups (dumps DB générés) ──────────────────────────────
+# Les dumps .sql.gz datés (backups/*-*-*.sql.gz) sont des artefacts
+# générés par scripts/backup-postgres.sh : jamais versionnés.
+backups/*.sql.gz
+backups/*.dump*
+
 # ─── Debug logs ──────────────────────────────────────────────
 npm-debug.log*
 yarn-debug.log*
