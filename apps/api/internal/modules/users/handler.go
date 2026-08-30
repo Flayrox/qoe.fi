@@ -31,6 +31,7 @@ func (h *Handler) Register(r chi.Router) {
 	r.Post("/v1/me/onboarding-complete", h.onboardingComplete)
 	r.Get("/v1/me/data-export", h.dataExport)
 	r.Get("/v1/me/publication", h.myPublication)
+	r.Get("/v1/me/muted-words", h.listMutedWords)
 	r.Post("/v1/me/muted-words", h.toggleMuteWord)
 	r.Post("/v1/me/wallet/unlock", h.walletUnlock)
 	r.Post("/v1/me/sync", h.syncUser)
@@ -258,6 +259,21 @@ func (h *Handler) myPublication(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]string{"publicationId": pubID})
+}
+
+// GET /v1/me/muted-words — liste tous les mots masqués de l'utilisateur.
+func (h *Handler) listMutedWords(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	words, err := h.svc.ListMutedWords(r.Context(), userID)
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string][]string{"words": words})
 }
 
 // POST /v1/me/muted-words — bascule un mot masqué. Body : { word }.

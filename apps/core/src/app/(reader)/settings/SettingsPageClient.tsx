@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useTransition, type ReactNode } from 'react';
+import { useEffect, useState, useTransition, type ReactNode } from 'react';
 import { t } from '@lingui/core/macro';
+import { useI18n } from '@qoe/i18n';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTheme } from 'next-themes';
 import {
   Accessibility,
   Bell,
@@ -18,13 +20,17 @@ import {
   Shield,
   Trash2,
   UserRound,
+  X,
+  Plus,
 } from 'lucide-react';
 import { NotificationSettingsForm } from '@/components/notifications/NotificationSettingsForm';
 import {
   cancelAccountDeletionAction,
+  changePasswordAction,
   exportAccountDataAction,
   logoutAccountAction,
   requestAccountDeletionAction,
+  toggleMutedWordAction,
   updateAccountProfileAction,
   updateAccountSettingsAction,
   type AccountSettingsPatch,
@@ -46,6 +52,14 @@ const sections: Array<{ id: SettingsSection; label: () => string; icon: typeof U
   { id: 'data', label: () => t`Données & sécurité`, icon: Lock },
 ];
 
+const roleLabel = (role: string): string => {
+  if (role === 'user') return t`Lecteur`;
+  if (role === 'creator') return t`Créateur`;
+  if (role === 'admin') return t`Administrateur`;
+  if (role === 'superadmin') return t`Super administrateur`;
+  return role;
+};
+
 export default function AccountSettingsPage({
   initialData,
 }: {
@@ -57,6 +71,13 @@ export default function AccountSettingsPage({
   const [activeSection, setActiveSection] = useState<SettingsSection>('account');
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+
+  const i18n = useI18n();
+  const locale = i18n.getLanguage() || 'fr';
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const [profile, setProfile] = useState(() => ({
     name: initialData?.user.name || '',
     username: initialData?.user.username || '',
@@ -65,6 +86,14 @@ export default function AccountSettingsPage({
     pronouns: initialData?.user.pronouns || '',
   }));
   const [deletionConfirmation, setDeletionConfirmation] = useState('');
+
+  // Mots masqués (section Confidentialité).
+  const [mutedWords, setMutedWords] = useState<string[]>(() => initialData?.mutedWords ?? []);
+  const [mutedInput, setMutedInput] = useState('');
+
+  // Sécurité / mot de passe.
+  const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
+  const [pwMessage, setPwMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   const showMessage = (value: string) => {
     setMessage(value);
@@ -102,6 +131,55 @@ export default function AccountSettingsPage({
     });
   };
 
+  const addMutedWord = () => {
+    const word = mutedInput.trim();
+    if (!word) return;
+    startTransition(async () => {
+      try {
+        const res = await toggleMutedWordAction(word);
+        setMutedWords((cur) =>
+          res.muted
+            ? [res.word, ...cur.filter((w) => w !== res.word)]
+            : cur.filter((w) => w !== res.word)
+        );
+        setMutedInput('');
+        showMessage(res.muted ? t`Mot masqué ajouté.` : t`Mot retiré de la liste.`);
+      } catch (error) {
+        showMessage(error instanceof Error ? error.message : t`Impossible de gérer ce mot masqué.`);
+      }
+    });
+  };
+
+  const removeMutedWord = (word: string) => {
+    startTransition(async () => {
+      try {
+        const res = await toggleMutedWordAction(word);
+        setMutedWords((cur) => cur.filter((w) => w !== res.word));
+      } catch (error) {
+        showMessage(error instanceof Error ? error.message : t`Impossible de retirer ce mot.`);
+      }
+    });
+  };
+
+  const changePassword = () => {
+    if (pw.next !== pw.confirm) {
+      setPwMessage({ type: 'err', text: t`Les mots de passe ne correspondent pas.` });
+      return;
+    }
+    startTransition(async () => {
+      try {
+        await changePasswordAction(pw.current, pw.next);
+        setPw({ current: '', next: '', confirm: '' });
+        setPwMessage({ type: 'ok', text: t`Mot de passe mis à jour.` });
+      } catch (error) {
+        setPwMessage({
+          type: 'err',
+          text: error instanceof Error ? error.message : t`Impossible de changer le mot de passe.`,
+        });
+      }
+    });
+  };
+
   const exportData = () => {
     startTransition(async () => {
       try {
@@ -115,7 +193,7 @@ export default function AccountSettingsPage({
         URL.revokeObjectURL(url);
         showMessage(t`Export téléchargé.`);
       } catch (error) {
-        showMessage(error instanceof Error ? error.message : 'Export impossible.');
+        showMessage(error instanceof Error ? error.message : t`Export impossible.`);
       }
     });
   };
@@ -127,7 +205,7 @@ export default function AccountSettingsPage({
         setData((current) => (current ? { ...current, deletionRequest: null } : current));
         showMessage(t`Demande de suppression annulée.`);
       } catch (error) {
-        showMessage(error instanceof Error ? error.message : 'Impossible d’annuler la demande.');
+        showMessage(error instanceof Error ? error.message : t`Impossible d’annuler la demande.`);
       }
     });
   };
@@ -159,12 +237,14 @@ export default function AccountSettingsPage({
   if (!data) {
     return (
       <div className="mx-auto max-w-5xl p-8 text-sm text-muted-foreground">
-        Chargement de vos réglages…
+        {t`Chargement de vos réglages…`}
       </div>
     );
   }
 
   const settings = data.settings;
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
     <main className="mx-auto flex w-full max-w-6xl gap-8 px-4 py-8 pb-24 md:px-8">
@@ -179,7 +259,7 @@ export default function AccountSettingsPage({
             </Link>
             <h1 className="mt-5 text-2xl font-bold tracking-tight">{t`Réglages`}</h1>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Votre compte, votre espace, vos règles.
+              {t`Votre compte, votre espace, vos règles.`}
             </p>
           </div>
           <nav className="space-y-1" aria-label={t`Sections des réglages`}>
@@ -234,35 +314,82 @@ export default function AccountSettingsPage({
 
         {activeSection === 'account' && (
           <SettingsPanel
-            title="Compte"
-            description="Les informations de base et les accès à votre compte."
+            title={t`Compte`}
+            description={t`Les informations de base et les accès à votre compte.`}
           >
             <div className="grid gap-4 sm:grid-cols-2">
-              <ReadOnlyField label="Adresse email" value={data.user.email} />
-              <ReadOnlyField
-                label="Type de compte"
-                value={data.user.role === 'user' ? 'Lecteur' : data.user.role}
-              />
-              <ReadOnlyField
-                label="Membre depuis"
-                value={new Date(data.user.createdAt).toLocaleDateString('fr-FR')}
-              />
-              <ReadOnlyField label="Identifiant" value={data.user.id.slice(0, 12) + '…'} />
+              <ReadOnlyField label={t`Adresse email`} value={data.user.email} />
+              <ReadOnlyField label={t`Type de compte`} value={roleLabel(data.user.role)} />
+              <ReadOnlyField label={t`Membre depuis`} value={formatDate(data.user.createdAt)} />
+              <ReadOnlyField label={t`Identifiant`} value={data.user.id.slice(0, 12) + '…'} />
             </div>
-            <SettingsLink
-              icon={KeyRound}
-              title={t`Sécurité et sessions`}
-              description="Votre mot de passe est géré par Supabase Auth."
-              disabled
-            />
+
+            <div className="rounded-xl border border-border/60 px-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                  <KeyRound className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{t`Mot de passe`}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t`Mettez à jour le mot de passe de votre compte.`}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <label className="block space-y-1.5">
+                  <span className="text-sm font-medium">{t`Nouveau mot de passe`}</span>
+                  <input
+                    type="password"
+                    value={pw.next}
+                    onChange={(event) => setPw({ ...pw, next: event.target.value })}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+                  />
+                </label>
+                <label className="block space-y-1.5">
+                  <span className="text-sm font-medium">{t`Confirmer le mot de passe`}</span>
+                  <input
+                    type="password"
+                    value={pw.confirm}
+                    onChange={(event) => setPw({ ...pw, confirm: event.target.value })}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+                  />
+                </label>
+              </div>
+              {pwMessage && (
+                <p
+                  className={`mt-3 text-xs ${
+                    pwMessage.type === 'ok' ? 'text-success' : 'text-destructive'
+                  }`}
+                >
+                  {pwMessage.text}
+                </p>
+              )}
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  disabled={isPending || pw.next.length < 8}
+                  onClick={changePassword}
+                  className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                >
+                  {t`Changer le mot de passe`}
+                </button>
+              </div>
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                {t`Un email de confirmation peut vous être demandé selon la configuration de la plateforme.`}
+              </p>
+            </div>
+
             <div className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3">
               <div>
-                <p className="text-sm font-medium">Session actuelle</p>
-                <p className="text-xs text-muted-foreground">Connectée avec {data.user.email}</p>
+                <p className="text-sm font-medium">{t`Session actuelle`}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t`Connectée avec`} {data.user.email}
+                </p>
               </div>
               <form action={logoutAccountAction}>
                 <button className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10">
-                  <LogOut className="h-3.5 w-3.5" /> Se déconnecter
+                  <LogOut className="h-3.5 w-3.5" /> {t`Se déconnecter`}
                 </button>
               </form>
             </div>
@@ -271,8 +398,8 @@ export default function AccountSettingsPage({
 
         {activeSection === 'profile' && (
           <SettingsPanel
-            title="Profil public"
-            description="Ce que les autres membres peuvent voir sur votre identité qoe.fi."
+            title={t`Profil public`}
+            description={t`Ce que les autres membres peuvent voir sur votre identité qoe.fi.`}
           >
             <div className="flex items-center gap-4 rounded-xl bg-muted/40 p-4">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-lg font-bold text-primary">
@@ -289,9 +416,9 @@ export default function AccountSettingsPage({
                 )}
               </div>
               <div>
-                <p className="font-semibold">{profile.name || 'Votre nom'}</p>
+                <p className="font-semibold">{profile.name || t`Votre nom`}</p>
                 <p className="text-xs text-muted-foreground">
-                  @{profile.username || 'nom_utilisateur'}
+                  @{profile.username || t`nom_utilisateur`}
                 </p>
               </div>
             </div>
@@ -302,33 +429,33 @@ export default function AccountSettingsPage({
                 onChange={(value) => setProfile({ ...profile, name: value })}
               />
               <LabeledInput
-                label="Nom d’utilisateur"
+                label={t`Nom d’utilisateur`}
                 prefix="@"
                 value={profile.username}
                 onChange={(value) => setProfile({ ...profile, username: value })}
               />
               <LabeledInput
-                label="Pronoms"
+                label={t`Pronoms`}
                 value={profile.pronouns}
                 onChange={(value) => setProfile({ ...profile, pronouns: value })}
-                placeholder="ex: iel, il/lui, elle, they/them"
+                placeholder={t`ex: iel, il/lui, elle, they/them`}
               />
             </div>
             <LabeledInput
-              label="URL de la photo de profil"
+              label={t`URL de la photo de profil`}
               value={profile.logoUrl}
               onChange={(value) => setProfile({ ...profile, logoUrl: value })}
               placeholder="https://…"
             />
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium">Présentation</span>
+              <span className="text-sm font-medium">{t`Présentation`}</span>
               <textarea
                 value={profile.onboardingText}
                 onChange={(event) => setProfile({ ...profile, onboardingText: event.target.value })}
                 maxLength={500}
                 rows={4}
                 className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
-                placeholder="Quelques mots sur vous…"
+                placeholder={t`Quelques mots sur vous…`}
               />
               <span className="block text-right text-[11px] text-muted-foreground">
                 {profile.onboardingText.length}/500
@@ -340,7 +467,7 @@ export default function AccountSettingsPage({
                 onClick={saveProfile}
                 className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
               >
-                Enregistrer le profil
+                {t`Enregistrer le profil`}
               </button>
             </div>
           </SettingsPanel>
@@ -349,8 +476,8 @@ export default function AccountSettingsPage({
         {activeSection === 'notifications' && (
           <div>
             <SettingsHeader
-              title="Notifications"
-              description="Choisissez ce qui mérite votre attention."
+              title={t`Notifications`}
+              description={t`Choisissez ce qui mérite votre attention.`}
             />
             <NotificationSettingsForm />
           </div>
@@ -359,16 +486,16 @@ export default function AccountSettingsPage({
         {activeSection === 'privacy' && (
           <SettingsPanel
             title={t`Confidentialité`}
-            description="Décidez qui peut vous trouver, vous mentionner et vous inviter."
+            description={t`Décidez qui peut vous trouver, vous mentionner et vous inviter.`}
           >
             <SelectRow
               label={t`Visibilité du profil`}
-              description="Contrôle la visibilité de votre profil public."
+              description={t`Contrôle la visibilité de votre profil public.`}
               value={settings.profileVisibility}
               options={[
-                ['PUBLIC', 'Public'],
-                ['FOLLOWERS', 'Abonnés uniquement'],
-                ['PRIVATE', 'Privé'],
+                ['PUBLIC', t`Public`],
+                ['FOLLOWERS', t`Abonnés uniquement`],
+                ['PRIVATE', t`Privé`],
               ]}
               onChange={(value) =>
                 patchSettings({
@@ -377,70 +504,152 @@ export default function AccountSettingsPage({
               }
             />
             <ToggleRow
-              label="Autoriser les mentions"
-              description="Les autres membres peuvent vous mentionner dans une pensée."
+              label={t`Autoriser les mentions`}
+              description={t`Les autres membres peuvent vous mentionner dans une pensée.`}
               checked={settings.allowMentions}
               onChange={(value) => patchSettings({ allowMentions: value })}
             />
             <ToggleRow
-              label="Recevoir les invitations de collaboration"
-              description="Les auteurs peuvent vous proposer d’être cité dans un article."
+              label={t`Recevoir les invitations de collaboration`}
+              description={t`Les auteurs peuvent vous proposer d’être cité dans un article.`}
               checked={settings.allowCollaborationInvites}
               onChange={(value) => patchSettings({ allowCollaborationInvites: value })}
             />
             <ToggleRow
-              label="Afficher les contenus sensibles"
-              description="Masque les avertissements uniquement lorsque vous le désactivez."
+              label={t`Afficher les contenus sensibles`}
+              description={t`Masque les avertissements uniquement lorsque vous le désactivez.`}
               checked={settings.showSensitiveContent}
               onChange={(value) => patchSettings({ showSensitiveContent: value })}
             />
+
+            <div className="rounded-xl border border-border/60 p-4">
+              <div className="flex items-start gap-3">
+                <Accessibility className="mt-0.5 h-4 w-4 text-primary" />
+                <div>
+                  <h3 className="text-sm font-semibold">{t`Mots masqués`}</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {t`Le contenu contenant ces mots sera filtré de votre fil d’actualité et de vos recommandations.`}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 flex gap-2">
+                <input
+                  value={mutedInput}
+                  onChange={(event) => setMutedInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') addMutedWord();
+                  }}
+                  placeholder={t`Ajouter un mot à masquer`}
+                  className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+                <button
+                  type="button"
+                  disabled={isPending || mutedInput.trim() === ''}
+                  onClick={addMutedWord}
+                  className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-40"
+                >
+                  <Plus className="h-3.5 w-3.5" /> {t`Ajouter`}
+                </button>
+              </div>
+              {mutedWords.length > 0 ? (
+                <ul className="mt-4 flex flex-wrap gap-2">
+                  {mutedWords.map((word) => (
+                    <li
+                      key={word}
+                      className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs"
+                    >
+                      {word}
+                      <button
+                        type="button"
+                        aria-label={t`Retirer ${word}`}
+                        onClick={() => removeMutedWord(word)}
+                        disabled={isPending}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-4 text-xs text-muted-foreground">
+                  {t`Aucun mot masqué pour le moment.`}
+                </p>
+              )}
+            </div>
           </SettingsPanel>
         )}
 
         {activeSection === 'appearance' && (
           <SettingsPanel
-            title="Apparence & lecture"
-            description="Une expérience calme, lisible et adaptée à votre attention."
+            title={t`Apparence & lecture`}
+            description={t`Une expérience calme, lisible et adaptée à votre attention.`}
           >
             <SelectRow
+              label={t`Thème`}
+              description={t`Choisissez la teinte de l’interface (clair ou sombre).`}
+              value={mounted ? (theme ?? 'light') : 'light'}
+              options={[
+                ['light', t`Clair`],
+                ['dark', t`Sombre`],
+              ]}
+              onChange={(value) => setTheme(value)}
+            />
+            <SelectRow
               label={t`Feed par défaut`}
-              description="La vue ouverte lorsque vous arrivez sur l’accueil."
+              description={t`La vue ouverte lorsque vous arrivez sur l’accueil.`}
               value={settings.defaultFeed}
               options={[
-                ['FOLLOWING', 'Abonnements'],
-                ['DISCOVER', 'Découvrir'],
+                ['FOLLOWING', t`Abonnements`],
+                ['DISCOVER', t`Découvrir`],
               ]}
               onChange={(value) =>
                 patchSettings({ defaultFeed: value as AccountSettingsPatch['defaultFeed'] })
               }
             />
             <SelectRow
-              label="Taille du texte"
-              description="Ajuste la taille de lecture dans l’application."
+              label={t`Taille du texte`}
+              description={t`Ajuste la taille de lecture dans l’application.`}
               value={String(settings.fontScale)}
               options={[
-                ['90', 'Petite'],
-                ['100', 'Standard'],
-                ['110', 'Grande'],
-                ['125', 'Très grande'],
+                ['90', t`Petite`],
+                ['100', t`Standard`],
+                ['110', t`Grande`],
+                ['125', t`Très grande`],
               ]}
               onChange={(value) => patchSettings({ fontScale: Number(value) })}
             />
+            <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-4">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                {t`Aperçu de la lecture`}
+              </p>
+              <article className="mt-2 space-y-2" style={{ fontSize: `${settings.fontScale}%` }}>
+                <h4 className="font-bold">{t`Le temps long de la lecture attentive.`}</h4>
+                <p className="leading-relaxed text-muted-foreground">
+                  {t`Une taille de texte confortable réduit la fatigue et prolonge l’attention portée à chaque idée.`}
+                </p>
+                {settings.highContrast && (
+                  <p className="text-xs font-medium text-primary">
+                    {t`Contraste renforcé activé.`}
+                  </p>
+                )}
+              </article>
+            </div>
             <ToggleRow
               label={t`Lecture automatique des médias`}
-              description="Lance automatiquement les vidéos et contenus animés."
+              description={t`Lance automatiquement les vidéos et contenus animés.`}
               checked={settings.autoplayMedia}
               onChange={(value) => patchSettings({ autoplayMedia: value })}
             />
             <ToggleRow
               label={t`Réduire les animations`}
-              description="Respecte votre préférence pour une interface plus stable."
+              description={t`Respecte votre préférence pour une interface plus stable.`}
               checked={settings.reduceMotion}
               onChange={(value) => patchSettings({ reduceMotion: value })}
             />
             <ToggleRow
               label={t`Contraste renforcé`}
-              description="Améliore la lisibilité des éléments d’interface."
+              description={t`Améliore la lisibilité des éléments d’interface.`}
               checked={settings.highContrast}
               onChange={(value) => patchSettings({ highContrast: value })}
             />
@@ -450,27 +659,32 @@ export default function AccountSettingsPage({
         {activeSection === 'data' && (
           <SettingsPanel
             title={t`Données & sécurité`}
-            description="Exportez vos données ou demandez la suppression de votre compte."
+            description={t`Exportez vos données ou demandez la suppression de votre compte.`}
           >
             <SettingsLink
               icon={Download}
               title={t`Exporter mes données`}
-              description="Téléchargez vos pensées, articles, signets, surlignages et préférences."
+              description={t`Téléchargez vos pensées, articles, signets, surlignages et préférences.`}
               onClick={exportData}
             />
             <SettingsLink
               icon={Accessibility}
+              title={t`Mots masqués`}
+              description={t`Gérez les mots filtrés de votre fil d’actualité.`}
+              onClick={() => setActiveSection('privacy')}
+            />
+            <SettingsLink
+              icon={Palette}
               title={t`Accessibilité`}
-              description="Les réglages de lecture sont disponibles dans Apparence & lecture."
+              description={t`Les réglages de lecture sont disponibles dans Apparence & lecture.`}
               onClick={() => setActiveSection('appearance')}
             />
             {data.deletionRequest?.status === 'PENDING' && (
               <div className="flex items-center justify-between gap-3 rounded-xl border border-highlight/25 bg-highlight/[0.05] px-4 py-3 text-sm">
                 <div>
-                  <p className="font-medium text-foreground">Suppression en attente</p>
+                  <p className="font-medium text-foreground">{t`Suppression en attente`}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Demandée le{' '}
-                    {new Date(data.deletionRequest.requestedAt).toLocaleDateString('fr-FR')}.
+                    {t`Demandée le`} {formatDate(data.deletionRequest.requestedAt)}.
                   </p>
                 </div>
                 <button
@@ -479,7 +693,7 @@ export default function AccountSettingsPage({
                   disabled={isPending}
                   className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted disabled:opacity-50"
                 >
-                  Annuler
+                  {t`Annuler`}
                 </button>
               </div>
             )}
@@ -487,10 +701,11 @@ export default function AccountSettingsPage({
               <div className="flex items-start gap-3">
                 <Trash2 className="mt-0.5 h-4 w-4 text-destructive" />
                 <div>
-                  <h3 className="text-sm font-semibold text-destructive">Supprimer le compte</h3>
+                  <h3 className="text-sm font-semibold text-destructive">
+                    {t`Supprimer le compte`}
+                  </h3>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Votre demande sera traitée par l’équipe. Cette action est irréversible après
-                    validation.
+                    {t`Votre demande sera traitée par l’équipe. Cette action est irréversible après validation.`}
                   </p>
                 </div>
               </div>
@@ -506,7 +721,7 @@ export default function AccountSettingsPage({
                   onClick={requestDeletion}
                   className="rounded-lg bg-destructive px-3 py-2 text-xs font-semibold text-destructive-foreground disabled:opacity-40"
                 >
-                  Demander la suppression
+                  {t`Demander la suppression`}
                 </button>
               </div>
             </div>
@@ -514,7 +729,7 @@ export default function AccountSettingsPage({
         )}
 
         {isPending && (
-          <p className="mt-4 text-center text-xs text-muted-foreground">Enregistrement…</p>
+          <p className="mt-4 text-center text-xs text-muted-foreground">{t`Enregistrement…`}</p>
         )}
       </div>
     </main>
