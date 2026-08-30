@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { t } from '@lingui/core/macro';
 import { toast } from '@qoe/ui/toast';
 import { updatePostShadow } from '@qoe/sdk';
 import {
@@ -190,7 +191,7 @@ export function ThoughtThreadRoot({
       const res = await toggleLikePost(targetId);
       if (!res.ok) {
         if (previousPostSnapshot) setPost(previousPostSnapshot);
-        toast.error("Erreur lors de la mise à jour du J'aime");
+        toast.error(t`Erreur lors de la mise à jour du J'aime`);
       }
     },
     [currentUserId, onInteractionUpdate, onLoginRequired]
@@ -235,9 +236,9 @@ export function ThoughtThreadRoot({
       const res = await toggleRepostPost(targetId);
       if (!res.ok) {
         if (previousPostSnapshot) setPost(previousPostSnapshot);
-        toast.error('Impossible de repartager la pensée.');
+        toast.error(t`Impossible de repartager la pensée.`);
       } else {
-        toast.success(res.data?.reposted ? 'Pensée repartagée !' : 'Repartage annulé.');
+        toast.success(res.data?.reposted ? t`Pensée repartagée !` : t`Repartage annulé.`);
       }
     },
     [currentUserId, onLoginRequired]
@@ -308,7 +309,7 @@ export function ThoughtThreadRoot({
       setSendingReply(false);
 
       if (res.ok && res.data?.reply) {
-        toast.success('Réponse publiée.');
+        toast.success(t`Réponse publiée.`);
 
         // Replace optimistic temp node with server response
         const serverReply: OptimisticThought = res.data.reply;
@@ -329,7 +330,7 @@ export function ThoughtThreadRoot({
       } else {
         // Rollback on failure
         if (previousPost) setPost(previousPost);
-        toast.error('Erreur lors de la publication de la réponse.');
+        toast.error(t`Erreur lors de la publication de la réponse.`);
         return false;
       }
     },
@@ -375,7 +376,7 @@ export function ThoughtThreadRoot({
             return {
               ...item,
               isDeleted: true,
-              content: 'Cette pensée a été supprimée par son auteur.',
+              content: t`Cette pensée a été supprimée par son auteur.`,
             };
           }
           return null;
@@ -392,7 +393,7 @@ export function ThoughtThreadRoot({
         const updated = applyTombstoneOrRemove(post);
         if (!updated && post.id === targetId) {
           // Main post deleted and had no replies -> close view
-          toast.success('Pensée supprimée.');
+          toast.success(t`Pensée supprimée.`);
           if (onClose) onClose();
           else window.location.href = routes.feed.home();
           await deletePost(targetId);
@@ -412,7 +413,7 @@ export function ThoughtThreadRoot({
       }
 
       updatePostShadow(targetId, { isDeleted: true });
-      toast.success('Pensée supprimée.');
+      toast.success(t`Pensée supprimée.`);
       return true;
     },
     [post, onClose]

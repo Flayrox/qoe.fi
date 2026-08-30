@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { t } from '@lingui/core/macro';
 import { ThoughtThreadRoot, type ThoughtThreadRootProps } from './ThoughtThreadRoot';
 import { ThoughtThreadParentContext } from './ThoughtThreadParentContext';
 import { ThoughtThreadFocus } from './ThoughtThreadFocus';
@@ -80,7 +81,7 @@ export function ThoughtThreadView({
         <ThoughtThread.ParentContext />
         <ThoughtThread.Focus />
         <div className="mt-4 space-y-4">
-          <ThoughtThread.Composer placeholder="Exprimer une réponse..." />
+          <ThoughtThread.Composer placeholder={t`Exprimer une réponse...`} />
           <ThoughtThread.List />
         </div>
         <ThoughtThread.Lightbox />

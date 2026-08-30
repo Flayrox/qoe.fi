@@ -21,7 +21,10 @@ export interface LoginFormBentoProps {
 
 // ── Démographie signup (optionnelle, jamais obligatoire) ────────────────
 // Les valeurs correspondent aux enums Prisma (Gender / AgeRange).
-const GENDER_OPTIONS: Array<{ value: string; label: string }> = [
+// Les options démographiques sont construites au rendu (fonctions) pour que
+// les traductions suivent la langue active — un tableau évalué au module
+// resterait figé dans la langue par défaut.
+const getGenderOptions = (): Array<{ value: string; label: string }> => [
   { value: 'FEMALE', label: t`Femme` },
   { value: 'MALE', label: t`Homme` },
   { value: 'NON_BINARY', label: t`Non-binaire` },
@@ -29,7 +32,7 @@ const GENDER_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'PREFER_NOT_TO_SAY', label: t`Préfère ne pas dire` },
 ];
 
-const AGE_RANGE_OPTIONS: Array<{ value: string; label: string }> = [
+const getAgeRangeOptions = (): Array<{ value: string; label: string }> => [
   { value: 'UNDER_18', label: t`Moins de 18 ans` },
   { value: 'AGE_18_24', label: t`18-24 ans` },
   { value: 'AGE_25_34', label: t`25-34 ans` },
@@ -517,7 +520,7 @@ export function LoginFormBento({
                                 {t`Qu'est-ce qui vous décrit le mieux ?`}
                               </p>
                               <div className="flex flex-wrap gap-1.5">
-                                {GENDER_OPTIONS.map((opt) => {
+                                {getGenderOptions().map((opt) => {
                                   const selected = gender === opt.value;
                                   return (
                                     <button
@@ -543,7 +546,7 @@ export function LoginFormBento({
                                 {t`Votre tranche d'âge`}
                               </p>
                               <div className="flex flex-wrap gap-1.5">
-                                {AGE_RANGE_OPTIONS.map((opt) => {
+                                {getAgeRangeOptions().map((opt) => {
                                   const selected = ageRange === opt.value;
                                   return (
                                     <button

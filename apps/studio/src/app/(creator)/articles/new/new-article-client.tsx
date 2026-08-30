@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
 import { Editor } from '@/features/editor/components/Editor';
 import type { ArticleAttributionDraft } from '@/features/editor/components/ArticleAttributionEditor';
@@ -51,10 +52,10 @@ export function NewArticleClient({ categories, capabilities }: NewArticleClientP
       } else if (!res.ok) {
         throw new Error(res.error.message);
       } else {
-        throw new Error("Échec de l'enregistrement.");
+        throw new Error(t`Échec de l'enregistrement.`);
       }
     } catch (err: unknown) {
-      throw new Error(err instanceof Error ? err.message : "Échec de l'enregistrement.");
+      throw new Error(err instanceof Error ? err.message : t`Échec de l'enregistrement.`);
     } finally {
       setIsSaving(false);
     }

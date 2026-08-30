@@ -1,5 +1,6 @@
 'use client';
 
+import { t } from '@lingui/core/macro';
 import {
   useNotificationPreferencesQuery,
   useUpdateNotificationPreferencesMutation,
@@ -34,70 +35,68 @@ export function NotificationSettingsForm() {
 
   const sections = [
     {
-      title: "J'aime & Réactions",
+      title: t`J'aime & Réactions`,
       icon: Heart,
       iconColor: 'text-destructive',
       emailKey: 'emailLikes',
       pushKey: 'pushLikes',
-      description: "Alertes lorsque quelqu'un aime l'une de vos pensées ou publications.",
+      description: t`Alertes lorsque quelqu'un aime l'une de vos pensées ou publications.`,
     },
     {
-      title: 'Réponses & Thread',
+      title: t`Réponses & Thread`,
       icon: MessageCircle,
       iconColor: 'text-primary',
       emailKey: 'emailReplies',
       pushKey: 'pushReplies',
-      description: "Alertes lorsqu'un membre répond directement à votre pensée.",
+      description: t`Alertes lorsqu'un membre répond directement à votre pensée.`,
     },
     {
-      title: 'Mentions',
+      title: t`Mentions`,
       icon: AtSign,
       iconColor: 'text-highlight',
       emailKey: 'emailMentions',
       pushKey: 'pushMentions',
-      description: "Alertes lorsque votre nom d'utilisateur (@username) est cité.",
+      description: t`Alertes lorsque votre nom d'utilisateur (@username) est cité.`,
     },
     {
-      title: 'Abonnements',
+      title: t`Abonnements`,
       icon: UserPlus,
       iconColor: 'text-primary',
       emailKey: 'emailFollows',
       pushKey: 'pushFollows',
-      description: "Alertes lorsqu'un nouveau lecteur s'abonne à votre profil.",
+      description: t`Alertes lorsqu'un nouveau lecteur s'abonne à votre profil.`,
     },
     {
-      title: 'Repartages / Reposts',
+      title: t`Repartages / Reposts`,
       icon: Repeat,
       iconColor: 'text-success',
       emailKey: 'emailReposts',
       pushKey: 'pushReposts',
-      description: "Alertes lorsqu'un membre republie votre pensée sur son fil.",
+      description: t`Alertes lorsqu'un membre republie votre pensée sur son fil.`,
     },
     {
-      title: 'Commentaires d’articles',
+      title: t`Commentaires d’articles`,
       icon: MessageCircle,
       iconColor: 'text-primary',
       emailKey: 'emailComments',
       pushKey: 'pushComments',
-      description: "Alertes lorsqu'un lecteur commente l'un de vos écrits publiés.",
+      description: t`Alertes lorsqu'un lecteur commente l'un de vos écrits publiés.`,
     },
     {
-      title: 'Activité des Médias',
+      title: t`Activité des Médias`,
       icon: Building2,
       iconColor: 'text-highlight',
       emailKey: 'emailMedia',
       pushKey: 'pushMedia',
-      description:
-        'Invitations à rejoindre un Média, arrivées de membres, nouvelles publications de vos Médias.',
+      description: t`Invitations à rejoindre un Média, arrivées de membres, nouvelles publications de vos Médias.`,
     },
     {
-      title: 'Collaborations & attributions',
+      title: t`Collaborations & attributions`,
       icon: UsersRound,
       iconColor: 'text-primary',
       emailKey: 'emailCollaborations',
       pushKey: 'pushCollaborations',
-      description:
-        'Invitations à signer un article, acceptations, refus et retraits de consentement.',
+      description: t`Invitations à signer un article, acceptations, refus et retraits de consentement.`,
     },
   ] as const;
 
@@ -108,9 +107,9 @@ export function NotificationSettingsForm() {
   return (
     <div className="w-full max-w-2xl mx-auto p-4 space-y-6">
       <div className="border-b border-border pb-4">
-        <h2 className="text-xl font-bold text-foreground">Préférences de Notifications</h2>
+        <h2 className="text-xl font-bold text-foreground">{t`Préférences de Notifications`}</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Personnalisez la façon dont vous souhaitez être informé des activités sur votre réseau.
+          {t`Personnalisez la façon dont vous souhaitez être informé des activités sur votre réseau.`}
         </p>
       </div>
 

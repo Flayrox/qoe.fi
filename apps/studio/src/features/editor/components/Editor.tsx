@@ -504,7 +504,7 @@ export function Editor({
     if (!editor) return;
 
     if (!file.type.startsWith('image/')) {
-      setError('Le fichier doit être une image valide.');
+      setError(t`Le fichier doit être une image valide.`);
       return;
     }
 
@@ -598,7 +598,7 @@ export function Editor({
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Échec de la sauvegarde.'));
+      setError(getErrorMessage(err, t`Échec de la sauvegarde.`));
     }
   };
 
@@ -651,7 +651,7 @@ export function Editor({
           )}
           <div>
             <h2 className="text-xl font-bold text-foreground font-sans tracking-tight flex items-center gap-3">
-              {initialTitle ? 'Édition' : 'Nouvel écrit'}
+              {initialTitle ? t`Édition` : t`Nouvel écrit`}
               {collaborationProvider && (
                 <span
                   className={cn(
@@ -666,8 +666,8 @@ export function Editor({
                   {collaborationConnected
                     ? collaborationPeerCount > 0
                       ? `${collaborationPeerCount + 1} éditeurs en direct`
-                      : 'Co-édition en direct'
-                    : 'Co-édition · reconnexion…'}
+                      : t`Co-édition en direct`
+                    : t`Co-édition · reconnexion…`}
                 </span>
               )}
               {/* Indicateur d'état d'enregistrement — chaîne priorisée :
@@ -688,7 +688,7 @@ export function Editor({
                   <button
                     onClick={retryAutoSave}
                     className="ml-1 inline-flex items-center gap-1 text-[10px] font-semibold text-destructive hover:underline cursor-pointer shrink-0"
-                    title="Réessayer la sauvegarde"
+                    title={t`Réessayer la sauvegarde`}
                   >
                     <RotateCcw className="w-2.5 h-2.5" /> Réessayer
                   </button>
@@ -704,7 +704,7 @@ export function Editor({
                 </span>
               ) : lastSaved ? (
                 <span className="text-[11px] font-normal text-muted-foreground flex items-center gap-1.5 font-sans">
-                  <Check className="w-3.5 h-3.5 text-muted-foreground" /> Sauvegardé à{' '}
+                  <Check className="w-3.5 h-3.5 text-muted-foreground" /> {t`Sauvegardé à`}{' '}
                   {lastSaved.toLocaleTimeString()}
                 </span>
               ) : null}
@@ -721,7 +721,7 @@ export function Editor({
           <button
             onClick={() => setShowAnalyticsModal(true)}
             className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-border/40 bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
-            title="Inspecter les statistiques réelles de cet article"
+            title={t`Inspecter les statistiques réelles de cet article`}
           >
             <BarChart3 className="h-3.5 w-3.5 stroke-[1.5]" />
             <span>Analyses</span>
@@ -787,7 +787,7 @@ export function Editor({
                 <button
                   onClick={handleSubmitForReview}
                   className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-semibold transition-all cursor-pointer bg-highlight text-highlight-foreground hover:opacity-90 border border-transparent"
-                  title="Soumettre cet article à l'approbation de votre équipe"
+                  title={t`Soumettre cet article à l'approbation de votre équipe`}
                 >
                   <Send className="h-3.5 w-3.5" strokeWidth={1.5} />
                   Soumettre pour revue
@@ -815,7 +815,7 @@ export function Editor({
               ) : (
                 <Lock className="h-3 w-3" />
               )}
-              <span>{published ? 'Publié' : 'Brouillon'}</span>
+              <span>{published ? t`Publié` : t`Brouillon`}</span>
             </button>
           )}
 
@@ -826,7 +826,7 @@ export function Editor({
               target="_blank"
               rel="noopener noreferrer"
               className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-semibold bg-muted/50 text-foreground hover:bg-muted border border-border/40 transition-all cursor-pointer shadow-xs"
-              title="Ouvrir la page publique ou la prévisualisation de l'écrit"
+              title={t`Ouvrir la page publique ou la prévisualisation de l'écrit`}
             >
               <ExternalLink className="h-3.5 w-3.5 text-primary" />
               <span>{t`Aperçu`}</span>
@@ -972,7 +972,7 @@ export function Editor({
                 onChange={handleFileSelect}
                 accept="image/*"
                 className="hidden"
-                aria-label="Insérer image"
+                aria-label={t`Insérer image`}
               />
               <input
                 type="file"
@@ -1009,7 +1009,7 @@ export function Editor({
                   }
                   const selection = editor.state.selection;
                   if (selection.empty) {
-                    setAnnotationToast("Sélectionnez d'abord un passage de texte à annoter.");
+                    setAnnotationToast(t`Sélectionnez d'abord un passage de texte à annoter.`);
                     setTimeout(() => setAnnotationToast(null), 3000);
                     return;
                   }
@@ -1289,7 +1289,7 @@ export function Editor({
                   }}
                   className="px-4 py-1.5 rounded-xl bg-highlight text-highlight-foreground font-bold text-xs hover:bg-highlight/90 cursor-pointer disabled:opacity-50 transition-colors"
                 >
-                  {editor?.isActive('annotationMark') ? 'Mettre à jour' : "Attacher l'annotation"}
+                  {editor?.isActive('annotationMark') ? t`Mettre à jour` : t`Attacher l'annotation`}
                 </button>
               </div>
             </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { t } from '@lingui/core/macro';
 import { usePostShadow } from '@qoe/sdk';
 import { ThoughtCardContainer, type ThoughtCardContainerProps } from './ThoughtCardContainer';
 import { ConfirmDeleteModal } from '@qoe/ui';
@@ -87,13 +88,13 @@ export function ThoughtCard({
     try {
       if (post.isPinned) {
         const res = await unpinPost(post.id);
-        if (res.ok) toast.success('Pensée désépinglée du profil.');
+        if (res.ok) toast.success(t`Pensée désépinglée du profil.`);
       } else {
         const res = await pinPost(post.id);
-        if (res.ok) toast.success('Pensée épinglée sur le profil.');
+        if (res.ok) toast.success(t`Pensée épinglée sur le profil.`);
       }
     } catch {
-      toast.error("Erreur lors de la modification de l'état épinglé.");
+      toast.error(t`Erreur lors de la modification de l'état épinglé.`);
     }
   };
 
@@ -128,13 +129,13 @@ export function ThoughtCard({
         body: JSON.stringify({ thoughtId: shadowedPost.id }),
       });
       if (res.ok) {
-        toast.success('Tu verras moins de contenu comme ça.');
+        toast.success(t`Tu verras moins de contenu comme ça.`);
         onHidePost?.(shadowedPost.id);
       } else {
-        toast.error('Erreur lors de la sauvegarde de ta préférence.');
+        toast.error(t`Erreur lors de la sauvegarde de ta préférence.`);
       }
     } catch {
-      toast.error('Erreur réseau.');
+      toast.error(t`Erreur réseau.`);
     }
   };
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@qoe/ui/toast';
 import {
@@ -41,20 +42,20 @@ function getErrorMessage(error: unknown, fallback: string): string {
 const API_KEY_SCOPES = ['READ', 'WRITE', 'ANALYTICS'] as const;
 type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
 
-const SCOPE_META: Record<ApiKeyScope, { label: string; desc: string; badgeClass: string }> = {
+const SCOPE_META: Record<ApiKeyScope, { label: string; desc: () => string; badgeClass: string }> = {
   READ: {
     label: 'READ',
-    desc: 'Lecture des articles, profils et catégories publiques',
+    desc: () => t`Lecture des articles, profils et catégories publiques`,
     badgeClass: 'bg-primary/10 border-primary/20 text-primary',
   },
   WRITE: {
     label: 'WRITE',
-    desc: 'Création, modification et publication de contenus',
+    desc: () => t`Création, modification et publication de contenus`,
     badgeClass: 'bg-success/10 border-success/20 text-success',
   },
   ANALYTICS: {
     label: 'ANALYTICS',
-    desc: 'Accès aux métriques de lecture et temps de complétion',
+    desc: () => t`Accès aux métriques de lecture et temps de complétion`,
     badgeClass: 'bg-highlight/10 border-highlight/20 text-highlight',
   },
 };
@@ -104,11 +105,11 @@ export function DeveloperClient({
     const showSuccess = () => {
       if (isSnippet) {
         setSnippetCopied(true);
-        toast.success('Extrait de code copié !');
+        toast.success(t`Extrait de code copié !`);
         setTimeout(() => setSnippetCopied(false), 2000);
       } else {
         setCopied(true);
-        toast.success("Clé d'API copiée dans le presse-papiers !");
+        toast.success(t`Clé d'API copiée dans le presse-papiers !`);
         setTimeout(() => setCopied(false), 2000);
       }
     };
@@ -150,7 +151,7 @@ export function DeveloperClient({
   const handleSubmitApplication = async (e: React.FormEvent) => {
     e.preventDefault();
     if (reason.trim().length < 10) {
-      toast.error("Veuillez expliquer votre cas d'usage d'au moins 10 caractères.");
+      toast.error(t`Veuillez expliquer votre cas d'usage d'au moins 10 caractères.`);
       return;
     }
 
@@ -159,7 +160,7 @@ export function DeveloperClient({
       const res = await submitApiApplicationAction(reason);
       if (res.ok) {
         setStatus('pending');
-        toast.success("Votre demande d'accès API a bien été soumise !");
+        toast.success(t`Votre demande d'accès API a bien été soumise !`);
       }
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Une erreur est survenue lors de la soumission.'));
@@ -172,7 +173,7 @@ export function DeveloperClient({
   const handleGenerateKey = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newKeyName.trim()) {
-      toast.error("Veuillez donner un nom à la clé d'API.");
+      toast.error(t`Veuillez donner un nom à la clé d'API.`);
       return;
     }
 
@@ -196,10 +197,10 @@ export function DeveloperClient({
 
         setNewKeyName('');
         setNewKeyScopes([...API_KEY_SCOPES]);
-        toast.success("Nouvelle clé d'API générée avec succès !");
+        toast.success(t`Nouvelle clé d'API générée avec succès !`);
       }
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Erreur lors de la génération de la clé.'));
+      toast.error(getErrorMessage(err, t`Erreur lors de la génération de la clé.`));
     } finally {
       setIsGeneratingKey(false);
     }
@@ -219,10 +220,10 @@ export function DeveloperClient({
       if (res.ok) {
         setKeys(keys.filter((k) => k.id !== id));
         setConfirmDeleteId(null);
-        toast.success("Clé d'API révoquée avec succès.");
+        toast.success(t`Clé d'API révoquée avec succès.`);
       }
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Erreur lors de la révocation de la clé.'));
+      toast.error(getErrorMessage(err, t`Erreur lors de la révocation de la clé.`));
     } finally {
       setIsRevokingKeyId(null);
     }
@@ -503,7 +504,7 @@ print(articles)`,
                     type="text"
                     value={newKeyName}
                     onChange={(e) => setNewKeyName(e.target.value)}
-                    placeholder="Nom de la clé (ex: Blog Vercel Prod, App Mobile...)"
+                    placeholder={t`Nom de la clé (ex: Blog Vercel Prod, App Mobile...)`}
                     className="flex-1 rounded-xl border border-border px-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-muted-foreground/60 bg-muted/30 transition-all text-foreground"
                     required
                   />
@@ -535,7 +536,7 @@ print(articles)`,
                           key={scope}
                           type="button"
                           onClick={() => toggleKeyScope(scope)}
-                          title={meta.desc}
+                          title={meta.desc()}
                           className={cn(
                             'text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all duration-200 cursor-pointer flex items-center gap-1.5',
                             active
@@ -691,7 +692,7 @@ print(articles)`,
                               ) : (
                                 <button
                                   onClick={() => setConfirmDeleteId(key.id)}
-                                  title="Révoquer cette clé d'API"
+                                  title={t`Révoquer cette clé d'API`}
                                   className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-1.5 rounded-lg transition-colors inline-flex cursor-pointer"
                                 >
                                   <Trash2 className="w-4 h-4" />

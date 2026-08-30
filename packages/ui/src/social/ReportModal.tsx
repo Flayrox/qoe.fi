@@ -16,14 +16,30 @@ export interface ReportModalProps {
 }
 
 const REPORT_REASONS = [
-  { id: 'spam', label: t`Spam ou publicité non sollicitée` },
-  { id: 'harassment', label: t`Harcèlement, haine ou intimidation` },
-  { id: 'misleading', label: t`Désinformation ou propos trompeurs` },
-  { id: 'hate_speech', label: t`Contenu inapproprié ou explicite` },
-  { id: 'other', label: t`Autre motif` },
+  { id: 'spam' },
+  { id: 'harassment' },
+  { id: 'misleading' },
+  { id: 'hate_speech' },
+  { id: 'other' },
 ] as const;
 
 export type ReportReason = (typeof REPORT_REASONS)[number]['id'];
+
+// Libellés résolus au rendu pour suivre la langue active.
+function getReportReasonLabel(reason: ReportReason): string {
+  switch (reason) {
+    case 'spam':
+      return t`Spam ou publicité non sollicitée`;
+    case 'harassment':
+      return t`Harcèlement, haine ou intimidation`;
+    case 'misleading':
+      return t`Désinformation ou propos trompeurs`;
+    case 'hate_speech':
+      return t`Contenu inapproprié ou explicite`;
+    case 'other':
+      return t`Autre motif`;
+  }
+}
 
 export function ReportModal({
   isOpen,
@@ -95,7 +111,7 @@ export function ReportModal({
                       : 'border-border/30 bg-background/50 hover:bg-muted/30 text-muted-foreground'
                   }`}
                 >
-                  <span>{r.label}</span>
+                  <span>{getReportReasonLabel(r.id)}</span>
                   {selectedReason === r.id && <Check className="w-3.5 h-3.5 text-highlight" />}
                 </button>
               ))}

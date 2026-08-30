@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { t } from '@lingui/core/macro';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Loader2, UserCheck, UserPlus, Users } from 'lucide-react';
@@ -111,8 +112,8 @@ export function FollowList({ handle, initialTab, currentUserId }: FollowListProp
       <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1 w-fit">
         {(
           [
-            { key: 'followers' as const, label: 'Abonnés', icon: Users },
-            { key: 'following' as const, label: 'Abonnements', icon: UserCheck },
+            { key: 'followers' as const, label: t`Abonnés`, icon: Users },
+            { key: 'following' as const, label: t`Abonnements`, icon: UserCheck },
           ] as const
         ).map((t) => {
           const Icon = t.icon;

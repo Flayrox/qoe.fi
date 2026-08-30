@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, type ReactNode } from 'react';
+import { t } from '@lingui/core/macro';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -35,13 +36,14 @@ export type AccountSettingsData = Awaited<
 
 type SettingsSection = 'account' | 'profile' | 'notifications' | 'privacy' | 'appearance' | 'data';
 
-const sections: Array<{ id: SettingsSection; label: string; icon: typeof UserRound }> = [
-  { id: 'account', label: 'Compte', icon: UserRound },
-  { id: 'profile', label: 'Profil public', icon: UserRound },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'privacy', label: 'Confidentialité', icon: Shield },
-  { id: 'appearance', label: 'Apparence & lecture', icon: Palette },
-  { id: 'data', label: 'Données & sécurité', icon: Lock },
+// Libellés résolus au rendu pour suivre la langue active (tableau au module = figé).
+const sections: Array<{ id: SettingsSection; label: () => string; icon: typeof UserRound }> = [
+  { id: 'account', label: () => t`Compte`, icon: UserRound },
+  { id: 'profile', label: () => t`Profil public`, icon: UserRound },
+  { id: 'notifications', label: () => t`Notifications`, icon: Bell },
+  { id: 'privacy', label: () => t`Confidentialité`, icon: Shield },
+  { id: 'appearance', label: () => t`Apparence & lecture`, icon: Palette },
+  { id: 'data', label: () => t`Données & sécurité`, icon: Lock },
 ];
 
 export default function AccountSettingsPage({
@@ -75,10 +77,10 @@ export default function AccountSettingsPage({
       try {
         const result = await updateAccountSettingsAction(patch);
         setData((current) => (current ? { ...current, settings: result.settings } : current));
-        showMessage('Réglage enregistré.');
+        showMessage(t`Réglage enregistré.`);
       } catch (error) {
         showMessage(
-          error instanceof Error ? error.message : 'Impossible d’enregistrer ce réglage.'
+          error instanceof Error ? error.message : t`Impossible d’enregistrer ce réglage.`
         );
       }
     });
@@ -91,10 +93,10 @@ export default function AccountSettingsPage({
         setData((current) =>
           current ? { ...current, user: { ...current.user, ...profile } } : current
         );
-        showMessage('Profil mis à jour.');
+        showMessage(t`Profil mis à jour.`);
       } catch (error) {
         showMessage(
-          error instanceof Error ? error.message : 'Impossible de mettre à jour le profil.'
+          error instanceof Error ? error.message : t`Impossible de mettre à jour le profil.`
         );
       }
     });
@@ -111,7 +113,7 @@ export default function AccountSettingsPage({
         link.download = `qoe-fi-export-${new Date().toISOString().slice(0, 10)}.json`;
         link.click();
         URL.revokeObjectURL(url);
-        showMessage('Export téléchargé.');
+        showMessage(t`Export téléchargé.`);
       } catch (error) {
         showMessage(error instanceof Error ? error.message : 'Export impossible.');
       }
@@ -123,7 +125,7 @@ export default function AccountSettingsPage({
       try {
         await cancelAccountDeletionAction();
         setData((current) => (current ? { ...current, deletionRequest: null } : current));
-        showMessage('Demande de suppression annulée.');
+        showMessage(t`Demande de suppression annulée.`);
       } catch (error) {
         showMessage(error instanceof Error ? error.message : 'Impossible d’annuler la demande.');
       }
@@ -147,9 +149,9 @@ export default function AccountSettingsPage({
               }
             : current
         );
-        showMessage('Demande de suppression enregistrée.');
+        showMessage(t`Demande de suppression enregistrée.`);
       } catch (error) {
-        showMessage(error instanceof Error ? error.message : 'Demande refusée.');
+        showMessage(error instanceof Error ? error.message : t`Demande refusée.`);
       }
     });
   };
@@ -173,14 +175,14 @@ export default function AccountSettingsPage({
               href="/home"
               className="text-xs font-semibold text-muted-foreground hover:text-foreground"
             >
-              ← Retour au feed
+              ← {t`Retour au feed`}
             </Link>
-            <h1 className="mt-5 text-2xl font-bold tracking-tight">Réglages</h1>
+            <h1 className="mt-5 text-2xl font-bold tracking-tight">{t`Réglages`}</h1>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               Votre compte, votre espace, vos règles.
             </p>
           </div>
-          <nav className="space-y-1" aria-label="Sections des réglages">
+          <nav className="space-y-1" aria-label={t`Sections des réglages`}>
             {sections.map((section) => {
               const Icon = section.icon;
               return (
@@ -195,7 +197,7 @@ export default function AccountSettingsPage({
                   }`}
                 >
                   <Icon className="h-4 w-4" strokeWidth={1.7} />
-                  {section.label}
+                  {section.label()}
                 </button>
               );
             })}
@@ -207,9 +209,9 @@ export default function AccountSettingsPage({
         <div className="mb-6 flex items-start justify-between gap-4 border-b border-border pb-5 md:hidden">
           <div>
             <Link href="/home" className="text-xs text-muted-foreground">
-              ← Retour au feed
+              ← {t`Retour au feed`}
             </Link>
-            <h1 className="mt-3 text-2xl font-bold">Réglages</h1>
+            <h1 className="mt-3 text-2xl font-bold">{t`Réglages`}</h1>
           </div>
           <select
             value={activeSection}
@@ -218,7 +220,7 @@ export default function AccountSettingsPage({
           >
             {sections.map((section) => (
               <option key={section.id} value={section.id}>
-                {section.label}
+                {section.label()}
               </option>
             ))}
           </select>
@@ -249,7 +251,7 @@ export default function AccountSettingsPage({
             </div>
             <SettingsLink
               icon={KeyRound}
-              title="Sécurité et sessions"
+              title={t`Sécurité et sessions`}
               description="Votre mot de passe est géré par Supabase Auth."
               disabled
             />
@@ -295,7 +297,7 @@ export default function AccountSettingsPage({
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <LabeledInput
-                label="Nom affiché"
+                label={t`Nom affiché`}
                 value={profile.name}
                 onChange={(value) => setProfile({ ...profile, name: value })}
               />
@@ -356,11 +358,11 @@ export default function AccountSettingsPage({
 
         {activeSection === 'privacy' && (
           <SettingsPanel
-            title="Confidentialité"
+            title={t`Confidentialité`}
             description="Décidez qui peut vous trouver, vous mentionner et vous inviter."
           >
             <SelectRow
-              label="Visibilité du profil"
+              label={t`Visibilité du profil`}
               description="Contrôle la visibilité de votre profil public."
               value={settings.profileVisibility}
               options={[
@@ -401,7 +403,7 @@ export default function AccountSettingsPage({
             description="Une expérience calme, lisible et adaptée à votre attention."
           >
             <SelectRow
-              label="Feed par défaut"
+              label={t`Feed par défaut`}
               description="La vue ouverte lorsque vous arrivez sur l’accueil."
               value={settings.defaultFeed}
               options={[
@@ -425,19 +427,19 @@ export default function AccountSettingsPage({
               onChange={(value) => patchSettings({ fontScale: Number(value) })}
             />
             <ToggleRow
-              label="Lecture automatique des médias"
+              label={t`Lecture automatique des médias`}
               description="Lance automatiquement les vidéos et contenus animés."
               checked={settings.autoplayMedia}
               onChange={(value) => patchSettings({ autoplayMedia: value })}
             />
             <ToggleRow
-              label="Réduire les animations"
+              label={t`Réduire les animations`}
               description="Respecte votre préférence pour une interface plus stable."
               checked={settings.reduceMotion}
               onChange={(value) => patchSettings({ reduceMotion: value })}
             />
             <ToggleRow
-              label="Contraste renforcé"
+              label={t`Contraste renforcé`}
               description="Améliore la lisibilité des éléments d’interface."
               checked={settings.highContrast}
               onChange={(value) => patchSettings({ highContrast: value })}
@@ -447,18 +449,18 @@ export default function AccountSettingsPage({
 
         {activeSection === 'data' && (
           <SettingsPanel
-            title="Données & sécurité"
+            title={t`Données & sécurité`}
             description="Exportez vos données ou demandez la suppression de votre compte."
           >
             <SettingsLink
               icon={Download}
-              title="Exporter mes données"
+              title={t`Exporter mes données`}
               description="Téléchargez vos pensées, articles, signets, surlignages et préférences."
               onClick={exportData}
             />
             <SettingsLink
               icon={Accessibility}
-              title="Accessibilité"
+              title={t`Accessibilité`}
               description="Les réglages de lecture sont disponibles dans Apparence & lecture."
               onClick={() => setActiveSection('appearance')}
             />
@@ -496,7 +498,7 @@ export default function AccountSettingsPage({
                 <input
                   value={deletionConfirmation}
                   onChange={(event) => setDeletionConfirmation(event.target.value)}
-                  placeholder="Écrivez DELETE"
+                  placeholder={t`Écrivez DELETE`}
                   className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 />
                 <button

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { t } from '@lingui/core/macro';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -97,30 +98,30 @@ interface MediaDetail {
 const ROLE_META: Record<
   string,
   {
-    label: string;
+    label: () => string;
     color: string;
     icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>;
   }
 > = {
-  owner: { label: 'Propriétaire', color: 'text-primary', icon: Crown },
-  editor: { label: 'Éditeur', color: 'text-highlight', icon: ShieldCheck },
-  writer: { label: 'Rédacteur', color: 'text-foreground', icon: PenLine },
-  viewer: { label: 'Lecteur', color: 'text-muted-foreground', icon: Eye },
+  owner: { label: () => t`Propriétaire`, color: 'text-primary', icon: Crown },
+  editor: { label: () => t`Éditeur`, color: 'text-highlight', icon: ShieldCheck },
+  writer: { label: () => t`Rédacteur`, color: 'text-foreground', icon: PenLine },
+  viewer: { label: () => t`Lecteur`, color: 'text-muted-foreground', icon: Eye },
 };
 
-const PERMISSION_LABELS: Record<string, string> = {
-  'media:manage_members': 'Gérer les membres',
-  'media:manage_settings': 'Design & SEO',
-  'media:manage_billing': 'Monétisation',
-  'media:manage_categories': 'Catégories',
-  'media:manage_newsletter': 'Newsletter',
-  'media:publish:any': 'Publier',
-  'media:edit:any': 'Éditer tout',
-  'media:delete:any': 'Supprimer',
-  'media:review': 'Approbation',
-  'media:view_analytics': 'Analytics',
-  'media:create_articles': 'Écrire',
-  'media:edit_own': 'Éditer ses écrits',
+const PERMISSION_LABELS: Record<string, () => string> = {
+  'media:manage_members': () => t`Gérer les membres`,
+  'media:manage_settings': () => t`Design & SEO`,
+  'media:manage_billing': () => t`Monétisation`,
+  'media:manage_categories': () => t`Catégories`,
+  'media:manage_newsletter': () => t`Newsletter`,
+  'media:publish:any': () => t`Publier`,
+  'media:edit:any': () => t`Éditer tout`,
+  'media:delete:any': () => t`Supprimer`,
+  'media:review': () => t`Approbation`,
+  'media:view_analytics': () => t`Analytics`,
+  'media:create_articles': () => t`Écrire`,
+  'media:edit_own': () => t`Éditer ses écrits`,
 };
 
 const ROLE_DEFAULT_PERMS: Record<string, string[]> = {
@@ -144,12 +145,12 @@ type StudioTab = 'members' | 'invites' | 'settings';
 
 const TABS: Array<{
   key: StudioTab;
-  label: string;
+  label: () => string;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>;
 }> = [
-  { key: 'members', label: 'Membres', icon: Users },
-  { key: 'invites', label: 'Invitations', icon: Mail },
-  { key: 'settings', label: 'Réglages', icon: Settings },
+  { key: 'members', label: () => t`Membres`, icon: Users },
+  { key: 'invites', label: () => t`Invitations`, icon: Mail },
+  { key: 'settings', label: () => t`Réglages`, icon: Settings },
 ];
 
 function formatDate(iso: string | null): string {
@@ -209,7 +210,7 @@ export function MediaStudioClient({
       setDetail(res.media as unknown as MediaDetail);
       setMyRole(res.myRole ?? null);
     } else {
-      toast.error(res.error || 'Erreur de chargement du Média');
+      toast.error(res.error || t`Erreur de chargement du Média`);
     }
   }, []);
 
@@ -235,32 +236,32 @@ export function MediaStudioClient({
     );
     setCreating(false);
     if (res.success) {
-      toast.success('Média créé avec succès !');
+      toast.success(t`Média créé avec succès !`);
       document.cookie = `qoe_active_workspace=${encodeURIComponent(
         JSON.stringify({ type: 'MEDIA', id: res.media!.id })
       )}; path=/; max-age=2592000`;
       router.push('/media');
       router.refresh();
     } else {
-      toast.error(res.error || 'Impossible de créer le Média.');
+      toast.error(res.error || t`Impossible de créer le Média.`);
     }
   };
 
   const handleInvite = async () => {
     if (!detail) return;
     if (!inviteEmail.trim()) {
-      toast.error("L'email de l'invité est requis.");
+      toast.error(t`L'email de l'invité est requis.`);
       return;
     }
     setInviting(true);
     const res = await inviteMediaMemberAction(detail.id, inviteEmail, inviteRole);
     setInviting(false);
     if (res.success) {
-      toast.success(res.alreadyMember ? 'Rôle mis à jour.' : 'Invitation envoyée !');
+      toast.success(res.alreadyMember ? t`Rôle mis à jour.` : t`Invitation envoyée !`);
       setInviteEmail('');
       loadDetail(detail.id);
     } else {
-      toast.error(res.error || "Échec de l'invitation.");
+      toast.error(res.error || t`Échec de l'invitation.`);
     }
   };
 
@@ -268,7 +269,7 @@ export function MediaStudioClient({
     if (!detail) return;
     const res = await updateMediaMemberRoleAction(detail.id, memberUserId, role);
     if (res.success) {
-      toast.success('Rôle mis à jour.');
+      toast.success(t`Rôle mis à jour.`);
       loadDetail(detail.id);
     } else {
       toast.error(res.error || 'Erreur');
@@ -291,7 +292,7 @@ export function MediaStudioClient({
       Array.from(perms)
     );
     if (res.success) {
-      toast.success('Permissions mises à jour.');
+      toast.success(t`Permissions mises à jour.`);
       loadDetail(detail.id);
     }
   };
@@ -301,7 +302,7 @@ export function MediaStudioClient({
     if (!window.confirm(`Retirer ${memberName} du Média ?`)) return;
     const res = await removeMediaMemberAction(detail.id, memberUserId);
     if (res.success) {
-      toast.success('Membre retiré.');
+      toast.success(t`Membre retiré.`);
       loadDetail(detail.id);
     } else {
       toast.error(res.error || 'Erreur');
@@ -369,7 +370,7 @@ export function MediaStudioClient({
             <input
               value={createName}
               onChange={(e) => setCreateName(e.target.value)}
-              placeholder="Ex: La Gazette de la Souveraineté"
+              placeholder={t`Ex: La Gazette de la Souveraineté`}
               className={inputCls}
             />
           </div>
@@ -391,7 +392,7 @@ export function MediaStudioClient({
               value={createBio}
               onChange={(e) => setCreateBio(e.target.value)}
               rows={2}
-              placeholder="Décrivez la ligne éditoriale du média..."
+              placeholder={t`Décrivez la ligne éditoriale du média...`}
               className={cn(inputCls, 'resize-none')}
             />
           </div>
@@ -497,8 +498,7 @@ export function MediaStudioClient({
               <span className="font-medium text-foreground/80">{domain}</span>
               <span className="text-border">•</span>
               <span className={cn('flex items-center gap-1 font-medium', myRoleMeta.color)}>
-                <MyRoleIcon className="w-3.5 h-3.5" strokeWidth={1.5} />
-                {myRoleMeta.label}
+                <MyRoleIcon className="w-3.5 h-3.5" strokeWidth={1.5} /> {myRoleMeta.label()}
               </span>
             </div>
             {detail.publication.bio && (
@@ -587,7 +587,7 @@ export function MediaStudioClient({
               )}
             >
               <tabItem.icon className="w-3.5 h-3.5" strokeWidth={1.5} />
-              {tabItem.label}
+              {tabItem.label()}
               {tabItem.key === 'invites' && detail.invites.length > 0 && (
                 <span className="text-[10px] font-bold text-primary">{detail.invites.length}</span>
               )}
@@ -631,13 +631,13 @@ export function MediaStudioClient({
                       )}
                     >
                       <RoleIcon className="w-3 h-3" strokeWidth={1.5} />
-                      {roleMeta.label}
+                      {roleMeta.label()}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
                     {perms.slice(0, 3).map((perm) => (
                       <span key={perm} className="text-[11px] text-muted-foreground">
-                        {PERMISSION_LABELS[perm] || perm}
+                        {PERMISSION_LABELS[perm] ? PERMISSION_LABELS[perm]() : perm}
                       </span>
                     ))}
                     {perms.length > 3 && (
@@ -665,7 +665,7 @@ export function MediaStudioClient({
                           .filter((r) => r !== MEDIA_ROLES.OWNER)
                           .map((r) => (
                             <option key={r} value={r}>
-                              {ROLE_META[r].label}
+                              {ROLE_META[r].label()}
                             </option>
                           ))}
                       </select>
@@ -677,7 +677,7 @@ export function MediaStudioClient({
                           )
                         }
                         className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg transition-colors cursor-pointer"
-                        title="Retirer du Média"
+                        title={t`Retirer du Média`}
                       >
                         <Trash2 className="w-4 h-4" strokeWidth={1.5} />
                       </button>
@@ -691,7 +691,7 @@ export function MediaStudioClient({
           {!canManageMembers && (
             <p className="text-xs text-muted-foreground py-4">
               Vous êtes{' '}
-              <strong className="capitalize">{ROLE_META[myRole || 'writer']?.label}</strong> de ce
+              <strong className="capitalize">{ROLE_META[myRole || 'writer']?.label()}</strong> de ce
               Média — seuls les propriétaires et éditeurs peuvent gérer l'équipe.
             </p>
           )}
@@ -731,7 +731,7 @@ export function MediaStudioClient({
                   .filter((r) => r !== MEDIA_ROLES.OWNER)
                   .map((r) => (
                     <option key={r} value={r}>
-                      {ROLE_META[r].label}
+                      {ROLE_META[r].label()}
                     </option>
                   ))}
               </select>
@@ -780,7 +780,7 @@ export function MediaStudioClient({
                         )}
                       >
                         <Icon className="w-3 h-3" strokeWidth={1.5} />
-                        {meta.label}
+                        {meta.label()}
                       </span>
                     </div>
                   );
@@ -809,7 +809,7 @@ export function MediaStudioClient({
                         )}
                       >
                         <Icon className="w-3.5 h-3.5" strokeWidth={1.5} />
-                        {meta.label}
+                        {meta.label()}
                       </div>
                       <ul className="space-y-1.5">
                         {perms.map((p) => (
@@ -821,7 +821,7 @@ export function MediaStudioClient({
                               className="w-3 h-3 text-success mt-0.5 shrink-0"
                               strokeWidth={1.5}
                             />
-                            {PERMISSION_LABELS[p] || p}
+                            {PERMISSION_LABELS[p] ? PERMISSION_LABELS[p]() : p}
                           </li>
                         ))}
                       </ul>
@@ -886,7 +886,7 @@ function PermissionPopover({
                   onChange={() => onToggle(member.user.id, perm)}
                   className="accent-[var(--primary)] cursor-pointer"
                 />
-                {PERMISSION_LABELS[perm] || perm}
+                {PERMISSION_LABELS[perm] ? PERMISSION_LABELS[perm]() : perm}
               </label>
             ))}
           </div>
@@ -932,7 +932,7 @@ function MediaSettingsForm({
     });
     setSaving(false);
     if (res.success) {
-      toast.success('Réglages du Média enregistrés !');
+      toast.success(t`Réglages du Média enregistrés !`);
       onSaved();
     } else {
       toast.error(res.error || 'Erreur');
@@ -954,7 +954,7 @@ function MediaSettingsForm({
 
   return (
     <div className="max-w-3xl">
-      <Section title="Identité & Marque">
+      <Section title={t`Identité & Marque`}>
         <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
           <div>
             <label className={labelCls}>Nom du Média</label>
@@ -1089,7 +1089,9 @@ function MediaSettingsForm({
               className="flex items-center gap-3 text-sm font-semibold cursor-pointer"
             >
               <QuietDot active={form.allowIndexing} />
-              {form.allowIndexing ? 'Indexation Google autorisée' : 'Indexation Google désactivée'}
+              {form.allowIndexing
+                ? t`Indexation Google autorisée`
+                : t`Indexation Google désactivée`}
             </button>
           </div>
         </div>

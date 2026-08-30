@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -31,20 +32,26 @@ const OAUTH_SCOPES = [
   {
     name: 'openid',
     required: true,
-    desc: "Identifiant de connexion (obligatoire pour l'OpenID Connect)",
+    desc: () => t`Identifiant de connexion (obligatoire pour l'OpenID Connect)`,
   },
-  { name: 'profile', required: false, desc: 'Nom, pseudo et photo de profil' },
-  { name: 'email', required: false, desc: 'Adresse e-mail' },
+  { name: 'profile', required: false, desc: () => t`Nom, pseudo et photo de profil` },
+  { name: 'email', required: false, desc: () => t`Adresse e-mail` },
 ] as const;
 
-const STATUS_META: Record<OAuthClientDTO['status'], { label: string; className: string }> = {
-  PENDING: { label: 'En attente', className: 'bg-highlight/10 text-highlight border-highlight/20' },
-  APPROVED: { label: 'Approuvée', className: 'bg-success/10 text-success border-success/20' },
+const STATUS_META: Record<OAuthClientDTO['status'], { label: () => string; className: string }> = {
+  PENDING: {
+    label: () => t`En attente`,
+    className: 'bg-highlight/10 text-highlight border-highlight/20',
+  },
+  APPROVED: {
+    label: () => t`Approuvée`,
+    className: 'bg-success/10 text-success border-success/20',
+  },
   REJECTED: {
-    label: 'Rejetée',
+    label: () => t`Rejetée`,
     className: 'bg-destructive/10 text-destructive border-destructive/20',
   },
-  REVOKED: { label: 'Révoquée', className: 'bg-muted text-muted-foreground border-border' },
+  REVOKED: { label: () => t`Révoquée`, className: 'bg-muted text-muted-foreground border-border' },
 };
 
 interface OAuthAppsClientProps {
@@ -84,7 +91,7 @@ export function OAuthAppsClient({ status, clients: initialClients, error }: OAut
         .writeText(text)
         .then(() => {
           setCopied(true);
-          toast.success('Copié dans le presse-papiers.');
+          toast.success(t`Copié dans le presse-papiers.`);
           setTimeout(() => setCopied(false), 2000);
         })
         .catch(() => toast.error('Copie impossible.'));
@@ -125,7 +132,7 @@ export function OAuthAppsClient({ status, clients: initialClients, error }: OAut
     });
     setCreating(false);
     if (res.success) {
-      toast.success('Application créée !');
+      toast.success(t`Application créée !`);
       setName('');
       setDescription('');
       setHomepageUrl('');
@@ -137,7 +144,7 @@ export function OAuthAppsClient({ status, clients: initialClients, error }: OAut
         setRevealed({ clientId: res.clientId, clientSecret: res.clientSecret });
       }
     } else {
-      toast.error(res.error || 'Échec de la création.');
+      toast.error(res.error || t`Échec de la création.`);
     }
   };
 
@@ -166,7 +173,7 @@ export function OAuthAppsClient({ status, clients: initialClients, error }: OAut
     setBusyId(null);
     if (res.success) {
       setClients((prev) => prev.filter((c) => c.id !== client.id));
-      toast.success('Application supprimée.');
+      toast.success(t`Application supprimée.`);
     } else {
       toast.error(res.error || 'Suppression impossible.');
     }
@@ -278,7 +285,7 @@ export function OAuthAppsClient({ status, clients: initialClients, error }: OAut
               <input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="À quoi sert votre application ?"
+                placeholder={t`À quoi sert votre application ?`}
                 className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
             </div>
@@ -350,7 +357,7 @@ export function OAuthAppsClient({ status, clients: initialClients, error }: OAut
                     key={scope.name}
                     type="button"
                     onClick={() => toggleScope(scope.name)}
-                    title={scope.desc}
+                    title={scope.desc()}
                     className={cn(
                       'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer',
                       active
@@ -436,7 +443,7 @@ export function OAuthAppsClient({ status, clients: initialClients, error }: OAut
                           meta.className
                         )}
                       >
-                        {meta.label}
+                        {meta.label()}
                       </span>
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted/60 text-muted-foreground border border-border/40">
                         {client.clientType === 'CONFIDENTIAL' ? 'Confidentielle' : 'Publique'}
@@ -494,7 +501,7 @@ export function OAuthAppsClient({ status, clients: initialClients, error }: OAut
                         onClick={() => handleRotate(client)}
                         disabled={busyId === client.id}
                         className="px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground bg-muted/40 hover:bg-muted border border-border/60 transition-colors cursor-pointer flex items-center gap-1"
-                        title="Régénérer le secret client"
+                        title={t`Régénérer le secret client`}
                       >
                         {busyId === client.id ? (
                           <Loader2 className="w-3 h-3 animate-spin" />

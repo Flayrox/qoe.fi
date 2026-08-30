@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
 import { Editor } from '@/features/editor/components/Editor';
 import type { ArticleAttributionDraft } from '@/features/editor/components/ArticleAttributionEditor';
@@ -85,7 +86,7 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
       router.refresh();
       return { id: newId };
     } catch (err: unknown) {
-      throw new Error(err instanceof Error ? err.message : "Échec de l'enregistrement.");
+      throw new Error(err instanceof Error ? err.message : t`Échec de l'enregistrement.`);
     } finally {
       setIsSaving(false);
     }

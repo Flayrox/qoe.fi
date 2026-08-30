@@ -14,6 +14,13 @@ interface CreatorHubProps {
 const TABS = ['Créateurs', 'Médias & CMS', 'API'] as const;
 type Tab = (typeof TABS)[number];
 
+// Libellés d'onglets résolus au rendu (t`...` au module resterait figé).
+const getTabLabel = (tab: Tab): string => {
+  if (tab === 'Créateurs') return t`Créateurs`;
+  if (tab === 'Médias & CMS') return t`Médias & CMS`;
+  return t`API`;
+};
+
 export const CreatorHub = ({ config }: CreatorHubProps) => {
   const [activeTab, setActiveTab] = useState<Tab>('Créateurs');
 
@@ -152,7 +159,7 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
                   : 'text-muted-foreground hover:text-muted-foreground'
               }`}
             >
-              {tab}
+              {getTabLabel(tab)}
             </button>
           ))}
         </div>
@@ -231,9 +238,9 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
                     <span className="text-[9px] text-[#EE4B2B] font-semibold">{t`● En direct`}</span>
                   </div>
                   {[
-                    { title: 'Vers une presse souveraine', stat: '4.2k lecteurs', prog: 82 },
-                    { title: 'Le numérique militant', stat: '2.9k lecteurs', prog: 65 },
-                    { title: 'Décroissance et liberté', stat: '1.7k lecteurs', prog: 41 },
+                    { title: t`Vers une presse souveraine`, stat: t`4.2k lecteurs`, prog: 82 },
+                    { title: t`Le numérique militant`, stat: t`2.9k lecteurs`, prog: 65 },
+                    { title: t`Décroissance et liberté`, stat: t`1.7k lecteurs`, prog: 41 },
                   ].map((row, i) => (
                     <div key={i} className="flex flex-col gap-2">
                       <div className="flex items-center justify-between">

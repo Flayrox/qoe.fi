@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { t } from '@lingui/core/macro';
 import { Check, Loader2 } from 'lucide-react';
 import { votePollAction } from '@qoe/sdk';
 import { cn } from '@qoe/utils';
@@ -96,18 +97,18 @@ export function PollCard({ poll: initialPoll, onVoteSuccess, className }: PollCa
   };
 
   const getTimeRemainingText = () => {
-    if (isExpired) return 'Sondage terminé';
+    if (isExpired) return t`Sondage terminé`;
     const diffMs = new Date(poll.expiresAt).getTime() - Date.now();
-    if (diffMs <= 0) return 'Sondage terminé';
+    if (diffMs <= 0) return t`Sondage terminé`;
 
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     if (hours >= 24) {
       const days = Math.floor(hours / 24);
-      return `${days}j restant${days > 1 ? 's' : ''}`;
+      return t`${days}j restant${days > 1 ? 's' : ''}`;
     }
-    if (hours > 0) return `${hours}h restante${hours > 1 ? 's' : ''}`;
+    if (hours > 0) return t`${hours}h restante${hours > 1 ? 's' : ''}`;
     const mins = Math.max(1, Math.floor(diffMs / (1000 * 60)));
-    return `${mins} min restante${mins > 1 ? 's' : ''}`;
+    return t`${mins} min restante${mins > 1 ? 's' : ''}`;
   };
 
   return (

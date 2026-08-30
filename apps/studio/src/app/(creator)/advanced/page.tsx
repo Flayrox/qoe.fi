@@ -66,7 +66,7 @@ export default function CreatorAdvancedPage() {
   ) => {
     const res = await respondToCollaborationRequestAction(requestId, accept, showOnPublicProfile);
     if (res.success) {
-      setActionMsg(accept ? '✅ Invitation acceptée !' : '❌ Invitation refusée.');
+      setActionMsg(accept ? t`✅ Invitation acceptée !` : t`❌ Invitation refusée.`);
       loadRequests();
     }
   };
@@ -80,7 +80,7 @@ export default function CreatorAdvancedPage() {
     setSendingInvite(false);
 
     if (res.success) {
-      setActionMsg('🎉 Invitation de co-rédaction envoyée avec succès !');
+      setActionMsg(t`🎉 Invitation de co-rédaction envoyée avec succès !`);
       setInviteEmail('');
       setInviteArticleId('');
       loadRequests();
@@ -327,7 +327,7 @@ export default function CreatorAdvancedPage() {
                 setMediaName(e.target.value);
                 setMediaSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
               }}
-              placeholder="Ex: Le Clubic Indépendant"
+              placeholder={t`Ex: Le Clubic Indépendant`}
               className="w-full p-3 rounded-xl bg-muted/40 border border-border/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
@@ -352,7 +352,7 @@ export default function CreatorAdvancedPage() {
             <textarea
               value={mediaBio}
               onChange={(e) => setMediaBio(e.target.value)}
-              placeholder="Revue collective dédiée aux enjeux de la transition numérique..."
+              placeholder={t`Revue collective dédiée aux enjeux de la transition numérique...`}
               rows={3}
               className="w-full p-3 rounded-xl bg-muted/40 border border-border/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
             />

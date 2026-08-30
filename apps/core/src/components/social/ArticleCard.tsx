@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { t } from '@lingui/core/macro';
 import Link from 'next/link';
 import Image from 'next/image';
 import { BookOpen, ExternalLink, Clock, Lock, ShieldCheck } from 'lucide-react';
@@ -56,7 +57,7 @@ export function ArticleCard({ article, onOpenReader }: ArticleCardProps) {
       case 'PAID_SUBSCRIBERS':
       case 'TIER_SPECIFIC':
         return {
-          label: 'Abonnés payants',
+          label: t`Abonnés payants`,
           className: 'bg-highlight/10 text-highlight border-highlight/20',
           icon: Lock,
         };
@@ -161,7 +162,7 @@ export function ArticleCard({ article, onOpenReader }: ArticleCardProps) {
             href={tenantUrl}
             target="_blank"
             rel="noopener noreferrer"
-            title="Ouvrir sur le site du créateur"
+            title={t`Ouvrir sur le site du créateur`}
             className="p-1.5 rounded-full border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
           >
             <ExternalLink className="w-3.5 h-3.5" />

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { t } from '@lingui/core/macro';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { BookMarked, Bookmark, ArrowUpRight, Clock } from 'lucide-react';
@@ -72,7 +73,7 @@ export function ArticleRow({
             'h-1.5 w-1.5 rounded-full shrink-0',
             article.published !== false ? 'bg-success shadow-xs' : 'bg-muted-foreground/40'
           )}
-          title={article.published !== false ? 'Publié' : 'Brouillon'}
+          title={article.published !== false ? t`Publié` : t`Brouillon`}
         />
 
         {/* Miniature carrée (36px) */}
@@ -139,7 +140,7 @@ export function ArticleRow({
                 ? 'text-primary bg-primary/10'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted'
             )}
-            title={isBookmarked ? 'Retirer de la bibliothèque' : 'Mettre en signet'}
+            title={isBookmarked ? t`Retirer de la bibliothèque` : t`Mettre en signet`}
           >
             {isBookmarked ? (
               <BookMarked className="w-3.5 h-3.5 fill-primary" />

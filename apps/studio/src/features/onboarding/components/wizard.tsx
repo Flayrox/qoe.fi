@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useTransition } from 'react';
+import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   checkSubdomainAvailabilityAction as checkSubdomainAction,
@@ -58,7 +59,7 @@ const RESERVED_SUBDOMAINS = new Set([
 
 // Accroche par défaut générée — l'utilisateur la changera dans les réglages
 // quand il aura envie. Pas de bio demandée à l'onboarding (friction inutile).
-const DEFAULT_HERO = "Bienvenue dans mon espace d'écriture.";
+const getDefaultHero = () => t`Bienvenue dans mon espace d'écriture.`;
 
 /** Slugifie un texte (nom → sous-domaine candidat). */
 function slugify(value: string): string {
@@ -118,11 +119,11 @@ function MockDashboard() {
             <Home size={15} className="text-muted-foreground" /> Vue d'ensemble
           </div>
           {[
-            { name: 'Écrits', icon: FileText },
-            { name: 'Newsletters', icon: Mail },
-            { name: 'Audience', icon: Users },
-            { name: 'Statistiques', icon: BarChart3 },
-            { name: 'Réglages', icon: Settings },
+            { name: t`Écrits`, icon: FileText },
+            { name: t`Newsletters`, icon: Mail },
+            { name: t`Audience`, icon: Users },
+            { name: t`Statistiques`, icon: BarChart3 },
+            { name: t`Réglages`, icon: Settings },
           ].map((item) => (
             <div
               key={item.name}
@@ -224,7 +225,7 @@ export function OnboardingWizard({ initialName = '' }: { initialName?: string })
   const handleLaunch = () => {
     if (status !== 'idle') return;
     if (!name.trim()) {
-      toast.error('Ton nom est requis pour créer ton espace.');
+      toast.error(t`Ton nom est requis pour créer ton espace.`);
       return;
     }
 
@@ -237,7 +238,7 @@ export function OnboardingWizard({ initialName = '' }: { initialName?: string })
         //    plus tard dans les réglages.
         await completeOnboardingAction({
           name: name.trim(),
-          heroText: DEFAULT_HERO,
+          heroText: getDefaultHero(),
           subdomain,
           layoutStyle: 'minimal',
         });
@@ -247,8 +248,8 @@ export function OnboardingWizard({ initialName = '' }: { initialName?: string })
         }, 1400);
       } catch (err) {
         console.error(err);
-        toast.error('Une erreur est survenue lors de la création de votre espace.', {
-          description: 'Vérifiez votre connexion puis réessayez.',
+        toast.error(t`Une erreur est survenue lors de la création de votre espace.`, {
+          description: t`Vérifiez votre connexion puis réessayez.`,
         });
         setStatus('idle');
       }
@@ -433,7 +434,7 @@ export function OnboardingWizard({ initialName = '' }: { initialName?: string })
                         {slug}.qoe.fi
                       </p>
                       <h1 className="text-2xl font-bold mb-4 leading-tight tracking-tight whitespace-pre-line">
-                        {DEFAULT_HERO}
+                        {getDefaultHero()}
                       </h1>
                       <div className="flex items-center gap-3 mt-4">
                         <div

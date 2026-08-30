@@ -49,9 +49,9 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
     const res = await toggleHideReplyAction(reply.id);
     if (res.ok && res.data) {
       setIsHidden(res.data.isHiddenByAuthor);
-      toast.success(res.data.isHiddenByAuthor ? 'Réponse masquée.' : 'Réponse affichée.');
+      toast.success(res.data.isHiddenByAuthor ? t`Réponse masquée.` : t`Réponse affichée.`);
     } else {
-      toast.error('Impossible de modifier le masquage de la réponse.');
+      toast.error(t`Impossible de modifier le masquage de la réponse.`);
     }
   };
 
@@ -59,7 +59,7 @@ export function ThoughtThreadItem({ reply, depth = 0 }: ThoughtThreadItemProps) 
     if (!reply.author?.id) return;
     const res = await toggleBlockUserAction(reply.author.id);
     if (res.ok && res.data) {
-      toast.success(res.data.blocked ? 'Utilisateur bloqué.' : 'Utilisateur débloqué.');
+      toast.success(res.data.blocked ? t`Utilisateur bloqué.` : t`Utilisateur débloqué.`);
     } else {
       toast.error('Erreur lors du blocage.');
     }

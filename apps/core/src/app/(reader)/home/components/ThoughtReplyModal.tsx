@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { t } from '@lingui/core/macro';
 import { Dialog, DialogContent } from '@qoe/ui';
 import { ThoughtComposer, type ComposedPost, type DbUser } from './ThoughtComposer';
 import type { ThoughtData } from '@/components/social/ThoughtCard';
@@ -60,7 +61,7 @@ export function ThoughtReplyModal({
             tagsList={tagsList}
             replyToThought={parentThought}
             parentId={parentThought.id}
-            placeholder="Poster votre réponse..."
+            placeholder={t`Poster votre réponse...`}
             onPostCreated={(post) => {
               if (onReplyCreated) onReplyCreated(post);
               onClose();

@@ -1,7 +1,9 @@
+import { t } from '@lingui/core/macro';
+
 export type SettingsNode = {
   id: string;
   titleKey: string;
-  label: string;
+  label: () => string;
   path?: string;
   hash?: string;
   keywordsKey?: string[];
@@ -11,7 +13,7 @@ export type SettingsNode = {
 export type SearchableSetting = {
   id: string;
   titleKey: string;
-  label: string;
+  label: () => string;
   keywordsKey: string[];
   path: string;
   breadcrumbs: string[];
@@ -21,33 +23,33 @@ export type SearchableSetting = {
 export const settingsTree: SettingsNode = {
   id: 'settings',
   titleKey: 'sidebar.nav_settings',
-  label: 'Paramètres',
+  label: () => t`Paramètres`,
   path: '/settings',
   children: [
     {
       id: 'general',
       titleKey: 'dashboard.settings.general_title',
-      label: 'Général',
+      label: () => t`Général`,
       path: '#general',
       children: [
         {
           id: 'profile-name',
           titleKey: 'dashboard.settings.profile_name',
-          label: 'Nom de la publication',
+          label: () => t`Nom de la publication`,
           hash: '#name',
           keywordsKey: ['nom', 'pseudo', 'name', 'username', 'titre'],
         },
         {
           id: 'profile-hero',
           titleKey: 'dashboard.settings.profile_hero',
-          label: 'Slogan & Présentation',
+          label: () => t`Slogan & Présentation`,
           hash: '#hero',
           keywordsKey: ['bio', 'description', 'hero', 'pitch', 'slogan'],
         },
         {
           id: 'profile-brand',
           titleKey: 'dashboard.settings.profile_brand',
-          label: "Couleur d'accentuation & Logos",
+          label: () => t`Couleur d'accentuation & Logos`,
           hash: '#brand',
           keywordsKey: [
             'logo',
@@ -66,20 +68,20 @@ export const settingsTree: SettingsNode = {
     {
       id: 'domain',
       titleKey: 'dashboard.settings.domain_title',
-      label: 'Domaine & DNS',
+      label: () => t`Domaine & DNS`,
       path: '#domain',
       children: [
         {
           id: 'domain-subdomain',
           titleKey: 'dashboard.settings.domain_subdomain',
-          label: 'Sous-domaine qoe.fi',
+          label: () => t`Sous-domaine qoe.fi`,
           hash: '#subdomain',
           keywordsKey: ['sous-domaine', 'subdomain', 'url', 'lien', 'qoe.fi'],
         },
         {
           id: 'domain-custom',
           titleKey: 'dashboard.settings.domain_custom',
-          label: 'Domaine personnalisé',
+          label: () => t`Domaine personnalisé`,
           hash: '#custom',
           keywordsKey: ['domaine personnalisé', 'custom domain', 'www', 'site', 'cname', 'dns'],
         },
@@ -88,20 +90,20 @@ export const settingsTree: SettingsNode = {
     {
       id: 'navigation',
       titleKey: 'dashboard.settings.navigation_title',
-      label: 'Navigation & Réseaux',
+      label: () => t`Navigation & Réseaux`,
       path: '#navigation',
       children: [
         {
           id: 'navigation-links',
           titleKey: 'dashboard.settings.navigation_links',
-          label: 'Menu de navigation principal',
+          label: () => t`Menu de navigation principal`,
           hash: '#links',
           keywordsKey: ['menu', 'liens', 'links', 'navigation', 'header', 'onglets'],
         },
         {
           id: 'navigation-social',
           titleKey: 'dashboard.settings.navigation_social',
-          label: 'Réseaux sociaux',
+          label: () => t`Réseaux sociaux`,
           hash: '#social',
           keywordsKey: ['reseaux', 'social', 'twitter', 'instagram', 'linkedin', 'github', 'x'],
         },
@@ -110,20 +112,20 @@ export const settingsTree: SettingsNode = {
     {
       id: 'seo',
       titleKey: 'dashboard.settings.seo_title',
-      label: 'SEO & Pied de page',
+      label: () => t`SEO & Pied de page`,
       path: '#seo',
       children: [
         {
           id: 'seo-meta',
           titleKey: 'dashboard.settings.seo_meta',
-          label: 'Balises META (Titre & Description)',
+          label: () => t`Balises META (Titre & Description)`,
           hash: '#meta',
           keywordsKey: ['seo', 'meta', 'titre', 'description', 'google', 'recherche'],
         },
         {
           id: 'seo-indexing',
           titleKey: 'dashboard.settings.seo_indexing',
-          label: 'Indexation moteurs de recherche',
+          label: () => t`Indexation moteurs de recherche`,
           hash: '#indexing',
           keywordsKey: ['indexation', 'indexing', 'robots', 'moteurs', 'referencement'],
         },
@@ -145,7 +147,7 @@ export function flattenSettingsTree(
     : `${currentPath}${node.path || ''}${node.hash || ''}`;
 
   const newBreadcrumbs = [...currentBreadcrumbs, node.titleKey];
-  const newBreadcrumbLabels = [...currentBreadcrumbLabels, node.label];
+  const newBreadcrumbLabels = [...currentBreadcrumbLabels, node.label()];
 
   if (node.keywordsKey) {
     results.push({
