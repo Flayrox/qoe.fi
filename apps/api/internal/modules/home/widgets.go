@@ -146,12 +146,12 @@ func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit
 			SELECT
 				u.id::text, u.name, u.username, u."logoUrl", p."heroText", u."isCertified",
 				p.subdomain, p."customDomain",
-				(1 - (COALESCE(u."embedding", a."embedding") <=> $1::vector))::float8 AS sim_score,
+				COALESCE((1 - (COALESCE(u."embedding", a."embedding") <=> $1::vector))::float8, 0.5) AS sim_score,
 				a.title AS recent_title,
 				COUNT(DISTINCT s.id)::int AS subs_count,
 				ROW_NUMBER() OVER(PARTITION BY u.id ORDER BY a."createdAt" DESC) as rn
 			FROM "User" u
-			JOIN "Article" a ON a."authorId" = u.id AND a.published = true AND a."embedding" IS NOT NULL
+			LEFT JOIN "Article" a ON a."authorId" = u.id AND a.published = true
 			LEFT JOIN "Publication" p ON p.id = a."publicationId"
 			LEFT JOIN "Subscriber" s ON s."publicationId" = p.id AND s."isActive" = true
 			WHERE u."isShadowbanned" = false AND u."isSuspended" = false
@@ -197,7 +197,7 @@ func (s *Service) GetSuggestedCreators(ctx context.Context, userID string, limit
 				COUNT(DISTINCT s.id)::int AS subs_count,
 				ROW_NUMBER() OVER(PARTITION BY u.id ORDER BY a."createdAt" DESC) as rn
 			FROM "User" u
-			JOIN "Article" a ON a."authorId" = u.id AND a.published = true
+			LEFT JOIN "Article" a ON a."authorId" = u.id AND a.published = true
 			LEFT JOIN "Publication" p ON p.id = a."publicationId"
 			LEFT JOIN "Subscriber" s ON s."publicationId" = p.id AND s."isActive" = true
 			WHERE u."isShadowbanned" = false AND u."isSuspended" = false
@@ -285,60 +285,81 @@ type SemanticTrendingTopic struct {
 	GrowthRate  string `json:"growthRate"`
 }
 
-// GetSemanticTrends calcule la croissance 7j vs 7j précédents par catégorie
-// (port Go de getSemanticTrendingTopics de packages/db/feed.ts).
+// GetSemanticTrends calcule les « sujets émergents » par momentum d'ENGAGEMENT
+// réel, et non plus par simple comptage de publications par catégorie (qui
+// excluait les pensées et récompensait seulement qui publie beaucoup).
+//
+// On agrège les événements horodatés des 14 derniers jours — lectures
+// d'articles (ReadingSession), likes de pensées (Like), retours « Voir
+// plus/moins » (ContentFeedback) — portés par les tags sémantiques des
+// contenus, et on compare le volume des 7 derniers jours à celui des 7
+// précédents. Un sujet « émergent » est donc un sujet dont l'activité ACCÉLÈRE
+// (attention réelle), pas un sujet à fort stock cumulé.
 func (s *Service) GetSemanticTrends(ctx context.Context, limit int) ([]SemanticTrendingTopic, error) {
 	if limit <= 0 {
 		limit = 5
 	}
-	rows, err := s.pool.Query(ctx, `
-		SELECT c.id::text, c.name, COALESCE(c.description, ''),
-		       COUNT(a.id)::int AS total
-		FROM "Category" c
-		JOIN "Article" a ON a."categoryId" = c.id AND a.published = true
-		GROUP BY c.id, c.name, c.description
-		ORDER BY total DESC
-		LIMIT $1`, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	type catRow struct {
-		id, name, desc string
-		total          int
-	}
-	var cats []catRow
-	for rows.Next() {
-		var c catRow
-		if err := rows.Scan(&c.id, &c.name, &c.desc, &c.total); err == nil {
-			cats = append(cats, c)
-		}
-	}
-	if len(cats) == 0 {
-		return []SemanticTrendingTopic{}, nil
-	}
-
 	now := time.Now()
 	sevenDaysAgo := now.Add(-7 * 24 * time.Hour)
 	fourteenDaysAgo := now.Add(-14 * 24 * time.Hour)
 
-	out := make([]SemanticTrendingTopic, 0, len(cats))
-	for _, c := range cats {
-		var curr7, prev7 int
-		_ = s.pool.QueryRow(ctx, `
-			SELECT COUNT(*) FROM "Article"
-			WHERE "categoryId" = $1 AND published = true AND "createdAt" >= $2`,
-			toUUID(c.id), sevenDaysAgo).Scan(&curr7)
-		_ = s.pool.QueryRow(ctx, `
-			SELECT COUNT(*) FROM "Article"
-			WHERE "categoryId" = $1 AND published = true
-			  AND "createdAt" >= $2 AND "createdAt" < $3`,
-			toUUID(c.id), fourteenDaysAgo, sevenDaysAgo).Scan(&prev7)
+	rows, err := s.pool.Query(ctx, `
+		WITH events AS (
+			SELECT unnest(a."semanticTags") AS topic, rs."createdAt" AS ts
+			FROM "ReadingSession" rs JOIN "Article" a ON a.id = rs."articleId"
+			WHERE rs.status <> 'BOUNCE' AND rs."createdAt" >= $3
+			  AND cardinality(a."semanticTags") > 0
+			UNION ALL
+			SELECT unnest(p.tags) AS topic, l."createdAt" AS ts
+			FROM "Like" l JOIN "Post" p ON p.id = l."postId"
+			WHERE p."isDraft" = false AND l."createdAt" >= $3
+			  AND cardinality(p.tags) > 0
+			UNION ALL
+			SELECT unnest(a."semanticTags") AS topic, cf."createdAt" AS ts
+			FROM "ContentFeedback" cf JOIN "Article" a ON a.id = cf."articleId"
+			WHERE cf."articleId" IS NOT NULL AND cf."createdAt" >= $3
+			  AND cardinality(a."semanticTags") > 0
+			UNION ALL
+			SELECT unnest(p.tags) AS topic, cf."createdAt" AS ts
+			FROM "ContentFeedback" cf JOIN "Post" p ON p.id = cf."thoughtId"
+			WHERE cf."thoughtId" IS NOT NULL AND cf."createdAt" >= $3
+			  AND cardinality(p.tags) > 0
+		),
+		buckets AS (
+			SELECT topic,
+			       COUNT(*) FILTER (WHERE ts >= $1)                AS curr7,
+			       COUNT(*) FILTER (WHERE ts >= $2 AND ts < $1)    AS prev7
+			FROM events
+			GROUP BY topic
+		),
+		scored AS (
+			SELECT topic, curr7, prev7, curr7 + prev7 AS total,
+			       CASE WHEN prev7 = 0 THEN curr7 * 14.0
+			            ELSE (curr7::float8 - prev7::float8) / prev7::float8 * 100.0 END AS momentum
+			FROM buckets
+			WHERE curr7 > 0
+		)
+		SELECT topic, curr7, prev7, total, momentum
+		FROM scored
+		ORDER BY momentum DESC, total DESC
+		LIMIT $4`, sevenDaysAgo, fourteenDaysAgo, fourteenDaysAgo, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
+	out := make([]SemanticTrendingTopic, 0, 8)
+	for rows.Next() {
+		var topic string
+		var curr7, prev7, total int
+		var momentum float64
+		if err := rows.Scan(&topic, &curr7, &prev7, &total, &momentum); err != nil {
+			continue
+		}
 		var growthRate string
 		if prev7 == 0 {
 			if curr7 > 0 {
-				g := curr7 * 18
+				g := int(momentum)
 				if g > 99 {
 					g = 99
 				}
@@ -347,7 +368,7 @@ func (s *Service) GetSemanticTrends(ctx context.Context, limit int) ([]SemanticT
 				growthRate = "+0% cette semaine"
 			}
 		} else {
-			pct := int(math.Round(float64(curr7-prev7) / float64(prev7) * 100))
+			pct := int(math.Round(momentum))
 			sign := "+"
 			if pct < 0 {
 				sign = "-"
@@ -362,14 +383,17 @@ func (s *Service) GetSemanticTrends(ctx context.Context, limit int) ([]SemanticT
 			growthRate = sign + itoa(pct) + "%" + suffix
 		}
 		out = append(out, SemanticTrendingTopic{
-			ID:          c.id,
-			TopicName:   c.name,
-			Description: c.desc,
-			Count:       c.total,
+			ID:          topic,
+			TopicName:   topic,
+			Description: itoa(total) + " interactions récentes",
+			Count:       curr7,
 			GrowthRate:  growthRate,
 		})
 	}
-	return out, nil
+	if out == nil {
+		out = []SemanticTrendingTopic{}
+	}
+	return out, rows.Err()
 }
 
 // ── Newsletter ─────────────────────────────────────────────────────────────────

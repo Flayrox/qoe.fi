@@ -2,6 +2,7 @@ package feed
 
 import (
 	"context"
+	"math"
 	"strings"
 	"testing"
 
@@ -34,12 +35,18 @@ func TestLoadEngineConfig_SystemConfigOverrides(t *testing.T) {
 	if cfg.mmrLambda != 0.7 || cfg.mmrDupThreshold != 0.92 {
 		t.Fatalf("défauts MMR inattendus: %+v", cfg)
 	}
+	if cfg.adaptK != 0.40 || cfg.adaptFloor != 0.15 || cfg.adaptCeil != 0.85 {
+		t.Fatalf("défauts mix adaptatif inattendus: %+v", cfg)
+	}
 
 	setCfg(t, ctx, cfgPoolSim, "0.80")
 	setCfg(t, ctx, cfgRerankSim, "0.50")
 	setCfg(t, ctx, cfgMMRLambda, "0.9")
 	setCfg(t, ctx, cfgMMRDupThreshold, "0.99")
-	setCfg(t, ctx, cfgPoolFresh, "zzz") // invalide → défaut
+	setCfg(t, ctx, cfgAdaptK, "0.6")
+	setCfg(t, ctx, cfgAdaptFloor, "0.25")
+	setCfg(t, ctx, cfgAdaptCeil, "0.05") // inférieur au floor → on inverse (borne cohérente)
+	setCfg(t, ctx, cfgPoolFresh, "zzz")  // invalide → défaut
 
 	cfg2 := svc.loadEngineConfig(ctx)
 	if cfg2.poolSim != 0.80 || cfg2.rerankSim != 0.50 || cfg2.mmrLambda != 0.9 || cfg2.mmrDupThreshold != 0.99 {
@@ -47,6 +54,133 @@ func TestLoadEngineConfig_SystemConfigOverrides(t *testing.T) {
 	}
 	if cfg2.poolFresh != 0.15 {
 		t.Fatalf("clé invalide: poolFresh=%v, attendu défaut 0.15", cfg2.poolFresh)
+	}
+	// Adapt : surcharge + bornes ré-inversées en cohérence (floor 0.05, ceil 0.25).
+	if cfg2.adaptK != 0.6 || cfg2.adaptFloor != 0.05 || cfg2.adaptCeil != 0.25 {
+		t.Fatalf("surcharge adapt inattendue: %+v", cfg2)
+	}
+}
+
+// TestLoadEngineConfig_NewGroups vérifie les défauts et surcharges des
+// nouveaux groupes de clés (circadien, engagement, CF, vélocité, pénalités,
+// adaptatif, exploration, rerank) introduits pour piloter tout le moteur sans
+// recompiler.
+func TestLoadEngineConfig_NewGroups(t *testing.T) {
+	ctx := context.Background()
+	svc := newTestService()
+	cfg := svc.loadEngineConfig(ctx)
+
+	// Défauts circadiens (miroir des créneaux du code).
+	if cfg.circMorning.TargetMinutes != 5.5 || cfg.circMorning.ThoughtRatio != 0.70 {
+		t.Fatalf("défauts circadien matin inattendus: %+v", cfg.circMorning)
+	}
+	if cfg.circEvening.ThoughtRatio != 0.55 || cfg.circWeekend.TargetMinutes != 12.0 {
+		t.Fatalf("défauts circadien soir/week-end inattendus: %+v / %+v", cfg.circEvening, cfg.circWeekend)
+	}
+	// Défauts engagement / CF / vélocité / pénalités / adaptatif / exploration.
+	if cfg.engReadWeight != 0.5 || cfg.engConfWeight != 0.2 || cfg.engMinSessions != 5 {
+		t.Fatalf("défauts engagement inattendus: %+v", cfg)
+	}
+	if cfg.cfMinMyReads != 3 || cfg.cfTopNeighbors != 10 {
+		t.Fatalf("défauts CF inattendus: %+v", cfg)
+	}
+	if cfg.velWindowHours != 48 || cfg.velPostTarget != 8 || cfg.velArticleTarget != 20 {
+		t.Fatalf("défauts vélocité inattendus: %+v", cfg)
+	}
+	if cfg.milieuThreshold != 3 || cfg.milieuFactor != 0.5 {
+		t.Fatalf("défauts pénalité de milieu inattendus: %+v", cfg)
+	}
+	if cfg.showMoreBoostMul != 0.12 || cfg.impressionThreshold != 3 || cfg.impressionFactor != 0.6 || cfg.feedbackWindowDays != 30 {
+		t.Fatalf("défauts feedback/impressions inattendus: %+v", cfg)
+	}
+	if cfg.adaptMinSessions != 3 || cfg.feedbackPreferWeight != 0.25 || cfg.feedbackMinSignals != 2 {
+		t.Fatalf("défauts adaptatif inattendus: %+v", cfg)
+	}
+	if cfg.explorationMinQuality != 0.8 || cfg.coldStartSim != 0.5 {
+		t.Fatalf("défauts exploration/cold-start inattendus: %+v", cfg)
+	}
+
+	// Surcharges : une clé de chaque groupe + bornes (une valeur hors plage
+	// retombe sur le défaut).
+	setCfg(t, ctx, cfgCircMorningThought, "0.80")
+	setCfg(t, ctx, cfgCircEveningMin, "15")
+	setCfg(t, ctx, cfgEngReadWeight, "0.6")
+	setCfg(t, ctx, cfgEngMinSessions, "10")
+	setCfg(t, ctx, cfgVelPostTarget, "12")
+	setCfg(t, ctx, cfgMilieuThreshold, "5")
+	setCfg(t, ctx, cfgFeedbackWindowDays, "14")
+	setCfg(t, ctx, cfgAdaptMinSessions, "7")
+	setCfg(t, ctx, cfgExplorationMinQuality, "0.9")
+	setCfg(t, ctx, cfgColdStartSim, "1.7") // hors [0,1] → défaut
+
+	cfg2 := svc.loadEngineConfig(ctx)
+	if cfg2.circMorning.ThoughtRatio != 0.80 || cfg2.circEvening.TargetMinutes != 15 {
+		t.Fatalf("surcharge circadienne inattendue: %+v", cfg2)
+	}
+	if cfg2.engReadWeight != 0.6 || cfg2.engMinSessions != 10 {
+		t.Fatalf("surcharge engagement inattendue: %+v", cfg2)
+	}
+	if cfg2.velPostTarget != 12 || cfg2.milieuThreshold != 5 || cfg2.feedbackWindowDays != 14 {
+		t.Fatalf("surcharge vélocité/milieu/feedback inattendue: %+v", cfg2)
+	}
+	if cfg2.adaptMinSessions != 7 || cfg2.explorationMinQuality != 0.9 {
+		t.Fatalf("surcharge adaptatif/exploration inattendue: %+v", cfg2)
+	}
+	if cfg2.coldStartSim != 0.5 {
+		t.Fatalf("clé hors bornes: coldStartSim = %v, attendu défaut 0.5", cfg2.coldStartSim)
+	}
+}
+
+// TestApplyCircadianConfig vérifie que la surcharge SystemConfig s'applique
+// au bon créneau (par nom de profil) et que le ratio articles suit toujours
+// (1 − thoughtRatio). Une valeur à 0 laisse le défaut du créneau.
+func TestApplyCircadianConfig(t *testing.T) {
+	p := getCircadianProfile(8, 2) // mardi 8h → MORNING_BRIEF (jour forcé : évite le week-end)
+	if p.Name != "MORNING_BRIEF" {
+		t.Fatalf("profil = %s, attendu MORNING_BRIEF", p.Name)
+	}
+
+	cfg := engineConfig{
+		circMorning: circadianTuning{TargetMinutes: 4, SigmaMinutes: 1.5, ThoughtRatio: 0.80},
+	}
+	out := applyCircadianConfig(p, cfg)
+	if out.TargetReadingMinutes != 4 || out.SigmaMinutes != 1.5 || out.ThoughtRatio != 0.80 || math.Abs(out.ArticleRatio-0.20) > 1e-9 {
+		t.Fatalf("surcharge matin inattendue: %+v", out)
+	}
+
+	// Créneau non surchargé → défaut intact.
+	cfg.circMorning = circadianTuning{}
+	out = applyCircadianConfig(p, cfg)
+	if out.ThoughtRatio != 0.70 || out.TargetReadingMinutes != 5.5 {
+		t.Fatalf("défaut matin perdu: %+v", out)
+	}
+
+	// Le soir n'est pas affecté par une config du matin.
+	evening := applyCircadianConfig(getCircadianProfile(20, 2), engineConfig{circMorning: circadianTuning{ThoughtRatio: 0.80}})
+	if evening.ThoughtRatio != 0.55 {
+		t.Fatalf("config matin appliquée au soir par erreur: %+v", evening)
+	}
+}
+
+// TestParseCfgHelpers couvre les parseurs bornés (int et float hors [0,1]).
+func TestParseCfgHelpers(t *testing.T) {
+	if v := parseCfgInt("7", 3, 1, 100); v != 7 {
+		t.Fatalf("parseCfgInt(7) = %d", v)
+	}
+	if v := parseCfgInt("0", 3, 1, 100); v != 3 {
+		t.Fatalf("parseCfgInt(0) sous la borne = %d, attendu défaut", v)
+	}
+	if v := parseCfgInt("abc", 3, 1, 100); v != 3 {
+		t.Fatalf("parseCfgInt(abc) = %d, attendu défaut", v)
+	}
+	if v := parseCfgFloatRange("15", 5.5, 0, 100); v != 15 {
+		t.Fatalf("parseCfgFloatRange(15) = %v", v)
+	}
+	if v := parseCfgFloatRange("-1", 5.5, 0, 100); v != 5.5 {
+		t.Fatalf("parseCfgFloatRange(-1) = %v, attendu défaut", v)
+	}
+	if v := parseCfgFloat("1.2", 0.5); v != 0.5 {
+		t.Fatalf("parseCfgFloat(1.2) = %v, attendu défaut (hors [0,1])", v)
 	}
 }
 
@@ -191,7 +325,7 @@ func TestMilieuPenalty_DevaluesTag(t *testing.T) {
 	}
 
 	// Le tag foot est rejeté (3 signalements), pas anime (0).
-	pen := svc.penalizedTags(ctx, readerID)
+	pen := svc.penalizedTags(ctx, readerID, svc.loadEngineConfig(ctx))
 	if !pen["foot"] {
 		t.Fatal("tag foot doit être rejeté après 3 SHOW_LESS")
 	}

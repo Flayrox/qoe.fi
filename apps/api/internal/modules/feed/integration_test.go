@@ -21,7 +21,7 @@ const vec512 = `('[' || array_to_string(array_fill(0.1::float8, ARRAY[512]), ','
 func seedEngine(ctx context.Context, pool *pgxpool.Pool) (readerID string, err error) {
 	if _, err = pool.Exec(ctx, `TRUNCATE TABLE
 		"Post", "Article", "User", "Publication", "Follows", "BlockedUser",
-		"ContentFeedback", "_CoAuthors" CASCADE`); err != nil {
+		"ContentFeedback", "ReadingSession", "FeedImpression", "Like", "_CoAuthors" CASCADE`); err != nil {
 		return "", err
 	}
 	readerID = "00000000-0000-0000-0000-000000000010"
@@ -216,6 +216,73 @@ func TestPersonalizedEngine_ColdStart(t *testing.T) {
 	}
 }
 
+// TestPersonalizedEngine_Pagination vérifie hasMore du feed « Pour vous » :
+// avec assez de contenu, hasMore doit être true (scroll infini possible), puis
+// false une fois la source épuisée. Régression : hasMore était calculé sur la
+// page post-MMR (≈ limit), donc TOUJOURS false → le feed s'arrêtait au premier
+// fetch même avec des milliers d'items en base.
+func TestPersonalizedEngine_Pagination(t *testing.T) {
+	ctx := context.Background()
+	_, err := seedEngine(ctx, poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	// ⬆️ Beaucoup de contenu (bien au-delà de l'oversampling 3× par page) pour
+	// vérifier que le moteur signale qu'il reste des items derrière. Volume assez
+	// grand pour que les DEUX sources (articles ET pensées, le ratio pensées est
+	// boosté) dépassent leur seuil même à offset 16.
+	for i := 0; i < 34; i++ {
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+			 VALUES ($1, $2, $2, '<p>Corps</p>', true, 'PUBLIC', 8, 'PUBLISHED', 'pub_engine', '00000000-0000-0000-0000-000000000011', now(), now(), `+vec512+`)`,
+			fmt.Sprintf("page_art_%d", i), fmt.Sprintf("Article pagination %d", i)); err != nil {
+			t.Fatalf("insert article %d: %v", i, err)
+		}
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt", tags, visibility, "contentVisibility", "isDraft", "replyRestriction", "likeCount", "repostCount", "replyCount", embedding)
+			 VALUES (gen_random_uuid()::text, 'Pensée pagination '||$1, '00000000-0000-0000-0000-000000000011', now(), now(), ARRAY[]::text[], 'public', 'PUBLIC', false, 'everyone', 0, 0, 0, `+vec512+`)`,
+			fmt.Sprintf("%d", i)); err != nil {
+			t.Fatalf("insert post %d: %v", i, err)
+		}
+	}
+
+	svc := newTestService()
+	readerID := "00000000-0000-0000-0000-000000000010"
+
+	// REGRESSION : page 1 avec plein de contenu en base → hasMore DOIT être
+	// true (sinon le scroll infini « Pour vous » s'arrête au premier fetch).
+	// Avant le fix, hasMore était calculé sur la page post-MMR ≈ limit donc
+	// TOUJOURS false.
+	trueOffsets := []int{0, 8, 16}
+	for _, offset := range trueOffsets {
+		res, err := svc.PersonalizedEngine(ctx, readerID, 8, offset, 15)
+		if err != nil {
+			t.Fatalf("PersonalizedEngine (offset %d): %v", offset, err)
+		}
+		if len(res.Items) == 0 {
+			t.Fatalf("offset %d: 0 item alors que la source est pleine", offset)
+		}
+		if len(res.Items) > 8 {
+			t.Fatalf("offset %d: %d items, attendu ≤ 8", offset, len(res.Items))
+		}
+		if !res.HasMore {
+			t.Fatalf("offset %d: hasMore = false, attendu true (%d articles + %d pensées en base)", offset, 36, 36)
+		}
+	}
+
+	// En aval de la source (offset très grand) → hasMore finit par false.
+	end, err := svc.PersonalizedEngine(ctx, readerID, 8, 200, 15)
+	if err != nil {
+		t.Fatalf("PersonalizedEngine (fin): %v", err)
+	}
+	if end.HasMore {
+		t.Fatalf("offset 200: hasMore = true, attendu false (source épuisée)")
+	}
+	if len(end.Items) != 0 {
+		t.Fatalf("offset 200: %d items, attendu 0 (épuisé)", len(end.Items))
+	}
+}
+
 // TestPersonalizedEngine_Personalized vérifie le chemin ANN personnalisé
 // (vecteur utilisateur + embeddings articles/pensées).
 func TestPersonalizedEngine_Personalized(t *testing.T) {
@@ -242,6 +309,247 @@ func TestPersonalizedEngine_Personalized(t *testing.T) {
 		}
 		ids[it.ID] = true
 	}
+}
+
+// TestGetThoughtPreference vérifie que le penchant pensées/articles est dérivé
+// de la lecture réelle : sessions courtes → affinité pensées élevée, sessions
+// longues → affinité faible, absence de données → neutre 0.5.
+func TestGetThoughtPreference(t *testing.T) {
+	ctx := context.Background()
+	if _, err := seedEngine(ctx, poolTest); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	// Deux lecteurs (sans embedding → cold-start, seule la lecture compte ici).
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+		 VALUES ('00000000-0000-0000-0000-000000000040', 'short@t.dev', 'short', 'Short', 'user', now(), now()),
+		        ('00000000-0000-0000-0000-000000000041', 'long@t.dev', 'long', 'Long', 'user', now(), now())`); err != nil {
+		t.Fatalf("insert readers: %v", err)
+	}
+	// Le seedEngine a créé les articles eng_art_a / eng_art_b (référence FK).
+	shortID := "00000000-0000-0000-0000-000000000040"
+	longID := "00000000-0000-0000-0000-000000000041"
+	for _, mins := range []int{1, 2, 1, 2} {
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "ReadingSession" (id, "articleId", "userId", source, status, "readingTimeMinutes", "createdAt")
+			 VALUES (gen_random_uuid()::text, 'eng_art_a', $1, 'feed', 'READ_COMPLETE', $2, now())`,
+			shortID, mins); err != nil {
+			t.Fatalf("insert short session: %v", err)
+		}
+	}
+	for _, mins := range []int{12, 15, 10, 20} {
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "ReadingSession" (id, "articleId", "userId", source, status, "readingTimeMinutes", "createdAt")
+			 VALUES (gen_random_uuid()::text, 'eng_art_a', $1, 'feed', 'READ_COMPLETE', $2, now())`,
+			longID, mins); err != nil {
+			t.Fatalf("insert long session: %v", err)
+		}
+	}
+
+	svc := newTestService()
+	cfg := svc.loadEngineConfig(ctx)
+	if aff := svc.getThoughtPreference(ctx, "", cfg); aff != 0.5 {
+		t.Fatalf("anonyme affinité = %v, attendu 0.5", aff)
+	}
+	// Lecteur sans session (< adaptMinSessions) → neutre.
+	if aff := svc.getThoughtPreference(ctx, "00000000-0000-0000-0000-000000000010", cfg); aff != 0.5 {
+		t.Fatalf("lecteur sans lecture affinité = %v, attendu 0.5", aff)
+	}
+	// Sessions courtes → fort penchant pensées.
+	if aff := svc.getThoughtPreference(ctx, shortID, cfg); aff < 0.75 {
+		t.Fatalf("lecteur formats courts affinité = %v, attendu ≥ 0.75 (penchant pensées)", aff)
+	}
+	// Sessions longues → faible penchant pensées (penchant articles).
+	if aff := svc.getThoughtPreference(ctx, longID, cfg); aff > 0.25 {
+		t.Fatalf("lecteur long-format affinité = %v, attendu ≤ 0.25 (penchant articles)", aff)
+	}
+}
+
+// TestGetThoughtFeedbackDrift vérifie la contribution des retours explicites
+// (ContentFeedback SHOW_MORE / SHOW_LESS) au penchant pensées/articles : un
+// SHOW_MORE sur pensée (ou SHOW_LESS sur article) penche +, l'inverse penche −.
+func TestGetThoughtFeedbackDrift(t *testing.T) {
+	ctx := context.Background()
+	if _, err := seedEngine(ctx, poolTest); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	// Une pensée (post) et un article de référence pour référencer le feedback.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt", tags, visibility,
+		                     "contentVisibility", "isDraft", "replyRestriction", "likeCount", "repostCount", "replyCount")
+		 VALUES ('fb_post', 'Pensée feedback', '00000000-0000-0000-0000-000000000011', now(), now(), ARRAY[]::text[],
+		         'public', 'PUBLIC', false, 'everyone', 0, 0, 0)`); err != nil {
+		t.Fatalf("insert fb post: %v", err)
+	}
+
+	readerA := "00000000-0000-0000-0000-000000000040"
+	readerB := "00000000-0000-0000-0000-000000000041"
+	for _, u := range []struct{ id, un string }{
+		{readerA, "fba"},
+		{readerB, "fbb"},
+	} {
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+			 VALUES ($1::uuid, $2||'@t.dev', $2, $2, 'user', now(), now())`, u.id, u.un); err != nil {
+			t.Fatalf("insert reader: %v", err)
+		}
+	}
+	addFB := func(uid, typ, col, val string) {
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "ContentFeedback" (id, "userId", `+col+`, type, "createdAt")
+			 VALUES (gen_random_uuid()::text, $1::uuid, $2, $3, now())`, uid, val, typ); err != nil {
+			t.Fatalf("insert feedback: %v", err)
+		}
+	}
+	// 2 SHOW_MORE sur pensées → penchant pensées fort.
+	addFB(readerA, "SHOW_MORE", "\"thoughtId\"", "fb_post")
+	addFB(readerA, "SHOW_MORE", "\"thoughtId\"", "fb_post")
+	// 2 SHOW_LESS sur pensées → penchant articles fort.
+	addFB(readerB, "SHOW_LESS", "\"thoughtId\"", "fb_post")
+	addFB(readerB, "SHOW_LESS", "\"thoughtId\"", "fb_post")
+
+	svc := newTestService()
+	cfg := svc.loadEngineConfig(ctx)
+	if d := svc.getThoughtFeedbackDrift(ctx, "", cfg); d != 0 {
+		t.Fatalf("anonyme drift = %v, attendu 0", d)
+	}
+	if d := svc.getThoughtFeedbackDrift(ctx, "00000000-0000-0000-0000-000000000010", cfg); d != 0 {
+		t.Fatalf("sans retour drift = %v, attendu 0", d)
+	}
+	if d := svc.getThoughtFeedbackDrift(ctx, readerA, cfg); d < 0.99 {
+		t.Fatalf("SHOW_MORE pensées: drift = %v, attendu ~1", d)
+	}
+	if d := svc.getThoughtFeedbackDrift(ctx, readerB, cfg); d > -0.99 {
+		t.Fatalf("SHOW_LESS pensées: drift = %v, attendu ~-1", d)
+	}
+	// L'affinité de lecture (neutre, pas de session) doit suivre les retours.
+	if aff := svc.getThoughtPreference(ctx, readerA, cfg); aff < 0.70 {
+		t.Fatalf("affinité avec SHOW_MORE pensées = %v, attendu ≥ 0.70", aff)
+	}
+	if aff := svc.getThoughtPreference(ctx, readerB, cfg); aff > 0.30 {
+		t.Fatalf("affinité avec SHOW_LESS pensées = %v, attendu ≤ 0.30", aff)
+	}
+}
+
+// TestBlendThoughtRatio vérifie la recalibration du ratio : neutre → circadien
+// pur, penchant pensées → +δ, penchant articles → −δ, toujours borné à
+// [floor, ceil], avec une force (k) pilotable.
+func TestBlendThoughtRatio(t *testing.T) {
+	k, floor, ceil := adaptKDefault, adaptFloorDefault, adaptCeilDefault
+	if got := blendThoughtRatio(0.60, 0.5, k, floor, ceil); almostEqual(got, 0.60) != true {
+		t.Fatalf("neutre: got %v, attendu 0.60", got)
+	}
+	if got := blendThoughtRatio(0.60, 1.0, k, floor, ceil); almostEqual(got, 0.80) != true {
+		t.Fatalf("penchant pensées max: got %v, attendu 0.80", got)
+	}
+	if got := blendThoughtRatio(0.60, 0.0, k, floor, ceil); almostEqual(got, 0.40) != true {
+		t.Fatalf("penchant articles max: got %v, attendu 0.40", got)
+	}
+	// Bornes : un ratio circadien extrême reste borné.
+	if got := blendThoughtRatio(0.95, 1.0, k, floor, ceil); almostEqual(got, ceil) != true {
+		t.Fatalf("borne haute: got %v, attendu %v", got, ceil)
+	}
+	if got := blendThoughtRatio(0.05, 0.0, k, floor, ceil); almostEqual(got, floor) != true {
+		t.Fatalf("borne basse: got %v, attendu %v", got, floor)
+	}
+	// Force nulle → ratio circadien inchangé (désactive l'adaptation).
+	if got := blendThoughtRatio(0.60, 1.0, 0, floor, ceil); almostEqual(got, 0.60) != true {
+		t.Fatalf("k=0: got %v, attendu 0.60", got)
+	}
+	// Bornes personnalisées (SystemConfig) : décalage borné à [0.40, 0.70].
+	if got := blendThoughtRatio(0.60, 1.0, k, 0.40, 0.70); almostEqual(got, 0.70) != true {
+		t.Fatalf("ceil personnalisé: got %v, attendu 0.70", got)
+	}
+	if got := blendThoughtRatio(0.60, 0.0, k, 0.40, 0.70); almostEqual(got, 0.40) != true {
+		t.Fatalf("floor personnalisé: got %v, attendu 0.40", got)
+	}
+}
+
+func almostEqual(a, b float64) bool {
+	d := a - b
+	if d < 0 {
+		d = -d
+	}
+	return d < 1e-9
+}
+
+// TestPersonalizedEngine_AdaptiveMix vérifie que le mix réel du feed suit la
+// préférence de lecture : un utilisateur aux sessions courtes reçoit une part
+// de pensées plus grande qu'un lecteur de long-format, à config identique.
+func TestPersonalizedEngine_AdaptiveMix(t *testing.T) {
+	ctx := context.Background()
+	readerID, err := seedEngine(ctx, poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	_ = readerID
+	for _, id := range []string{
+		"00000000-0000-0000-0000-000000000040",
+		"00000000-0000-0000-0000-000000000041",
+	} {
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+			 VALUES ($1::uuid, $2||'@t.dev', $2, $2, 'user', now(), now())`, id, id); err != nil {
+			t.Fatalf("insert reader: %v", err)
+		}
+	}
+	// Suffisamment d'articles ET de pensées pour laisser le ratio jouer.
+	for i := 0; i < 10; i++ {
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt", embedding)
+			 VALUES ($1, $2, $2, '<p>Corps</p>', true, 'PUBLIC', 8, 'PUBLISHED', 'pub_engine', '00000000-0000-0000-0000-000000000011', now(), now(), `+vec512+`)`,
+			fmt.Sprintf("mix_art_%d", i), fmt.Sprintf("Article mix %d", i)); err != nil {
+			t.Fatalf("insert article %d: %v", i, err)
+		}
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt", tags, visibility, "contentVisibility", "isDraft", "replyRestriction", "likeCount", "repostCount", "replyCount", embedding)
+			 VALUES (gen_random_uuid()::text, 'Pensée mix '||$1, '00000000-0000-0000-0000-000000000012', now(), now(), ARRAY[]::text[], 'public', 'PUBLIC', false, 'everyone', 0, 0, 0, `+vec512+`)`,
+			fmt.Sprintf("%d", i)); err != nil {
+			t.Fatalf("insert post %d: %v", i, err)
+		}
+	}
+
+	shortID := "00000000-0000-0000-0000-000000000040"
+	longID := "00000000-0000-0000-0000-000000000041"
+	for _, mins := range []int{1, 2, 1} {
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "ReadingSession" (id, "articleId", "userId", source, status, "readingTimeMinutes", "createdAt")
+			 VALUES (gen_random_uuid()::text, 'eng_art_a', $1, 'feed', 'READ_COMPLETE', $2, now())`, shortID, mins); err != nil {
+			t.Fatalf("short session: %v", err)
+		}
+	}
+	for _, mins := range []int{12, 15, 10} {
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "ReadingSession" (id, "articleId", "userId", source, status, "readingTimeMinutes", "createdAt")
+			 VALUES (gen_random_uuid()::text, 'eng_art_a', $1, 'feed', 'READ_COMPLETE', $2, now())`, longID, mins); err != nil {
+			t.Fatalf("long session: %v", err)
+		}
+	}
+
+	countTypes := func(id string) (art, th int) {
+		res, err := newTestService().PersonalizedEngine(ctx, id, 8, 0, 15)
+		if err != nil {
+			t.Fatalf("engine %s: %v", id, err)
+		}
+		for _, it := range res.Items {
+			if it.ItemType == "ARTICLE" {
+				art++
+			}
+			if it.ItemType == "THOUGHT" {
+				th++
+			}
+		}
+		return
+	}
+	artShort, thShort := countTypes(shortID)
+	artLong, thLong := countTypes(longID)
+	if thShort <= thLong {
+		t.Fatalf("lecteur formats courts doit avoir PLUS de pensées: short(th=%d) vs long(th=%d)", thShort, thLong)
+	}
+	if artShort >= artLong {
+		t.Fatalf("lecteur formats courts doit avoir MOINS d'articles: short(art=%d) vs long(art=%d)", artShort, artLong)
+	}
+	t.Logf("short: art=%d th=%d | long: art=%d th=%d", artShort, thShort, artLong, thLong)
 }
 
 // TestHydrate vérifie la réhydratation Go du feed : articles complets (parité
@@ -378,7 +686,7 @@ func TestShowMoreBoost(t *testing.T) {
 		t.Fatalf("insert SHOW_MORE: %v", err)
 	}
 
-	boost := svc.getShowMoreBoost(ctx, readerID, []string{"boost_sim", "boost_orth"}, nil)
+	boost := svc.getShowMoreBoost(ctx, readerID, []string{"boost_sim", "boost_orth"}, nil, svc.loadEngineConfig(ctx))
 
 	sim := boost["boost_sim"]
 	if sim < 0.8 {
@@ -395,7 +703,7 @@ func TestShowMoreBoost(t *testing.T) {
 		VALUES ('cf_less', $1::uuid, 'boost_sim', 'SHOW_LESS', now())`, readerID); err != nil {
 		t.Fatalf("insert SHOW_LESS: %v", err)
 	}
-	boost2 := svc.getShowMoreBoost(ctx, readerID, []string{"boost_sim"}, nil)
+	boost2 := svc.getShowMoreBoost(ctx, readerID, []string{"boost_sim"}, nil, svc.loadEngineConfig(ctx))
 	if _, ok := boost2["boost_sim"]; ok {
 		t.Fatalf("boost_sim exclu via SHOW_LESS mais encore boosté")
 	}

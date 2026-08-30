@@ -54,7 +54,7 @@ func TestVelocityScores(t *testing.T) {
 	}
 
 	svc := newTestService()
-	artVel, thVel := svc.getVelocityScores(ctx, []string{"eng_art_a"}, []string{"vel_post"})
+	artVel, thVel := svc.getVelocityScores(ctx, []string{"eng_art_a"}, []string{"vel_post"}, svc.loadEngineConfig(ctx))
 	if v := thVel["vel_post"]; v != 1.0 {
 		t.Fatalf("vélocité pensée = %v, attendu 1.0 (10 likes/48h ≥ cible 8)", v)
 	}
@@ -114,7 +114,7 @@ func TestInjectDiscovery_AdaptiveRatio(t *testing.T) {
 	}
 
 	// Profil froid : 0 signal → ratio 0.22 → 2 slots sur 10.
-	cold := svc.injectDiscovery(ctx, readerID, in, 10)
+	cold := svc.injectDiscovery(ctx, readerID, in, 10, svc.loadEngineConfig(ctx))
 	if n := countDiscovery(cold); n != 2 {
 		t.Fatalf("profil froid: %d injections, attendu 2 (ratio 0.22)", n)
 	}
@@ -128,7 +128,7 @@ func TestInjectDiscovery_AdaptiveRatio(t *testing.T) {
 			t.Fatalf("session mature: %v", err)
 		}
 	}
-	warm := svc.injectDiscovery(ctx, readerID, in, 10)
+	warm := svc.injectDiscovery(ctx, readerID, in, 10, svc.loadEngineConfig(ctx))
 	if n := countDiscovery(warm); n != 1 {
 		t.Fatalf("profil mature: %d injections, attendu 1 (ratio 0.12)", n)
 	}

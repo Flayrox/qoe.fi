@@ -60,7 +60,7 @@ func TestCoReadNeighbors_ReturnsAffinity(t *testing.T) {
 	readerID, _ := seedCoRead(t, ctx)
 	svc := newTestService()
 
-	neighbors, ok := svc.coReadNeighbors(ctx, readerID)
+	neighbors, ok := svc.coReadNeighbors(ctx, readerID, svc.loadEngineConfig(ctx))
 	if !ok {
 		t.Fatal("coReadNeighbors doit trouver un voisin")
 	}
@@ -77,7 +77,7 @@ func TestGetCoReadCandidates_ReturnsUnreadArticles(t *testing.T) {
 	readerID, _ := seedCoRead(t, ctx)
 	svc := newTestService()
 
-	cands := svc.getCoReadCandidates(ctx, readerID)
+	cands := svc.getCoReadCandidates(ctx, readerID, svc.loadEngineConfig(ctx))
 	if len(cands) == 0 {
 		t.Fatal("aucun candidat CF article")
 	}
@@ -91,7 +91,7 @@ func TestGetCoReadThoughtCandidates_ReturnsLikedThought(t *testing.T) {
 	readerID, _ := seedCoRead(t, ctx)
 	svc := newTestService()
 
-	cands := svc.getCoReadThoughtCandidates(ctx, readerID)
+	cands := svc.getCoReadThoughtCandidates(ctx, readerID, svc.loadEngineConfig(ctx))
 	if len(cands) == 0 {
 		t.Fatal("aucun candidat CF pensée")
 	}

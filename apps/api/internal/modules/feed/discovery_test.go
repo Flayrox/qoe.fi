@@ -39,7 +39,7 @@ func TestInjectDiscovery_InjectsOutOfBubble(t *testing.T) {
 		{ItemType: "THOUGHT", ID: "post1"},
 		{ItemType: "ARTICLE", ID: "eng_art_b"},
 	}
-	out := svc.injectDiscovery(ctx, readerID, in, 10)
+	out := svc.injectDiscovery(ctx, readerID, in, 10, svc.loadEngineConfig(ctx))
 	discovered := false
 	for _, it := range out {
 		if it.ID == "art_discovery" {
@@ -59,12 +59,12 @@ func TestInjectDiscovery_NoBubbleNoop(t *testing.T) {
 	svc := newTestService()
 	// Utilisateur sans aucune follow → pas d'injection.
 	in := []EngineItem{{ItemType: "ARTICLE", ID: "eng_art_a"}}
-	out := svc.injectDiscovery(ctx, "00000000-0000-0000-0000-000000000010", in, 10)
+	out := svc.injectDiscovery(ctx, "00000000-0000-0000-0000-000000000010", in, 10, svc.loadEngineConfig(ctx))
 	if len(out) != len(in) {
 		t.Fatalf("sans bulle, items = %d, attendu %d", len(out), len(in))
 	}
 	// Utilisateur vide → no-op.
-	out2 := svc.injectDiscovery(ctx, "", in, 10)
+	out2 := svc.injectDiscovery(ctx, "", in, 10, svc.loadEngineConfig(ctx))
 	if len(out2) != len(in) {
 		t.Fatalf("userID vide, items = %d", len(out2))
 	}

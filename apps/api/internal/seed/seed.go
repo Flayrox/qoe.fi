@@ -232,6 +232,17 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 			return fmt.Errorf("config %s: %w", c.key, err)
 		}
 	}
+	// Catalogue du moteur feed + OAuth (clés feed.* / OAUTH_* seedées avec leur
+	// description pour que le panel admin les expose sans les connaître par cœur).
+	for _, c := range DefaultEngineConfigs() {
+		if _, err := pool.Exec(ctx, `
+			INSERT INTO "SystemConfig" ("key", value, description, "updatedAt")
+			VALUES ($1, $2, $3, now())
+			ON CONFLICT ("key") DO UPDATE SET value = $2, description = $3, "updatedAt" = now()`,
+			c.Key, c.Value, c.Description); err != nil {
+			return fmt.Errorf("config %s: %w", c.Key, err)
+		}
+	}
 	return nil
 }
 
