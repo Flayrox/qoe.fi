@@ -18,7 +18,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
+	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -229,41 +232,41 @@ type topTopic struct {
 }
 
 var topTopics = []topTopic{
-	{"%s : la souveraineté des médias indépendants", [3]string{
-		"<p>Dans un monde saturé de plateformes, posséder son propre espace de publication n'est plus un luxe : c'est une condition de survie éditoriale.</p>",
-		"<p>Cet article explore ce que signifie réellement être souverain sur son audience, son contenu et ses revenus, loin des algorithmes de capture de l'attention.</p>",
-		"<p>La conclusion est simple : ceux qui écrivent pour durer finissent toujours par gagner la confiance de leur lectorat.</p>"},
-		[]string{"souverainete", "medias"}, true},
-	{"Pourquoi %s gagne toujours sur le temps long", [3]string{
-		"<p>L'économie de l'attention récompense le bruit. L'histoire, elle, récompense la constance.</p>",
-		"<p>Les médias et les auteurs qui écrivent pour durer, qui refusent la course au clic, construisent un actif que rien ne peut dévaluer.</p>",
-		"<p>Le temps long n'est pas une posture : c'est une stratégie de publication et de revenus.</p>"},
-		[]string{"temps", "independance"}, true},
-	{"L'architecture du silence numérique : %s", [3]string{
-		"<p>Le silence n'est pas l'absence de contenu : c'est une architecture de lecture.</p>",
-		"<p>Conçue autour de cette idée — moins d'interruptions, plus de sens — la lecture profonde redevient possible.</p>",
-		"<p>Chaque détail d'interface doit servir cette trajectoire : l'esprit qui retrouve son chemin.</p>"},
-		[]string{"attention", "silence"}, true},
+	{"%s : le quotidien d'une rédaction locale", [3]string{
+		"<p>Le journalisme commence rarement par un scoop : il commence par un carnet, un périmètre de quartier et une habitude de travail.</p>",
+		"<p>Conseils municipaux, portraits de commerçants, faits divers ordinaires : c'est sur ce terreau que la confiance se construit.</p>",
+		"<p>Une rédaction locale vivante, c'est une démocratie qui respire.</p>"},
+		[]string{"medias", "local"}, true},
+	{"%s : cuisiner avec les saisons", [3]string{
+		"<p>Un légume de saison n'a pas besoin d'artifice : il a besoin d'être respecté.</p>",
+		"<p>Courgettes en été, potiron en automne, agrumes en hiver : le calendrier guide naturellement les menus.</p>",
+		"<p>Cuisiner avec les saisons, c'est manger mieux, dépenser moins et redécouvrir le goût.</p>"},
+		[]string{"saison", "cuisine"}, false},
+	{"%s : le rythme du quotidien", [3]string{
+		"<p>Nos journées sont faites de rituels minuscules qui passent inaperçus : le café du matin, la marche de midi, le tour de clé du soir.</p>",
+		"<p>Ralentir ne veut pas dire ne rien faire : c'est choisir où l'on met son attention.</p>",
+		"<p>Le rythme est une décision, pas une fatalité.</p>"},
+		[]string{"quotidien", "rythme"}, false},
 	{"%s : la résilience territoriale à l'ère de l'Anthropocène", [3]string{
 		"<p>L'urgence écologique exige que nous repensions nos modes de subsistance et d'organisation collective à l'échelle des territoires.</p>",
 		"<p>La résilience n'est pas un repli frileux, mais une réappropriation joyeuse de nos forces de production et de nos communs.</p>",
 		"<p>Des initiatives locales montrent qu'une autre répartition du pouvoir est possible.</p>"},
 		[]string{"ecologie", "territoire"}, true},
-	{"Reprendre le contrôle de %s à l'ère des plateformes", [3]string{
-		"<p>Chaque seconde d'attention est marchandée au plus offrant par des algorithmes de capture.</p>",
-		"<p>Reprendre le contrôle de ses écrits, c'est refuser de livrer ses pensées aux machines de capture d'attention.</p>",
-		"<p>Habiter sa propre plateforme sans intermédiaire de censure est le premier pas vers une écriture libre.</p>"},
-		[]string{"souverainete", "numerique"}, false},
-	{"Le manifeste pour un journalisme de %s", [3]string{
-		"<p>Le journalisme moderne est mort de sa dépendance aux clics.</p>",
-		"<p>Pour survivre et retrouver sa dignité, le journalisme doit devenir un sanctuaire pour l'attention du lecteur.</p>",
-		"<p>Le financement par les lecteurs — et non par la publicité — est la seule voie durable.</p>"},
-		[]string{"journalisme", "attention"}, true},
-	{"%s : ce que cache l'économie de l'attention", [3]string{
-		"<p>Le temps de lecture est une denrée rare, et la plupart des plateformes en vivent.</p>",
-		"<p>Derrière les métriques d'engagement se cache un modèle économique qui épuise lecteurs et créateurs.</p>",
-		"<p>Sortir de cette économie demande une architecture radicalement différente.</p>"},
-		[]string{"attention", "economie"}, false},
+	{"%s : une soirée sans écran", [3]string{
+		"<p>Un repas sans notification, une conversation sans téléphone posé sur la table : l'exercice paraît simple, il est radical.</p>",
+		"<p>Les premières minutes sont étranges, puis les idées reviennent, comme des invités timides.</p>",
+		"<p>On ne se souvient pas des heures défilées sur les réseaux. On se souvient des soirées où l'on était là.</p>"},
+		[]string{"quotidien", "ecrans"}, false},
+	{"%s : enquêter, écrire, publier", [3]string{
+		"<p>Un article commence par une question qui ne nous lâche pas.</p>",
+		"<p>Vérifier ses sources, se relire, accepter de se tromper puis de se corriger : le métier est un art de la rigueur.</p>",
+		"<p>Écrire pour être lu, pas pour être scandé.</p>"},
+		[]string{"journalisme", "ecriture"}, true},
+	{"%s : la valeur du travail bien fait", [3]string{
+		"<p>Il existe des gestes qu'on ne peut pas bâcler : couper une poutre, coudre une ourlet, relire un texte.</p>",
+		"<p>Le soin apporté à un détail transforme l'objet, mais surtout celui qui le fait.</p>",
+		"<p>Le travail bien fait est une fierté silencieuse qui vaut tous les applaudissements.</p>"},
+		[]string{"travail", "artisanat"}, false},
 	{"%s : penser la ville de demain", [3]string{
 		"<p>La ville de demain se construit aujourd'hui, dans les interstices de l'urbanisme ordinaire.</p>",
 		"<p>Mobilité douce, nature en ville, logement abordable : tout se tient.</p>",
@@ -274,21 +277,21 @@ var topTopics = []topTopic{
 		"<p>Refonder l'école, c'est d'abord redonner du temps aux enseignants et aux élèves.</p>",
 		"<p>La liberté pédagogique est la première des libertés publiques.</p>"},
 		[]string{"education"}, false},
-	{"%s : plongée dans l'économie de la donnée", [3]string{
-		"<p>La donnée est devenue la matière première de l'économie numérique.</p>",
-		"<p>Mais qui possède réellement cette matière première ? Et à qui profite sa circulation ?</p>",
-		"<p>La souveraineté des données personnelles est un enjeu démocratique majeur.</p>"},
-		[]string{"donnees", "numerique"}, false},
+	{"%s : le marché du samedi matin", [3]string{
+		"<p>Le marché du samedi a son rythme : les producteurs arrivent avant l'aube, les habitués connaissent les étals.</p>",
+		"<p>Marchander, goûter, discuter : un commerce qui garde le contact humain.</p>",
+		"<p>Le panier du marché raconte une région, une saison, une manière de vivre.</p>"},
+		[]string{"marche", "local"}, false},
 	{"%s : chronique d'une reconversion industrielle", [3]string{
 		"<p>La désindustrialisation n'était pas une fatalité : elle était un choix.</p>",
 		"<p>Les territoires qui se réindustrialisent misent sur l'innovation locale et les circuits courts.</p>",
 		"<p>La reconversion industrielle est une affaire de patience et de volonté politique.</p>"},
 		[]string{"industrie", "territoire"}, false},
-	{"%s : la bataille de l'espace public numérique", [3]string{
-		"<p>L'espace public s'est déplacé, et avec lui les conditions du débat démocratique.</p>",
-		"<p>Qui modère, qui finance, qui archive ? Autant de questions que les plateformes éludent.</p>",
-		"<p>Réinventer un espace public numérique exige des outils que nous possédons enfin.</p>"},
-		[]string{"democratie", "numerique"}, true},
+	{"%s : réparer au lieu de jeter", [3]string{
+		"<p>Recoudre, revisser, ressouder : la réparation est une compétence politique et joyeuse.</p>",
+		"<p>Chaque objet sauvé de la poubelle est une petite victoire contre la surconsommation.</p>",
+		"<p>Réparer, c'est donner une seconde vie aux choses et un sens à nos gestes.</p>"},
+		[]string{"reparation", "consommation"}, false},
 	{"Pourquoi les mangas savent raconter le monde", [3]string{
 		"<p>Du récit d'aventure au journal intime dessiné, le manga accueille des rythmes et des sensibilités que les formats pressés oublient.</p>",
 		"<p>On y parle de transmission, d'amitié, de travail, de monstres et de cuisine avec la même attention aux gestes.</p>",
@@ -379,11 +382,11 @@ var topTopics = []topTopic{
 		"<p>Entraînements millimétrés, transferts, sponsors : les équipes professionnelles calquent leur management sur les clubs historiques.</p>",
 		"<p>La question n'est plus de savoir si c'est un sport, mais ce que cette industrie nous apprend du jeu.</p>"},
 		[]string{"esport", "gaming"}, false},
-	{"%s : élever ses enfants dans le chaos numérique", [3]string{
-		"<p>Écrans, réseaux, jeux : les parents naviguent dans un territoire que personne n'a balisé avant eux.</p>",
-		"<p>Entre interdits stériles et laisser-faire, il existe une voie : le dialogue, l'exemple et des règles discutées ensemble.</p>",
-		"<p>Éduquer au numérique, c'est avant tout éduquer au temps et à l'attention.</p>"},
-		[]string{"famille", "education"}, false},
+	{"%s : grandir avec un frère ou une sœur", [3]string{
+		"<p>On ne choisit pas ses frères et sœurs, mais on les choisit le reste de sa vie.</p>",
+		"<p>Partager une chambre, se disputer une console, se prêter un manteau : la fratrie est une école de négociation.</p>",
+		"<p>Les souvenirs d'enfance ont presque toujours un frère ou une sœur dans le cadre.</p>"},
+		[]string{"famille", "fratrie"}, false},
 	{"%s : réinventer l'université après les amphis vides", [3]string{
 		"<p>Les amphithéâtres se vident, les plateformes se remplissent : l'enseignement supérieur cherche un second souffle.</p>",
 		"<p>Hybride, orientée projet, connectée au terrain, l'université de demain doit réconcilier masse et accompagnement.</p>",
@@ -411,12 +414,127 @@ var topTopics = []topTopic{
 		[]string{"randonnee", "nature"}, false},
 	{"%s : lire, encore et toujours", [3]string{
 		"<p>La lecture résiste à toutes les prédictions de disparition, du livre papier au format audio, en passant par l'ebook.</p>",
-		"<p>Lire, c'est accepter un temps long dans une époque qui le refuse, et c'est précisément pour cela que ça compte.</p>",
+		"<p>Lire, c'est accepter de prendre le temps qu'il faut, dans une époque qui n'en a jamais assez.</p>",
 		"<p>Les librairies indépendantes, les clubs et les bibliothèques portent cette flamme mieux que les algorithmes.</p>"},
 		[]string{"lecture", "culture"}, false},
+	{"Pourquoi je suis (encore) à 700 points en Valorant", [3]string{
+		"<p>Trois parties par soir, un agent favori, une carte que je connais par cœur : et pourtant la ranked stagne.</p>",
+		"<p>Le vrai skill, j'ai mis du temps à le comprendre, c'est de ne pas tilt après la troisième défaite d'affilée.</p>",
+		"<p>Entre la visée, la carte et les comms, Valorant reste le meilleur terrain pour se fâcher tout seul.</p>"},
+		[]string{"valorant", "esport"}, false},
+	{"Ma liste de jeux indie à ne pas rater : %s", [3]string{
+		"<p>Un studio de trois personnes, une idée toute simple et un budget minuscule suffisent parfois à faire le jeu de l'année.</p>",
+		"<p>Ces pépites artisanales osent des mécaniques que les grosses productions n'essaient plus.</p>",
+		"<p>Faire travailler les petits studios, c'est voter pour la variété du jeu vidéo de demain.</p>"},
+		[]string{"gaming", "indie"}, false},
+	{"Pourquoi One Piece reste le plus grand récit de notre époque", [3]string{
+		"<p>Deux décennies, plus de mille chapitres, une carte qui s'agrandit de tome en tome : le pari était fou, il a tenu.</p>",
+		"<p>L'équipage de Luffy traverse moins des batailles que des amitiés, des rêves et des deuils.</p>",
+		"<p>Relire One Piece, c'est retrouver un vieux camarade qui n'a jamais cessé de grandir.</p>"},
+		[]string{"onepiece", "manga"}, false},
+	{"JoJo's Bizarre Adventure et les memes qui l'ont rendu culte", [3]string{
+		"<p>Des poses improbables, des noms de pouvoirs délirants et des répliques entrées dans la culture web.</p>",
+		"<p>La série a su transformer l'exagération en marque de fabrique et les fans en communauté soudée.</p>",
+		"<p>Les memes ne remplacent pas le manga, ils lui offrent une seconde vie.</p>"},
+		[]string{"jojo", "anime"}, false},
+	{"Le cosplay One Piece : un rêve d'enfant devenu costume", [3]string{
+		"<p>Couper, coudre, coller un chapeau de paille ou une épée trois fois trop grande : le cosplay est un artisanat.</p>",
+		"<p>En convention, incarner son personnage préféré fait naître des rencontres que rien n'aurait permises.</p>",
+		"<p>On ne cosplaye pas pour un concours, on cosplaye parce qu'un personnage nous a sauvés un jour.</p>"},
+		[]string{"onepiece", "cosplay"}, false},
+	{"Prendre soin de ses cheveux bouclés, une année d'essais", [3]string{
+		"<p>J'ai testé les crèmes, les sérums, les coiffures protectrices et énormément de patience.</p>",
+		"<p>Le secret, j'ai compris, c'est moins le produit que la régularité et l'hydratation.</p>",
+		"<p>Mes boucles ont fini par me parler, et j'ai appris à les écouter.</p>"},
+		[]string{"cheveux", "beaute"}, false},
+	{"Les musées qu'on visite enfin tout seul", [3]string{
+		"<p>Un musée, c'est d'abord un rythme : le tien. On s'arrête devant un tableau quand il nous arrête.</p>",
+		"<p>Visiter sans guide ni hâte, c'est découvrir que les belles salles gardent des secrets pour les visiteurs curieux.</p>",
+		"<p>La solitude dans un musée est une des rares solitudes que l'on ne veut pas quitter.</p>"},
+		[]string{"musee", "culture"}, false},
+	{"Trois livres à lire cet hiver, choisis avec soin", [3]string{
+		"<p>Un roman, un essai, un recueil de nouvelles : un programme d'hiver pensé pour les longues soirées.</p>",
+		"<p>Les bonnes recommandations valent mieux que les palmarès, elles viennent de quelqu'un qui vous connaît.</p>",
+		"<p>La lecture est un voyage immobile, et l'hiver est sa saison préférée.</p>"},
+		[]string{"lecture", "livres"}, false},
+	{"Organiser son premier voyage solo, sans stresser", [3]string{
+		"<p>Un billet, une auberge, un carnet : le premier voyage seul tient dans deux valises et beaucoup d'appréhension.</p>",
+		"<p>Manger à sa faim, se perdre, renoncer à un plan : on découvre ses propres règles.</p>",
+		"<p>On rentre changé, pas parce qu'on a vu le monde, mais parce qu'on s'est vus à travers lui.</p>"},
+		[]string{"voyage", "solo"}, false},
+	{"Pourquoi le capitalisme a-t-il tenu ses promesses ?", [3]string{
+		"<p>Moins de pauvreté extrême, plus de confort, des écrans partout : une partie des promesses est tenue.</p>",
+		"<p>Mais les inégalités qui se creusent, la planète qui chauffe et les vies précarisées racontent une autre histoire.</p>",
+		"<p>Le débat mérite mieux que des slogans : il est à peine bien posé.</p>"},
+		[]string{"politique", "economie"}, false},
+	{"Le socialisme n'est pas un gros mot", [3]string{
+		"<p>Solidarité, services publics, temps de travail choisi : les idées que l'on rabâche ont toujours de la vigueur.</p>",
+		"<p>Ce que l'on refuse de discuter finit par décider à notre place, en secret.</p>",
+		"<p>Penser le commun n'est pas une nostalgie, c'est un horizon.</p>"},
+		[]string{"politique", "socialisme"}, false},
+	{"Ce que les privilèges nous apprennent sur nous-mêmes", [3]string{
+		"<p>Un héritage, un logement garanti, des parents bien placés : on ne voit pas toujours ce qu'on a reçu.</p>",
+		"<p>Regarder ses privilèges sans culpabilité, c'est enfin savoir d'où l'on part.</p>",
+		"<p>L'égalité ne consiste pas à nier les différences, mais à ne plus les payer.</p>"},
+		[]string{"politique", "inegalites"}, false},
+	{"Pourquoi je ne supporte plus les mêmes visages en politique", [3]string{
+		"<p>Les mêmes débats, les mêmes têtes, les mêmes promesses à échéance : l'essai est devenu une relecture.</p>",
+		"<p>La politique se rejoue devant nous, mais un électorat plus exigeant peut en changer le casting.</p>",
+		"<p>Renouveler la vie publique, ce n'est pas un caprice : c'est de la lucidité.</p>"},
+		[]string{"politique", "renouvellement"}, false},
+	{"Des budgets qui rognent les services publics, pomme par pomme", [3]string{
+		"<p>Une ligne ici, un poste là, une fermeture annoncée en douce : c'est ainsi que le service public s'étiole.</p>",
+		"<p>Écoles, hôpitaux, transports : quand l'argent manque, c'est l'égalité d'accès qui paie.</p>",
+		"<p>Suivre les budgets au lieu de les subir est devenu un devoir de citoyen.</p>"},
+		[]string{"politique", "services_publics"}, false},
+	{"%s : courir sans se prendre la tête", [3]string{
+		"<p>Pas de chrono, pas d'appli qui juge : juste la régularité, le souffle et le bitume du matin.</p>",
+		"<p>La muscu à la maison, le 10 km du dimanche ou la séance de yoga : le sport commence là où on arrête de se comparer.</p>",
+		"<p>Se bouger, c'est aussi reprendre la main sur son énergie de la journée.</p>"},
+		[]string{"fitness", "sport", "sante"}, false},
+	{"%s : capturer la lumière des rues", [3]string{
+		"<p>Un appareil en bandoulière, des reflets dans les vitrines, une silhouette qui traverse : la photo est partout, il suffit de regarder.</p>",
+		"<p>L'argentique réapprend la patience, le numérique la réactivité : les deux se nourrissent.</p>",
+		"<p>Photographier, c'est écrire avec la lumière — et chacun peut apprendre à le faire.</p>"},
+		[]string{"photo", "argentique", "art"}, false},
+	{"%s : créer devant sa caméra", [3]string{
+		"<p>Allumer sa caméra, c'est accepter d'être vu avant d'être parfait : le premier direct est toujours le plus dur.</p>",
+		"<p>Entre le montage qui s'éternise et la régularité qui rassure, chaque créateur trouve son propre tempo.</p>",
+		"<p>Créer en direct, c'est bâtir une communauté autour d'une vraie présence.</p>"},
+		[]string{"twitch", "streaming", "createurs"}, false},
+	{"%s : mercato, rumeurs et coups de bluff", [3]string{
+		"<p>Chaque été, le mercato transforme les clubs en salle des marchés : agents, clauses libératoires et transferts qui se jouent à minuit.</p>",
+		"<p>Derrière les annonces officielles, il y a les négociations qui échouent, les joueurs qui font grève de l'entraînement et les présidents qui bluffent.</p>",
+		"<p>Le mercato, c'est la preuve que le foot se joue aussi en dehors du terrain.</p>"},
+		[]string{"foot", "mercato"}, false},
+	{"%s : supporters, virages et ambiances de stade", [3]string{
+		"<p>Avant même le coup d'envoi, le virage chante : les supporters sont le douzième homme, celui qu'aucune statistique ne mesure.</p>",
+		"<p>Des tifos préparés pendant des semaines aux déplacements qui finissent à 4h du matin, la passion ne se programme pas.</p>",
+		"<p>Un stade plein, c'est une ville qui retient son souffle pendant 90 minutes.</p>"},
+		[]string{"foot", "supporter"}, false},
+	{"%s : la photo de rue, capter l'instant", [3]string{
+		"<p>La photo de rue n'attend pas le décor parfait : elle guette la coïncidence, le regard, l'ombre qui traverse le trottoir.</p>",
+		"<p>Marcher sans but, l'appareil à l'épaule, reste la meilleure école de composition qui soit.</p>",
+		"<p>Une bonne photo de rue raconte une histoire que personne n'avait vue.</p>"},
+		[]string{"photo", "rue"}, false},
+	{"%s : l'intelligence artificielle au quotidien", [3]string{
+		"<p>L'IA n'est plus une promesse de laboratoire : elle écrit nos e-mails, résume nos réunions et recommande nos playlists.</p>",
+		"<p>Entre gains de temps réels et dépendance tranquille, il devient urgent d'apprendre à l'utiliser sans se faire utiliser.</p>",
+		"<p>Le bon usage de l'IA, c'est finalement une question d'hygiène mentale.</p>"},
+		[]string{"tech", "ia"}, false},
+	{"%s : concerts, petites salles et découvertes live", [3]string{
+		"<p>Il y a quelque chose qu'aucun algorithme ne remplace : le son d'une petite salle, la sueur, le premier rang.</p>",
+		"<p>Les artistes qu'on découvre en première partie deviennent souvent ceux qu'on suit toute sa vie.</p>",
+		"<p>Aller voir un groupe inconnu un mardi soir, c'est le meilleur investissement culturel qui existe.</p>"},
+		[]string{"musique", "live"}, false},
+	{"%s : friperies et mode qui dure", [3]string{
+		"<p>La friperie du samedi matin cache des trésors pour qui prend le temps de fouiller : une veste des années 90, un jean parfaitement usé.</p>",
+		"<p>Porter de la seconde main, c'est affirmer un style sans participer à la course au neuf.</p>",
+		"<p>La mode la plus durable reste celle qu'on trouve, pas celle qu'on achète.</p>"},
+		[]string{"mode", "friperie"}, false},
 }
 
-var topTitleWords = []string{"La longue marche", "Le rendez-vous manqué", "L'heure des choix", "Le vertige", "La promesse", "L'angle mort", "La fracture", "Le pari", "L'héritage", "Le basculement", "Le carnet ouvert", "La chambre d'écho", "Le détour nécessaire", "Les jours ordinaires", "La dernière séance"}
+var topTitleWords = []string{"La longue marche", "Le rendez-vous manqué", "L'heure des choix", "Le vertige", "La promesse", "L'angle mort", "La fracture", "Le pari", "L'héritage", "Le basculement", "Le carnet ouvert", "Le détour nécessaire", "Les jours ordinaires", "La dernière séance", "La première fois", "Le bon moment", "La petite lumière", "Le chemin de traverse", "Les gestes simples", "La saison des pluies", "Le goût des autres", "L'après-midi d'automne", "La table du dimanche", "La carte et le territoire", "Les nuits d'été", "Le train de 7h47", "La maison d'enfance", "Le plat du jour", "La fenêtre ouverte", "Les copains d'abord"}
 
 var topTopicExtras = map[string][]string{
 	"manga":   {"One Piece", "Nausicaä", "Akira", "le club de lecture", "les planches en noir et blanc"},
@@ -474,14 +592,111 @@ var topReplyTemplates = []string{
 	"up ! %s, quelqu'un devait le dire.",
 	"Je suis pas d'accord mais je respecte. %s, c'est discutable.",
 	"La 2e mi-temps de ce fil va être chaude, %s c'est du lourd.",
+	"Je lis en silence d'habitude, mais %s, là, fallait que je réponde.",
+	"Sauvegarde direct. %s, tu es sur quelque chose.",
+	"Enfin quelqu'un qui pose les mots sur %s.",
+	"%s : je l'ai partagé à toute la famille, ils vont débattre.",
+	"Je suis le rejoindre sur %s, le timing tombe bien.",
 }
 
+// topCommentTemplates alimentent les fils de commentaires d'articles : chaque
+// article retenu reçoit 2 à 4 avis variés d'autres comptes de sa niche.
 var topCommentTemplates = []string{
-	"Article essentiel. %s.",
-	"Je découvre ce sujet grâce à vous, merci.",
+	"Article essentiel, et %s est bien le point que je retiens.",
+	"Je découvre ce sujet grâce à vous, merci pour la clarté.",
 	"%s : je n'étais pas convaincu, vous m'avez fait changer d'avis.",
-	"Enfin un média qui prend le temps de %s.",
-	"À partager largement. %s.",
+	"Enfin un média qui prend le temps d'aller au fond de %s.",
+	"À partager largement. %s, c'est trop peu discuté.",
+	"Lu deux fois pour bien digérer. %s mérite une vraie suite.",
+	"Je partage le constat, même si %s reste à creuser localement.",
+	"le passage sur %s valait à lui seul l'article.",
+	"Ça change des titres racoleurs. %s, c'est du sérieux.",
+	"Mon beau-père va adorer %s, je lui envoie tout de suite.",
+	"J'ai commenté pour en reparler plus tard, %s c'est exactement ça.",
+	"Je ne suis pas d'accord sur la fin, mais %s est très bien vu.",
+	"Faites une suite sur %s, je signe.",
+	"Rangé dans mes favoris. %s, merci pour ce travail.",
+	"Enfin écrit simplement. %s, tout le monde devrait le lire.",
+	"Je relance le fil : qui d'autre a vécu %s comme ça ?",
+	"L'auteur a tout compris à %s, chapeau.",
+	"Un bel angle. %s méritait qu'on en parle aussi honnêtement.",
+}
+
+// seedArticleDiscussion crée des fils de commentaires réalistes sur une part des
+// articles : chaque fil porte 2 à 4 avis signés par d'autres comptes tirés de la
+// MÊME niche (leurs centres d'intérêt recoupent les tags de la publication) —
+// tout profil abondé porte ainsi un vrai fil, et le contenu reste ancré niche.
+func seedArticleDiscussion(ctx context.Context, pool *pgxpool.Pool, res *TopResult, rng *prng) error {
+	readerByNiche := map[string][]*TopUser{}
+	var allReaders []*TopUser
+	for i := range res.Users {
+		u := &res.Users[i]
+		if u.Role == "creator" {
+			continue
+		}
+		allReaders = append(allReaders, u)
+		for _, it := range u.Interests {
+			readerByNiche[it] = append(readerByNiche[it], u)
+		}
+	}
+	if len(allReaders) == 0 {
+		return nil
+	}
+	pubTags := map[string][]string{}
+	for i := range res.Publications {
+		pubTags[res.Publications[i].ID] = res.Publications[i].Tags
+	}
+
+	for i := range res.Articles {
+		art := &res.Articles[i]
+		anchor := stableAnchor(art.ID)
+		if anchor%100 >= 40 {
+			continue // ~60% des articles sans fil — l'édition reste crédible.
+		}
+		tags := pubTags[art.PublicationID]
+		niche := ""
+		if len(tags) > 0 {
+			niche = tags[0]
+		}
+		nComments := 2 + int(anchor%3) // 2..4 commentaires par fil
+		source := allReaders
+		if niche != "" && len(readerByNiche[niche]) >= nComments {
+			source = readerByNiche[niche]
+		}
+		if len(source) < nComments {
+			source = allReaders
+		}
+		used := map[string]bool{}
+		for k := 0; k < nComments && len(used) < len(source); k++ {
+			c := source[int((anchor+uint64(k)*7919)%uint64(len(source)))]
+			if used[c.ID] {
+				continue
+			}
+			used[c.ID] = true
+			tmpl := topCommentTemplates[int((anchor+uint64(k)*104729)%uint64(len(topCommentTemplates)))]
+			content := tmpl
+			if strings.Contains(tmpl, "%s") {
+				w := niche
+				if w == "" {
+					w = "ce sujet"
+				}
+				content = fmt.Sprintf(tmpl, w)
+			}
+			id := topID(fmt.Sprintf("artcmt%d", i), k)
+			created := art.CreatedAt.Add(time.Duration(2+int(anchor%12)) * time.Hour)
+			if created.After(time.Now().UTC()) {
+				created = time.Now().UTC().Add(-time.Hour)
+			}
+			if _, err := pool.Exec(ctx, `
+				INSERT INTO "ArticleComment" (id, content, "articleId", "authorId", "createdAt", "updatedAt")
+				VALUES ($1,$2,$3,$4,$5,$5)
+				ON CONFLICT (id) DO NOTHING`,
+				id, content, art.ID, c.ID, created); err != nil {
+				return fmt.Errorf("article comment %s: %w", id, err)
+			}
+		}
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -571,6 +786,116 @@ func WipeAll(ctx context.Context, pool *pgxpool.Pool) error {
 }
 
 // ---------------------------------------------------------------------------
+// Alignement des interactions sur la niche (follows / likes / signets /
+// surlignages). Tout choix passe par des slices TRIÉES : les maps Go ne sont
+// pas ordonnées, on ne sélectionne jamais via une itération de map afin de
+// rester déterministe (même seed → même graphe d'interactions).
+// ---------------------------------------------------------------------------
+
+// sortedIntKeys trie les clés entières d'un ensemble.
+func sortedIntKeys(set map[int]bool) []int {
+	out := make([]int, 0, len(set))
+	for k := range set {
+		out = append(out, k)
+	}
+	sort.Ints(out)
+	return out
+}
+
+// publicationIndexesMatching retourne (triés) les indices de publications dont
+// un tag chevauche les centres d'intérêt de l'utilisateur.
+func publicationIndexesMatching(interests []string, pubByTag map[string][]int) []int {
+	set := map[int]bool{}
+	for _, t := range interests {
+		for _, pi := range pubByTag[t] {
+			set[pi] = true
+		}
+	}
+	return sortedIntKeys(set)
+}
+
+// postIDsMatching retourne (triées) les id de pensées partageant un tag avec
+// les intérêts de l'utilisateur.
+func postIDsMatching(interests []string, postsByTag map[string][]string) []string {
+	set := map[string]bool{}
+	for _, t := range interests {
+		for _, pid := range postsByTag[t] {
+			set[pid] = true
+		}
+	}
+	ids := make([]string, 0, len(set))
+	for k := range set {
+		ids = append(ids, k)
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+// articleIndexesMatching retourne (triés) les indices d'articles partageant un
+// tag avec les intérêts de l'utilisateur.
+func articleIndexesMatching(interests []string, artsByTag map[string][]int) []int {
+	set := map[int]bool{}
+	for _, t := range interests {
+		for _, ai := range artsByTag[t] {
+			set[ai] = true
+		}
+	}
+	return sortedIntKeys(set)
+}
+
+// excerpt extrait un extrait lisible du début (HTML nettoyé) d'un article.
+func excerpt(html string) string {
+	s := strings.Join(strings.Fields(stripHTML(html)), " ")
+	if s == "" {
+		return ""
+	}
+	words := strings.Fields(s)
+	n := 14
+	if len(words) < n {
+		n = len(words)
+	}
+	out := strings.Join(words[:n], " ")
+	if n < len(words) {
+		out += " …"
+	}
+	return out
+}
+
+// coverKindForTag associe un milieu à une des 4 couvertures embarquées, pour
+// que les visuels de publication/article/post reflètent la niche du créateur
+// (tech/gaming → "technology", écologie/nature/ville → "ecology", sinon
+// paysage éditorial). Déterministe et borné au catalogue disponible.
+var coverKindForTag = map[string]string{
+	"tech": "technology", "vieprivee": "technology", "gaming": "technology", "esport": "technology",
+	"ecologie": "ecology", "jardin": "ecology", "nature": "ecology", "randonnee": "ecology", "ville": "ecology",
+}
+
+func coverKind(tags []string) string {
+	if len(tags) > 0 {
+		if k, ok := coverKindForTag[tags[0]]; ok {
+			return k
+		}
+	}
+	return "editorial_landscape"
+}
+
+// coverURLFor sélectionne une couverture du thème du persona quand le
+// catalogue local (assets/covers/themed) en a une, sinon retombe sur les
+// paysages éditoriaux embarqués (coverKind). Cycle déterministe par thème.
+func coverURLFor(c *coverCatalog, tags []string, index int) string {
+	theme := ""
+	if len(tags) > 0 {
+		theme = themeForKey(tags[0])
+	}
+	if c != nil {
+		if url, ok := c.pickCover(theme); ok {
+			return url
+		}
+	}
+	return visualURL(index, coverKind(tags))
+}
+
+// ---------------------------------------------------------------------------
 // RunTop — génération complète de la DB app
 // ---------------------------------------------------------------------------
 
@@ -597,6 +922,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	// identité (pseudonyme ou « Prénom Nom »), un genre/âge et une photo de
 	// profil réelle assortie — comme dans un vrai réseau.
 	avatars := loadAvatarCatalog()
+	covers := loadCoverCatalog()
 	creators := 0
 	seenUsername := map[string]bool{}
 	seenEmail := map[string]bool{}
@@ -625,7 +951,10 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 				username = fmt.Sprintf("%s%d", slugify(handle), rng.intn(9999))
 			}
 			seenUsername[username] = true
-			if rng.next() < 0.6 {
+			// Nom d'affichage : on favorise les surnoms du milieu (lisibles,
+			// cohérents avec la niche) et on limite humanizeHandle, qui tronque
+			// les handles en noms trop courts (« le.vrai.papa » → « Le »).
+			if rng.next() < 0.75 {
 				name = prngPick(rng, nickPool)
 			} else {
 				name = humanizeHandle(handle)
@@ -673,7 +1002,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			if _, err := pool.Exec(ctx, `
 				INSERT INTO "Publication" (id, type, name, slug, subdomain, bio, "logoUrl", "headerImageUrl", "isCertified", "accentColor", "layoutStyle", "createdAt", "updatedAt")
 				VALUES ($1, 'PERSONAL', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)`,
-				pub.ID, pub.Name, pub.Slug, pub.Subdomain, pub.Bio, avatar, visualURL(i+4, "editorial_landscape"), rng.next() < 0.25, pub.Accent, []string{"minimal", "editorial", "magazine"}[i%3], created); err != nil {
+				pub.ID, pub.Name, pub.Slug, pub.Subdomain, pub.Bio, avatar, coverURLFor(covers, pub.Tags, i+4), rng.next() < 0.25, pub.Accent, []string{"minimal", "editorial", "magazine"}[i%3], created); err != nil {
 				return nil, fmt.Errorf("publication %s: %w", pub.ID, err)
 			}
 		}
@@ -742,13 +1071,19 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		pub := res.Publications[rng.weightedIndex(pubWeights)]
 		cats := catByPub[pub.ID]
 		topic := prngPick(rng, topTopics)
-		// 40% : sujet aligné avec le milieu du créateur (foot, gaming…).
-		if rng.next() < 0.4 {
-			if t := topicForTags(pub.Tags); t != nil {
-				topic = *t
-			}
+		// 100% : sujet aligné avec le milieu du créateur (foot, gaming…).
+		// L'ancien 40% noyait toutes les publications sous des sujets génériques
+		// (« temps long », « espace public numérique »…) identiques partout. Tous
+		// les milieux du seed ont un sujet dédié, donc chaque profil ne publie
+		// que du contenu de sa niche (cohérence « un profil = un milieu »).
+		if t := topicForTags(pub.Tags, stableAnchor(pub.OwnerID)+uint64(i)); t != nil {
+			topic = *t
 		}
-		title := topicTitle(topic, prngPick(rng, topTitleWords))
+		// « Voix par auteur » : le mot de titre est phasé par l'id du compte, pas
+		// tiré au hasard seul → deux créateurs d'une même niche n'enchaînent pas
+		// les mêmes titres.
+		word := topTitleWords[int((stableAnchor(pub.OwnerID)+uint64(rng.intn(len(topTitleWords))))%uint64(len(topTitleWords)))]
+		title := topicTitle(topic, word)
 		content := longFormContent(topic, rng)
 		premium := rng.next() < opts.PremiumRatio
 		if premium {
@@ -774,7 +1109,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			INSERT INTO "Article" (id, title, slug, content, "imageUrl", published, status, visibility,
 				"isPremium", "isEditorPick", "readingTime", "semanticTags", "publicationId", "authorId", "categoryId", "createdAt", "updatedAt")
 			VALUES ($1, $2, $3, $4, $5, true, 'PUBLISHED', 'PUBLIC', $6, $7, $8, $9, $10, $11, $12, $13, $13)`,
-			art.ID, art.Title, art.Slug, art.Content, visualURL(i+8, "editorial_landscape"), art.Premium,
+			art.ID, art.Title, art.Slug, art.Content, coverURLFor(covers, pub.Tags, i+8), art.Premium,
 			topic.editor && rng.next() < 0.3, int32(art.ReadingTime), topic.tags,
 			art.PublicationID, art.AuthorID, nullStr(art.CategoryID), created); err != nil {
 			return nil, fmt.Errorf("article %s: %w", art.ID, err)
@@ -787,7 +1122,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	// corpus -top génère des slugs dérivés du titre, pas ces identifiants fixes.
 	canonical := []struct {
 		slug, title, content, visibility string
-		premium, editorPick               bool
+		premium, editorPick              bool
 	}{
 		{"souverainete-medias-independants", "La souveraineté des médias indépendants",
 			"<p>Dans un monde saturé de plateformes, posséder son propre espace de publication n'est plus un luxe : c'est une condition de survie éditoriale.</p><p>Cet article explore ce que signifie réellement être souverain sur son audience, son contenu et ses revenus.</p>",
@@ -819,6 +1154,14 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	}
 	log.Printf("[seed-top] ✔ %d articles", len(res.Articles))
 
+	// ── 3bis. Fils de commentaires d'articles ─────────────────────────────────
+	// Donne à une part des articles un vrai fil de discussion : 2 à 4 avis
+	// d'autres comptes, choisis dans la MÊME niche (leurs centres d'intérêt
+	// recoupent les tags de l'article) → chaque profil abondé porte son fil.
+	if err := seedArticleDiscussion(ctx, pool, res, rng); err != nil {
+		return nil, err
+	}
+
 	// ── 4. Pensées (~1480 : racines + réponses) ────────────────────────────
 	// Poids : les créateurs publient plus (loi puissance).
 	var userWeights []float64
@@ -829,13 +1172,16 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			userWeights = append(userWeights, 0.4)
 		}
 	}
-	rootCount := int(float64(opts.Posts) * 0.85)
+	// ~20% de réponses : assez de fils pour que chaque profil créateur abondé
+	// porte une vraie discussion sous ses pensées (~370 fils).
+	rootCount := int(float64(opts.Posts) * 0.80)
 	replyCount := opts.Posts - rootCount
 	allPostIDs := make([]string, 0, opts.Posts)
-	postTags := map[string][]string{} // tags par post (pour aligner les réponses)
+	postTags := map[string][]string{}       // tags par post (pour aligner les réponses)
+	postCreatedAt := map[string]time.Time{} // date par post (pour répondre APRÈS son parent)
 	for i := 0; i < opts.Posts; i++ {
 		author := res.Users[rng.weightedIndex(userWeights)]
-		created := now.AddDate(0, 0, -rng.intn(14)).Add(-time.Duration(rng.intn(20)) * time.Hour)
+		created := now.AddDate(0, 0, -rng.intn(40)).Add(-time.Duration(rng.intn(24)) * time.Hour).Add(-time.Duration(rng.intn(60)) * time.Minute)
 		postID := topID("post", i)
 		var content string
 		var tags []string
@@ -849,7 +1195,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			}
 			postImage := ""
 			if rng.next() < 0.25 {
-				postImage = visualURL(i+16, "editorial_landscape")
+				postImage = coverURLFor(covers, author.Interests, i+16)
 			}
 			if _, err := pool.Exec(ctx, `
 				INSERT INTO "Post" (id, content, "authorId", tags, "imageUrl", visibility, "isDraft", "likeCount", "repostCount", "replyCount", "createdAt", "updatedAt")
@@ -858,6 +1204,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 				return nil, fmt.Errorf("post root: %w", err)
 			}
 			postTags[postID] = tags
+			postCreatedAt[postID] = created
 		} else {
 			parent := allPostIDs[rng.intn(len(allPostIDs))]
 			// Réponse alignée sur le milieu du post parent (tags hérités).
@@ -866,6 +1213,10 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 				tags = prngPick(rng, topThoughts).tags
 			}
 			content = fmt.Sprintf(prngPick(rng, topReplyTemplates), tags[0])
+			// La réponse date TOUJOURS après son parent (quelques minutes à
+			// quelques heures) : des fils de discussion cohérents au lieu de
+			// réponses qui datent d'avant le post auquel elles répondent.
+			created = postCreatedAt[parent].Add(time.Duration(5+rng.intn(240)) * time.Minute)
 			if _, err := pool.Exec(ctx, `
 				INSERT INTO "Post" (id, content, "authorId", tags, visibility, "isDraft", "likeCount", "repostCount", "replyCount", "parentId", "rootId", "createdAt", "updatedAt")
 				VALUES ($1, $2, $3, $4, 'public', false, $5, 0, 0, $6, $6, $7, $7)`,
@@ -873,6 +1224,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 				return nil, fmt.Errorf("post reply: %w", err)
 			}
 			postTags[postID] = tags
+			postCreatedAt[postID] = created
 		}
 		res.Posts = append(res.Posts, TopPost{ID: postID, Content: content, Tags: tags})
 		allPostIDs = append(allPostIDs, postID)
@@ -880,28 +1232,44 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	res.PostIDs = allPostIDs
 	log.Printf("[seed-top] ✔ %d pensées (%d racines / %d réponses)", len(allPostIDs), rootCount, replyCount)
 
-	// ── 5. Follows (lecteurs → publications, loi puissance) ────────────────
+	// ── 5. Follows (lecteurs → publications) ───────────────────────────────
+	// Alignés sur la niche du lecteur : un profil foot suit des publications du
+	// milieu foot (tags en commun), le reste (≈30%) va vers des publications
+	// populaires hors-niche pour la découverte — l'onglet Abonnements devient
+	// un vrai signal de profil plutôt qu'un bruit aléatoire.
 	readerIDs := make([]string, 0)
-	for _, u := range res.Users {
+	usrIdxByID := map[string]int{}
+	for i, u := range res.Users {
+		usrIdxByID[u.ID] = i
 		if u.Role != "creator" {
 			readerIDs = append(readerIDs, u.ID)
 		}
 	}
-	// Chaque lecteur suit 1..n publications (dont quelques créateurs populaires).
-	var pubFollowWeights []float64
-	for range res.Publications {
-		pubFollowWeights = append(pubFollowWeights, 1.0)
+	// Index publications → indices par tag, + loi puissance de popularité.
+	pubByTag := map[string][]int{}
+	for pi := range res.Publications {
+		for _, t := range res.Publications[pi].Tags {
+			pubByTag[t] = append(pubByTag[t], pi)
+		}
 	}
-	// Rendre les premières publications plus populaires (loi puissance).
-	for j := range pubFollowWeights {
-		pubFollowWeights[j] = 1.0 / float64(j+2) * 2.0
+	var pubFollowWeights []float64
+	for j := range res.Publications {
+		pubFollowWeights = append(pubFollowWeights, 2.0/float64(j+2))
 	}
 	followSeq := 0
 	seenFollow := map[string]bool{}
 	for _, rid := range readerIDs {
+		niche := publicationIndexesMatching(res.Users[usrIdxByID[rid]].Interests, pubByTag)
 		nb := 1 + rng.intn(12)
+		start := rng.intn(len(niche) + 1)
 		for f := 0; f < nb; f++ {
-			pub := res.Publications[rng.weightedIndex(pubFollowWeights)]
+			var pi int
+			if len(niche) > 0 && rng.next() < 0.7 {
+				pi = niche[(start+f)%len(niche)]
+			} else {
+				pi = rng.weightedIndex(pubFollowWeights)
+			}
+			pub := res.Publications[pi]
 			key := rid + "|" + pub.ID
 			if seenFollow[key] {
 				continue
@@ -917,14 +1285,28 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			res.Follows++
 		}
 	}
-	log.Printf("[seed-top] ✔ %d follows", res.Follows)
+	log.Printf("[seed-top] ✔ %d follows (alignés niche + populaires)", res.Follows)
 
 	// ── 6. Likes (~12k) + abonnés CRM (~1.5k) + wallet + bookmarks ────────
 	likeSeq := 0
 	seenLike := map[string]bool{}
+	// Index des pensées par tag (les tags sont alignés sur la niche de leur
+	// auteur via thoughtFor) → on peut liker « dans son milieu ».
+	postsByTag := map[string][]string{}
+	for pid, tags := range postTags {
+		for _, t := range tags {
+			postsByTag[t] = append(postsByTag[t], pid)
+		}
+	}
 	for i := 0; i < 12000; i++ {
-		post := allPostIDs[rng.intn(len(allPostIDs))]
 		user := res.Users[rng.intn(len(res.Users))]
+		var post string
+		cand := postIDsMatching(user.Interests, postsByTag)
+		if len(cand) > 0 && rng.next() < 0.78 {
+			post = cand[rng.intn(len(cand))]
+		} else {
+			post = allPostIDs[rng.intn(len(allPostIDs))]
+		}
 		key := post + "|" + user.ID
 		if seenLike[key] {
 			continue
@@ -1015,10 +1397,47 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	}
 	bmkSeq := 0
 	seenBmk := map[string]bool{}
+	// Index des articles (id + tags + texte) pour aligner signets et
+	// surlignages sur la niche du lecteur.
+	type artNiche struct {
+		id      string
+		tags    []string
+		content string
+	}
+	var artNicheList []artNiche
+	artNicheByTag := map[string][]int{}
+	{
+		rows, err := pool.Query(ctx, `SELECT id, COALESCE("semanticTags", '{}'), COALESCE(content, '') FROM "Article" WHERE published = true ORDER BY id`)
+		if err != nil {
+			return nil, fmt.Errorf("articles pour signets: %w", err)
+		}
+		for rows.Next() {
+			var a artNiche
+			if err := rows.Scan(&a.id, &a.tags, &a.content); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			for _, t := range a.tags {
+				artNicheByTag[t] = append(artNicheByTag[t], len(artNicheList))
+			}
+			artNicheList = append(artNicheList, a)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+	}
 	for i := 0; i < 800; i++ {
-		reader := res.Users[rng.intn(len(res.Users))].ID
-		art := res.Articles[rng.intn(len(res.Articles))].ID
-		key := reader + "|" + art
+		ui := rng.intn(len(res.Users))
+		reader := res.Users[ui]
+		cand := articleIndexesMatching(reader.Interests, artNicheByTag)
+		var artID string
+		if len(cand) > 0 && rng.next() < 0.8 {
+			artID = artNicheList[cand[rng.intn(len(cand))]].id
+		} else {
+			artID = res.Articles[rng.intn(len(res.Articles))].ID
+		}
+		key := reader.ID + "|" + artID
 		if seenBmk[key] {
 			continue
 		}
@@ -1026,13 +1445,44 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		if _, err := pool.Exec(ctx, `
 			INSERT INTO "Bookmark" (id, "readerId", "articleId", "createdAt")
 			VALUES ($1, $2, $3, $4)`,
-			topID("bmk", bmkSeq), reader, art, now.AddDate(0, 0, -rng.intn(30))); err != nil {
+			topID("bmk", bmkSeq), reader.ID, artID, now.AddDate(0, 0, -rng.intn(30))); err != nil {
 			return nil, fmt.Errorf("bookmark: %w", err)
 		}
 		bmkSeq++
 	}
-	log.Printf("[seed-top] ✔ %d likes, %d abonnés CRM, %d wallet, %d bookmarks",
-		res.Likes, res.Subscribers, walletSeq, bmkSeq)
+
+	// ── 6bis. Surlignages (Highlight) — signal EMA le plus fort (α=0.20) ──
+	// La table Highlight était vide : ~40% des comptes surlignent maintenant
+	// 2-3 passages d'articles de leur niche, pour que le profil vectoriel
+	// dispose de ce signal explicite (comme en prod).
+	hlSeq := 0
+	for _, u := range res.Users {
+		if rng.next() >= 0.4 {
+			continue
+		}
+		cand := articleIndexesMatching(u.Interests, artNicheByTag)
+		if len(cand) == 0 {
+			continue
+		}
+		nhl := 2 + rng.intn(2)
+		start := rng.intn(len(cand))
+		for i := 0; i < nhl; i++ {
+			art := artNicheList[cand[(start+i)%len(cand)]]
+			phrase := excerpt(art.content)
+			if phrase == "" {
+				phrase = "Passage qui m'a marqué."
+			}
+			if _, err := pool.Exec(ctx, `
+				INSERT INTO "Highlight" (id, text, "isPublic", "isOfficial", "upvotesCount", "readerId", "articleId", "createdAt", "quoteOrdinal")
+				VALUES ($1, $2, true, false, $3, $4, $5, $6, $7)`,
+				topID("hl", hlSeq), phrase, rng.intn(20), u.ID, art.id, now.AddDate(0, 0, -rng.intn(30)), i); err != nil {
+				return nil, fmt.Errorf("highlight: %w", err)
+			}
+			hlSeq++
+		}
+	}
+	log.Printf("[seed-top] ✔ %d likes, %d abonnés CRM, %d wallet, %d bookmarks, %d highlights",
+		res.Likes, res.Subscribers, walletSeq, bmkSeq, hlSeq)
 
 	// ── 7. ReadingSessions (~5700 sur 14 jours) ────────────────────────────
 	// Alignées sur le milieu du lecteur : ~70% des sessions portent sur un
@@ -1197,27 +1647,77 @@ func AddTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		return nil, fmt.Errorf("addtop: aucune publication personnelle")
 	}
 
+	// La niche n'est pas persistée sur User/Publication : on l'infère du tag
+	// dominant des pensées déjà en base — comme ça, le lot additif reste
+	// cohérent avec chaque compte (pas d'article générique sur un profil foot).
+	nicheByUser := map[string]string{}
+	// Seuls les tags qui correspondent à un sujet d'article comptent pour la
+	// niche : un créateur foot a les tags foot/ligue1/supporter (tous mappés),
+	// mais un tag « humour » ne doit pas devenir sa niche — sinon le sujet
+	// d'article retomberait sur la rotation globale (hors-niche).
+	topicKeys := map[string]bool{}
+	for _, tp := range topTopics {
+		for _, tag := range tp.tags {
+			topicKeys[tag] = true
+		}
+	}
+	rowsN, err := pool.Query(ctx, `SELECT pp."authorId", t.t FROM "Post" pp, unnest(pp.tags) t
+		WHERE pp.tags IS NOT NULL AND t.t = ANY($1)
+		GROUP BY pp."authorId", t.t ORDER BY pp."authorId", count(*) DESC`, slices.Collect(maps.Keys(topicKeys)))
+	if err != nil {
+		return nil, fmt.Errorf("addtop niche query: %w", err)
+	}
+	for rowsN.Next() {
+		var uid, tag string
+		if rowsN.Scan(&uid, &tag) == nil {
+			if _, ok := nicheByUser[uid]; !ok { // premier = tag dominant mappé
+				nicheByUser[uid] = tag
+			}
+		}
+	}
+	rowsN.Close()
+	for i := range res.Users {
+		u := &res.Users[i]
+		if niche := nicheByUser[u.ID]; niche != "" {
+			u.Interests = []string{niche}
+		}
+	}
+
+	covers := loadCoverCatalog()
+	// Distribution cyclique (et non aléatoire) : avec le même volume d'articles
+	// que de publications, chaque créateur recoit au moins un article dans son
+	// fil — aucun profil avec zéro contenu éditorial.
 	for i := 0; i < opts.Articles; i++ {
-		topic := topTopics[i%len(topTopics)]
-		pubID := pubIDs[rng.intn(len(pubIDs))]
+		pubID := pubIDs[i%len(pubIDs)]
 		var authorID string
 		if err := pool.QueryRow(ctx, `SELECT id::text FROM "User" WHERE "publicationId" = $1 LIMIT 1`, pubID).Scan(&authorID); err != nil {
 			if err := pool.QueryRow(ctx, `SELECT id::text FROM "User" WHERE role='creator' ORDER BY id LIMIT 1`).Scan(&authorID); err != nil {
 				return nil, err
 			}
 		}
+		// Sujet aligné sur la niche du créateur (comme la passe principale).
+		topic := topTopics[i%len(topTopics)]
+		if niche := nicheByUser[authorID]; niche != "" {
+			if t := topicForTags([]string{niche}, stableAnchor(authorID)+uint64(i)); t != nil {
+				topic = *t
+			}
+		}
+		// « Voix par auteur » sur le mot de titre, phasée par l'id du compte.
+		word := topTitleWords[int((stableAnchor(authorID)+uint64(rng.intn(len(topTitleWords))))%uint64(len(topTitleWords)))]
 		id := topID("addart", i)
-		title := topicTitle(topic, topTitleWords[i%len(topTitleWords)])
+		title := topicTitle(topic, word)
 		content := longFormContent(topic, rng)
-		if _, err := pool.Exec(ctx, `INSERT INTO "Article" (id,title,slug,content,"imageUrl",published,status,visibility,"isPremium","isEditorPick","readingTime","semanticTags","publicationId","authorId","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,true,'PUBLISHED','PUBLIC',$6,$7,10,$8,$9,$10,$11,$11) ON CONFLICT (id) DO NOTHING`, id, title, fmt.Sprintf("%s-add-%d", slugify(title), i), content, visualURL(i+40, "editorial_landscape"), rng.next() < opts.PremiumRatio, topic.editor && rng.next() < .25, topic.tags, pubID, authorID, now.Add(-time.Duration(i)*time.Hour)); err != nil {
+		cover := coverURLFor(covers, []string{nicheByUser[authorID]}, i+40)
+		if _, err := pool.Exec(ctx, `INSERT INTO "Article" (id,title,slug,content,"imageUrl",published,status,visibility,"isPremium","isEditorPick","readingTime","semanticTags","publicationId","authorId","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,true,'PUBLISHED','PUBLIC',$6,$7,10,$8,$9,$10,$11,$11) ON CONFLICT (id) DO NOTHING`, id, title, fmt.Sprintf("%s-add-%d", slugify(title), i), content, cover, rng.next() < opts.PremiumRatio, topic.editor && rng.next() < .25, topic.tags, pubID, authorID, now.Add(-time.Duration(i)*time.Hour)); err != nil {
 			return nil, err
 		}
 		res.Articles = append(res.Articles, TopArticle{ID: id, PublicationID: pubID, AuthorID: authorID, Title: title, Content: content})
 	}
 	for i := 0; i < opts.Posts; i++ {
-		u := res.Users[rng.intn(len(res.Users))]
-		// Pensée cohérente avec le milieu de l'auteur (comme la passe principale).
-		text, tags := thoughtFor(rng, u)
+		u := &res.Users[rng.intn(len(res.Users))]
+		// Pensée cohérente avec le milieu de l'auteur (Interests inféré du
+		// tag dominant de ses posts) — comme la passe principale.
+		text, tags := thoughtFor(rng, *u)
 		id := topID("addpost", i)
 		if _, err := pool.Exec(ctx, `
 			INSERT INTO "Post" (id,content,"authorId",tags,"imageUrl",visibility,"isDraft","likeCount","repostCount","replyCount","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,'public',false,$6,$7,0,$8,$8) ON CONFLICT (id) DO NOTHING`, id, text, u.ID, tags, visualURL(i+60, ""), rng.intn(80), rng.intn(20), now.Add(-time.Duration(i)*time.Hour)); err != nil {
@@ -1225,6 +1725,10 @@ func AddTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		}
 		res.Posts = append(res.Posts, TopPost{ID: id, Content: text, Tags: tags})
 		res.PostIDs = append(res.PostIDs, id)
+	}
+	// Fils de commentaires sur les articles additifs aussi.
+	if err := seedArticleDiscussion(ctx, pool, res, rng); err != nil {
+		return nil, err
 	}
 	return res, nil
 }
@@ -1463,13 +1967,13 @@ func longFormContent(topic topTopic, rng *prng) string {
 
 func biosFor(name string, rng *prng) string {
 	templates := []string{
-		"Journaliste indépendante, je couvre les mutations du numérique.",
-		"Écrivain et essayiste. J'explore la souveraineté à l'ère des plateformes.",
+		"Journaliste indépendante, je couvre les mutations du quotidien.",
+		"Écrivain et essayiste. J'écris sur ce qui nous entoure, sans en faire trop.",
 		"Créatrice de contenus — culture, écologie et politique.",
-		"Rédacteur passionné par les médias indépendants et l'économie de l'attention.",
-		"Autrice et chercheuse. Le temps long comme méthode.",
+		"Rédacteur passionné par les histoires ordinaires.",
+		"Autrice et chercheuse. J'écris sur la vie des gens, tout simplement.",
 		"Journaliste local, enquêteur de terrain.",
-		"Essayiste — numérique, démocratie et libertés.",
+		"Essayiste. J'aime les grands sujets abordés par les petites portes.",
 		"Podcasteuse et chroniqueuse. Je raconte la ville qui vient.",
 		"Photographe amateur, je documente les détails que les flux oublient.",
 		"Développeuse, cycliste et lectrice du dimanche — pas forcément dans cet ordre.",

@@ -276,3 +276,59 @@ func (c *avatarCatalog) pick(gender, theme string) string {
 	c.pos[b]++
 	return url
 }
+
+// ---------------------------------------------------------------------------
+// 🖼️ Couvertures éditoriales thématiques (assets/covers/themed/<theme>/).
+//
+// Alimentées par scripts/fetch-covers.sh (gallery-dl Pinterest → JPEG 1400px).
+// GITIGNORÉES : contenu tiers, dev/test local uniquement. Le catalogue est
+// auto-découvert à l'init ; si le dossier est absent (clone sans covers), le
+// repli retombe sur les 4 paysages éditoriaux embarqués (visualURL).
+// ---------------------------------------------------------------------------
+
+type coverCatalog struct {
+	themes map[string][]string
+	tpos   map[string]int
+}
+
+func loadCoverCatalog() *coverCatalog {
+	c := &coverCatalog{themes: map[string][]string{}, tpos: map[string]int{}}
+	themes, err := visualFiles.ReadDir("assets/covers/themed")
+	if err != nil {
+		return c
+	}
+	for _, t := range themes {
+		if !t.IsDir() {
+			continue
+		}
+		theme := t.Name()
+		files, err := visualFiles.ReadDir("assets/covers/themed/" + theme)
+		if err != nil {
+			continue
+		}
+		for _, f := range files {
+			if f.IsDir() || !isImageExt(f.Name()) {
+				continue
+			}
+			data, err := visualFiles.ReadFile("assets/covers/themed/" + theme + "/" + f.Name())
+			if err != nil || len(data) == 0 {
+				continue
+			}
+			url := "data:" + mimeOf(f.Name()) + ";base64," + base64.StdEncoding.EncodeToString(data)
+			c.themes[theme] = append(c.themes[theme], url)
+		}
+	}
+	return c
+}
+
+// pickCover sert la prochaine couverture du thème (cycle déterministe).
+// Retourne (url, false) si le thème n'a aucune couverture locale.
+func (c *coverCatalog) pickCover(theme string) (string, bool) {
+	pool := c.themes[theme]
+	if len(pool) == 0 {
+		return "", false
+	}
+	url := pool[c.tpos[theme]%len(pool)]
+	c.tpos[theme]++
+	return url, true
+}

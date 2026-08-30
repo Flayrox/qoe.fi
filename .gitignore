@@ -154,3 +154,6 @@ scripts/fetch-gaming-avatars.sh
 scripts/fetch-pinterest-avatars.sh
 scripts/fetch-themed-avatars.sh
 scripts/compress-avatars.sh
+
+# Couvertures thématiques Pinterest — contenu tiers, dev/test local uniquement
+apps/api/internal/seed/assets/covers/

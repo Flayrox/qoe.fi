@@ -32,13 +32,13 @@ func TestPickAgeRangeAndTopic(t *testing.T) {
 	}
 
 	// topicForTags.
-	if got := topicForTags(nil); got != nil {
+	if got := topicForTags(nil, 0); got != nil {
 		t.Fatal("topicForTags(nil) attendu nil")
 	}
-	if got := topicForTags([]string{"inconnu-tag"}); got != nil {
+	if got := topicForTags([]string{"inconnu-tag"}, 0); got != nil {
 		t.Fatal("topicForTags(sans match) attendu nil")
 	}
-	if got := topicForTags([]string{"foot"}); got == nil {
+	if got := topicForTags([]string{"foot"}, 0); got == nil {
 		t.Fatal("topicForTags(foot) attendu un topic")
 	}
 }
