@@ -27,6 +27,8 @@ export function VirtualizedFeedList<T>({
 }: VirtualizedFeedListProps<T>) {
   const parentRef = useRef<HTMLDivElement>(null);
 
+  // The document owns scrolling so the sheet and its feed move as one surface.
+  // Keeping this wrapper non-scrollable also prevents a second wheel target.
   const totalCount = items.length + (hasNextPage ? 1 : 0);
 
   const rowVirtualizer = useVirtualizer({
@@ -53,10 +55,7 @@ export function VirtualizedFeedList<T>({
   }, [lastVirtualIndex, items.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <div
-      ref={parentRef}
-      className="w-full overflow-y-auto max-h-[calc(100vh-8rem)] scrollbar-thin space-y-4 pr-1"
-    >
+    <div ref={parentRef} className="w-full space-y-4 pr-1">
       <div
         className="w-full relative"
         style={{
