@@ -228,6 +228,49 @@ func TestHTTP_ToggleMuteWord(t *testing.T) {
 	}
 }
 
+// ─── GET /v1/me/muted-words (liste) ───────────────────────────────────
+
+func TestHTTP_ListMutedWords(t *testing.T) {
+	fx, err := testutil.SeedPosts(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	r := newRouter()
+
+	// Liste vide au départ.
+	w := do(r, http.MethodGet, "/v1/me/muted-words", fx.AuthorID, "")
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"words":[]`) {
+		t.Fatalf("liste vide = %d %s", w.Code, w.Body.String())
+	}
+
+	// Deux mots ajoutés via le toggle.
+	if w = do(r, http.MethodPost, "/v1/me/muted-words", fx.AuthorID, `{"word":"spoiler"}`); w.Code != http.StatusOK {
+		t.Fatalf("add spoiler = %d %s", w.Code, w.Body.String())
+	}
+	if w = do(r, http.MethodPost, "/v1/me/muted-words", fx.AuthorID, `{"word":"gossip"}`); w.Code != http.StatusOK {
+		t.Fatalf("add gossip = %d %s", w.Code, w.Body.String())
+	}
+
+	w = do(r, http.MethodGet, "/v1/me/muted-words", fx.AuthorID, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("liste = %d %s", w.Code, w.Body.String())
+	}
+	var res struct {
+		Words []string `json:"words"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("json: %v (%s)", err, w.Body.String())
+	}
+	if len(res.Words) != 2 {
+		t.Fatalf("mots = %v, attendu 2", res.Words)
+	}
+
+	// Anonyme → 401.
+	if w = do(r, http.MethodGet, "/v1/me/muted-words", "", ""); w.Code != http.StatusUnauthorized {
+		t.Fatalf("anonyme = %d, attendu 401", w.Code)
+	}
+}
+
 // ─── Publications & wallet ─────────────────────────────────────────────
 
 func TestHTTP_MyPublicationAndMedia(t *testing.T) {

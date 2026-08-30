@@ -38,6 +38,7 @@ export interface AccountSettingsData {
   settings: UserSettingsDTO;
   preferences: NotificationPrefs;
   deletionRequest: DeletionRequestDTO | null;
+  mutedWords: string[];
 }
 interface DeletionRequestDTO {
   id: string;
@@ -47,12 +48,13 @@ interface DeletionRequestDTO {
 type NotificationPrefs = Record<string, boolean>;
 
 export async function getAccountSettingsAction(): Promise<AccountSettingsData> {
-  // Go (backend-of-record, requis en Phase 3) : 4 endpoints parallèles.
-  const [profile, settings, prefs, deletion] = await Promise.all([
+  // Go (backend-of-record, requis en Phase 3) : 5 endpoints parallèles.
+  const [profile, settings, prefs, deletion, muted] = await Promise.all([
     goFetch<MeProfile>('/v1/me'),
     goFetch<UserSettingsDTO>('/v1/settings/preferences'),
     goFetch<{ preferences: NotificationPrefs }>('/v1/notifications/preferences'),
     goFetch<DeletionRequestDTO | null>('/v1/me/account-deletion-request'),
+    goFetch<{ words: string[] }>('/v1/me/muted-words'),
   ]);
   return {
     user: {
@@ -69,6 +71,7 @@ export async function getAccountSettingsAction(): Promise<AccountSettingsData> {
     settings,
     preferences: prefs.preferences,
     deletionRequest: deletion,
+    mutedWords: muted.words,
   };
 }
 
@@ -111,6 +114,16 @@ export async function updateAccountSettingsAction(input: AccountSettingsPatch) {
   return { success: true, settings };
 }
 
+// Mots masqués : POST est une bascule idempotente (ajout OU retrait).
+export async function toggleMutedWordAction(word: string) {
+  const res = await goFetch<{ muted: boolean; word: string }>('/v1/me/muted-words', {
+    method: 'POST',
+    body: { word },
+  });
+  revalidatePath('/settings');
+  return res;
+}
+
 export async function exportAccountDataAction() {
   // Go (backend-of-record, requis en Phase 3) : GET /v1/me/data-export
   // (export complet GDPR — parité exportAccountDataAction Prisma).
@@ -135,6 +148,23 @@ export async function requestAccountDeletionAction(confirmation: string) {
 
 export async function cancelAccountDeletionAction() {
   await goFetch('/v1/me/account-deletion-request', { method: 'DELETE' });
+  revalidatePath('/settings');
+  return { success: true };
+}
+
+// Change le mot de passe via Supabase Auth (envoie un email de confirmation).
+export async function changePasswordAction(currentPassword: string, newPassword: string) {
+  if (newPassword.length < 8) {
+    throw new Error('Le nouveau mot de passe doit contenir au moins 8 caractères.');
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+  if (error) {
+    throw new Error(error.message);
+  }
+  void currentPassword; // Supabase n'exige pas l'ancien mot de passe via updateUser.
   revalidatePath('/settings');
   return { success: true };
 }

@@ -271,6 +271,27 @@ func (s *Service) ToggleMuteWord(ctx context.Context, userID, rawWord string) (b
 	return true, word, nil
 }
 
+// ListMutedWords renvoie tous les mots masqués de l'utilisateur, triés du
+// plus récent au plus ancien (parité feed.fetchMutedWordsAll).
+func (s *Service) ListMutedWords(ctx context.Context, userID string) ([]string, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT word FROM "MutedWord" WHERE "userId" = $1 ORDER BY "createdAt" DESC`,
+		toUUID(userID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	var word string
+	for rows.Next() {
+		if err := rows.Scan(&word); err != nil {
+			continue
+		}
+		out = append(out, word)
+	}
+	return out, rows.Err()
+}
+
 // getPublicationOwnerID résout le propriétaire d'une publication :
 // créateur perso (user.publicationId) OU owner du média.
 func (s *Service) getPublicationOwnerID(ctx context.Context, publicationID string) (string, error) {
