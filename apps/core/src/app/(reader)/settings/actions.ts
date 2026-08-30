@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
-import type { MeProfile } from '@/lib/cached-queries';
+import { fetchMeProfile } from '@/lib/me';
 
 // ── Contrats des endpoints Go lecteur ────────────────────────────────────
 interface UserSettingsDTO {
@@ -50,7 +50,7 @@ type NotificationPrefs = Record<string, boolean>;
 export async function getAccountSettingsAction(): Promise<AccountSettingsData> {
   // Go (backend-of-record, requis en Phase 3) : 5 endpoints parallèles.
   const [profile, settings, prefs, deletion, muted] = await Promise.all([
-    goFetch<MeProfile>('/v1/me'),
+    fetchMeProfile(),
     goFetch<UserSettingsDTO>('/v1/settings/preferences'),
     goFetch<{ preferences: NotificationPrefs }>('/v1/notifications/preferences'),
     goFetch<DeletionRequestDTO | null>('/v1/me/account-deletion-request'),
