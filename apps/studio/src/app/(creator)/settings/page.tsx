@@ -113,9 +113,11 @@ export default async function CreatorSettingsPage() {
   };
   try {
     const me = await goFetch<{
-      data: { email: string; username: string | null; hasCompletedOnboarding: boolean };
-    }>('/v1/users/me');
-    account = me.data;
+      email: string;
+      username: string | null;
+      hasCompletedOnboarding: boolean;
+    }>('/v1/me');
+    account = me;
   } catch {
     // La publication reste affichable si la lecture du profil secondaire échoue.
   }

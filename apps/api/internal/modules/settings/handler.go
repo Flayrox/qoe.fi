@@ -31,6 +31,8 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 		r.Patch("/profile", h.updateProfile)
 		r.Get("/publication", h.getPublicationSettings)
 		r.Get("/preferences", h.getPreferences)
+		r.Get("/consent", h.getConsent)
+		r.Patch("/consent", h.updateConsent)
 		r.Patch("/preferences", h.updatePreferences)
 		r.Post("/subdomain", h.updateSubdomain)
 		r.Put("/navigation", h.saveNavigation)
@@ -45,6 +47,38 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Get("/v1/me/account-deletion-request", h.getDeletionRequest)
 	r.Post("/v1/me/account-deletion-request", h.requestDeletion)
 	r.Delete("/v1/me/account-deletion-request", h.cancelDeletion)
+}
+
+func (h *Handler) getConsent(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	out, err := h.svc.GetConsentPreferences(r.Context(), userID)
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, out)
+}
+func (h *Handler) updateConsent(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	var in ConsentPreferences
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	out, err := h.svc.UpdateConsentPreferences(r.Context(), userID, in)
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, out)
 }
 
 // GET /v1/settings/publication?publicationId= — publication + relations de la

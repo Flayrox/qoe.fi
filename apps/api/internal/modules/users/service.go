@@ -23,11 +23,87 @@ import (
 )
 
 type Service struct {
-	pool pooler
+	pool   pooler
+	gotrue *goTrueClient
+}
+
+type Identity struct {
+	Email string `json:"email"`
+}
+
+func (s *Service) Identity(ctx context.Context, userID string) (Identity, error) {
+	var out Identity
+	err := s.pool.QueryRow(ctx, `SELECT email FROM "User" WHERE id = $1`, toUUID(userID)).Scan(&out.Email)
+	if err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+func (s *Service) MFA(ctx context.Context, userID, authorization string) (map[string]any, error) {
+	return s.gotrueRequest(ctx, userID, authorization, http.MethodGet, "/auth/v1/factors", nil)
+}
+func (s *Service) MFARequest(ctx context.Context, userID, authorization, method, path string, payload map[string]any) (map[string]any, error) {
+	return s.gotrueRequest(ctx, userID, authorization, method, path, payload)
+}
+func (s *Service) MFADelete(ctx context.Context, userID, authorization, path string) error {
+	_, err := s.gotrueRequest(ctx, userID, authorization, http.MethodDelete, path, nil)
+	return err
+}
+func (s *Service) gotrueRequest(ctx context.Context, userID, authorization, method, path string, payload map[string]any) (map[string]any, error) {
+	if s.gotrue == nil {
+		s.gotrue = newGoTrueClient(os.Getenv("SUPABASE_AUTH_URL"), os.Getenv("SUPABASE_SERVICE_ROLE_KEY"))
+	}
+	return s.gotrue.requestWithAuthorization(ctx, userID, authorization, method, path, payload)
+}
+
+func (s *Service) reauthenticate(ctx context.Context, userID, currentPassword string) error {
+	var email string
+	if err := s.pool.QueryRow(ctx, `SELECT email FROM "User" WHERE id = $1`, toUUID(userID)).Scan(&email); err != nil {
+		return err
+	}
+	if strings.TrimSpace(currentPassword) == "" {
+		return errors.New("Le mot de passe actuel est requis.")
+	}
+	if s.gotrue == nil {
+		s.gotrue = newGoTrueClient(os.Getenv("SUPABASE_AUTH_URL"), os.Getenv("SUPABASE_SERVICE_ROLE_KEY"))
+	}
+	return s.gotrue.verifyPassword(ctx, email, currentPassword)
+}
+
+func (s *Service) ChangeEmail(ctx context.Context, userID, currentPassword, newEmail string) error {
+	if s.gotrue == nil {
+		s.gotrue = newGoTrueClient(os.Getenv("SUPABASE_AUTH_URL"), os.Getenv("SUPABASE_SERVICE_ROLE_KEY"))
+	}
+	if err := s.reauthenticate(ctx, userID, currentPassword); err != nil {
+		return errors.New("Réauthentification échouée.")
+	}
+	newEmail = strings.ToLower(strings.TrimSpace(newEmail))
+	if !strings.Contains(newEmail, "@") || len(newEmail) > 320 {
+		return errors.New("Adresse email invalide.")
+	}
+	if err := s.gotrue.updateUser(ctx, userID, map[string]any{"email": newEmail, "email_confirm": false}); err != nil {
+		return err
+	}
+	_, err := s.pool.Exec(ctx, `UPDATE "User" SET email = $1, "updatedAt" = now() WHERE id = $2`, newEmail, toUUID(userID))
+	return err
+}
+
+func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
+	if s.gotrue == nil {
+		s.gotrue = newGoTrueClient(os.Getenv("SUPABASE_AUTH_URL"), os.Getenv("SUPABASE_SERVICE_ROLE_KEY"))
+	}
+	if err := s.reauthenticate(ctx, userID, currentPassword); err != nil {
+		return errors.New("Réauthentification échouée.")
+	}
+	if len(newPassword) < 12 || len(newPassword) > 128 {
+		return errors.New("Le nouveau mot de passe doit contenir entre 12 et 128 caractères.")
+	}
+	return s.gotrue.updateUser(ctx, userID, map[string]any{"password": newPassword})
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool}
+	return &Service{pool: pool, gotrue: newGoTrueClient(os.Getenv("SUPABASE_AUTH_URL"), os.Getenv("SUPABASE_SERVICE_ROLE_KEY"))}
 }
 
 type Contributor struct {
