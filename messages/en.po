@@ -983,7 +983,7 @@ msgid "Le Sanctuaire"
 msgstr "The Sanctuary"
 
 msgid "Le temps long, réinventé."
-msgstr ""
+msgstr "The long now, reinvented."
 
 msgid "Lecteur"
 msgstr "Reader"
@@ -1031,7 +1031,7 @@ msgid "Lire"
 msgstr "Read"
 
 msgid "Lire l'article"
-msgstr ""
+msgstr "Read the article"
 
 msgid "Lire la documentation"
 msgstr "Read the documentation"
@@ -1070,7 +1070,7 @@ msgid "Média Certifié Souverain"
 msgstr "Sovereign Certified Media"
 
 msgid "Médias"
-msgstr ""
+msgstr "Media"
 
 #. placeholder {0}: activeLang.toUpperCase()
 msgid "Mentions de rassurance en bas de page ({0})"
@@ -1113,7 +1113,7 @@ msgid "Modifié il y a {diffHours}h"
 msgstr "Modified {diffHours}h ago"
 
 msgid "Moins de 18 ans"
-msgstr ""
+msgstr "Under 18"
 
 msgid "Mon Média"
 msgstr "My Media"
@@ -1149,7 +1149,7 @@ msgid "Nom de l'onglet"
 msgstr "Tab name"
 
 msgid "Non-binaire"
-msgstr ""
+msgstr "Non-binary"
 
 msgid "Note de la rédaction"
 msgstr "Editor's note"
@@ -1177,7 +1177,7 @@ msgstr "100% secure payment via Stripe • Cancel anytime"
 
 #. placeholder {0}: article.author.name
 msgid "Par {0}"
-msgstr ""
+msgstr "By {0}"
 
 msgid "Paragraphe"
 msgstr "Paragraph"
@@ -1448,7 +1448,7 @@ msgid "Réglages de la console"
 msgstr "Console settings"
 
 msgid "Réglages du compte"
-msgstr ""
+msgstr "Account settings"
 
 msgid "Réglages du Studio"
 msgstr "Studio settings"
@@ -1505,7 +1505,7 @@ msgstr "Take back control \n"
 "of your audience."
 
 msgid "Reprenez le contrôle."
-msgstr ""
+msgstr "Take back control."
 
 msgid "Résiliation sans engagement en 1 clic"
 msgstr "Cancel commitment-free in 1 click"
@@ -1530,7 +1530,7 @@ msgstr "Back"
 #~ msgstr "Return to the blog of {0}"
 
 msgid "Retourner au blog de {displayName}"
-msgstr ""
+msgstr "Back to the blog of {displayName}"
 
 msgid "Retrouvez le goût \n"
 "du temps long."
@@ -1562,10 +1562,10 @@ msgid "Saisissez le texte..."
 msgstr "Enter the text..."
 
 msgid "Sanctuaire configuré à {progressPercent}%"
-msgstr ""
+msgstr "Sanctuary configured to {progressPercent}%"
 
 msgid "SANCTUAIRE DE LECTURE"
-msgstr ""
+msgstr "READING SANCTUARY"
 
 msgid "Sanctuaire Elfique (Clair)"
 msgstr "Elven Sanctuary (Light)"
@@ -1601,7 +1601,7 @@ msgid "Section"
 msgstr "Section"
 
 msgid "Sélectionnez au moins 2 univers pour débuter."
-msgstr ""
+msgstr "Select at least 2 universes to get started."
 
 #~ msgid "Sélectionnez au moins 3 centres d'intérêt pour calibrer votre sanctuaire."
 #~ msgstr "Select at least 3 interests to calibrate your sanctuary."
