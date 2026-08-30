@@ -10,6 +10,7 @@ import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import VisualStudio, { CreatorProfile } from '@/features/settings/components/visual-studio';
+import { AccountSecurity } from '@/features/settings/components/account-security';
 
 // Contrat Go GET /v1/settings/publication — mêmes champs JSON que le include
 // Prisma d'origine (le mapping vers CreatorProfile ci-dessous est inchangé).
@@ -105,6 +106,19 @@ export default async function CreatorSettingsPage() {
 
   const owner = publication.user;
   const isMedia = workspace.type === 'MEDIA';
+  let account = {
+    email: user.email ?? '',
+    username: owner?.username ?? null,
+    hasCompletedOnboarding: true,
+  };
+  try {
+    const me = await goFetch<{
+      data: { email: string; username: string | null; hasCompletedOnboarding: boolean };
+    }>('/v1/users/me');
+    account = me.data;
+  } catch {
+    // La publication reste affichable si la lecture du profil secondaire échoue.
+  }
 
   // Date du DTO Go = string ISO ; fallback Prisma = Date.
   const toIso = (d: string | Date) => (typeof d === 'string' ? d : d.toISOString());
@@ -164,5 +178,10 @@ export default async function CreatorSettingsPage() {
     mediaRole: isMedia ? workspace.mediaRole : undefined,
   };
 
-  return <VisualStudio initialCreator={initialCreatorData} />;
+  return (
+    <>
+      <AccountSecurity profile={account} />
+      <VisualStudio initialCreator={initialCreatorData} />
+    </>
+  );
 }
