@@ -34,6 +34,13 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --fetch-timeout 600000
 
+      # Guard seed de thème : échoue si seed-script.tsx ré-importe next/script
+      # (composant client → warning React « script tag » sur router.refresh /
+      # login) OU si un rendu client loggue ce warning. Verrouille le correctif
+      # anti-FOUC sans regression possible dans le temps.
+      - name: Guard seed-script (next/script + warning « script tag »)
+        run: pnpm guard:seed-script
+
       - name: Typecheck Monorepo
         run: pnpm typecheck
 

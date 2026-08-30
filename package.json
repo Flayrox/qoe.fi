@@ -39,6 +39,7 @@
     "start": "turbo run start",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
+    "guard:seed-script": "bash scripts/guard-seed-script.sh",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "e2e": "playwright test",
