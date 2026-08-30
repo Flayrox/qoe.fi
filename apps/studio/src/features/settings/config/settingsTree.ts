@@ -27,6 +27,116 @@ export const settingsTree: SettingsNode = {
   path: '/settings',
   children: [
     {
+      id: 'profile-public',
+      titleKey: 'dashboard.settings.profile_public',
+      label: () => t`Profil public`,
+      path: '#profile-public',
+      children: [
+        {
+          id: 'profile-public-edit',
+          titleKey: 'dashboard.settings.profile_public_edit',
+          label: () => t`Modifier mon profil`,
+          hash: '#profile-public-edit',
+          keywordsKey: ['profil', 'username', 'avatar', 'bio', 'pronoms', 'nom'],
+        },
+      ],
+    },
+    {
+      id: 'account',
+      titleKey: 'dashboard.settings.account_title',
+      label: () => t`Compte`,
+      path: '#account',
+      children: [
+        {
+          id: 'account-identity',
+          titleKey: 'dashboard.settings.account_identity',
+          label: () => t`Identité & email`,
+          hash: '#account-identity',
+          keywordsKey: ['compte', 'email', 'identité', 'verification'],
+        },
+        {
+          id: 'account-password',
+          titleKey: 'dashboard.settings.account_password',
+          label: () => t`Mot de passe`,
+          hash: '#account-password',
+          keywordsKey: ['password', 'mot de passe', 'connexion'],
+        },
+        {
+          id: 'account-providers',
+          titleKey: 'dashboard.settings.account_providers',
+          label: () => t`Fournisseurs de connexion`,
+          hash: '#account-providers',
+          keywordsKey: ['oauth', 'google', 'apple', 'connexion'],
+        },
+      ],
+    },
+    {
+      id: 'security',
+      titleKey: 'dashboard.settings.security_title',
+      label: () => t`Sécurité`,
+      path: '#security',
+      children: [
+        {
+          id: 'security-mfa',
+          titleKey: 'dashboard.settings.security_mfa',
+          label: () => t`Authentification multifacteur`,
+          hash: '#security-mfa',
+          keywordsKey: ['mfa', '2fa', 'totp', 'sécurité'],
+        },
+        {
+          id: 'security-sessions',
+          titleKey: 'dashboard.settings.security_sessions',
+          label: () => t`Sessions actives`,
+          hash: '#security-sessions',
+          keywordsKey: ['sessions', 'appareils', 'déconnexion'],
+        },
+        {
+          id: 'security-audit',
+          titleKey: 'dashboard.settings.security_audit',
+          label: () => t`Historique de sécurité`,
+          hash: '#security-audit',
+          keywordsKey: ['audit', 'connexion', 'historique', 'sécurité'],
+        },
+      ],
+    },
+    {
+      id: 'privacy',
+      titleKey: 'dashboard.settings.privacy_title',
+      label: () => t`Confidentialité`,
+      path: '#privacy',
+      children: [
+        {
+          id: 'privacy-controls',
+          titleKey: 'dashboard.settings.privacy_controls',
+          label: () => t`Contrôles de confidentialité`,
+          hash: '#privacy-controls',
+          keywordsKey: ['confidentialité', 'mentions', 'profil', 'contenu sensible'],
+        },
+      ],
+    },
+    {
+      id: 'data',
+      titleKey: 'dashboard.settings.data_title',
+      label: () => t`Données & confidentialité`,
+      path: '#data',
+      children: [
+        {
+          id: 'data-export',
+          titleKey: 'dashboard.settings.data_export',
+          label: () => t`Exporter mes données`,
+          hash: '#data-export',
+          keywordsKey: ['export', 'données', 'rgpd', 'gdpr'],
+        },
+        {
+          id: 'data-delete',
+          titleKey: 'dashboard.settings.data_delete',
+          label: () => t`Supprimer mon compte`,
+          hash: '#data-delete',
+          keywordsKey: ['suppression', 'delete', 'compte', 'rgpd'],
+        },
+      ],
+    },
+    {
       id: 'general',
       titleKey: 'dashboard.settings.general_title',
       label: () => t`Général`,
