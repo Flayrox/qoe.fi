@@ -220,6 +220,32 @@ export async function deleteSystemConfigAction(key: string) {
   }
 }
 
+/** 🔐 Sauvegarde les méthodes de connexion (clé SystemConfig AUTH_METHODS, JSON). */
+export async function saveAuthMethodsAction(methods: {
+  google: boolean;
+  apple: boolean;
+  password: boolean;
+  magicLink: boolean;
+}) {
+  await verifySuperadmin();
+  try {
+    const value = JSON.stringify(methods);
+    validateJson(value, 'AUTH_METHODS');
+    await upsertConfigsGo([
+      {
+        key: 'AUTH_METHODS',
+        value,
+        description: 'Méthodes de connexion autorisées (JSON {google, apple, password, magicLink})',
+      },
+    ]);
+    revalidatePath('/admin/config');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
+  }
+}
+
 /** 🎨 Sauvegarde les configs frontend (page frontend — JSON validé). */
 export async function saveMultipleFrontendConfigs(
   configs: Record<string, { value: string; description?: string }>
