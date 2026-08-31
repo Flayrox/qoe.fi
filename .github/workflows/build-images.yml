@@ -1,0 +1,125 @@
+# =====================================================================
+# 🐳 Build & Push des images QOE vers GHCR (ghcr.io/flayrox)
+# =====================================================================
+# 💡 Flux : CI → registre → VPS (pull). Le VPS ne build PLUS : deploy =
+# `docker compose pull` + up (voir scripts/deploy-prod.sh) → < 1 min.
+# Le Dockerfile racine compile via Turborepo (cache /app/.turbo monté) :
+# seuls les packages changés sont rebuildés, et un changement de
+# NEXT_PUBLIC_* invalide le hash turbo (globalEnv + globalDependencies).
+#
+# ⚠️ Les NEXT_PUBLIC_* ci-dessous sont des valeurs PUBLIQUES (servies au
+#    navigateur : URLs + clé anon). Elles doivent rester synchronisées
+#    avec le .env.docker du VPS (seule source de vérité pour le runtime).
+#    Rien de secret ne doit entrer dans ce fichier.
+#
+# Première fois sur le VPS (une seule fois) :
+#     echo $PAT | docker login ghcr.io -u <user> --password-stdin
+#     # PAT classic, scope read:packages (le repo GitHub est privé)
+# =====================================================================
+name: Build & Push Images
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NS: ghcr.io/flayrox
+
+jobs:
+  build-and-push:
+    name: Build & push ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: tenants
+            context: .
+            dockerfile: Dockerfile
+            target: tenants
+          - service: hi
+            context: .
+            dockerfile: Dockerfile
+            target: hi
+          - service: core
+            context: .
+            dockerfile: Dockerfile
+            target: core
+          - service: studio
+            context: .
+            dockerfile: Dockerfile
+            target: studio
+          - service: admin
+            context: .
+            dockerfile: Dockerfile
+            target: admin
+          - service: migrate
+            context: .
+            dockerfile: Dockerfile
+            target: migrate
+          # api & worker partagent le MÊME image (apps/api/Dockerfile build
+          # qoe-server + qoe-worker + qoe-migrate en une passe) : deux tags.
+          - service: api
+            context: ./apps/api
+            dockerfile: Dockerfile
+            target: ''
+          - service: worker
+            context: ./apps/api
+            dockerfile: Dockerfile
+            target: ''
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Valeurs PUBLIQUES (browser-facing) — miroir du .env.docker VPS.
+      # Le Dockerfile racine copie .env.docker → .env des apps pour que
+      # NEXT_PUBLIC_* soient inlinées au build Next.js.
+      - name: Prepare public build env (.env.docker)
+        run: |
+          cat > .env.docker <<'EOF'
+          NEXT_PUBLIC_SUPABASE_URL=https://auth.qoe.fi
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjogImFub24iLCAiaXNzIjogInN1cGFiYXNlIiwgImlhdCI6IDE3ODcyNzQxMjQsICJleHAiOiAyMTAyNjM0MTI0fQ.rxeCxaVkpb4DbmAmTEPovuYGxZ-1aw3BnKCwGly8OIs
+          NEXT_PUBLIC_APP_URL=https://qoe.fi
+          NEXT_PUBLIC_CONSOLE_URL=https://qoe.fi
+          NEXT_PUBLIC_LANDING_URL=https://hi.qoe.fi
+          NEXT_PUBLIC_API_URL=https://api.qoe.fi
+          NEXT_PUBLIC_ADMIN_URL=https://admin.qoe.fi
+          NEXT_PUBLIC_DASHBOARD_URL=https://studio.qoe.fi
+          NEXT_PUBLIC_UMAMI_SCRIPT_URL=https://umami.qoe.fi/script.js
+          # Vides en attendant leur activation (voir VPS_DEPLOYMENT_PREP.md)
+          NEXT_PUBLIC_UMAMI_WEBSITE_ID=
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+          EOF
+          echo "✓ .env.docker généré (valeurs publiques uniquement)"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          push: true
+          tags: |
+            ${{ env.IMAGE_NS }}/qoefi-${{ matrix.service }}:latest
+            ${{ env.IMAGE_NS }}/qoefi-${{ matrix.service }}:${{ github.sha }}
+          # BuildKit cache partagé entre runs → seules les couches changées
+          # sont reconstruites d'un déploiement à l'autre.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -498,3 +498,32 @@ et les apps qoe pointent `supabase-db:5432`.
   **2026-11-29** (expiration du cert courant).
 - [ ] **SPF sur le host HELO `mail.qoe.fi`** : publier `v=spf1 a -all` (couvre A + AAAA du VPS) pour lever
   le point `SPF_HELO_NONE` de mail-tester (mineur : +0.001, le score reste 10/10 sans).
+
+---
+
+## 1️⃣5️⃣ 🚄 Déploiement CI + GHCR (2026-09-01) — plus de build sur le VPS
+
+**Flux** : `push main` → GitHub Actions build les 8 images (workflow
+`.github/workflows/build-images.yml`) et les pousse sur `ghcr.io/flayrox/qoefi-*`
+(tenants, hi, core, studio, admin, migrate + api/worker) → `scripts/deploy-prod.sh`
+fait un simple `docker compose pull` + backup DB + goose + `up -d` + smoke (< 1 min,
+contre ~15 min de build sur le VPS avant).
+
+- **Dockerfile** : le `--force --concurrency=1` (rebuild intégral à chaque fois) a été retiré —
+  Turborepo ne rebuild que les packages changés (cache `/app/.turbo` monté ; `globalEnv` +
+  `globalDependencies` dans `turbo.json` invalident le hash si une `NEXT_PUBLIC_*` change).
+  `SKIP_ENV_VALIDATION=true` est posé dans le stage builder (le runtime reçoit le vrai
+  `.env.docker` via `env_file` compose).
+- **Valeurs build CI** : seules les `NEXT_PUBLIC_*` **publiques** (URLs + clé anon) sont dans le
+  workflow — à garder synchronisées avec le `.env.docker` du VPS (source de vérité runtime).
+- **🛡️ Effet de bord positif** : les builds viennent de GitHub (pas de fichiers `._*` macOS) →
+  plus de risque goose/`._00001_init.sql` (le `_._*` exclus du tar + purge manuelle du 01/09).
+
+**Setup UNE FOIS sur le VPS** (repo GitHub privé → PAT requis) :
+```bash
+# PAT classic scope read:packages (GitHub → Settings → Developer settings → PAT)
+echo '<PAT>' | docker login ghcr.io -u Flayrox --password-stdin
+```
+
+**À tester au premier déploiement CI** : `bash scripts/deploy-prod.sh` (le pull exige que le
+workflow ait poussé au moins une fois les images sur GHCR).
