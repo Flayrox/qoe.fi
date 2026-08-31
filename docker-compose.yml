@@ -100,7 +100,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: tenants
-    image: qoefi-tenants:latest
+    image: ghcr.io/flayrox/qoefi-tenants:latest
     # Les frontends Next.js font du Prisma direct vers supabase-db : ils
     # doivent être sur supabase_default (comme api/worker/migrate).
     networks:
@@ -161,7 +161,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: hi
-    image: qoefi-hi:latest
+    image: ghcr.io/flayrox/qoefi-hi:latest
     container_name: qoefi-hi
     restart: unless-stopped
 
@@ -219,7 +219,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: core
-    image: qoefi-core:latest
+    image: ghcr.io/flayrox/qoefi-core:latest
     container_name: qoefi-core
     restart: unless-stopped
 
@@ -278,7 +278,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: studio
-    image: qoefi-studio:latest
+    image: ghcr.io/flayrox/qoefi-studio:latest
     container_name: qoefi-studio
     restart: unless-stopped
 
@@ -337,7 +337,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: admin
-    image: qoefi-admin:latest
+    image: ghcr.io/flayrox/qoefi-admin:latest
     container_name: qoefi-admin
     restart: unless-stopped
 
@@ -395,7 +395,7 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
-    image: qoefi-api:latest
+    image: ghcr.io/flayrox/qoefi-api:latest
     container_name: qoefi-api
     restart: unless-stopped
 
@@ -460,7 +460,7 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
-    image: qoefi-worker:latest
+    image: ghcr.io/flayrox/qoefi-worker:latest
     container_name: qoefi-worker
     restart: unless-stopped
     entrypoint: ['/usr/local/bin/qoe-worker']
@@ -662,6 +662,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: migrate # Stage dédié avec le binaire qoe-migrate + migrations
+    image: ghcr.io/flayrox/qoefi-migrate:latest
     container_name: qoefi-migrate
     restart: 'no' # S'exécute une seule fois, ne redémarre pas
 

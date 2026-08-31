@@ -58,9 +58,17 @@ RUN if [ -f .env.docker ]; then \
 # Compile Lingui catalogs (fr.po/en.po → fr.js/en.js) before building apps
 RUN pnpm lingui compile
 
-# Build chaque app en utilisant le cache Turborepo (mais force le build pour garantir l'injection des variables d'environnement)
-# ⚠️ Concurrency bridée à 1 et max-old-space-size à 2048 pour éviter de faire saturer les 4Go de RAM du VPS lors des compilations Next.js
-RUN --mount=type=cache,target=/app/.turbo NODE_OPTIONS="--max-old-space-size=2048" pnpm turbo build --force --concurrency=1
+# Build chaque app via Turborepo. Le cache (montage /app/.turbo) + globalEnv/globalDependencies
+# (turbo.json) ne rebuildent que ce qui change : le --force (rebuild intégral à chaque déploiement,
+# ~15 min) a été retiré. L'injection des variables d'environnement est garantie par turbo.json
+# (globalEnv + ".env" dans globalDependencies) : changer une NEXT_PUBLIC_* invalide le hash ET le
+# cp .env.docker → .env (racine) ci-dessus. SKIP_ENV_VALIDATION permet au build CI (sans .env.docker
+# complet) de compiler sans la validation Zod — le runtime, lui, reçoit le vrai .env.docker via
+# env_file compose.
+# ⚠️ Sans --concurrency=1 : sur une machine < 4 Go de RAM, remettre --concurrency=2 — le build lourd
+# passe désormais par la CI (GitHub Actions), pas par le VPS (voir deploy-prod.sh → pull).
+ENV SKIP_ENV_VALIDATION=true
+RUN --mount=type=cache,target=/app/.turbo NODE_OPTIONS="--max-old-space-size=2048" pnpm turbo build
 
 
 # ═════════════════════════════════════════════════════════════════════
