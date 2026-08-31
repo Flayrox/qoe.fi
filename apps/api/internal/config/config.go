@@ -43,6 +43,18 @@ type Config struct {
 	OAuthSigningKey string
 	// DevtoolsDevOnly active le panneau de dev par secret partagé (QOE_DEVTOOLS_DEV_ONLY).
 	DevtoolsDevOnly bool
+
+	// ── Boîte d'envoi email (drain des notifications) ────────────────
+	// NOTIFICATION_DELIVERY_ENABLED=true + EMAIL_PROVIDER (smtp|resend).
+	NotificationDeliveryEnabled bool
+	EmailProvider               string
+	EmailFrom                   string
+	SMTPHost                    string
+	SMTPPort                    int
+	SMTPUser                    string
+	SMTPPass                    string
+	SMTPSecure                  bool
+	ResendAPIKey                string
 }
 
 func Load() *Config {
@@ -72,7 +84,28 @@ func Load() *Config {
 		OAuthAuthorizeURL: envOr("OAUTH_AUTHORIZE_URL", "http://localhost:3010/oauth/authorize"),
 		OAuthSigningKey:   envOr("OAUTH_SIGNING_KEY", ""),
 		DevtoolsDevOnly:   boolEnv("QOE_DEVTOOLS_DEV_ONLY"),
+
+		// ── Boîte d'envoi email (drain des notifications) ────────────────
+		NotificationDeliveryEnabled: boolEnv("NOTIFICATION_DELIVERY_ENABLED"),
+		EmailProvider:               envOr("EMAIL_PROVIDER", ""),
+		EmailFrom:                   envOr("EMAIL_FROM", ""),
+		SMTPHost:                    envOr("SMTP_HOST", ""),
+		SMTPPort:                    envInt("SMTP_PORT", 587),
+		SMTPUser:                    envOr("SMTP_USER", ""),
+		SMTPPass:                    envOr("SMTP_PASS", ""),
+		SMTPSecure:                  boolEnv("SMTP_SECURE"),
+		ResendAPIKey:                envOr("RESEND_API_KEY", ""),
 	}
+}
+
+// envInt lit une variable d'environnement entière (défaut sinon).
+func envInt(key string, def int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+	}
+	return def
 }
 
 func boolEnv(key string) bool {
