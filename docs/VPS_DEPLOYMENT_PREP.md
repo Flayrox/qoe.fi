@@ -519,11 +519,33 @@ contre ~15 min de build sur le VPS avant).
 - **🛡️ Effet de bord positif** : les builds viennent de GitHub (pas de fichiers `._*` macOS) →
   plus de risque goose/`._00001_init.sql` (le `_._*` exclus du tar + purge manuelle du 01/09).
 
-**Setup UNE FOIS sur le VPS** (repo GitHub privé → PAT requis) :
-```bash
-# PAT classic scope read:packages (GitHub → Settings → Developer settings → PAT)
-echo '<PAT>' | docker login ghcr.io -u Flayrox --password-stdin
-```
+**Setup UNE FOIS — auth GHCR par GitHub App (PAS de PAT long-lived)** :
+Le VPS ne détient aucune session permanente : `scripts/ghcr-login.sh` (appelé à chaque
+`deploy-prod.sh`) signe un JWT avec la clé privée de l'app, l'échange contre un **token
+d'installation TTL 1 h** et fait `docker login`.
+
+1. GitHub → Settings → Developer settings → **GitHub Apps** → New GitHub App :
+   - Permissions → **Packages : Read-only** (Metadata read s'ajoute automatiquement)
+   - Pas de webhook, pas d'URL de callback (app « machine »)
+2. **Generate a private key** → télécharger le `.pem` (jamais committé !).
+3. Installer l'app sur le repo `Flayrox/qoe.fi`.
+4. Récupérer `GHCR_INSTALLATION_ID` :
+   ```bash
+   # avec le JWT du helper (ou GET https://api.github.com/app/installations avec le Bearer JWT)
+   curl -fsSL -H "Authorization: Bearer $JWT" -H 'Accept: application/vnd.github+json' \
+     https://api.github.com/app/installations | jq -r '.[].id'
+   ```
+5. Sur le VPS (une fois) :
+   ```bash
+   install -m 600 qoe-ci.pem /root/ghcr-app.pem
+   cat > /root/ghcr-app.env <<'EOF'
+   GHCR_APP_ID=123456
+   GHCR_INSTALLATION_ID=12345678
+   GHCR_APP_SLUG=qoe-ci-bot
+   EOF
+   ```
+   **Rotation/révocation** : régénérer la clé privée (Settings → app → Regenerate private key)
+   ou désinstaller l'app — aucun token à invalider, la session meurt en 1 h.
 
 **À tester au premier déploiement CI** : `bash scripts/deploy-prod.sh` (le pull exige que le
 workflow ait poussé au moins une fois les images sur GHCR).
