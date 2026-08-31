@@ -428,7 +428,9 @@ export async function buildVectorFeedPage(params: {
   }
   const { items: engineItems, hasMore } = enginePage;
 
-  const pageItems = engineItems.slice(0, limit);
+  // 🛡️ Le moteur Go peut servir `items: null` (200) quand le catalogue est vide
+  // pour ce user — ne jamais .slice sur null (crash SSR digest Next).
+  const pageItems = (engineItems ?? []).slice(0, limit);
 
   // Réhydratation 100% Go : articles complets + pensées (FeedSlice).
   let hydrated: HydrateResponse;

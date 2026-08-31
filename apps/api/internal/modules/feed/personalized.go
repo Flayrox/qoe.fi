@@ -1178,6 +1178,13 @@ func (s *Service) PersonalizedEngine(ctx context.Context, userID string, limit, 
 		interleaved = s.injectDiscovery(ctx, userID, interleaved, limit, cfg)
 	}
 
+	// 🛡️ Jamais de `items: null` dans le JSON (sinon crash client : .slice sur
+	// null). Un interleave vide (catalogue vide pour ce user, tout en muted…) doit
+	// marshaler `[]` — vécu en prod : digest Next 1073556613.
+	if interleaved == nil {
+		interleaved = []EngineItem{}
+	}
+
 	return EngineResult{Items: interleaved, HasMore: hasMore, NextCursor: strconv.Itoa(offset + len(interleaved))}, nil
 }
 

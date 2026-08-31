@@ -96,37 +96,42 @@ interface HomeData {
 const mapHydrated = (a: HydrateArticle): ArticleFeedItem =>
   mapArticleToFeedItem(a as unknown as ArticleWithDetails);
 
+// 🛡️ Le bundle Go peut servir des champs null (au lieu de []) dans certains
+// états dégradés — normaliser UNIFORMÉMENT au niveau du contrat front, pour
+// ne jamais .slice/.map sur null (crash SSR digest 1073556613 vécu en prod).
+const list = <T,>(v: T[] | null | undefined): T[] => v ?? [];
+
 const mergeTimeline = (articles: FeedItem[], thoughts: FeedSlice[], userId?: string): FeedItem[] =>
-  [...articles, ...thoughts.map((s) => mapSliceToFeedItem(s, userId))].sort(
+  [...list(articles), ...list(thoughts).map((s) => mapSliceToFeedItem(s, userId))].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
 function homeDataFromGo(h: HomeFeedResult, userId?: string): HomeData {
   return {
     followingArticles: mergeTimeline(
-      h.following.articles.map(mapHydrated),
+      list(h.following.articles).map(mapHydrated),
       h.following.thoughts,
       userId
     ),
     recommendationArticles: mergeTimeline(
-      h.recommended.articles.map(mapHydrated),
+      list(h.recommended.articles).map(mapHydrated),
       h.recommended.thoughts,
       userId
     ),
     discoverArticles: mergeTimeline(
-      h.discover.articles.map(mapHydrated),
+      list(h.discover.articles).map(mapHydrated),
       h.discover.thoughts,
       userId
     ),
-    bookmarks: h.bookmarks.map(mapHydrated),
-    followedCreators: h.followedCreators.map((p) => mapPublicationToAuthor(p)),
-    followedAuthorIds: h.followedUserIds,
-    initialFollowsCount: h.followedCreators.length,
-    initialBookmarksCount: h.bookmarks.length,
-    initialHighlightsCount: h.highlightsCount,
-    mutedWords: h.mutedWords.map((w) => w.toLowerCase()),
+    bookmarks: list(h.bookmarks).map(mapHydrated),
+    followedCreators: list(h.followedCreators).map((p) => mapPublicationToAuthor(p)),
+    followedAuthorIds: list(h.followedUserIds),
+    initialFollowsCount: list(h.followedCreators).length,
+    initialBookmarksCount: list(h.bookmarks).length,
+    initialHighlightsCount: h.highlightsCount ?? 0,
+    mutedWords: list(h.mutedWords).map((w) => w.toLowerCase()),
     featuredArticle: h.featuredArticle ? mapHydrated(h.featuredArticle) : null,
-    widgetRecArticles: h.recommended.articles.slice(0, 5).map(mapHydrated),
+    widgetRecArticles: list(h.recommended.articles).slice(0, 5).map(mapHydrated),
     activityData: h.activityData,
   };
 }
