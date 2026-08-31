@@ -127,6 +127,39 @@ n'existe pas. Localement, autoriser node dans
 `System Settings > Network > Firewall` ou desactiver le filtre tiers le
 temps du run.
 
+## E2E Core — confidentialité des likes
+
+`e2e/like-privacy.spec.ts` couvre le parcours réel de bout en bout :
+
+1. création d'un compte GoTrue de test ;
+2. ouverture de `/settings/privacy` dans Core ;
+3. passage de « Visibilité de mes likes » à `PRIVATE` ;
+4. like d'une pensée via le bouton réel de l'interface ;
+5. vérification du compteur et de l'état `liked` via l'API Go ;
+6. vérification que l'identité n'est pas renvoyée par `/likes` ni par le profil public.
+
+La fixture crée son auteur, sa publication et sa pensée cible dans la base
+`*_test`. Elle ne dépend donc pas du seed de contenu et ne touche jamais la
+base de développement. La service-role Supabase est utilisée uniquement par le
+runner Node pour confirmer puis supprimer le compte GoTrue de test ; elle n'est
+jamais injectée dans le navigateur ni dans Core.
+
+Pré-requis : Docker, Supabase local, `qoe_test` migrée et les secrets locaux
+dans `apps/api/.env`. Depuis la racine :
+
+```bash
+pnpm test:db:up && pnpm test:db:migrate
+DATABASE_URL='postgresql://qoe:qoe@127.0.0.1:55432/qoe_test?sslmode=disable' \\
+API_DATABASE_URL='postgresql://qoe:qoe@127.0.0.1:55432/qoe_test?sslmode=disable' \\
+pnpm exec playwright test --project=like-privacy e2e/like-privacy.spec.ts
+```
+
+La configuration Playwright charge automatiquement les paramètres Supabase
+locaux et démarre l'API Go/Core sur des ports dédiés. Le workflow CI général
+ne sélectionne pas ce projet tant qu'aucun service GoTrue de test n'est fourni ;
+une campagne CI qui l'active doit fournir un Supabase de test réel et ses clés
+éphémères, jamais les secrets de développement.
+
 ## Couverture TypeScript
 
 Gate unique racine, packages critiques uniquement (sdk, auth,

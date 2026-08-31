@@ -874,6 +874,7 @@ function SelectRow({
         </span>
       </span>
       <select
+        aria-label={label}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="max-w-[170px] rounded-lg border border-border bg-background px-2 py-2 text-xs"

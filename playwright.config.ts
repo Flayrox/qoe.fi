@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'node:path';
+import { loadEnv } from './e2e/lib/env';
+
+const localApiEnv = loadEnv(path.join(process.cwd(), 'apps/api/.env'));
 
 const PORT = Number(process.env.PLAYWRIGHT_PORT) || 3010;
 const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || `http://localhost:${PORT}`;
@@ -7,9 +11,25 @@ const GO_API_URL = `http://localhost:${GO_API_PORT}`;
 
 // DSN sans paramètres réservés à Prisma (?schema=public) : pgx les enverrait
 // comme startup parameters (refusés par Postgres).
-const goDatabaseUrl = (process.env.API_DATABASE_URL ?? process.env.DATABASE_URL ?? '').split(
-  '?'
-)[0];
+const goDatabaseUrl = (
+  process.env.API_DATABASE_URL ??
+  process.env.DATABASE_URL ??
+  localApiEnv.API_DATABASE_URL ??
+  localApiEnv.DATABASE_URL ??
+  ''
+).split('?')[0];
+const supabaseAuthUrl =
+  process.env.SUPABASE_AUTH_URL ??
+  localApiEnv.SUPABASE_AUTH_URL ??
+  process.env.NEXT_PUBLIC_SUPABASE_URL ??
+  localApiEnv.NEXT_PUBLIC_SUPABASE_URL ??
+  '';
+const supabaseJwtSecret =
+  process.env.SUPABASE_JWT_SECRET ??
+  localApiEnv.SUPABASE_JWT_SECRET ??
+  process.env.SUPABASE_SECRET_KEY ??
+  localApiEnv.SUPABASE_SECRET_KEY ??
+  'e2e-router-secret';
 
 export default defineConfig({
   testDir: './e2e',
@@ -39,8 +59,8 @@ export default defineConfig({
       env: {
         API_PORT: String(GO_API_PORT),
         API_DATABASE_URL: goDatabaseUrl,
-        SUPABASE_AUTH_URL: process.env.SUPABASE_AUTH_URL ?? '',
-        SUPABASE_JWT_SECRET: process.env.SUPABASE_JWT_SECRET ?? 'e2e-router-secret',
+        SUPABASE_AUTH_URL: supabaseAuthUrl,
+        SUPABASE_JWT_SECRET: supabaseJwtSecret,
         REDIS_URL: process.env.REDIS_URL ?? '',
       },
     },
@@ -100,15 +120,22 @@ export default defineConfig({
       testMatch: /annotations\.spec\.ts/,
     },
     {
+      // Parcours réel isolé : la spec crée son propre compte GoTrue et ne
+      // dépend pas du cookie mocké de auth.setup.ts.
+      name: 'like-privacy',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /like-privacy\.spec\.ts/,
+    },
+    {
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'playwright/.auth/user.json',
       },
-      // Les specs publics/annotations/journeys/security tournent dans leurs
-      // propres projets ; studio/admin/tenants ont leur propre config (apps).
+      // Les specs publics/annotations/journeys/security/like-privacy tournent
+      // dans leurs propres projets ; studio/admin/tenants ont leur propre config.
       testIgnore:
-        /(public|annotations|core-journeys|security|oauth-consent|studio|admin|tenants)\.spec\.ts/,
+        /(public|annotations|core-journeys|security|oauth-consent|like-privacy|studio|admin|tenants)\.spec\.ts/,
       dependencies: ['setup'],
     },
   ],
