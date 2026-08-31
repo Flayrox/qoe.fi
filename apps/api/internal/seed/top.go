@@ -981,7 +981,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		if rng.next() < 0.25 {
 			bio = biosFor(name, rng)
 		}
-		avatar := avatars.pick(gender, themeForKey(per.key))
+		avatar := avatars.pick(gender, themeForKey(per.key), name)
 
 		u := TopUser{
 			ID: topUUID(i, "user"), Email: email, Name: name, Username: username,

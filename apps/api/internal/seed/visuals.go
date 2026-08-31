@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/base64"
 	"fmt"
+	"hash/fnv"
 	"path/filepath"
 	"strings"
 )
@@ -248,8 +249,9 @@ func (c *avatarCatalog) bucketForGender(gender string) avatarBucket {
 
 // pick sert la prochaine photo : celle du thème du persona si le thème a des
 // photos (foot, gaming…), sinon celle du bucket de genre. On cycle pour éviter
-// que deux comptes consécutifs reçoivent la même image.
-func (c *avatarCatalog) pick(gender, theme string) string {
+// que deux comptes consécutifs reçoivent la même image. seed = identité unique
+// (username/name) : sert de variation pour le repli généré, jamais pour les photos.
+func (c *avatarCatalog) pick(gender, theme, seed string) string {
 	if theme != "" {
 		if pool := c.themes[theme]; len(pool) > 0 {
 			url := pool[c.tpos[theme]%len(pool)]
@@ -270,11 +272,53 @@ func (c *avatarCatalog) pick(gender, theme string) string {
 		}
 	}
 	if len(pool) == 0 {
-		return visualURL(0, "")
+		// Sans catalogue photo embarqué (clone CI, dev sans fetch-avatars.sh) :
+		// monogramme SVG déterministe dérivé de l'identité → diversité garantie
+		// (le placeholder unique rendait tous les avatars identiques et cassait
+		// les tests de diversité ≥ 90 en CI).
+		return generatedAvatar(gender + "|" + theme + "|" + seed)
 	}
 	url := pool[c.pos[b]%len(pool)]
 	c.pos[b]++
 	return url
+}
+
+// avatarPalette — couleurs du repli monogramme (déterministe par identité).
+var avatarPalette = []string{
+	"#EE4B2B", "#2563EB", "#059669", "#D97706", "#7C3AED",
+	"#0D9488", "#DC2626", "#4F46E5", "#DB2777", "#65A30D",
+	"#9333EA", "#0284C7", "#EA580C", "#16A34A", "#E11D48",
+}
+
+// generatedAvatar construit un avatar monogramme SVG (data-URI) à partir d'un
+// seed unique : couleur = hash(seed) % palette, initiales = 1re lettre de chaque
+// mot. Déterministe, léger (~500 o) et stable d'un run à l'autre.
+func generatedAvatar(seed string) string {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(seed))
+	bg := avatarPalette[h.Sum64()%uint64(len(avatarPalette))]
+	svg := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="100%%" height="100%%" fill="%s" rx="48"/><text x="50%%" y="54%%" fill="#ffffff" font-family="Arial,Helvetica,sans-serif" font-weight="bold" font-size="38" text-anchor="middle" dominant-baseline="central">%s</text></svg>`, bg, avatarInitials(seed))
+	return "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString([]byte(svg))
+}
+
+// avatarInitials extrait 1-2 initiales majuscules (gère les runes UTF-8).
+func avatarInitials(seed string) string {
+	parts := strings.Fields(seed)
+	if len(parts) == 0 {
+		return "?"
+	}
+	first := []rune(parts[0])
+	if len(first) == 0 {
+		return "?"
+	}
+	initials := strings.ToUpper(string(first[0]))
+	if len(parts) > 1 {
+		second := []rune(strings.TrimPrefix(parts[1], "("))
+		if len(second) > 0 {
+			initials += strings.ToUpper(string(second[0]))
+		}
+	}
+	return initials
 }
 
 // ---------------------------------------------------------------------------
